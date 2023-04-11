@@ -1,0 +1,15 @@
+{
+    "resources": {
+        "includes": [
+            
+        ]
+    },
+    "bundles": [
+        {
+            "name": "com.sun.javafx.tk.quantum.QuantumMessagesBundle",
+            "locales": [
+                "und"
+            ]
+        }
+    ]
+}
