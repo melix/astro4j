@@ -1,11 +1,8 @@
 {
-    "lambdaCapturingTypes": [
-        
-    ],
-    "types": [
-        
-    ],
-    "proxies": [
-        
-    ]
+  "types":[
+  ],
+  "lambdaCapturingTypes":[
+  ],
+  "proxies":[
+  ]
 }

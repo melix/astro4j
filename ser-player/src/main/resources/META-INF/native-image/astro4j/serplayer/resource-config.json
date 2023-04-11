@@ -1,15 +1,14 @@
 {
-    "resources": {
-        "includes": [
-            
-        ]
-    },
-    "bundles": [
-        {
-            "name": "com.sun.javafx.tk.quantum.QuantumMessagesBundle",
-            "locales": [
-                "und"
-            ]
-        }
-    ]
+  "resources":{
+  "includes":[]},
+  "bundles":[
+    {
+      "name":"com.sun.javafx.tk.quantum.QuantumMessagesBundle",
+      "locales":["und"]
+    }, 
+    {
+      "name":"com.sun.org.apache.xml.internal.serializer.XMLEntities",
+      "locales":["und"]
+    }
+  ]
 }
