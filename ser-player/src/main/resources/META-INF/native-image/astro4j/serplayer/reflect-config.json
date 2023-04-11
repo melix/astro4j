@@ -75,6 +75,10 @@
   "methods":[{"name":"loadShader","parameterTypes":["com.sun.prism.ps.ShaderFactory","java.io.InputStream"] }]
 },
 {
+  "name":"com.sun.prism.shader.Texture_LinearGradient_PAD_Loader",
+  "methods":[{"name":"loadShader","parameterTypes":["com.sun.prism.ps.ShaderFactory","java.io.InputStream"] }]
+},
+{
   "name":"com.sun.scenario.effect.impl.es2.ES2ShaderSource",
   "methods":[{"name":"<init>","parameterTypes":[] }]
 },
@@ -126,6 +130,7 @@
   "queryAllDeclaredMethods":true,
   "methods":[
     {"name":"getId","parameterTypes":[] }, 
+    {"name":"getStyleClass","parameterTypes":[] }, 
     {"name":"setId","parameterTypes":["java.lang.String"] }, 
     {"name":"setStyle","parameterTypes":["java.lang.String"] }
   ]
@@ -136,10 +141,22 @@
 {
   "name":"javafx.scene.Parent",
   "allDeclaredFields":true,
-  "queryAllDeclaredMethods":true
+  "queryAllDeclaredMethods":true,
+  "methods":[{"name":"getStylesheets","parameterTypes":[] }]
 },
 {
   "name":"javafx.scene.Scene"
+},
+{
+  "name":"javafx.scene.control.Button",
+  "queryAllDeclaredMethods":true,
+  "queryAllPublicConstructors":true,
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"javafx.scene.control.ButtonBase",
+  "queryAllDeclaredMethods":true,
+  "methods":[{"name":"setOnAction","parameterTypes":["javafx.event.EventHandler"] }]
 },
 {
   "name":"javafx.scene.control.Control",
@@ -167,6 +184,7 @@
 },
 {
   "name":"javafx.scene.layout.HBox",
+  "allDeclaredFields":true,
   "queryAllDeclaredMethods":true,
   "queryAllPublicConstructors":true,
   "methods":[{"name":"<init>","parameterTypes":[] }]
@@ -235,6 +253,16 @@
   "name":"me.champeau.a4j.serplayer.controls.FrameMetadataControl",
   "allDeclaredFields":true,
   "queryAllDeclaredMethods":true
+},
+{
+  "name":"me.champeau.a4j.serplayer.controls.PlayerControl",
+  "allDeclaredFields":true,
+  "queryAllDeclaredMethods":true,
+  "methods":[
+    {"name":"forward","parameterTypes":[] }, 
+    {"name":"play","parameterTypes":[] }, 
+    {"name":"rewind","parameterTypes":[] }
+  ]
 },
 {
   "name":"org.eclipse.swt.internal.gtk.OS"

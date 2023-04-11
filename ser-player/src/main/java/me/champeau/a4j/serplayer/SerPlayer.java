@@ -40,6 +40,7 @@ import me.champeau.a4j.ser.bayer.BilinearDemosaicingStrategy;
 import me.champeau.a4j.ser.bayer.DemosaicingStrategy;
 import me.champeau.a4j.serplayer.config.Configuration;
 import me.champeau.a4j.serplayer.controls.FrameMetadataControl;
+import me.champeau.a4j.serplayer.controls.PlayerControl;
 
 import java.io.File;
 import java.io.IOException;
@@ -49,10 +50,9 @@ import java.time.Duration;
 import java.time.ZonedDateTime;
 import java.util.Optional;
 
-public class SerPlayer extends Application implements BayerMatrixSupport {
+public class SerPlayer extends Application implements BayerMatrixSupport, PlayerController {
 
     private static final int INITIAL_WIDTH = 800;
-    private static final int INITIAL_MAX_IMAGE_HEIGHT = 400;
     private static final int INITIAL_HEIGHT = 600;
     private static final String DEBAYER_AUTO = "AUTO";
     private static final String DEBAYER_OFF = "OFF";
@@ -70,6 +70,7 @@ public class SerPlayer extends Application implements BayerMatrixSupport {
     private ToggleGroup debayerToggleGroup;
     private VideoAnimationTimer videoAnimationTimer;
     private FrameMetadataControl fileMetadataControl;
+    private PlayerControl playerControl;
     private volatile File currentSelectedFile;
 
     @Override
@@ -78,7 +79,10 @@ public class SerPlayer extends Application implements BayerMatrixSupport {
         fileMetadataControl = new FrameMetadataControl();
         imageView = createImageView(stage);
         pane.setCenter(imageView);
-        pane.setRight(fileMetadataControl);
+        var rightPane = new VBox();
+        playerControl = new PlayerControl(this);
+        rightPane.getChildren().addAll(fileMetadataControl, playerControl);
+        pane.setRight(rightPane);
         var menuBar = createMenuBar();
         var vbox = new VBox();
         var scene = new Scene(vbox, INITIAL_WIDTH, INITIAL_HEIGHT);
@@ -273,6 +277,27 @@ public class SerPlayer extends Application implements BayerMatrixSupport {
         return next;
     }
 
+    @Override
+    public void play() {
+        if (videoAnimationTimer != null) {
+            videoAnimationTimer.pauseOrResume();
+        }
+    }
+
+    @Override
+    public void forward() {
+        if (videoAnimationTimer != null) {
+            videoAnimationTimer.forward();
+        }
+    }
+
+    @Override
+    public void rewind() {
+        if (videoAnimationTimer != null) {
+            videoAnimationTimer.rewind();
+        }
+    }
+
     public static void main(String[] args) {
         launch();
     }
@@ -291,6 +316,8 @@ public class SerPlayer extends Application implements BayerMatrixSupport {
         private double fps;
         private long last = -1L;
         private int currentFrameNb = 0;
+        private boolean paused;
+        private int increment = 1;
 
         private VideoAnimationTimer(SerFileReader reader) {
             this.reader = reader;
@@ -298,6 +325,9 @@ public class SerPlayer extends Application implements BayerMatrixSupport {
 
         @Override
         public void handle(long now) {
+            if (paused) {
+                return;
+            }
             if (last == -1L) {
                 showFrame();
                 last = now;
@@ -309,7 +339,7 @@ public class SerPlayer extends Application implements BayerMatrixSupport {
                 return;
             }
             last = now;
-            currentFrameNb = (currentFrameNb + framesToSkip) % reader.header().frameCount();
+            currentFrameNb = Math.floorMod(currentFrameNb + framesToSkip * increment, reader.header().frameCount());
             showFrame();
         }
 
@@ -373,6 +403,32 @@ public class SerPlayer extends Application implements BayerMatrixSupport {
                 throw new RuntimeException(e);
             } finally {
                 super.stop();
+            }
+        }
+
+        public void forward() {
+            increment = 1;
+            showNextFrameOnly();
+        }
+
+        private void showNextFrameOnly() {
+            if (paused) {
+                currentFrameNb = Math.floorMod(currentFrameNb + increment, reader.header().frameCount());
+                showFrame();
+            }
+        }
+
+        public void rewind() {
+            increment = -1;
+            showNextFrameOnly();
+        }
+
+        public void pauseOrResume() {
+            if (paused) {
+                paused = false;
+                last = -1L;
+            } else {
+                paused = true;
             }
         }
     }
