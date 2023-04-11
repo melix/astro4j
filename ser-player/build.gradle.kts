@@ -9,7 +9,7 @@ dependencies {
 
 javafx {
     version = "17"
-    modules("javafx.controls")
+    modules("javafx.controls", "javafx.fxml")
 }
 
 application {

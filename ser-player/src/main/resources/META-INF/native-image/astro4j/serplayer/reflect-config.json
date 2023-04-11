@@ -16,6 +16,10 @@
   "methods":[{"name":"createInstance","parameterTypes":[] }]
 },
 {
+  "name":"com.sun.javafx.reflect.Trampoline",
+  "methods":[{"name":"invoke","parameterTypes":["java.lang.reflect.Method","java.lang.Object","java.lang.Object[]"] }]
+},
+{
   "name":"com.sun.javafx.scene.control.skin.Utils",
   "methods":[{"name":"getResource","parameterTypes":["java.lang.String"] }]
 },
@@ -87,8 +91,20 @@
   "methods":[{"name":"createRenderer","parameterTypes":["com.sun.scenario.effect.FilterContext"] }]
 },
 {
+  "name":"com.sun.xml.internal.stream.XMLInputFactoryImpl",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
   "name":"java.lang.Character",
   "methods":[{"name":"isIdeographic","parameterTypes":["int"] }]
+},
+{
+  "name":"java.lang.Class",
+  "methods":[{"name":"getModule","parameterTypes":[] }]
+},
+{
+  "name":"java.lang.Module",
+  "methods":[{"name":"getResourceAsStream","parameterTypes":["java.lang.String"] }]
 },
 {
   "name":"java.nio.ByteBuffer",
@@ -99,22 +115,46 @@
   "methods":[{"name":"nativeOrder","parameterTypes":[] }]
 },
 {
+  "name":"javafx.fxml.FXMLLoader"
+},
+{
   "name":"javafx.scene.Camera"
 },
 {
-  "name":"javafx.scene.Node"
+  "name":"javafx.scene.Node",
+  "allDeclaredFields":true,
+  "queryAllDeclaredMethods":true,
+  "methods":[
+    {"name":"getId","parameterTypes":[] }, 
+    {"name":"setId","parameterTypes":["java.lang.String"] }, 
+    {"name":"setStyle","parameterTypes":["java.lang.String"] }
+  ]
 },
 {
   "name":"javafx.scene.ParallelCamera"
 },
 {
-  "name":"javafx.scene.Parent"
+  "name":"javafx.scene.Parent",
+  "allDeclaredFields":true,
+  "queryAllDeclaredMethods":true
 },
 {
   "name":"javafx.scene.Scene"
 },
 {
-  "name":"javafx.scene.control.Control"
+  "name":"javafx.scene.control.Control",
+  "queryAllDeclaredMethods":true
+},
+{
+  "name":"javafx.scene.control.Label",
+  "queryAllDeclaredMethods":true,
+  "queryAllPublicConstructors":true,
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"javafx.scene.control.Labeled",
+  "queryAllDeclaredMethods":true,
+  "methods":[{"name":"setText","parameterTypes":["java.lang.String"] }]
 },
 {
   "name":"javafx.scene.effect.Effect"
@@ -126,10 +166,30 @@
   "name":"javafx.scene.image.ImageView"
 },
 {
-  "name":"javafx.scene.layout.Pane"
+  "name":"javafx.scene.layout.HBox",
+  "queryAllDeclaredMethods":true,
+  "queryAllPublicConstructors":true,
+  "methods":[{"name":"<init>","parameterTypes":[] }]
 },
 {
-  "name":"javafx.scene.layout.Region"
+  "name":"javafx.scene.layout.Pane",
+  "allDeclaredFields":true,
+  "queryAllDeclaredMethods":true,
+  "methods":[{"name":"getChildren","parameterTypes":[] }]
+},
+{
+  "name":"javafx.scene.layout.Region",
+  "allDeclaredFields":true,
+  "queryAllDeclaredMethods":true,
+  "methods":[
+    {"name":"setMinWidth","parameterTypes":["double"] }, 
+    {"name":"setPrefWidth","parameterTypes":["double"] }
+  ]
+},
+{
+  "name":"javafx.scene.layout.VBox",
+  "allDeclaredFields":true,
+  "queryAllDeclaredMethods":true
 },
 {
   "name":"javafx.scene.shape.Line"
@@ -153,6 +213,9 @@
   "name":"javafx.scene.transform.Transform"
 },
 {
+  "name":"javafx.scene.web.WebView"
+},
+{
   "name":"javafx.stage.PopupWindow"
 },
 {
@@ -167,6 +230,11 @@
     {"name":"<init>","parameterTypes":[] }, 
     {"name":"main","parameterTypes":["java.lang.String[]"] }
   ]
+},
+{
+  "name":"me.champeau.a4j.serplayer.controls.FrameMetadataControl",
+  "allDeclaredFields":true,
+  "queryAllDeclaredMethods":true
 },
 {
   "name":"org.eclipse.swt.internal.gtk.OS"

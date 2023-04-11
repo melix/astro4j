@@ -1,6 +1,8 @@
 {
   "resources":{
-  "includes":[]},
+  "includes":[{
+      "pattern":"\\Qme/champeau/a4j/serplayer/controls/file-metadata.fxml\\E"
+    }]},
   "bundles":[
     {
       "name":"com.sun.javafx.tk.quantum.QuantumMessagesBundle",

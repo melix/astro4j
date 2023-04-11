@@ -17,9 +17,7 @@ package me.champeau.a4j.serplayer;
 
 import javafx.animation.AnimationTimer;
 import javafx.application.Application;
-import javafx.geometry.Rectangle2D;
 import javafx.scene.Scene;
-import javafx.scene.control.Label;
 import javafx.scene.control.Menu;
 import javafx.scene.control.MenuBar;
 import javafx.scene.control.MenuItem;
@@ -29,10 +27,8 @@ import javafx.scene.image.ImageView;
 import javafx.scene.image.PixelFormat;
 import javafx.scene.image.WritableImage;
 import javafx.scene.layout.BorderPane;
-import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
 import javafx.stage.FileChooser;
-import javafx.stage.Screen;
 import javafx.stage.Stage;
 import me.champeau.a4j.ser.ColorMode;
 import me.champeau.a4j.ser.Frame;
@@ -43,6 +39,7 @@ import me.champeau.a4j.ser.bayer.BayerMatrixSupport;
 import me.champeau.a4j.ser.bayer.BilinearDemosaicingStrategy;
 import me.champeau.a4j.ser.bayer.DemosaicingStrategy;
 import me.champeau.a4j.serplayer.config.Configuration;
+import me.champeau.a4j.serplayer.controls.FrameMetadataControl;
 
 import java.io.File;
 import java.io.IOException;
@@ -54,9 +51,9 @@ import java.util.Optional;
 
 public class SerPlayer extends Application implements BayerMatrixSupport {
 
-    private static final int INITIAL_WIDTH = 640;
+    private static final int INITIAL_WIDTH = 800;
     private static final int INITIAL_MAX_IMAGE_HEIGHT = 400;
-    private static final int INITIAL_HEIGHT = 480;
+    private static final int INITIAL_HEIGHT = 600;
     private static final String DEBAYER_AUTO = "AUTO";
     private static final String DEBAYER_OFF = "OFF";
     private static final String BAYER_FORCE_PREFIX = "FORCE_";
@@ -69,40 +66,35 @@ public class SerPlayer extends Application implements BayerMatrixSupport {
     private static final double DEFAULT_FPS = 25d;
 
     private final Configuration config = new Configuration();
-    private Scene mainScene;
     private ImageView imageView;
     private ToggleGroup debayerToggleGroup;
-    private Label metadataLabel;
     private VideoAnimationTimer videoAnimationTimer;
+    private FrameMetadataControl fileMetadataControl;
     private volatile File currentSelectedFile;
 
     @Override
     public void start(Stage stage) {
         var pane = new BorderPane();
-        imageView = createImageView();
-        var statusBar = new HBox();
-        metadataLabel = new Label("Please select a SER file to open");
-        statusBar.getChildren().add(metadataLabel);
+        fileMetadataControl = new FrameMetadataControl();
+        imageView = createImageView(stage);
         pane.setCenter(imageView);
-        pane.setBottom(statusBar);
+        pane.setRight(fileMetadataControl);
         var menuBar = createMenuBar();
         var vbox = new VBox();
         var scene = new Scene(vbox, INITIAL_WIDTH, INITIAL_HEIGHT);
-        scene.widthProperty().addListener((observable, oldValue, newValue) -> imageView.setFitWidth(newValue.doubleValue()));
-        scene.heightProperty().addListener((observable, oldValue, newValue) -> imageView.setFitHeight(newValue.doubleValue()));
         vbox.getChildren().addAll(menuBar, pane);
-        mainScene = scene;
         stage.setScene(scene);
         stage.setTitle("SER Player");
         stage.onCloseRequestProperty().set(e -> closeApp());
         stage.show();
     }
 
-    private ImageView createImageView() {
+    private ImageView createImageView(Stage stage) {
         var view = new ImageView();
         view.setPreserveRatio(true);
-        view.setFitWidth(INITIAL_WIDTH);
-        view.setFitHeight(INITIAL_MAX_IMAGE_HEIGHT);
+        view.fitWidthProperty().bind(
+                stage.widthProperty().add(fileMetadataControl.widthProperty().negate())
+        );
         view.setOnScroll(event -> {
             double deltaY = event.getDeltaY();
             if (deltaY != 0) {
@@ -334,12 +326,10 @@ public class SerPlayer extends Application implements BayerMatrixSupport {
             image.getPixelWriter()
                     .setPixels(0, 0, width, height, pixelFormat, imageData, 0, PIXEL * width);
             imageView.setImage(image);
-            StringBuilder label = new StringBuilder();
-            label.append(geometry.colorMode()).append(" Video ");
-            label.append("Frame: ").append(currentFrameNb + 1).append("/").append(reader.header().frameCount());
-            label.append(" at ").append(String.format("%.1f", fps)).append(" fps\n");
-            frame.timestamp().ifPresent(ts -> label.append(" Timestamp: ").append(ts).append(" "));
-            metadataLabel.setText(label.toString());
+            fileMetadataControl.setFilename(currentSelectedFile.getName());
+            fileMetadataControl.setColorMode(header.geometry().colorMode().toString());
+            fileMetadataControl.setFrame((currentFrameNb + 1) + "/" + header.frameCount());
+            fileMetadataControl.setFps(String.format("%.1f fps", fps));
         }
 
         private void prepare() {
@@ -348,9 +338,6 @@ public class SerPlayer extends Application implements BayerMatrixSupport {
             ImageGeometry geometry = header.geometry();
             int width = geometry.width();
             int height = geometry.height();
-            Rectangle2D screenSize = Screen.getPrimary().getBounds();
-            mainScene.getWindow().setWidth(Math.min(screenSize.getWidth(), Math.max(width, INITIAL_WIDTH)));
-            mainScene.getWindow().setHeight(Math.min(screenSize.getHeight(), Math.max(height, INITIAL_HEIGHT)));
             image = new WritableImage(
                     width,
                     height

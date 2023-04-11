@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.layout.HBox?>
+<?import javafx.scene.layout.VBox?>
+<fx:root type="javafx.scene.layout.VBox" xmlns:fx="http://javafx.com/fxml"
+         prefWidth="300.0"
+         minWidth="300.0"
+         style="-fx-padding: 15">
+    <HBox>
+        <Label fx:id="fileNameTitle" text="File name:"/>
+        <Label fx:id="fileNameValue"/>
+    </HBox>
+    <HBox>
+        <Label fx:id="colorModeTitle" text="Color mode: "/>
+        <Label fx:id="colorModeValue"/>
+    </HBox>
+    <HBox>
+        <Label fx:id="frameTitle" text="Frame: "/>
+        <Label fx:id="frameValue"/>
+    </HBox>
+    <HBox>
+        <Label fx:id="fpsTitle" text="FPS: "/>
+        <Label fx:id="fpsValue"/>
+    </HBox>
+    <Label fx:id="timestampValue"/>
+</fx:root>
