@@ -37,7 +37,7 @@ import me.champeau.a4j.ser.ImageGeometry;
 import me.champeau.a4j.ser.SerFileReader;
 import me.champeau.a4j.ser.bayer.BayerMatrixSupport;
 import me.champeau.a4j.ser.bayer.BilinearDemosaicingStrategy;
-import me.champeau.a4j.ser.bayer.DemosaicingStrategy;
+import me.champeau.a4j.ser.bayer.DemosaicingRGBImageConverter;
 import me.champeau.a4j.serplayer.config.Configuration;
 import me.champeau.a4j.serplayer.controls.FrameMetadataControl;
 import me.champeau.a4j.serplayer.controls.PlayerControl;
@@ -221,61 +221,6 @@ public class SerPlayer extends Application implements BayerMatrixSupport, Player
 
     }
 
-    private static byte[] createBuffer(ImageGeometry geometry) {
-        int size = geometry.height() * geometry.width();
-        return new byte[3 * size];
-    }
-
-    private void convertToRgb(ByteBuffer frameData, ImageGeometry geometry, byte[] outputData) {
-        int width = geometry.width();
-        int height = geometry.height();
-        int bytesPerPixel = geometry.getBytesPerPixel();
-        int k = 0;
-        for (int y = 0; y < height; y++) {
-            for (int x = 0; x < width; x++) {
-                byte value = readByteColorValue(frameData, geometry, bytesPerPixel);
-                if (geometry.colorMode() == ColorMode.MONO || geometry.colorMode().isBayer()) {
-                    outputData[k + RED] = value;
-                    outputData[k + GREEN] = value;
-                    outputData[k + BLUE] = value;
-                } else if (geometry.colorMode() == ColorMode.BGR) {
-                    byte g = readByteColorValue(frameData, geometry, bytesPerPixel);
-                    byte r = readByteColorValue(frameData, geometry, bytesPerPixel);
-                    outputData[k + RED] = r;
-                    outputData[k + GREEN] = g;
-                    outputData[k + BLUE] = value;
-                } else if (geometry.colorMode() == ColorMode.RGB) {
-                    byte g = readByteColorValue(frameData, geometry, bytesPerPixel);
-                    byte b = readByteColorValue(frameData, geometry, bytesPerPixel);
-                    outputData[k + RED] = value;
-                    outputData[k + GREEN] = g;
-                    outputData[k + BLUE] = b;
-                }
-                k += 3;
-            }
-        }
-        String debayerMode = debayerToggleGroup.getSelectedToggle().getUserData().toString();
-        boolean forceDebayer = debayerMode.startsWith(BAYER_FORCE_PREFIX);
-        if (forceDebayer || geometry.colorMode().isBayer() && debayerMode.equals(DEBAYER_AUTO)) {
-            ColorMode mode = forceDebayer ? ColorMode.valueOf(BAYER_PREFIX + debayerMode.substring(BAYER_FORCE_PREFIX.length())) : geometry.colorMode();
-            DemosaicingStrategy strategy = new BilinearDemosaicingStrategy(outputData, mode, geometry);
-            strategy.demosaic();
-        }
-    }
-
-    private static byte readByteColorValue(ByteBuffer frameData, ImageGeometry geometry, int bytesPerPixel) {
-        byte next;
-        int bitsToDiscard = geometry.pixelDepthPerPlane() - 8;
-        if (bytesPerPixel == 1) {
-            // Data of between 1 and 8 bits should be stored aligned with the most significant bit
-            next = (byte) (frameData.get() >> bitsToDiscard);
-        } else {
-            // Data between 9 and 16 bits should be stored aligned with the least significant bit
-            short sixteenBit = frameData.getShort();
-            next = (byte) sixteenBit;
-        }
-        return next;
-    }
 
     @Override
     public void play() {
@@ -343,6 +288,15 @@ public class SerPlayer extends Application implements BayerMatrixSupport, Player
             showFrame();
         }
 
+        private ColorMode findColorMode(ImageGeometry geometry) {
+            String debayerMode = debayerToggleGroup.getSelectedToggle().getUserData().toString();
+            boolean forceDebayer = debayerMode.startsWith(BAYER_FORCE_PREFIX);
+            if (forceDebayer || geometry.colorMode().isBayer() && debayerMode.equals(DEBAYER_AUTO)) {
+                return forceDebayer ? ColorMode.valueOf(BAYER_PREFIX + debayerMode.substring(BAYER_FORCE_PREFIX.length())) : geometry.colorMode();
+            }
+            return geometry.colorMode();
+        }
+
         private void showFrame() {
             reader.seekFrame(currentFrameNb);
             Header header = reader.header();
@@ -350,7 +304,14 @@ public class SerPlayer extends Application implements BayerMatrixSupport, Player
             int width = geometry.width();
             int height = geometry.height();
             Frame frame = reader.currentFrame();
-            convertToRgb(frame.data(), geometry, imageData);
+            var imageConverter = new DemosaicingRGBImageConverter(
+                    new BilinearDemosaicingStrategy(),
+                    findColorMode(geometry)
+            );
+            if (imageData == null) {
+                imageData = imageConverter.createBuffer(geometry);
+            }
+            imageConverter.convert(frame.data(), geometry, imageData);
             PixelFormat<ByteBuffer> pixelFormat = PixelFormat.getByteRgbInstance();
             reader.nextFrame();
             image.getPixelWriter()
@@ -372,7 +333,6 @@ public class SerPlayer extends Application implements BayerMatrixSupport, Player
                     width,
                     height
             );
-            imageData = createBuffer(geometry);
         }
 
         private Optional<Double> computeFps(Header header) {

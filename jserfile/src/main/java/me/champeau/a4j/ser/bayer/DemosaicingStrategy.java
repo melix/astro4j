@@ -24,25 +24,10 @@ import me.champeau.a4j.ser.ImageGeometry;
  */
 public interface DemosaicingStrategy {
     /**
-     * @return the RGB byte array
-     */
-    byte[] getRgb();
-
-    /**
-     * @return the color mode of the image to debayer
-     */
-    ColorMode getColorMode();
-
-    /**
-     * @return the image geometry
-     */
-    ImageGeometry getGeometry();
-
-    /**
      * Performs demosaicing. For performance, it is expected that the
      * original byte[] is mutated, so if a particular algorithm cannot
      * work directly on the original array, it must create an internal
      * copy first, then mutate the original array before returning.
      */
-    void demosaic();
+    void demosaic(byte[] outputData, ColorMode mode, ImageGeometry geometry);
 }

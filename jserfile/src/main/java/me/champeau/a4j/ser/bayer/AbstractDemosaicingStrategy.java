@@ -23,15 +23,13 @@ import me.champeau.a4j.ser.ImageGeometry;
  */
 public abstract class AbstractDemosaicingStrategy implements DemosaicingStrategy, BayerMatrixSupport {
 
-    protected final byte[] rgb;
-    protected final ColorMode colorMode;
-    protected final ImageGeometry geometry;
-    protected final int width;
-    protected final int height;
-    protected final int lineFeed;
+    protected ColorMode colorMode;
+    protected ImageGeometry geometry;
+    protected int width;
+    protected int height;
+    protected int lineFeed;
 
-    protected AbstractDemosaicingStrategy(byte[] rgb, ColorMode colorMode, ImageGeometry geometry) {
-        this.rgb = rgb;
+    protected void setup(ColorMode colorMode, ImageGeometry geometry) {
         this.colorMode = colorMode;
         this.geometry = geometry;
         this.width = geometry.width();
@@ -49,21 +47,6 @@ public abstract class AbstractDemosaicingStrategy implements DemosaicingStrategy
 
     protected static byte avg(byte a, byte b, byte c, byte d) {
         return (byte) ((unsigned(a) + unsigned(b) + unsigned(c) + unsigned(d)) >> 2);
-    }
-
-    @Override
-    public byte[] getRgb() {
-        return rgb;
-    }
-
-    @Override
-    public ColorMode getColorMode() {
-        return colorMode;
-    }
-
-    @Override
-    public ImageGeometry getGeometry() {
-        return geometry;
     }
 
     protected int indexOf(int x, int y) {
