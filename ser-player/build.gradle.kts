@@ -1,6 +1,7 @@
 plugins {
     id("me.champeau.astro4j.jfxapp")
     id("org.graalvm.buildtools.native") version "0.9.20"
+    id("org.beryx.jlink") version "2.25.0"
 }
 
 dependencies {
@@ -13,6 +14,7 @@ javafx {
 }
 
 application {
+    mainModule.set("me.champeau.a4j.serplayer")
     mainClass.set("me.champeau.a4j.serplayer.SerPlayer")
 }
 
@@ -24,5 +26,11 @@ graalvmNative {
                 restrictToProjectDependencies.set(false)
             }
         }
+    }
+}
+
+jlink {
+    launcher {
+        name = "ser-player"
     }
 }
