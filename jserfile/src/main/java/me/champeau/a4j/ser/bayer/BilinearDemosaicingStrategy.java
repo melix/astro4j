@@ -25,7 +25,7 @@ import me.champeau.a4j.ser.ImageGeometry;
 public class BilinearDemosaicingStrategy extends AbstractDemosaicingStrategy {
 
     @Override
-    public void demosaic(byte[] rgb, ColorMode mode, ImageGeometry geometry) {
+    public void demosaic(byte[] image, ColorMode mode, ImageGeometry geometry) {
         setup(mode, geometry);
         for (int y = 1; y < height - 1; y++) {
             for (int x = 1; x < width - 1; x++) {
@@ -38,71 +38,71 @@ public class BilinearDemosaicingStrategy extends AbstractDemosaicingStrategy {
                 int row = y % 2;
                 switch (kind) {
                     case RED -> {
-                        rgb[k + GREEN] = avg(
-                                rgb[indexOf(x, north)],
-                                rgb[indexOf(west, y)],
-                                rgb[indexOf(east, y)],
-                                rgb[indexOf(x, south)]
+                        image[k + GREEN] = avg(
+                                image[indexOf(x, north)],
+                                image[indexOf(west, y)],
+                                image[indexOf(east, y)],
+                                image[indexOf(x, south)]
                         );
-                        rgb[k + BLUE] = avg(
-                                rgb[indexOf(west, north)],
-                                rgb[indexOf(east, north)],
-                                rgb[indexOf(west, south)],
-                                rgb[indexOf(east, south)]
+                        image[k + BLUE] = avg(
+                                image[indexOf(west, north)],
+                                image[indexOf(east, north)],
+                                image[indexOf(west, south)],
+                                image[indexOf(east, south)]
                         );
                     }
                     case GREEN -> {
                         switch (colorMode) {
                             case BAYER_RGGB -> {
                                 if (row == 0) {
-                                    rgb[k + RED] = avg(rgb[indexOf(west, y)], rgb[indexOf(east, y)]);
-                                    rgb[k + BLUE] = avg(rgb[indexOf(x, north)], rgb[indexOf(x, south)]);
+                                    image[k + RED] = avg(image[indexOf(west, y)], image[indexOf(east, y)]);
+                                    image[k + BLUE] = avg(image[indexOf(x, north)], image[indexOf(x, south)]);
                                 } else {
-                                    rgb[k + RED] = avg(rgb[indexOf(x, north)], rgb[indexOf(x, south)]);
-                                    rgb[k + BLUE] = avg(rgb[indexOf(west, y)], rgb[indexOf(east, y)]);
+                                    image[k + RED] = avg(image[indexOf(x, north)], image[indexOf(x, south)]);
+                                    image[k + BLUE] = avg(image[indexOf(west, y)], image[indexOf(east, y)]);
                                 }
                             }
                             case BAYER_BGGR -> {
                                 if (row == 0) {
-                                    rgb[k + RED] = avg(rgb[indexOf(x, north)], rgb[indexOf(x, south)]);
-                                    rgb[k + BLUE] = avg(rgb[indexOf(west, y)], rgb[indexOf(east, y)]);
+                                    image[k + RED] = avg(image[indexOf(x, north)], image[indexOf(x, south)]);
+                                    image[k + BLUE] = avg(image[indexOf(west, y)], image[indexOf(east, y)]);
                                 } else {
-                                    rgb[k + RED] = avg(rgb[indexOf(west, y)], rgb[indexOf(east, y)]);
-                                    rgb[k + BLUE] = avg(rgb[indexOf(x, north)], rgb[indexOf(x, south)]);
+                                    image[k + RED] = avg(image[indexOf(west, y)], image[indexOf(east, y)]);
+                                    image[k + BLUE] = avg(image[indexOf(x, north)], image[indexOf(x, south)]);
                                 }
                             }
                             case BAYER_GBRG -> {
                                 if (row == 0) {
-                                    rgb[k + RED] = avg(rgb[indexOf(x, north)], rgb[indexOf(x, south)]);
-                                    rgb[k + BLUE] = avg(rgb[indexOf(west, y)], rgb[indexOf(east, y)]);
+                                    image[k + RED] = avg(image[indexOf(x, north)], image[indexOf(x, south)]);
+                                    image[k + BLUE] = avg(image[indexOf(west, y)], image[indexOf(east, y)]);
                                 } else {
-                                    rgb[k + RED] = avg(rgb[indexOf(west, y)], rgb[indexOf(east, y)]);
-                                    rgb[k + BLUE] = avg(rgb[indexOf(x, north)], rgb[indexOf(x, south)]);
+                                    image[k + RED] = avg(image[indexOf(west, y)], image[indexOf(east, y)]);
+                                    image[k + BLUE] = avg(image[indexOf(x, north)], image[indexOf(x, south)]);
                                 }
                             }
                             case BAYER_GRBG -> {
                                 if (row == 0) {
-                                    rgb[k + RED] = avg(rgb[indexOf(west, y)], rgb[indexOf(east, y)]);
-                                    rgb[k + BLUE] = avg(rgb[indexOf(x, north)], rgb[indexOf(x, south)]);
+                                    image[k + RED] = avg(image[indexOf(west, y)], image[indexOf(east, y)]);
+                                    image[k + BLUE] = avg(image[indexOf(x, north)], image[indexOf(x, south)]);
                                 } else {
-                                    rgb[k + RED] = avg(rgb[indexOf(x, north)], rgb[indexOf(x, south)]);
-                                    rgb[k + BLUE] = avg(rgb[indexOf(west, y)], rgb[indexOf(east, y)]);
+                                    image[k + RED] = avg(image[indexOf(x, north)], image[indexOf(x, south)]);
+                                    image[k + BLUE] = avg(image[indexOf(west, y)], image[indexOf(east, y)]);
                                 }
                             }
                         }
                     }
                     case BLUE -> {
-                        rgb[k + GREEN] = avg(
-                                rgb[indexOf(x, north)],
-                                rgb[indexOf(west, y)],
-                                rgb[indexOf(east, y)],
-                                rgb[indexOf(x, south)]
+                        image[k + GREEN] = avg(
+                                image[indexOf(x, north)],
+                                image[indexOf(west, y)],
+                                image[indexOf(east, y)],
+                                image[indexOf(x, south)]
                         );
-                        rgb[k + RED] = avg(
-                                rgb[indexOf(west, north)],
-                                rgb[indexOf(east, north)],
-                                rgb[indexOf(west, south)],
-                                rgb[indexOf(east, south)]
+                        image[k + RED] = avg(
+                                image[indexOf(west, north)],
+                                image[indexOf(east, north)],
+                                image[indexOf(west, south)],
+                                image[indexOf(east, south)]
                         );
                     }
                 }

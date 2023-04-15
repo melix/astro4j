@@ -15,3 +15,14 @@ javafx {
 application {
     mainClass.set("me.champeau.a4j.serplayer.SerPlayer")
 }
+
+graalvmNative {
+    binaries.all {
+        resources {
+            autodetection {
+                enabled.set(true)
+                restrictToProjectDependencies.set(false)
+            }
+        }
+    }
+}

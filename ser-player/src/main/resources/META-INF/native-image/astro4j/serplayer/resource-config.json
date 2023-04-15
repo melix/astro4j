@@ -6,6 +6,9 @@
     }, 
     {
       "pattern":"\\Qme/champeau/a4j/serplayer/controls/player.fxml\\E"
+    },
+    {
+      "pattern":"\\Qme/champeau/a4j/serplayer/controls/player.css\\E"
     }
   ]},
   "bundles":[

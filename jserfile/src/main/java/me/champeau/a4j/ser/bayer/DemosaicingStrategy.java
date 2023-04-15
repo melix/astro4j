@@ -28,6 +28,12 @@ public interface DemosaicingStrategy {
      * original byte[] is mutated, so if a particular algorithm cannot
      * work directly on the original array, it must create an internal
      * copy first, then mutate the original array before returning.
+     *
+     * @param image the raw image data
+     * @param mode the color mode to use for demosaicing. The mode can
+     * differ from the one found in the image geometry (e.g forcing debayering
+     * in case the metadata in the file is wrong)
+     * @param geometry the image geometry
      */
-    void demosaic(byte[] outputData, ColorMode mode, ImageGeometry geometry);
+    void demosaic(byte[] image, ColorMode mode, ImageGeometry geometry);
 }
