@@ -33,6 +33,7 @@ import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.nio.file.Files;
+import java.time.Duration;
 
 import static me.champeau.a4j.ser.bayer.BayerMatrixSupport.GREEN;
 
@@ -54,6 +55,7 @@ public class SolexVideoProcessor {
     }
 
     public void process() {
+        var startTime = System.nanoTime();
         var converter = createImageConverter();
         var statsComputer = new DefaultImageStatsComputer();
         var detector = new SimpleSunEdgeDetector(statsComputer, converter);
@@ -61,13 +63,20 @@ public class SolexVideoProcessor {
             Files.createDirectories(outputDirectory.toPath());
             Files.createDirectories(correctedFilesDirectory.toPath());
             Files.createDirectories(rawImageDirectory.toPath());
+            LOGGER.info("SER file contains {} frames", reader.header().frameCount());
+            LOGGER.info("Width: {}, height: {}", reader.header().geometry().width(), reader.header().geometry().height());
             LOGGER.info("Detecting sun edges... ");
             detector.detectEdges(reader);
-            detector.ifEdgesDetected((start, end) ->
-                    generateImages(converter, reader, start, end)
+            detector.ifEdgesDetected((start, end) -> {
+                        LOGGER.info("Sun edges detected at frames {} and {}", start, end);
+                        generateImages(converter, reader, start, end);
+                    }
             );
         } catch (Exception e) {
             throw new RuntimeException(e);
+        } finally {
+            var duration = Duration.ofNanos(System.nanoTime() - startTime).toSeconds();
+            LOGGER.info("Processing done in {} s", duration);
         }
     }
 
@@ -95,6 +104,7 @@ public class SolexVideoProcessor {
         var outputBuffer = new double[width * newHeight];
         double ratio = (double) width / newHeight;
         LOGGER.info("SX/SY = {}", ratio);
+        LOGGER.info("Starting reconstruction...");
         try (var executor = ParallelExecutor.newExecutor()) {
             for (int i = start, j = 0; i < end; i++, j += width) {
                 var analyzer = new SpectrumFrameAnalyzer(width, height, 0.85d, 50d);
@@ -109,6 +119,7 @@ public class SolexVideoProcessor {
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
+        LOGGER.info("Reconstruction done. Generating images...");
         int outputsize = newHeight * width;
         double[] copy = new double[outputsize];
         System.arraycopy(outputBuffer, 0, copy, 0, outputsize);
@@ -127,7 +138,6 @@ public class SolexVideoProcessor {
         stretchingStrategy.stretch(copy);
         ImageUtils.writeMonoImage(width, newHeight, copy, new File(rawImageDirectory, "stretched.png"));
         System.arraycopy(outputBuffer, 0, copy, 0, outputsize);
-
     }
 
     private void processSingleFrame(int width,
@@ -167,8 +177,8 @@ public class SolexVideoProcessor {
                                              SpectrumFrameAnalyzer analyzer,
                                              int frameId,
                                              DoubleTriplet p) {
-        if (LOGGER.isInfoEnabled()) {
-            LOGGER.info("Distortion polynomial of frame {} : [{}, {}, {}]", frameId, p.a(), p.b(), p.c());
+        if (LOGGER.isDebugEnabled()) {
+            LOGGER.debug("Distortion polynomial of frame {} : [{}, {}, {}]", frameId, p.a(), p.b(), p.c());
         }
         var distorsionCorrection = new DistortionCorrection(original, width, height);
         double[] corrected = distorsionCorrection.secondOrderPolynomialCorrection(p);

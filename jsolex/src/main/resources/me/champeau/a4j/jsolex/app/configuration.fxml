@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.layout.HBox?>
+<?import javafx.scene.layout.VBox?>
+<?import javafx.scene.control.TextField?>
+<?import javafx.scene.control.Button?>
+
+<fx:root type="javafx.scene.layout.VBox"
+         fx:controller="me.champeau.a4j.jsolex.app.ConfigurationController"
+         xmlns:fx="http://javafx.com/fxml">
+    <HBox>
+        <Label text="Output directory"/>
+        <TextField fx:id="outputDirectory" />
+        <Button text="Browse" onAction="#browse"/>
+    </HBox>
+    <HBox>
+        <Label text=""/>
+        <TextField fx:id="outputFileName" />
+    </HBox>
+</fx:root>
