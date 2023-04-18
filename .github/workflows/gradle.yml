@@ -31,11 +31,16 @@ jobs:
 
       - name: Build native binary
         run: ./gradlew nativeCompile
+
       - uses: actions/upload-artifact@v3
-        name: Upload artifacts
         with:
-          name: Pre-built binaries
-          path: |
-            **/build/distributions/*.zip
-            **/build/distributions/*.tar
-            **/build/native/nativeCompile
+          name: Distribution Zips
+          path: "**/build/distributions/*.zip"
+      - uses: actions/upload-artifact@v3
+        with:
+          name: Distribution Tarballs
+          path: "**/build/distributions/*.tar.gz"
+      - uses: actions/upload-artifact@v3
+        with:
+          name: Native ${{ matrix.os }} binary
+          path: "**/build/native/nativeCompile"
