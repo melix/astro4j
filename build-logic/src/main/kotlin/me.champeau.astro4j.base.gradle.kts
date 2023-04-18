@@ -16,6 +16,7 @@ repositories {
 
 dependencies {
     testImplementation("org.spockframework:spock-core:2.3-groovy-4.0")
+    testImplementation("org.apache.groovy:groovy:4.0.9")
 }
 
 tasks.named<Test>("test") {
@@ -25,4 +26,8 @@ tasks.named<Test>("test") {
 tasks.rat {
     excludes.add("**/*.gradle.kts")
     excludes.add("build/**")
+    excludes.add("**/*.css")
+    excludes.add("**/*.fxml")
 }
+
+group = "me.champeau.astro4j"

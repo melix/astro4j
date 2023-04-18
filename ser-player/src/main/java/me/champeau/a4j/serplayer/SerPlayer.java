@@ -1,5 +1,5 @@
 /*
- * Copyright 2023 the original author or authors.
+ * Copyright 2023-2023 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -311,7 +311,7 @@ public class SerPlayer extends Application implements BayerMatrixSupport, Player
             if (imageData == null) {
                 imageData = imageConverter.createBuffer(geometry);
             }
-            imageConverter.convert(frame.data(), geometry, imageData);
+            imageConverter.convert(currentFrameNb, frame.data(), geometry, imageData);
             PixelFormat<ByteBuffer> pixelFormat = PixelFormat.getByteRgbInstance();
             reader.nextFrame();
             image.getPixelWriter()

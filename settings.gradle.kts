@@ -8,3 +8,5 @@ enableFeaturePreview("TYPESAFE_PROJECT_ACCESSORS")
 
 include("jserfile")
 include("ser-player")
+include("math")
+include("jsolex")
