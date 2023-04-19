@@ -1,5 +1,5 @@
 /*
- * Copyright 2003-2021 the original author or authors.
+ * Copyright 2023-2023 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -25,7 +25,7 @@ import java.nio.ByteBuffer;
  * frame into RGB images (or any other relevant
  * format for image processing)
  */
-public interface ImageConverter {
+public interface ImageConverter<ARRAY> {
 
     /**
      * Creates a byte[] which can be used to write
@@ -35,13 +35,15 @@ public interface ImageConverter {
      * @return a buffer, to be passed to the {@link #convert}
      * method.
      */
-    byte[] createBuffer(ImageGeometry geometry);
+    ARRAY createBuffer(ImageGeometry geometry);
 
     /**
      * Converts a single frame.
+     *
+     * @param frameId the frame id
      * @param frameData the raw frame image data
      * @param geometry the image geometry
      * @param outputData the output buffer
      */
-    void convert(ByteBuffer frameData, ImageGeometry geometry, byte[] outputData);
+    void convert(int frameId, ByteBuffer frameData, ImageGeometry geometry, ARRAY outputData);
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright 2023 the original author or authors.
+ * Copyright 2023-2023 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,10 +18,17 @@ package me.champeau.a4j.ser
 
 import spock.lang.Specification
 import spock.lang.Subject
+import spock.lang.TempDir
+
+import java.nio.file.Files
+import java.nio.file.StandardCopyOption
 
 class SerFileReaderTest extends Specification {
     @Subject
     private SerFileReader serFile
+
+    @TempDir
+    File tempDir
 
     def cleanup() {
         if (serFile != null) {
@@ -44,9 +51,11 @@ class SerFileReaderTest extends Specification {
     }
 
     private void readSerFile(String name) {
-        def testResource = SerFileReaderTest.getResource("/${name}.ser").toURI()
-        def file = new File(testResource)
-        serFile = SerFileReader.of(file)
+        SerFileReaderTest.getResourceAsStream("/${name}.ser").withCloseable { stream ->
+            def file = new File(tempDir, "${name}.ser")
+            Files.copy(stream, file.toPath(), StandardCopyOption.REPLACE_EXISTING)
+            serFile = SerFileReader.of(file)
+        }
     }
 
 }

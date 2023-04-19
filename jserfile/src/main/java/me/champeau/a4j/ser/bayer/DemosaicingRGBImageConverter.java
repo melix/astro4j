@@ -1,5 +1,5 @@
 /*
- * Copyright 2003-2021 the original author or authors.
+ * Copyright 2023-2023 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -24,7 +24,7 @@ import java.nio.ByteBuffer;
  * An RGB image converter which adds demosaicing of the resulting
  * image.
  */
-public class DemosaicingRGBImageConverter implements ImageConverter {
+public class DemosaicingRGBImageConverter implements ImageConverter<byte[]> {
     private final DemosaicingStrategy strategy;
     private final RGBImageConverter delegate;
     private final ColorMode forcedMode;
@@ -41,9 +41,11 @@ public class DemosaicingRGBImageConverter implements ImageConverter {
     }
 
     @Override
-    public void convert(ByteBuffer frameData, ImageGeometry geometry, byte[] outputData) {
-        delegate.convert(frameData, geometry, outputData);
+    public void convert(int frameId, ByteBuffer frameData, ImageGeometry geometry, byte[] outputData) {
+        delegate.convert(frameId, frameData, geometry, outputData);
         ColorMode mode = forcedMode == null ? geometry.colorMode() : forcedMode;
-        strategy.demosaic(outputData, mode, geometry);
+        if (mode.isBayer()) {
+            strategy.demosaic(outputData, mode, geometry);
+        }
     }
 }

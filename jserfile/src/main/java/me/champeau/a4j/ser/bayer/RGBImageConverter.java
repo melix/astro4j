@@ -1,5 +1,5 @@
 /*
- * Copyright 2003-2021 the original author or authors.
+ * Copyright 2023-2023 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -25,7 +25,7 @@ import java.nio.ByteBuffer;
  * a byte[] for which each pixel is represented by an
  * (R,G,B) tuple of 3 consecutive bytes.
  */
-public class RGBImageConverter implements ImageConverter, BayerMatrixSupport {
+public class RGBImageConverter implements ImageConverter<byte[]>, BayerMatrixSupport {
 
     @Override
     public byte[] createBuffer(ImageGeometry geometry) {
@@ -34,7 +34,7 @@ public class RGBImageConverter implements ImageConverter, BayerMatrixSupport {
     }
 
     @Override
-    public void convert(ByteBuffer frameData, ImageGeometry geometry, byte[] outputData) {
+    public void convert(int frameId, ByteBuffer frameData, ImageGeometry geometry, byte[] outputData) {
         int width = geometry.width();
         int height = geometry.height();
         int bytesPerPixel = geometry.getBytesPerPixel();
