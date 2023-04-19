@@ -15,6 +15,16 @@
  */
 package me.champeau.a4j.jsolex.processing.sun;
 
+import javafx.scene.control.Alert;
+import me.champeau.a4j.jsolex.processing.event.GeneratedImage;
+import me.champeau.a4j.jsolex.processing.event.ImageGeneratedEvent;
+import me.champeau.a4j.jsolex.processing.event.ImageLine;
+import me.champeau.a4j.jsolex.processing.event.Notification;
+import me.champeau.a4j.jsolex.processing.event.NotificationEvent;
+import me.champeau.a4j.jsolex.processing.event.OutputImageDimensionsDeterminedEvent;
+import me.champeau.a4j.jsolex.processing.event.PartialReconstructionEvent;
+import me.champeau.a4j.jsolex.processing.event.ProcessingEvent;
+import me.champeau.a4j.jsolex.processing.event.ProcessingEventListener;
 import me.champeau.a4j.jsolex.processing.stats.DefaultImageStatsComputer;
 import me.champeau.a4j.jsolex.processing.stretching.ArcsinhStretchingStrategy;
 import me.champeau.a4j.jsolex.processing.stretching.CompositeStretchingStrategy;
@@ -22,18 +32,24 @@ import me.champeau.a4j.jsolex.processing.stretching.CutoffStretchingStrategy;
 import me.champeau.a4j.jsolex.processing.stretching.LinearStrechingStrategy;
 import me.champeau.a4j.jsolex.processing.util.ParallelExecutor;
 import me.champeau.a4j.math.DoubleTriplet;
+import me.champeau.a4j.math.IntPair;
 import me.champeau.a4j.ser.SerFileReader;
 import me.champeau.a4j.ser.bayer.BilinearDemosaicingStrategy;
-import me.champeau.a4j.ser.bayer.CachingImageConverter;
 import me.champeau.a4j.ser.bayer.ChannelExtractingConverter;
 import me.champeau.a4j.ser.bayer.DemosaicingRGBImageConverter;
 import me.champeau.a4j.ser.bayer.DoublePrecisionImageConverter;
+import me.champeau.a4j.ser.bayer.ImageConverter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.ByteArrayOutputStream;
 import java.io.File;
+import java.io.PrintWriter;
 import java.nio.file.Files;
 import java.time.Duration;
+import java.util.HashSet;
+import java.util.Set;
+import java.util.function.Consumer;
 
 import static me.champeau.a4j.ser.bayer.BayerMatrixSupport.GREEN;
 
@@ -41,6 +57,8 @@ public class SolexVideoProcessor {
     private static final Logger LOGGER = LoggerFactory.getLogger(SolexVideoProcessor.class);
     private static final String CORRECTED_DIRECTORY = "corrected";
     private static final String RAW_DIRECTORY = "raw";
+
+    private final Set<ProcessingEventListener> progressEventListeners = new HashSet<>();
 
     private final File serFile;
     private final File outputDirectory;
@@ -52,6 +70,14 @@ public class SolexVideoProcessor {
         this.outputDirectory = outputDirectory;
         this.correctedFilesDirectory = new File(outputDirectory, CORRECTED_DIRECTORY);
         this.rawImageDirectory = new File(outputDirectory, RAW_DIRECTORY);
+    }
+
+    public void addEventListener(ProcessingEventListener listener) {
+        progressEventListeners.add(listener);
+    }
+
+    public void removeEventListener(ProcessingEventListener listener) {
+        progressEventListeners.remove(listener);
     }
 
     public void process() {
@@ -73,15 +99,20 @@ public class SolexVideoProcessor {
                     }
             );
         } catch (Exception e) {
+            LOGGER.error("Error while processing", e);
+            ByteArrayOutputStream out = new ByteArrayOutputStream();
+            e.printStackTrace(new PrintWriter(out));
+            broadcast(new NotificationEvent(new Notification(Alert.AlertType.ERROR, "Unexpected error", "An error occurred during processing", out.toString())));
             throw new RuntimeException(e);
         } finally {
             var duration = Duration.ofNanos(System.nanoTime() - startTime).toSeconds();
             LOGGER.info("Processing done in {} s", duration);
+            broadcast(new NotificationEvent(new Notification(Alert.AlertType.INFORMATION, "Congratulations!", "Processing finished in " + duration + " s", "")));
         }
     }
 
-    private static CachingImageConverter<double[]> createImageConverter() {
-        return new CachingImageConverter<>(new DoublePrecisionImageConverter(
+    private static ImageConverter<double[]> createImageConverter() {
+        return new DoublePrecisionImageConverter(
                 new ChannelExtractingConverter(
                         new DemosaicingRGBImageConverter(
                                 new BilinearDemosaicingStrategy(),
@@ -89,10 +120,10 @@ public class SolexVideoProcessor {
                         ),
                         GREEN
                 )
-        ));
+        );
     }
 
-    private void generateImages(CachingImageConverter<double[]> converter,
+    private void generateImages(ImageConverter<double[]> converter,
                                 SerFileReader reader,
                                 int start,
                                 int end) {
@@ -103,6 +134,7 @@ public class SolexVideoProcessor {
         int newHeight = end - start;
         var outputBuffer = new double[width * newHeight];
         double ratio = (double) width / newHeight;
+        broadcast(new OutputImageDimensionsDeterminedEvent(new IntPair(width, newHeight)));
         LOGGER.info("SX/SY = {}", ratio);
         LOGGER.info("Starting reconstruction...");
         try (var executor = ParallelExecutor.newExecutor()) {
@@ -120,24 +152,30 @@ public class SolexVideoProcessor {
             throw new RuntimeException(e);
         }
         LOGGER.info("Reconstruction done. Generating images...");
-        int outputsize = newHeight * width;
-        double[] copy = new double[outputsize];
-        System.arraycopy(outputBuffer, 0, copy, 0, outputsize);
-        var stretchingStrategy = CompositeStretchingStrategy.of(
-                new CutoffStretchingStrategy(1d, 255d),
-                new LinearStrechingStrategy(240d)
-        );
-        stretchingStrategy.stretch(copy);
-        ImageUtils.writeMonoImage(width, newHeight, copy, new File(rawImageDirectory, "linear.png"));
-        System.arraycopy(outputBuffer, 0, copy, 0, outputsize);
-        stretchingStrategy = CompositeStretchingStrategy.of(
-                new CutoffStretchingStrategy(1d, 255d),
-                new ArcsinhStretchingStrategy(1d, 0.1d),
-                new LinearStrechingStrategy(240d)
-        );
-        stretchingStrategy.stretch(copy);
-        ImageUtils.writeMonoImage(width, newHeight, copy, new File(rawImageDirectory, "stretched.png"));
-        System.arraycopy(outputBuffer, 0, copy, 0, outputsize);
+        emitImage("Raw (Linear)", "linear", width, newHeight, outputBuffer, copy -> {
+            var stretchingStrategy = CompositeStretchingStrategy.of(
+                    new CutoffStretchingStrategy(1d, 255d),
+                    new LinearStrechingStrategy(240d)
+            );
+            stretchingStrategy.stretch(copy);
+        });
+        emitImage("Raw (Stretched)", "streched", width, newHeight, outputBuffer, copy -> {
+            var stretchingStrategy = CompositeStretchingStrategy.of(
+                    new CutoffStretchingStrategy(1d, 255d),
+                    new ArcsinhStretchingStrategy(1d, 0.1d),
+                    new LinearStrechingStrategy(240d)
+            );
+            stretchingStrategy.stretch(copy);
+        });
+    }
+
+    private void emitImage(String title, String name, int width, int height, double[] original, Consumer<? super double[]> modifier) {
+        double[] copy = new double[original.length];
+        System.arraycopy(original, 0, copy, 0, original.length);
+        modifier.accept(copy);
+        File outputFile = new File(rawImageDirectory, name + ".png");
+        ImageUtils.writeMonoImage(width, height, copy, outputFile);
+        broadcast(new ImageGeneratedEvent(new GeneratedImage(title, outputFile.toPath())));
     }
 
     private void processSingleFrame(int width,
@@ -163,12 +201,15 @@ public class SolexVideoProcessor {
                 bottom = bottom + (line.bottom() - bottom) / spectrumLinesCount;
             }
         }
+        double[] line = new double[width];
         for (int x = 0; x < width; x++) {
             // To reconstruct the image, we take the middle of the spectrum line
             int middle = (int) (top + bottom) / 2;
             double value = buffer[x + width * middle];
             outputBuffer[offset + x] = value;
+            line[x] = value;
         }
+        broadcast(new PartialReconstructionEvent(new ImageLine(offset / width, line)));
     }
 
     private void performDistortionCorrection(int width,
@@ -249,4 +290,14 @@ public class SolexVideoProcessor {
         ImageUtils.writeRgbImage(width, 2 * height, rr, gg, bb, new File(correctedFilesDirectory, fileName));
     }
 
+    private void broadcast(ProcessingEvent<?> event) {
+        for (ProcessingEventListener listener : progressEventListeners) {
+            switch (event) {
+                case OutputImageDimensionsDeterminedEvent e -> listener.onOutputImageDimensionsDetermined(e);
+                case PartialReconstructionEvent e -> listener.onPartialReconstruction(e);
+                case ImageGeneratedEvent e -> listener.onImageGenerated(e);
+                case NotificationEvent e -> listener.onNotification(e);
+            }
+        }
+    }
 }

@@ -13,13 +13,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package me.champeau.a4j.jsolex.app;
+package me.champeau.a4j.jsolex.processing.event;
 
-import javafx.fxml.FXML;
+import javafx.scene.control.Alert;
 
-public class ConfigurationController {
-    @FXML
-    void browse() {
-
-    }
+public record Notification(
+        Alert.AlertType type,
+        String title,
+        String header,
+        String message
+) {
 }

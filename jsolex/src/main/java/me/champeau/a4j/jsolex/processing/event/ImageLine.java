@@ -13,13 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package me.champeau.a4j.jsolex.app;
+package me.champeau.a4j.jsolex.processing.event;
 
-import javafx.fxml.FXML;
-
-public class ConfigurationController {
-    @FXML
-    void browse() {
-
-    }
+public record ImageLine(int line, double[] data) {
 }

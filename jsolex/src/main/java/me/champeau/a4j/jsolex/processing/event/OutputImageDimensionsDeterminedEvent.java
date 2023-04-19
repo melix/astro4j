@@ -13,13 +13,20 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package me.champeau.a4j.jsolex.app;
+package me.champeau.a4j.jsolex.processing.event;
 
-import javafx.fxml.FXML;
+import me.champeau.a4j.math.IntPair;
 
-public class ConfigurationController {
-    @FXML
-    void browse() {
+public final class OutputImageDimensionsDeterminedEvent extends ProcessingEvent<IntPair> {
+    public OutputImageDimensionsDeterminedEvent(IntPair dimensions) {
+        super(dimensions);
+    }
 
+    public int getWidth() {
+        return getPayload().a();
+    }
+
+    public int getHeight() {
+        return getPayload().b();
     }
 }

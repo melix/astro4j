@@ -13,13 +13,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package me.champeau.a4j.jsolex.app;
+package me.champeau.a4j.jsolex.processing.event;
 
-import javafx.fxml.FXML;
+public final class ImageGeneratedEvent extends ProcessingEvent<GeneratedImage> {
 
-public class ConfigurationController {
-    @FXML
-    void browse() {
-
+    public ImageGeneratedEvent(GeneratedImage image) {
+        super(image);
     }
 }

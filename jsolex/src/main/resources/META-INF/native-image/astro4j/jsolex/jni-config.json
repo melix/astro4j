@@ -248,10 +248,7 @@
 },
 {
   "name":"java.lang.String",
-  "methods":[
-    {"name":"<init>","parameterTypes":["byte[]"] }, 
-    {"name":"toLowerCase","parameterTypes":["java.util.Locale"] }
-  ]
+  "methods":[{"name":"toLowerCase","parameterTypes":["java.util.Locale"] }]
 },
 {
   "name":"java.lang.System",

@@ -1,5 +1,5 @@
 /*
- * Copyright 2023-2034 the original author or authors.
+ * Copyright 2023-2023 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,13 +13,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package me.champeau.a4j.jsolex.app;
+package me.champeau.a4j.math;
 
-import javafx.fxml.FXML;
-
-public class ConfigurationController {
-    @FXML
-    void browse() {
-
-    }
+/**
+ * An integer pair.
+ * @param a the first component
+ * @param b the 2d component
+ */
+public record IntPair(
+        int a,
+        int b
+) {
 }

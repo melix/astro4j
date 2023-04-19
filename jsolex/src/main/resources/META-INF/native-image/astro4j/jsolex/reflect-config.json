@@ -51,6 +51,10 @@
   "methods":[{"name":"<init>","parameterTypes":[] }]
 },
 {
+  "name":"com.sun.prism.shader.DrawRoundRect_Color_Loader",
+  "methods":[{"name":"loadShader","parameterTypes":["com.sun.prism.ps.ShaderFactory","java.io.InputStream"] }]
+},
+{
   "name":"com.sun.prism.shader.FillPgram_Color_Loader",
   "methods":[{"name":"loadShader","parameterTypes":["com.sun.prism.ps.ShaderFactory","java.io.InputStream"] }]
 },
@@ -85,6 +89,10 @@
 {
   "name":"com.sun.scenario.effect.impl.prism.PrRenderer",
   "methods":[{"name":"createRenderer","parameterTypes":["com.sun.scenario.effect.FilterContext"] }]
+},
+{
+  "name":"com.sun.scenario.effect.impl.prism.ps.PPSColorAdjustPeer",
+  "methods":[{"name":"<init>","parameterTypes":["com.sun.scenario.effect.FilterContext","com.sun.scenario.effect.impl.Renderer","java.lang.String"] }]
 },
 {
   "name":"com.sun.scenario.effect.impl.prism.ps.PPSLinearConvolveShadowPeer",
@@ -142,6 +150,9 @@
 },
 {
   "name":"java.util.PropertyPermission"
+},
+{
+  "name":"javafx.animation.KeyValue"
 },
 {
   "name":"javafx.application.Application",
@@ -224,6 +235,12 @@
   ]
 },
 {
+  "name":"javafx.scene.control.TabPane",
+  "queryAllDeclaredMethods":true,
+  "queryAllPublicConstructors":true,
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
   "name":"javafx.scene.control.TextArea",
   "queryAllDeclaredMethods":true,
   "queryAllPublicConstructors":true,
@@ -241,6 +258,9 @@
   "name":"javafx.scene.image.Image"
 },
 {
+  "name":"javafx.scene.image.ImageView"
+},
+{
   "name":"javafx.scene.layout.BorderPane",
   "queryAllDeclaredMethods":true,
   "queryAllPublicConstructors":true,
@@ -252,9 +272,7 @@
 },
 {
   "name":"javafx.scene.layout.Pane",
-  "queryAllDeclaredMethods":true,
-  "queryAllPublicConstructors":true,
-  "methods":[{"name":"<init>","parameterTypes":[] }]
+  "queryAllDeclaredMethods":true
 },
 {
   "name":"javafx.scene.layout.Region",
@@ -327,6 +345,7 @@
   "methods":[
     {"name":"<init>","parameterTypes":[] }, 
     {"name":"exit","parameterTypes":[] }, 
+    {"name":"main","parameterTypes":["java.lang.String[]"] }, 
     {"name":"open","parameterTypes":[] }
   ]
 },
