@@ -64,11 +64,8 @@ public class JSolEx extends Application {
     @FXML
     private TabPane mainPane;
 
-    private Stage primaryStage;
-
     @Override
     public void start(Stage stage) throws Exception {
-        this.primaryStage = stage;
         var fxmlLoader = new FXMLLoader(getClass().getResource("app.fxml"));
         fxmlLoader.setController(this);
 

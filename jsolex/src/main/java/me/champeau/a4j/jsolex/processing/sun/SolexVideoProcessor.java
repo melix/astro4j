@@ -196,55 +196,39 @@ public class SolexVideoProcessor {
                                     int frameId,
                                     float[] buffer) {
         analyzer.analyze(buffer);
-        analyzer.findDistortionPolynomial().ifPresent(p ->
-                performDistortionCorrection(width, height, buffer, analyzer, frameId, p)
+        analyzer.findDistortionPolynomial().ifPresent(p -> {
+                    processCorrectedImage(width, height, buffer, analyzer, frameId, p);
+                    double[] line = new double[width];
+                    int lastY = 0;
+                    for (int x = 0; x < width; x++) {
+                        // To reconstruct the image, we use the polynom to find which pixel to use
+                        int y = (int) (p.a() * x * x + p.b() * x + p.c());
+                        if (y < 0 && y >= height) {
+                            y = lastY;
+                        }
+                        float value = buffer[x + width * y];
+                        outputBuffer[offset + x] = value;
+                        line[x] = value;
+                        lastY = y;
+                    }
+                    broadcast(new PartialReconstructionEvent(new ImageLine(offset / width, line)));
+                }
         );
-        // At this stage, all images should have been corrected, with the spectral line
-        // we're analyzing in the middle of the image and perfectly horizontal
-        double top = 0;
-        double bottom = 0;
-        int spectrumLinesCount = 0;
-        for (SpectrumLine line : analyzer.spectrumLinesArray()) {
-            if (line != null) {
-                spectrumLinesCount++;
-                top = top + (line.top() - top) / spectrumLinesCount;
-                bottom = bottom + (line.bottom() - bottom) / spectrumLinesCount;
-            }
-        }
-        double[] line = new double[width];
-        for (int x = 0; x < width; x++) {
-            // To reconstruct the image, we take the middle of the spectrum line
-            int middle = (int) (top + bottom) / 2;
-            float value = buffer[x + width * middle];
-            outputBuffer[offset + x] = value;
-            line[x] = value;
-        }
-        broadcast(new PartialReconstructionEvent(new ImageLine(offset / width, line)));
-    }
-
-    private void performDistortionCorrection(int width,
-                                             int height,
-                                             float[] original,
-                                             SpectrumFrameAnalyzer analyzer,
-                                             int frameId,
-                                             DoubleTriplet p) {
-        if (LOGGER.isDebugEnabled()) {
-            LOGGER.debug("Distortion polynomial of frame {} : [{}, {}, {}]", frameId, p.a(), p.b(), p.c());
-        }
-        var distorsionCorrection = new DistortionCorrection(original, width, height);
-        float[] corrected = distorsionCorrection.secondOrderPolynomialCorrection(p);
-        processCorrectedImage(width, height, original, analyzer, frameId, p, corrected);
     }
 
     private void processCorrectedImage(int width,
                                        int height,
-                                       float[] buffer,
+                                       float[] original,
                                        SpectrumFrameAnalyzer analyzer,
                                        int frameId,
-                                       DoubleTriplet p,
-                                       float[] corrected) {
+                                       DoubleTriplet p) {
+        if (LOGGER.isDebugEnabled()) {
+            LOGGER.debug("Distortion polynomial of frame {} : [{}, {}, {}]", frameId, p.a(), p.b(), p.c());
+        }
         int size = width * height;
         if (generateDebugImages) {
+            var distorsionCorrection = new DistortionCorrection(original, width, height);
+            float[] corrected = distorsionCorrection.secondOrderPolynomialCorrection(p);
             // We create RGB images for debugging, which contain the original image at top
             // and the corrected one at the bottom
             int spacing = 10 * width;
@@ -252,10 +236,9 @@ public class SolexVideoProcessor {
             float[] rr = new float[2 * size + spacing];
             float[] gg = new float[2 * size + spacing];
             float[] bb = new float[2 * size + spacing];
-            System.arraycopy(buffer, 0, rr, 0, size);
-            System.arraycopy(buffer, 0, gg, 0, size);
-            System.arraycopy(buffer, 0, bb, 0, size);
-            System.arraycopy(corrected, 0, buffer, 0, size);
+            System.arraycopy(original, 0, rr, 0, size);
+            System.arraycopy(original, 0, gg, 0, size);
+            System.arraycopy(original, 0, bb, 0, size);
             System.arraycopy(corrected, 0, rr, offset, size);
             System.arraycopy(corrected, 0, gg, offset, size);
             System.arraycopy(corrected, 0, bb, offset, size);
@@ -308,9 +291,6 @@ public class SolexVideoProcessor {
             }
             String fileName = String.format("%06d-corrected.png", frameId);
             ImageUtils.writeRgbImage(width, 2 * height + 10, rr, gg, bb, new File(correctedFilesDirectory, fileName));
-        } else {
-            System.arraycopy(corrected, 0, buffer, 0, size);
-            analyzer.analyze(corrected);
         }
     }
 

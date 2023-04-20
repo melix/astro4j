@@ -33,7 +33,7 @@ public class Configuration {
     private static final String SPECTRUM_DETECTION_THRESHOLD = "spectrum.detecton.threshold";
 
     public static final boolean DEFAULT_GENERATE_DEBUG_IMAGES = false;
-    public static final double DEFAULT_SPECTRUM_DETECTION_THRESHOLD = 0.85d;
+    public static final double DEFAULT_SPECTRUM_DETECTION_THRESHOLD = 0.70d;
 
     private final Preferences prefs;
     private final List<Path> recentFiles;
