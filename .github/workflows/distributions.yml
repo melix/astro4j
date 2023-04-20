@@ -47,4 +47,4 @@ jobs:
       - uses: actions/upload-artifact@v3
         with:
           name: JSol'Ex ${{ matrix.os }} installer
-          path: "ser-player/build/jpackage"
+          path: "jsolex/build/jpackage"
