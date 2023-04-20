@@ -1,4 +1,4 @@
-name: Tests
+name: Distributions and installers
 
 on:
   pull_request:
@@ -27,8 +27,16 @@ jobs:
         uses: gradle/gradle-build-action@v2
 
       - name: Execute Gradle build
-        run: ./gradlew build distZip
+        run: ./gradlew jpackage
+
+      - name: Build native binary
+        run: ./gradlew nativeCompile
+
       - uses: actions/upload-artifact@v3
         with:
-          name: Distribution Zips
-          path: "**/build/distributions/*.zip"
+          name: Native ${{ matrix.os }} binary (experimental)
+          path: "**/build/native/nativeCompile"
+      - uses: actions/upload-artifact@v3
+        with:
+          name: ${{ matrix.os }} installer
+          path: "**/build/jpackage"

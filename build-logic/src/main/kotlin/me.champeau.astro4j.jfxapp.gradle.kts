@@ -1,4 +1,8 @@
 import org.javamodularity.moduleplugin.extensions.TestModuleOptions
+import java.time.LocalDate
+import java.time.LocalDateTime
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
 
 plugins {
     id("me.champeau.astro4j.base")
@@ -7,6 +11,13 @@ plugins {
     id("org.graalvm.buildtools.native")
     id("org.beryx.jlink")
     id("me.champeau.astro4j.modularity")
+}
+
+val date = LocalDateTime.now()
+    .atZone(ZoneId.of("UTC"))
+    .format(DateTimeFormatter.ofPattern("yyyyMMddHHmm"))
+if (System.getProperty("os.name").startsWith("Windows")) {
+    version = version.toString().substring(0, version.toString().lastIndexOf(".")) + "0"
 }
 
 // We can safely enable preview features because it's
@@ -55,6 +66,7 @@ jlink {
         jvmArgs.add("--enable-preview")
     }
     jpackage {
+        vendor = "Cédric Champeau"
         if (System.getProperty("os.name").startsWith("Windows")) {
             installerType = "msi"
             installerOptions.addAll(listOf("--win-per-user-install", "--win-dir-chooser", "--win-menu"))
