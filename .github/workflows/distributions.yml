@@ -34,9 +34,18 @@ jobs:
 
       - uses: actions/upload-artifact@v3
         with:
-          name: Native ${{ matrix.os }} binary (experimental)
-          path: "**/build/native/nativeCompile"
+          name: SER Player Native ${{ matrix.os }} binary (experimental)
+          path: "ser-player/build/native/nativeCompile"
       - uses: actions/upload-artifact@v3
         with:
-          name: ${{ matrix.os }} installer
-          path: "**/build/jpackage"
+          name: JSol'Ex Native ${{ matrix.os }} binary (experimental)
+          path: "jsolex/build/native/nativeCompile"
+
+      - uses: actions/upload-artifact@v3
+        with:
+          name: SER Player ${{ matrix.os }} installer
+          path: "ser-player/build/jpackage"
+      - uses: actions/upload-artifact@v3
+        with:
+          name: JSol'Ex ${{ matrix.os }} installer
+          path: "ser-player/build/jpackage"
