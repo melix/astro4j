@@ -16,5 +16,5 @@
 package me.champeau.a4j.jsolex.processing.stats;
 
 public interface ImageStatsComputer {
-    ChannelStats[] computeStats(double[] imageData, int width, int height);
+    ChannelStats[] computeStats(float[] imageData, int width, int height);
 }

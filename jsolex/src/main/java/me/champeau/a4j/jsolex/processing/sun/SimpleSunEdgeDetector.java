@@ -28,13 +28,13 @@ import java.util.function.BiConsumer;
 
 public class SimpleSunEdgeDetector implements SunEdgeDetector {
     private final ImageStatsComputer statsComputer;
-    private final ImageConverter<double[]> imageConverter;
+    private final ImageConverter<float[]> imageConverter;
 
     private Integer startEdge;
     private Integer endEdge;
     private ChannelStats[] stats;
 
-    public SimpleSunEdgeDetector(ImageStatsComputer statsComputer, ImageConverter<double[]> imageConverter) {
+    public SimpleSunEdgeDetector(ImageStatsComputer statsComputer, ImageConverter<float[]> imageConverter) {
         this.statsComputer = statsComputer;
         this.imageConverter = imageConverter;
     }

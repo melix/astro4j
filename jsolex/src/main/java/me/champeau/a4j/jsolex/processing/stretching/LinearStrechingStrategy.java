@@ -15,22 +15,48 @@
  */
 package me.champeau.a4j.jsolex.processing.stretching;
 
-import java.util.Arrays;
+import java.util.Optional;
 
 public class LinearStrechingStrategy implements StretchingStrategy {
-    private final double whitePoint;
+    private final float whitePoint;
 
-    public LinearStrechingStrategy(double whitePoint) {
+    public LinearStrechingStrategy(float whitePoint) {
         this.whitePoint = whitePoint;
     }
 
     @Override
-    public void stretch(double[] data) {
-        double min = Arrays.stream(data).min().orElse(0);
-        double max = Arrays.stream(data).max().orElse(0);
+    public void stretch(float[] data) {
+        double min = min(data).orElse(0d);
+        double max = max(data).orElse(0d);
         double range = max - min;
         for (int i = 0; i < data.length; i++) {
-            data[i] = whitePoint * (data[i] - min) / range;
+            data[i] = (float) (whitePoint * (data[i] - min) / range);
         }
+    }
+
+    private static Optional<Double> min(float[] array) {
+        if (array.length == 0) {
+            return Optional.empty();
+        }
+        double min = Double.MAX_VALUE;
+        for (float v : array) {
+            if (v < min) {
+                min = v;
+            }
+        }
+        return Optional.of(min);
+    }
+
+    private static Optional<Double> max(float[] array) {
+        if (array.length == 0) {
+            return Optional.empty();
+        }
+        double max = Double.MIN_VALUE;
+        for (float v : array) {
+            if (v > max) {
+                max = v;
+            }
+        }
+        return Optional.of(max);
     }
 }

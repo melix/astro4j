@@ -24,7 +24,7 @@ public class ImageUtils {
     public static void writeMonoImage(
             int width,
             int height,
-            double[] data,
+            float[] data,
             File outputFile
     ) {
         var image = new BufferedImage(width, height, BufferedImage.TYPE_BYTE_GRAY);
@@ -44,9 +44,9 @@ public class ImageUtils {
     public static void writeRgbImage(
             int width,
             int height,
-            double[] r,
-            double[] g,
-            double[] b,
+            float[] r,
+            float[] g,
+            float[] b,
             File outputFile
     ) {
         var image = new BufferedImage(width, height, BufferedImage.TYPE_INT_RGB);

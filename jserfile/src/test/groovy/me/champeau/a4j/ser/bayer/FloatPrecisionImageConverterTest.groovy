@@ -21,11 +21,11 @@ import spock.lang.Subject
 
 import java.nio.ByteBuffer
 
-class NormalizingDoublePrecisionImageConverterTest extends Specification {
+class FloatPrecisionImageConverterTest extends Specification {
     private static final double EPSILON = 0.000001d;
 
     @Subject
-    private DoublePrecisionImageConverter converter = new DoublePrecisionImageConverter(
+    private FloatPrecisionImageConverter converter = new FloatPrecisionImageConverter(
             new DummyConverter()
     )
 

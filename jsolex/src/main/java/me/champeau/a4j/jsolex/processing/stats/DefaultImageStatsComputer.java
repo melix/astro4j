@@ -17,7 +17,7 @@ package me.champeau.a4j.jsolex.processing.stats;
 
 public class DefaultImageStatsComputer implements ImageStatsComputer {
     @Override
-    public ChannelStats[] computeStats(double[] imageData, int width, int height) {
+    public ChannelStats[] computeStats(float[] imageData, int width, int height) {
         int channelSize = width * height;
         int nbOfChannels = imageData.length / channelSize;
         ChannelStats[] channelStats = new ChannelStats[nbOfChannels];

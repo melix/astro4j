@@ -22,26 +22,26 @@ import java.nio.ByteBuffer;
 /**
  * Each pixel in the image is represented by one byte per
  * channel (e.g in an RGB image, 3 bytes, or in a mono image, 1 byte).
- * This class is responsible for converting each byte into a double
+ * This class is responsible for converting each byte into a float
  * value ranging from 0 to 255.
  * The output buffer will use 8 times more memory but will be more
  * interesting for high precision computations.
  */
-public class DoublePrecisionImageConverter implements ImageConverter<double[]> {
+public class FloatPrecisionImageConverter implements ImageConverter<float[]> {
     private final ImageConverter<byte[]> delegate;
 
-    public DoublePrecisionImageConverter(ImageConverter<byte[]> delegate) {
+    public FloatPrecisionImageConverter(ImageConverter<byte[]> delegate) {
         this.delegate = delegate;
     }
 
     @Override
-    public double[] createBuffer(ImageGeometry geometry) {
-        return new double[delegate.createBuffer(geometry).length];
+    public float[] createBuffer(ImageGeometry geometry) {
+        return new float[delegate.createBuffer(geometry).length];
     }
 
 
     @Override
-    public void convert(int frameId, ByteBuffer frameData, ImageGeometry geometry, double[] outputData) {
+    public void convert(int frameId, ByteBuffer frameData, ImageGeometry geometry, float[] outputData) {
         var intermediateBuffer = delegate.createBuffer(geometry);
         delegate.convert(frameId, frameData, geometry, intermediateBuffer);
         for (int i = 0; i < intermediateBuffer.length; i++) {

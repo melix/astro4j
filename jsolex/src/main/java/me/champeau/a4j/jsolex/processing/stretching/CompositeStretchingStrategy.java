@@ -29,7 +29,7 @@ public class CompositeStretchingStrategy implements StretchingStrategy {
     }
 
     @Override
-    public void stretch(double[] data) {
+    public void stretch(float[] data) {
         for (StretchingStrategy strategy : strategies) {
             strategy.stretch(data);
         }

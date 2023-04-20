@@ -16,5 +16,5 @@
 package me.champeau.a4j.jsolex.processing.stretching;
 
 public interface StretchingStrategy {
-    void stretch(double[] data);
+    void stretch(float[] data);
 }

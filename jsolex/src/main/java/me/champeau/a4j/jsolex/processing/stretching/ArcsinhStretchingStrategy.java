@@ -25,18 +25,18 @@ public class ArcsinhStretchingStrategy implements StretchingStrategy {
     private final double blackPoint;
     private final double stretch;
 
-    public ArcsinhStretchingStrategy(double blackPoint, double stretch) {
+    public ArcsinhStretchingStrategy(float blackPoint, float stretch) {
         this.blackPoint = blackPoint;
         this.stretch = stretch;
     }
 
     @Override
-    public void stretch(double[] data) {
+    public void stretch(float[] data) {
         for (int i = 0; i < data.length; i++) {
             double original = data[i];
             if (original > 0) {
                 double stretched = ((original - blackPoint) * asinh(original * stretch)) / (original * asinh(stretch));
-                data[i] = stretched;
+                data[i] = (float) stretched;
             }
         }
     }

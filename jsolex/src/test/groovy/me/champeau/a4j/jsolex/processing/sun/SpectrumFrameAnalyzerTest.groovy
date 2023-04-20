@@ -29,7 +29,7 @@ class SpectrumFrameAnalyzerTest extends Specification {
     def "analyzes spectrum frame"() {
         given:
         def image = ImageIO.read(getClass().getResourceAsStream("/spectrum.tif"))
-        double[] data = new double[image.width * image.height]
+        float[] data = new float[image.width * image.height]
         for (int x = 0; x < image.width; x++) {
             for (int y = 0; y < image.height; y++) {
                 data[x + y * image.width] = image.getRGB(x, y) & 0xFF
@@ -48,11 +48,11 @@ class SpectrumFrameAnalyzerTest extends Specification {
 
         and:
         def spectrumLines = analyzer.spectrumLines()
-//        spectrumLines.size() > 3
-//        spectrumLines[0].x() == 210
-//        spectrumLines[0].middle() == 39
-//        spectrumLines[-1].x() == 1704
-//        spectrumLines[-1].middle() == 29
+        spectrumLines.size() > 3
+        spectrumLines[0].x() == 210
+        spectrumLines[0].middle() == 39
+        spectrumLines[-1].x() == 1702
+        spectrumLines[-1].middle() == 30
 
         and:
         def polynomial = analyzer.findDistortionPolynomial()

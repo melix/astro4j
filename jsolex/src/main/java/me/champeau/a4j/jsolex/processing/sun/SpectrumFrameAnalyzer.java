@@ -49,7 +49,7 @@ public class SpectrumFrameAnalyzer {
         this.sunDetectionThreshold = sunDetectionThreshold;
     }
 
-    public void analyze(double[] data) {
+    public void analyze(float[] data) {
         reset();
         for (int x = 0; x < width; x++) {
             double lineAvg = 0;
@@ -98,7 +98,7 @@ public class SpectrumFrameAnalyzer {
         min = Double.MAX_VALUE;
     }
 
-    private Optional<SpectrumLine> findSpectrumLine(double[] data, int x) {
+    private Optional<SpectrumLine> findSpectrumLine(float[] data, int x) {
         // let's detect the spectrum line
         Integer top = null;
         int bottom = 0;

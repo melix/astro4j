@@ -37,7 +37,7 @@ import me.champeau.a4j.ser.SerFileReader;
 import me.champeau.a4j.ser.bayer.BilinearDemosaicingStrategy;
 import me.champeau.a4j.ser.bayer.ChannelExtractingConverter;
 import me.champeau.a4j.ser.bayer.DemosaicingRGBImageConverter;
-import me.champeau.a4j.ser.bayer.DoublePrecisionImageConverter;
+import me.champeau.a4j.ser.bayer.FloatPrecisionImageConverter;
 import me.champeau.a4j.ser.bayer.ImageConverter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -118,8 +118,8 @@ public class SolexVideoProcessor {
         }
     }
 
-    private static ImageConverter<double[]> createImageConverter() {
-        return new DoublePrecisionImageConverter(
+    private static ImageConverter<float[]> createImageConverter() {
+        return new FloatPrecisionImageConverter(
                 new ChannelExtractingConverter(
                         new DemosaicingRGBImageConverter(
                                 new BilinearDemosaicingStrategy(),
@@ -130,7 +130,7 @@ public class SolexVideoProcessor {
         );
     }
 
-    private void generateImages(ImageConverter<double[]> converter,
+    private void generateImages(ImageConverter<float[]> converter,
                                 SerFileReader reader,
                                 int start,
                                 int end) {
@@ -139,7 +139,7 @@ public class SolexVideoProcessor {
         int height = geometry.height();
         reader.seekFrame(start);
         int newHeight = end - start;
-        var outputBuffer = new double[width * newHeight];
+        var outputBuffer = new float[width * newHeight];
         double ratio = (double) width / newHeight;
         broadcast(new OutputImageDimensionsDeterminedEvent(new IntPair(width, newHeight)));
         LOGGER.info("SX/SY = {}", ratio);
@@ -163,23 +163,23 @@ public class SolexVideoProcessor {
         LOGGER.info("Reconstruction done. Generating images...");
         emitImage("Raw (Linear)", "linear", width, newHeight, outputBuffer, copy -> {
             var stretchingStrategy = CompositeStretchingStrategy.of(
-                    new CutoffStretchingStrategy(1d, 255d),
-                    new LinearStrechingStrategy(240d)
+                    new CutoffStretchingStrategy(1f, 255f),
+                    new LinearStrechingStrategy(240f)
             );
             stretchingStrategy.stretch(copy);
         });
         emitImage("Raw (Stretched)", "streched", width, newHeight, outputBuffer, copy -> {
             var stretchingStrategy = CompositeStretchingStrategy.of(
-                    new CutoffStretchingStrategy(1d, 255d),
-                    new ArcsinhStretchingStrategy(1d, 0.1d),
-                    new LinearStrechingStrategy(240d)
+                    new CutoffStretchingStrategy(1f, 255f),
+                    new ArcsinhStretchingStrategy(1f, 0.1f),
+                    new LinearStrechingStrategy(240f)
             );
             stretchingStrategy.stretch(copy);
         });
     }
 
-    private void emitImage(String title, String name, int width, int height, double[] original, Consumer<? super double[]> modifier) {
-        double[] copy = new double[original.length];
+    private void emitImage(String title, String name, int width, int height, float[] original, Consumer<? super float[]> modifier) {
+        float[] copy = new float[original.length];
         System.arraycopy(original, 0, copy, 0, original.length);
         modifier.accept(copy);
         File outputFile = new File(rawImageDirectory, name + ".png");
@@ -189,11 +189,11 @@ public class SolexVideoProcessor {
 
     private void processSingleFrame(int width,
                                     int height,
-                                    double[] outputBuffer,
+                                    float[] outputBuffer,
                                     SpectrumFrameAnalyzer analyzer,
                                     int offset,
                                     int frameId,
-                                    double[] buffer) {
+                                    float[] buffer) {
         analyzer.analyze(buffer);
         analyzer.findDistortionPolynomial().ifPresent(p ->
                 performDistortionCorrection(width, height, buffer, analyzer, frameId, p)
@@ -214,7 +214,7 @@ public class SolexVideoProcessor {
         for (int x = 0; x < width; x++) {
             // To reconstruct the image, we take the middle of the spectrum line
             int middle = (int) (top + bottom) / 2;
-            double value = buffer[x + width * middle];
+            float value = buffer[x + width * middle];
             outputBuffer[offset + x] = value;
             line[x] = value;
         }
@@ -223,7 +223,7 @@ public class SolexVideoProcessor {
 
     private void performDistortionCorrection(int width,
                                              int height,
-                                             double[] original,
+                                             float[] original,
                                              SpectrumFrameAnalyzer analyzer,
                                              int frameId,
                                              DoubleTriplet p) {
@@ -231,26 +231,26 @@ public class SolexVideoProcessor {
             LOGGER.debug("Distortion polynomial of frame {} : [{}, {}, {}]", frameId, p.a(), p.b(), p.c());
         }
         var distorsionCorrection = new DistortionCorrection(original, width, height);
-        double[] corrected = distorsionCorrection.secondOrderPolynomialCorrection(p);
+        float[] corrected = distorsionCorrection.secondOrderPolynomialCorrection(p);
         processCorrectedImage(width, height, original, analyzer, frameId, p, corrected);
     }
 
     private void processCorrectedImage(int width,
                                        int height,
-                                       double[] buffer,
+                                       float[] buffer,
                                        SpectrumFrameAnalyzer analyzer,
                                        int frameId,
                                        DoubleTriplet p,
-                                       double[] corrected) {
+                                       float[] corrected) {
         int size = width * height;
         if (generateDebugImages) {
             // We create RGB images for debugging, which contain the original image at top
             // and the corrected one at the bottom
             int spacing = 10 * width;
             int offset = size + spacing;
-            double[] rr = new double[2 * size + spacing];
-            double[] gg = new double[2 * size + spacing];
-            double[] bb = new double[2 * size + spacing];
+            float[] rr = new float[2 * size + spacing];
+            float[] gg = new float[2 * size + spacing];
+            float[] bb = new float[2 * size + spacing];
             System.arraycopy(buffer, 0, rr, 0, size);
             System.arraycopy(buffer, 0, gg, 0, size);
             System.arraycopy(buffer, 0, bb, 0, size);

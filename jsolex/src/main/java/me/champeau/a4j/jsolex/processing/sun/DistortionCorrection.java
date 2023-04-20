@@ -18,11 +18,11 @@ package me.champeau.a4j.jsolex.processing.sun;
 import me.champeau.a4j.math.DoubleTriplet;
 
 public class DistortionCorrection {
-    private final double[] data;
+    private final float[] data;
     private final int width;
     private final int height;
 
-    public DistortionCorrection(double[] data, int width, int height) {
+    public DistortionCorrection(float[] data, int width, int height) {
         this.data = data;
         this.width = width;
         this.height = height;
@@ -40,15 +40,15 @@ public class DistortionCorrection {
      * @param p the coefficients of the polynomial
      * @return the corrected image
      */
-    public double[] secondOrderPolynomialCorrection(DoubleTriplet p) {
-        double[] correctedImage = new double[data.length];
+    public float[] secondOrderPolynomialCorrection(DoubleTriplet p) {
+        float[] correctedImage = new float[data.length];
         double middle = height / 2.0;
         for (int y = 0; y < height; y++) {
             for (int x = 0; x < width; x++) {
                 // The amount of pixels that we need to shift the spectrum line vertically
                 double yCorrection = -p.a() * x * x - p.b() * x - p.c() + middle;
 
-                correctedImage[y * width + x] = bilinearInterpolation(x, y - yCorrection);
+                correctedImage[y * width + x] = (float) bilinearInterpolation(x, y - yCorrection);
             }
         }
 

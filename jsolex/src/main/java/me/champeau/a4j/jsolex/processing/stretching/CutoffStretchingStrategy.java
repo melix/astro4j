@@ -16,16 +16,16 @@
 package me.champeau.a4j.jsolex.processing.stretching;
 
 public class CutoffStretchingStrategy implements StretchingStrategy {
-    private final double min;
-    private final double max;
+    private final float min;
+    private final float max;
 
-    public CutoffStretchingStrategy(double min, double max) {
+    public CutoffStretchingStrategy(float min, float max) {
         this.min = min;
         this.max = max;
     }
 
     @Override
-    public void stretch(double[] data) {
+    public void stretch(float[] data) {
         for (int i = 0; i < data.length; i++) {
             if (data[i] < min) {
                 data[i] = min;
