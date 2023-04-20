@@ -57,8 +57,10 @@ jlink {
     jpackage {
         if (System.getProperty("os.name").startsWith("Windows")) {
             installerType = "msi"
+            installerOptions.addAll(listOf("--win-per-user-install", "--win-dir-chooser", "--win-menu"))
         } else {
             installerType = "deb"
+            installerOptions.addAll(listOf("--linux-shortcut"))
         }
     }
 }
