@@ -31,6 +31,7 @@ import me.champeau.a4j.jsolex.processing.stretching.CompositeStretchingStrategy;
 import me.champeau.a4j.jsolex.processing.stretching.CutoffStretchingStrategy;
 import me.champeau.a4j.jsolex.processing.stretching.LinearStrechingStrategy;
 import me.champeau.a4j.jsolex.processing.util.ParallelExecutor;
+import me.champeau.a4j.jsolex.processing.util.ProcessingException;
 import me.champeau.a4j.math.DoubleTriplet;
 import me.champeau.a4j.math.IntPair;
 import me.champeau.a4j.ser.SerFileReader;
@@ -110,7 +111,7 @@ public class SolexVideoProcessor {
             ByteArrayOutputStream out = new ByteArrayOutputStream();
             e.printStackTrace(new PrintWriter(out));
             broadcast(new NotificationEvent(new Notification(Alert.AlertType.ERROR, "Unexpected error", "An error occurred during processing", out.toString())));
-            throw new RuntimeException(e);
+            throw new ProcessingException(e);
         } finally {
             var duration = Duration.ofNanos(System.nanoTime() - startTime).toSeconds();
             LOGGER.info("Processing done in {} s", duration);
@@ -158,7 +159,7 @@ public class SolexVideoProcessor {
                 });
             }
         } catch (Exception e) {
-            throw new RuntimeException(e);
+            throw new ProcessingException(e);
         }
         LOGGER.info("Reconstruction done. Generating images...");
         emitImage("Raw (Linear)", "linear", width, newHeight, outputBuffer, copy -> {

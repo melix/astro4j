@@ -15,6 +15,8 @@
  */
 package me.champeau.a4j.jsolex.processing.sun;
 
+import me.champeau.a4j.jsolex.processing.util.ProcessingException;
+
 import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;
 import java.io.File;
@@ -37,7 +39,7 @@ public class ImageUtils {
         try {
             ImageIO.write(image, "png", outputFile);
         } catch (IOException e) {
-            throw new RuntimeException(e);
+            throw new ProcessingException(e);
         }
     }
 
@@ -61,7 +63,7 @@ public class ImageUtils {
         try {
             ImageIO.write(image, "png", outputFile);
         } catch (IOException e) {
-            throw new RuntimeException(e);
+            throw new ProcessingException(e);
         }
     }
 }

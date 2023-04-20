@@ -18,6 +18,7 @@ package me.champeau.a4j.jsolex.processing.sun;
 import me.champeau.a4j.jsolex.processing.stats.ChannelStats;
 import me.champeau.a4j.jsolex.processing.stats.ImageStatsComputer;
 import me.champeau.a4j.jsolex.processing.util.ParallelExecutor;
+import me.champeau.a4j.jsolex.processing.util.ProcessingException;
 import me.champeau.a4j.ser.ImageGeometry;
 import me.champeau.a4j.ser.SerFileReader;
 import me.champeau.a4j.ser.bayer.ImageConverter;
@@ -65,7 +66,7 @@ public class SimpleSunEdgeDetector implements SunEdgeDetector {
                 });
             }
         } catch (Exception ex) {
-            throw new RuntimeException(ex);
+            throw new ProcessingException(ex);
         }
         Integer edgeStart = null;
         Integer edgeEnd = null;

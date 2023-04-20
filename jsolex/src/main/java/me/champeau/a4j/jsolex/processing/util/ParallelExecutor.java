@@ -42,7 +42,7 @@ public class ParallelExecutor implements AutoCloseable {
                 }
             });
         } catch (InterruptedException e) {
-            throw new RuntimeException(e);
+            throw new ProcessingException(e);
         }
     }
 
@@ -50,7 +50,7 @@ public class ParallelExecutor implements AutoCloseable {
     public void close() throws Exception {
         executorService.shutdown();
         if (!executorService.awaitTermination(1, TimeUnit.HOURS)) {
-            throw new RuntimeException("Processing timed out after 1 hour");
+            throw new ProcessingException("Processing timed out after 1 hour");
         }
     }
 }
