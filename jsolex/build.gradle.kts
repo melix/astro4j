@@ -12,6 +12,6 @@ dependencies {
 }
 
 application {
-//    mainModule.set("me.champeau.a4j.jsolex")
+    mainModule.set("me.champeau.a4j.jsolex")
     mainClass.set("me.champeau.a4j.jsolex.app.JSolEx")
 }
