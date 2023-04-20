@@ -15,15 +15,14 @@
  */
 package me.champeau.a4j.jsolex.processing.util;
 
-import java.util.ArrayList;
-import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
+import java.util.concurrent.Semaphore;
+import java.util.concurrent.TimeUnit;
 
 public class ParallelExecutor implements AutoCloseable {
     private final ExecutorService executorService = Executors.newWorkStealingPool();
-    private final List<Future<?>> tasks = new ArrayList<>();
+    private final Semaphore semaphore = new Semaphore(8 * Runtime.getRuntime().availableProcessors());
 
     private ParallelExecutor() {
     }
@@ -33,14 +32,25 @@ public class ParallelExecutor implements AutoCloseable {
     }
 
     public void submit(Runnable task) {
-        tasks.add(executorService.submit(task));
+        try {
+            semaphore.acquire();
+            executorService.submit(() -> {
+                try {
+                    task.run();
+                } finally {
+                    semaphore.release();
+                }
+            });
+        } catch (InterruptedException e) {
+            throw new RuntimeException(e);
+        }
     }
 
     @Override
     public void close() throws Exception {
-        for (Future<?> task : tasks) {
-            task.get();
-        }
         executorService.shutdown();
+        if (!executorService.awaitTermination(1, TimeUnit.HOURS)) {
+            throw new RuntimeException("Processing timed out after 1 hour");
+        }
     }
 }

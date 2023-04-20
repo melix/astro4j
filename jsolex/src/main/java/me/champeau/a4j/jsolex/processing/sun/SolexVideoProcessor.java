@@ -139,14 +139,16 @@ public class SolexVideoProcessor {
         LOGGER.info("Starting reconstruction...");
         try (var executor = ParallelExecutor.newExecutor()) {
             for (int i = start, j = 0; i < end; i++, j += width) {
-                var analyzer = new SpectrumFrameAnalyzer(width, height, 0.85d, 50d);
                 var original = converter.createBuffer(geometry);
                 // The converter makes sure we only have a single channel
                 converter.convert(i, reader.currentFrame().data(), geometry, original);
                 reader.nextFrame();
                 int frameId = i;
                 int offset = j;
-                executor.submit(() -> processSingleFrame(width, height, outputBuffer, analyzer, offset, frameId, original));
+                executor.submit(() -> {
+                    var analyzer = new SpectrumFrameAnalyzer(width, height, 0.85d, 50d);
+                    processSingleFrame(width, height, outputBuffer, analyzer, offset, frameId, original);
+                });
             }
         } catch (Exception e) {
             throw new RuntimeException(e);
