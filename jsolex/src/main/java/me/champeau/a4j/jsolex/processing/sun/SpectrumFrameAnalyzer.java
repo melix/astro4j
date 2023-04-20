@@ -15,6 +15,8 @@
  */
 package me.champeau.a4j.jsolex.processing.sun;
 
+import jdk.incubator.vector.FloatVector;
+import jdk.incubator.vector.VectorSpecies;
 import me.champeau.a4j.math.DoubleTriplet;
 import me.champeau.a4j.math.LinearRegression;
 import me.champeau.a4j.math.Point2D;
@@ -26,6 +28,8 @@ import java.util.Objects;
 import java.util.Optional;
 
 public class SpectrumFrameAnalyzer {
+    static final VectorSpecies<Float> SPECIES = FloatVector.SPECIES_PREFERRED;
+
     private final int width;
     private final int height;
     private final double spectrumDetectionThreshold;
