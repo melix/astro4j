@@ -30,6 +30,7 @@ import me.champeau.a4j.jsolex.processing.stretching.ArcsinhStretchingStrategy;
 import me.champeau.a4j.jsolex.processing.stretching.CompositeStretchingStrategy;
 import me.champeau.a4j.jsolex.processing.stretching.CutoffStretchingStrategy;
 import me.champeau.a4j.jsolex.processing.stretching.LinearStrechingStrategy;
+import me.champeau.a4j.jsolex.processing.util.ImageMath;
 import me.champeau.a4j.jsolex.processing.util.ParallelExecutor;
 import me.champeau.a4j.jsolex.processing.util.ProcessingException;
 import me.champeau.a4j.math.DoubleTriplet;
@@ -170,6 +171,22 @@ public class SolexVideoProcessor {
             stretchingStrategy.stretch(copy);
         });
         emitImage("Raw (Stretched)", "streched", width, newHeight, outputBuffer, copy -> {
+            var stretchingStrategy = CompositeStretchingStrategy.of(
+                    new CutoffStretchingStrategy(1f, 255f),
+                    new ArcsinhStretchingStrategy(1f, 0.1f),
+                    new LinearStrechingStrategy(240f)
+            );
+            stretchingStrategy.stretch(copy);
+        });
+        emitImage("Banding fixed", "banding-fixed", width, newHeight, outputBuffer, copy -> {
+            // Perform one iteration vertically, were there are not so many lines
+            BandingReduction.reduceBanding(width, newHeight, copy, 1, 16);
+            // Then perform multiple iterations vertically, were there are many line artifacts
+            // we need to transpose the image to compute the average value of each line
+            float[] transposed = ImageMath.rotateLeft(copy, width, newHeight);
+            BandingReduction.reduceBanding(newHeight, width, transposed, 4, 64);
+            transposed = ImageMath.rotateRight(transposed, newHeight, width);
+            System.arraycopy(transposed, 0, copy, 0, transposed.length);
             var stretchingStrategy = CompositeStretchingStrategy.of(
                     new CutoffStretchingStrategy(1f, 255f),
                     new ArcsinhStretchingStrategy(1f, 0.1f),
