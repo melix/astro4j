@@ -64,8 +64,11 @@ public class JSolEx extends Application {
     @FXML
     private TabPane mainPane;
 
+    private Stage primaryStage;
+
     @Override
     public void start(Stage stage) throws Exception {
+        this.primaryStage = stage;
         var fxmlLoader = new FXMLLoader(getClass().getResource("app.fxml"));
         fxmlLoader.setController(this);
 
@@ -80,8 +83,6 @@ public class JSolEx extends Application {
         } catch (IOException exception) {
             throw new RuntimeException(exception);
         }
-
-
     }
 
     private void refreshRecentItemsMenu() {
@@ -94,8 +95,15 @@ public class JSolEx extends Application {
     }
 
     @FXML
-    private void config() {
-
+    private void config() throws IOException {
+        var fxmlLoader = new FXMLLoader(getClass().getResource("configuration.fxml"));
+        var configWindow = fxmlLoader.load();
+        var controller = (ConfigurationController) fxmlLoader.getController();
+        controller.configure(config);
+        var stage = new Stage();
+        stage.setTitle("Configuration");
+        stage.setScene(new Scene((Parent) configWindow, 500, 200));
+        stage.showAndWait();
     }
 
     @FXML
@@ -126,7 +134,11 @@ public class JSolEx extends Application {
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
-        var processor = new SolexVideoProcessor(selectedFile, outputDirectory);
+        var processor = new SolexVideoProcessor(selectedFile,
+                outputDirectory,
+                config.isDebugImagesGenerationEnabled(),
+                config.getSpectrumDetectionThreshold()
+        );
         var listener = JFXProcessingEventListener.of(new ProcessingEventListener() {
             private final ImageView imageView = new ImageView();
 

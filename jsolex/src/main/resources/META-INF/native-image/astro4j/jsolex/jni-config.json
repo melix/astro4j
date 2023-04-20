@@ -226,15 +226,6 @@
   ]
 },
 {
-  "name":"java.awt.image.SinglePixelPackedSampleModel",
-  "fields":[
-    {"name":"bitMasks"}, 
-    {"name":"bitOffsets"}, 
-    {"name":"bitSizes"}, 
-    {"name":"maxBitSize"}
-  ]
-},
-{
   "name":"java.lang.Boolean",
   "methods":[{"name":"getBoolean","parameterTypes":["java.lang.String"] }]
 },
@@ -310,16 +301,6 @@
 },
 {
   "name":"sun.awt.image.ByteComponentRaster",
-  "fields":[
-    {"name":"data"}, 
-    {"name":"dataOffsets"}, 
-    {"name":"pixelStride"}, 
-    {"name":"scanlineStride"}, 
-    {"name":"type"}
-  ]
-},
-{
-  "name":"sun.awt.image.IntegerComponentRaster",
   "fields":[
     {"name":"data"}, 
     {"name":"dataOffsets"}, 

@@ -64,12 +64,19 @@ public class SolexVideoProcessor {
     private final File outputDirectory;
     private final File correctedFilesDirectory;
     private final File rawImageDirectory;
+    private final boolean generateDebugImages;
+    private final double spectrumDetectionThreshold;
 
-    public SolexVideoProcessor(File serFile, File outputDirectory) {
+    public SolexVideoProcessor(File serFile,
+                               File outputDirectory,
+                               boolean generateDebugImages,
+                               double spectrumDetectionThreshold) {
         this.serFile = serFile;
         this.outputDirectory = outputDirectory;
         this.correctedFilesDirectory = new File(outputDirectory, CORRECTED_DIRECTORY);
         this.rawImageDirectory = new File(outputDirectory, RAW_DIRECTORY);
+        this.generateDebugImages = generateDebugImages;
+        this.spectrumDetectionThreshold = spectrumDetectionThreshold;
     }
 
     public void addEventListener(ProcessingEventListener listener) {
@@ -146,7 +153,7 @@ public class SolexVideoProcessor {
                 int frameId = i;
                 int offset = j;
                 executor.submit(() -> {
-                    var analyzer = new SpectrumFrameAnalyzer(width, height, 0.85d, 50d);
+                    var analyzer = new SpectrumFrameAnalyzer(width, height, spectrumDetectionThreshold, 50d);
                     processSingleFrame(width, height, outputBuffer, analyzer, offset, frameId, original);
                 });
             }
@@ -225,71 +232,85 @@ public class SolexVideoProcessor {
         }
         var distorsionCorrection = new DistortionCorrection(original, width, height);
         double[] corrected = distorsionCorrection.secondOrderPolynomialCorrection(p);
-        writeCorrectedImage(width, height, original, analyzer, frameId, p, corrected);
+        processCorrectedImage(width, height, original, analyzer, frameId, p, corrected);
     }
 
-    private void writeCorrectedImage(int width,
-                                     int height,
-                                     double[] buffer,
-                                     SpectrumFrameAnalyzer analyzer,
-                                     int frameId,
-                                     DoubleTriplet p,
-                                     double[] corrected) {
-        // We create RGB images for debugging, which contain the original image at top
-        // and the corrected one at the bottom
+    private void processCorrectedImage(int width,
+                                       int height,
+                                       double[] buffer,
+                                       SpectrumFrameAnalyzer analyzer,
+                                       int frameId,
+                                       DoubleTriplet p,
+                                       double[] corrected) {
         int size = width * height;
-        double[] rr = new double[2 * size];
-        double[] gg = new double[2 * size];
-        double[] bb = new double[2 * size];
-        System.arraycopy(buffer, 0, rr, 0, size);
-        System.arraycopy(buffer, 0, gg, 0, size);
-        System.arraycopy(buffer, 0, bb, 0, size);
-        System.arraycopy(corrected, 0, buffer, 0, size);
-        analyzer.analyze(corrected);
-        System.arraycopy(corrected, 0, rr, size, size);
-        System.arraycopy(corrected, 0, gg, size, size);
-        System.arraycopy(corrected, 0, bb, size, size);
-        analyzer.leftSunBorder().ifPresent(bx -> {
-            for (int y = 0; y < height; y++) {
-                rr[size + bx + y * width] = 255;
-                gg[size + bx + y * width] = 0;
-                bb[size + bx + y * width] = 0;
-            }
-        });
-        analyzer.rightSunBorder().ifPresent(bx -> {
-            for (int y = 0; y < height; y++) {
-                rr[size + bx + y * width] = 255;
-                gg[size + bx + y * width] = 0;
-                bb[size + bx + y * width] = 0;
-            }
-        });
+        if (generateDebugImages) {
+            // We create RGB images for debugging, which contain the original image at top
+            // and the corrected one at the bottom
+            int spacing = 10 * width;
+            int offset = size + spacing;
+            double[] rr = new double[2 * size + spacing];
+            double[] gg = new double[2 * size + spacing];
+            double[] bb = new double[2 * size + spacing];
+            System.arraycopy(buffer, 0, rr, 0, size);
+            System.arraycopy(buffer, 0, gg, 0, size);
+            System.arraycopy(buffer, 0, bb, 0, size);
+            System.arraycopy(corrected, 0, buffer, 0, size);
+            System.arraycopy(corrected, 0, rr, offset, size);
+            System.arraycopy(corrected, 0, gg, offset, size);
+            System.arraycopy(corrected, 0, bb, offset, size);
 
-        // Draw a line on the top graph corresponding to the detected curvature
-//        for (int x = 0; x < width; x++) {
-//            int cy = (int) ((p.a() * x * x + p.b() * x + p.c()) * width);
-//            int idx = x + cy;
-//            if (idx < 0 || idx >= size) {
-//                break;
-//            }
-//            rr[idx] = 255;
-//            gg[idx] = 0;
-//            bb[idx] = 0;
-//        }
-
-        // Add green lines showing the detected spectrum line
-        SpectrumLine[] spectrumLines = analyzer.spectrumLinesArray();
-        for (int y = 0; y < height; y++) {
             for (int x = 0; x < width; x++) {
-                SpectrumLine spectrumLine = spectrumLines[x];
-                if (spectrumLine != null && spectrumLine.top() <= y && spectrumLine.bottom() >= y) {
-                    rr[size + x + y * width] = 0;
-                    gg[size + x + y * width] = 255;
-                    bb[size + x + y * width] = 0;
+                rr[x + size + 5 * width] = 240;
+                gg[x + size + 5 * width] = 120;
+                bb[x + size + 5 * width] = 240;
+            }
+
+            analyzer.analyze(corrected);
+            analyzer.leftSunBorder().ifPresent(bx -> {
+                for (int y = 0; y < height; y++) {
+                    rr[offset + bx + y * width] = 255;
+                    gg[offset + bx + y * width] = 0;
+                    bb[offset + bx + y * width] = 0;
+                }
+            });
+            analyzer.rightSunBorder().ifPresent(bx -> {
+                for (int y = 0; y < height; y++) {
+                    rr[offset + bx + y * width] = 255;
+                    gg[offset + bx + y * width] = 0;
+                    bb[offset + bx + y * width] = 0;
+                }
+            });
+
+            // Draw a line on the top graph corresponding to the detected curvature
+            for (int x = 0; x < width; x++) {
+                int cy = (int) ((p.a() * x * x + p.b() * x + p.c()) * width);
+                int idx = x + cy;
+                if (idx < 0 || idx >= size) {
+                    break;
+                }
+                rr[idx] = 255;
+                gg[idx] = 0;
+                bb[idx] = 0;
+            }
+
+            // Add green lines showing the detected spectrum line
+            SpectrumLine[] spectrumLines = analyzer.spectrumLinesArray();
+            for (int y = 0; y < height; y++) {
+                for (int x = 0; x < width; x++) {
+                    SpectrumLine spectrumLine = spectrumLines[x];
+                    if (spectrumLine != null && spectrumLine.top() <= y && spectrumLine.bottom() >= y) {
+                        rr[offset + x + y * width] = 0;
+                        gg[offset + x + y * width] = 255;
+                        bb[offset + x + y * width] = 0;
+                    }
                 }
             }
+            String fileName = String.format("%06d-corrected.png", frameId);
+            ImageUtils.writeRgbImage(width, 2 * height + 10, rr, gg, bb, new File(correctedFilesDirectory, fileName));
+        } else {
+            System.arraycopy(corrected, 0, buffer, 0, size);
+            analyzer.analyze(corrected);
         }
-        String fileName = String.format("%06d-corrected.png", frameId);
-        ImageUtils.writeRgbImage(width, 2 * height, rr, gg, bb, new File(correctedFilesDirectory, fileName));
     }
 
     private void broadcast(ProcessingEvent<?> event) {

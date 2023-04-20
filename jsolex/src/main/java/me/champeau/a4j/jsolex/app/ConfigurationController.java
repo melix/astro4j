@@ -16,10 +16,29 @@
 package me.champeau.a4j.jsolex.app;
 
 import javafx.fxml.FXML;
+import javafx.scene.control.CheckBox;
+import javafx.scene.control.Label;
+import javafx.scene.control.Slider;
 
 public class ConfigurationController {
     @FXML
-    void browse() {
+    Label spectrumDetectionLabel;
+    @FXML
+    CheckBox generateDebugImages;
+    @FXML
+    Slider spectrumDetectionThreshold;
 
+    @FXML
+    private void reset() {
+        generateDebugImages.setSelected(Configuration.DEFAULT_GENERATE_DEBUG_IMAGES);
+        spectrumDetectionThreshold.setValue(Configuration.DEFAULT_SPECTRUM_DETECTION_THRESHOLD);
+    }
+
+    public void configure(Configuration config) {
+        generateDebugImages.setSelected(config.isDebugImagesGenerationEnabled());
+        spectrumDetectionThreshold.setValue(config.getSpectrumDetectionThreshold());
+        generateDebugImages.selectedProperty().addListener((observable, oldValue, newValue) -> config.setDebugImagesGenerationEnabled(newValue));
+        spectrumDetectionThreshold.valueProperty().addListener((observable, oldValue, newValue) -> config.setSpectrumDetectionThreshold((double) newValue));
+        spectrumDetectionLabel.textProperty().bind(spectrumDetectionThreshold.valueProperty().asString("%.2f"));
     }
 }

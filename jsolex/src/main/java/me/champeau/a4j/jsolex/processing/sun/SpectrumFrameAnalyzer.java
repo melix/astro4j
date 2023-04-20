@@ -51,8 +51,8 @@ public class SpectrumFrameAnalyzer {
 
     public void analyze(double[] data) {
         reset();
-        double lineAvg = 0;
         for (int x = 0; x < width; x++) {
+            double lineAvg = 0;
             for (int y = 0; y < height; y++) {
                 double value = data[y * width + x];
                 avg = avg + (value - avg) / (x + y + 1);

@@ -9,6 +9,9 @@
     }, 
     {
       "pattern":"\\Qme/champeau/a4j/jsolex/app/app.fxml\\E"
+    },
+    {
+      "pattern":"\\Qme/champeau/a4j/jsolex/app/configuration.fxml\\E"
     }
   ]},
   "bundles":[
