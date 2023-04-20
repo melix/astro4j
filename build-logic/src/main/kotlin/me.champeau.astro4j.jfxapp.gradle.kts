@@ -1,14 +1,21 @@
+import org.javamodularity.moduleplugin.extensions.TestModuleOptions
+
 plugins {
     id("me.champeau.astro4j.base")
     id("org.openjfx.javafxplugin")
     id("application")
     id("org.graalvm.buildtools.native")
     id("org.beryx.jlink")
+    id("me.champeau.astro4j.modularity")
 }
 
 // We can safely enable preview features because it's
 // an application, so no consumers except for the final
 // deliverable
+
+application {
+    applicationDefaultJvmArgs = listOf("--enable-preview")
+}
 
 tasks.withType<JavaExec>().configureEach {
     outputs.upToDateWhen { false }
@@ -21,6 +28,8 @@ tasks.withType<JavaCompile>().configureEach {
 
 tasks.withType<Test>().configureEach {
     jvmArgs("--enable-preview")
+    modularity.inferModulePath.set(false)
+    extensions.findByType(TestModuleOptions::class.java)!!.runOnClasspath = true
 }
 
 javafx {
@@ -35,6 +44,21 @@ graalvmNative {
                 enabled.set(true)
                 restrictToProjectDependencies.set(false)
             }
+        }
+        jvmArgs("--enable-preview")
+    }
+}
+
+jlink {
+    options.addAll(listOf("--strip-debug", "--compress", "2", "--no-header-files", "--no-man-pages"))
+    launcher {
+        jvmArgs.add("--enable-preview")
+    }
+    jpackage {
+        if (System.getProperty("os.name").startsWith("Windows")) {
+            installerType = "msi"
+        } else {
+            installerType = "deb"
         }
     }
 }

@@ -27,7 +27,7 @@ jobs:
         uses: gradle/gradle-build-action@v2
 
       - name: Execute Gradle build
-        run: ./gradlew build distZip distTar
+        run: ./gradlew build distZip jpackage
 
       - name: Build native binary
         run: ./gradlew nativeCompile
@@ -38,9 +38,9 @@ jobs:
           path: "**/build/distributions/*.zip"
       - uses: actions/upload-artifact@v3
         with:
-          name: Distribution Tarballs
-          path: "**/build/distributions/*.tar.gz"
-      - uses: actions/upload-artifact@v3
-        with:
           name: Native ${{ matrix.os }} binary
           path: "**/build/native/nativeCompile"
+      - uses: actions/upload-artifact@v3
+        with:
+          name: ${{ matrix.os }} installer
+          path: "**/build/jpackage"

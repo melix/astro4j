@@ -18,4 +18,11 @@ module me.champeau.a4j.jsolex {
     requires commons.math3;
     requires org.slf4j;
     requires java.desktop;
+    requires ch.qos.logback.core;
+    requires ch.qos.logback.classic;
+    requires javafx.controls;
+    requires javafx.fxml;
+    requires java.prefs;
+    exports me.champeau.a4j.jsolex.app to javafx.graphics;
+    opens me.champeau.a4j.jsolex.app to javafx.fxml;
 }
