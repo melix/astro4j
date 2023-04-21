@@ -137,7 +137,7 @@ public class JSolEx extends Application {
                 config.getSpectrumDetectionThreshold()
         );
         var listener = JFXProcessingEventListener.of(new ProcessingEventListener() {
-            private final ImageView imageView = new ImageView();
+            private final ImageView imageView = new ZoomableImageView();
 
             @Override
             public void onOutputImageDimensionsDetermined(OutputImageDimensionsDeterminedEvent event) {

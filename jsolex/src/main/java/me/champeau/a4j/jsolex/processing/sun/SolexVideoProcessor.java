@@ -30,11 +30,12 @@ import me.champeau.a4j.jsolex.processing.stretching.ArcsinhStretchingStrategy;
 import me.champeau.a4j.jsolex.processing.stretching.CompositeStretchingStrategy;
 import me.champeau.a4j.jsolex.processing.stretching.CutoffStretchingStrategy;
 import me.champeau.a4j.jsolex.processing.stretching.LinearStrechingStrategy;
-import me.champeau.a4j.math.image.ImageMath;
 import me.champeau.a4j.jsolex.processing.util.ParallelExecutor;
 import me.champeau.a4j.jsolex.processing.util.ProcessingException;
 import me.champeau.a4j.math.DoubleTriplet;
 import me.champeau.a4j.math.IntPair;
+import me.champeau.a4j.math.fft.FastFourierTransform;
+import me.champeau.a4j.math.image.ImageMath;
 import me.champeau.a4j.ser.SerFileReader;
 import me.champeau.a4j.ser.bayer.BilinearDemosaicingStrategy;
 import me.champeau.a4j.ser.bayer.ChannelExtractingConverter;
@@ -49,10 +50,12 @@ import java.io.File;
 import java.io.PrintWriter;
 import java.nio.file.Files;
 import java.time.Duration;
+import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Set;
 import java.util.function.Consumer;
 
+import static me.champeau.a4j.math.fft.FFTSupport.nextPowerOf2;
 import static me.champeau.a4j.ser.bayer.BayerMatrixSupport.GREEN;
 
 public class SolexVideoProcessor {
@@ -165,46 +168,76 @@ public class SolexVideoProcessor {
             throw new ProcessingException(e);
         }
         LOGGER.info("Reconstruction done. Generating images...");
-        emitImage("Raw (Linear)", "linear", width, newHeight, outputBuffer, copy -> {
+        emitImage("Raw (Linear)", "linear", width, newHeight, outputBuffer, image -> {
             var stretchingStrategy = CompositeStretchingStrategy.of(
                     new CutoffStretchingStrategy(1f, 255f),
                     new LinearStrechingStrategy(240f)
             );
-            stretchingStrategy.stretch(copy);
+            stretchingStrategy.stretch(image.data);
         });
-        emitImage("Raw (Stretched)", "streched", width, newHeight, outputBuffer, copy -> {
+        emitImage("Raw (Stretched)", "streched", width, newHeight, outputBuffer, image -> {
             var stretchingStrategy = CompositeStretchingStrategy.of(
                     new CutoffStretchingStrategy(1f, 255f),
                     new ArcsinhStretchingStrategy(1f, 0.1f),
                     new LinearStrechingStrategy(240f)
             );
-            stretchingStrategy.stretch(copy);
+            stretchingStrategy.stretch(image.data);
         });
-        emitImage("Banding fixed", "banding-fixed", width, newHeight, outputBuffer, copy -> {
+        emitImage("Banding fixed", "banding-fixed", width, newHeight, outputBuffer, image -> {
             var imageMath = ImageMath.newInstance();
             // Perform one iteration vertically, were there are not so many lines
-            BandingReduction.reduceBanding(width, newHeight, copy, 1, 16);
+            BandingReduction.reduceBanding(width, newHeight, image.data, 1, 16);
             // Then perform multiple iterations vertically, were there are many line artifacts
             // we need to transpose the image to compute the average value of each line
-            float[] transposed = imageMath.rotateLeft(copy, width, newHeight);
+            float[] transposed = imageMath.rotateLeft(image.data, width, newHeight);
             BandingReduction.reduceBanding(newHeight, width, transposed, 4, 64);
             transposed = imageMath.rotateRight(transposed, newHeight, width);
-            System.arraycopy(transposed, 0, copy, 0, transposed.length);
+            System.arraycopy(transposed, 0, image.data, 0, transposed.length);
             var stretchingStrategy = CompositeStretchingStrategy.of(
                     new CutoffStretchingStrategy(1f, 255f),
                     new ArcsinhStretchingStrategy(1f, 0.1f),
                     new LinearStrechingStrategy(240f)
             );
-            stretchingStrategy.stretch(copy);
+            stretchingStrategy.stretch(image.data);
         });
+
+        if (false) {
+            emitImage("Lo pass", "fft", width, newHeight, outputBuffer, image -> {
+                var transformed = FastFourierTransform.pad(image.data, width);
+                int padWidth = nextPowerOf2(width);
+                int padHeight = nextPowerOf2(newHeight);
+                var fft = FastFourierTransform.ofArray2D(transformed, padWidth, padHeight);
+                LOGGER.info("Computing Lo pass filter");
+                fft.transform();
+                float[] real = fft.real();
+                float[] im = fft.imaginary();
+                int length = real.length;
+                int lo = (int) (0.99f * length);
+                Arrays.fill(real, lo, length, 0f);
+                Arrays.fill(im, lo, length, 0f);
+                fft.inverseTransform();
+
+                var stretchingStrategy = CompositeStretchingStrategy.of(
+                        new CutoffStretchingStrategy(1f, 255f),
+                        new ArcsinhStretchingStrategy(1f, 0.1f),
+                        new LinearStrechingStrategy(240f)
+                );
+                stretchingStrategy.stretch(transformed);
+
+                image.data = real;
+                image.width = padWidth;
+                image.height = padHeight;
+            });
+        }
     }
 
-    private void emitImage(String title, String name, int width, int height, float[] original, Consumer<? super float[]> modifier) {
+    private void emitImage(String title, String name, int width, int height, float[] original, Consumer<ImageWrapper> modifier) {
         float[] copy = new float[original.length];
         System.arraycopy(original, 0, copy, 0, original.length);
-        modifier.accept(copy);
+        ImageWrapper image = new ImageWrapper(copy, width, height);
+        modifier.accept(image);
         File outputFile = new File(rawImageDirectory, name + ".png");
-        ImageUtils.writeMonoImage(width, height, copy, outputFile);
+        ImageUtils.writeMonoImage(image.width, image.height, image.data, outputFile);
         broadcast(new ImageGeneratedEvent(new GeneratedImage(title, outputFile.toPath())));
     }
 
@@ -322,6 +355,18 @@ public class SolexVideoProcessor {
                 case ImageGeneratedEvent e -> listener.onImageGenerated(e);
                 case NotificationEvent e -> listener.onNotification(e);
             }
+        }
+    }
+
+    private static class ImageWrapper {
+        private float[] data;
+        private int width;
+        private int height;
+
+        public ImageWrapper(float[] data, int width, int height) {
+            this.data = data;
+            this.width = width;
+            this.height = height;
         }
     }
 }
