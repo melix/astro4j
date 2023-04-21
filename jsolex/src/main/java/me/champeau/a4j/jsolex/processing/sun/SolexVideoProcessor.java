@@ -30,7 +30,7 @@ import me.champeau.a4j.jsolex.processing.stretching.ArcsinhStretchingStrategy;
 import me.champeau.a4j.jsolex.processing.stretching.CompositeStretchingStrategy;
 import me.champeau.a4j.jsolex.processing.stretching.CutoffStretchingStrategy;
 import me.champeau.a4j.jsolex.processing.stretching.LinearStrechingStrategy;
-import me.champeau.a4j.jsolex.processing.util.ImageMath;
+import me.champeau.a4j.math.image.ImageMath;
 import me.champeau.a4j.jsolex.processing.util.ParallelExecutor;
 import me.champeau.a4j.jsolex.processing.util.ProcessingException;
 import me.champeau.a4j.math.DoubleTriplet;
@@ -109,8 +109,10 @@ public class SolexVideoProcessor {
             );
         } catch (Exception e) {
             LOGGER.error("Error while processing", e);
-            ByteArrayOutputStream out = new ByteArrayOutputStream();
-            e.printStackTrace(new PrintWriter(out));
+            var out = new ByteArrayOutputStream();
+            var s = new PrintWriter(out);
+            e.printStackTrace(s);
+            s.flush();
             broadcast(new NotificationEvent(new Notification(Alert.AlertType.ERROR, "Unexpected error", "An error occurred during processing", out.toString())));
             throw new ProcessingException(e);
         } finally {
@@ -179,13 +181,14 @@ public class SolexVideoProcessor {
             stretchingStrategy.stretch(copy);
         });
         emitImage("Banding fixed", "banding-fixed", width, newHeight, outputBuffer, copy -> {
+            var imageMath = ImageMath.newInstance();
             // Perform one iteration vertically, were there are not so many lines
             BandingReduction.reduceBanding(width, newHeight, copy, 1, 16);
             // Then perform multiple iterations vertically, were there are many line artifacts
             // we need to transpose the image to compute the average value of each line
-            float[] transposed = ImageMath.rotateLeft(copy, width, newHeight);
+            float[] transposed = imageMath.rotateLeft(copy, width, newHeight);
             BandingReduction.reduceBanding(newHeight, width, transposed, 4, 64);
-            transposed = ImageMath.rotateRight(transposed, newHeight, width);
+            transposed = imageMath.rotateRight(transposed, newHeight, width);
             System.arraycopy(transposed, 0, copy, 0, transposed.length);
             var stretchingStrategy = CompositeStretchingStrategy.of(
                     new CutoffStretchingStrategy(1f, 255f),

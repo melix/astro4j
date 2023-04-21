@@ -34,8 +34,11 @@
             GridPane.columnIndex="1" GridPane.rowIndex="1"/>
     <Label fx:id="spectrumDetectionLabel"
            GridPane.columnIndex="2" GridPane.rowIndex="1"/>
+    <Label text="Experimental Vector API"
+           GridPane.columnIndex="0" GridPane.rowIndex="3"/>
+    <Label fx:id="vectorApi" GridPane.columnIndex="1" GridPane.rowIndex="3"/>
     <Button text="Reset to defaults" onAction="#reset"
-            GridPane.columnIndex="0" GridPane.rowIndex="3"
+            GridPane.columnIndex="0" GridPane.rowIndex="4"
             GridPane.columnSpan="3" alignment="center"
     />
 </GridPane>

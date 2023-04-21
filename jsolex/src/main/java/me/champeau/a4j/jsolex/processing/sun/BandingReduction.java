@@ -15,17 +15,17 @@
  */
 package me.champeau.a4j.jsolex.processing.sun;
 
-import me.champeau.a4j.jsolex.processing.util.ImageMath;
+import me.champeau.a4j.math.image.ImageMath;
 
 public class BandingReduction {
     private BandingReduction() {
     }
 
-
     static void reduceBanding(int width, int height, float[] data, int passes, int bandSize) {
+        var imageMath = ImageMath.newInstance();
         for (int i = 0; i < passes; i++) {
             // compute average value of each line
-            double[] lineAverages = ImageMath.lineAverages(data, width, height);
+            double[] lineAverages = imageMath.lineAverages(data, width, height);
             for (int y = 0; y < height; y++) {
                 double sum = 0;
                 int count = 0;

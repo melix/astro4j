@@ -1,8 +1,12 @@
+import me.champeau.astro4j.BuildExtension
+
 plugins {
     groovy
     `java`
     id("org.nosphere.apache.rat")
 }
+
+extensions.create("astro4j", BuildExtension::class.java, project)
 
 java {
     toolchain {
