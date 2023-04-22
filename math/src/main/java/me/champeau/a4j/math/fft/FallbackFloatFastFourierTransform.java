@@ -67,9 +67,10 @@ public class FallbackFloatFastFourierTransform implements FastFourierTransform {
         evenTransform.transform();
         oddTransform.transform();
 
+        float ro = (float) (-2 * PI / n);
         for (int k = 0; k < n / 2; k++) {
-            double fcos = cos(-2 * PI * k / n);
-            double fsin = sin(-2 * PI * k / n);
+            double fcos = cos(ro * k);
+            double fsin = sin(ro * k);
             double kthReal = evenReal[k] + fcos * oddReal[k] - fsin * oddImaginary[k];
             double kthImaginary = evenImaginary[k] + fcos * oddImaginary[k] + fsin * oddReal[k];
             double kthPlusNOver2Real = evenReal[k] - fcos * oddReal[k] + fsin * oddImaginary[k];
