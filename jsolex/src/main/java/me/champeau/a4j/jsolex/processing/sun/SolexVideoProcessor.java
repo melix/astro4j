@@ -25,7 +25,6 @@ import me.champeau.a4j.jsolex.processing.event.OutputImageDimensionsDeterminedEv
 import me.champeau.a4j.jsolex.processing.event.PartialReconstructionEvent;
 import me.champeau.a4j.jsolex.processing.event.ProcessingEvent;
 import me.champeau.a4j.jsolex.processing.event.ProcessingEventListener;
-import me.champeau.a4j.jsolex.processing.stats.DefaultImageStatsComputer;
 import me.champeau.a4j.jsolex.processing.stretching.ArcsinhStretchingStrategy;
 import me.champeau.a4j.jsolex.processing.stretching.CompositeStretchingStrategy;
 import me.champeau.a4j.jsolex.processing.stretching.CutoffStretchingStrategy;
@@ -95,8 +94,7 @@ public class SolexVideoProcessor {
     public void process() {
         var startTime = System.nanoTime();
         var converter = createImageConverter();
-        var statsComputer = new DefaultImageStatsComputer();
-        var detector = new SimpleSunEdgeDetector(statsComputer, converter);
+        var detector = new MagnitudeBasedSunEdgeDetector(converter);
         try (SerFileReader reader = SerFileReader.of(serFile)) {
             Files.createDirectories(outputDirectory.toPath());
             Files.createDirectories(correctedFilesDirectory.toPath());
