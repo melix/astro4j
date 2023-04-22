@@ -13,20 +13,23 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package me.champeau.a4j.ser.bayer;
+package me.champeau.a4j.jsolex.processing.color;
 
-import me.champeau.a4j.ser.ImageGeometry;
+import java.util.List;
 
-import java.nio.ByteBuffer;
+public class KnownCurves {
+    private KnownCurves() {
 
-public class NoOpConverter implements ImageConverter<byte[]> {
-    @Override
-    public byte[] createBuffer(ImageGeometry geometry) {
-        return new byte[geometry.getBytesPerFrame()];
     }
 
-    @Override
-    public void convert(int frameId, ByteBuffer frameData, ImageGeometry geometry, byte[] outputData) {
-        System.arraycopy(frameData.array(), 0, outputData, 0, outputData.length);
+    public static final ColorCurve H_ALPHA = new ColorCurve(
+            "Hα",
+            84, 139,
+            95, 20,
+            218, 65
+    );
+
+    public static List<ColorCurve> all() {
+        return List.of(H_ALPHA);
     }
 }

@@ -174,7 +174,7 @@ public class JSolEx extends Application {
             @Override
             public void onImageGenerated(ImageGeneratedEvent event) {
                 var tab = new Tab(event.getPayload().title());
-                var imageView = new ImageView();
+                var imageView = new ZoomableImageView();
                 imageView.setPreserveRatio(true);
                 imageView.fitWidthProperty().bind(mainPane.widthProperty());
                 imageView.setImage(new Image(event.getPayload().path().toUri().toString()));

@@ -16,6 +16,8 @@
 package me.champeau.a4j.jsolex.processing.sun;
 
 import javafx.scene.control.Alert;
+import me.champeau.a4j.jsolex.processing.color.ColorCurve;
+import me.champeau.a4j.jsolex.processing.color.KnownCurves;
 import me.champeau.a4j.jsolex.processing.event.GeneratedImage;
 import me.champeau.a4j.jsolex.processing.event.ImageGeneratedEvent;
 import me.champeau.a4j.jsolex.processing.event.ImageLine;
@@ -181,14 +183,14 @@ public class SolexVideoProcessor {
             );
             stretchingStrategy.stretch(image.data);
         });
-        emitImage("Banding fixed", "banding-fixed", width, newHeight, outputBuffer, image -> {
+        emitImage("Banding fixed", "banding-fixed", width, newHeight, outputBuffer, KnownCurves.H_ALPHA, image -> {
             var imageMath = ImageMath.newInstance();
             // Perform one iteration vertically, were there are not so many lines
             BandingReduction.reduceBanding(width, newHeight, image.data, 1, 16);
             // Then perform multiple iterations vertically, were there are many line artifacts
             // we need to transpose the image to compute the average value of each line
             float[] transposed = imageMath.rotateLeft(image.data, width, newHeight);
-            BandingReduction.reduceBanding(newHeight, width, transposed, 4, 64);
+            BandingReduction.reduceBanding(newHeight, width, transposed, 4, 32);
             transposed = imageMath.rotateRight(transposed, newHeight, width);
             System.arraycopy(transposed, 0, image.data, 0, transposed.length);
             var stretchingStrategy = CompositeStretchingStrategy.of(
@@ -230,6 +232,10 @@ public class SolexVideoProcessor {
     }
 
     private void emitImage(String title, String name, int width, int height, float[] original, Consumer<ImageWrapper> modifier) {
+        emitImage(title, name, width, height, original, null, modifier);
+    }
+
+    private void emitImage(String title, String name, int width, int height, float[] original, ColorCurve colorize, Consumer<ImageWrapper> modifier) {
         float[] copy = new float[original.length];
         System.arraycopy(original, 0, copy, 0, original.length);
         ImageWrapper image = new ImageWrapper(copy, width, height);
@@ -237,6 +243,21 @@ public class SolexVideoProcessor {
         File outputFile = new File(rawImageDirectory, name + ".png");
         ImageUtils.writeMonoImage(image.width, image.height, image.data, outputFile);
         broadcast(new ImageGeneratedEvent(new GeneratedImage(title, outputFile.toPath())));
+        if (colorize != null) {
+            float[] r = new float[original.length];
+            float[] g = new float[original.length];
+            float[] b = new float[original.length];
+            for (int i = 0; i < original.length; i++) {
+                int value = (int) image.data[i];
+                var rgb = colorize.toRGB(value);
+                r[i] = (float) rgb.a();
+                g[i] = (float) rgb.b();
+                b[i] = (float) rgb.c();
+            }
+            File colorFile = new File(rawImageDirectory, name + "-color.png");
+            ImageUtils.writeRgbImage(image.width, image.height, r, g, b, colorFile);
+            broadcast(new ImageGeneratedEvent(new GeneratedImage(title + "(color " + colorize.ray() + ")", colorFile.toPath())));
+        }
     }
 
     private void processSingleFrame(int width,

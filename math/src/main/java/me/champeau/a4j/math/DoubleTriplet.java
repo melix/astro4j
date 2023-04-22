@@ -15,8 +15,11 @@
  */
 package me.champeau.a4j.math;
 
+import java.util.function.DoubleUnaryOperator;
+
 /**
  * A double triplet.
+ *
  * @param a the first component
  * @param b the 2d component
  * @param c the 3d component
@@ -26,4 +29,7 @@ public record DoubleTriplet(
         double b,
         double c
 ) {
+    public DoubleUnaryOperator asPolynomial() {
+        return x -> a * x * x + b * x + c;
+    }
 }
