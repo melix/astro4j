@@ -96,8 +96,8 @@ public class JSolEx extends Application {
         var fxmlLoader = new FXMLLoader(getClass().getResource("configuration.fxml"));
         var configWindow = fxmlLoader.load();
         var controller = (ConfigurationController) fxmlLoader.getController();
-        controller.configure(config);
         var stage = new Stage();
+        controller.configure(config, stage);
         stage.setTitle("Configuration");
         stage.setScene(new Scene((Parent) configWindow, 500, 200));
         stage.showAndWait();

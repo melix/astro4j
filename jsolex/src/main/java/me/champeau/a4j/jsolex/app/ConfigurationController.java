@@ -19,6 +19,7 @@ import javafx.fxml.FXML;
 import javafx.scene.control.CheckBox;
 import javafx.scene.control.Label;
 import javafx.scene.control.Slider;
+import javafx.stage.Stage;
 import me.champeau.a4j.math.VectorApiSupport;
 
 public class ConfigurationController {
@@ -31,13 +32,21 @@ public class ConfigurationController {
     @FXML
     Label vectorApi;
 
+    private Stage stage;
+
     @FXML
     private void reset() {
         generateDebugImages.setSelected(Configuration.DEFAULT_GENERATE_DEBUG_IMAGES);
         spectrumDetectionThreshold.setValue(Configuration.DEFAULT_SPECTRUM_DETECTION_THRESHOLD);
     }
 
-    public void configure(Configuration config) {
+    @FXML
+    private void close() {
+        stage.close();
+    }
+
+    public void configure(Configuration config, Stage stage) {
+        this.stage = stage;
         generateDebugImages.setSelected(config.isDebugImagesGenerationEnabled());
         spectrumDetectionThreshold.setValue(config.getSpectrumDetectionThreshold());
         generateDebugImages.selectedProperty().addListener((observable, oldValue, newValue) -> config.setDebugImagesGenerationEnabled(newValue));

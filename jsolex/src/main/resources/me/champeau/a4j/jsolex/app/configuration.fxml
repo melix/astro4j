@@ -39,6 +39,9 @@
     <Label fx:id="vectorApi" GridPane.columnIndex="1" GridPane.rowIndex="3"/>
     <Button text="Reset to defaults" onAction="#reset"
             GridPane.columnIndex="0" GridPane.rowIndex="4"
-            GridPane.columnSpan="3" alignment="center"
+            GridPane.columnSpan="2" alignment="center"/>
+    <Button text="Ok" onAction="#close"
+            GridPane.columnIndex="3" GridPane.rowIndex="4"
+            alignment="center"
     />
 </GridPane>
