@@ -19,11 +19,11 @@ import spock.lang.Specification
 import spock.lang.Subject
 
 class FastFourierTransformTest extends Specification {
-    private static final float EPSILON = 0.001f
-    private static final List<Float> DATA = (0..4096).collect {
+    private static final float EPSILON = 0.00000001f
+    private static final List<Float> DATA = (0..<4096).collect {
         (float) (1 + it % 4)
     }
-    private static final List<Float> ZERO = (0..4096).collect { 0f }
+    private static final List<Float> ZERO = (0..<4096).collect { 0f }
 
     private float[] real
     private float[] imaginary
