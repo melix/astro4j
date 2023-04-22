@@ -8,6 +8,8 @@ The project currently only consists of:
 - [ser-player](ser-player/) : an application which plays SER files
 - [JSol'Ex](jsolex) : an applcation to process [Sol'Ex](http://www.astrosurf.com/solex/) video files
 
+If you want some context about why I started developing this, you can read my [announcement blog post](https://melix.github.io/blog/2023/04-22-introducing-astro4j.html).
+
 ## Download links
 
 The following binaries are provided as a convenience and built from sources using GitHub Actions.
