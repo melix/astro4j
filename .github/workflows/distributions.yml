@@ -28,10 +28,11 @@ jobs:
       - name: Execute Gradle build
         run: ./gradlew jpackage
 
-      - name: Build native binary
-        run: ./gradlew nativeCompile
+#      - name: Build native binary
+#        run: ./gradlew nativeCompile
 
       - uses: shallwefootball/s3-upload-action@master
+        name: Upload Ser Player
         with:
           aws_key_id: ${{ secrets.AWS_KEY_ID }}
           aws_secret_access_key: ${{ secrets.AWS_SECRET_ACCESS_KEY}}
@@ -39,6 +40,7 @@ jobs:
           source_dir: 'ser-player/build/jpackage'
           destination_dir: ser-player-${{ matrix.os }}
       - uses: shallwefootball/s3-upload-action@master
+        name: Upload JSol'Ex
         with:
           aws_key_id: ${{ secrets.AWS_KEY_ID }}
           aws_secret_access_key: ${{ secrets.AWS_SECRET_ACCESS_KEY}}
