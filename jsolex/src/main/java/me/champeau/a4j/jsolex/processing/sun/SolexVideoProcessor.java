@@ -201,7 +201,7 @@ public class SolexVideoProcessor {
             stretchingStrategy.stretch(image.data);
         });
 
-        if (true) {
+        if (false) {
             emitImage("Lo pass", "fft", width, newHeight, outputBuffer, image -> {
                 var transformed = FastFourierTransform.pad(image.data, width);
                 int padWidth = nextPowerOf2(width);
