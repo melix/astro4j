@@ -275,7 +275,7 @@ public class SolexVideoProcessor {
                     for (int x = 0; x < width; x++) {
                         // To reconstruct the image, we use the polynom to find which pixel to use
                         int y = (int) (p.a() * x * x + p.b() * x + p.c());
-                        if (y < 0 && y >= height) {
+                        if (y < 0 || y >= height) {
                             y = lastY;
                         }
                         float value = buffer[x + width * y];
