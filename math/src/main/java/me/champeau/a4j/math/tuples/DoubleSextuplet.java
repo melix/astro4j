@@ -13,15 +13,17 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package me.champeau.a4j.math;
+package me.champeau.a4j.math.tuples;
 
 /**
- * A double pair.
- * @param a the first component
- * @param b the 2d component
+ * A sextuplet of doubles.
  */
-public record DoublePair(
+public record DoubleSextuplet(
         double a,
-        double b
+        double b,
+        double c,
+        double d,
+        double e,
+        double f
 ) {
 }

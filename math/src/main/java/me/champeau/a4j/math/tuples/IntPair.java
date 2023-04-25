@@ -13,23 +13,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package me.champeau.a4j.math;
-
-import java.util.function.DoubleUnaryOperator;
+package me.champeau.a4j.math.tuples;
 
 /**
- * A double triplet.
- *
+ * An integer pair.
  * @param a the first component
  * @param b the 2d component
- * @param c the 3d component
  */
-public record DoubleTriplet(
-        double a,
-        double b,
-        double c
+public record IntPair(
+        int a,
+        int b
 ) {
-    public DoubleUnaryOperator asPolynomial() {
-        return x -> a * x * x + b * x + c;
-    }
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright 2023-2034 the original author or authors.
+ * Copyright 2023-2023 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,20 +13,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package me.champeau.a4j.jsolex.processing.event;
+package me.champeau.a4j.math.tuples;
 
-import me.champeau.a4j.math.tuples.IntPair;
-
-public final class OutputImageDimensionsDeterminedEvent extends ProcessingEvent<IntPair> {
-    public OutputImageDimensionsDeterminedEvent(IntPair dimensions) {
-        super(dimensions);
-    }
-
-    public int getWidth() {
-        return getPayload().a();
-    }
-
-    public int getHeight() {
-        return getPayload().b();
-    }
+/**
+ * A quintuplet of doubles.
+ */
+public record DoubleQuintuplet(
+        double a,
+        double b,
+        double c,
+        double e,
+        double d
+) {
 }

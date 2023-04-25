@@ -13,7 +13,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package me.champeau.a4j.math;
+package me.champeau.a4j.math.regression;
+
+import me.champeau.a4j.math.Point2D;
+import me.champeau.a4j.math.tuples.DoublePair;
+import me.champeau.a4j.math.tuples.DoubleTriplet;
 
 /**
  * A utility class for computing linear regressions.
@@ -34,10 +38,12 @@ public abstract class LinearRegression {
         double sumXX = 0;
         double sumXY = 0;
         for (Point2D point : series) {
-            sumX += point.x();
-            sumY += point.y();
-            sumXX += point.x() * point.x();
-            sumXY += point.x() * point.y();
+            double x = point.x();
+            double y = point.y();
+            sumX += x;
+            sumY += y;
+            sumXX += x * x;
+            sumXY += x * y;
         }
         int n = series.length;
         double a = (n * sumXY - sumX * sumY) / (n * sumXX - sumX * sumX);
@@ -60,13 +66,15 @@ public abstract class LinearRegression {
         double sumXXX = 0;
         double sumXXXX = 0;
         for (Point2D point : series) {
-            sumX += point.x();
-            sumY += point.y();
-            sumXX += point.x() * point.x();
-            sumXY += point.x() * point.y();
-            sumXXX += point.x() * point.x() * point.x();
-            sumXXXX += point.x() * point.x() * point.x() * point.x();
-            sumXXY += point.x() * point.x() * point.y();
+            double x = point.x();
+            double y = point.y();
+            sumX += x;
+            sumY += y;
+            sumXX += x * x;
+            sumXY += x * y;
+            sumXXX += x * x * x;
+            sumXXXX += x * x * x * x;
+            sumXXY += x * x * y;
         }
         int n = series.length;
 
@@ -81,4 +89,5 @@ public abstract class LinearRegression {
         double c = (sumY / n - b * sumX / n - a * sumXX / n);
         return new DoubleTriplet(a, b, c);
     }
+
 }

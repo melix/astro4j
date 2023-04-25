@@ -13,15 +13,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package me.champeau.a4j.math;
+package me.champeau.a4j.math.tuples;
 
 /**
- * An integer pair.
- * @param a the first component
- * @param b the 2d component
+ * A quadruplet of doubles.
  */
-public record IntPair(
-        int a,
-        int b
+public record DoubleQuadruplet(
+        double a,
+        double b,
+        double c,
+        double d
 ) {
 }

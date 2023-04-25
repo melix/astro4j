@@ -15,6 +15,8 @@
  */
 package me.champeau.a4j.math
 
+import me.champeau.a4j.math.regression.LinearRegression
+import me.champeau.a4j.math.tuples.DoubleTriplet
 import spock.lang.Specification
 
 import static java.lang.Math.abs

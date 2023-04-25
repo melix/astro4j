@@ -15,8 +15,8 @@
  */
 package me.champeau.a4j.jsolex.processing.sun;
 
-import me.champeau.a4j.math.DoubleTriplet;
-import me.champeau.a4j.math.LinearRegression;
+import me.champeau.a4j.math.tuples.DoubleTriplet;
+import me.champeau.a4j.math.regression.LinearRegression;
 import me.champeau.a4j.math.Point2D;
 
 import java.util.ArrayList;

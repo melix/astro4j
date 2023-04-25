@@ -33,8 +33,11 @@ import me.champeau.a4j.jsolex.processing.stretching.CutoffStretchingStrategy;
 import me.champeau.a4j.jsolex.processing.stretching.LinearStrechingStrategy;
 import me.champeau.a4j.jsolex.processing.util.ParallelExecutor;
 import me.champeau.a4j.jsolex.processing.util.ProcessingException;
-import me.champeau.a4j.math.DoubleTriplet;
-import me.champeau.a4j.math.IntPair;
+import me.champeau.a4j.math.tuples.DoubleTriplet;
+import me.champeau.a4j.math.regression.Ellipse;
+import me.champeau.a4j.math.regression.EllipseRegression;
+import me.champeau.a4j.math.tuples.IntPair;
+import me.champeau.a4j.math.Point2D;
 import me.champeau.a4j.math.fft.FastFourierTransform;
 import me.champeau.a4j.math.image.ImageMath;
 import me.champeau.a4j.ser.SerFileReader;
@@ -51,8 +54,10 @@ import java.io.File;
 import java.io.PrintWriter;
 import java.nio.file.Files;
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 import java.util.function.Consumer;
 
@@ -168,66 +173,134 @@ public class SolexVideoProcessor {
             throw new ProcessingException(e);
         }
         LOGGER.info("Reconstruction done. Generating images...");
-        emitImage("Raw (Linear)", "linear", width, newHeight, outputBuffer, image -> {
-            var stretchingStrategy = CompositeStretchingStrategy.of(
-                    new CutoffStretchingStrategy(1f, 255f),
-                    new LinearStrechingStrategy(240f)
-            );
-            stretchingStrategy.stretch(image.data);
-        });
-        emitImage("Raw (Stretched)", "streched", width, newHeight, outputBuffer, image -> {
-            var stretchingStrategy = CompositeStretchingStrategy.of(
-                    new CutoffStretchingStrategy(1f, 255f),
-                    new ArcsinhStretchingStrategy(1f, 0.1f),
-                    new LinearStrechingStrategy(240f)
-            );
-            stretchingStrategy.stretch(image.data);
-        });
-        emitImage("Banding fixed", "banding-fixed", width, newHeight, outputBuffer, KnownCurves.H_ALPHA, image -> {
-            var imageMath = ImageMath.newInstance();
-            // Perform one iteration vertically, were there are not so many lines
-            BandingReduction.reduceBanding(width, newHeight, image.data, 1, 16);
-            // Then perform multiple iterations vertically, were there are many line artifacts
-            // we need to transpose the image to compute the average value of each line
-            float[] transposed = imageMath.rotateLeft(image.data, width, newHeight);
-            BandingReduction.reduceBanding(newHeight, width, transposed, 4, 32);
-            transposed = imageMath.rotateRight(transposed, newHeight, width);
-            System.arraycopy(transposed, 0, image.data, 0, transposed.length);
-            var stretchingStrategy = CompositeStretchingStrategy.of(
-                    new CutoffStretchingStrategy(1f, 255f),
-                    new ArcsinhStretchingStrategy(1f, 0.1f),
-                    new LinearStrechingStrategy(240f)
-            );
-            stretchingStrategy.stretch(image.data);
-        });
-
-        if (false) {
-            emitImage("Lo pass", "fft", width, newHeight, outputBuffer, image -> {
-                var transformed = FastFourierTransform.pad(image.data, width);
-                int padWidth = nextPowerOf2(width);
-                int padHeight = nextPowerOf2(newHeight);
-                var fft = FastFourierTransform.ofArray2D(transformed, padWidth, padHeight);
-                LOGGER.info("Computing Lo pass filter");
-                fft.transform();
-                float[] real = fft.real();
-                float[] im = fft.imaginary();
-                int length = real.length;
-                int lo = (int) (0.99f * length);
-                Arrays.fill(real, lo, length, 0f);
-                Arrays.fill(im, lo, length, 0f);
-                fft.inverseTransform();
-
-                var stretchingStrategy = CompositeStretchingStrategy.of(
-                        new CutoffStretchingStrategy(1f, 255f),
-                        new ArcsinhStretchingStrategy(1f, 0.1f),
-                        new LinearStrechingStrategy(240f)
-                );
-                stretchingStrategy.stretch(transformed);
-
-                image.data = real;
-                image.width = padWidth;
-                image.height = padHeight;
+        try (var executor = ParallelExecutor.newExecutor()) {
+            executor.submit(() -> {
+                emitImage("Raw (Linear)", "linear", width, newHeight, outputBuffer, image -> {
+                    var stretchingStrategy = CompositeStretchingStrategy.of(
+                            new CutoffStretchingStrategy(1f, 255f),
+                            new LinearStrechingStrategy(240f)
+                    );
+                    stretchingStrategy.stretch(image.data);
+                });
+                emitImage("Raw (Stretched)", "streched", width, newHeight, outputBuffer, image -> {
+                    var stretchingStrategy = CompositeStretchingStrategy.of(
+                            new CutoffStretchingStrategy(1f, 255f),
+                            new ArcsinhStretchingStrategy(1f, 0.1f),
+                            new LinearStrechingStrategy(240f)
+                    );
+                    stretchingStrategy.stretch(image.data);
+                });
             });
+            executor.submit(() -> {
+                emitImage("Banding fixed", "banding-fixed", width, newHeight, outputBuffer, KnownCurves.H_ALPHA, image -> {
+                    var imageMath = ImageMath.newInstance();
+                    // Perform one iteration vertically, were there are not so many lines
+                    BandingReduction.reduceBanding(width, newHeight, image.data, 1, 16);
+                    // Then perform multiple iterations vertically, were there are many line artifacts
+                    // we need to transpose the image to compute the average value of each line
+                    float[] transposed = imageMath.rotateLeft(image.data, width, newHeight);
+                    BandingReduction.reduceBanding(newHeight, width, transposed, 4, 32);
+                    transposed = imageMath.rotateRight(transposed, newHeight, width);
+                    System.arraycopy(transposed, 0, image.data, 0, transposed.length);
+                    var stretchingStrategy = CompositeStretchingStrategy.of(
+                            new CutoffStretchingStrategy(1f, 255f),
+                            new ArcsinhStretchingStrategy(1f, 0.1f),
+                            new LinearStrechingStrategy(240f)
+                    );
+                    stretchingStrategy.stretch(image.data);
+                });
+            });
+            executor.submit(() -> {
+                emitImage("Coronagraph", "protus", width, newHeight, outputBuffer, image -> {
+                    List<Point2D> samples = new ArrayList<>();
+                    // We can have bad samples because the sun disk can be truncated
+                    // so we remove those which are within a small distance of x coordinate of the previous sample
+                    int threshold = 3;
+                    int lastMin = -1;
+                    int lastMax = -1;
+                    int magnitudeDetectionWidth = nextPowerOf2(width);
+                    int offset = (magnitudeDetectionWidth - width) / 2;
+                    for (int y = 0; y < newHeight; y++) {
+                        var line = new float[width];
+                        System.arraycopy(image.data, y * width, line, 0, width);
+                        var magnitudes = MagnitudeDetectorSupport.computeMagnitudes(width, line);
+                        var edges = MagnitudeDetectorSupport.findEdges(magnitudes, width, 10);
+                        int min = edges.a();
+                        int max = edges.b();
+                        if (min >= 0 && Math.abs(min - lastMin) > threshold) {
+                            double x = min - offset;
+                            samples.add(new Point2D(x, y));
+                            lastMin = min;
+                        }
+                        if (max >= 0 && Math.abs(max - lastMax) > threshold) {
+                            double x = max - offset;
+                            samples.add(new Point2D(x, y));
+                            lastMax = max;
+                        }
+                    }
+
+                    var ellipse = new EllipseRegression(samples)
+                            .solve();
+                    // We're now going to filter samples by keeping only those which are within the predicted
+                    // eclipse, to reduce influence of outliers
+                    ellipse = new EllipseRegression(
+                            samples.stream()
+                                    .filter(ellipse::isWithin)
+                                    .toList()
+                            // rescale so that the limb is visible
+                    ).solve().scale(0.98d);
+                    LOGGER.info("Ellipse fitting: {}", ellipse);
+                    fill(ellipse, image.data, width, 0);
+                    var stretchingStrategy = CompositeStretchingStrategy.of(
+                            new ArcsinhStretchingStrategy(1f, 5f),
+                            new LinearStrechingStrategy(240f)
+                    );
+                    stretchingStrategy.stretch(image.data);
+                });
+            });
+            if (generateDebugImages) {
+                executor.submit(() -> {
+                    emitImage("Lo pass", "fft", width, newHeight, outputBuffer, image -> {
+                        var transformed = FastFourierTransform.pad(image.data, width);
+                        int padWidth = nextPowerOf2(width);
+                        int padHeight = nextPowerOf2(newHeight);
+                        var fft = FastFourierTransform.ofArray2D(transformed, padWidth, padHeight);
+                        LOGGER.info("Computing Lo pass filter");
+                        fft.transform();
+                        float[] real = fft.real();
+                        float[] im = fft.imaginary();
+                        int length = real.length;
+                        int lo = (int) (0.99f * length);
+                        Arrays.fill(real, lo, length, 0f);
+                        Arrays.fill(im, lo, length, 0f);
+                        fft.inverseTransform();
+
+                        var stretchingStrategy = CompositeStretchingStrategy.of(
+                                new CutoffStretchingStrategy(1f, 255f),
+                                new ArcsinhStretchingStrategy(1f, 0.1f),
+                                new LinearStrechingStrategy(240f)
+                        );
+                        stretchingStrategy.stretch(transformed);
+
+                        image.data = real;
+                        image.width = padWidth;
+                        image.height = padHeight;
+                    });
+                });
+            }
+        } catch (Exception e) {
+            throw new ProcessingException(e);
+        }
+    }
+
+    private static void fill(Ellipse ellipse, float[] image, int width, int color) {
+        int height = image.length / width;
+        for (int x = 0; x < width; x++) {
+            for (int y = 0; y < height; y++) {
+                if (ellipse.isWithin(x, y)) {
+                    image[x + y * width] = color;
+                }
+            }
         }
     }
 

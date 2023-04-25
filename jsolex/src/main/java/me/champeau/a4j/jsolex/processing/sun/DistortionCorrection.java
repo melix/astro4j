@@ -15,7 +15,7 @@
  */
 package me.champeau.a4j.jsolex.processing.sun;
 
-import me.champeau.a4j.math.DoubleTriplet;
+import me.champeau.a4j.math.tuples.DoubleTriplet;
 
 public class DistortionCorrection {
     private final float[] data;

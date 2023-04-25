@@ -18,7 +18,6 @@ package me.champeau.a4j.jsolex.processing.sun;
 import me.champeau.a4j.jsolex.processing.stats.ChannelStats;
 import me.champeau.a4j.jsolex.processing.util.ParallelExecutor;
 import me.champeau.a4j.jsolex.processing.util.ProcessingException;
-import me.champeau.a4j.math.fft.FastFourierTransform;
 import me.champeau.a4j.ser.ImageGeometry;
 import me.champeau.a4j.ser.SerFileReader;
 import me.champeau.a4j.ser.bayer.ImageConverter;
@@ -26,11 +25,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.nio.ByteBuffer;
-import java.util.Arrays;
 import java.util.Optional;
 import java.util.function.BiConsumer;
-
-import static me.champeau.a4j.math.fft.FFTSupport.nextPowerOf2;
 
 /**
  * An edge detector which performs an FFT of each line to compute
@@ -67,41 +63,18 @@ public class MagnitudeBasedSunEdgeDetector implements SunEdgeDetector {
                 executor.submit(() -> {
                     var buffer = imageConverter.createBuffer(geometry);
                     imageConverter.convert(frameId, ByteBuffer.wrap(copy), geometry, buffer);
-                    float[] line = new float[nextPowerOf2(width)];
-                    int padding = line.length - width;
-                    System.arraycopy(buffer, 0, line, padding, width);
-                    var fft = FastFourierTransform.ofReal(line);
-                    double max = Double.MIN_VALUE;
-                    var im = fft.imaginary();
-                    for (int k = 0; k < line.length; k++) {
-                        double magnitude = Math.sqrt(line[k] * line[k] + im[k] * im[k]);
-                        if (magnitude > max) {
-                            max = magnitude;
-                        }
-                    }
-                    magnitudes[frameId] = max;
+                    magnitudes[frameId] = MagnitudeDetectorSupport.maxMagnitude(width, buffer);
                 });
             }
         } catch (Exception ex) {
             throw new ProcessingException(ex);
         }
-        double min = Arrays.stream(magnitudes).min().orElse(0d);
-        double max = Arrays.stream(magnitudes).max().orElse(0d);
-        double amplitude = max - min;
-        double threshold = amplitude / 50d;
-        for (int i = 0; i < magnitudes.length; i++) {
-            double magnitude = magnitudes[i];
-            if (magnitude >= threshold && startEdge == null) {
-                startEdge = i;
-                break;
-            }
+        var edges = MagnitudeDetectorSupport.findEdges(magnitudes, magnitudes.length, 50d);
+        if (edges.a() >= 0) {
+            startEdge = edges.a();
         }
-        for (int i = magnitudes.length - 1; i >= 0; i--) {
-            double magnitude = magnitudes[i];
-            if (magnitude >= threshold && endEdge == null) {
-                endEdge = i;
-                break;
-            }
+        if (edges.b() >= 0) {
+            endEdge = edges.b();
         }
     }
 
