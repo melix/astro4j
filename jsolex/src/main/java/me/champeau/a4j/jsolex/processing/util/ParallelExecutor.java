@@ -15,14 +15,24 @@
  */
 package me.champeau.a4j.jsolex.processing.util;
 
+import me.champeau.a4j.jsolex.processing.sun.tasks.AbstractTask;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Consumer;
 
 public class ParallelExecutor implements AutoCloseable {
+    private static final Logger LOGGER = LoggerFactory.getLogger(ParallelExecutor.class);
+
     private final ExecutorService executorService = Executors.newWorkStealingPool();
     private final Semaphore semaphore = new Semaphore(8 * Runtime.getRuntime().availableProcessors());
+
+    private Consumer<? super Exception> exceptionHandler = (Consumer<Exception>) e -> LOGGER.error("An error happened during processing", e);
 
     private ParallelExecutor() {
     }
@@ -31,16 +41,40 @@ public class ParallelExecutor implements AutoCloseable {
         return new ParallelExecutor();
     }
 
+    public void setExceptionHandler(Consumer<? super Exception> exceptionHandler) {
+        this.exceptionHandler = exceptionHandler;
+    }
+
     public void submit(Runnable task) {
         try {
             semaphore.acquire();
             executorService.submit(() -> {
                 try {
                     task.run();
+                } catch (Exception ex) {
+                    exceptionHandler.accept(ex);
                 } finally {
                     semaphore.release();
                 }
             });
+        } catch (InterruptedException e) {
+            throw new ProcessingException(e);
+        }
+    }
+
+    public <T> CompletableFuture<T> submit(AbstractTask<T> task) {
+        try {
+            semaphore.acquire();
+            return CompletableFuture.supplyAsync(() -> {
+                try {
+                    return task.get();
+                } catch (Exception ex) {
+                    exceptionHandler.accept(ex);
+                    return null;
+                } finally {
+                    semaphore.release();
+                }
+            }, executorService);
         } catch (InterruptedException e) {
             throw new ProcessingException(e);
         }

@@ -48,7 +48,7 @@ public class MagnitudeDetectorSupport {
         return Arrays.stream(magnitudes).max().orElse(0d);
     }
 
-    static IntPair findEdges(double[] magnitudes, int width, double sensitivity) {
+    public static IntPair findEdges(double[] magnitudes, int width, double sensitivity) {
         double min = Arrays.stream(magnitudes).min().orElse(0d);
         double max = Arrays.stream(magnitudes).max().orElse(0d);
         double amplitude = max - min;

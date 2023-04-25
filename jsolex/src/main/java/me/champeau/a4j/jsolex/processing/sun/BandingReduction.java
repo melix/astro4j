@@ -21,7 +21,7 @@ public class BandingReduction {
     private BandingReduction() {
     }
 
-    static void reduceBanding(int width, int height, float[] data, int passes, int bandSize) {
+    public static void reduceBanding(int width, int height, float[] data, int passes, int bandSize) {
         var imageMath = ImageMath.newInstance();
         for (int i = 0; i < passes; i++) {
             // compute average value of each line
