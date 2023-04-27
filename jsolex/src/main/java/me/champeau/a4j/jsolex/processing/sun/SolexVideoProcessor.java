@@ -27,7 +27,6 @@ import me.champeau.a4j.jsolex.processing.event.OutputImageDimensionsDeterminedEv
 import me.champeau.a4j.jsolex.processing.event.PartialReconstructionEvent;
 import me.champeau.a4j.jsolex.processing.event.ProcessingEvent;
 import me.champeau.a4j.jsolex.processing.event.ProcessingEventListener;
-import me.champeau.a4j.jsolex.processing.stats.DefaultImageStatsComputer;
 import me.champeau.a4j.jsolex.processing.stretching.ArcsinhStretchingStrategy;
 import me.champeau.a4j.jsolex.processing.stretching.CompositeStretchingStrategy;
 import me.champeau.a4j.jsolex.processing.stretching.CutoffStretchingStrategy;
@@ -55,7 +54,6 @@ import java.nio.file.Files;
 import java.time.Duration;
 import java.util.Arrays;
 import java.util.HashSet;
-import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.Future;
 import java.util.function.Consumer;
@@ -102,18 +100,19 @@ public class SolexVideoProcessor implements Broadcaster {
             Files.createDirectories(correctedFilesDirectory.toPath());
             Files.createDirectories(workingImageDirectory.toPath());
             ImageGeometry geometry = reader.header().geometry();
-            LOGGER.info("SER file contains {} frames", reader.header().frameCount());
+            var frameCount = reader.header().frameCount();
+            LOGGER.info("SER file contains {} frames", frameCount);
             LOGGER.info("Color mode : {} ({} bytes per pixel, depth = {} bits)", geometry.colorMode(), geometry.getBytesPerPixel(), geometry.pixelDepthPerPlane());
             LOGGER.info("Width: {}, height: {}", geometry.width(), geometry.height());
             LOGGER.info("Detecting limb... ");
             detector.detectEdges(reader);
             detector.ifEdgesDetected((start, end) -> {
                         LOGGER.info("Sun edges detected at frames {} and {}", start, end);
-                        generateImages(converter, reader, start, end);
+                        generateImages(converter, reader, Math.max(0, start - 50), Math.min(end + 50, frameCount) - 1);
                     }
                     , () -> {
                         LOGGER.info("Sun edges weren't detected, processing whole video");
-                        generateImages(converter, reader, 0, reader.header().frameCount() - 1);
+                        generateImages(converter, reader, 0, frameCount - 1);
                     });
         } catch (Exception e) {
             broadcastError(e);
@@ -152,50 +151,21 @@ public class SolexVideoProcessor implements Broadcaster {
             var workImageEmitter = new ImageEmitter(executor, outputBuffer, width, newHeight, workingImageDirectory);
 
             workImageEmitter.newMonoImage("Raw (Linear)", "linear", buffer -> {
-                var stats = DefaultImageStatsComputer.computeStatsForChannel(buffer);
                 var stretchingStrategy = CompositeStretchingStrategy.of(
                         new LinearStrechingStrategy(Constants.NORMALIZED_PIXEL_VALUE)
                 );
                 stretchingStrategy.stretch(buffer);
             });
-            workImageEmitter.newMonoImage("Raw (Stretched) ", "streched", buffer -> {
-                var stretchingStrategy = CompositeStretchingStrategy.of(
-                        new ArcsinhStretchingStrategy(5000f, 6),
-                        new LinearStrechingStrategy(Constants.NORMALIZED_PIXEL_VALUE)
-                );
-                stretchingStrategy.stretch(buffer);
-            });
-            executor.submit(new ImageBandingCorrector(this, outputBuffer, width, newHeight)).thenAccept(
-                    corrected -> {
-                        var stretchingStrategy = CompositeStretchingStrategy.of(
-                                new ArcsinhStretchingStrategy(5000f, 6),
-                                new LinearStrechingStrategy(Constants.MAX_PIXEL_VALUE)
-                        );
-                        stretchingStrategy.stretch(corrected);
-                        workImageEmitter.newMonoImage("Banding fixed", "banding-fixed", corrected);
-                        workImageEmitter.newColorImage("Colorized (" + KnownCurves.H_ALPHA.ray() + ")", "colorized", unused -> {
-                            float[] r = new float[corrected.length];
-                            float[] g = new float[corrected.length];
-                            float[] b = new float[corrected.length];
-                            for (int i = 0; i < corrected.length; i++) {
-                                var rgb = KnownCurves.H_ALPHA.toRGB(corrected[i]);
-                                r[i] = (float) rgb.a();
-                                g[i] = (float) rgb.b();
-                                b[i] = (float) rgb.c();
-                            }
-                            return new float[][]{r, g, b};
-                        });
-                    }
-            );
             executor.submit(new EllipseFittingTask(this, outputBuffer, width, newHeight))
                     .thenAccept(result -> {
                         var ellipse = result.ellipse();
+                        float blackPoint = (float) estimateBlackPoint(width, newHeight, ellipse, outputBuffer);
                         workImageEmitter.newMonoImage("Coronagraph", "protus", buffer -> {
-                            fill(ellipse, buffer, width, 0);
+                            fill(ellipse, buffer, width, (int) blackPoint);
                             var stretchingStrategy = CompositeStretchingStrategy.of(
-                                    new ArcsinhStretchingStrategy(0, 1000),
-                                    new LinearStrechingStrategy(Constants.NORMALIZED_PIXEL_VALUE),
-                                    new CutoffStretchingStrategy(0f, Constants.MAX_PIXEL_VALUE)
+                                    new CutoffStretchingStrategy(blackPoint, Constants.MAX_PIXEL_VALUE),
+                                    new ArcsinhStretchingStrategy(blackPoint, 1000),
+                                    new LinearStrechingStrategy(Constants.NORMALIZED_PIXEL_VALUE)
                             );
                             stretchingStrategy.stretch(buffer);
                         });
@@ -211,10 +181,54 @@ public class SolexVideoProcessor implements Broadcaster {
                                 }
                             });
                         }
+                        workImageEmitter.newMonoImage("Raw (Stretched) ", "streched", buffer -> {
+                            var stretchingStrategy = CompositeStretchingStrategy.of(
+                                    new ArcsinhStretchingStrategy(blackPoint, 7),
+                                    new LinearStrechingStrategy(Constants.NORMALIZED_PIXEL_VALUE)
+                            );
+                            stretchingStrategy.stretch(buffer);
+                        });
+                        executor.submit(new ImageBandingCorrector(this, outputBuffer, width, newHeight)).thenAccept(
+                                corrected -> {
+                                    var stretchingStrategy = CompositeStretchingStrategy.of(
+                                            new ArcsinhStretchingStrategy(blackPoint, 6),
+                                            new LinearStrechingStrategy(Constants.MAX_PIXEL_VALUE)
+                                    );
+                                    stretchingStrategy.stretch(corrected);
+                                    workImageEmitter.newMonoImage("Banding fixed", "banding-fixed", corrected);
+                                    workImageEmitter.newColorImage("Colorized (" + KnownCurves.H_ALPHA.ray() + ")", "colorized", unused -> {
+                                        float[] r = new float[corrected.length];
+                                        float[] g = new float[corrected.length];
+                                        float[] b = new float[corrected.length];
+                                        for (int i = 0; i < corrected.length; i++) {
+                                            var rgb = KnownCurves.H_ALPHA.toRGB(corrected[i]);
+                                            r[i] = (float) rgb.a();
+                                            g[i] = (float) rgb.b();
+                                            b[i] = (float) rgb.c();
+                                        }
+                                        return new float[][]{r, g, b};
+                                    });
+                                }
+                        );
                     });
+
         } catch (Exception e) {
             throw new ProcessingException(e);
         }
+    }
+
+    private static double estimateBlackPoint(int width, int newHeight, Ellipse ellipse, float[] buffer) {
+        double blackEstimate = 0d;
+        int cpt = 0;
+        for (int x = 0; x < width; x++) {
+            for (int y = 0; y < newHeight; y++) {
+                if (!ellipse.isWithin(x, y)) {
+                    blackEstimate = blackEstimate + (buffer[x + y * width] - blackEstimate) / (++cpt);
+                }
+            }
+        }
+        LOGGER.info("Black estimate {}", blackEstimate);
+        return blackEstimate;
     }
 
     private void performImageReconstruction(ImageConverter<float[]> converter, SerFileReader reader, int start, int end, ImageGeometry geometry, int width, int height, float[] outputBuffer) {
@@ -257,7 +271,7 @@ public class SolexVideoProcessor implements Broadcaster {
                                     int frameId,
                                     float[] buffer) {
         analyzer.analyze(buffer);
-        Optional<DoubleTriplet> polynomial = analyzer.findDistortionPolynomial();
+        var polynomial = analyzer.findDistortionPolynomial();
         polynomial.ifPresent(p -> {
                     var fun = p.asPolynomial();
                     showCorrectedImageForDebugging(width, height, buffer, analyzer, frameId, p);
