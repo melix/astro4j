@@ -61,7 +61,7 @@ public class Ellipse {
     @Override
     public String toString() {
         var sb = new StringBuilder();
-        sb.append("Ellipse parameters C(x,y) = ax² + bxy + cy² + ey + z = 0\n");
+        sb.append("Ellipse parameters C(x,y) = ax² + bxy + cy² + dx + ey + f = 0\n");
         sb.append("   - a = ").append(format(cart.a())).append("\n");
         sb.append("   - b = ").append(format(cart.b())).append("\n");
         sb.append("   - c = ").append(format(cart.c())).append("\n");
