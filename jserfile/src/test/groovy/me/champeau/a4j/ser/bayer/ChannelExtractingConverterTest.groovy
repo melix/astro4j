@@ -28,7 +28,7 @@ class ChannelExtractingConverterTest extends Specification implements BayerMatri
     private ChannelExtractingConverter converter
 
     private ImageGeometry geometry
-    private byte[] buffer
+    private short[] buffer
 
     def "extracts channel #channel"() {
         given:
@@ -51,18 +51,18 @@ class ChannelExtractingConverterTest extends Specification implements BayerMatri
         buffer = converter.createBuffer(geometry)
     }
 
-    private static class DummyConverter implements ImageConverter<byte[]>, BayerMatrixSupport {
+    private static class DummyConverter implements ImageConverter<short[]>, BayerMatrixSupport {
 
         @Override
-        byte[] createBuffer(ImageGeometry geometry) {
+        short[] createBuffer(ImageGeometry geometry) {
             return new byte[PIXEL * geometry.width() * geometry.height()]
         }
 
         @Override
-        void convert(int frameId, ByteBuffer frameData, ImageGeometry geometry, byte[] outputData) {
+        void convert(int frameId, ByteBuffer frameData, ImageGeometry geometry, short[] outputData) {
             for (int i = 0; i < outputData.length; i++) {
                 int channel = i % PIXEL
-                outputData[i] = (byte) channel
+                outputData[i] = (short) channel
             }
         }
     }

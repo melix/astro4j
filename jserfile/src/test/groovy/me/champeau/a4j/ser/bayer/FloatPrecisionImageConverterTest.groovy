@@ -36,26 +36,26 @@ class FloatPrecisionImageConverterTest extends Specification {
 
         then:
         assertEquals(buffer[0], 0.0d)
-        assertEquals(buffer[1], 32d)
-        assertEquals(buffer[2], 255d)
+        assertEquals(buffer[1], 8000d)
+        assertEquals(buffer[2], 65535d)
     }
 
     static void assertEquals(double a, double b) {
         assert Math.abs(a - b) < EPSILON
     }
 
-    private static class DummyConverter implements ImageConverter<byte[]> {
+    private static class DummyConverter implements ImageConverter<short[]> {
 
         @Override
-        byte[] createBuffer(ImageGeometry geometry) {
+        short[] createBuffer(ImageGeometry geometry) {
             return new byte[3];
         }
 
         @Override
-        void convert(int frameId, ByteBuffer frameData, ImageGeometry geometry, byte[] outputData) {
-            outputData[0] = (byte) 0;
-            outputData[1] = (byte) 32;
-            outputData[2] = (byte) 255;
+        void convert(int frameId, ByteBuffer frameData, ImageGeometry geometry, short[] outputData) {
+            outputData[0] = (short) 0;
+            outputData[1] = (short) 8000;
+            outputData[2] = (short) 65535;
         }
     }
 
