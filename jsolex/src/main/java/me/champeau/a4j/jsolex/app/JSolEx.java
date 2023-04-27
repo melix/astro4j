@@ -79,11 +79,20 @@ public class JSolEx extends Application {
             var scene = new Scene(root, 1024, 768);
             stage.setTitle("JSol'Ex");
             stage.setScene(scene);
+            addIcons(stage);
             stage.show();
             refreshRecentItemsMenu();
             LogbackConfigurer.configureLogger(console);
         } catch (IOException exception) {
             throw new RuntimeException(exception);
+        }
+    }
+
+    private void addIcons(Stage stage) {
+        for (int i = 16; i <= 512; i *= 2) {
+            stage.getIcons().add(
+                    new Image(getClass().getResourceAsStream("icons/jsolex-" + i + "x" + i + ".png"))
+            );
         }
     }
 
