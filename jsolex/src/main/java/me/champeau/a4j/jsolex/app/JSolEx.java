@@ -36,6 +36,10 @@ import javafx.scene.image.PixelFormat;
 import javafx.scene.image.WritableImage;
 import javafx.stage.FileChooser;
 import javafx.stage.Stage;
+import me.champeau.a4j.jsolex.app.jfx.ConfigurationController;
+import me.champeau.a4j.jsolex.app.jfx.JFXProcessingEventListener;
+import me.champeau.a4j.jsolex.app.jfx.SpectralLineDebugger;
+import me.champeau.a4j.jsolex.app.jfx.ZoomableImageView;
 import me.champeau.a4j.jsolex.processing.event.ImageGeneratedEvent;
 import me.champeau.a4j.jsolex.processing.event.NotificationEvent;
 import me.champeau.a4j.jsolex.processing.event.OutputImageDimensionsDeterminedEvent;
@@ -49,6 +53,7 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.function.Consumer;
 
 public class JSolEx extends Application {
     private static final Logger LOGGER = LoggerFactory.getLogger(JSolEx.class);
@@ -105,12 +110,37 @@ public class JSolEx extends Application {
 
     @FXML
     private void open() {
+        selectSerFileAndThen(this::doOpen);
+    }
+
+    private void selectSerFileAndThen(Consumer<? super File> consumer) {
         var fileChooser = new FileChooser();
         fileChooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("SER files", "*.ser"));
         var selectedFile = fileChooser.showOpenDialog(null);
         if (selectedFile != null) {
-            doOpen(selectedFile);
+            consumer.accept(selectedFile);
         }
+    }
+
+    @FXML
+    private void showFrameDebugger() throws IOException {
+        selectSerFileAndThen(file -> {
+            var fxmlLoader = new FXMLLoader(getClass().getResource("frame-debugger.fxml"));
+            Object configWindow;
+            try {
+                configWindow = fxmlLoader.load();
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
+            var controller = (SpectralLineDebugger) fxmlLoader.getController();
+            var stage = new Stage();
+            Scene scene = new Scene((Parent) configWindow, 1024, 768);
+            controller.open(file, config, scene);
+            stage.setTitle("Frame debugger");
+            stage.setScene(scene);
+            stage.showAndWait();
+        });
+
     }
 
     private void doOpen(File selectedFile) {
@@ -162,7 +192,8 @@ public class JSolEx extends Application {
                 double[] line = payload.data();
                 byte[] rgb = new byte[3 * line.length];
                 for (int x = 0; x < line.length; x++) {
-                    byte c = (byte) line[x];
+                    int v = (int) Math.round(line[x]);
+                    byte c = (byte) (v >> 8);
                     rgb[3 * x] = c;
                     rgb[3 * x + 1] = c;
                     rgb[3 * x + 2] = c;

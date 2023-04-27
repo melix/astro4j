@@ -1,5 +1,5 @@
 /*
- * Copyright 2023-2023 the original author or authors.
+ * Copyright 2003-2021 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,18 +13,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package me.champeau.a4j.jsolex.processing.sun;
+package me.champeau.a4j.jsolex.app.util;
 
-import me.champeau.a4j.jsolex.processing.stats.ChannelStats;
-import me.champeau.a4j.ser.SerFileReader;
-
-import java.util.Optional;
-import java.util.function.BiConsumer;
-
-public interface SunEdgeDetector {
-    void detectEdges(SerFileReader reader);
-
-    void ifEdgesDetected(BiConsumer<Integer, Integer> consumer, Runnable orElse);
-
-    Optional<ChannelStats[]> getFrameStats();
+public class Constants {
+    public static final String CORRECTED_DIRECTORY = "corrected";
+    public static final String RAW_DIRECTORY = "raw";
+    public static final float MAX_PIXEL_VALUE = 65535f;
+    public static final float NORMALIZED_PIXEL_VALUE = MAX_PIXEL_VALUE * .9f;
 }

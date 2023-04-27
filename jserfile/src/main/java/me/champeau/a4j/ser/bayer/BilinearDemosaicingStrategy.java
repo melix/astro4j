@@ -25,7 +25,7 @@ import me.champeau.a4j.ser.ImageGeometry;
 public class BilinearDemosaicingStrategy extends AbstractDemosaicingStrategy {
 
     @Override
-    public void demosaic(byte[] image, ColorMode mode, ImageGeometry geometry) {
+    public void demosaic(short[] image, ColorMode mode, ImageGeometry geometry) {
         setup(mode, geometry);
         for (int y = 1; y < height - 1; y++) {
             for (int x = 1; x < width - 1; x++) {

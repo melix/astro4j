@@ -27,20 +27,26 @@ public record ColorCurve(
         int gIn, int gOut,
         int bIn, int bOut
 ) {
+
+    public static final int MAX = 65535;
+
     private DoubleTriplet polynomialOf(int in, int out) {
         return LinearRegression.secondOrderRegression(
                 new Point2D[]{
                         new Point2D(0, 0),
                         new Point2D(in, out),
-                        new Point2D(255, 255)
+                        new Point2D(MAX, MAX)
                 }
         );
     }
 
-    public DoubleTriplet toRGB(int grey) {
-        var rPoly = polynomialOf(rIn, rOut).asPolynomial();
-        var gPoly = polynomialOf(gIn, gOut).asPolynomial();
-        var bPoly = polynomialOf(bIn, bOut).asPolynomial();
+    public DoubleTriplet toRGB(double grey) {
+        if (grey < 0 || grey > MAX) {
+            throw new IllegalArgumentException("Invalid input " + grey + " : input values must be normalized in range [0..65535]");
+        }
+        var rPoly = polynomialOf(rIn << 8, rOut << 8).asPolynomial();
+        var gPoly = polynomialOf(gIn << 8, gOut << 8).asPolynomial();
+        var bPoly = polynomialOf(bIn << 8, bOut << 8).asPolynomial();
         double v = grey;
         return new DoubleTriplet(
                 apply(v, rPoly),
@@ -54,9 +60,9 @@ public record ColorCurve(
         if (x < 0) {
             return 0;
         }
-        if (x > 255) {
-            return 255;
+        if (x > MAX) {
+            return MAX;
         }
-        return (int) x;
+        return (int) Math.round(x);
     }
 }

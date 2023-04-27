@@ -16,13 +16,25 @@
 package me.champeau.a4j.jsolex.processing.sun;
 
 import me.champeau.a4j.jsolex.processing.util.ProcessingException;
+import me.champeau.a4j.ser.EightBitConversionSupport;
+import me.champeau.a4j.ser.bayer.BilinearDemosaicingStrategy;
+import me.champeau.a4j.ser.bayer.ChannelExtractingConverter;
+import me.champeau.a4j.ser.bayer.DemosaicingRGBImageConverter;
+import me.champeau.a4j.ser.bayer.FloatPrecisionImageConverter;
+import me.champeau.a4j.ser.bayer.ImageConverter;
 
 import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
 
+import static me.champeau.a4j.ser.bayer.BayerMatrixSupport.GREEN;
+
 public class ImageUtils {
+    private ImageUtils() {
+
+    }
+
     public static void writeMonoImage(
             int width,
             int height,
@@ -30,9 +42,10 @@ public class ImageUtils {
             File outputFile
     ) {
         var image = new BufferedImage(width, height, BufferedImage.TYPE_BYTE_GRAY);
+        byte[] converted = EightBitConversionSupport.to8BitImage(data);
         for (int x = 0; x < width; x++) {
             for (int y = 0; y < height; y++) {
-                int value = (int) (data[y * width + x]);
+                int value = converted[y * width + x] & 0xFF;
                 image.setRGB(x, y, value << 16 | value << 8 | value);
             }
         }
@@ -54,9 +67,12 @@ public class ImageUtils {
         var image = new BufferedImage(width, height, BufferedImage.TYPE_INT_RGB);
         for (int x = 0; x < width; x++) {
             for (int y = 0; y < height; y++) {
-                int rv = (int) (r[y * width + x]);
-                int gv = (int) (g[y * width + x]);
-                int bv = (int) (b[y * width + x]);
+                int rv = Math.round(r[y * width + x]);
+                int gv = Math.round(g[y * width + x]);
+                int bv = Math.round(b[y * width + x]);
+                rv = (rv >> 8) & 0xFF;
+                gv = (gv >> 8) & 0xFF;
+                bv = (bv >> 8) & 0xFF;
                 image.setRGB(x, y, rv << 16 | gv << 8 | bv);
             }
         }
@@ -65,5 +81,17 @@ public class ImageUtils {
         } catch (IOException e) {
             throw new ProcessingException(e);
         }
+    }
+
+    public static ImageConverter<float[]> createImageConverter() {
+        return new FloatPrecisionImageConverter(
+                new ChannelExtractingConverter(
+                        new DemosaicingRGBImageConverter(
+                                new BilinearDemosaicingStrategy(),
+                                null
+                        ),
+                        GREEN
+                )
+        );
     }
 }

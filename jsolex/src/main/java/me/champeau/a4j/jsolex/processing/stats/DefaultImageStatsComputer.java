@@ -22,37 +22,46 @@ public class DefaultImageStatsComputer implements ImageStatsComputer {
         int nbOfChannels = imageData.length / channelSize;
         ChannelStats[] channelStats = new ChannelStats[nbOfChannels];
         for (int i = 0; i < nbOfChannels; i++) {
-            int[] histogram = new int[256];
-            int[] cumulativeHistogram = new int[256];
-            double min = Double.MAX_VALUE;
-            double max = Double.MIN_VALUE;
-            double mean = 0;
-            for (int j = 0; j < imageData.length; j += nbOfChannels) {
-                double value = imageData[j + i];
-                int index = (int) value;
-                mean = mean + (value - mean) / ((double) j / nbOfChannels + 1);
-                histogram[index]++;
-                if (value < min) {
-                    min = value;
-                }
-                if (value > max) {
-                    max = value;
-                }
-            }
-            for (int j = 0; j < 256; j++) {
-                cumulativeHistogram[j] = histogram[j];
-                if (j > 0) {
-                    cumulativeHistogram[j] += cumulativeHistogram[j - 1];
-                }
-            }
-            double stddev = 0;
-            for (int j = 0; j < imageData.length; j += nbOfChannels) {
-                double value = imageData[j + i];
-                stddev += (value - mean) * (value - mean);
-            }
-            stddev = Math.sqrt(stddev / ((double) imageData.length / nbOfChannels));
-            channelStats[i] = new ChannelStats(min, max, mean, stddev, histogram, cumulativeHistogram);
+            ChannelStats stats = computeStatsForChannel(imageData, nbOfChannels, i);
+            channelStats[i] = stats;
         }
         return channelStats;
+    }
+
+    public static ChannelStats computeStatsForChannel(float[] imageData) {
+        return computeStatsForChannel(imageData, 1, 0);
+    }
+
+    public static ChannelStats computeStatsForChannel(float[] imageData, int nbOfChannels, int channel) {
+        int[] histogram = new int[65536];
+        int[] cumulativeHistogram = new int[65536];
+        double min = Double.MAX_VALUE;
+        double max = Double.MIN_VALUE;
+        double mean = 0;
+        for (int j = 0; j < imageData.length; j += nbOfChannels) {
+            double value = imageData[j + channel];
+            int index = (int) Math.round(value);
+            mean = mean + (value - mean) / ((double) j / nbOfChannels + 1);
+            histogram[index]++;
+            if (value < min) {
+                min = value;
+            }
+            if (value > max) {
+                max = value;
+            }
+        }
+        for (int j = 0; j < 65536; j++) {
+            cumulativeHistogram[j] = histogram[j];
+            if (j > 0) {
+                cumulativeHistogram[j] += cumulativeHistogram[j - 1];
+            }
+        }
+        double stddev = 0;
+        for (int j = 0; j < imageData.length; j += nbOfChannels) {
+            double value = imageData[j + channel];
+            stddev += (value - mean) * (value - mean);
+        }
+        stddev = Math.sqrt(stddev / ((double) imageData.length / nbOfChannels));
+        return new ChannelStats(min, max, mean, stddev, histogram, cumulativeHistogram);
     }
 }

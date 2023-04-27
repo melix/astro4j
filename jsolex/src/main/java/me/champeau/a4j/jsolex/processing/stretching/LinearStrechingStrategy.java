@@ -29,8 +29,12 @@ public class LinearStrechingStrategy implements StretchingStrategy {
         double min = min(data).orElse(0d);
         double max = max(data).orElse(0d);
         double range = max - min;
+        if (range == 0) {
+            return;
+        }
         for (int i = 0; i < data.length; i++) {
-            data[i] = (float) (whitePoint * (data[i] - min) / range);
+            float v = (float) (whitePoint/range * (data[i] - min));
+            data[i] = v;
         }
     }
 

@@ -8,7 +8,7 @@
 <?import javafx.scene.control.Tooltip?>
 <?import javafx.scene.layout.GridPane?>
 <GridPane
-        fx:controller="me.champeau.a4j.jsolex.app.ConfigurationController"
+        fx:controller="me.champeau.a4j.jsolex.app.jfx.ConfigurationController"
         xmlns:fx="http://javafx.com/fxml" alignment="center" hgap="10" vgap="10">
     <padding>
         <Insets top="10" right="10" bottom="10" left="10"/>

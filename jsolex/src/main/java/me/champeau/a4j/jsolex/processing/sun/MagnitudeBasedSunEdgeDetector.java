@@ -79,9 +79,11 @@ public class MagnitudeBasedSunEdgeDetector implements SunEdgeDetector {
     }
 
     @Override
-    public void ifEdgesDetected(BiConsumer<Integer, Integer> consumer) {
+    public void ifEdgesDetected(BiConsumer<Integer, Integer> consumer, Runnable orElse) {
         if (startEdge != null && endEdge != null) {
             consumer.accept(startEdge, endEdge);
+        } else {
+            orElse.run();
         }
     }
 

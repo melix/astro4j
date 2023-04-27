@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.control.Slider?>
+<?import javafx.scene.layout.GridPane?>
+<?import javafx.scene.image.ImageView?>
+<?import javafx.scene.control.TextField?>
+<GridPane
+        fx:controller="me.champeau.a4j.jsolex.app.jfx.SpectralLineDebugger"
+        xmlns:fx="http://javafx.com/fxml" alignment="center" hgap="10" vgap="10">
+    <padding>
+        <Insets top="10" right="10" bottom="10" left="10"/>
+    </padding>
+    <ImageView fx:id="imageView"
+               GridPane.columnIndex="0" GridPane.rowIndex="0" GridPane.columnSpan="2"/>
+    <Slider fx:id="frameSlider"
+            GridPane.columnIndex="0" GridPane.rowIndex="1"
+    />
+    <Label fx:id="frameId" GridPane.columnIndex="1" GridPane.rowIndex="1"/>
+    <Label text="Spectrum detection threshold"
+           GridPane.columnIndex="0" GridPane.rowIndex="2"/>
+    <TextField fx:id="spectrumDetectionThreshold"
+               GridPane.columnIndex="1" GridPane.rowIndex="2"/>
+    <Label text="Sun detection threshold"
+           GridPane.columnIndex="0" GridPane.rowIndex="3"/>
+    <TextField fx:id="sunDetectionThreshold"
+               GridPane.columnIndex="1" GridPane.rowIndex="3"/>
+</GridPane>

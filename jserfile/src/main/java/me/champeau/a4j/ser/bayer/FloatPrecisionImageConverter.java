@@ -23,14 +23,12 @@ import java.nio.ByteBuffer;
  * Each pixel in the image is represented by one byte per
  * channel (e.g in an RGB image, 3 bytes, or in a mono image, 1 byte).
  * This class is responsible for converting each byte into a float
- * value ranging from 0 to 255.
- * The output buffer will use 8 times more memory but will be more
- * interesting for high precision computations.
+ * value ranging from 0 to 65535.
  */
 public class FloatPrecisionImageConverter implements ImageConverter<float[]> {
-    private final ImageConverter<byte[]> delegate;
+    private final ImageConverter<short[]> delegate;
 
-    public FloatPrecisionImageConverter(ImageConverter<byte[]> delegate) {
+    public FloatPrecisionImageConverter(ImageConverter<short[]> delegate) {
         this.delegate = delegate;
     }
 
@@ -45,7 +43,7 @@ public class FloatPrecisionImageConverter implements ImageConverter<float[]> {
         var intermediateBuffer = delegate.createBuffer(geometry);
         delegate.convert(frameId, frameData, geometry, intermediateBuffer);
         for (int i = 0; i < intermediateBuffer.length; i++) {
-            outputData[i] = (intermediateBuffer[i] & 0xFF);
+            outputData[i] = intermediateBuffer[i] & 0xFFFF;
         }
     }
 }

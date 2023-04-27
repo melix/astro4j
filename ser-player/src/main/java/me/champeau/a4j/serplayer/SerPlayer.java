@@ -31,6 +31,7 @@ import javafx.scene.layout.VBox;
 import javafx.stage.FileChooser;
 import javafx.stage.Stage;
 import me.champeau.a4j.ser.ColorMode;
+import me.champeau.a4j.ser.EightBitConversionSupport;
 import me.champeau.a4j.ser.Frame;
 import me.champeau.a4j.ser.Header;
 import me.champeau.a4j.ser.ImageGeometry;
@@ -256,7 +257,7 @@ public class SerPlayer extends Application implements BayerMatrixSupport, Player
      */
     private class VideoAnimationTimer extends AnimationTimer {
         private final SerFileReader reader;
-        private byte[] imageData;
+        private short[] imageData;
         private WritableImage image;
         private double fps;
         private long last = -1L;
@@ -313,9 +314,10 @@ public class SerPlayer extends Application implements BayerMatrixSupport, Player
             }
             imageConverter.convert(currentFrameNb, frame.data(), geometry, imageData);
             PixelFormat<ByteBuffer> pixelFormat = PixelFormat.getByteRgbInstance();
+            byte[] as8Bit = EightBitConversionSupport.to8BitImage(imageData);
             reader.nextFrame();
             image.getPixelWriter()
-                    .setPixels(0, 0, width, height, pixelFormat, imageData, 0, PIXEL * width);
+                    .setPixels(0, 0, width, height, pixelFormat, as8Bit, 0, PIXEL * width);
             imageView.setImage(image);
             fileMetadataControl.setFilename(currentSelectedFile.getName());
             fileMetadataControl.setColorMode(header.geometry().colorMode().toString());

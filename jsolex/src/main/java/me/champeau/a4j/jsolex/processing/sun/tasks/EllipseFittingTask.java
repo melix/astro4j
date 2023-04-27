@@ -80,8 +80,8 @@ public class EllipseFittingTask extends AbstractTask<EllipseFittingTask.Result> 
                         .filter(ellipse::isWithin)
                         .toList()
                 // rescale so that the limb is visible
-        ).solve().scale(0.98d);
-        LOGGER.info("Ellipse fitting: {}", ellipse);
+        ).solve().scale(0.99d);
+        LOGGER.info("{}", ellipse);
         return new Result(ellipse, Collections.unmodifiableList(samples));
     }
 

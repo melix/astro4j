@@ -31,6 +31,7 @@ public class ParallelExecutor implements AutoCloseable {
 
     private final ExecutorService executorService = Executors.newWorkStealingPool();
     private final Semaphore semaphore = new Semaphore(8 * Runtime.getRuntime().availableProcessors());
+//    private final Semaphore semaphore = new Semaphore(1 );
 
     private Consumer<? super Exception> exceptionHandler = (Consumer<Exception>) e -> LOGGER.error("An error happened during processing", e);
 

@@ -24,31 +24,31 @@ import static me.champeau.a4j.ser.bayer.BayerMatrixSupport.PIXEL;
 /**
  * A converter which will extract a single channel from an RGB image.
  */
-public class ChannelExtractingConverter implements ImageConverter<byte[]> {
-    private final ImageConverter<byte[]> delegate;
+public class ChannelExtractingConverter implements ImageConverter<short[]> {
+    private final ImageConverter<short[]> delegate;
     private final int channel;
 
-    public ChannelExtractingConverter(ImageConverter<byte[]> delegate, int channel) {
+    public ChannelExtractingConverter(ImageConverter<short[]> delegate, int channel) {
         this.delegate = delegate;
         this.channel = channel;
     }
 
     @Override
-    public byte[] createBuffer(ImageGeometry geometry) {
+    public short[] createBuffer(ImageGeometry geometry) {
         int height = geometry.height();
         int width = geometry.width();
-        return new byte[height * width];
+        return new short[height * width];
     }
 
     @Override
-    public void convert(int frameId, ByteBuffer frameData, ImageGeometry geometry, byte[] outputData) {
+    public void convert(int frameId, ByteBuffer frameData, ImageGeometry geometry, short[] outputData) {
         var intermediateBuffer = delegate.createBuffer(geometry);
         delegate.convert(frameId, frameData, geometry, intermediateBuffer);
         int height = geometry.height();
         int width = geometry.width();
         for (int y = 0; y < height; y++) {
             for (int x = 0; x < width; x++) {
-                byte r = intermediateBuffer[(y * width + x) * PIXEL + channel];
+                short r = intermediateBuffer[(y * width + x) * PIXEL + channel];
                 outputData[y * width + x] = r;
             }
         }

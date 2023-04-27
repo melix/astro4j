@@ -25,7 +25,7 @@ import me.champeau.a4j.ser.ImageGeometry;
 public interface DemosaicingStrategy {
     /**
      * Performs demosaicing. For performance, it is expected that the
-     * original byte[] is mutated, so if a particular algorithm cannot
+     * original short[] is mutated, so if a particular algorithm cannot
      * work directly on the original array, it must create an internal
      * copy first, then mutate the original array before returning.
      *
@@ -35,5 +35,5 @@ public interface DemosaicingStrategy {
      * in case the metadata in the file is wrong)
      * @param geometry the image geometry
      */
-    void demosaic(byte[] image, ColorMode mode, ImageGeometry geometry);
+    void demosaic(short[] image, ColorMode mode, ImageGeometry geometry);
 }

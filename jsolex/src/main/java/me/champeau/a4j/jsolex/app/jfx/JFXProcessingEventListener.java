@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package me.champeau.a4j.jsolex.app;
+package me.champeau.a4j.jsolex.app.jfx;
 
 import javafx.application.Platform;
 import me.champeau.a4j.jsolex.processing.event.ImageGeneratedEvent;
@@ -22,10 +22,10 @@ import me.champeau.a4j.jsolex.processing.event.OutputImageDimensionsDeterminedEv
 import me.champeau.a4j.jsolex.processing.event.PartialReconstructionEvent;
 import me.champeau.a4j.jsolex.processing.event.ProcessingEventListener;
 
-class JFXProcessingEventListener implements ProcessingEventListener {
+public class JFXProcessingEventListener implements ProcessingEventListener {
     private final ProcessingEventListener delegate;
 
-    static ProcessingEventListener of(ProcessingEventListener delegate) {
+    public static ProcessingEventListener of(ProcessingEventListener delegate) {
         return new JFXProcessingEventListener(delegate);
     }
 

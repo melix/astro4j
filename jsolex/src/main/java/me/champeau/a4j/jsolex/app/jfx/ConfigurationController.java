@@ -13,13 +13,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package me.champeau.a4j.jsolex.app;
+package me.champeau.a4j.jsolex.app.jfx;
 
 import javafx.fxml.FXML;
 import javafx.scene.control.CheckBox;
 import javafx.scene.control.Label;
 import javafx.scene.control.Slider;
 import javafx.stage.Stage;
+import me.champeau.a4j.jsolex.app.Configuration;
 import me.champeau.a4j.math.VectorApiSupport;
 
 public class ConfigurationController {

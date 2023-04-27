@@ -18,7 +18,9 @@
                 <SeparatorMenuItem/>
                 <MenuItem text="Exit" onAction="#exit"/>
             </Menu>
-            <Menu text="Help">
+            <Menu text="Tools">
+                <MenuItem text="Spectrum debugger" onAction="#showFrameDebugger"/>
+                <SeparatorMenuItem/>
                 <MenuItem text="About"/>
             </Menu>
         </MenuBar>

@@ -15,6 +15,8 @@
  */
 package me.champeau.a4j.jsolex.processing.stretching;
 
+import me.champeau.a4j.jsolex.app.util.Constants;
+
 import static org.apache.commons.math3.util.FastMath.asinh;
 
 /**
@@ -26,17 +28,17 @@ public class ArcsinhStretchingStrategy implements StretchingStrategy {
     private final double stretch;
 
     public ArcsinhStretchingStrategy(float blackPoint, float stretch) {
-        this.blackPoint = blackPoint;
+        this.blackPoint = blackPoint / Constants.MAX_PIXEL_VALUE;
         this.stretch = stretch;
     }
 
     @Override
     public void stretch(float[] data) {
         for (int i = 0; i < data.length; i++) {
-            double original = data[i];
+            double original = data[i] / Constants.MAX_PIXEL_VALUE;
             if (original > 0) {
                 double stretched = ((original - blackPoint) * asinh(original * stretch)) / (original * asinh(stretch));
-                data[i] = (float) stretched;
+                data[i] = (float) stretched*Constants.MAX_PIXEL_VALUE;
             }
         }
     }

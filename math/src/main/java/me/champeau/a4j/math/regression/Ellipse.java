@@ -58,4 +58,20 @@ public class Ellipse {
         return a > 0 && value <= 0 || a < 0 && value >= 0;
     }
 
+    @Override
+    public String toString() {
+        var sb = new StringBuilder();
+        sb.append("Ellipse parameters C(x,y) = ax² + bxy + cy² + ey + z = 0\n");
+        sb.append("   - a = ").append(format(cart.a())).append("\n");
+        sb.append("   - b = ").append(format(cart.b())).append("\n");
+        sb.append("   - c = ").append(format(cart.c())).append("\n");
+        sb.append("   - d = ").append(format(cart.d())).append("\n");
+        sb.append("   - e = ").append(format(cart.e())).append("\n");
+        sb.append("   - f = ").append(format(cart.f())).append("\n");
+        return sb.toString();
+    }
+
+    private static String format(double d) {
+        return String.format("%4.2f", d);
+    }
 }

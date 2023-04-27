@@ -37,16 +37,16 @@ public abstract class AbstractDemosaicingStrategy implements DemosaicingStrategy
         this.lineFeed = PIXEL * width;
     }
 
-    protected static int unsigned(byte b) {
-        return b & 0xFF;
+    protected static int unsigned(short b) {
+        return b & 0xFFFF;
     }
 
-    protected static byte avg(byte a, byte b) {
-        return (byte) ((unsigned(a) + unsigned(b)) >> 1);
+    protected static short avg(short a, short b) {
+        return (short) ((unsigned(a) + unsigned(b)) >> 1);
     }
 
-    protected static byte avg(byte a, byte b, byte c, byte d) {
-        return (byte) ((unsigned(a) + unsigned(b) + unsigned(c) + unsigned(d)) >> 2);
+    protected static short avg(short a, short b, short c, short d) {
+        return (short) ((unsigned(a) + unsigned(b) + unsigned(c) + unsigned(d)) >> 2);
     }
 
     protected int indexOf(int x, int y) {
