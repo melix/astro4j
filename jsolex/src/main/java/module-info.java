@@ -26,4 +26,5 @@ module me.champeau.a4j.jsolex {
     requires jdk.incubator.vector;
     exports me.champeau.a4j.jsolex.app to javafx.graphics;
     opens me.champeau.a4j.jsolex.app to javafx.fxml;
+    opens me.champeau.a4j.jsolex.app.jfx to javafx.fxml;
 }
