@@ -32,15 +32,16 @@ import me.champeau.a4j.jsolex.processing.stretching.CompositeStretchingStrategy;
 import me.champeau.a4j.jsolex.processing.stretching.CutoffStretchingStrategy;
 import me.champeau.a4j.jsolex.processing.stretching.LinearStrechingStrategy;
 import me.champeau.a4j.jsolex.processing.sun.tasks.EllipseFittingTask;
+import me.champeau.a4j.jsolex.processing.sun.tasks.GeometryCorrector;
 import me.champeau.a4j.jsolex.processing.sun.tasks.ImageBandingCorrector;
 import me.champeau.a4j.jsolex.processing.sun.tasks.WriteColorImageTask;
 import me.champeau.a4j.jsolex.processing.sun.tasks.WriteMonoImageTask;
+import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 import me.champeau.a4j.jsolex.processing.util.ParallelExecutor;
 import me.champeau.a4j.jsolex.processing.util.ProcessingException;
 import me.champeau.a4j.math.Point2D;
 import me.champeau.a4j.math.regression.Ellipse;
 import me.champeau.a4j.math.tuples.DoubleTriplet;
-import me.champeau.a4j.math.tuples.IntPair;
 import me.champeau.a4j.ser.ImageGeometry;
 import me.champeau.a4j.ser.SerFileReader;
 import me.champeau.a4j.ser.bayer.ImageConverter;
@@ -54,8 +55,10 @@ import java.nio.file.Files;
 import java.time.Duration;
 import java.util.Arrays;
 import java.util.HashSet;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.Future;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 import java.util.function.Function;
 
@@ -65,9 +68,10 @@ public class SolexVideoProcessor implements Broadcaster {
     private final Set<ProcessingEventListener> progressEventListeners = new HashSet<>();
 
     private final File serFile;
-    private final File outputDirectory;
-    private final File correctedFilesDirectory;
-    private final File workingImageDirectory;
+    private final File rootDirectory;
+    private final File debugDirectory;
+    private final File processedDirectory;
+    private final File rawImagesDirectory;
     private final boolean generateDebugImages;
     private final double spectrumDetectionThreshold;
 
@@ -76,9 +80,10 @@ public class SolexVideoProcessor implements Broadcaster {
                                boolean generateDebugImages,
                                double spectrumDetectionThreshold) {
         this.serFile = serFile;
-        this.outputDirectory = outputDirectory;
-        this.correctedFilesDirectory = new File(outputDirectory, Constants.CORRECTED_DIRECTORY);
-        this.workingImageDirectory = new File(outputDirectory, Constants.RAW_DIRECTORY);
+        this.rootDirectory = outputDirectory;
+        this.debugDirectory = new File(outputDirectory, Constants.DEBUG_DIRECTORY);
+        this.rawImagesDirectory = new File(outputDirectory, Constants.RAW_DIRECTORY);
+        this.processedDirectory = new File(outputDirectory, Constants.PROCESSED_DIRECTORY);
         this.generateDebugImages = generateDebugImages;
         this.spectrumDetectionThreshold = spectrumDetectionThreshold;
     }
@@ -96,9 +101,10 @@ public class SolexVideoProcessor implements Broadcaster {
         var converter = ImageUtils.createImageConverter();
         var detector = new MagnitudeBasedSunEdgeDetector(converter);
         try (SerFileReader reader = SerFileReader.of(serFile)) {
-            Files.createDirectories(outputDirectory.toPath());
-            Files.createDirectories(correctedFilesDirectory.toPath());
-            Files.createDirectories(workingImageDirectory.toPath());
+            Files.createDirectories(rootDirectory.toPath());
+            Files.createDirectories(debugDirectory.toPath());
+            Files.createDirectories(rawImagesDirectory.toPath());
+            Files.createDirectories(processedDirectory.toPath());
             ImageGeometry geometry = reader.header().geometry();
             var frameCount = reader.header().frameCount();
             LOGGER.info("SER file contains {} frames", frameCount);
@@ -143,73 +149,82 @@ public class SolexVideoProcessor implements Broadcaster {
         reader.seekFrame(start);
         int newHeight = end - start;
         var outputBuffer = new float[width * newHeight];
-        broadcast(new OutputImageDimensionsDeterminedEvent(new IntPair(width, newHeight)));
+        broadcast(OutputImageDimensionsDeterminedEvent.of("raw", width, newHeight));
         LOGGER.info("Starting reconstruction...");
         performImageReconstruction(converter, reader, start, end, geometry, width, height, outputBuffer);
+        var rawImage = new ImageWrapper32(width, newHeight, outputBuffer);
         try (var executor = ParallelExecutor.newExecutor()) {
             executor.setExceptionHandler(this::broadcastError);
-            var workImageEmitter = new ImageEmitter(executor, outputBuffer, width, newHeight, workingImageDirectory);
-
-            workImageEmitter.newMonoImage("Raw (Linear)", "linear", buffer -> {
+            var rawImagesEmitter = new ImageEmitter(executor, rawImagesDirectory);
+            var debugImagesEmitter = new ImageEmitter(executor, debugDirectory);
+            var processedImagesEmitter = new ImageEmitter(executor, processedDirectory);
+            rawImagesEmitter.newMonoImage("Raw (Linear)", "linear", rawImage, buffer -> {
                 var stretchingStrategy = CompositeStretchingStrategy.of(
                         new LinearStrechingStrategy(Constants.NORMALIZED_PIXEL_VALUE)
                 );
                 stretchingStrategy.stretch(buffer);
             });
-            executor.submit(new EllipseFittingTask(this, outputBuffer, width, newHeight))
+            executor.submit(new EllipseFittingTask(this, rawImage))
                     .thenAccept(result -> {
                         var ellipse = result.ellipse();
                         float blackPoint = (float) estimateBlackPoint(width, newHeight, ellipse, outputBuffer);
-                        workImageEmitter.newMonoImage("Coronagraph", "protus", buffer -> {
-                            fill(ellipse, buffer, width, (int) blackPoint);
-                            var stretchingStrategy = CompositeStretchingStrategy.of(
-                                    new CutoffStretchingStrategy(blackPoint, Constants.MAX_PIXEL_VALUE),
-                                    new ArcsinhStretchingStrategy(blackPoint, 1000),
-                                    new LinearStrechingStrategy(Constants.NORMALIZED_PIXEL_VALUE)
-                            );
-                            stretchingStrategy.stretch(buffer);
-                        });
-                        if (generateDebugImages) {
-                            workImageEmitter.newMonoImage("Edge detection", "edge-detection", debugImage -> {
-                                var samples = result.samples();
-                                Arrays.fill(debugImage, 0f);
-                                fill(ellipse, debugImage, width, (int) Constants.MAX_PIXEL_VALUE / 4);
-                                for (Point2D sample : samples) {
-                                    var x = sample.x();
-                                    var y = sample.y();
-                                    debugImage[(int) Math.round(x + y * width)] = Constants.MAX_PIXEL_VALUE;
-                                }
-                            });
-                        }
-                        workImageEmitter.newMonoImage("Raw (Stretched) ", "streched", buffer -> {
-                            var stretchingStrategy = CompositeStretchingStrategy.of(
-                                    new ArcsinhStretchingStrategy(blackPoint, 7),
-                                    new LinearStrechingStrategy(Constants.NORMALIZED_PIXEL_VALUE)
-                            );
-                            stretchingStrategy.stretch(buffer);
-                        });
-                        executor.submit(new ImageBandingCorrector(this, outputBuffer, width, newHeight)).thenAccept(
-                                corrected -> {
+                        LOGGER.info("Tilt angle: {}°", String.format("%2.2f", ellipse.tiltAngle() / Math.PI * 180));
+                        executor.submit(new GeometryCorrector(this, rawImage, ellipse, blackPoint)).thenAccept(geometryFixed -> {
+                            broadcast(OutputImageDimensionsDeterminedEvent.of("geometry corrected", geometryFixed.width(), geometryFixed.height()));
+                            executor.submit(new EllipseFittingTask(this, geometryFixed)).thenAccept(fitting -> {
+                                processedImagesEmitter.newMonoImage("Coronagraph", "protus", geometryFixed, buffer -> {
+                                    fill(fitting.ellipse(), buffer, geometryFixed.width(), (int) blackPoint);
                                     var stretchingStrategy = CompositeStretchingStrategy.of(
-                                            new ArcsinhStretchingStrategy(blackPoint, 6),
-                                            new LinearStrechingStrategy(Constants.MAX_PIXEL_VALUE)
+                                            new CutoffStretchingStrategy(blackPoint, Constants.MAX_PIXEL_VALUE),
+                                            new ArcsinhStretchingStrategy(blackPoint, 1000),
+                                            new LinearStrechingStrategy(Constants.NORMALIZED_PIXEL_VALUE)
                                     );
-                                    stretchingStrategy.stretch(corrected);
-                                    workImageEmitter.newMonoImage("Banding fixed", "banding-fixed", corrected);
-                                    workImageEmitter.newColorImage("Colorized (" + KnownCurves.H_ALPHA.ray() + ")", "colorized", unused -> {
-                                        float[] r = new float[corrected.length];
-                                        float[] g = new float[corrected.length];
-                                        float[] b = new float[corrected.length];
-                                        for (int i = 0; i < corrected.length; i++) {
-                                            var rgb = KnownCurves.H_ALPHA.toRGB(corrected[i]);
-                                            r[i] = (float) rgb.a();
-                                            g[i] = (float) rgb.b();
-                                            b[i] = (float) rgb.c();
-                                        }
-                                        return new float[][]{r, g, b};
-                                    });
-                                }
-                        );
+                                    stretchingStrategy.stretch(buffer);
+                                });
+                            });
+                            if (generateDebugImages) {
+                                debugImagesEmitter.newMonoImage("Edge detection", "edge-detection", geometryFixed, debugImage -> {
+                                    var samples = result.samples();
+                                    Arrays.fill(debugImage, 0f);
+                                    fill(ellipse, debugImage, geometryFixed.width(), (int) Constants.MAX_PIXEL_VALUE / 4);
+                                    for (Point2D sample : samples) {
+                                        var x = sample.x();
+                                        var y = sample.y();
+                                        debugImage[(int) Math.round(x + y * geometryFixed.width())] = Constants.MAX_PIXEL_VALUE;
+                                    }
+                                });
+                            }
+                            processedImagesEmitter.newMonoImage("Stretched", "streched", geometryFixed, buffer -> {
+                                var stretchingStrategy = CompositeStretchingStrategy.of(
+                                        new ArcsinhStretchingStrategy(blackPoint, 7),
+                                        new LinearStrechingStrategy(Constants.NORMALIZED_PIXEL_VALUE)
+                                );
+                                stretchingStrategy.stretch(buffer);
+                            });
+                            executor.submit(new ImageBandingCorrector(this, geometryFixed)).thenAccept(
+                                    corrected -> {
+                                        var stretchingStrategy = CompositeStretchingStrategy.of(
+                                                new ArcsinhStretchingStrategy(blackPoint, 6),
+                                                new LinearStrechingStrategy(Constants.MAX_PIXEL_VALUE)
+                                        );
+                                        stretchingStrategy.stretch(corrected);
+                                        var correctedImg = new ImageWrapper32(geometryFixed.width(), geometryFixed.height(), corrected);
+                                        processedImagesEmitter.newMonoImage("Banding fixed", "banding-fixed", correctedImg);
+                                        processedImagesEmitter.newColorImage("Colorized (" + KnownCurves.H_ALPHA.ray() + ")", "colorized", correctedImg, unused -> {
+                                            float[] r = new float[corrected.length];
+                                            float[] g = new float[corrected.length];
+                                            float[] b = new float[corrected.length];
+                                            for (int i = 0; i < corrected.length; i++) {
+                                                var rgb = KnownCurves.H_ALPHA.toRGB(corrected[i]);
+                                                r[i] = (float) rgb.a();
+                                                g[i] = (float) rgb.b();
+                                                b[i] = (float) rgb.c();
+                                            }
+                                            return new float[][]{r, g, b};
+                                        });
+                                    }
+                            );
+                        });
                     });
 
         } catch (Exception e) {
@@ -234,6 +249,7 @@ public class SolexVideoProcessor implements Broadcaster {
     private void performImageReconstruction(ImageConverter<float[]> converter, SerFileReader reader, int start, int end, ImageGeometry geometry, int width, int height, float[] outputBuffer) {
         try (var executor = ParallelExecutor.newExecutor()) {
             executor.setExceptionHandler(this::broadcastError);
+            var fallbackPolynomial = new AtomicReference<DoubleTriplet>(null);
             for (int i = start, j = 0; i < end; i++, j += width) {
                 var original = converter.createBuffer(geometry);
                 // The converter makes sure we only have a single channel
@@ -243,7 +259,8 @@ public class SolexVideoProcessor implements Broadcaster {
                 int offset = j;
                 executor.submit(() -> {
                     var analyzer = new SpectrumFrameAnalyzer(width, height, spectrumDetectionThreshold, 5000d);
-                    processSingleFrame(width, height, outputBuffer, analyzer, offset, frameId, original);
+                    processSingleFrame(width, height, outputBuffer, analyzer, offset, frameId, original, fallbackPolynomial.get());
+                    analyzer.findDistortionPolynomial().ifPresent(newValue -> fallbackPolynomial.set(newValue));
                 });
             }
         } catch (Exception e) {
@@ -269,9 +286,10 @@ public class SolexVideoProcessor implements Broadcaster {
                                     SpectrumFrameAnalyzer analyzer,
                                     int offset,
                                     int frameId,
-                                    float[] buffer) {
+                                    float[] buffer,
+                                    DoubleTriplet fallbackPolynomial) {
         analyzer.analyze(buffer);
-        var polynomial = analyzer.findDistortionPolynomial();
+        var polynomial = analyzer.findDistortionPolynomial().or(() -> Optional.ofNullable(fallbackPolynomial));
         polynomial.ifPresent(p -> {
                     var fun = p.asPolynomial();
                     showCorrectedImageForDebugging(width, height, buffer, analyzer, frameId, p);
@@ -323,7 +341,7 @@ public class SolexVideoProcessor implements Broadcaster {
                     frameId, analyzer, original, width, height
             );
             String fileName = String.format("%06d-corrected.png", frameId);
-            creator.generateDebugImage(new File(correctedFilesDirectory, fileName));
+            creator.generateDebugImage(new File(debugDirectory, fileName));
         }
     }
 
@@ -341,28 +359,17 @@ public class SolexVideoProcessor implements Broadcaster {
 
     private class ImageEmitter {
         private final ParallelExecutor executor;
-        private final float[] buffer;
-        private final int width;
-        private final int height;
         private final File outputDir;
 
         private ImageEmitter(ParallelExecutor executor,
-                             float[] buffer,
-                             int width,
-                             int height,
                              File outputDir) {
             this.executor = executor;
-            this.buffer = buffer;
-            this.width = width;
-            this.height = height;
             this.outputDir = outputDir;
         }
 
-        public Future<File> newMonoImage(String title, String name, Consumer<? super float[]> bufferConsumer) {
+        public Future<File> newMonoImage(String title, String name, ImageWrapper32 image, Consumer<? super float[]> bufferConsumer) {
             return executor.submit(new WriteMonoImageTask(SolexVideoProcessor.this,
-                    buffer,
-                    width,
-                    height,
+                    image,
                     outputDir,
                     title,
                     name
@@ -374,22 +381,18 @@ public class SolexVideoProcessor implements Broadcaster {
             });
         }
 
-        public Future<File> newMonoImage(String title, String name, float[] buffer) {
+        public Future<File> newMonoImage(String title, String name, ImageWrapper32 image) {
             return executor.submit(new WriteMonoImageTask(SolexVideoProcessor.this,
-                    buffer,
-                    width,
-                    height,
+                    image,
                     outputDir,
                     title,
                     name
             ));
         }
 
-        public Future<File> newColorImage(String title, String name, Function<float[], float[][]> rgbSupplier) {
+        public Future<File> newColorImage(String title, String name, ImageWrapper32 image, Function<float[], float[][]> rgbSupplier) {
             return executor.submit(new WriteColorImageTask(SolexVideoProcessor.this,
-                    buffer,
-                    width,
-                    height,
+                    image,
                     outputDir,
                     title,
                     name) {

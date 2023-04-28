@@ -69,7 +69,7 @@ public class MagnitudeBasedSunEdgeDetector implements SunEdgeDetector {
         } catch (Exception ex) {
             throw new ProcessingException(ex);
         }
-        var edges = MagnitudeDetectorSupport.findEdges(magnitudes, magnitudes.length, 50d);
+        var edges = MagnitudeDetectorSupport.findEdges(magnitudes, 50d);
         if (edges.a() >= 0) {
             startEdge = edges.a();
         }

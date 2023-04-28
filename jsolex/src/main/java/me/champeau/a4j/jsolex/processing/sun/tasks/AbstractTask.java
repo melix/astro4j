@@ -16,6 +16,7 @@
 package me.champeau.a4j.jsolex.processing.sun.tasks;
 
 import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
+import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 import me.champeau.a4j.jsolex.processing.util.ProcessingException;
 
 import java.util.concurrent.Callable;
@@ -30,18 +31,16 @@ public abstract class AbstractTask<T> implements Callable<T>, Supplier<T> {
     /**
      * Creates an abstract task
      *
-     * @param buffer the image buffer. A copy will be created in the
+     * @param image the current image. A copy will be created in the
      * constructor, so that this task works with its own buffer
      */
     protected AbstractTask(Broadcaster broadcaster,
-                           float[] buffer,
-                           int width,
-                           int height) {
-        this.buffer = new float[buffer.length];
+                           ImageWrapper32 image) {
+        this.buffer = new float[image.data().length];
         this.broadcaster = broadcaster;
-        System.arraycopy(buffer, 0, this.buffer, 0, buffer.length);
-        this.width = width;
-        this.height = height;
+        System.arraycopy(image.data(), 0, this.buffer, 0, buffer.length);
+        this.width = image.width();
+        this.height = image.height();
     }
 
     @Override

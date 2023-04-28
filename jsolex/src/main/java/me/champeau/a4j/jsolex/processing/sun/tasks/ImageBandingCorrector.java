@@ -17,17 +17,13 @@ package me.champeau.a4j.jsolex.processing.sun.tasks;
 
 import me.champeau.a4j.jsolex.processing.sun.BandingReduction;
 import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
+import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 import me.champeau.a4j.math.image.ImageMath;
 
 public class ImageBandingCorrector extends AbstractTask<float[]> {
-    /**
-     * Creates an abstract task
-     *
-     * @param buffer the image buffer. A copy will be created in the
-     * constructor, so that this task works with its own buffer
-     */
-    public ImageBandingCorrector(Broadcaster broadcaster, float[] buffer, int width, int height) {
-        super(broadcaster, buffer, width, height);
+
+    public ImageBandingCorrector(Broadcaster broadcaster, ImageWrapper32 image) {
+        super(broadcaster, image);
     }
 
     @Override

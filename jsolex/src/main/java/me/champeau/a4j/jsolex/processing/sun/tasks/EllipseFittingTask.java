@@ -17,6 +17,7 @@ package me.champeau.a4j.jsolex.processing.sun.tasks;
 
 import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
 import me.champeau.a4j.jsolex.processing.sun.MagnitudeDetectorSupport;
+import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 import me.champeau.a4j.math.Point2D;
 import me.champeau.a4j.math.regression.Ellipse;
 import me.champeau.a4j.math.regression.EllipseRegression;
@@ -35,11 +36,10 @@ public class EllipseFittingTask extends AbstractTask<EllipseFittingTask.Result> 
     /**
      * Creates ellipse fitting task
      *
-     * @param buffer the image buffer. A copy will be created in the
-     * constructor, so that this task works with its own buffer
+     * @param image the image to work with
      */
-    public EllipseFittingTask(Broadcaster broadcaster, float[] buffer, int width, int height) {
-        super(broadcaster, buffer, width, height);
+    public EllipseFittingTask(Broadcaster broadcaster, ImageWrapper32 image) {
+        super(broadcaster, image);
     }
 
     @Override
@@ -56,7 +56,7 @@ public class EllipseFittingTask extends AbstractTask<EllipseFittingTask.Result> 
             var line = new float[width];
             System.arraycopy(buffer, y * width, line, 0, width);
             var magnitudes = MagnitudeDetectorSupport.computeMagnitudes(width, line);
-            var edges = MagnitudeDetectorSupport.findEdges(magnitudes, width, 10);
+            var edges = MagnitudeDetectorSupport.findEdges(magnitudes, 10);
             int min = edges.a();
             int max = edges.b();
             if (min >= 0 && Math.abs(min - lastMin) > threshold) {

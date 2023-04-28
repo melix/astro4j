@@ -1,5 +1,5 @@
 /*
- * Copyright 2023-2034 the original author or authors.
+ * Copyright 2023-2023 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,18 +15,30 @@
  */
 package me.champeau.a4j.jsolex.processing.event;
 
-import me.champeau.a4j.math.tuples.IntPair;
-
-public final class OutputImageDimensionsDeterminedEvent extends ProcessingEvent<IntPair> {
-    public OutputImageDimensionsDeterminedEvent(IntPair dimensions) {
+public final class OutputImageDimensionsDeterminedEvent extends ProcessingEvent<OutputImageDimensionsDeterminedEvent.Data> {
+    private OutputImageDimensionsDeterminedEvent(Data dimensions) {
         super(dimensions);
     }
 
+    public static OutputImageDimensionsDeterminedEvent of(String label, int width, int height) {
+        return new OutputImageDimensionsDeterminedEvent(new Data(label, width, height));
+    }
+
     public int getWidth() {
-        return getPayload().a();
+        return getPayload().width();
     }
 
     public int getHeight() {
-        return getPayload().b();
+        return getPayload().height();
     }
+
+    public String getLabel() {
+        return getPayload().label;
+    }
+
+    record Data(
+            String label,
+            int width,
+            int height
+    ) {}
 }

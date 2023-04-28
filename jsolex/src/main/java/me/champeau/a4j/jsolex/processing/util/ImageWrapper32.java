@@ -13,18 +13,17 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package me.champeau.a4j.jsolex.processing.event;
+package me.champeau.a4j.jsolex.processing.util;
 
-public interface ProcessingEventListener {
-    default void onImageGenerated(ImageGeneratedEvent event) {
-    }
-
-    default void onPartialReconstruction(PartialReconstructionEvent event) {
-    }
-
-    default void onOutputImageDimensionsDetermined(OutputImageDimensionsDeterminedEvent event) {
-    }
-
-    default void onNotification(NotificationEvent e) {
-    }
+/**
+ * A wrapper for images which are using 32-bit floats.
+ * @param width the width of the image
+ * @param height the height of the image
+ * @param data the image data
+ */
+public record ImageWrapper32(
+        int width,
+        int height,
+        float[] data
+) {
 }

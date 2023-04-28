@@ -18,6 +18,7 @@ package me.champeau.a4j.jsolex.processing.sun.tasks;
 import me.champeau.a4j.jsolex.processing.event.GeneratedImage;
 import me.champeau.a4j.jsolex.processing.event.ImageGeneratedEvent;
 import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
+import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 
 import java.io.File;
 
@@ -26,20 +27,12 @@ public abstract class AbstractImageWriterTask extends AbstractTask<File> {
     private final String title;
     private final String name;
 
-    /**
-     * Creates an abstract task
-     *
-     * @param buffer the image buffer. A copy will be created in the
-     * constructor, so that this task works with its own buffer
-     */
     protected AbstractImageWriterTask(Broadcaster broadcaster,
-                                      float[] buffer,
-                                      int width,
-                                      int height,
+                                      ImageWrapper32 image,
                                       File outputDirectory,
                                       String title,
                                       String name) {
-        super(broadcaster, buffer, width, height);
+        super(broadcaster, image);
         this.outputDirectory = outputDirectory;
         this.title = title;
         this.name = name;

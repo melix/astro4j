@@ -17,18 +17,13 @@ package me.champeau.a4j.jsolex.processing.sun.tasks;
 
 import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
 import me.champeau.a4j.jsolex.processing.sun.ImageUtils;
+import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 
 import java.io.File;
 
 public abstract class WriteColorImageTask extends AbstractImageWriterTask {
-    /**
-     * Creates an abstract task
-     *
-     * @param buffer the image buffer. A copy will be created in the
-     * constructor, so that this task works with its own buffer
-     */
-    public WriteColorImageTask(Broadcaster broadcaster, float[] buffer, int width, int height, File outputDirectory, String title, String name) {
-        super(broadcaster, buffer, width, height, outputDirectory, title, name);
+    public WriteColorImageTask(Broadcaster broadcaster, ImageWrapper32 image, File outputDirectory, String title, String name) {
+        super(broadcaster, image, outputDirectory, title, name);
     }
 
     public abstract float[][] getRGB();

@@ -16,8 +16,13 @@
 package me.champeau.a4j.jsolex.app.util;
 
 public class Constants {
-    public static final String CORRECTED_DIRECTORY = "corrected";
+    public static final String DEBUG_DIRECTORY = "debug";
     public static final String RAW_DIRECTORY = "raw";
+    public static final String PROCESSED_DIRECTORY = "processed";
     public static final float MAX_PIXEL_VALUE = 65535f;
     public static final float NORMALIZED_PIXEL_VALUE = MAX_PIXEL_VALUE * .9f;
+
+    private Constants() {
+
+    }
 }

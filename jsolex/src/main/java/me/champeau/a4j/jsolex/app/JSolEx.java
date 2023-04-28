@@ -69,6 +69,8 @@ public class JSolEx extends Application {
     @FXML
     private TabPane mainPane;
 
+    private boolean reconstructionStarted = false;
+
     @Override
     public void start(Stage stage) throws Exception {
         var fxmlLoader = new FXMLLoader(getClass().getResource("app.fxml"));
@@ -162,6 +164,7 @@ public class JSolEx extends Application {
     private void startProcess(File selectedFile) {
         mainPane.getTabs().clear();
         console.textProperty().set("");
+        reconstructionStarted = false;
         var outputDirName = selectedFile.getName().substring(0, selectedFile.getName().lastIndexOf("."));
         var outputDirectory = new File(selectedFile.getParentFile(), outputDirName);
         try {
@@ -180,6 +183,11 @@ public class JSolEx extends Application {
 
             @Override
             public void onOutputImageDimensionsDetermined(OutputImageDimensionsDeterminedEvent event) {
+                LOGGER.info("Dimensions of {} image determined : {}x{}", event.getLabel(), event.getWidth(), event.getHeight());
+                if (reconstructionStarted) {
+                    return;
+                }
+                reconstructionStarted = true;
                 imageView.setPreserveRatio(true);
                 int width = event.getWidth();
                 int height = event.getHeight();

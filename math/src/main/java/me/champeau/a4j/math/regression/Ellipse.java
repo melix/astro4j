@@ -43,6 +43,22 @@ public class Ellipse {
         ));
     }
 
+    public DoubleSextuplet getCartesianCoefficients() {
+        return cart;
+    }
+
+    /**
+     * Computes the rotation angle of the ellipse
+     * https://math.stackexchange.com/questions/280937/finding-the-angle-of-rotation-of-an-ellipse-from-its-general-equation-and-the-ot
+     * @return
+     */
+    public double tiltAngle() {
+        var a = cart.a();
+        var b = cart.b();
+        var c = cart.c();
+        return Math.atan(b/(a-c)) / 2;
+    }
+
     public boolean isWithin(Point2D point) {
         return isWithin(point.x(), point.y());
     }
