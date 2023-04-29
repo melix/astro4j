@@ -23,24 +23,40 @@ import static org.apache.commons.math3.util.FastMath.asinh;
  * Implements arcsinh stretching, as described in SIRIL docs:
  * https://free-astro.org/siril_doc-en/co/AsinhTransformation.html
  */
-public class ArcsinhStretchingStrategy implements StretchingStrategy {
+public final class ArcsinhStretchingStrategy implements StretchingStrategy {
     private final double blackPoint;
     private final double stretch;
+    private final double maxStretch;
 
-    public ArcsinhStretchingStrategy(float blackPoint, float stretch) {
-        this.blackPoint = blackPoint / Constants.MAX_PIXEL_VALUE;
+    public ArcsinhStretchingStrategy(float blackPoint, float stretch, double maxStretch) {
+        this.blackPoint = blackPoint;
         this.stretch = stretch;
+        this.maxStretch = maxStretch;
+    }
+
+    public double getBlackPoint() {
+        return blackPoint;
+    }
+
+    public double getStretch() {
+        return stretch;
+    }
+
+    public double getMaxStretch() {
+        return maxStretch;
     }
 
     @Override
     public void stretch(float[] data) {
+        double max = Constants.MAX_PIXEL_VALUE;
+        var bp = blackPoint / max;
         for (int i = 0; i < data.length; i++) {
-            double original = data[i] / Constants.MAX_PIXEL_VALUE;
-            if (original > 0) {
-                double stretched = ((original - blackPoint) * asinh(original * stretch)) / (original * asinh(stretch));
-                data[i] = (float) stretched*Constants.MAX_PIXEL_VALUE;
-            }
+            double original = data[i] / max;
+            var pixel = Math.max(0, original - bp);
+            double stretched = (pixel * asinh(original * stretch)) / (original * asinh(stretch));
+            data[i] = (float) (stretched * max);
         }
+        LinearStrechingStrategy.DEFAULT.stretch(data);
     }
 
 }

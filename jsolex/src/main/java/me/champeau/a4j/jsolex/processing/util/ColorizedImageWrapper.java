@@ -13,25 +13,26 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package me.champeau.a4j.jsolex.processing.stretching;
+package me.champeau.a4j.jsolex.processing.util;
 
-import java.util.List;
+import java.util.function.Function;
 
-public class CompositeStretchingStrategy implements StretchingStrategy {
-    private final List<StretchingStrategy> strategies;
-
-    public static CompositeStretchingStrategy of(StretchingStrategy... strategies) {
-        return new CompositeStretchingStrategy(List.of(strategies));
-    }
-
-    private CompositeStretchingStrategy(List<StretchingStrategy> strategies) {
-        this.strategies = strategies;
+/**
+ * A wrapper for images which are using 32-bit floats.
+ * @param mono the monochrome image
+ * @param converter the converter from mono to RGB
+ */
+public record ColorizedImageWrapper(
+        ImageWrapper32 mono,
+        Function<float[], float[][]> converter
+) implements ImageWrapper {
+    @Override
+    public int width() {
+        return mono().width();
     }
 
     @Override
-    public void stretch(float[] data) {
-        for (StretchingStrategy strategy : strategies) {
-            strategy.stretch(data);
-        }
+    public int height() {
+        return mono.height();
     }
 }

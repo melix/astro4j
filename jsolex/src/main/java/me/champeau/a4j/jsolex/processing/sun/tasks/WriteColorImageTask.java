@@ -15,27 +15,33 @@
  */
 package me.champeau.a4j.jsolex.processing.sun.tasks;
 
+import me.champeau.a4j.jsolex.processing.stretching.StretchingStrategy;
 import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
-import me.champeau.a4j.jsolex.processing.sun.ImageUtils;
+import me.champeau.a4j.jsolex.processing.util.ColorizedImageWrapper;
+import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 
 import java.io.File;
+import java.util.function.Function;
 
-public abstract class WriteColorImageTask extends AbstractImageWriterTask {
-    public WriteColorImageTask(Broadcaster broadcaster, ImageWrapper32 image, File outputDirectory, String title, String name) {
-        super(broadcaster, image, outputDirectory, title, name);
+public class WriteColorImageTask extends AbstractImageWriterTask {
+    private final ImageWrapper32 mono;
+    private final Function<float[], float[][]> converter;
+
+    public WriteColorImageTask(Broadcaster broadcaster,
+                               ImageWrapper32 image,
+                               StretchingStrategy stretchingStrategy,
+                               File outputDirectory,
+                               String title,
+                               String name,
+                               Function<float[], float[][]> converter) {
+        super(broadcaster, image, stretchingStrategy, outputDirectory, title, name);
+        this.mono = image;
+        this.converter = converter;
     }
-
-    public abstract float[][] getRGB();
-
 
     @Override
-    public final void writeImage(File outputFile) {
-        float[][] rgb = getRGB();
-        float[] r = rgb[0];
-        float[] g = rgb[1];
-        float[] b = rgb[2];
-        ImageUtils.writeRgbImage(width, height, r, g, b, outputFile);
+    public ImageWrapper createImageWrapper() {
+        return new ColorizedImageWrapper(mono, converter);
     }
-
 }

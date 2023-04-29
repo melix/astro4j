@@ -21,12 +21,12 @@
             <Menu text="Tools">
                 <MenuItem text="Spectrum debugger" onAction="#showFrameDebugger"/>
                 <SeparatorMenuItem/>
-                <MenuItem text="About"/>
+                <MenuItem text="About" onAction="#about"/>
             </Menu>
         </MenuBar>
     </top>
     <center>
-        <SplitPane>
+        <SplitPane dividerPositions="0.70f, 0.30f">
             <TabPane fx:id="mainPane" prefWidth="400.0"/>
             <TextArea fx:id="console" editable="false"/>
         </SplitPane>

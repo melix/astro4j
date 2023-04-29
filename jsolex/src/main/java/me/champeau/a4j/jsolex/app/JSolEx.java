@@ -15,11 +15,13 @@
  */
 package me.champeau.a4j.jsolex.app;
 
+import javafx.animation.PauseTransition;
 import javafx.application.Application;
 import javafx.application.Platform;
 import javafx.concurrent.Task;
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
+import javafx.scene.Node;
 import javafx.scene.Parent;
 import javafx.scene.Scene;
 import javafx.scene.control.Alert;
@@ -36,7 +38,9 @@ import javafx.scene.image.PixelFormat;
 import javafx.scene.image.WritableImage;
 import javafx.stage.FileChooser;
 import javafx.stage.Stage;
+import javafx.util.Duration;
 import me.champeau.a4j.jsolex.app.jfx.ConfigurationController;
+import me.champeau.a4j.jsolex.app.jfx.ImageViewer;
 import me.champeau.a4j.jsolex.app.jfx.JFXProcessingEventListener;
 import me.champeau.a4j.jsolex.app.jfx.SpectralLineDebugger;
 import me.champeau.a4j.jsolex.app.jfx.ZoomableImageView;
@@ -78,7 +82,17 @@ public class JSolEx extends Application {
 
         try {
             var root = (Parent) fxmlLoader.load();
-            var scene = new Scene(root, 1024, 768);
+            var preferredDimensions = config.getPreferredDimensions();
+            var scene = new Scene(root, preferredDimensions.a(), preferredDimensions.b());
+            var pause = new PauseTransition(Duration.seconds(1));
+            scene.widthProperty().addListener((observable, oldValue, newValue) -> {
+                pause.setOnFinished(e -> config.setPreferredWidth(newValue.intValue()));
+                pause.playFromStart();
+            });
+            scene.heightProperty().addListener((observable, oldValue, newValue) -> {
+                pause.setOnFinished(e -> config.setPreferredHeigth(newValue.intValue()));
+                pause.playFromStart();
+            });
             stage.setTitle("JSol'Ex");
             stage.setScene(scene);
             addIcons(stage);
@@ -134,7 +148,7 @@ public class JSolEx extends Application {
     }
 
     @FXML
-    private void showFrameDebugger() throws IOException {
+    private void showFrameDebugger() {
         selectSerFileAndThen(file -> {
             var fxmlLoader = new FXMLLoader(getClass().getResource("frame-debugger.fxml"));
             Object configWindow;
@@ -145,13 +159,27 @@ public class JSolEx extends Application {
             }
             var controller = (SpectralLineDebugger) fxmlLoader.getController();
             var stage = new Stage();
-            Scene scene = new Scene((Parent) configWindow, 1024, 768);
+            Scene scene = new Scene((Parent) configWindow, 1024, 400);
             controller.open(file, config, scene);
             stage.setTitle("Frame debugger");
             stage.setScene(scene);
             stage.showAndWait();
         });
 
+    }
+
+    @FXML
+    private void about() {
+        var alert = new Alert(Alert.AlertType.INFORMATION);
+        alert.setResizable(true);
+        alert.getDialogPane().setPrefSize(480, 320);
+        alert.setTitle("About JSol'Ex");
+        alert.setHeaderText("Solar images processor");
+        alert.setContentText("JSol'Ex is free software aimed at processing solar images produced with Christian Buil's Sol'Ex instrument. " +
+                             "It is provided as is without any warrante and licensed under Apache License version 2. It was written as an experiment to understand " +
+                             "how Sol'Ex works and is heavily inspired by Valérie Desnoux's INTI (http://valerie.desnoux.free.fr/inti/). " +
+                             "This is still under heavy development, make sure to upgrade regularly.");
+        alert.showAndWait();
     }
 
     private void doOpen(File selectedFile) {
@@ -222,12 +250,11 @@ public class JSolEx extends Application {
             @Override
             public void onImageGenerated(ImageGeneratedEvent event) {
                 var tab = new Tab(event.getPayload().title());
-                var imageView = new ZoomableImageView();
-                imageView.setPreserveRatio(true);
-                imageView.fitWidthProperty().bind(mainPane.widthProperty());
-                imageView.setImage(new Image(event.getPayload().path().toUri().toString()));
+                var viewer = newImageViewer();
+                viewer.fitWidthProperty().bind(mainPane.widthProperty());
+                viewer.setImage(event.getPayload().image(), event.getPayload().stretchingStrategy(), event.getPayload().path().toFile());
                 var scrollPane = new ScrollPane();
-                scrollPane.setContent(imageView);
+                scrollPane.setContent(viewer.getRoot());
                 tab.setContent(scrollPane);
                 mainPane.getTabs().add(tab);
                 mainPane.getSelectionModel().select(tab);
@@ -236,6 +263,8 @@ public class JSolEx extends Application {
             @Override
             public void onNotification(NotificationEvent e) {
                 var alert = new Alert(e.type());
+                alert.setResizable(true);
+                alert.getDialogPane().setPrefSize(480, 320);
                 alert.setTitle(e.title());
                 alert.setHeaderText(e.header());
                 alert.setContentText(e.message());
@@ -258,6 +287,17 @@ public class JSolEx extends Application {
         new Thread(task).start();
     }
 
+    private ImageViewer newImageViewer() {
+        var fxmlLoader = new FXMLLoader(getClass().getResource("imageview.fxml"));
+        try {
+            var node = (Node) fxmlLoader.load();
+            var controller = (ImageViewer) fxmlLoader.getController();
+            controller.init(node);
+            return controller;
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+    }
 
     @FXML
     private void exit() {

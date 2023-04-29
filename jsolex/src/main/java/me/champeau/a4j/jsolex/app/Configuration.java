@@ -15,6 +15,8 @@
  */
 package me.champeau.a4j.jsolex.app;
 
+import me.champeau.a4j.math.tuples.IntPair;
+
 import java.io.File;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -30,7 +32,9 @@ import static java.util.stream.Collectors.joining;
 public class Configuration {
     private static final String RECENT_FILES = "recent.files";
     private static final String DEBUG_IMAGES = "generate.debug.images";
-    private static final String SPECTRUM_DETECTION_THRESHOLD = "spectrum.detecton.threshold";
+    private static final String SPECTRUM_DETECTION_THRESHOLD = "spectrum.detection.threshold";
+    private static final String PREFERRED_WIDTH = "preferred.width";
+    private static final String PREFERRED_HEIGHT = "preferred.height";
 
     public static final boolean DEFAULT_GENERATE_DEBUG_IMAGES = false;
     public static final double DEFAULT_SPECTRUM_DETECTION_THRESHOLD = 0.20d;
@@ -72,5 +76,20 @@ public class Configuration {
 
     public void setSpectrumDetectionThreshold(double value) {
         prefs.put(SPECTRUM_DETECTION_THRESHOLD, String.valueOf(value));
+    }
+
+    public IntPair getPreferredDimensions() {
+        return new IntPair(
+                prefs.getInt(PREFERRED_WIDTH, 1024),
+                prefs.getInt(PREFERRED_HEIGHT, 768)
+        );
+    }
+
+    public void setPreferredWidth(int width) {
+        prefs.put(PREFERRED_WIDTH, String.valueOf(width));
+    }
+
+    public void setPreferredHeigth(int height) {
+        prefs.put(PREFERRED_HEIGHT, String.valueOf(height));
     }
 }

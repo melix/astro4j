@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.control.ScrollPane?>
+<?import javafx.scene.layout.BorderPane?>
+<?import javafx.scene.layout.HBox?>
+<?import me.champeau.a4j.jsolex.app.jfx.ZoomableImageView?>
+<BorderPane xmlns:fx="http://javafx.com/fxml"
+            style="-fx-padding: 5; "
+            fx:controller="me.champeau.a4j.jsolex.app.jfx.ImageViewer">
+    <top>
+        <HBox alignment="CENTER_LEFT" style="-fx-spacing:5; -fx-padding: 10;" fx:id="stretchingParams"/>
+    </top>
+    <center>
+        <ScrollPane>
+            <ZoomableImageView fx:id="imageView"
+                               preserveRatio="true"
+            />
+        </ScrollPane>
+    </center>
+</BorderPane>

@@ -15,7 +15,10 @@
  */
 package me.champeau.a4j.jsolex.processing.stretching;
 
-public class CutoffStretchingStrategy implements StretchingStrategy {
+import me.champeau.a4j.jsolex.app.util.Constants;
+
+public final class CutoffStretchingStrategy implements StretchingStrategy {
+    public static final CutoffStretchingStrategy DEFAULT = new CutoffStretchingStrategy(0, Constants.MAX_PIXEL_VALUE);
     private final float min;
     private final float max;
 

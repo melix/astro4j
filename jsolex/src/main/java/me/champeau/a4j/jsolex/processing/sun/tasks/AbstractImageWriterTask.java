@@ -17,22 +17,27 @@ package me.champeau.a4j.jsolex.processing.sun.tasks;
 
 import me.champeau.a4j.jsolex.processing.event.GeneratedImage;
 import me.champeau.a4j.jsolex.processing.event.ImageGeneratedEvent;
+import me.champeau.a4j.jsolex.processing.stretching.StretchingStrategy;
 import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
+import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 
 import java.io.File;
 
-public abstract class AbstractImageWriterTask extends AbstractTask<File> {
+public abstract class AbstractImageWriterTask extends AbstractTask<Void> {
+    private final StretchingStrategy stretchingStrategy;
     private final File outputDirectory;
     private final String title;
     private final String name;
 
     protected AbstractImageWriterTask(Broadcaster broadcaster,
                                       ImageWrapper32 image,
+                                      StretchingStrategy stretchingStrategy,
                                       File outputDirectory,
                                       String title,
                                       String name) {
         super(broadcaster, image);
+        this.stretchingStrategy = stretchingStrategy;
         this.outputDirectory = outputDirectory;
         this.title = title;
         this.name = name;
@@ -43,13 +48,13 @@ public abstract class AbstractImageWriterTask extends AbstractTask<File> {
     }
 
     @Override
-    public final File call() {
+    public final Void call() {
         transform();
         File outputFile = new File(outputDirectory, name + ".png");
-        writeImage(outputFile);
-        broadcaster.broadcast(new ImageGeneratedEvent(new GeneratedImage(title, outputFile.toPath())));
-        return outputFile;
+        var image = new GeneratedImage(title, outputFile.toPath(), createImageWrapper(), stretchingStrategy);
+        broadcaster.broadcast(new ImageGeneratedEvent(image));
+        return null;
     }
 
-    public abstract void writeImage(File outputFile);
+    public abstract ImageWrapper createImageWrapper();
 }

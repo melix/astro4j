@@ -15,10 +15,15 @@
  */
 package me.champeau.a4j.jsolex.processing.event;
 
+import me.champeau.a4j.jsolex.processing.stretching.StretchingStrategy;
+import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
+
 import java.nio.file.Path;
 
 public record GeneratedImage(
         String title,
-        Path path
+        Path path,
+        ImageWrapper image,
+        StretchingStrategy stretchingStrategy
 ) {
 }

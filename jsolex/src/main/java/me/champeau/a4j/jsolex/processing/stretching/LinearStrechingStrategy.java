@@ -15,25 +15,40 @@
  */
 package me.champeau.a4j.jsolex.processing.stretching;
 
+import me.champeau.a4j.jsolex.app.util.Constants;
+
 import java.util.Optional;
 
-public class LinearStrechingStrategy implements StretchingStrategy {
-    private final float whitePoint;
+public final class LinearStrechingStrategy implements StretchingStrategy {
+    public static final LinearStrechingStrategy DEFAULT = new LinearStrechingStrategy(0, Constants.MAX_PIXEL_VALUE);
 
-    public LinearStrechingStrategy(float whitePoint) {
-        this.whitePoint = whitePoint;
+    private final float lo;
+    private final float hi;
+
+    public LinearStrechingStrategy(float lo, float hi) {
+        this.lo = lo;
+        this.hi = hi;
+    }
+
+    public float getLo() {
+        return lo;
+    }
+
+    public float getHi() {
+        return hi;
     }
 
     @Override
     public void stretch(float[] data) {
-        double min = min(data).orElse(0d);
-        double max = max(data).orElse(0d);
+        new CutoffStretchingStrategy(lo, Float.MAX_VALUE).stretch(data);
+        double min = min(data).orElse((double) lo);
+        double max = max(data).orElse((double) lo);
         double range = max - min;
         if (range == 0) {
             return;
         }
         for (int i = 0; i < data.length; i++) {
-            float v = (float) (whitePoint/range * (data[i] - min));
+            float v = (float) (hi /range * (data[i] - min));
             data[i] = v;
         }
     }
