@@ -15,6 +15,7 @@
  */
 package me.champeau.a4j.jsolex.app.jfx;
 
+import javafx.animation.PauseTransition;
 import javafx.fxml.FXML;
 import javafx.scene.Scene;
 import javafx.scene.control.Label;
@@ -22,6 +23,7 @@ import javafx.scene.control.Slider;
 import javafx.scene.control.TextField;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
+import javafx.util.Duration;
 import me.champeau.a4j.jsolex.app.Configuration;
 import me.champeau.a4j.jsolex.app.util.SpectralLineFrameImageCreator;
 import me.champeau.a4j.jsolex.processing.sun.SpectrumFrameAnalyzer;
@@ -69,13 +71,18 @@ public class SpectralLineDebugger {
             frameSlider.setMax(header.frameCount());
             frameSlider.setValue(current);
             frameId.textProperty().bind(frameSlider.valueProperty().asString("Frame %.0f"));
+            var pause = new PauseTransition(Duration.millis(50));
             frameSlider.valueProperty().addListener((observable, oldValue, newValue) -> {
                 int frameId = newValue.intValue();
-                processFrame(converter, reader, geometry, frameId, imageFile);
+                pause.setOnFinished(e ->
+                        processFrame(converter, reader, geometry, frameId, imageFile)
+                );
+                pause.playFromStart();
             });
             spectrumDetectionThreshold.textProperty().addListener((observable, oldValue, newValue) -> {
                 if (!newValue.trim().isEmpty()) {
-                    processFrame(converter, reader, geometry, frameSlider.valueProperty().intValue(), imageFile);
+                    pause.setOnFinished(e -> processFrame(converter, reader, geometry, frameSlider.valueProperty().intValue(), imageFile));
+                    pause.playFromStart();
                 }
             });
             sunDetectionThreshold.textProperty().addListener((observable, oldValue, newValue) -> {
