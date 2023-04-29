@@ -48,8 +48,6 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.file.Path;
 import java.time.Duration;
-import java.time.ZonedDateTime;
-import java.util.Optional;
 
 public class SerPlayer extends Application implements BayerMatrixSupport, PlayerController {
 
@@ -327,7 +325,7 @@ public class SerPlayer extends Application implements BayerMatrixSupport, Player
 
         private void prepare() {
             Header header = reader.header();
-            fps = computeFps(header).orElse(DEFAULT_FPS);
+            fps = reader.estimateFps().orElse(DEFAULT_FPS);
             ImageGeometry geometry = header.geometry();
             int width = geometry.width();
             int height = geometry.height();
@@ -335,20 +333,6 @@ public class SerPlayer extends Application implements BayerMatrixSupport, Player
                     width,
                     height
             );
-        }
-
-        private Optional<Double> computeFps(Header header) {
-            Optional<Double> value = Optional.empty();
-            if (header.metadata().hasTimestamps()) {
-                reader.seekLast();
-                ZonedDateTime lastFrameTimestamp = reader.currentFrame().timestamp().orElseThrow();
-                reader.seekFirst();
-                ZonedDateTime firstFrameTimestamp = reader.currentFrame().timestamp().orElseThrow();
-                Duration sequenceDuration = Duration.between(firstFrameTimestamp, lastFrameTimestamp);
-                long seconds = sequenceDuration.getSeconds();
-                value = Optional.ofNullable(seconds > 0 ? (double) header.frameCount() / seconds : null);
-            }
-            return value;
         }
 
         @Override

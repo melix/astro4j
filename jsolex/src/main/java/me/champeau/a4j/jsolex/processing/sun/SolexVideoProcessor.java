@@ -25,8 +25,11 @@ import me.champeau.a4j.jsolex.processing.event.Notification;
 import me.champeau.a4j.jsolex.processing.event.NotificationEvent;
 import me.champeau.a4j.jsolex.processing.event.OutputImageDimensionsDeterminedEvent;
 import me.champeau.a4j.jsolex.processing.event.PartialReconstructionEvent;
+import me.champeau.a4j.jsolex.processing.event.ProcessingDoneEvent;
 import me.champeau.a4j.jsolex.processing.event.ProcessingEvent;
 import me.champeau.a4j.jsolex.processing.event.ProcessingEventListener;
+import me.champeau.a4j.jsolex.processing.event.ProcessingStartEvent;
+import me.champeau.a4j.jsolex.processing.event.SuggestionEvent;
 import me.champeau.a4j.jsolex.processing.stretching.ArcsinhStretchingStrategy;
 import me.champeau.a4j.jsolex.processing.stretching.CutoffStretchingStrategy;
 import me.champeau.a4j.jsolex.processing.stretching.LinearStrechingStrategy;
@@ -52,7 +55,6 @@ import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.PrintWriter;
 import java.nio.file.Files;
-import java.time.Duration;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Optional;
@@ -98,7 +100,7 @@ public class SolexVideoProcessor implements Broadcaster {
     }
 
     public void process() {
-        var startTime = System.nanoTime();
+        broadcast(new ProcessingStartEvent(System.nanoTime()));
         var converter = ImageUtils.createImageConverter();
         var detector = new MagnitudeBasedSunEdgeDetector(converter);
         try (SerFileReader reader = SerFileReader.of(serFile)) {
@@ -123,10 +125,6 @@ public class SolexVideoProcessor implements Broadcaster {
                     });
         } catch (Exception e) {
             broadcastError(e);
-        } finally {
-            var duration = Duration.ofNanos(System.nanoTime() - startTime).toSeconds();
-            LOGGER.info("Processing done in {} s", duration);
-            broadcast(new NotificationEvent(new Notification(Alert.AlertType.INFORMATION, "Congratulations!", "Processing finished in " + duration + " s", "")));
         }
     }
 
@@ -147,6 +145,7 @@ public class SolexVideoProcessor implements Broadcaster {
         var geometry = reader.header().geometry();
         int width = geometry.width();
         int height = geometry.height();
+        var fps = reader.estimateFps();
         reader.seekFrame(start);
         int newHeight = end - start;
         var outputBuffer = new float[width * newHeight];
@@ -164,8 +163,13 @@ public class SolexVideoProcessor implements Broadcaster {
                     .thenAccept(result -> {
                         var ellipse = result.ellipse();
                         float blackPoint = (float) estimateBlackPoint(width, newHeight, ellipse, outputBuffer) * 1.2f;
-                        LOGGER.info("Tilt angle: {}°", String.format("%.2f", ellipse.tiltAngle() / Math.PI * 180));
-                        executor.submit(new GeometryCorrector(this, rawImage, ellipse, blackPoint)).thenAccept(geometryFixed -> {
+                        var tiltDegrees = ellipse.tiltAngle() / Math.PI * 180;
+                        var tiltString = String.format("%.2f", tiltDegrees);
+                        if (Math.abs(tiltDegrees) > 1) {
+                            broadcast(new SuggestionEvent("Tilt angle is " + tiltString + ". You should try to reduce it to less than 1°"));
+                        }
+                        LOGGER.info("Tilt angle: {}°", tiltString);
+                        executor.submit(new GeometryCorrector(this, rawImage, ellipse, blackPoint, fps.orElse(null))).thenAccept(geometryFixed -> {
                             broadcast(OutputImageDimensionsDeterminedEvent.of("geometry corrected", geometryFixed.width(), geometryFixed.height()));
                             executor.submit(new EllipseFittingTask(this, geometryFixed)).thenAccept(fitting -> processedImagesEmitter.newMonoImage("Coronagraph", "protus", geometryFixed, LINEAR_STRECHING_STRATEGY, buffer -> {
                                 new ArcsinhStretchingStrategy(blackPoint * .25f, 5000, 20000).stretch(buffer);
@@ -203,7 +207,7 @@ public class SolexVideoProcessor implements Broadcaster {
                                             return new float[][]{r, g, b};
                                         });
                                     }
-                            );
+                            ).thenAccept(unused -> broadcast(new ProcessingDoneEvent(System.nanoTime())));
                         });
                     });
 
@@ -333,6 +337,9 @@ public class SolexVideoProcessor implements Broadcaster {
                 case PartialReconstructionEvent e -> listener.onPartialReconstruction(e);
                 case ImageGeneratedEvent e -> listener.onImageGenerated(e);
                 case NotificationEvent e -> listener.onNotification(e);
+                case SuggestionEvent e -> listener.onSuggestion(e);
+                case ProcessingStartEvent e -> listener.onProcessingStart(e);
+                case ProcessingDoneEvent e -> listener.onProcessingDone(e);
             }
         }
     }

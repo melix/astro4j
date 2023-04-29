@@ -27,4 +27,16 @@ public interface ProcessingEventListener {
 
     default void onNotification(NotificationEvent e) {
     }
+
+    default void onSuggestion(SuggestionEvent e) {
+
+    }
+
+    default void onProcessingStart(ProcessingStartEvent e) {
+
+    }
+
+    default void onProcessingDone(ProcessingDoneEvent e) {
+
+    }
 }

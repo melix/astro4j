@@ -1,5 +1,5 @@
 /*
- * Copyright 2023-2023 the original author or authors.
+ * Copyright 2003-2021 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,22 +15,8 @@
  */
 package me.champeau.a4j.jsolex.processing.event;
 
-public abstract sealed class ProcessingEvent<T> permits
-        ImageGeneratedEvent,
-        NotificationEvent,
-        OutputImageDimensionsDeterminedEvent,
-        PartialReconstructionEvent,
-        ProcessingStartEvent,
-        ProcessingDoneEvent,
-        SuggestionEvent {
-    private final T payload;
-
-    public ProcessingEvent(T payload) {
-        this.payload = payload;
+public final class ProcessingStartEvent extends ProcessingEvent<Long> {
+    public ProcessingStartEvent(Long payload) {
+        super(payload);
     }
-
-    public T getPayload() {
-        return payload;
-    }
-
 }

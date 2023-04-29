@@ -21,6 +21,7 @@ import java.io.RandomAccessFile;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.channels.FileChannel;
+import java.time.Duration;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
@@ -122,6 +123,20 @@ public class SerFileReader implements AutoCloseable {
         boolean hasTimestamps = header.metadata().localDateTime() != null;
         ByteBuffer timestampsBuffer = hasTimestamps ? buffer.slice().position(header.frameCount() * header.geometry().getBytesPerFrame()).slice().order(ByteOrder.LITTLE_ENDIAN) : null;
         return new SerFileReader(raf, imageBuffer, timestampsBuffer, header);
+    }
+
+    public Optional<Double> estimateFps() {
+        Optional<Double> value = Optional.empty();
+        if (header.metadata().hasTimestamps()) {
+            seekLast();
+            ZonedDateTime lastFrameTimestamp = currentFrame().timestamp().orElseThrow();
+            seekFirst();
+            ZonedDateTime firstFrameTimestamp = currentFrame().timestamp().orElseThrow();
+            Duration sequenceDuration = Duration.between(firstFrameTimestamp, lastFrameTimestamp);
+            long seconds = sequenceDuration.getSeconds();
+            value = Optional.ofNullable(seconds > 0 ? (double) header.frameCount() / seconds : null);
+        }
+        return value;
     }
 
     private static Header readHeader(ByteBuffer buffer) throws IOException {

@@ -45,10 +45,14 @@ import me.champeau.a4j.jsolex.app.jfx.JFXProcessingEventListener;
 import me.champeau.a4j.jsolex.app.jfx.SpectralLineDebugger;
 import me.champeau.a4j.jsolex.app.jfx.ZoomableImageView;
 import me.champeau.a4j.jsolex.processing.event.ImageGeneratedEvent;
+import me.champeau.a4j.jsolex.processing.event.Notification;
 import me.champeau.a4j.jsolex.processing.event.NotificationEvent;
 import me.champeau.a4j.jsolex.processing.event.OutputImageDimensionsDeterminedEvent;
 import me.champeau.a4j.jsolex.processing.event.PartialReconstructionEvent;
+import me.champeau.a4j.jsolex.processing.event.ProcessingDoneEvent;
 import me.champeau.a4j.jsolex.processing.event.ProcessingEventListener;
+import me.champeau.a4j.jsolex.processing.event.ProcessingStartEvent;
+import me.champeau.a4j.jsolex.processing.event.SuggestionEvent;
 import me.champeau.a4j.jsolex.processing.sun.SolexVideoProcessor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -57,6 +61,8 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.List;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.function.Consumer;
 
 public class JSolEx extends Application {
@@ -74,6 +80,8 @@ public class JSolEx extends Application {
     private TabPane mainPane;
 
     private boolean reconstructionStarted = false;
+
+    private final List<String> suggestions = new CopyOnWriteArrayList<>();
 
     @Override
     public void start(Stage stage) throws Exception {
@@ -208,6 +216,8 @@ public class JSolEx extends Application {
         );
         var listener = JFXProcessingEventListener.of(new ProcessingEventListener() {
             private final ImageView imageView = new ZoomableImageView();
+            private long sd = 0;
+            private long ed = 0;
 
             @Override
             public void onOutputImageDimensionsDetermined(OutputImageDimensionsDeterminedEvent event) {
@@ -268,7 +278,39 @@ public class JSolEx extends Application {
                 alert.setTitle(e.title());
                 alert.setHeaderText(e.header());
                 alert.setContentText(e.message());
+                ((Stage) alert.getDialogPane().getScene().getWindow()).setAlwaysOnTop(true);
                 alert.showAndWait();
+            }
+
+            @Override
+            public void onSuggestion(SuggestionEvent e) {
+                suggestions.add(e.getPayload());
+            }
+
+            @Override
+            public void onProcessingStart(ProcessingStartEvent e) {
+                sd = e.getPayload();
+            }
+
+            @Override
+            public void onProcessingDone(ProcessingDoneEvent e) {
+                ed = e.getPayload();
+                var duration = java.time.Duration.ofNanos(ed - sd);
+                double seconds = duration.toMillis() / 1000d;
+                var sb = new StringBuilder();
+                if (!suggestions.isEmpty()) {
+                    sb.append("Suggestions :\n");
+                    for (String suggestion : suggestions) {
+                        sb.append("    - ").append(suggestion).append("\n");
+                    }
+                }
+                onNotification(new NotificationEvent(
+                        new Notification(
+                                Alert.AlertType.INFORMATION,
+                                "Processing done",
+                                String.format("Finished in %.2fs", seconds),
+                                sb.toString()
+                        )));
             }
         });
 

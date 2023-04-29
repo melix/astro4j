@@ -15,22 +15,11 @@
  */
 package me.champeau.a4j.jsolex.processing.event;
 
-public abstract sealed class ProcessingEvent<T> permits
-        ImageGeneratedEvent,
-        NotificationEvent,
-        OutputImageDimensionsDeterminedEvent,
-        PartialReconstructionEvent,
-        ProcessingStartEvent,
-        ProcessingDoneEvent,
-        SuggestionEvent {
-    private final T payload;
-
-    public ProcessingEvent(T payload) {
-        this.payload = payload;
+/**
+ * Suggestions are generated during processing.
+ */
+public final class SuggestionEvent extends ProcessingEvent<String> {
+    public SuggestionEvent(String payload) {
+        super(payload);
     }
-
-    public T getPayload() {
-        return payload;
-    }
-
 }

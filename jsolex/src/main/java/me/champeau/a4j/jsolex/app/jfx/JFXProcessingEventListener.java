@@ -20,7 +20,10 @@ import me.champeau.a4j.jsolex.processing.event.ImageGeneratedEvent;
 import me.champeau.a4j.jsolex.processing.event.NotificationEvent;
 import me.champeau.a4j.jsolex.processing.event.OutputImageDimensionsDeterminedEvent;
 import me.champeau.a4j.jsolex.processing.event.PartialReconstructionEvent;
+import me.champeau.a4j.jsolex.processing.event.ProcessingDoneEvent;
 import me.champeau.a4j.jsolex.processing.event.ProcessingEventListener;
+import me.champeau.a4j.jsolex.processing.event.ProcessingStartEvent;
+import me.champeau.a4j.jsolex.processing.event.SuggestionEvent;
 
 public class JFXProcessingEventListener implements ProcessingEventListener {
     private final ProcessingEventListener delegate;
@@ -51,5 +54,20 @@ public class JFXProcessingEventListener implements ProcessingEventListener {
     @Override
     public void onNotification(NotificationEvent e) {
         Platform.runLater(() -> delegate.onNotification(e));
+    }
+
+    @Override
+    public void onSuggestion(SuggestionEvent e) {
+        Platform.runLater(() -> delegate.onSuggestion(e));
+    }
+
+    @Override
+    public void onProcessingStart(ProcessingStartEvent e) {
+        Platform.runLater(() -> delegate.onProcessingStart(e));
+    }
+
+    @Override
+    public void onProcessingDone(ProcessingDoneEvent e) {
+        Platform.runLater(() -> delegate.onProcessingDone(e));
     }
 }
