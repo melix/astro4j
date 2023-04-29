@@ -4,6 +4,7 @@ plugins {
     groovy
     `java`
     id("org.nosphere.apache.rat")
+    id("com.diffplug.spotless")
 }
 
 extensions.create("astro4j", BuildExtension::class.java, project)
@@ -36,3 +37,13 @@ tasks.rat {
 }
 
 group = "me.champeau.astro4j"
+
+spotless {
+    this.java {
+        licenseHeaderFile(rootProject.file("gradle/license.java.txt"))
+    }
+}
+
+tasks.named("check") {
+    dependsOn("spotlessCheck")
+}
