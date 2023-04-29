@@ -311,6 +311,7 @@ public class JSolEx extends Application {
                                 String.format("Finished in %.2fs", seconds),
                                 sb.toString()
                         )));
+                suggestions.clear();
             }
         });
 
