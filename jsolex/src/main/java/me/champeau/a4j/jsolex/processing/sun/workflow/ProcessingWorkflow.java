@@ -44,13 +44,11 @@ import java.util.concurrent.Future;
  */
 public class ProcessingWorkflow {
     private static final Logger LOGGER = LoggerFactory.getLogger(ProcessingWorkflow.class);
+    private static final double CIRCLE_EPSILON = 0.01d;
 
     private final ParallelExecutor executor;
     private final ProcessParams processParams;
     private final ImageWrapper32 rawImage;
-    private final int width;
-    private final int newHeight;
-    private final float[] outputBuffer;
     private final Double fps;
     private final ImageEmitter rawImagesEmitter;
     private final ImageEmitter debugImagesEmitter;
@@ -64,17 +62,11 @@ public class ProcessingWorkflow {
             File processedImagesDirectory,
             ParallelExecutor executor,
             ImageWrapper32 rawImage,
-            int width,
-            int newHeight,
-            float[] outputBuffer,
             ProcessParams processParams,
             Double fps) {
         this.broadcaster = broadcaster;
         this.executor = executor;
         this.rawImage = rawImage;
-        this.width = width;
-        this.newHeight = newHeight;
-        this.outputBuffer = outputBuffer;
         this.processParams = processParams;
         this.fps = fps;
         this.rawImagesEmitter = new ImageEmitter(broadcaster, executor, rawImagesDirectory);
@@ -84,21 +76,26 @@ public class ProcessingWorkflow {
 
     public void start() {
         rawImagesEmitter.newMonoImage("Raw (Linear)", "linear", rawImage, LinearStrechingStrategy.DEFAULT);
-        var ellipseFittingTask = executor.submit(new EllipseFittingTask(broadcaster, rawImage));
-        ellipseFittingTask.thenAccept(this::geometryCorrection);
+        var ellipseFittingTask = executor.submit(new EllipseFittingTask(broadcaster, rawImage, 10d));
+        ellipseFittingTask.thenAccept(r -> geometryCorrection(r, rawImage));
 
     }
 
-    private void geometryCorrection(EllipseFittingTask.Result result) {
+    private void geometryCorrection(EllipseFittingTask.Result result, ImageWrapper32 rawImage) {
         var ellipse = result.ellipse();
-        float blackPoint = (float) estimateBlackPoint(width, newHeight, ellipse, outputBuffer) * 1.2f;
+        float blackPoint = (float) estimateBlackPoint(rawImage.width(), rawImage.height(), ellipse, rawImage.data()) * 1.2f;
         var tiltDegrees = ellipse.tiltAngle() / Math.PI * 180;
+        boolean isTiltReliable = ellipse.isAlmostCircle(CIRCLE_EPSILON);
         var tiltString = String.format("%.2f", tiltDegrees);
-        if (Math.abs(tiltDegrees) > 1) {
+        if (Math.abs(tiltDegrees) > 1 && isTiltReliable) {
             broadcaster.broadcast(new SuggestionEvent("Tilt angle is " + tiltString + ". You should try to reduce it to less than 1°"));
         }
+        var correctionAngle = isTiltReliable ? -ellipse.tiltAngle() : 0d;
         LOGGER.info("Tilt angle: {}°", tiltString);
-        executor.submit(new GeometryCorrector(broadcaster, rawImage, ellipse, blackPoint, fps)).thenAccept(geometryFixed -> {
+        if (!isTiltReliable) {
+            LOGGER.info("Will not apply rotation correction as sun disk is almost a circle (and therefore tilt angle is not reliable)");
+        }
+        executor.submit(new GeometryCorrector(broadcaster, this.rawImage, ellipse, correctionAngle, blackPoint, fps)).thenAccept(geometryFixed -> {
             broadcaster.broadcast(OutputImageDimensionsDeterminedEvent.of("geometry corrected", geometryFixed.width(), geometryFixed.height()));
             produceCoronagraph(blackPoint, geometryFixed);
             produceEdgeDetectionImage(result, ellipse, geometryFixed);
@@ -154,7 +151,7 @@ public class ProcessingWorkflow {
     }
 
     private void produceCoronagraph(float blackPoint, ImageWrapper32 geometryFixed) {
-        executor.submit(new EllipseFittingTask(broadcaster, geometryFixed)).thenAccept(fitting -> processedImagesEmitter.newMonoImage("Coronagraph", "protus", geometryFixed, LinearStrechingStrategy.DEFAULT, buffer -> {
+        executor.submit(new EllipseFittingTask(broadcaster, geometryFixed, 6d)).thenAccept(fitting -> processedImagesEmitter.newMonoImage("Coronagraph", "protus", geometryFixed, LinearStrechingStrategy.DEFAULT, buffer -> {
             new ArcsinhStretchingStrategy(blackPoint * .25f, 5000, 20000).stretch(buffer);
             fill(fitting.ellipse(), buffer, geometryFixed.width(), 0);
         }));

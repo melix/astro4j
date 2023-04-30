@@ -36,7 +36,7 @@ public class MagnitudeDetectorSupport {
         var fft = FastFourierTransform.ofReal(line);
         var im = fft.imaginary();
         var magnitudes = new double[line.length];
-        for (int k = 0; k < line.length; k++) {
+        for (int k = padding + 1; k < line.length - padding - 1; k++) {
             double magnitude = Math.sqrt(line[k] * line[k] + im[k] * im[k]);
             magnitudes[k] = magnitude;
         }

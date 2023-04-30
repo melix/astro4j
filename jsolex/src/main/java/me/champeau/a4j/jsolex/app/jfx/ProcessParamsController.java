@@ -73,6 +73,7 @@ public class ProcessParamsController {
         instrument.textProperty().setValue(initial.observationDetails().instrument());
         telescope.textProperty().setValue(initial.observationDetails().telescope());
         camera.textProperty().setValue(initial.observationDetails().camera());
+        generateDebugImages.setSelected(initial.debugParams().generateDebugImages());
         var length = initial.observationDetails().focalLength();
         if (length != null) {
             focalLength.textProperty().setValue(String.valueOf(length));

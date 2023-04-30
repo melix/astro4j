@@ -15,10 +15,8 @@
  */
 package me.champeau.a4j.jsolex.processing.sun.tasks;
 
-import me.champeau.a4j.jsolex.processing.sun.BandingReduction;
 import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
-import me.champeau.a4j.math.image.ImageMath;
 
 public class ImageBandingCorrector extends AbstractTask<float[]> {
 
@@ -28,6 +26,7 @@ public class ImageBandingCorrector extends AbstractTask<float[]> {
 
     @Override
     public float[] call() throws Exception {
+        /*
         var imageMath = ImageMath.newInstance();
         // Perform one iteration vertically, were there are not so many lines
         BandingReduction.reduceBanding(width, height, buffer, 1, 16);
@@ -37,6 +36,7 @@ public class ImageBandingCorrector extends AbstractTask<float[]> {
         BandingReduction.reduceBanding(height, width, transposed, 4, 32);
         transposed = imageMath.rotateRight(transposed, height, width);
         System.arraycopy(transposed, 0, buffer, 0, transposed.length);
+        */
         return buffer;
     }
 }

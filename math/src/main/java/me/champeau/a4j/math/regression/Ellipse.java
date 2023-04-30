@@ -47,6 +47,13 @@ public class Ellipse {
         return cart;
     }
 
+    public boolean isAlmostCircle(double epsilon) {
+        var a = cart.a();
+        var b = cart.b();
+        var c = cart.c();
+        return !(Math.abs(a - c) < epsilon && Math.abs(b) < epsilon);
+    }
+
     /**
      * Computes the rotation angle of the ellipse
      * https://math.stackexchange.com/questions/280937/finding-the-angle-of-rotation-of-an-ellipse-from-its-general-equation-and-the-ot
@@ -71,7 +78,7 @@ public class Ellipse {
         var e = cart.e();
         var f = cart.f();
         double value = a * x * x + b * x * y + c * y * y + d * x + e * y + f;
-        return a > 0 && value <= 0 || a < 0 && value >= 0;
+        return a >= 0 && value <= 0 || a <= 0 && value >= 0;
     }
 
     @Override

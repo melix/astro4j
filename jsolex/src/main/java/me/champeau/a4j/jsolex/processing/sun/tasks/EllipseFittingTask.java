@@ -25,21 +25,22 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 
 import static me.champeau.a4j.math.fft.FFTSupport.nextPowerOf2;
 
 public class EllipseFittingTask extends AbstractTask<EllipseFittingTask.Result> {
     private static final Logger LOGGER = LoggerFactory.getLogger(EllipseFittingTask.class);
+    private final double sensitivity;
 
     /**
      * Creates ellipse fitting task
      *
      * @param image the image to work with
      */
-    public EllipseFittingTask(Broadcaster broadcaster, ImageWrapper32 image) {
+    public EllipseFittingTask(Broadcaster broadcaster, ImageWrapper32 image, double sensitivity) {
         super(broadcaster, image);
+        this.sensitivity = sensitivity;
     }
 
     @Override
@@ -56,7 +57,7 @@ public class EllipseFittingTask extends AbstractTask<EllipseFittingTask.Result> 
             var line = new float[width];
             System.arraycopy(buffer, y * width, line, 0, width);
             var magnitudes = MagnitudeDetectorSupport.computeMagnitudes(width, line);
-            var edges = MagnitudeDetectorSupport.findEdges(magnitudes, 10);
+            var edges = MagnitudeDetectorSupport.findEdges(magnitudes, sensitivity);
             int min = edges.a();
             int max = edges.b();
             if (min >= 0 && Math.abs(min - lastMin) > threshold) {
@@ -70,19 +71,31 @@ public class EllipseFittingTask extends AbstractTask<EllipseFittingTask.Result> 
                 lastMax = max;
             }
         }
-
-        var ellipse = new EllipseRegression(samples)
-                .solve();
+        samples = samples.stream()
+                .map(p -> new Object() {
+                    final Point2D point = p;
+                    final float value = valueAt(p);
+                })
+                .sorted((a, b) -> Float.compare(b.value, a.value))
+                .limit((int) (9d * samples.size() / 10))
+                .map(p -> p.point)
+                .toList();
+        var ellipse = new EllipseRegression(samples).solve();
         // We're now going to filter samples by keeping only those which are within the predicted
         // eclipse, to reduce influence of outliers
-        ellipse = new EllipseRegression(
-                samples.stream()
-                        .filter(ellipse::isWithin)
-                        .toList()
-                // rescale so that the limb is visible
-        ).solve().scale(0.99d);
+        var filteredSamples = samples;
+        for (int i = 0;i<2;i++) {
+            filteredSamples = samples.stream().filter(ellipse::isWithin)
+                    .toList();
+            ellipse = new EllipseRegression(filteredSamples).solve();
+        }
+//        ellipse = ellipse.scale(0.99d);
         LOGGER.info("{}", ellipse);
-        return new Result(ellipse, Collections.unmodifiableList(samples));
+        return new Result(ellipse, filteredSamples);
+    }
+
+    private float valueAt(Point2D point) {
+        return buffer[(int) (point.y() * width + point.x())];
     }
 
     public record Result(
