@@ -13,20 +13,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-module me.champeau.a4j.jsolex {
-    requires me.champeau.a4j.jserfile;
-    requires commons.math3;
-    requires org.slf4j;
-    requires java.desktop;
-    requires ch.qos.logback.core;
-    requires ch.qos.logback.classic;
-    requires javafx.controls;
-    requires javafx.fxml;
-    requires java.prefs;
-    requires jdk.incubator.vector;
-    requires com.google.gson;
-    exports me.champeau.a4j.jsolex.app to javafx.graphics;
-    exports me.champeau.a4j.jsolex.processing.params to com.google.gson;
-    opens me.champeau.a4j.jsolex.app to javafx.fxml;
-    opens me.champeau.a4j.jsolex.app.jfx to javafx.fxml;
+package me.champeau.a4j.jsolex.processing.sun;
+
+import me.champeau.a4j.jsolex.processing.params.ProcessParams;
+import me.champeau.a4j.ser.SerFileReader;
+
+import java.util.Optional;
+
+public interface ProcessParametersProvider {
+    Optional<ProcessParams> create(SerFileReader serFile);
 }

@@ -16,10 +16,10 @@
 package me.champeau.a4j.jsolex.processing.sun.workflow;
 
 import me.champeau.a4j.jsolex.app.util.Constants;
-import me.champeau.a4j.jsolex.processing.color.KnownCurves;
 import me.champeau.a4j.jsolex.processing.event.OutputImageDimensionsDeterminedEvent;
 import me.champeau.a4j.jsolex.processing.event.ProcessingDoneEvent;
 import me.champeau.a4j.jsolex.processing.event.SuggestionEvent;
+import me.champeau.a4j.jsolex.processing.params.ProcessParams;
 import me.champeau.a4j.jsolex.processing.stretching.ArcsinhStretchingStrategy;
 import me.champeau.a4j.jsolex.processing.stretching.CutoffStretchingStrategy;
 import me.champeau.a4j.jsolex.processing.stretching.LinearStrechingStrategy;
@@ -46,11 +46,11 @@ public class ProcessingWorkflow {
     private static final Logger LOGGER = LoggerFactory.getLogger(ProcessingWorkflow.class);
 
     private final ParallelExecutor executor;
+    private final ProcessParams processParams;
     private final ImageWrapper32 rawImage;
     private final int width;
     private final int newHeight;
     private final float[] outputBuffer;
-    private final boolean generateDebugImages;
     private final Double fps;
     private final ImageEmitter rawImagesEmitter;
     private final ImageEmitter debugImagesEmitter;
@@ -67,7 +67,7 @@ public class ProcessingWorkflow {
             int width,
             int newHeight,
             float[] outputBuffer,
-            boolean generateDebugImages,
+            ProcessParams processParams,
             Double fps) {
         this.broadcaster = broadcaster;
         this.executor = executor;
@@ -75,7 +75,7 @@ public class ProcessingWorkflow {
         this.width = width;
         this.newHeight = newHeight;
         this.outputBuffer = outputBuffer;
-        this.generateDebugImages = generateDebugImages;
+        this.processParams = processParams;
         this.fps = fps;
         this.rawImagesEmitter = new ImageEmitter(broadcaster, executor, rawImagesDirectory);
         this.debugImagesEmitter = new ImageEmitter(broadcaster, executor, debugImagesDirectory);
@@ -104,27 +104,29 @@ public class ProcessingWorkflow {
             produceEdgeDetectionImage(result, ellipse, geometryFixed);
             produceStretchedImage(blackPoint, geometryFixed);
             performBandingCorrection(geometryFixed)
-                    .thenAccept(corrected -> produceProcessedImages(blackPoint, geometryFixed, corrected))
+                    .thenAccept(corrected -> produceProcessedImages(blackPoint, geometryFixed, corrected, processParams))
                     .thenAccept(unused -> broadcaster.broadcast(new ProcessingDoneEvent(System.nanoTime())));
         });
     }
 
-    private void produceProcessedImages(float blackPoint, ImageWrapper32 geometryFixed, float[] corrected) {
+    private void produceProcessedImages(float blackPoint, ImageWrapper32 geometryFixed, float[] corrected, ProcessParams params) {
         CutoffStretchingStrategy.DEFAULT.stretch(corrected);
         var correctedImg = new ImageWrapper32(geometryFixed.width(), geometryFixed.height(), corrected);
         processedImagesEmitter.newMonoImage("Banding fixed", "banding-fixed", correctedImg, new ArcsinhStretchingStrategy(blackPoint, 7, 20));
-        processedImagesEmitter.newColorImage("Colorized (" + KnownCurves.H_ALPHA.ray() + ")", "colorized", correctedImg, new ArcsinhStretchingStrategy(blackPoint, 10, 200), mono -> {
-            LinearStrechingStrategy.DEFAULT.stretch(mono);
-            float[] r = new float[mono.length];
-            float[] g = new float[mono.length];
-            float[] b = new float[mono.length];
-            for (int i = 0; i < mono.length; i++) {
-                var rgb = KnownCurves.H_ALPHA.toRGB(mono[i]);
-                r[i] = (float) rgb.a();
-                g[i] = (float) rgb.b();
-                b[i] = (float) rgb.c();
-            }
-            return new float[][]{r, g, b};
+        params.spectrumParams().ray().getColorCurve().ifPresent(curve -> {
+            processedImagesEmitter.newColorImage("Colorized (" + curve.ray() + ")", "colorized", correctedImg, new ArcsinhStretchingStrategy(blackPoint, 10, 200), mono -> {
+                LinearStrechingStrategy.DEFAULT.stretch(mono);
+                float[] r = new float[mono.length];
+                float[] g = new float[mono.length];
+                float[] b = new float[mono.length];
+                for (int i = 0; i < mono.length; i++) {
+                    var rgb = curve.toRGB(mono[i]);
+                    r[i] = (float) rgb.a();
+                    g[i] = (float) rgb.b();
+                    b[i] = (float) rgb.c();
+                }
+                return new float[][]{r, g, b};
+            });
         });
     }
 
@@ -137,7 +139,7 @@ public class ProcessingWorkflow {
     }
 
     private void produceEdgeDetectionImage(EllipseFittingTask.Result result, Ellipse ellipse, ImageWrapper32 geometryFixed) {
-        if (generateDebugImages) {
+        if (processParams.debugParams().generateDebugImages()) {
             debugImagesEmitter.newMonoImage("Edge detection", "edge-detection", geometryFixed, LinearStrechingStrategy.DEFAULT, debugImage -> {
                 var samples = result.samples();
                 Arrays.fill(debugImage, 0f);

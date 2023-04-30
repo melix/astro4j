@@ -65,7 +65,7 @@ public class SpectralLineDebugger {
             var geometry = header.geometry();
             int current = header.frameCount() / 2;
             imageView.fitWidthProperty().bind(scene.widthProperty());
-            spectrumDetectionThreshold.textProperty().set(String.valueOf(config.getSpectrumDetectionThreshold()));
+            spectrumDetectionThreshold.textProperty().set("0.2d");
             sunDetectionThreshold.textProperty().set("5000d");
             frameSlider.setMin(0);
             frameSlider.setMax(header.frameCount());

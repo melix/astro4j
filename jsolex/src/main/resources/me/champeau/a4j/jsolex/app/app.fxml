@@ -14,7 +14,6 @@
             <Menu text="File">
                 <MenuItem text="Open SER file" onAction="#open"/>
                 <Menu fx:id="recentFilesMenu" text="Recent files..."></Menu>
-                <MenuItem text="Configuration" onAction="#config"/>
                 <SeparatorMenuItem/>
                 <MenuItem text="Exit" onAction="#exit"/>
             </Menu>

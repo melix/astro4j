@@ -31,13 +31,10 @@ import static java.util.stream.Collectors.joining;
 
 public class Configuration {
     private static final String RECENT_FILES = "recent.files";
-    private static final String DEBUG_IMAGES = "generate.debug.images";
-    private static final String SPECTRUM_DETECTION_THRESHOLD = "spectrum.detection.threshold";
     private static final String PREFERRED_WIDTH = "preferred.width";
     private static final String PREFERRED_HEIGHT = "preferred.height";
 
     public static final boolean DEFAULT_GENERATE_DEBUG_IMAGES = false;
-    public static final double DEFAULT_SPECTRUM_DETECTION_THRESHOLD = 0.20d;
 
     private final Preferences prefs;
     private final List<Path> recentFiles;
@@ -60,22 +57,6 @@ public class Configuration {
 
     public List<Path> getRecentFiles() {
         return Collections.unmodifiableList(recentFiles);
-    }
-
-    public boolean isDebugImagesGenerationEnabled() {
-        return prefs.getBoolean(DEBUG_IMAGES, DEFAULT_GENERATE_DEBUG_IMAGES);
-    }
-
-    public void setDebugImagesGenerationEnabled(boolean enabled) {
-        prefs.put(DEBUG_IMAGES, String.valueOf(enabled));
-    }
-
-    public double getSpectrumDetectionThreshold() {
-        return prefs.getDouble(SPECTRUM_DETECTION_THRESHOLD, DEFAULT_SPECTRUM_DETECTION_THRESHOLD);
-    }
-
-    public void setSpectrumDetectionThreshold(double value) {
-        prefs.put(SPECTRUM_DETECTION_THRESHOLD, String.valueOf(value));
     }
 
     public IntPair getPreferredDimensions() {

@@ -37,11 +37,12 @@ import javafx.scene.image.ImageView;
 import javafx.scene.image.PixelFormat;
 import javafx.scene.image.WritableImage;
 import javafx.stage.FileChooser;
+import javafx.stage.Modality;
 import javafx.stage.Stage;
 import javafx.util.Duration;
-import me.champeau.a4j.jsolex.app.jfx.ConfigurationController;
 import me.champeau.a4j.jsolex.app.jfx.ImageViewer;
 import me.champeau.a4j.jsolex.app.jfx.JFXProcessingEventListener;
+import me.champeau.a4j.jsolex.app.jfx.ProcessParamsController;
 import me.champeau.a4j.jsolex.app.jfx.SpectralLineDebugger;
 import me.champeau.a4j.jsolex.app.jfx.ZoomableImageView;
 import me.champeau.a4j.jsolex.processing.event.ImageGeneratedEvent;
@@ -53,7 +54,9 @@ import me.champeau.a4j.jsolex.processing.event.ProcessingDoneEvent;
 import me.champeau.a4j.jsolex.processing.event.ProcessingEventListener;
 import me.champeau.a4j.jsolex.processing.event.ProcessingStartEvent;
 import me.champeau.a4j.jsolex.processing.event.SuggestionEvent;
+import me.champeau.a4j.jsolex.processing.params.ProcessParams;
 import me.champeau.a4j.jsolex.processing.sun.SolexVideoProcessor;
+import me.champeau.a4j.ser.SerFileReader;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -62,6 +65,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.function.Consumer;
 
@@ -69,6 +73,8 @@ public class JSolEx extends Application {
     private static final Logger LOGGER = LoggerFactory.getLogger(JSolEx.class);
 
     private final Configuration config = new Configuration();
+
+    Stage rootStage;
 
     @FXML
     private TextArea console;
@@ -85,24 +91,25 @@ public class JSolEx extends Application {
 
     @Override
     public void start(Stage stage) throws Exception {
+        this.rootStage = stage;
         var fxmlLoader = new FXMLLoader(getClass().getResource("app.fxml"));
         fxmlLoader.setController(this);
 
         try {
             var root = (Parent) fxmlLoader.load();
             var preferredDimensions = config.getPreferredDimensions();
-            var scene = new Scene(root, preferredDimensions.a(), preferredDimensions.b());
+            Scene rootScene = new Scene(root, preferredDimensions.a(), preferredDimensions.b());
             var pause = new PauseTransition(Duration.seconds(1));
-            scene.widthProperty().addListener((observable, oldValue, newValue) -> {
+            rootScene.widthProperty().addListener((observable, oldValue, newValue) -> {
                 pause.setOnFinished(e -> config.setPreferredWidth(newValue.intValue()));
                 pause.playFromStart();
             });
-            scene.heightProperty().addListener((observable, oldValue, newValue) -> {
+            rootScene.heightProperty().addListener((observable, oldValue, newValue) -> {
                 pause.setOnFinished(e -> config.setPreferredHeigth(newValue.intValue()));
                 pause.playFromStart();
             });
             stage.setTitle("JSol'Ex");
-            stage.setScene(scene);
+            stage.setScene(rootScene);
             addIcons(stage);
             stage.show();
             refreshRecentItemsMenu();
@@ -127,18 +134,6 @@ public class JSolEx extends Application {
             recent.setOnAction(e -> doOpen(recentFile.toFile()));
             recentFilesMenu.getItems().add(recent);
         }
-    }
-
-    @FXML
-    private void config() throws IOException {
-        var fxmlLoader = new FXMLLoader(getClass().getResource("configuration.fxml"));
-        var configWindow = fxmlLoader.load();
-        var controller = (ConfigurationController) fxmlLoader.getController();
-        var stage = new Stage();
-        controller.configure(config, stage);
-        stage.setTitle("Configuration");
-        stage.setScene(new Scene((Parent) configWindow, 500, 200));
-        stage.showAndWait();
     }
 
     @FXML
@@ -193,11 +188,15 @@ public class JSolEx extends Application {
     private void doOpen(File selectedFile) {
         config.loaded(selectedFile.toPath());
         Platform.runLater(this::refreshRecentItemsMenu);
-        startProcess(selectedFile);
-
+        try (var reader = SerFileReader.of(selectedFile)) {
+            var processParams = createProcessParams(reader);
+            processParams.ifPresent(params -> startProcess(selectedFile, params));
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
     }
 
-    private void startProcess(File selectedFile) {
+    private void startProcess(File selectedFile, ProcessParams params) {
         mainPane.getTabs().clear();
         console.textProperty().set("");
         reconstructionStarted = false;
@@ -211,8 +210,7 @@ public class JSolEx extends Application {
         }
         var processor = new SolexVideoProcessor(selectedFile,
                 outputDirectory,
-                config.isDebugImagesGenerationEnabled(),
-                config.getSpectrumDetectionThreshold()
+                params
         );
         var listener = JFXProcessingEventListener.of(new ProcessingEventListener() {
             private final ImageView imageView = new ZoomableImageView();
@@ -328,6 +326,25 @@ public class JSolEx extends Application {
             }
         };
         new Thread(task).start();
+    }
+
+    private Optional<ProcessParams> createProcessParams(SerFileReader serFileReader) {
+        var loader = new FXMLLoader(getClass().getResource("process-params.fxml"));
+        try {
+            var dialog = new Stage();
+            dialog.setTitle("Process configuration");
+            var content = (Parent) loader.load();
+            var controller = (ProcessParamsController) loader.getController();
+            var scene = new Scene(content);
+            controller.setup(dialog, serFileReader.header().metadata().utcDateTime());
+            dialog.setScene(scene);
+            dialog.initOwner(rootStage);
+            dialog.initModality(Modality.APPLICATION_MODAL);
+            dialog.showAndWait();
+            return controller.getProcessParams();
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
     }
 
     private ImageViewer newImageViewer() {

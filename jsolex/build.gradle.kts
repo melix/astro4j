@@ -8,6 +8,7 @@ dependencies {
     implementation(libs.slf4j.api)
     implementation(libs.commons.math)
     implementation(libs.logback)
+    implementation(libs.gson)
     testImplementation(testFixtures(projects.jserfile))
 }
 

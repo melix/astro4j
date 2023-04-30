@@ -29,7 +29,7 @@ import me.champeau.a4j.jsolex.processing.event.ProcessingEvent;
 import me.champeau.a4j.jsolex.processing.event.ProcessingEventListener;
 import me.champeau.a4j.jsolex.processing.event.ProcessingStartEvent;
 import me.champeau.a4j.jsolex.processing.event.SuggestionEvent;
-import me.champeau.a4j.jsolex.processing.stretching.LinearStrechingStrategy;
+import me.champeau.a4j.jsolex.processing.params.ProcessParams;
 import me.champeau.a4j.jsolex.processing.sun.workflow.ProcessingWorkflow;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 import me.champeau.a4j.jsolex.processing.util.ParallelExecutor;
@@ -52,7 +52,6 @@ import java.util.concurrent.atomic.AtomicReference;
 
 public class SolexVideoProcessor implements Broadcaster {
     private static final Logger LOGGER = LoggerFactory.getLogger(SolexVideoProcessor.class);
-    private static final LinearStrechingStrategy LINEAR_STRECHING_STRATEGY = LinearStrechingStrategy.DEFAULT;
 
     private final Set<ProcessingEventListener> progressEventListeners = new HashSet<>();
 
@@ -61,20 +60,17 @@ public class SolexVideoProcessor implements Broadcaster {
     private final File debugDirectory;
     private final File processedDirectory;
     private final File rawImagesDirectory;
-    private final boolean generateDebugImages;
-    private final double spectrumDetectionThreshold;
+    private final ProcessParams processParams;
 
     public SolexVideoProcessor(File serFile,
                                File outputDirectory,
-                               boolean generateDebugImages,
-                               double spectrumDetectionThreshold) {
+                               ProcessParams processParametersProvider) {
         this.serFile = serFile;
         this.rootDirectory = outputDirectory;
         this.debugDirectory = new File(outputDirectory, Constants.DEBUG_DIRECTORY);
         this.rawImagesDirectory = new File(outputDirectory, Constants.RAW_DIRECTORY);
         this.processedDirectory = new File(outputDirectory, Constants.PROCESSED_DIRECTORY);
-        this.generateDebugImages = generateDebugImages;
-        this.spectrumDetectionThreshold = spectrumDetectionThreshold;
+        this.processParams = processParametersProvider;
     }
 
     public void addEventListener(ProcessingEventListener listener) {
@@ -94,8 +90,9 @@ public class SolexVideoProcessor implements Broadcaster {
             Files.createDirectories(debugDirectory.toPath());
             Files.createDirectories(rawImagesDirectory.toPath());
             Files.createDirectories(processedDirectory.toPath());
-            ImageGeometry geometry = reader.header().geometry();
-            var frameCount = reader.header().frameCount();
+            var header = reader.header();
+            ImageGeometry geometry = header.geometry();
+            var frameCount = header.frameCount();
             LOGGER.info("SER file contains {} frames", frameCount);
             LOGGER.info("Color mode : {} ({} bytes per pixel, depth = {} bits)", geometry.colorMode(), geometry.getBytesPerPixel(), geometry.pixelDepthPerPlane());
             LOGGER.info("Width: {}, height: {}", geometry.width(), geometry.height());
@@ -103,11 +100,11 @@ public class SolexVideoProcessor implements Broadcaster {
             detector.detectEdges(reader);
             detector.ifEdgesDetected((start, end) -> {
                         LOGGER.info("Sun edges detected at frames {} and {}", start, end);
-                        generateImages(converter, reader, Math.max(0, start - 40), Math.min(end + 40, frameCount) - 1);
+                        generateImages(converter, reader, Math.max(0, start - 40), Math.min(end + 40, frameCount) - 1, processParams);
                     }
                     , () -> {
                         LOGGER.info("Sun edges weren't detected, processing whole video");
-                        generateImages(converter, reader, 0, frameCount - 1);
+                        generateImages(converter, reader, 0, frameCount - 1, processParams);
                     });
         } catch (Exception e) {
             broadcastError(e);
@@ -127,7 +124,8 @@ public class SolexVideoProcessor implements Broadcaster {
     private void generateImages(ImageConverter<float[]> converter,
                                 SerFileReader reader,
                                 int start,
-                                int end) {
+                                int end,
+                                ProcessParams params) {
         var geometry = reader.header().geometry();
         int width = geometry.width();
         int height = geometry.height();
@@ -151,7 +149,7 @@ public class SolexVideoProcessor implements Broadcaster {
                     width,
                     newHeight,
                     outputBuffer,
-                    generateDebugImages,
+                    params,
                     fps.orElse(null)
             );
             workflow.start();
@@ -172,7 +170,7 @@ public class SolexVideoProcessor implements Broadcaster {
                 int frameId = i;
                 int offset = j;
                 executor.submit(() -> {
-                    var analyzer = new SpectrumFrameAnalyzer(width, height, spectrumDetectionThreshold, 5000d);
+                    var analyzer = new SpectrumFrameAnalyzer(width, height, processParams.spectrumParams().spectralLineDetectionThreshold(), 5000d);
                     processSingleFrame(width, height, outputBuffer, analyzer, offset, frameId, original, fallbackPolynomial.get());
                     analyzer.findDistortionPolynomial().ifPresent(fallbackPolynomial::set);
                 });
@@ -195,7 +193,7 @@ public class SolexVideoProcessor implements Broadcaster {
         var polynomial = analyzer.findDistortionPolynomial().or(() -> Optional.ofNullable(fallbackPolynomial));
         polynomial.ifPresent(p -> {
                     var fun = p.asPolynomial();
-                    showCorrectedImageForDebugging(width, height, buffer, analyzer, frameId, p);
+                    showCorrectedImageForDebugging(width, height, buffer, analyzer, frameId, p, processParams);
                     double[] line = new double[width];
                     int lastY = 0;
                     for (int x = 0; x < width; x++) {
@@ -235,11 +233,12 @@ public class SolexVideoProcessor implements Broadcaster {
                                                 float[] original,
                                                 SpectrumFrameAnalyzer analyzer,
                                                 int frameId,
-                                                DoubleTriplet p) {
+                                                DoubleTriplet p,
+                                                ProcessParams params) {
         if (LOGGER.isDebugEnabled()) {
             LOGGER.debug("Distortion polynomial of frame {} : [{}, {}, {}]", frameId, p.a(), p.b(), p.c());
         }
-        if (generateDebugImages) {
+        if (params.debugParams().generateDebugImages()) {
             var creator = new SpectralLineFrameImageCreator(
                     frameId, analyzer, original, width, height
             );
