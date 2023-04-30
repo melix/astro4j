@@ -202,6 +202,11 @@ public class JSolEx extends Application {
         reconstructionStarted = false;
         var outputDirName = selectedFile.getName().substring(0, selectedFile.getName().lastIndexOf("."));
         var outputDirectory = new File(selectedFile.getParentFile(), outputDirName);
+        int i = 0;
+        while (Files.exists(outputDirectory.toPath())) {
+            String suffix = String.format("-%04d", i++);
+            outputDirectory = new File(selectedFile.getParentFile(), outputDirName + suffix);
+        }
         try {
             Files.createDirectories(outputDirectory.toPath());
             LOGGER.info("Output directory set to {}", outputDirectory);
