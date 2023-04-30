@@ -47,14 +47,12 @@
 <?import javafx.scene.layout.GridPane?>
 <?import javafx.scene.layout.RowConstraints?>
 
-<BorderPane fx:controller="me.champeau.a4j.jsolex.app.jfx.ProcessParamsController"
-            maxHeight="-Infinity"
-            maxWidth="-Infinity" minHeight="-Infinity" minWidth="-Infinity" prefHeight="400.0" prefWidth="600.0" xmlns="http://javafx.com/javafx/17" xmlns:fx="http://javafx.com/fxml/1">
+<BorderPane maxHeight="-Infinity" maxWidth="-Infinity" minHeight="-Infinity" minWidth="-Infinity" prefHeight="400.0" prefWidth="600.0" xmlns="http://javafx.com/javafx/19" xmlns:fx="http://javafx.com/fxml/1" fx:controller="me.champeau.a4j.jsolex.app.jfx.ProcessParamsController">
    <bottom>
       <AnchorPane>
          <children>
-            <Button layoutX="456.0" layoutY="8.0" mnemonicParsing="false" text="Start process" onAction="#process"/>
-            <Button layoutX="31.0" layoutY="8.0" mnemonicParsing="false" text="Cancel"  onAction="#cancel"/>
+            <Button layoutX="456.0" layoutY="8.0" mnemonicParsing="false" onAction="#process" text="Start process" />
+            <Button layoutX="31.0" layoutY="8.0" mnemonicParsing="false" onAction="#cancel" text="Cancel" />
          </children>
          <padding>
             <Insets bottom="8.0" left="8.0" right="8.0" top="8.0" />
@@ -62,7 +60,7 @@
       </AnchorPane>
    </bottom>
    <center>
-      <Accordion BorderPane.alignment="CENTER" fx:id="accordion">
+      <Accordion fx:id="accordion" BorderPane.alignment="CENTER">
         <panes>
           <TitledPane animated="false" text="Process parameters">
             <content>
@@ -84,13 +82,16 @@
                               <ChoiceBox fx:id="spectralRay" prefHeight="24.0" prefWidth="281.0" GridPane.columnIndex="1" />
                               <Label text="Spectral line detection threshold" GridPane.rowIndex="1" />
                               <Slider fx:id="spectralLineDetectionThreshold" blockIncrement="0.1" majorTickUnit="0.25" max="1.0" minorTickCount="5" showTickLabels="true" showTickMarks="true" value="0.2" GridPane.columnIndex="1" GridPane.rowIndex="1" />
+                              <Label text="Pixel shifting" GridPane.rowIndex="2" />
+                              <Slider fx:id="pixelShifting" blockIncrement="1.0" majorTickUnit="5.0" max="15.0" min="-15.0" minorTickCount="1" showTickLabels="true" showTickMarks="true" GridPane.columnIndex="1" GridPane.rowIndex="2" />
+                              <Button alignment="CENTER" contentDisplay="CENTER" mnemonicParsing="false" text="Reset to defaults" GridPane.columnIndex="1" GridPane.rowIndex="3" onAction="#resetRayParams" />
                            </children>
                         </GridPane>
                      </children>
                   </AnchorPane>
             </content>
           </TitledPane>
-          <TitledPane animated="false" text="Observation details" expanded="false">
+          <TitledPane animated="false" expanded="false" text="Observation details">
             <content>
               <AnchorPane minHeight="0.0" minWidth="0.0" prefHeight="180.0" prefWidth="200.0">
                      <children>
@@ -126,7 +127,7 @@
                   </AnchorPane>
             </content>
           </TitledPane>
-          <TitledPane animated="false" text="Miscellaneous" expanded="false">
+          <TitledPane animated="false" expanded="false" text="Miscellaneous">
             <content>
               <AnchorPane minHeight="0.0" minWidth="0.0" prefHeight="180.0" prefWidth="200.0">
                      <children>

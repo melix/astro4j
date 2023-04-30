@@ -74,7 +74,7 @@ public record ProcessParams(
             }
         }
         return new ProcessParams(
-                new SpectrumParams(SpectralRay.H_ALPHA, SpectralRay.H_ALPHA.getDetectionThreshold()),
+                new SpectrumParams(SpectralRay.H_ALPHA, SpectralRay.H_ALPHA.getDetectionThreshold(), 0),
                 new ObservationDetails(
                         "",
                         "Sol'Ex",

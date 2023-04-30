@@ -17,6 +17,7 @@ package me.champeau.a4j.jsolex.processing.params;
 
 public record SpectrumParams(
         SpectralRay ray,
-        double spectralLineDetectionThreshold
+        double spectralLineDetectionThreshold,
+        int pixelShift
 ) {
 }

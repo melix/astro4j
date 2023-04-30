@@ -35,6 +35,8 @@ import java.util.Optional;
 
 public class ProcessParamsController {
     @FXML
+    private Slider pixelShifting;
+    @FXML
     private ChoiceBox<SpectralRay> spectralRay;
     @FXML
     private TextField observerName;
@@ -76,6 +78,7 @@ public class ProcessParamsController {
             focalLength.textProperty().setValue(String.valueOf(length));
         }
         observationDate.textProperty().set(dateFromSerFile.toString());
+        pixelShifting.valueProperty().set(initial.spectrumParams().pixelShift());
     }
 
     @FXML
@@ -87,7 +90,7 @@ public class ProcessParamsController {
     public void process() {
         var focalLength = this.focalLength.getText();
         processParams = new ProcessParams(
-                new SpectrumParams(spectralRay.getValue(), spectralLineDetectionThreshold.getValue()),
+                new SpectrumParams(spectralRay.getValue(), spectralLineDetectionThreshold.getValue(), (int) Math.round(pixelShifting.getValue())),
                 new ObservationDetails(
                         observerName.getText(),
                         instrument.getText(),
@@ -104,5 +107,11 @@ public class ProcessParamsController {
 
     public Optional<ProcessParams> getProcessParams() {
         return Optional.ofNullable(processParams);
+    }
+
+    @FXML
+    public void resetRayParams() {
+        spectralLineDetectionThreshold.setValue(spectralRay.getValue().getDetectionThreshold());
+        pixelShifting.setValue(0);
     }
 }
