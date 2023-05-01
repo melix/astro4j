@@ -45,7 +45,8 @@ public record ProcessParams(
         ObservationDetails observationDetails,
         DebugParams debugParams,
         VideoParams videoParams,
-        GeometryParams geometryParams
+        GeometryParams geometryParams,
+        BandingCorrectionParams bandingCorrectionParams
 ) {
 
     private static Path resolveDefaultsFile() {
@@ -79,7 +80,8 @@ public record ProcessParams(
                                 params.observationDetails(),
                                 params.debugParams(),
                                 new VideoParams(ColorMode.MONO),
-                                params.geometryParams()
+                                params.geometryParams(),
+                                params.bandingCorrectionParams()
                         );
                     }
                     if (params.geometryParams == null) {
@@ -91,6 +93,20 @@ public record ProcessParams(
                                 new GeometryParams(
                                         null,
                                         null
+                                ),
+                                params.bandingCorrectionParams()
+                        );
+                    }
+                    if (params.bandingCorrectionParams == null) {
+                        params = new ProcessParams(
+                                params.spectrumParams(),
+                                params.observationDetails(),
+                                params.debugParams(),
+                                params.videoParams(),
+                                params.geometryParams(),
+                                new BandingCorrectionParams(
+                                        24,
+                                        3
                                 )
                         );
                     }
@@ -112,7 +128,8 @@ public record ProcessParams(
                 ),
                 new DebugParams(false),
                 new VideoParams(ColorMode.MONO),
-                new GeometryParams(null, null)
+                new GeometryParams(null, null),
+                new BandingCorrectionParams(24, 3)
         );
     }
 

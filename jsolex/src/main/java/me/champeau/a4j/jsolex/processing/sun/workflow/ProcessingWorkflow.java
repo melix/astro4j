@@ -137,7 +137,7 @@ public class ProcessingWorkflow {
     }
 
     private CompletableFuture<ImageWrapper32> performBandingCorrection(EllipseFittingTask.Result r, ImageWrapper32 geometryFixed) {
-        return executor.submit(new ImageBandingCorrector(broadcaster, geometryFixed, r.ellipse()));
+        return executor.submit(new ImageBandingCorrector(broadcaster, geometryFixed, r.ellipse(), processParams.bandingCorrectionParams()));
     }
 
     private Future<Void> produceStretchedImage(float blackPoint, ImageWrapper32 geometryFixed) {

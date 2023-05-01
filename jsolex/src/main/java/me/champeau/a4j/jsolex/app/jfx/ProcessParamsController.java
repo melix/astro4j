@@ -26,6 +26,7 @@ import javafx.scene.control.TextFormatter;
 import javafx.stage.Stage;
 import javafx.util.converter.DoubleStringConverter;
 import javafx.util.converter.IntegerStringConverter;
+import me.champeau.a4j.jsolex.processing.params.BandingCorrectionParams;
 import me.champeau.a4j.jsolex.processing.params.DebugParams;
 import me.champeau.a4j.jsolex.processing.params.GeometryParams;
 import me.champeau.a4j.jsolex.processing.params.ObservationDetails;
@@ -40,6 +41,10 @@ import java.util.Arrays;
 import java.util.Optional;
 
 public class ProcessParamsController {
+    @FXML
+    private Slider bandingCorrectionPasses;
+    @FXML
+    private Slider bandingCorrectionWidth;
     @FXML
     private CheckBox forceTilt;
     @FXML
@@ -109,6 +114,8 @@ public class ProcessParamsController {
         xyRatioValue.setText(Double.toString(initial.geometryParams().xyRatio().orElse(1.0d)));
         xyRatioValue.setDisable(true);
         forceXYRatio.selectedProperty().addListener((observable, oldValue, newValue) -> xyRatioValue.setDisable(!newValue));
+        bandingCorrectionWidth.setValue(initial.bandingCorrectionParams().width());
+        bandingCorrectionPasses.setValue(initial.bandingCorrectionParams().passes());
     }
 
     @FXML
@@ -134,6 +141,10 @@ public class ProcessParamsController {
                 new GeometryParams(
                         forceTilt.isSelected() ? Double.parseDouble(tiltValue.getText()) : null,
                         forceXYRatio.isSelected() ? Double.parseDouble(xyRatioValue.getText()) : null
+                ),
+                new BandingCorrectionParams(
+                        (int) Math.round(bandingCorrectionWidth.getValue()),
+                        (int) Math.round(bandingCorrectionPasses.getValue())
                 )
         );
         ProcessParams.saveDefaults(processParams);
@@ -148,5 +159,13 @@ public class ProcessParamsController {
     public void resetRayParams() {
         spectralLineDetectionThreshold.setValue(wavelength.getValue().getDetectionThreshold());
         pixelShifting.setValue(0);
+    }
+
+    @FXML
+    public void resetMiscParams() {
+        assumeMonoVideo.setSelected(true);
+        generateDebugImages.setSelected(false);
+        bandingCorrectionWidth.setValue(24);
+        bandingCorrectionPasses.setValue(3);
     }
 }
