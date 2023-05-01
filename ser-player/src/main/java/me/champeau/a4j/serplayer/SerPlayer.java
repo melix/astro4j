@@ -289,6 +289,9 @@ public class SerPlayer extends Application implements BayerMatrixSupport, Player
 
         private ColorMode findColorMode(ImageGeometry geometry) {
             String debayerMode = debayerToggleGroup.getSelectedToggle().getUserData().toString();
+            if (DEBAYER_OFF.equals(debayerMode)) {
+                return ColorMode.MONO;
+            }
             boolean forceDebayer = debayerMode.startsWith(BAYER_FORCE_PREFIX);
             if (forceDebayer || geometry.colorMode().isBayer() && debayerMode.equals(DEBAYER_AUTO)) {
                 return forceDebayer ? ColorMode.valueOf(BAYER_PREFIX + debayerMode.substring(BAYER_FORCE_PREFIX.length())) : geometry.colorMode();
