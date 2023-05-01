@@ -29,7 +29,14 @@ public class KnownCurves {
             218, 65
     );
 
+    public static final ColorCurve CALCIUM = new ColorCurve(
+            "Calcium",
+            147, 102,
+            180, 81,
+            100, 75
+    );
+
     public static List<ColorCurve> all() {
-        return List.of(H_ALPHA);
+        return List.of(H_ALPHA, CALCIUM);
     }
 }

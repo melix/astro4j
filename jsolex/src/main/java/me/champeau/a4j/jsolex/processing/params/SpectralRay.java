@@ -22,7 +22,7 @@ import java.util.Optional;
 
 public enum SpectralRay {
     H_ALPHA("Hα", KnownCurves.H_ALPHA, 0.25d),
-    CALCIUM("Calcium", null, 0.7d),
+    CALCIUM("Calcium", KnownCurves.CALCIUM, 0.7d),
     OTHER("Other", null, 0.5d);
 
     private final String label;
