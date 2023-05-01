@@ -16,6 +16,7 @@
 package me.champeau.a4j.jsolex.processing.sun;
 
 import me.champeau.a4j.jsolex.processing.util.ProcessingException;
+import me.champeau.a4j.ser.ColorMode;
 import me.champeau.a4j.ser.EightBitConversionSupport;
 import me.champeau.a4j.ser.bayer.BilinearDemosaicingStrategy;
 import me.champeau.a4j.ser.bayer.ChannelExtractingConverter;
@@ -83,12 +84,12 @@ public class ImageUtils {
         }
     }
 
-    public static ImageConverter<float[]> createImageConverter() {
+    public static ImageConverter<float[]> createImageConverter(ColorMode colorMode) {
         return new FloatPrecisionImageConverter(
                 new ChannelExtractingConverter(
                         new DemosaicingRGBImageConverter(
                                 new BilinearDemosaicingStrategy(),
-                                null
+                                colorMode
                         ),
                         GREEN
                 )

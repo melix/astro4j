@@ -78,13 +78,13 @@
                               <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="SOMETIMES" />
                           </rowConstraints>
                            <children>
-                              <Label text="Spectral ray" />
-                              <ChoiceBox fx:id="spectralRay" prefHeight="24.0" prefWidth="281.0" GridPane.columnIndex="1" />
+                              <Label text="Wavelength" />
+                              <ChoiceBox fx:id="wavelength" prefHeight="24.0" prefWidth="281.0" GridPane.columnIndex="1" />
                               <Label text="Spectral line detection threshold" GridPane.rowIndex="1" />
                               <Slider fx:id="spectralLineDetectionThreshold" blockIncrement="0.1" majorTickUnit="0.25" max="1.0" minorTickCount="5" showTickLabels="true" showTickMarks="true" value="0.2" GridPane.columnIndex="1" GridPane.rowIndex="1" />
                               <Label text="Pixel shifting" GridPane.rowIndex="2" />
                               <Slider fx:id="pixelShifting" blockIncrement="1.0" majorTickUnit="5.0" max="15.0" min="-15.0" minorTickCount="1" showTickLabels="true" showTickMarks="true" GridPane.columnIndex="1" GridPane.rowIndex="2" />
-                              <Button alignment="CENTER" contentDisplay="CENTER" mnemonicParsing="false" text="Reset to defaults" GridPane.columnIndex="1" GridPane.rowIndex="3" onAction="#resetRayParams" />
+                              <Button alignment="CENTER" contentDisplay="CENTER" mnemonicParsing="false" onAction="#resetRayParams" text="Reset to defaults" GridPane.columnIndex="1" GridPane.rowIndex="3" />
                            </children>
                         </GridPane>
                      </children>
@@ -137,12 +137,14 @@
                             <ColumnConstraints hgrow="SOMETIMES" minWidth="10.0" prefWidth="100.0" />
                           </columnConstraints>
                           <rowConstraints>
+                              <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="SOMETIMES" />
                             <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="SOMETIMES" />
                             <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="SOMETIMES" />
                             <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="SOMETIMES" />
                           </rowConstraints>
                            <children>
-                              <CheckBox fx:id="generateDebugImages" mnemonicParsing="false" text="Generate debug images" />
+                              <CheckBox fx:id="generateDebugImages" mnemonicParsing="false" text="Generate debug images" GridPane.rowIndex="1" />
+                              <CheckBox fx:id="assumeMonoVideo" mnemonicParsing="false" text="Assume mono images" />
                            </children>
                         </GridPane>
                      </children>

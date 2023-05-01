@@ -28,6 +28,8 @@ import me.champeau.a4j.jsolex.processing.params.ObservationDetails;
 import me.champeau.a4j.jsolex.processing.params.ProcessParams;
 import me.champeau.a4j.jsolex.processing.params.SpectralRay;
 import me.champeau.a4j.jsolex.processing.params.SpectrumParams;
+import me.champeau.a4j.jsolex.processing.params.VideoParams;
+import me.champeau.a4j.ser.ColorMode;
 
 import java.time.ZonedDateTime;
 import java.util.Arrays;
@@ -37,7 +39,7 @@ public class ProcessParamsController {
     @FXML
     private Slider pixelShifting;
     @FXML
-    private ChoiceBox<SpectralRay> spectralRay;
+    private ChoiceBox<SpectralRay> wavelength;
     @FXML
     private TextField observerName;
     @FXML
@@ -56,6 +58,8 @@ public class ProcessParamsController {
     private CheckBox generateDebugImages;
     @FXML
     private Accordion accordion;
+    @FXML
+    private CheckBox assumeMonoVideo;
 
     private Stage stage;
     private ProcessParams processParams;
@@ -65,10 +69,10 @@ public class ProcessParamsController {
         var initial = ProcessParams.loadDefaults();
         accordion.setExpandedPane(accordion.getPanes().get(0));
 
-        spectralRay.getItems().addAll(FXCollections.observableList(Arrays.stream(SpectralRay.values()).toList()));
-        spectralRay.getSelectionModel().select(SpectralRay.H_ALPHA);
-        spectralRay.valueProperty().addListener((observable, oldValue, newValue) -> spectralLineDetectionThreshold.setValue(newValue.getDetectionThreshold()));
-        spectralLineDetectionThreshold.valueProperty().set(initial.spectrumParams().spectralLineDetectionThreshold());
+        wavelength.getItems().addAll(FXCollections.observableList(Arrays.stream(SpectralRay.values()).toList()));
+        wavelength.getSelectionModel().select(SpectralRay.H_ALPHA);
+        wavelength.valueProperty().addListener((observable, oldValue, newValue) -> spectralLineDetectionThreshold.setValue(newValue.getDetectionThreshold()));
+        spectralLineDetectionThreshold.valueProperty().set(wavelength.getValue().getDetectionThreshold());
         observerName.textProperty().setValue(initial.observationDetails().observer());
         instrument.textProperty().setValue(initial.observationDetails().instrument());
         telescope.textProperty().setValue(initial.observationDetails().telescope());
@@ -80,6 +84,7 @@ public class ProcessParamsController {
         }
         observationDate.textProperty().set(dateFromSerFile.toString());
         pixelShifting.valueProperty().set(initial.spectrumParams().pixelShift());
+        assumeMonoVideo.setSelected(initial.videoParams().colorMode() == ColorMode.MONO);
     }
 
     @FXML
@@ -91,7 +96,7 @@ public class ProcessParamsController {
     public void process() {
         var focalLength = this.focalLength.getText();
         processParams = new ProcessParams(
-                new SpectrumParams(spectralRay.getValue(), spectralLineDetectionThreshold.getValue(), (int) Math.round(pixelShifting.getValue())),
+                new SpectrumParams(wavelength.getValue(), spectralLineDetectionThreshold.getValue(), (int) Math.round(pixelShifting.getValue())),
                 new ObservationDetails(
                         observerName.getText(),
                         instrument.getText(),
@@ -100,7 +105,8 @@ public class ProcessParamsController {
                         ZonedDateTime.parse(observationDate.getText()),
                         camera.getText()
                 ),
-                new DebugParams(generateDebugImages.isSelected())
+                new DebugParams(generateDebugImages.isSelected()),
+                new VideoParams(assumeMonoVideo.isSelected() ? ColorMode.MONO : null)
         );
         ProcessParams.saveDefaults(processParams);
         stage.close();
@@ -112,7 +118,7 @@ public class ProcessParamsController {
 
     @FXML
     public void resetRayParams() {
-        spectralLineDetectionThreshold.setValue(spectralRay.getValue().getDetectionThreshold());
+        spectralLineDetectionThreshold.setValue(wavelength.getValue().getDetectionThreshold());
         pixelShifting.setValue(0);
     }
 }

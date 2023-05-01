@@ -23,6 +23,7 @@ import com.google.gson.JsonParseException;
 import com.google.gson.JsonPrimitive;
 import com.google.gson.JsonSerializationContext;
 import com.google.gson.JsonSerializer;
+import me.champeau.a4j.ser.ColorMode;
 
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
@@ -41,7 +42,8 @@ import java.time.ZonedDateTime;
 public record ProcessParams(
         SpectrumParams spectrumParams,
         ObservationDetails observationDetails,
-        DebugParams debugParams
+        DebugParams debugParams,
+        VideoParams videoParams
 ) {
 
     private static Path resolveDefaultsFile() {
@@ -67,6 +69,15 @@ public record ProcessParams(
                 Gson gson = newGson();
                 var params = gson.fromJson(reader, ProcessParams.class);
                 if (params != null) {
+                    if (params.videoParams() == null) {
+                        // happens if loading an old config file
+                        params = new ProcessParams(
+                                params.spectrumParams(),
+                                params.observationDetails(),
+                                params.debugParams(),
+                                new VideoParams(ColorMode.MONO)
+                        );
+                    }
                     return params;
                 }
             } catch (IOException e) {
@@ -83,7 +94,8 @@ public record ProcessParams(
                         LocalDateTime.now().atZone(ZoneId.of("UTC")),
                         ""
                 ),
-                new DebugParams(false)
+                new DebugParams(false),
+                new VideoParams(ColorMode.MONO)
         );
     }
 

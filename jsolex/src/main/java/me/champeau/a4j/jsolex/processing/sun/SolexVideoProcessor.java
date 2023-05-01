@@ -84,7 +84,7 @@ public class SolexVideoProcessor implements Broadcaster {
 
     public void process() {
         broadcast(new ProcessingStartEvent(System.nanoTime()));
-        var converter = ImageUtils.createImageConverter();
+        var converter = ImageUtils.createImageConverter(processParams.videoParams().colorMode());
         var detector = new MagnitudeBasedSunEdgeDetector(converter);
         try (SerFileReader reader = SerFileReader.of(serFile)) {
             Files.createDirectories(rootDirectory.toPath());

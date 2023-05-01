@@ -163,7 +163,7 @@ public class JSolEx extends Application {
             var controller = (SpectralLineDebugger) fxmlLoader.getController();
             var stage = new Stage();
             Scene scene = new Scene((Parent) configWindow, 1024, 400);
-            controller.open(file, config, scene);
+            controller.open(file, null, scene);
             stage.setTitle("Frame debugger");
             stage.setScene(scene);
             stage.showAndWait();

@@ -24,9 +24,9 @@ import javafx.scene.control.TextField;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.util.Duration;
-import me.champeau.a4j.jsolex.app.Configuration;
 import me.champeau.a4j.jsolex.app.util.SpectralLineFrameImageCreator;
 import me.champeau.a4j.jsolex.processing.sun.SpectrumFrameAnalyzer;
+import me.champeau.a4j.ser.ColorMode;
 import me.champeau.a4j.ser.ImageGeometry;
 import me.champeau.a4j.ser.SerFileReader;
 import me.champeau.a4j.ser.bayer.ImageConverter;
@@ -54,8 +54,8 @@ public class SpectralLineDebugger {
 
     private SerFileReader reader;
 
-    public void open(File file, Configuration config, Scene scene) {
-        var converter = createImageConverter();
+    public void open(File file, ColorMode colorMode, Scene scene) {
+        var converter = createImageConverter(colorMode);
         try {
             reader = SerFileReader.of(file);
             var tmpPath = Files.createTempFile("debug_", ".png");
