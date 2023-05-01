@@ -29,6 +29,7 @@ import me.champeau.a4j.jsolex.processing.sun.tasks.GeometryCorrector;
 import me.champeau.a4j.jsolex.processing.sun.tasks.ImageBandingCorrector;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 import me.champeau.a4j.jsolex.processing.util.ParallelExecutor;
+import me.champeau.a4j.jsolex.processing.util.ProcessingException;
 import me.champeau.a4j.math.Point2D;
 import me.champeau.a4j.math.regression.Ellipse;
 import org.slf4j.Logger;
@@ -37,6 +38,7 @@ import org.slf4j.LoggerFactory;
 import java.io.File;
 import java.util.Arrays;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 
 /**
@@ -77,13 +79,13 @@ public class ProcessingWorkflow {
     public void start() {
         rawImagesEmitter.newMonoImage("Raw (Linear)", "linear", rawImage, LinearStrechingStrategy.DEFAULT);
         var ellipseFittingTask = executor.submit(new EllipseFittingTask(broadcaster, rawImage, 10d));
-        ellipseFittingTask.thenAccept(r -> geometryCorrection(r, rawImage));
+        ellipseFittingTask.thenAccept(r -> performBandingCorrection(r, rawImage).thenAccept(bandingFixed -> geometryCorrection(r, bandingFixed)));
 
     }
 
-    private void geometryCorrection(EllipseFittingTask.Result result, ImageWrapper32 rawImage) {
+    private void geometryCorrection(EllipseFittingTask.Result result, ImageWrapper32 bandingFixed) {
         var ellipse = result.ellipse();
-        float blackPoint = (float) estimateBlackPoint(rawImage.width(), rawImage.height(), ellipse, rawImage.data()) * 1.2f;
+        float blackPoint = (float) estimateBlackPoint(bandingFixed.width(), bandingFixed.height(), ellipse, bandingFixed.data()) * 1.2f;
         var tiltDegrees = ellipse.tiltAngle() / Math.PI * 180;
         boolean isTiltReliable = ellipse.isAlmostCircle(CIRCLE_EPSILON);
         var tiltString = String.format("%.2f", tiltDegrees);
@@ -95,23 +97,25 @@ public class ProcessingWorkflow {
         if (!isTiltReliable) {
             LOGGER.info("Will not apply rotation correction as sun disk is almost a circle (and therefore tilt angle is not reliable)");
         }
-        executor.submit(new GeometryCorrector(broadcaster, this.rawImage, ellipse, correctionAngle, blackPoint, fps)).thenAccept(geometryFixed -> {
-            broadcaster.broadcast(OutputImageDimensionsDeterminedEvent.of("geometry corrected", geometryFixed.width(), geometryFixed.height()));
-            produceCoronagraph(blackPoint, geometryFixed);
-            produceEdgeDetectionImage(result, ellipse, geometryFixed);
-            produceStretchedImage(blackPoint, geometryFixed);
-            performBandingCorrection(geometryFixed)
-                    .thenAccept(corrected -> produceProcessedImages(blackPoint, geometryFixed, corrected, processParams))
-                    .thenAccept(unused -> broadcaster.broadcast(new ProcessingDoneEvent(System.nanoTime())));
-        });
+        processedImagesEmitter.newMonoImage("Banding fixed", "banding-fixed", bandingFixed, new ArcsinhStretchingStrategy(blackPoint, 7, 20));
+        try {
+            executor.submit(new GeometryCorrector(broadcaster, bandingFixed, ellipse, correctionAngle, blackPoint, fps)).thenAccept(geometryFixed -> {
+                broadcaster.broadcast(OutputImageDimensionsDeterminedEvent.of("geometry corrected", geometryFixed.width(), geometryFixed.height()));
+                executor.submit(() -> produceCoronagraph(blackPoint, geometryFixed));
+                executor.submit(() -> produceEdgeDetectionImage(result, geometryFixed));
+                executor.submit(() -> produceStretchedImage(blackPoint, geometryFixed));
+                executor.submit(() -> produceProcessedImages(blackPoint, geometryFixed, processParams));
+            }).get();
+        } catch (InterruptedException | ExecutionException e) {
+            throw new ProcessingException(e);
+        }
+        broadcaster.broadcast(new ProcessingDoneEvent(System.nanoTime()));
     }
 
-    private void produceProcessedImages(float blackPoint, ImageWrapper32 geometryFixed, float[] corrected, ProcessParams params) {
-        CutoffStretchingStrategy.DEFAULT.stretch(corrected);
-        var correctedImg = new ImageWrapper32(geometryFixed.width(), geometryFixed.height(), corrected);
-        processedImagesEmitter.newMonoImage("Banding fixed", "banding-fixed", correctedImg, new ArcsinhStretchingStrategy(blackPoint, 7, 20));
+    private void produceProcessedImages(float blackPoint, ImageWrapper32 corrected, ProcessParams params) {
+        CutoffStretchingStrategy.DEFAULT.stretch(corrected.data());
         params.spectrumParams().ray().getColorCurve().ifPresent(curve -> {
-            processedImagesEmitter.newColorImage("Colorized (" + curve.ray() + ")", "colorized", correctedImg, new ArcsinhStretchingStrategy(blackPoint, 10, 200), mono -> {
+            processedImagesEmitter.newColorImage("Colorized (" + curve.ray() + ")", "colorized", corrected, new ArcsinhStretchingStrategy(blackPoint, 10, 200), mono -> {
                 LinearStrechingStrategy.DEFAULT.stretch(mono);
                 float[] r = new float[mono.length];
                 float[] g = new float[mono.length];
@@ -127,20 +131,20 @@ public class ProcessingWorkflow {
         });
     }
 
-    private CompletableFuture<float[]> performBandingCorrection(ImageWrapper32 geometryFixed) {
-        return executor.submit(new ImageBandingCorrector(broadcaster, geometryFixed));
+    private CompletableFuture<ImageWrapper32> performBandingCorrection(EllipseFittingTask.Result r, ImageWrapper32 geometryFixed) {
+        return executor.submit(new ImageBandingCorrector(broadcaster, geometryFixed, r.ellipse()));
     }
 
     private Future<Void> produceStretchedImage(float blackPoint, ImageWrapper32 geometryFixed) {
         return processedImagesEmitter.newMonoImage("Stretched", "streched", geometryFixed, new ArcsinhStretchingStrategy(blackPoint, 10, 100));
     }
 
-    private void produceEdgeDetectionImage(EllipseFittingTask.Result result, Ellipse ellipse, ImageWrapper32 geometryFixed) {
+    private void produceEdgeDetectionImage(EllipseFittingTask.Result result, ImageWrapper32 geometryFixed) {
         if (processParams.debugParams().generateDebugImages()) {
             debugImagesEmitter.newMonoImage("Edge detection", "edge-detection", geometryFixed, LinearStrechingStrategy.DEFAULT, debugImage -> {
                 var samples = result.samples();
                 Arrays.fill(debugImage, 0f);
-                fill(ellipse, debugImage, geometryFixed.width(), (int) Constants.MAX_PIXEL_VALUE / 4);
+                fill(result.ellipse(), debugImage, geometryFixed.width(), (int) Constants.MAX_PIXEL_VALUE / 4);
                 for (Point2D sample : samples) {
                     var x = sample.x();
                     var y = sample.y();

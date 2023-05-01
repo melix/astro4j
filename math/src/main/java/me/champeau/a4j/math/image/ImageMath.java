@@ -71,8 +71,8 @@ public interface ImageMath {
     default Image rotateAndScale(float[] data, int width, int height, double angle, float blackpoint, double scaleX, double scaleY) {
         double cos = Math.cos(angle);
         double sin = Math.sin(angle);
-        int newWidth = (int) ((round(Math.abs(width * cos) + Math.abs(height * sin)) + 1) * scaleX);
-        int newHeight = (int) ((round(Math.abs(height * cos) + Math.abs(width * sin)) + 1) * scaleY);
+        int newWidth = (int) ((round(Math.abs(width * cos) + Math.abs(height * sin))) * scaleX);
+        int newHeight = (int) ((round(Math.abs(height * cos) + Math.abs(width * sin))) * scaleY);
         int centerX = width / 2;
         int centerY = height / 2;
         int newCenterX = newWidth / 2;

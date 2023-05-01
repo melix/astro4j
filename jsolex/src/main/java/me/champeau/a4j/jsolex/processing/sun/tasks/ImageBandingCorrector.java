@@ -15,28 +15,33 @@
  */
 package me.champeau.a4j.jsolex.processing.sun.tasks;
 
+import me.champeau.a4j.jsolex.processing.sun.BandingReduction;
 import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
+import me.champeau.a4j.math.regression.Ellipse;
 
-public class ImageBandingCorrector extends AbstractTask<float[]> {
+public class ImageBandingCorrector extends AbstractTask<ImageWrapper32> {
 
-    public ImageBandingCorrector(Broadcaster broadcaster, ImageWrapper32 image) {
+    private final Ellipse ellipse;
+
+    public ImageBandingCorrector(Broadcaster broadcaster, ImageWrapper32 image, Ellipse ellipse) {
         super(broadcaster, image);
+        this.ellipse = ellipse;
     }
 
     @Override
-    public float[] call() throws Exception {
-        /*
-        var imageMath = ImageMath.newInstance();
-        // Perform one iteration vertically, were there are not so many lines
-        BandingReduction.reduceBanding(width, height, buffer, 1, 16);
-        // Then perform multiple iterations vertically, were there are many line artifacts
-        // we need to transpose the image to compute the average value of each line
-        float[] transposed = imageMath.rotateLeft(buffer, width, height);
-        BandingReduction.reduceBanding(height, width, transposed, 4, 32);
-        transposed = imageMath.rotateRight(transposed, height, width);
-        System.arraycopy(transposed, 0, buffer, 0, transposed.length);
-        */
-        return buffer;
+    public ImageWrapper32 call() throws Exception {
+        float[] result = new float[buffer.length];
+        System.arraycopy(buffer, 0, result, 0, buffer.length);
+        BandingReduction.reduceBanding(width, height, result, 3, 24);
+        for (int y = 0; y < height; y++) {
+            for (int x = 0; x < width; x++) {
+                int index = y * width + x;
+                if (!ellipse.isWithin(x,y)) {
+                    result[index] = buffer[index];
+                }
+            }
+        }
+        return new ImageWrapper32(width, height, result);
     }
 }
