@@ -41,7 +41,6 @@ import javafx.stage.Modality;
 import javafx.stage.Stage;
 import javafx.util.Duration;
 import me.champeau.a4j.jsolex.app.jfx.ImageViewer;
-import me.champeau.a4j.jsolex.app.jfx.JFXProcessingEventListener;
 import me.champeau.a4j.jsolex.app.jfx.ProcessParamsController;
 import me.champeau.a4j.jsolex.app.jfx.SpectralLineDebugger;
 import me.champeau.a4j.jsolex.app.jfx.ZoomableImageView;
@@ -67,6 +66,7 @@ import java.nio.file.Path;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Consumer;
 
 public class JSolEx extends Application {
@@ -88,6 +88,8 @@ public class JSolEx extends Application {
     private boolean reconstructionStarted = false;
 
     private final List<String> suggestions = new CopyOnWriteArrayList<>();
+
+    private final ReentrantLock lock = new ReentrantLock();
 
     @Override
     public void start(Stage stage) throws Exception {
@@ -217,7 +219,7 @@ public class JSolEx extends Application {
                 outputDirectory,
                 params
         );
-        var listener = JFXProcessingEventListener.of(new ProcessingEventListener() {
+        var listener = new ProcessingEventListener() {
             private final ImageView imageView = new ZoomableImageView();
             private long sd = 0;
             private long ed = 0;
@@ -239,7 +241,14 @@ public class JSolEx extends Application {
                 imageView.setEffect(colorAdjust);
                 var scrollPane = new ScrollPane();
                 scrollPane.setContent(imageView);
-                mainPane.getTabs().add(new Tab("Reconstruction", scrollPane));
+                Platform.runLater(() -> {
+                    lock.lock();
+                    try {
+                        mainPane.getTabs().add(new Tab("Reconstruction", scrollPane));
+                    } finally {
+                        lock.unlock();
+                    }
+                });
             }
 
             @Override
@@ -269,20 +278,29 @@ public class JSolEx extends Application {
                 var scrollPane = new ScrollPane();
                 scrollPane.setContent(viewer.getRoot());
                 tab.setContent(scrollPane);
-                mainPane.getTabs().add(tab);
-                mainPane.getSelectionModel().select(tab);
+                Platform.runLater(() -> {
+                    lock.lock();
+                    try {
+                        mainPane.getTabs().add(tab);
+                        mainPane.getSelectionModel().select(tab);
+                    } finally {
+                        lock.unlock();
+                    }
+                });
             }
 
             @Override
             public void onNotification(NotificationEvent e) {
-                var alert = new Alert(e.type());
-                alert.setResizable(true);
-                alert.getDialogPane().setPrefSize(480, 320);
-                alert.setTitle(e.title());
-                alert.setHeaderText(e.header());
-                alert.setContentText(e.message());
-                ((Stage) alert.getDialogPane().getScene().getWindow()).setAlwaysOnTop(true);
-                alert.showAndWait();
+                Platform.runLater(() -> {
+                    var alert = new Alert(e.type());
+                    alert.setResizable(true);
+                    alert.getDialogPane().setPrefSize(480, 320);
+                    alert.setTitle(e.title());
+                    alert.setHeaderText(e.header());
+                    alert.setContentText(e.message());
+                    ((Stage) alert.getDialogPane().getScene().getWindow()).setAlwaysOnTop(true);
+                    alert.showAndWait();
+                });
             }
 
             @Override
@@ -316,7 +334,7 @@ public class JSolEx extends Application {
                         )));
                 suggestions.clear();
             }
-        });
+        };
 
         processor.addEventListener(listener);
         var task = new Task<Void>() {

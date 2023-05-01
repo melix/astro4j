@@ -27,7 +27,7 @@
     <center>
         <SplitPane dividerPositions="0.70f, 0.30f">
             <TabPane fx:id="mainPane" prefWidth="400.0"/>
-            <TextArea fx:id="console" editable="false"/>
+            <TextArea fx:id="console" editable="false" wrapText="true"/>
         </SplitPane>
     </center>
 </BorderPane>

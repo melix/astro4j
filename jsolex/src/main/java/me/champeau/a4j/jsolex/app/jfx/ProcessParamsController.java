@@ -22,7 +22,9 @@ import javafx.scene.control.CheckBox;
 import javafx.scene.control.ChoiceBox;
 import javafx.scene.control.Slider;
 import javafx.scene.control.TextField;
+import javafx.scene.control.TextFormatter;
 import javafx.stage.Stage;
+import javafx.util.converter.IntegerStringConverter;
 import me.champeau.a4j.jsolex.processing.params.DebugParams;
 import me.champeau.a4j.jsolex.processing.params.ObservationDetails;
 import me.champeau.a4j.jsolex.processing.params.ProcessParams;
@@ -78,10 +80,12 @@ public class ProcessParamsController {
         telescope.textProperty().setValue(initial.observationDetails().telescope());
         camera.textProperty().setValue(initial.observationDetails().camera());
         generateDebugImages.setSelected(initial.debugParams().generateDebugImages());
+        focalLength.setTextFormatter(new TextFormatter<>(new IntegerStringConverter()));
         var length = initial.observationDetails().focalLength();
         if (length != null) {
             focalLength.textProperty().setValue(String.valueOf(length));
         }
+        observationDate.setTextFormatter(new TextFormatter<>(new ZonedDateTimeStringConverter()));
         observationDate.textProperty().set(dateFromSerFile.toString());
         pixelShifting.valueProperty().set(initial.spectrumParams().pixelShift());
         assumeMonoVideo.setSelected(initial.videoParams().colorMode() == ColorMode.MONO);

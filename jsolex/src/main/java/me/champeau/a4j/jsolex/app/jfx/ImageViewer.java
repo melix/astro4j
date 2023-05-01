@@ -111,7 +111,7 @@ public class ImageViewer {
     private void configureArcsinhStrategyPanel(ArcsinhStretchingStrategy arcsin) {
         var blackpoint = arcsin.getBlackPoint();
         var strech = arcsin.getStretch();
-        var blackpointSlider = new Slider(0, Constants.MAX_PIXEL_VALUE/4, (int) blackpoint);
+        var blackpointSlider = new Slider(0, Constants.MAX_PIXEL_VALUE / 4, (int) blackpoint);
         var blackpointValue = new Label("" + (int) arcsin.getBlackPoint());
         var blackpointLabel = new Label("Black point: ");
         var strechSlider = new Slider(0, arcsin.getMaxStretch(), (int) strech);
@@ -185,7 +185,7 @@ public class ImageViewer {
     }
 
     private void strechAndDisplay() {
-        Platform.runLater(() -> {
+        new Thread(()-> {
             File tmpImage = new File(imageFile + ".tmp");
             var width = image.width();
             var height = image.height();
@@ -203,10 +203,12 @@ public class ImageViewer {
                 var b = rgb[2];
                 ImageUtils.writeRgbImage(width, height, r, g, b, tmpImage);
             }
-            imageView.setImage(new Image(tmpImage.toURI().toString()));
-            tmpImage.delete();
-            saveButton.setDisable(false);
-        });
+            Platform.runLater(() -> {
+                imageView.setImage(new Image(tmpImage.toURI().toString()));
+                tmpImage.delete();
+                saveButton.setDisable(false);
+            });
+        }).start();
     }
 
     public Node getRoot() {
