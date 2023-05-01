@@ -20,24 +20,33 @@ import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 import me.champeau.a4j.math.image.ImageMath;
 import me.champeau.a4j.math.regression.Ellipse;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.util.OptionalDouble;
 
 public class GeometryCorrector extends AbstractTask<ImageWrapper32> {
+    private static final Logger LOGGER = LoggerFactory.getLogger(GeometryCorrector.class);
+
     private final Ellipse ellipse;
     private final double correctionAngle;
     private final float blackpoint;
     private final Double frameRate;
+    private final OptionalDouble forcedRatio;
 
     public GeometryCorrector(Broadcaster broadcaster,
                              ImageWrapper32 image,
                              Ellipse ellipse,
                              double correctionAngle,
                              float blackpoint,
-                             Double frameRate) {
+                             Double frameRate,
+                             OptionalDouble forcedRatio) {
         super(broadcaster, image);
         this.ellipse = ellipse;
         this.correctionAngle = correctionAngle;
         this.blackpoint = blackpoint;
         this.frameRate = frameRate;
+        this.forcedRatio = forcedRatio;
     }
 
     @Override
@@ -60,6 +69,11 @@ public class GeometryCorrector extends AbstractTask<ImageWrapper32> {
             }
         } else {
             sx = ratio;
+            sy = 1d;
+        }
+        if (forcedRatio.isPresent()) {
+            LOGGER.info("Overriding X/Y ratio to {}", String.format("%.2f",forcedRatio.getAsDouble()));
+            sx = forcedRatio.getAsDouble();
             sy = 1d;
         }
         var rotated = ImageMath.newInstance().rotateAndScale(buffer, width, height, correctionAngle, blackpoint, sx, sy);

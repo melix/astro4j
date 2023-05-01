@@ -87,19 +87,24 @@ public class ProcessingWorkflow {
         var ellipse = result.ellipse();
         float blackPoint = (float) estimateBlackPoint(bandingFixed.width(), bandingFixed.height(), ellipse, bandingFixed.data()) * 1.2f;
         var tiltDegrees = ellipse.tiltAngle() / Math.PI * 180;
+        var geometryParams = processParams.geometryParams();
         boolean isTiltReliable = ellipse.isAlmostCircle(CIRCLE_EPSILON);
         var tiltString = String.format("%.2f", tiltDegrees);
-        if (Math.abs(tiltDegrees) > 1 && isTiltReliable) {
+        if (Math.abs(tiltDegrees) > 1 && isTiltReliable && !geometryParams.tilt().isPresent()) {
             broadcaster.broadcast(new SuggestionEvent("Tilt angle is " + tiltString + ". You should try to reduce it to less than 1°"));
         }
         var correctionAngle = isTiltReliable ? -ellipse.tiltAngle() : 0d;
         LOGGER.info("Tilt angle: {}°", tiltString);
+        if (geometryParams.tilt().isPresent()) {
+            correctionAngle = -geometryParams.tilt().getAsDouble() / 180d * Math.PI;
+            LOGGER.info("Overriding tilt angle to {}°", String.format("%.2f", geometryParams.tilt().getAsDouble()));
+        }
         if (!isTiltReliable) {
             LOGGER.info("Will not apply rotation correction as sun disk is almost a circle (and therefore tilt angle is not reliable)");
         }
         processedImagesEmitter.newMonoImage("Banding fixed", "banding-fixed", bandingFixed, new ArcsinhStretchingStrategy(blackPoint, 7, 20));
         try {
-            executor.submit(new GeometryCorrector(broadcaster, bandingFixed, ellipse, correctionAngle, blackPoint, fps)).thenAccept(geometryFixed -> {
+            executor.submit(new GeometryCorrector(broadcaster, bandingFixed, ellipse, correctionAngle, blackPoint, fps, geometryParams.xyRatio())).thenAccept(geometryFixed -> {
                 broadcaster.broadcast(OutputImageDimensionsDeterminedEvent.of("geometry corrected", geometryFixed.width(), geometryFixed.height()));
                 executor.submit(() -> produceCoronagraph(blackPoint, geometryFixed));
                 executor.submit(() -> produceEdgeDetectionImage(result, geometryFixed));

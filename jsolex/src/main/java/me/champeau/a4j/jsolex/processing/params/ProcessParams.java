@@ -19,6 +19,7 @@ import com.google.gson.Gson;
 import com.google.gson.JsonDeserializationContext;
 import com.google.gson.JsonDeserializer;
 import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
 import com.google.gson.JsonParseException;
 import com.google.gson.JsonPrimitive;
 import com.google.gson.JsonSerializationContext;
@@ -43,7 +44,8 @@ public record ProcessParams(
         SpectrumParams spectrumParams,
         ObservationDetails observationDetails,
         DebugParams debugParams,
-        VideoParams videoParams
+        VideoParams videoParams,
+        GeometryParams geometryParams
 ) {
 
     private static Path resolveDefaultsFile() {
@@ -59,6 +61,7 @@ public record ProcessParams(
     private static Gson newGson() {
         var builder = new Gson().newBuilder();
         builder.registerTypeAdapter(ZonedDateTime.class, new ZonedDateTimeSerializer());
+        builder.registerTypeAdapter(GeometryParams.class, new GeometryParamsSerializer());
         return builder.create();
     }
 
@@ -75,7 +78,20 @@ public record ProcessParams(
                                 params.spectrumParams(),
                                 params.observationDetails(),
                                 params.debugParams(),
-                                new VideoParams(ColorMode.MONO)
+                                new VideoParams(ColorMode.MONO),
+                                params.geometryParams()
+                        );
+                    }
+                    if (params.geometryParams == null) {
+                        params = new ProcessParams(
+                                params.spectrumParams(),
+                                params.observationDetails(),
+                                params.debugParams(),
+                                params.videoParams(),
+                                new GeometryParams(
+                                        null,
+                                        null
+                                )
                         );
                     }
                     return params;
@@ -95,7 +111,8 @@ public record ProcessParams(
                         ""
                 ),
                 new DebugParams(false),
-                new VideoParams(ColorMode.MONO)
+                new VideoParams(ColorMode.MONO),
+                new GeometryParams(null, null)
         );
     }
 
@@ -119,6 +136,28 @@ public record ProcessParams(
         @Override
         public JsonElement serialize(ZonedDateTime src, Type typeOfSrc, JsonSerializationContext context) {
             return new JsonPrimitive(src.toString());
+        }
+    }
+
+    private static class GeometryParamsSerializer implements JsonSerializer<GeometryParams>, JsonDeserializer<GeometryParams> {
+
+        @Override
+        public GeometryParams deserialize(JsonElement json, Type typeOfT, JsonDeserializationContext context) throws JsonParseException {
+            var o = json.getAsJsonObject();
+            var tilt = o.get("tilt");
+            var ratio = o.get("xyRatio");
+            return new GeometryParams(
+                    tilt == null ? null : tilt.getAsDouble(),
+                    ratio == null ? null : ratio.getAsDouble()
+            );
+        }
+
+        @Override
+        public JsonElement serialize(GeometryParams src, Type typeOfSrc, JsonSerializationContext context) {
+            var jsonObject = new JsonObject();
+            src.tilt().ifPresent(tilt -> jsonObject.addProperty("tilt", tilt));
+            src.xyRatio().ifPresent(ratio -> jsonObject.addProperty("xyRatio", ratio));
+            return jsonObject;
         }
     }
 }

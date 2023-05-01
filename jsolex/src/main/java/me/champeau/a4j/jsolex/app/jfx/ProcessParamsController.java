@@ -24,8 +24,10 @@ import javafx.scene.control.Slider;
 import javafx.scene.control.TextField;
 import javafx.scene.control.TextFormatter;
 import javafx.stage.Stage;
+import javafx.util.converter.DoubleStringConverter;
 import javafx.util.converter.IntegerStringConverter;
 import me.champeau.a4j.jsolex.processing.params.DebugParams;
+import me.champeau.a4j.jsolex.processing.params.GeometryParams;
 import me.champeau.a4j.jsolex.processing.params.ObservationDetails;
 import me.champeau.a4j.jsolex.processing.params.ProcessParams;
 import me.champeau.a4j.jsolex.processing.params.SpectralRay;
@@ -38,6 +40,14 @@ import java.util.Arrays;
 import java.util.Optional;
 
 public class ProcessParamsController {
+    @FXML
+    private CheckBox forceTilt;
+    @FXML
+    private CheckBox forceXYRatio;
+    @FXML
+    private TextField tiltValue;
+    @FXML
+    private TextField xyRatioValue;
     @FXML
     private Slider pixelShifting;
     @FXML
@@ -89,6 +99,16 @@ public class ProcessParamsController {
         observationDate.textProperty().set(dateFromSerFile.toString());
         pixelShifting.valueProperty().set(initial.spectrumParams().pixelShift());
         assumeMonoVideo.setSelected(initial.videoParams().colorMode() == ColorMode.MONO);
+        forceTilt.setSelected(false);
+        tiltValue.setTextFormatter(new TextFormatter<>(new DoubleStringConverter()));
+        tiltValue.setText(Double.toString(initial.geometryParams().tilt().orElse(0d)));
+        tiltValue.setDisable(true);
+        forceTilt.selectedProperty().addListener((observable, oldValue, newValue) -> tiltValue.setDisable(!newValue));
+        forceXYRatio.setSelected(false);
+        xyRatioValue.setTextFormatter(new TextFormatter<>(new DoubleStringConverter()));
+        xyRatioValue.setText(Double.toString(initial.geometryParams().xyRatio().orElse(1.0d)));
+        xyRatioValue.setDisable(true);
+        forceXYRatio.selectedProperty().addListener((observable, oldValue, newValue) -> xyRatioValue.setDisable(!newValue));
     }
 
     @FXML
@@ -110,7 +130,11 @@ public class ProcessParamsController {
                         camera.getText()
                 ),
                 new DebugParams(generateDebugImages.isSelected()),
-                new VideoParams(assumeMonoVideo.isSelected() ? ColorMode.MONO : null)
+                new VideoParams(assumeMonoVideo.isSelected() ? ColorMode.MONO : null),
+                new GeometryParams(
+                        forceTilt.isSelected() ? Double.parseDouble(tiltValue.getText()) : null,
+                        forceXYRatio.isSelected() ? Double.parseDouble(xyRatioValue.getText()) : null
+                )
         );
         ProcessParams.saveDefaults(processParams);
         stage.close();
