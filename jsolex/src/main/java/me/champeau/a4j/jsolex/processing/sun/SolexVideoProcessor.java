@@ -136,7 +136,7 @@ public class SolexVideoProcessor implements Broadcaster {
         var outputBuffer = new float[width * newHeight];
         broadcast(OutputImageDimensionsDeterminedEvent.of("raw", width, newHeight));
         LOGGER.info("Starting reconstruction...");
-        performImageReconstruction(converter, reader, start, end, geometry, width, height, outputBuffer);
+        performImageReconstruction(converter, reader, start, end, geometry, width, height, outputBuffer, processParams.spectrumParams().pixelShift());
         var rotateLeft = ImageMath.newInstance().rotateLeft(outputBuffer, width, newHeight);
         var rotated = new ImageWrapper32(newHeight, width, rotateLeft);
         try (var executor = ParallelExecutor.newExecutor()) {
@@ -157,7 +157,7 @@ public class SolexVideoProcessor implements Broadcaster {
         }
     }
 
-    private void performImageReconstruction(ImageConverter<float[]> converter, SerFileReader reader, int start, int end, ImageGeometry geometry, int width, int height, float[] outputBuffer) {
+    private void performImageReconstruction(ImageConverter<float[]> converter, SerFileReader reader, int start, int end, ImageGeometry geometry, int width, int height, float[] outputBuffer, int pixelShift) {
         try (var executor = ParallelExecutor.newExecutor()) {
             executor.setExceptionHandler(this::broadcastError);
             var fallbackPolynomial = new AtomicReference<DoubleTriplet>(null);
@@ -170,7 +170,7 @@ public class SolexVideoProcessor implements Broadcaster {
                 int offset = j;
                 executor.submit(() -> {
                     var analyzer = new SpectrumFrameAnalyzer(width, height, processParams.spectrumParams().spectralLineDetectionThreshold(), 5000d);
-                    processSingleFrame(width, height, outputBuffer, analyzer, offset, frameId, original, fallbackPolynomial.get());
+                    processSingleFrame(width, height, outputBuffer, analyzer, offset, frameId, original, fallbackPolynomial.get(), pixelShift);
                     analyzer.findDistortionPolynomial().ifPresent(fallbackPolynomial::set);
                 });
             }
@@ -187,7 +187,8 @@ public class SolexVideoProcessor implements Broadcaster {
                                     int offset,
                                     int frameId,
                                     float[] buffer,
-                                    DoubleTriplet fallbackPolynomial) {
+                                    DoubleTriplet fallbackPolynomial,
+                                    int pixelShift) {
         analyzer.analyze(buffer);
         var polynomial = analyzer.findDistortionPolynomial().or(() -> Optional.ofNullable(fallbackPolynomial));
         polynomial.ifPresent(p -> {
@@ -197,7 +198,7 @@ public class SolexVideoProcessor implements Broadcaster {
                     int lastY = 0;
                     for (int x = 0; x < width; x++) {
                         // To reconstruct the image, we use the polynom to find which pixel to use
-                        double yd = fun.applyAsDouble(x);
+                        double yd = fun.applyAsDouble(x) + pixelShift;
                         int yi = (int) yd;
                         if (yi < 0 || yi >= height) {
                             yi = lastY;
