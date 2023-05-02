@@ -16,6 +16,7 @@
 package me.champeau.a4j.math.regression;
 
 import me.champeau.a4j.math.Point2D;
+import me.champeau.a4j.math.tuples.DoublePair;
 import me.champeau.a4j.math.tuples.DoubleSextuplet;
 
 /**
@@ -57,13 +58,55 @@ public class Ellipse {
     /**
      * Computes the rotation angle of the ellipse
      * https://math.stackexchange.com/questions/280937/finding-the-angle-of-rotation-of-an-ellipse-from-its-general-equation-and-the-ot
-     * @return
      */
     public double tiltAngle() {
         var a = cart.a();
         var b = cart.b();
         var c = cart.c();
-        return Math.atan(b/(a-c)) / 2;
+        return Math.atan(b / (a - c)) / 2;
+    }
+
+    public double discriminant() {
+        var a = cart.a();
+        var b = cart.b();
+        var c = cart.c();
+        return b * b - 4 * a * c;
+    }
+
+    public DoublePair center() {
+        var a = cart.a();
+        var b = cart.b();
+        var c = cart.c();
+        var d = cart.d();
+        var e = cart.e();
+        var discri = discriminant();
+        var cx = 2 * c * d - b * e;
+        var cy = 2 * a * e - b * d;
+        return new DoublePair(cx / discri, cy / discri);
+    }
+
+    // Formulas from https://mathworld.wolfram.com/Ellipse.html
+    public DoublePair semiAxis() {
+        var discri = discriminant();
+        var a = cart.a();
+        var b = cart.b() / 2;
+        var c = cart.c();
+        var d = cart.d() / 2;
+        var e = cart.e() / 2;
+        var f = cart.f();
+        var num = 2 * (a * e * e + c * d * d + e * b * b - 2 * b * d * e - a * c * f);
+        var z = Math.sqrt((a - c) * (a - c) + 4 * b * b);
+        var aPrime = Math.sqrt(num / (discri * (z - (a + c))));
+        var bPrime = Math.sqrt(num / (discri * (-z - (a + c))));
+        return new DoublePair(aPrime, bPrime);
+    }
+
+    public double xyRatio() {
+        var sa = semiAxis();
+        if (cart.b() < 0) {
+            return sa.a() / sa.b();
+        }
+        return sa.b() / sa.a();
     }
 
     public boolean isWithin(Point2D point) {
@@ -91,6 +134,8 @@ public class Ellipse {
         sb.append("   - d = ").append(format(cart.d())).append("\n");
         sb.append("   - e = ").append(format(cart.e())).append("\n");
         sb.append("   - f = ").append(format(cart.f())).append("\n");
+        var center = center();
+        sb.append("Center = (").append(format(center.a())).append(",").append(format(center.b())).append(")\n");
         return sb.toString();
     }
 

@@ -51,9 +51,7 @@ public class GeometryCorrector extends AbstractTask<ImageWrapper32> {
 
     @Override
     public ImageWrapper32 call() throws Exception {
-        var a = ellipse.getCartesianCoefficients().a();
-        var c = ellipse.getCartesianCoefficients().c();
-        var ratio = Math.sqrt(a / c);
+        var ratio = ellipse.xyRatio();
         double sx, sy;
         if (ratio < 1) {
             sx = 1d;

@@ -89,7 +89,6 @@ public class EllipseFittingTask extends AbstractTask<EllipseFittingTask.Result> 
                     .toList();
             ellipse = new EllipseRegression(filteredSamples).solve();
         }
-//        ellipse = ellipse.scale(0.99d);
         LOGGER.info("{}", ellipse);
         return new Result(ellipse, filteredSamples);
     }

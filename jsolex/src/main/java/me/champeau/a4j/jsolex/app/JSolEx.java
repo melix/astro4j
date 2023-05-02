@@ -266,7 +266,9 @@ public class JSolEx extends Application {
                     rgb[3 * x + 2] = c;
                 }
                 var pixelformat = PixelFormat.getByteRgbInstance();
-                image.getPixelWriter().setPixels(0, y, line.length, 1, pixelformat, rgb, 0, 3 * line.length);
+                Platform.runLater(() ->
+                    image.getPixelWriter().setPixels(0, y, line.length, 1, pixelformat, rgb, 0, 3 * line.length)
+                );
             }
 
             @Override
