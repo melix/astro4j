@@ -15,7 +15,8 @@ plugins {
 val date = LocalDateTime.now()
     .atZone(ZoneId.of("UTC"))
     .format(DateTimeFormatter.ofPattern("yyyyMMddHHmm"))
-if (System.getProperty("os.name").startsWith("Windows")) {
+val os = System.getProperty("os.name")
+if (os.startsWith("Windows")) {
     version = version.toString().substring(0, version.toString().lastIndexOf(".")) + "0"
 }
 
@@ -66,12 +67,33 @@ jlink {
     }
     jpackage {
         vendor = "Cédric Champeau"
-        if (System.getProperty("os.name").startsWith("Windows")) {
+        if (os.startsWith("Windows")) {
             installerType = "msi"
             installerOptions.addAll(listOf("--win-per-user-install", "--win-dir-chooser", "--win-menu"))
+            if (file("src/installer/icon.ico").exists()) {
+                icon = "src/installer/icon.ico"
+            }
+        } else if (os.contains("mac")) {
+            installerType = "pkg"
+            if (file("src/installer/icon.icns").exists()) {
+                icon = "src/installer/icon.icns"
+            }
         } else {
             installerType = "deb"
             installerOptions.addAll(listOf("--linux-shortcut"))
+            if (file("src/installer/icon.png").exists()) {
+                icon = "src/installer/icon.png"
+            }
         }
+    }
+}
+
+tasks.register<Copy>("jpackageInstallers") {
+    setDestinationDir(layout.buildDirectory.dir("installers").get().asFile)
+    from(tasks.jpackage) {
+        include("*.zip")
+        include("*.msi")
+        include("*.deb")
+        include("*.pkg")
     }
 }

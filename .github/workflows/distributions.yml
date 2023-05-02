@@ -10,7 +10,7 @@ jobs:
   build:
     strategy:
       matrix:
-        os: [ ubuntu-latest, windows-latest ]
+        os: [ ubuntu-latest, windows-latest, macos-latest]
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v3
@@ -26,7 +26,7 @@ jobs:
         uses: gradle/gradle-build-action@v2
 
       - name: Execute Gradle build
-        run: ./gradlew jpackage
+        run: ./gradlew jpackageInstallers
 
 #      - name: Build native binary
 #        run: ./gradlew nativeCompile
@@ -37,7 +37,7 @@ jobs:
           aws_key_id: ${{ secrets.AWS_KEY_ID }}
           aws_secret_access_key: ${{ secrets.AWS_SECRET_ACCESS_KEY}}
           aws_bucket: ${{ secrets.AWS_BUCKET }}
-          source_dir: 'ser-player/build/jpackage'
+          source_dir: 'ser-player/build/installers'
           destination_dir: ser-player-${{ matrix.os }}
       - uses: shallwefootball/s3-upload-action@master
         name: Upload JSol'Ex
@@ -45,5 +45,5 @@ jobs:
           aws_key_id: ${{ secrets.AWS_KEY_ID }}
           aws_secret_access_key: ${{ secrets.AWS_SECRET_ACCESS_KEY}}
           aws_bucket: ${{ secrets.AWS_BUCKET }}
-          source_dir: 'jsolex/build/jpackage'
+          source_dir: 'jsolex/build/installers'
           destination_dir: jsolex-${{ matrix.os }}
