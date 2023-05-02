@@ -209,12 +209,7 @@ public class JSolEx extends Application {
             String suffix = String.format("-%04d", i++);
             outputDirectory = new File(selectedFile.getParentFile(), outputDirName + suffix);
         }
-        try {
-            Files.createDirectories(outputDirectory.toPath());
-            LOGGER.info("Output directory set to {}", outputDirectory);
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        }
+        LOGGER.info("Output directory set to {}", outputDirectory);
         var processor = new SolexVideoProcessor(selectedFile,
                 outputDirectory,
                 params
@@ -267,7 +262,7 @@ public class JSolEx extends Application {
                 }
                 var pixelformat = PixelFormat.getByteRgbInstance();
                 Platform.runLater(() ->
-                    image.getPixelWriter().setPixels(0, y, line.length, 1, pixelformat, rgb, 0, 3 * line.length)
+                        image.getPixelWriter().setPixels(0, y, line.length, 1, pixelformat, rgb, 0, 3 * line.length)
                 );
             }
 
@@ -276,7 +271,11 @@ public class JSolEx extends Application {
                 var tab = new Tab(event.getPayload().title());
                 var viewer = newImageViewer();
                 viewer.fitWidthProperty().bind(mainPane.widthProperty());
-                viewer.setImage(event.getPayload().image(), event.getPayload().stretchingStrategy(), event.getPayload().path().toFile());
+                viewer.setImage(event.getPayload().image(),
+                        event.getPayload().stretchingStrategy(),
+                        event.getPayload().path().toFile(),
+                        params.debugParams().autosave()
+                );
                 var scrollPane = new ScrollPane();
                 scrollPane.setContent(viewer.getRoot());
                 tab.setContent(scrollPane);

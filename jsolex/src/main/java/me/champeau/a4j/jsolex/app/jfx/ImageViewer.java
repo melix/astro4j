@@ -36,8 +36,11 @@ import me.champeau.a4j.jsolex.processing.sun.ImageUtils;
 import me.champeau.a4j.jsolex.processing.util.ColorizedImageWrapper;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
+import me.champeau.a4j.jsolex.processing.util.ProcessingException;
 
 import java.io.File;
+import java.io.IOException;
+import java.nio.file.Files;
 import java.util.List;
 
 public class ImageViewer {
@@ -63,18 +66,19 @@ public class ImageViewer {
         return imageView.fitWidthProperty();
     }
 
-    public void setImage(ImageWrapper image, StretchingStrategy strategy, File imageFile) {
+    public void setImage(ImageWrapper image, StretchingStrategy strategy, File imageFile, boolean autosave) {
         this.image = image;
         this.imageFile = imageFile;
         configureStretching(strategy);
-        saveImage(imageFile);
+        if (autosave) {
+            saveImage(imageFile);
+        }
     }
 
     private void saveImage(File target) {
         if (image instanceof ImageWrapper32 mono) {
             float[] stretched = stretch(mono.data());
             ImageUtils.writeMonoImage(image.width(), image.height(), stretched, target);
-            saveButton.setDisable(true);
         } else {
             var colorImage = (ColorizedImageWrapper) image;
             float[] stretched = stretch(colorImage.mono().data());
@@ -84,7 +88,10 @@ public class ImageViewer {
             var b = colorized[2];
             ImageUtils.writeRgbImage(colorImage.width(), colorImage.height(), r, g, b, target);
         }
-        imageView.setImage(new Image(imageFile.toURI().toString()));
+        Platform.runLater(() -> {
+            imageView.setImage(new Image(imageFile.toURI().toString()));
+            saveButton.setDisable(true);
+        });
     }
 
     private void configureStretching(StretchingStrategy strategy) {
@@ -185,8 +192,8 @@ public class ImageViewer {
     }
 
     private void strechAndDisplay() {
-        new Thread(()-> {
-            File tmpImage = new File(imageFile + ".tmp");
+        new Thread(() -> {
+            File tmpImage = createTmpFile();
             var width = image.width();
             var height = image.height();
             // For some reason the image doesn't look as good when using PixelWriter
@@ -209,6 +216,16 @@ public class ImageViewer {
                 saveButton.setDisable(false);
             });
         }).start();
+    }
+
+    private File createTmpFile() {
+        File tmpImage;
+        try {
+            tmpImage = Files.createTempFile(imageFile.getName(), "jsolex").toFile();
+        } catch (IOException e) {
+            throw new ProcessingException(e);
+        }
+        return tmpImage;
     }
 
     public Node getRoot() {

@@ -45,7 +45,6 @@ import org.slf4j.LoggerFactory;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.PrintWriter;
-import java.nio.file.Files;
 import java.util.HashSet;
 import java.util.Optional;
 import java.util.Set;
@@ -57,7 +56,6 @@ public class SolexVideoProcessor implements Broadcaster {
     private final Set<ProcessingEventListener> progressEventListeners = new HashSet<>();
 
     private final File serFile;
-    private final File rootDirectory;
     private final File debugDirectory;
     private final File processedDirectory;
     private final File rawImagesDirectory;
@@ -67,7 +65,6 @@ public class SolexVideoProcessor implements Broadcaster {
                                File outputDirectory,
                                ProcessParams processParametersProvider) {
         this.serFile = serFile;
-        this.rootDirectory = outputDirectory;
         this.debugDirectory = new File(outputDirectory, Constants.DEBUG_DIRECTORY);
         this.rawImagesDirectory = new File(outputDirectory, Constants.RAW_DIRECTORY);
         this.processedDirectory = new File(outputDirectory, Constants.PROCESSED_DIRECTORY);
@@ -87,10 +84,6 @@ public class SolexVideoProcessor implements Broadcaster {
         var converter = ImageUtils.createImageConverter(processParams.videoParams().colorMode());
         var detector = new MagnitudeBasedSunEdgeDetector(converter);
         try (SerFileReader reader = SerFileReader.of(serFile)) {
-            Files.createDirectories(rootDirectory.toPath());
-            Files.createDirectories(debugDirectory.toPath());
-            Files.createDirectories(rawImagesDirectory.toPath());
-            Files.createDirectories(processedDirectory.toPath());
             var header = reader.header();
             ImageGeometry geometry = header.geometry();
             var frameCount = header.frameCount();

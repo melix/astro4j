@@ -28,6 +28,7 @@ import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
+import java.nio.file.Files;
 
 import static me.champeau.a4j.ser.bayer.BayerMatrixSupport.GREEN;
 
@@ -51,10 +52,16 @@ public class ImageUtils {
             }
         }
         try {
+            createDirectoryFor(outputFile);
             ImageIO.write(image, "png", outputFile);
         } catch (IOException e) {
             throw new ProcessingException(e);
         }
+    }
+
+    private static void createDirectoryFor(File outputFile) throws IOException {
+        var path = outputFile.getParentFile().toPath();
+        Files.createDirectories(path);
     }
 
     public static void writeRgbImage(
@@ -78,6 +85,7 @@ public class ImageUtils {
             }
         }
         try {
+            createDirectoryFor(outputFile);
             ImageIO.write(image, "png", outputFile);
         } catch (IOException e) {
             throw new ProcessingException(e);

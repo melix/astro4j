@@ -126,7 +126,7 @@ public record ProcessParams(
                         LocalDateTime.now().atZone(ZoneId.of("UTC")),
                         ""
                 ),
-                new DebugParams(false),
+                new DebugParams(false, true),
                 new VideoParams(ColorMode.MONO),
                 new GeometryParams(null, null),
                 new BandingCorrectionParams(24, 3)

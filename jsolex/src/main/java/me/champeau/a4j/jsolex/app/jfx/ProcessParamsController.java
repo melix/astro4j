@@ -42,6 +42,8 @@ import java.util.Optional;
 
 public class ProcessParamsController {
     @FXML
+    private CheckBox autoSave;
+    @FXML
     private Slider bandingCorrectionPasses;
     @FXML
     private Slider bandingCorrectionWidth;
@@ -95,6 +97,7 @@ public class ProcessParamsController {
         telescope.textProperty().setValue(initial.observationDetails().telescope());
         camera.textProperty().setValue(initial.observationDetails().camera());
         generateDebugImages.setSelected(initial.debugParams().generateDebugImages());
+        autoSave.setSelected(initial.debugParams().autosave());
         focalLength.setTextFormatter(new TextFormatter<>(new IntegerStringConverter()));
         var length = initial.observationDetails().focalLength();
         if (length != null) {
@@ -136,7 +139,7 @@ public class ProcessParamsController {
                         ZonedDateTime.parse(observationDate.getText()),
                         camera.getText()
                 ),
-                new DebugParams(generateDebugImages.isSelected()),
+                new DebugParams(generateDebugImages.isSelected(), autoSave.isSelected()),
                 new VideoParams(assumeMonoVideo.isSelected() ? ColorMode.MONO : null),
                 new GeometryParams(
                         forceTilt.isSelected() ? Double.parseDouble(tiltValue.getText()) : null,
@@ -165,6 +168,7 @@ public class ProcessParamsController {
     public void resetMiscParams() {
         assumeMonoVideo.setSelected(true);
         generateDebugImages.setSelected(false);
+        autoSave.setSelected(true);
         bandingCorrectionWidth.setValue(24);
         bandingCorrectionPasses.setValue(3);
     }

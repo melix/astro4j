@@ -209,6 +209,11 @@
                                     <Tooltip text="The number of iterations to perform. It is recommended to keep it low, unless you have banding which is difficult to remove, as this can produce artifacts on the solar limb." />
                                  </tooltip></Slider>
                               <Button mnemonicParsing="false" onAction="#resetMiscParams" text="Reset to defaults" GridPane.columnIndex="1" GridPane.rowIndex="4" />
+                              <CheckBox fx:id="autoSave" mnemonicParsing="false" text="Automatically save images" GridPane.columnIndex="1">
+                                 <tooltip>
+                                    <Tooltip text="If unchecked, generated images will not be automatically saved" />
+                                 </tooltip>
+                              </CheckBox>
                            </children>
                         </GridPane>
                      </children>
