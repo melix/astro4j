@@ -38,7 +38,6 @@ import org.slf4j.LoggerFactory;
 import java.io.File;
 import java.util.Arrays;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 
 /**
@@ -110,8 +109,9 @@ public class ProcessingWorkflow {
                 executor.submit(() -> produceEdgeDetectionImage(result, geometryFixed));
                 executor.submit(() -> produceStretchedImage(blackPoint, geometryFixed));
                 executor.submit(() -> produceProcessedImages(blackPoint, geometryFixed, processParams));
-            }).get();
-        } catch (InterruptedException | ExecutionException e) {
+            });
+            executor.waitForSubmittedTasks();
+        } catch (InterruptedException e) {
             throw new ProcessingException(e);
         }
         broadcaster.broadcast(new ProcessingDoneEvent(System.nanoTime()));
