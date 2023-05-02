@@ -46,7 +46,7 @@ import java.util.concurrent.Future;
  */
 public class ProcessingWorkflow {
     private static final Logger LOGGER = LoggerFactory.getLogger(ProcessingWorkflow.class);
-    private static final double CIRCLE_EPSILON = 0.01d;
+    private static final double CIRCLE_EPSILON = 0.001d;
 
     private final ParallelExecutor executor;
     private final ProcessParams processParams;

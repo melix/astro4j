@@ -72,7 +72,7 @@ public class GeometryCorrector extends AbstractTask<ImageWrapper32> {
             sy = 1d;
         }
         if (forcedRatio.isPresent()) {
-            LOGGER.info("Overriding X/Y ratio to {}", String.format("%.2f",forcedRatio.getAsDouble()));
+            LOGGER.info("Overriding X/Y ratio to {}", String.format("%.2f", forcedRatio.getAsDouble()));
             sx = forcedRatio.getAsDouble();
             sy = 1d;
         }

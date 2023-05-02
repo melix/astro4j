@@ -41,6 +41,7 @@
 <?import javafx.scene.control.Slider?>
 <?import javafx.scene.control.TextField?>
 <?import javafx.scene.control.TitledPane?>
+<?import javafx.scene.control.Tooltip?>
 <?import javafx.scene.layout.AnchorPane?>
 <?import javafx.scene.layout.BorderPane?>
 <?import javafx.scene.layout.ColumnConstraints?>
@@ -81,16 +82,37 @@
                           </rowConstraints>
                            <children>
                               <Label text="Wavelength" />
-                              <ChoiceBox fx:id="wavelength" prefHeight="24.0" prefWidth="281.0" GridPane.columnIndex="1" />
+                              <ChoiceBox fx:id="wavelength" prefHeight="24.0" prefWidth="281.0" GridPane.columnIndex="1">
+                                 <tooltip>
+                                    <Tooltip text="Select the wavelength to benefit from automatic colorization of the image" />
+                                 </tooltip></ChoiceBox>
                               <Label text="Spectral line detection threshold" GridPane.rowIndex="1" />
-                              <Slider fx:id="spectralLineDetectionThreshold" blockIncrement="0.1" majorTickUnit="0.25" max="1.0" minorTickCount="5" showTickLabels="true" showTickMarks="true" value="0.2" GridPane.columnIndex="1" GridPane.rowIndex="1" />
+                              <Slider fx:id="spectralLineDetectionThreshold" blockIncrement="0.1" majorTickUnit="0.25" max="1.0" minorTickCount="5" showTickLabels="true" showTickMarks="true" value="0.2" GridPane.columnIndex="1" GridPane.rowIndex="1">
+                                 <tooltip>
+                                    <Tooltip text="A value close to 0 will be more restrictive on ray detection, suitable for high contrast images." />
+                                 </tooltip></Slider>
                               <Label text="Pixel shifting" GridPane.rowIndex="2" />
-                              <Slider fx:id="pixelShifting" blockIncrement="1.0" majorTickUnit="5.0" max="15.0" min="-15.0" minorTickCount="1" showTickLabels="true" showTickMarks="true" GridPane.columnIndex="1" GridPane.rowIndex="2" />
+                              <Slider fx:id="pixelShifting" blockIncrement="1.0" majorTickUnit="5.0" max="15.0" min="-15.0" minorTickCount="1" showTickLabels="true" showTickMarks="true" GridPane.columnIndex="1" GridPane.rowIndex="2">
+                                 <tooltip>
+                                    <Tooltip text="If set to 0, the image will be reconstructed from the middle of the spectral ray. By setting it to a non 0 value, the image will be reconstructed by taking pixels around the center. This can be used to generate photosphere images for example, by selecting a high shift (e.g 13)." />
+                                 </tooltip></Slider>
                               <Button alignment="CENTER" contentDisplay="CENTER" mnemonicParsing="false" onAction="#resetRayParams" text="Reset to defaults" GridPane.columnIndex="1" GridPane.rowIndex="5" />
-                              <CheckBox fx:id="forceTilt" mnemonicParsing="false" text="Override detected tilt" GridPane.rowIndex="3" />
-                              <CheckBox fx:id="forceXYRatio" mnemonicParsing="false" text="Override X/Y ratio" GridPane.rowIndex="4" />
-                              <TextField fx:id="tiltValue" GridPane.columnIndex="1" GridPane.rowIndex="3" />
-                              <TextField GridPane.columnIndex="1" GridPane.rowIndex="4" fx:id="xyRatioValue" />
+                              <CheckBox fx:id="forceTilt" mnemonicParsing="false" text="Override detected tilt" GridPane.rowIndex="3">
+                                 <tooltip>
+                                    <Tooltip text="If tilt detection fails, you can override the value in order to avoid unwanted image rotation." />
+                                 </tooltip></CheckBox>
+                              <CheckBox fx:id="forceXYRatio" mnemonicParsing="false" text="Override X/Y ratio" GridPane.rowIndex="4">
+                                 <tooltip>
+                                    <Tooltip text="If sun disk detection fails, you can force the X/Y correction ratio in order to fix the image geometry" />
+                                 </tooltip></CheckBox>
+                              <TextField fx:id="tiltValue" GridPane.columnIndex="1" GridPane.rowIndex="3">
+                                 <tooltip>
+                                    <Tooltip text="The tilt angle (in degrees)" />
+                                 </tooltip></TextField>
+                              <TextField GridPane.columnIndex="1" GridPane.rowIndex="4" fx:id="xyRatioValue">
+                                 <tooltip>
+                                    <Tooltip text="The X/Y ratio" />
+                                 </tooltip></TextField>
                            </children>
                         </GridPane>
                      </children>
@@ -121,12 +143,30 @@
                               <Label text="Focal length (mm)" GridPane.rowIndex="3" />
                               <Label text="Date (UTC)" GridPane.rowIndex="4" />
                               <Label text="Camera" GridPane.rowIndex="5" />
-                              <TextField fx:id="observerName" GridPane.columnIndex="1" />
-                              <TextField fx:id="instrument" GridPane.columnIndex="1" GridPane.rowIndex="1" />
-                              <TextField fx:id="telescope" GridPane.columnIndex="1" GridPane.rowIndex="2" />
-                              <TextField fx:id="observationDate" GridPane.columnIndex="1" GridPane.rowIndex="4" />
-                              <TextField fx:id="focalLength" GridPane.columnIndex="1" GridPane.rowIndex="3" />
-                              <TextField fx:id="camera" GridPane.columnIndex="1" GridPane.rowIndex="5" />
+                              <TextField fx:id="observerName" GridPane.columnIndex="1">
+                                 <tooltip>
+                                    <Tooltip text="Enter the name of the observer" />
+                                 </tooltip></TextField>
+                              <TextField fx:id="instrument" GridPane.columnIndex="1" GridPane.rowIndex="1">
+                                 <tooltip>
+                                    <Tooltip text="Enter the name of the instrument. Recommended to use &quot;Sol'Ex&quot;" />
+                                 </tooltip></TextField>
+                              <TextField fx:id="telescope" GridPane.columnIndex="1" GridPane.rowIndex="2">
+                                 <tooltip>
+                                    <Tooltip text="The telescope which was used to capture the images" />
+                                 </tooltip></TextField>
+                              <TextField fx:id="observationDate" GridPane.columnIndex="1" GridPane.rowIndex="4">
+                                 <tooltip>
+                                    <Tooltip text="The observation date (UTC). This is filled automatically from the SER file data." />
+                                 </tooltip></TextField>
+                              <TextField fx:id="focalLength" GridPane.columnIndex="1" GridPane.rowIndex="3">
+                                 <tooltip>
+                                    <Tooltip text="The folcal length of the telescope in millimeters" />
+                                 </tooltip></TextField>
+                              <TextField fx:id="camera" GridPane.columnIndex="1" GridPane.rowIndex="5">
+                                 <tooltip>
+                                    <Tooltip text="The camera used to capture the images" />
+                                 </tooltip></TextField>
                            </children>
                         </GridPane>
                      </children>
@@ -150,13 +190,25 @@
                               <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="SOMETIMES" />
                           </rowConstraints>
                            <children>
-                              <CheckBox fx:id="generateDebugImages" mnemonicParsing="false" text="Generate debug images" GridPane.rowIndex="1" />
-                              <CheckBox fx:id="assumeMonoVideo" mnemonicParsing="false" text="Assume mono images" />
+                              <CheckBox fx:id="generateDebugImages" mnemonicParsing="false" text="Generate debug images" GridPane.rowIndex="1">
+                                 <tooltip>
+                                    <Tooltip text="If set to true, many debug images will be generated in the &quot;debug&quot; output directory" />
+                                 </tooltip></CheckBox>
+                              <CheckBox fx:id="assumeMonoVideo" mnemonicParsing="false" text="Assume mono images">
+                                 <tooltip>
+                                    <Tooltip text="If set to true, assume that the images are mono images. This is useful for mono-bin images as it avoids debayering and significantly speeds up processing." />
+                                 </tooltip></CheckBox>
                               <Label text="Banding correction width" GridPane.rowIndex="2" />
                               <Label text="Banding correction passes" GridPane.rowIndex="3" />
-                              <Slider fx:id="bandingCorrectionWidth" majorTickUnit="8.0" max="68.0" min="4.0" minorTickCount="4" showTickLabels="true" showTickMarks="true" snapToTicks="true" value="24.0" GridPane.columnIndex="1" GridPane.rowIndex="2" />
-                              <Slider fx:id="bandingCorrectionPasses" blockIncrement="1.0" majorTickUnit="2.0" max="19.0" min="1.0" minorTickCount="0" showTickLabels="true" showTickMarks="true" snapToTicks="true" value="3.0" GridPane.columnIndex="1" GridPane.rowIndex="3" />
-                              <Button mnemonicParsing="false" text="Reset to defaults" GridPane.columnIndex="1" GridPane.rowIndex="4" onAction="#resetMiscParams"/>
+                              <Slider fx:id="bandingCorrectionWidth" majorTickUnit="8.0" max="68.0" min="4.0" minorTickCount="4" showTickLabels="true" showTickMarks="true" snapToTicks="true" value="24.0" GridPane.columnIndex="1" GridPane.rowIndex="2">
+                                 <tooltip>
+                                    <Tooltip text="The width to consider when computing the average brightness of a band." />
+                                 </tooltip></Slider>
+                              <Slider fx:id="bandingCorrectionPasses" blockIncrement="1.0" majorTickUnit="2.0" max="19.0" min="1.0" minorTickCount="0" showTickLabels="true" showTickMarks="true" snapToTicks="true" value="3.0" GridPane.columnIndex="1" GridPane.rowIndex="3">
+                                 <tooltip>
+                                    <Tooltip text="The number of iterations to perform. It is recommended to keep it low, unless you have banding which is difficult to remove, as this can produce artifacts on the solar limb." />
+                                 </tooltip></Slider>
+                              <Button mnemonicParsing="false" onAction="#resetMiscParams" text="Reset to defaults" GridPane.columnIndex="1" GridPane.rowIndex="4" />
                            </children>
                         </GridPane>
                      </children>
