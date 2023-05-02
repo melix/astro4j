@@ -16,8 +16,8 @@ val date = LocalDateTime.now()
     .atZone(ZoneId.of("UTC"))
     .format(DateTimeFormatter.ofPattern("yyyyMMddHHmm"))
 val os = System.getProperty("os.name")
-if (os.startsWith("Windows")) {
-    version = version.toString().substring(0, version.toString().lastIndexOf(".")) + "0"
+if (os.startsWith("Windows") || os.contains("mac")) {
+    version = version.toString().substring(0, version.toString().lastIndexOf(".")) + ".0"
 }
 
 // We can safely enable preview features because it's
