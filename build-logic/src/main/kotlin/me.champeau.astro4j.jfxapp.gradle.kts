@@ -2,6 +2,7 @@ import org.javamodularity.moduleplugin.extensions.TestModuleOptions
 import java.time.LocalDateTime
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
+import java.util.*
 
 plugins {
     id("me.champeau.astro4j.base")
@@ -15,8 +16,8 @@ plugins {
 val date = LocalDateTime.now()
     .atZone(ZoneId.of("UTC"))
     .format(DateTimeFormatter.ofPattern("yyyyMMddHHmm"))
-val os = System.getProperty("os.name")
-if (os.startsWith("Windows") || os.contains("mac")) {
+val os = System.getProperty("os.name").lowercase(Locale.ENGLISH)
+if (os.startsWith("windows") || os.contains("mac")) {
     version = version.toString().substring(0, version.toString().lastIndexOf(".")) + ".0"
 }
 
@@ -67,7 +68,7 @@ jlink {
     }
     jpackage {
         vendor = "Cédric Champeau"
-        if (os.startsWith("Windows")) {
+        if (os.startsWith("windows")) {
             installerType = "msi"
             installerOptions.addAll(listOf("--win-per-user-install", "--win-dir-chooser", "--win-menu"))
             if (file("src/installer/icon.ico").exists()) {
