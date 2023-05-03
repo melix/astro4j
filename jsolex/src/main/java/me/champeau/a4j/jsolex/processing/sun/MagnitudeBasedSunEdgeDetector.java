@@ -49,8 +49,7 @@ public class MagnitudeBasedSunEdgeDetector implements SunEdgeDetector {
     public void detectEdges(SerFileReader reader) {
         int frameCount = reader.header().frameCount();
         ImageGeometry geometry = reader.header().geometry();
-        int width = geometry.width();
-        var magnitudes = new double[frameCount];
+        var magnitudes = new float[frameCount];
         try (var executor = ParallelExecutor.newExecutor()) {
             for (int i = 0; i < frameCount; i++) {
                 int frameId = i;
@@ -63,7 +62,7 @@ public class MagnitudeBasedSunEdgeDetector implements SunEdgeDetector {
                 executor.submit(() -> {
                     var buffer = imageConverter.createBuffer(geometry);
                     imageConverter.convert(frameId, ByteBuffer.wrap(copy), geometry, buffer);
-                    magnitudes[frameId] = MagnitudeDetectorSupport.maxMagnitude(width, buffer);
+                    magnitudes[frameId] = MagnitudeDetectorSupport.minMax(buffer).b();
                 });
             }
         } catch (Exception ex) {

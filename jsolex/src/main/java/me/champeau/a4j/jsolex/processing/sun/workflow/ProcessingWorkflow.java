@@ -16,6 +16,7 @@
 package me.champeau.a4j.jsolex.processing.sun.workflow;
 
 import me.champeau.a4j.jsolex.app.util.Constants;
+import me.champeau.a4j.jsolex.processing.color.ColorCurve;
 import me.champeau.a4j.jsolex.processing.event.OutputImageDimensionsDeterminedEvent;
 import me.champeau.a4j.jsolex.processing.event.ProcessingDoneEvent;
 import me.champeau.a4j.jsolex.processing.event.SuggestionEvent;
@@ -24,6 +25,7 @@ import me.champeau.a4j.jsolex.processing.stretching.ArcsinhStretchingStrategy;
 import me.champeau.a4j.jsolex.processing.stretching.CutoffStretchingStrategy;
 import me.champeau.a4j.jsolex.processing.stretching.LinearStrechingStrategy;
 import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
+import me.champeau.a4j.jsolex.processing.sun.tasks.CoronagraphTask;
 import me.champeau.a4j.jsolex.processing.sun.tasks.EllipseFittingTask;
 import me.champeau.a4j.jsolex.processing.sun.tasks.GeometryCorrector;
 import me.champeau.a4j.jsolex.processing.sun.tasks.ImageBandingCorrector;
@@ -105,7 +107,7 @@ public class ProcessingWorkflow {
         try {
             executor.submit(new GeometryCorrector(broadcaster, bandingFixed, ellipse, correctionAngle, blackPoint, fps, geometryParams.xyRatio())).thenAccept(geometryFixed -> {
                 broadcaster.broadcast(OutputImageDimensionsDeterminedEvent.of("geometry corrected", geometryFixed.width(), geometryFixed.height()));
-                executor.submit(() -> produceCoronagraph(blackPoint, geometryFixed));
+                executor.submit(() -> produceCoronagraph(blackPoint, geometryFixed, processParams));
                 executor.submit(() -> produceEdgeDetectionImage(result, geometryFixed));
                 executor.submit(() -> produceStretchedImage(blackPoint, geometryFixed));
                 executor.submit(() -> produceProcessedImages(blackPoint, geometryFixed, processParams));
@@ -120,20 +122,22 @@ public class ProcessingWorkflow {
     private void produceProcessedImages(float blackPoint, ImageWrapper32 corrected, ProcessParams params) {
         CutoffStretchingStrategy.DEFAULT.stretch(corrected.data());
         params.spectrumParams().ray().getColorCurve().ifPresent(curve -> {
-            processedImagesEmitter.newColorImage("Colorized (" + curve.ray() + ")", "colorized", corrected, new ArcsinhStretchingStrategy(blackPoint, 10, 200), mono -> {
-                LinearStrechingStrategy.DEFAULT.stretch(mono);
-                float[] r = new float[mono.length];
-                float[] g = new float[mono.length];
-                float[] b = new float[mono.length];
-                for (int i = 0; i < mono.length; i++) {
-                    var rgb = curve.toRGB(mono[i]);
-                    r[i] = (float) rgb.a();
-                    g[i] = (float) rgb.b();
-                    b[i] = (float) rgb.c();
-                }
-                return new float[][]{r, g, b};
-            });
+            processedImagesEmitter.newColorImage("Colorized (" + curve.ray() + ")", "colorized", corrected, new ArcsinhStretchingStrategy(blackPoint, 10, 200), mono -> convertToRGB(curve, mono));
         });
+    }
+
+    private static float[][] convertToRGB(ColorCurve curve, float[] mono) {
+        LinearStrechingStrategy.DEFAULT.stretch(mono);
+        float[] r = new float[mono.length];
+        float[] g = new float[mono.length];
+        float[] b = new float[mono.length];
+        for (int i = 0; i < mono.length; i++) {
+            var rgb = curve.toRGB(mono[i]);
+            r[i] = (float) rgb.a();
+            g[i] = (float) rgb.b();
+            b[i] = (float) rgb.c();
+        }
+        return new float[][]{r, g, b};
     }
 
     private CompletableFuture<ImageWrapper32> performBandingCorrection(EllipseFittingTask.Result r, ImageWrapper32 geometryFixed) {
@@ -159,11 +163,12 @@ public class ProcessingWorkflow {
         }
     }
 
-    private void produceCoronagraph(float blackPoint, ImageWrapper32 geometryFixed) {
-        executor.submit(new EllipseFittingTask(broadcaster, geometryFixed, 6d)).thenAccept(fitting -> processedImagesEmitter.newMonoImage("Coronagraph", "protus", geometryFixed, LinearStrechingStrategy.DEFAULT, buffer -> {
-            new ArcsinhStretchingStrategy(blackPoint * .25f, 5000, 20000).stretch(buffer);
-            fill(fitting.ellipse(), buffer, geometryFixed.width(), 0);
-        }));
+    private void produceCoronagraph(float blackPoint, ImageWrapper32 geometryFixed, ProcessParams params) {
+        executor.submit(new EllipseFittingTask(broadcaster, geometryFixed, 6d))
+                .thenAccept(fitting -> executor.submit(new CoronagraphTask(broadcaster, geometryFixed, fitting, blackPoint)).thenAccept(coronagraph -> {
+                            processedImagesEmitter.newMonoImage("Coronagraph", "protus", coronagraph, LinearStrechingStrategy.DEFAULT);
+                        }
+                ));
     }
 
     private static double estimateBlackPoint(int width, int newHeight, Ellipse ellipse, float[] buffer) {

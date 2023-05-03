@@ -15,12 +15,8 @@
  */
 package me.champeau.a4j.jsolex.processing.sun;
 
+import me.champeau.a4j.math.tuples.FloatPair;
 import me.champeau.a4j.math.tuples.IntPair;
-import me.champeau.a4j.math.fft.FastFourierTransform;
-
-import java.util.Arrays;
-
-import static me.champeau.a4j.math.fft.FFTSupport.nextPowerOf2;
 
 public class MagnitudeDetectorSupport {
     private static final IntPair NOT_FOUND = new IntPair(-1, -1);
@@ -29,28 +25,24 @@ public class MagnitudeDetectorSupport {
 
     }
 
-    public static double[] computeMagnitudes(int width, float[] buffer) {
-        float[] line = new float[nextPowerOf2(width)];
-        int padding = (line.length - width) / 2;
-        System.arraycopy(buffer, 0, line, padding, width);
-        var fft = FastFourierTransform.ofReal(line);
-        var im = fft.imaginary();
-        var magnitudes = new double[line.length];
-        for (int k = padding + 1; k < line.length - padding - 1; k++) {
-            double magnitude = Math.sqrt(line[k] * line[k] + im[k] * im[k]);
-            magnitudes[k] = magnitude;
+    public static FloatPair minMax(float[] array) {
+        float min = Float.MAX_VALUE;
+        float max = Float.MIN_VALUE;
+        for (float v : array) {
+            if (v > max) {
+                max = v;
+            }
+            if (v < min) {
+                min = v;
+            }
         }
-        return magnitudes;
+        return new FloatPair(min, max);
     }
 
-    public static double maxMagnitude(int width, float[] buffer) {
-        var magnitudes = computeMagnitudes(width, buffer);
-        return Arrays.stream(magnitudes).max().orElse(0d);
-    }
-
-    public static IntPair findEdges(double[] magnitudes, double sensitivity) {
-        double min = Arrays.stream(magnitudes).min().orElse(0d);
-        double max = Arrays.stream(magnitudes).max().orElse(0d);
+    public static IntPair findEdges(float[] magnitudes, double sensitivity) {
+        var minMax = minMax(magnitudes);
+        double min = minMax.a();
+        double max = minMax.b();
         double amplitude = max - min;
         if (amplitude == 0) {
             return NOT_FOUND;

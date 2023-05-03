@@ -28,8 +28,6 @@ import org.slf4j.LoggerFactory;
 import java.util.ArrayList;
 import java.util.List;
 
-import static me.champeau.a4j.math.fft.FFTSupport.nextPowerOf2;
-
 public class EllipseFittingTask extends AbstractTask<EllipseFittingTask.Result> {
     private static final Logger LOGGER = LoggerFactory.getLogger(EllipseFittingTask.class);
     private final double sensitivity;
@@ -53,24 +51,19 @@ public class EllipseFittingTask extends AbstractTask<EllipseFittingTask.Result> 
         int threshold = 3;
         int lastMin = -1;
         int lastMax = -1;
-        int magnitudeDetectionWidth = nextPowerOf2(width);
-        double offset = (magnitudeDetectionWidth - width) / 2d;
         for (int y = 0; y < height; y++) {
             broadcaster.broadcast(ProgressEvent.of((y+1d/height)/height, "Analyzing disk geometry"));
             var line = new float[width];
             System.arraycopy(buffer, y * width, line, 0, width);
-            var magnitudes = MagnitudeDetectorSupport.computeMagnitudes(width, line);
-            var edges = MagnitudeDetectorSupport.findEdges(magnitudes, sensitivity);
+            var edges = MagnitudeDetectorSupport.findEdges(line, sensitivity);
             int min = edges.a();
             int max = edges.b();
             if (min >= 0 && Math.abs(min - lastMin) > threshold) {
-                double x = min - offset;
-                samples.add(new Point2D(x, y));
+                samples.add(new Point2D(min, y));
                 lastMin = min;
             }
             if (max >= 0 && Math.abs(max - lastMax) > threshold) {
-                double x = max - offset;
-                samples.add(new Point2D(x, y));
+                samples.add(new Point2D(max, y));
                 lastMax = max;
             }
         }
