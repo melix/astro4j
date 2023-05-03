@@ -36,6 +36,7 @@ import me.champeau.a4j.jsolex.processing.stretching.LinearStrechingStrategy;
 import me.champeau.a4j.jsolex.processing.stretching.StretchingStrategy;
 import me.champeau.a4j.jsolex.processing.sun.ImageUtils;
 import me.champeau.a4j.jsolex.processing.util.ColorizedImageWrapper;
+import me.champeau.a4j.jsolex.processing.util.FileBasedImage;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 import me.champeau.a4j.jsolex.processing.util.ProcessingException;
@@ -87,8 +88,7 @@ public class ImageViewer {
         if (image instanceof ImageWrapper32 mono) {
             float[] stretched = stretch(mono.data());
             ImageUtils.writeMonoImage(image.width(), image.height(), stretched, target);
-        } else {
-            var colorImage = (ColorizedImageWrapper) image;
+        } else if (image instanceof ColorizedImageWrapper colorImage) {
             float[] stretched = stretch(colorImage.mono().data());
             var colorized = colorImage.converter().apply(stretched);
             var r = colorized[0];
@@ -214,14 +214,20 @@ public class ImageViewer {
             if (image instanceof ImageWrapper32 mono) {
                 var stretched = stretch(mono.data());
                 ImageUtils.writeMonoImage(width, height, stretched, tmpImage);
-            } else {
-                var colorImage = (ColorizedImageWrapper) image;
+            } else if (image instanceof ColorizedImageWrapper colorImage){
                 var stretched = stretch(colorImage.mono().data());
                 var rgb = colorImage.converter().apply(stretched);
                 var r = rgb[0];
                 var g = rgb[1];
                 var b = rgb[2];
                 ImageUtils.writeRgbImage(width, height, r, g, b, tmpImage);
+            } else if (image instanceof FileBasedImage fileBasedImage){
+                try {
+                    tmpImage.delete();
+                    Files.copy(fileBasedImage.source().toPath(), tmpImage.toPath());
+                } catch (IOException e) {
+                    throw new ProcessingException(e);
+                }
             }
             Platform.runLater(() -> {
                 imageView.setImage(new Image(tmpImage.toURI().toString()));

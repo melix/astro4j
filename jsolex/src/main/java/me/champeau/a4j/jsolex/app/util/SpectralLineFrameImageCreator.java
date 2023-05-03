@@ -27,14 +27,12 @@ import java.util.Optional;
 import static me.champeau.a4j.jsolex.app.util.Constants.MAX_PIXEL_VALUE;
 
 public class SpectralLineFrameImageCreator {
-    private final int frameId;
     private final SpectrumFrameAnalyzer analyzer;
     private final float[] original;
     private final int width;
     private final int height;
 
-    public SpectralLineFrameImageCreator(int frameId, SpectrumFrameAnalyzer analyzer, float[] original, int width, int height) {
-        this.frameId = frameId;
+    public SpectralLineFrameImageCreator(SpectrumFrameAnalyzer analyzer, float[] original, int width, int height) {
         this.analyzer = analyzer;
         this.original = original;
         this.width = width;

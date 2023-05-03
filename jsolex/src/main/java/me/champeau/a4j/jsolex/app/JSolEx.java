@@ -66,7 +66,9 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.locks.ReentrantLock;
@@ -235,7 +237,7 @@ public class JSolEx extends Application {
                 params
         );
         var listener = new ProcessingEventListener() {
-            private final ImageView imageView = new ZoomableImageView();
+            private final Map<Integer, ImageView> imageViews = new HashMap<>();
             private long sd = 0;
             private long ed = 0;
             private int width = 0;
@@ -248,9 +250,13 @@ public class JSolEx extends Application {
                     return;
                 }
                 reconstructionStarted = true;
-                imageView.setPreserveRatio(true);
                 width = event.getWidth();
                 height = event.getHeight();
+            }
+
+            private ZoomableImageView createImageView(int pixelShift) {
+                var imageView = new ZoomableImageView();
+                imageView.setPreserveRatio(true);
                 imageView.fitWidthProperty().bind(mainPane.widthProperty());
                 imageView.setImage(new WritableImage(width, height));
                 var colorAdjust = new ColorAdjust();
@@ -261,15 +267,21 @@ public class JSolEx extends Application {
                 Platform.runLater(() -> {
                     lock.lock();
                     try {
-                        mainPane.getTabs().add(new Tab("Reconstruction", scrollPane));
+                        String suffix = "";
+                        if (pixelShift != 0) {
+                            suffix = " (" + pixelShift + ")";
+                        }
+                        mainPane.getTabs().add(new Tab("Reconstruction" + suffix, scrollPane));
                     } finally {
                         lock.unlock();
                     }
                 });
+                return imageView;
             }
 
             @Override
             public void onPartialReconstruction(PartialReconstructionEvent event) {
+                var imageView = getOrCreateImageView(event);
                 WritableImage image = (WritableImage) imageView.getImage();
                 var payload = event.getPayload();
                 int y = payload.line();
@@ -287,6 +299,10 @@ public class JSolEx extends Application {
                 Platform.runLater(() ->
                         image.getPixelWriter().setPixels(0, y, line.length, 1, pixelformat, rgb, 0, 3 * line.length)
                 );
+            }
+
+            private synchronized ImageView getOrCreateImageView(PartialReconstructionEvent event) {
+                return imageViews.computeIfAbsent(event.getPayload().pixelShift(), this::createImageView);
             }
 
             @Override

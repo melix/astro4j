@@ -15,7 +15,7 @@
  */
 package me.champeau.a4j.jsolex.processing.util;
 
-public sealed interface ImageWrapper permits ImageWrapper32, ColorizedImageWrapper {
+public sealed interface ImageWrapper permits ImageWrapper32, ColorizedImageWrapper, FileBasedImage {
     int width();
     int height();
 }

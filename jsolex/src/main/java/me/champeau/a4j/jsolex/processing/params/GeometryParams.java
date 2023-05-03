@@ -33,4 +33,5 @@ public class GeometryParams {
     public OptionalDouble xyRatio() {
         return xyRatio == null ? OptionalDouble.empty() : OptionalDouble.of(xyRatio);
     }
+
 }

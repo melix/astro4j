@@ -13,7 +13,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package me.champeau.a4j.jsolex.processing.event;
+package me.champeau.a4j.jsolex.processing.util;
 
-public record ImageLine(int pixelShift, int line, double[] data) {
+import java.io.File;
+
+public record FileBasedImage(int width, int height, File source) implements ImageWrapper {
 }

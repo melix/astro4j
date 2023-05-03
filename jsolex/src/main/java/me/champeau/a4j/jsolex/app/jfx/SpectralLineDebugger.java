@@ -120,7 +120,7 @@ public class SpectralLineDebugger {
                 sunThreshold
         );
         analyzer.analyze(buffer);
-        var creator = new SpectralLineFrameImageCreator(frameId, analyzer, buffer, width, height);
+        var creator = new SpectralLineFrameImageCreator(analyzer, buffer, width, height);
         creator.generateDebugImage(imageFile);
         imageView.setImage(new Image(imageFile.toURI().toString()));
     }

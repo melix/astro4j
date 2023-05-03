@@ -13,7 +13,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package me.champeau.a4j.jsolex.processing.event;
+package me.champeau.a4j.jsolex.processing.sun;
 
-public record ImageLine(int pixelShift, int line, double[] data) {
+public record ReconstructedImage(
+        int width,
+        int height,
+        int pixelShift,
+        float[] buffer
+) {
+    public static ReconstructedImage prepare(int width, int height, int pixelShift) {
+        return new ReconstructedImage(width, height, pixelShift, new float[width * height]);
+    }
 }

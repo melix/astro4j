@@ -56,6 +56,9 @@ public class ProcessingWorkflow {
     private final ImageEmitter processedImagesEmitter;
     private final Broadcaster broadcaster;
 
+    private double tilt;
+    private double xyRatio;
+
     public ProcessingWorkflow(
             Broadcaster broadcaster,
             File rawImagesDirectory,
@@ -84,6 +87,8 @@ public class ProcessingWorkflow {
 
     private void geometryCorrection(EllipseFittingTask.Result result, ImageWrapper32 bandingFixed) {
         var ellipse = result.ellipse();
+        this.tilt = processParams.geometryParams().tilt().orElse(ellipse.tiltAngle());
+        this.xyRatio = processParams.geometryParams().xyRatio().orElse(ellipse.xyRatio());
         float blackPoint = (float) estimateBlackPoint(bandingFixed.width(), bandingFixed.height(), ellipse, bandingFixed.data()) * 1.2f;
         var tiltDegrees = ellipse.tiltAngle() / Math.PI * 180;
         var geometryParams = processParams.geometryParams();
@@ -104,10 +109,10 @@ public class ProcessingWorkflow {
         processedImagesEmitter.newMonoImage("Banding fixed", "banding-fixed", bandingFixed, new ArcsinhStretchingStrategy(blackPoint, 7, 20));
         executor.submit(new GeometryCorrector(broadcaster, bandingFixed, ellipse, correctionAngle, blackPoint, fps, geometryParams.xyRatio())).thenAccept(geometryFixed -> {
             broadcaster.broadcast(OutputImageDimensionsDeterminedEvent.of("geometry corrected", geometryFixed.width(), geometryFixed.height()));
-            executor.submit(() -> produceCoronagraph(blackPoint, geometryFixed, processParams));
             executor.submit(() -> produceEdgeDetectionImage(result, geometryFixed));
             executor.submit(() -> produceStretchedImage(blackPoint, geometryFixed));
             executor.submit(() -> produceProcessedImages(blackPoint, geometryFixed, processParams));
+            executor.submit(() -> produceCoronagraph(blackPoint, geometryFixed, processParams));
         });
     }
 
@@ -161,6 +166,14 @@ public class ProcessingWorkflow {
                             processedImagesEmitter.newMonoImage("Coronagraph", "protus", coronagraph, LinearStrechingStrategy.DEFAULT);
                         }
                 ));
+    }
+
+    public double getTilt() {
+        return tilt;
+    }
+
+    public double getXyRatio() {
+        return xyRatio;
     }
 
     private static double estimateBlackPoint(int width, int newHeight, Ellipse ellipse, float[] buffer) {
