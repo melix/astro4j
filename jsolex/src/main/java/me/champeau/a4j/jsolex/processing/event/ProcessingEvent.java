@@ -22,7 +22,8 @@ public abstract sealed class ProcessingEvent<T> permits
         PartialReconstructionEvent,
         ProcessingStartEvent,
         ProcessingDoneEvent,
-        SuggestionEvent {
+        SuggestionEvent,
+        ProgressEvent {
     private final T payload;
 
     public ProcessingEvent(T payload) {

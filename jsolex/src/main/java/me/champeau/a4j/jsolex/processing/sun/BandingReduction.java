@@ -21,27 +21,25 @@ public class BandingReduction {
     private BandingReduction() {
     }
 
-    public static void reduceBanding(int width, int height, float[] data, int passes, int bandSize) {
+    public static void reduceBanding(int width, int height, float[] data, int bandSize) {
         var imageMath = ImageMath.newInstance();
-        for (int i = 0; i < passes; i++) {
-            // compute average value of each line
-            double[] lineAverages = imageMath.lineAverages(data, width, height);
-            for (int y = 0; y < height; y++) {
-                double sum = 0;
-                int count = 0;
-                for (int k = Math.max(0, y - bandSize); k < Math.min(y + bandSize, height); k++) {
-                    if (k != y) {
-                        sum += lineAverages[k];
-                        count++;
-                    }
+        // compute average value of each line
+        double[] lineAverages = imageMath.lineAverages(data, width, height);
+        for (int y = 0; y < height; y++) {
+            double sum = 0;
+            int count = 0;
+            for (int k = Math.max(0, y - bandSize); k < Math.min(y + bandSize, height); k++) {
+                if (k != y) {
+                    sum += lineAverages[k];
+                    count++;
                 }
-                double mean = sum / count;
-                double current = lineAverages[y];
-                Double correction = Double.valueOf(mean / current);
-                if (correction > 1 && !correction.isInfinite() && !correction.isNaN()) {
-                    for (int x = 0; x < width; x++) {
-                        data[y * width + x] *= correction;
-                    }
+            }
+            double mean = sum / count;
+            double current = lineAverages[y];
+            Double correction = Double.valueOf(mean / current);
+            if (correction > 1 && !correction.isInfinite() && !correction.isNaN()) {
+                for (int x = 0; x < width; x++) {
+                    data[y * width + x] *= correction;
                 }
             }
         }

@@ -28,6 +28,8 @@ import javafx.scene.image.ImageView;
 import javafx.scene.layout.HBox;
 import javafx.util.Duration;
 import me.champeau.a4j.jsolex.app.util.Constants;
+import me.champeau.a4j.jsolex.processing.event.ProcessingEventListener;
+import me.champeau.a4j.jsolex.processing.event.ProgressEvent;
 import me.champeau.a4j.jsolex.processing.stretching.ArcsinhStretchingStrategy;
 import me.champeau.a4j.jsolex.processing.stretching.CutoffStretchingStrategy;
 import me.champeau.a4j.jsolex.processing.stretching.LinearStrechingStrategy;
@@ -49,6 +51,7 @@ public class ImageViewer {
     private StretchingStrategy stretchingStrategy = CutoffStretchingStrategy.DEFAULT;
     private ImageWrapper image;
     private File imageFile;
+    private ProcessingEventListener broadcaster;
 
     @FXML
     private HBox stretchingParams;
@@ -66,7 +69,12 @@ public class ImageViewer {
         return imageView.fitWidthProperty();
     }
 
-    public void setImage(ImageWrapper image, StretchingStrategy strategy, File imageFile, boolean autosave) {
+    public void setImage(ProcessingEventListener broadcaster,
+                         ImageWrapper image,
+                         StretchingStrategy strategy,
+                         File imageFile,
+                         boolean autosave) {
+        this.broadcaster = broadcaster;
         this.image = image;
         this.imageFile = imageFile;
         configureStretching(strategy);
@@ -185,10 +193,15 @@ public class ImageViewer {
     }
 
     private float[] stretch(float[] data) {
-        float[] streched = new float[data.length];
-        System.arraycopy(data, 0, streched, 0, data.length);
-        stretchingStrategy.stretch(streched);
-        return streched;
+        broadcaster.onProgress(ProgressEvent.of(0, "Stretching " + imageFile.getName()));
+        try {
+            float[] streched = new float[data.length];
+            System.arraycopy(data, 0, streched, 0, data.length);
+            stretchingStrategy.stretch(streched);
+            return streched;
+        } finally {
+            broadcaster.onProgress(ProgressEvent.of(1, "Stretching " + imageFile.getName()));
+        }
     }
 
     private void strechAndDisplay() {

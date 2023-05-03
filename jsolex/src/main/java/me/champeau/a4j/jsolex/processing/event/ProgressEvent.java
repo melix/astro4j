@@ -15,32 +15,17 @@
  */
 package me.champeau.a4j.jsolex.processing.event;
 
-public interface ProcessingEventListener {
-    default void onImageGenerated(ImageGeneratedEvent event) {
+public final class ProgressEvent extends ProcessingEvent<ProgressEvent.Progress> {
+
+    private ProgressEvent(Progress payload) {
+        super(payload);
     }
 
-    default void onPartialReconstruction(PartialReconstructionEvent event) {
+    public static ProgressEvent of(double progress, String task) {
+        return new ProgressEvent(new Progress(progress, task));
     }
 
-    default void onOutputImageDimensionsDetermined(OutputImageDimensionsDeterminedEvent event) {
-    }
-
-    default void onNotification(NotificationEvent e) {
-    }
-
-    default void onSuggestion(SuggestionEvent e) {
-
-    }
-
-    default void onProcessingStart(ProcessingStartEvent e) {
-
-    }
-
-    default void onProcessingDone(ProcessingDoneEvent e) {
-
-    }
-
-    default void onProgress(ProgressEvent e) {
+    public record Progress(double progress, String task) {
 
     }
 }

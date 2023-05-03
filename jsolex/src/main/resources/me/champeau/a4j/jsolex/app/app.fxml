@@ -1,33 +1,48 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.Label?>
 <?import javafx.scene.control.Menu?>
 <?import javafx.scene.control.MenuBar?>
 <?import javafx.scene.control.MenuItem?>
+<?import javafx.scene.control.ProgressBar?>
 <?import javafx.scene.control.SeparatorMenuItem?>
 <?import javafx.scene.control.SplitPane?>
 <?import javafx.scene.control.TabPane?>
 <?import javafx.scene.control.TextArea?>
 <?import javafx.scene.layout.BorderPane?>
-<BorderPane xmlns:fx="http://javafx.com/fxml">
+<?import javafx.scene.layout.HBox?>
+
+<BorderPane xmlns:fx="http://javafx.com/fxml/1" xmlns="http://javafx.com/javafx/19">
     <top>
         <MenuBar>
             <Menu text="File">
-                <MenuItem text="Open SER file" onAction="#open"/>
-                <Menu fx:id="recentFilesMenu" text="Recent files..."></Menu>
-                <SeparatorMenuItem/>
-                <MenuItem text="Exit" onAction="#exit"/>
+                <MenuItem onAction="#open" text="Open SER file" />
+                <Menu fx:id="recentFilesMenu" text="Recent files..." />
+                <SeparatorMenuItem />
+                <MenuItem onAction="#exit" text="Exit" />
             </Menu>
             <Menu text="Tools">
-                <MenuItem text="Spectrum debugger" onAction="#showFrameDebugger"/>
-                <SeparatorMenuItem/>
-                <MenuItem text="About" onAction="#about"/>
+                <MenuItem onAction="#showFrameDebugger" text="Spectrum debugger" />
+                <SeparatorMenuItem />
+                <MenuItem onAction="#about" text="About" />
             </Menu>
         </MenuBar>
     </top>
     <center>
-        <SplitPane dividerPositions="0.70f, 0.30f">
-            <TabPane fx:id="mainPane" prefWidth="400.0"/>
-            <TextArea fx:id="console" editable="false" wrapText="true"/>
+        <SplitPane dividerPositions="0.7">
+            <TabPane fx:id="mainPane" prefWidth="400.0" />
+            <TextArea fx:id="console" editable="false" wrapText="true" />
         </SplitPane>
     </center>
+    <bottom>
+        <HBox spacing="10.0">
+         <children>
+            <ProgressBar fx:id="progressBar" prefWidth="200.0" progress="0.0" />
+            <Label fx:id="progressLabel" />
+         </children>
+         <padding>
+            <Insets bottom="4.0" left="4.0" right="4.0" top="4.0" />
+         </padding></HBox>
+    </bottom>
 </BorderPane>

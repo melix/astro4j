@@ -25,8 +25,10 @@ import javafx.scene.Node;
 import javafx.scene.Parent;
 import javafx.scene.Scene;
 import javafx.scene.control.Alert;
+import javafx.scene.control.Label;
 import javafx.scene.control.Menu;
 import javafx.scene.control.MenuItem;
+import javafx.scene.control.ProgressBar;
 import javafx.scene.control.ScrollPane;
 import javafx.scene.control.Tab;
 import javafx.scene.control.TabPane;
@@ -52,6 +54,7 @@ import me.champeau.a4j.jsolex.processing.event.PartialReconstructionEvent;
 import me.champeau.a4j.jsolex.processing.event.ProcessingDoneEvent;
 import me.champeau.a4j.jsolex.processing.event.ProcessingEventListener;
 import me.champeau.a4j.jsolex.processing.event.ProcessingStartEvent;
+import me.champeau.a4j.jsolex.processing.event.ProgressEvent;
 import me.champeau.a4j.jsolex.processing.event.SuggestionEvent;
 import me.champeau.a4j.jsolex.processing.params.ProcessParams;
 import me.champeau.a4j.jsolex.processing.sun.SolexVideoProcessor;
@@ -85,6 +88,12 @@ public class JSolEx extends Application {
     @FXML
     private TabPane mainPane;
 
+    @FXML
+    private ProgressBar progressBar;
+
+    @FXML
+    private Label progressLabel;
+
     private boolean reconstructionStarted = false;
 
     private final List<String> suggestions = new CopyOnWriteArrayList<>();
@@ -110,6 +119,7 @@ public class JSolEx extends Application {
                 pause.setOnFinished(e -> config.setPreferredHeigth(newValue.intValue()));
                 pause.playFromStart();
             });
+            hideProgress();
             stage.setTitle("JSol'Ex");
             stage.setScene(rootScene);
             addIcons(stage);
@@ -136,6 +146,16 @@ public class JSolEx extends Application {
             recent.setOnAction(e -> doOpen(recentFile.toFile()));
             recentFilesMenu.getItems().add(recent);
         }
+    }
+
+    private void hideProgress() {
+        progressBar.setProgress(0);
+        progressLabel.setText("");
+        progressBar.setVisible(false);
+    }
+
+    private void showProgress() {
+        progressBar.setVisible(true);
     }
 
     @FXML
@@ -218,6 +238,8 @@ public class JSolEx extends Application {
             private final ImageView imageView = new ZoomableImageView();
             private long sd = 0;
             private long ed = 0;
+            private int width = 0;
+            private int height = 0;
 
             @Override
             public void onOutputImageDimensionsDetermined(OutputImageDimensionsDeterminedEvent event) {
@@ -227,8 +249,8 @@ public class JSolEx extends Application {
                 }
                 reconstructionStarted = true;
                 imageView.setPreserveRatio(true);
-                int width = event.getWidth();
-                int height = event.getHeight();
+                width = event.getWidth();
+                height = event.getHeight();
                 imageView.fitWidthProperty().bind(mainPane.widthProperty());
                 imageView.setImage(new WritableImage(width, height));
                 var colorAdjust = new ColorAdjust();
@@ -261,6 +283,7 @@ public class JSolEx extends Application {
                     rgb[3 * x + 2] = c;
                 }
                 var pixelformat = PixelFormat.getByteRgbInstance();
+                onProgress(ProgressEvent.of((y + 1d) / height, "Reconstructing image"));
                 Platform.runLater(() ->
                         image.getPixelWriter().setPixels(0, y, line.length, 1, pixelformat, rgb, 0, 3 * line.length)
                 );
@@ -271,7 +294,8 @@ public class JSolEx extends Application {
                 var tab = new Tab(event.getPayload().title());
                 var viewer = newImageViewer();
                 viewer.fitWidthProperty().bind(mainPane.widthProperty());
-                viewer.setImage(event.getPayload().image(),
+                viewer.setImage(this,
+                        event.getPayload().image(),
                         event.getPayload().stretchingStrategy(),
                         event.getPayload().path().toFile(),
                         params.debugParams().autosave()
@@ -326,16 +350,35 @@ public class JSolEx extends Application {
                         sb.append("    - ").append(suggestion).append("\n");
                     }
                 }
+                var finishedString = String.format("Finished in %.2fs", seconds);
                 onNotification(new NotificationEvent(
                         new Notification(
                                 Alert.AlertType.INFORMATION,
                                 "Processing done",
-                                String.format("Finished in %.2fs", seconds),
+                                finishedString,
                                 sb.toString()
                         )));
                 suggestions.clear();
+                Platform.runLater(() -> {
+                    progressLabel.setText(finishedString);
+                    progressLabel.setVisible(true);
+                });
+            }
+
+            @Override
+            public void onProgress(ProgressEvent e) {
+                Platform.runLater(() -> {
+                    if (e.getPayload().progress() == 1) {
+                        hideProgress();
+                    } else {
+                        showProgress();
+                        progressBar.setProgress(e.getPayload().progress());
+                        progressLabel.setText(e.getPayload().task());
+                    }
+                });
             }
         };
+
 
         processor.addEventListener(listener);
         var task = new Task<Void>() {

@@ -15,6 +15,7 @@
  */
 package me.champeau.a4j.jsolex.processing.sun.tasks;
 
+import me.champeau.a4j.jsolex.processing.event.ProgressEvent;
 import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
 import me.champeau.a4j.jsolex.processing.sun.MagnitudeDetectorSupport;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
@@ -45,6 +46,7 @@ public class EllipseFittingTask extends AbstractTask<EllipseFittingTask.Result> 
 
     @Override
     public EllipseFittingTask.Result call() throws Exception {
+        broadcaster.broadcast(ProgressEvent.of(0, "Analyzing disk geometry"));
         List<Point2D> samples = new ArrayList<>();
         // We can have bad samples because the sun disk can be truncated
         // so we remove those which are within a small distance of x coordinate of the previous sample
@@ -54,6 +56,7 @@ public class EllipseFittingTask extends AbstractTask<EllipseFittingTask.Result> 
         int magnitudeDetectionWidth = nextPowerOf2(width);
         double offset = (magnitudeDetectionWidth - width) / 2d;
         for (int y = 0; y < height; y++) {
+            broadcaster.broadcast(ProgressEvent.of((y+1d/height)/height, "Analyzing disk geometry"));
             var line = new float[width];
             System.arraycopy(buffer, y * width, line, 0, width);
             var magnitudes = MagnitudeDetectorSupport.computeMagnitudes(width, line);
@@ -71,6 +74,7 @@ public class EllipseFittingTask extends AbstractTask<EllipseFittingTask.Result> 
                 lastMax = max;
             }
         }
+        broadcaster.broadcast(ProgressEvent.of(0, "Fitting ellipse"));
         samples = samples.stream()
                 .map(p -> new Object() {
                     final Point2D point = p;
@@ -90,6 +94,7 @@ public class EllipseFittingTask extends AbstractTask<EllipseFittingTask.Result> 
             ellipse = new EllipseRegression(filteredSamples).solve();
         }
         LOGGER.info("{}", ellipse);
+        broadcaster.broadcast(ProgressEvent.of(1, "Fitting ellipse"));
         return new Result(ellipse, filteredSamples);
     }
 

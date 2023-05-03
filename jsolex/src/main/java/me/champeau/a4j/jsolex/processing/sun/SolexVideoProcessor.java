@@ -28,6 +28,7 @@ import me.champeau.a4j.jsolex.processing.event.ProcessingDoneEvent;
 import me.champeau.a4j.jsolex.processing.event.ProcessingEvent;
 import me.champeau.a4j.jsolex.processing.event.ProcessingEventListener;
 import me.champeau.a4j.jsolex.processing.event.ProcessingStartEvent;
+import me.champeau.a4j.jsolex.processing.event.ProgressEvent;
 import me.champeau.a4j.jsolex.processing.event.SuggestionEvent;
 import me.champeau.a4j.jsolex.processing.params.ProcessParams;
 import me.champeau.a4j.jsolex.processing.sun.workflow.ProcessingWorkflow;
@@ -251,6 +252,7 @@ public class SolexVideoProcessor implements Broadcaster {
                 case SuggestionEvent e -> listener.onSuggestion(e);
                 case ProcessingStartEvent e -> listener.onProcessingStart(e);
                 case ProcessingDoneEvent e -> listener.onProcessingDone(e);
+                case ProgressEvent e -> listener.onProgress(e);
             }
         }
     }

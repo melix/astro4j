@@ -15,6 +15,7 @@
  */
 package me.champeau.a4j.jsolex.processing.sun.tasks;
 
+import me.champeau.a4j.jsolex.processing.event.ProgressEvent;
 import me.champeau.a4j.jsolex.processing.event.SuggestionEvent;
 import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
@@ -51,6 +52,7 @@ public class GeometryCorrector extends AbstractTask<ImageWrapper32> {
 
     @Override
     public ImageWrapper32 call() throws Exception {
+        broadcaster.broadcast(ProgressEvent.of(0, "Correcting geometry"));
         var ratio = ellipse.xyRatio();
         double sx, sy;
         if (ratio < 1) {
@@ -75,6 +77,7 @@ public class GeometryCorrector extends AbstractTask<ImageWrapper32> {
             sy = 1d;
         }
         var rotated = ImageMath.newInstance().rotateAndScale(buffer, width, height, correctionAngle, blackpoint, sx, sy);
+        broadcaster.broadcast(ProgressEvent.of(1, "Correcting geometry"));
         return new ImageWrapper32(rotated.width(), rotated.height(), rotated.data());
     }
 }
