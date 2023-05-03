@@ -148,6 +148,8 @@ public class SolexVideoProcessor implements Broadcaster {
             workflow.start();
         } catch (Exception e) {
             throw new ProcessingException(e);
+        } finally {
+            broadcast(new ProcessingDoneEvent(System.nanoTime()));
         }
     }
 

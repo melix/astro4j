@@ -18,7 +18,6 @@ package me.champeau.a4j.jsolex.processing.sun.workflow;
 import me.champeau.a4j.jsolex.app.util.Constants;
 import me.champeau.a4j.jsolex.processing.color.ColorCurve;
 import me.champeau.a4j.jsolex.processing.event.OutputImageDimensionsDeterminedEvent;
-import me.champeau.a4j.jsolex.processing.event.ProcessingDoneEvent;
 import me.champeau.a4j.jsolex.processing.event.SuggestionEvent;
 import me.champeau.a4j.jsolex.processing.params.ProcessParams;
 import me.champeau.a4j.jsolex.processing.stretching.ArcsinhStretchingStrategy;
@@ -31,7 +30,6 @@ import me.champeau.a4j.jsolex.processing.sun.tasks.GeometryCorrector;
 import me.champeau.a4j.jsolex.processing.sun.tasks.ImageBandingCorrector;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 import me.champeau.a4j.jsolex.processing.util.ParallelExecutor;
-import me.champeau.a4j.jsolex.processing.util.ProcessingException;
 import me.champeau.a4j.math.Point2D;
 import me.champeau.a4j.math.regression.Ellipse;
 import org.slf4j.Logger;
@@ -104,19 +102,13 @@ public class ProcessingWorkflow {
             LOGGER.info("Will not apply rotation correction as sun disk is almost a circle (and therefore tilt angle is not reliable)");
         }
         processedImagesEmitter.newMonoImage("Banding fixed", "banding-fixed", bandingFixed, new ArcsinhStretchingStrategy(blackPoint, 7, 20));
-        try {
-            executor.submit(new GeometryCorrector(broadcaster, bandingFixed, ellipse, correctionAngle, blackPoint, fps, geometryParams.xyRatio())).thenAccept(geometryFixed -> {
-                broadcaster.broadcast(OutputImageDimensionsDeterminedEvent.of("geometry corrected", geometryFixed.width(), geometryFixed.height()));
-                executor.submit(() -> produceCoronagraph(blackPoint, geometryFixed, processParams));
-                executor.submit(() -> produceEdgeDetectionImage(result, geometryFixed));
-                executor.submit(() -> produceStretchedImage(blackPoint, geometryFixed));
-                executor.submit(() -> produceProcessedImages(blackPoint, geometryFixed, processParams));
-            });
-            executor.waitForSubmittedTasks();
-        } catch (InterruptedException e) {
-            throw new ProcessingException(e);
-        }
-        broadcaster.broadcast(new ProcessingDoneEvent(System.nanoTime()));
+        executor.submit(new GeometryCorrector(broadcaster, bandingFixed, ellipse, correctionAngle, blackPoint, fps, geometryParams.xyRatio())).thenAccept(geometryFixed -> {
+            broadcaster.broadcast(OutputImageDimensionsDeterminedEvent.of("geometry corrected", geometryFixed.width(), geometryFixed.height()));
+            executor.submit(() -> produceCoronagraph(blackPoint, geometryFixed, processParams));
+            executor.submit(() -> produceEdgeDetectionImage(result, geometryFixed));
+            executor.submit(() -> produceStretchedImage(blackPoint, geometryFixed));
+            executor.submit(() -> produceProcessedImages(blackPoint, geometryFixed, processParams));
+        });
     }
 
     private void produceProcessedImages(float blackPoint, ImageWrapper32 corrected, ProcessParams params) {
