@@ -89,7 +89,7 @@ public class ProcessingWorkflow {
         var ellipse = result.ellipse();
         this.tilt = processParams.geometryParams().tilt().orElse(ellipse.tiltAngle());
         this.xyRatio = processParams.geometryParams().xyRatio().orElse(ellipse.xyRatio());
-        float blackPoint = (float) estimateBlackPoint(bandingFixed.width(), bandingFixed.height(), ellipse, bandingFixed.data()) * 1.2f;
+        float blackPoint = (float) estimateBlackPoint(bandingFixed, ellipse) * 1.2f;
         var tiltDegrees = ellipse.tiltAngle() / Math.PI * 180;
         var geometryParams = processParams.geometryParams();
         boolean isTiltReliable = ellipse.isAlmostCircle(CIRCLE_EPSILON);
@@ -111,12 +111,12 @@ public class ProcessingWorkflow {
             broadcaster.broadcast(OutputImageDimensionsDeterminedEvent.of("geometry corrected", geometryFixed.width(), geometryFixed.height()));
             executor.submit(() -> produceEdgeDetectionImage(result, geometryFixed));
             executor.submit(() -> produceStretchedImage(blackPoint, geometryFixed));
-            executor.submit(() -> produceProcessedImages(blackPoint, geometryFixed, processParams));
+            executor.submit(() -> produceColorizedImage(blackPoint, geometryFixed, processParams));
             executor.submit(() -> produceCoronagraph(blackPoint, geometryFixed, processParams));
         });
     }
 
-    private void produceProcessedImages(float blackPoint, ImageWrapper32 corrected, ProcessParams params) {
+    private void produceColorizedImage(float blackPoint, ImageWrapper32 corrected, ProcessParams params) {
         CutoffStretchingStrategy.DEFAULT.stretch(corrected.data());
         params.spectrumParams().ray().getColorCurve().ifPresent(curve -> {
             processedImagesEmitter.newColorImage("Colorized (" + curve.ray() + ")", "colorized", corrected, new ArcsinhStretchingStrategy(blackPoint, 10, 200), mono -> convertToRGB(curve, mono));
@@ -176,11 +176,14 @@ public class ProcessingWorkflow {
         return xyRatio;
     }
 
-    private static double estimateBlackPoint(int width, int newHeight, Ellipse ellipse, float[] buffer) {
+    private static double estimateBlackPoint(ImageWrapper32 image, Ellipse ellipse) {
+        var width = image.width();
+        var height = image.height();
+        var buffer = image.data();
         double blackEstimate = 0d;
         int cpt = 0;
         for (int x = 0; x < width; x++) {
-            for (int y = 0; y < newHeight; y++) {
+            for (int y = 0; y < height; y++) {
                 if (!ellipse.isWithin(x, y)) {
                     blackEstimate = blackEstimate + (buffer[x + y * width] - blackEstimate) / (++cpt);
                 }
