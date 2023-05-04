@@ -33,8 +33,13 @@ import me.champeau.a4j.jsolex.processing.event.ProgressEvent;
 import me.champeau.a4j.jsolex.processing.event.SuggestionEvent;
 import me.champeau.a4j.jsolex.processing.params.ProcessParams;
 import me.champeau.a4j.jsolex.processing.stretching.LinearStrechingStrategy;
+import me.champeau.a4j.jsolex.processing.sun.workflow.DefaultImageEmitter;
+import me.champeau.a4j.jsolex.processing.sun.workflow.ImageEmitter;
+import me.champeau.a4j.jsolex.processing.sun.workflow.ImageEmitterFactory;
 import me.champeau.a4j.jsolex.processing.sun.workflow.ProcessingWorkflow;
-import me.champeau.a4j.jsolex.processing.util.FileBasedImage;
+import me.champeau.a4j.jsolex.processing.sun.workflow.RenamingImageEmitter;
+import me.champeau.a4j.jsolex.processing.sun.workflow.StepFilteringImageEmitter;
+import me.champeau.a4j.jsolex.processing.sun.workflow.WorkflowStep;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 import me.champeau.a4j.jsolex.processing.util.ParallelExecutor;
 import me.champeau.a4j.jsolex.processing.util.ProcessingException;
@@ -49,6 +54,7 @@ import org.slf4j.LoggerFactory;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.PrintWriter;
+import java.util.EnumSet;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -97,11 +103,11 @@ public class SolexVideoProcessor implements Broadcaster {
             detector.detectEdges(reader);
             detector.ifEdgesDetected((start, end) -> {
                         LOGGER.info("Sun edges detected at frames {} and {}", start, end);
-                        generateImages(converter, reader, Math.max(0, start - 40), Math.min(end + 40, frameCount) - 1, processParams);
+                        generateImages(converter, reader, Math.max(0, start - 40), Math.min(end + 40, frameCount) - 1);
                     }
                     , () -> {
                         LOGGER.info("Sun edges weren't detected, processing whole video");
-                        generateImages(converter, reader, 0, frameCount - 1, processParams);
+                        generateImages(converter, reader, 0, frameCount - 1);
                     });
         } catch (Exception e) {
             broadcastError(e);
@@ -121,25 +127,44 @@ public class SolexVideoProcessor implements Broadcaster {
     private void generateImages(ImageConverter<float[]> converter,
                                 SerFileReader reader,
                                 int start,
-                                int end,
-                                ProcessParams params) {
+                                int end) {
         var geometry = reader.header().geometry();
         int width = geometry.width();
         int height = geometry.height();
         var fps = reader.estimateFps();
         int newHeight = end - start;
         broadcast(OutputImageDimensionsDeterminedEvent.of("raw", width, newHeight));
-        var imageList = List.of(
-                ReconstructedImage.prepare(width, newHeight, processParams.spectrumParams().pixelShift())
-//                ReconstructedImage.prepare(width, newHeight, processParams.spectrumParams().pixelShift() - 3),
-//                ReconstructedImage.prepare(width, newHeight, processParams.spectrumParams().pixelShift() + 3)
+        var dopplerShift = processParams.spectrumParams().dopplerShift();
+        var imageList = processParams.spectrumParams().pixelShift() == 0 ? List.of(
+                WorkflowState.prepare(width, newHeight, 0, EnumSet.allOf(WorkflowStep.class)),
+                WorkflowState.prepare(width, newHeight, -dopplerShift),
+                WorkflowState.prepare(width, newHeight, dopplerShift, WorkflowStep.DOPPLER_IMAGE),
+                WorkflowState.prepare(width, newHeight, +15, WorkflowStep.BANDING_CORRECTION)
+        ) : List.of(
+                WorkflowState.prepare(width, newHeight, processParams.spectrumParams().pixelShift(), EnumSet.allOf(WorkflowStep.class))
         );
         LOGGER.info("Starting reconstruction...");
-        performImageReconstruction(converter, reader, start, end, geometry, width, height, imageList.toArray(new ReconstructedImage[0]));
+        performImageReconstruction(converter, reader, start, end, geometry, width, height, imageList.toArray(new WorkflowState[0]));
         ProcessParams currentParams = processParams;
-        for (ReconstructedImage reconstructed : imageList) {
-            var rotateLeft = ImageMath.newInstance().rotateLeft(reconstructed.buffer(), width, newHeight);
+        for (int step = 0; step < imageList.size(); step++) {
+            WorkflowState state = imageList.get(step);
+            int finalStep = step;
+            var imageEmitterFactory = new ImageEmitterFactory() {
+                @Override
+                public ImageEmitter newEmitter(Broadcaster broadcaster, ParallelExecutor executor, File outputDirectory) {
+                    ImageEmitter emitter = new DefaultImageEmitter(broadcaster, executor, outputDirectory);
+                    var shift = state.pixelShift();
+                    if (finalStep == 0) {
+                        return emitter;
+                    }
+                    var suffix = " (" + (shift == 15 ? "continuum" : shift) + ")";
+                    emitter = new RenamingImageEmitter(emitter, title -> title + suffix, name -> name + suffix);
+                    return new StepFilteringImageEmitter(emitter, state.steps());
+                }
+            };
+            var rotateLeft = ImageMath.newInstance().rotateLeft(state.reconstructed(), width, newHeight);
             var rotated = new ImageWrapper32(newHeight, width, rotateLeft);
+            state.setImage(rotated);
             ProcessingWorkflow workflow;
             try (var executor = ParallelExecutor.newExecutor()) {
                 executor.setExceptionHandler(this::broadcastError);
@@ -149,9 +174,11 @@ public class SolexVideoProcessor implements Broadcaster {
                         debugDirectory,
                         processedDirectory,
                         executor,
-                        rotated,
+                        imageList,
+                        step,
                         currentParams,
-                        fps.orElse(null)
+                        fps.orElse(null),
+                        imageEmitterFactory
                 );
                 workflow.start();
             } catch (Exception e) {
@@ -159,22 +186,22 @@ public class SolexVideoProcessor implements Broadcaster {
             }
             currentParams = currentParams.withGeometry(workflow.getTilt(), workflow.getXyRatio());
         }
+
         broadcast(new ProcessingDoneEvent(System.nanoTime()));
     }
 
-    private void performImageReconstruction(ImageConverter<float[]> converter, SerFileReader reader, int start, int end, ImageGeometry geometry, int width, int height, ReconstructedImage... images) {
+    private void performImageReconstruction(ImageConverter<float[]> converter, SerFileReader reader, int start, int end, ImageGeometry geometry, int width, int height, WorkflowState... images) {
         try (var executor = ParallelExecutor.newExecutor()) {
             executor.setExceptionHandler(this::broadcastError);
             reader.seekFrame(start);
             var analyzer = new SpectrumFrameAnalyzer(width, height, processParams.spectrumParams().spectralLineDetectionThreshold(), 5000d);
             float[] average = computeAverageImage(converter, reader, start, end, geometry, analyzer);
-
             analyzer.findDistortionPolynomial().ifPresent(polynomial -> {
                 if (processParams.debugParams().generateDebugImages()) {
                     var outputFile = new File(debugDirectory, "average.png");
-                    new SpectralLineFrameImageCreator(analyzer, average, width, height)
-                            .generateDebugImage(outputFile);
-                    broadcast(new ImageGeneratedEvent(new GeneratedImage("Average", outputFile.toPath(), new FileBasedImage(width, height, outputFile), LinearStrechingStrategy.DEFAULT)));
+                    var rgb = new SpectralLineFrameImageCreator(analyzer, average, width, height)
+                            .generateDebugImage();
+                    broadcast(new ImageGeneratedEvent(new GeneratedImage("Average", outputFile.toPath(), rgb, LinearStrechingStrategy.DEFAULT)));
                 }
                 LOGGER.info("Distortion polynomial ax2 + bx + c = 0\n    - a = {}\n    - b = {}\n    - c = {}", polynomial.a(), polynomial.b(), polynomial.c());
                 reader.seekFrame(start);
@@ -184,9 +211,9 @@ public class SolexVideoProcessor implements Broadcaster {
                     converter.convert(i, reader.currentFrame().data(), geometry, original);
                     reader.nextFrame();
                     int offset = j;
-                    for (ReconstructedImage reconstructed : images) {
+                    for (WorkflowState state : images) {
                         executor.submit(() -> {
-                            processSingleFrame(width, height, reconstructed.buffer(), offset, original, polynomial, reconstructed.pixelShift());
+                            processSingleFrame(width, height, state.reconstructed(), offset, original, polynomial, state.pixelShift());
                         });
                     }
                 }
@@ -246,26 +273,7 @@ public class SolexVideoProcessor implements Broadcaster {
             line[x] = value;
             lastY = yi;
         }
-        broadcast(new PartialReconstructionEvent(new ImageLine(pixelShift, offset / width, line)));
-    }
-
-    private void showCorrectedImageForDebugging(int width,
-                                                int height,
-                                                float[] original,
-                                                SpectrumFrameAnalyzer analyzer,
-                                                int frameId,
-                                                DoubleTriplet p,
-                                                ProcessParams params) {
-        if (LOGGER.isDebugEnabled()) {
-            LOGGER.debug("Distortion polynomial of frame {} : [{}, {}, {}]", frameId, p.a(), p.b(), p.c());
-        }
-        if (params.debugParams().generateDebugImages()) {
-            var creator = new SpectralLineFrameImageCreator(
-                    analyzer, original, width, height
-            );
-            String fileName = String.format("%06d-corrected.png", frameId);
-            creator.generateDebugImage(new File(debugDirectory, fileName));
-        }
+        broadcast(new PartialReconstructionEvent(new ImageLine(pixelShift, offset / width, line, processParams.debugParams().generateDebugImages())));
     }
 
     @Override

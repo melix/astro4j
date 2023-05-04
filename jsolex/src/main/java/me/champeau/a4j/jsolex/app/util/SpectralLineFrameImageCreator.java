@@ -16,12 +16,11 @@
 package me.champeau.a4j.jsolex.app.util;
 
 import me.champeau.a4j.jsolex.processing.sun.DistortionCorrection;
-import me.champeau.a4j.jsolex.processing.sun.ImageUtils;
 import me.champeau.a4j.jsolex.processing.sun.SpectrumFrameAnalyzer;
 import me.champeau.a4j.jsolex.processing.sun.SpectrumLine;
+import me.champeau.a4j.jsolex.processing.util.RGBImage;
 import me.champeau.a4j.math.tuples.DoubleTriplet;
 
-import java.io.File;
 import java.util.Optional;
 
 import static me.champeau.a4j.jsolex.app.util.Constants.MAX_PIXEL_VALUE;
@@ -39,7 +38,7 @@ public class SpectralLineFrameImageCreator {
         this.height = height;
     }
 
-    public void generateDebugImage(File outputFile) {
+    public RGBImage generateDebugImage() {
         int size = width * height;
         Optional<DoubleTriplet> polynomial = analyzer.findDistortionPolynomial();
         float[] corrected;
@@ -110,6 +109,6 @@ public class SpectralLineFrameImageCreator {
                 }
             }
         }
-        ImageUtils.writeRgbImage(width, 2 * height + 10, rr, gg, bb, outputFile);
+        return new RGBImage(width, 2 * height + 10, rr, gg, bb);
     }
 }

@@ -105,7 +105,7 @@ abstract class ProcessParamsIO {
             }
         }
         return new ProcessParams(
-                new SpectrumParams(SpectralRay.H_ALPHA, SpectralRay.H_ALPHA.getDetectionThreshold(), 0),
+                new SpectrumParams(SpectralRay.H_ALPHA, SpectralRay.H_ALPHA.getDetectionThreshold(), 0, 3),
                 new ObservationDetails(
                         "",
                         "Sol'Ex",

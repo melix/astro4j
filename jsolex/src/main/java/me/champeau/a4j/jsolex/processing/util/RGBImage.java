@@ -15,7 +15,5 @@
  */
 package me.champeau.a4j.jsolex.processing.util;
 
-import java.io.File;
-
-public record FileBasedImage(int width, int height, File source) implements ImageWrapper {
+public record RGBImage(int width, int height, float[] r, float[] g, float[] b) implements ImageWrapper {
 }

@@ -36,7 +36,7 @@ import me.champeau.a4j.jsolex.processing.stretching.LinearStrechingStrategy;
 import me.champeau.a4j.jsolex.processing.stretching.StretchingStrategy;
 import me.champeau.a4j.jsolex.processing.sun.ImageUtils;
 import me.champeau.a4j.jsolex.processing.util.ColorizedImageWrapper;
-import me.champeau.a4j.jsolex.processing.util.FileBasedImage;
+import me.champeau.a4j.jsolex.processing.util.RGBImage;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 import me.champeau.a4j.jsolex.processing.util.ProcessingException;
@@ -95,6 +95,9 @@ public class ImageViewer {
             var g = colorized[1];
             var b = colorized[2];
             ImageUtils.writeRgbImage(colorImage.width(), colorImage.height(), r, g, b, target);
+        } else if (image instanceof RGBImage rgb) {
+            var stretched = stretch(rgb.r(), rgb.g(), rgb.g());
+            ImageUtils.writeRgbImage(rgb.width(), rgb.height(), stretched[0], stretched[1], stretched[2], target);
         }
         Platform.runLater(() -> {
             imageView.setImage(new Image(imageFile.toURI().toString()));
@@ -204,6 +207,23 @@ public class ImageViewer {
         }
     }
 
+    private float[][] stretch(float[] r, float[] g, float[] b) {
+        broadcaster.onProgress(ProgressEvent.of(0, "Stretching " + imageFile.getName()));
+        try {
+            float[] rr = new float[r.length];
+            float[] gg = new float[g.length];
+            float[] bb = new float[b.length];
+            System.arraycopy(r, 0, rr, 0, r.length);
+            System.arraycopy(g, 0, gg, 0, g.length);
+            System.arraycopy(b, 0, bb, 0, b.length);
+            var rgb = new float[][]{rr, gg, bb};
+            stretchingStrategy.stretch(rgb);
+            return rgb;
+        } finally {
+            broadcaster.onProgress(ProgressEvent.of(1, "Stretching " + imageFile.getName()));
+        }
+    }
+
     private void strechAndDisplay() {
         new Thread(() -> {
             File tmpImage = createTmpFile();
@@ -214,20 +234,16 @@ public class ImageViewer {
             if (image instanceof ImageWrapper32 mono) {
                 var stretched = stretch(mono.data());
                 ImageUtils.writeMonoImage(width, height, stretched, tmpImage);
-            } else if (image instanceof ColorizedImageWrapper colorImage){
+            } else if (image instanceof ColorizedImageWrapper colorImage) {
                 var stretched = stretch(colorImage.mono().data());
                 var rgb = colorImage.converter().apply(stretched);
                 var r = rgb[0];
                 var g = rgb[1];
                 var b = rgb[2];
                 ImageUtils.writeRgbImage(width, height, r, g, b, tmpImage);
-            } else if (image instanceof FileBasedImage fileBasedImage){
-                try {
-                    tmpImage.delete();
-                    Files.copy(fileBasedImage.source().toPath(), tmpImage.toPath());
-                } catch (IOException e) {
-                    throw new ProcessingException(e);
-                }
+            } else if (image instanceof RGBImage rgb) {
+                var stretched = stretch(rgb.r(), rgb.g(), rgb.g());
+                ImageUtils.writeRgbImage(rgb.width(), rgb.height(), stretched[0], stretched[1], stretched[2], tmpImage);
             }
             Platform.runLater(() -> {
                 imageView.setImage(new Image(tmpImage.toURI().toString()));

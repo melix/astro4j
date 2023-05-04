@@ -20,4 +20,5 @@ public sealed interface StretchingStrategy permits
         CutoffStretchingStrategy,
         LinearStrechingStrategy {
     void stretch(float[] data);
+    void stretch(float[][] rgb);
 }

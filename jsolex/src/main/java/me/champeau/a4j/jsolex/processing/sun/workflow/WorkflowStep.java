@@ -13,15 +13,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package me.champeau.a4j.jsolex.processing.sun;
+package me.champeau.a4j.jsolex.processing.sun.workflow;
 
-public record ReconstructedImage(
-        int width,
-        int height,
-        int pixelShift,
-        float[] buffer
-) {
-    public static ReconstructedImage prepare(int width, int height, int pixelShift) {
-        return new ReconstructedImage(width, height, pixelShift, new float[width * height]);
-    }
+public enum WorkflowStep {
+    BANDING_CORRECTION,
+    COLORIZED_IMAGE,
+    CORONAGRAPH,
+    DOPPLER_IMAGE,
+    EDGE_DETECTION_IMAGE,
+    ELLIPSE_FITTING,
+    GEOMETRY_CORRECTION,
+    RAW_IMAGE,
+    STRECHED_IMAGE
 }

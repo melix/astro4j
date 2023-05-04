@@ -281,24 +281,28 @@ public class JSolEx extends Application {
 
             @Override
             public void onPartialReconstruction(PartialReconstructionEvent event) {
-                var imageView = getOrCreateImageView(event);
-                WritableImage image = (WritableImage) imageView.getImage();
                 var payload = event.getPayload();
                 int y = payload.line();
-                double[] line = payload.data();
-                byte[] rgb = new byte[3 * line.length];
-                for (int x = 0; x < line.length; x++) {
-                    int v = (int) Math.round(line[x]);
-                    byte c = (byte) (v >> 8);
-                    rgb[3 * x] = c;
-                    rgb[3 * x + 1] = c;
-                    rgb[3 * x + 2] = c;
+                if (payload.display()) {
+                    var imageView = getOrCreateImageView(event);
+                    WritableImage image = (WritableImage) imageView.getImage();
+                    double[] line = payload.data();
+                    byte[] rgb = new byte[3 * line.length];
+                    for (int x = 0; x < line.length; x++) {
+                        int v = (int) Math.round(line[x]);
+                        byte c = (byte) (v >> 8);
+                        rgb[3 * x] = c;
+                        rgb[3 * x + 1] = c;
+                        rgb[3 * x + 2] = c;
+                    }
+                    var pixelformat = PixelFormat.getByteRgbInstance();
+                    onProgress(ProgressEvent.of((y + 1d) / height, "Reconstructing image"));
+                    Platform.runLater(() ->
+                            image.getPixelWriter().setPixels(0, y, line.length, 1, pixelformat, rgb, 0, 3 * line.length)
+                    );
+                } else {
+                    onProgress(ProgressEvent.of((y + 1d) / height, "Reconstructing image"));
                 }
-                var pixelformat = PixelFormat.getByteRgbInstance();
-                onProgress(ProgressEvent.of((y + 1d) / height, "Reconstructing image"));
-                Platform.runLater(() ->
-                        image.getPixelWriter().setPixels(0, y, line.length, 1, pixelformat, rgb, 0, 3 * line.length)
-                );
             }
 
             private synchronized ImageView getOrCreateImageView(PartialReconstructionEvent event) {

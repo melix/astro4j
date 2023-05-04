@@ -13,12 +13,19 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package me.champeau.a4j.jsolex.processing.params;
+package me.champeau.a4j.jsolex.processing.sun.workflow;
 
-public record SpectrumParams(
-        SpectralRay ray,
-        double spectralLineDetectionThreshold,
-        int pixelShift,
-        int dopplerShift
-) {
+import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
+import me.champeau.a4j.jsolex.processing.util.ParallelExecutor;
+
+import java.io.File;
+
+/**
+ * An image emitter factory is responsible for creating
+ * instances of image emitters, which can for example
+ * be no-op (in case we don't care about intermediate
+ * images) or renaming files.
+ */
+public interface ImageEmitterFactory {
+    ImageEmitter newEmitter(Broadcaster broadcaster, ParallelExecutor executor, File outputDirectory);
 }

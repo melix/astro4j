@@ -42,6 +42,8 @@ import java.util.Optional;
 
 public class ProcessParamsController {
     @FXML
+    private Slider dopplerShifting;
+    @FXML
     private CheckBox autoSave;
     @FXML
     private Slider bandingCorrectionPasses;
@@ -106,6 +108,7 @@ public class ProcessParamsController {
         observationDate.setTextFormatter(new TextFormatter<>(new ZonedDateTimeStringConverter()));
         observationDate.textProperty().set(dateFromSerFile.toString());
         pixelShifting.valueProperty().set(initial.spectrumParams().pixelShift());
+        dopplerShifting.valueProperty().set(initial.spectrumParams().dopplerShift());
         assumeMonoVideo.setSelected(initial.videoParams().colorMode() == ColorMode.MONO);
         forceTilt.setSelected(false);
         tiltValue.setTextFormatter(new TextFormatter<>(new DoubleStringConverter()));
@@ -130,7 +133,7 @@ public class ProcessParamsController {
     public void process() {
         var focalLength = this.focalLength.getText();
         processParams = new ProcessParams(
-                new SpectrumParams(wavelength.getValue(), spectralLineDetectionThreshold.getValue(), (int) Math.round(pixelShifting.getValue())),
+                new SpectrumParams(wavelength.getValue(), spectralLineDetectionThreshold.getValue(), (int) Math.round(pixelShifting.getValue()), (int) Math.round(dopplerShifting.getValue())),
                 new ObservationDetails(
                         observerName.getText(),
                         instrument.getText(),
@@ -162,6 +165,7 @@ public class ProcessParamsController {
     public void resetRayParams() {
         spectralLineDetectionThreshold.setValue(wavelength.getValue().getDetectionThreshold());
         pixelShifting.setValue(0);
+        dopplerShifting.setValue(3);
     }
 
     @FXML

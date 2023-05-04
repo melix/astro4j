@@ -37,4 +37,11 @@ public final class CutoffStretchingStrategy implements StretchingStrategy {
             }
         }
     }
+
+    @Override
+    public void stretch(float[][] rgb) {
+        stretch(rgb[0]);
+        stretch(rgb[1]);
+        stretch(rgb[2]);
+    }
 }

@@ -17,31 +17,30 @@ package me.champeau.a4j.jsolex.processing.sun.tasks;
 
 import me.champeau.a4j.jsolex.processing.stretching.StretchingStrategy;
 import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
-import me.champeau.a4j.jsolex.processing.util.ColorizedImageWrapper;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
+import me.champeau.a4j.jsolex.processing.util.RGBImage;
 
 import java.io.File;
-import java.util.function.Function;
+import java.util.function.Supplier;
 
-public class WriteColorImageTask extends AbstractImageWriterTask {
-    private final ImageWrapper32 mono;
-    private final Function<float[], float[][]> converter;
+public class WriteRGBImageTask extends AbstractImageWriterTask {
+    private final Supplier<float[][]> supplier;
 
-    public WriteColorImageTask(Broadcaster broadcaster,
-                               ImageWrapper32 image,
-                               StretchingStrategy stretchingStrategy,
-                               File outputDirectory,
-                               String title,
-                               String name,
-                               Function<float[], float[][]> converter) {
-        super(broadcaster, image, stretchingStrategy, outputDirectory, title, name);
-        this.mono = image;
-        this.converter = converter;
+    public WriteRGBImageTask(Broadcaster broadcaster,
+                             StretchingStrategy stretchingStrategy,
+                             ImageWrapper32 ref,
+                             File outputDirectory,
+                             String title,
+                             String name,
+                             Supplier<float[][]> supplier) {
+        super(broadcaster, ref, stretchingStrategy, outputDirectory, title, name);
+        this.supplier = supplier;
     }
 
     @Override
     public ImageWrapper createImageWrapper() {
-        return new ColorizedImageWrapper(mono, converter);
+        var rgb = supplier.get();
+        return new RGBImage(width, height, rgb[0], rgb[1], rgb[2]);
     }
 }

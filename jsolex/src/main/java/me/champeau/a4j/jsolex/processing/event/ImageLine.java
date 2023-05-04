@@ -15,5 +15,5 @@
  */
 package me.champeau.a4j.jsolex.processing.event;
 
-public record ImageLine(int pixelShift, int line, double[] data) {
+public record ImageLine(int pixelShift, int line, double[] data, boolean display) {
 }

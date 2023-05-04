@@ -16,67 +16,19 @@
 package me.champeau.a4j.jsolex.processing.sun.workflow;
 
 import me.champeau.a4j.jsolex.processing.stretching.StretchingStrategy;
-import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
-import me.champeau.a4j.jsolex.processing.sun.tasks.WriteColorImageTask;
-import me.champeau.a4j.jsolex.processing.sun.tasks.WriteMonoImageTask;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
-import me.champeau.a4j.jsolex.processing.util.ParallelExecutor;
 
-import java.io.File;
 import java.util.concurrent.Future;
 import java.util.function.Consumer;
 import java.util.function.Function;
+import java.util.function.Supplier;
 
-/**
- * An image emitter is a utility tool to generate
- * mono or color images with transformations.
- */
-class ImageEmitter {
-    private final Broadcaster broadcaster;
-    private final ParallelExecutor executor;
-    private final File outputDir;
+public interface ImageEmitter {
+    Future<Void> newMonoImage(WorkflowStep step, String title, String name, ImageWrapper32 image, StretchingStrategy stretchingStrategy, Consumer<? super float[]> bufferConsumer);
 
-    ImageEmitter(Broadcaster broadcaster,
-                         ParallelExecutor executor,
-                         File outputDir) {
-        this.broadcaster = broadcaster;
-        this.executor = executor;
-        this.outputDir = outputDir;
-    }
+    Future<Void> newMonoImage(WorkflowStep step, String title, String name, ImageWrapper32 image, StretchingStrategy stretchingStrategy);
 
-    public Future<Void> newMonoImage(String title, String name, ImageWrapper32 image, StretchingStrategy stretchingStrategy, Consumer<? super float[]> bufferConsumer) {
-        return executor.submit(new WriteMonoImageTask(broadcaster,
-                image,
-                stretchingStrategy,
-                outputDir,
-                title,
-                name
-        ) {
-            @Override
-            public void transform() {
-                bufferConsumer.accept(getBuffer());
-            }
-        });
-    }
+    Future<Void> newColorImage(WorkflowStep step, String title, String name, ImageWrapper32 image, StretchingStrategy stretchingStrategy, Function<float[], float[][]> rgbSupplier);
 
-    public Future<Void> newMonoImage(String title, String name, ImageWrapper32 image, StretchingStrategy stretchingStrategy) {
-        return executor.submit(new WriteMonoImageTask(broadcaster,
-                image,
-                stretchingStrategy,
-                outputDir,
-                title,
-                name
-        ));
-    }
-
-    public Future<Void> newColorImage(String title, String name, ImageWrapper32 image, StretchingStrategy stretchingStrategy, Function<float[], float[][]> rgbSupplier) {
-        return executor.submit(new WriteColorImageTask(broadcaster,
-                image,
-                stretchingStrategy,
-                outputDir,
-                title,
-                name,
-                rgbSupplier)
-        );
-    }
+    Future<Void> newColorImage(WorkflowStep step, String title, String name, StretchingStrategy stretchingStrategy, int width, int height, Supplier<float[][]> rgbSupplier);
 }

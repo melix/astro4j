@@ -53,6 +53,32 @@ public final class LinearStrechingStrategy implements StretchingStrategy {
         }
     }
 
+    @Override
+    public void stretch(float[][] rgb) {
+        var cutoff = new CutoffStretchingStrategy(lo, Float.MAX_VALUE);
+        cutoff.stretch(rgb[0]);
+        cutoff.stretch(rgb[1]);
+        cutoff.stretch(rgb[2]);
+        double minR = min(rgb[0]).orElse((double) lo);
+        double minG = min(rgb[1]).orElse((double) lo);
+        double minB = min(rgb[2]).orElse((double) lo);
+        double maxR = max(rgb[0]).orElse((double) lo);
+        double maxG = max(rgb[1]).orElse((double) lo);
+        double maxB = max(rgb[2]).orElse((double) lo);
+        double min = Math.min(Math.min(minR, minG), minB);
+        double max = Math.max(Math.max(maxR, maxG), maxB);
+        double range = max - min;
+        if (range == 0) {
+            return;
+        }
+        for (float[] channel : rgb) {
+            for (int i = 0; i < channel.length; i++) {
+                float v = (float) (hi / range * (channel[i] - min));
+                channel[i] = v;
+            }
+        }
+    }
+
     private static Optional<Double> min(float[] array) {
         if (array.length == 0) {
             return Optional.empty();

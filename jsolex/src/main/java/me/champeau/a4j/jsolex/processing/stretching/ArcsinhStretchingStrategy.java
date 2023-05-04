@@ -59,4 +59,21 @@ public final class ArcsinhStretchingStrategy implements StretchingStrategy {
         LinearStrechingStrategy.DEFAULT.stretch(data);
     }
 
+    @Override
+    public void stretch(float[][] rgb) {
+        double max = Constants.MAX_PIXEL_VALUE;
+        var bp = blackPoint / max;
+        int length = rgb[0].length;
+        for (int i = 0; i < length; i++) {
+            double mean = (0.2126 * rgb[0][i] + 0.7152 * rgb[1][i] + 0.0722 * rgb[2][i]);
+            for (int j = 0; j < rgb.length; j++) {
+                double original = rgb[j][i] / max;
+                var pixel = Math.max(0, original - bp);
+                double stretched = (pixel * asinh(original * stretch)) / (mean * asinh(stretch));
+                rgb[j][i] = (float) (stretched * max);
+            }
+        }
+        LinearStrechingStrategy.DEFAULT.stretch(rgb);
+    }
+
 }

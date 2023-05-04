@@ -25,6 +25,7 @@ import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.util.Duration;
 import me.champeau.a4j.jsolex.app.util.SpectralLineFrameImageCreator;
+import me.champeau.a4j.jsolex.processing.sun.ImageUtils;
 import me.champeau.a4j.jsolex.processing.sun.SpectrumFrameAnalyzer;
 import me.champeau.a4j.ser.ColorMode;
 import me.champeau.a4j.ser.ImageGeometry;
@@ -121,7 +122,8 @@ public class SpectralLineDebugger {
         );
         analyzer.analyze(buffer);
         var creator = new SpectralLineFrameImageCreator(analyzer, buffer, width, height);
-        creator.generateDebugImage(imageFile);
+        var rgb = creator.generateDebugImage();
+        ImageUtils.writeRgbImage(rgb.width(), rgb.height(), rgb.r(), rgb.g(), rgb.b(), imageFile);
         imageView.setImage(new Image(imageFile.toURI().toString()));
     }
 }

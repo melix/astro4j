@@ -20,10 +20,12 @@ import me.champeau.a4j.jsolex.processing.color.ColorCurve;
 import me.champeau.a4j.jsolex.processing.event.OutputImageDimensionsDeterminedEvent;
 import me.champeau.a4j.jsolex.processing.event.SuggestionEvent;
 import me.champeau.a4j.jsolex.processing.params.ProcessParams;
+import me.champeau.a4j.jsolex.processing.params.SpectralRay;
 import me.champeau.a4j.jsolex.processing.stretching.ArcsinhStretchingStrategy;
 import me.champeau.a4j.jsolex.processing.stretching.CutoffStretchingStrategy;
 import me.champeau.a4j.jsolex.processing.stretching.LinearStrechingStrategy;
 import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
+import me.champeau.a4j.jsolex.processing.sun.WorkflowState;
 import me.champeau.a4j.jsolex.processing.sun.tasks.CoronagraphTask;
 import me.champeau.a4j.jsolex.processing.sun.tasks.EllipseFittingTask;
 import me.champeau.a4j.jsolex.processing.sun.tasks.GeometryCorrector;
@@ -37,6 +39,7 @@ import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.util.Arrays;
+import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Future;
 
@@ -49,7 +52,8 @@ public class ProcessingWorkflow {
 
     private final ParallelExecutor executor;
     private final ProcessParams processParams;
-    private final ImageWrapper32 rawImage;
+    private final List<WorkflowState> states;
+    private final WorkflowState state;
     private final Double fps;
     private final ImageEmitter rawImagesEmitter;
     private final ImageEmitter debugImagesEmitter;
@@ -65,23 +69,32 @@ public class ProcessingWorkflow {
             File debugImagesDirectory,
             File processedImagesDirectory,
             ParallelExecutor executor,
-            ImageWrapper32 rawImage,
+            List<WorkflowState> states,
+            int currentStep,
             ProcessParams processParams,
-            Double fps) {
+            Double fps,
+            ImageEmitterFactory imageEmitterFactory) {
         this.broadcaster = broadcaster;
         this.executor = executor;
-        this.rawImage = rawImage;
+        this.states = states;
+        this.state = states.get(currentStep);
         this.processParams = processParams;
         this.fps = fps;
-        this.rawImagesEmitter = new ImageEmitter(broadcaster, executor, rawImagesDirectory);
-        this.debugImagesEmitter = new ImageEmitter(broadcaster, executor, debugImagesDirectory);
-        this.processedImagesEmitter = new ImageEmitter(broadcaster, executor, processedImagesDirectory);
+        this.rawImagesEmitter = imageEmitterFactory.newEmitter(broadcaster, executor, rawImagesDirectory);
+        this.debugImagesEmitter = imageEmitterFactory.newEmitter(broadcaster, executor, debugImagesDirectory);
+        this.processedImagesEmitter = imageEmitterFactory.newEmitter(broadcaster, executor, processedImagesDirectory);
     }
 
     public void start() {
-        rawImagesEmitter.newMonoImage("Raw (Linear)", "linear", rawImage, LinearStrechingStrategy.DEFAULT);
-        var ellipseFittingTask = executor.submit(new EllipseFittingTask(broadcaster, rawImage, 10d));
-        ellipseFittingTask.thenAccept(r -> performBandingCorrection(r, rawImage).thenAccept(bandingFixed -> geometryCorrection(r, bandingFixed)));
+        rawImagesEmitter.newMonoImage(WorkflowStep.RAW_IMAGE, "Raw (Linear)", "linear", state.image(), LinearStrechingStrategy.DEFAULT);
+        var ellipseFittingTask = executor.submit(new EllipseFittingTask(broadcaster, state.image(), 10d));
+        ellipseFittingTask.thenAccept(r -> {
+            state.recordResult(WorkflowStep.ELLIPSE_FITTING, r);
+            performBandingCorrection(r, state.image()).thenAccept(bandingFixed -> {
+                state.recordResult(WorkflowStep.BANDING_CORRECTION, bandingFixed);
+                geometryCorrection(r, bandingFixed);
+            });
+        });
 
     }
 
@@ -94,7 +107,7 @@ public class ProcessingWorkflow {
         var geometryParams = processParams.geometryParams();
         boolean isTiltReliable = ellipse.isAlmostCircle(CIRCLE_EPSILON);
         var tiltString = String.format("%.2f", tiltDegrees);
-        if (Math.abs(tiltDegrees) > 1 && isTiltReliable && !geometryParams.tilt().isPresent()) {
+        if (Math.abs(tiltDegrees) > 1 && isTiltReliable && geometryParams.tilt().isEmpty()) {
             broadcaster.broadcast(new SuggestionEvent("Tilt angle is " + tiltString + ". You should try to reduce it to less than 1°"));
         }
         var correctionAngle = isTiltReliable ? -ellipse.tiltAngle() : 0d;
@@ -106,21 +119,76 @@ public class ProcessingWorkflow {
         if (!isTiltReliable) {
             LOGGER.info("Will not apply rotation correction as sun disk is almost a circle (and therefore tilt angle is not reliable)");
         }
-        processedImagesEmitter.newMonoImage("Banding fixed", "banding-fixed", bandingFixed, new ArcsinhStretchingStrategy(blackPoint, 7, 20));
+        processedImagesEmitter.newMonoImage(WorkflowStep.BANDING_CORRECTION, "Disk", "disk", bandingFixed, new ArcsinhStretchingStrategy(blackPoint, 7, 20));
         executor.submit(new GeometryCorrector(broadcaster, bandingFixed, ellipse, correctionAngle, blackPoint, fps, geometryParams.xyRatio())).thenAccept(geometryFixed -> {
+            state.recordResult(WorkflowStep.GEOMETRY_CORRECTION, geometryFixed);
             broadcaster.broadcast(OutputImageDimensionsDeterminedEvent.of("geometry corrected", geometryFixed.width(), geometryFixed.height()));
-            executor.submit(() -> produceEdgeDetectionImage(result, geometryFixed));
-            executor.submit(() -> produceStretchedImage(blackPoint, geometryFixed));
-            executor.submit(() -> produceColorizedImage(blackPoint, geometryFixed, processParams));
-            executor.submit(() -> produceCoronagraph(blackPoint, geometryFixed, processParams));
+            if (state.isEnabled(WorkflowStep.EDGE_DETECTION_IMAGE)) {
+                executor.submit(() -> produceEdgeDetectionImage(result, geometryFixed));
+            }
+            if (state.isEnabled(WorkflowStep.STRECHED_IMAGE)) {
+                executor.submit(() -> produceStretchedImage(blackPoint, geometryFixed));
+            }
+            if (state.isEnabled(WorkflowStep.COLORIZED_IMAGE)) {
+                executor.submit(() -> produceColorizedImage(blackPoint, geometryFixed, processParams));
+            }
+            if (state.isEnabled(WorkflowStep.CORONAGRAPH)) {
+                executor.submit(() -> produceCoronagraph(blackPoint, geometryFixed, processParams));
+            }
+            if (state.isEnabled(WorkflowStep.DOPPLER_IMAGE)) {
+                produceDopplerImage(blackPoint);
+            }
         });
+    }
+
+    private void produceDopplerImage(float blackPoint) {
+        if (processParams.spectrumParams().ray() != SpectralRay.H_ALPHA) {
+            return;
+        }
+        executor.submit(() -> {
+            var dopplerShift = processParams.spectrumParams().dopplerShift();
+            var first = states.stream().filter(s -> s.pixelShift() == -dopplerShift).findFirst();
+            var second = states.stream().filter(s -> s.pixelShift() == dopplerShift).findFirst();
+            first.ifPresent(s1 -> second.ifPresent(s2 -> {
+                s1.findResult(WorkflowStep.BANDING_CORRECTION).ifPresent(i1 -> s2.findResult(WorkflowStep.BANDING_CORRECTION).ifPresent(i2 -> {
+                    var grey1 = (ImageWrapper32) i1;
+                    var grey2 = (ImageWrapper32) i2;
+                    var width = grey1.width();
+                    var height = grey1.height();
+                    processedImagesEmitter.newColorImage(WorkflowStep.DOPPLER_IMAGE,
+                            "Doppler",
+                            "doppler",
+                            new ArcsinhStretchingStrategy(blackPoint, 1, 20),
+                            width,
+                            height,
+                            () -> toDopplerImage(width, height, grey1, grey2));
+                }));
+            }));
+        });
+    }
+
+    private static float[][] toDopplerImage(int width, int height, ImageWrapper32 grey1, ImageWrapper32 grey2) {
+        float[] r = new float[width * height];
+        float[] g = new float[width * height];
+        float[] b = new float[width * height];
+        var d1 = grey1.data();
+        var d2 = grey2.data();
+        for (int y = 0; y < height; y++) {
+            for (int x = 0; x < width; x++) {
+                var idx = x + y * width;
+                r[idx] = d1[idx];
+                g[idx] = (d1[idx] + d2[idx]) / 2;
+                b[idx] = d2[idx];
+            }
+        }
+        return new float[][]{r, g, b};
     }
 
     private void produceColorizedImage(float blackPoint, ImageWrapper32 corrected, ProcessParams params) {
         CutoffStretchingStrategy.DEFAULT.stretch(corrected.data());
-        params.spectrumParams().ray().getColorCurve().ifPresent(curve -> {
-            processedImagesEmitter.newColorImage("Colorized (" + curve.ray() + ")", "colorized", corrected, new ArcsinhStretchingStrategy(blackPoint, 10, 200), mono -> convertToRGB(curve, mono));
-        });
+        params.spectrumParams().ray().getColorCurve().ifPresent(curve ->
+                processedImagesEmitter.newColorImage(WorkflowStep.COLORIZED_IMAGE, "Colorized (" + curve.ray() + ")", "colorized", corrected, new ArcsinhStretchingStrategy(blackPoint, 10, 200), mono -> convertToRGB(curve, mono))
+        );
     }
 
     private static float[][] convertToRGB(ColorCurve curve, float[] mono) {
@@ -142,12 +210,12 @@ public class ProcessingWorkflow {
     }
 
     private Future<Void> produceStretchedImage(float blackPoint, ImageWrapper32 geometryFixed) {
-        return processedImagesEmitter.newMonoImage("Stretched", "streched", geometryFixed, new ArcsinhStretchingStrategy(blackPoint, 10, 100));
+        return processedImagesEmitter.newMonoImage(WorkflowStep.STRECHED_IMAGE, "Stretched", "streched", geometryFixed, new ArcsinhStretchingStrategy(blackPoint, 10, 100));
     }
 
     private void produceEdgeDetectionImage(EllipseFittingTask.Result result, ImageWrapper32 geometryFixed) {
         if (processParams.debugParams().generateDebugImages()) {
-            debugImagesEmitter.newMonoImage("Edge detection", "edge-detection", geometryFixed, LinearStrechingStrategy.DEFAULT, debugImage -> {
+            debugImagesEmitter.newMonoImage(WorkflowStep.EDGE_DETECTION_IMAGE, "Edge detection", "edge-detection", geometryFixed, LinearStrechingStrategy.DEFAULT, debugImage -> {
                 var samples = result.samples();
                 Arrays.fill(debugImage, 0f);
                 fill(result.ellipse(), debugImage, geometryFixed.width(), (int) Constants.MAX_PIXEL_VALUE / 4);
@@ -163,7 +231,7 @@ public class ProcessingWorkflow {
     private void produceCoronagraph(float blackPoint, ImageWrapper32 geometryFixed, ProcessParams params) {
         executor.submit(new EllipseFittingTask(broadcaster, geometryFixed, 6d))
                 .thenAccept(fitting -> executor.submit(new CoronagraphTask(broadcaster, geometryFixed, fitting, blackPoint)).thenAccept(coronagraph -> {
-                            processedImagesEmitter.newMonoImage("Coronagraph", "protus", coronagraph, LinearStrechingStrategy.DEFAULT);
+                            processedImagesEmitter.newMonoImage(WorkflowStep.COLORIZED_IMAGE, "Coronagraph", "protus", coronagraph, LinearStrechingStrategy.DEFAULT);
                         }
                 ));
     }
