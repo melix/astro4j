@@ -30,15 +30,23 @@ public class ParallelExecutor implements AutoCloseable {
     private static final Logger LOGGER = LoggerFactory.getLogger(ParallelExecutor.class);
 
     private final ExecutorService executorService = Executors.newWorkStealingPool();
-    private final Semaphore semaphore = new Semaphore(8 * Runtime.getRuntime().availableProcessors());
+    private final Semaphore semaphore;
 
     private Consumer<? super Exception> exceptionHandler = (Consumer<Exception>) e -> LOGGER.error("An error happened during processing", e);
 
-    private ParallelExecutor() {
+    private ParallelExecutor(int parallelism) {
+        semaphore = new Semaphore(parallelism);
     }
 
     public static ParallelExecutor newExecutor() {
-        return new ParallelExecutor();
+        return new ParallelExecutor(8 * Runtime.getRuntime().availableProcessors());
+    }
+
+    public static ParallelExecutor newExecutor(int parallelism) {
+        if (parallelism < 1) {
+            throw new IllegalArgumentException("Parallelism cannot be lower than 1");
+        }
+        return new ParallelExecutor(parallelism);
     }
 
     public void setExceptionHandler(Consumer<? super Exception> exceptionHandler) {

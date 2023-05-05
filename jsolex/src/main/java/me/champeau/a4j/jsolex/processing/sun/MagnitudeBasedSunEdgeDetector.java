@@ -50,7 +50,10 @@ public class MagnitudeBasedSunEdgeDetector implements SunEdgeDetector {
         int frameCount = reader.header().frameCount();
         ImageGeometry geometry = reader.header().geometry();
         var magnitudes = new float[frameCount];
-        try (var executor = ParallelExecutor.newExecutor()) {
+        int imageSize = geometry.width() * geometry.height() * 5; // 4 bytes per pixel for float[] + 1 byte for the intermediate buffer
+        int maxMemoryUse = 100 * 1024 * 1024;
+        int maxParalleism = Math.max(1, Math.min(maxMemoryUse/imageSize, 16 * Runtime.getRuntime().availableProcessors()));
+        try (var executor = ParallelExecutor.newExecutor(maxParalleism)) {
             for (int i = 0; i < frameCount; i++) {
                 int frameId = i;
                 // Because we're processing each frame concurrently we need
