@@ -69,15 +69,18 @@ public class SolexVideoProcessor implements Broadcaster {
     private final File processedDirectory;
     private final File rawImagesDirectory;
     private final ProcessParams processParams;
+    private final boolean quickMode;
 
     public SolexVideoProcessor(File serFile,
                                File outputDirectory,
-                               ProcessParams processParametersProvider) {
+                               ProcessParams processParametersProvider,
+                               boolean quickMode) {
         this.serFile = serFile;
         this.debugDirectory = new File(outputDirectory, Constants.DEBUG_DIRECTORY);
         this.rawImagesDirectory = new File(outputDirectory, Constants.RAW_DIRECTORY);
         this.processedDirectory = new File(outputDirectory, Constants.PROCESSED_DIRECTORY);
         this.processParams = processParametersProvider;
+        this.quickMode = quickMode;
     }
 
     public void addEventListener(ProcessingEventListener listener) {
@@ -134,15 +137,7 @@ public class SolexVideoProcessor implements Broadcaster {
         var fps = reader.estimateFps();
         int newHeight = end - start;
         broadcast(OutputImageDimensionsDeterminedEvent.of("raw", width, newHeight));
-        var dopplerShift = processParams.spectrumParams().dopplerShift();
-        var imageList = processParams.spectrumParams().pixelShift() == 0 ? List.of(
-                WorkflowState.prepare(width, newHeight, 0, EnumSet.allOf(WorkflowStep.class)),
-                WorkflowState.prepare(width, newHeight, -dopplerShift),
-                WorkflowState.prepare(width, newHeight, dopplerShift, WorkflowStep.DOPPLER_IMAGE),
-                WorkflowState.prepare(width, newHeight, +15, WorkflowStep.BANDING_CORRECTION)
-        ) : List.of(
-                WorkflowState.prepare(width, newHeight, processParams.spectrumParams().pixelShift(), EnumSet.allOf(WorkflowStep.class))
-        );
+        List<WorkflowState> imageList = createWorkflowStateSteps(width, newHeight);
         LOGGER.info("Starting reconstruction...");
         performImageReconstruction(converter, reader, start, end, geometry, width, height, imageList.toArray(new WorkflowState[0]));
         ProcessParams currentParams = processParams;
@@ -188,6 +183,23 @@ public class SolexVideoProcessor implements Broadcaster {
         }
 
         broadcast(new ProcessingDoneEvent(System.nanoTime()));
+    }
+
+    private List<WorkflowState> createWorkflowStateSteps(int width, int newHeight) {
+        if (quickMode) {
+            return List.of(WorkflowState.prepare(width, newHeight, processParams.spectrumParams().pixelShift(),
+                    EnumSet.of(WorkflowStep.RAW_IMAGE, WorkflowStep.BANDING_CORRECTION)));
+        }
+        var dopplerShift = processParams.spectrumParams().dopplerShift();
+        var imageList = processParams.spectrumParams().pixelShift() == 0 ? List.of(
+                WorkflowState.prepare(width, newHeight, 0, EnumSet.allOf(WorkflowStep.class)),
+                WorkflowState.prepare(width, newHeight, -dopplerShift),
+                WorkflowState.prepare(width, newHeight, dopplerShift, WorkflowStep.DOPPLER_IMAGE),
+                WorkflowState.prepare(width, newHeight, +15, WorkflowStep.BANDING_CORRECTION)
+        ) : List.of(
+                WorkflowState.prepare(width, newHeight, processParams.spectrumParams().pixelShift(), EnumSet.allOf(WorkflowStep.class))
+        );
+        return imageList;
     }
 
     private void performImageReconstruction(ImageConverter<float[]> converter, SerFileReader reader, int start, int end, ImageGeometry geometry, int width, int height, WorkflowState... images) {
@@ -273,7 +285,7 @@ public class SolexVideoProcessor implements Broadcaster {
             line[x] = value;
             lastY = yi;
         }
-        broadcast(new PartialReconstructionEvent(new ImageLine(pixelShift, offset / width, line, processParams.debugParams().generateDebugImages())));
+        broadcast(new PartialReconstructionEvent(new ImageLine(pixelShift, offset / width, line, quickMode || processParams.debugParams().generateDebugImages())));
     }
 
     @Override

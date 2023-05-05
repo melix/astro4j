@@ -84,6 +84,7 @@ public class ProcessParamsController {
 
     private Stage stage;
     private ProcessParams processParams;
+    private boolean quickMode;
 
     public void setup(Stage stage, ZonedDateTime dateFromSerFile) {
         this.stage = stage;
@@ -131,6 +132,11 @@ public class ProcessParamsController {
 
     @FXML
     public void process() {
+        doProcess(false);
+    }
+
+    private void doProcess(boolean quick) {
+        this.quickMode = quick;
         var focalLength = this.focalLength.getText();
         processParams = new ProcessParams(
                 new SpectrumParams(wavelength.getValue(), spectralLineDetectionThreshold.getValue(), (int) Math.round(pixelShifting.getValue()), (int) Math.round(dopplerShifting.getValue())),
@@ -155,6 +161,15 @@ public class ProcessParamsController {
         );
         ProcessParams.saveDefaults(processParams);
         stage.close();
+    }
+
+    @FXML
+    public void quickProcess() {
+        doProcess(true);
+    }
+
+    public boolean isQuickMode() {
+        return quickMode;
     }
 
     public Optional<ProcessParams> getProcessParams() {

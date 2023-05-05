@@ -69,7 +69,6 @@ import java.nio.file.Path;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Consumer;
@@ -213,14 +212,15 @@ public class JSolEx extends Application {
         config.loaded(selectedFile.toPath());
         Platform.runLater(this::refreshRecentItemsMenu);
         try (var reader = SerFileReader.of(selectedFile)) {
-            var processParams = createProcessParams(reader);
-            processParams.ifPresent(params -> startProcess(selectedFile, params));
+            var controller = createProcessParams(reader);
+            var processParams = controller.getProcessParams();
+            processParams.ifPresent(params -> startProcess(selectedFile, params, controller.isQuickMode()));
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
     }
 
-    private void startProcess(File selectedFile, ProcessParams params) {
+    private void startProcess(File selectedFile, ProcessParams params, boolean quickMode) {
         mainPane.getTabs().clear();
         console.textProperty().set("");
         reconstructionStarted = false;
@@ -234,7 +234,8 @@ public class JSolEx extends Application {
         LOGGER.info("Output directory set to {}", outputDirectory);
         var processor = new SolexVideoProcessor(selectedFile,
                 outputDirectory,
-                params
+                params,
+                quickMode
         );
         var listener = new ProcessingEventListener() {
             private final Map<Integer, ImageView> imageViews = new HashMap<>();
@@ -415,7 +416,7 @@ public class JSolEx extends Application {
         new Thread(task).start();
     }
 
-    private Optional<ProcessParams> createProcessParams(SerFileReader serFileReader) {
+    private ProcessParamsController createProcessParams(SerFileReader serFileReader) {
         var loader = new FXMLLoader(getClass().getResource("process-params.fxml"));
         try {
             var dialog = new Stage();
@@ -428,7 +429,7 @@ public class JSolEx extends Application {
             dialog.initOwner(rootStage);
             dialog.initModality(Modality.APPLICATION_MODAL);
             dialog.showAndWait();
-            return controller.getProcessParams();
+            return controller;
         } catch (IOException e) {
             throw new RuntimeException(e);
         }

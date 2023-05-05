@@ -52,8 +52,13 @@
    <bottom>
       <AnchorPane>
          <children>
-            <Button layoutX="456.0" layoutY="8.0" mnemonicParsing="false" onAction="#process" text="Start process" />
+            <Button layoutX="456.0" layoutY="8.0" mnemonicParsing="false" onAction="#process" text="Full process" />
             <Button layoutX="31.0" layoutY="8.0" mnemonicParsing="false" onAction="#cancel" text="Cancel" />
+            <Button layoutX="334.0" layoutY="8.0" mnemonicParsing="false" onAction="#quickProcess" text="Quick mode">
+               <tooltip>
+                  <Tooltip text="Reconstructs the raw image and performs geometry correction" />
+               </tooltip>
+            </Button>
          </children>
          <padding>
             <Insets bottom="8.0" left="8.0" right="8.0" top="8.0" />
@@ -115,7 +120,7 @@
                                     <Tooltip text="The X/Y ratio" />
                                  </tooltip></TextField>
                               <Label text="Doppler shifting" GridPane.rowIndex="3" />
-                              <Slider fx:id="dopplerShifting" blockIncrement="1.0" majorTickUnit="1.0" min="1.0" max="4.0" minorTickCount="0" showTickLabels="true" showTickMarks="true" snapToTicks="true" value="3.0" GridPane.columnIndex="1" GridPane.rowIndex="3">
+                              <Slider fx:id="dopplerShifting" blockIncrement="1.0" majorTickUnit="1.0" max="4.0" min="1.0" minorTickCount="0" showTickLabels="true" showTickMarks="true" snapToTicks="true" value="3.0" GridPane.columnIndex="1" GridPane.rowIndex="3">
                                  <tooltip>
                                     <Tooltip text="How many pixels to shift from central line to create Doppler image" />
                                  </tooltip>
