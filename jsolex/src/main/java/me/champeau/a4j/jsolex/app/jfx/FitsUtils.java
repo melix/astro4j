@@ -112,17 +112,17 @@ class FitsUtils {
         }
         var coordinates = obs.coordinates();
         if (coordinates != null) {
-            header.addValue(SBFitsExt.SITELAT, coordinates.a());
-            header.addValue(SBFitsExt.SITELONG, coordinates.b());
+            header.addValue(SBFitsExt.SITELAT, String.valueOf(coordinates.a()));
+            header.addValue(SBFitsExt.SITELONG, String.valueOf(coordinates.b()));
         }
         header.addValue(DataDescription.CREATOR, "JSol'Ex");
         var fl = obs.focalLength();
         if (fl != null) {
-            header.addValue(SBFitsExt.FOCALLEN, fl);
+            header.addValue(SBFitsExt.FOCALLEN, fl.floatValue());
         }
         var aperture = obs.aperture();
         if (aperture != null) {
-            header.addValue(InstrumentDescription.APERTURE, aperture);
+            header.addValue(InstrumentDescription.APERTURE, String.valueOf(aperture));
         }
         var wavelength = params.spectrumParams().ray().getWavelength();
         if (wavelength != 0) {
