@@ -17,6 +17,6 @@ package me.champeau.a4j.jsolex.processing.params;
 
 public record DebugParams(
         boolean generateDebugImages,
-        boolean autosave
-) {
+        boolean autosave,
+        boolean generateFits) {
 }

@@ -86,6 +86,7 @@ public class ProcessingWorkflow {
     }
 
     public void start() {
+        rawImagesEmitter.newMonoImage(WorkflowStep.RAW_IMAGE, "Raw", "recon", state.image(), CutoffStretchingStrategy.DEFAULT);
         rawImagesEmitter.newMonoImage(WorkflowStep.RAW_IMAGE, "Raw (Linear)", "linear", state.image(), LinearStrechingStrategy.DEFAULT);
         var ellipseFittingTask = executor.submit(new EllipseFittingTask(broadcaster, state.image(), 10d));
         ellipseFittingTask.thenAccept(r -> {

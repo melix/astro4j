@@ -30,6 +30,7 @@ import javafx.util.Duration;
 import me.champeau.a4j.jsolex.app.util.Constants;
 import me.champeau.a4j.jsolex.processing.event.ProcessingEventListener;
 import me.champeau.a4j.jsolex.processing.event.ProgressEvent;
+import me.champeau.a4j.jsolex.processing.params.ProcessParams;
 import me.champeau.a4j.jsolex.processing.stretching.ArcsinhStretchingStrategy;
 import me.champeau.a4j.jsolex.processing.stretching.CutoffStretchingStrategy;
 import me.champeau.a4j.jsolex.processing.stretching.LinearStrechingStrategy;
@@ -53,6 +54,7 @@ public class ImageViewer {
     private ImageWrapper image;
     private File imageFile;
     private ProcessingEventListener broadcaster;
+    private ProcessParams processParams;
 
     @FXML
     private HBox stretchingParams;
@@ -70,16 +72,17 @@ public class ImageViewer {
         return imageView.fitWidthProperty();
     }
 
-    public void setImage(ProcessingEventListener broadcaster,
-                         ImageWrapper image,
-                         StretchingStrategy strategy,
-                         File imageFile,
-                         boolean autosave) {
+    public void setup(ProcessingEventListener broadcaster,
+                      ImageWrapper image,
+                      StretchingStrategy strategy,
+                      File imageFile,
+                      ProcessParams params) {
         this.broadcaster = broadcaster;
         this.image = image;
         this.imageFile = imageFile;
+        this.processParams = params;
         configureStretching(strategy);
-        if (autosave) {
+        if (params.debugParams().autosave()) {
             saveImage(imageFile);
         }
     }
@@ -88,6 +91,9 @@ public class ImageViewer {
         if (image instanceof ImageWrapper32 mono) {
             float[] stretched = stretch(mono.data());
             ImageUtils.writeMonoImage(image.width(), image.height(), stretched, target);
+            if (processParams.debugParams().generateFits()) {
+                FitsUtils.writeFitsFile(new ImageWrapper32(image.width(), image.height(), stretched), toFits(target), processParams);
+            }
         } else if (image instanceof ColorizedImageWrapper colorImage) {
             float[] stretched = stretch(colorImage.mono().data());
             var colorized = colorImage.converter().apply(stretched);
@@ -95,14 +101,28 @@ public class ImageViewer {
             var g = colorized[1];
             var b = colorized[2];
             ImageUtils.writeRgbImage(colorImage.width(), colorImage.height(), r, g, b, target);
+            if (processParams.debugParams().generateFits()) {
+                FitsUtils.writeFitsFile(new RGBImage(image.width(), image.height(), r, g, b), toFits(target), processParams);
+            }
         } else if (image instanceof RGBImage rgb) {
             var stretched = stretch(rgb.r(), rgb.g(), rgb.g());
-            ImageUtils.writeRgbImage(rgb.width(), rgb.height(), stretched[0], stretched[1], stretched[2], target);
+            var r = stretched[0];
+            var g = stretched[1];
+            var b = stretched[2];
+            ImageUtils.writeRgbImage(rgb.width(), rgb.height(), r, g, b, target);
+            if (processParams.debugParams().generateFits()) {
+                FitsUtils.writeFitsFile(new RGBImage(image.width(), image.height(), r, g, b), toFits(target), processParams);
+            }
         }
         Platform.runLater(() -> {
             imageView.setImage(new Image(imageFile.toURI().toString()));
             saveButton.setDisable(true);
         });
+    }
+
+    private File toFits(File target) {
+        String fileNameWithoutExtension = target.getName().substring(0, target.getName().lastIndexOf("."));
+        return new File(target.getParentFile(), fileNameWithoutExtension + ".fits");
     }
 
     private void configureStretching(StretchingStrategy strategy) {

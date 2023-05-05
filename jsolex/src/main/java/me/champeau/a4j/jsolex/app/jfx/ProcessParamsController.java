@@ -34,6 +34,7 @@ import me.champeau.a4j.jsolex.processing.params.ProcessParams;
 import me.champeau.a4j.jsolex.processing.params.SpectralRay;
 import me.champeau.a4j.jsolex.processing.params.SpectrumParams;
 import me.champeau.a4j.jsolex.processing.params.VideoParams;
+import me.champeau.a4j.math.tuples.DoublePair;
 import me.champeau.a4j.ser.ColorMode;
 
 import java.time.ZonedDateTime;
@@ -42,7 +43,11 @@ import java.util.Optional;
 
 public class ProcessParamsController {
     @FXML
-    private Slider dopplerShifting;
+    private Accordion accordion;
+    @FXML
+    private TextField aperture;
+    @FXML
+    private CheckBox assumeMonoVideo;
     @FXML
     private CheckBox autoSave;
     @FXML
@@ -50,37 +55,43 @@ public class ProcessParamsController {
     @FXML
     private Slider bandingCorrectionWidth;
     @FXML
+    private TextField camera;
+    @FXML
+    private Slider dopplerShifting;
+    @FXML
+    private TextField email;
+    @FXML
+    private TextField focalLength;
+    @FXML
     private CheckBox forceTilt;
     @FXML
     private CheckBox forceXYRatio;
     @FXML
-    private TextField tiltValue;
+    private CheckBox generateDebugImages;
     @FXML
-    private TextField xyRatioValue;
-    @FXML
-    private Slider pixelShifting;
-    @FXML
-    private ChoiceBox<SpectralRay> wavelength;
-    @FXML
-    private TextField observerName;
+    private CheckBox generateFits;
     @FXML
     private TextField instrument;
     @FXML
-    private TextField telescope;
+    private TextField latitude;
+    @FXML
+    private TextField longitude;
     @FXML
     private TextField observationDate;
     @FXML
-    private TextField focalLength;
+    private TextField observerName;
     @FXML
-    private TextField camera;
+    private Slider pixelShifting;
     @FXML
     private Slider spectralLineDetectionThreshold;
     @FXML
-    private CheckBox generateDebugImages;
+    private TextField telescope;
     @FXML
-    private Accordion accordion;
+    private TextField tiltValue;
     @FXML
-    private CheckBox assumeMonoVideo;
+    private ChoiceBox<SpectralRay> wavelength;
+    @FXML
+    private TextField xyRatioValue;
 
     private Stage stage;
     private ProcessParams processParams;
@@ -96,18 +107,32 @@ public class ProcessParamsController {
         wavelength.valueProperty().addListener((observable, oldValue, newValue) -> spectralLineDetectionThreshold.setValue(newValue.getDetectionThreshold()));
         spectralLineDetectionThreshold.valueProperty().set(wavelength.getValue().getDetectionThreshold());
         observerName.textProperty().setValue(initial.observationDetails().observer());
+        email.textProperty().setValue(initial.observationDetails().email());
         instrument.textProperty().setValue(initial.observationDetails().instrument());
         telescope.textProperty().setValue(initial.observationDetails().telescope());
         camera.textProperty().setValue(initial.observationDetails().camera());
         generateDebugImages.setSelected(initial.debugParams().generateDebugImages());
+        generateFits.setSelected(initial.debugParams().generateFits());
         autoSave.setSelected(initial.debugParams().autosave());
         focalLength.setTextFormatter(new TextFormatter<>(new IntegerStringConverter()));
+        aperture.setTextFormatter(new TextFormatter<>(new IntegerStringConverter()));
         var length = initial.observationDetails().focalLength();
         if (length != null) {
             focalLength.textProperty().setValue(String.valueOf(length));
         }
+        var ap = initial.observationDetails().aperture();
+        if (ap != null) {
+            aperture.textProperty().setValue(String.valueOf(ap));
+        }
         observationDate.setTextFormatter(new TextFormatter<>(new ZonedDateTimeStringConverter()));
         observationDate.textProperty().set(dateFromSerFile.toString());
+        latitude.setTextFormatter(new TextFormatter<>(new DoubleStringConverter()));
+        longitude.setTextFormatter(new TextFormatter<>(new DoubleStringConverter()));
+        var coordinates = initial.observationDetails().coordinates();
+        if (coordinates != null) {
+            latitude.setText(Double.toString(coordinates.a()));
+            longitude.setText(Double.toString(coordinates.b()));
+        }
         pixelShifting.valueProperty().set(initial.spectrumParams().pixelShift());
         dopplerShifting.valueProperty().set(initial.spectrumParams().dopplerShift());
         assumeMonoVideo.setSelected(initial.videoParams().colorMode() == ColorMode.MONO);
@@ -138,17 +163,23 @@ public class ProcessParamsController {
     private void doProcess(boolean quick) {
         this.quickMode = quick;
         var focalLength = this.focalLength.getText();
+        var aperture = this.aperture.getText();
+        var latitude = this.latitude.getText();
+        var longitude = this.longitude.getText();
+        var geo = toDoublePair(latitude, longitude);
         processParams = new ProcessParams(
                 new SpectrumParams(wavelength.getValue(), spectralLineDetectionThreshold.getValue(), (int) Math.round(pixelShifting.getValue()), (int) Math.round(dopplerShifting.getValue())),
                 new ObservationDetails(
                         observerName.getText(),
+                        email.getText(),
                         instrument.getText(),
                         telescope.getText(),
                         focalLength.isEmpty() ? null : Integer.parseInt(focalLength),
+                        aperture.isEmpty() ? null : Integer.parseInt(aperture),
+                        geo,
                         ZonedDateTime.parse(observationDate.getText()),
-                        camera.getText()
-                ),
-                new DebugParams(generateDebugImages.isSelected(), autoSave.isSelected()),
+                        camera.getText()),
+                new DebugParams(generateDebugImages.isSelected(), autoSave.isSelected(), generateFits.isSelected()),
                 new VideoParams(assumeMonoVideo.isSelected() ? ColorMode.MONO : null),
                 new GeometryParams(
                         forceTilt.isSelected() ? Double.parseDouble(tiltValue.getText()) : null,
@@ -161,6 +192,13 @@ public class ProcessParamsController {
         );
         ProcessParams.saveDefaults(processParams);
         stage.close();
+    }
+
+    private DoublePair toDoublePair(String latitude, String longitude) {
+        if (latitude != null && !latitude.isEmpty() && longitude!=null && !longitude.isEmpty()) {
+            return new DoublePair(Double.parseDouble(latitude), Double.parseDouble(longitude));
+        }
+        return null;
     }
 
     @FXML
@@ -188,6 +226,7 @@ public class ProcessParamsController {
         assumeMonoVideo.setSelected(true);
         generateDebugImages.setSelected(false);
         autoSave.setSelected(true);
+        generateFits.setSelected(true);
         bandingCorrectionWidth.setValue(24);
         bandingCorrectionPasses.setValue(3);
     }

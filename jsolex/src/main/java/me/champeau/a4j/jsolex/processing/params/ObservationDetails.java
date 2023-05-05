@@ -15,13 +15,18 @@
  */
 package me.champeau.a4j.jsolex.processing.params;
 
+import me.champeau.a4j.math.tuples.DoublePair;
+
 import java.time.ZonedDateTime;
 
 public record ObservationDetails(
         String observer,
+        String email,
         String instrument,
         String telescope,
         Integer focalLength,
+        Integer aperture,
+        DoublePair coordinates,
         ZonedDateTime date,
         String camera
 ) {

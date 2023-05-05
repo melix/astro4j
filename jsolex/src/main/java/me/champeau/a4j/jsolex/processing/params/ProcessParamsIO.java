@@ -107,14 +107,16 @@ abstract class ProcessParamsIO {
         return new ProcessParams(
                 new SpectrumParams(SpectralRay.H_ALPHA, SpectralRay.H_ALPHA.getDetectionThreshold(), 0, 3),
                 new ObservationDetails(
-                        "",
+                        null,
+                        null,
                         "Sol'Ex",
-                        "",
+                        null,
+                        null,
+                        null,
                         null,
                         LocalDateTime.now().atZone(ZoneId.of("UTC")),
-                        ""
-                ),
-                new DebugParams(false, true),
+                        ""),
+                new DebugParams(false, true, true),
                 new VideoParams(ColorMode.MONO),
                 new GeometryParams(null, null),
                 new BandingCorrectionParams(24, 3)

@@ -315,11 +315,11 @@ public class JSolEx extends Application {
                 var tab = new Tab(event.getPayload().title());
                 var viewer = newImageViewer();
                 viewer.fitWidthProperty().bind(mainPane.widthProperty());
-                viewer.setImage(this,
+                viewer.setup(this,
                         event.getPayload().image(),
                         event.getPayload().stretchingStrategy(),
                         event.getPayload().path().toFile(),
-                        params.debugParams().autosave()
+                        params
                 );
                 var scrollPane = new ScrollPane();
                 scrollPane.setContent(viewer.getRoot());
