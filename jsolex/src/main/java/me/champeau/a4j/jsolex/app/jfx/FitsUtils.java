@@ -124,6 +124,10 @@ class FitsUtils {
         if (aperture != null) {
             header.addValue(InstrumentDescription.APERTURE, aperture);
         }
+        var wavelength = params.spectrumParams().ray().getWavelength();
+        if (wavelength != 0) {
+            header.addValue("WAVELNTH", wavelength, "Wavelength (nm)");
+        }
     }
 
     private static void maybeAdd(Header header, IFitsHeader key, String string) throws HeaderCardException {
