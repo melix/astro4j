@@ -20,6 +20,11 @@ import me.champeau.a4j.jsolex.processing.color.KnownCurves;
 
 import java.util.Optional;
 
+/**
+ * Defines the most common spectral lines used with Sol'Ex and when possible,
+ * defines a color curve to perform automatic coloring of images.
+ * See https://en.wikipedia.org/wiki/Fraunhofer_lines for wavelenths
+ */
 public enum SpectralRay {
     H_ALPHA("H-alpha", KnownCurves.H_ALPHA, 0.25d, 656.281d),
     H_BETA("H-beta", null, 0.25d, 486.134),
