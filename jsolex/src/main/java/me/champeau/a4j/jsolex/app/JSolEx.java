@@ -224,7 +224,8 @@ public class JSolEx extends Application {
         mainPane.getTabs().clear();
         console.textProperty().set("");
         reconstructionStarted = false;
-        var outputDirName = selectedFile.getName().substring(0, selectedFile.getName().lastIndexOf("."));
+        var baseName = selectedFile.getName().substring(0, selectedFile.getName().lastIndexOf("."));
+        var outputDirName = baseName;
         var outputDirectory = new File(selectedFile.getParentFile(), outputDirName);
         int i = 0;
         while (Files.exists(outputDirectory.toPath())) {
@@ -316,6 +317,7 @@ public class JSolEx extends Application {
                 var viewer = newImageViewer();
                 viewer.fitWidthProperty().bind(mainPane.widthProperty());
                 viewer.setup(this,
+                        baseName,
                         event.getPayload().image(),
                         event.getPayload().stretchingStrategy(),
                         event.getPayload().path().toFile(),

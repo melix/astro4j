@@ -73,13 +73,14 @@ public class ImageViewer {
     }
 
     public void setup(ProcessingEventListener broadcaster,
+                      String baseName,
                       ImageWrapper image,
                       StretchingStrategy strategy,
-                      File imageFile,
+                      File imageName,
                       ProcessParams params) {
         this.broadcaster = broadcaster;
         this.image = image;
-        this.imageFile = imageFile;
+        this.imageFile = new File(imageName.getParentFile(), baseName + "_" + imageName.getName());
         this.processParams = params;
         configureStretching(strategy);
         if (params.debugParams().autosave()) {
