@@ -16,6 +16,7 @@
 package me.champeau.a4j.jsolex.processing.sun;
 
 import javafx.scene.control.Alert;
+import me.champeau.a4j.jsolex.app.JSolEx;
 import me.champeau.a4j.jsolex.app.util.Constants;
 import me.champeau.a4j.jsolex.app.util.SpectralLineFrameImageCreator;
 import me.champeau.a4j.jsolex.processing.event.GeneratedImage;
@@ -51,9 +52,7 @@ import me.champeau.a4j.ser.bayer.ImageConverter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.ByteArrayOutputStream;
 import java.io.File;
-import java.io.PrintWriter;
 import java.util.EnumSet;
 import java.util.HashSet;
 import java.util.List;
@@ -118,12 +117,7 @@ public class SolexVideoProcessor implements Broadcaster {
     }
 
     private void broadcastError(Exception ex) {
-        var out = new ByteArrayOutputStream();
-        var s = new PrintWriter(out);
-        ex.printStackTrace(s);
-        s.flush();
-        String trace = out.toString();
-        LOGGER.error("Error while processing\n{}", trace);
+        String trace = JSolEx.logError(ex);
         broadcast(new NotificationEvent(new Notification(Alert.AlertType.ERROR, "Unexpected error", "An error occurred during processing", trace)));
     }
 

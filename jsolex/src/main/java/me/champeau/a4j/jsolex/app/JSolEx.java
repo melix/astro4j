@@ -62,8 +62,10 @@ import me.champeau.a4j.ser.SerFileReader;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.IOException;
+import java.io.PrintWriter;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.HashMap;
@@ -100,6 +102,16 @@ public class JSolEx extends Application {
     private final List<String> suggestions = new CopyOnWriteArrayList<>();
 
     private final ReentrantLock lock = new ReentrantLock();
+
+    public static String logError(Throwable ex) {
+        var out = new ByteArrayOutputStream();
+        var s = new PrintWriter(out);
+        ex.printStackTrace(s);
+        s.flush();
+        String trace = out.toString();
+        LOGGER.error("Error while processing\n{}", trace);
+        return trace;
+    }
 
     @Override
     public void start(Stage stage) throws Exception {
@@ -214,6 +226,7 @@ public class JSolEx extends Application {
 
     private void doOpen(File selectedFile) {
         config.loaded(selectedFile.toPath());
+        Thread.currentThread().setUncaughtExceptionHandler((t, e) -> logError(e));
         Platform.runLater(this::refreshRecentItemsMenu);
         try (var reader = SerFileReader.of(selectedFile)) {
             var controller = createProcessParams(reader);
