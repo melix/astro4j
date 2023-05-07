@@ -32,10 +32,13 @@ class GeometryParamsSerializer implements JsonSerializer<GeometryParams>, JsonDe
         var o = json.getAsJsonObject();
         var tilt = o.get("tilt");
         var ratio = o.get("xyRatio");
+        var horizontalMirror = o.get("horizontalMirror") != null ? o.get("horizontalMirror").getAsBoolean() : false;
+        var verticalMirror = o.get("verticalMirror") != null ? o.get("verticalMirror").getAsBoolean() : false;
         return new GeometryParams(
                 tilt == null ? null : tilt.getAsDouble(),
-                ratio == null ? null : ratio.getAsDouble()
-        );
+                ratio == null ? null : ratio.getAsDouble(),
+                horizontalMirror,
+                verticalMirror);
     }
 
     @Override
@@ -43,6 +46,8 @@ class GeometryParamsSerializer implements JsonSerializer<GeometryParams>, JsonDe
         var jsonObject = new JsonObject();
         src.tilt().ifPresent(tilt -> jsonObject.addProperty("tilt", tilt));
         src.xyRatio().ifPresent(ratio -> jsonObject.addProperty("xyRatio", ratio));
+        jsonObject.addProperty("horizontalMirror", src.isHorizontalMirror());
+        jsonObject.addProperty("verticalMirror", src.isVerticalMirror());
         return jsonObject;
     }
 }

@@ -71,6 +71,8 @@ public class ProcessParamsController {
     @FXML
     private CheckBox generateFits;
     @FXML
+    private CheckBox horizontalMirror;
+    @FXML
     private TextField instrument;
     @FXML
     private TextField latitude;
@@ -88,6 +90,8 @@ public class ProcessParamsController {
     private TextField telescope;
     @FXML
     private TextField tiltValue;
+    @FXML
+    private CheckBox verticalMirror;
     @FXML
     private ChoiceBox<SpectralRay> wavelength;
     @FXML
@@ -148,6 +152,8 @@ public class ProcessParamsController {
         forceXYRatio.selectedProperty().addListener((observable, oldValue, newValue) -> xyRatioValue.setDisable(!newValue));
         bandingCorrectionWidth.setValue(initial.bandingCorrectionParams().width());
         bandingCorrectionPasses.setValue(initial.bandingCorrectionParams().passes());
+        horizontalMirror.setSelected(initial.geometryParams().isHorizontalMirror());
+        verticalMirror.setSelected(initial.geometryParams().isVerticalMirror());
     }
 
     @FXML
@@ -183,8 +189,9 @@ public class ProcessParamsController {
                 new VideoParams(assumeMonoVideo.isSelected() ? ColorMode.MONO : null),
                 new GeometryParams(
                         forceTilt.isSelected() ? Double.parseDouble(tiltValue.getText()) : null,
-                        forceXYRatio.isSelected() ? Double.parseDouble(xyRatioValue.getText()) : null
-                ),
+                        forceXYRatio.isSelected() ? Double.parseDouble(xyRatioValue.getText()) : null,
+                        horizontalMirror.isSelected(),
+                        verticalMirror.isSelected()),
                 new BandingCorrectionParams(
                         (int) Math.round(bandingCorrectionWidth.getValue()),
                         (int) Math.round(bandingCorrectionPasses.getValue())

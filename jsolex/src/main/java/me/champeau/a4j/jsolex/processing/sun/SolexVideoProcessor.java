@@ -153,6 +153,7 @@ public class SolexVideoProcessor implements Broadcaster {
             };
             var rotateLeft = ImageMath.newInstance().rotateLeft(state.reconstructed(), width, newHeight);
             var rotated = new ImageWrapper32(newHeight, width, rotateLeft);
+            maybePerformFlips(rotated);
             state.setImage(rotated);
             ProcessingWorkflow workflow;
             try (var executor = ParallelExecutor.newExecutor()) {
@@ -177,6 +178,25 @@ public class SolexVideoProcessor implements Broadcaster {
         }
 
         broadcast(new ProcessingDoneEvent(System.nanoTime()));
+    }
+
+    private void maybePerformFlips(ImageWrapper32 rotated) {
+        var hflip = processParams.geometryParams().isHorizontalMirror();
+        var vflip = processParams.geometryParams().isVerticalMirror();
+        if (hflip || vflip) {
+            var original = rotated.data();
+            float[] flipped = new float[original.length];
+            var height = rotated.height();
+            var width = rotated.width();
+            for (int y = 0; y < height; y++) {
+                for (int x = 0; x < width; x++) {
+                    var nx = hflip ? width - x - 1 : x;
+                    var ny = vflip ? height - y - 1 : y;
+                    flipped[nx + width * ny] = original[x + y * width];
+                }
+            }
+            System.arraycopy(flipped, 0, original, 0, original.length);
+        }
     }
 
     private List<WorkflowState> createWorkflowStateSteps(int width, int newHeight) {

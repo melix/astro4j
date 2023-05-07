@@ -20,10 +20,14 @@ import java.util.OptionalDouble;
 public class GeometryParams {
     private final Double tilt;
     private final Double xyRatio;
+    private final boolean horizontalMirror;
+    private final boolean verticalMirror;
 
-    public GeometryParams(Double tilt, Double xyRatio) {
+    public GeometryParams(Double tilt, Double xyRatio, boolean horizontalMirror, boolean verticalMirror) {
         this.tilt = tilt;
         this.xyRatio = xyRatio;
+        this.horizontalMirror = horizontalMirror;
+        this.verticalMirror = verticalMirror;
     }
 
     public OptionalDouble tilt() {
@@ -34,4 +38,11 @@ public class GeometryParams {
         return xyRatio == null ? OptionalDouble.empty() : OptionalDouble.of(xyRatio);
     }
 
+    public boolean isHorizontalMirror() {
+        return horizontalMirror;
+    }
+
+    public boolean isVerticalMirror() {
+        return verticalMirror;
+    }
 }

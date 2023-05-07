@@ -48,20 +48,21 @@
 <?import javafx.scene.layout.GridPane?>
 <?import javafx.scene.layout.RowConstraints?>
 
-<BorderPane maxHeight="-Infinity" maxWidth="-Infinity" minHeight="-Infinity" minWidth="-Infinity" prefHeight="400.0" prefWidth="600.0" xmlns="http://javafx.com/javafx/19" xmlns:fx="http://javafx.com/fxml/1" fx:controller="me.champeau.a4j.jsolex.app.jfx.ProcessParamsController">
+<BorderPane maxHeight="-Infinity" maxWidth="-Infinity" minHeight="-Infinity" minWidth="-Infinity" prefHeight="400.0" prefWidth="600.0" xmlns="http://javafx.com/javafx/19"
+            xmlns:fx="http://javafx.com/fxml/1" fx:controller="me.champeau.a4j.jsolex.app.jfx.ProcessParamsController">
     <bottom>
         <AnchorPane>
             <children>
-                <Button layoutX="456.0" layoutY="8.0" mnemonicParsing="false" onAction="#process" text="Full process" />
-                <Button layoutX="31.0" layoutY="8.0" mnemonicParsing="false" onAction="#cancel" text="Cancel" />
+                <Button layoutX="456.0" layoutY="8.0" mnemonicParsing="false" onAction="#process" text="Full process"/>
+                <Button layoutX="31.0" layoutY="8.0" mnemonicParsing="false" onAction="#cancel" text="Cancel"/>
                 <Button layoutX="334.0" layoutY="8.0" mnemonicParsing="false" onAction="#quickProcess" text="Quick mode">
                     <tooltip>
-                        <Tooltip text="Reconstructs the raw image and performs geometry correction" />
+                        <Tooltip text="Reconstructs the raw image and performs geometry correction"/>
                     </tooltip>
                 </Button>
             </children>
             <padding>
-                <Insets bottom="8.0" left="8.0" right="8.0" top="8.0" />
+                <Insets bottom="8.0" left="8.0" right="8.0" top="8.0"/>
             </padding>
         </AnchorPane>
     </bottom>
@@ -72,66 +73,75 @@
                     <content>
                         <AnchorPane minHeight="0.0" minWidth="0.0">
                             <children>
-                                <GridPane layoutX="14.0" layoutY="40.0" prefHeight="303.0" prefWidth="598.0" AnchorPane.bottomAnchor="0.0" AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="0.0" AnchorPane.topAnchor="0.0">
+                                <GridPane layoutX="14.0" layoutY="40.0" prefHeight="303.0" prefWidth="598.0" AnchorPane.bottomAnchor="0.0" AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="0.0"
+                                          AnchorPane.topAnchor="0.0">
                                     <columnConstraints>
-                                        <ColumnConstraints hgrow="SOMETIMES" minWidth="10.0" prefWidth="100.0" />
-                                        <ColumnConstraints hgrow="SOMETIMES" minWidth="10.0" prefWidth="100.0" />
+                                        <ColumnConstraints hgrow="SOMETIMES" minWidth="10.0" prefWidth="100.0"/>
+                                        <ColumnConstraints hgrow="SOMETIMES" minWidth="10.0" prefWidth="100.0"/>
                                     </columnConstraints>
                                     <rowConstraints>
-                                        <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="SOMETIMES" />
-                                        <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="SOMETIMES" />
-                                        <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="SOMETIMES" />
-                                        <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="SOMETIMES" />
-                                        <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="SOMETIMES" />
-                                        <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="SOMETIMES" />
-                                        <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="SOMETIMES" />
+                                        <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="SOMETIMES"/>
+                                        <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="SOMETIMES"/>
+                                        <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="SOMETIMES"/>
+                                        <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="SOMETIMES"/>
+                                        <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="SOMETIMES"/>
+                                        <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="SOMETIMES"/>
+                                        <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="SOMETIMES"/>
+                                        <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="SOMETIMES"/>
                                     </rowConstraints>
                                     <children>
-                                        <Label text="Wavelength" />
+                                        <Label text="Wavelength"/>
                                         <ChoiceBox fx:id="wavelength" prefHeight="24.0" prefWidth="281.0" GridPane.columnIndex="1">
                                             <tooltip>
-                                                <Tooltip text="Select the wavelength to benefit from automatic colorization of the image" />
+                                                <Tooltip text="Select the wavelength to benefit from automatic colorization of the image"/>
                                             </tooltip>
                                         </ChoiceBox>
-                                        <Label text="Spectral line detection threshold" GridPane.rowIndex="1" />
-                                        <Slider fx:id="spectralLineDetectionThreshold" blockIncrement="0.1" majorTickUnit="0.25" max="1.0" minorTickCount="5" showTickLabels="true" showTickMarks="true" value="0.2" GridPane.columnIndex="1" GridPane.rowIndex="1">
+                                        <Label text="Spectral line detection threshold" GridPane.rowIndex="1"/>
+                                        <Slider fx:id="spectralLineDetectionThreshold" blockIncrement="0.1" majorTickUnit="0.25" max="1.0" minorTickCount="5" showTickLabels="true" showTickMarks="true"
+                                                value="0.2" GridPane.columnIndex="1" GridPane.rowIndex="1">
                                             <tooltip>
-                                                <Tooltip text="A value close to 0 will be more restrictive on ray detection, suitable for high contrast images." />
+                                                <Tooltip text="A value close to 0 will be more restrictive on ray detection, suitable for high contrast images."/>
                                             </tooltip>
                                         </Slider>
-                                        <Label text="Pixel shifting" GridPane.rowIndex="2" />
-                                        <Slider fx:id="pixelShifting" blockIncrement="1.0" majorTickUnit="5.0" max="15.0" min="-15.0" minorTickCount="1" showTickLabels="true" showTickMarks="true" snapToTicks="true" GridPane.columnIndex="1" GridPane.rowIndex="2">
+                                        <Label text="Pixel shifting" GridPane.rowIndex="2"/>
+                                        <Slider fx:id="pixelShifting" blockIncrement="1.0" majorTickUnit="5.0" max="15.0" min="-15.0" minorTickCount="1" showTickLabels="true" showTickMarks="true"
+                                                snapToTicks="true" GridPane.columnIndex="1" GridPane.rowIndex="2">
                                             <tooltip>
-                                                <Tooltip text="If set to 0, the image will be reconstructed from the middle of the spectral ray. By setting it to a non 0 value, the image will be reconstructed by taking pixels around the center. This can be used to generate photosphere images for example, by selecting a high shift (e.g 13)." />
+                                                <Tooltip
+                                                        text="If set to 0, the image will be reconstructed from the middle of the spectral ray. By setting it to a non 0 value, the image will be reconstructed by taking pixels around the center. This can be used to generate photosphere images for example, by selecting a high shift (e.g 13)."/>
                                             </tooltip>
                                         </Slider>
-                                        <Button alignment="CENTER" contentDisplay="CENTER" mnemonicParsing="false" onAction="#resetRayParams" text="Reset to defaults" GridPane.columnIndex="1" GridPane.rowIndex="6" />
+                                        <Button alignment="CENTER" contentDisplay="CENTER" mnemonicParsing="false" onAction="#resetRayParams" text="Reset to defaults" GridPane.columnIndex="1"
+                                                GridPane.rowIndex="7"/>
                                         <CheckBox fx:id="forceTilt" mnemonicParsing="false" text="Override detected tilt" GridPane.rowIndex="4">
                                             <tooltip>
-                                                <Tooltip text="If tilt detection fails, you can override the value in order to avoid unwanted image rotation." />
+                                                <Tooltip text="If tilt detection fails, you can override the value in order to avoid unwanted image rotation."/>
                                             </tooltip>
                                         </CheckBox>
                                         <CheckBox fx:id="forceXYRatio" mnemonicParsing="false" text="Override X/Y ratio" GridPane.rowIndex="5">
                                             <tooltip>
-                                                <Tooltip text="If sun disk detection fails, you can force the X/Y correction ratio in order to fix the image geometry" />
+                                                <Tooltip text="If sun disk detection fails, you can force the X/Y correction ratio in order to fix the image geometry"/>
                                             </tooltip>
                                         </CheckBox>
                                         <TextField fx:id="tiltValue" GridPane.columnIndex="1" GridPane.rowIndex="4">
                                             <tooltip>
-                                                <Tooltip text="The tilt angle (in degrees)" />
+                                                <Tooltip text="The tilt angle (in degrees)"/>
                                             </tooltip>
                                         </TextField>
                                         <TextField GridPane.columnIndex="1" GridPane.rowIndex="5" fx:id="xyRatioValue">
                                             <tooltip>
-                                                <Tooltip text="The X/Y ratio" />
+                                                <Tooltip text="The X/Y ratio"/>
                                             </tooltip>
                                         </TextField>
-                                        <Label text="Doppler shifting" GridPane.rowIndex="3" />
-                                        <Slider fx:id="dopplerShifting" blockIncrement="1.0" majorTickUnit="1.0" max="4.0" min="1.0" minorTickCount="0" showTickLabels="true" showTickMarks="true" snapToTicks="true" value="3.0" GridPane.columnIndex="1" GridPane.rowIndex="3">
+                                        <Label text="Doppler shifting" GridPane.rowIndex="3"/>
+                                        <Slider fx:id="dopplerShifting" blockIncrement="1.0" majorTickUnit="1.0" max="4.0" min="1.0" minorTickCount="0" showTickLabels="true" showTickMarks="true"
+                                                snapToTicks="true" value="3.0" GridPane.columnIndex="1" GridPane.rowIndex="3">
                                             <tooltip>
-                                                <Tooltip text="How many pixels to shift from central line to create Doppler image" />
+                                                <Tooltip text="How many pixels to shift from central line to create Doppler image"/>
                                             </tooltip>
                                         </Slider>
+                                        <CheckBox fx:id="horizontalMirror" mnemonicParsing="false" text="Flip horizontal axis" GridPane.columnIndex="0" GridPane.rowIndex="6"/>
+                                        <CheckBox fx:id="verticalMirror" mnemonicParsing="false" text="Flip vertical axis" GridPane.columnIndex="1" GridPane.rowIndex="6"/>
                                     </children>
                                 </GridPane>
                             </children>
@@ -142,69 +152,70 @@
                     <content>
                         <AnchorPane minHeight="0.0" minWidth="0.0" prefHeight="180.0" prefWidth="200.0">
                             <children>
-                                <GridPane hgap="8.0" layoutX="67.0" layoutY="71.0" prefHeight="303.0" prefWidth="598.0" AnchorPane.bottomAnchor="0.0" AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="0.0" AnchorPane.topAnchor="0.0">
+                                <GridPane hgap="8.0" layoutX="67.0" layoutY="71.0" prefHeight="303.0" prefWidth="598.0" AnchorPane.bottomAnchor="0.0" AnchorPane.leftAnchor="0.0"
+                                          AnchorPane.rightAnchor="0.0" AnchorPane.topAnchor="0.0">
                                     <columnConstraints>
-                                        <ColumnConstraints hgrow="SOMETIMES" minWidth="10.0" prefWidth="100.0" />
-                                        <ColumnConstraints hgrow="SOMETIMES" minWidth="10.0" prefWidth="100.0" />
-                                        <ColumnConstraints hgrow="SOMETIMES" minWidth="10.0" prefWidth="100.0" />
-                                        <ColumnConstraints hgrow="SOMETIMES" minWidth="10.0" prefWidth="100.0" />
+                                        <ColumnConstraints hgrow="SOMETIMES" minWidth="10.0" prefWidth="100.0"/>
+                                        <ColumnConstraints hgrow="SOMETIMES" minWidth="10.0" prefWidth="100.0"/>
+                                        <ColumnConstraints hgrow="SOMETIMES" minWidth="10.0" prefWidth="100.0"/>
+                                        <ColumnConstraints hgrow="SOMETIMES" minWidth="10.0" prefWidth="100.0"/>
                                     </columnConstraints>
                                     <rowConstraints>
-                                        <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="SOMETIMES" />
-                                        <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="SOMETIMES" />
-                                        <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="SOMETIMES" />
-                                        <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="SOMETIMES" />
-                                        <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="SOMETIMES" />
-                                        <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="SOMETIMES" />
-                                        <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="SOMETIMES" />
+                                        <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="SOMETIMES"/>
+                                        <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="SOMETIMES"/>
+                                        <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="SOMETIMES"/>
+                                        <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="SOMETIMES"/>
+                                        <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="SOMETIMES"/>
+                                        <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="SOMETIMES"/>
+                                        <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="SOMETIMES"/>
                                     </rowConstraints>
                                     <children>
-                                        <Label text="Observer name" />
-                                        <Label text="Instrument" GridPane.rowIndex="2" />
-                                        <Label text="Telescope" GridPane.rowIndex="3" />
-                                        <Label text="Focal length (mm)" GridPane.rowIndex="4" />
-                                        <Label text="Date (UTC)" GridPane.columnIndex="2" GridPane.rowIndex="6" />
-                                        <Label text="Camera" GridPane.rowIndex="6" />
+                                        <Label text="Observer name"/>
+                                        <Label text="Instrument" GridPane.rowIndex="2"/>
+                                        <Label text="Telescope" GridPane.rowIndex="3"/>
+                                        <Label text="Focal length (mm)" GridPane.rowIndex="4"/>
+                                        <Label text="Date (UTC)" GridPane.columnIndex="2" GridPane.rowIndex="6"/>
+                                        <Label text="Camera" GridPane.rowIndex="6"/>
                                         <TextField fx:id="observerName" GridPane.columnIndex="1" GridPane.columnSpan="3">
                                             <tooltip>
-                                                <Tooltip text="Enter the name of the observer" />
+                                                <Tooltip text="Enter the name of the observer"/>
                                             </tooltip>
                                         </TextField>
                                         <TextField fx:id="instrument" GridPane.columnIndex="1" GridPane.columnSpan="3" GridPane.rowIndex="2">
                                             <tooltip>
-                                                <Tooltip text="Enter the name of the instrument. Recommended to use &quot;Sol'Ex&quot;" />
+                                                <Tooltip text="Enter the name of the instrument. Recommended to use &quot;Sol'Ex&quot;"/>
                                             </tooltip>
                                         </TextField>
                                         <TextField fx:id="telescope" GridPane.columnIndex="1" GridPane.columnSpan="3" GridPane.rowIndex="3">
                                             <tooltip>
-                                                <Tooltip text="The telescope which was used to capture the images" />
+                                                <Tooltip text="The telescope which was used to capture the images"/>
                                             </tooltip>
                                         </TextField>
                                         <TextField fx:id="observationDate" GridPane.columnIndex="3" GridPane.rowIndex="6">
                                             <tooltip>
-                                                <Tooltip text="The observation date (UTC). This is filled automatically from the SER file data." />
+                                                <Tooltip text="The observation date (UTC). This is filled automatically from the SER file data."/>
                                             </tooltip>
                                         </TextField>
                                         <TextField fx:id="focalLength" GridPane.columnIndex="1" GridPane.rowIndex="4">
                                             <tooltip>
-                                                <Tooltip text="The folcal length of the telescope in millimeters" />
+                                                <Tooltip text="The folcal length of the telescope in millimeters"/>
                                             </tooltip>
                                         </TextField>
                                         <TextField fx:id="camera" GridPane.columnIndex="1" GridPane.rowIndex="6">
                                             <tooltip>
-                                                <Tooltip text="The camera used to capture the images" />
+                                                <Tooltip text="The camera used to capture the images"/>
                                             </tooltip>
                                         </TextField>
-                                        <Label text="Aperture (mm)" GridPane.columnIndex="2" GridPane.rowIndex="4" />
-                                        <TextField fx:id="aperture" GridPane.columnIndex="3" GridPane.rowIndex="4" />
-                                        <Label text="Site latitude (°)" GridPane.rowIndex="5" />
-                                        <TextField fx:id="latitude" GridPane.columnIndex="3" GridPane.rowIndex="5" />
-                                        <Label text="Site longitude (°)" GridPane.columnIndex="2" GridPane.rowIndex="5" />
-                                        <TextField fx:id="longitude" GridPane.columnIndex="1" GridPane.rowIndex="5" />
-                                        <Label text="Contact e-mail" GridPane.rowIndex="1" />
+                                        <Label text="Aperture (mm)" GridPane.columnIndex="2" GridPane.rowIndex="4"/>
+                                        <TextField fx:id="aperture" GridPane.columnIndex="3" GridPane.rowIndex="4"/>
+                                        <Label text="Site latitude (°)" GridPane.rowIndex="5"/>
+                                        <TextField fx:id="latitude" GridPane.columnIndex="3" GridPane.rowIndex="5"/>
+                                        <Label text="Site longitude (°)" GridPane.columnIndex="2" GridPane.rowIndex="5"/>
+                                        <TextField fx:id="longitude" GridPane.columnIndex="1" GridPane.rowIndex="5"/>
+                                        <Label text="Contact e-mail" GridPane.rowIndex="1"/>
                                         <TextField fx:id="email" GridPane.columnIndex="1" GridPane.columnSpan="3" GridPane.rowIndex="1">
                                             <tooltip>
-                                                <Tooltip text="Enter your email address" />
+                                                <Tooltip text="Enter your email address"/>
                                             </tooltip>
                                         </TextField>
                                     </children>
@@ -217,48 +228,53 @@
                     <content>
                         <AnchorPane minHeight="0.0" minWidth="0.0" prefHeight="180.0" prefWidth="200.0">
                             <children>
-                                <GridPane layoutX="33.0" layoutY="62.0" prefHeight="303.0" prefWidth="598.0" AnchorPane.bottomAnchor="0.0" AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="0.0" AnchorPane.topAnchor="0.0">
+                                <GridPane layoutX="33.0" layoutY="62.0" prefHeight="303.0" prefWidth="598.0" AnchorPane.bottomAnchor="0.0" AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="0.0"
+                                          AnchorPane.topAnchor="0.0">
                                     <columnConstraints>
-                                        <ColumnConstraints hgrow="SOMETIMES" minWidth="10.0" prefWidth="100.0" />
-                                        <ColumnConstraints hgrow="SOMETIMES" minWidth="10.0" prefWidth="100.0" />
+                                        <ColumnConstraints hgrow="SOMETIMES" minWidth="10.0" prefWidth="100.0"/>
+                                        <ColumnConstraints hgrow="SOMETIMES" minWidth="10.0" prefWidth="100.0"/>
                                     </columnConstraints>
                                     <rowConstraints>
-                                        <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="SOMETIMES" />
-                                        <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="SOMETIMES" />
-                                        <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="SOMETIMES" />
-                                        <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="SOMETIMES" />
-                                        <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="SOMETIMES" />
+                                        <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="SOMETIMES"/>
+                                        <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="SOMETIMES"/>
+                                        <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="SOMETIMES"/>
+                                        <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="SOMETIMES"/>
+                                        <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="SOMETIMES"/>
                                     </rowConstraints>
                                     <children>
                                         <CheckBox fx:id="generateDebugImages" mnemonicParsing="false" text="Generate debug images" GridPane.rowIndex="1">
                                             <tooltip>
-                                                <Tooltip text="If set to true, many debug images will be generated in the &quot;debug&quot; output directory" />
+                                                <Tooltip text="If set to true, many debug images will be generated in the &quot;debug&quot; output directory"/>
                                             </tooltip>
                                         </CheckBox>
                                         <CheckBox fx:id="assumeMonoVideo" mnemonicParsing="false" text="Assume mono images">
                                             <tooltip>
-                                                <Tooltip text="If set to true, assume that the images are mono images. This is useful for mono-bin images as it avoids debayering and significantly speeds up processing." />
+                                                <Tooltip
+                                                        text="If set to true, assume that the images are mono images. This is useful for mono-bin images as it avoids debayering and significantly speeds up processing."/>
                                             </tooltip>
                                         </CheckBox>
-                                        <Label text="Banding correction width" GridPane.rowIndex="2" />
-                                        <Label text="Banding correction passes" GridPane.rowIndex="3" />
-                                        <Slider fx:id="bandingCorrectionWidth" majorTickUnit="8.0" max="68.0" min="4.0" minorTickCount="4" showTickLabels="true" showTickMarks="true" snapToTicks="true" value="24.0" GridPane.columnIndex="1" GridPane.rowIndex="2">
+                                        <Label text="Banding correction width" GridPane.rowIndex="2"/>
+                                        <Label text="Banding correction passes" GridPane.rowIndex="3"/>
+                                        <Slider fx:id="bandingCorrectionWidth" majorTickUnit="8.0" max="68.0" min="4.0" minorTickCount="4" showTickLabels="true" showTickMarks="true" snapToTicks="true"
+                                                value="24.0" GridPane.columnIndex="1" GridPane.rowIndex="2">
                                             <tooltip>
-                                                <Tooltip text="The width to consider when computing the average brightness of a band." />
+                                                <Tooltip text="The width to consider when computing the average brightness of a band."/>
                                             </tooltip>
                                         </Slider>
-                                        <Slider fx:id="bandingCorrectionPasses" blockIncrement="1.0" majorTickUnit="2.0" max="19.0" min="1.0" minorTickCount="0" showTickLabels="true" showTickMarks="true" snapToTicks="true" value="3.0" GridPane.columnIndex="1" GridPane.rowIndex="3">
+                                        <Slider fx:id="bandingCorrectionPasses" blockIncrement="1.0" majorTickUnit="2.0" max="19.0" min="1.0" minorTickCount="0" showTickLabels="true"
+                                                showTickMarks="true" snapToTicks="true" value="3.0" GridPane.columnIndex="1" GridPane.rowIndex="3">
                                             <tooltip>
-                                                <Tooltip text="The number of iterations to perform. It is recommended to keep it low, unless you have banding which is difficult to remove, as this can produce artifacts on the solar limb." />
+                                                <Tooltip
+                                                        text="The number of iterations to perform. It is recommended to keep it low, unless you have banding which is difficult to remove, as this can produce artifacts on the solar limb."/>
                                             </tooltip>
                                         </Slider>
-                                        <Button mnemonicParsing="false" onAction="#resetMiscParams" text="Reset to defaults" GridPane.columnIndex="1" GridPane.rowIndex="4" />
+                                        <Button mnemonicParsing="false" onAction="#resetMiscParams" text="Reset to defaults" GridPane.columnIndex="1" GridPane.rowIndex="4"/>
                                         <CheckBox fx:id="autoSave" mnemonicParsing="false" text="Automatically save images" GridPane.columnIndex="1">
                                             <tooltip>
-                                                <Tooltip text="If unchecked, generated images will not be automatically saved" />
+                                                <Tooltip text="If unchecked, generated images will not be automatically saved"/>
                                             </tooltip>
                                         </CheckBox>
-                              <CheckBox fx:id="generateFits" mnemonicParsing="false" text="Generate FITS files" GridPane.columnIndex="1" GridPane.rowIndex="1" />
+                                        <CheckBox fx:id="generateFits" mnemonicParsing="false" text="Generate FITS files" GridPane.columnIndex="1" GridPane.rowIndex="1"/>
                                     </children>
                                 </GridPane>
                             </children>

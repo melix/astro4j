@@ -37,7 +37,7 @@ public record ProcessParams(
                 observationDetails,
                 debugParams,
                 videoParams,
-                new GeometryParams(tilt, xyRatio),
+                new GeometryParams(tilt, xyRatio, geometryParams().isHorizontalMirror(), geometryParams().isVerticalMirror()),
                 bandingCorrectionParams
         );
     }
