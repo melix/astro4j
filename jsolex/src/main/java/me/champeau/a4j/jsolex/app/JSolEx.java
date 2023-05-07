@@ -72,6 +72,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.Semaphore;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Consumer;
 
@@ -261,6 +262,7 @@ public class JSolEx extends Application {
             private long ed = 0;
             private int width = 0;
             private int height = 0;
+            private final Semaphore semaphore = new Semaphore(1);
 
             @Override
             public void onOutputImageDimensionsDetermined(OutputImageDimensionsDeterminedEvent event) {
@@ -356,16 +358,30 @@ public class JSolEx extends Application {
 
             @Override
             public void onNotification(NotificationEvent e) {
-                Platform.runLater(() -> {
-                    var alert = new Alert(e.type());
-                    alert.setResizable(true);
-                    alert.getDialogPane().setPrefSize(480, 320);
-                    alert.setTitle(e.title());
-                    alert.setHeaderText(e.header());
-                    alert.setContentText(e.message());
-                    ((Stage) alert.getDialogPane().getScene().getWindow()).setAlwaysOnTop(true);
-                    alert.showAndWait();
-                });
+                new Thread(() -> {
+                    try {
+                        if (semaphore.getQueueLength()>3) {
+                            // If there are too many events,
+                            // there's probably a big problem
+                            // like many exceptons being thrown
+                            // so let's not overwhelm the user
+                            return;
+                        }
+                        semaphore.acquire();
+                    } catch (InterruptedException ex) {
+                        logError(ex);
+                    }
+                    Platform.runLater(() -> {
+                        var alert = new Alert(e.type());
+                        alert.setResizable(true);
+                        alert.getDialogPane().setPrefSize(480, 320);
+                        alert.setTitle(e.title());
+                        alert.setHeaderText(e.header());
+                        alert.setContentText(e.message());
+                        alert.showAndWait();
+                        semaphore.release();
+                    });
+                }).start();
             }
 
             @Override
