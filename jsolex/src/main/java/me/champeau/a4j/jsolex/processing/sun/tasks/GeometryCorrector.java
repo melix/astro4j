@@ -54,11 +54,15 @@ public class GeometryCorrector extends AbstractTask<ImageWrapper32> {
     public ImageWrapper32 call() throws Exception {
         broadcaster.broadcast(ProgressEvent.of(0, "Correcting geometry"));
         var ratio = ellipse.xyRatio();
+        if (forcedRatio.isPresent()) {
+            ratio = forcedRatio.getAsDouble();
+            LOGGER.info("Overriding X/Y ratio to {}", String.format("%.2f", ratio));
+        }
         double sx, sy;
         if (ratio < 1) {
             sx = 1d;
             sy = 1d / ratio;
-            if (ratio < 0.98 && frameRate != null) {
+            if (ratio < 0.98 && frameRate != null && forcedRatio.isEmpty()) {
                 double exposureInMillis = 1000d / frameRate;
                 broadcaster.broadcast(new SuggestionEvent(
                         "Image is undersampled by a factor of " +
@@ -69,11 +73,6 @@ public class GeometryCorrector extends AbstractTask<ImageWrapper32> {
             }
         } else {
             sx = ratio;
-            sy = 1d;
-        }
-        if (forcedRatio.isPresent()) {
-            LOGGER.info("Overriding X/Y ratio to {}", String.format("%.2f", forcedRatio.getAsDouble()));
-            sx = forcedRatio.getAsDouble();
             sy = 1d;
         }
         var rotated = ImageMath.newInstance().rotateAndScale(buffer, width, height, correctionAngle, blackpoint, sx, sy);

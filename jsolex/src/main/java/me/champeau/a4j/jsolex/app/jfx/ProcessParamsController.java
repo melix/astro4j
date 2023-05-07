@@ -226,6 +226,8 @@ public class ProcessParamsController {
         spectralLineDetectionThreshold.setValue(wavelength.getValue().getDetectionThreshold());
         pixelShifting.setValue(0);
         dopplerShifting.setValue(3);
+        verticalMirror.setSelected(false);
+        horizontalMirror.setSelected(false);
     }
 
     @FXML

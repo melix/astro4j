@@ -174,7 +174,11 @@ public class SolexVideoProcessor implements Broadcaster {
             } catch (Exception e) {
                 throw new ProcessingException(e);
             }
-            currentParams = currentParams.withGeometry(workflow.getTilt(), workflow.getXyRatio());
+            if (step == 0) {
+                // For the subsequent steps, we're going to use the same tilt/xy ratio as the initial
+                // step in order to align images
+                currentParams = currentParams.withGeometry(workflow.getTilt() * 180 / Math.PI, workflow.getXyRatio());
+            }
         }
 
         broadcast(new ProcessingDoneEvent(System.nanoTime()));
@@ -209,7 +213,7 @@ public class SolexVideoProcessor implements Broadcaster {
                 WorkflowState.prepare(width, newHeight, 0, EnumSet.allOf(WorkflowStep.class)),
                 WorkflowState.prepare(width, newHeight, -dopplerShift),
                 WorkflowState.prepare(width, newHeight, dopplerShift, WorkflowStep.DOPPLER_IMAGE),
-                WorkflowState.prepare(width, newHeight, +15, WorkflowStep.BANDING_CORRECTION)
+                WorkflowState.prepare(width, newHeight, +15, WorkflowStep.GEOMETRY_CORRECTION)
         ) : List.of(
                 WorkflowState.prepare(width, newHeight, processParams.spectrumParams().pixelShift(), EnumSet.allOf(WorkflowStep.class))
         );

@@ -101,10 +101,10 @@ public class ProcessingWorkflow {
 
     private void geometryCorrection(EllipseFittingTask.Result result, ImageWrapper32 bandingFixed) {
         var ellipse = result.ellipse();
-        this.tilt = processParams.geometryParams().tilt().orElse(ellipse.tiltAngle());
         var detectedRatio = ellipse.xyRatio();
-        LOGGER.info("Detected X/Y ratio: {}", String.format("%.2f", detectedRatio));
+        this.tilt = processParams.geometryParams().tilt().orElse(ellipse.tiltAngle());
         this.xyRatio = processParams.geometryParams().xyRatio().orElse(detectedRatio);
+        LOGGER.info("Detected X/Y ratio: {}", String.format("%.2f", detectedRatio));
         float blackPoint = (float) estimateBlackPoint(bandingFixed, ellipse) * 1.2f;
         var tiltDegrees = ellipse.tiltAngle() / Math.PI * 180;
         var geometryParams = processParams.geometryParams();
@@ -121,11 +121,12 @@ public class ProcessingWorkflow {
         }
         if (!isTiltReliable) {
             LOGGER.info("Will not apply rotation correction as sun disk is almost a circle (and therefore tilt angle is not reliable)");
+            this.tilt = 0;
         }
         executor.submit(new GeometryCorrector(broadcaster, bandingFixed, ellipse, correctionAngle, blackPoint, fps, geometryParams.xyRatio())).thenAccept(geometryFixed -> {
             state.recordResult(WorkflowStep.GEOMETRY_CORRECTION, geometryFixed);
             broadcaster.broadcast(OutputImageDimensionsDeterminedEvent.of("geometry corrected", geometryFixed.width(), geometryFixed.height()));
-            processedImagesEmitter.newMonoImage(WorkflowStep.BANDING_CORRECTION, "Disk", "disk", geometryFixed, LinearStrechingStrategy.DEFAULT);
+            processedImagesEmitter.newMonoImage(WorkflowStep.GEOMETRY_CORRECTION, "Disk", "disk", geometryFixed, LinearStrechingStrategy.DEFAULT);
             if (state.isEnabled(WorkflowStep.EDGE_DETECTION_IMAGE)) {
                 executor.submit(() -> produceEdgeDetectionImage(result, geometryFixed));
             }
