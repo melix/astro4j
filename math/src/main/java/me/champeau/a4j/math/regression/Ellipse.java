@@ -106,10 +106,7 @@ public class Ellipse {
 
     public double xyRatio() {
         var sa = semiAxis();
-        if (cart.b() < 0) {
-            return sa.a() / sa.b();
-        }
-        return sa.b() / sa.a();
+        return sa.a() / sa.b();
     }
 
     public boolean isWithin(Point2D point) {

@@ -167,6 +167,7 @@ public class JSolEx extends Application {
     private void selectSerFileAndThen(Consumer<? super File> consumer) {
         var fileChooser = new FileChooser();
         fileChooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("SER files", "*.ser"));
+        config.findLastOpenDirectory().ifPresent(dir -> fileChooser.setInitialDirectory(dir.toFile()));
         var selectedFile = fileChooser.showOpenDialog(rootStage);
         if (selectedFile != null) {
             LOGGER.info("Selected file {}", selectedFile);

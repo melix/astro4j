@@ -23,6 +23,7 @@ import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.Optional;
 import java.util.prefs.Preferences;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
@@ -33,8 +34,7 @@ public class Configuration {
     private static final String RECENT_FILES = "recent.files";
     private static final String PREFERRED_WIDTH = "preferred.width";
     private static final String PREFERRED_HEIGHT = "preferred.height";
-
-    public static final boolean DEFAULT_GENERATE_DEBUG_IMAGES = false;
+    private static final String LAST_DIRECTORY = "last.directory";
 
     private final Preferences prefs;
     private final List<Path> recentFiles;
@@ -45,7 +45,7 @@ public class Configuration {
         this.recentFiles = Arrays.stream(recentFilesString.split(Pattern.quote(File.pathSeparator)))
                 .map(Path::of)
                 .filter(Files::exists)
-                .limit(5)
+                .limit(10)
                 .collect(Collectors.toCollection(java.util.ArrayList::new));
     }
 
@@ -53,10 +53,22 @@ public class Configuration {
         recentFiles.remove(path);
         recentFiles.add(0, path);
         prefs.put(RECENT_FILES, recentFiles.stream().map(Path::toString).collect(joining(File.pathSeparator)));
+        prefs.put(LAST_DIRECTORY, path.getParent().toString());
     }
 
     public List<Path> getRecentFiles() {
         return Collections.unmodifiableList(recentFiles);
+    }
+
+    public Optional<Path> findLastOpenDirectory() {
+        var dir = prefs.get(LAST_DIRECTORY, null);
+        if (dir != null) {
+            var path = Path.of(dir);
+            if (Files.exists(path)) {
+                return Optional.of(path);
+            }
+        }
+        return Optional.empty();
     }
 
     public IntPair getPreferredDimensions() {

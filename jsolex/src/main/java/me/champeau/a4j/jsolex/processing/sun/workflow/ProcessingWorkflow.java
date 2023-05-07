@@ -102,7 +102,9 @@ public class ProcessingWorkflow {
     private void geometryCorrection(EllipseFittingTask.Result result, ImageWrapper32 bandingFixed) {
         var ellipse = result.ellipse();
         this.tilt = processParams.geometryParams().tilt().orElse(ellipse.tiltAngle());
-        this.xyRatio = processParams.geometryParams().xyRatio().orElse(ellipse.xyRatio());
+        var detectedRatio = ellipse.xyRatio();
+        LOGGER.info("Detected X/Y ratio: {}", String.format("%.2f", detectedRatio));
+        this.xyRatio = processParams.geometryParams().xyRatio().orElse(detectedRatio);
         float blackPoint = (float) estimateBlackPoint(bandingFixed, ellipse) * 1.2f;
         var tiltDegrees = ellipse.tiltAngle() / Math.PI * 180;
         var geometryParams = processParams.geometryParams();
