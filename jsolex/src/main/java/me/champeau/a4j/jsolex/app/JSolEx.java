@@ -167,9 +167,12 @@ public class JSolEx extends Application {
     private void selectSerFileAndThen(Consumer<? super File> consumer) {
         var fileChooser = new FileChooser();
         fileChooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("SER files", "*.ser"));
-        var selectedFile = fileChooser.showOpenDialog(null);
+        var selectedFile = fileChooser.showOpenDialog(rootStage);
         if (selectedFile != null) {
+            LOGGER.info("Selected file {}", selectedFile);
             consumer.accept(selectedFile);
+        } else {
+            LOGGER.info("No selected file, processing cancelled.");
         }
     }
 

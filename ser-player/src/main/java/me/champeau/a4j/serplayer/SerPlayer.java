@@ -71,9 +71,11 @@ public class SerPlayer extends Application implements BayerMatrixSupport, Player
     private FrameMetadataControl fileMetadataControl;
     private PlayerControl playerControl;
     private volatile File currentSelectedFile;
+    private Stage rootStage;
 
     @Override
     public void start(Stage stage) {
+        this.rootStage = stage;
         var pane = new BorderPane();
         fileMetadataControl = new FrameMetadataControl();
         imageView = createImageView(stage);
@@ -138,7 +140,7 @@ public class SerPlayer extends Application implements BayerMatrixSupport, Player
         openItem.setOnAction(e -> {
             var fileChooser = new FileChooser();
             fileChooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("SER files", "*.ser"));
-            var selectedFile = fileChooser.showOpenDialog(null);
+            var selectedFile = fileChooser.showOpenDialog(rootStage);
             if (selectedFile != null && !selectedFile.equals(currentSelectedFile)) {
                 loadSerFile(selectedFile);
                 refreshRecentItemsMenu(recentMenu);
