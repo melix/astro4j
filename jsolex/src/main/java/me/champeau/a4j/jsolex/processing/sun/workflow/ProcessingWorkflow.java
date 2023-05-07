@@ -120,10 +120,10 @@ public class ProcessingWorkflow {
         if (!isTiltReliable) {
             LOGGER.info("Will not apply rotation correction as sun disk is almost a circle (and therefore tilt angle is not reliable)");
         }
-        processedImagesEmitter.newMonoImage(WorkflowStep.BANDING_CORRECTION, "Disk", "disk", bandingFixed, new ArcsinhStretchingStrategy(blackPoint, 7, 20));
         executor.submit(new GeometryCorrector(broadcaster, bandingFixed, ellipse, correctionAngle, blackPoint, fps, geometryParams.xyRatio())).thenAccept(geometryFixed -> {
             state.recordResult(WorkflowStep.GEOMETRY_CORRECTION, geometryFixed);
             broadcaster.broadcast(OutputImageDimensionsDeterminedEvent.of("geometry corrected", geometryFixed.width(), geometryFixed.height()));
+            processedImagesEmitter.newMonoImage(WorkflowStep.BANDING_CORRECTION, "Disk", "disk", geometryFixed, LinearStrechingStrategy.DEFAULT);
             if (state.isEnabled(WorkflowStep.EDGE_DETECTION_IMAGE)) {
                 executor.submit(() -> produceEdgeDetectionImage(result, geometryFixed));
             }
@@ -151,7 +151,7 @@ public class ProcessingWorkflow {
             var first = states.stream().filter(s -> s.pixelShift() == -dopplerShift).findFirst();
             var second = states.stream().filter(s -> s.pixelShift() == dopplerShift).findFirst();
             first.ifPresent(s1 -> second.ifPresent(s2 -> {
-                s1.findResult(WorkflowStep.BANDING_CORRECTION).ifPresent(i1 -> s2.findResult(WorkflowStep.BANDING_CORRECTION).ifPresent(i2 -> {
+                s1.findResult(WorkflowStep.GEOMETRY_CORRECTION).ifPresent(i1 -> s2.findResult(WorkflowStep.GEOMETRY_CORRECTION).ifPresent(i2 -> {
                     var grey1 = (ImageWrapper32) i1;
                     var grey2 = (ImageWrapper32) i2;
                     var width = grey1.width();

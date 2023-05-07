@@ -98,6 +98,9 @@ public class Ellipse {
         var z = Math.sqrt((a - c) * (a - c) + 4 * b * b);
         var aPrime = Math.sqrt(num / (discri * (z - (a + c))));
         var bPrime = Math.sqrt(num / (discri * (-z - (a + c))));
+        if (aPrime > bPrime) {
+            return new DoublePair(bPrime, aPrime);
+        }
         return new DoublePair(aPrime, bPrime);
     }
 
