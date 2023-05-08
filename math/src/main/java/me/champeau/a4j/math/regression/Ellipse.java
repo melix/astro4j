@@ -96,8 +96,8 @@ public class Ellipse {
         var f = cart.f();
         var num = 2 * (a * e * e + c * d * d + e * b * b - 2 * b * d * e - a * c * f);
         var z = Math.sqrt((a - c) * (a - c) + 4 * b * b);
-        var aPrime = Math.sqrt(num / (discri * (z - (a + c))));
-        var bPrime = Math.sqrt(num / (discri * (-z - (a + c))));
+        var aPrime = 2 * Math.sqrt(num / (discri * (z - (a + c))));
+        var bPrime = 2 * Math.sqrt(num / (discri * (-z - (a + c))));
         if (aPrime > bPrime) {
             return new DoublePair(bPrime, aPrime);
         }

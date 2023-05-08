@@ -123,7 +123,7 @@ public class ProcessingWorkflow {
             LOGGER.info("Will not apply rotation correction as sun disk is almost a circle (and therefore tilt angle is not reliable)");
             this.tilt = 0;
         }
-        executor.submit(new GeometryCorrector(broadcaster, bandingFixed, ellipse, correctionAngle, blackPoint, fps, geometryParams.xyRatio())).thenAccept(geometryFixed -> {
+        executor.submit(new GeometryCorrector(broadcaster, bandingFixed, ellipse, correctionAngle, fps, geometryParams.xyRatio())).thenAccept(geometryFixed -> {
             state.recordResult(WorkflowStep.GEOMETRY_CORRECTION, geometryFixed);
             broadcaster.broadcast(OutputImageDimensionsDeterminedEvent.of("geometry corrected", geometryFixed.width(), geometryFixed.height()));
             processedImagesEmitter.newMonoImage(WorkflowStep.GEOMETRY_CORRECTION, "Disk", "disk", geometryFixed, LinearStrechingStrategy.DEFAULT);
@@ -137,7 +137,7 @@ public class ProcessingWorkflow {
                 executor.submit(() -> produceColorizedImage(blackPoint, geometryFixed, processParams));
             }
             if (state.isEnabled(WorkflowStep.CORONAGRAPH)) {
-                executor.submit(() -> produceCoronagraph(blackPoint, geometryFixed, processParams));
+                executor.submit(() -> produceCoronagraph(blackPoint, geometryFixed));
             }
             if (state.isEnabled(WorkflowStep.DOPPLER_IMAGE)) {
                 produceDopplerImage(blackPoint);
@@ -232,13 +232,69 @@ public class ProcessingWorkflow {
         }
     }
 
-    private void produceCoronagraph(float blackPoint, ImageWrapper32 geometryFixed, ProcessParams params) {
+    private void produceCoronagraph(float blackPoint, ImageWrapper32 geometryFixed) {
         executor.submit(new EllipseFittingTask(broadcaster, geometryFixed, 6d))
                 .thenAccept(fitting -> executor.submit(new CoronagraphTask(broadcaster, geometryFixed, fitting, blackPoint)).thenAccept(coronagraph -> {
-                            processedImagesEmitter.newMonoImage(WorkflowStep.COLORIZED_IMAGE, "Coronagraph", "protus", coronagraph, LinearStrechingStrategy.DEFAULT);
-                        }
-                ));
+                            processedImagesEmitter.newMonoImage(WorkflowStep.CORONAGRAPH, "Coronagraph", "protus", coronagraph, LinearStrechingStrategy.DEFAULT);
+                            var data = geometryFixed.data();
+                            var copy = new float[data.length];
+                            System.arraycopy(data, 0, copy, 0, data.length);
+                            LinearStrechingStrategy.DEFAULT.stretch(copy);
+                            var width = geometryFixed.width();
+                            var height = geometryFixed.height();
+                            var ellipse = fitting.ellipse();
+                            float[] mix = new float[data.length];
+                            var coronaData = coronagraph.data();
+                            var filtered = new float[coronaData.length];
+                            System.arraycopy(coronaData, 0, filtered, 0, filtered.length);
+                            prefilter(fitting.ellipse(), filtered, width, height);
+                            for (int y = 0; y < height; y++) {
+                                for (int x = 0; x < width; x++) {
+                                    var index = x + y * width;
+                                    if (ellipse.isWithin(x, y)) {
+                                        mix[index] = copy[index];
+                                    } else {
+                                        mix[index] = filtered[index];
+                                    }
+                                }
+                            }
+                            var mixedImage = new ImageWrapper32(width, height, mix);
+                            var colorCurve = processParams.spectrumParams().ray().getColorCurve();
+                            if (colorCurve.isPresent()) {
+                                var curve = colorCurve.get();
+                                processedImagesEmitter.newColorImage(WorkflowStep.COLORIZED_IMAGE, "Mix", "mix", mixedImage, new ArcsinhStretchingStrategy(blackPoint, 10, 200), mono -> convertToRGB(curve, mono));
+                            } else {
+                                processedImagesEmitter.newMonoImage(WorkflowStep.CORONAGRAPH, "Mix", "mix", mixedImage, LinearStrechingStrategy.DEFAULT);
+                            }
+                        })
+                );
     }
+
+    /**
+     * The farther we are from the center, and outside of the sun
+     * disk, the most likely it's either a protuberance or an artifact.
+     * This reduces artifacts by decreasing pixel values for pixels
+     * far from the limb.
+     *
+     * @param ellipse the circle representing the sun disk
+     */
+    private void prefilter(Ellipse ellipse, float[] filtered, int width, int height) {
+        var center = ellipse.center();
+        var cx = center.a();
+        var cy = center.b();
+        var radius = ellipse.semiAxis().a();
+        for (int y = 0; y < height; y++) {
+            for (int x = 0; x < width; x++) {
+                if (!ellipse.isWithin(x, y)) {
+                    var dist = Math.sqrt((x - cx) * (x - cx) + (y - cy) * (y - cy));
+                    // compute distance to circle
+                    var scale = Math.pow(Math.log(0.99 + dist / radius) / Math.log(2), 10);
+                    filtered[x + y * width] /= scale;
+                }
+            }
+        }
+    }
+
 
     public double getTilt() {
         return tilt;
@@ -252,12 +308,18 @@ public class ProcessingWorkflow {
         var width = image.width();
         var height = image.height();
         var buffer = image.data();
-        double blackEstimate = 0d;
+        double blackEstimate = Double.MAX_VALUE;
         int cpt = 0;
+        var cx = width / 2d;
+        var cy = height / 2d;
         for (int x = 0; x < width; x++) {
             for (int y = 0; y < height; y++) {
                 if (!ellipse.isWithin(x, y)) {
-                    blackEstimate = blackEstimate + (buffer[x + y * width] - blackEstimate) / (++cpt);
+                    var v = buffer[x + y * width];
+                    if (v > 0) {
+                        var offcenter = 2 * Math.sqrt((x - cx) * (x - cx) + (y - cy) * (y - cy)) / (width + height);
+                        blackEstimate = blackEstimate + (offcenter * v - blackEstimate) / (++cpt);
+                    }
                 }
             }
         }

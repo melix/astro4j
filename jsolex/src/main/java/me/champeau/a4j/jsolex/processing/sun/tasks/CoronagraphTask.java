@@ -35,7 +35,8 @@ public class CoronagraphTask extends AbstractTask<ImageWrapper32> {
 
     @Override
     public ImageWrapper32 call() throws Exception {
-        fill(fitting.ellipse(), buffer, width, 0);
+        var ellipse = fitting.ellipse();
+        fill(ellipse, buffer, width, 0);
         new ArcsinhStretchingStrategy(blackPoint * .25f, 5000, 20000).stretch(buffer);
         return new ImageWrapper32(width, height, buffer);
 

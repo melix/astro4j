@@ -31,7 +31,6 @@ public class GeometryCorrector extends AbstractTask<ImageWrapper32> {
 
     private final Ellipse ellipse;
     private final double correctionAngle;
-    private final float blackpoint;
     private final Double frameRate;
     private final OptionalDouble forcedRatio;
 
@@ -39,13 +38,11 @@ public class GeometryCorrector extends AbstractTask<ImageWrapper32> {
                              ImageWrapper32 image,
                              Ellipse ellipse,
                              double correctionAngle,
-                             float blackpoint,
                              Double frameRate,
                              OptionalDouble forcedRatio) {
         super(broadcaster, image);
         this.ellipse = ellipse;
         this.correctionAngle = correctionAngle;
-        this.blackpoint = blackpoint;
         this.frameRate = frameRate;
         this.forcedRatio = forcedRatio;
     }
@@ -75,7 +72,7 @@ public class GeometryCorrector extends AbstractTask<ImageWrapper32> {
             sx = ratio;
             sy = 1d;
         }
-        var rotated = ImageMath.newInstance().rotateAndScale(buffer, width, height, correctionAngle, blackpoint, sx, sy);
+        var rotated = ImageMath.newInstance().rotateAndScale(buffer, width, height, correctionAngle, 0, sx, sy);
         broadcaster.broadcast(ProgressEvent.of(1, "Correcting geometry"));
         return new ImageWrapper32(rotated.width(), rotated.height(), rotated.data());
     }
