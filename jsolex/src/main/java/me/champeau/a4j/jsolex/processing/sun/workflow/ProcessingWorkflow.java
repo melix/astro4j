@@ -40,6 +40,7 @@ import org.slf4j.LoggerFactory;
 import java.io.File;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Future;
 
@@ -59,6 +60,7 @@ public class ProcessingWorkflow {
     private final ImageEmitter debugImagesEmitter;
     private final ImageEmitter processedImagesEmitter;
     private final Broadcaster broadcaster;
+    private final int currentStep;
 
     private double tilt;
     private double xyRatio;
@@ -83,6 +85,7 @@ public class ProcessingWorkflow {
         this.rawImagesEmitter = imageEmitterFactory.newEmitter(broadcaster, executor, rawImagesDirectory);
         this.debugImagesEmitter = imageEmitterFactory.newEmitter(broadcaster, executor, debugImagesDirectory);
         this.processedImagesEmitter = imageEmitterFactory.newEmitter(broadcaster, executor, processedImagesDirectory);
+        this.currentStep = currentStep;
     }
 
     public void start() {
@@ -123,7 +126,13 @@ public class ProcessingWorkflow {
             LOGGER.info("Will not apply rotation correction as sun disk is almost a circle (and therefore tilt angle is not reliable)");
             this.tilt = 0;
         }
-        executor.submit(new GeometryCorrector(broadcaster, bandingFixed, ellipse, correctionAngle, fps, geometryParams.xyRatio())).thenAccept(geometryFixed -> {
+        var diskEllipse = Optional.<Ellipse>empty();
+        if (currentStep > 0) {
+            diskEllipse = states.get(0).findResult(WorkflowStep.GEOMETRY_CORRECTION).map(r -> ((GeometryCorrector.Result)r).disk());
+        }
+        executor.submit(new GeometryCorrector(broadcaster, bandingFixed, ellipse, correctionAngle, fps, geometryParams.xyRatio(), diskEllipse)).thenAccept(g -> {
+            var disk = g.disk();
+            var geometryFixed = g.corrected();
             state.recordResult(WorkflowStep.GEOMETRY_CORRECTION, geometryFixed);
             broadcaster.broadcast(OutputImageDimensionsDeterminedEvent.of("geometry corrected", geometryFixed.width(), geometryFixed.height()));
             processedImagesEmitter.newMonoImage(WorkflowStep.GEOMETRY_CORRECTION, "Disk", "disk", geometryFixed, LinearStrechingStrategy.DEFAULT);
