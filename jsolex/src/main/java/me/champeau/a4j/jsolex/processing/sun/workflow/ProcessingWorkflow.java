@@ -38,11 +38,14 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.File;
+import java.text.MessageFormat;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Future;
+
+import static me.champeau.a4j.jsolex.app.JSolEx.message;
 
 /**
  * This class encapsulates the processing workflow.
@@ -89,8 +92,8 @@ public class ProcessingWorkflow {
     }
 
     public void start() {
-        rawImagesEmitter.newMonoImage(WorkflowStep.RAW_IMAGE, "Raw", "recon", state.image(), CutoffStretchingStrategy.DEFAULT);
-        rawImagesEmitter.newMonoImage(WorkflowStep.RAW_IMAGE, "Raw (Linear)", "linear", state.image(), LinearStrechingStrategy.DEFAULT);
+        rawImagesEmitter.newMonoImage(WorkflowStep.RAW_IMAGE, message("raw"), "recon", state.image(), CutoffStretchingStrategy.DEFAULT);
+        rawImagesEmitter.newMonoImage(WorkflowStep.RAW_IMAGE, message("raw.linear"), "linear", state.image(), LinearStrechingStrategy.DEFAULT);
         var ellipseFittingTask = executor.submit(new EllipseFittingTask(broadcaster, state.image(), 10d));
         ellipseFittingTask.thenAccept(r -> {
             state.recordResult(WorkflowStep.ELLIPSE_FITTING, r);
@@ -107,35 +110,35 @@ public class ProcessingWorkflow {
         var detectedRatio = ellipse.xyRatio();
         this.tilt = processParams.geometryParams().tilt().orElse(ellipse.tiltAngle());
         this.xyRatio = processParams.geometryParams().xyRatio().orElse(detectedRatio);
-        LOGGER.info("Detected X/Y ratio: {}", String.format("%.2f", detectedRatio));
+        LOGGER.info(message("detected.xy.ratio"), String.format("%.2f", detectedRatio));
         float blackPoint = (float) estimateBlackPoint(bandingFixed, ellipse) * 1.2f;
         var tiltDegrees = ellipse.tiltAngle() / Math.PI * 180;
         var geometryParams = processParams.geometryParams();
         boolean isTiltReliable = ellipse.isAlmostCircle(CIRCLE_EPSILON);
         var tiltString = String.format("%.2f", tiltDegrees);
         if (Math.abs(tiltDegrees) > 1 && isTiltReliable && geometryParams.tilt().isEmpty()) {
-            broadcaster.broadcast(new SuggestionEvent("Tilt angle is " + tiltString + ". You should try to reduce it to less than 1°"));
+            broadcaster.broadcast(new SuggestionEvent(message("title.angle") + " " + tiltString + ". " + message("try.less.one.degree")));
         }
         var correctionAngle = isTiltReliable ? -ellipse.tiltAngle() : 0d;
         LOGGER.info("Tilt angle: {}°", tiltString);
         if (geometryParams.tilt().isPresent()) {
             correctionAngle = -geometryParams.tilt().getAsDouble() / 180d * Math.PI;
-            LOGGER.info("Overriding tilt angle to {}°", String.format("%.2f", geometryParams.tilt().getAsDouble()));
+            LOGGER.info(message("overriding.tilt"), String.format("%.2f", geometryParams.tilt().getAsDouble()));
         }
         if (!isTiltReliable) {
-            LOGGER.info("Will not apply rotation correction as sun disk is almost a circle (and therefore tilt angle is not reliable)");
+            LOGGER.info(message("tilt.unreliable"));
             this.tilt = 0;
         }
         var diskEllipse = Optional.<Ellipse>empty();
         if (currentStep > 0) {
-            diskEllipse = states.get(0).findResult(WorkflowStep.GEOMETRY_CORRECTION).map(r -> ((GeometryCorrector.Result)r).disk());
+            diskEllipse = states.get(0).findResult(WorkflowStep.GEOMETRY_CORRECTION).map(r -> ((GeometryCorrector.Result) r).disk());
         }
         executor.submit(new GeometryCorrector(broadcaster, bandingFixed, ellipse, correctionAngle, fps, geometryParams.xyRatio(), diskEllipse)).thenAccept(g -> {
             var disk = g.disk();
             var geometryFixed = g.corrected();
             state.recordResult(WorkflowStep.GEOMETRY_CORRECTION, geometryFixed);
-            broadcaster.broadcast(OutputImageDimensionsDeterminedEvent.of("geometry corrected", geometryFixed.width(), geometryFixed.height()));
-            processedImagesEmitter.newMonoImage(WorkflowStep.GEOMETRY_CORRECTION, "Disk", "disk", geometryFixed, LinearStrechingStrategy.DEFAULT);
+            broadcaster.broadcast(OutputImageDimensionsDeterminedEvent.of(message("geometry.corrected"), geometryFixed.width(), geometryFixed.height()));
+            processedImagesEmitter.newMonoImage(WorkflowStep.GEOMETRY_CORRECTION, message("disk"), "disk", geometryFixed, LinearStrechingStrategy.DEFAULT);
             if (state.isEnabled(WorkflowStep.EDGE_DETECTION_IMAGE)) {
                 executor.submit(() -> produceEdgeDetectionImage(result, geometryFixed));
             }
@@ -200,7 +203,7 @@ public class ProcessingWorkflow {
     private void produceColorizedImage(float blackPoint, ImageWrapper32 corrected, ProcessParams params) {
         CutoffStretchingStrategy.DEFAULT.stretch(corrected.data());
         params.spectrumParams().ray().getColorCurve().ifPresent(curve ->
-                processedImagesEmitter.newColorImage(WorkflowStep.COLORIZED_IMAGE, "Colorized (" + curve.ray() + ")", "colorized", corrected, new ArcsinhStretchingStrategy(blackPoint, 10, 200), mono -> convertToRGB(curve, mono))
+                processedImagesEmitter.newColorImage(WorkflowStep.COLORIZED_IMAGE, MessageFormat.format(message("colorized"), curve.ray()), "colorized", corrected, new ArcsinhStretchingStrategy(blackPoint, 10, 200), mono -> convertToRGB(curve, mono))
         );
     }
 
@@ -223,12 +226,12 @@ public class ProcessingWorkflow {
     }
 
     private Future<Void> produceStretchedImage(float blackPoint, ImageWrapper32 geometryFixed) {
-        return processedImagesEmitter.newMonoImage(WorkflowStep.STRECHED_IMAGE, "Stretched", "streched", geometryFixed, new ArcsinhStretchingStrategy(blackPoint, 10, 100));
+        return processedImagesEmitter.newMonoImage(WorkflowStep.STRECHED_IMAGE, message("stretched"), "streched", geometryFixed, new ArcsinhStretchingStrategy(blackPoint, 10, 100));
     }
 
     private void produceEdgeDetectionImage(EllipseFittingTask.Result result, ImageWrapper32 geometryFixed) {
         if (processParams.debugParams().generateDebugImages()) {
-            debugImagesEmitter.newMonoImage(WorkflowStep.EDGE_DETECTION_IMAGE, "Edge detection", "edge-detection", geometryFixed, LinearStrechingStrategy.DEFAULT, debugImage -> {
+            debugImagesEmitter.newMonoImage(WorkflowStep.EDGE_DETECTION_IMAGE, message("edge.detection"), "edge-detection", geometryFixed, LinearStrechingStrategy.DEFAULT, debugImage -> {
                 var samples = result.samples();
                 Arrays.fill(debugImage, 0f);
                 fill(result.ellipse(), debugImage, geometryFixed.width(), (int) Constants.MAX_PIXEL_VALUE / 4);
@@ -244,7 +247,7 @@ public class ProcessingWorkflow {
     private void produceCoronagraph(float blackPoint, ImageWrapper32 geometryFixed) {
         executor.submit(new EllipseFittingTask(broadcaster, geometryFixed, 6d))
                 .thenAccept(fitting -> executor.submit(new CoronagraphTask(broadcaster, geometryFixed, fitting, blackPoint)).thenAccept(coronagraph -> {
-                            processedImagesEmitter.newMonoImage(WorkflowStep.CORONAGRAPH, "Coronagraph", "protus", coronagraph, LinearStrechingStrategy.DEFAULT);
+                            processedImagesEmitter.newMonoImage(WorkflowStep.CORONAGRAPH, message("protus"), "protus", coronagraph, LinearStrechingStrategy.DEFAULT);
                             var data = geometryFixed.data();
                             var copy = new float[data.length];
                             System.arraycopy(data, 0, copy, 0, data.length);
@@ -271,9 +274,9 @@ public class ProcessingWorkflow {
                             var colorCurve = processParams.spectrumParams().ray().getColorCurve();
                             if (colorCurve.isPresent()) {
                                 var curve = colorCurve.get();
-                                processedImagesEmitter.newColorImage(WorkflowStep.COLORIZED_IMAGE, "Mix", "mix", mixedImage, new ArcsinhStretchingStrategy(blackPoint, 10, 200), mono -> convertToRGB(curve, mono));
+                                processedImagesEmitter.newColorImage(WorkflowStep.COLORIZED_IMAGE, message("mix"), "mix", mixedImage, new ArcsinhStretchingStrategy(blackPoint, 10, 200), mono -> convertToRGB(curve, mono));
                             } else {
-                                processedImagesEmitter.newMonoImage(WorkflowStep.CORONAGRAPH, "Mix", "mix", mixedImage, LinearStrechingStrategy.DEFAULT);
+                                processedImagesEmitter.newMonoImage(WorkflowStep.CORONAGRAPH, message("mix"), "mix", mixedImage, LinearStrechingStrategy.DEFAULT);
                             }
                         })
                 );
@@ -332,7 +335,7 @@ public class ProcessingWorkflow {
                 }
             }
         }
-        LOGGER.info("Black estimate {}", blackEstimate);
+        LOGGER.info(message("black.estimate"), String.format("%.2f", blackEstimate));
         return blackEstimate;
     }
 

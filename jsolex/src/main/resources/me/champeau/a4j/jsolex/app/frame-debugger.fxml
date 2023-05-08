@@ -18,11 +18,11 @@
             GridPane.columnIndex="0" GridPane.rowIndex="1"
     />
     <Label fx:id="frameId" GridPane.columnIndex="1" GridPane.rowIndex="1"/>
-    <Label text="Spectrum detection threshold"
+    <Label text="%spectrum.detection.threshold"
            GridPane.columnIndex="0" GridPane.rowIndex="2"/>
     <TextField fx:id="spectrumDetectionThreshold"
                GridPane.columnIndex="1" GridPane.rowIndex="2"/>
-    <Label text="Sun detection threshold"
+    <Label text="%sun.detection.threshold"
            GridPane.columnIndex="0" GridPane.rowIndex="3"/>
     <TextField fx:id="sunDetectionThreshold"
                GridPane.columnIndex="1" GridPane.rowIndex="3"/>

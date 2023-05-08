@@ -46,6 +46,8 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.util.List;
 
+import static me.champeau.a4j.jsolex.app.JSolEx.message;
+
 public class ImageViewer {
     private Node root;
     private StretchingStrategy initialStretchingStrategy = CutoffStretchingStrategy.DEFAULT;
@@ -135,13 +137,13 @@ public class ImageViewer {
             default -> {
             }
         }
-        var reset = new Button("Reset");
+        var reset = new Button(message("reset"));
         reset.setOnAction(event -> {
             stretchingParams.getChildren().clear();
             configureStretching(initialStretchingStrategy);
             strechAndDisplay();
         });
-        saveButton = new Button("Save");
+        saveButton = new Button(message("save"));
         saveButton.setOnAction(e -> saveImage(imageFile));
         stretchingParams.getChildren().addAll(reset, saveButton);
         strechAndDisplay();
@@ -152,7 +154,7 @@ public class ImageViewer {
         var strech = arcsin.getStretch();
         var blackpointSlider = new Slider(0, Constants.MAX_PIXEL_VALUE / 4, (int) blackpoint);
         var blackpointValue = new Label("" + (int) arcsin.getBlackPoint());
-        var blackpointLabel = new Label("Black point: ");
+        var blackpointLabel = new Label(message("black.point") + " ");
         var strechSlider = new Slider(0, arcsin.getMaxStretch(), (int) strech);
         var pause = new PauseTransition(Duration.millis(500));
         blackpointSlider.valueProperty().addListener((observable, oldValue, newValue) -> {
@@ -165,7 +167,7 @@ public class ImageViewer {
             pause.playFromStart();
         });
         var strechSliderValue = new Label("" + (int) arcsin.getStretch());
-        var stretchLabel = new Label("Stretch: ");
+        var stretchLabel = new Label(message("stretch") + " ");
         strechSlider.valueProperty().addListener((observable, oldValue, newValue) -> {
             double value = (Double) newValue;
             pause.setOnFinished(e -> {
@@ -190,8 +192,8 @@ public class ImageViewer {
         var hiSlider = new Slider(0, 255, hi);
         var loValueLabel = new Label("" + lo);
         var hiValueLabel = new Label("" + hi);
-        var loLabel = new Label("Low: ");
-        var hiLabel = new Label("High: ");
+        var loLabel = new Label(message("low") + " ");
+        var hiLabel = new Label(message("high") + " ");
         loSlider.setBlockIncrement(10);
         hiSlider.setBlockIncrement(10);
         var pause = new PauseTransition(Duration.millis(500));
@@ -217,19 +219,19 @@ public class ImageViewer {
     }
 
     private float[] stretch(float[] data) {
-        broadcaster.onProgress(ProgressEvent.of(0, "Stretching " + imageFile.getName()));
+        broadcaster.onProgress(ProgressEvent.of(0, message("stretching") + " " + imageFile.getName()));
         try {
             float[] streched = new float[data.length];
             System.arraycopy(data, 0, streched, 0, data.length);
             stretchingStrategy.stretch(streched);
             return streched;
         } finally {
-            broadcaster.onProgress(ProgressEvent.of(1, "Stretching " + imageFile.getName()));
+            broadcaster.onProgress(ProgressEvent.of(1, message("stretching") + " " + imageFile.getName()));
         }
     }
 
     private float[][] stretch(float[] r, float[] g, float[] b) {
-        broadcaster.onProgress(ProgressEvent.of(0, "Stretching " + imageFile.getName()));
+        broadcaster.onProgress(ProgressEvent.of(0, message("stretching") + " " + imageFile.getName()));
         try {
             float[] rr = new float[r.length];
             float[] gg = new float[g.length];
@@ -241,7 +243,7 @@ public class ImageViewer {
             stretchingStrategy.stretch(rgb);
             return rgb;
         } finally {
-            broadcaster.onProgress(ProgressEvent.of(1, "Stretching " + imageFile.getName()));
+            broadcaster.onProgress(ProgressEvent.of(1, message("stretching") + " " + imageFile.getName()));
         }
     }
 

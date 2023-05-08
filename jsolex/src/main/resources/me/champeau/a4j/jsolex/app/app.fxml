@@ -13,19 +13,19 @@
 <?import javafx.scene.layout.BorderPane?>
 <?import javafx.scene.layout.HBox?>
 
-<BorderPane xmlns:fx="http://javafx.com/fxml/1" xmlns="http://javafx.com/javafx/19">
+<BorderPane xmlns:fx="http://javafx.com/fxml/1" xmlns="http://javafx.com/javafx/17">
     <top>
         <MenuBar>
-            <Menu text="File">
-                <MenuItem onAction="#open" text="Open SER file" />
-                <Menu fx:id="recentFilesMenu" text="Recent files..." />
+            <Menu text="%file">
+                <MenuItem onAction="#open" text="%open.ser.file" />
+                <Menu fx:id="recentFilesMenu" text="%recent.files" />
                 <SeparatorMenuItem />
-                <MenuItem onAction="#exit" text="Exit" />
+                <MenuItem onAction="#exit" text="%exit" />
             </Menu>
-            <Menu text="Tools">
-                <MenuItem onAction="#showFrameDebugger" text="Spectrum debugger" />
+            <Menu text="%tools">
+                <MenuItem onAction="#showFrameDebugger" text="%spectrum.debugger" />
                 <SeparatorMenuItem />
-                <MenuItem onAction="#about" text="About" />
+                <MenuItem onAction="#about" text="%about" />
             </Menu>
         </MenuBar>
     </top>

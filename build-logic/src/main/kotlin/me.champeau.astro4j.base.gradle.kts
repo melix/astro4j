@@ -34,6 +34,7 @@ tasks.rat {
     excludes.add("**/*.css")
     excludes.add("**/*.fxml")
     excludes.add("**/*.md")
+    excludes.add("**/*.properties")
 }
 
 group = "me.champeau.astro4j"

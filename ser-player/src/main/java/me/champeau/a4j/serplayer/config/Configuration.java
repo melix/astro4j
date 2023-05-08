@@ -21,6 +21,7 @@ import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.Locale;
 import java.util.prefs.Preferences;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
@@ -50,5 +51,9 @@ public class Configuration {
 
     public List<Path> getRecentFiles() {
         return Collections.unmodifiableList(recentFiles);
+    }
+
+    public Locale getLocale() {
+        return Locale.getDefault();
     }
 }

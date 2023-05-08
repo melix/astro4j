@@ -58,6 +58,8 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
+import static me.champeau.a4j.jsolex.app.JSolEx.message;
+
 public class SolexVideoProcessor implements Broadcaster {
     private static final Logger LOGGER = LoggerFactory.getLogger(SolexVideoProcessor.class);
 
@@ -98,17 +100,17 @@ public class SolexVideoProcessor implements Broadcaster {
             var header = reader.header();
             ImageGeometry geometry = header.geometry();
             var frameCount = header.frameCount();
-            LOGGER.info("SER file contains {} frames", frameCount);
-            LOGGER.info("Color mode : {} ({} bytes per pixel, depth = {} bits)", geometry.colorMode(), geometry.getBytesPerPixel(), geometry.pixelDepthPerPlane());
-            LOGGER.info("Width: {}, height: {}", geometry.width(), geometry.height());
-            LOGGER.info("Detecting limb... ");
+            LOGGER.info(message("ser.file.contains"), frameCount);
+            LOGGER.info(message("color.mode.geometry"), geometry.colorMode(), geometry.getBytesPerPixel(), geometry.pixelDepthPerPlane());
+            LOGGER.info(message("width.height"), geometry.width(), geometry.height());
+            LOGGER.info(message("detecting.limb"));
             detector.detectEdges(reader);
             detector.ifEdgesDetected((start, end) -> {
-                        LOGGER.info("Sun edges detected at frames {} and {}", start, end);
+                        LOGGER.info(message("sun.edges.detected"), start, end);
                         generateImages(converter, reader, Math.max(0, start - 40), Math.min(end + 40, frameCount) - 1);
                     }
                     , () -> {
-                        LOGGER.info("Sun edges weren't detected, processing whole video");
+                        LOGGER.info(message("sun.edges.detected.full"));
                         generateImages(converter, reader, 0, frameCount - 1);
                     });
         } catch (Exception e) {
@@ -118,7 +120,7 @@ public class SolexVideoProcessor implements Broadcaster {
 
     private void broadcastError(Exception ex) {
         String trace = JSolEx.logError(ex);
-        broadcast(new NotificationEvent(new Notification(Alert.AlertType.ERROR, "Unexpected error", "An error occurred during processing", trace)));
+        broadcast(new NotificationEvent(new Notification(Alert.AlertType.ERROR, message("unexpected.error"), message("error.during.processing"), trace)));
     }
 
     private void generateImages(ImageConverter<float[]> converter,
@@ -132,7 +134,7 @@ public class SolexVideoProcessor implements Broadcaster {
         int newHeight = end - start;
         broadcast(OutputImageDimensionsDeterminedEvent.of("raw", width, newHeight));
         List<WorkflowState> imageList = createWorkflowStateSteps(width, newHeight);
-        LOGGER.info("Starting reconstruction...");
+        LOGGER.info(message("starting.reconstruction"));
         performImageReconstruction(converter, reader, start, end, geometry, width, height, imageList.toArray(new WorkflowState[0]));
         ProcessParams currentParams = processParams;
         for (int step = 0; step < imageList.size(); step++) {
@@ -231,9 +233,9 @@ public class SolexVideoProcessor implements Broadcaster {
                     var outputFile = new File(debugDirectory, "average.png");
                     var rgb = new SpectralLineFrameImageCreator(analyzer, average, width, height)
                             .generateDebugImage();
-                    broadcast(new ImageGeneratedEvent(new GeneratedImage("Average", outputFile.toPath(), rgb, LinearStrechingStrategy.DEFAULT)));
+                    broadcast(new ImageGeneratedEvent(new GeneratedImage(message("average"), outputFile.toPath(), rgb, LinearStrechingStrategy.DEFAULT)));
                 }
-                LOGGER.info("Distortion polynomial ax2 + bx + c = 0\n    - a = {}\n    - b = {}\n    - c = {}", polynomial.a(), polynomial.b(), polynomial.c());
+                LOGGER.info(message("distortion.polynomial"), polynomial.a(), polynomial.b(), polynomial.c());
                 reader.seekFrame(start);
                 for (int i = start, j = 0; i < end; i++, j += width) {
                     var original = converter.createBuffer(geometry);
@@ -251,7 +253,7 @@ public class SolexVideoProcessor implements Broadcaster {
         } catch (Exception e) {
             throw new ProcessingException(e);
         }
-        LOGGER.info("Reconstruction done. Generating images...");
+        LOGGER.info(message("processing.done.generate.images"));
     }
 
     private static float[] computeAverageImage(ImageConverter<float[]> converter, SerFileReader reader, int start, int end, ImageGeometry geometry, SpectrumFrameAnalyzer analyzer) {

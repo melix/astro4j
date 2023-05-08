@@ -20,7 +20,6 @@ import javafx.application.Application;
 import javafx.application.Platform;
 import javafx.concurrent.Task;
 import javafx.fxml.FXML;
-import javafx.fxml.FXMLLoader;
 import javafx.scene.Node;
 import javafx.scene.Parent;
 import javafx.scene.Scene;
@@ -42,6 +41,7 @@ import javafx.stage.FileChooser;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
 import javafx.util.Duration;
+import me.champeau.a4j.jsolex.app.jfx.I18N;
 import me.champeau.a4j.jsolex.app.jfx.ImageViewer;
 import me.champeau.a4j.jsolex.app.jfx.ProcessParamsController;
 import me.champeau.a4j.jsolex.app.jfx.SpectralLineDebugger;
@@ -117,7 +117,7 @@ public class JSolEx extends Application {
     @Override
     public void start(Stage stage) throws Exception {
         this.rootStage = stage;
-        var fxmlLoader = new FXMLLoader(getClass().getResource("app.fxml"));
+        var fxmlLoader = I18N.fxmlLoader(getClass(),"app");
         fxmlLoader.setController(this);
 
         try {
@@ -193,7 +193,7 @@ public class JSolEx extends Application {
     @FXML
     private void showFrameDebugger() {
         selectSerFileAndThen(file -> {
-            var fxmlLoader = new FXMLLoader(getClass().getResource("frame-debugger.fxml"));
+            var fxmlLoader = I18N.fxmlLoader(getClass(), "frame-debugger");
             Object configWindow;
             try {
                 configWindow = fxmlLoader.load();
@@ -204,7 +204,7 @@ public class JSolEx extends Application {
             var stage = new Stage();
             Scene scene = new Scene((Parent) configWindow, 1024, 400);
             controller.open(file, null, scene);
-            stage.setTitle("Frame debugger");
+            stage.setTitle(I18N.string(getClass(), "frame-debugger", "frame.debugger"));
             stage.setScene(scene);
             stage.showAndWait();
         });
@@ -216,12 +216,9 @@ public class JSolEx extends Application {
         var alert = new Alert(Alert.AlertType.INFORMATION);
         alert.setResizable(true);
         alert.getDialogPane().setPrefSize(480, 320);
-        alert.setTitle("About JSol'Ex");
-        alert.setHeaderText("Solar images processor");
-        alert.setContentText("JSol'Ex is free software aimed at processing solar images produced with Christian Buil's Sol'Ex instrument. " +
-                             "It is provided as is without any warrante and licensed under Apache License version 2. It was written as an experiment to understand " +
-                             "how Sol'Ex works and is heavily inspired by Valérie Desnoux's INTI (http://valerie.desnoux.free.fr/inti/). " +
-                             "This is still under heavy development, make sure to upgrade regularly.");
+        alert.setTitle(I18N.string(getClass(), "about", "about.title"));
+        alert.setHeaderText(I18N.string(getClass(), "about", "about.header"));
+        alert.setContentText(I18N.string(getClass(), "about", "about.message"));
         alert.showAndWait();
     }
 
@@ -250,7 +247,7 @@ public class JSolEx extends Application {
             String suffix = String.format("-%04d", i++);
             outputDirectory = new File(selectedFile.getParentFile(), outputDirName + suffix);
         }
-        LOGGER.info("Output directory set to {}", outputDirectory);
+        LOGGER.info(message("output.dir.set"), outputDirectory);
         var processor = new SolexVideoProcessor(selectedFile,
                 outputDirectory,
                 params,
@@ -266,7 +263,7 @@ public class JSolEx extends Application {
 
             @Override
             public void onOutputImageDimensionsDetermined(OutputImageDimensionsDeterminedEvent event) {
-                LOGGER.info("Dimensions of {} image determined : {}x{}", event.getLabel(), event.getWidth(), event.getHeight());
+                LOGGER.info(message("dimensions.determined"), event.getLabel(), event.getWidth(), event.getHeight());
                 if (reconstructionStarted) {
                     return;
                 }
@@ -292,7 +289,7 @@ public class JSolEx extends Application {
                         if (pixelShift != 0) {
                             suffix = " (" + pixelShift + ")";
                         }
-                        mainPane.getTabs().add(new Tab("Reconstruction" + suffix, scrollPane));
+                        mainPane.getTabs().add(new Tab(message("reconstruction") + suffix, scrollPane));
                     } finally {
                         lock.unlock();
                     }
@@ -317,12 +314,12 @@ public class JSolEx extends Application {
                         rgb[3 * x + 2] = c;
                     }
                     var pixelformat = PixelFormat.getByteRgbInstance();
-                    onProgress(ProgressEvent.of((y + 1d) / height, "Reconstructing image"));
+                    onProgress(ProgressEvent.of((y + 1d) / height, message("reconstructing")));
                     Platform.runLater(() ->
                             image.getPixelWriter().setPixels(0, y, line.length, 1, pixelformat, rgb, 0, 3 * line.length)
                     );
                 } else {
-                    onProgress(ProgressEvent.of((y + 1d) / height, "Reconstructing image"));
+                    onProgress(ProgressEvent.of((y + 1d) / height, message("reconstructing")));
                 }
             }
 
@@ -401,16 +398,16 @@ public class JSolEx extends Application {
                 double seconds = duration.toMillis() / 1000d;
                 var sb = new StringBuilder();
                 if (!suggestions.isEmpty()) {
-                    sb.append("Suggestions :\n");
+                    sb.append(message("suggestions") + " :\n");
                     for (String suggestion : suggestions) {
                         sb.append("    - ").append(suggestion).append("\n");
                     }
                 }
-                var finishedString = String.format("Finished in %.2fs", seconds);
+                var finishedString = String.format(message("finished.in"), seconds);
                 onNotification(new NotificationEvent(
                         new Notification(
                                 Alert.AlertType.INFORMATION,
-                                "Processing done",
+                                message("processing.done"),
                                 finishedString,
                                 sb.toString()
                         )));
@@ -452,10 +449,10 @@ public class JSolEx extends Application {
     }
 
     private ProcessParamsController createProcessParams(SerFileReader serFileReader) {
-        var loader = new FXMLLoader(getClass().getResource("process-params.fxml"));
+        var loader = I18N.fxmlLoader(getClass(), "process-params");
         try {
             var dialog = new Stage();
-            dialog.setTitle("Process configuration");
+            dialog.setTitle(I18N.string(getClass(), "process-params", "process.parameters"));
             var content = (Parent) loader.load();
             var controller = (ProcessParamsController) loader.getController();
             var scene = new Scene(content);
@@ -471,7 +468,7 @@ public class JSolEx extends Application {
     }
 
     private ImageViewer newImageViewer() {
-        var fxmlLoader = new FXMLLoader(getClass().getResource("imageview.fxml"));
+        var fxmlLoader = I18N.fxmlLoader(getClass(), "imageview");
         try {
             var node = (Node) fxmlLoader.load();
             var controller = (ImageViewer) fxmlLoader.getController();
@@ -485,6 +482,10 @@ public class JSolEx extends Application {
     @FXML
     private void exit() {
         System.exit(0);
+    }
+
+    public static String message(String label) {
+        return I18N.string(JSolEx.class, "messages", label);
     }
 
     public static void main(String[] args) {
