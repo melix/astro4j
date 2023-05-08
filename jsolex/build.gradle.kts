@@ -1,3 +1,5 @@
+import com.github.vlsi.gradle.license.api.SpdxLicense
+
 plugins {
     id("me.champeau.astro4j.jfxapp")
 }
@@ -22,4 +24,19 @@ application {
 
 astro4j {
     withVectorApi()
+}
+
+tasks.gatherLicenses {
+    extraLicenseDir.set(rootProject.file("licenses"))
+    overrideLicense("gov.nasa.gsfc.heasarc:nom-tam-fits") {
+        effectiveLicense = SpdxLicense.Unlicense
+    }
+}
+
+sourceSets {
+    main {
+        resources {
+            srcDir(tasks.generateLicense.map { it.outputFile.get().asFile.parentFile })
+        }
+    }
 }

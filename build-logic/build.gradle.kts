@@ -14,4 +14,5 @@ dependencies {
     implementation("org.beryx.jlink:org.beryx.jlink.gradle.plugin:2.25.0")
     implementation("org.javamodularity:moduleplugin:1.8.12")
     implementation("com.diffplug.spotless:spotless-plugin-gradle:6.18.0")
+    implementation("com.github.vlsi.gradle:license-gather-plugin:1.85")
 }

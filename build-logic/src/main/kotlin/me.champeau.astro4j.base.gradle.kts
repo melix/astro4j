@@ -1,8 +1,10 @@
+import com.github.vlsi.gradle.license.GatherLicenseTask
 import me.champeau.astro4j.BuildExtension
+import me.champeau.astro4j.GenerateLicenseResourceFile
 
 plugins {
     groovy
-    `java`
+    java
     id("org.nosphere.apache.rat")
     id("com.diffplug.spotless")
 }
@@ -47,4 +49,14 @@ spotless {
 
 tasks.named("check") {
     dependsOn("spotlessCheck")
+}
+
+val gatherLicenses by tasks.registering(GatherLicenseTask::class) {
+    configurations.add(project.configurations.runtimeClasspath)
+    extraLicenseDir.set(rootProject.file("licenses"))
+}
+
+val generateLicense by tasks.registering(GenerateLicenseResourceFile::class) {
+    licensesDir.set(gatherLicenses.flatMap(GatherLicenseTask::licenseDir))
+    outputFile.set(layout.buildDirectory.file("generated/resources/licenses/licenses.txt"))
 }

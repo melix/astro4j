@@ -215,10 +215,20 @@ public class JSolEx extends Application {
     private void about() {
         var alert = new Alert(Alert.AlertType.INFORMATION);
         alert.setResizable(true);
-        alert.getDialogPane().setPrefSize(480, 320);
+        alert.getDialogPane().setPrefSize(700, 400);
         alert.setTitle(I18N.string(getClass(), "about", "about.title"));
         alert.setHeaderText(I18N.string(getClass(), "about", "about.header"));
         alert.setContentText(I18N.string(getClass(), "about", "about.message"));
+        var licenses = new TextArea();
+        try {
+            licenses.setText(new String(JSolEx.class.getResourceAsStream("/licenses.txt").readAllBytes(), "utf-8"));
+        } catch (Exception e) {
+            licenses.setText("Cannot find licenses file");
+        }
+        var scroll = new ScrollPane(licenses);
+        scroll.fitToHeightProperty().set(true);
+        scroll.fitToWidthProperty().set(true);
+        alert.getDialogPane().setExpandableContent(scroll);
         alert.showAndWait();
     }
 
