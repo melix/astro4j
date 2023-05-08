@@ -215,7 +215,7 @@ public class SolexVideoProcessor implements Broadcaster {
                 WorkflowState.prepare(width, newHeight, 0, EnumSet.allOf(WorkflowStep.class)),
                 WorkflowState.prepare(width, newHeight, -dopplerShift),
                 WorkflowState.prepare(width, newHeight, dopplerShift, WorkflowStep.DOPPLER_IMAGE),
-                WorkflowState.prepare(width, newHeight, +15, WorkflowStep.GEOMETRY_CORRECTION)
+                WorkflowState.prepare(width, newHeight, +15, WorkflowStep.STRECHED_IMAGE)
         ) : List.of(
                 WorkflowState.prepare(width, newHeight, processParams.spectrumParams().pixelShift(), EnumSet.allOf(WorkflowStep.class))
         );

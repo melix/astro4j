@@ -136,7 +136,7 @@ public class ProcessingWorkflow {
         executor.submit(new GeometryCorrector(broadcaster, bandingFixed, ellipse, correctionAngle, fps, geometryParams.xyRatio(), diskEllipse)).thenAccept(g -> {
             var disk = g.disk();
             var geometryFixed = g.corrected();
-            state.recordResult(WorkflowStep.GEOMETRY_CORRECTION, geometryFixed);
+            state.recordResult(WorkflowStep.GEOMETRY_CORRECTION, g);
             broadcaster.broadcast(OutputImageDimensionsDeterminedEvent.of(message("geometry.corrected"), geometryFixed.width(), geometryFixed.height()));
             processedImagesEmitter.newMonoImage(WorkflowStep.GEOMETRY_CORRECTION, message("disk"), "disk", geometryFixed, LinearStrechingStrategy.DEFAULT);
             if (state.isEnabled(WorkflowStep.EDGE_DETECTION_IMAGE)) {
@@ -167,8 +167,8 @@ public class ProcessingWorkflow {
             var second = states.stream().filter(s -> s.pixelShift() == dopplerShift).findFirst();
             first.ifPresent(s1 -> second.ifPresent(s2 -> {
                 s1.findResult(WorkflowStep.GEOMETRY_CORRECTION).ifPresent(i1 -> s2.findResult(WorkflowStep.GEOMETRY_CORRECTION).ifPresent(i2 -> {
-                    var grey1 = (ImageWrapper32) i1;
-                    var grey2 = (ImageWrapper32) i2;
+                    var grey1 = ((GeometryCorrector.Result) i1).corrected();
+                    var grey2 = ((GeometryCorrector.Result) i2).corrected();
                     var width = grey1.width();
                     var height = grey1.height();
                     processedImagesEmitter.newColorImage(WorkflowStep.DOPPLER_IMAGE,
