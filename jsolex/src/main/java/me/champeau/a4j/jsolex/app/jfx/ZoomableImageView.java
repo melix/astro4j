@@ -15,9 +15,22 @@
  */
 package me.champeau.a4j.jsolex.app.jfx;
 
+import javafx.scene.control.ContextMenu;
+import javafx.scene.control.MenuItem;
 import javafx.scene.image.ImageView;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.awt.*;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 
 public class ZoomableImageView extends ImageView {
+    private static final Logger LOGGER = LoggerFactory.getLogger(ZoomableImageView.class);
+
+    private Path imagePath;
+
     public ZoomableImageView() {
         super();
         setOnScroll(event -> {
@@ -36,5 +49,32 @@ public class ZoomableImageView extends ImageView {
             }
             event.consume();
         });
+        var ctxMenu = new ContextMenu();
+        var showFile = new MenuItem("Show file in files");
+        showFile.setOnAction(e -> {
+            if (Desktop.getDesktop().isSupported(Desktop.Action.BROWSE_FILE_DIR)) {
+                Desktop.getDesktop().browseFileDirectory(imagePath.toFile());
+            } else {
+                // try a generic "open" call for unsupported platforms, which will
+                // open the directory but not focus on the file
+                try {
+                    var builder = new ProcessBuilder();
+                    builder.command("open", imagePath.getParent().toAbsolutePath().toString());
+                    builder.start();
+                } catch (IOException ex) {
+                    LOGGER.info("Opening files not supported on this platform");
+                }
+            }
+        });
+        ctxMenu.getItems().add(showFile);
+        setOnContextMenuRequested(e -> {
+            if (imagePath != null && Files.exists(imagePath)) {
+                ctxMenu.show(ZoomableImageView.this, e.getScreenX(), e.getScreenY());
+            }
+        });
+    }
+
+    public void setImagePath(Path imagePath) {
+        this.imagePath = imagePath;
     }
 }

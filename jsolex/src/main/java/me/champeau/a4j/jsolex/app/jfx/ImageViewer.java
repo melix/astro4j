@@ -24,7 +24,6 @@ import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.control.Slider;
 import javafx.scene.image.Image;
-import javafx.scene.image.ImageView;
 import javafx.scene.layout.HBox;
 import javafx.util.Duration;
 import me.champeau.a4j.jsolex.app.util.Constants;
@@ -37,10 +36,10 @@ import me.champeau.a4j.jsolex.processing.stretching.LinearStrechingStrategy;
 import me.champeau.a4j.jsolex.processing.stretching.StretchingStrategy;
 import me.champeau.a4j.jsolex.processing.sun.ImageUtils;
 import me.champeau.a4j.jsolex.processing.util.ColorizedImageWrapper;
-import me.champeau.a4j.jsolex.processing.util.RGBImage;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 import me.champeau.a4j.jsolex.processing.util.ProcessingException;
+import me.champeau.a4j.jsolex.processing.util.RGBImage;
 
 import java.io.File;
 import java.io.IOException;
@@ -60,7 +59,7 @@ public class ImageViewer {
     private HBox stretchingParams;
 
     @FXML
-    private ImageView imageView;
+    private ZoomableImageView imageView;
 
     private Button saveButton;
 
@@ -89,6 +88,7 @@ public class ImageViewer {
     }
 
     private void saveImage(File target) {
+        imageView.setImagePath(target.toPath());
         if (image instanceof ImageWrapper32 mono) {
             float[] stretched = stretch(mono.data());
             ImageUtils.writeMonoImage(image.width(), image.height(), stretched, target);
