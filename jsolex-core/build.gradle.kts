@@ -9,6 +9,9 @@ dependencies {
     api(libs.logback)
     implementation(libs.commons.math)
     implementation(libs.gson)
+    implementation(libs.fits) {
+        setTransitive(false)
+    }
     testImplementation(testFixtures(projects.jserfile))
 }
 

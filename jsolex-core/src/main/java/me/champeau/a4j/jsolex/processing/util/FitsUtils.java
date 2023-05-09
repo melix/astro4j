@@ -13,13 +13,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package me.champeau.a4j.jsolex.app.jfx;
+package me.champeau.a4j.jsolex.processing.util;
 
 import me.champeau.a4j.jsolex.processing.params.ProcessParams;
-import me.champeau.a4j.jsolex.processing.util.ColorizedImageWrapper;
-import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
-import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
-import me.champeau.a4j.jsolex.processing.util.RGBImage;
 import nom.tam.fits.Fits;
 import nom.tam.fits.FitsException;
 import nom.tam.fits.FitsFactory;
@@ -35,6 +31,7 @@ import java.io.File;
 import java.io.IOException;
 import java.text.Normalizer;
 import java.time.format.DateTimeFormatter;
+import java.util.Objects;
 
 import static nom.tam.fits.header.extra.NOAOExt.CAMERA;
 
@@ -52,10 +49,12 @@ class FitsUtils {
     }
 
     private void write(ImageWrapper image) {
-        switch (image) {
-            case ImageWrapper32 mono -> writeMono(mono);
-            case ColorizedImageWrapper colorized -> writeColorized(colorized);
-            case RGBImage rgb -> writeRGB(rgb);
+        if (Objects.requireNonNull(image) instanceof ImageWrapper32 mono) {
+            writeMono(mono);
+        } else if (image instanceof ColorizedImageWrapper colorized) {
+            writeColorized(colorized);
+        } else if (image instanceof RGBImage rgb) {
+            writeRGB(rgb);
         }
     }
 

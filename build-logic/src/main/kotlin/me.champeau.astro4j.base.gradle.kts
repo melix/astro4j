@@ -35,6 +35,7 @@ tasks.rat {
     excludes.add("build/**")
     excludes.add("**/*.css")
     excludes.add("**/*.fxml")
+    excludes.add("**/*.xml")
     excludes.add("**/*.md")
     excludes.add("**/*.properties")
 }

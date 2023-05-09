@@ -24,6 +24,7 @@ module me.champeau.a4j.jsolex.core {
     requires jdk.incubator.vector;
     requires com.google.gson;
     requires java.desktop;
+    requires nom.tam.fits;
     exports me.champeau.a4j.jsolex.processing.color;
     exports me.champeau.a4j.jsolex.processing.event;
     exports me.champeau.a4j.jsolex.processing.params;

@@ -26,7 +26,6 @@ import javafx.scene.control.Slider;
 import javafx.scene.image.Image;
 import javafx.scene.layout.HBox;
 import javafx.util.Duration;
-import me.champeau.a4j.jsolex.processing.util.Constants;
 import me.champeau.a4j.jsolex.processing.event.ProcessingEventListener;
 import me.champeau.a4j.jsolex.processing.event.ProgressEvent;
 import me.champeau.a4j.jsolex.processing.params.ProcessParams;
@@ -36,6 +35,8 @@ import me.champeau.a4j.jsolex.processing.stretching.LinearStrechingStrategy;
 import me.champeau.a4j.jsolex.processing.stretching.StretchingStrategy;
 import me.champeau.a4j.jsolex.processing.sun.ImageUtils;
 import me.champeau.a4j.jsolex.processing.util.ColorizedImageWrapper;
+import me.champeau.a4j.jsolex.processing.util.Constants;
+import me.champeau.a4j.jsolex.processing.util.ImageSaver;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 import me.champeau.a4j.jsolex.processing.util.ProcessingException;
@@ -91,41 +92,11 @@ public class ImageViewer {
 
     private void saveImage(File target) {
         imageView.setImagePath(target.toPath());
-        if (image instanceof ImageWrapper32 mono) {
-            float[] stretched = stretch(mono.data());
-            ImageUtils.writeMonoImage(image.width(), image.height(), stretched, target);
-            if (processParams.debugParams().generateFits()) {
-                FitsUtils.writeFitsFile(new ImageWrapper32(image.width(), image.height(), stretched), toFits(target), processParams);
-            }
-        } else if (image instanceof ColorizedImageWrapper colorImage) {
-            float[] stretched = stretch(colorImage.mono().data());
-            var colorized = colorImage.converter().apply(stretched);
-            var r = colorized[0];
-            var g = colorized[1];
-            var b = colorized[2];
-            ImageUtils.writeRgbImage(colorImage.width(), colorImage.height(), r, g, b, target);
-            if (processParams.debugParams().generateFits()) {
-                FitsUtils.writeFitsFile(new RGBImage(image.width(), image.height(), r, g, b), toFits(target), processParams);
-            }
-        } else if (image instanceof RGBImage rgb) {
-            var stretched = stretch(rgb.r(), rgb.g(), rgb.g());
-            var r = stretched[0];
-            var g = stretched[1];
-            var b = stretched[2];
-            ImageUtils.writeRgbImage(rgb.width(), rgb.height(), r, g, b, target);
-            if (processParams.debugParams().generateFits()) {
-                FitsUtils.writeFitsFile(new RGBImage(image.width(), image.height(), r, g, b), toFits(target), processParams);
-            }
-        }
+        new ImageSaver(stretchingStrategy, processParams).save(image, target);
         Platform.runLater(() -> {
             imageView.setImage(new Image(imageFile.toURI().toString()));
             saveButton.setDisable(true);
         });
-    }
-
-    private File toFits(File target) {
-        String fileNameWithoutExtension = target.getName().substring(0, target.getName().lastIndexOf("."));
-        return new File(target.getParentFile(), fileNameWithoutExtension + ".fits");
     }
 
     private void configureStretching(StretchingStrategy strategy) {

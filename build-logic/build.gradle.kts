@@ -15,4 +15,5 @@ dependencies {
     implementation("org.javamodularity:moduleplugin:1.8.12")
     implementation("com.diffplug.spotless:spotless-plugin-gradle:6.18.0")
     implementation("com.github.vlsi.gradle:license-gather-plugin:1.85")
+    implementation("io.micronaut.gradle:micronaut-gradle-plugin:4.0.0-M2")
 }

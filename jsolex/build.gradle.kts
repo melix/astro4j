@@ -6,9 +6,6 @@ plugins {
 
 dependencies {
     implementation(projects.jsolexCore)
-    implementation(libs.fits) {
-        setTransitive(false)
-    }
 }
 
 application {
