@@ -13,28 +13,24 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package me.champeau.a4j.jsolex.processing.event;
+package me.champeau.a4j.jsolex.processing.util;
 
-import javafx.scene.control.Alert;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-public final class NotificationEvent extends ProcessingEvent<Notification> {
-    public NotificationEvent(Notification message) {
-        super(message);
-    }
+import java.io.ByteArrayOutputStream;
+import java.io.PrintWriter;
 
-    public String title() {
-        return getPayload().title();
-    }
+public class LoggingSupport {
+    public static final Logger LOGGER = LoggerFactory.getLogger(LoggingSupport.class);
 
-    public String message() {
-        return getPayload().message();
-    }
-
-    public String header() {
-        return getPayload().header();
-    }
-
-    public Alert.AlertType type() {
-        return getPayload().type();
+    public static String logError(Throwable ex) {
+        var out = new ByteArrayOutputStream();
+        var s = new PrintWriter(out);
+        ex.printStackTrace(s);
+        s.flush();
+        String trace = out.toString();
+        LOGGER.error("Error while processing\n{}", trace);
+        return trace;
     }
 }

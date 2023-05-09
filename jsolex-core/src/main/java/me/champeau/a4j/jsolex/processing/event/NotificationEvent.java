@@ -13,19 +13,26 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-module me.champeau.a4j.jsolex {
-    requires me.champeau.a4j.jserfile;
-    requires me.champeau.a4j.jsolex.core;
-    requires org.slf4j;
-    requires java.desktop;
-    requires ch.qos.logback.core;
-    requires ch.qos.logback.classic;
-    requires javafx.controls;
-    requires javafx.fxml;
-    requires java.prefs;
-    requires jdk.incubator.vector;
-    requires nom.tam.fits;
-    exports me.champeau.a4j.jsolex.app to javafx.graphics;
-    opens me.champeau.a4j.jsolex.app to javafx.fxml;
-    opens me.champeau.a4j.jsolex.app.jfx to javafx.fxml;
+package me.champeau.a4j.jsolex.processing.event;
+
+public final class NotificationEvent extends ProcessingEvent<Notification> {
+    public NotificationEvent(Notification message) {
+        super(message);
+    }
+
+    public String title() {
+        return getPayload().title();
+    }
+
+    public String message() {
+        return getPayload().message();
+    }
+
+    public String header() {
+        return getPayload().header();
+    }
+
+    public Notification.AlertType type() {
+        return getPayload().type();
+    }
 }

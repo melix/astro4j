@@ -13,17 +13,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package me.champeau.a4j.jsolex.app.util;
+package me.champeau.a4j.jsolex.processing.util;
 
 import me.champeau.a4j.jsolex.processing.sun.DistortionCorrection;
 import me.champeau.a4j.jsolex.processing.sun.SpectrumFrameAnalyzer;
 import me.champeau.a4j.jsolex.processing.sun.SpectrumLine;
-import me.champeau.a4j.jsolex.processing.util.RGBImage;
 import me.champeau.a4j.math.tuples.DoubleTriplet;
 
 import java.util.Optional;
 
-import static me.champeau.a4j.jsolex.app.util.Constants.MAX_PIXEL_VALUE;
+import static me.champeau.a4j.jsolex.processing.util.Constants.MAX_PIXEL_VALUE;
 
 public class SpectralLineFrameImageCreator {
     private final SpectrumFrameAnalyzer analyzer;

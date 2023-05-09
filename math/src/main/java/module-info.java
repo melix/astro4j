@@ -13,16 +13,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package me.champeau.a4j.jsolex.app.util;
-
-public class Constants {
-    public static final String DEBUG_DIRECTORY = "debug";
-    public static final String RAW_DIRECTORY = "raw";
-    public static final String PROCESSED_DIRECTORY = "processed";
-    public static final float MAX_PIXEL_VALUE = 65535f;
-    public static final float NORMALIZED_PIXEL_VALUE = MAX_PIXEL_VALUE * .9f;
-
-    private Constants() {
-
-    }
+module me.champeau.a4j.math {
+    exports me.champeau.a4j.math;
+    exports me.champeau.a4j.math.fft;
+    exports me.champeau.a4j.math.image;
+    exports me.champeau.a4j.math.matrix;
+    exports me.champeau.a4j.math.regression;
+    exports me.champeau.a4j.math.tuples;
+    requires jdk.incubator.vector;
+    requires commons.math3;
 }

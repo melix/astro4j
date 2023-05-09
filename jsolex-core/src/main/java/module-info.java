@@ -13,19 +13,22 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-module me.champeau.a4j.jsolex {
-    requires me.champeau.a4j.jserfile;
-    requires me.champeau.a4j.jsolex.core;
-    requires org.slf4j;
-    requires java.desktop;
-    requires ch.qos.logback.core;
+module me.champeau.a4j.jsolex.core {
+    requires transitive me.champeau.a4j.jserfile;
+    requires transitive me.champeau.a4j.math;
+    requires transitive org.slf4j;
+    requires transitive ch.qos.logback.core;
+    requires commons.math3;
     requires ch.qos.logback.classic;
-    requires javafx.controls;
-    requires javafx.fxml;
     requires java.prefs;
     requires jdk.incubator.vector;
-    requires nom.tam.fits;
-    exports me.champeau.a4j.jsolex.app to javafx.graphics;
-    opens me.champeau.a4j.jsolex.app to javafx.fxml;
-    opens me.champeau.a4j.jsolex.app.jfx to javafx.fxml;
+    requires com.google.gson;
+    requires java.desktop;
+    exports me.champeau.a4j.jsolex.processing.color;
+    exports me.champeau.a4j.jsolex.processing.event;
+    exports me.champeau.a4j.jsolex.processing.params;
+    exports me.champeau.a4j.jsolex.processing.stats;
+    exports me.champeau.a4j.jsolex.processing.stretching;
+    exports me.champeau.a4j.jsolex.processing.sun;
+    exports me.champeau.a4j.jsolex.processing.util;
 }

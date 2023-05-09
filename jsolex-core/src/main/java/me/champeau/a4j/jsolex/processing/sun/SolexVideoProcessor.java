@@ -15,10 +15,6 @@
  */
 package me.champeau.a4j.jsolex.processing.sun;
 
-import javafx.scene.control.Alert;
-import me.champeau.a4j.jsolex.app.JSolEx;
-import me.champeau.a4j.jsolex.app.util.Constants;
-import me.champeau.a4j.jsolex.app.util.SpectralLineFrameImageCreator;
 import me.champeau.a4j.jsolex.processing.event.GeneratedImage;
 import me.champeau.a4j.jsolex.processing.event.ImageGeneratedEvent;
 import me.champeau.a4j.jsolex.processing.event.ImageLine;
@@ -41,9 +37,11 @@ import me.champeau.a4j.jsolex.processing.sun.workflow.ProcessingWorkflow;
 import me.champeau.a4j.jsolex.processing.sun.workflow.RenamingImageEmitter;
 import me.champeau.a4j.jsolex.processing.sun.workflow.StepFilteringImageEmitter;
 import me.champeau.a4j.jsolex.processing.sun.workflow.WorkflowStep;
+import me.champeau.a4j.jsolex.processing.util.Constants;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 import me.champeau.a4j.jsolex.processing.util.ParallelExecutor;
 import me.champeau.a4j.jsolex.processing.util.ProcessingException;
+import me.champeau.a4j.jsolex.processing.util.SpectralLineFrameImageCreator;
 import me.champeau.a4j.math.image.ImageMath;
 import me.champeau.a4j.math.tuples.DoubleTriplet;
 import me.champeau.a4j.ser.ImageGeometry;
@@ -56,9 +54,11 @@ import java.io.File;
 import java.util.EnumSet;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Objects;
 import java.util.Set;
 
-import static me.champeau.a4j.jsolex.app.JSolEx.message;
+import static me.champeau.a4j.jsolex.processing.util.Constants.message;
+import static me.champeau.a4j.jsolex.processing.util.LoggingSupport.logError;
 
 public class SolexVideoProcessor implements Broadcaster {
     private static final Logger LOGGER = LoggerFactory.getLogger(SolexVideoProcessor.class);
@@ -118,9 +118,9 @@ public class SolexVideoProcessor implements Broadcaster {
         }
     }
 
-    private void broadcastError(Exception ex) {
-        String trace = JSolEx.logError(ex);
-        broadcast(new NotificationEvent(new Notification(Alert.AlertType.ERROR, message("unexpected.error"), message("error.during.processing"), trace)));
+    private void broadcastError(Throwable ex) {
+        String trace = logError(ex);
+        broadcast(new NotificationEvent(new Notification(Notification.AlertType.ERROR, message("unexpected.error"), message("error.during.processing"), trace)));
     }
 
     private void generateImages(ImageConverter<float[]> converter,
@@ -262,7 +262,7 @@ public class SolexVideoProcessor implements Broadcaster {
         for (int i = start; i < end; i++) {
             converter.convert(i, reader.currentFrame().data(), geometry, current);
             for (int j = 0; j < current.length; j++) {
-                average[j] = average[j] + (current[j] - average[j]) / ((1 + i - start));
+                average[j] = average[j] + (current[j] - average[j]) / (1 + i - start);
             }
             reader.nextFrame();
         }
@@ -311,15 +311,22 @@ public class SolexVideoProcessor implements Broadcaster {
     @Override
     public void broadcast(ProcessingEvent<?> event) {
         for (ProcessingEventListener listener : progressEventListeners) {
-            switch (event) {
-                case OutputImageDimensionsDeterminedEvent e -> listener.onOutputImageDimensionsDetermined(e);
-                case PartialReconstructionEvent e -> listener.onPartialReconstruction(e);
-                case ImageGeneratedEvent e -> listener.onImageGenerated(e);
-                case NotificationEvent e -> listener.onNotification(e);
-                case SuggestionEvent e -> listener.onSuggestion(e);
-                case ProcessingStartEvent e -> listener.onProcessingStart(e);
-                case ProcessingDoneEvent e -> listener.onProcessingDone(e);
-                case ProgressEvent e -> listener.onProgress(e);
+            if (Objects.requireNonNull(event) instanceof OutputImageDimensionsDeterminedEvent e) {
+                listener.onOutputImageDimensionsDetermined(e);
+            } else if (event instanceof PartialReconstructionEvent e) {
+                listener.onPartialReconstruction(e);
+            } else if (event instanceof ImageGeneratedEvent e) {
+                listener.onImageGenerated(e);
+            } else if (event instanceof NotificationEvent e) {
+                listener.onNotification(e);
+            } else if (event instanceof SuggestionEvent e) {
+                listener.onSuggestion(e);
+            } else if (event instanceof ProcessingStartEvent e) {
+                listener.onProcessingStart(e);
+            } else if (event instanceof ProcessingDoneEvent e) {
+                listener.onProcessingDone(e);
+            } else if (event instanceof ProgressEvent e) {
+                listener.onProgress(e);
             }
         }
     }

@@ -15,7 +15,7 @@
  */
 package me.champeau.a4j.jsolex.processing.stretching;
 
-import me.champeau.a4j.jsolex.app.util.Constants;
+import me.champeau.a4j.jsolex.processing.util.Constants;
 
 import java.util.Optional;
 

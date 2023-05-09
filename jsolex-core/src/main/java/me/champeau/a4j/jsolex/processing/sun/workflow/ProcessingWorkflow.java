@@ -15,7 +15,7 @@
  */
 package me.champeau.a4j.jsolex.processing.sun.workflow;
 
-import me.champeau.a4j.jsolex.app.util.Constants;
+import me.champeau.a4j.jsolex.processing.util.Constants;
 import me.champeau.a4j.jsolex.processing.color.ColorCurve;
 import me.champeau.a4j.jsolex.processing.event.OutputImageDimensionsDeterminedEvent;
 import me.champeau.a4j.jsolex.processing.event.SuggestionEvent;
@@ -45,7 +45,7 @@ import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Future;
 
-import static me.champeau.a4j.jsolex.app.JSolEx.message;
+import static me.champeau.a4j.jsolex.processing.util.Constants.message;
 
 /**
  * This class encapsulates the processing workflow.
@@ -117,7 +117,7 @@ public class ProcessingWorkflow {
         boolean isTiltReliable = ellipse.isAlmostCircle(CIRCLE_EPSILON);
         var tiltString = String.format("%.2f", tiltDegrees);
         if (Math.abs(tiltDegrees) > 1 && isTiltReliable && geometryParams.tilt().isEmpty()) {
-            broadcaster.broadcast(new SuggestionEvent(message("title.angle") + " " + tiltString + ". " + message("try.less.one.degree")));
+            broadcaster.broadcast(new SuggestionEvent(message("tilt.angle") + " " + tiltString + ". " + message("try.less.one.degree")));
         }
         var correctionAngle = isTiltReliable ? -ellipse.tiltAngle() : 0d;
         LOGGER.info("Tilt angle: {}°", tiltString);
@@ -134,7 +134,6 @@ public class ProcessingWorkflow {
             diskEllipse = states.get(0).findResult(WorkflowStep.GEOMETRY_CORRECTION).map(r -> ((GeometryCorrector.Result) r).disk());
         }
         executor.submit(new GeometryCorrector(broadcaster, bandingFixed, ellipse, correctionAngle, fps, geometryParams.xyRatio(), diskEllipse)).thenAccept(g -> {
-            var disk = g.disk();
             var geometryFixed = g.corrected();
             state.recordResult(WorkflowStep.GEOMETRY_CORRECTION, g);
             broadcaster.broadcast(OutputImageDimensionsDeterminedEvent.of(message("geometry.corrected"), geometryFixed.width(), geometryFixed.height()));

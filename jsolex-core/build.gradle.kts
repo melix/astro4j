@@ -2,13 +2,20 @@ plugins {
     id("me.champeau.astro4j.library")
 }
 
+dependencies {
+    api(projects.jserfile)
+    api(projects.math)
+    api(libs.slf4j.api)
+    api(libs.logback)
+    implementation(libs.commons.math)
+    implementation(libs.gson)
+    testImplementation(testFixtures(projects.jserfile))
+}
+
 astro4j {
     withVectorApi()
 }
 
-dependencies {
-    implementation(libs.commons.math)
-}
 
 tasks.withType<JavaCompile>().configureEach {
     doFirst {

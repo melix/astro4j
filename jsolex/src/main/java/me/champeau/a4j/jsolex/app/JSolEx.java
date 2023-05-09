@@ -58,14 +58,13 @@ import me.champeau.a4j.jsolex.processing.event.ProgressEvent;
 import me.champeau.a4j.jsolex.processing.event.SuggestionEvent;
 import me.champeau.a4j.jsolex.processing.params.ProcessParams;
 import me.champeau.a4j.jsolex.processing.sun.SolexVideoProcessor;
+import me.champeau.a4j.jsolex.processing.util.LoggingSupport;
 import me.champeau.a4j.ser.SerFileReader;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.IOException;
-import java.io.PrintWriter;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.HashMap;
@@ -75,6 +74,8 @@ import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Consumer;
+
+import static me.champeau.a4j.jsolex.processing.util.LoggingSupport.logError;
 
 public class JSolEx extends Application {
     private static final Logger LOGGER = LoggerFactory.getLogger(JSolEx.class);
@@ -103,16 +104,6 @@ public class JSolEx extends Application {
     private final List<String> suggestions = new CopyOnWriteArrayList<>();
 
     private final ReentrantLock lock = new ReentrantLock();
-
-    public static String logError(Throwable ex) {
-        var out = new ByteArrayOutputStream();
-        var s = new PrintWriter(out);
-        ex.printStackTrace(s);
-        s.flush();
-        String trace = out.toString();
-        LOGGER.error("Error while processing\n{}", trace);
-        return trace;
-    }
 
     @Override
     public void start(Stage stage) throws Exception {
@@ -183,10 +174,10 @@ public class JSolEx extends Application {
         config.findLastOpenDirectory().ifPresent(dir -> fileChooser.setInitialDirectory(dir.toFile()));
         var selectedFile = fileChooser.showOpenDialog(rootStage);
         if (selectedFile != null) {
-            LOGGER.info("Selected file {}", selectedFile);
+            LoggingSupport.LOGGER.info("Selected file {}", selectedFile);
             consumer.accept(selectedFile);
         } else {
-            LOGGER.info("No selected file, processing cancelled.");
+            LoggingSupport.LOGGER.info("No selected file, processing cancelled.");
         }
     }
 
@@ -257,7 +248,7 @@ public class JSolEx extends Application {
             String suffix = String.format("-%04d", i++);
             outputDirectory = new File(selectedFile.getParentFile(), outputDirName + suffix);
         }
-        LOGGER.info(message("output.dir.set"), outputDirectory);
+        LoggingSupport.LOGGER.info(message("output.dir.set"), outputDirectory);
         var processor = new SolexVideoProcessor(selectedFile,
                 outputDirectory,
                 params,
@@ -379,7 +370,7 @@ public class JSolEx extends Application {
                         logError(ex);
                     }
                     Platform.runLater(() -> {
-                        var alert = new Alert(e.type());
+                        var alert = new Alert(Alert.AlertType.valueOf(e.type().name()));
                         alert.setResizable(true);
                         alert.getDialogPane().setPrefSize(480, 320);
                         alert.setTitle(e.title());
@@ -416,7 +407,7 @@ public class JSolEx extends Application {
                 var finishedString = String.format(message("finished.in"), seconds);
                 onNotification(new NotificationEvent(
                         new Notification(
-                                Alert.AlertType.INFORMATION,
+                                Notification.AlertType.INFORMATION,
                                 message("processing.done"),
                                 finishedString,
                                 sb.toString()

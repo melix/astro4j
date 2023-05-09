@@ -32,7 +32,7 @@ public class ParallelExecutor implements AutoCloseable {
     private final ExecutorService executorService = Executors.newWorkStealingPool();
     private final Semaphore semaphore;
 
-    private Consumer<? super Exception> exceptionHandler = (Consumer<Exception>) e -> LOGGER.error("An error happened during processing", e);
+    private Consumer<? super Throwable> exceptionHandler = (Consumer<Throwable>) e -> LOGGER.error("An error happened during processing", e);
 
     private ParallelExecutor(int parallelism) {
         semaphore = new Semaphore(parallelism);
@@ -49,7 +49,7 @@ public class ParallelExecutor implements AutoCloseable {
         return new ParallelExecutor(parallelism);
     }
 
-    public void setExceptionHandler(Consumer<? super Exception> exceptionHandler) {
+    public void setExceptionHandler(Consumer<? super Throwable> exceptionHandler) {
         this.exceptionHandler = exceptionHandler;
     }
 
@@ -57,12 +57,14 @@ public class ParallelExecutor implements AutoCloseable {
         try {
             semaphore.acquire();
             executorService.submit(() -> {
+                Thread.currentThread().setUncaughtExceptionHandler((t, e) -> exceptionHandler.accept(e));
                 try {
                     task.run();
-                } catch (Exception ex) {
+                } catch (Throwable ex) {
                     exceptionHandler.accept(ex);
                 } finally {
                     notifyTaskFinished();
+                    Thread.currentThread().setUncaughtExceptionHandler(null);
                 }
             });
         } catch (InterruptedException e) {
@@ -78,12 +80,14 @@ public class ParallelExecutor implements AutoCloseable {
         try {
             semaphore.acquire();
             return CompletableFuture.supplyAsync(() -> {
+                Thread.currentThread().setUncaughtExceptionHandler((t, e) -> exceptionHandler.accept(e));
                 try {
                     return task.get();
-                } catch (Exception ex) {
+                } catch (Throwable ex) {
                     exceptionHandler.accept(ex);
                     return null;
                 } finally {
+                    Thread.currentThread().setUncaughtExceptionHandler(null);
                     notifyTaskFinished();
                 }
             }, executorService);

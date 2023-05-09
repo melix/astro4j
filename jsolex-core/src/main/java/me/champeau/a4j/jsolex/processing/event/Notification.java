@@ -15,12 +15,14 @@
  */
 package me.champeau.a4j.jsolex.processing.event;
 
-import javafx.scene.control.Alert;
-
 public record Notification(
-        Alert.AlertType type,
+        AlertType type,
         String title,
         String header,
         String message
 ) {
+    public enum AlertType {
+        INFORMATION,
+        ERROR
+    }
 }
