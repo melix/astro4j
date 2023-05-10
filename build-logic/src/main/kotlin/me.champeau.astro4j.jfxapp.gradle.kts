@@ -23,6 +23,7 @@ jlink {
     }
     jpackage {
         vendor = "Cédric Champeau"
+        appVersion = version.toString()
         if (os.startsWith("windows")) {
             installerType = "msi"
             installerOptions.addAll(listOf("--win-per-user-install", "--win-dir-chooser", "--win-menu"))
