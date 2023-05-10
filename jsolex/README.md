@@ -3,6 +3,8 @@
 JSol'Ex is an application to process [Sol'Ex](http://www.astrosurf.com/solex/) video files.
 It is similar to [INTI](http://valerie.desnoux.free.fr/inti/) but is fully written in Java instead of Python.
 
+![JSol'Ex](doc/jsolex-capture.jpg)
+
 JSol'Ex is available as a desktop application, but also as a command-line tool.
 
 ## Downloads
