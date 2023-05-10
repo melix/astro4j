@@ -88,6 +88,30 @@ signing {
     }
     publishing.publications.configureEach {
         sign(this)
+        this as MavenPublication
+        pom {
+            name.set(project.name)
+            description.set(project.description)
+            url.set("https://github.com/melix/astro4j")
+            licenses {
+                license {
+                    name.set("The Apache Software License, Version 2.0")
+                    url.set("http://www.apache.org/licenses/LICENSE-2.0.txt")
+                }
+            }
+            developers {
+                developer {
+                    id.set("melix")
+                    name.set("Cédric Champeau")
+                    email.set("cedric.champeau@gmail.com")
+                }
+            }
+            scm {
+                connection.set("scm:git@github.com:melix/astro4j.git")
+                developerConnection.set("<scm:git@github.com:melix/astro4j.git")
+                url.set("scm:git@github.com:melix/astro4j.git")
+            }
+        }
     }
     useGpgCmd()
 }

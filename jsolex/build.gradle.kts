@@ -4,6 +4,8 @@ plugins {
     id("me.champeau.astro4j.jfxapp")
 }
 
+description = "A Sol'Ex spectroheliographic video file processor (JavaFX version)"
+
 dependencies {
     implementation(projects.jsolexCore)
 }

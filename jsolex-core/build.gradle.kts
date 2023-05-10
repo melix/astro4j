@@ -2,6 +2,8 @@ plugins {
     id("me.champeau.astro4j.library")
 }
 
+description = "Shared library for spectroheliographic video file processing"
+
 dependencies {
     api(projects.jserfile)
     api(projects.math)

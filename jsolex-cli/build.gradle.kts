@@ -2,6 +2,8 @@ plugins {
     id("me.champeau.astro4j.mnapp")
 }
 
+description = "A Sol'Ex spectroheliographic video file processor (CLI version)"
+
 micronaut {
     testRuntime("spock")
     processing {

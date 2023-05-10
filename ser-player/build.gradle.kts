@@ -2,6 +2,8 @@ plugins {
     id("me.champeau.astro4j.jfxapp")
 }
 
+description = "A SER file video player"
+
 dependencies {
     implementation(projects.jserfile)
 }
