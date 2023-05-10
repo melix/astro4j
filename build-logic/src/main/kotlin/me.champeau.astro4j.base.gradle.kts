@@ -7,6 +7,7 @@ plugins {
     java
     id("org.nosphere.apache.rat")
     id("com.diffplug.spotless")
+    id("maven-publish")
 }
 
 extensions.create("astro4j", BuildExtension::class.java, project)
@@ -15,6 +16,8 @@ java {
     toolchain {
         languageVersion.set(JavaLanguageVersion.of(17))
     }
+    withSourcesJar()
+    withJavadocJar()
 }
 
 repositories {
@@ -60,4 +63,18 @@ val gatherLicenses by tasks.registering(GatherLicenseTask::class) {
 val generateLicense by tasks.registering(GenerateLicenseResourceFile::class) {
     licensesDir.set(gatherLicenses.flatMap(GatherLicenseTask::licenseDir))
     outputFile.set(layout.buildDirectory.file("generated/resources/licenses/licenses.txt"))
+}
+
+publishing {
+    repositories {
+        maven {
+            name = "build"
+            setUrl(rootProject.layout.buildDirectory.dir("repo"))
+        }
+    }
+    publications {
+        create<MavenPublication>("maven") {
+            from(components["java"])
+        }
+    }
 }

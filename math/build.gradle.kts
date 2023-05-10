@@ -18,3 +18,10 @@ tasks.withType<JavaCompile>().configureEach {
         classpath = files()
     }
 }
+
+tasks.withType<Javadoc>().configureEach {
+    doFirst {
+        options.setModulePath(classpath.files.toList())
+        classpath = files()
+    }
+}

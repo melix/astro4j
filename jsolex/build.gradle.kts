@@ -31,3 +31,9 @@ sourceSets {
         }
     }
 }
+
+tasks.withType<Javadoc>().configureEach {
+    options {
+        (this as CoreJavadocOptions).optionFiles?.add(file("src/javadoc.options"))
+    }
+}
