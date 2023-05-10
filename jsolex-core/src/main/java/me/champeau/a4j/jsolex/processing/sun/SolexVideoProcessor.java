@@ -71,12 +71,14 @@ public class SolexVideoProcessor implements Broadcaster {
     private final File rawImagesDirectory;
     private final ProcessParams processParams;
     private final boolean quickMode;
+    private final File outputDirectory;
 
     public SolexVideoProcessor(File serFile,
                                File outputDirectory,
                                ProcessParams processParametersProvider,
                                boolean quickMode) {
         this.serFile = serFile;
+        this.outputDirectory = outputDirectory;
         this.debugDirectory = new File(outputDirectory, Constants.DEBUG_DIRECTORY);
         this.rawImagesDirectory = new File(outputDirectory, Constants.RAW_DIRECTORY);
         this.processedDirectory = new File(outputDirectory, Constants.PROCESSED_DIRECTORY);
@@ -93,6 +95,10 @@ public class SolexVideoProcessor implements Broadcaster {
     }
 
     public void process() {
+        if (processParams.debugParams().autosave()) {
+            File configFile = new File(outputDirectory, "config.json");
+            processParams.saveTo(configFile);
+        }
         broadcast(new ProcessingStartEvent(System.nanoTime()));
         var converter = ImageUtils.createImageConverter(processParams.videoParams().colorMode());
         var detector = new MagnitudeBasedSunEdgeDetector(converter);

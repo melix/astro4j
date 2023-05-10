@@ -45,4 +45,36 @@ public class GeometryParams {
     public boolean isVerticalMirror() {
         return verticalMirror;
     }
+
+    public GeometryParams withTilt(Double tilt) {
+        return new GeometryParams(tilt, xyRatio, horizontalMirror, verticalMirror);
+    }
+
+    public GeometryParams withXYRatio(Double xyRatio) {
+        return new GeometryParams(tilt, xyRatio, horizontalMirror, verticalMirror);
+    }
+
+    public GeometryParams withHorizontalMirror(boolean horizontalMirror) {
+        return new GeometryParams(tilt, xyRatio, horizontalMirror, verticalMirror);
+    }
+
+    public GeometryParams withVerticalMirror(boolean verticalMirror) {
+        return new GeometryParams(tilt, xyRatio, horizontalMirror, verticalMirror);
+    }
+
+    @Override
+    public String toString() {
+        var sb = new StringBuilder();
+        sb.append("GeometryParams[");
+        if (tilt != null) {
+            sb.append("tilt=").append(tilt);
+        }
+        if (xyRatio != null) {
+            sb.append(", xyRatio=").append(xyRatio);
+        }
+        sb.append(", horizontalMirror=").append(horizontalMirror)
+                .append(", verticalMirror=").append(verticalMirror)
+                .append("]");
+        return sb.toString();
+    }
 }

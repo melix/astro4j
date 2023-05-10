@@ -18,4 +18,7 @@ package me.champeau.a4j.jsolex.processing.params;
 import me.champeau.a4j.ser.ColorMode;
 
 public record VideoParams(ColorMode colorMode) {
+    public VideoParams withColorMode(ColorMode colorMode) {
+        return new VideoParams(colorMode);
+    }
 }

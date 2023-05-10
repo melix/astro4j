@@ -19,4 +19,15 @@ public record DebugParams(
         boolean generateDebugImages,
         boolean autosave,
         boolean generateFits) {
+    public DebugParams withGenerateDebugImages(boolean generateDebugImages) {
+        return new DebugParams(generateDebugImages, autosave, generateFits);
+    }
+
+    public DebugParams withAutosave(boolean autosave) {
+        return new DebugParams(generateDebugImages, autosave, generateFits);
+    }
+
+    public DebugParams withGenerateFits(boolean generateFits) {
+        return new DebugParams(generateDebugImages, autosave, generateFits);
+    }
 }

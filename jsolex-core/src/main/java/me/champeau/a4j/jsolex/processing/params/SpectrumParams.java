@@ -21,4 +21,19 @@ public record SpectrumParams(
         int pixelShift,
         int dopplerShift
 ) {
+    public SpectrumParams withRay(SpectralRay ray) {
+        return new SpectrumParams(ray, ray.getDetectionThreshold(), pixelShift, dopplerShift);
+    }
+
+    public SpectrumParams withDetectionThreshold(double t) {
+        return new SpectrumParams(ray, t, pixelShift, dopplerShift);
+    }
+
+    public SpectrumParams withPixelShift(int pixelShift) {
+        return new SpectrumParams(ray, spectralLineDetectionThreshold, pixelShift, dopplerShift);
+    }
+
+    public SpectrumParams withDopplerShift(int dopplerShift) {
+        return new SpectrumParams(ray, spectralLineDetectionThreshold, pixelShift, dopplerShift);
+    }
 }

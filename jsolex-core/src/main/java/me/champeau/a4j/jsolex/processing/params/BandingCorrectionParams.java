@@ -19,4 +19,11 @@ public record BandingCorrectionParams(
         int width,
         int passes
 ) {
+    public BandingCorrectionParams withWidth(int width) {
+        return new BandingCorrectionParams(width, passes);
+    }
+
+    public BandingCorrectionParams withPasses(int passes) {
+        return new BandingCorrectionParams(width, passes);
+    }
 }

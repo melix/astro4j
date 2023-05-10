@@ -15,6 +15,9 @@
  */
 package me.champeau.a4j.jsolex.processing.params;
 
+import java.io.File;
+import java.util.Optional;
+
 public record ProcessParams(
         SpectrumParams spectrumParams,
         ObservationDetails observationDetails,
@@ -31,6 +34,14 @@ public record ProcessParams(
         ProcessParamsIO.saveDefaults(params);
     }
 
+    public static Optional<ProcessParams>  readFrom(File configFile) {
+        return Optional.ofNullable(ProcessParamsIO.readFrom(configFile.toPath()));
+    }
+
+    public void saveTo(File destination) {
+        ProcessParamsIO.saveTo(this, destination);
+    }
+
     public ProcessParams withGeometry(double tilt, double xyRatio) {
         return new ProcessParams(
                 spectrumParams,
@@ -38,6 +49,72 @@ public record ProcessParams(
                 debugParams,
                 videoParams,
                 new GeometryParams(tilt, xyRatio, geometryParams().isHorizontalMirror(), geometryParams().isVerticalMirror()),
+                bandingCorrectionParams
+        );
+    }
+
+    public ProcessParams withSpectrumParams(SpectrumParams spectrumParams) {
+        return new ProcessParams(
+                spectrumParams,
+                observationDetails,
+                debugParams,
+                videoParams,
+                geometryParams,
+                bandingCorrectionParams
+        );
+    }
+
+    public ProcessParams withObservationDetails(ObservationDetails observationDetails) {
+        return new ProcessParams(
+                spectrumParams,
+                observationDetails,
+                debugParams,
+                videoParams,
+                geometryParams,
+                bandingCorrectionParams
+        );
+    }
+
+    public ProcessParams withDebugParams(DebugParams debugParams) {
+        return new ProcessParams(
+                spectrumParams,
+                observationDetails,
+                debugParams,
+                videoParams,
+                geometryParams,
+                bandingCorrectionParams
+        );
+    }
+
+    public ProcessParams withVideoParams(VideoParams videoParams) {
+        return new ProcessParams(
+                spectrumParams,
+                observationDetails,
+                debugParams,
+                videoParams,
+                geometryParams,
+                bandingCorrectionParams
+        );
+    }
+
+    public ProcessParams withGeometryParams(GeometryParams geometryParams) {
+        return new ProcessParams(
+                spectrumParams,
+                observationDetails,
+                debugParams,
+                videoParams,
+                geometryParams,
+                bandingCorrectionParams
+        );
+    }
+
+    public ProcessParams withBandingCorrectionParams(BandingCorrectionParams bandingCorrectionParams) {
+        return new ProcessParams(
+                spectrumParams,
+                observationDetails,
+                debugParams,
+                videoParams,
+                geometryParams,
                 bandingCorrectionParams
         );
     }

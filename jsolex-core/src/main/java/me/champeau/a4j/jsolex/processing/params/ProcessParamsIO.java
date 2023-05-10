@@ -18,6 +18,7 @@ package me.champeau.a4j.jsolex.processing.params;
 import com.google.gson.Gson;
 import me.champeau.a4j.ser.ColorMode;
 
+import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
@@ -56,8 +57,32 @@ abstract class ProcessParamsIO {
 
     public static ProcessParams loadDefaults() {
         var defaultsFile = resolveDefaultsFile();
-        if (Files.exists(defaultsFile)) {
-            try (var reader = new InputStreamReader(new FileInputStream(defaultsFile.toFile()), StandardCharsets.UTF_8)) {
+        ProcessParams params = readFrom(defaultsFile);
+        if (params != null) {
+            return params;
+        }
+        return new ProcessParams(
+                new SpectrumParams(SpectralRay.H_ALPHA, SpectralRay.H_ALPHA.getDetectionThreshold(), 0, 3),
+                new ObservationDetails(
+                        null,
+                        null,
+                        "Sol'Ex",
+                        null,
+                        null,
+                        null,
+                        null,
+                        LocalDateTime.now().atZone(ZoneId.of("UTC")),
+                        ""),
+                new DebugParams(false, true, true),
+                new VideoParams(ColorMode.MONO),
+                new GeometryParams(null, null, false, false),
+                new BandingCorrectionParams(24, 3)
+        );
+    }
+
+    public static ProcessParams readFrom(Path configFile) {
+        if (Files.exists(configFile)) {
+            try (var reader = new InputStreamReader(new FileInputStream(configFile.toFile()), StandardCharsets.UTF_8)) {
                 Gson gson = newGson();
                 var params = gson.fromJson(reader, ProcessParams.class);
                 if (params != null) {
@@ -105,33 +130,21 @@ abstract class ProcessParamsIO {
                 // fallback to default params
             }
         }
-        return new ProcessParams(
-                new SpectrumParams(SpectralRay.H_ALPHA, SpectralRay.H_ALPHA.getDetectionThreshold(), 0, 3),
-                new ObservationDetails(
-                        null,
-                        null,
-                        "Sol'Ex",
-                        null,
-                        null,
-                        null,
-                        null,
-                        LocalDateTime.now().atZone(ZoneId.of("UTC")),
-                        ""),
-                new DebugParams(false, true, true),
-                new VideoParams(ColorMode.MONO),
-                new GeometryParams(null, null, false, false),
-                new BandingCorrectionParams(24, 3)
-        );
+        return null;
     }
 
-    public static void saveDefaults(ProcessParams params) {
-        var defaultsFile = resolveDefaultsFile();
-        try (var writer = new OutputStreamWriter(new FileOutputStream(defaultsFile.toFile()), StandardCharsets.UTF_8)) {
+    public static void saveTo(ProcessParams params, File destination) {
+        try (var writer = new OutputStreamWriter(new FileOutputStream(destination), StandardCharsets.UTF_8)) {
             var gson = newGson();
             writer.write(gson.toJson(params));
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
+    }
+
+    public static void saveDefaults(ProcessParams params) {
+        var defaultsFile = resolveDefaultsFile();
+        saveTo(params, defaultsFile.toFile());
     }
 
 }

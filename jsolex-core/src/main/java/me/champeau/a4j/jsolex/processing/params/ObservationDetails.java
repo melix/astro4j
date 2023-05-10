@@ -30,4 +30,39 @@ public record ObservationDetails(
         ZonedDateTime date,
         String camera
 ) {
+    public ObservationDetails withObserver(String observer) {
+        return new ObservationDetails(observer, email, instrument, telescope, focalLength, aperture, coordinates, date, camera);
+    }
+
+    public ObservationDetails withEmail(String email) {
+        return new ObservationDetails(observer, email, instrument, telescope, focalLength, aperture, coordinates, date, camera);
+    }
+
+    public ObservationDetails withInstrument(String instrument) {
+        return new ObservationDetails(observer, email, instrument, telescope, focalLength, aperture, coordinates, date, camera);
+    }
+
+    public ObservationDetails withTelescope(String telescope) {
+        return new ObservationDetails(observer, email, instrument, telescope, focalLength, aperture, coordinates, date, camera);
+    }
+
+    public ObservationDetails withFocalLength(Integer focalLength) {
+        return new ObservationDetails(observer, email, instrument, telescope, focalLength, aperture, coordinates, date, camera);
+    }
+
+    public ObservationDetails withAperture(Integer aperture) {
+        return new ObservationDetails(observer, email, instrument, telescope, focalLength, aperture, coordinates, date, camera);
+    }
+
+    public ObservationDetails withCoordinates(DoublePair coordinates) {
+        return new ObservationDetails(observer, email, instrument, telescope, focalLength, aperture, coordinates, date, camera);
+    }
+
+    public ObservationDetails withDate(ZonedDateTime date) {
+        return new ObservationDetails(observer, email, instrument, telescope, focalLength, aperture, coordinates, date, camera);
+    }
+
+    public ObservationDetails withCamera(String camera) {
+        return new ObservationDetails(observer, email, instrument, telescope, focalLength, aperture, coordinates, date, camera);
+    }
 }
