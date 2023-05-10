@@ -15,7 +15,7 @@
  */
 module me.champeau.a4j.jsolex {
     requires me.champeau.a4j.jserfile;
-    requires commons.math3;
+    requires me.champeau.a4j.jsolex.core;
     requires org.slf4j;
     requires java.desktop;
     requires ch.qos.logback.core;
@@ -24,9 +24,7 @@ module me.champeau.a4j.jsolex {
     requires javafx.fxml;
     requires java.prefs;
     requires jdk.incubator.vector;
-    requires com.google.gson;
     exports me.champeau.a4j.jsolex.app to javafx.graphics;
-    exports me.champeau.a4j.jsolex.processing.params to com.google.gson;
     opens me.champeau.a4j.jsolex.app to javafx.fxml;
     opens me.champeau.a4j.jsolex.app.jfx to javafx.fxml;
 }

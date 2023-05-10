@@ -1,0 +1,36 @@
+{
+  "resources":{
+  "includes":[
+    {
+      "pattern":"\\QMETA-INF/micronaut/io.micronaut.core.beans.BeanIntrospectionReference\\E"
+    }, 
+    {
+      "pattern":"\\QMETA-INF/micronaut/io.micronaut.inject.BeanDefinitionReference\\E"
+    }, 
+    {
+      "pattern":"\\QMETA-INF/services/ch.qos.logback.classic.spi.Configurator\\E"
+    }, 
+    {
+      "pattern":"\\QMETA-INF/services/io.micronaut.context.env.PropertySourceLoader\\E"
+    }, 
+    {
+      "pattern":"\\QMETA-INF/services/io.micronaut.core.convert.TypeConverterRegistrar\\E"
+    }, 
+    {
+      "pattern":"\\QMETA-INF/services/java.nio.file.spi.FileSystemProvider\\E"
+    }, 
+    {
+      "pattern":"\\QMETA-INF/services/org.slf4j.spi.SLF4JServiceProvider\\E"
+    }
+  ]},
+  "bundles":[
+    {
+      "name":"me.champeau.a4j.jsolex.processing.util.messages",
+      "locales":["fr_FR", "und"]
+    },
+    {
+      "name":"sun.awt.resources.awt",
+      "classNames":["sun.awt.resources.awt"]
+    }
+  ]
+}

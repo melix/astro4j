@@ -5,16 +5,7 @@ plugins {
 }
 
 dependencies {
-    implementation(projects.jserfile)
-    implementation(projects.math)
-    implementation(libs.slf4j.api)
-    implementation(libs.commons.math)
-    implementation(libs.logback)
-    implementation(libs.gson)
-    implementation(libs.fits) {
-        setTransitive(false)
-    }
-    testImplementation(testFixtures(projects.jserfile))
+    implementation(projects.jsolexCore)
 }
 
 application {

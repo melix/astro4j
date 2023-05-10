@@ -9,3 +9,12 @@ astro4j {
 dependencies {
     implementation(libs.commons.math)
 }
+
+tasks.withType<JavaCompile>().configureEach {
+    doFirst {
+        options.compilerArgs.addAll(
+            listOf("--module-path", classpath.asPath)
+        )
+        classpath = files()
+    }
+}
