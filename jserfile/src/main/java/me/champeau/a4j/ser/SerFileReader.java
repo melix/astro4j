@@ -35,24 +35,25 @@ import java.util.Optional;
  * file to be automatically closed.
  */
 public class SerFileReader implements AutoCloseable {
-    private static final String LUCAM_RECORDER = "LUCAM-RECORDER";
     private static final ZoneId UTC = ZoneId.of("UTC");
 
     private final RandomAccessFile accessFile;
-    private final ByteBuffer buffer;
+    private final ByteBuffer[] imageBuffers;
     private final ByteBuffer timestampsBuffer;
     private final Header header;
     private final byte[] frameBuffer;
     private final int bytesPerFrame;
+    private final int maxFramesPerBuffer;
 
     private int previousFrame = -1;
     private int currentFrame = 0;
     private ZonedDateTime currentTimestamp;
     private volatile boolean closed = false;
 
-    private SerFileReader(RandomAccessFile accessFile, ByteBuffer buffer, ByteBuffer timestampsBuffer, Header header) {
+    private SerFileReader(RandomAccessFile accessFile, ByteBuffer[] imageBuffers, int maxFramesPerBuffer, ByteBuffer timestampsBuffer, Header header) {
         this.accessFile = accessFile;
-        this.buffer = buffer;
+        this.imageBuffers = imageBuffers;
+        this.maxFramesPerBuffer = maxFramesPerBuffer;
         this.timestampsBuffer = timestampsBuffer;
         this.header = header;
         this.bytesPerFrame = header.geometry().getBytesPerFrame();
@@ -66,7 +67,7 @@ public class SerFileReader implements AutoCloseable {
     public Frame currentFrame() {
         assertNotClosed();
         if (previousFrame != currentFrame) {
-            buffer.slice().limit(bytesPerFrame).get(frameBuffer);
+            findBuffer().slice().limit(bytesPerFrame).get(frameBuffer);
             if (timestampsBuffer != null) {
                 currentTimestamp = TimestampConverter.of(timestampsBuffer.getLong()).map(c -> c.atZone(UTC)).orElse(null);
             }
@@ -87,8 +88,12 @@ public class SerFileReader implements AutoCloseable {
         positionBuffers();
     }
 
+    private ByteBuffer findBuffer() {
+        return imageBuffers[currentFrame/maxFramesPerBuffer];
+    }
+
     private void positionBuffers() {
-        buffer.position(currentFrame * bytesPerFrame);
+        findBuffer().position((currentFrame % maxFramesPerBuffer) * bytesPerFrame);
         if (timestampsBuffer != null) {
             timestampsBuffer.position(8 * currentFrame);
         }
@@ -111,18 +116,28 @@ public class SerFileReader implements AutoCloseable {
     public static SerFileReader of(File file) throws IOException {
         RandomAccessFile raf = new RandomAccessFile(file, "r");
         FileChannel channel = raf.getChannel();
-        ByteBuffer buffer = channel
-                .map(FileChannel.MapMode.READ_ONLY, 0, channel.size());
-        String marker = readAsciiString(buffer, 14);
-        if (!LUCAM_RECORDER.equals(marker)) {
-            throw new IOException("Invalid ser file, header is invalid");
+        var headerBuffer = channel
+                .map(FileChannel.MapMode.READ_ONLY, 0, Math.min(65536, channel.size()));
+        readAsciiString(headerBuffer, 14);
+        headerBuffer.order(ByteOrder.LITTLE_ENDIAN);
+        Header header = readHeader(headerBuffer);
+        long headerLength = headerBuffer.position();
+        var bytesPerFrame = header.geometry().getBytesPerFrame();
+        long maxFramesInBuffer = (long) Math.floor(Integer.MAX_VALUE / (double) bytesPerFrame);
+        int numBuffers = (int) Math.ceil(header.frameCount() / (double) maxFramesInBuffer);
+        ByteBuffer[] imageBuffers = new ByteBuffer[numBuffers];
+        long remainingFrameCount = header.frameCount();
+        for (int i = 0; i < numBuffers; i++) {
+            long nFramesInBuffer = Math.min(remainingFrameCount, maxFramesInBuffer);
+            long offset = headerLength + i * maxFramesInBuffer * bytesPerFrame;
+            long size = nFramesInBuffer * bytesPerFrame;
+            imageBuffers[i] = channel.map(FileChannel.MapMode.READ_ONLY, offset, size).order(header.geometry().imageEndian());
+            remainingFrameCount -= maxFramesInBuffer;
         }
-        buffer.order(ByteOrder.LITTLE_ENDIAN);
-        Header header = readHeader(buffer);
-        ByteBuffer imageBuffer = buffer.slice().order(header.geometry().imageEndian());
         boolean hasTimestamps = header.metadata().localDateTime() != null;
-        ByteBuffer timestampsBuffer = hasTimestamps ? buffer.slice().position(header.frameCount() * header.geometry().getBytesPerFrame()).slice().order(ByteOrder.LITTLE_ENDIAN) : null;
-        return new SerFileReader(raf, imageBuffer, timestampsBuffer, header);
+        long dataLength = header.frameCount() * (long) bytesPerFrame;
+        ByteBuffer timestampsBuffer = hasTimestamps ? channel.map(FileChannel.MapMode.READ_ONLY, headerLength + dataLength, 8L * header.frameCount()).order(ByteOrder.LITTLE_ENDIAN) : null;
+        return new SerFileReader(raf, imageBuffers, (int) maxFramesInBuffer, timestampsBuffer, header);
     }
 
     public Optional<Double> estimateFps() {
