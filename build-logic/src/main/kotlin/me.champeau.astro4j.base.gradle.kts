@@ -8,6 +8,7 @@ plugins {
     id("org.nosphere.apache.rat")
     id("com.diffplug.spotless")
     id("maven-publish")
+    id("signing")
 }
 
 extensions.create("astro4j", BuildExtension::class.java, project)
@@ -77,4 +78,16 @@ publishing {
             from(components["java"])
         }
     }
+}
+
+signing {
+    setRequired {
+        gradle.taskGraph.allTasks.any {
+            it.name.startsWith("publish")
+        }
+    }
+    publishing.publications.configureEach {
+        sign(this)
+    }
+    useGpgCmd()
 }
