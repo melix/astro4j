@@ -59,6 +59,7 @@ import me.champeau.a4j.jsolex.processing.event.SuggestionEvent;
 import me.champeau.a4j.jsolex.processing.params.ProcessParams;
 import me.champeau.a4j.jsolex.processing.sun.SolexVideoProcessor;
 import me.champeau.a4j.jsolex.processing.util.LoggingSupport;
+import me.champeau.a4j.math.VectorApiSupport;
 import me.champeau.a4j.ser.SerFileReader;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -108,7 +109,7 @@ public class JSolEx extends Application {
     @Override
     public void start(Stage stage) throws Exception {
         this.rootStage = stage;
-        var fxmlLoader = I18N.fxmlLoader(getClass(),"app");
+        var fxmlLoader = I18N.fxmlLoader(getClass(), "app");
         fxmlLoader.setController(this);
 
         try {
@@ -248,6 +249,8 @@ public class JSolEx extends Application {
             String suffix = String.format("-%04d", i++);
             outputDirectory = new File(selectedFile.getParentFile(), outputDirName + suffix);
         }
+        LOGGER.info("Java runtime version {}", System.getProperty("java.version"));
+        LOGGER.info("Vector API support is {} and {}", VectorApiSupport.isPresent() ? "available" : "missing", VectorApiSupport.isEnabled() ? "enabled" : "disabled (enable by setting " + VectorApiSupport.VECTOR_API_ENV_VAR + " environment variable to true)");
         LoggingSupport.LOGGER.info(message("output.dir.set"), outputDirectory);
         var processor = new SolexVideoProcessor(selectedFile,
                 outputDirectory,
@@ -358,7 +361,7 @@ public class JSolEx extends Application {
             public void onNotification(NotificationEvent e) {
                 new Thread(() -> {
                     try {
-                        if (semaphore.getQueueLength()>3) {
+                        if (semaphore.getQueueLength() > 3) {
                             // If there are too many events,
                             // there's probably a big problem
                             // like many exceptons being thrown

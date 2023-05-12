@@ -15,6 +15,7 @@
  */
 package me.champeau.a4j.jsolex.processing.sun;
 
+import me.champeau.a4j.jsolex.processing.event.ProgressEvent;
 import me.champeau.a4j.jsolex.processing.stats.ChannelStats;
 import me.champeau.a4j.jsolex.processing.util.ParallelExecutor;
 import me.champeau.a4j.jsolex.processing.util.ProcessingException;
@@ -28,6 +29,8 @@ import java.nio.ByteBuffer;
 import java.util.Optional;
 import java.util.function.BiConsumer;
 
+import static me.champeau.a4j.jsolex.processing.util.Constants.message;
+
 /**
  * An edge detector which performs an FFT of each line to compute
  * the magnitude of the signal and detect edges by comparing it
@@ -37,12 +40,15 @@ public class MagnitudeBasedSunEdgeDetector implements SunEdgeDetector {
     private static final Logger LOGGER = LoggerFactory.getLogger(MagnitudeBasedSunEdgeDetector.class);
 
     private final ImageConverter<float[]> imageConverter;
+    private final Broadcaster broadcaster;
 
     private Integer startEdge;
     private Integer endEdge;
 
-    public MagnitudeBasedSunEdgeDetector(ImageConverter<float[]> imageConverter) {
+    public MagnitudeBasedSunEdgeDetector(ImageConverter<float[]> imageConverter,
+                                         Broadcaster broadcaster) {
         this.imageConverter = imageConverter;
+        this.broadcaster = broadcaster;
     }
 
     @Override
@@ -53,9 +59,11 @@ public class MagnitudeBasedSunEdgeDetector implements SunEdgeDetector {
         int imageSize = geometry.width() * geometry.height() * 5; // 4 bytes per pixel for float[] + 1 byte for the intermediate buffer
         int maxMemoryUse = 100 * 1024 * 1024;
         int maxParalleism = Math.max(1, Math.min(maxMemoryUse/imageSize, 16 * Runtime.getRuntime().availableProcessors()));
+        var limbDetectionMessage = message("detecting.limb");
         try (var executor = ParallelExecutor.newExecutor(maxParalleism)) {
             for (int i = 0; i < frameCount; i++) {
                 int frameId = i;
+                broadcaster.broadcast(ProgressEvent.of(frameId / (double) frameCount, limbDetectionMessage));
                 // Because we're processing each frame concurrently we need
                 // to copy the frame buffer into a new array
                 var currentFrame = reader.currentFrame().data().array();

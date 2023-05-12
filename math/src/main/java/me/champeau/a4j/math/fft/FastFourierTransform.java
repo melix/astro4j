@@ -49,7 +49,7 @@ public interface FastFourierTransform {
         if (!isPowerOf2(n)) {
             throw new IllegalArgumentException("Input arrays length must be a power of 2");
         }
-        if (VectorApiSupport.isPresent()) {
+        if (VectorApiSupport.isEnabled()) {
             return new VectorizedFloatFastFourierTransform(real, imaginary);
         }
         return new FallbackFloatFastFourierTransform(real, imaginary);

@@ -22,6 +22,7 @@ jlink {
         jvmArgs.add("--enable-preview")
     }
     jpackage {
+        appVersion = version.toString()
         vendor = "Cédric Champeau"
         if (os.startsWith("windows")) {
             installerType = "msi"

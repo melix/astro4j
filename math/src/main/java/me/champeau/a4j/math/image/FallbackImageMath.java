@@ -45,4 +45,10 @@ class FallbackImageMath implements ImageMath {
         return sum / max;
     }
 
+    @Override
+    public void incrementalAverage(float[] current, float[] average, int n) {
+        for (int j = 0; j < current.length; j++) {
+            average[j] = average[j] + (current[j] - average[j]) / n;
+        }
+    }
 }

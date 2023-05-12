@@ -42,6 +42,7 @@ tasks.rat {
     excludes.add("**/*.xml")
     excludes.add("**/*.md")
     excludes.add("**/*.properties")
+    excludes.add("**/javadoc.options")
 }
 
 group = "me.champeau.astro4j"

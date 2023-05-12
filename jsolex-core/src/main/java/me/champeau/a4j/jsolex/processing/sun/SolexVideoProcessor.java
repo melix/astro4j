@@ -51,10 +51,12 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.File;
+import java.time.Duration;
 import java.util.EnumSet;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
 
 import static me.champeau.a4j.jsolex.processing.util.Constants.message;
@@ -73,10 +75,7 @@ public class SolexVideoProcessor implements Broadcaster {
     private final boolean quickMode;
     private final File outputDirectory;
 
-    public SolexVideoProcessor(File serFile,
-                               File outputDirectory,
-                               ProcessParams processParametersProvider,
-                               boolean quickMode) {
+    public SolexVideoProcessor(File serFile, File outputDirectory, ProcessParams processParametersProvider, boolean quickMode) {
         this.serFile = serFile;
         this.outputDirectory = outputDirectory;
         this.debugDirectory = new File(outputDirectory, Constants.DEBUG_DIRECTORY);
@@ -101,7 +100,7 @@ public class SolexVideoProcessor implements Broadcaster {
         }
         broadcast(new ProcessingStartEvent(System.nanoTime()));
         var converter = ImageUtils.createImageConverter(processParams.videoParams().colorMode());
-        var detector = new MagnitudeBasedSunEdgeDetector(converter);
+        var detector = new MagnitudeBasedSunEdgeDetector(converter, this);
         try (SerFileReader reader = SerFileReader.of(serFile)) {
             var header = reader.header();
             ImageGeometry geometry = header.geometry();
@@ -112,13 +111,12 @@ public class SolexVideoProcessor implements Broadcaster {
             LOGGER.info(message("detecting.limb"));
             detector.detectEdges(reader);
             detector.ifEdgesDetected((start, end) -> {
-                        LOGGER.info(message("sun.edges.detected"), start, end);
-                        generateImages(converter, reader, Math.max(0, start - 40), Math.min(end + 40, frameCount) - 1);
-                    }
-                    , () -> {
-                        LOGGER.info(message("sun.edges.detected.full"));
-                        generateImages(converter, reader, 0, frameCount - 1);
-                    });
+                LOGGER.info(message("sun.edges.detected"), start, end);
+                generateImages(converter, reader, Math.max(0, start - 40), Math.min(end + 40, frameCount) - 1);
+            }, () -> {
+                LOGGER.info(message("sun.edges.detected.full"));
+                generateImages(converter, reader, 0, frameCount - 1);
+            });
         } catch (Exception e) {
             broadcastError(e);
         }
@@ -129,10 +127,7 @@ public class SolexVideoProcessor implements Broadcaster {
         broadcast(new NotificationEvent(new Notification(Notification.AlertType.ERROR, message("unexpected.error"), message("error.during.processing"), trace)));
     }
 
-    private void generateImages(ImageConverter<float[]> converter,
-                                SerFileReader reader,
-                                int start,
-                                int end) {
+    private void generateImages(ImageConverter<float[]> converter, SerFileReader reader, int start, int end) {
         var geometry = reader.header().geometry();
         int width = geometry.width();
         int height = geometry.height();
@@ -141,54 +136,49 @@ public class SolexVideoProcessor implements Broadcaster {
         broadcast(OutputImageDimensionsDeterminedEvent.of("raw", width, newHeight));
         List<WorkflowState> imageList = createWorkflowStateSteps(width, newHeight);
         LOGGER.info(message("starting.reconstruction"));
-        performImageReconstruction(converter, reader, start, end, geometry, width, height, imageList.toArray(new WorkflowState[0]));
-        ProcessParams currentParams = processParams;
-        for (int step = 0; step < imageList.size(); step++) {
-            WorkflowState state = imageList.get(step);
-            int finalStep = step;
-            var imageEmitterFactory = new ImageEmitterFactory() {
-                @Override
-                public ImageEmitter newEmitter(Broadcaster broadcaster, ParallelExecutor executor, File outputDirectory) {
-                    ImageEmitter emitter = new DefaultImageEmitter(broadcaster, executor, outputDirectory);
-                    var shift = state.pixelShift();
-                    if (finalStep == 0) {
-                        return emitter;
+        float[] averageImage = computeAverageImage(converter, reader, start, end, geometry);
+        var maybePolynomial = findPolynomial(width, height, processParams.spectrumParams().spectralLineDetectionThreshold(), averageImage);
+        if (maybePolynomial.isPresent()) {
+            var polynomial = maybePolynomial.get();
+            performImageReconstruction(converter, reader, start, end, geometry, width, height, polynomial, imageList.toArray(new WorkflowState[0]));
+            ProcessParams currentParams = processParams;
+            for (int step = 0; step < imageList.size(); step++) {
+                WorkflowState state = imageList.get(step);
+                int finalStep = step;
+                var imageEmitterFactory = new ImageEmitterFactory() {
+                    @Override
+                    public ImageEmitter newEmitter(Broadcaster broadcaster, ParallelExecutor executor, File outputDirectory) {
+                        ImageEmitter emitter = new DefaultImageEmitter(broadcaster, executor, outputDirectory);
+                        var shift = state.pixelShift();
+                        if (finalStep == 0) {
+                            return emitter;
+                        }
+                        var suffix = " (" + (shift == 15 ? "continuum" : shift) + ")";
+                        emitter = new RenamingImageEmitter(emitter, title -> title + suffix, name -> name + suffix);
+                        return new StepFilteringImageEmitter(emitter, state.steps());
                     }
-                    var suffix = " (" + (shift == 15 ? "continuum" : shift) + ")";
-                    emitter = new RenamingImageEmitter(emitter, title -> title + suffix, name -> name + suffix);
-                    return new StepFilteringImageEmitter(emitter, state.steps());
+                };
+                var rotateLeft = ImageMath.newInstance().rotateLeft(state.reconstructed(), width, newHeight);
+                var rotated = new ImageWrapper32(newHeight, width, rotateLeft);
+                maybePerformFlips(rotated);
+                state.setImage(rotated);
+                ProcessingWorkflow workflow;
+                try (var executor = ParallelExecutor.newExecutor()) {
+                    executor.setExceptionHandler(this::broadcastError);
+                    workflow = new ProcessingWorkflow(this, rawImagesDirectory, debugDirectory, processedDirectory, executor, imageList, step, currentParams, fps.orElse(null), imageEmitterFactory);
+                    workflow.start();
+                } catch (Exception e) {
+                    throw new ProcessingException(e);
                 }
-            };
-            var rotateLeft = ImageMath.newInstance().rotateLeft(state.reconstructed(), width, newHeight);
-            var rotated = new ImageWrapper32(newHeight, width, rotateLeft);
-            maybePerformFlips(rotated);
-            state.setImage(rotated);
-            ProcessingWorkflow workflow;
-            try (var executor = ParallelExecutor.newExecutor()) {
-                executor.setExceptionHandler(this::broadcastError);
-                workflow = new ProcessingWorkflow(
-                        this,
-                        rawImagesDirectory,
-                        debugDirectory,
-                        processedDirectory,
-                        executor,
-                        imageList,
-                        step,
-                        currentParams,
-                        fps.orElse(null),
-                        imageEmitterFactory
-                );
-                workflow.start();
-            } catch (Exception e) {
-                throw new ProcessingException(e);
+                if (step == 0) {
+                    // For the subsequent steps, we're going to use the same tilt/xy ratio as the initial
+                    // step in order to align images
+                    currentParams = currentParams.withGeometry(workflow.getTilt() * 180 / Math.PI, workflow.getXyRatio());
+                }
             }
-            if (step == 0) {
-                // For the subsequent steps, we're going to use the same tilt/xy ratio as the initial
-                // step in order to align images
-                currentParams = currentParams.withGeometry(workflow.getTilt() * 180 / Math.PI, workflow.getXyRatio());
-            }
+        } else {
+            LOGGER.error(message("unable.find.spectral.line"));
         }
-
         broadcast(new ProcessingDoneEvent(System.nanoTime()));
     }
 
@@ -213,76 +203,76 @@ public class SolexVideoProcessor implements Broadcaster {
 
     private List<WorkflowState> createWorkflowStateSteps(int width, int newHeight) {
         if (quickMode) {
-            return List.of(WorkflowState.prepare(width, newHeight, processParams.spectrumParams().pixelShift(),
-                    EnumSet.of(WorkflowStep.RAW_IMAGE, WorkflowStep.BANDING_CORRECTION)));
+            return List.of(WorkflowState.prepare(width, newHeight, processParams.spectrumParams().pixelShift(), EnumSet.of(WorkflowStep.RAW_IMAGE, WorkflowStep.BANDING_CORRECTION)));
         }
         var dopplerShift = processParams.spectrumParams().dopplerShift();
-        var imageList = processParams.spectrumParams().pixelShift() == 0 ? List.of(
-                WorkflowState.prepare(width, newHeight, 0, EnumSet.allOf(WorkflowStep.class)),
-                WorkflowState.prepare(width, newHeight, -dopplerShift),
-                WorkflowState.prepare(width, newHeight, dopplerShift, WorkflowStep.DOPPLER_IMAGE),
-                WorkflowState.prepare(width, newHeight, +15, WorkflowStep.STRECHED_IMAGE)
-        ) : List.of(
-                WorkflowState.prepare(width, newHeight, processParams.spectrumParams().pixelShift(), EnumSet.allOf(WorkflowStep.class))
-        );
+        var imageList = processParams.spectrumParams().pixelShift() == 0 ? List.of(WorkflowState.prepare(width, newHeight, 0, EnumSet.allOf(WorkflowStep.class)), WorkflowState.prepare(width, newHeight, -dopplerShift), WorkflowState.prepare(width, newHeight, dopplerShift, WorkflowStep.DOPPLER_IMAGE), WorkflowState.prepare(width, newHeight, +15, WorkflowStep.STRECHED_IMAGE)) : List.of(WorkflowState.prepare(width, newHeight, processParams.spectrumParams().pixelShift(), EnumSet.allOf(WorkflowStep.class)));
         return imageList;
     }
 
-    private void performImageReconstruction(ImageConverter<float[]> converter, SerFileReader reader, int start, int end, ImageGeometry geometry, int width, int height, WorkflowState... images) {
+    private void performImageReconstruction(ImageConverter<float[]> converter, SerFileReader reader, int start, int end, ImageGeometry geometry, int width, int height, DoubleTriplet polynomial, WorkflowState... images) {
         try (var executor = ParallelExecutor.newExecutor()) {
             executor.setExceptionHandler(this::broadcastError);
             reader.seekFrame(start);
-            var analyzer = new SpectrumFrameAnalyzer(width, height, processParams.spectrumParams().spectralLineDetectionThreshold(), 5000d);
-            float[] average = computeAverageImage(converter, reader, start, end, geometry, analyzer);
-            analyzer.findDistortionPolynomial().ifPresent(polynomial -> {
-                if (processParams.debugParams().generateDebugImages()) {
-                    var outputFile = new File(debugDirectory, "average.png");
-                    var rgb = new SpectralLineFrameImageCreator(analyzer, average, width, height)
-                            .generateDebugImage();
-                    broadcast(new ImageGeneratedEvent(new GeneratedImage(message("average"), outputFile.toPath(), rgb, LinearStrechingStrategy.DEFAULT)));
+            LOGGER.info(message("distortion.polynomial"), polynomial.a(), polynomial.b(), polynomial.c());
+            reader.seekFrame(start);
+            for (int i = start, j = 0; i < end; i++, j += width) {
+                var original = converter.createBuffer(geometry);
+                // The converter makes sure we only have a single channel
+                converter.convert(i, reader.currentFrame().data(), geometry, original);
+                reader.nextFrame();
+                int offset = j;
+                for (WorkflowState state : images) {
+                    executor.submit(() -> processSingleFrame(width, height, state.reconstructed(), offset, original, polynomial, state.pixelShift()));
                 }
-                LOGGER.info(message("distortion.polynomial"), polynomial.a(), polynomial.b(), polynomial.c());
-                reader.seekFrame(start);
-                for (int i = start, j = 0; i < end; i++, j += width) {
-                    var original = converter.createBuffer(geometry);
-                    // The converter makes sure we only have a single channel
-                    converter.convert(i, reader.currentFrame().data(), geometry, original);
-                    reader.nextFrame();
-                    int offset = j;
-                    for (WorkflowState state : images) {
-                        executor.submit(() -> {
-                            processSingleFrame(width, height, state.reconstructed(), offset, original, polynomial, state.pixelShift());
-                        });
-                    }
-                }
-            });
+            }
         } catch (Exception e) {
             throw new ProcessingException(e);
         }
         LOGGER.info(message("processing.done.generate.images"));
     }
 
-    private static float[] computeAverageImage(ImageConverter<float[]> converter, SerFileReader reader, int start, int end, ImageGeometry geometry, SpectrumFrameAnalyzer analyzer) {
+    private Optional<DoubleTriplet> findPolynomial(int width, int height, double threshold, float[] averageImage) {
+        Optional<DoubleTriplet> result = Optional.empty();
+        double t = threshold;
+        SpectrumFrameAnalyzer analyzer = null;
+        while (result.isEmpty() && t < 1.0d) {
+            analyzer = new SpectrumFrameAnalyzer(width, height, t, 5000d);
+            analyzer.analyze(averageImage);
+            result = analyzer.findDistortionPolynomial();
+            t = Math.min(1d, t + 0.10d);
+            if (result.isEmpty()) {
+                LOGGER.info("Sprectral line threshold too low, increasing to {}", String.format("%.2f", t));
+            }
+        }
+        if (processParams.debugParams().generateDebugImages()) {
+            var outputFile = new File(debugDirectory, "average.png");
+            var rgb = new SpectralLineFrameImageCreator(analyzer, averageImage, width, height).generateDebugImage();
+            broadcast(new ImageGeneratedEvent(new GeneratedImage(message("average"), outputFile.toPath(), rgb, LinearStrechingStrategy.DEFAULT)));
+        }
+        return result;
+    }
+
+    private float[] computeAverageImage(ImageConverter<float[]> converter, SerFileReader reader, int start, int end, ImageGeometry geometry) {
+        var averageMessage = message("computing.average.image");
+        long sd = System.nanoTime();
+        LOGGER.info(averageMessage);
         var average = converter.createBuffer(geometry);
         var current = converter.createBuffer(geometry);
+        var imageMath = ImageMath.newInstance();
         for (int i = start; i < end; i++) {
+            broadcast(ProgressEvent.of((i - start + 1d) / (end - start), averageMessage));
             converter.convert(i, reader.currentFrame().data(), geometry, current);
-            for (int j = 0; j < current.length; j++) {
-                average[j] = average[j] + (current[j] - average[j]) / (1 + i - start);
-            }
+            imageMath.incrementalAverage(current, average, 1 + i - start);
             reader.nextFrame();
         }
-        analyzer.analyze(average);
+        if (LOGGER.isDebugEnabled()) {
+            LOGGER.debug("Average computed in {}ms", Duration.ofNanos(System.nanoTime() - sd).toMillis());
+        }
         return average;
     }
 
-    private void processSingleFrame(int width,
-                                    int height,
-                                    float[] outputBuffer,
-                                    int offset,
-                                    float[] buffer,
-                                    DoubleTriplet p,
-                                    int pixelShift) {
+    private void processSingleFrame(int width, int height, float[] outputBuffer, int offset, float[] buffer, DoubleTriplet p, int pixelShift) {
 
         var fun = p.asPolynomial();
         double[] line = new double[width];

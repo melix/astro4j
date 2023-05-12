@@ -25,7 +25,7 @@ import static java.lang.Math.round;
 public interface ImageMath {
 
     static ImageMath newInstance() {
-        if (VectorApiSupport.isPresent()) {
+        if (VectorApiSupport.isEnabled()) {
             return new VectorApiImageMath();
         }
         return new FallbackImageMath();
@@ -56,6 +56,8 @@ public interface ImageMath {
     double averageOf(float[] data, int width, int lineNb);
 
     double averageOf(double[] data);
+
+    void incrementalAverage(float[] current, float[] average, int n);
 
     private static DoubleMatrix rotationMatrix(double angle) {
         double[][] matrix = new double[2][2];
