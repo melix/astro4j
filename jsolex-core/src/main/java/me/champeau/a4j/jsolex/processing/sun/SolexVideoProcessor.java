@@ -51,7 +51,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.File;
-import java.time.Duration;
 import java.util.EnumSet;
 import java.util.HashSet;
 import java.util.List;
@@ -108,14 +107,15 @@ public class SolexVideoProcessor implements Broadcaster {
             LOGGER.info(message("ser.file.contains"), frameCount);
             LOGGER.info(message("color.mode.geometry"), geometry.colorMode(), geometry.getBytesPerPixel(), geometry.pixelDepthPerPlane());
             LOGGER.info(message("width.height"), geometry.width(), geometry.height());
-            LOGGER.info(message("detecting.limb"));
+            LOGGER.info(message("computing.average.image.limb.detect"));
             detector.detectEdges(reader);
+            var averageImage = detector.getAverageImage();
             detector.ifEdgesDetected((start, end) -> {
                 LOGGER.info(message("sun.edges.detected"), start, end);
-                generateImages(converter, reader, Math.max(0, start - 40), Math.min(end + 40, frameCount) - 1);
+                generateImages(converter, reader, Math.max(0, start - 40), Math.min(end + 40, frameCount) - 1, averageImage);
             }, () -> {
                 LOGGER.info(message("sun.edges.detected.full"));
-                generateImages(converter, reader, 0, frameCount - 1);
+                generateImages(converter, reader, 0, frameCount - 1, averageImage);
             });
         } catch (Exception e) {
             broadcastError(e);
@@ -127,7 +127,7 @@ public class SolexVideoProcessor implements Broadcaster {
         broadcast(new NotificationEvent(new Notification(Notification.AlertType.ERROR, message("unexpected.error"), message("error.during.processing"), trace)));
     }
 
-    private void generateImages(ImageConverter<float[]> converter, SerFileReader reader, int start, int end) {
+    private void generateImages(ImageConverter<float[]> converter, SerFileReader reader, int start, int end, float[] averageImage) {
         var geometry = reader.header().geometry();
         int width = geometry.width();
         int height = geometry.height();
@@ -136,7 +136,6 @@ public class SolexVideoProcessor implements Broadcaster {
         broadcast(OutputImageDimensionsDeterminedEvent.of("raw", width, newHeight));
         List<WorkflowState> imageList = createWorkflowStateSteps(width, newHeight);
         LOGGER.info(message("starting.reconstruction"));
-        float[] averageImage = computeAverageImage(converter, reader, start, end, geometry);
         var maybePolynomial = findPolynomial(width, height, processParams.spectrumParams().spectralLineDetectionThreshold(), averageImage);
         if (maybePolynomial.isPresent()) {
             var polynomial = maybePolynomial.get();
@@ -251,25 +250,6 @@ public class SolexVideoProcessor implements Broadcaster {
             broadcast(new ImageGeneratedEvent(new GeneratedImage(message("average"), outputFile.toPath(), rgb, LinearStrechingStrategy.DEFAULT)));
         }
         return result;
-    }
-
-    private float[] computeAverageImage(ImageConverter<float[]> converter, SerFileReader reader, int start, int end, ImageGeometry geometry) {
-        var averageMessage = message("computing.average.image");
-        long sd = System.nanoTime();
-        LOGGER.info(averageMessage);
-        var average = converter.createBuffer(geometry);
-        var current = converter.createBuffer(geometry);
-        var imageMath = ImageMath.newInstance();
-        for (int i = start; i < end; i++) {
-            broadcast(ProgressEvent.of((i - start + 1d) / (end - start), averageMessage));
-            converter.convert(i, reader.currentFrame().data(), geometry, current);
-            imageMath.incrementalAverage(current, average, 1 + i - start);
-            reader.nextFrame();
-        }
-        if (LOGGER.isDebugEnabled()) {
-            LOGGER.debug("Average computed in {}ms", Duration.ofNanos(System.nanoTime() - sd).toMillis());
-        }
-        return average;
     }
 
     private void processSingleFrame(int width, int height, float[] outputBuffer, int offset, float[] buffer, DoubleTriplet p, int pixelShift) {

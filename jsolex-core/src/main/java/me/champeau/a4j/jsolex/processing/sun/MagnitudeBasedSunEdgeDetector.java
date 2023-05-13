@@ -19,6 +19,7 @@ import me.champeau.a4j.jsolex.processing.event.ProgressEvent;
 import me.champeau.a4j.jsolex.processing.stats.ChannelStats;
 import me.champeau.a4j.jsolex.processing.util.ParallelExecutor;
 import me.champeau.a4j.jsolex.processing.util.ProcessingException;
+import me.champeau.a4j.math.image.ImageMath;
 import me.champeau.a4j.ser.ImageGeometry;
 import me.champeau.a4j.ser.SerFileReader;
 import me.champeau.a4j.ser.bayer.ImageConverter;
@@ -27,6 +28,7 @@ import org.slf4j.LoggerFactory;
 
 import java.nio.ByteBuffer;
 import java.util.Optional;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.BiConsumer;
 
 import static me.champeau.a4j.jsolex.processing.util.Constants.message;
@@ -44,6 +46,7 @@ public class MagnitudeBasedSunEdgeDetector implements SunEdgeDetector {
 
     private Integer startEdge;
     private Integer endEdge;
+    private float[] averageImage;
 
     public MagnitudeBasedSunEdgeDetector(ImageConverter<float[]> imageConverter,
                                          Broadcaster broadcaster) {
@@ -58,8 +61,11 @@ public class MagnitudeBasedSunEdgeDetector implements SunEdgeDetector {
         var magnitudes = new float[frameCount];
         int imageSize = geometry.width() * geometry.height() * 5; // 4 bytes per pixel for float[] + 1 byte for the intermediate buffer
         int maxMemoryUse = 100 * 1024 * 1024;
-        int maxParalleism = Math.max(1, Math.min(maxMemoryUse/imageSize, 16 * Runtime.getRuntime().availableProcessors()));
-        var limbDetectionMessage = message("detecting.limb");
+        int maxParalleism = Math.max(1, Math.min(maxMemoryUse / imageSize, 16 * Runtime.getRuntime().availableProcessors()));
+        var limbDetectionMessage = message("computing.average.image.limb.detect");
+        var imageMath = ImageMath.newInstance();
+        averageImage = new float[geometry.width() * geometry.height()];
+        var counter = new AtomicInteger(0);
         try (var executor = ParallelExecutor.newExecutor(maxParalleism)) {
             for (int i = 0; i < frameCount; i++) {
                 int frameId = i;
@@ -74,6 +80,9 @@ public class MagnitudeBasedSunEdgeDetector implements SunEdgeDetector {
                     var buffer = imageConverter.createBuffer(geometry);
                     imageConverter.convert(frameId, ByteBuffer.wrap(copy), geometry, buffer);
                     magnitudes[frameId] = MagnitudeDetectorSupport.minMax(buffer).b();
+                    synchronized (imageMath) {
+                        imageMath.incrementalAverage(buffer, averageImage, counter.incrementAndGet());
+                    }
                 });
             }
         } catch (Exception ex) {
@@ -85,6 +94,13 @@ public class MagnitudeBasedSunEdgeDetector implements SunEdgeDetector {
         }
         if (edges.b() >= 0) {
             endEdge = edges.b();
+        }
+        if (startEdge != null && endEdge != null) {
+            // adjust average image value
+            float r = (endEdge - startEdge) / (float) frameCount;
+            for (int i = 0; i < averageImage.length; i++) {
+                averageImage[i] /= r;
+            }
         }
     }
 
@@ -100,5 +116,9 @@ public class MagnitudeBasedSunEdgeDetector implements SunEdgeDetector {
     @Override
     public Optional<ChannelStats[]> getFrameStats() {
         return Optional.empty();
+    }
+
+    public float[] getAverageImage() {
+        return averageImage;
     }
 }
