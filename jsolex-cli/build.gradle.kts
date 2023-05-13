@@ -32,6 +32,14 @@ graalvmNative {
 }
 
 tasks.named<JavaExec>("run") {
+    val profile = providers.systemProperty("profile")
+        .map(String::toBoolean)
+        .getOrElse(false)
+    if (profile) {
+        jvmArgs(listOf(
+                "-agentpath:/home/cchampeau/TOOLS/hp/liblagent.so=interval=7,logPath=/tmp/log.hpl",
+        ))
+    }
     args(listOf(
         "-i", "/media/cchampeau/T7/sun/2023-04-19/Capture/13_06_30_best.ser",
     ))
