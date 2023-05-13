@@ -60,30 +60,31 @@ public class MagnitudeBasedSunEdgeDetector implements SunEdgeDetector {
         ImageGeometry geometry = reader.header().geometry();
         var magnitudes = new float[frameCount];
         int imageSize = geometry.width() * geometry.height() * 5; // 4 bytes per pixel for float[] + 1 byte for the intermediate buffer
-        int maxMemoryUse = 100 * 1024 * 1024;
-        int maxParalleism = Math.max(1, Math.min(maxMemoryUse / imageSize, 16 * Runtime.getRuntime().availableProcessors()));
         var limbDetectionMessage = message("computing.average.image.limb.detect");
         var imageMath = ImageMath.newInstance();
         averageImage = new float[geometry.width() * geometry.height()];
         var counter = new AtomicInteger(0);
-        try (var executor = ParallelExecutor.newExecutor(maxParalleism)) {
-            for (int i = 0; i < frameCount; i++) {
-                int frameId = i;
-                broadcaster.broadcast(ProgressEvent.of(frameId / (double) frameCount, limbDetectionMessage));
-                // Because we're processing each frame concurrently we need
-                // to copy the frame buffer into a new array
-                var currentFrame = reader.currentFrame().data().array();
-                byte[] copy = new byte[currentFrame.length];
-                System.arraycopy(currentFrame, 0, copy, 0, currentFrame.length);
-                reader.nextFrame();
-                executor.submit(() -> {
-                    var buffer = imageConverter.createBuffer(geometry);
-                    imageConverter.convert(frameId, ByteBuffer.wrap(copy), geometry, buffer);
-                    magnitudes[frameId] = MagnitudeDetectorSupport.minMax(buffer).b();
-                    synchronized (imageMath) {
-                        imageMath.incrementalAverage(buffer, averageImage, counter.incrementAndGet());
-                    }
-                });
+        try (var cpuExecutor = ParallelExecutor.newExecutor(1)) {
+            try (var ioExecutor = IOUtils.newExecutor(imageSize)) {
+                for (int i = 0; i < frameCount; i++) {
+                    int frameId = i;
+                    broadcaster.broadcast(ProgressEvent.of(frameId / (double) frameCount, limbDetectionMessage));
+                    // Because we're processing each frame concurrently we need
+                    // to copy the frame buffer into a new array
+                    var currentFrame = reader.currentFrame().data().array();
+                    byte[] copy = new byte[currentFrame.length];
+                    System.arraycopy(currentFrame, 0, copy, 0, currentFrame.length);
+                    reader.nextFrame();
+                    ioExecutor.submit(() -> {
+                        var buffer = imageConverter.createBuffer(geometry);
+                        imageConverter.convert(frameId, ByteBuffer.wrap(copy), geometry, buffer);
+                        magnitudes[frameId] = MagnitudeDetectorSupport.minMax(buffer).b();
+                        cpuExecutor.submit(() -> {
+                            // we don't need to synchronize here since averaging is executed on a single thread
+                            imageMath.incrementalAverage(buffer, averageImage, counter.incrementAndGet());
+                        });
+                    });
+                }
             }
         } catch (Exception ex) {
             throw new ProcessingException(ex);

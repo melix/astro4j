@@ -32,7 +32,7 @@ public class ParallelExecutor implements AutoCloseable {
     private final ExecutorService executorService = Executors.newWorkStealingPool();
     private final Semaphore semaphore;
 
-    private Consumer<? super Throwable> exceptionHandler = (Consumer<Throwable>) e -> LOGGER.error("An error happened during processing", e);
+    private Consumer<? super Throwable> exceptionHandler = (Consumer<Throwable>) LoggingSupport::logError;
 
     private ParallelExecutor(int parallelism) {
         semaphore = new Semaphore(parallelism);

@@ -210,7 +210,7 @@ public class SolexVideoProcessor implements Broadcaster {
     }
 
     private void performImageReconstruction(ImageConverter<float[]> converter, SerFileReader reader, int start, int end, ImageGeometry geometry, int width, int height, DoubleTriplet polynomial, WorkflowState... images) {
-        try (var executor = ParallelExecutor.newExecutor()) {
+        try (var executor = IOUtils.newExecutor(width * height * 4)) {
             executor.setExceptionHandler(this::broadcastError);
             reader.seekFrame(start);
             LOGGER.info(message("distortion.polynomial"), polynomial.a(), polynomial.b(), polynomial.c());
