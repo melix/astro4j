@@ -140,7 +140,6 @@ public class Main implements Runnable {
     static class SpectrumOptions implements OptionsConfigurer<SpectrumParams> {
         @Option(names = {"-wl", "--wavelength"},
                 description = "Wavelength (one of ${COMPLETION-CANDIDATES})",
-                defaultValue = "OTHER",
                 completionCandidates = SpectralRayCandidates.class
         )
         SpectralRay spectralRay;
