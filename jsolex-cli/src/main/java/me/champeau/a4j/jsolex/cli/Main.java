@@ -26,6 +26,7 @@ import me.champeau.a4j.jsolex.processing.params.ProcessParams;
 import me.champeau.a4j.jsolex.processing.params.SpectralRay;
 import me.champeau.a4j.jsolex.processing.params.SpectrumParams;
 import me.champeau.a4j.jsolex.processing.sun.SolexVideoProcessor;
+import me.champeau.a4j.jsolex.processing.util.ProcessingException;
 import me.champeau.a4j.math.tuples.DoublePair;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -34,6 +35,7 @@ import picocli.CommandLine.Command;
 import picocli.CommandLine.Option;
 
 import java.io.File;
+import java.io.IOException;
 import java.nio.file.Files;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
@@ -111,14 +113,19 @@ public class Main implements Runnable {
                 outputDir = new File(inputFile.getParentFile(), baseName + suffix);
             }
         }
-        var processor = new SolexVideoProcessor(
-                inputFile,
-                outputDir,
-                processParams,
-                quickMode
-        );
-        processor.addEventListener(new LoggingListener(processParams));
-        processor.process();
+        try {
+            Files.createDirectories(outputDir.toPath());
+            var processor = new SolexVideoProcessor(
+                    inputFile,
+                    outputDir,
+                    processParams,
+                    quickMode
+            );
+            processor.addEventListener(new LoggingListener(processParams));
+            processor.process();
+        } catch (IOException e) {
+            throw new ProcessingException(e);
+        }
     }
 
     private static ch.qos.logback.classic.Logger logger(String name) {
