@@ -28,6 +28,7 @@ graalvmNative {
     metadataRepository.enabled.set(true)
     binaries.named("main") {
         imageName.set("jsolex")
+        buildArgs.add("--pgo=/home/cchampeau/DEV/PROJECTS/GITHUB/astro4j/default.iprof")
     }
 }
 

@@ -24,7 +24,7 @@ public class BandingReduction {
     public static void reduceBanding(int width, int height, float[] data, int bandSize) {
         var imageMath = ImageMath.newInstance();
         // compute average value of each line
-        double[] lineAverages = imageMath.lineAverages(data, width, height);
+        double[] lineAverages = imageMath.lineAverages(new ImageMath.Image(width, height, data));
         for (int y = 0; y < height; y++) {
             double sum = 0;
             int count = 0;

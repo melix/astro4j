@@ -79,7 +79,7 @@ public class GeometryCorrector extends AbstractTask<GeometryCorrector.Result> {
             sx = ratio;
             sy = 1d;
         }
-        var rotated = ImageMath.newInstance().rotateAndScale(buffer, width, height, correctionAngle, 0, sx, sy);
+        var rotated = ImageMath.newInstance().rotateAndScale(new ImageMath.Image(width, height, buffer), correctionAngle, 0, sx, sy);
         broadcaster.broadcast(ProgressEvent.of(1, "Correcting geometry"));
         var full = new ImageWrapper32(rotated.width(), rotated.height(), rotated.data());
         return crop(rotated, full);

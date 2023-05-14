@@ -16,7 +16,6 @@
 package me.champeau.a4j.math.image;
 
 import me.champeau.a4j.math.VectorApiSupport;
-import me.champeau.a4j.math.matrix.DoubleMatrix;
 
 import java.util.Arrays;
 
@@ -31,7 +30,10 @@ public interface ImageMath {
         return new FallbackImageMath();
     }
 
-    default float[] rotateLeft(float[] data, int width, int height) {
+    default float[] rotateLeft(Image image) {
+        var data = image.data();
+        var width = image.width();
+        var height = image.height();
         float[] output = new float[data.length];
         for (int y = 0; y < height; y++) {
             for (int x = 0; x < width; x++) {
@@ -41,7 +43,10 @@ public interface ImageMath {
         return output;
     }
 
-    default float[] rotateRight(float[] data, int width, int height) {
+    default float[] rotateRight(Image image) {
+        var data = image.data();
+        var width = image.width();
+        var height = image.height();
         float[] output = new float[data.length];
         for (int y = 0; y < height; y++) {
             for (int x = 0; x < width; x++) {
@@ -51,26 +56,45 @@ public interface ImageMath {
         return output;
     }
 
-    double[] lineAverages(float[] data, int width, int height);
-
-    double averageOf(float[] data, int width, int lineNb);
-
-    double averageOf(double[] data);
-
-    void incrementalAverage(float[] current, float[] average, int n);
-
-    private static DoubleMatrix rotationMatrix(double angle) {
-        double[][] matrix = new double[2][2];
-        double cos = Math.cos(angle);
-        double sin = Math.sin(angle);
-        matrix[0][0] = cos;
-        matrix[0][1] = sin;
-        matrix[1][0] = -sin;
-        matrix[1][1] = cos;
-        return DoubleMatrix.of(matrix);
+    default double[] lineAverages(Image image) {
+        var height = image.height();
+        double[] result = new double[height];
+        for (int y = 0; y < height; y++) {
+            result[y] = averageOf(image, y);
+        }
+        return result;
     }
 
-    default Image rotateAndScale(float[] data, int width, int height, double angle, float blackpoint, double scaleX, double scaleY) {
+    default double averageOf(Image image, int lineNb) {
+        var data = image.data();
+        var width = image.width();
+        double sum = 0;
+        int offset = lineNb * width;
+        for (int x = 0; x < width; x++) {
+            sum += data[offset + x];
+        }
+        return sum / width;
+    }
+
+    default double averageOf(double[] data) {
+        double sum = 0;
+        int max = data.length;
+        for (double datum : data) {
+            sum += datum;
+        }
+        return sum / max;
+    }
+
+    default void incrementalAverage(float[] current, float[] average, int n) {
+        for (int j = 0; j < current.length; j++) {
+            average[j] = average[j] + (current[j] - average[j]) / n;
+        }
+    }
+
+    default Image rotateAndScale(Image image, double angle, float blackpoint, double scaleX, double scaleY) {
+        var data = image.data();
+        var width = image.width();
+        var height = image.height();
         double cos = Math.cos(angle);
         double sin = Math.sin(angle);
         int newWidth = (int) ((round(Math.abs(width * cos) + Math.abs(height * sin))) * scaleX);
@@ -86,7 +110,7 @@ public interface ImageMath {
                 var rx = (x - newCenterX) / scaleX;
                 var ry = (y - newCenterY) / scaleY;
                 var sx = rx * cos + ry * sin + centerX;
-                var sy = - rx * sin + ry * cos + centerY;
+                var sy = -rx * sin + ry * cos + centerY;
                 var sourceX1 = (int) sx;
                 var sourceY1 = (int) sy;
                 var sourceX2 = sourceX1 + 1;
@@ -110,7 +134,98 @@ public interface ImageMath {
         return new Image(newWidth, newHeight, output);
     }
 
-    record Image(int width, int height, float[] data) {
+    default Image integralImage(Image source) {
+        var data = source.data();
+        var width = source.width();
+        var height = source.height();
+        float[] integral = new float[width * height];
+        integral[0] = data[0];
+        for (int x = 1; x < width; x++) {
+            integral[x] = integral[x - 1] + data[x];
+        }
+        for (int y = 1; y < height; y++) {
+            int rowStart = y * width;
+            integral[rowStart] = integral[rowStart - width] + data[rowStart];
+        }
+        for (int y = 1; y < height; y++) {
+            int rowStart = y * width;
+            for (int x = 1; x < width; x++) {
+                int index = rowStart + x;
+                integral[index] = data[index] + integral[index - 1] + integral[index - width] - integral[index - width - 1];
+            }
+        }
+        return new Image(width, height, integral);
+    }
 
+    default float areaSum(Image integralImage, int x, int y, int width, int height) {
+        var imageWidth = integralImage.width();
+        var data = integralImage.data();
+        int xo = width - 1;
+        int yo = height - 1;
+        float topLeft;
+        float topRight;
+        float bottomLeft;
+        float bottomRight;
+        if (x == 0 && y == 0) {
+            topLeft = 0;
+            topRight = 0;
+            bottomLeft = 0;
+            bottomRight = data[x + xo + imageWidth * (y + yo)];
+        } else if (x == 0) {
+            topLeft = 0;
+            topRight = data[x + xo + imageWidth * (y - 1)];
+            bottomLeft = 0;
+            bottomRight = data[x + xo + imageWidth * (y + yo)];
+        } else if (y == 0) {
+            topLeft = 0;
+            topRight = 0;
+            bottomLeft = data[x - 1 + imageWidth * (y + yo)];
+            bottomRight = data[x + xo + imageWidth * (y + yo)];
+        } else {
+            topLeft = data[x - 1 + imageWidth * (y - 1)];
+            topRight = data[x + xo + imageWidth * (y - 1)];
+            bottomLeft = data[x - 1 + imageWidth * (y + yo)];
+            bottomRight = data[x + xo + imageWidth * (y + yo)];
+        }
+        return bottomRight - topRight - bottomLeft + topLeft;
+    }
+
+    default float areaAverage(Image integralImage, int x, int y, int width, int height) {
+        return areaSum(integralImage, x, y, width, height) / (width * height);
+    }
+
+    record Image(int width, int height, float[] data) {
+        @Override
+        public String toString() {
+            return "{ width = " + width + ", height = " + height + ", data = " + Arrays.toString(data) + "}";
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) {
+                return true;
+            }
+            if (o == null || getClass() != o.getClass()) {
+                return false;
+            }
+
+            Image image = (Image) o;
+
+            if (width != image.width) {
+                return false;
+            }
+            if (height != image.height) {
+                return false;
+            }
+            return Arrays.equals(data, image.data);
+        }
+
+        @Override
+        public int hashCode() {
+            int result = width;
+            result = 31 * result + height;
+            result = 31 * result + Arrays.hashCode(data);
+            return result;
+        }
     }
 }

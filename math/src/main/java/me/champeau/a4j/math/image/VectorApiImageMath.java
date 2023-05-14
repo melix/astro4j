@@ -30,16 +30,19 @@ class VectorApiImageMath implements ImageMath {
     }
 
     @Override
-    public double[] lineAverages(float[] data, int width, int height) {
+    public double[] lineAverages(Image image) {
+        var height = image.height();
         double[] result = new double[height];
         for (int y = 0; y < height; y++) {
-            result[y] = averageOf(data, width, y);
+            result[y] = averageOf(image, y);
         }
         return result;
     }
 
     @Override
-    public double averageOf(float[] data, int width, int lineNb) {
+    public double averageOf(Image image, int lineNb) {
+        var data = image.data();
+        var width = image.width();
         double sum = 0;
         int offset = lineNb * width;
         int max = data.length;

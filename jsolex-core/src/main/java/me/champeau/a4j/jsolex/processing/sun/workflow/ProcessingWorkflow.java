@@ -15,7 +15,6 @@
  */
 package me.champeau.a4j.jsolex.processing.sun.workflow;
 
-import me.champeau.a4j.jsolex.processing.util.Constants;
 import me.champeau.a4j.jsolex.processing.color.ColorCurve;
 import me.champeau.a4j.jsolex.processing.event.OutputImageDimensionsDeterminedEvent;
 import me.champeau.a4j.jsolex.processing.event.SuggestionEvent;
@@ -30,6 +29,7 @@ import me.champeau.a4j.jsolex.processing.sun.tasks.CoronagraphTask;
 import me.champeau.a4j.jsolex.processing.sun.tasks.EllipseFittingTask;
 import me.champeau.a4j.jsolex.processing.sun.tasks.GeometryCorrector;
 import me.champeau.a4j.jsolex.processing.sun.tasks.ImageBandingCorrector;
+import me.champeau.a4j.jsolex.processing.util.Constants;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 import me.champeau.a4j.jsolex.processing.util.ParallelExecutor;
 import me.champeau.a4j.math.Point2D;
@@ -92,12 +92,13 @@ public class ProcessingWorkflow {
     }
 
     public void start() {
-        rawImagesEmitter.newMonoImage(WorkflowStep.RAW_IMAGE, message("raw"), "recon", state.image(), CutoffStretchingStrategy.DEFAULT);
-        rawImagesEmitter.newMonoImage(WorkflowStep.RAW_IMAGE, message("raw.linear"), "linear", state.image(), LinearStrechingStrategy.DEFAULT);
-        var ellipseFittingTask = executor.submit(new EllipseFittingTask(broadcaster, state.image(), 10d));
+        var image = state.image();
+        rawImagesEmitter.newMonoImage(WorkflowStep.RAW_IMAGE, message("raw"), "recon", image, CutoffStretchingStrategy.DEFAULT);
+        rawImagesEmitter.newMonoImage(WorkflowStep.RAW_IMAGE, message("raw.linear"), "linear", image, LinearStrechingStrategy.DEFAULT);
+        var ellipseFittingTask = executor.submit(new EllipseFittingTask(broadcaster, image, 10d));
         ellipseFittingTask.thenAccept(r -> {
             state.recordResult(WorkflowStep.ELLIPSE_FITTING, r);
-            performBandingCorrection(r, state.image()).thenAccept(bandingFixed -> {
+            performBandingCorrection(r, image).thenAccept(bandingFixed -> {
                 state.recordResult(WorkflowStep.BANDING_CORRECTION, bandingFixed);
                 geometryCorrection(r, bandingFixed);
             });

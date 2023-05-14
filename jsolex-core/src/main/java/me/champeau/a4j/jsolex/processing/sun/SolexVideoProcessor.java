@@ -157,7 +157,7 @@ public class SolexVideoProcessor implements Broadcaster {
                         return new StepFilteringImageEmitter(emitter, state.steps());
                     }
                 };
-                var rotateLeft = ImageMath.newInstance().rotateLeft(state.reconstructed(), width, newHeight);
+                var rotateLeft = ImageMath.newInstance().rotateLeft(new ImageMath.Image(width, newHeight, state.reconstructed()));
                 var rotated = new ImageWrapper32(newHeight, width, rotateLeft);
                 maybePerformFlips(rotated);
                 state.setImage(rotated);
