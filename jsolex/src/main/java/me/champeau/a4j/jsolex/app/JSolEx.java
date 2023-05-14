@@ -333,21 +333,21 @@ public class JSolEx extends Application {
 
             @Override
             public void onImageGenerated(ImageGeneratedEvent event) {
-                var tab = new Tab(event.getPayload().title());
-                var viewer = newImageViewer();
-                viewer.fitWidthProperty().bind(mainPane.widthProperty());
-                viewer.setup(this,
-                        baseName,
-                        event.getPayload().image(),
-                        event.getPayload().stretchingStrategy(),
-                        event.getPayload().path().toFile(),
-                        params
-                );
-                var scrollPane = new ScrollPane();
-                scrollPane.setContent(viewer.getRoot());
-                tab.setContent(scrollPane);
                 Platform.runLater(() -> {
                     lock.lock();
+                    var tab = new Tab(event.getPayload().title());
+                    var viewer = newImageViewer();
+                    viewer.fitWidthProperty().bind(mainPane.widthProperty());
+                    viewer.setup(this,
+                            baseName,
+                            event.getPayload().image(),
+                            event.getPayload().stretchingStrategy(),
+                            event.getPayload().path().toFile(),
+                            params
+                    );
+                    var scrollPane = new ScrollPane();
+                    scrollPane.setContent(viewer.getRoot());
+                    tab.setContent(scrollPane);
                     try {
                         mainPane.getTabs().add(tab);
                         mainPane.getSelectionModel().select(tab);
