@@ -20,6 +20,7 @@ import me.champeau.a4j.jsolex.processing.event.SuggestionEvent;
 import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 import me.champeau.a4j.jsolex.processing.util.ProcessingException;
+import me.champeau.a4j.math.image.Image;
 import me.champeau.a4j.math.image.ImageMath;
 import me.champeau.a4j.math.regression.Ellipse;
 import org.slf4j.Logger;
@@ -79,13 +80,13 @@ public class GeometryCorrector extends AbstractTask<GeometryCorrector.Result> {
             sx = ratio;
             sy = 1d;
         }
-        var rotated = ImageMath.newInstance().rotateAndScale(new ImageMath.Image(width, height, buffer), correctionAngle, 0, sx, sy);
+        var rotated = ImageMath.newInstance().rotateAndScale(new Image(width, height, buffer), correctionAngle, 0, sx, sy);
         broadcaster.broadcast(ProgressEvent.of(1, "Correcting geometry"));
         var full = new ImageWrapper32(rotated.width(), rotated.height(), rotated.data());
         return crop(rotated, full);
     }
 
-    private Result crop(ImageMath.Image rotated, ImageWrapper32 full) {
+    private Result crop(Image rotated, ImageWrapper32 full) {
         var diskEllipse = sunDisk.orElseGet(() -> {
             EllipseFittingTask.Result fitting;
             try {

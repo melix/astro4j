@@ -19,7 +19,7 @@ import spock.lang.Specification
 
 class ImageMathTest extends Specification {
     def "tests integral image (#label)"() {
-        var image = new ImageMath.Image(5, 4, new float[]{
+        var image = new Image(5, 4, new float[]{
                 4, 1, 2, 2, 1,
                 0, 4, 1, 3, 5,
                 3, 1, 0, 4, 2,
@@ -30,7 +30,7 @@ class ImageMathTest extends Specification {
         def integral = imageMath.integralImage(image)
 
         then:
-        integral == new ImageMath.Image(5, 4, new float[]{
+        integral == new Image(5, 4, new float[]{
                 4, 5, 7, 9, 10,
                 4, 9, 12, 17, 23,
                 7, 13, 16, 25, 33,

@@ -13,22 +13,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package me.champeau.a4j.jsolex.processing.util;
+package me.champeau.a4j.math.image;
 
-import me.champeau.a4j.math.image.Image;
-
-/**
- * A wrapper for images which are using 32-bit floats.
- * @param width the width of the image
- * @param height the height of the image
- * @param data the image data
- */
-public record ImageWrapper32(
-        int width,
-        int height,
-        float[] data
-) implements ImageWrapper {
-    public Image asImage() {
-        return new Image(width, height, data);
-    }
+public sealed interface Kernel permits Kernel33 {
+    int rows();
+    int cols();
+    float[][] kernel();
+    float factor();
 }

@@ -15,6 +15,7 @@
  */
 package me.champeau.a4j.jsolex.processing.sun;
 
+import me.champeau.a4j.math.image.Image;
 import me.champeau.a4j.math.image.ImageMath;
 
 public class BandingReduction {
@@ -24,7 +25,7 @@ public class BandingReduction {
     public static void reduceBanding(int width, int height, float[] data, int bandSize) {
         var imageMath = ImageMath.newInstance();
         // compute average value of each line
-        double[] lineAverages = imageMath.lineAverages(new ImageMath.Image(width, height, data));
+        double[] lineAverages = imageMath.lineAverages(new Image(width, height, data));
         for (int y = 0; y < height; y++) {
             double sum = 0;
             int count = 0;

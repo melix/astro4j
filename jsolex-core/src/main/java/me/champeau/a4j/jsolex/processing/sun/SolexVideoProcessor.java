@@ -42,6 +42,7 @@ import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 import me.champeau.a4j.jsolex.processing.util.ParallelExecutor;
 import me.champeau.a4j.jsolex.processing.util.ProcessingException;
 import me.champeau.a4j.jsolex.processing.util.SpectralLineFrameImageCreator;
+import me.champeau.a4j.math.image.Image;
 import me.champeau.a4j.math.image.ImageMath;
 import me.champeau.a4j.math.tuples.DoubleTriplet;
 import me.champeau.a4j.ser.ImageGeometry;
@@ -157,7 +158,7 @@ public class SolexVideoProcessor implements Broadcaster {
                         return new StepFilteringImageEmitter(emitter, state.steps());
                     }
                 };
-                var rotateLeft = ImageMath.newInstance().rotateLeft(new ImageMath.Image(width, newHeight, state.reconstructed()));
+                var rotateLeft = ImageMath.newInstance().rotateLeft(new Image(width, newHeight, state.reconstructed()));
                 var rotated = new ImageWrapper32(newHeight, width, rotateLeft);
                 maybePerformFlips(rotated);
                 state.setImage(rotated);

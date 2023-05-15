@@ -194,38 +194,31 @@ public interface ImageMath {
         return areaSum(integralImage, x, y, width, height) / (width * height);
     }
 
-    record Image(int width, int height, float[] data) {
-        @Override
-        public String toString() {
-            return "{ width = " + width + ", height = " + height + ", data = " + Arrays.toString(data) + "}";
+    default Image convolve(Image image, Kernel kernel) {
+        var source = image.data();
+        var height = image.height();
+        var width = image.width();
+        var maxX = width - 1;
+        var maxY = height - 1;
+        float[] convolved = new float[source.length];
+        float[][] krows = kernel.kernel();
+        int kcx = kernel.cols() / 2;
+        int kcy = kernel.rows() / 2;
+        for (int y = 0; y < height; y++) {
+            for (int x = 0; x < width; x++) {
+                float sum = 0;
+                for (int ky = 0; ky < krows.length; ky++) {
+                    float[] kernelRow = krows[ky];
+                    int cy = Math.min(Math.max(y + ky - kcy, 0), maxY);
+                    for (int kx = 0; kx < kernelRow.length; kx++) {
+                        float coef = kernelRow[kx];
+                        int cx = Math.min(Math.max(x + kx - kcx, 0), maxX);
+                        sum += coef * source[cx + cy * width];
+                    }
+                }
+                convolved[x + y * width] = sum * kernel.factor();
+            }
         }
-
-        @Override
-        public boolean equals(Object o) {
-            if (this == o) {
-                return true;
-            }
-            if (o == null || getClass() != o.getClass()) {
-                return false;
-            }
-
-            Image image = (Image) o;
-
-            if (width != image.width) {
-                return false;
-            }
-            if (height != image.height) {
-                return false;
-            }
-            return Arrays.equals(data, image.data);
-        }
-
-        @Override
-        public int hashCode() {
-            int result = width;
-            result = 31 * result + height;
-            result = 31 * result + Arrays.hashCode(data);
-            return result;
-        }
+        return new Image(width, height, convolved);
     }
 }
