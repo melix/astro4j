@@ -18,6 +18,15 @@ package me.champeau.a4j.math.image;
 import java.util.Arrays;
 
 public record Image(int width, int height, float[] data) {
+
+    int length() {
+        return data.length;
+    }
+
+    Image withData(float[] data) {
+        return new Image(width, height, data);
+    }
+
     @Override
     public String toString() {
         return "{ width = " + width + ", height = " + height + ", data = " + Arrays.toString(data) + "}";

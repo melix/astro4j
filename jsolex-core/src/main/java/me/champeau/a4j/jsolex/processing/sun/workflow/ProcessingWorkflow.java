@@ -33,6 +33,7 @@ import me.champeau.a4j.jsolex.processing.util.Constants;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 import me.champeau.a4j.jsolex.processing.util.ParallelExecutor;
 import me.champeau.a4j.math.Point2D;
+import me.champeau.a4j.math.image.ImageMath;
 import me.champeau.a4j.math.regression.Ellipse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -203,6 +204,8 @@ public class ProcessingWorkflow {
 
     private void produceColorizedImage(float blackPoint, ImageWrapper32 corrected, ProcessParams params) {
         CutoffStretchingStrategy.DEFAULT.stretch(corrected.data());
+        var img = ImageMath.newInstance().gradient(corrected.asImage()).magnitude();
+        processedImagesEmitter.newMonoImage(WorkflowStep.COLORIZED_IMAGE, "toto", "edge", new ImageWrapper32(img.width(), img.height(), img.data()), LinearStrechingStrategy.DEFAULT);
         params.spectrumParams().ray().getColorCurve().ifPresent(curve ->
                 processedImagesEmitter.newColorImage(WorkflowStep.COLORIZED_IMAGE, MessageFormat.format(message("colorized"), curve.ray()), "colorized", corrected, new ArcsinhStretchingStrategy(blackPoint, 10, 200), mono -> convertToRGB(curve, mono))
         );

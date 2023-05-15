@@ -154,7 +154,7 @@ public interface ImageMath {
                 integral[index] = data[index] + integral[index - 1] + integral[index - width] - integral[index - width - 1];
             }
         }
-        return new Image(width, height, integral);
+        return source.withData(integral);
     }
 
     default float areaSum(Image integralImage, int x, int y, int width, int height) {
@@ -219,6 +219,21 @@ public interface ImageMath {
                 convolved[x + y * width] = sum * kernel.factor();
             }
         }
-        return new Image(width, height, convolved);
+        return image.withData(convolved);
+    }
+
+    default Gradient gradient(Image image) {
+        var gx = convolve(image, Kernel33.SOBEL_X).data();
+        var gy = convolve(image, Kernel33.SOBEL_Y).data();
+        var length = image.length();
+        float[] mag = new float[length];
+        float[] dir = new float[length];
+        for (int i = 0; i < length; i++) {
+            var x = gx[i];
+            var y = gy[i];
+            mag[i] = (float) Math.sqrt(x * x + y * y);
+            dir[i] = (float) Math.atan2(y, x);
+        }
+        return new Gradient(image.withData(mag), image.withData(dir));
     }
 }
