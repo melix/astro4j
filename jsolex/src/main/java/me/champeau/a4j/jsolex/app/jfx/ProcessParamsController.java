@@ -87,6 +87,8 @@ public class ProcessParamsController {
     @FXML
     private Slider spectralLineDetectionThreshold;
     @FXML
+    private CheckBox switchRedBlueChannels;
+    @FXML
     private TextField telescope;
     @FXML
     private TextField tiltValue;
@@ -139,6 +141,7 @@ public class ProcessParamsController {
         }
         pixelShifting.valueProperty().set(initial.spectrumParams().pixelShift());
         dopplerShifting.valueProperty().set(initial.spectrumParams().dopplerShift());
+        switchRedBlueChannels.setSelected(initial.spectrumParams().switchRedBlueChannels());
         assumeMonoVideo.setSelected(initial.videoParams().colorMode() == ColorMode.MONO);
         forceTilt.setSelected(false);
         tiltValue.setTextFormatter(new TextFormatter<>(new DoubleStringConverter()));
@@ -174,7 +177,7 @@ public class ProcessParamsController {
         var longitude = this.longitude.getText();
         var geo = toDoublePair(latitude, longitude);
         processParams = new ProcessParams(
-                new SpectrumParams(wavelength.getValue(), spectralLineDetectionThreshold.getValue(), (int) Math.round(pixelShifting.getValue()), (int) Math.round(dopplerShifting.getValue())),
+                new SpectrumParams(wavelength.getValue(), spectralLineDetectionThreshold.getValue(), (int) Math.round(pixelShifting.getValue()), (int) Math.round(dopplerShifting.getValue()), switchRedBlueChannels.isSelected()),
                 new ObservationDetails(
                         observerName.getText(),
                         email.getText(),

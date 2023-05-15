@@ -154,6 +154,9 @@ public class Main implements Runnable {
         @Option(names = {"-ds", "--doppler-shift"}, description = "Doppler shifting")
         Integer dopplerShift;
 
+        @Option(names = {"-irb", "--inverse-red-blue"}, description = "Inverse red and blue channels in Doppler image")
+        Boolean switchRedBlueChannels;
+
         @Override
         public SpectrumParams applyTo(SpectrumParams params) {
             var result = params;
@@ -168,6 +171,9 @@ public class Main implements Runnable {
             }
             if (dopplerShift != null) {
                 result = result.withDopplerShift(dopplerShift);
+            }
+            if (switchRedBlueChannels != null) {
+                result = result.withSwitchRedBlueChannels(switchRedBlueChannels);
             }
             return result;
         }

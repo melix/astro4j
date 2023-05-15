@@ -162,8 +162,9 @@ public class ProcessingWorkflow {
         }
         executor.submit(() -> {
             var dopplerShift = processParams.spectrumParams().dopplerShift();
-            var first = states.stream().filter(s -> s.pixelShift() == -dopplerShift).findFirst();
-            var second = states.stream().filter(s -> s.pixelShift() == dopplerShift).findFirst();
+            int lookupShift = processParams.spectrumParams().switchRedBlueChannels() ? -dopplerShift : dopplerShift;
+            var first = states.stream().filter(s -> s.pixelShift() == lookupShift).findFirst();
+            var second = states.stream().filter(s -> s.pixelShift() == -lookupShift).findFirst();
             first.ifPresent(s1 -> second.ifPresent(s2 -> {
                 s1.findResult(WorkflowStep.GEOMETRY_CORRECTION).ifPresent(i1 -> s2.findResult(WorkflowStep.GEOMETRY_CORRECTION).ifPresent(i2 -> {
                     var grey1 = ((GeometryCorrector.Result) i1).corrected();

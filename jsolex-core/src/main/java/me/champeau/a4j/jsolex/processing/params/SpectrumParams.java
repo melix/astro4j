@@ -19,21 +19,26 @@ public record SpectrumParams(
         SpectralRay ray,
         double spectralLineDetectionThreshold,
         int pixelShift,
-        int dopplerShift
+        int dopplerShift,
+        boolean switchRedBlueChannels
 ) {
     public SpectrumParams withRay(SpectralRay ray) {
-        return new SpectrumParams(ray, ray.getDetectionThreshold(), pixelShift, dopplerShift);
+        return new SpectrumParams(ray, ray.getDetectionThreshold(), pixelShift, dopplerShift, switchRedBlueChannels);
     }
 
     public SpectrumParams withDetectionThreshold(double t) {
-        return new SpectrumParams(ray, t, pixelShift, dopplerShift);
+        return new SpectrumParams(ray, t, pixelShift, dopplerShift, switchRedBlueChannels);
     }
 
     public SpectrumParams withPixelShift(int pixelShift) {
-        return new SpectrumParams(ray, spectralLineDetectionThreshold, pixelShift, dopplerShift);
+        return new SpectrumParams(ray, spectralLineDetectionThreshold, pixelShift, dopplerShift, switchRedBlueChannels);
     }
 
     public SpectrumParams withDopplerShift(int dopplerShift) {
-        return new SpectrumParams(ray, spectralLineDetectionThreshold, pixelShift, dopplerShift);
+        return new SpectrumParams(ray, spectralLineDetectionThreshold, pixelShift, dopplerShift, switchRedBlueChannels);
+    }
+
+    public SpectrumParams withSwitchRedBlueChannels(boolean switchRedBlueChannels) {
+        return new SpectrumParams(ray, spectralLineDetectionThreshold, pixelShift, dopplerShift, switchRedBlueChannels);
     }
 }
