@@ -257,192 +257,15 @@ public class JSolEx extends Application {
                 params,
                 quickMode
         );
-        var listener = new ProcessingEventListener() {
-            private final Map<Integer, ImageView> imageViews = new HashMap<>();
-            private long sd = 0;
-            private long ed = 0;
-            private int width = 0;
-            private int height = 0;
-            private final Semaphore semaphore = new Semaphore(1);
-
-            @Override
-            public void onOutputImageDimensionsDetermined(OutputImageDimensionsDeterminedEvent event) {
-                LOGGER.info(message("dimensions.determined"), event.getLabel(), event.getWidth(), event.getHeight());
-                if (reconstructionStarted) {
-                    return;
-                }
-                reconstructionStarted = true;
-                width = event.getWidth();
-                height = event.getHeight();
-            }
-
-            private ZoomableImageView createImageView(int pixelShift) {
-                var imageView = new ZoomableImageView();
-                imageView.setPreserveRatio(true);
-                imageView.fitWidthProperty().bind(mainPane.widthProperty());
-                imageView.setImage(new WritableImage(width, height));
-                var colorAdjust = new ColorAdjust();
-                colorAdjust.brightnessProperty().setValue(0.2);
-                imageView.setEffect(colorAdjust);
-                var scrollPane = new ScrollPane();
-                scrollPane.setContent(imageView);
-                Platform.runLater(() -> {
-                    lock.lock();
-                    try {
-                        String suffix = "";
-                        if (pixelShift != 0) {
-                            suffix = " (" + pixelShift + ")";
-                        }
-                        mainPane.getTabs().add(new Tab(message("reconstruction") + suffix, scrollPane));
-                    } finally {
-                        lock.unlock();
-                    }
-                });
-                return imageView;
-            }
-
-            @Override
-            public void onPartialReconstruction(PartialReconstructionEvent event) {
-                var payload = event.getPayload();
-                int y = payload.line();
-                if (payload.display()) {
-                    var imageView = getOrCreateImageView(event);
-                    WritableImage image = (WritableImage) imageView.getImage();
-                    double[] line = payload.data();
-                    byte[] rgb = new byte[3 * line.length];
-                    for (int x = 0; x < line.length; x++) {
-                        int v = (int) Math.round(line[x]);
-                        byte c = (byte) (v >> 8);
-                        rgb[3 * x] = c;
-                        rgb[3 * x + 1] = c;
-                        rgb[3 * x + 2] = c;
-                    }
-                    var pixelformat = PixelFormat.getByteRgbInstance();
-                    onProgress(ProgressEvent.of((y + 1d) / height, message("reconstructing")));
-                    Platform.runLater(() ->
-                            image.getPixelWriter().setPixels(0, y, line.length, 1, pixelformat, rgb, 0, 3 * line.length)
-                    );
-                } else {
-                    onProgress(ProgressEvent.of((y + 1d) / height, message("reconstructing")));
-                }
-            }
-
-            private synchronized ImageView getOrCreateImageView(PartialReconstructionEvent event) {
-                return imageViews.computeIfAbsent(event.getPayload().pixelShift(), this::createImageView);
-            }
-
-            @Override
-            public void onImageGenerated(ImageGeneratedEvent event) {
-                Platform.runLater(() -> {
-                    lock.lock();
-                    var tab = new Tab(event.getPayload().title());
-                    var viewer = newImageViewer();
-                    viewer.fitWidthProperty().bind(mainPane.widthProperty());
-                    viewer.setup(this,
-                            baseName,
-                            event.getPayload().image(),
-                            event.getPayload().stretchingStrategy(),
-                            event.getPayload().path().toFile(),
-                            params
-                    );
-                    var scrollPane = new ScrollPane();
-                    scrollPane.setContent(viewer.getRoot());
-                    tab.setContent(scrollPane);
-                    try {
-                        mainPane.getTabs().add(tab);
-                        mainPane.getSelectionModel().select(tab);
-                    } finally {
-                        lock.unlock();
-                    }
-                });
-            }
-
-            @Override
-            public void onNotification(NotificationEvent e) {
-                new Thread(() -> {
-                    try {
-                        if (semaphore.getQueueLength() > 3) {
-                            // If there are too many events,
-                            // there's probably a big problem
-                            // like many exceptons being thrown
-                            // so let's not overwhelm the user
-                            return;
-                        }
-                        semaphore.acquire();
-                    } catch (InterruptedException ex) {
-                        logError(ex);
-                    }
-                    Platform.runLater(() -> {
-                        var alert = new Alert(Alert.AlertType.valueOf(e.type().name()));
-                        alert.setResizable(true);
-                        alert.getDialogPane().setPrefSize(480, 320);
-                        alert.setTitle(e.title());
-                        alert.setHeaderText(e.header());
-                        alert.setContentText(e.message());
-                        alert.showAndWait();
-                        semaphore.release();
-                    });
-                }).start();
-            }
-
-            @Override
-            public void onSuggestion(SuggestionEvent e) {
-                suggestions.add(e.getPayload());
-            }
-
-            @Override
-            public void onProcessingStart(ProcessingStartEvent e) {
-                sd = e.getPayload();
-            }
-
-            @Override
-            public void onProcessingDone(ProcessingDoneEvent e) {
-                ed = e.getPayload();
-                var duration = java.time.Duration.ofNanos(ed - sd);
-                double seconds = duration.toMillis() / 1000d;
-                var sb = new StringBuilder();
-                if (!suggestions.isEmpty()) {
-                    sb.append(message("suggestions") + " :\n");
-                    for (String suggestion : suggestions) {
-                        sb.append("    - ").append(suggestion).append("\n");
-                    }
-                }
-                var finishedString = String.format(message("finished.in"), seconds);
-                onNotification(new NotificationEvent(
-                        new Notification(
-                                Notification.AlertType.INFORMATION,
-                                message("processing.done"),
-                                finishedString,
-                                sb.toString()
-                        )));
-                suggestions.clear();
-                Platform.runLater(() -> {
-                    progressLabel.setText(finishedString);
-                    progressLabel.setVisible(true);
-                });
-            }
-
-            @Override
-            public void onProgress(ProgressEvent e) {
-                Platform.runLater(() -> {
-                    if (e.getPayload().progress() == 1) {
-                        hideProgress();
-                    } else {
-                        showProgress();
-                        progressBar.setProgress(e.getPayload().progress());
-                        progressLabel.setText(e.getPayload().task());
-                    }
-                });
-            }
-        };
-
-
+        var listener = new DefaultProcessingEventListener(baseName, params);
         processor.addEventListener(listener);
         var task = new Task<Void>() {
             @Override
-            protected Void call() throws Exception {
+            protected Void call() {
                 try {
                     processor.process();
+                } catch (Exception ex) {
+                    LoggingSupport.logError(ex);
                 } finally {
                     processor.removeEventListener(listener);
                 }
@@ -494,5 +317,197 @@ public class JSolEx extends Application {
 
     public static void main(String[] args) {
         launch();
+    }
+
+    private class DefaultProcessingEventListener implements ProcessingEventListener {
+        private final Map<Integer, ImageView> imageViews;
+        private final String baseName;
+        private final ProcessParams params;
+        private long sd;
+        private long ed;
+        private int width;
+        private int height;
+        private final Semaphore semaphore;
+
+        public DefaultProcessingEventListener(String baseName, ProcessParams params) {
+            this.baseName = baseName;
+            this.params = params;
+            imageViews = new HashMap<>();
+            sd = 0;
+            ed = 0;
+            width = 0;
+            height = 0;
+            semaphore = new Semaphore(1);
+        }
+
+        @Override
+        public void onOutputImageDimensionsDetermined(OutputImageDimensionsDeterminedEvent event) {
+            LOGGER.info(message("dimensions.determined"), event.getLabel(), event.getWidth(), event.getHeight());
+            if (reconstructionStarted) {
+                return;
+            }
+            reconstructionStarted = true;
+            width = event.getWidth();
+            height = event.getHeight();
+        }
+
+        private ZoomableImageView createImageView(int pixelShift) {
+            var imageView = new ZoomableImageView();
+            imageView.setPreserveRatio(true);
+            imageView.fitWidthProperty().bind(mainPane.widthProperty());
+            imageView.setImage(new WritableImage(width, height));
+            var colorAdjust = new ColorAdjust();
+            colorAdjust.brightnessProperty().setValue(0.2);
+            imageView.setEffect(colorAdjust);
+            var scrollPane = new ScrollPane();
+            scrollPane.setContent(imageView);
+            Platform.runLater(() -> {
+                lock.lock();
+                try {
+                    String suffix = "";
+                    if (pixelShift != 0) {
+                        suffix = " (" + pixelShift + ")";
+                    }
+                    mainPane.getTabs().add(new Tab(message("reconstruction") + suffix, scrollPane));
+                } finally {
+                    lock.unlock();
+                }
+            });
+            return imageView;
+        }
+
+        @Override
+        public void onPartialReconstruction(PartialReconstructionEvent event) {
+            var payload = event.getPayload();
+            int y = payload.line();
+            if (payload.display()) {
+                var imageView = getOrCreateImageView(event);
+                WritableImage image = (WritableImage) imageView.getImage();
+                double[] line = payload.data();
+                byte[] rgb = new byte[3 * line.length];
+                for (int x = 0; x < line.length; x++) {
+                    int v = (int) Math.round(line[x]);
+                    byte c = (byte) (v >> 8);
+                    rgb[3 * x] = c;
+                    rgb[3 * x + 1] = c;
+                    rgb[3 * x + 2] = c;
+                }
+                var pixelformat = PixelFormat.getByteRgbInstance();
+                onProgress(ProgressEvent.of((y + 1d) / height, message("reconstructing")));
+                Platform.runLater(() ->
+                        image.getPixelWriter().setPixels(0, y, line.length, 1, pixelformat, rgb, 0, 3 * line.length)
+                );
+            } else {
+                onProgress(ProgressEvent.of((y + 1d) / height, message("reconstructing")));
+            }
+        }
+
+        private synchronized ImageView getOrCreateImageView(PartialReconstructionEvent event) {
+            return imageViews.computeIfAbsent(event.getPayload().pixelShift(), this::createImageView);
+        }
+
+        @Override
+        public void onImageGenerated(ImageGeneratedEvent event) {
+            Platform.runLater(() -> {
+                lock.lock();
+                var tab = new Tab(event.getPayload().title());
+                var viewer = newImageViewer();
+                viewer.fitWidthProperty().bind(mainPane.widthProperty());
+                viewer.setup(this,
+                        baseName,
+                        event.getPayload().image(),
+                        event.getPayload().stretchingStrategy(),
+                        event.getPayload().path().toFile(),
+                        params
+                );
+                var scrollPane = new ScrollPane();
+                scrollPane.setContent(viewer.getRoot());
+                tab.setContent(scrollPane);
+                try {
+                    mainPane.getTabs().add(tab);
+                    mainPane.getSelectionModel().select(tab);
+                } finally {
+                    lock.unlock();
+                }
+            });
+        }
+
+        @Override
+        public void onNotification(NotificationEvent e) {
+            new Thread(() -> {
+                try {
+                    if (semaphore.getQueueLength() > 3) {
+                        // If there are too many events,
+                        // there's probably a big problem
+                        // like many exceptons being thrown
+                        // so let's not overwhelm the user
+                        return;
+                    }
+                    semaphore.acquire();
+                } catch (InterruptedException ex) {
+                    logError(ex);
+                }
+                Platform.runLater(() -> {
+                    var alert = new Alert(Alert.AlertType.valueOf(e.type().name()));
+                    alert.setResizable(true);
+                    alert.getDialogPane().setPrefSize(480, 320);
+                    alert.setTitle(e.title());
+                    alert.setHeaderText(e.header());
+                    alert.setContentText(e.message());
+                    alert.showAndWait();
+                    semaphore.release();
+                });
+            }).start();
+        }
+
+        @Override
+        public void onSuggestion(SuggestionEvent e) {
+            suggestions.add(e.getPayload());
+        }
+
+        @Override
+        public void onProcessingStart(ProcessingStartEvent e) {
+            sd = e.getPayload();
+        }
+
+        @Override
+        public void onProcessingDone(ProcessingDoneEvent e) {
+            ed = e.getPayload();
+            var duration = java.time.Duration.ofNanos(ed - sd);
+            double seconds = duration.toMillis() / 1000d;
+            var sb = new StringBuilder();
+            if (!suggestions.isEmpty()) {
+                sb.append(message("suggestions") + " :\n");
+                for (String suggestion : suggestions) {
+                    sb.append("    - ").append(suggestion).append("\n");
+                }
+            }
+            var finishedString = String.format(message("finished.in"), seconds);
+            onNotification(new NotificationEvent(
+                    new Notification(
+                            Notification.AlertType.INFORMATION,
+                            message("processing.done"),
+                            finishedString,
+                            sb.toString()
+                    )));
+            suggestions.clear();
+            Platform.runLater(() -> {
+                progressLabel.setText(finishedString);
+                progressLabel.setVisible(true);
+            });
+        }
+
+        @Override
+        public void onProgress(ProgressEvent e) {
+            Platform.runLater(() -> {
+                if (e.getPayload().progress() == 1) {
+                    hideProgress();
+                } else {
+                    showProgress();
+                    progressBar.setProgress(e.getPayload().progress());
+                    progressLabel.setText(e.getPayload().task());
+                }
+            });
+        }
     }
 }

@@ -17,6 +17,8 @@ package me.champeau.a4j.jsolex.processing.params;
 
 import com.google.gson.Gson;
 import me.champeau.a4j.ser.ColorMode;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.io.FileInputStream;
@@ -33,6 +35,8 @@ import java.time.ZoneId;
 import java.time.ZonedDateTime;
 
 abstract class ProcessParamsIO {
+    private static final Logger LOGGER = LoggerFactory.getLogger(ProcessParamsIO.class);
+
     private ProcessParamsIO() {
 
     }
@@ -61,6 +65,7 @@ abstract class ProcessParamsIO {
         if (params != null) {
             return params;
         }
+        LOGGER.info("No config file found at {}. Using default parameters", defaultsFile);
         return new ProcessParams(
                 new SpectrumParams(SpectralRay.H_ALPHA, SpectralRay.H_ALPHA.getDetectionThreshold(), 0, 3),
                 new ObservationDetails(
@@ -134,9 +139,12 @@ abstract class ProcessParamsIO {
     }
 
     public static void saveTo(ProcessParams params, File destination) {
-        try (var writer = new OutputStreamWriter(new FileOutputStream(destination), StandardCharsets.UTF_8)) {
-            var gson = newGson();
-            writer.write(gson.toJson(params));
+        try {
+            Files.createDirectories(destination.getParentFile().toPath());
+            try (var writer = new OutputStreamWriter(new FileOutputStream(destination), StandardCharsets.UTF_8)) {
+                var gson = newGson();
+                writer.write(gson.toJson(params));
+            }
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
