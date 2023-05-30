@@ -23,13 +23,19 @@ public record Image(int width, int height, float[] data) {
         return data.length;
     }
 
-    Image withData(float[] data) {
+    public Image withData(float[] data) {
         return new Image(width, height, data);
+    }
+
+    public Image copy() {
+        var copy = new float[data.length];
+        System.arraycopy(data, 0, copy, 0, data.length);
+        return new Image(width, height, copy);
     }
 
     @Override
     public String toString() {
-        return "{ width = " + width + ", height = " + height + ", data = " + Arrays.toString(data) + "}";
+        return "{ width = " + width + ", height = " + height + "}";
     }
 
     @Override

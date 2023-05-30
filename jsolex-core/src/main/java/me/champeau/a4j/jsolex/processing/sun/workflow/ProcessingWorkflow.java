@@ -33,7 +33,6 @@ import me.champeau.a4j.jsolex.processing.util.Constants;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 import me.champeau.a4j.jsolex.processing.util.ParallelExecutor;
 import me.champeau.a4j.math.Point2D;
-import me.champeau.a4j.math.image.ImageMath;
 import me.champeau.a4j.math.regression.Ellipse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -96,7 +95,7 @@ public class ProcessingWorkflow {
         var image = state.image();
         rawImagesEmitter.newMonoImage(WorkflowStep.RAW_IMAGE, message("raw"), "recon", image, CutoffStretchingStrategy.DEFAULT);
         rawImagesEmitter.newMonoImage(WorkflowStep.RAW_IMAGE, message("raw.linear"), "linear", image, LinearStrechingStrategy.DEFAULT);
-        var ellipseFittingTask = executor.submit(new EllipseFittingTask(broadcaster, image, 10d));
+        var ellipseFittingTask = executor.submit(new EllipseFittingTask(broadcaster, image, .25d));
         ellipseFittingTask.thenAccept(r -> {
             state.recordResult(WorkflowStep.ELLIPSE_FITTING, r);
             performBandingCorrection(r, image).thenAccept(bandingFixed -> {
@@ -158,6 +157,7 @@ public class ProcessingWorkflow {
         });
     }
 
+
     private void produceDopplerImage(float blackPoint) {
         if (processParams.spectrumParams().ray() != SpectralRay.H_ALPHA) {
             return;
@@ -204,8 +204,6 @@ public class ProcessingWorkflow {
 
     private void produceColorizedImage(float blackPoint, ImageWrapper32 corrected, ProcessParams params) {
         CutoffStretchingStrategy.DEFAULT.stretch(corrected.data());
-        var img = ImageMath.newInstance().gradient(corrected.asImage()).magnitude();
-        processedImagesEmitter.newMonoImage(WorkflowStep.COLORIZED_IMAGE, "toto", "edge", new ImageWrapper32(img.width(), img.height(), img.data()), LinearStrechingStrategy.DEFAULT);
         params.spectrumParams().ray().getColorCurve().ifPresent(curve ->
                 processedImagesEmitter.newColorImage(WorkflowStep.COLORIZED_IMAGE, MessageFormat.format(message("colorized"), curve.ray()), "colorized", corrected, new ArcsinhStretchingStrategy(blackPoint, 10, 200), mono -> convertToRGB(curve, mono))
         );
@@ -249,7 +247,7 @@ public class ProcessingWorkflow {
     }
 
     private void produceCoronagraph(float blackPoint, ImageWrapper32 geometryFixed) {
-        executor.submit(new EllipseFittingTask(broadcaster, geometryFixed, 6d))
+        executor.submit(new EllipseFittingTask(broadcaster, geometryFixed, .25d))
                 .thenAccept(fitting -> executor.submit(new CoronagraphTask(broadcaster, geometryFixed, fitting, blackPoint)).thenAccept(coronagraph -> {
                             processedImagesEmitter.newMonoImage(WorkflowStep.CORONAGRAPH, message("protus"), "protus", coronagraph, LinearStrechingStrategy.DEFAULT);
                             var data = geometryFixed.data();

@@ -13,12 +13,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package me.champeau.a4j.jsolex.processing.sun;
+package me.champeau.a4j.jsolex.processing.sun.align;
 
-import me.champeau.a4j.jsolex.processing.event.ProcessingEvent;
+import me.champeau.a4j.math.image.Image;
 
-public interface Broadcaster {
-    Broadcaster NO_OP = e -> {};
-
-    void broadcast(ProcessingEvent<?> event);
+public record HessianFilterResponse(
+        int boxSize,
+        Image determinants,
+        float maxValue,
+        byte[] laplacian
+) {
 }

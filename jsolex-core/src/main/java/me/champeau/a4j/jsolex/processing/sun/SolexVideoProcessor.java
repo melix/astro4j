@@ -15,6 +15,7 @@
  */
 package me.champeau.a4j.jsolex.processing.sun;
 
+import me.champeau.a4j.jsolex.processing.event.DebugEvent;
 import me.champeau.a4j.jsolex.processing.event.GeneratedImage;
 import me.champeau.a4j.jsolex.processing.event.ImageGeneratedEvent;
 import me.champeau.a4j.jsolex.processing.event.ImageLine;
@@ -105,6 +106,7 @@ public class SolexVideoProcessor implements Broadcaster {
             var header = reader.header();
             ImageGeometry geometry = header.geometry();
             var frameCount = header.frameCount();
+            LOGGER.info(message("ser.file.date"), header.metadata().utcDateTime());
             LOGGER.info(message("ser.file.contains"), frameCount);
             LOGGER.info(message("color.mode.geometry"), geometry.colorMode(), geometry.getBytesPerPixel(), geometry.pixelDepthPerPlane());
             LOGGER.info(message("width.height"), geometry.width(), geometry.height());
@@ -159,7 +161,7 @@ public class SolexVideoProcessor implements Broadcaster {
                     }
                 };
                 var rotateLeft = ImageMath.newInstance().rotateLeft(new Image(width, newHeight, state.reconstructed()));
-                var rotated = new ImageWrapper32(newHeight, width, rotateLeft);
+                var rotated = ImageWrapper32.fromImage(rotateLeft);
                 maybePerformFlips(rotated);
                 state.setImage(rotated);
                 ProcessingWorkflow workflow;
@@ -304,6 +306,8 @@ public class SolexVideoProcessor implements Broadcaster {
                 listener.onProcessingDone(e);
             } else if (event instanceof ProgressEvent e) {
                 listener.onProgress(e);
+            } else if (event instanceof DebugEvent<?> e) {
+                listener.onDebug(e);
             }
         }
     }

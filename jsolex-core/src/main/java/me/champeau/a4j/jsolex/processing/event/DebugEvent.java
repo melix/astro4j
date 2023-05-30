@@ -13,12 +13,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package me.champeau.a4j.jsolex.processing.sun;
+package me.champeau.a4j.jsolex.processing.event;
 
-import me.champeau.a4j.jsolex.processing.event.ProcessingEvent;
-
-public interface Broadcaster {
-    Broadcaster NO_OP = e -> {};
-
-    void broadcast(ProcessingEvent<?> event);
+/**
+ * An arbitrary event which should only be used for debugging purposes.
+ * @param <T> the payload type
+ */
+public final class DebugEvent<T> extends ProcessingEvent<T> {
+    public DebugEvent(T payload) {
+        super(payload);
+    }
 }

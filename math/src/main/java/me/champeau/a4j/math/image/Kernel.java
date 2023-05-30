@@ -15,7 +15,7 @@
  */
 package me.champeau.a4j.math.image;
 
-public sealed interface Kernel permits Kernel33 {
+public interface Kernel {
     int rows();
     int cols();
     float[][] kernel();

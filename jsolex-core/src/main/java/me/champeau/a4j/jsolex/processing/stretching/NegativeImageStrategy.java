@@ -13,12 +13,24 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package me.champeau.a4j.jsolex.processing.sun;
+package me.champeau.a4j.jsolex.processing.stretching;
 
-import me.champeau.a4j.jsolex.processing.event.ProcessingEvent;
+public final class NegativeImageStrategy implements StretchingStrategy {
+    public static final NegativeImageStrategy DEFAULT = new NegativeImageStrategy();
 
-public interface Broadcaster {
-    Broadcaster NO_OP = e -> {};
+    private NegativeImageStrategy() {
 
-    void broadcast(ProcessingEvent<?> event);
+    }
+
+    @Override
+    public void stretch(float[] data) {
+        for (int i = 0; i < data.length; i++) {
+            data[i] = 65535 - data[i];
+        }
+    }
+
+    @Override
+    public void stretch(float[][] rgb) {
+        throw new IllegalStateException("Undefined on RGB images");
+    }
 }

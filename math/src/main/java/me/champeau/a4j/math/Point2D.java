@@ -21,7 +21,7 @@ package me.champeau.a4j.math;
  * @param y the y coordinate
  */
 public record Point2D(double x, double y) {
-    double distance(Point2D other) {
+    public double distanceTo(Point2D other) {
         return Math.sqrt(Math.pow(x-other.x, 2) + Math.pow(y - other.y, 2));
     }
 }

@@ -30,7 +30,7 @@ public interface ImageMath {
         return new FallbackImageMath();
     }
 
-    default float[] rotateLeft(Image image) {
+    default Image rotateLeft(Image image) {
         var data = image.data();
         var width = image.width();
         var height = image.height();
@@ -40,7 +40,7 @@ public interface ImageMath {
                 output[(width - x - 1) * height + y] = data[y * width + x];
             }
         }
-        return output;
+        return new Image(height, width, output);
     }
 
     default float[] rotateRight(Image image) {
@@ -117,6 +117,89 @@ public interface ImageMath {
                 var sourceY2 = sourceY1 + 1;
                 var fracX = sx - sourceX1;
                 var fracY = sy - sourceY1;
+                if (sourceX1 >= 0 && sourceX2 < width && sourceY1 >= 0 && sourceY2 < height && fracX >= 0 && fracY >= 0) {
+                    var val11 = data[sourceX1 + sourceY1 * width];
+                    var val12 = data[sourceX1 + sourceY2 * width];
+                    var val21 = data[sourceX2 + sourceY1 * width];
+                    var val22 = data[sourceX2 + sourceY2 * width];
+                    var interpVal = (float) ((1 - fracX) * (1 - fracY) * val11 +
+                                             fracX * (1 - fracY) * val21 +
+                                             (1 - fracX) * fracY * val12 +
+                                             fracX * fracY * val22);
+                    output[x + newWidth * y] = interpVal;
+                }
+            }
+        }
+
+        return new Image(newWidth, newHeight, output);
+    }
+
+    default Image rotate(Image image, double angle, float blackpoint, boolean resize) {
+        var data = image.data();
+        var width = image.width();
+        var height = image.height();
+        double cos = Math.cos(angle);
+        double sin = Math.sin(angle);
+        int newWidth = resize ? (int) (round(Math.abs(width * cos) + Math.abs(height * sin))) : width;
+        int newHeight = resize ? (int) (round(Math.abs(height * cos) + Math.abs(width * sin))) : height;
+        int centerX = width / 2;
+        int centerY = height / 2;
+        int newCenterX = newWidth / 2;
+        int newCenterY = newHeight / 2;
+        float[] output = new float[newWidth * newHeight];
+        Arrays.fill(output, blackpoint);
+        for (int y = 0; y < newHeight; y++) {
+            for (int x = 0; x < newWidth; x++) {
+                var rx = (x - newCenterX);
+                var ry = (y - newCenterY);
+                var sx = rx * cos + ry * sin + centerX;
+                var sy = -rx * sin + ry * cos + centerY;
+                var sourceX1 = (int) sx;
+                var sourceY1 = (int) sy;
+                var sourceX2 = sourceX1 + 1;
+                var sourceY2 = sourceY1 + 1;
+                var fracX = sx - sourceX1;
+                var fracY = sy - sourceY1;
+                if (sourceX1 >= 0 && sourceX2 < width && sourceY1 >= 0 && sourceY2 < height && fracX >= 0 && fracY >= 0) {
+                    var val11 = data[sourceX1 + sourceY1 * width];
+                    var val12 = data[sourceX1 + sourceY2 * width];
+                    var val21 = data[sourceX2 + sourceY1 * width];
+                    var val22 = data[sourceX2 + sourceY2 * width];
+                    var interpVal = (float) ((1 - fracX) * (1 - fracY) * val11 +
+                                             fracX * (1 - fracY) * val21 +
+                                             (1 - fracX) * fracY * val12 +
+                                             fracX * fracY * val22);
+                    output[x + newWidth * y] = interpVal;
+                }
+            }
+        }
+
+        return new Image(newWidth, newHeight, output);
+    }
+
+    default Image rescale(Image image, int newWidth, int newHeight) {
+        var data = image.data();
+        var width = image.width();
+        var height = image.height();
+        int centerX = width / 2;
+        int centerY = height / 2;
+        int newCenterX = newWidth / 2;
+        int newCenterY = newHeight / 2;
+        double scaleX = (double) newWidth / width;
+        double scaleY = (double) newHeight / height;
+        float[] output = new float[newWidth * newHeight];
+        for (int y = 0; y < newHeight; y++) {
+            for (int x = 0; x < newWidth; x++) {
+                var rx = (x - newCenterX) / scaleX;
+                var ry = (y - newCenterY) / scaleY;
+                var sx = rx + centerX;
+                var sy = ry + centerY;
+                var sourceX1 = (int) sx;
+                var sourceY1 = (int) sy;
+                var sourceX2 = sourceX1 + 1;
+                var sourceY2 = sourceY1 + 1;
+                var fracX = sx - sourceX1;
+                var fracY = sy - sourceY1;
                 if (sourceX1 >= 0 && sourceX2 < width && sourceY1 >= 0 && sourceY2 < height) {
                     var val11 = data[sourceX1 + sourceY1 * width];
                     var val12 = data[sourceX1 + sourceY2 * width];
@@ -132,6 +215,25 @@ public interface ImageMath {
         }
 
         return new Image(newWidth, newHeight, output);
+    }
+
+    default Image mirror(Image source, boolean horizontalMirror, boolean verticalMirror) {
+        if (!horizontalMirror && !verticalMirror) {
+            return source;
+        }
+        var data = source.data();
+        var length = data.length;
+        var width = source.width();
+        var height = source.height();
+        float[] mirrored = new float[length];
+        for (int y = 0; y < height; y++) {
+            for (int x = 0; x < width; x++) {
+                var sx = horizontalMirror ? (width - x - 1) : x;
+                var sy = verticalMirror ? (height - y - 1) : y;
+                mirrored[x + y * width] = data[sx + sy * width];
+            }
+        }
+        return new Image(width, height, mirrored);
     }
 
     default Image integralImage(Image source) {
@@ -159,35 +261,25 @@ public interface ImageMath {
 
     default float areaSum(Image integralImage, int x, int y, int width, int height) {
         var imageWidth = integralImage.width();
+        var imageHeight = integralImage.height();
         var data = integralImage.data();
-        int xo = width - 1;
-        int yo = height - 1;
-        float topLeft;
-        float topRight;
-        float bottomLeft;
-        float bottomRight;
-        if (x == 0 && y == 0) {
-            topLeft = 0;
-            topRight = 0;
-            bottomLeft = 0;
-            bottomRight = data[x + xo + imageWidth * (y + yo)];
-        } else if (x == 0) {
-            topLeft = 0;
-            topRight = data[x + xo + imageWidth * (y - 1)];
-            bottomLeft = 0;
-            bottomRight = data[x + xo + imageWidth * (y + yo)];
-        } else if (y == 0) {
-            topLeft = 0;
-            topRight = 0;
-            bottomLeft = data[x - 1 + imageWidth * (y + yo)];
-            bottomRight = data[x + xo + imageWidth * (y + yo)];
-        } else {
-            topLeft = data[x - 1 + imageWidth * (y - 1)];
-            topRight = data[x + xo + imageWidth * (y - 1)];
-            bottomLeft = data[x - 1 + imageWidth * (y + yo)];
-            bottomRight = data[x + xo + imageWidth * (y + yo)];
+        int x0 = Math.min(x, imageWidth) - 1;
+        int y0 = Math.min(y, imageHeight) - 1;
+        int x1 = Math.min(x + width, imageWidth) - 1;
+        int y1 = Math.min(y + height, imageHeight) - 1;
+
+        float topLeft = safeGet(x0, y0, data, imageWidth);
+        float topRight = safeGet(x1, y0, data, imageWidth);
+        float bottomLeft = safeGet(x0, y1, data, imageWidth);
+        float bottomRight = safeGet(x1, y1, data, imageWidth);
+        return Math.max(0f, bottomRight - topRight - bottomLeft + topLeft);
+    }
+
+    private static float safeGet(int x, int y, float[] integralImage, int width) {
+        if (x >= 0 && y >= 0) {
+            return integralImage[x + y * width];
         }
-        return bottomRight - topRight - bottomLeft + topLeft;
+        return 0;
     }
 
     default float areaAverage(Image integralImage, int x, int y, int width, int height) {

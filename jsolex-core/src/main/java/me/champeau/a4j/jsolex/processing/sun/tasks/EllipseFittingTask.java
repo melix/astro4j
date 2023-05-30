@@ -17,14 +17,17 @@ package me.champeau.a4j.jsolex.processing.sun.tasks;
 
 import me.champeau.a4j.jsolex.processing.event.ProgressEvent;
 import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
-import me.champeau.a4j.jsolex.processing.sun.MagnitudeDetectorSupport;
+import me.champeau.a4j.jsolex.processing.sun.ImageUtils;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 import me.champeau.a4j.math.Point2D;
+import me.champeau.a4j.math.image.Image;
+import me.champeau.a4j.math.image.ImageMath;
 import me.champeau.a4j.math.regression.Ellipse;
 import me.champeau.a4j.math.regression.EllipseRegression;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -34,6 +37,7 @@ public class EllipseFittingTask extends AbstractTask<EllipseFittingTask.Result> 
     private static final Logger LOGGER = LoggerFactory.getLogger(EllipseFittingTask.class);
     private static final int MINIMUM_SAMPLES = 10;
 
+    private final Image image;
     private final double sensitivity;
 
     /**
@@ -44,12 +48,16 @@ public class EllipseFittingTask extends AbstractTask<EllipseFittingTask.Result> 
     public EllipseFittingTask(Broadcaster broadcaster, ImageWrapper32 image, double sensitivity) {
         super(broadcaster, image);
         this.sensitivity = sensitivity;
+        this.image = image.asImage();
     }
 
     @Override
     public EllipseFittingTask.Result call() throws Exception {
         var analyzingDiskGeometryMsg = message("analyzing.disk.geometry");
         broadcaster.broadcast(ProgressEvent.of(0, analyzingDiskGeometryMsg));
+        var magnitude = ImageMath.newInstance().gradient(image).magnitude();
+        var magnitudes = magnitude.data();
+        var limit = sensitivity * maxOf(magnitudes);
         List<Point2D> samples = new ArrayList<>();
         // We can have bad samples because the sun disk can be truncated
         // so we remove those which are within a small distance of x coordinate of the previous sample
@@ -57,12 +65,22 @@ public class EllipseFittingTask extends AbstractTask<EllipseFittingTask.Result> 
         int lastMin = -1;
         int lastMax = -1;
         for (int y = 0; y < height; y++) {
-            broadcaster.broadcast(ProgressEvent.of((y+1d/height)/height, analyzingDiskGeometryMsg));
-            var line = new float[width];
-            System.arraycopy(buffer, y * width, line, 0, width);
-            var edges = MagnitudeDetectorSupport.findEdges(line, sensitivity);
-            int min = edges.a();
-            int max = edges.b();
+            broadcaster.broadcast(ProgressEvent.of((y + 1d / height) / height, analyzingDiskGeometryMsg));
+            int min = -1;
+            int max = -1;
+            for (int x = 0; x < width / 2; x++) {
+                var mag = magnitudes[x + y * width];
+                if (min == -1 && mag > limit) {
+                    min = x;
+                }
+                mag = magnitudes[(width - x - 1) + y * width];
+                if (max == -1 && mag > limit) {
+                    max = (width - x - 1);
+                }
+                if (min != -1 && max != -1) {
+                    break;
+                }
+            }
             if (min >= 0 && Math.abs(min - lastMin) > threshold) {
                 samples.add(new Point2D(min, y));
                 lastMin = min;
@@ -74,41 +92,50 @@ public class EllipseFittingTask extends AbstractTask<EllipseFittingTask.Result> 
         }
         var fittingEllipseMessage = message("fitting.ellipse");
         broadcaster.broadcast(ProgressEvent.of(0, fittingEllipseMessage));
-        samples = samples.stream()
-                .map(p -> new Object() {
-                    final Point2D point = p;
-                    final float value = valueAt(p);
-                })
-                .sorted((a, b) -> Float.compare(b.value, a.value))
-                .limit((int) (9d * samples.size() / 10))
-                .map(p -> p.point)
-                .toList();
-        if (samples.size() < MINIMUM_SAMPLES) {
-            broadcaster.broadcast(ProgressEvent.of(1, fittingEllipseMessage));
-            LOGGER.info(message("ellipse.not.enough.samples"), samples.size(), MINIMUM_SAMPLES);
+
+        if (notEnoughSamples(fittingEllipseMessage, samples)) {
             return null;
         }
         var ellipse = new EllipseRegression(samples).solve();
-        // We're now going to filter samples by keeping only those which are within the predicted
-        // eclipse, to reduce influence of outliers
-        var filteredSamples = samples;
-        for (int i = 0;i<2;i++) {
-            filteredSamples = samples.stream().filter(ellipse::isWithin)
-                    .toList();
-            if (filteredSamples.size() < MINIMUM_SAMPLES) {
-                broadcaster.broadcast(ProgressEvent.of(1, fittingEllipseMessage));
-                LOGGER.info(message("ellipse.not.enough.samples"), samples.size(), MINIMUM_SAMPLES);
-                return null;
-            }
-            ellipse = new EllipseRegression(filteredSamples).solve();
+        // We're doing a 2d pass, by excluding outliers
+        var center = ellipse.center();
+        var cp = new Point2D(center.a(), center.b());
+        var semiAxis = ellipse.semiAxis();
+        var outlierDistance = (semiAxis.a() + semiAxis.b()) / 2;
+        var filteredSamples = samples.stream()
+                .filter(p -> cp.distanceTo(p) > outlierDistance)
+                .toList();
+        if (notEnoughSamples(fittingEllipseMessage, filteredSamples)) {
+            return null;
         }
-        LOGGER.info("{}", ellipse);
+        float[] array = new float[width * height];
+        for (Point2D filteredSample : filteredSamples) {
+            array[(int) (filteredSample.x() + filteredSample.y() * width)] = 65535;
+        }
+        ImageUtils.writeMonoImage(width, height, array, new File("/tmp/foo.png"));
+        ellipse = new EllipseRegression(filteredSamples).solve();
+        LOGGER.debug("{}", ellipse);
         broadcaster.broadcast(ProgressEvent.of(1, fittingEllipseMessage));
         return new Result(ellipse, filteredSamples);
     }
 
-    private float valueAt(Point2D point) {
-        return buffer[(int) (point.y() * width + point.x())];
+    private boolean notEnoughSamples(String fittingEllipseMessage, List<Point2D> filteredSamples) {
+        if (filteredSamples.size() < MINIMUM_SAMPLES) {
+            broadcaster.broadcast(ProgressEvent.of(1, fittingEllipseMessage));
+            LOGGER.error(message("ellipse.not.enough.samples"), filteredSamples.size(), MINIMUM_SAMPLES);
+            return true;
+        }
+        return false;
+    }
+
+    private static float maxOf(float[] magnitudes) {
+        float max = Float.MIN_VALUE;
+        for (float magnitude : magnitudes) {
+            if (magnitude > max) {
+                max = magnitude;
+            }
+        }
+        return max;
     }
 
     public record Result(

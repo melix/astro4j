@@ -25,6 +25,7 @@ public record Kernel33(
     public static final Kernel33 IDENTITY = new Kernel33(1, 1, 1, 1, 1, 1, 1, 1, 1, 1);
     public static final Kernel33 EDGE_DETECTION = new Kernel33(1, -1, -1, -1, -1, 8, -1, -1, -1, -1);
     public static final Kernel33 SHARPEN = new Kernel33(1, 0, -1, 0, -1, 5, -1, 0, -1, 0);
+    public static final Kernel33 SHARPEN2 = new Kernel33(1f/9f, -1, -1, -1, -1, 17, -1, -1, -1, -1);
     public static final Kernel33 GAUSSIAN_BLUR = new Kernel33(1f / 16f, 1, 2, 1, 2, 4, 2, 1, 2, 1);
     public static final Kernel33 SOBEL_X = new Kernel33(1, 1, 0, -1, 2, 0, -2, 1, 0, -1);
     public static final Kernel33 SOBEL_Y = new Kernel33(1, 1, 2, 1, 0, 0, 0, -1, -2, -1);

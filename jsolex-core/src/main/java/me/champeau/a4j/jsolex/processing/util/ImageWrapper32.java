@@ -31,4 +31,8 @@ public record ImageWrapper32(
     public Image asImage() {
         return new Image(width, height, data);
     }
+
+    public static ImageWrapper32 fromImage(Image image) {
+        return new ImageWrapper32(image.width(), image.height(), image.data());
+    }
 }

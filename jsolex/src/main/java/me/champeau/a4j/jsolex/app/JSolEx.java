@@ -46,6 +46,7 @@ import me.champeau.a4j.jsolex.app.jfx.ImageViewer;
 import me.champeau.a4j.jsolex.app.jfx.ProcessParamsController;
 import me.champeau.a4j.jsolex.app.jfx.SpectralLineDebugger;
 import me.champeau.a4j.jsolex.app.jfx.ZoomableImageView;
+import me.champeau.a4j.jsolex.processing.event.DebugEvent;
 import me.champeau.a4j.jsolex.processing.event.ImageGeneratedEvent;
 import me.champeau.a4j.jsolex.processing.event.Notification;
 import me.champeau.a4j.jsolex.processing.event.NotificationEvent;
@@ -509,5 +510,11 @@ public class JSolEx extends Application {
                 }
             });
         }
+
+        @Override
+        public void onDebug(DebugEvent<?> e) {
+
+        }
     }
+
 }

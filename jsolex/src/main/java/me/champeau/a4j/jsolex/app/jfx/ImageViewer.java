@@ -116,7 +116,9 @@ public class ImageViewer {
         });
         saveButton = new Button(message("save"));
         saveButton.setOnAction(e -> saveImage(imageFile));
-        stretchingParams.getChildren().addAll(reset, saveButton);
+        var dimensions = new Label();
+        dimensions.setText(image.width() + "x" + image.height());
+        stretchingParams.getChildren().addAll(reset, saveButton, dimensions);
         strechAndDisplay();
     }
 

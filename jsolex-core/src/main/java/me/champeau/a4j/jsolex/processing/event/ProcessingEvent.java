@@ -23,7 +23,8 @@ public abstract sealed class ProcessingEvent<T> permits
         ProcessingStartEvent,
         ProcessingDoneEvent,
         SuggestionEvent,
-        ProgressEvent {
+        ProgressEvent,
+        DebugEvent {
     private final T payload;
 
     public ProcessingEvent(T payload) {

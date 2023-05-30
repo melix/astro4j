@@ -43,4 +43,8 @@ public interface ProcessingEventListener {
     default void onProgress(ProgressEvent e) {
 
     }
+
+    default void onDebug(DebugEvent<?> e) {
+
+    }
 }

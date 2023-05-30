@@ -18,6 +18,7 @@ package me.champeau.a4j.jsolex.processing.sun.tasks;
 import me.champeau.a4j.jsolex.processing.event.ProgressEvent;
 import me.champeau.a4j.jsolex.processing.event.SuggestionEvent;
 import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
+import me.champeau.a4j.jsolex.processing.sun.crop.Cropper;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 import me.champeau.a4j.jsolex.processing.util.ProcessingException;
 import me.champeau.a4j.math.image.Image;
@@ -90,36 +91,13 @@ public class GeometryCorrector extends AbstractTask<GeometryCorrector.Result> {
         var diskEllipse = sunDisk.orElseGet(() -> {
             EllipseFittingTask.Result fitting;
             try {
-                fitting = new EllipseFittingTask(broadcaster, full, 6d).call();
+                fitting = new EllipseFittingTask(broadcaster, full, .25d).call();
             } catch (Exception e) {
                 throw new ProcessingException(e);
             }
             return fitting.ellipse();
         });
-        // at this stage, the new fitting should give us a good estimate of the center and radius
-        // because if geometry correction worked, the disk should be circle, so we can crop to a square
-        var center = diskEllipse.center();
-        var source = rotated.data();
-        var cx = center.a();
-        var cy = center.b();
-        var diameter = (diskEllipse.semiAxis().a() + diskEllipse.semiAxis().b());
-        var croppedSize = 1.2d * diameter;
-        var croppedWidth = (int) Math.round(Math.min(rotated.width(), croppedSize));
-        var croppedHeight = (int) Math.round(Math.min(rotated.height(), croppedSize));
-        var cropped = new float[croppedWidth * croppedHeight];
-        var dx = cx - croppedWidth / 2d;
-        var dy = cy - croppedHeight / 2d;
-        for (int y = 0; y < croppedHeight; y++) {
-            for (int x = 0; x < croppedWidth; x++) {
-                int idx = x + y * croppedWidth;
-                int sourceX = (int) Math.round(dx + x);
-                int sourceY = (int) Math.round(dy + y);
-                if (sourceX >= 0 && sourceY >= 0 && sourceX < rotated.width() && sourceY < rotated.height()) {
-                    cropped[idx] = source[sourceX + sourceY * rotated.width()];
-                }
-            }
-        }
-        return new Result(new ImageWrapper32(croppedWidth, croppedHeight, cropped), diskEllipse);
+        return new Result(ImageWrapper32.fromImage(Cropper.cropToSquare(rotated, diskEllipse)), diskEllipse);
     }
 
     public record Result(

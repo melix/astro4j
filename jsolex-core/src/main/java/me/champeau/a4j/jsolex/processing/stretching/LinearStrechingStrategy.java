@@ -40,7 +40,6 @@ public final class LinearStrechingStrategy implements StretchingStrategy {
 
     @Override
     public void stretch(float[] data) {
-        new CutoffStretchingStrategy(lo, Float.MAX_VALUE).stretch(data);
         double min = min(data).orElse((double) lo);
         double max = max(data).orElse((double) lo);
         double range = max - min;
