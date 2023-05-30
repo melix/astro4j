@@ -4,9 +4,11 @@ A collection of libraries and applications for astronomy image processing in Jav
 
 The project currently only consists of:
 
-- [jserfile](jserfile/) : a library to read SER video files
+- [jserfile](jserfile/) : a library to read SER video files (for developers)
+- [math](math/) : a library with maths utilities like linear and ellipse regression, image convolution, etc. (for developers)
 - [ser-player](ser-player/) : an application which plays SER files
-- [JSol'Ex](jsolex) : an applcation to process [Sol'Ex](http://www.astrosurf.com/solex/) video files
+- [JSol'Ex](jsolex) : an application to process [Sol'Ex](http://www.astrosurf.com/solex/) video files
+- [JSol'Ex CLI](jsolex-cli) : a command-line application to process [Sol'Ex](http://www.astrosurf.com/solex/) video files. This version has to be built from sources, I do not provide installers yet.
 
 If you want some context about why I started developing this, you can read my [announcement blog post](https://melix.github.io/blog/2023/04-22-introducing-astro4j.html).
 
