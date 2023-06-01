@@ -12,8 +12,18 @@ javafx {
 }
 
 val os = System.getProperty("os.name").lowercase(Locale.ENGLISH)
+println(if (version.toString().endsWith("-SNAPSHOT")) {
+    version.toString().substringBefore("-SNAPSHOT")
+} else {
+    version
+})
+
 if (os.startsWith("windows") || os.contains("mac")) {
-    version = version.toString().substring(0, version.toString().lastIndexOf(".")) + ".0"
+    version = if (version.toString().endsWith("-SNAPSHOT")) {
+        version.toString().substringBefore("-SNAPSHOT")
+    } else {
+        version
+    }
 }
 
 jlink {
