@@ -16,13 +16,14 @@
 package me.champeau.a4j.jsolex.app.jfx;
 
 import javafx.animation.PauseTransition;
-import javafx.application.Platform;
 import javafx.beans.property.DoubleProperty;
 import javafx.fxml.FXML;
 import javafx.scene.Node;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.control.Slider;
+import javafx.scene.control.Tab;
+import javafx.scene.control.TabPane;
 import javafx.scene.image.Image;
 import javafx.scene.layout.HBox;
 import javafx.util.Duration;
@@ -65,9 +66,11 @@ public class ImageViewer {
     private ZoomableImageView imageView;
 
     private Button saveButton;
+    private TabPane tabPane;
 
-    public void init(Node root) {
+    public void init(Node root, TabPane tabPane) {
         this.root = root;
+        this.tabPane = tabPane;
     }
 
     public DoubleProperty fitWidthProperty() {
@@ -93,7 +96,7 @@ public class ImageViewer {
     private void saveImage(File target) {
         imageView.setImagePath(target.toPath());
         new ImageSaver(stretchingStrategy, processParams).save(image, target);
-        Platform.runLater(() -> {
+        BatchOperations.submit(() -> {
             imageView.setImage(new Image(imageFile.toURI().toString()));
             saveButton.setDisable(true);
         });
@@ -241,8 +244,9 @@ public class ImageViewer {
                 var stretched = stretch(rgb.r(), rgb.g(), rgb.g());
                 ImageUtils.writeRgbImage(rgb.width(), rgb.height(), stretched[0], stretched[1], stretched[2], tmpImage);
             }
-            Platform.runLater(() -> {
+            BatchOperations.submit(() -> {
                 imageView.setImage(new Image(tmpImage.toURI().toString()));
+                tabPane.getSelectionModel().select(imageView.getParentTab());
                 tmpImage.delete();
                 saveButton.setDisable(false);
             });
@@ -261,5 +265,9 @@ public class ImageViewer {
 
     public Node getRoot() {
         return root;
+    }
+
+    public void setTab(Tab tab) {
+        imageView.setParentTab(tab);
     }
 }

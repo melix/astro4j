@@ -19,8 +19,8 @@ import ch.qos.logback.classic.Level;
 import ch.qos.logback.classic.Logger;
 import ch.qos.logback.classic.spi.ILoggingEvent;
 import ch.qos.logback.core.AppenderBase;
-import javafx.application.Platform;
 import javafx.scene.control.TextArea;
+import me.champeau.a4j.jsolex.app.jfx.BatchOperations;
 import org.slf4j.LoggerFactory;
 
 class LogbackConfigurer {
@@ -32,7 +32,7 @@ class LogbackConfigurer {
         AppenderBase<ILoggingEvent> appender = new AppenderBase<>() {
             @Override
             protected void append(ILoggingEvent eventObject) {
-                Platform.runLater( ()-> console.appendText(eventObject.getFormattedMessage() + System.lineSeparator()));
+                BatchOperations.submit( ()-> console.appendText(eventObject.getFormattedMessage() + System.lineSeparator()));
             }
         };
         logbackLogger.addAppender(appender);

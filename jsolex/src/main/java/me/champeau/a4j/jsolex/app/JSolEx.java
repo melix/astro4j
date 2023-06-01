@@ -17,7 +17,6 @@ package me.champeau.a4j.jsolex.app;
 
 import javafx.animation.PauseTransition;
 import javafx.application.Application;
-import javafx.application.Platform;
 import javafx.concurrent.Task;
 import javafx.fxml.FXML;
 import javafx.scene.Node;
@@ -34,13 +33,13 @@ import javafx.scene.control.TabPane;
 import javafx.scene.control.TextArea;
 import javafx.scene.effect.ColorAdjust;
 import javafx.scene.image.Image;
-import javafx.scene.image.ImageView;
 import javafx.scene.image.PixelFormat;
 import javafx.scene.image.WritableImage;
 import javafx.stage.FileChooser;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
 import javafx.util.Duration;
+import me.champeau.a4j.jsolex.app.jfx.BatchOperations;
 import me.champeau.a4j.jsolex.app.jfx.I18N;
 import me.champeau.a4j.jsolex.app.jfx.ImageViewer;
 import me.champeau.a4j.jsolex.app.jfx.ProcessParamsController;
@@ -228,7 +227,7 @@ public class JSolEx extends Application {
     private void doOpen(File selectedFile) {
         config.loaded(selectedFile.toPath());
         Thread.currentThread().setUncaughtExceptionHandler((t, e) -> logError(e));
-        Platform.runLater(this::refreshRecentItemsMenu);
+        BatchOperations.submit(this::refreshRecentItemsMenu);
         try (var reader = SerFileReader.of(selectedFile)) {
             var controller = createProcessParams(reader);
             var processParams = controller.getProcessParams();
@@ -300,7 +299,7 @@ public class JSolEx extends Application {
         try {
             var node = (Node) fxmlLoader.load();
             var controller = (ImageViewer) fxmlLoader.getController();
-            controller.init(node);
+            controller.init(node, mainPane);
             return controller;
         } catch (IOException e) {
             throw new RuntimeException(e);
@@ -321,7 +320,7 @@ public class JSolEx extends Application {
     }
 
     private class DefaultProcessingEventListener implements ProcessingEventListener {
-        private final Map<Integer, ImageView> imageViews;
+        private final Map<Integer, ZoomableImageView> imageViews;
         private final String baseName;
         private final ProcessParams params;
         private long sd;
@@ -362,14 +361,16 @@ public class JSolEx extends Application {
             imageView.setEffect(colorAdjust);
             var scrollPane = new ScrollPane();
             scrollPane.setContent(imageView);
-            Platform.runLater(() -> {
+            BatchOperations.submit(() -> {
                 lock.lock();
                 try {
                     String suffix = "";
                     if (pixelShift != 0) {
                         suffix = " (" + pixelShift + ")";
                     }
-                    mainPane.getTabs().add(new Tab(message("reconstruction") + suffix, scrollPane));
+                    var tab = new Tab(message("reconstruction") + suffix, scrollPane);
+                    imageView.setParentTab(tab);
+                    mainPane.getTabs().add(tab);
                 } finally {
                     lock.unlock();
                 }
@@ -395,38 +396,41 @@ public class JSolEx extends Application {
                 }
                 var pixelformat = PixelFormat.getByteRgbInstance();
                 onProgress(ProgressEvent.of((y + 1d) / height, message("reconstructing")));
-                Platform.runLater(() ->
-                        image.getPixelWriter().setPixels(0, y, line.length, 1, pixelformat, rgb, 0, 3 * line.length)
-                );
+                BatchOperations.submit(() -> {
+                    if (event.getPayload().pixelShift() == 0) {
+                        mainPane.getSelectionModel().select(imageView.getParentTab());
+                    }
+                    image.getPixelWriter().setPixels(0, y, line.length, 1, pixelformat, rgb, 0, 3 * line.length);
+                });
             } else {
                 onProgress(ProgressEvent.of((y + 1d) / height, message("reconstructing")));
             }
         }
 
-        private synchronized ImageView getOrCreateImageView(PartialReconstructionEvent event) {
+        private synchronized ZoomableImageView getOrCreateImageView(PartialReconstructionEvent event) {
             return imageViews.computeIfAbsent(event.getPayload().pixelShift(), this::createImageView);
         }
 
         @Override
         public void onImageGenerated(ImageGeneratedEvent event) {
-            Platform.runLater(() -> {
+            var tab = new Tab(event.getPayload().title());
+            var viewer = newImageViewer();
+            viewer.fitWidthProperty().bind(mainPane.widthProperty());
+            viewer.setTab(tab);
+            viewer.setup(this,
+                    baseName,
+                    event.getPayload().image(),
+                    event.getPayload().stretchingStrategy(),
+                    event.getPayload().path().toFile(),
+                    params
+            );
+            var scrollPane = new ScrollPane();
+            scrollPane.setContent(viewer.getRoot());
+            tab.setContent(scrollPane);
+            BatchOperations.submit(() -> {
                 lock.lock();
-                var tab = new Tab(event.getPayload().title());
-                var viewer = newImageViewer();
-                viewer.fitWidthProperty().bind(mainPane.widthProperty());
-                viewer.setup(this,
-                        baseName,
-                        event.getPayload().image(),
-                        event.getPayload().stretchingStrategy(),
-                        event.getPayload().path().toFile(),
-                        params
-                );
-                var scrollPane = new ScrollPane();
-                scrollPane.setContent(viewer.getRoot());
-                tab.setContent(scrollPane);
                 try {
                     mainPane.getTabs().add(tab);
-                    mainPane.getSelectionModel().select(tab);
                 } finally {
                     lock.unlock();
                 }
@@ -448,7 +452,7 @@ public class JSolEx extends Application {
                 } catch (InterruptedException ex) {
                     logError(ex);
                 }
-                Platform.runLater(() -> {
+                BatchOperations.submit(() -> {
                     var alert = new Alert(Alert.AlertType.valueOf(e.type().name()));
                     alert.setResizable(true);
                     alert.getDialogPane().setPrefSize(480, 320);
@@ -492,7 +496,7 @@ public class JSolEx extends Application {
                             sb.toString()
                     )));
             suggestions.clear();
-            Platform.runLater(() -> {
+            BatchOperations.submit(() -> {
                 progressLabel.setText(finishedString);
                 progressLabel.setVisible(true);
             });
@@ -500,7 +504,7 @@ public class JSolEx extends Application {
 
         @Override
         public void onProgress(ProgressEvent e) {
-            Platform.runLater(() -> {
+            BatchOperations.submitOneOfAKind("progress", () -> {
                 if (e.getPayload().progress() == 1) {
                     hideProgress();
                 } else {

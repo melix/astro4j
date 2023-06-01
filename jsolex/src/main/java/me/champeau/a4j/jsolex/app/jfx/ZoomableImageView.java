@@ -17,6 +17,7 @@ package me.champeau.a4j.jsolex.app.jfx;
 
 import javafx.scene.control.ContextMenu;
 import javafx.scene.control.MenuItem;
+import javafx.scene.control.Tab;
 import javafx.scene.image.ImageView;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -30,6 +31,7 @@ public class ZoomableImageView extends ImageView {
     private static final Logger LOGGER = LoggerFactory.getLogger(ZoomableImageView.class);
 
     private Path imagePath;
+    private Tab parentTab;
 
     public ZoomableImageView() {
         super();
@@ -72,6 +74,14 @@ public class ZoomableImageView extends ImageView {
                 ctxMenu.show(ZoomableImageView.this, e.getScreenX(), e.getScreenY());
             }
         });
+    }
+
+    public Tab getParentTab() {
+        return parentTab;
+    }
+
+    public void setParentTab(Tab parentTab) {
+        this.parentTab = parentTab;
     }
 
     public void setImagePath(Path imagePath) {
