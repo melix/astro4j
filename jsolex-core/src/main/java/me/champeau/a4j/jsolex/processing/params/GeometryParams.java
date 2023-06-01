@@ -22,12 +22,14 @@ public class GeometryParams {
     private final Double xyRatio;
     private final boolean horizontalMirror;
     private final boolean verticalMirror;
+    private final boolean sharpen;
 
-    public GeometryParams(Double tilt, Double xyRatio, boolean horizontalMirror, boolean verticalMirror) {
+    public GeometryParams(Double tilt, Double xyRatio, boolean horizontalMirror, boolean verticalMirror, boolean sharpen) {
         this.tilt = tilt;
         this.xyRatio = xyRatio;
         this.horizontalMirror = horizontalMirror;
         this.verticalMirror = verticalMirror;
+        this.sharpen = sharpen;
     }
 
     public OptionalDouble tilt() {
@@ -46,20 +48,28 @@ public class GeometryParams {
         return verticalMirror;
     }
 
+    public boolean isSharpen() {
+        return sharpen;
+    }
+
     public GeometryParams withTilt(Double tilt) {
-        return new GeometryParams(tilt, xyRatio, horizontalMirror, verticalMirror);
+        return new GeometryParams(tilt, xyRatio, horizontalMirror, verticalMirror, sharpen);
     }
 
     public GeometryParams withXYRatio(Double xyRatio) {
-        return new GeometryParams(tilt, xyRatio, horizontalMirror, verticalMirror);
+        return new GeometryParams(tilt, xyRatio, horizontalMirror, verticalMirror, sharpen);
     }
 
     public GeometryParams withHorizontalMirror(boolean horizontalMirror) {
-        return new GeometryParams(tilt, xyRatio, horizontalMirror, verticalMirror);
+        return new GeometryParams(tilt, xyRatio, horizontalMirror, verticalMirror, sharpen);
     }
 
     public GeometryParams withVerticalMirror(boolean verticalMirror) {
-        return new GeometryParams(tilt, xyRatio, horizontalMirror, verticalMirror);
+        return new GeometryParams(tilt, xyRatio, horizontalMirror, verticalMirror, sharpen);
+    }
+
+    public GeometryParams withSharpen(boolean sharpen) {
+        return new GeometryParams(tilt, xyRatio, horizontalMirror, verticalMirror, sharpen);
     }
 
     @Override

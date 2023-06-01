@@ -136,6 +136,11 @@
                                         </Slider>
                                         <CheckBox fx:id="horizontalMirror" mnemonicParsing="false" text="%horizontal.flip" GridPane.columnIndex="0" GridPane.rowIndex="7" />
                                         <CheckBox fx:id="verticalMirror" mnemonicParsing="false" text="%vertical.flip" GridPane.columnIndex="1" GridPane.rowIndex="7" />
+                                        <CheckBox fx:id="sharpen" mnemonicParsing="false" text="%sharpen.images" GridPane.columnIndex="0" GridPane.rowIndex="8">
+                                            <tooltip>
+                                                <Tooltip text="%sharpen.images.tooltip"/>
+                                            </tooltip>
+                                        </CheckBox>
                               <CheckBox fx:id="switchRedBlueChannels" mnemonicParsing="false" text="%doppler.switch.red.blue.channels" GridPane.rowIndex="4">
                                  <tooltip>
                                     <Tooltip text="%doppler.switch.red.blue.channels.tooltip" />

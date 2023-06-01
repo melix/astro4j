@@ -23,6 +23,7 @@ import me.champeau.a4j.jsolex.processing.params.SpectralRay;
 import me.champeau.a4j.jsolex.processing.stretching.ArcsinhStretchingStrategy;
 import me.champeau.a4j.jsolex.processing.stretching.CutoffStretchingStrategy;
 import me.champeau.a4j.jsolex.processing.stretching.LinearStrechingStrategy;
+import me.champeau.a4j.jsolex.processing.stretching.NegativeImageStrategy;
 import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
 import me.champeau.a4j.jsolex.processing.sun.WorkflowState;
 import me.champeau.a4j.jsolex.processing.sun.tasks.CoronagraphTask;
@@ -33,6 +34,8 @@ import me.champeau.a4j.jsolex.processing.util.Constants;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 import me.champeau.a4j.jsolex.processing.util.ParallelExecutor;
 import me.champeau.a4j.math.Point2D;
+import me.champeau.a4j.math.image.ImageMath;
+import me.champeau.a4j.math.image.Kernel33;
 import me.champeau.a4j.math.regression.Ellipse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -135,7 +138,8 @@ public class ProcessingWorkflow {
             diskEllipse = states.get(0).findResult(WorkflowStep.GEOMETRY_CORRECTION).map(r -> ((GeometryCorrector.Result) r).disk());
         }
         executor.submit(new GeometryCorrector(broadcaster, bandingFixed, ellipse, correctionAngle, fps, geometryParams.xyRatio(), diskEllipse)).thenAccept(g -> {
-            var geometryFixed = g.corrected();
+            var convolve = ImageMath.newInstance().convolve(g.corrected().asImage(), Kernel33.SHARPEN2);
+            var geometryFixed = ImageWrapper32.fromImage(convolve);
             state.recordResult(WorkflowStep.GEOMETRY_CORRECTION, g);
             broadcaster.broadcast(OutputImageDimensionsDeterminedEvent.of(message("geometry.corrected"), geometryFixed.width(), geometryFixed.height()));
             processedImagesEmitter.newMonoImage(WorkflowStep.GEOMETRY_CORRECTION, message("disk"), "disk", geometryFixed, LinearStrechingStrategy.DEFAULT);
@@ -143,7 +147,10 @@ public class ProcessingWorkflow {
                 executor.submit(() -> produceEdgeDetectionImage(result, geometryFixed));
             }
             if (state.isEnabled(WorkflowStep.STRECHED_IMAGE)) {
-                executor.submit(() -> produceStretchedImage(blackPoint, geometryFixed));
+                executor.submit(() -> {
+                    produceStretchedImage(blackPoint, geometryFixed);
+                    produceNegativeImage(blackPoint, geometryFixed);
+                });
             }
             if (state.isEnabled(WorkflowStep.COLORIZED_IMAGE)) {
                 executor.submit(() -> produceColorizedImage(blackPoint, geometryFixed, processParams));
@@ -229,6 +236,12 @@ public class ProcessingWorkflow {
 
     private Future<Void> produceStretchedImage(float blackPoint, ImageWrapper32 geometryFixed) {
         return processedImagesEmitter.newMonoImage(WorkflowStep.STRECHED_IMAGE, message("stretched"), "streched", geometryFixed, new ArcsinhStretchingStrategy(blackPoint, 10, 100));
+    }
+
+    private Future<Void> produceNegativeImage(float blackPoint, ImageWrapper32 geometryFixed) {
+        var negated = geometryFixed.asImage().copy();
+        NegativeImageStrategy.DEFAULT.stretch(negated.data());
+        return processedImagesEmitter.newMonoImage(WorkflowStep.NEGATIVE_IMAGE, message("negative"), "negative", ImageWrapper32.fromImage(negated), new ArcsinhStretchingStrategy(blackPoint, 10, 100));
     }
 
     private void produceEdgeDetectionImage(EllipseFittingTask.Result result, ImageWrapper32 geometryFixed) {

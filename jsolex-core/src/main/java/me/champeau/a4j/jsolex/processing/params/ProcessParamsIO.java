@@ -80,7 +80,7 @@ abstract class ProcessParamsIO {
                         ""),
                 new DebugParams(false, true, true),
                 new VideoParams(ColorMode.MONO),
-                new GeometryParams(null, null, false, false),
+                new GeometryParams(null, null, false, false, false),
                 new BandingCorrectionParams(24, 3)
         );
     }
@@ -111,6 +111,7 @@ abstract class ProcessParamsIO {
                                 new GeometryParams(
                                         null,
                                         null,
+                                        false,
                                         false,
                                         false),
                                 params.bandingCorrectionParams()

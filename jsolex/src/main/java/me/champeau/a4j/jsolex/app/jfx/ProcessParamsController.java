@@ -85,6 +85,8 @@ public class ProcessParamsController {
     @FXML
     private Slider pixelShifting;
     @FXML
+    private CheckBox sharpen;
+    @FXML
     private Slider spectralLineDetectionThreshold;
     @FXML
     private CheckBox switchRedBlueChannels;
@@ -157,6 +159,7 @@ public class ProcessParamsController {
         bandingCorrectionPasses.setValue(initial.bandingCorrectionParams().passes());
         horizontalMirror.setSelected(initial.geometryParams().isHorizontalMirror());
         verticalMirror.setSelected(initial.geometryParams().isVerticalMirror());
+        sharpen.setSelected(initial.geometryParams().isSharpen());
     }
 
     @FXML
@@ -194,7 +197,8 @@ public class ProcessParamsController {
                         forceTilt.isSelected() ? Double.parseDouble(tiltValue.getText()) : null,
                         forceXYRatio.isSelected() ? Double.parseDouble(xyRatioValue.getText()) : null,
                         horizontalMirror.isSelected(),
-                        verticalMirror.isSelected()),
+                        verticalMirror.isSelected(),
+                        sharpen.isSelected()),
                 new BandingCorrectionParams(
                         (int) Math.round(bandingCorrectionWidth.getValue()),
                         (int) Math.round(bandingCorrectionPasses.getValue())
