@@ -40,6 +40,7 @@ public class GeometryCorrector extends AbstractTask<GeometryCorrector.Result> {
     // This is the sun disk as detected after the initial image correction
     // So that next images use the same geometry
     private final Optional<Ellipse> sunDisk;
+    private final float blackPoint;
 
     public GeometryCorrector(Broadcaster broadcaster,
                              ImageWrapper32 image,
@@ -47,13 +48,15 @@ public class GeometryCorrector extends AbstractTask<GeometryCorrector.Result> {
                              double correctionAngle,
                              Double frameRate,
                              OptionalDouble forcedRatio,
-                             Optional<Ellipse> sunDisk) {
+                             Optional<Ellipse> sunDisk,
+                             float blackPoint) {
         super(broadcaster, image);
         this.ellipse = ellipse;
         this.correctionAngle = correctionAngle;
         this.frameRate = frameRate;
         this.forcedRatio = forcedRatio;
         this.sunDisk = sunDisk;
+        this.blackPoint = blackPoint;
     }
 
     @Override
@@ -81,7 +84,7 @@ public class GeometryCorrector extends AbstractTask<GeometryCorrector.Result> {
             sx = ratio;
             sy = 1d;
         }
-        var rotated = ImageMath.newInstance().rotateAndScale(new Image(width, height, buffer), correctionAngle, 0, sx, sy);
+        var rotated = ImageMath.newInstance().rotateAndScale(new Image(width, height, buffer), correctionAngle, blackPoint, sx, sy);
         broadcaster.broadcast(ProgressEvent.of(1, "Correcting geometry"));
         var full = new ImageWrapper32(rotated.width(), rotated.height(), rotated.data());
         return crop(rotated, full);

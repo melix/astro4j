@@ -137,7 +137,7 @@ public class ProcessingWorkflow {
         if (currentStep > 0) {
             diskEllipse = states.get(0).findResult(WorkflowStep.GEOMETRY_CORRECTION).map(r -> ((GeometryCorrector.Result) r).disk());
         }
-        executor.submit(new GeometryCorrector(broadcaster, bandingFixed, ellipse, correctionAngle, fps, geometryParams.xyRatio(), diskEllipse)).thenAccept(g -> {
+        executor.submit(new GeometryCorrector(broadcaster, bandingFixed, ellipse, correctionAngle, fps, geometryParams.xyRatio(), diskEllipse, blackPoint)).thenAccept(g -> {
             var convolve = ImageMath.newInstance().convolve(g.corrected().asImage(), Kernel33.SHARPEN2);
             var geometryFixed = ImageWrapper32.fromImage(convolve);
             state.recordResult(WorkflowStep.GEOMETRY_CORRECTION, g);

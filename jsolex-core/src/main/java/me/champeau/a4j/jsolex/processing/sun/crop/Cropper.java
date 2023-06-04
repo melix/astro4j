@@ -37,7 +37,8 @@ public class Cropper {
         var center = sunDisk.center();
         var cx = center.a();
         var cy = center.b();
-        var diameter = (sunDisk.semiAxis().a() + sunDisk.semiAxis().b());
+        var semiAxis = sunDisk.semiAxis();
+        var diameter = (semiAxis.a() + semiAxis.b());
         var croppedSize = 1.2d * diameter;
         LOGGER.info("Diameter {}", diameter);
         var croppedWidth = (int) Math.round(Math.min(image.width(), croppedSize));
