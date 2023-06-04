@@ -17,7 +17,6 @@ package me.champeau.a4j.jsolex.processing.sun.tasks;
 
 import me.champeau.a4j.jsolex.processing.event.ProgressEvent;
 import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
-import me.champeau.a4j.jsolex.processing.sun.ImageUtils;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 import me.champeau.a4j.math.Point2D;
 import me.champeau.a4j.math.image.Image;
@@ -27,7 +26,6 @@ import me.champeau.a4j.math.regression.EllipseRegression;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -112,7 +110,6 @@ public class EllipseFittingTask extends AbstractTask<EllipseFittingTask.Result> 
         for (Point2D filteredSample : filteredSamples) {
             array[(int) (filteredSample.x() + filteredSample.y() * width)] = 65535;
         }
-        ImageUtils.writeMonoImage(width, height, array, new File("/tmp/foo.png"));
         ellipse = new EllipseRegression(filteredSamples).solve();
         LOGGER.debug("{}", ellipse);
         broadcaster.broadcast(ProgressEvent.of(1, fittingEllipseMessage));
