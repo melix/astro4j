@@ -17,6 +17,8 @@ package me.champeau.a4j.jsolex.app.jfx;
 
 import javafx.collections.FXCollections;
 import javafx.fxml.FXML;
+import javafx.scene.Parent;
+import javafx.scene.Scene;
 import javafx.scene.control.Accordion;
 import javafx.scene.control.CheckBox;
 import javafx.scene.control.ChoiceBox;
@@ -26,19 +28,21 @@ import javafx.scene.control.TextFormatter;
 import javafx.stage.Stage;
 import javafx.util.converter.DoubleStringConverter;
 import javafx.util.converter.IntegerStringConverter;
+import me.champeau.a4j.jsolex.app.JSolEx;
 import me.champeau.a4j.jsolex.processing.params.BandingCorrectionParams;
 import me.champeau.a4j.jsolex.processing.params.DebugParams;
 import me.champeau.a4j.jsolex.processing.params.GeometryParams;
 import me.champeau.a4j.jsolex.processing.params.ObservationDetails;
 import me.champeau.a4j.jsolex.processing.params.ProcessParams;
 import me.champeau.a4j.jsolex.processing.params.SpectralRay;
+import me.champeau.a4j.jsolex.processing.params.SpectralRayIO;
 import me.champeau.a4j.jsolex.processing.params.SpectrumParams;
 import me.champeau.a4j.jsolex.processing.params.VideoParams;
 import me.champeau.a4j.math.tuples.DoublePair;
 import me.champeau.a4j.ser.ColorMode;
 
+import java.io.IOException;
 import java.time.ZonedDateTime;
-import java.util.Arrays;
 import java.util.Optional;
 
 public class ProcessParamsController {
@@ -110,10 +114,14 @@ public class ProcessParamsController {
         var initial = ProcessParams.loadDefaults();
         accordion.setExpandedPane(accordion.getPanes().get(0));
 
-        wavelength.getItems().addAll(FXCollections.observableList(Arrays.stream(SpectralRay.values()).toList()));
+        wavelength.getItems().addAll(FXCollections.observableList(SpectralRayIO.loadDefaults()));
         wavelength.getSelectionModel().select(SpectralRay.H_ALPHA);
-        wavelength.valueProperty().addListener((observable, oldValue, newValue) -> spectralLineDetectionThreshold.setValue(newValue.getDetectionThreshold()));
-        spectralLineDetectionThreshold.valueProperty().set(wavelength.getValue().getDetectionThreshold());
+        wavelength.valueProperty().addListener((observable, oldValue, newValue) -> {
+            if (newValue != null) {
+                spectralLineDetectionThreshold.setValue(newValue.detectionThreshold());
+            }
+        });
+        spectralLineDetectionThreshold.valueProperty().set(wavelength.getValue().detectionThreshold());
         observerName.textProperty().setValue(initial.observationDetails().observer());
         email.textProperty().setValue(initial.observationDetails().email());
         instrument.textProperty().setValue(initial.observationDetails().instrument());
@@ -230,7 +238,7 @@ public class ProcessParamsController {
 
     @FXML
     public void resetRayParams() {
-        spectralLineDetectionThreshold.setValue(wavelength.getValue().getDetectionThreshold());
+        spectralLineDetectionThreshold.setValue(wavelength.getValue().detectionThreshold());
         pixelShifting.setValue(0);
         dopplerShifting.setValue(3);
         verticalMirror.setSelected(false);
@@ -245,5 +253,33 @@ public class ProcessParamsController {
         generateFits.setSelected(true);
         bandingCorrectionWidth.setValue(24);
         bandingCorrectionPasses.setValue(3);
+    }
+
+    @FXML
+    public void openWavelengthEditor() {
+        var fxmlLoader = I18N.fxmlLoader(JSolEx.class, "spectral-ray-editor");
+        try {
+            var node = (Parent) fxmlLoader.load();
+            var controller = (SpectralRayEditor) fxmlLoader.getController();
+            controller.setup(stage);
+            Scene scene = new Scene(node);
+            var currentScene = stage.getScene();
+            stage.setTitle(I18N.string(JSolEx.class, "spectral-ray-editor", "frame.title"));
+            stage.setScene(scene);
+            stage.show();
+            stage.setOnCloseRequest(e -> {
+                if (stage.getScene() == scene) {
+                    stage.setScene(currentScene);
+                    e.consume();
+                }
+                controller.getSelectedItem().ifPresent(ray -> {
+                    wavelength.getItems().clear();
+                    wavelength.getItems().addAll(SpectralRayIO.loadDefaults());
+                    wavelength.getSelectionModel().select(ray);
+                });
+            });
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
     }
 }

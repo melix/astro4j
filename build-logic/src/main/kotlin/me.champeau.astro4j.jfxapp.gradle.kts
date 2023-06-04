@@ -12,11 +12,6 @@ javafx {
 }
 
 val os = System.getProperty("os.name").lowercase(Locale.ENGLISH)
-println(if (version.toString().endsWith("-SNAPSHOT")) {
-    version.toString().substringBefore("-SNAPSHOT")
-} else {
-    version
-})
 
 if (os.startsWith("windows") || os.contains("mac")) {
     version = if (version.toString().endsWith("-SNAPSHOT")) {

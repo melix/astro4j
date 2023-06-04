@@ -319,9 +319,9 @@ public class Main implements Runnable {
 
     static class SpectralRayCandidates extends ArrayList<String> {
         public SpectralRayCandidates() {
-            super(SpectralRay.values().length);
-            for (SpectralRay ray : SpectralRay.values()) {
-                add(ray.name());
+            super(SpectralRay.predefined().size());
+            for (SpectralRay ray : SpectralRay.predefined()) {
+                add(ray.label());
             }
         }
     }

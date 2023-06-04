@@ -46,6 +46,7 @@
 <?import javafx.scene.layout.BorderPane?>
 <?import javafx.scene.layout.ColumnConstraints?>
 <?import javafx.scene.layout.GridPane?>
+<?import javafx.scene.layout.HBox?>
 <?import javafx.scene.layout.RowConstraints?>
 
 <BorderPane maxHeight="-Infinity" maxWidth="-Infinity" minHeight="-Infinity" minWidth="-Infinity" prefHeight="400.0" prefWidth="650.0" xmlns="http://javafx.com/javafx/19" xmlns:fx="http://javafx.com/fxml/1" fx:controller="me.champeau.a4j.jsolex.app.jfx.ProcessParamsController">
@@ -90,11 +91,16 @@
                                     </rowConstraints>
                                     <children>
                                         <Label text="%wavelength" />
-                                        <ChoiceBox fx:id="wavelength" prefHeight="24.0" prefWidth="281.0" GridPane.columnIndex="1">
-                                            <tooltip>
-                                                <Tooltip text="%wavelength.tooltip" />
-                                            </tooltip>
-                                        </ChoiceBox>
+                              <HBox spacing="12.0" GridPane.columnIndex="1">
+                                 <children>
+                                              <ChoiceBox fx:id="wavelength" prefHeight="24.0" prefWidth="237.0">
+                                                  <tooltip>
+                                                      <Tooltip text="%wavelength.tooltip" />
+                                                  </tooltip>
+                                              </ChoiceBox>
+                                    <Button onAction="#openWavelengthEditor" alignment="CENTER" mnemonicParsing="false" prefHeight="24.0" prefWidth="47.0" text="..." />
+                                 </children>
+                              </HBox>
                                         <Label text="%spectral.line.detection.threshold" GridPane.rowIndex="1" />
                                         <Slider fx:id="spectralLineDetectionThreshold" blockIncrement="0.1" majorTickUnit="0.25" max="1.0" minorTickCount="5" showTickLabels="true" showTickMarks="true" value="0.2" GridPane.columnIndex="1" GridPane.rowIndex="1">
                                             <tooltip>
@@ -138,7 +144,7 @@
                                         <CheckBox fx:id="verticalMirror" mnemonicParsing="false" text="%vertical.flip" GridPane.columnIndex="1" GridPane.rowIndex="7" />
                                         <CheckBox fx:id="sharpen" mnemonicParsing="false" text="%sharpen.images" GridPane.columnIndex="0" GridPane.rowIndex="8">
                                             <tooltip>
-                                                <Tooltip text="%sharpen.images.tooltip"/>
+                                                <Tooltip text="%sharpen.images.tooltip" />
                                             </tooltip>
                                         </CheckBox>
                               <CheckBox fx:id="switchRedBlueChannels" mnemonicParsing="false" text="%doppler.switch.red.blue.channels" GridPane.rowIndex="4">
