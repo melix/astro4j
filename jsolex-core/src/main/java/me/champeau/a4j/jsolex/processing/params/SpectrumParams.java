@@ -23,7 +23,7 @@ public record SpectrumParams(
         boolean switchRedBlueChannels
 ) {
     public SpectrumParams withRay(SpectralRay ray) {
-        return new SpectrumParams(ray, ray.getDetectionThreshold(), pixelShift, dopplerShift, switchRedBlueChannels);
+        return new SpectrumParams(ray, ray.detectionThreshold(), pixelShift, dopplerShift, switchRedBlueChannels);
     }
 
     public SpectrumParams withDetectionThreshold(double t) {

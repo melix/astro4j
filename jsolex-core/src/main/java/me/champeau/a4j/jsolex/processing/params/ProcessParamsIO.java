@@ -54,6 +54,7 @@ abstract class ProcessParamsIO {
 
     private static Gson newGson() {
         var builder = new Gson().newBuilder();
+        builder.registerTypeAdapter(SpectralRay.class, new SpectralRaySerializer());
         builder.registerTypeAdapter(ZonedDateTime.class, new ZonedDateTimeSerializer());
         builder.registerTypeAdapter(GeometryParams.class, new GeometryParamsSerializer());
         return builder.create();
@@ -67,7 +68,7 @@ abstract class ProcessParamsIO {
         }
         LOGGER.info("No config file found at {}. Using default parameters", defaultsFile);
         return new ProcessParams(
-                new SpectrumParams(SpectralRay.H_ALPHA, SpectralRay.H_ALPHA.getDetectionThreshold(), 0, 3, false),
+                new SpectrumParams(SpectralRay.H_ALPHA, SpectralRay.H_ALPHA.detectionThreshold(), 0, 3, false),
                 new ObservationDetails(
                         null,
                         null,

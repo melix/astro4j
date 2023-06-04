@@ -123,7 +123,7 @@ class FitsUtils {
         if (aperture != null) {
             header.addValue(InstrumentDescription.APERTURE, String.valueOf(aperture));
         }
-        var wavelength = params.spectrumParams().ray().getWavelength();
+        var wavelength = params.spectrumParams().ray().wavelength();
         if (wavelength != 0) {
             header.addValue("WAVELNTH", wavelength, "Wavelength (nm)");
         }
