@@ -84,7 +84,19 @@ public class GeometryCorrector extends AbstractTask<GeometryCorrector.Result> {
             sx = ratio;
             sy = 1d;
         }
-        var rotated = ImageMath.newInstance().rotateAndScale(new Image(width, height, buffer), correctionAngle, blackPoint, sx, sy);
+        var atan = Math.atan(correctionAngle);
+        var maxDx = height * atan;
+        float[] newBuffer = new float[buffer.length];
+        for (int y = 0; y < height; y++) {
+            var dx = y * atan;
+            for (int x = 0; x < width; x++) {
+                int nx = (int) (x - Math.max(0, maxDx) + dx);
+                if (nx >= 0 && nx < width) {
+                    newBuffer[nx + y * width] = buffer[x + y * width];
+                }
+            }
+        }
+        var rotated = ImageMath.newInstance().rotateAndScale(new Image(width, height, newBuffer), 0, blackPoint, sx, sy);
         broadcaster.broadcast(ProgressEvent.of(1, "Correcting geometry"));
         var full = new ImageWrapper32(rotated.width(), rotated.height(), rotated.data());
         return crop(rotated, full);
@@ -94,7 +106,7 @@ public class GeometryCorrector extends AbstractTask<GeometryCorrector.Result> {
         var diskEllipse = sunDisk.orElseGet(() -> {
             EllipseFittingTask.Result fitting;
             try {
-                fitting = new EllipseFittingTask(broadcaster, full, .25d).call();
+                fitting = new EllipseFittingTask(broadcaster, full, .25d, null, null).call();
             } catch (Exception e) {
                 throw new ProcessingException(e);
             }

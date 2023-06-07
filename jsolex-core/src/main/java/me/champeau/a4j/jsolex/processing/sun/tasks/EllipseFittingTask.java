@@ -16,7 +16,11 @@
 package me.champeau.a4j.jsolex.processing.sun.tasks;
 
 import me.champeau.a4j.jsolex.processing.event.ProgressEvent;
+import me.champeau.a4j.jsolex.processing.params.ProcessParams;
+import me.champeau.a4j.jsolex.processing.stretching.LinearStrechingStrategy;
 import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
+import me.champeau.a4j.jsolex.processing.sun.workflow.ImageEmitter;
+import me.champeau.a4j.jsolex.processing.sun.workflow.WorkflowStep;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 import me.champeau.a4j.math.Point2D;
 import me.champeau.a4j.math.image.Image;
@@ -29,6 +33,7 @@ import org.slf4j.LoggerFactory;
 import java.util.ArrayList;
 import java.util.List;
 
+import static me.champeau.a4j.jsolex.processing.util.DebugImageHelper.plot;
 import static me.champeau.a4j.jsolex.processing.util.Constants.message;
 
 public class EllipseFittingTask extends AbstractTask<EllipseFittingTask.Result> {
@@ -36,6 +41,8 @@ public class EllipseFittingTask extends AbstractTask<EllipseFittingTask.Result> 
     private static final int MINIMUM_SAMPLES = 10;
 
     private final Image image;
+    private final ProcessParams processParams;
+    private final ImageEmitter debugImagesEmitter;
     private final double sensitivity;
 
     /**
@@ -43,10 +50,16 @@ public class EllipseFittingTask extends AbstractTask<EllipseFittingTask.Result> 
      *
      * @param image the image to work with
      */
-    public EllipseFittingTask(Broadcaster broadcaster, ImageWrapper32 image, double sensitivity) {
+    public EllipseFittingTask(Broadcaster broadcaster,
+                              ImageWrapper32 image,
+                              double sensitivity,
+                              ProcessParams processParams,
+                              ImageEmitter debugImagesEmitter) {
         super(broadcaster, image);
         this.sensitivity = sensitivity;
         this.image = image.asImage();
+        this.processParams = processParams;
+        this.debugImagesEmitter = debugImagesEmitter;
     }
 
     @Override
@@ -106,17 +119,14 @@ public class EllipseFittingTask extends AbstractTask<EllipseFittingTask.Result> 
         if (notEnoughSamples(fittingEllipseMessage, filteredSamples)) {
             return null;
         }
-/*
-        float[] array = new float[width * height];
-        for (Point2D filteredSample : filteredSamples) {
-            array[(int) (filteredSample.x() + filteredSample.y() * width)] = 65535;
-        }
-        ImageUtils.writeMonoImage(width, height, array, new File("/tmp/foo.png"));
-*/
         ellipse = new EllipseRegression(filteredSamples).solve();
         LOGGER.debug("{}", ellipse);
         broadcaster.broadcast(ProgressEvent.of(1, fittingEllipseMessage));
-        return new Result(ellipse, filteredSamples);
+        var result = new Result(ellipse, filteredSamples);
+        if (processParams != null && processParams.debugParams().generateDebugImages()) {
+            produceEdgeDetectionImage(result, ImageWrapper32.fromImage(magnitude));
+        }
+        return result;
     }
 
     private boolean notEnoughSamples(String fittingEllipseMessage, List<Point2D> filteredSamples) {
@@ -126,6 +136,26 @@ public class EllipseFittingTask extends AbstractTask<EllipseFittingTask.Result> 
             return true;
         }
         return false;
+    }
+
+    private void produceEdgeDetectionImage(EllipseFittingTask.Result result, ImageWrapper32 image) {
+        if (debugImagesEmitter != null) {
+            debugImagesEmitter.newColorImage(WorkflowStep.EDGE_DETECTION_IMAGE, message("edge.detection"), "edge-detection", image, LinearStrechingStrategy.DEFAULT, debugImage -> {
+                float[][] rgb = new float[3][];
+                float[] overlay = new float[debugImage.length];
+                System.arraycopy(debugImage, 0, overlay, 0, overlay.length);
+                rgb[0] = overlay;
+                rgb[1] = debugImage;
+                rgb[2] = debugImage;
+                var samples = result.samples();
+                for (Point2D sample : samples) {
+                    var x = sample.x();
+                    var y = sample.y();
+                    plot((int) x, (int) y, image.width(), image.height(), overlay);
+                }
+                return rgb;
+            });
+        }
     }
 
     private static float maxOf(float[] magnitudes) {
