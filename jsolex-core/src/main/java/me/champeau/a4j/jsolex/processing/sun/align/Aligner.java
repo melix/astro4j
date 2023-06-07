@@ -82,7 +82,7 @@ public class Aligner {
 
     private static Image fitAndCrop(Image image) {
         Image prepared;
-        var task = new EllipseFittingTask(Broadcaster.NO_OP, ImageWrapper32.fromImage(image), .25d, null, null);
+        var task = new EllipseFittingTask(Broadcaster.NO_OP, ImageWrapper32.fromImage(image), .25d);
         EllipseFittingTask.Result fitting;
         try {
             fitting = task.call();

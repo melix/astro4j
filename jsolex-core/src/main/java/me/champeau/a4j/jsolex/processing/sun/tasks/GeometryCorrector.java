@@ -106,7 +106,7 @@ public class GeometryCorrector extends AbstractTask<GeometryCorrector.Result> {
         var diskEllipse = sunDisk.orElseGet(() -> {
             EllipseFittingTask.Result fitting;
             try {
-                fitting = new EllipseFittingTask(broadcaster, full, .25d, null, null).call();
+                fitting = new EllipseFittingTask(broadcaster, full, .25d).call();
             } catch (Exception e) {
                 throw new ProcessingException(e);
             }

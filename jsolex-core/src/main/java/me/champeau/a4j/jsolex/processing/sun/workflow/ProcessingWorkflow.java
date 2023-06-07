@@ -53,7 +53,6 @@ import static me.champeau.a4j.jsolex.processing.util.Constants.message;
  */
 public class ProcessingWorkflow {
     private static final Logger LOGGER = LoggerFactory.getLogger(ProcessingWorkflow.class);
-    private static final double CIRCLE_EPSILON = 0.001d;
 
     private final ParallelExecutor executor;
     private final ProcessParams processParams;
@@ -96,7 +95,7 @@ public class ProcessingWorkflow {
         var image = state.image();
         rawImagesEmitter.newMonoImage(WorkflowStep.RAW_IMAGE, message("raw"), "recon", image, CutoffStretchingStrategy.DEFAULT);
         rawImagesEmitter.newMonoImage(WorkflowStep.RAW_IMAGE, message("raw.linear"), "linear", image, LinearStrechingStrategy.DEFAULT);
-        var ellipseFittingTask = executor.submit(new EllipseFittingTask(broadcaster, image, .25d, processParams, debugImagesEmitter));
+        var ellipseFittingTask = executor.submit(new EllipseFittingTask(broadcaster, image, .25d, processParams, debugImagesEmitter).withPrefilter());
         ellipseFittingTask.thenAccept(r -> {
             state.recordResult(WorkflowStep.ELLIPSE_FITTING, r);
             performBandingCorrection(r, image).thenAccept(bandingFixed -> {
@@ -252,7 +251,7 @@ public class ProcessingWorkflow {
     }
 
     private void produceCoronagraph(float blackPoint, ImageWrapper32 geometryFixed) {
-        executor.submit(new EllipseFittingTask(broadcaster, geometryFixed, .25d, null, null))
+        executor.submit(new EllipseFittingTask(broadcaster, geometryFixed, .25d))
                 .thenAccept(fitting -> executor.submit(new CoronagraphTask(broadcaster, geometryFixed, fitting, blackPoint)).thenAccept(coronagraph -> {
                             processedImagesEmitter.newMonoImage(WorkflowStep.CORONAGRAPH, message("protus"), "protus", coronagraph, LinearStrechingStrategy.DEFAULT);
                             var data = geometryFixed.data();

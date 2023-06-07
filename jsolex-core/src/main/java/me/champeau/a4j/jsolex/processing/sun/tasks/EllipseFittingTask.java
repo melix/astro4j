@@ -17,6 +17,7 @@ package me.champeau.a4j.jsolex.processing.sun.tasks;
 
 import me.champeau.a4j.jsolex.processing.event.ProgressEvent;
 import me.champeau.a4j.jsolex.processing.params.ProcessParams;
+import me.champeau.a4j.jsolex.processing.stretching.CutoffStretchingStrategy;
 import me.champeau.a4j.jsolex.processing.stretching.LinearStrechingStrategy;
 import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
 import me.champeau.a4j.jsolex.processing.sun.workflow.ImageEmitter;
@@ -25,6 +26,7 @@ import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 import me.champeau.a4j.math.Point2D;
 import me.champeau.a4j.math.image.Image;
 import me.champeau.a4j.math.image.ImageMath;
+import me.champeau.a4j.math.image.Kernel33;
 import me.champeau.a4j.math.regression.Ellipse;
 import me.champeau.a4j.math.regression.EllipseRegression;
 import org.slf4j.Logger;
@@ -45,6 +47,8 @@ public class EllipseFittingTask extends AbstractTask<EllipseFittingTask.Result> 
     private final ImageEmitter debugImagesEmitter;
     private final double sensitivity;
 
+    private boolean prefilter = false;
+
     /**
      * Creates ellipse fitting task
      *
@@ -62,11 +66,35 @@ public class EllipseFittingTask extends AbstractTask<EllipseFittingTask.Result> 
         this.debugImagesEmitter = debugImagesEmitter;
     }
 
+    /**
+     * Creates ellipse fitting task
+     *
+     * @param image the image to work with
+     */
+    public EllipseFittingTask(Broadcaster broadcaster,
+                              ImageWrapper32 image,
+                              double sensitivity) {
+        this(broadcaster, image, sensitivity, null, null);
+    }
+
+    public EllipseFittingTask withPrefilter() {
+        prefilter = true;
+        return this;
+    }
+
     @Override
     public EllipseFittingTask.Result call() throws Exception {
         var analyzingDiskGeometryMsg = message("analyzing.disk.geometry");
         broadcaster.broadcast(ProgressEvent.of(0, analyzingDiskGeometryMsg));
-        var magnitude = ImageMath.newInstance().gradient(image).magnitude();
+        var imageMath = ImageMath.newInstance();
+        var workingImage = imageMath.convolve(image, Kernel33.GAUSSIAN_BLUR);
+        if (prefilter) {
+            var avg = imageMath.areaAverage(imageMath.integralImage(workingImage), 0, 0, width, height);
+            // some images (in particular in calcium) can have large bright areas which interfere with detection
+            // so we're filtering out pixels which are too bright
+            new CutoffStretchingStrategy(0, 1.1f * avg).stretch(workingImage.data());
+        }
+        var magnitude = imageMath.gradient(workingImage).magnitude();
         var magnitudes = magnitude.data();
         var minLimit = sensitivity * maxOf(magnitudes);
         List<Point2D> samples = new ArrayList<>();
