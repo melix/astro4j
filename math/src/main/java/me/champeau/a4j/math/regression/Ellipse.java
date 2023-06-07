@@ -59,10 +59,16 @@ public class Ellipse {
      * Computes the rotation angle of the ellipse
      * https://math.stackexchange.com/questions/280937/finding-the-angle-of-rotation-of-an-ellipse-from-its-general-equation-and-the-ot
      */
-    public double tiltAngle() {
+    public double rotationAngle() {
         var a = cart.a();
         var b = cart.b();
         var c = cart.c();
+        if (b == 0) {
+            if (a < c) {
+                return 0;
+            }
+            return Math.PI / 2;
+        }
         return Math.atan(b / (a - c)) / 2;
     }
 
