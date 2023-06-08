@@ -186,7 +186,7 @@ public class ProcessingWorkflow {
     }
 
     private void produceDopplerImage(float blackPoint) {
-        if (processParams.spectrumParams().ray() != SpectralRay.H_ALPHA) {
+        if (!SpectralRay.H_ALPHA.equals(processParams.spectrumParams().ray())) {
             return;
         }
         executor.submit(() -> {
