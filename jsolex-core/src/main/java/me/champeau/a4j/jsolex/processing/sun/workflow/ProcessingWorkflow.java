@@ -129,7 +129,7 @@ public class ProcessingWorkflow {
         if (currentStep > 0) {
             diskEllipse = states.get(0).findResult(WorkflowStep.GEOMETRY_CORRECTION).map(r -> ((GeometryCorrector.Result) r).disk());
         }
-        executor.submit(new GeometryCorrector(broadcaster, bandingFixed, ellipse, correctionAngle, fps, geometryParams.xyRatio(), diskEllipse, blackPoint)).thenAccept(g -> {
+        executor.submit(new GeometryCorrector(broadcaster, bandingFixed, correctionAngle, fps, geometryParams.xyRatio(), diskEllipse, blackPoint, processParams, debugImagesEmitter)).thenAccept(g -> {
             var geometryFixed = maybeSharpen(g);
             state.recordResult(WorkflowStep.GEOMETRY_CORRECTION, g);
             broadcaster.broadcast(OutputImageDimensionsDeterminedEvent.of(message("geometry.corrected"), geometryFixed.width(), geometryFixed.height()));

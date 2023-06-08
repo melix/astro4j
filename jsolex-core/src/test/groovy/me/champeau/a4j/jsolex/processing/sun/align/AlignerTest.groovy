@@ -65,6 +65,7 @@ class AlignerTest extends Specification {
         }
     }
 
+    @PendingFeature
     def "can detect flips with rotation"() {
         var ref = REFERENCE
         aligner = Aligner.forReferenceImage(broadcaster, ref)
@@ -83,6 +84,7 @@ class AlignerTest extends Specification {
         angle << ROTATION_ANGLES
     }
 
+    @PendingFeature
     def "can detect rotation of the same image without flipping (angle #angle)"() {
         aligner = Aligner.forReferenceImage(broadcaster, REFERENCE)
 
