@@ -145,9 +145,10 @@ public class EllipseFittingTask extends AbstractTask<EllipseFittingTask.Result> 
                 .filter(p -> cp.distanceTo(p) > outlierDistance)
                 .toList();
         if (notEnoughSamples(fittingEllipseMessage, filteredSamples)) {
-            return null;
+            filteredSamples = samples;
+        } else {
+            ellipse = new EllipseRegression(filteredSamples).solve();
         }
-        ellipse = new EllipseRegression(filteredSamples).solve();
         LOGGER.debug("{}", ellipse);
         broadcaster.broadcast(ProgressEvent.of(1, fittingEllipseMessage));
         var result = new Result(ellipse, filteredSamples);

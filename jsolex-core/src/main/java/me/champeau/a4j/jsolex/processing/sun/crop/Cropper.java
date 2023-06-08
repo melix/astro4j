@@ -20,6 +20,8 @@ import me.champeau.a4j.math.regression.Ellipse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.Arrays;
+
 /**
  * An utility class which performs cropping of the sun disk to a square.
  */
@@ -30,7 +32,7 @@ public class Cropper {
 
     }
 
-    public static Image cropToSquare(Image image, Ellipse sunDisk) {
+    public static Image cropToSquare(Image image, Ellipse sunDisk, float blackPoint) {
         var source = image.data();
         // at this stage, the new fitting should give us a good estimate of the center and radius
         // because if geometry correction worked, the disk should be circle, so we can crop to a square
@@ -39,23 +41,19 @@ public class Cropper {
         var cy = center.b();
         var semiAxis = sunDisk.semiAxis();
         var diameter = (semiAxis.a() + semiAxis.b());
-        var croppedSize = 1.2d * diameter;
+        var width = image.width();
+        var height = image.height();
+        var square = diameter > width || diameter > height ? Math.max(width, height) : Math.min(width, height);
         LOGGER.info("Diameter {}", diameter);
-        var croppedWidth = (int) Math.round(Math.min(image.width(), croppedSize));
-        var croppedHeight = (int) Math.round(Math.min(image.height(), croppedSize));
-        var square = Math.max(croppedWidth, croppedHeight);
-        var xOffset = croppedWidth < square ? (square - croppedWidth) / 2 : 0;
-        var yOffset = croppedHeight < square ? (square - croppedHeight) / 2 : 0;
+        var half = square / 2;
         var cropped = new float[square * square];
-        var dx = cx - croppedWidth / 2d;
-        var dy = cy - croppedHeight / 2d;
-        for (int y = 0; y < croppedHeight; y++) {
-            for (int x = 0; x < croppedWidth; x++) {
-                int idx = (x + xOffset) + (y + yOffset) * square;
-                int sourceX = (int) Math.round(dx + x);
-                int sourceY = (int) Math.round(dy + y);
-                if (sourceX >= 0 && sourceY >= 0 && sourceX < image.width() && sourceY < image.height()) {
-                    cropped[idx] = source[sourceX + sourceY * image.width()];
+        Arrays.fill(cropped, blackPoint);
+        for (int yy = 0; yy < square; yy++) {
+            for (int xx = 0; xx < square; xx++) {
+                int sourceX = (int) cx - half + xx;
+                int sourceY = (int) cy - half + yy;
+                if (sourceX >= 0 && sourceY >= 0 && sourceX < width && sourceY < height) {
+                    cropped[xx + yy * square] = source[sourceX + sourceY * width];
                 }
             }
         }

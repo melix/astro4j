@@ -86,7 +86,7 @@ public class Aligner {
         EllipseFittingTask.Result fitting;
         try {
             fitting = task.call();
-            prepared = Cropper.cropToSquare(image, fitting.ellipse());
+            prepared = Cropper.cropToSquare(image, fitting.ellipse(), 0);
         } catch (Exception e) {
             throw new ProcessingException(e);
         }
