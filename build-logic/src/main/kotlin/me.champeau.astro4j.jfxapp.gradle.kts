@@ -20,7 +20,7 @@ jlink {
     }
     jpackage {
         if (version.toString().endsWith("-SNAPSHOT")) {
-            appVersion = version.toString().substringBefore(".")
+            appVersion = version.toString().substringBefore("-SNAPSHOT")
             installerName = project.name + "-devel"
         } else {
             appVersion = version.toString()
