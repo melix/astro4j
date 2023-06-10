@@ -13,21 +13,18 @@ javafx {
 
 val os = System.getProperty("os.name").lowercase(Locale.ENGLISH)
 
-if (os.startsWith("windows") || os.contains("mac")) {
-    version = if (version.toString().endsWith("-SNAPSHOT")) {
-        version.toString().substringBefore("-SNAPSHOT")
-    } else {
-        version
-    }
-}
-
 jlink {
     options.addAll(listOf("--strip-debug", "--compress", "2", "--no-header-files", "--no-man-pages"))
     launcher {
         jvmArgs.add("--enable-preview")
     }
     jpackage {
-        appVersion = version.toString()
+        if (version.toString().endsWith("-SNAPSHOT")) {
+            appVersion = version.toString().substringBefore(".")
+            installerName = project.name + "-devel"
+        } else {
+            appVersion = version.toString()
+        }
         vendor = "Cédric Champeau"
         if (os.startsWith("windows")) {
             installerType = "msi"
