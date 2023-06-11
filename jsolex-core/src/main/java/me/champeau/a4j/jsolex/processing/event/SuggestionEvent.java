@@ -19,7 +19,18 @@ package me.champeau.a4j.jsolex.processing.event;
  * Suggestions are generated during processing.
  */
 public final class SuggestionEvent extends ProcessingEvent<String> {
-    public SuggestionEvent(String payload) {
+    private final SuggestionKind kind;
+
+    public enum SuggestionKind {
+        TILT
+    }
+
+    public SuggestionEvent(SuggestionKind kind, String payload) {
         super(payload);
+        this.kind = kind;
+    }
+
+    public SuggestionKind kind() {
+        return kind;
     }
 }
