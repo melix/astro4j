@@ -18,7 +18,7 @@ package me.champeau.a4j.jsolex.processing.sun.workflow;
 import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
 import me.champeau.a4j.jsolex.processing.util.ParallelExecutor;
 
-import java.io.File;
+import java.nio.file.Path;
 
 /**
  * An image emitter factory is responsible for creating
@@ -27,5 +27,8 @@ import java.io.File;
  * images) or renaming files.
  */
 public interface ImageEmitterFactory {
-    ImageEmitter newEmitter(Broadcaster broadcaster, ParallelExecutor executor, File outputDirectory);
+    ImageEmitter newEmitter(Broadcaster broadcaster,
+                            ParallelExecutor executor,
+                            String kind,
+                            Path outputDirectory);
 }

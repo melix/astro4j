@@ -117,7 +117,7 @@ public class Main implements Runnable {
             Files.createDirectories(outputDir.toPath());
             var processor = new SolexVideoProcessor(
                     inputFile,
-                    outputDir,
+                    outputDir.toPath(),
                     processParams,
                     quickMode
             );

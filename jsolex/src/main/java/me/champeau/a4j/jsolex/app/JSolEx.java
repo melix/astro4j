@@ -66,7 +66,6 @@ import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.io.IOException;
-import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.HashMap;
 import java.util.List;
@@ -242,18 +241,12 @@ public class JSolEx extends Application {
         console.textProperty().set("");
         reconstructionStarted = false;
         var baseName = selectedFile.getName().substring(0, selectedFile.getName().lastIndexOf("."));
-        var outputDirName = baseName;
-        var outputDirectory = new File(selectedFile.getParentFile(), outputDirName);
-        int i = 0;
-        while (Files.exists(outputDirectory.toPath())) {
-            String suffix = String.format("-%04d", i++);
-            outputDirectory = new File(selectedFile.getParentFile(), outputDirName + suffix);
-        }
+        var outputDirectory = selectedFile.getParentFile();
         LOGGER.info("Java runtime version {}", System.getProperty("java.version"));
         LOGGER.info("Vector API support is {} and {}", VectorApiSupport.isPresent() ? "available" : "missing", VectorApiSupport.isEnabled() ? "enabled" : "disabled (enable by setting " + VectorApiSupport.VECTOR_API_ENV_VAR + " environment variable to true)");
         LoggingSupport.LOGGER.info(message("output.dir.set"), outputDirectory);
         var processor = new SolexVideoProcessor(selectedFile,
-                outputDirectory,
+                outputDirectory.toPath(),
                 params,
                 quickMode
         );
@@ -283,7 +276,7 @@ public class JSolEx extends Application {
             var content = (Parent) loader.load();
             var controller = (ProcessParamsController) loader.getController();
             var scene = new Scene(content);
-            controller.setup(dialog, serFileReader.header().metadata().utcDateTime());
+            controller.setup(dialog, serFileReader.header());
             dialog.setScene(scene);
             dialog.initOwner(rootStage);
             dialog.initModality(Modality.APPLICATION_MODAL);

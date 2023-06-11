@@ -27,6 +27,7 @@ module me.champeau.a4j.jsolex.core {
     requires nom.tam.fits;
     exports me.champeau.a4j.jsolex.processing.color;
     exports me.champeau.a4j.jsolex.processing.event;
+    exports me.champeau.a4j.jsolex.processing.file;
     exports me.champeau.a4j.jsolex.processing.params;
     exports me.champeau.a4j.jsolex.processing.stats;
     exports me.champeau.a4j.jsolex.processing.stretching;

@@ -16,6 +16,7 @@
 package me.champeau.a4j.jsolex.processing.params;
 
 import com.google.gson.Gson;
+import me.champeau.a4j.jsolex.processing.file.FileNamingStrategy;
 import me.champeau.a4j.ser.ColorMode;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -79,7 +80,7 @@ abstract class ProcessParamsIO {
                         null,
                         LocalDateTime.now().atZone(ZoneId.of("UTC")),
                         ""),
-                new DebugParams(false, true, true),
+                new DebugParams(false, true, true, FileNamingStrategy.DEFAULT_TEMPLATE),
                 new VideoParams(ColorMode.MONO),
                 new GeometryParams(null, null, false, false, false),
                 new BandingCorrectionParams(24, 3)
