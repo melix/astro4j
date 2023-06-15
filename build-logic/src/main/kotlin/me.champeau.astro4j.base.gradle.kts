@@ -30,6 +30,10 @@ dependencies {
     testImplementation("org.apache.groovy:groovy:4.0.9")
 }
 
+tasks.withType<JavaCompile>().configureEach {
+    options.encoding = "utf-8"
+}
+
 tasks.named<Test>("test") {
     useJUnitPlatform()
 }

@@ -57,7 +57,7 @@ public class Ellipse {
 
     /**
      * Computes the rotation angle of the ellipse
-     * https://math.stackexchange.com/questions/280937/finding-the-angle-of-rotation-of-an-ellipse-from-its-general-equation-and-the-ot
+     * Formulas from https://mathworld.wolfram.com/Ellipse.html
      */
     public double rotationAngle() {
         var a = cart.a();
@@ -69,7 +69,10 @@ public class Ellipse {
             }
             return Math.PI / 2;
         }
-        return Math.atan(b / (a - c)) / 2;
+        if (a < c) {
+            return Math.atan(b / (a - c)) / 2;
+        }
+        return Math.PI / 2 + Math.atan(b / (a - c)) / 2;
     }
 
     public double discriminant() {
@@ -93,26 +96,64 @@ public class Ellipse {
 
     // Formulas from https://mathworld.wolfram.com/Ellipse.html
     public DoublePair semiAxis() {
-        var discri = discriminant();
+        // we're using the same parameter names as in the page above in order
+        // to doublecheck results more easily
         var a = cart.a();
         var b = cart.b() / 2;
         var c = cart.c();
         var d = cart.d() / 2;
-        var e = cart.e() / 2;
-        var f = cart.f();
-        var num = 2 * (a * e * e + c * d * d + e * b * b - 2 * b * d * e - a * c * f);
+        var f = cart.e() / 2;
+        var g = cart.f();
+        var disc = b * b - a * c;
+        var num = 2 * (a * f * f + c * d * d + g * b * b - 2 * b * d * f - a * c * g);
         var z = Math.sqrt((a - c) * (a - c) + 4 * b * b);
-        var aPrime = 2 * Math.sqrt(num / (discri * (z - (a + c))));
-        var bPrime = 2 * Math.sqrt(num / (discri * (-z - (a + c))));
-        if (aPrime > bPrime) {
-            return new DoublePair(bPrime, aPrime);
-        }
+        var aPrime = Math.sqrt(num / (disc * (z - (a + c))));
+        var bPrime = Math.sqrt(num / (disc * (-z - (a + c))));
         return new DoublePair(aPrime, bPrime);
     }
 
     public double xyRatio() {
         var sa = semiAxis();
-        return sa.a() / sa.b();
+        return sa.b() / sa.a();
+    }
+
+    public Point2D toCartesian(double angle) {
+        var sa = semiAxis();
+        var rotation = rotationAngle();
+        var a = sa.a();
+        var b = sa.b();
+        var center = center();
+        var cx = center.a();
+        var cy = center.b();
+        var cosA = Math.cos(angle);
+        var sinA = Math.sin(angle);
+        var cosR = Math.cos(rotation);
+        var sinR = Math.sin(rotation);
+        return new Point2D(
+                cx + a * cosA * cosR - b * sinA * sinR,
+            cy + a * cosA * sinR + b * sinA * cosR
+        );
+    }
+
+    public Point2D[] findVertices() {
+        var theta = rotationAngle();
+        var ortho = theta - Math.PI / 2;
+        var center = center();
+        var cx = center.a();
+        var cy = center.b();
+        var semiAxis = semiAxis();
+        var s1 = semiAxis.a();
+        var s2 = semiAxis.b();
+        var cosTheta = Math.cos(theta);
+        var sinTheta = Math.sin(theta);
+        var cosOrtho = Math.cos(ortho);
+        var sinOrtho = Math.sin(ortho);
+        return new Point2D[]{
+                new Point2D(cx - s1 * cosTheta, cy - s1 * sinTheta),
+                new Point2D(cx + s1 * cosTheta, cy + s1 * sinTheta),
+                new Point2D(cx - s2 * cosOrtho, cy - s2 * sinOrtho),
+                new Point2D(cx + s2 * cosOrtho, cy + s2 * sinOrtho)
+        };
     }
 
     public boolean isWithin(Point2D point) {

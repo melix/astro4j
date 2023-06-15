@@ -33,6 +33,7 @@ import me.champeau.a4j.jsolex.processing.sun.tasks.ImageBandingCorrector;
 import me.champeau.a4j.jsolex.processing.util.Constants;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 import me.champeau.a4j.jsolex.processing.util.ParallelExecutor;
+import me.champeau.a4j.math.Point2D;
 import me.champeau.a4j.math.image.ImageMath;
 import me.champeau.a4j.math.image.Kernel33;
 import me.champeau.a4j.math.regression.Ellipse;
@@ -66,9 +67,6 @@ public class ProcessingWorkflow {
     private final Broadcaster broadcaster;
     private final int currentStep;
 
-    private double tilt;
-    private double xyRatio;
-
     public ProcessingWorkflow(
             Broadcaster broadcaster,
             Path outputDirectory,
@@ -94,41 +92,53 @@ public class ProcessingWorkflow {
         var image = state.image();
         rawImagesEmitter.newMonoImage(WorkflowStep.RAW_IMAGE, message(Constants.TYPE_RAW), "recon", image, CutoffStretchingStrategy.DEFAULT);
         rawImagesEmitter.newMonoImage(WorkflowStep.RAW_IMAGE, message("raw.linear"), "linear", image, LinearStrechingStrategy.DEFAULT);
-        var ellipseFittingTask = executor.submit(new EllipseFittingTask(broadcaster, image, .25d, processParams, debugImagesEmitter).withPrefilter());
-        ellipseFittingTask.thenAccept(r -> {
-            state.recordResult(WorkflowStep.ELLIPSE_FITTING, r);
+        var existingFitting = state.findResult(WorkflowStep.ELLIPSE_FITTING);
+        if (existingFitting.isEmpty()) {
+            var ellipseFittingTask = executor.submit(new EllipseFittingTask(broadcaster, image, .25d, processParams, debugImagesEmitter).withPrefilter());
+            ellipseFittingTask.thenAccept(r -> {
+                state.recordResult(WorkflowStep.ELLIPSE_FITTING, r);
+                performBandingCorrection(r, image).thenAccept(bandingFixed -> {
+                    state.recordResult(WorkflowStep.BANDING_CORRECTION, bandingFixed);
+                    geometryCorrection(r, bandingFixed);
+                });
+            });
+        } else {
+            EllipseFittingTask.Result r = (EllipseFittingTask.Result) existingFitting.get();
             performBandingCorrection(r, image).thenAccept(bandingFixed -> {
                 state.recordResult(WorkflowStep.BANDING_CORRECTION, bandingFixed);
                 geometryCorrection(r, bandingFixed);
             });
-        });
+        }
+    }
 
+    private void logIfFirstStep(String message, Object... params) {
+        if (currentStep == 0) {
+            LOGGER.info(message, params);
+        }
     }
 
     private void geometryCorrection(EllipseFittingTask.Result result, ImageWrapper32 bandingFixed) {
         var ellipse = result.ellipse();
-        var detectedRatio = ellipse.xyRatio();
-        this.tilt = processParams.geometryParams().tilt().orElseGet(() -> estimateTilt(bandingFixed, ellipse));
-        this.xyRatio = processParams.geometryParams().xyRatio().orElse(detectedRatio);
-        LOGGER.info(message("detected.xy.ratio"), String.format("%.2f", detectedRatio));
+        var tilt = processParams.geometryParams().tilt().orElseGet(() -> estimateTilt(bandingFixed, ellipse));
         float blackPoint = (float) estimateBlackPoint(bandingFixed, ellipse) * 1.2f;
-        var tiltDegrees = this.tilt / Math.PI * 180;
+        var tiltDegrees = tilt / Math.PI * 180;
         var geometryParams = processParams.geometryParams();
         var tiltString = String.format("%.2f", tiltDegrees);
         if (Math.abs(tiltDegrees) > 1 && geometryParams.tilt().isEmpty()) {
-            broadcaster.broadcast(new SuggestionEvent(message("tilt.angle") + " " + tiltString + ". " + message("try.less.one.degree")));
+            broadcaster.broadcast(new SuggestionEvent(SuggestionEvent.SuggestionKind.TILT, message("tilt.angle") + " " + tiltString + ". " + message("try.less.one.degree")));
         }
-        var correctionAngle = -this.tilt;
-        LOGGER.info("Tilt angle: {}°", tiltString);
+        Double forcedTilt = null;
+        logIfFirstStep("Tilt angle: {}°", tiltString);
         if (geometryParams.tilt().isPresent()) {
-            correctionAngle = -geometryParams.tilt().getAsDouble() / 180d * Math.PI;
+            forcedTilt = -geometryParams.tilt().getAsDouble() / 180d * Math.PI;
             LOGGER.info(message("overriding.tilt"), String.format("%.2f", geometryParams.tilt().getAsDouble()));
         }
         var diskEllipse = Optional.<Ellipse>empty();
         if (currentStep > 0) {
             diskEllipse = states.get(0).findResult(WorkflowStep.GEOMETRY_CORRECTION).map(r -> ((GeometryCorrector.Result) r).disk());
         }
-        executor.submit(new GeometryCorrector(broadcaster, bandingFixed, correctionAngle, fps, geometryParams.xyRatio(), diskEllipse, blackPoint, processParams, debugImagesEmitter)).thenAccept(g -> {
+        Double ratio = geometryParams.xyRatio().isPresent() ? geometryParams.xyRatio().getAsDouble() : null;
+        executor.submit(new GeometryCorrector(broadcaster, bandingFixed, diskEllipse.orElse(ellipse), forcedTilt, fps, ratio, blackPoint, processParams, debugImagesEmitter)).thenAccept(g -> {
             var geometryFixed = maybeSharpen(g);
             state.recordResult(WorkflowStep.GEOMETRY_CORRECTION, g);
             broadcaster.broadcast(OutputImageDimensionsDeterminedEvent.of(message("geometry.corrected"), geometryFixed.width(), geometryFixed.height()));
@@ -159,29 +169,26 @@ public class ProcessingWorkflow {
     }
 
     private double estimateTilt(ImageWrapper32 bandingFixed, Ellipse ellipse) {
-        var sample = 0.98 * ellipse.semiAxis().a();
-        var center = ellipse.center();
-        var y0 = (int) (center.b() - sample);
-        var y1 = (int) (center.b() + sample);
-        var x0 = -1;
-        var x1 = -1;
-        var width = bandingFixed.width();
-        var height = bandingFixed.height();
-        for (int x = 0; x < width; x++) {
-            if (x0 == -1 && ellipse.isWithin(x, y0)) {
-                x0 = x;
+        logIfFirstStep("Ellipse rotation angle is {}", ellipse.rotationAngle() * 180 / Math.PI);
+        Point2D min = null;
+        Point2D max = null;
+        for (double alpha = -Math.PI; alpha <= Math.PI; alpha += 0.005d) {
+            var p = ellipse.toCartesian(alpha);
+            if (min == null || p.x() < min.x()) {
+                min = p;
             }
-            if (x1 == -1 && ellipse.isWithin(x, y1)) {
-                x1 = x;
-            }
-            if (x0 != -1 && x1 != -1) {
-                break;
+            if (max == null || p.x() > max.x()) {
+                max = p;
             }
         }
-        maybeDisplayTiltImage(processParams, processedImagesEmitter, bandingFixed, y0, y1, x0, x1, width, height, ellipse);
-        double dx = x1 - x0;
-        double dy = y1 - y0;
-        return Math.atan(dx / dy);
+        double angle = 0;
+        if (max != null) {
+            var dx = max.x() - min.x();
+            var dy = max.y() - min.y();
+            angle = Math.atan2(dy, dx);
+        }
+        maybeDisplayTiltImage(processParams, processedImagesEmitter, bandingFixed, ellipse, min, max);
+        return angle;
     }
 
     private void produceDopplerImage(float blackPoint) {
@@ -310,15 +317,6 @@ public class ProcessingWorkflow {
                 }
             }
         }
-    }
-
-
-    public double getTilt() {
-        return tilt;
-    }
-
-    public double getXyRatio() {
-        return xyRatio;
     }
 
     private static double estimateBlackPoint(ImageWrapper32 image, Ellipse ellipse) {
