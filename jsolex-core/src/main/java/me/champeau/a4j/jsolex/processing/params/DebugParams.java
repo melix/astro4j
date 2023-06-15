@@ -18,16 +18,21 @@ package me.champeau.a4j.jsolex.processing.params;
 public record DebugParams(
         boolean generateDebugImages,
         boolean autosave,
-        boolean generateFits) {
+        boolean generateFits,
+        String fileNamePattern) {
     public DebugParams withGenerateDebugImages(boolean generateDebugImages) {
-        return new DebugParams(generateDebugImages, autosave, generateFits);
+        return new DebugParams(generateDebugImages, autosave, generateFits, fileNamePattern);
     }
 
     public DebugParams withAutosave(boolean autosave) {
-        return new DebugParams(generateDebugImages, autosave, generateFits);
+        return new DebugParams(generateDebugImages, autosave, generateFits, fileNamePattern);
     }
 
     public DebugParams withGenerateFits(boolean generateFits) {
-        return new DebugParams(generateDebugImages, autosave, generateFits);
+        return new DebugParams(generateDebugImages, autosave, generateFits, fileNamePattern);
+    }
+
+    public DebugParams withFileNamePattern(String fileNamePattern) {
+        return new DebugParams(generateDebugImages, autosave, generateFits, fileNamePattern);
     }
 }

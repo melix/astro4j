@@ -16,7 +16,6 @@
 package me.champeau.a4j.jsolex.processing.sun;
 
 import me.champeau.a4j.jsolex.processing.event.DebugEvent;
-import me.champeau.a4j.jsolex.processing.event.GeneratedImage;
 import me.champeau.a4j.jsolex.processing.event.ImageGeneratedEvent;
 import me.champeau.a4j.jsolex.processing.event.ImageLine;
 import me.champeau.a4j.jsolex.processing.event.Notification;
@@ -29,11 +28,13 @@ import me.champeau.a4j.jsolex.processing.event.ProcessingEventListener;
 import me.champeau.a4j.jsolex.processing.event.ProcessingStartEvent;
 import me.champeau.a4j.jsolex.processing.event.ProgressEvent;
 import me.champeau.a4j.jsolex.processing.event.SuggestionEvent;
+import me.champeau.a4j.jsolex.processing.file.FileNamingStrategy;
 import me.champeau.a4j.jsolex.processing.params.ProcessParams;
 import me.champeau.a4j.jsolex.processing.stretching.LinearStrechingStrategy;
 import me.champeau.a4j.jsolex.processing.sun.workflow.DefaultImageEmitter;
 import me.champeau.a4j.jsolex.processing.sun.workflow.ImageEmitter;
 import me.champeau.a4j.jsolex.processing.sun.workflow.ImageEmitterFactory;
+import me.champeau.a4j.jsolex.processing.sun.workflow.NamingStrategyAwareImageEmitter;
 import me.champeau.a4j.jsolex.processing.sun.workflow.ProcessingWorkflow;
 import me.champeau.a4j.jsolex.processing.sun.workflow.RenamingImageEmitter;
 import me.champeau.a4j.jsolex.processing.sun.workflow.StepFilteringImageEmitter;
@@ -53,6 +54,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.File;
+import java.nio.file.Path;
+import java.time.LocalDateTime;
 import java.util.EnumSet;
 import java.util.HashSet;
 import java.util.List;
@@ -69,19 +72,13 @@ public class SolexVideoProcessor implements Broadcaster {
     private final Set<ProcessingEventListener> progressEventListeners = new HashSet<>();
 
     private final File serFile;
-    private final File debugDirectory;
-    private final File processedDirectory;
-    private final File rawImagesDirectory;
     private final ProcessParams processParams;
     private final boolean quickMode;
-    private final File outputDirectory;
+    private final Path outputDirectory;
 
-    public SolexVideoProcessor(File serFile, File outputDirectory, ProcessParams processParametersProvider, boolean quickMode) {
+    public SolexVideoProcessor(File serFile, Path outputDirectory, ProcessParams processParametersProvider, boolean quickMode) {
         this.serFile = serFile;
         this.outputDirectory = outputDirectory;
-        this.debugDirectory = new File(outputDirectory, Constants.DEBUG_DIRECTORY);
-        this.rawImagesDirectory = new File(outputDirectory, Constants.RAW_DIRECTORY);
-        this.processedDirectory = new File(outputDirectory, Constants.PROCESSED_DIRECTORY);
         this.processParams = processParametersProvider;
         this.quickMode = quickMode;
     }
@@ -96,7 +93,7 @@ public class SolexVideoProcessor implements Broadcaster {
 
     public void process() {
         if (processParams.debugParams().autosave()) {
-            File configFile = new File(outputDirectory, "config.json");
+            File configFile = outputDirectory.resolve("config.json").toFile();
             processParams.saveTo(configFile);
         }
         broadcast(new ProcessingStartEvent(System.nanoTime()));
@@ -131,15 +128,20 @@ public class SolexVideoProcessor implements Broadcaster {
     }
 
     private void generateImages(ImageConverter<float[]> converter, SerFileReader reader, int start, int end, float[] averageImage) {
+        var imageNamingStrategy = new FileNamingStrategy(
+                processParams.debugParams().fileNamePattern(),
+                LocalDateTime.now(),
+                reader.header()
+        );
         var geometry = reader.header().geometry();
         int width = geometry.width();
         int height = geometry.height();
         var fps = reader.estimateFps();
         int newHeight = end - start;
-        broadcast(OutputImageDimensionsDeterminedEvent.of("raw", width, newHeight));
+        broadcast(OutputImageDimensionsDeterminedEvent.of(Constants.TYPE_RAW, width, newHeight));
         List<WorkflowState> imageList = createWorkflowStateSteps(width, newHeight);
         LOGGER.info(message("starting.reconstruction"));
-        var maybePolynomial = findPolynomial(width, height, processParams.spectrumParams().spectralLineDetectionThreshold(), averageImage);
+        var maybePolynomial = findPolynomial(width, height, processParams.spectrumParams().spectralLineDetectionThreshold(), averageImage, imageNamingStrategy);
         if (maybePolynomial.isPresent()) {
             var polynomial = maybePolynomial.get();
             performImageReconstruction(converter, reader, start, end, geometry, width, height, polynomial, imageList.toArray(new WorkflowState[0]));
@@ -149,14 +151,24 @@ public class SolexVideoProcessor implements Broadcaster {
                 int finalStep = step;
                 var imageEmitterFactory = new ImageEmitterFactory() {
                     @Override
-                    public ImageEmitter newEmitter(Broadcaster broadcaster, ParallelExecutor executor, File outputDirectory) {
-                        ImageEmitter emitter = new DefaultImageEmitter(broadcaster, executor, outputDirectory);
+                    public ImageEmitter newEmitter(Broadcaster broadcaster, ParallelExecutor executor, String kind, Path outputDirectory) {
+                        var baseName = serFile.getName().substring(0, serFile.getName().lastIndexOf("."));
+                        ImageEmitter emitter = new DefaultImageEmitter(broadcaster, executor, outputDirectory.toFile());
                         var shift = state.pixelShift();
                         if (finalStep == 0) {
-                            return emitter;
+                            return new NamingStrategyAwareImageEmitter(emitter,
+                                    imageNamingStrategy,
+                                    0,
+                                    kind,
+                                    baseName);
                         }
                         var suffix = " (" + (shift == 15 ? "continuum" : shift) + ")";
-                        emitter = new RenamingImageEmitter(emitter, title -> title + suffix, name -> name + suffix);
+                        emitter = new NamingStrategyAwareImageEmitter(
+                                new RenamingImageEmitter(emitter, title -> title + suffix, name -> name + suffix),
+                                imageNamingStrategy,
+                                0,
+                                kind,
+                                baseName);
                         return new StepFilteringImageEmitter(emitter, state.steps());
                     }
                 };
@@ -167,7 +179,7 @@ public class SolexVideoProcessor implements Broadcaster {
                 ProcessingWorkflow workflow;
                 try (var executor = ParallelExecutor.newExecutor()) {
                     executor.setExceptionHandler(this::broadcastError);
-                    workflow = new ProcessingWorkflow(this, rawImagesDirectory, debugDirectory, processedDirectory, executor, imageList, step, currentParams, fps.orElse(null), imageEmitterFactory);
+                    workflow = new ProcessingWorkflow(this, outputDirectory, executor, imageList, step, currentParams, fps.orElse(null), imageEmitterFactory);
                     workflow.start();
                 } catch (Exception e) {
                     throw new ProcessingException(e);
@@ -229,7 +241,7 @@ public class SolexVideoProcessor implements Broadcaster {
         LOGGER.info(message("processing.done.generate.images"));
     }
 
-    private Optional<DoubleTriplet> findPolynomial(int width, int height, double threshold, float[] averageImage) {
+    private Optional<DoubleTriplet> findPolynomial(int width, int height, double threshold, float[] averageImage, FileNamingStrategy imageNamingStrategy) {
         Optional<DoubleTriplet> result = Optional.empty();
         double t = threshold;
         SpectrumFrameAnalyzer analyzer = null;
@@ -243,9 +255,17 @@ public class SolexVideoProcessor implements Broadcaster {
             }
         }
         if (processParams.debugParams().generateDebugImages()) {
-            var outputFile = new File(debugDirectory, "average.png");
-            var rgb = new SpectralLineFrameImageCreator(analyzer, averageImage, width, height).generateDebugImage();
-            broadcast(new ImageGeneratedEvent(new GeneratedImage(message("average"), outputFile.toPath(), rgb, LinearStrechingStrategy.DEFAULT)));
+            var emitter = new NamingStrategyAwareImageEmitter(
+                    new DefaultImageEmitter(this::broadcast, ParallelExecutor.newExecutor(), outputDirectory.toFile()),
+                    imageNamingStrategy,
+                    0,
+                    Constants.TYPE_DEBUG,
+                    serFile.getName().substring(0, serFile.getName().lastIndexOf(".")));
+            SpectrumFrameAnalyzer finalAnalyzer = analyzer;
+            emitter.newColorImage(WorkflowStep.AVERAGE_IMAGE, "average", "average", LinearStrechingStrategy.DEFAULT, width, height, () -> {
+                var rgb = new SpectralLineFrameImageCreator(finalAnalyzer, averageImage, width, height).generateDebugImage();
+                return new float[][]{rgb.r(), rgb.g(), rgb.b()};
+            });
         }
         return result;
     }

@@ -30,6 +30,7 @@ import me.champeau.a4j.jsolex.processing.sun.tasks.CoronagraphTask;
 import me.champeau.a4j.jsolex.processing.sun.tasks.EllipseFittingTask;
 import me.champeau.a4j.jsolex.processing.sun.tasks.GeometryCorrector;
 import me.champeau.a4j.jsolex.processing.sun.tasks.ImageBandingCorrector;
+import me.champeau.a4j.jsolex.processing.util.Constants;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 import me.champeau.a4j.jsolex.processing.util.ParallelExecutor;
 import me.champeau.a4j.math.Point2D;
@@ -39,15 +40,15 @@ import me.champeau.a4j.math.regression.Ellipse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.File;
+import java.nio.file.Path;
 import java.text.MessageFormat;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Future;
 
-import static me.champeau.a4j.jsolex.processing.util.DebugImageHelper.maybeDisplayTiltImage;
 import static me.champeau.a4j.jsolex.processing.util.Constants.message;
+import static me.champeau.a4j.jsolex.processing.util.DebugImageHelper.maybeDisplayTiltImage;
 
 /**
  * This class encapsulates the processing workflow.
@@ -68,9 +69,7 @@ public class ProcessingWorkflow {
 
     public ProcessingWorkflow(
             Broadcaster broadcaster,
-            File rawImagesDirectory,
-            File debugImagesDirectory,
-            File processedImagesDirectory,
+            Path outputDirectory,
             ParallelExecutor executor,
             List<WorkflowState> states,
             int currentStep,
@@ -83,15 +82,15 @@ public class ProcessingWorkflow {
         this.state = states.get(currentStep);
         this.processParams = processParams;
         this.fps = fps;
-        this.rawImagesEmitter = imageEmitterFactory.newEmitter(broadcaster, executor, rawImagesDirectory);
-        this.debugImagesEmitter = imageEmitterFactory.newEmitter(broadcaster, executor, debugImagesDirectory);
-        this.processedImagesEmitter = imageEmitterFactory.newEmitter(broadcaster, executor, processedImagesDirectory);
+        this.rawImagesEmitter = imageEmitterFactory.newEmitter(broadcaster, executor, Constants.TYPE_RAW, outputDirectory);
+        this.debugImagesEmitter = imageEmitterFactory.newEmitter(broadcaster, executor, Constants.TYPE_DEBUG, outputDirectory);
+        this.processedImagesEmitter = imageEmitterFactory.newEmitter(broadcaster, executor, Constants.TYPE_PROCESSED, outputDirectory);
         this.currentStep = currentStep;
     }
 
     public void start() {
         var image = state.image();
-        rawImagesEmitter.newMonoImage(WorkflowStep.RAW_IMAGE, message("raw"), "recon", image, CutoffStretchingStrategy.DEFAULT);
+        rawImagesEmitter.newMonoImage(WorkflowStep.RAW_IMAGE, message(Constants.TYPE_RAW), "recon", image, CutoffStretchingStrategy.DEFAULT);
         rawImagesEmitter.newMonoImage(WorkflowStep.RAW_IMAGE, message("raw.linear"), "linear", image, LinearStrechingStrategy.DEFAULT);
         var existingFitting = state.findResult(WorkflowStep.ELLIPSE_FITTING);
         if (existingFitting.isEmpty()) {

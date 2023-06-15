@@ -13,18 +13,17 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package me.champeau.a4j.jsolex.processing.sun.workflow;
+package me.champeau.a4j.jsolex.processing.params;
 
-public enum WorkflowStep {
-    AVERAGE_IMAGE,
-    BANDING_CORRECTION,
-    COLORIZED_IMAGE,
-    CORONAGRAPH,
-    DOPPLER_IMAGE,
-    EDGE_DETECTION_IMAGE,
-    ELLIPSE_FITTING,
-    GEOMETRY_CORRECTION,
-    RAW_IMAGE,
-    STRECHED_IMAGE,
-    NEGATIVE_IMAGE
+/**
+ * Represents a pattern for which a name is given, for example "default"
+ * or "flat directory", etc...
+ * @param label a label given to a pattern
+ * @param pattern the pattern
+ */
+public record NamedPattern(String label, String pattern) {
+    @Override
+    public String toString() {
+        return label;
+    }
 }

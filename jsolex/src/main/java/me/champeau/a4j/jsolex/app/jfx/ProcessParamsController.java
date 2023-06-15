@@ -31,7 +31,9 @@ import javafx.util.converter.IntegerStringConverter;
 import me.champeau.a4j.jsolex.app.JSolEx;
 import me.champeau.a4j.jsolex.processing.params.BandingCorrectionParams;
 import me.champeau.a4j.jsolex.processing.params.DebugParams;
+import me.champeau.a4j.jsolex.processing.params.FileNamingPatternsIO;
 import me.champeau.a4j.jsolex.processing.params.GeometryParams;
+import me.champeau.a4j.jsolex.processing.params.NamedPattern;
 import me.champeau.a4j.jsolex.processing.params.ObservationDetails;
 import me.champeau.a4j.jsolex.processing.params.ProcessParams;
 import me.champeau.a4j.jsolex.processing.params.SpectralRay;
@@ -40,6 +42,7 @@ import me.champeau.a4j.jsolex.processing.params.SpectrumParams;
 import me.champeau.a4j.jsolex.processing.params.VideoParams;
 import me.champeau.a4j.math.tuples.DoublePair;
 import me.champeau.a4j.ser.ColorMode;
+import me.champeau.a4j.ser.Header;
 
 import java.io.IOException;
 import java.time.ZonedDateTime;
@@ -83,6 +86,8 @@ public class ProcessParamsController {
     @FXML
     private TextField longitude;
     @FXML
+    private ChoiceBox<NamedPattern> namingPattern;
+    @FXML
     private TextField observationDate;
     @FXML
     private TextField observerName;
@@ -106,11 +111,13 @@ public class ProcessParamsController {
     private TextField xyRatioValue;
 
     private Stage stage;
+    private Header serFileHeader;
     private ProcessParams processParams;
     private boolean quickMode;
 
-    public void setup(Stage stage, ZonedDateTime dateFromSerFile) {
+    public void setup(Stage stage, Header serFileHeader) {
         this.stage = stage;
+        this.serFileHeader = serFileHeader;
         var initial = ProcessParams.loadDefaults();
         accordion.setExpandedPane(accordion.getPanes().get(0));
 
@@ -141,7 +148,7 @@ public class ProcessParamsController {
             aperture.textProperty().setValue(String.valueOf(ap));
         }
         observationDate.setTextFormatter(new TextFormatter<>(new ZonedDateTimeStringConverter()));
-        observationDate.textProperty().set(dateFromSerFile.toString());
+        observationDate.textProperty().set(serFileHeader.metadata().utcDateTime().toString());
         latitude.setTextFormatter(new TextFormatter<>(new DoubleStringConverter()));
         longitude.setTextFormatter(new TextFormatter<>(new DoubleStringConverter()));
         var coordinates = initial.observationDetails().coordinates();
@@ -168,6 +175,19 @@ public class ProcessParamsController {
         horizontalMirror.setSelected(initial.geometryParams().isHorizontalMirror());
         verticalMirror.setSelected(initial.geometryParams().isVerticalMirror());
         sharpen.setSelected(initial.geometryParams().isSharpen());
+        var patterns = FXCollections.observableList(FileNamingPatternsIO.loadDefaults());
+        namingPattern.getItems().addAll(patterns);
+        if (!patterns.isEmpty()) {
+            namingPattern.getSelectionModel().selectFirst();
+            var pattern = initial.debugParams().fileNamePattern();
+            if (pattern != null) {
+                patterns.stream()
+                        .filter(p -> p.pattern().equals(pattern))
+                        .findFirst()
+                        .ifPresent(e -> namingPattern.getSelectionModel().select(e));
+            }
+
+        }
     }
 
     @FXML
@@ -199,7 +219,7 @@ public class ProcessParamsController {
                         geo,
                         ZonedDateTime.parse(observationDate.getText()),
                         camera.getText()),
-                new DebugParams(generateDebugImages.isSelected(), autoSave.isSelected(), generateFits.isSelected()),
+                new DebugParams(generateDebugImages.isSelected(), autoSave.isSelected(), generateFits.isSelected(), namingPattern.getSelectionModel().getSelectedItem().pattern()),
                 new VideoParams(assumeMonoVideo.isSelected() ? ColorMode.MONO : null),
                 new GeometryParams(
                         forceTilt.isSelected() ? Double.parseDouble(tiltValue.getText()) : null,
@@ -217,7 +237,7 @@ public class ProcessParamsController {
     }
 
     private DoublePair toDoublePair(String latitude, String longitude) {
-        if (latitude != null && !latitude.isEmpty() && longitude!=null && !longitude.isEmpty()) {
+        if (latitude != null && !latitude.isEmpty() && longitude != null && !longitude.isEmpty()) {
             return new DoublePair(Double.parseDouble(latitude), Double.parseDouble(longitude));
         }
         return null;
@@ -276,6 +296,34 @@ public class ProcessParamsController {
                     wavelength.getItems().clear();
                     wavelength.getItems().addAll(SpectralRayIO.loadDefaults());
                     wavelength.getSelectionModel().select(ray);
+                });
+            });
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    @FXML
+    public void openNamingPatternEditor() {
+        var fxmlLoader = I18N.fxmlLoader(JSolEx.class, "naming-patterns");
+        try {
+            var node = (Parent) fxmlLoader.load();
+            var controller = (NamingPatternEditor) fxmlLoader.getController();
+            controller.setup(stage, serFileHeader);
+            Scene scene = new Scene(node);
+            var currentScene = stage.getScene();
+            stage.setTitle(I18N.string(JSolEx.class, "naming-patterns", "frame.title"));
+            stage.setScene(scene);
+            stage.show();
+            stage.setOnCloseRequest(e -> {
+                if (stage.getScene() == scene) {
+                    stage.setScene(currentScene);
+                    e.consume();
+                }
+                controller.getSelectedPattern().ifPresent(pattern -> {
+                    namingPattern.getItems().clear();
+                    namingPattern.getItems().addAll(FileNamingPatternsIO.loadDefaults());
+                    namingPattern.getSelectionModel().select(pattern);
                 });
             });
         } catch (IOException e) {
