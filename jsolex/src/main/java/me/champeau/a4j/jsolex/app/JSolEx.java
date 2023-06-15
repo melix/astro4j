@@ -68,10 +68,10 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Collections;
 import java.util.HashMap;
-import java.util.List;
+import java.util.LinkedHashMap;
 import java.util.Map;
-import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Consumer;
@@ -102,7 +102,7 @@ public class JSolEx extends Application {
 
     private boolean reconstructionStarted = false;
 
-    private final List<String> suggestions = new CopyOnWriteArrayList<>();
+    private final Map<SuggestionEvent.SuggestionKind, String> suggestions = Collections.synchronizedMap(new LinkedHashMap<>());
 
     private final ReentrantLock lock = new ReentrantLock();
 
@@ -467,7 +467,9 @@ public class JSolEx extends Application {
 
         @Override
         public void onSuggestion(SuggestionEvent e) {
-            suggestions.add(e.getPayload());
+            if (!suggestions.containsKey(e.kind())) {
+                suggestions.put(e.kind(), e.getPayload());
+            }
         }
 
         @Override
@@ -483,7 +485,7 @@ public class JSolEx extends Application {
             var sb = new StringBuilder();
             if (!suggestions.isEmpty()) {
                 sb.append(message("suggestions") + " :\n");
-                for (String suggestion : suggestions) {
+                for (String suggestion : suggestions.values()) {
                     sb.append("    - ").append(suggestion).append("\n");
                 }
             }

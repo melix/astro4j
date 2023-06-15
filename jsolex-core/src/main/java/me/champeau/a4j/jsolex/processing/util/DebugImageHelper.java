@@ -19,6 +19,7 @@ import me.champeau.a4j.jsolex.processing.params.ProcessParams;
 import me.champeau.a4j.jsolex.processing.stretching.LinearStrechingStrategy;
 import me.champeau.a4j.jsolex.processing.sun.workflow.ImageEmitter;
 import me.champeau.a4j.jsolex.processing.sun.workflow.WorkflowStep;
+import me.champeau.a4j.math.Point2D;
 import me.champeau.a4j.math.regression.Ellipse;
 
 import static me.champeau.a4j.jsolex.processing.util.Constants.message;
@@ -31,21 +32,22 @@ public class DebugImageHelper {
 
     }
 
-    public static void maybeDisplayTiltImage(ProcessParams processParams, ImageEmitter processedImagesEmitter, ImageWrapper32 bandingFixed, int y0, int y1, int x0, int x1, int width, int height, Ellipse ellipse) {
+    public static void maybeDisplayTiltImage(ProcessParams processParams,
+                                             ImageEmitter processedImagesEmitter,
+                                             ImageWrapper32 bandingFixed,
+                                             Ellipse ellipse,
+                                             Point2D... interestPoints) {
         if (processParams.debugParams().generateDebugImages()) {
             var newData = new float[bandingFixed.data().length];
             var original = bandingFixed.data();
             System.arraycopy(original, 0, newData, 0, newData.length);
             LinearStrechingStrategy.DEFAULT.stretch(newData);
-            plot(x0, y0, width, height, newData);
-            plot(x1, y1, width, height, newData);
-            for (int y = y0; y <= y1; y++) {
-                plot(x0, y, width, height, newData);
-            }
-            for (int x = Math.min(x0, x1); x <= Math.max(x0, x1); x++) {
-                plot(x, y1, width, height, newData);
-            }
+            var width = bandingFixed.width();
+            var height = bandingFixed.height();
             drawEllipse(width, height, ellipse, newData);
+            for (Point2D point : interestPoints) {
+                plot(point, width, height, newData, 12);
+            }
             produceOverlayImage(processedImagesEmitter, width, height, newData, original);
         }
     }
@@ -60,24 +62,58 @@ public class DebugImageHelper {
         });
     }
 
-    private static void drawEllipse(int width, int height, Ellipse ellipse, float[] newData) {
-        for (int y = 0; y < height; y++) {
-            var mx = -1;
-            for (int x = 0; x < width; x++) {
-                if (mx == -1 && ellipse.isWithin(x, y)) {
-                    plot(x, y, width, height, newData);
-                    mx = x;
-                } else if (mx >= 0 && !ellipse.isWithin(x, y)) {
-                    plot(x - 1, y, width, height, newData);
-                    break;
-                }
-            }
+    private static void drawEllipse(int width, int height, Ellipse ellipse, float[] buffer) {
+        var center = ellipse.center();
+        var cx = (int) center.a();
+        var cy = (int) center.b();
+        for (double alpha = -Math.PI; alpha <= Math.PI; alpha += 0.004d) {
+            var p = ellipse.toCartesian(alpha);
+            plot(p, width, height, buffer, (int) (4 + alpha / Math.PI));
+        }
+        for (int x = Math.max(0, cx - 10); x < Math.min(width, cx + 11); x++) {
+            plot(x, cy, width, height, buffer);
+        }
+        for (int y = Math.max(0, cy - 10); y < Math.min(width, cy + 11); y++) {
+            plot(cx, y, width, height, buffer);
+        }
+        drawCircle(cx, cy, (int) ellipse.semiAxis().a(), width, height, buffer);
+        drawCircle(cx, cy, (int) ellipse.semiAxis().b(), width, height, buffer);
+        var theta = ellipse.rotationAngle();
+        for (double i = -ellipse.semiAxis().a(); i < ellipse.semiAxis().a(); i += .2) {
+            var x = cx + i * Math.cos(theta);
+            var y = cy + i * Math.sin(theta);
+            plot((int) x, (int) y, width, height, buffer);
+        }
+        for (double i = -ellipse.semiAxis().b(); i < ellipse.semiAxis().b(); i += .2) {
+            var x = cx + i * Math.cos(theta - Math.PI / 2);
+            var y = cy + i * Math.sin(theta - Math.PI / 2);
+            plot((int) x, (int) y, width, height, buffer);
+        }
+        var vertices = ellipse.findVertices();
+        for (Point2D vertex : vertices) {
+            plot((int) vertex.x(), (int) vertex.y(), width, height, buffer, 8);
+        }
+    }
+
+    public static void drawCircle(int cx, int cy, int radius, int width, int height, float[] data) {
+        for (double angle = 0; angle <= 2 * Math.PI; angle += 0.01) {
+            var x = cx + radius * Math.cos(angle);
+            var y = cy + radius * Math.sin(angle);
+            plot((int) x, (int) y, width, height, data);
         }
     }
 
     public static void plot(int x, int y, int width, int height, float[] data) {
-        for (int yy = Math.max(0, y - 1); yy < Math.min(height, y + 2); yy++) {
-            for (int xx = Math.max(0, x - 1); xx < Math.min(width, x + 2); xx++) {
+        plot(x, y, width, height, data, 1);
+    }
+
+    public static void plot(Point2D p, int width, int height, float[] data, int size) {
+        plot((int) p.x(), (int) p.y(), width, height, data, size);
+    }
+
+    public static void plot(int x, int y, int width, int height, float[] data, int size) {
+        for (int yy = Math.max(0, y - size); yy < Math.min(height, y + size + 1); yy++) {
+            for (int xx = Math.max(0, x - size); xx < Math.min(width, x + size + 1); xx++) {
                 data[xx + yy * width] = Constants.MAX_PIXEL_VALUE;
             }
         }

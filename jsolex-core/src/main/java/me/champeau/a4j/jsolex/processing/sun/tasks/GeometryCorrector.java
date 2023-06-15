@@ -16,7 +16,6 @@
 package me.champeau.a4j.jsolex.processing.sun.tasks;
 
 import me.champeau.a4j.jsolex.processing.event.ProgressEvent;
-import me.champeau.a4j.jsolex.processing.event.SuggestionEvent;
 import me.champeau.a4j.jsolex.processing.params.ProcessParams;
 import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
 import me.champeau.a4j.jsolex.processing.sun.crop.Cropper;
@@ -30,88 +29,87 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.Arrays;
-import java.util.Optional;
-import java.util.OptionalDouble;
+
+import static me.champeau.a4j.jsolex.processing.util.Constants.message;
 
 public class GeometryCorrector extends AbstractTask<GeometryCorrector.Result> {
     private static final Logger LOGGER = LoggerFactory.getLogger(GeometryCorrector.class);
 
-    private final double correctionAngle;
+    private final Ellipse ellipse;
+    private final Double forcedTilt;
+    private final Double xyRatio;
     private final Double frameRate;
-    private final OptionalDouble forcedRatio;
-    // This is the sun disk as detected after the initial image correction
-    // So that next images use the same geometry
-    private final Optional<Ellipse> sunDisk;
     private final float blackPoint;
     private final ProcessParams processParams;
-    private final ImageEmitter debugImagesEmitter;
+    private final ImageEmitter imageEmitter;
 
     public GeometryCorrector(Broadcaster broadcaster,
                              ImageWrapper32 image,
-                             double correctionAngle,
+                             Ellipse ellipse,
+                             Double forcedTilt,
                              Double frameRate,
-                             OptionalDouble forcedRatio,
-                             Optional<Ellipse> sunDisk,
+                             Double xyRatio,
                              float blackPoint,
                              ProcessParams processParams,
-                             ImageEmitter debugImagesEmitter) {
+                             ImageEmitter imageEmitter) {
         super(broadcaster, image);
-        this.correctionAngle = correctionAngle;
+        this.ellipse = ellipse;
+        this.forcedTilt = forcedTilt;
         this.frameRate = frameRate;
-        this.forcedRatio = forcedRatio;
-        this.sunDisk = sunDisk;
+        this.xyRatio = xyRatio;
         this.blackPoint = blackPoint;
         this.processParams = processParams;
-        this.debugImagesEmitter = debugImagesEmitter;
+        this.imageEmitter = imageEmitter;
     }
 
     @Override
     public Result call() throws Exception {
         broadcaster.broadcast(ProgressEvent.of(0, "Correcting geometry"));
-        var atan = Math.atan(correctionAngle);
-        var maxDx = height * atan;
-        var extendedWidth = width + (int) Math.ceil(Math.abs(maxDx));
-        float[] newBuffer = new float[height * extendedWidth];
-        Arrays.fill(newBuffer, blackPoint);
-        var shift = maxDx < 0 ? maxDx : 0;
-        for (int y = 0; y < height; y++) {
-            var dx = y * atan;
-            for (int x = 0; x < width; x++) {
-                int nx = (int) (x - shift + dx);
-                newBuffer[nx + y * extendedWidth] = buffer[x + y * width];
-            }
-        }
-        var fitting = performFitting(new ImageWrapper32(extendedWidth, height, newBuffer));
-        double sx, sy;
-        var ratio = fitting.xyRatio();
-        if (forcedRatio.isPresent()) {
-            ratio = forcedRatio.getAsDouble();
-            LOGGER.info("Overriding X/Y ratio to {}", String.format("%.2f", ratio));
-        }
-        if (ratio < 1) {
-            sx = 1d;
-            sy = 1d / ratio;
-            if (ratio < 0.98 && frameRate != null && forcedRatio.isEmpty()) {
-                double exposureInMillis = 1000d / frameRate;
-                broadcaster.broadcast(new SuggestionEvent(
-                        "Image is undersampled by a factor of " +
-                        String.format("%.2f", ratio) +
-                        ". Try to use " + String.format("%.2f ms exposure", exposureInMillis * ratio)
-                        + " at acquisition instead of " + String.format("%.2f fps", exposureInMillis))
-                );
+        var theta = forcedTilt == null ? ellipse.rotationAngle() : forcedTilt;
+        var m = Math.tan(-theta);
+        var semiAxis = ellipse.semiAxis();
+        var a = semiAxis.a();
+        var b = semiAxis.b();
+        var cos = Math.cos(theta);
+        var sin = Math.sin(theta);
+        var shear = (m * cos * a * a + sin * b * b) / (b * b * cos - a * a * m * sin);
+        LOGGER.debug("a = {}, b={}, theta={}", a, b, theta);
+        boolean performTransform = Math.abs(180 * theta / Math.PI) > 1;
+        var maxDx = height * shear;
+        float[] newBuffer;
+        int extendedWidth = width;
+        if (performTransform) {
+            extendedWidth = width + (int) Math.ceil(Math.abs(maxDx));
+            newBuffer = new float[height * extendedWidth];
+            Arrays.fill(newBuffer, blackPoint);
+            var shift = maxDx < 0 ? maxDx : 0;
+            for (int y = 0; y < height; y++) {
+                var dx = y * shear;
+                for (int x = 0; x < width; x++) {
+                    int nx = (int) (x - shift + dx);
+                    newBuffer[nx + y * extendedWidth] = buffer[x + y * width];
+                }
             }
         } else {
-            sx = ratio;
-            sy = 1d;
+            LOGGER.info(message("good.tilt"));
+            newBuffer = new float[buffer.length];
+            System.arraycopy(buffer, 0, newBuffer, 0, buffer.length);
+        }
+        double sx = 1.0d;
+        double sy = Math.abs((a * b * Math.sqrt((a * a * m * m + b * b) / (a * a * sin * sin + b * b * cos * cos)) / (b * b * cos - a * a * m * sin)));
+        LOGGER.info(message("detected.xy.ratio"), String.format("%.2f", sy));
+        if (xyRatio != null) {
+            sy = xyRatio;
+        }
+        if (sy < 1) {
+            // because we don't want to do downsampling, we're inverting ratios
+            sx = 1 / sy;
+            sy = 1.0d;
         }
         var rotated = ImageMath.newInstance().rotateAndScale(new Image(extendedWidth, height, newBuffer), 0, blackPoint, sx, sy);
         broadcaster.broadcast(ProgressEvent.of(1, "Correcting geometry"));
         var full = new ImageWrapper32(rotated.width(), rotated.height(), rotated.data());
-        return crop(rotated, full);
-    }
-
-    private Ellipse sunDisk(ImageWrapper32 image) {
-        return sunDisk.orElseGet(() -> performFitting(image));
+        return new Result(crop(rotated, full), ellipse);
     }
 
     private Ellipse performFitting(ImageWrapper32 image) {
@@ -124,9 +122,9 @@ public class GeometryCorrector extends AbstractTask<GeometryCorrector.Result> {
         return fitting.ellipse();
     }
 
-    private Result crop(Image rotated, ImageWrapper32 full) {
-        var diskEllipse = sunDisk(full);
-        return new Result(ImageWrapper32.fromImage(Cropper.cropToSquare(rotated, diskEllipse, blackPoint)), diskEllipse);
+    private ImageWrapper32 crop(Image rotated, ImageWrapper32 full) {
+        var diskEllipse = performFitting(full);
+        return ImageWrapper32.fromImage(Cropper.cropToSquare(rotated, diskEllipse, blackPoint));
     }
 
     public record Result(

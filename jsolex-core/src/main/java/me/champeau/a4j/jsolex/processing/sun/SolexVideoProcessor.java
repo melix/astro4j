@@ -172,11 +172,6 @@ public class SolexVideoProcessor implements Broadcaster {
                 } catch (Exception e) {
                     throw new ProcessingException(e);
                 }
-                if (step == 0) {
-                    // For the subsequent steps, we're going to use the same tilt/xy ratio as the initial
-                    // step in order to align images
-                    currentParams = currentParams.withGeometry(workflow.getTilt() * 180 / Math.PI, workflow.getXyRatio());
-                }
             }
         } else {
             LOGGER.error(message("unable.find.spectral.line"));
