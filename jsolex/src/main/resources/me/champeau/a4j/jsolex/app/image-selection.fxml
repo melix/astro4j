@@ -44,7 +44,7 @@
          <children>
             <Label text="%pixel.shifts" />
             <TextField fx:id="pixelShifts" GridPane.columnIndex="1" />
-            <Label text="Images to generate" GridPane.rowIndex="1" />
+            <Label text="%images.to.generate" GridPane.rowIndex="1" />
             <VBox prefHeight="200.0" prefWidth="100.0" spacing="4.0" GridPane.rowIndex="2">
                <children>
                   <CheckBox fx:id="reconstruction" mnemonicParsing="false" text="%reconstruction" />
