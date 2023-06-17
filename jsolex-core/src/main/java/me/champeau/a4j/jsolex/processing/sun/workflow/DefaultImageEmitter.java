@@ -50,7 +50,7 @@ public class DefaultImageEmitter implements ImageEmitter {
     }
 
     @Override
-    public Future<Void> newMonoImage(WorkflowStep step, String title, String name, ImageWrapper32 image, StretchingStrategy stretchingStrategy, Consumer<? super float[]> bufferConsumer) {
+    public Future<Void> newMonoImage(GeneratedImageKind kind, String title, String name, ImageWrapper32 image, StretchingStrategy stretchingStrategy, Consumer<? super float[]> bufferConsumer) {
         prepareOutput(name);
         return executor.submit(new WriteMonoImageTask(broadcaster,
                 image,
@@ -76,7 +76,7 @@ public class DefaultImageEmitter implements ImageEmitter {
     }
 
     @Override
-    public Future<Void> newMonoImage(WorkflowStep step, String title, String name, ImageWrapper32 image, StretchingStrategy stretchingStrategy) {
+    public Future<Void> newMonoImage(GeneratedImageKind kind, String title, String name, ImageWrapper32 image, StretchingStrategy stretchingStrategy) {
         prepareOutput(name);
         return executor.submit(new WriteMonoImageTask(broadcaster,
                 image,
@@ -88,7 +88,7 @@ public class DefaultImageEmitter implements ImageEmitter {
     }
 
     @Override
-    public Future<Void> newColorImage(WorkflowStep step, String title, String name, ImageWrapper32 image, StretchingStrategy stretchingStrategy, Function<float[], float[][]> rgbSupplier) {
+    public Future<Void> newColorImage(GeneratedImageKind kind, String title, String name, ImageWrapper32 image, StretchingStrategy stretchingStrategy, Function<float[], float[][]> rgbSupplier) {
         prepareOutput(name);
         return executor.submit(new WriteColorizedImageTask(broadcaster,
                 image,
@@ -101,7 +101,7 @@ public class DefaultImageEmitter implements ImageEmitter {
     }
 
     @Override
-    public Future<Void> newColorImage(WorkflowStep step, String title, String name, StretchingStrategy stretchingStrategy, int width, int height, Supplier<float[][]> rgbSupplier) {
+    public Future<Void> newColorImage(GeneratedImageKind kind, String title, String name, StretchingStrategy stretchingStrategy, int width, int height, Supplier<float[][]> rgbSupplier) {
         prepareOutput(name);
         return executor.submit(new WriteRGBImageTask(broadcaster,
                 stretchingStrategy,

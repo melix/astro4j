@@ -17,8 +17,8 @@ package me.champeau.a4j.jsolex.processing.util;
 
 import me.champeau.a4j.jsolex.processing.params.ProcessParams;
 import me.champeau.a4j.jsolex.processing.stretching.LinearStrechingStrategy;
+import me.champeau.a4j.jsolex.processing.sun.workflow.GeneratedImageKind;
 import me.champeau.a4j.jsolex.processing.sun.workflow.ImageEmitter;
-import me.champeau.a4j.jsolex.processing.sun.workflow.WorkflowStep;
 import me.champeau.a4j.math.Point2D;
 import me.champeau.a4j.math.regression.Ellipse;
 
@@ -53,7 +53,7 @@ public class DebugImageHelper {
     }
 
     private static void produceOverlayImage(ImageEmitter processedImagesEmitter, int width, int height, float[] newData, float[] original) {
-        processedImagesEmitter.newColorImage(WorkflowStep.GEOMETRY_CORRECTION, message("tilt.detection"), "tilt", LinearStrechingStrategy.DEFAULT, width, height, () -> {
+        processedImagesEmitter.newColorImage(GeneratedImageKind.DEBUG, message("tilt.detection"), "tilt", LinearStrechingStrategy.DEFAULT, width, height, () -> {
             float[][] rgb = new float[3][];
             rgb[0] = newData;
             rgb[1] = original;
@@ -62,7 +62,7 @@ public class DebugImageHelper {
         });
     }
 
-    private static void drawEllipse(int width, int height, Ellipse ellipse, float[] buffer) {
+    public static void drawEllipse(int width, int height, Ellipse ellipse, float[] buffer) {
         var center = ellipse.center();
         var cx = (int) center.a();
         var cy = (int) center.b();

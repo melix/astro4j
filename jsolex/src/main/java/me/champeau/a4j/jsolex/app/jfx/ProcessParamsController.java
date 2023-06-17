@@ -36,6 +36,7 @@ import me.champeau.a4j.jsolex.processing.params.GeometryParams;
 import me.champeau.a4j.jsolex.processing.params.NamedPattern;
 import me.champeau.a4j.jsolex.processing.params.ObservationDetails;
 import me.champeau.a4j.jsolex.processing.params.ProcessParams;
+import me.champeau.a4j.jsolex.processing.params.RequestedImages;
 import me.champeau.a4j.jsolex.processing.params.SpectralRay;
 import me.champeau.a4j.jsolex.processing.params.SpectralRayIO;
 import me.champeau.a4j.jsolex.processing.params.SpectrumParams;
@@ -46,6 +47,7 @@ import me.champeau.a4j.ser.Header;
 
 import java.io.IOException;
 import java.time.ZonedDateTime;
+import java.util.List;
 import java.util.Optional;
 
 public class ProcessParamsController {
@@ -112,13 +114,13 @@ public class ProcessParamsController {
 
     private Stage stage;
     private Header serFileHeader;
+    private ProcessParams initialProcessParams;
     private ProcessParams processParams;
-    private boolean quickMode;
 
     public void setup(Stage stage, Header serFileHeader) {
         this.stage = stage;
         this.serFileHeader = serFileHeader;
-        var initial = ProcessParams.loadDefaults();
+        this.initialProcessParams = ProcessParams.loadDefaults();
         accordion.setExpandedPane(accordion.getPanes().get(0));
 
         wavelength.getItems().addAll(FXCollections.observableList(SpectralRayIO.loadDefaults()));
@@ -129,21 +131,21 @@ public class ProcessParamsController {
             }
         });
         spectralLineDetectionThreshold.valueProperty().set(wavelength.getValue().detectionThreshold());
-        observerName.textProperty().setValue(initial.observationDetails().observer());
-        email.textProperty().setValue(initial.observationDetails().email());
-        instrument.textProperty().setValue(initial.observationDetails().instrument());
-        telescope.textProperty().setValue(initial.observationDetails().telescope());
-        camera.textProperty().setValue(initial.observationDetails().camera());
-        generateDebugImages.setSelected(initial.debugParams().generateDebugImages());
-        generateFits.setSelected(initial.debugParams().generateFits());
-        autoSave.setSelected(initial.debugParams().autosave());
+        observerName.textProperty().setValue(initialProcessParams.observationDetails().observer());
+        email.textProperty().setValue(initialProcessParams.observationDetails().email());
+        instrument.textProperty().setValue(initialProcessParams.observationDetails().instrument());
+        telescope.textProperty().setValue(initialProcessParams.observationDetails().telescope());
+        camera.textProperty().setValue(initialProcessParams.observationDetails().camera());
+        generateDebugImages.setSelected(initialProcessParams.debugParams().generateDebugImages());
+        generateFits.setSelected(initialProcessParams.debugParams().generateFits());
+        autoSave.setSelected(initialProcessParams.debugParams().autosave());
         focalLength.setTextFormatter(new TextFormatter<>(new IntegerStringConverter()));
         aperture.setTextFormatter(new TextFormatter<>(new IntegerStringConverter()));
-        var length = initial.observationDetails().focalLength();
+        var length = initialProcessParams.observationDetails().focalLength();
         if (length != null) {
             focalLength.textProperty().setValue(String.valueOf(length));
         }
-        var ap = initial.observationDetails().aperture();
+        var ap = initialProcessParams.observationDetails().aperture();
         if (ap != null) {
             aperture.textProperty().setValue(String.valueOf(ap));
         }
@@ -151,35 +153,35 @@ public class ProcessParamsController {
         observationDate.textProperty().set(serFileHeader.metadata().utcDateTime().toString());
         latitude.setTextFormatter(new TextFormatter<>(new DoubleStringConverter()));
         longitude.setTextFormatter(new TextFormatter<>(new DoubleStringConverter()));
-        var coordinates = initial.observationDetails().coordinates();
+        var coordinates = initialProcessParams.observationDetails().coordinates();
         if (coordinates != null) {
             latitude.setText(Double.toString(coordinates.a()));
             longitude.setText(Double.toString(coordinates.b()));
         }
-        pixelShifting.valueProperty().set(initial.spectrumParams().pixelShift());
-        dopplerShifting.valueProperty().set(initial.spectrumParams().dopplerShift());
-        switchRedBlueChannels.setSelected(initial.spectrumParams().switchRedBlueChannels());
-        assumeMonoVideo.setSelected(initial.videoParams().colorMode() == ColorMode.MONO);
+        pixelShifting.valueProperty().set(initialProcessParams.spectrumParams().pixelShift());
+        dopplerShifting.valueProperty().set(initialProcessParams.spectrumParams().dopplerShift());
+        switchRedBlueChannels.setSelected(initialProcessParams.spectrumParams().switchRedBlueChannels());
+        assumeMonoVideo.setSelected(initialProcessParams.videoParams().colorMode() == ColorMode.MONO);
         forceTilt.setSelected(false);
         tiltValue.setTextFormatter(new TextFormatter<>(new DoubleStringConverter()));
-        tiltValue.setText(Double.toString(initial.geometryParams().tilt().orElse(0d)));
+        tiltValue.setText(Double.toString(initialProcessParams.geometryParams().tilt().orElse(0d)));
         tiltValue.setDisable(true);
         forceTilt.selectedProperty().addListener((observable, oldValue, newValue) -> tiltValue.setDisable(!newValue));
         forceXYRatio.setSelected(false);
         xyRatioValue.setTextFormatter(new TextFormatter<>(new DoubleStringConverter()));
-        xyRatioValue.setText(Double.toString(initial.geometryParams().xyRatio().orElse(1.0d)));
+        xyRatioValue.setText(Double.toString(initialProcessParams.geometryParams().xyRatio().orElse(1.0d)));
         xyRatioValue.setDisable(true);
         forceXYRatio.selectedProperty().addListener((observable, oldValue, newValue) -> xyRatioValue.setDisable(!newValue));
-        bandingCorrectionWidth.setValue(initial.bandingCorrectionParams().width());
-        bandingCorrectionPasses.setValue(initial.bandingCorrectionParams().passes());
-        horizontalMirror.setSelected(initial.geometryParams().isHorizontalMirror());
-        verticalMirror.setSelected(initial.geometryParams().isVerticalMirror());
-        sharpen.setSelected(initial.geometryParams().isSharpen());
+        bandingCorrectionWidth.setValue(initialProcessParams.bandingCorrectionParams().width());
+        bandingCorrectionPasses.setValue(initialProcessParams.bandingCorrectionParams().passes());
+        horizontalMirror.setSelected(initialProcessParams.geometryParams().isHorizontalMirror());
+        verticalMirror.setSelected(initialProcessParams.geometryParams().isVerticalMirror());
+        sharpen.setSelected(initialProcessParams.geometryParams().isSharpen());
         var patterns = FXCollections.observableList(FileNamingPatternsIO.loadDefaults());
         namingPattern.getItems().addAll(patterns);
         if (!patterns.isEmpty()) {
             namingPattern.getSelectionModel().selectFirst();
-            var pattern = initial.debugParams().fileNamePattern();
+            var pattern = initialProcessParams.debugParams().fileNamePattern();
             if (pattern != null) {
                 patterns.stream()
                         .filter(p -> p.pattern().equals(pattern))
@@ -197,11 +199,46 @@ public class ProcessParamsController {
 
     @FXML
     public void process() {
-        doProcess(false);
+        int dopplerShift = (int) dopplerShifting.getValue();
+        doProcess(new RequestedImages(
+                RequestedImages.FULL_MODE,
+                List.of((int) pixelShifting.getValue(), dopplerShift, -dopplerShift)
+        ));
     }
 
-    private void doProcess(boolean quick) {
-        this.quickMode = quick;
+    @FXML
+    public void customProcess() {
+        var fxmlLoader = I18N.fxmlLoader(JSolEx.class, "image-selection");
+        try {
+            var node = (Parent) fxmlLoader.load();
+            var controller = (ImageSelector) fxmlLoader.getController();
+            controller.setup(stage, initialProcessParams.requestedImages().images(), generateDebugImages.isSelected(), List.of((int) pixelShifting.getValue()), (int) dopplerShifting.getValue());
+            Scene scene = new Scene(node);
+            var currentScene = stage.getScene();
+            stage.setTitle(I18N.string(JSolEx.class, "image-selection", "frame.title"));
+            stage.setScene(scene);
+            stage.show();
+            stage.setOnCloseRequest(e -> {
+                if (stage.getScene() == scene) {
+                    stage.setScene(currentScene);
+                    e.consume();
+                }
+                controller.getRequestedImages().ifPresent(requested -> {
+                    generateDebugImages.setSelected(controller.hasDebug());
+                    var shifts = requested.pixelShifts();
+                    if (!shifts.contains((int) pixelShifting.getValue())) {
+                        pixelShifting.setValue(shifts.get(0));
+                    }
+                    doProcess(requested);
+                    stage.close();
+                });
+            });
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    private void doProcess(RequestedImages requestedImages) {
         var focalLength = this.focalLength.getText();
         var aperture = this.aperture.getText();
         var latitude = this.latitude.getText();
@@ -230,7 +267,8 @@ public class ProcessParamsController {
                 new BandingCorrectionParams(
                         (int) Math.round(bandingCorrectionWidth.getValue()),
                         (int) Math.round(bandingCorrectionPasses.getValue())
-                )
+                ),
+                requestedImages
         );
         ProcessParams.saveDefaults(processParams);
         stage.close();
@@ -245,11 +283,10 @@ public class ProcessParamsController {
 
     @FXML
     public void quickProcess() {
-        doProcess(true);
-    }
-
-    public boolean isQuickMode() {
-        return quickMode;
+        doProcess(new RequestedImages(
+                RequestedImages.QUICK_MODE,
+                List.of((int) pixelShifting.getValue())
+        ));
     }
 
     public Optional<ProcessParams> getProcessParams() {

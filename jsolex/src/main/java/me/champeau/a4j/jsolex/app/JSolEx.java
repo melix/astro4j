@@ -71,6 +71,8 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Consumer;
@@ -79,6 +81,7 @@ import static me.champeau.a4j.jsolex.processing.util.LoggingSupport.logError;
 
 public class JSolEx extends Application {
     private static final Logger LOGGER = LoggerFactory.getLogger(JSolEx.class);
+    private final ExecutorService executor = Executors.newCachedThreadPool();
 
     private final Configuration config = new Configuration();
 
@@ -131,6 +134,7 @@ public class JSolEx extends Application {
             stage.show();
             refreshRecentItemsMenu();
             LogbackConfigurer.configureLogger(console);
+            stage.setOnCloseRequest(e -> executor.shutdownNow());
         } catch (IOException exception) {
             throw new RuntimeException(exception);
         }
@@ -230,13 +234,13 @@ public class JSolEx extends Application {
         try (var reader = SerFileReader.of(selectedFile)) {
             var controller = createProcessParams(reader);
             var processParams = controller.getProcessParams();
-            processParams.ifPresent(params -> startProcess(selectedFile, params, controller.isQuickMode()));
+            processParams.ifPresent(params -> startProcess(selectedFile, params));
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
     }
 
-    private void startProcess(File selectedFile, ProcessParams params, boolean quickMode) {
+    private void startProcess(File selectedFile, ProcessParams params) {
         mainPane.getTabs().clear();
         console.textProperty().set("");
         reconstructionStarted = false;
@@ -247,8 +251,7 @@ public class JSolEx extends Application {
         LoggingSupport.LOGGER.info(message("output.dir.set"), outputDirectory);
         var processor = new SolexVideoProcessor(selectedFile,
                 outputDirectory.toPath(),
-                params,
-                quickMode
+                params
         );
         var listener = new DefaultProcessingEventListener(baseName, params);
         processor.addEventListener(listener);
@@ -292,7 +295,7 @@ public class JSolEx extends Application {
         try {
             var node = (Node) fxmlLoader.load();
             var controller = (ImageViewer) fxmlLoader.getController();
-            controller.init(node, mainPane);
+            controller.init(node, mainPane, executor);
             return controller;
         } catch (IOException e) {
             throw new RuntimeException(e);
@@ -406,23 +409,23 @@ public class JSolEx extends Application {
 
         @Override
         public void onImageGenerated(ImageGeneratedEvent event) {
-            var tab = new Tab(event.getPayload().title());
-            var viewer = newImageViewer();
-            viewer.fitWidthProperty().bind(mainPane.widthProperty());
-            viewer.setTab(tab);
-            viewer.setup(this,
-                    baseName,
-                    event.getPayload().image(),
-                    event.getPayload().stretchingStrategy(),
-                    event.getPayload().path().toFile(),
-                    params
-            );
-            var scrollPane = new ScrollPane();
-            scrollPane.setContent(viewer.getRoot());
-            tab.setContent(scrollPane);
             BatchOperations.submit(() -> {
                 lock.lock();
                 try {
+                    var tab = new Tab(event.getPayload().title());
+                    var viewer = newImageViewer();
+                    viewer.fitWidthProperty().bind(mainPane.widthProperty());
+                    viewer.setTab(tab);
+                    viewer.setup(this,
+                            baseName,
+                            event.getPayload().image(),
+                            event.getPayload().stretchingStrategy(),
+                            event.getPayload().path().toFile(),
+                            params
+                    );
+                    var scrollPane = new ScrollPane();
+                    scrollPane.setContent(viewer.getRoot());
+                    tab.setContent(scrollPane);
                     mainPane.getTabs().add(tab);
                 } finally {
                     lock.unlock();

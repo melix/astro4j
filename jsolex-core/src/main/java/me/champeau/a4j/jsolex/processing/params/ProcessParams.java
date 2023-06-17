@@ -24,7 +24,8 @@ public record ProcessParams(
         DebugParams debugParams,
         VideoParams videoParams,
         GeometryParams geometryParams,
-        BandingCorrectionParams bandingCorrectionParams
+        BandingCorrectionParams bandingCorrectionParams,
+        RequestedImages requestedImages
 ) {
     public static ProcessParams loadDefaults() {
         return ProcessParamsIO.loadDefaults();
@@ -34,7 +35,7 @@ public record ProcessParams(
         ProcessParamsIO.saveDefaults(params);
     }
 
-    public static Optional<ProcessParams>  readFrom(File configFile) {
+    public static Optional<ProcessParams> readFrom(File configFile) {
         return Optional.ofNullable(ProcessParamsIO.readFrom(configFile.toPath()));
     }
 
@@ -49,7 +50,8 @@ public record ProcessParams(
                 debugParams,
                 videoParams,
                 new GeometryParams(tilt, xyRatio, geometryParams().isHorizontalMirror(), geometryParams().isVerticalMirror(), geometryParams.isSharpen()),
-                bandingCorrectionParams
+                bandingCorrectionParams,
+                requestedImages
         );
     }
 
@@ -60,7 +62,8 @@ public record ProcessParams(
                 debugParams,
                 videoParams,
                 geometryParams,
-                bandingCorrectionParams
+                bandingCorrectionParams,
+                requestedImages
         );
     }
 
@@ -71,7 +74,8 @@ public record ProcessParams(
                 debugParams,
                 videoParams,
                 geometryParams,
-                bandingCorrectionParams
+                bandingCorrectionParams,
+                requestedImages
         );
     }
 
@@ -82,7 +86,8 @@ public record ProcessParams(
                 debugParams,
                 videoParams,
                 geometryParams,
-                bandingCorrectionParams
+                bandingCorrectionParams,
+                requestedImages
         );
     }
 
@@ -93,7 +98,8 @@ public record ProcessParams(
                 debugParams,
                 videoParams,
                 geometryParams,
-                bandingCorrectionParams
+                bandingCorrectionParams,
+                requestedImages
         );
     }
 
@@ -104,7 +110,8 @@ public record ProcessParams(
                 debugParams,
                 videoParams,
                 geometryParams,
-                bandingCorrectionParams
+                bandingCorrectionParams,
+                requestedImages
         );
     }
 
@@ -115,7 +122,20 @@ public record ProcessParams(
                 debugParams,
                 videoParams,
                 geometryParams,
-                bandingCorrectionParams
+                bandingCorrectionParams,
+                requestedImages
+        );
+    }
+
+    public ProcessParams withRequestedImages(RequestedImages requestedImages) {
+        return new ProcessParams(
+                spectrumParams,
+                observationDetails,
+                debugParams,
+                videoParams,
+                geometryParams,
+                bandingCorrectionParams,
+                requestedImages
         );
     }
 }

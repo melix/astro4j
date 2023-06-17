@@ -20,8 +20,8 @@ import me.champeau.a4j.jsolex.processing.params.ProcessParams;
 import me.champeau.a4j.jsolex.processing.stretching.CutoffStretchingStrategy;
 import me.champeau.a4j.jsolex.processing.stretching.LinearStrechingStrategy;
 import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
+import me.champeau.a4j.jsolex.processing.sun.workflow.GeneratedImageKind;
 import me.champeau.a4j.jsolex.processing.sun.workflow.ImageEmitter;
-import me.champeau.a4j.jsolex.processing.sun.workflow.WorkflowStep;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 import me.champeau.a4j.math.Point2D;
 import me.champeau.a4j.math.image.Image;
@@ -35,8 +35,8 @@ import org.slf4j.LoggerFactory;
 import java.util.ArrayList;
 import java.util.List;
 
-import static me.champeau.a4j.jsolex.processing.util.DebugImageHelper.plot;
 import static me.champeau.a4j.jsolex.processing.util.Constants.message;
+import static me.champeau.a4j.jsolex.processing.util.DebugImageHelper.plot;
 
 public class EllipseFittingTask extends AbstractTask<EllipseFittingTask.Result> {
     private static final Logger LOGGER = LoggerFactory.getLogger(EllipseFittingTask.class);
@@ -169,7 +169,7 @@ public class EllipseFittingTask extends AbstractTask<EllipseFittingTask.Result> 
 
     private void produceEdgeDetectionImage(EllipseFittingTask.Result result, ImageWrapper32 image) {
         if (debugImagesEmitter != null) {
-            debugImagesEmitter.newColorImage(WorkflowStep.EDGE_DETECTION_IMAGE, message("edge.detection"), "edge-detection", image, LinearStrechingStrategy.DEFAULT, debugImage -> {
+            debugImagesEmitter.newColorImage(GeneratedImageKind.DEBUG, message("edge.detection"), "edge-detection", image, LinearStrechingStrategy.DEFAULT, debugImage -> {
                 float[][] rgb = new float[3][];
                 float[] overlay = new float[debugImage.length];
                 System.arraycopy(debugImage, 0, overlay, 0, overlay.length);

@@ -15,16 +15,21 @@
  */
 package me.champeau.a4j.jsolex.processing.sun.workflow;
 
-public enum WorkflowStep {
-    AVERAGE_IMAGE,
-    BANDING_CORRECTION,
-    COLORIZED_IMAGE,
-    CORONAGRAPH,
-    DOPPLER_IMAGE,
-    EDGE_DETECTION_IMAGE,
-    ELLIPSE_FITTING,
-    GEOMETRY_CORRECTION,
-    RAW_IMAGE,
-    STRECHED_IMAGE,
-    NEGATIVE_IMAGE
+/**
+ * The different kinds of images that this software
+ * supports.
+ */
+public enum GeneratedImageKind {
+    COLORIZED,
+    CONTINUUM,
+    DEBUG,
+    DOPPLER,
+    GEOMETRY_CORRECTED,
+    GEOMETRY_CORRECTED_STRETCHED,
+    MIXED,
+    NEGATIVE,
+    RAW,
+    RAW_STRETCHED,
+    RECONSTRUCTION,
+    VIRTUAL_ECLIPSE
 }
