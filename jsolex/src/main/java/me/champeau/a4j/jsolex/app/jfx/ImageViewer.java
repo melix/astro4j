@@ -97,11 +97,13 @@ public class ImageViewer {
     }
 
     private void saveImage(File target) {
-        imageView.setImagePath(target.toPath());
-        new ImageSaver(stretchingStrategy, processParams).save(image, target);
-        BatchOperations.submit(() -> {
-            imageView.setImage(new Image(imageFile.toURI().toString()));
-            saveButton.setDisable(true);
+        executor.submit(() -> {
+            imageView.setImagePath(target.toPath());
+            new ImageSaver(stretchingStrategy, processParams).save(image, target);
+            BatchOperations.submit(() -> {
+                imageView.setImage(new Image(imageFile.toURI().toString()));
+                saveButton.setDisable(true);
+            });
         });
     }
 
