@@ -15,6 +15,8 @@
  */
 package me.champeau.a4j.jsolex.processing.sun.tasks;
 
+import me.champeau.a4j.jsolex.processing.event.Notification;
+import me.champeau.a4j.jsolex.processing.event.NotificationEvent;
 import me.champeau.a4j.jsolex.processing.event.ProgressEvent;
 import me.champeau.a4j.jsolex.processing.params.ProcessParams;
 import me.champeau.a4j.jsolex.processing.stretching.CutoffStretchingStrategy;
@@ -133,6 +135,9 @@ public class EllipseFittingTask extends AbstractTask<EllipseFittingTask.Result> 
         broadcaster.broadcast(ProgressEvent.of(0, fittingEllipseMessage));
 
         if (notEnoughSamples(fittingEllipseMessage, samples)) {
+            var template = message("ellipse.not.enough.samples").replace("{}", "%s");
+            var message = String.format(template, samples.size(), MINIMUM_SAMPLES);
+            broadcaster.broadcast(new NotificationEvent(new Notification(Notification.AlertType.ERROR, message("not.enough.samples.title"), "", message)));
             return null;
         }
         var ellipse = new EllipseRegression(samples).solve();
@@ -161,7 +166,6 @@ public class EllipseFittingTask extends AbstractTask<EllipseFittingTask.Result> 
     private boolean notEnoughSamples(String fittingEllipseMessage, List<Point2D> filteredSamples) {
         if (filteredSamples.size() < MINIMUM_SAMPLES) {
             broadcaster.broadcast(ProgressEvent.of(1, fittingEllipseMessage));
-            LOGGER.error(message("ellipse.not.enough.samples"), filteredSamples.size(), MINIMUM_SAMPLES);
             return true;
         }
         return false;

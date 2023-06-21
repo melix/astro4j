@@ -88,7 +88,7 @@ public class Aligner {
             fitting = task.call();
             prepared = Cropper.cropToSquare(image, fitting.ellipse(), 0);
         } catch (Exception e) {
-            throw new ProcessingException(e);
+            throw ProcessingException.wrap(e);
         }
         return prepared;
     }
@@ -100,7 +100,7 @@ public class Aligner {
             Thread.currentThread().interrupt();
             throw new ProcessingException(e);
         } catch (ExecutionException e) {
-            throw new ProcessingException(e);
+            throw ProcessingException.wrap(e.getCause());
         }
     }
 
@@ -166,7 +166,7 @@ public class Aligner {
                 }
             }
         } catch (Exception e) {
-            throw new ProcessingException(e);
+            throw ProcessingException.wrap(e);
         }
         return new DoublePair(curAngle, score);
     }

@@ -27,11 +27,13 @@ public final class ArcsinhStretchingStrategy implements StretchingStrategy {
     private final double blackPoint;
     private final double stretch;
     private final double maxStretch;
+    private final double asinh;
 
     public ArcsinhStretchingStrategy(float blackPoint, float stretch, double maxStretch) {
         this.blackPoint = blackPoint;
         this.stretch = stretch;
         this.maxStretch = maxStretch;
+        this.asinh = asinh(stretch);
     }
 
     public double getBlackPoint() {
@@ -53,7 +55,7 @@ public final class ArcsinhStretchingStrategy implements StretchingStrategy {
         for (int i = 0; i < data.length; i++) {
             double original = data[i] / max;
             var pixel = Math.max(0, original - bp);
-            double stretched = (pixel * asinh(original * stretch)) / (original * asinh(stretch));
+            double stretched = (pixel * asinh(original * stretch)) / (original * asinh);
             data[i] = (float) (stretched * max);
         }
         LinearStrechingStrategy.DEFAULT.stretch(data);
@@ -69,7 +71,7 @@ public final class ArcsinhStretchingStrategy implements StretchingStrategy {
             for (int j = 0; j < rgb.length; j++) {
                 double original = rgb[j][i] / max;
                 var pixel = Math.max(0, original - bp);
-                double stretched = (pixel * asinh(original * stretch)) / (mean * asinh(stretch));
+                double stretched = (pixel * asinh(original * stretch)) / (mean * asinh);
                 rgb[j][i] = (float) (stretched * max);
             }
         }

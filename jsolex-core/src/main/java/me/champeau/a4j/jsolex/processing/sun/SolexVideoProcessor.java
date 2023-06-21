@@ -28,6 +28,7 @@ import me.champeau.a4j.jsolex.processing.event.ProcessingEventListener;
 import me.champeau.a4j.jsolex.processing.event.ProcessingStartEvent;
 import me.champeau.a4j.jsolex.processing.event.ProgressEvent;
 import me.champeau.a4j.jsolex.processing.event.SuggestionEvent;
+import me.champeau.a4j.jsolex.processing.event.VideoMetadataEvent;
 import me.champeau.a4j.jsolex.processing.file.FileNamingStrategy;
 import me.champeau.a4j.jsolex.processing.params.ProcessParams;
 import me.champeau.a4j.jsolex.processing.stretching.LinearStrechingStrategy;
@@ -42,13 +43,14 @@ import me.champeau.a4j.jsolex.processing.sun.workflow.ProcessingWorkflow;
 import me.champeau.a4j.jsolex.processing.sun.workflow.RenamingImageEmitter;
 import me.champeau.a4j.jsolex.processing.sun.workflow.WorkflowResults;
 import me.champeau.a4j.jsolex.processing.util.Constants;
+import me.champeau.a4j.jsolex.processing.util.ForkJoinContext;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
-import me.champeau.a4j.jsolex.processing.util.ParallelExecutor;
 import me.champeau.a4j.jsolex.processing.util.ProcessingException;
 import me.champeau.a4j.jsolex.processing.util.SpectralLineFrameImageCreator;
 import me.champeau.a4j.math.image.Image;
 import me.champeau.a4j.math.image.ImageMath;
 import me.champeau.a4j.math.tuples.DoubleTriplet;
+import me.champeau.a4j.ser.Header;
 import me.champeau.a4j.ser.ImageGeometry;
 import me.champeau.a4j.ser.SerFileReader;
 import me.champeau.a4j.ser.bayer.ImageConverter;
@@ -74,13 +76,27 @@ public class SolexVideoProcessor implements Broadcaster {
     private final Set<ProcessingEventListener> progressEventListeners = new HashSet<>();
 
     private final File serFile;
-    private final ProcessParams processParams;
+    private final int sequenceNumber;
+    private final ForkJoinContext mainForkJoinContext;
+    private final ForkJoinContext ioForkJoinContext;
+    private final boolean batchMode;
     private final Path outputDirectory;
+    private ProcessParams processParams;
 
-    public SolexVideoProcessor(File serFile, Path outputDirectory, ProcessParams processParametersProvider) {
+    public SolexVideoProcessor(File serFile,
+                               Path outputDirectory,
+                               int sequenceNumber,
+                               ProcessParams processParametersProvider,
+                               ForkJoinContext mainForkJoinContext,
+                               ForkJoinContext ioForkJoinContext,
+                               boolean batchMode) {
         this.serFile = serFile;
         this.outputDirectory = outputDirectory;
+        this.sequenceNumber = sequenceNumber;
         this.processParams = processParametersProvider;
+        this.mainForkJoinContext = mainForkJoinContext;
+        this.ioForkJoinContext = ioForkJoinContext;
+        this.batchMode = batchMode;
     }
 
     public void addEventListener(ProcessingEventListener listener) {
@@ -92,6 +108,8 @@ public class SolexVideoProcessor implements Broadcaster {
     }
 
     public void process() {
+        mainForkJoinContext.setUncaughtExceptionHandler((t,e) -> broadcastError(e));
+        ioForkJoinContext.setUncaughtExceptionHandler((t,e) -> broadcastError(e));
         if (processParams.debugParams().autosave()) {
             File configFile = outputDirectory.resolve("config.json").toFile();
             processParams.saveTo(configFile);
@@ -101,6 +119,8 @@ public class SolexVideoProcessor implements Broadcaster {
         var detector = new MagnitudeBasedSunEdgeDetector(converter, this);
         try (SerFileReader reader = SerFileReader.of(serFile)) {
             var header = reader.header();
+            broadcast(new VideoMetadataEvent(header));
+            maybeUpdateProcessParams(header);
             ImageGeometry geometry = header.geometry();
             var frameCount = header.frameCount();
             LOGGER.info(message("ser.file.date"), header.metadata().utcDateTime());
@@ -108,7 +128,8 @@ public class SolexVideoProcessor implements Broadcaster {
             LOGGER.info(message("color.mode.geometry"), geometry.colorMode(), geometry.getBytesPerPixel(), geometry.pixelDepthPerPlane());
             LOGGER.info(message("width.height"), geometry.width(), geometry.height());
             LOGGER.info(message("computing.average.image.limb.detect"));
-            detector.detectEdges(reader);
+            // We use the IO executor to make sure we only read as single SER file at a time
+            ioForkJoinContext.blocking(() -> detector.detectEdges(reader));
             var averageImage = detector.getAverageImage();
             detector.ifEdgesDetected((start, end) -> {
                 LOGGER.info(message("sun.edges.detected"), start, end);
@@ -119,6 +140,16 @@ public class SolexVideoProcessor implements Broadcaster {
             });
         } catch (Exception e) {
             broadcastError(e);
+        }
+    }
+
+    private void maybeUpdateProcessParams(Header header) {
+        if (batchMode) {
+            processParams = processParams.withDebugParams(
+                    processParams.debugParams().withAutosave(true)
+            ).withObservationDetails(
+                    processParams.observationDetails().withDate(header.metadata().utcDateTime())
+            );
         }
     }
 
@@ -145,34 +176,37 @@ public class SolexVideoProcessor implements Broadcaster {
         var maybePolynomial = findPolynomial(width, height, processParams.spectrumParams().spectralLineDetectionThreshold(), averageImage, imageNamingStrategy);
         if (maybePolynomial.isPresent()) {
             var polynomial = maybePolynomial.get();
-            performImageReconstruction(converter, reader, start, end, geometry, width, height, polynomial, imageList.toArray(new WorkflowState[0]));
-            try (var executor = ParallelExecutor.newExecutor()) {
+            ioForkJoinContext.blocking(() -> performImageReconstruction(converter, reader, start, end, geometry, width, height, polynomial, imageList.toArray(new WorkflowState[0])));
+            try {
+                reader.close();
+            } catch (Exception e) {
+                throw new RuntimeException(e);
+            }
+            mainForkJoinContext.blocking(context -> {
                 for (WorkflowState state : imageList) {
-                    executor.submit(() -> {
+                    context.async(() -> {
                         var rotateLeft = ImageMath.newInstance().rotateLeft(new Image(width, newHeight, state.reconstructed()));
                         var rotated = ImageWrapper32.fromImage(rotateLeft);
                         maybePerformFlips(rotated);
                         state.setImage(rotated);
                     });
                 }
-            } catch (Exception e) {
-                throw new ProcessingException(e);
-            }
-            try (var executor = ParallelExecutor.newExecutor()) {
+            });
+            mainForkJoinContext.blocking(context -> {
                 var fitting = performEllipseFitting(imageList, (broadcaster, executor1, kind, outputDirectory) -> {
-                    ImageEmitter emitter = new DefaultImageEmitter(broadcaster, executor1, outputDirectory.toFile());
+                    ImageEmitter emitter = new DefaultImageEmitter(broadcaster, context, outputDirectory.toFile());
                     emitter = new NamingStrategyAwareImageEmitter(emitter,
                             imageNamingStrategy,
-                            0,
+                            sequenceNumber,
                             kind,
                             baseName);
                     return new DiscardNonRequiredImages(emitter, processParams.requestedImages().images());
-                }, executor);
+                }, context);
                 for (int step = 0; step < imageList.size(); step++) {
                     WorkflowState state = imageList.get(step);
                     var imageEmitterFactory = new ImageEmitterFactory() {
                         @Override
-                        public ImageEmitter newEmitter(Broadcaster broadcaster, ParallelExecutor executor, String kind, Path outputDirectory) {
+                        public ImageEmitter newEmitter(Broadcaster broadcaster, ForkJoinContext executor, String kind, Path outputDirectory) {
                             ImageEmitter emitter = new DefaultImageEmitter(broadcaster, executor, outputDirectory.toFile());
                             var shift = state.pixelShift();
                             if ("doppler".equals(kind)) {
@@ -196,8 +230,8 @@ public class SolexVideoProcessor implements Broadcaster {
                                             var suffix = "_" + shift;
                                             return name + suffix;
                                         }),
-                                imageNamingStrategy,
-                                        0,
+                                        imageNamingStrategy,
+                                        sequenceNumber,
                                         kind,
                                         baseName);
                             }
@@ -205,21 +239,17 @@ public class SolexVideoProcessor implements Broadcaster {
                         }
                     };
                     state.recordResult(WorkflowResults.MAIN_ELLIPSE_FITTING, fitting);
-                    executor.setExceptionHandler(this::broadcastError);
-                    var workflow = new ProcessingWorkflow(this, outputDirectory, executor, imageList, step, processParams, fps.orElse(null), imageEmitterFactory);
+                    var workflow = new ProcessingWorkflow(this, outputDirectory, context, imageList, step, processParams, fps.orElse(null), imageEmitterFactory);
                     workflow.start();
-
                 }
-            } catch (Exception e) {
-                throw new ProcessingException(e);
-            }
+            });
         } else {
             LOGGER.error(message("unable.find.spectral.line"));
         }
         broadcast(new ProcessingDoneEvent(System.nanoTime()));
     }
 
-    private EllipseFittingTask.Result performEllipseFitting(List<WorkflowState> imageList, ImageEmitterFactory imageEmitterFactory, ParallelExecutor executor) {
+    private EllipseFittingTask.Result performEllipseFitting(List<WorkflowState> imageList, ImageEmitterFactory imageEmitterFactory, ForkJoinContext executor) {
         var selected = imageList.stream()
                 .filter(i -> i.pixelShift() == processParams.spectrumParams().pixelShift())
                 .findFirst();
@@ -228,7 +258,7 @@ public class SolexVideoProcessor implements Broadcaster {
             try {
                 return ellipseFittingTask.call();
             } catch (Exception e) {
-                throw new ProcessingException(e);
+                throw ProcessingException.wrap(e);
             }
         }
         throw new ProcessingException("Cannot find main image to process");
@@ -267,6 +297,7 @@ public class SolexVideoProcessor implements Broadcaster {
             reader.seekFrame(start);
             LOGGER.info(message("distortion.polynomial"), polynomial.a(), polynomial.b(), polynomial.c());
             reader.seekFrame(start);
+            int totalLines = end - start;
             for (int i = start, j = 0; i < end; i++, j += width) {
                 var original = converter.createBuffer(geometry);
                 // The converter makes sure we only have a single channel
@@ -274,11 +305,11 @@ public class SolexVideoProcessor implements Broadcaster {
                 reader.nextFrame();
                 int offset = j;
                 for (WorkflowState state : images) {
-                    executor.submit(() -> processSingleFrame(width, height, state.reconstructed(), offset, original, polynomial, state.pixelShift()));
+                    executor.submit(() -> processSingleFrame(width, height, state.reconstructed(), offset, original, polynomial, state.pixelShift(), totalLines));
                 }
             }
         } catch (Exception e) {
-            throw new ProcessingException(e);
+            throw ProcessingException.wrap(e);
         }
         LOGGER.info(message("processing.done.generate.images"));
     }
@@ -298,7 +329,7 @@ public class SolexVideoProcessor implements Broadcaster {
         }
         if (processParams.debugParams().generateDebugImages()) {
             var emitter = new DiscardNonRequiredImages(new NamingStrategyAwareImageEmitter(
-                    new DefaultImageEmitter(this, ParallelExecutor.newExecutor(), outputDirectory.toFile()),
+                    new DefaultImageEmitter(this, mainForkJoinContext, outputDirectory.toFile()),
                     imageNamingStrategy,
                     0,
                     Constants.TYPE_DEBUG,
@@ -313,8 +344,7 @@ public class SolexVideoProcessor implements Broadcaster {
         return result;
     }
 
-    private void processSingleFrame(int width, int height, float[] outputBuffer, int offset, float[] buffer, DoubleTriplet p, int pixelShift) {
-
+    private void processSingleFrame(int width, int height, float[] outputBuffer, int offset, float[] buffer, DoubleTriplet p, int pixelShift, int totalLines) {
         var fun = p.asPolynomial();
         double[] line = new double[width];
         int lastY = 0;
@@ -342,7 +372,7 @@ public class SolexVideoProcessor implements Broadcaster {
             line[x] = value;
             lastY = yi;
         }
-        broadcast(new PartialReconstructionEvent(new ImageLine(pixelShift, offset / width, line, processParams.debugParams().generateDebugImages() && processParams.requestedImages().isEnabled(GeneratedImageKind.RECONSTRUCTION))));
+        broadcast(new PartialReconstructionEvent(new ImageLine(pixelShift, offset / width, totalLines, line, processParams.debugParams().generateDebugImages() && processParams.requestedImages().isEnabled(GeneratedImageKind.RECONSTRUCTION))));
     }
 
     @Override
@@ -366,6 +396,8 @@ public class SolexVideoProcessor implements Broadcaster {
                 listener.onProgress(e);
             } else if (event instanceof DebugEvent<?> e) {
                 listener.onDebug(e);
+            } else if (event instanceof VideoMetadataEvent e) {
+                listener.onVideoMetadataAvailable(e);
             }
         }
     }

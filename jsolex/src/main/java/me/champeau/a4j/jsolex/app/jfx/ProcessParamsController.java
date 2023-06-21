@@ -41,6 +41,7 @@ import me.champeau.a4j.jsolex.processing.params.SpectralRay;
 import me.champeau.a4j.jsolex.processing.params.SpectralRayIO;
 import me.champeau.a4j.jsolex.processing.params.SpectrumParams;
 import me.champeau.a4j.jsolex.processing.params.VideoParams;
+import me.champeau.a4j.jsolex.processing.sun.workflow.GeneratedImageKind;
 import me.champeau.a4j.math.tuples.DoublePair;
 import me.champeau.a4j.ser.ColorMode;
 import me.champeau.a4j.ser.Header;
@@ -117,7 +118,7 @@ public class ProcessParamsController {
     private ProcessParams initialProcessParams;
     private ProcessParams processParams;
 
-    public void setup(Stage stage, Header serFileHeader) {
+    public void setup(Stage stage, Header serFileHeader, boolean batchMode) {
         this.stage = stage;
         this.serFileHeader = serFileHeader;
         this.initialProcessParams = ProcessParams.loadDefaults();
@@ -190,6 +191,11 @@ public class ProcessParamsController {
             }
 
         }
+        if (batchMode) {
+            autoSave.setSelected(true);
+            autoSave.setDisable(true);
+            observationDate.setDisable(true);
+        }
     }
 
     @FXML
@@ -244,6 +250,7 @@ public class ProcessParamsController {
         var latitude = this.latitude.getText();
         var longitude = this.longitude.getText();
         var geo = toDoublePair(latitude, longitude);
+        var debugImagesRequested = requestedImages.isEnabled(GeneratedImageKind.DEBUG);
         processParams = new ProcessParams(
                 new SpectrumParams(wavelength.getValue(), spectralLineDetectionThreshold.getValue(), (int) Math.round(pixelShifting.getValue()), (int) Math.round(dopplerShifting.getValue()), switchRedBlueChannels.isSelected()),
                 new ObservationDetails(
@@ -256,7 +263,7 @@ public class ProcessParamsController {
                         geo,
                         ZonedDateTime.parse(observationDate.getText()),
                         camera.getText()),
-                new DebugParams(generateDebugImages.isSelected(), autoSave.isSelected(), generateFits.isSelected(), namingPattern.getSelectionModel().getSelectedItem().pattern()),
+                new DebugParams(generateDebugImages.isSelected() || debugImagesRequested, autoSave.isSelected(), generateFits.isSelected(), namingPattern.getSelectionModel().getSelectedItem().pattern()),
                 new VideoParams(assumeMonoVideo.isSelected() ? ColorMode.MONO : null),
                 new GeometryParams(
                         forceTilt.isSelected() ? Double.parseDouble(tiltValue.getText()) : null,

@@ -24,7 +24,7 @@ import java.util.Map;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.ReentrantLock;
 
-public class BatchOperations {
+public final class BatchOperations {
     private static final ReentrantLock LOCK = new ReentrantLock();
     private static final Condition CONDITION = LOCK.newCondition();
 
@@ -35,6 +35,10 @@ public class BatchOperations {
         var backgroundThread = new FXOperationsThread();
         backgroundThread.setDaemon(true);
         backgroundThread.start();
+    }
+
+    private BatchOperations() {
+
     }
 
     public static void submitOneOfAKind(Object kind, Runnable action) {
@@ -60,12 +64,6 @@ public class BatchOperations {
     private static class FXOperationsThread extends Thread {
         public void run() {
             while (!Thread.currentThread().isInterrupted()) {
-                try {
-                    Thread.sleep(50);
-                } catch (InterruptedException e) {
-                    Thread.currentThread().interrupt();
-                    break;
-                }
                 LOCK.lock();
                 List<Runnable> actions ;
                 try {

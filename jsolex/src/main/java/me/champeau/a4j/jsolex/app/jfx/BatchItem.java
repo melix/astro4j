@@ -13,27 +13,20 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package me.champeau.a4j.jsolex.processing.event;
+package me.champeau.a4j.jsolex.app.jfx;
 
-public abstract sealed class ProcessingEvent<T> permits
-        ImageGeneratedEvent,
-        NotificationEvent,
-        OutputImageDimensionsDeterminedEvent,
-        PartialReconstructionEvent,
-        ProcessingStartEvent,
-        ProcessingDoneEvent,
-        SuggestionEvent,
-        ProgressEvent,
-        DebugEvent,
-        VideoMetadataEvent {
-    private final T payload;
+import javafx.beans.property.SimpleDoubleProperty;
+import javafx.beans.property.SimpleStringProperty;
+import javafx.collections.ObservableList;
 
-    public ProcessingEvent(T payload) {
-        this.payload = payload;
-    }
+import java.io.File;
 
-    public T getPayload() {
-        return payload;
-    }
-
+public record BatchItem(
+        int id,
+        File file,
+        SimpleDoubleProperty reconstructionProgress,
+        ObservableList<File> generatedFiles,
+        SimpleStringProperty status,
+        StringBuilder log
+) {
 }

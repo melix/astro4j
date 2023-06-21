@@ -27,4 +27,11 @@ public class ProcessingException extends RuntimeException {
     public ProcessingException(Throwable cause) {
         super(cause);
     }
+
+    public static ProcessingException wrap(Throwable cause) {
+        if (cause instanceof ProcessingException pe) {
+            return pe;
+        }
+        return new ProcessingException(cause);
+    }
 }

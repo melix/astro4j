@@ -13,27 +13,19 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package me.champeau.a4j.jsolex.processing.event;
+package me.champeau.a4j.jsolex.app.listeners;
 
-public abstract sealed class ProcessingEvent<T> permits
-        ImageGeneratedEvent,
-        NotificationEvent,
-        OutputImageDimensionsDeterminedEvent,
-        PartialReconstructionEvent,
-        ProcessingStartEvent,
-        ProcessingDoneEvent,
-        SuggestionEvent,
-        ProgressEvent,
-        DebugEvent,
-        VideoMetadataEvent {
-    private final T payload;
+import javafx.scene.control.TabPane;
+import me.champeau.a4j.jsolex.processing.util.ForkJoinContext;
 
-    public ProcessingEvent(T payload) {
-        this.payload = payload;
-    }
+public interface JSolExInterface {
+    ForkJoinContext getCpuExecutor();
 
-    public T getPayload() {
-        return payload;
-    }
+    TabPane getMainPane();
 
+    void showProgress();
+
+    void hideProgress();
+
+    void updateProgress(double progress, String text);
 }

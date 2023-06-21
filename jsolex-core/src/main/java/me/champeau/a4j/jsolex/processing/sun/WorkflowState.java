@@ -49,6 +49,10 @@ public final class WorkflowState {
         outcomes.put(step, result);
     }
 
+    public void discardResult(WorkflowResults step) {
+        outcomes.remove(step);
+    }
+
     public <T> Optional<T> findResult(WorkflowResults step) {
         //noinspection unchecked
         return Optional.ofNullable((T) outcomes.get(step));

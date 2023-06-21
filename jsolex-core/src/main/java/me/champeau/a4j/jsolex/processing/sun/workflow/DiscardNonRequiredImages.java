@@ -19,8 +19,6 @@ import me.champeau.a4j.jsolex.processing.stretching.StretchingStrategy;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 
 import java.util.Set;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.Future;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
@@ -29,7 +27,7 @@ import java.util.function.Supplier;
  * Filters generated images by step.
  */
 public class DiscardNonRequiredImages implements ImageEmitter {
-    private static final Future<Void> VOID = CompletableFuture.completedFuture(null);
+    private static final Supplier<Void> VOID = () -> null;
     private final ImageEmitter delegate;
     private final Set<GeneratedImageKind> allowed;
 
@@ -39,7 +37,7 @@ public class DiscardNonRequiredImages implements ImageEmitter {
     }
 
     @Override
-    public Future<Void> newMonoImage(GeneratedImageKind kind, String title, String name, ImageWrapper32 image, StretchingStrategy stretchingStrategy, Consumer<? super float[]> bufferConsumer) {
+    public Supplier<Void> newMonoImage(GeneratedImageKind kind, String title, String name, ImageWrapper32 image, StretchingStrategy stretchingStrategy, Consumer<? super float[]> bufferConsumer) {
         if (!allowed.contains(kind)) {
             return VOID;
         }
@@ -47,7 +45,7 @@ public class DiscardNonRequiredImages implements ImageEmitter {
     }
 
     @Override
-    public Future<Void> newMonoImage(GeneratedImageKind kind, String title, String name, ImageWrapper32 image, StretchingStrategy stretchingStrategy) {
+    public Supplier<Void> newMonoImage(GeneratedImageKind kind, String title, String name, ImageWrapper32 image, StretchingStrategy stretchingStrategy) {
         if (!allowed.contains(kind)) {
             return VOID;
         }
@@ -55,7 +53,7 @@ public class DiscardNonRequiredImages implements ImageEmitter {
     }
 
     @Override
-    public Future<Void> newColorImage(GeneratedImageKind kind, String title, String name, ImageWrapper32 image, StretchingStrategy stretchingStrategy, Function<float[], float[][]> rgbSupplier) {
+    public Supplier<Void> newColorImage(GeneratedImageKind kind, String title, String name, ImageWrapper32 image, StretchingStrategy stretchingStrategy, Function<float[], float[][]> rgbSupplier) {
         if (!allowed.contains(kind)) {
             return VOID;
         }
@@ -63,7 +61,7 @@ public class DiscardNonRequiredImages implements ImageEmitter {
     }
 
     @Override
-    public Future<Void> newColorImage(GeneratedImageKind kind, String title, String name, StretchingStrategy stretchingStrategy, int width, int height, Supplier<float[][]> rgbSupplier) {
+    public Supplier<Void> newColorImage(GeneratedImageKind kind, String title, String name, StretchingStrategy stretchingStrategy, int width, int height, Supplier<float[][]> rgbSupplier) {
         if (!allowed.contains(kind)) {
             return VOID;
         }

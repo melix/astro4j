@@ -37,6 +37,7 @@ import me.champeau.a4j.jsolex.processing.stretching.StretchingStrategy;
 import me.champeau.a4j.jsolex.processing.sun.ImageUtils;
 import me.champeau.a4j.jsolex.processing.util.ColorizedImageWrapper;
 import me.champeau.a4j.jsolex.processing.util.Constants;
+import me.champeau.a4j.jsolex.processing.util.ForkJoinContext;
 import me.champeau.a4j.jsolex.processing.util.ImageSaver;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
@@ -47,7 +48,6 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.util.List;
-import java.util.concurrent.ExecutorService;
 
 import static me.champeau.a4j.jsolex.app.JSolEx.message;
 
@@ -68,12 +68,12 @@ public class ImageViewer {
 
     private Button saveButton;
     private TabPane tabPane;
-    private ExecutorService executor;
+    private ForkJoinContext forkJoinContext;
 
-    public void init(Node root, TabPane tabPane, ExecutorService executor) {
+    public void init(Node root, TabPane tabPane, ForkJoinContext cpuExecutor) {
         this.root = root;
         this.tabPane = tabPane;
-        this.executor = executor;
+        this.forkJoinContext = cpuExecutor;
     }
 
     public DoubleProperty fitWidthProperty() {
@@ -97,7 +97,7 @@ public class ImageViewer {
     }
 
     private void saveImage(File target) {
-        executor.submit(() -> {
+        forkJoinContext.async(() -> {
             imageView.setImagePath(target.toPath());
             new ImageSaver(stretchingStrategy, processParams).save(image, target);
             BatchOperations.submit(() -> {
@@ -229,32 +229,41 @@ public class ImageViewer {
     }
 
     private void strechAndDisplay() {
-        executor.submit(() -> {
+        forkJoinContext.async(() -> {
             File tmpImage = createTmpFile();
             var width = image.width();
             var height = image.height();
+            Runnable updateDisplay = () -> {
+                imageView.setImage(new Image(tmpImage.toURI().toString()));
+                tabPane.getSelectionModel().select(imageView.getParentTab());
+                tmpImage.delete();
+                saveButton.setDisable(false);
+            };
             // For some reason the image doesn't look as good when using PixelWriter
             // so we write the image in a tmp file and load it from here.
             if (image instanceof ImageWrapper32 mono) {
                 var stretched = stretch(mono.data());
-                ImageUtils.writeMonoImage(width, height, stretched, tmpImage);
+                forkJoinContext.async(() -> {
+                    ImageUtils.writeMonoImage(width, height, stretched, tmpImage);
+                    BatchOperations.submit(updateDisplay);
+                });
             } else if (image instanceof ColorizedImageWrapper colorImage) {
                 var stretched = stretch(colorImage.mono().data());
                 var rgb = colorImage.converter().apply(stretched);
                 var r = rgb[0];
                 var g = rgb[1];
                 var b = rgb[2];
-                ImageUtils.writeRgbImage(width, height, r, g, b, tmpImage);
+                forkJoinContext.async(() -> {
+                    ImageUtils.writeRgbImage(width, height, r, g, b, tmpImage);
+                    BatchOperations.submit(updateDisplay);
+                });
             } else if (image instanceof RGBImage rgb) {
                 var stretched = stretch(rgb.r(), rgb.g(), rgb.g());
-                ImageUtils.writeRgbImage(rgb.width(), rgb.height(), stretched[0], stretched[1], stretched[2], tmpImage);
+                forkJoinContext.async(() -> {
+                    ImageUtils.writeRgbImage(rgb.width(), rgb.height(), stretched[0], stretched[1], stretched[2], tmpImage);
+                    BatchOperations.submit(updateDisplay);
+                });
             }
-            BatchOperations.submit(() -> {
-                imageView.setImage(new Image(tmpImage.toURI().toString()));
-                tabPane.getSelectionModel().select(imageView.getParentTab());
-                tmpImage.delete();
-                saveButton.setDisable(false);
-            });
         });
     }
 

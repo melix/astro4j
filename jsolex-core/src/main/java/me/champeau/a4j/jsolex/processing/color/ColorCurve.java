@@ -15,10 +15,12 @@
  */
 package me.champeau.a4j.jsolex.processing.color;
 
-import me.champeau.a4j.math.tuples.DoubleTriplet;
-import me.champeau.a4j.math.regression.LinearRegression;
 import me.champeau.a4j.math.Point2D;
+import me.champeau.a4j.math.regression.LinearRegression;
+import me.champeau.a4j.math.tuples.DoubleTriplet;
 
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.DoubleUnaryOperator;
 
 public record ColorCurve(
@@ -28,9 +30,11 @@ public record ColorCurve(
         int bIn, int bOut
 ) {
 
+    private static final Map<Long, DoubleUnaryOperator> POLYNOMIALS_CACHE = new ConcurrentHashMap<>();
+
     public static final int MAX = 65535;
 
-    private DoubleTriplet polynomialOf(int in, int out) {
+    private static DoubleTriplet polynomialOf(int in, int out) {
         return LinearRegression.secondOrderRegression(
                 new Point2D[]{
                         new Point2D(0, 0),
@@ -40,13 +44,18 @@ public record ColorCurve(
         );
     }
 
+    public static DoubleUnaryOperator cachedPolynomial(int in, int out) {
+        long key = ((long) in << 16) | out;
+        return POLYNOMIALS_CACHE.computeIfAbsent(key, k -> polynomialOf(in, out).asPolynomial());
+    }
+
     public DoubleTriplet toRGB(double grey) {
         if (grey < 0 || grey > MAX) {
             throw new IllegalArgumentException("Invalid input " + grey + " : input values must be normalized in range [0..65535]");
         }
-        var rPoly = polynomialOf(rIn << 8, rOut << 8).asPolynomial();
-        var gPoly = polynomialOf(gIn << 8, gOut << 8).asPolynomial();
-        var bPoly = polynomialOf(bIn << 8, bOut << 8).asPolynomial();
+        var rPoly = cachedPolynomial(rIn << 8, rOut << 8);
+        var gPoly = cachedPolynomial(gIn << 8, gOut << 8);
+        var bPoly = cachedPolynomial(bIn << 8, bOut << 8);
         double v = grey;
         return new DoubleTriplet(
                 apply(v, rPoly),

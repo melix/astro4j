@@ -22,8 +22,6 @@ import javafx.scene.image.ImageView;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.awt.*;
-import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 
@@ -53,21 +51,7 @@ public class ZoomableImageView extends ImageView {
         });
         var ctxMenu = new ContextMenu();
         var showFile = new MenuItem("Show file in files");
-        showFile.setOnAction(e -> {
-            if (Desktop.getDesktop().isSupported(Desktop.Action.BROWSE_FILE_DIR)) {
-                Desktop.getDesktop().browseFileDirectory(imagePath.toFile());
-            } else {
-                // try a generic "open" call for unsupported platforms, which will
-                // open the directory but not focus on the file
-                try {
-                    var builder = new ProcessBuilder();
-                    builder.command("open", imagePath.getParent().toAbsolutePath().toString());
-                    builder.start();
-                } catch (IOException ex) {
-                    LOGGER.info("Opening files not supported on this platform");
-                }
-            }
-        });
+        showFile.setOnAction(e -> ExplorerSupport.openInExplorer(imagePath));
         ctxMenu.getItems().add(showFile);
         setOnContextMenuRequested(e -> {
             if (imagePath != null && Files.exists(imagePath)) {

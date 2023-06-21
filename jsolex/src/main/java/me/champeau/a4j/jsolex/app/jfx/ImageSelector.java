@@ -179,6 +179,9 @@ public class ImageSelector {
         if (reconstruction.isSelected()) {
             images.add(GeneratedImageKind.RECONSTRUCTION);
         }
+        if (debug.isSelected()) {
+            images.add(GeneratedImageKind.DEBUG);
+        }
         var pixelShifts = readPixelShifts();
         requestedImages = new RequestedImages(
                 images,

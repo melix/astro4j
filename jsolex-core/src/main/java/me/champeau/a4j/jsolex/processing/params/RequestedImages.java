@@ -37,6 +37,7 @@ public record RequestedImages(
             GeneratedImageKind.VIRTUAL_ECLIPSE,
             GeneratedImageKind.COLORIZED,
             GeneratedImageKind.MIXED,
+            GeneratedImageKind.NEGATIVE,
             GeneratedImageKind.DOPPLER,
             GeneratedImageKind.GEOMETRY_CORRECTED_STRETCHED,
             GeneratedImageKind.CONTINUUM
