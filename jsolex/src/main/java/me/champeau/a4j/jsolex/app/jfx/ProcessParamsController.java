@@ -207,7 +207,7 @@ public class ProcessParamsController {
     public void process() {
         int dopplerShift = (int) dopplerShifting.getValue();
         doProcess(new RequestedImages(
-                RequestedImages.FULL_MODE,
+                generateDebugImages.isSelected() ? RequestedImages.FULL_MODE_WITH_DEBUG :RequestedImages.FULL_MODE,
                 List.of((int) pixelShifting.getValue(), dopplerShift, -dopplerShift)
         ));
     }
@@ -291,7 +291,7 @@ public class ProcessParamsController {
     @FXML
     public void quickProcess() {
         doProcess(new RequestedImages(
-                RequestedImages.QUICK_MODE,
+                generateDebugImages.isSelected() ? RequestedImages.QUICK_MODE_WITH_DEBUG : RequestedImages.QUICK_MODE,
                 List.of((int) pixelShifting.getValue())
         ));
     }

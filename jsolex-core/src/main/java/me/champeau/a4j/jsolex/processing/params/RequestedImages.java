@@ -31,6 +31,17 @@ public record RequestedImages(
         List<Integer> pixelShifts
 ) {
     public static final Set<GeneratedImageKind> FULL_MODE = EnumSet.of(
+            GeneratedImageKind.RECONSTRUCTION,
+            GeneratedImageKind.RAW_STRETCHED,
+            GeneratedImageKind.VIRTUAL_ECLIPSE,
+            GeneratedImageKind.COLORIZED,
+            GeneratedImageKind.MIXED,
+            GeneratedImageKind.NEGATIVE,
+            GeneratedImageKind.DOPPLER,
+            GeneratedImageKind.GEOMETRY_CORRECTED_STRETCHED,
+            GeneratedImageKind.CONTINUUM
+    );
+    public static final Set<GeneratedImageKind> FULL_MODE_WITH_DEBUG = EnumSet.of(
             GeneratedImageKind.DEBUG,
             GeneratedImageKind.RECONSTRUCTION,
             GeneratedImageKind.RAW_STRETCHED,
@@ -43,6 +54,11 @@ public record RequestedImages(
             GeneratedImageKind.CONTINUUM
     );
     public static final Set<GeneratedImageKind> QUICK_MODE = EnumSet.of(
+            GeneratedImageKind.RECONSTRUCTION,
+            GeneratedImageKind.RAW_STRETCHED,
+            GeneratedImageKind.GEOMETRY_CORRECTED_STRETCHED
+    );
+    public static final Set<GeneratedImageKind> QUICK_MODE_WITH_DEBUG = EnumSet.of(
             GeneratedImageKind.DEBUG,
             GeneratedImageKind.RECONSTRUCTION,
             GeneratedImageKind.RAW_STRETCHED,
