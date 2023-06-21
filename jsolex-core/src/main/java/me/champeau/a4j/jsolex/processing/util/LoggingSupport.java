@@ -20,11 +20,20 @@ import org.slf4j.LoggerFactory;
 
 import java.io.ByteArrayOutputStream;
 import java.io.PrintWriter;
+import java.util.concurrent.CancellationException;
+import java.util.concurrent.RejectedExecutionException;
+
+import static me.champeau.a4j.jsolex.processing.util.Constants.message;
 
 public class LoggingSupport {
     public static final Logger LOGGER = LoggerFactory.getLogger(LoggingSupport.class);
 
     public static String logError(Throwable ex) {
+        if (ex instanceof CancellationException || ex instanceof RejectedExecutionException) {
+            var message = message("processing.cancelled");
+            LOGGER.error(message);
+            return message;
+        }
         var out = new ByteArrayOutputStream();
         var s = new PrintWriter(out);
         ex.printStackTrace(s);

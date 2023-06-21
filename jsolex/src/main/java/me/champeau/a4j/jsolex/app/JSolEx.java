@@ -25,6 +25,7 @@ import javafx.fxml.FXML;
 import javafx.scene.Parent;
 import javafx.scene.Scene;
 import javafx.scene.control.Alert;
+import javafx.scene.control.Button;
 import javafx.scene.control.Hyperlink;
 import javafx.scene.control.Label;
 import javafx.scene.control.Menu;
@@ -38,6 +39,7 @@ import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableView;
 import javafx.scene.control.TextArea;
 import javafx.scene.image.Image;
+import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
 import javafx.stage.FileChooser;
 import javafx.stage.Modality;
@@ -83,8 +85,8 @@ import static me.champeau.a4j.jsolex.processing.util.LoggingSupport.logError;
 public class JSolEx extends Application implements JSolExInterface {
     private static final Logger LOGGER = LoggerFactory.getLogger(JSolEx.class);
 
-    private final ForkJoinParallelExecutor cpuExecutor = ForkJoinParallelExecutor.newExecutor();
-    private final ForkJoinParallelExecutor ioExecutor = ForkJoinParallelExecutor.newExecutor(1);
+    private ForkJoinParallelExecutor cpuExecutor;
+    private ForkJoinParallelExecutor ioExecutor;
 
     private final Configuration config = new Configuration();
 
@@ -105,6 +107,9 @@ public class JSolEx extends Application implements JSolExInterface {
     @FXML
     private Label progressLabel;
 
+    @FXML
+    private HBox workButtons;
+
     @Override
     public ForkJoinContext getCpuExecutor() {
         return cpuExecutor;
@@ -117,6 +122,7 @@ public class JSolEx extends Application implements JSolExInterface {
 
     @Override
     public void start(Stage stage) throws Exception {
+        prepareExecutors();
         this.rootStage = stage;
         var fxmlLoader = I18N.fxmlLoader(getClass(), "app");
         fxmlLoader.setController(this);
@@ -161,6 +167,28 @@ public class JSolEx extends Application implements JSolExInterface {
         } catch (IOException exception) {
             throw new ProcessingException(exception);
         }
+    }
+
+    private void closeExecutors() {
+        if (cpuExecutor != null) {
+            try {
+                cpuExecutor.close();
+            } catch (Exception e) {
+                // ignore
+            }
+        }
+        if (ioExecutor != null) {
+            try {
+                ioExecutor.close();
+            } catch (Exception e) {
+                // ignore
+            }
+        }
+    }
+
+    private void prepareExecutors() {
+        cpuExecutor = ForkJoinParallelExecutor.newExecutor();
+        ioExecutor = ForkJoinParallelExecutor.newExecutor(1);
     }
 
     private void addIcons(Stage stage) {
@@ -283,10 +311,20 @@ public class JSolEx extends Application implements JSolExInterface {
         processParams.ifPresent(params -> {
             mainPane.getTabs().clear();
             console.textProperty().set("");
-            new Thread(() -> cpuExecutor.blocking(context ->
+            var interruptButton = addInterruptButton();
+            var processingThread = new Thread(() -> cpuExecutor.blocking(context ->
                     processSingleFile(context, params, selectedFile, false, 0, null, () -> {
+                        BatchOperations.submit(() -> workButtons.getChildren().remove(interruptButton));
                     })
-            )).start();
+            ));
+            interruptButton.setOnAction(e -> {
+                closeExecutors();
+                prepareExecutors();
+                BatchOperations.submit(() -> updateProgress(0, message("interrupted")));
+                workButtons.getChildren().remove(interruptButton);
+                processingThread.interrupt();
+            });
+            processingThread.start();
         });
     }
 
@@ -350,6 +388,7 @@ public class JSolEx extends Application implements JSolExInterface {
         columns.setAll(idColumn, fnColumn, progressColumn, images, statusColumn);
         tab.setContent(table);
         mainPane.getTabs().add(tab);
+        var interruptButton = addInterruptButton();
         new Thread(() -> {
             configureThreadExceptionHandler();
             var groups = new ArrayList<List<File>>();
@@ -372,21 +411,36 @@ public class JSolEx extends Application implements JSolExInterface {
                 // block the processing ones
                 var taskSubmissionThread = new Thread(() -> {
                     int idx = 0;
-                    while (idx < selectedFiles.size()) {
+                    while (idx < selectedFiles.size() && !Thread.currentThread().isInterrupted()) {
                         semaphore.acquireUninterruptibly();
                         var selectedFile = selectedFiles.get(idx);
                         processSingleFile(context, params, selectedFile, true, idx, batchContext, semaphore::release);
                         idx++;
                     }
                 });
+                interruptButton.setOnAction(e -> {
+                    interruptButton.setDisable(true);
+                    taskSubmissionThread.interrupt();
+                    closeExecutors();
+                    prepareExecutors();
+                    updateProgress(0, message("batch.interrupted"));
+                });
                 taskSubmissionThread.start();
                 try {
                     taskSubmissionThread.join();
                 } catch (InterruptedException e) {
                     Thread.currentThread().interrupt();
+                } finally {
+                    BatchOperations.submit(() -> workButtons.getChildren().remove(interruptButton));
                 }
             });
         }).start();
+    }
+
+    private Button addInterruptButton() {
+        var interruptButton = new Button(message("interrupt"));
+        workButtons.getChildren().add(interruptButton);
+        return interruptButton;
     }
 
     private void processSingleFile(ForkJoinContext cpu,

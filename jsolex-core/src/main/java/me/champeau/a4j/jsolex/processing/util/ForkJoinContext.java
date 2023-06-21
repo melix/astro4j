@@ -27,6 +27,10 @@ import java.util.function.Supplier;
  * been submitted in the context are done.
  */
 public interface ForkJoinContext {
+    /**
+     * Sets the uncaught exception handler
+     * @param handler the handler
+     */
     void setUncaughtExceptionHandler(Thread.UncaughtExceptionHandler handler);
 
     /**
@@ -91,4 +95,6 @@ public interface ForkJoinContext {
             return null;
         }).get();
     }
+
+    void cancel();
 }

@@ -57,6 +57,15 @@ public class ForkJoinParallelExecutor implements AutoCloseable, ForkJoinContext 
     }
 
     @Override
+    public void cancel() {
+        try {
+            close();
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    @Override
     public void async(Runnable r) {
         executor.submit(r);
     }
@@ -167,6 +176,15 @@ public class ForkJoinParallelExecutor implements AutoCloseable, ForkJoinContext 
                 return context.submit(() -> consumer.apply(context));
             } finally {
                 context.waitFor();
+            }
+        }
+
+        @Override
+        public void cancel() {
+            try {
+                close();
+            } catch (Exception e) {
+                throw new RuntimeException(e);
             }
         }
 

@@ -41,6 +41,7 @@
          <children>
             <ProgressBar fx:id="progressBar" prefWidth="200.0" progress="0.0" />
             <Label fx:id="progressLabel" />
+             <HBox spacing="10.0" fx:id="workButtons"/>
          </children>
          <padding>
             <Insets bottom="4.0" left="4.0" right="4.0" top="4.0" />
