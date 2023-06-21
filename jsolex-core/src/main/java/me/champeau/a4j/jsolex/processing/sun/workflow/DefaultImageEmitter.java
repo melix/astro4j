@@ -20,14 +20,13 @@ import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
 import me.champeau.a4j.jsolex.processing.sun.tasks.WriteColorizedImageTask;
 import me.champeau.a4j.jsolex.processing.sun.tasks.WriteMonoImageTask;
 import me.champeau.a4j.jsolex.processing.sun.tasks.WriteRGBImageTask;
+import me.champeau.a4j.jsolex.processing.util.ForkJoinContext;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
-import me.champeau.a4j.jsolex.processing.util.ParallelExecutor;
 import me.champeau.a4j.jsolex.processing.util.ProcessingException;
 
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
-import java.util.concurrent.Future;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
@@ -38,11 +37,11 @@ import java.util.function.Supplier;
  */
 public class DefaultImageEmitter implements ImageEmitter {
     private final Broadcaster broadcaster;
-    private final ParallelExecutor executor;
+    private final ForkJoinContext executor;
     private final File outputDir;
 
     public DefaultImageEmitter(Broadcaster broadcaster,
-                               ParallelExecutor executor,
+                               ForkJoinContext executor,
                                File outputDir) {
         this.broadcaster = broadcaster;
         this.executor = executor;
@@ -50,7 +49,7 @@ public class DefaultImageEmitter implements ImageEmitter {
     }
 
     @Override
-    public Future<Void> newMonoImage(GeneratedImageKind kind, String title, String name, ImageWrapper32 image, StretchingStrategy stretchingStrategy, Consumer<? super float[]> bufferConsumer) {
+    public Supplier<Void> newMonoImage(GeneratedImageKind kind, String title, String name, ImageWrapper32 image, StretchingStrategy stretchingStrategy, Consumer<? super float[]> bufferConsumer) {
         prepareOutput(name);
         return executor.submit(new WriteMonoImageTask(broadcaster,
                 image,
@@ -76,7 +75,7 @@ public class DefaultImageEmitter implements ImageEmitter {
     }
 
     @Override
-    public Future<Void> newMonoImage(GeneratedImageKind kind, String title, String name, ImageWrapper32 image, StretchingStrategy stretchingStrategy) {
+    public Supplier<Void> newMonoImage(GeneratedImageKind kind, String title, String name, ImageWrapper32 image, StretchingStrategy stretchingStrategy) {
         prepareOutput(name);
         return executor.submit(new WriteMonoImageTask(broadcaster,
                 image,
@@ -88,7 +87,7 @@ public class DefaultImageEmitter implements ImageEmitter {
     }
 
     @Override
-    public Future<Void> newColorImage(GeneratedImageKind kind, String title, String name, ImageWrapper32 image, StretchingStrategy stretchingStrategy, Function<float[], float[][]> rgbSupplier) {
+    public Supplier<Void> newColorImage(GeneratedImageKind kind, String title, String name, ImageWrapper32 image, StretchingStrategy stretchingStrategy, Function<float[], float[][]> rgbSupplier) {
         prepareOutput(name);
         return executor.submit(new WriteColorizedImageTask(broadcaster,
                 image,
@@ -101,7 +100,7 @@ public class DefaultImageEmitter implements ImageEmitter {
     }
 
     @Override
-    public Future<Void> newColorImage(GeneratedImageKind kind, String title, String name, StretchingStrategy stretchingStrategy, int width, int height, Supplier<float[][]> rgbSupplier) {
+    public Supplier<Void> newColorImage(GeneratedImageKind kind, String title, String name, StretchingStrategy stretchingStrategy, int width, int height, Supplier<float[][]> rgbSupplier) {
         prepareOutput(name);
         return executor.submit(new WriteRGBImageTask(broadcaster,
                 stretchingStrategy,

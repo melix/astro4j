@@ -117,7 +117,7 @@ public class ProcessParamsController {
     private ProcessParams initialProcessParams;
     private ProcessParams processParams;
 
-    public void setup(Stage stage, Header serFileHeader) {
+    public void setup(Stage stage, Header serFileHeader, boolean batchMode) {
         this.stage = stage;
         this.serFileHeader = serFileHeader;
         this.initialProcessParams = ProcessParams.loadDefaults();
@@ -189,6 +189,11 @@ public class ProcessParamsController {
                         .ifPresent(e -> namingPattern.getSelectionModel().select(e));
             }
 
+        }
+        if (batchMode) {
+            autoSave.setSelected(true);
+            autoSave.setDisable(true);
+            observationDate.setDisable(true);
         }
     }
 

@@ -18,6 +18,7 @@
         <MenuBar>
             <Menu text="%file">
                 <MenuItem onAction="#open" text="%open.ser.file" />
+                <MenuItem onAction="#openBatch" text="%open.batch" />
                 <Menu fx:id="recentFilesMenu" text="%recent.files" />
                 <SeparatorMenuItem />
                 <MenuItem onAction="#exit" text="%exit" />

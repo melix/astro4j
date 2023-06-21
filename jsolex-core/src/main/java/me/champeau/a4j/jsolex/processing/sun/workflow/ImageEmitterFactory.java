@@ -16,7 +16,7 @@
 package me.champeau.a4j.jsolex.processing.sun.workflow;
 
 import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
-import me.champeau.a4j.jsolex.processing.util.ParallelExecutor;
+import me.champeau.a4j.jsolex.processing.util.ForkJoinContext;
 
 import java.nio.file.Path;
 
@@ -28,7 +28,7 @@ import java.nio.file.Path;
  */
 public interface ImageEmitterFactory {
     ImageEmitter newEmitter(Broadcaster broadcaster,
-                            ParallelExecutor executor,
+                            ForkJoinContext executor,
                             String kind,
                             Path outputDirectory);
 }

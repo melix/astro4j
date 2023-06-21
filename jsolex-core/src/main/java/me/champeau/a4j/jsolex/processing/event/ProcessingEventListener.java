@@ -16,6 +16,11 @@
 package me.champeau.a4j.jsolex.processing.event;
 
 public interface ProcessingEventListener {
+
+    default void onVideoMetadataAvailable(VideoMetadataEvent event) {
+
+    }
+
     default void onImageGenerated(ImageGeneratedEvent event) {
     }
 

@@ -62,7 +62,7 @@ public class FileNamingStrategy {
                 case CURRENT_DATE -> processingDate.format(DateTimeFormatter.ISO_DATE);
                 case VIDEO_DATE -> serHeader.metadata().utcDateTime().format(DateTimeFormatter.ISO_DATE);
                 case VIDEO_DATETIME -> serHeader.metadata().utcDateTime().format(DateTimeFormatter.ISO_LOCAL_DATE_TIME).replace(':','-');
-                case SEQUENCE_NUMBER -> String.valueOf(sequenceNumber);
+                case SEQUENCE_NUMBER -> String.format("%04d", sequenceNumber);
             });
         }
         return Collections.unmodifiableMap(replacements);

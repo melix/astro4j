@@ -48,7 +48,7 @@ public abstract class AbstractTask<T> implements Callable<T>, Supplier<T> {
         try {
             return call();
         } catch (Exception e) {
-            throw new ProcessingException(e);
+            throw ProcessingException.wrap(e);
         }
     }
 

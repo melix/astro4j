@@ -31,7 +31,7 @@ import java.util.function.Consumer;
 public class ParallelExecutor implements AutoCloseable {
     private static final Logger LOGGER = LoggerFactory.getLogger(ParallelExecutor.class);
 
-    private final ExecutorService executorService = Executors.newWorkStealingPool();
+    private final ExecutorService executorService = Executors.newCachedThreadPool();
     private final Semaphore semaphore;
 
     private Consumer<? super Throwable> exceptionHandler = (Consumer<Throwable>) LoggingSupport::logError;
@@ -41,7 +41,7 @@ public class ParallelExecutor implements AutoCloseable {
     }
 
     public static ParallelExecutor newExecutor() {
-        return new ParallelExecutor(8 * Runtime.getRuntime().availableProcessors());
+        return new ParallelExecutor(Runtime.getRuntime().availableProcessors());
     }
 
     public static ParallelExecutor newExecutor(int parallelism) {
@@ -70,6 +70,7 @@ public class ParallelExecutor implements AutoCloseable {
                 }
             });
         } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
             throw new ProcessingException(e);
         }
     }
@@ -90,6 +91,7 @@ public class ParallelExecutor implements AutoCloseable {
                 return null;
             });
         } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
             throw new ProcessingException(e);
         }
     }
@@ -114,6 +116,7 @@ public class ParallelExecutor implements AutoCloseable {
                 }
             }, executorService);
         } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
             throw new ProcessingException(e);
         }
     }

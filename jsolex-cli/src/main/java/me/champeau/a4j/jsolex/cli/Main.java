@@ -26,6 +26,7 @@ import me.champeau.a4j.jsolex.processing.params.ProcessParams;
 import me.champeau.a4j.jsolex.processing.params.SpectralRay;
 import me.champeau.a4j.jsolex.processing.params.SpectrumParams;
 import me.champeau.a4j.jsolex.processing.sun.SolexVideoProcessor;
+import me.champeau.a4j.jsolex.processing.util.ForkJoinParallelExecutor;
 import me.champeau.a4j.jsolex.processing.util.ProcessingException;
 import me.champeau.a4j.math.tuples.DoublePair;
 import org.slf4j.Logger;
@@ -113,17 +114,22 @@ public class Main implements Runnable {
                 outputDir = new File(inputFile.getParentFile(), baseName + suffix);
             }
         }
-        try {
+        try (var cpuExecutor = ForkJoinParallelExecutor.newExecutor(); var ioExecutor = ForkJoinParallelExecutor.newExecutor(1)) {
             Files.createDirectories(outputDir.toPath());
             var processor = new SolexVideoProcessor(
                     inputFile,
                     outputDir.toPath(),
-                    processParams
-            );
+                    0,
+                    processParams,
+                    cpuExecutor,
+                    ioExecutor,
+                    false);
             processor.addEventListener(new LoggingListener(processParams));
             processor.process();
         } catch (IOException e) {
             throw new ProcessingException(e);
+        } catch (Exception e) {
+            throw ProcessingException.wrap(e);
         }
     }
 

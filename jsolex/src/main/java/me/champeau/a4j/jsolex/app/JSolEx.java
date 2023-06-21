@@ -17,12 +17,15 @@ package me.champeau.a4j.jsolex.app;
 
 import javafx.animation.PauseTransition;
 import javafx.application.Application;
-import javafx.concurrent.Task;
+import javafx.beans.binding.Bindings;
+import javafx.beans.property.SimpleDoubleProperty;
+import javafx.beans.property.SimpleStringProperty;
+import javafx.collections.FXCollections;
 import javafx.fxml.FXML;
-import javafx.scene.Node;
 import javafx.scene.Parent;
 import javafx.scene.Scene;
 import javafx.scene.control.Alert;
+import javafx.scene.control.Hyperlink;
 import javafx.scene.control.Label;
 import javafx.scene.control.Menu;
 import javafx.scene.control.MenuItem;
@@ -30,35 +33,35 @@ import javafx.scene.control.ProgressBar;
 import javafx.scene.control.ScrollPane;
 import javafx.scene.control.Tab;
 import javafx.scene.control.TabPane;
+import javafx.scene.control.TableCell;
+import javafx.scene.control.TableColumn;
+import javafx.scene.control.TableView;
 import javafx.scene.control.TextArea;
-import javafx.scene.effect.ColorAdjust;
 import javafx.scene.image.Image;
-import javafx.scene.image.PixelFormat;
-import javafx.scene.image.WritableImage;
+import javafx.scene.layout.VBox;
 import javafx.stage.FileChooser;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
+import javafx.util.Callback;
 import javafx.util.Duration;
+import me.champeau.a4j.jsolex.app.jfx.BatchItem;
 import me.champeau.a4j.jsolex.app.jfx.BatchOperations;
+import me.champeau.a4j.jsolex.app.jfx.ExplorerSupport;
 import me.champeau.a4j.jsolex.app.jfx.I18N;
-import me.champeau.a4j.jsolex.app.jfx.ImageViewer;
 import me.champeau.a4j.jsolex.app.jfx.ProcessParamsController;
 import me.champeau.a4j.jsolex.app.jfx.SpectralLineDebugger;
-import me.champeau.a4j.jsolex.app.jfx.ZoomableImageView;
-import me.champeau.a4j.jsolex.processing.event.DebugEvent;
-import me.champeau.a4j.jsolex.processing.event.ImageGeneratedEvent;
-import me.champeau.a4j.jsolex.processing.event.Notification;
-import me.champeau.a4j.jsolex.processing.event.NotificationEvent;
-import me.champeau.a4j.jsolex.processing.event.OutputImageDimensionsDeterminedEvent;
-import me.champeau.a4j.jsolex.processing.event.PartialReconstructionEvent;
-import me.champeau.a4j.jsolex.processing.event.ProcessingDoneEvent;
+import me.champeau.a4j.jsolex.app.listeners.BatchModeEventListener;
+import me.champeau.a4j.jsolex.app.listeners.BatchProcessingContext;
+import me.champeau.a4j.jsolex.app.listeners.JSolExInterface;
+import me.champeau.a4j.jsolex.app.listeners.SingleModeProcessingEventListener;
 import me.champeau.a4j.jsolex.processing.event.ProcessingEventListener;
-import me.champeau.a4j.jsolex.processing.event.ProcessingStartEvent;
-import me.champeau.a4j.jsolex.processing.event.ProgressEvent;
-import me.champeau.a4j.jsolex.processing.event.SuggestionEvent;
 import me.champeau.a4j.jsolex.processing.params.ProcessParams;
 import me.champeau.a4j.jsolex.processing.sun.SolexVideoProcessor;
+import me.champeau.a4j.jsolex.processing.util.Constants;
+import me.champeau.a4j.jsolex.processing.util.ForkJoinContext;
+import me.champeau.a4j.jsolex.processing.util.ForkJoinParallelExecutor;
 import me.champeau.a4j.jsolex.processing.util.LoggingSupport;
+import me.champeau.a4j.jsolex.processing.util.ProcessingException;
 import me.champeau.a4j.math.VectorApiSupport;
 import me.champeau.a4j.ser.SerFileReader;
 import org.slf4j.Logger;
@@ -67,21 +70,21 @@ import org.slf4j.LoggerFactory;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Path;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.LinkedHashMap;
-import java.util.Map;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
+import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.Semaphore;
-import java.util.concurrent.locks.ReentrantLock;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
 
 import static me.champeau.a4j.jsolex.processing.util.LoggingSupport.logError;
 
-public class JSolEx extends Application {
+public class JSolEx extends Application implements JSolExInterface {
     private static final Logger LOGGER = LoggerFactory.getLogger(JSolEx.class);
-    private final ExecutorService executor = Executors.newCachedThreadPool();
+
+    private final ForkJoinParallelExecutor cpuExecutor = ForkJoinParallelExecutor.newExecutor();
+    private final ForkJoinParallelExecutor ioExecutor = ForkJoinParallelExecutor.newExecutor(1);
 
     private final Configuration config = new Configuration();
 
@@ -102,11 +105,15 @@ public class JSolEx extends Application {
     @FXML
     private Label progressLabel;
 
-    private boolean reconstructionStarted = false;
+    @Override
+    public ForkJoinContext getCpuExecutor() {
+        return cpuExecutor;
+    }
 
-    private final Map<SuggestionEvent.SuggestionKind, String> suggestions = Collections.synchronizedMap(new LinkedHashMap<>());
-
-    private final ReentrantLock lock = new ReentrantLock();
+    @Override
+    public TabPane getMainPane() {
+        return mainPane;
+    }
 
     @Override
     public void start(Stage stage) throws Exception {
@@ -134,9 +141,25 @@ public class JSolEx extends Application {
             stage.show();
             refreshRecentItemsMenu();
             LogbackConfigurer.configureLogger(console);
-            stage.setOnCloseRequest(e -> executor.shutdownNow());
+            cpuExecutor.setUncaughtExceptionHandler((t, e) -> logError(e));
+            ioExecutor.setUncaughtExceptionHandler((t, e) -> logError(e));
+            stage.setOnCloseRequest(e -> {
+                try {
+                    cpuExecutor.close();
+                } catch (Exception ex) {
+                    // ignore
+                }
+                try {
+                    ioExecutor.close();
+                } catch (Exception ex) {
+                    // ignore
+                }
+                System.exit(0);
+            });
+            LOGGER.info("Java runtime version {}", System.getProperty("java.version"));
+            LOGGER.info("Vector API support is {} and {}", VectorApiSupport.isPresent() ? "available" : "missing", VectorApiSupport.isEnabled() ? "enabled" : "disabled (enable by setting " + VectorApiSupport.VECTOR_API_ENV_VAR + " environment variable to true)");
         } catch (IOException exception) {
-            throw new RuntimeException(exception);
+            throw new ProcessingException(exception);
         }
     }
 
@@ -157,19 +180,38 @@ public class JSolEx extends Application {
         }
     }
 
-    private void hideProgress() {
+    public void hideProgress() {
         progressBar.setProgress(0);
         progressLabel.setText("");
         progressBar.setVisible(false);
     }
 
-    private void showProgress() {
+    public void showProgress() {
         progressBar.setVisible(true);
+    }
+
+    public void updateProgress(double progress, String message) {
+        progressBar.setProgress(progress);
+        progressLabel.setText(message);
     }
 
     @FXML
     private void open() {
         selectSerFileAndThen(this::doOpen);
+    }
+
+    @FXML
+    private void openBatch() {
+        var fileChooser = new FileChooser();
+        fileChooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("SER files", "*.ser"));
+        config.findLastOpenDirectory().ifPresent(dir -> fileChooser.setInitialDirectory(dir.toFile()));
+        var selectedFiles = fileChooser.showOpenMultipleDialog(rootStage);
+        if (selectedFiles != null && !selectedFiles.isEmpty()) {
+            LoggingSupport.LOGGER.info("Selected files {}", selectedFiles.stream().map(File::getName).toList());
+            doOpenMany(selectedFiles);
+        } else {
+            LoggingSupport.LOGGER.info("No selected file, processing cancelled.");
+        }
     }
 
     private void selectSerFileAndThen(Consumer<? super File> consumer) {
@@ -229,49 +271,164 @@ public class JSolEx extends Application {
 
     private void doOpen(File selectedFile) {
         config.loaded(selectedFile.toPath());
-        Thread.currentThread().setUncaughtExceptionHandler((t, e) -> logError(e));
+        configureThreadExceptionHandler();
         BatchOperations.submit(this::refreshRecentItemsMenu);
+        Optional<ProcessParams> processParams;
         try (var reader = SerFileReader.of(selectedFile)) {
-            var controller = createProcessParams(reader);
-            var processParams = controller.getProcessParams();
-            processParams.ifPresent(params -> startProcess(selectedFile, params));
+            var controller = createProcessParams(reader, false);
+            processParams = controller.getProcessParams();
         } catch (Exception e) {
-            throw new RuntimeException(e);
+            throw ProcessingException.wrap(e);
         }
+        processParams.ifPresent(params -> {
+            mainPane.getTabs().clear();
+            console.textProperty().set("");
+            new Thread(() -> cpuExecutor.blocking(context ->
+                    processSingleFile(context, params, selectedFile, false, 0, null, () -> {
+                    })
+            )).start();
+        });
     }
 
-    private void startProcess(File selectedFile, ProcessParams params) {
+    private static void configureThreadExceptionHandler() {
+        Thread.currentThread().setUncaughtExceptionHandler((t, e) -> logError(e));
+    }
+
+    private void doOpenMany(List<File> selectedFiles) {
+        configureThreadExceptionHandler();
+        File initial = selectedFiles.get(0);
+        config.updateLastOpenDirectory(initial.toPath().getParent());
+        Optional<ProcessParams> processParams;
+        try (var reader = SerFileReader.of(initial)) {
+            var controller = createProcessParams(reader, true);
+            processParams = controller.getProcessParams();
+        } catch (Exception e) {
+            throw ProcessingException.wrap(e);
+        }
+        processParams.ifPresent(params -> startProcess(params, selectedFiles));
+
+    }
+
+    private void startProcess(ProcessParams params, List<File> selectedFiles) {
         mainPane.getTabs().clear();
-        console.textProperty().set("");
-        reconstructionStarted = false;
-        var baseName = selectedFile.getName().substring(0, selectedFile.getName().lastIndexOf("."));
-        var outputDirectory = selectedFile.getParentFile();
-        LOGGER.info("Java runtime version {}", System.getProperty("java.version"));
-        LOGGER.info("Vector API support is {} and {}", VectorApiSupport.isPresent() ? "available" : "missing", VectorApiSupport.isEnabled() ? "enabled" : "disabled (enable by setting " + VectorApiSupport.VECTOR_API_ENV_VAR + " environment variable to true)");
-        LoggingSupport.LOGGER.info(message("output.dir.set"), outputDirectory);
-        var processor = new SolexVideoProcessor(selectedFile,
-                outputDirectory.toPath(),
-                params
-        );
-        var listener = new DefaultProcessingEventListener(baseName, params);
-        processor.addEventListener(listener);
-        var task = new Task<Void>() {
-            @Override
-            protected Void call() {
-                try {
-                    processor.process();
-                } catch (Exception ex) {
-                    LoggingSupport.logError(ex);
-                } finally {
-                    processor.removeEventListener(listener);
+        LOGGER.info(message("batch.mode.info"));
+        var tab = new Tab(message("batch.process"));
+        var table = new TableView<BatchItem>();
+        var batchItems = new ArrayList<BatchItem>(selectedFiles.size());
+        for (int i = 0; i < selectedFiles.size(); i++) {
+            var selectedFile = selectedFiles.get(i);
+            batchItems.add(new BatchItem(
+                    i,
+                    selectedFile,
+                    new SimpleDoubleProperty(0),
+                    FXCollections.synchronizedObservableList(FXCollections.observableArrayList()),
+                    new SimpleStringProperty(message("batch.pending")),
+                    new StringBuilder()
+            ));
+        }
+        table.getItems().addAll(batchItems);
+        var idColumn = new TableColumn<BatchItem, String>();
+        idColumn.setText("#");
+        idColumn.setCellValueFactory(param -> new SimpleStringProperty(String.format("%04d", param.getValue().id())));
+        var fnColumn = new TableColumn<BatchItem, String>();
+        fnColumn.setText(message("filename"));
+        fnColumn.setCellValueFactory(param -> new SimpleStringProperty(param.getValue().file().getName()));
+        var progressColumn = new TableColumn<BatchItem, Number>();
+        progressColumn.setText(message("reconstruction"));
+        progressColumn.setCellValueFactory(param -> param.getValue().reconstructionProgress());
+        progressColumn.setCellFactory(new ProgressCellFactory());
+        var images = new TableColumn<BatchItem, List<File>>();
+        images.setText(message("images"));
+        images.setCellValueFactory(param -> Bindings.createObjectBinding(() -> new ArrayList<>(param.getValue().generatedFiles()), param.getValue().generatedFiles()));
+        images.setCellFactory(new ImageLinksFactory());
+        var statusColumn = new TableColumn<BatchItem, String>();
+        statusColumn.setText(message("status"));
+        statusColumn.setCellValueFactory(param -> param.getValue().status());
+        var firstColumnsWidth = idColumn.widthProperty().add(fnColumn.widthProperty().add(progressColumn.widthProperty())).add(statusColumn.widthProperty()).add(20);
+        images.prefWidthProperty().bind(table.widthProperty().subtract(firstColumnsWidth));
+        var columns = table.getColumns();
+        columns.setAll(idColumn, fnColumn, progressColumn, images, statusColumn);
+        tab.setContent(table);
+        mainPane.getTabs().add(tab);
+        new Thread(() -> {
+            configureThreadExceptionHandler();
+            var groups = new ArrayList<List<File>>();
+            var current = new ArrayList<File>();
+            var batchSize = Math.max(1, Runtime.getRuntime().availableProcessors() / 2);
+            for (File selectedFile : selectedFiles) {
+                current.add(selectedFile);
+                if (current.size() == batchSize) {
+                    groups.add(current);
+                    current = new ArrayList<>();
                 }
-                return null;
             }
-        };
-        new Thread(task).start();
+            if (!current.isEmpty()) {
+                groups.add(current);
+            }
+            var batchContext = new BatchProcessingContext(batchItems, new AtomicInteger(), selectedFiles.get(0).getParentFile(), LocalDateTime.now());
+            cpuExecutor.blocking(context -> {
+                var semaphore = new Semaphore(Runtime.getRuntime().availableProcessors() / 2);
+                // We're using a separate task submission thread in order to not
+                // block the processing ones
+                var taskSubmissionThread = new Thread(() -> {
+                    int idx = 0;
+                    while (idx < selectedFiles.size()) {
+                        semaphore.acquireUninterruptibly();
+                        var selectedFile = selectedFiles.get(idx);
+                        processSingleFile(context, params, selectedFile, true, idx, batchContext, semaphore::release);
+                        idx++;
+                    }
+                });
+                taskSubmissionThread.start();
+                try {
+                    taskSubmissionThread.join();
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                }
+            });
+        }).start();
     }
 
-    private ProcessParamsController createProcessParams(SerFileReader serFileReader) {
+    private void processSingleFile(ForkJoinContext cpu,
+                                   ProcessParams params,
+                                   File selectedFile,
+                                   boolean batchMode,
+                                   int sequenceNumber,
+                                   Object context,
+                                   Runnable onComplete) {
+        cpu.async(() -> {
+            var baseName = selectedFile.getName().substring(0, selectedFile.getName().lastIndexOf("."));
+            var outputDirectory = selectedFile.getParentFile();
+            LoggingSupport.LOGGER.info(message("output.dir.set"), outputDirectory);
+            var processor = new SolexVideoProcessor(selectedFile,
+                    outputDirectory.toPath(),
+                    sequenceNumber,
+                    params,
+                    cpu,
+                    ioExecutor,
+                    batchMode
+            );
+            var listener = createListener(baseName, params, batchMode, sequenceNumber, context);
+            processor.addEventListener(listener);
+            try {
+                processor.process();
+            } catch (Exception ex) {
+                LoggingSupport.logError(ex);
+            } finally {
+                onComplete.run();
+                processor.removeEventListener(listener);
+            }
+        });
+    }
+
+    private ProcessingEventListener createListener(String baseName, ProcessParams params, boolean batchMode, int sequenceNumber, Object context) {
+        if (batchMode) {
+            return new BatchModeEventListener(this, sequenceNumber, (BatchProcessingContext) context, params);
+        }
+        return new SingleModeProcessingEventListener(this, baseName, params);
+    }
+
+    private ProcessParamsController createProcessParams(SerFileReader serFileReader, boolean batchMode) {
         var loader = I18N.fxmlLoader(getClass(), "process-params");
         try {
             var dialog = new Stage();
@@ -279,23 +436,11 @@ public class JSolEx extends Application {
             var content = (Parent) loader.load();
             var controller = (ProcessParamsController) loader.getController();
             var scene = new Scene(content);
-            controller.setup(dialog, serFileReader.header());
+            controller.setup(dialog, serFileReader.header(), batchMode);
             dialog.setScene(scene);
             dialog.initOwner(rootStage);
             dialog.initModality(Modality.APPLICATION_MODAL);
             dialog.showAndWait();
-            return controller;
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        }
-    }
-
-    private ImageViewer newImageViewer() {
-        var fxmlLoader = I18N.fxmlLoader(getClass(), "imageview");
-        try {
-            var node = (Node) fxmlLoader.load();
-            var controller = (ImageViewer) fxmlLoader.getController();
-            controller.init(node, mainPane, executor);
             return controller;
         } catch (IOException e) {
             throw new RuntimeException(e);
@@ -308,214 +453,58 @@ public class JSolEx extends Application {
     }
 
     public static String message(String label) {
-        return I18N.string(JSolEx.class, "messages", label);
+        var message = I18N.string(JSolEx.class, "messages", label);
+        if (message.isEmpty()) {
+            return Constants.message(label);
+        }
+        return message;
     }
 
     public static void main(String[] args) {
         launch();
     }
 
-    private class DefaultProcessingEventListener implements ProcessingEventListener {
-        private final Map<Integer, ZoomableImageView> imageViews;
-        private final String baseName;
-        private final ProcessParams params;
-        private long sd;
-        private long ed;
-        private int width;
-        private int height;
-        private final Semaphore semaphore;
-
-        public DefaultProcessingEventListener(String baseName, ProcessParams params) {
-            this.baseName = baseName;
-            this.params = params;
-            imageViews = new HashMap<>();
-            sd = 0;
-            ed = 0;
-            width = 0;
-            height = 0;
-            semaphore = new Semaphore(1);
-        }
-
+    private static class ProgressCellFactory implements Callback<TableColumn<BatchItem, Number>, TableCell<BatchItem, Number>> {
         @Override
-        public void onOutputImageDimensionsDetermined(OutputImageDimensionsDeterminedEvent event) {
-            LOGGER.info(message("dimensions.determined"), event.getLabel(), event.getWidth(), event.getHeight());
-            if (reconstructionStarted) {
-                return;
-            }
-            reconstructionStarted = true;
-            width = event.getWidth();
-            height = event.getHeight();
-        }
-
-        private ZoomableImageView createImageView(int pixelShift) {
-            var imageView = new ZoomableImageView();
-            imageView.setPreserveRatio(true);
-            imageView.fitWidthProperty().bind(mainPane.widthProperty());
-            imageView.setImage(new WritableImage(width, height));
-            var colorAdjust = new ColorAdjust();
-            colorAdjust.brightnessProperty().setValue(0.2);
-            imageView.setEffect(colorAdjust);
-            var scrollPane = new ScrollPane();
-            scrollPane.setContent(imageView);
-            BatchOperations.submit(() -> {
-                lock.lock();
-                try {
-                    String suffix = "";
-                    if (pixelShift != 0) {
-                        suffix = " (" + pixelShift + ")";
+        public TableCell<BatchItem, Number> call(TableColumn<BatchItem, Number> param) {
+            var cell = new TableCell<BatchItem, Number>();
+            cell.itemProperty().addListener((observable, oldValue, newValue) -> {
+                if (newValue != null) {
+                    var node = cell.graphicProperty().get();
+                    if (node instanceof ProgressBar progress) {
+                        progress.setProgress(newValue.doubleValue());
+                    } else {
+                        var progress = new ProgressBar(newValue.doubleValue());
+                        cell.graphicProperty().set(progress);
                     }
-                    var tab = new Tab(message("reconstruction") + suffix, scrollPane);
-                    imageView.setParentTab(tab);
-                    mainPane.getTabs().add(tab);
-                } finally {
-                    lock.unlock();
                 }
             });
-            return imageView;
+            return cell;
         }
+    }
+
+    private static class ImageLinksFactory implements Callback<TableColumn<BatchItem, List<File>>, TableCell<BatchItem, List<File>>> {
 
         @Override
-        public void onPartialReconstruction(PartialReconstructionEvent event) {
-            var payload = event.getPayload();
-            int y = payload.line();
-            if (payload.display()) {
-                var imageView = getOrCreateImageView(event);
-                WritableImage image = (WritableImage) imageView.getImage();
-                double[] line = payload.data();
-                byte[] rgb = new byte[3 * line.length];
-                for (int x = 0; x < line.length; x++) {
-                    int v = (int) Math.round(line[x]);
-                    byte c = (byte) (v >> 8);
-                    rgb[3 * x] = c;
-                    rgb[3 * x + 1] = c;
-                    rgb[3 * x + 2] = c;
-                }
-                var pixelformat = PixelFormat.getByteRgbInstance();
-                onProgress(ProgressEvent.of((y + 1d) / height, message("reconstructing")));
-                BatchOperations.submit(() -> {
-                    if (event.getPayload().pixelShift() == 0) {
-                        mainPane.getSelectionModel().select(imageView.getParentTab());
+        public TableCell<BatchItem, List<File>> call(TableColumn<BatchItem, List<File>> param) {
+            var cell = new TableCell<BatchItem, List<File>>();
+            cell.itemProperty().addListener((observable, oldValue, newValue) -> {
+                if (newValue != null && !newValue.isEmpty()) {
+                    var vbox = (VBox) cell.graphicProperty().get();
+                    if (vbox == null) {
+                        vbox = new VBox();
+                        cell.graphicProperty().set(vbox);
+                    } else {
+                        vbox.getChildren().clear();
                     }
-                    image.getPixelWriter().setPixels(0, y, line.length, 1, pixelformat, rgb, 0, 3 * line.length);
-                });
-            } else {
-                onProgress(ProgressEvent.of((y + 1d) / height, message("reconstructing")));
-            }
-        }
-
-        private synchronized ZoomableImageView getOrCreateImageView(PartialReconstructionEvent event) {
-            return imageViews.computeIfAbsent(event.getPayload().pixelShift(), this::createImageView);
-        }
-
-        @Override
-        public void onImageGenerated(ImageGeneratedEvent event) {
-            BatchOperations.submit(() -> {
-                lock.lock();
-                try {
-                    var tab = new Tab(event.getPayload().title());
-                    var viewer = newImageViewer();
-                    viewer.fitWidthProperty().bind(mainPane.widthProperty());
-                    viewer.setTab(tab);
-                    viewer.setup(this,
-                            baseName,
-                            event.getPayload().image(),
-                            event.getPayload().stretchingStrategy(),
-                            event.getPayload().path().toFile(),
-                            params
-                    );
-                    var scrollPane = new ScrollPane();
-                    scrollPane.setContent(viewer.getRoot());
-                    tab.setContent(scrollPane);
-                    mainPane.getTabs().add(tab);
-                } finally {
-                    lock.unlock();
-                }
-            });
-        }
-
-        @Override
-        public void onNotification(NotificationEvent e) {
-            new Thread(() -> {
-                try {
-                    if (semaphore.getQueueLength() > 3) {
-                        // If there are too many events,
-                        // there's probably a big problem
-                        // like many exceptons being thrown
-                        // so let's not overwhelm the user
-                        return;
+                    for (File file : newValue) {
+                        var link = new Hyperlink(file.getName());
+                        link.setOnAction(e -> ExplorerSupport.openInExplorer(file.toPath()));
+                        vbox.getChildren().add(link);
                     }
-                    semaphore.acquire();
-                } catch (InterruptedException ex) {
-                    logError(ex);
-                }
-                BatchOperations.submit(() -> {
-                    var alert = new Alert(Alert.AlertType.valueOf(e.type().name()));
-                    alert.setResizable(true);
-                    alert.getDialogPane().setPrefSize(480, 320);
-                    alert.setTitle(e.title());
-                    alert.setHeaderText(e.header());
-                    alert.setContentText(e.message());
-                    alert.showAndWait();
-                    semaphore.release();
-                });
-            }).start();
-        }
-
-        @Override
-        public void onSuggestion(SuggestionEvent e) {
-            if (!suggestions.containsKey(e.kind())) {
-                suggestions.put(e.kind(), e.getPayload());
-            }
-        }
-
-        @Override
-        public void onProcessingStart(ProcessingStartEvent e) {
-            sd = e.getPayload();
-        }
-
-        @Override
-        public void onProcessingDone(ProcessingDoneEvent e) {
-            ed = e.getPayload();
-            var duration = java.time.Duration.ofNanos(ed - sd);
-            double seconds = duration.toMillis() / 1000d;
-            var sb = new StringBuilder();
-            if (!suggestions.isEmpty()) {
-                sb.append(message("suggestions") + " :\n");
-                for (String suggestion : suggestions.values()) {
-                    sb.append("    - ").append(suggestion).append("\n");
-                }
-            }
-            var finishedString = String.format(message("finished.in"), seconds);
-            onNotification(new NotificationEvent(
-                    new Notification(
-                            Notification.AlertType.INFORMATION,
-                            message("processing.done"),
-                            finishedString,
-                            sb.toString()
-                    )));
-            suggestions.clear();
-            BatchOperations.submit(() -> {
-                progressLabel.setText(finishedString);
-                progressLabel.setVisible(true);
-            });
-        }
-
-        @Override
-        public void onProgress(ProgressEvent e) {
-            BatchOperations.submitOneOfAKind("progress", () -> {
-                if (e.getPayload().progress() == 1) {
-                    hideProgress();
-                } else {
-                    showProgress();
-                    progressBar.setProgress(e.getPayload().progress());
-                    progressLabel.setText(e.getPayload().task());
                 }
             });
-        }
-
-        @Override
-        public void onDebug(DebugEvent<?> e) {
-
+            return cell;
         }
     }
 

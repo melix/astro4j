@@ -47,12 +47,14 @@ public class ImageUtils {
     ) {
         var image = new BufferedImage(width, height, BufferedImage.TYPE_BYTE_GRAY);
         byte[] converted = EightBitConversionSupport.to8BitImage(data);
+        int[] rgb = new int[width * height];
         for (int x = 0; x < width; x++) {
             for (int y = 0; y < height; y++) {
                 int value = converted[y * width + x] & 0xFF;
-                image.setRGB(x, y, value << 16 | value << 8 | value);
+                rgb[x + y*width] = value << 16 | value << 8 | value;
             }
         }
+        image.setRGB(0, 0, width, height, rgb, 0, width);
         try {
             createDirectoryFor(outputFile);
             ImageIO.write(image, "png", outputFile);

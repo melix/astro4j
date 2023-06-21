@@ -15,25 +15,11 @@
  */
 package me.champeau.a4j.jsolex.processing.event;
 
-public abstract sealed class ProcessingEvent<T> permits
-        ImageGeneratedEvent,
-        NotificationEvent,
-        OutputImageDimensionsDeterminedEvent,
-        PartialReconstructionEvent,
-        ProcessingStartEvent,
-        ProcessingDoneEvent,
-        SuggestionEvent,
-        ProgressEvent,
-        DebugEvent,
-        VideoMetadataEvent {
-    private final T payload;
+import me.champeau.a4j.ser.Header;
 
-    public ProcessingEvent(T payload) {
-        this.payload = payload;
+public final class VideoMetadataEvent extends ProcessingEvent<Header> {
+
+    public VideoMetadataEvent(Header header) {
+        super(header);
     }
-
-    public T getPayload() {
-        return payload;
-    }
-
 }

@@ -24,6 +24,10 @@ import me.champeau.a4j.jsolex.app.jfx.BatchOperations;
 import org.slf4j.LoggerFactory;
 
 class LogbackConfigurer {
+    private LogbackConfigurer() {
+
+    }
+
     static void configureLogger(TextArea console) {
         ch.qos.logback.classic.Logger logbackLogger =
                 (ch.qos.logback.classic.Logger) LoggerFactory.getLogger(Logger.ROOT_LOGGER_NAME);

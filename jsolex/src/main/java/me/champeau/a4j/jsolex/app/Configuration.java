@@ -53,7 +53,11 @@ public class Configuration {
         recentFiles.remove(path);
         recentFiles.add(0, path);
         prefs.put(RECENT_FILES, recentFiles.stream().map(Path::toString).collect(joining(File.pathSeparator)));
-        prefs.put(LAST_DIRECTORY, path.getParent().toString());
+        updateLastOpenDirectory(path.getParent());
+    }
+
+    public void updateLastOpenDirectory(Path directory) {
+        prefs.put(LAST_DIRECTORY, directory.toString());
     }
 
     public List<Path> getRecentFiles() {
