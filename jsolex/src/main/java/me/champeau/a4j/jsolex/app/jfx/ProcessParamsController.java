@@ -250,6 +250,7 @@ public class ProcessParamsController {
         var latitude = this.latitude.getText();
         var longitude = this.longitude.getText();
         var geo = toDoublePair(latitude, longitude);
+        var debugImagesRequested = requestedImages.isEnabled(GeneratedImageKind.DEBUG);
         processParams = new ProcessParams(
                 new SpectrumParams(wavelength.getValue(), spectralLineDetectionThreshold.getValue(), (int) Math.round(pixelShifting.getValue()), (int) Math.round(dopplerShifting.getValue()), switchRedBlueChannels.isSelected()),
                 new ObservationDetails(
@@ -262,7 +263,7 @@ public class ProcessParamsController {
                         geo,
                         ZonedDateTime.parse(observationDate.getText()),
                         camera.getText()),
-                new DebugParams(generateDebugImages.isSelected() || requestedImages.isEnabled(GeneratedImageKind.DEBUG), autoSave.isSelected(), generateFits.isSelected(), namingPattern.getSelectionModel().getSelectedItem().pattern()),
+                new DebugParams(generateDebugImages.isSelected() || debugImagesRequested, autoSave.isSelected(), generateFits.isSelected(), namingPattern.getSelectionModel().getSelectedItem().pattern()),
                 new VideoParams(assumeMonoVideo.isSelected() ? ColorMode.MONO : null),
                 new GeometryParams(
                         forceTilt.isSelected() ? Double.parseDouble(tiltValue.getText()) : null,
