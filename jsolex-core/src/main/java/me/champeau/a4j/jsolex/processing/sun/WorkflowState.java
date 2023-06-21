@@ -15,12 +15,10 @@
  */
 package me.champeau.a4j.jsolex.processing.sun;
 
-import me.champeau.a4j.jsolex.processing.sun.workflow.WorkflowStep;
+import me.champeau.a4j.jsolex.processing.sun.workflow.WorkflowResults;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 
-import java.util.Arrays;
 import java.util.EnumMap;
-import java.util.EnumSet;
 import java.util.Optional;
 
 public final class WorkflowState {
@@ -28,44 +26,32 @@ public final class WorkflowState {
     private final int height;
     private final int pixelShift;
     private final float[] reconstructed;
-    private final EnumSet<WorkflowStep> enabledSteps;
-    private final EnumMap<WorkflowStep, Object> outcomes = new EnumMap<>(WorkflowStep.class);
+    private final EnumMap<WorkflowResults, Object> outcomes = new EnumMap<>(WorkflowResults.class);
     private ImageWrapper32 image;
 
     public WorkflowState(
             int width,
             int height,
             int pixelShift,
-            float[] buffer,
-            EnumSet<WorkflowStep> enabledSteps
+            float[] buffer
     ) {
         this.width = width;
         this.height = height;
         this.pixelShift = pixelShift;
-        this.enabledSteps = enabledSteps;
         this.reconstructed = buffer;
     }
 
-    public static WorkflowState prepare(int width, int height, int pixelShift, EnumSet<WorkflowStep> steps) {
-        return new WorkflowState(width, height, pixelShift, new float[width * height], steps);
+    public static WorkflowState prepare(int width, int height, int pixelShift) {
+        return new WorkflowState(width, height, pixelShift, new float[width * height]);
     }
 
-    public static WorkflowState prepare(int width, int height, int pixelShift, WorkflowStep... steps) {
-        var enabledSteps = steps.length == 0 ? EnumSet.noneOf(WorkflowStep.class) : EnumSet.copyOf(Arrays.asList(steps));
-        return new WorkflowState(width, height, pixelShift, new float[width * height], enabledSteps);
-    }
-
-    public void recordResult(WorkflowStep step, Object result) {
+    public void recordResult(WorkflowResults step, Object result) {
         outcomes.put(step, result);
     }
 
-    public <T> Optional<T> findResult(WorkflowStep step) {
+    public <T> Optional<T> findResult(WorkflowResults step) {
         //noinspection unchecked
         return Optional.ofNullable((T) outcomes.get(step));
-    }
-
-    public boolean isEnabled(WorkflowStep step) {
-        return enabledSteps.contains(step);
     }
 
     public int width() {
@@ -90,9 +76,5 @@ public final class WorkflowState {
 
     public float[] reconstructed() {
         return reconstructed;
-    }
-
-    public EnumSet<WorkflowStep> steps() {
-        return enabledSteps;
     }
 }

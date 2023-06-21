@@ -34,6 +34,7 @@ import java.nio.file.Paths;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
+import java.util.List;
 
 abstract class ProcessParamsIO {
     private static final Logger LOGGER = LoggerFactory.getLogger(ProcessParamsIO.class);
@@ -83,7 +84,8 @@ abstract class ProcessParamsIO {
                 new DebugParams(false, true, true, FileNamingStrategy.DEFAULT_TEMPLATE),
                 new VideoParams(ColorMode.MONO),
                 new GeometryParams(null, null, false, false, false),
-                new BandingCorrectionParams(24, 3)
+                new BandingCorrectionParams(24, 3),
+                new RequestedImages(RequestedImages.FULL_MODE, List.of(0))
         );
     }
 
@@ -101,7 +103,8 @@ abstract class ProcessParamsIO {
                                 params.debugParams(),
                                 new VideoParams(ColorMode.MONO),
                                 params.geometryParams(),
-                                params.bandingCorrectionParams()
+                                params.bandingCorrectionParams(),
+                                params.requestedImages()
                         );
                     }
                     if (params.geometryParams() == null) {
@@ -116,7 +119,8 @@ abstract class ProcessParamsIO {
                                         false,
                                         false,
                                         false),
-                                params.bandingCorrectionParams()
+                                params.bandingCorrectionParams(),
+                                params.requestedImages()
                         );
                     }
                     if (params.bandingCorrectionParams() == null) {
@@ -129,7 +133,19 @@ abstract class ProcessParamsIO {
                                 new BandingCorrectionParams(
                                         24,
                                         3
-                                )
+                                ),
+                                params.requestedImages()
+                        );
+                    }
+                    if (params.requestedImages() == null) {
+                        params = new ProcessParams(
+                                params.spectrumParams(),
+                                params.observationDetails(),
+                                params.debugParams(),
+                                params.videoParams(),
+                                params.geometryParams(),
+                                params.bandingCorrectionParams(),
+                                new RequestedImages(RequestedImages.FULL_MODE, List.of(0))
                         );
                     }
                     return params;

@@ -118,8 +118,7 @@ public class Main implements Runnable {
             var processor = new SolexVideoProcessor(
                     inputFile,
                     outputDir.toPath(),
-                    processParams,
-                    quickMode
+                    processParams
             );
             processor.addEventListener(new LoggingListener(processParams));
             processor.process();

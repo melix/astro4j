@@ -28,6 +28,9 @@ application {
 
 tasks.withType<JavaExec>().configureEach {
     outputs.upToDateWhen { false }
+    providers.systemPropertiesPrefixedBy("sysprop.").get().forEach { s, p ->
+        systemProperty(s.substringAfter("sysprop."), p)
+    }
     jvmArgs("--enable-preview")
 }
 

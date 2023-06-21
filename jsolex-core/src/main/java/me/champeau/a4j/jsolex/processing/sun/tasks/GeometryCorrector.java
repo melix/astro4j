@@ -18,10 +18,9 @@ package me.champeau.a4j.jsolex.processing.sun.tasks;
 import me.champeau.a4j.jsolex.processing.event.ProgressEvent;
 import me.champeau.a4j.jsolex.processing.params.ProcessParams;
 import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
-import me.champeau.a4j.jsolex.processing.sun.crop.Cropper;
+import me.champeau.a4j.jsolex.processing.sun.WorkflowState;
 import me.champeau.a4j.jsolex.processing.sun.workflow.ImageEmitter;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
-import me.champeau.a4j.jsolex.processing.util.ProcessingException;
 import me.champeau.a4j.math.image.Image;
 import me.champeau.a4j.math.image.ImageMath;
 import me.champeau.a4j.math.regression.Ellipse;
@@ -42,6 +41,7 @@ public class GeometryCorrector extends AbstractTask<GeometryCorrector.Result> {
     private final float blackPoint;
     private final ProcessParams processParams;
     private final ImageEmitter imageEmitter;
+    private final WorkflowState state;
 
     public GeometryCorrector(Broadcaster broadcaster,
                              ImageWrapper32 image,
@@ -51,7 +51,8 @@ public class GeometryCorrector extends AbstractTask<GeometryCorrector.Result> {
                              Double xyRatio,
                              float blackPoint,
                              ProcessParams processParams,
-                             ImageEmitter imageEmitter) {
+                             ImageEmitter imageEmitter,
+                             WorkflowState state) {
         super(broadcaster, image);
         this.ellipse = ellipse;
         this.forcedTilt = forcedTilt;
@@ -60,6 +61,7 @@ public class GeometryCorrector extends AbstractTask<GeometryCorrector.Result> {
         this.blackPoint = blackPoint;
         this.processParams = processParams;
         this.imageEmitter = imageEmitter;
+        this.state = state;
     }
 
     @Override
@@ -76,18 +78,28 @@ public class GeometryCorrector extends AbstractTask<GeometryCorrector.Result> {
         LOGGER.debug("a = {}, b={}, theta={}", a, b, theta);
         boolean performTransform = Math.abs(180 * theta / Math.PI) > 1;
         var maxDx = height * shear;
+        var shift = maxDx < 0 ? maxDx : 0;
         float[] newBuffer;
         int extendedWidth = width;
         if (performTransform) {
             extendedWidth = width + (int) Math.ceil(Math.abs(maxDx));
             newBuffer = new float[height * extendedWidth];
             Arrays.fill(newBuffer, blackPoint);
-            var shift = maxDx < 0 ? maxDx : 0;
             for (int y = 0; y < height; y++) {
                 var dx = y * shear;
                 for (int x = 0; x < width; x++) {
                     int nx = (int) (x - shift + dx);
                     newBuffer[nx + y * extendedWidth] = buffer[x + y * width];
+                    // reduce transform artifacts by filling with same border color
+                    if (x == 0) {
+                        for (int k = 0; k < nx; k++) {
+                            newBuffer[k + y * extendedWidth] = buffer[x + y * width];
+                        }
+                    } else if (x == width - 1) {
+                        for (int k = nx; k < extendedWidth; k++) {
+                            newBuffer[k + y * extendedWidth] = buffer[x + y * width];
+                        }
+                    }
                 }
             }
         } else {
@@ -95,7 +107,7 @@ public class GeometryCorrector extends AbstractTask<GeometryCorrector.Result> {
             newBuffer = new float[buffer.length];
             System.arraycopy(buffer, 0, newBuffer, 0, buffer.length);
         }
-        double sx = 1.0d;
+        double sx;
         double sy = Math.abs((a * b * Math.sqrt((a * a * m * m + b * b) / (a * a * sin * sin + b * b * cos * cos)) / (b * b * cos - a * a * m * sin)));
         LOGGER.info(message("detected.xy.ratio"), String.format("%.2f", sy));
         if (xyRatio != null) {
@@ -105,32 +117,17 @@ public class GeometryCorrector extends AbstractTask<GeometryCorrector.Result> {
             // because we don't want to do downsampling, we're inverting ratios
             sx = 1 / sy;
             sy = 1.0d;
+        } else {
+            sx = 1.0d;
         }
-        var rotated = ImageMath.newInstance().rotateAndScale(new Image(extendedWidth, height, newBuffer), 0, blackPoint, sx, sy);
+        var rescaled = ImageMath.newInstance().rotateAndScale(new Image(extendedWidth, height, newBuffer), 0, blackPoint, sx, sy);
         broadcaster.broadcast(ProgressEvent.of(1, "Correcting geometry"));
-        var full = new ImageWrapper32(rotated.width(), rotated.height(), rotated.data());
-        return new Result(crop(rotated, full), ellipse);
-    }
-
-    private Ellipse performFitting(ImageWrapper32 image) {
-        EllipseFittingTask.Result fitting;
-        try {
-            fitting = new EllipseFittingTask(broadcaster, image, .25d).call();
-        } catch (Exception e) {
-            throw new ProcessingException(e);
-        }
-        return fitting.ellipse();
-    }
-
-    private ImageWrapper32 crop(Image rotated, ImageWrapper32 full) {
-        var diskEllipse = performFitting(full);
-        return ImageWrapper32.fromImage(Cropper.cropToSquare(rotated, diskEllipse, blackPoint));
+        return new Result(ImageWrapper32.fromImage(rescaled), ellipse);
     }
 
     public record Result(
             ImageWrapper32 corrected,
-            Ellipse disk
+            Ellipse originalEllipse
     ) {
-
     }
 }

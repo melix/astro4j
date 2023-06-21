@@ -21,12 +21,12 @@ import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 import me.champeau.a4j.math.regression.Ellipse;
 
 public class CoronagraphTask extends AbstractTask<ImageWrapper32> {
-    private final EllipseFittingTask.Result fitting;
+    private final Ellipse fitting;
     private final float blackPoint;
 
     public CoronagraphTask(Broadcaster broadcaster,
                            ImageWrapper32 image,
-                           EllipseFittingTask.Result fitting,
+                           Ellipse fitting,
                            float blackPoint) {
         super(broadcaster, image);
         this.fitting = fitting;
@@ -35,14 +35,13 @@ public class CoronagraphTask extends AbstractTask<ImageWrapper32> {
 
     @Override
     public ImageWrapper32 call() throws Exception {
-        var ellipse = fitting.ellipse();
-        fill(ellipse, buffer, width, 0);
+        fill(fitting, buffer, width, 0);
         new ArcsinhStretchingStrategy(blackPoint * .25f, 5000, 20000).stretch(buffer);
         return new ImageWrapper32(width, height, buffer);
 
     }
 
-    private static void fill(Ellipse ellipse, float[] image, int width, int color) {
+    private void fill(Ellipse ellipse, float[] image, int width, int color) {
         int height = image.length / width;
         for (int x = 0; x < width; x++) {
             for (int y = 0; y < height; y++) {

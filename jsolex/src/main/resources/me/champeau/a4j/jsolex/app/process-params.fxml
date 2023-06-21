@@ -53,13 +53,18 @@
     <bottom>
         <AnchorPane>
             <children>
-                <Button layoutX="456.0" layoutY="8.0" mnemonicParsing="false" onAction="#process" text="%full.process" />
+                <Button layoutX="491.0" layoutY="8.0" mnemonicParsing="false" onAction="#process" text="%full.process" />
                 <Button layoutX="31.0" layoutY="8.0" mnemonicParsing="false" onAction="#cancel" text="%cancel" />
-                <Button layoutX="334.0" layoutY="8.0" mnemonicParsing="false" onAction="#quickProcess" text="%quick.mode">
+                <Button layoutX="240.0" layoutY="8.0" mnemonicParsing="false" onAction="#customProcess" text="%custom.mode">
                     <tooltip>
-                        <Tooltip text="%quick.mode.tooltip" />
+                        <Tooltip text="%custom.mode.tooltip" />
                     </tooltip>
                 </Button>
+            <Button layoutX="371.0" layoutY="8.0" mnemonicParsing="false" onAction="#quickProcess" text="%quick.mode">
+               <tooltip>
+                  <Tooltip text="%quick.mode.tooltip" />
+               </tooltip>
+            </Button>
             </children>
             <padding>
                 <Insets bottom="8.0" left="8.0" right="8.0" top="8.0" />

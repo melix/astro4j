@@ -39,22 +39,22 @@ public class RenamingImageEmitter implements ImageEmitter {
     }
 
     @Override
-    public Future<Void> newMonoImage(WorkflowStep step, String title, String name, ImageWrapper32 image, StretchingStrategy stretchingStrategy, Consumer<? super float[]> bufferConsumer) {
-        return delegate.newMonoImage(step, titleRenamer.apply(title), fileRenamer.apply(name), image, stretchingStrategy, bufferConsumer);
+    public Future<Void> newMonoImage(GeneratedImageKind kind, String title, String name, ImageWrapper32 image, StretchingStrategy stretchingStrategy, Consumer<? super float[]> bufferConsumer) {
+        return delegate.newMonoImage(kind, titleRenamer.apply(title), fileRenamer.apply(name), image, stretchingStrategy, bufferConsumer);
     }
 
     @Override
-    public Future<Void> newMonoImage(WorkflowStep step, String title, String name, ImageWrapper32 image, StretchingStrategy stretchingStrategy) {
-        return delegate.newMonoImage(step, titleRenamer.apply(title), fileRenamer.apply(name), image, stretchingStrategy);
+    public Future<Void> newMonoImage(GeneratedImageKind kind, String title, String name, ImageWrapper32 image, StretchingStrategy stretchingStrategy) {
+        return delegate.newMonoImage(kind, titleRenamer.apply(title), fileRenamer.apply(name), image, stretchingStrategy);
     }
 
     @Override
-    public Future<Void> newColorImage(WorkflowStep step, String title, String name, ImageWrapper32 image, StretchingStrategy stretchingStrategy, Function<float[], float[][]> rgbSupplier) {
-        return delegate.newColorImage(step, titleRenamer.apply(title), fileRenamer.apply(name), image, stretchingStrategy, rgbSupplier);
+    public Future<Void> newColorImage(GeneratedImageKind kind, String title, String name, ImageWrapper32 image, StretchingStrategy stretchingStrategy, Function<float[], float[][]> rgbSupplier) {
+        return delegate.newColorImage(kind, titleRenamer.apply(title), fileRenamer.apply(name), image, stretchingStrategy, rgbSupplier);
     }
 
     @Override
-    public Future<Void> newColorImage(WorkflowStep step, String title, String name, StretchingStrategy stretchingStrategy, int width, int height, Supplier<float[][]> rgbSupplier) {
-        return delegate.newColorImage(step, titleRenamer.apply(title), fileRenamer.apply(name), stretchingStrategy, width, height, rgbSupplier);
+    public Future<Void> newColorImage(GeneratedImageKind kind, String title, String name, StretchingStrategy stretchingStrategy, int width, int height, Supplier<float[][]> rgbSupplier) {
+        return delegate.newColorImage(kind, titleRenamer.apply(title), fileRenamer.apply(name), stretchingStrategy, width, height, rgbSupplier);
     }
 }

@@ -15,55 +15,58 @@
  */
 package me.champeau.a4j.jsolex.processing.sun.workflow;
 
-import me.champeau.a4j.jsolex.processing.file.FileNamingStrategy;
 import me.champeau.a4j.jsolex.processing.stretching.StretchingStrategy;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 
+import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Future;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
 
-public class NamingStrategyAwareImageEmitter implements ImageEmitter {
+/**
+ * Filters generated images by step.
+ */
+public class DiscardNonRequiredImages implements ImageEmitter {
+    private static final Future<Void> VOID = CompletableFuture.completedFuture(null);
     private final ImageEmitter delegate;
-    private final FileNamingStrategy strategy;
-    private final int sequenceNumber;
-    private final String imageKind;
-    private final String serFileBaseName;
+    private final Set<GeneratedImageKind> allowed;
 
-    public NamingStrategyAwareImageEmitter(ImageEmitter delegate,
-                                           FileNamingStrategy strategy,
-                                           int sequenceNumber,
-                                           String imageKind,
-                                           String serFileBaseName) {
+    public DiscardNonRequiredImages(ImageEmitter delegate, Set<GeneratedImageKind> allowed) {
         this.delegate = delegate;
-        this.strategy = strategy;
-        this.sequenceNumber = sequenceNumber;
-        this.imageKind = imageKind;
-        this.serFileBaseName = serFileBaseName;
-    }
-
-    private String rename(String name) {
-        return strategy.render(sequenceNumber, imageKind, name, serFileBaseName);
+        this.allowed = allowed;
     }
 
     @Override
     public Future<Void> newMonoImage(GeneratedImageKind kind, String title, String name, ImageWrapper32 image, StretchingStrategy stretchingStrategy, Consumer<? super float[]> bufferConsumer) {
-        return delegate.newMonoImage(kind, title, rename(name), image, stretchingStrategy, bufferConsumer);
+        if (!allowed.contains(kind)) {
+            return VOID;
+        }
+        return delegate.newMonoImage(kind, title, name, image, stretchingStrategy, bufferConsumer);
     }
 
     @Override
     public Future<Void> newMonoImage(GeneratedImageKind kind, String title, String name, ImageWrapper32 image, StretchingStrategy stretchingStrategy) {
-        return delegate.newMonoImage(kind, title, rename(name), image, stretchingStrategy);
+        if (!allowed.contains(kind)) {
+            return VOID;
+        }
+        return delegate.newMonoImage(kind, title, name, image, stretchingStrategy);
     }
 
     @Override
     public Future<Void> newColorImage(GeneratedImageKind kind, String title, String name, ImageWrapper32 image, StretchingStrategy stretchingStrategy, Function<float[], float[][]> rgbSupplier) {
-        return delegate.newColorImage(kind, title, rename(name), image, stretchingStrategy, rgbSupplier);
+        if (!allowed.contains(kind)) {
+            return VOID;
+        }
+        return delegate.newColorImage(kind, title, name, image, stretchingStrategy, rgbSupplier);
     }
 
     @Override
     public Future<Void> newColorImage(GeneratedImageKind kind, String title, String name, StretchingStrategy stretchingStrategy, int width, int height, Supplier<float[][]> rgbSupplier) {
-        return delegate.newColorImage(kind, title, rename(name), stretchingStrategy, width, height, rgbSupplier);
+        if (!allowed.contains(kind)) {
+            return VOID;
+        }
+        return delegate.newColorImage(kind, title, name, stretchingStrategy, width, height, rgbSupplier);
     }
 }

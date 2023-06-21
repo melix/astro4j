@@ -60,6 +60,12 @@ public class BatchOperations {
     private static class FXOperationsThread extends Thread {
         public void run() {
             while (!Thread.currentThread().isInterrupted()) {
+                try {
+                    Thread.sleep(50);
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    break;
+                }
                 LOCK.lock();
                 List<Runnable> actions ;
                 try {

@@ -33,6 +33,7 @@ import me.champeau.a4j.jsolex.processing.sun.tasks.ImageBandingCorrector;
 import me.champeau.a4j.jsolex.processing.util.Constants;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 import me.champeau.a4j.jsolex.processing.util.ParallelExecutor;
+import me.champeau.a4j.jsolex.processing.util.ProcessingException;
 import me.champeau.a4j.math.Point2D;
 import me.champeau.a4j.math.image.ImageMath;
 import me.champeau.a4j.math.image.Kernel33;
@@ -43,7 +44,6 @@ import org.slf4j.LoggerFactory;
 import java.nio.file.Path;
 import java.text.MessageFormat;
 import java.util.List;
-import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Future;
 
@@ -90,22 +90,15 @@ public class ProcessingWorkflow {
 
     public void start() {
         var image = state.image();
-        rawImagesEmitter.newMonoImage(WorkflowStep.RAW_IMAGE, message(Constants.TYPE_RAW), "recon", image, CutoffStretchingStrategy.DEFAULT);
-        rawImagesEmitter.newMonoImage(WorkflowStep.RAW_IMAGE, message("raw.linear"), "linear", image, LinearStrechingStrategy.DEFAULT);
-        var existingFitting = state.findResult(WorkflowStep.ELLIPSE_FITTING);
+        rawImagesEmitter.newMonoImage(GeneratedImageKind.RAW, message(Constants.TYPE_RAW), "recon", image, CutoffStretchingStrategy.DEFAULT);
+        rawImagesEmitter.newMonoImage(GeneratedImageKind.RAW_STRETCHED, message("raw.linear"), "linear", image, LinearStrechingStrategy.DEFAULT);
+        var existingFitting = state.findResult(WorkflowResults.MAIN_ELLIPSE_FITTING);
         if (existingFitting.isEmpty()) {
-            var ellipseFittingTask = executor.submit(new EllipseFittingTask(broadcaster, image, .25d, processParams, debugImagesEmitter).withPrefilter());
-            ellipseFittingTask.thenAccept(r -> {
-                state.recordResult(WorkflowStep.ELLIPSE_FITTING, r);
-                performBandingCorrection(r, image).thenAccept(bandingFixed -> {
-                    state.recordResult(WorkflowStep.BANDING_CORRECTION, bandingFixed);
-                    geometryCorrection(r, bandingFixed);
-                });
-            });
+            throw new ProcessingException("Expected to find the result of ellipse fitting but none was found");
         } else {
             EllipseFittingTask.Result r = (EllipseFittingTask.Result) existingFitting.get();
             performBandingCorrection(r, image).thenAccept(bandingFixed -> {
-                state.recordResult(WorkflowStep.BANDING_CORRECTION, bandingFixed);
+                state.recordResult(WorkflowResults.BANDING_CORRECTION, bandingFixed);
                 geometryCorrection(r, bandingFixed);
             });
         }
@@ -133,32 +126,38 @@ public class ProcessingWorkflow {
             forcedTilt = -geometryParams.tilt().getAsDouble() / 180d * Math.PI;
             LOGGER.info(message("overriding.tilt"), String.format("%.2f", geometryParams.tilt().getAsDouble()));
         }
-        var diskEllipse = Optional.<Ellipse>empty();
-        if (currentStep > 0) {
-            diskEllipse = states.get(0).findResult(WorkflowStep.GEOMETRY_CORRECTION).map(r -> ((GeometryCorrector.Result) r).disk());
-        }
         Double ratio = geometryParams.xyRatio().isPresent() ? geometryParams.xyRatio().getAsDouble() : null;
-        executor.submit(new GeometryCorrector(broadcaster, bandingFixed, diskEllipse.orElse(ellipse), forcedTilt, fps, ratio, blackPoint, processParams, debugImagesEmitter)).thenAccept(g -> {
+        executor.submit(new GeometryCorrector(broadcaster, bandingFixed, ellipse, forcedTilt, fps, ratio, blackPoint, processParams, debugImagesEmitter, state)).thenAccept(g -> {
             var geometryFixed = maybeSharpen(g);
-            state.recordResult(WorkflowStep.GEOMETRY_CORRECTION, g);
+            state.recordResult(WorkflowResults.GEOMETRY_CORRECTION, g);
             broadcaster.broadcast(OutputImageDimensionsDeterminedEvent.of(message("geometry.corrected"), geometryFixed.width(), geometryFixed.height()));
-            processedImagesEmitter.newMonoImage(WorkflowStep.GEOMETRY_CORRECTION, message("disk"), "disk", geometryFixed, LinearStrechingStrategy.DEFAULT);
-            if (state.isEnabled(WorkflowStep.STRECHED_IMAGE)) {
-                executor.submit(() -> {
-                    produceStretchedImage(blackPoint, geometryFixed);
+            processedImagesEmitter.newMonoImage(GeneratedImageKind.GEOMETRY_CORRECTED, message("disk"), "disk", geometryFixed, LinearStrechingStrategy.DEFAULT);
+            executor.submit(() -> {
+                produceStretchedImage(blackPoint, geometryFixed);
+                if (isMainShift() && shouldProduce(GeneratedImageKind.NEGATIVE)) {
                     produceNegativeImage(blackPoint, geometryFixed);
-                });
-            }
-            if (state.isEnabled(WorkflowStep.COLORIZED_IMAGE)) {
+                }
+            });
+            if (isMainShift() && shouldProduce(GeneratedImageKind.COLORIZED)) {
                 executor.submit(() -> produceColorizedImage(blackPoint, geometryFixed, processParams));
+
             }
-            if (state.isEnabled(WorkflowStep.CORONAGRAPH)) {
+            if (isMainShift()) {
                 executor.submit(() -> produceCoronagraph(blackPoint, geometryFixed));
             }
-            if (state.isEnabled(WorkflowStep.DOPPLER_IMAGE)) {
+            if (shouldProduce(GeneratedImageKind.DOPPLER) && isHighestShift()) {
                 produceDopplerImage(blackPoint);
             }
         });
+    }
+
+    private boolean isMainShift() {
+        return state.pixelShift() == processParams.spectrumParams().pixelShift();
+    }
+
+    private boolean isHighestShift() {
+        var shifts = processParams.requestedImages().pixelShifts();
+        return state.pixelShift() == shifts.get(shifts.size() - 1);
     }
 
     private ImageWrapper32 maybeSharpen(GeometryCorrector.Result g) {
@@ -201,12 +200,12 @@ public class ProcessingWorkflow {
             var first = states.stream().filter(s -> s.pixelShift() == lookupShift).findFirst();
             var second = states.stream().filter(s -> s.pixelShift() == -lookupShift).findFirst();
             first.ifPresent(s1 -> second.ifPresent(s2 -> {
-                s1.findResult(WorkflowStep.GEOMETRY_CORRECTION).ifPresent(i1 -> s2.findResult(WorkflowStep.GEOMETRY_CORRECTION).ifPresent(i2 -> {
+                s1.findResult(WorkflowResults.GEOMETRY_CORRECTION).ifPresent(i1 -> s2.findResult(WorkflowResults.GEOMETRY_CORRECTION).ifPresent(i2 -> {
                     var grey1 = ((GeometryCorrector.Result) i1).corrected();
                     var grey2 = ((GeometryCorrector.Result) i2).corrected();
                     var width = grey1.width();
                     var height = grey1.height();
-                    processedImagesEmitter.newColorImage(WorkflowStep.DOPPLER_IMAGE,
+                    processedImagesEmitter.newColorImage(GeneratedImageKind.DOPPLER,
                             "Doppler",
                             "doppler",
                             new ArcsinhStretchingStrategy(blackPoint, 1, 20),
@@ -238,7 +237,7 @@ public class ProcessingWorkflow {
     private void produceColorizedImage(float blackPoint, ImageWrapper32 corrected, ProcessParams params) {
         CutoffStretchingStrategy.DEFAULT.stretch(corrected.data());
         params.spectrumParams().ray().getColorCurve().ifPresent(curve ->
-                processedImagesEmitter.newColorImage(WorkflowStep.COLORIZED_IMAGE, MessageFormat.format(message("colorized"), curve.ray()), "colorized", corrected, new ArcsinhStretchingStrategy(blackPoint, 10, 200), mono -> ImageUtils.convertToRGB(curve, mono))
+                processedImagesEmitter.newColorImage(GeneratedImageKind.COLORIZED, MessageFormat.format(message("colorized"), curve.ray()), "colorized", corrected, new ArcsinhStretchingStrategy(blackPoint, 10, 200), mono -> ImageUtils.convertToRGB(curve, mono))
         );
     }
 
@@ -247,51 +246,68 @@ public class ProcessingWorkflow {
     }
 
     private Future<Void> produceStretchedImage(float blackPoint, ImageWrapper32 geometryFixed) {
-        return processedImagesEmitter.newMonoImage(WorkflowStep.STRECHED_IMAGE, message("stretched"), "streched", geometryFixed, new ArcsinhStretchingStrategy(blackPoint, 10, 100));
+        return processedImagesEmitter.newMonoImage(GeneratedImageKind.GEOMETRY_CORRECTED_STRETCHED, message("stretched"), "streched", geometryFixed, new ArcsinhStretchingStrategy(blackPoint, 10, 100));
     }
 
     private Future<Void> produceNegativeImage(float blackPoint, ImageWrapper32 geometryFixed) {
         var negated = geometryFixed.asImage().copy();
         NegativeImageStrategy.DEFAULT.stretch(negated.data());
-        return processedImagesEmitter.newMonoImage(WorkflowStep.NEGATIVE_IMAGE, message("negative"), "negative", ImageWrapper32.fromImage(negated), new ArcsinhStretchingStrategy(blackPoint, 10, 100));
+        return processedImagesEmitter.newMonoImage(GeneratedImageKind.NEGATIVE, message("negative"), "negative", ImageWrapper32.fromImage(negated), new ArcsinhStretchingStrategy(blackPoint, 10, 100));
     }
 
     private void produceCoronagraph(float blackPoint, ImageWrapper32 geometryFixed) {
-        executor.submit(new EllipseFittingTask(broadcaster, geometryFixed, .25d))
-                .thenAccept(fitting -> executor.submit(new CoronagraphTask(broadcaster, geometryFixed, fitting, blackPoint)).thenAccept(coronagraph -> {
-                            processedImagesEmitter.newMonoImage(WorkflowStep.CORONAGRAPH, message("protus"), "protus", coronagraph, LinearStrechingStrategy.DEFAULT);
-                            var data = geometryFixed.data();
-                            var copy = new float[data.length];
-                            System.arraycopy(data, 0, copy, 0, data.length);
-                            LinearStrechingStrategy.DEFAULT.stretch(copy);
-                            var width = geometryFixed.width();
-                            var height = geometryFixed.height();
-                            var ellipse = fitting.ellipse();
-                            float[] mix = new float[data.length];
-                            var coronaData = coronagraph.data();
-                            var filtered = new float[coronaData.length];
-                            System.arraycopy(coronaData, 0, filtered, 0, filtered.length);
-                            prefilter(fitting.ellipse(), filtered, width, height);
-                            for (int y = 0; y < height; y++) {
-                                for (int x = 0; x < width; x++) {
-                                    var index = x + y * width;
-                                    if (ellipse.isWithin(x, y)) {
-                                        mix[index] = copy[index];
-                                    } else {
-                                        mix[index] = filtered[index];
-                                    }
+        state.<GeometryCorrector.Result>findResult(WorkflowResults.GEOMETRY_CORRECTION).ifPresent(result -> {
+            Ellipse ellipse;
+            try {
+                ellipse = new EllipseFittingTask(broadcaster, result.corrected(), .35d)
+                        .call().ellipse();
+            } catch (Exception e) {
+                throw new ProcessingException(e);
+            }
+            var diskEllipse = ellipse;
+            var produceVirtualEclipse = shouldProduce(GeneratedImageKind.VIRTUAL_ECLIPSE);
+            var produceMixed = shouldProduce(GeneratedImageKind.MIXED);
+            if (produceVirtualEclipse || produceMixed) {
+                executor.submit(new CoronagraphTask(broadcaster, geometryFixed, diskEllipse, blackPoint)).thenAccept(coronagraph -> {
+                    processedImagesEmitter.newMonoImage(GeneratedImageKind.VIRTUAL_ECLIPSE, message("protus"), "protus", coronagraph, LinearStrechingStrategy.DEFAULT);
+                    if (produceMixed) {
+                        var data = geometryFixed.data();
+                        var copy = new float[data.length];
+                        System.arraycopy(data, 0, copy, 0, data.length);
+                        LinearStrechingStrategy.DEFAULT.stretch(copy);
+                        var width = geometryFixed.width();
+                        var height = geometryFixed.height();
+                        float[] mix = new float[data.length];
+                        var coronaData = coronagraph.data();
+                        var filtered = new float[coronaData.length];
+                        System.arraycopy(coronaData, 0, filtered, 0, filtered.length);
+                        prefilter(diskEllipse, filtered, width, height);
+                        for (int y = 0; y < height; y++) {
+                            for (int x = 0; x < width; x++) {
+                                var index = x + y * width;
+                                if (diskEllipse.isWithin(x, y)) {
+                                    mix[index] = copy[index];
+                                } else {
+                                    mix[index] = filtered[index];
                                 }
                             }
-                            var mixedImage = new ImageWrapper32(width, height, mix);
-                            var colorCurve = processParams.spectrumParams().ray().getColorCurve();
-                            if (colorCurve.isPresent()) {
-                                var curve = colorCurve.get();
-                                processedImagesEmitter.newColorImage(WorkflowStep.COLORIZED_IMAGE, message("mix"), "mix", mixedImage, new ArcsinhStretchingStrategy(blackPoint, 10, 200), mono -> ImageUtils.convertToRGB(curve, mono));
-                            } else {
-                                processedImagesEmitter.newMonoImage(WorkflowStep.CORONAGRAPH, message("mix"), "mix", mixedImage, LinearStrechingStrategy.DEFAULT);
-                            }
-                        })
-                );
+                        }
+                        var mixedImage = new ImageWrapper32(width, height, mix);
+                        var colorCurve = processParams.spectrumParams().ray().getColorCurve();
+                        if (colorCurve.isPresent()) {
+                            var curve = colorCurve.get();
+                            processedImagesEmitter.newColorImage(GeneratedImageKind.MIXED, message("mix"), "mix", mixedImage, new ArcsinhStretchingStrategy(blackPoint, 10, 200), mono -> ImageUtils.convertToRGB(curve, mono));
+                        } else {
+                            processedImagesEmitter.newMonoImage(GeneratedImageKind.MIXED, message("mix"), "mix", mixedImage, LinearStrechingStrategy.DEFAULT);
+                        }
+                    }
+                });
+            }
+        });
+    }
+
+    private boolean shouldProduce(GeneratedImageKind virtualEclipse) {
+        return processParams.requestedImages().isEnabled(virtualEclipse);
     }
 
     /**

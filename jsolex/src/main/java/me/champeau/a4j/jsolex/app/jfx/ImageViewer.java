@@ -47,6 +47,7 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.util.List;
+import java.util.concurrent.ExecutorService;
 
 import static me.champeau.a4j.jsolex.app.JSolEx.message;
 
@@ -67,10 +68,12 @@ public class ImageViewer {
 
     private Button saveButton;
     private TabPane tabPane;
+    private ExecutorService executor;
 
-    public void init(Node root, TabPane tabPane) {
+    public void init(Node root, TabPane tabPane, ExecutorService executor) {
         this.root = root;
         this.tabPane = tabPane;
+        this.executor = executor;
     }
 
     public DoubleProperty fitWidthProperty() {
@@ -94,11 +97,13 @@ public class ImageViewer {
     }
 
     private void saveImage(File target) {
-        imageView.setImagePath(target.toPath());
-        new ImageSaver(stretchingStrategy, processParams).save(image, target);
-        BatchOperations.submit(() -> {
-            imageView.setImage(new Image(imageFile.toURI().toString()));
-            saveButton.setDisable(true);
+        executor.submit(() -> {
+            imageView.setImagePath(target.toPath());
+            new ImageSaver(stretchingStrategy, processParams).save(image, target);
+            BatchOperations.submit(() -> {
+                imageView.setImage(new Image(imageFile.toURI().toString()));
+                saveButton.setDisable(true);
+            });
         });
     }
 
@@ -224,7 +229,7 @@ public class ImageViewer {
     }
 
     private void strechAndDisplay() {
-        new Thread(() -> {
+        executor.submit(() -> {
             File tmpImage = createTmpFile();
             var width = image.width();
             var height = image.height();
@@ -250,7 +255,7 @@ public class ImageViewer {
                 tmpImage.delete();
                 saveButton.setDisable(false);
             });
-        }).start();
+        });
     }
 
     private File createTmpFile() {
