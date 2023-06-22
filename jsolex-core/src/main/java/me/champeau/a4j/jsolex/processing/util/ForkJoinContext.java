@@ -33,11 +33,22 @@ public interface ForkJoinContext {
      */
     void setUncaughtExceptionHandler(Thread.UncaughtExceptionHandler handler);
 
+    void setOnTaskStart(Consumer<? super Thread> consumer);
+
+    void setOnTaskFinished(Consumer<? super Thread> consumer);
+
     /**
      * Submits a runnable for asynchronous execution
      * @param r the runnable
      */
     void async(Runnable r);
+
+    /**
+     * Runs some code into an isolated context which can have its
+     * ownt task start and end handlers
+     * @param context the context consumer
+     */
+    void isolate(Consumer<? super ForkJoinContext> context);
 
     /**
      * Submits a runnable for asynchronous execution and

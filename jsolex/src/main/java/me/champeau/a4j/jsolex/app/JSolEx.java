@@ -57,6 +57,7 @@ import me.champeau.a4j.jsolex.app.listeners.BatchProcessingContext;
 import me.champeau.a4j.jsolex.app.listeners.JSolExInterface;
 import me.champeau.a4j.jsolex.app.listeners.SingleModeProcessingEventListener;
 import me.champeau.a4j.jsolex.processing.event.ProcessingEventListener;
+import me.champeau.a4j.jsolex.processing.file.FileNamingStrategy;
 import me.champeau.a4j.jsolex.processing.params.ProcessParams;
 import me.champeau.a4j.jsolex.processing.sun.SolexVideoProcessor;
 import me.champeau.a4j.jsolex.processing.util.Constants;
@@ -65,6 +66,7 @@ import me.champeau.a4j.jsolex.processing.util.ForkJoinParallelExecutor;
 import me.champeau.a4j.jsolex.processing.util.LoggingSupport;
 import me.champeau.a4j.jsolex.processing.util.ProcessingException;
 import me.champeau.a4j.math.VectorApiSupport;
+import me.champeau.a4j.ser.Header;
 import me.champeau.a4j.ser.SerFileReader;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -305,18 +307,21 @@ public class JSolEx extends Application implements JSolExInterface {
         configureThreadExceptionHandler();
         BatchOperations.submit(this::refreshRecentItemsMenu);
         Optional<ProcessParams> processParams;
+        Header header = null;
         try (var reader = SerFileReader.of(selectedFile)) {
             var controller = createProcessParams(reader, false);
             processParams = controller.getProcessParams();
+            header = reader.header();
         } catch (Exception e) {
             throw ProcessingException.wrap(e);
         }
+        var firstHeader = header;
         processParams.ifPresent(params -> {
             mainPane.getTabs().clear();
             console.textProperty().set("");
             var interruptButton = addInterruptButton();
             var processingThread = new Thread(() -> cpuExecutor.blocking(context ->
-                    processSingleFile(context, params, selectedFile, false, 0, null, () -> {
+                    processSingleFile(context, params, selectedFile, false, 0, null, firstHeader, () -> {
                         BatchOperations.submit(() -> workButtons.getChildren().remove(interruptButton));
                     })
             ));
@@ -340,17 +345,20 @@ public class JSolEx extends Application implements JSolExInterface {
         File initial = selectedFiles.get(0);
         config.updateLastOpenDirectory(initial.toPath().getParent());
         Optional<ProcessParams> processParams;
+        Header header = null;
         try (var reader = SerFileReader.of(initial)) {
             var controller = createProcessParams(reader, true);
             processParams = controller.getProcessParams();
+            header = reader.header();
         } catch (Exception e) {
             throw ProcessingException.wrap(e);
         }
-        processParams.ifPresent(params -> startProcess(params, selectedFiles));
+        var firstHeader = header;
+        processParams.ifPresent(params -> startProcess(firstHeader, params, selectedFiles));
 
     }
 
-    private void startProcess(ProcessParams params, List<File> selectedFiles) {
+    private void startProcess(Header header, ProcessParams params, List<File> selectedFiles) {
         mainPane.getTabs().clear();
         LOGGER.info(message("batch.mode.info"));
         var tab = new Tab(message("batch.process"));
@@ -417,7 +425,7 @@ public class JSolEx extends Application implements JSolExInterface {
                     while (idx < selectedFiles.size() && !Thread.currentThread().isInterrupted()) {
                         semaphore.acquireUninterruptibly();
                         var selectedFile = selectedFiles.get(idx);
-                        processSingleFile(context, params, selectedFile, true, idx, batchContext, semaphore::release);
+                        processSingleFile(context, params, selectedFile, true, idx, batchContext, header, semaphore::release);
                         idx++;
                     }
                 });
@@ -452,30 +460,52 @@ public class JSolEx extends Application implements JSolExInterface {
                                    boolean batchMode,
                                    int sequenceNumber,
                                    Object context,
+                                   Header header,
                                    Runnable onComplete) {
-        cpu.async(() -> {
-            var baseName = selectedFile.getName().substring(0, selectedFile.getName().lastIndexOf("."));
-            var outputDirectory = selectedFile.getParentFile();
-            LoggingSupport.LOGGER.info(message("output.dir.set"), outputDirectory);
-            var processor = new SolexVideoProcessor(selectedFile,
-                    outputDirectory.toPath(),
-                    sequenceNumber,
-                    params,
-                    cpu,
-                    ioExecutor,
-                    context instanceof BatchProcessingContext batch ? batch.processingDate() : LocalDateTime.now(),
-                    batchMode
-            );
-            var listener = createListener(baseName, params, batchMode, sequenceNumber, context);
-            processor.addEventListener(listener);
-            try {
-                processor.process();
-            } catch (Exception ex) {
-                LoggingSupport.logError(ex);
-            } finally {
-                onComplete.run();
-                processor.removeEventListener(listener);
-            }
+        cpu.isolate(cpuIsolate -> {
+            cpuIsolate.setOnTaskStart(t -> LogbackConfigurer.recordThreadOwner(t.getName(), sequenceNumber));
+            ioExecutor.isolate(ioIsolate -> cpuIsolate.async(() -> {
+                var processingDate = context instanceof BatchProcessingContext batch ? batch.processingDate() : LocalDateTime.now();
+                ioIsolate.setOnTaskStart(t -> LogbackConfigurer.recordThreadOwner(t.getName(), sequenceNumber));
+                var namingStrategy = new FileNamingStrategy(
+                        params.debugParams().fileNamePattern(),
+                        processingDate,
+                        header
+                );
+                var outputDirectory = selectedFile.getParentFile();
+                var baseName = selectedFile.getName().substring(0, selectedFile.getName().lastIndexOf("."));
+                var logFileName = namingStrategy.render(sequenceNumber, "log", "log", baseName) + ".log";
+                var logFile = new File(outputDirectory, logFileName);
+                // For the log file we cannot _fully_ use the pattern since some data is not yet available (the file header)
+                logFile = new File(logFile.getParentFile(), String.format("%04d_%s.log", sequenceNumber, baseName));
+                if (context instanceof BatchProcessingContext ctx) {
+                    ctx.items().get(sequenceNumber).generatedFiles().add(logFile);
+                }
+                var appender = LogbackConfigurer.createContextualFileAppender(sequenceNumber, logFile);
+                LoggingSupport.LOGGER.info(message("output.dir.set"), outputDirectory);
+                var processor = new SolexVideoProcessor(selectedFile,
+                        outputDirectory.toPath(),
+                        sequenceNumber,
+                        params,
+                        cpuIsolate,
+                        ioIsolate,
+                        processingDate,
+                        batchMode
+                );
+                var listener = createListener(baseName, params, batchMode, sequenceNumber, context);
+                processor.addEventListener(listener);
+                try {
+                    LOGGER.info("File {}", selectedFile.getName());
+                    processor.process();
+                } catch (Exception ex) {
+                    LoggingSupport.logError(ex);
+                } finally {
+                    onComplete.run();
+                    processor.removeEventListener(listener);
+                    appender.stop();
+                    LogbackConfigurer.clearOwners();
+                }
+            }));
         });
     }
 

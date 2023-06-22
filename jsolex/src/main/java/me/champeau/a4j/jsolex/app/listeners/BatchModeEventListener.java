@@ -39,6 +39,8 @@ import java.nio.file.Files;
 import java.time.LocalDateTime;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import static me.champeau.a4j.jsolex.processing.util.LoggingSupport.LOGGER;
+
 public class BatchModeEventListener implements ProcessingEventListener {
 
     private final JSolExInterface owner;
@@ -86,6 +88,7 @@ public class BatchModeEventListener implements ProcessingEventListener {
 
     @Override
     public void onOutputImageDimensionsDetermined(OutputImageDimensionsDeterminedEvent event) {
+        LOGGER.info(JSolEx.message("dimensions.determined"), event.getLabel(), event.getWidth(), event.getHeight());
         item.reconstructionProgress().setValue(1.0);
     }
 
@@ -118,7 +121,7 @@ public class BatchModeEventListener implements ProcessingEventListener {
                     header
             );
             var fileName = item.file().getName();
-            var logFileName = namingStrategy.render(sequenceNumber, "log", "log", fileName.substring(0, fileName.lastIndexOf("."))) + ".txt";
+            var logFileName = namingStrategy.render(sequenceNumber, "log", "notifications", fileName.substring(0, fileName.lastIndexOf("."))) + ".txt";
             try {
                 var logFilePath = outputDirectory.toPath().resolve(logFileName);
                 Files.writeString(logFilePath, item.log().toString(), Charset.defaultCharset());
