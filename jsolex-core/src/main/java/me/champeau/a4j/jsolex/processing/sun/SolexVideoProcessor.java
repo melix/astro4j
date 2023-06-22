@@ -79,6 +79,7 @@ public class SolexVideoProcessor implements Broadcaster {
     private final int sequenceNumber;
     private final ForkJoinContext mainForkJoinContext;
     private final ForkJoinContext ioForkJoinContext;
+    private final LocalDateTime processingDate;
     private final boolean batchMode;
     private final Path outputDirectory;
     private ProcessParams processParams;
@@ -89,6 +90,7 @@ public class SolexVideoProcessor implements Broadcaster {
                                ProcessParams processParametersProvider,
                                ForkJoinContext mainForkJoinContext,
                                ForkJoinContext ioForkJoinContext,
+                               LocalDateTime processingDate,
                                boolean batchMode) {
         this.serFile = serFile;
         this.outputDirectory = outputDirectory;
@@ -96,6 +98,7 @@ public class SolexVideoProcessor implements Broadcaster {
         this.processParams = processParametersProvider;
         this.mainForkJoinContext = mainForkJoinContext;
         this.ioForkJoinContext = ioForkJoinContext;
+        this.processingDate = processingDate;
         this.batchMode = batchMode;
     }
 
@@ -161,7 +164,7 @@ public class SolexVideoProcessor implements Broadcaster {
     private void generateImages(ImageConverter<float[]> converter, SerFileReader reader, int start, int end, float[] averageImage) {
         var imageNamingStrategy = new FileNamingStrategy(
                 processParams.debugParams().fileNamePattern(),
-                LocalDateTime.now(),
+                processingDate,
                 reader.header()
         );
         var baseName = serFile.getName().substring(0, serFile.getName().lastIndexOf("."));

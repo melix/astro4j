@@ -38,6 +38,7 @@ import picocli.CommandLine.Option;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
+import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.util.ArrayList;
@@ -123,6 +124,7 @@ public class Main implements Runnable {
                     processParams,
                     cpuExecutor,
                     ioExecutor,
+                    LocalDateTime.now(),
                     false);
             processor.addEventListener(new LoggingListener(processParams));
             processor.process();

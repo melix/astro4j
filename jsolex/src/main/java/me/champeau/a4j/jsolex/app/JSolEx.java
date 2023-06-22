@@ -460,6 +460,7 @@ public class JSolEx extends Application implements JSolExInterface {
                     params,
                     cpu,
                     ioExecutor,
+                    context instanceof BatchProcessingContext batch ? batch.processingDate() : LocalDateTime.now(),
                     batchMode
             );
             var listener = createListener(baseName, params, batchMode, sequenceNumber, context);
