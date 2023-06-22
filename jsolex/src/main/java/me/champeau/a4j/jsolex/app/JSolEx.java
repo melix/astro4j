@@ -79,6 +79,7 @@ import java.util.Optional;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
+import java.util.stream.Collectors;
 
 import static me.champeau.a4j.jsolex.processing.util.LoggingSupport.logError;
 
@@ -235,10 +236,12 @@ public class JSolEx extends Application implements JSolExInterface {
         config.findLastOpenDirectory().ifPresent(dir -> fileChooser.setInitialDirectory(dir.toFile()));
         var selectedFiles = fileChooser.showOpenMultipleDialog(rootStage);
         if (selectedFiles != null && !selectedFiles.isEmpty()) {
-            LoggingSupport.LOGGER.info("Selected files {}", selectedFiles.stream().map(File::getName).toList());
+            if (LOGGER.isInfoEnabled()) {
+                LoggingSupport.LOGGER.info(message("selected.files"), System.lineSeparator() + selectedFiles.stream().map(File::getName).collect(Collectors.joining(System.lineSeparator())));
+            }
             doOpenMany(selectedFiles);
         } else {
-            LoggingSupport.LOGGER.info("No selected file, processing cancelled.");
+            LoggingSupport.LOGGER.info(message("no.selected.file"));
         }
     }
 
@@ -248,10 +251,10 @@ public class JSolEx extends Application implements JSolExInterface {
         config.findLastOpenDirectory().ifPresent(dir -> fileChooser.setInitialDirectory(dir.toFile()));
         var selectedFile = fileChooser.showOpenDialog(rootStage);
         if (selectedFile != null) {
-            LoggingSupport.LOGGER.info("Selected file {}", selectedFile);
+            LoggingSupport.LOGGER.info(message("selected.files"), selectedFile);
             consumer.accept(selectedFile);
         } else {
-            LoggingSupport.LOGGER.info("No selected file, processing cancelled.");
+            LoggingSupport.LOGGER.info(message("no.selected.file"));
         }
     }
 
