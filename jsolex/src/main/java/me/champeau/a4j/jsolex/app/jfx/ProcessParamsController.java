@@ -95,7 +95,7 @@ public class ProcessParamsController {
     @FXML
     private TextField observerName;
     @FXML
-    private Slider pixelShifting;
+    private TextField pixelShifting;
     @FXML
     private CheckBox sharpen;
     @FXML
@@ -159,7 +159,8 @@ public class ProcessParamsController {
             latitude.setText(Double.toString(coordinates.a()));
             longitude.setText(Double.toString(coordinates.b()));
         }
-        pixelShifting.valueProperty().set(initialProcessParams.spectrumParams().pixelShift());
+        pixelShifting.setTextFormatter(new TextFormatter<>(new IntegerStringConverter()));
+        pixelShifting.textProperty().set(String.valueOf(initialProcessParams.spectrumParams().pixelShift()));
         dopplerShifting.valueProperty().set(initialProcessParams.spectrumParams().dopplerShift());
         switchRedBlueChannels.setSelected(initialProcessParams.spectrumParams().switchRedBlueChannels());
         assumeMonoVideo.setSelected(initialProcessParams.videoParams().colorMode() == ColorMode.MONO);
@@ -208,7 +209,7 @@ public class ProcessParamsController {
         int dopplerShift = (int) dopplerShifting.getValue();
         doProcess(new RequestedImages(
                 generateDebugImages.isSelected() ? RequestedImages.FULL_MODE_WITH_DEBUG :RequestedImages.FULL_MODE,
-                List.of((int) pixelShifting.getValue(), dopplerShift, -dopplerShift)
+                List.of(getPixelShiftAsInt(), dopplerShift, -dopplerShift)
         ));
     }
 
@@ -218,7 +219,7 @@ public class ProcessParamsController {
         try {
             var node = (Parent) fxmlLoader.load();
             var controller = (ImageSelector) fxmlLoader.getController();
-            controller.setup(stage, initialProcessParams.requestedImages().images(), generateDebugImages.isSelected(), List.of((int) pixelShifting.getValue()), (int) dopplerShifting.getValue());
+            controller.setup(stage, initialProcessParams.requestedImages().images(), generateDebugImages.isSelected(), List.of(getPixelShiftAsInt()), (int) dopplerShifting.getValue());
             Scene scene = new Scene(node);
             var currentScene = stage.getScene();
             stage.setTitle(I18N.string(JSolEx.class, "image-selection", "frame.title"));
@@ -232,8 +233,8 @@ public class ProcessParamsController {
                 controller.getRequestedImages().ifPresent(requested -> {
                     generateDebugImages.setSelected(controller.hasDebug());
                     var shifts = requested.pixelShifts();
-                    if (!shifts.contains((int) pixelShifting.getValue())) {
-                        pixelShifting.setValue(shifts.get(0));
+                    if (!shifts.contains(getPixelShiftAsInt())) {
+                        pixelShifting.setText(String.valueOf(shifts.get(0)));
                     }
                     doProcess(requested);
                     stage.close();
@@ -252,7 +253,7 @@ public class ProcessParamsController {
         var geo = toDoublePair(latitude, longitude);
         var debugImagesRequested = requestedImages.isEnabled(GeneratedImageKind.DEBUG);
         processParams = new ProcessParams(
-                new SpectrumParams(wavelength.getValue(), spectralLineDetectionThreshold.getValue(), (int) Math.round(pixelShifting.getValue()), (int) Math.round(dopplerShifting.getValue()), switchRedBlueChannels.isSelected()),
+                new SpectrumParams(wavelength.getValue(), spectralLineDetectionThreshold.getValue(), getPixelShiftAsInt(), (int) Math.round(dopplerShifting.getValue()), switchRedBlueChannels.isSelected()),
                 new ObservationDetails(
                         observerName.getText(),
                         email.getText(),
@@ -281,6 +282,10 @@ public class ProcessParamsController {
         stage.close();
     }
 
+    private Integer getPixelShiftAsInt() {
+        return Integer.parseInt(pixelShifting.getText());
+    }
+
     private DoublePair toDoublePair(String latitude, String longitude) {
         if (latitude != null && !latitude.isEmpty() && longitude != null && !longitude.isEmpty()) {
             return new DoublePair(Double.parseDouble(latitude), Double.parseDouble(longitude));
@@ -292,7 +297,7 @@ public class ProcessParamsController {
     public void quickProcess() {
         doProcess(new RequestedImages(
                 generateDebugImages.isSelected() ? RequestedImages.QUICK_MODE_WITH_DEBUG : RequestedImages.QUICK_MODE,
-                List.of((int) pixelShifting.getValue())
+                List.of(getPixelShiftAsInt())
         ));
     }
 
@@ -303,7 +308,7 @@ public class ProcessParamsController {
     @FXML
     public void resetRayParams() {
         spectralLineDetectionThreshold.setValue(wavelength.getValue().detectionThreshold());
-        pixelShifting.setValue(0);
+        pixelShifting.setText("0");
         dopplerShifting.setValue(3);
         verticalMirror.setSelected(false);
         horizontalMirror.setSelected(false);

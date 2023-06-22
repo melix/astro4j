@@ -113,11 +113,11 @@
                                             </tooltip>
                                         </Slider>
                                         <Label text="%pixel.shifting" GridPane.rowIndex="2" />
-                                        <Slider fx:id="pixelShifting" blockIncrement="1.0" majorTickUnit="5.0" max="15.0" min="-15.0" minorTickCount="1" showTickLabels="true" showTickMarks="true" snapToTicks="true" GridPane.columnIndex="1" GridPane.rowIndex="2">
+                                        <TextField fx:id="pixelShifting" maxWidth="80" GridPane.columnIndex="1" GridPane.rowIndex="2">
                                             <tooltip>
                                                 <Tooltip text="%pixel.shifting.tooltip" />
                                             </tooltip>
-                                        </Slider>
+                                        </TextField>
                                         <Button alignment="CENTER" contentDisplay="CENTER" mnemonicParsing="false" onAction="#resetRayParams" text="%reset.to.defaults" GridPane.columnIndex="1" GridPane.rowIndex="8" />
                                         <CheckBox fx:id="forceTilt" mnemonicParsing="false" text="%override.tilt" GridPane.rowIndex="5">
                                             <tooltip>
