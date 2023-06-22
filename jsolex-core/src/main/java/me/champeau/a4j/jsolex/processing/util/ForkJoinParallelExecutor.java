@@ -24,11 +24,14 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.ReentrantLock;
+import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
 
 public class ForkJoinParallelExecutor implements AutoCloseable, ForkJoinContext {
     private final ExecutorService executor;
+    private Consumer<? super Thread> onTaskEnd;
+    private Consumer<? super Thread> onTaskStart;
     private Thread.UncaughtExceptionHandler uncaughtExceptionHandler;
 
     private ForkJoinParallelExecutor() {
@@ -52,6 +55,16 @@ public class ForkJoinParallelExecutor implements AutoCloseable, ForkJoinContext 
     }
 
     @Override
+    public void setOnTaskStart(Consumer<? super Thread> consumer) {
+        this.onTaskStart = consumer;
+    }
+
+    @Override
+    public void setOnTaskFinished(Consumer<? super Thread> consumer) {
+        this.onTaskEnd = consumer;
+    }
+
+    @Override
     public void close() throws Exception {
         executor.shutdownNow();
     }
@@ -67,17 +80,45 @@ public class ForkJoinParallelExecutor implements AutoCloseable, ForkJoinContext 
 
     @Override
     public void async(Runnable r) {
-        executor.submit(r);
+        executor.submit(() -> {
+            if (onTaskStart != null) {
+                onTaskStart.accept(Thread.currentThread());
+            }
+            try {
+                r.run();
+            } finally {
+                if (onTaskEnd != null) {
+                    onTaskEnd.accept(Thread.currentThread());
+                }
+            }
+        });
     }
 
     @Override
     public <T> Supplier<T> submit(Callable<T> callable) {
-        return asSupplier(executor.submit(callable));
+        return asSupplier(executor.submit(() -> {
+            if (onTaskStart != null) {
+                onTaskStart.accept(Thread.currentThread());
+            }
+            try {
+                return callable.call();
+            } finally {
+                if (onTaskEnd != null) {
+                    onTaskEnd.accept(Thread.currentThread());
+                }
+            }
+        }));
+    }
+
+    @Override
+    public void isolate(Consumer<? super ForkJoinContext> context) {
+        var ctx = new ExecutionContext(onTaskStart, onTaskEnd);
+        context.accept(ctx);
     }
 
     @Override
     public <T> Supplier<T> forkJoin(Function<? super ForkJoinContext, T> consumer) {
-        var context = new ExecutionContext();
+        var context = new ExecutionContext(onTaskStart, onTaskEnd);
         try {
             return context.submit(() -> consumer.apply(context));
         } finally {
@@ -108,14 +149,34 @@ public class ForkJoinParallelExecutor implements AutoCloseable, ForkJoinContext 
         private final Condition condition = lock.newCondition();
         private final List<Object> tasks = new ArrayList<>();
         private final Thread.UncaughtExceptionHandler oldHandler;
+        private Consumer<? super Thread> onTaskStart;
+        private Consumer<? super Thread> onTaskEnd;
 
-        public ExecutionContext() {
+        public ExecutionContext(Consumer<? super Thread> onTaskStart, Consumer<? super Thread> onTaskEnd) {
             this.oldHandler = uncaughtExceptionHandler;
+            this.onTaskStart = onTaskStart;
+            this.onTaskEnd = onTaskEnd;
         }
 
         @Override
         public synchronized void setUncaughtExceptionHandler(Thread.UncaughtExceptionHandler handler) {
             uncaughtExceptionHandler = handler;
+        }
+
+        @Override
+        public void setOnTaskStart(Consumer<? super Thread> consumer) {
+            this.onTaskStart = consumer;
+        }
+
+        @Override
+        public void setOnTaskFinished(Consumer<? super Thread> consumer) {
+            this.onTaskEnd = consumer;
+        }
+
+        @Override
+        public void isolate(Consumer<? super ForkJoinContext> context) {
+            var ctx = new ExecutionContext(onTaskStart, onTaskEnd);
+            context.accept(ctx);
         }
 
         public void async(Runnable r) {
@@ -126,12 +187,18 @@ public class ForkJoinParallelExecutor implements AutoCloseable, ForkJoinContext 
                     if (uncaughtExceptionHandler != null) {
                         Thread.currentThread().setUncaughtExceptionHandler(uncaughtExceptionHandler);
                     }
+                    if (onTaskStart != null) {
+                        onTaskStart.accept(Thread.currentThread());
+                    }
                     try {
                         r.run();
                     } finally {
                         lock.lock();
                         try {
                             tasks.remove(r);
+                            if (onTaskEnd != null) {
+                                onTaskEnd.accept(Thread.currentThread());
+                            }
                         } finally {
                             condition.signalAll();
                             lock.unlock();
@@ -153,11 +220,17 @@ public class ForkJoinParallelExecutor implements AutoCloseable, ForkJoinContext 
                         if (uncaughtExceptionHandler != null) {
                             Thread.currentThread().setUncaughtExceptionHandler(uncaughtExceptionHandler);
                         }
+                        if (onTaskStart != null) {
+                            onTaskStart.accept(Thread.currentThread());
+                        }
                         return callable.call();
                     } finally {
                         lock.lock();
                         try {
                             tasks.remove(callable);
+                            if (onTaskEnd != null) {
+                                onTaskEnd.accept(Thread.currentThread());
+                            }
                         } finally {
                             condition.signalAll();
                             lock.unlock();
@@ -171,7 +244,7 @@ public class ForkJoinParallelExecutor implements AutoCloseable, ForkJoinContext 
 
         @Override
         public <T> Supplier<T> forkJoin(Function<? super ForkJoinContext, T> consumer) {
-            var context = new ExecutionContext();
+            var context = new ExecutionContext(onTaskStart, onTaskEnd);
             try {
                 return context.submit(() -> consumer.apply(context));
             } finally {
