@@ -60,6 +60,7 @@ import org.slf4j.LoggerFactory;
 import java.io.File;
 import java.nio.file.Path;
 import java.time.LocalDateTime;
+import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
@@ -254,8 +255,7 @@ public class SolexVideoProcessor implements Broadcaster {
 
     private EllipseFittingTask.Result performEllipseFitting(List<WorkflowState> imageList, ImageEmitterFactory imageEmitterFactory, ForkJoinContext executor) {
         var selected = imageList.stream()
-                .filter(i -> i.pixelShift() == processParams.spectrumParams().pixelShift())
-                .findFirst();
+                .min(Comparator.comparing(WorkflowState::pixelShift));
         if (selected.isPresent()) {
             var ellipseFittingTask = new EllipseFittingTask(this, selected.get().image(), .25d, processParams, imageEmitterFactory.newEmitter(this, executor, Constants.TYPE_DEBUG, outputDirectory)).withPrefilter();
             try {
