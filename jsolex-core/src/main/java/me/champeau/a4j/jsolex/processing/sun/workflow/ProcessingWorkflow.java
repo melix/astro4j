@@ -255,16 +255,9 @@ public class ProcessingWorkflow {
 
     private void produceCoronagraph(float blackPoint, ImageWrapper32 geometryFixed) {
         state.<GeometryCorrector.Result>findResult(WorkflowResults.GEOMETRY_CORRECTION).ifPresent(result -> {
-            Ellipse ellipse;
-            try {
-                ellipse = new EllipseFittingTask(broadcaster, result.corrected(), .35d)
-                        .call().ellipse();
-            } catch (Exception e) {
-                throw ProcessingException.wrap(e);
-            }
-            var diskEllipse = ellipse;
-            var produceVirtualEclipse = shouldProduce(GeneratedImageKind.VIRTUAL_ECLIPSE);
-            var produceMixed = shouldProduce(GeneratedImageKind.MIXED);
+            Ellipse diskEllipse = result.correctedCircle();
+            var produceVirtualEclipse = diskEllipse != null && shouldProduce(GeneratedImageKind.VIRTUAL_ECLIPSE);
+            var produceMixed = diskEllipse != null && shouldProduce(GeneratedImageKind.MIXED);
             if (produceVirtualEclipse || produceMixed) {
                 executor.submitAndThen(new CoronagraphTask(broadcaster, geometryFixed, diskEllipse, blackPoint), coronagraph -> {
                     processedImagesEmitter.newMonoImage(GeneratedImageKind.VIRTUAL_ECLIPSE, message("protus"), "protus", coronagraph, LinearStrechingStrategy.DEFAULT);

@@ -21,13 +21,16 @@ import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
 import me.champeau.a4j.jsolex.processing.sun.WorkflowState;
 import me.champeau.a4j.jsolex.processing.sun.workflow.ImageEmitter;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
+import me.champeau.a4j.math.Point2D;
 import me.champeau.a4j.math.image.Image;
 import me.champeau.a4j.math.image.ImageMath;
 import me.champeau.a4j.math.regression.Ellipse;
+import me.champeau.a4j.math.regression.EllipseRegression;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.Arrays;
+import java.util.stream.IntStream;
 
 import static me.champeau.a4j.jsolex.processing.util.Constants.message;
 
@@ -121,13 +124,44 @@ public class GeometryCorrector extends AbstractTask<GeometryCorrector.Result> {
             sx = 1.0d;
         }
         var rescaled = ImageMath.newInstance().rotateAndScale(new Image(extendedWidth, height, newBuffer), 0, blackPoint, sx, sy);
+        double finalSy = sy;
+        var circle = computeCorrectedCircle(shear, shift, sx, finalSy);
         broadcaster.broadcast(ProgressEvent.of(1, "Correcting geometry"));
-        return new Result(ImageWrapper32.fromImage(rescaled), ellipse);
+        return new Result(ImageWrapper32.fromImage(rescaled), ellipse, circle);
+    }
+
+    /**
+     * Performs new ellipse regression, where sample points are taken from the
+     * original ellipse, but corrected in the same way as we correct the image,
+     * that is to say with a shear transform + x/y ratio correction.
+     * @param shear the shear value
+     * @param shift pixel shifting to avoid negative number overflow
+     * @param sx the x correction ratio
+     * @param sy the y correction ratio
+     * @return a circle, if detected, or null.
+     */
+    private Ellipse computeCorrectedCircle(double shear, double shift, double sx, double sy) {
+        var newSamples = IntStream.range(0, 32)
+                .mapToDouble(i -> i * Math.PI / 16)
+                .mapToObj(ellipse::toCartesian)
+                .map(p -> {
+                    var newX = (p.x() - shift + p.y() * shear);
+                    return new Point2D(newX * sx, p.y() * sy);
+                })
+                .toList();
+        Ellipse correctedEllipse = null;
+        try {
+            correctedEllipse = new EllipseRegression(newSamples).solve();
+        } catch (Exception ex) {
+            // ignore
+        }
+        return correctedEllipse;
     }
 
     public record Result(
             ImageWrapper32 corrected,
-            Ellipse originalEllipse
+            Ellipse originalEllipse,
+            Ellipse correctedCircle
     ) {
     }
 }
