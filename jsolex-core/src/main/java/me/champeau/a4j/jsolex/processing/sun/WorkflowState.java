@@ -28,6 +28,7 @@ public final class WorkflowState {
     private final float[] reconstructed;
     private final EnumMap<WorkflowResults, Object> outcomes = new EnumMap<>(WorkflowResults.class);
     private ImageWrapper32 image;
+    private boolean internal;
 
     public WorkflowState(
             int width,
@@ -39,6 +40,14 @@ public final class WorkflowState {
         this.height = height;
         this.pixelShift = pixelShift;
         this.reconstructed = buffer;
+    }
+
+    public boolean isInternal() {
+        return internal;
+    }
+
+    public void setInternal(boolean internal) {
+        this.internal = internal;
     }
 
     public static WorkflowState prepare(int width, int height, int pixelShift) {

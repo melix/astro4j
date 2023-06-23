@@ -36,18 +36,18 @@ import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.stream.Collectors;
 
 import static me.champeau.a4j.jsolex.processing.util.Constants.message;
 import static me.champeau.a4j.jsolex.processing.util.DebugImageHelper.plot;
 
 public class EllipseFittingTask extends AbstractTask<EllipseFittingTask.Result> {
     private static final Logger LOGGER = LoggerFactory.getLogger(EllipseFittingTask.class);
-    private static final int MINIMUM_SAMPLES = 10;
+    private static final int MINIMUM_SAMPLES = 64;
 
     private final Image image;
     private final ProcessParams processParams;
     private final ImageEmitter debugImagesEmitter;
-    private final double sensitivity;
 
     private boolean prefilter = false;
 
@@ -58,11 +58,9 @@ public class EllipseFittingTask extends AbstractTask<EllipseFittingTask.Result> 
      */
     public EllipseFittingTask(Broadcaster broadcaster,
                               ImageWrapper32 image,
-                              double sensitivity,
                               ProcessParams processParams,
                               ImageEmitter debugImagesEmitter) {
         super(broadcaster, image);
-        this.sensitivity = sensitivity;
         this.image = image.asImage();
         this.processParams = processParams;
         this.debugImagesEmitter = debugImagesEmitter;
@@ -74,9 +72,8 @@ public class EllipseFittingTask extends AbstractTask<EllipseFittingTask.Result> 
      * @param image the image to work with
      */
     public EllipseFittingTask(Broadcaster broadcaster,
-                              ImageWrapper32 image,
-                              double sensitivity) {
-        this(broadcaster, image, sensitivity, null, null);
+                              ImageWrapper32 image) {
+        this(broadcaster, image, null, null);
     }
 
     public EllipseFittingTask withPrefilter() {
@@ -93,47 +90,14 @@ public class EllipseFittingTask extends AbstractTask<EllipseFittingTask.Result> 
         if (prefilter) {
             var avg = imageMath.areaAverage(imageMath.integralImage(workingImage), 0, 0, width, height);
             // some images (in particular in calcium) can have large bright areas which interfere with detection
-            // so we're filtering out pixels which are too bright
-            new CutoffStretchingStrategy(0, 1.1f * avg).stretch(workingImage.data());
+            // so we're keeping pixels which are "around" the average
+            new CutoffStretchingStrategy(0.8f * avg, 1.2f * avg, 0, 0).stretch(workingImage.data());
         }
         var magnitude = imageMath.gradient(workingImage).magnitude();
         var magnitudes = magnitude.data();
-        var minLimit = sensitivity * maxOf(magnitudes);
-        List<Point2D> samples = new ArrayList<>();
-        // We can have bad samples because the sun disk can be truncated
-        // so we remove those which are within a small distance of x coordinate of the previous sample
-        int threshold = 3;
-        int lastMin = -1;
-        int lastMax = -1;
-        for (int y = 0; y < height; y++) {
-            broadcaster.broadcast(ProgressEvent.of((y + 1d / height) / height, analyzingDiskGeometryMsg));
-            int min = -1;
-            int max = -1;
-            for (int x = 0; x < width / 2; x++) {
-                var mag = magnitudes[x + y * width];
-                if (min == -1 && mag > minLimit) {
-                    min = x;
-                }
-                mag = magnitudes[(width - x - 1) + y * width];
-                if (max == -1 && mag > minLimit) {
-                    max = (width - x - 1);
-                }
-                if (min != -1 && max != -1) {
-                    break;
-                }
-            }
-            if (min >= 0 && Math.abs(min - lastMin) > threshold) {
-                samples.add(new Point2D(min, y));
-                lastMin = min;
-            }
-            if (max >= 0 && Math.abs(max - lastMax) > threshold) {
-                samples.add(new Point2D(max, y));
-                lastMax = max;
-            }
-        }
+        var samples = findSamplesUsingDynamicSensitivity(analyzingDiskGeometryMsg, magnitudes);
         var fittingEllipseMessage = message("fitting.ellipse");
         broadcaster.broadcast(ProgressEvent.of(0, fittingEllipseMessage));
-
         if (notEnoughSamples(fittingEllipseMessage, samples)) {
             var template = message("ellipse.not.enough.samples").replace("{}", "%s");
             var message = String.format(template, samples.size(), MINIMUM_SAMPLES);
@@ -141,26 +105,84 @@ public class EllipseFittingTask extends AbstractTask<EllipseFittingTask.Result> 
             return null;
         }
         var ellipse = new EllipseRegression(samples).solve();
-        // We're doing a 2d pass, by excluding outliers
-        var center = ellipse.center();
-        var cp = new Point2D(center.a(), center.b());
-        var semiAxis = ellipse.semiAxis();
-        var outlierDistance = (semiAxis.a() + semiAxis.b()) / 2;
-        var filteredSamples = samples.stream()
-                .filter(p -> cp.distanceTo(p) > outlierDistance)
-                .toList();
-        if (notEnoughSamples(fittingEllipseMessage, filteredSamples)) {
-            filteredSamples = samples;
-        } else {
-            ellipse = new EllipseRegression(filteredSamples).solve();
-        }
         LOGGER.debug("{}", ellipse);
         broadcaster.broadcast(ProgressEvent.of(1, fittingEllipseMessage));
-        var result = new Result(ellipse, filteredSamples);
+        var result = new Result(ellipse, samples);
         if (processParams != null && processParams.debugParams().generateDebugImages()) {
-            produceEdgeDetectionImage(result, ImageWrapper32.fromImage(magnitude));
+            produceEdgeDetectionImage(result, ImageWrapper32.fromImage(workingImage));
         }
         return result;
+    }
+
+    private List<Point2D> findSamplesUsingDynamicSensitivity(String analyzingDiskGeometryMsg, float[] magnitudes) {
+        List<Point2D> samples = new ArrayList<>();
+        double sensitivity = 0.00d;
+        var maxMagnitude = maxOf(magnitudes);
+        while (samples.size() < MINIMUM_SAMPLES && sensitivity < 1) {
+            samples.clear();
+            var minLimit = sensitivity * maxMagnitude;
+            sensitivity += 0.05d;
+            // We can have bad samples because the sun disk can be truncated
+            // so we remove those which are within a small distance of x coordinate of the previous sample
+            int threshold = 3;
+            int lastMin = -1;
+            int lastMax = -1;
+            double sum = 0;
+            double minVal = 0;
+            double maxVal = 0;
+            for (int y = 0; y < height; y++) {
+                broadcaster.broadcast(ProgressEvent.of((y + 1d / height) / height, analyzingDiskGeometryMsg));
+                int min = -1;
+                int max = -1;
+                for (int x = 0; x < width; x++) {
+                    var mag = magnitudes[x + y * width];
+                    if (min == -1 && mag > minLimit) {
+                        min = x;
+                        minVal = mag;
+                    }
+                    mag = magnitudes[(width - x - 1) + y * width];
+                    if (max == -1 && mag > minLimit) {
+                        max = (width - x - 1);
+                        maxVal = mag;
+                    }
+                    if (min != -1 && max != -1) {
+                        break;
+                    }
+                }
+                if (min >= 0 && Math.abs(min - lastMin) > threshold) {
+                    var candidate = new Point2D(min, y);
+                    samples.add(candidate);
+                    lastMin = min;
+                    sum += minVal;
+                }
+                if (max >= 0 && Math.abs(max - lastMax) > threshold) {
+                    var candidate = new Point2D(max, y);
+                    samples.add(candidate);
+                    lastMax = max;
+                    sum += maxVal;
+                }
+            }
+            if (samples.size() >= MINIMUM_SAMPLES) {
+                var samplesAvg = sum / samples.size();
+                var closestNeighborDistances = samples
+                        .stream()
+                        .collect(Collectors.toMap(p -> p, p -> {
+                            double d = Double.MAX_VALUE;
+                            for (Point2D sample : samples) {
+                                if (sample != p) {
+                                    d = Math.min(d, p.distanceTo(sample));
+                                }
+                            }
+                            return d;
+                        }));
+                var avgMinDistance = closestNeighborDistances.values().stream().mapToDouble(Double::doubleValue).average().orElse(Double.MAX_VALUE);
+                samples.removeIf(p ->
+                        (magnitudes[(int) (p.x() + p.y() * width)] < .5f * samplesAvg)
+                        || (closestNeighborDistances.get(p) > 8 * avgMinDistance)
+                );
+            }
+        }
+        return samples;
     }
 
     private boolean notEnoughSamples(String fittingEllipseMessage, List<Point2D> filteredSamples) {
@@ -173,7 +195,7 @@ public class EllipseFittingTask extends AbstractTask<EllipseFittingTask.Result> 
 
     private void produceEdgeDetectionImage(EllipseFittingTask.Result result, ImageWrapper32 image) {
         if (debugImagesEmitter != null) {
-            debugImagesEmitter.newColorImage(GeneratedImageKind.DEBUG, message("edge.detection"), "edge-detection", image, LinearStrechingStrategy.DEFAULT, debugImage -> {
+            debugImagesEmitter.newColorImage(GeneratedImageKind.DEBUG, message("edge.detection"), "edge-detection", image, new LinearStrechingStrategy(0, 6500), debugImage -> {
                 float[][] rgb = new float[3][];
                 float[] overlay = new float[debugImage.length];
                 System.arraycopy(debugImage, 0, overlay, 0, overlay.length);

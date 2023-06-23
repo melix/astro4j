@@ -60,6 +60,8 @@ import org.slf4j.LoggerFactory;
 import java.io.File;
 import java.nio.file.Path;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
@@ -112,8 +114,8 @@ public class SolexVideoProcessor implements Broadcaster {
     }
 
     public void process() {
-        mainForkJoinContext.setUncaughtExceptionHandler((t,e) -> broadcastError(e));
-        ioForkJoinContext.setUncaughtExceptionHandler((t,e) -> broadcastError(e));
+        mainForkJoinContext.setUncaughtExceptionHandler((t, e) -> broadcastError(e));
+        ioForkJoinContext.setUncaughtExceptionHandler((t, e) -> broadcastError(e));
         if (processParams.debugParams().autosave()) {
             File configFile = outputDirectory.resolve("config.json").toFile();
             processParams.saveTo(configFile);
@@ -208,6 +210,9 @@ public class SolexVideoProcessor implements Broadcaster {
                 }, context);
                 for (int step = 0; step < imageList.size(); step++) {
                     WorkflowState state = imageList.get(step);
+                    if (state.isInternal()) {
+                        continue;
+                    }
                     var imageEmitterFactory = new ImageEmitterFactory() {
                         @Override
                         public ImageEmitter newEmitter(Broadcaster broadcaster, ForkJoinContext executor, String kind, Path outputDirectory) {
@@ -255,16 +260,22 @@ public class SolexVideoProcessor implements Broadcaster {
 
     private EllipseFittingTask.Result performEllipseFitting(List<WorkflowState> imageList, ImageEmitterFactory imageEmitterFactory, ForkJoinContext executor) {
         var selected = imageList.stream()
-                .min(Comparator.comparing(WorkflowState::pixelShift));
-        if (selected.isPresent()) {
-            var ellipseFittingTask = new EllipseFittingTask(this, selected.get().image(), .25d, processParams, imageEmitterFactory.newEmitter(this, executor, Constants.TYPE_DEBUG, outputDirectory)).withPrefilter();
-            try {
-                return ellipseFittingTask.call();
-            } catch (Exception e) {
-                throw ProcessingException.wrap(e);
-            }
+                .sorted(Comparator.comparing(WorkflowState::pixelShift))
+                .map(state -> {
+                    var ellipseFittingTask = new EllipseFittingTask(this, state.image(), processParams, imageEmitterFactory.newEmitter(this, executor, Constants.TYPE_DEBUG, outputDirectory)).withPrefilter();
+                    try {
+                        return Optional.of(ellipseFittingTask.call());
+                    } catch (Exception e) {
+                        return Optional.<EllipseFittingTask.Result>empty();
+                    }
+                })
+                .filter(Optional::isPresent)
+                .map(Optional::get)
+                .findFirst();
+        if (selected.isEmpty()) {
+            throw new ProcessingException("Unable to perform ellipse regression");
         }
-        throw new ProcessingException("Cannot find main image to process");
+        return selected.get();
     }
 
     private void maybePerformFlips(ImageWrapper32 rotated) {
@@ -287,11 +298,20 @@ public class SolexVideoProcessor implements Broadcaster {
     }
 
     private List<WorkflowState> createWorkflowStateSteps(int width, int newHeight) {
-        return processParams.requestedImages()
+        var list = processParams.requestedImages()
                 .pixelShifts()
                 .stream()
                 .map(i -> WorkflowState.prepare(width, newHeight, i))
                 .toList();
+        if (list.stream().noneMatch(s -> s.pixelShift() <= -Constants.CONTINUUM_SHIFT)) {
+            // add an internal state used for edge detection only
+            var internalState = WorkflowState.prepare(width, newHeight, -Constants.CONTINUUM_SHIFT);
+            internalState.setInternal(true);
+            list = new ArrayList<>(list);
+            list.add(internalState);
+            list = Collections.unmodifiableList(list);
+        }
+        return list;
     }
 
     private void performImageReconstruction(ImageConverter<float[]> converter, SerFileReader reader, int start, int end, ImageGeometry geometry, int width, int height, DoubleTriplet polynomial, WorkflowState... images) {
@@ -308,7 +328,7 @@ public class SolexVideoProcessor implements Broadcaster {
                 reader.nextFrame();
                 int offset = j;
                 for (WorkflowState state : images) {
-                    executor.submit(() -> processSingleFrame(width, height, state.reconstructed(), offset, original, polynomial, state.pixelShift(), totalLines));
+                    executor.submit(() -> processSingleFrame(state.isInternal(), width, height, state.reconstructed(), offset, original, polynomial, state.pixelShift(), totalLines));
                 }
             }
         } catch (Exception e) {
@@ -347,7 +367,7 @@ public class SolexVideoProcessor implements Broadcaster {
         return result;
     }
 
-    private void processSingleFrame(int width, int height, float[] outputBuffer, int offset, float[] buffer, DoubleTriplet p, int pixelShift, int totalLines) {
+    private void processSingleFrame(boolean internal, int width, int height, float[] outputBuffer, int offset, float[] buffer, DoubleTriplet p, int pixelShift, int totalLines) {
         var fun = p.asPolynomial();
         double[] line = new double[width];
         int lastY = 0;
@@ -375,7 +395,9 @@ public class SolexVideoProcessor implements Broadcaster {
             line[x] = value;
             lastY = yi;
         }
-        broadcast(new PartialReconstructionEvent(new ImageLine(pixelShift, offset / width, totalLines, line, processParams.debugParams().generateDebugImages() && processParams.requestedImages().isEnabled(GeneratedImageKind.RECONSTRUCTION))));
+        if (!internal) {
+            broadcast(new PartialReconstructionEvent(new ImageLine(pixelShift, offset / width, totalLines, line, processParams.debugParams().generateDebugImages() && processParams.requestedImages().isEnabled(GeneratedImageKind.RECONSTRUCTION))));
+        }
     }
 
     @Override
