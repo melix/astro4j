@@ -151,10 +151,6 @@ public class Main implements Runnable {
         )
         SpectralRay spectralRay;
 
-        @Option(names = {"-sl", "--spectrum-detection-threshold"},
-                description = "Spectrum detection threshold")
-        Double detectionThreshold;
-
         @Option(names = {"-ps", "--pixel-shift"}, description = "Pixel shifting")
         Integer pixelShift;
 
@@ -169,9 +165,6 @@ public class Main implements Runnable {
             var result = params;
             if (spectralRay != null) {
                 result = result.withRay(spectralRay);
-            }
-            if (detectionThreshold != null) {
-                result = result.withDetectionThreshold(detectionThreshold);
             }
             if (pixelShift != null) {
                 result = result.withPixelShift(pixelShift);
