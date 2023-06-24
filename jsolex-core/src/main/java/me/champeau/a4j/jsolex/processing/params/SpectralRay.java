@@ -26,14 +26,14 @@ import java.util.Optional;
  * defines a color curve to perform automatic coloring of images.
  * See https://en.wikipedia.org/wiki/Fraunhofer_lines for wavelenths
  */
-public record SpectralRay(String label, ColorCurve colorCurve, double detectionThreshold, double wavelength) {
-    public static final SpectralRay H_ALPHA = new SpectralRay("H-alpha", KnownCurves.H_ALPHA, 0.25d, 656.281d);
-    public static final SpectralRay H_BETA = new SpectralRay("H-beta", null, 0.25d, 486.134);
-    public static final SpectralRay CALCIUM_K = new SpectralRay("Calcium (K)", KnownCurves.CALCIUM, 0.7d, 393.366);
-    public static final SpectralRay CALCIUM_H = new SpectralRay("Calcium (H)", KnownCurves.CALCIUM, 0.7d, 396.847);
-    public static final SpectralRay SODIUM_D1 = new SpectralRay("Sodium (D1)", null, 0.25d, 589.592);
-    public static final SpectralRay SODIUM_D2 = new SpectralRay("Sodium (D2)", null, 0.25d, 588.995);
-    public static final SpectralRay OTHER = new SpectralRay("Other", null, 0.5d, 0);
+public record SpectralRay(String label, ColorCurve colorCurve, double wavelength) {
+    public static final SpectralRay H_ALPHA = new SpectralRay("H-alpha", KnownCurves.H_ALPHA, 656.281d);
+    public static final SpectralRay H_BETA = new SpectralRay("H-beta", null, 486.134);
+    public static final SpectralRay CALCIUM_K = new SpectralRay("Calcium (K)", KnownCurves.CALCIUM, 393.366);
+    public static final SpectralRay CALCIUM_H = new SpectralRay("Calcium (H)", KnownCurves.CALCIUM, 396.847);
+    public static final SpectralRay SODIUM_D1 = new SpectralRay("Sodium (D1)", null, 589.592);
+    public static final SpectralRay SODIUM_D2 = new SpectralRay("Sodium (D2)", null, 588.995);
+    public static final SpectralRay OTHER = new SpectralRay("Other", null, 0);
 
     public Optional<ColorCurve> getColorCurve() {
         return Optional.ofNullable(colorCurve);

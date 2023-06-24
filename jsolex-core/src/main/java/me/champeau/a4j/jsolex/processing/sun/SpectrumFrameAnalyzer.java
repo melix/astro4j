@@ -15,22 +15,20 @@
  */
 package me.champeau.a4j.jsolex.processing.sun;
 
-import me.champeau.a4j.math.tuples.DoubleTriplet;
-import me.champeau.a4j.math.regression.LinearRegression;
 import me.champeau.a4j.math.Point2D;
+import me.champeau.a4j.math.regression.LinearRegression;
+import me.champeau.a4j.math.tuples.DoubleTriplet;
 
 import java.util.ArrayList;
-import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
-import java.util.Objects;
 import java.util.Optional;
 
 public class SpectrumFrameAnalyzer {
     private final int width;
     private final int height;
-    private final double spectrumDetectionThreshold;
     private final double sunDetectionThreshold;
-    private final SpectrumLine[] spectrumLines;
+    private final List<Point2D> samplePoints;
 
     private Integer leftBorder;
     private Integer rightBorder;
@@ -40,12 +38,10 @@ public class SpectrumFrameAnalyzer {
 
     public SpectrumFrameAnalyzer(int width,
                                  int height,
-                                 double spectrumDetectionThreshold,
                                  double sunDetectionThreshold) {
         this.width = width;
         this.height = height;
-        this.spectrumLines = new SpectrumLine[width];
-        this.spectrumDetectionThreshold = spectrumDetectionThreshold;
+        this.samplePoints = new ArrayList<>(width);
         this.sunDetectionThreshold = sunDetectionThreshold;
     }
 
@@ -79,17 +75,16 @@ public class SpectrumFrameAnalyzer {
         if (rightBorder != null) {
             r = rightBorder + 1;
         }
-        // We don't need to detect all the spectrum lines, let's just detect half
-        int step = 2;
+        int step = 8;
         for (int x = l; x < r; x += step) {
-            Optional<SpectrumLine> spectrumLineMiddle = findSpectrumLine(data, x);
-            spectrumLineMiddle.ifPresent(line -> spectrumLines[line.x()] = line);
+            var y = findYAtMinimalValue(data, x);
+            samplePoints.add(new Point2D(x, y));
         }
     }
 
     private void reset() {
         for (int x = 0; x < width; x++) {
-            spectrumLines[x] = null;
+            samplePoints.clear();
         }
         leftBorder = null;
         rightBorder = null;
@@ -98,30 +93,17 @@ public class SpectrumFrameAnalyzer {
         min = Double.MAX_VALUE;
     }
 
-    private Optional<SpectrumLine> findSpectrumLine(float[] data, int x) {
-        // let's detect the spectrum line
-        Integer top = null;
-        int bottom = 0;
-        double lineAvg = 0;
+    private int findYAtMinimalValue(float[] data, int x) {
+        int minY = 0;
+        double min = Double.MAX_VALUE;
         for (int y = 0; y < height; y++) {
             double value = data[y * width + x];
-            value = value * value;
-            lineAvg = lineAvg + (value - lineAvg) / (y + 1);
-        }
-        for (int y = 0; y < height; y++) {
-            double value = data[y * width + x];
-            value = value * value;
-            if (value < spectrumDetectionThreshold * lineAvg) {
-                if (top == null) {
-                    top = y;
-                }
-                bottom = y;
+            if (value < min) {
+                minY = y;
+                min = value;
             }
         }
-        if (top != null) {
-            return Optional.of(new SpectrumLine(x, top, bottom));
-        }
-        return Optional.empty();
+        return minY;
     }
 
     public Optional<Integer> leftSunBorder() {
@@ -133,18 +115,15 @@ public class SpectrumFrameAnalyzer {
     }
 
     public Optional<DoubleTriplet> findDistortionPolynomial() {
-        List<Point2D> points = new ArrayList<>();
-        for (SpectrumLine spectrumLine : spectrumLines) {
-            if (spectrumLine != null) {
-                var middle = new Point2D(spectrumLine.x(), spectrumLine.middle());
-                points.add(middle);
-            }
-        }
-        if (points.size() > 2) {
-            var triplet = LinearRegression.secondOrderRegression(points.toArray(new Point2D[0]));
+        if (samplePoints.size() > 2) {
+            var triplet = LinearRegression.secondOrderRegression(samplePoints.toArray(new Point2D[0]));
             return Optional.of(triplet);
         }
         return Optional.empty();
+    }
+
+    public List<Point2D> getSamplePoints() {
+        return Collections.unmodifiableList(samplePoints);
     }
 
     public double avg() {
@@ -159,13 +138,4 @@ public class SpectrumFrameAnalyzer {
         return min;
     }
 
-    public List<SpectrumLine> spectrumLines() {
-        return Arrays.stream(spectrumLines)
-                .filter(Objects::nonNull)
-                .toList();
-    }
-
-    public SpectrumLine[] spectrumLinesArray() {
-        return spectrumLines;
-    }
 }

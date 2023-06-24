@@ -70,7 +70,7 @@ abstract class ProcessParamsIO {
         }
         LOGGER.info("No config file found at {}. Using default parameters", defaultsFile);
         return new ProcessParams(
-                new SpectrumParams(SpectralRay.H_ALPHA, SpectralRay.H_ALPHA.detectionThreshold(), 0, 3, false),
+                new SpectrumParams(SpectralRay.H_ALPHA, 0, 3, false),
                 new ObservationDetails(
                         null,
                         null,

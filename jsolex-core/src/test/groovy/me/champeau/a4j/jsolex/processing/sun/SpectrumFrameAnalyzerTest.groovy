@@ -35,7 +35,7 @@ class SpectrumFrameAnalyzerTest extends Specification {
                 data[x + y * image.width] = image.getRGB(x, y) & 0xFF
             }
         }
-        def analyzer = new SpectrumFrameAnalyzer(image.width, image.height, .85d, 50d)
+        def analyzer = new SpectrumFrameAnalyzer(image.width, image.height, 50d)
 
         when:
         analyzer.analyze(data)
@@ -47,12 +47,10 @@ class SpectrumFrameAnalyzerTest extends Specification {
         analyzer.rightSunBorder().get() == 1703
 
         and:
-        def spectrumLines = analyzer.spectrumLines()
-        spectrumLines.size() > 3
-        spectrumLines[0].x() == 210
-        spectrumLines[0].middle() == 39
-        spectrumLines[-1].x() == 1702
-        spectrumLines[-1].middle() == 30
+        def samples = analyzer.samplePoints
+        samples.size() == 187
+        samples[120].x() == 1170
+        samples[120].y() == 17
 
         and:
         def polynomial = analyzer.findDistortionPolynomial()
