@@ -28,7 +28,9 @@ import java.util.Set;
  */
 public record RequestedImages(
         Set<GeneratedImageKind> images,
-        List<Integer> pixelShifts
+        List<Integer> pixelShifts,
+        Set<Integer> internalPixelShifts,
+        ImageMathParams mathImages
 ) {
     public static final Set<GeneratedImageKind> FULL_MODE = EnumSet.of(
             GeneratedImageKind.RECONSTRUCTION,
@@ -64,7 +66,24 @@ public record RequestedImages(
             GeneratedImageKind.RAW_STRETCHED,
             GeneratedImageKind.GEOMETRY_CORRECTED_STRETCHED
     );
+
     public boolean isEnabled(GeneratedImageKind kind) {
         return images.contains(kind);
+    }
+
+    public RequestedImages withMathImages(ImageMathParams mathImages) {
+        return new RequestedImages(images, pixelShifts, internalPixelShifts, mathImages);
+    }
+
+    public RequestedImages withImages(Set<GeneratedImageKind> images) {
+        return new RequestedImages(images, pixelShifts, internalPixelShifts, mathImages);
+    }
+
+    public RequestedImages withPixelShifts(List<Integer> pixelShifts) {
+        return new RequestedImages(images, pixelShifts, internalPixelShifts, mathImages);
+    }
+
+    public RequestedImages withInternalPixelShifts(Set<Integer> internalPixelShifts) {
+        return new RequestedImages(images, pixelShifts, internalPixelShifts, mathImages);
     }
 }

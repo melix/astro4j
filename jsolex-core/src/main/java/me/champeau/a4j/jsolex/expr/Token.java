@@ -13,24 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package me.champeau.a4j.jsolex.processing.sun.workflow;
+package me.champeau.a4j.jsolex.expr;
 
-/**
- * The different kinds of images that this software
- * supports.
- */
-public enum GeneratedImageKind {
-    COLORIZED,
-    CONTINUUM,
-    DEBUG,
-    DOPPLER,
-    GEOMETRY_CORRECTED,
-    GEOMETRY_CORRECTED_STRETCHED,
-    MIXED,
-    NEGATIVE,
-    RAW,
-    RAW_STRETCHED,
-    RECONSTRUCTION,
-    VIRTUAL_ECLIPSE,
-    IMAGE_MATH
+public record Token(TokenType type, String value) {
 }

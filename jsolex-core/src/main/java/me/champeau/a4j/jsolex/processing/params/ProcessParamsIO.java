@@ -35,6 +35,7 @@ import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.util.List;
+import java.util.Set;
 
 abstract class ProcessParamsIO {
     private static final Logger LOGGER = LoggerFactory.getLogger(ProcessParamsIO.class);
@@ -85,7 +86,7 @@ abstract class ProcessParamsIO {
                 new VideoParams(ColorMode.MONO),
                 new GeometryParams(null, null, false, false, false),
                 new BandingCorrectionParams(24, 3),
-                new RequestedImages(RequestedImages.FULL_MODE, List.of(0))
+                new RequestedImages(RequestedImages.FULL_MODE, List.of(0), Set.of(), ImageMathParams.NONE)
         );
     }
 
@@ -145,7 +146,7 @@ abstract class ProcessParamsIO {
                                 params.videoParams(),
                                 params.geometryParams(),
                                 params.bandingCorrectionParams(),
-                                new RequestedImages(RequestedImages.FULL_MODE, List.of(0))
+                                new RequestedImages(RequestedImages.FULL_MODE, List.of(0), Set.of(), ImageMathParams.NONE)
                         );
                     }
                     return params;
