@@ -48,7 +48,6 @@ class SpectralRaySerializer implements JsonSerializer<SpectralRay>, JsonDeserial
             return new SpectralRay(
                     obj.get("label").getAsString(),
                     curve,
-                    obj.get("detectionThreshold").getAsDouble(),
                     obj.get("wavelength").getAsDouble()
             );
         }
@@ -90,7 +89,6 @@ class SpectralRaySerializer implements JsonSerializer<SpectralRay>, JsonDeserial
     public JsonElement serialize(SpectralRay src, Type typeOfSrc, JsonSerializationContext context) {
         var obj = new JsonObject();
         obj.addProperty("label", src.label());
-        obj.addProperty("detectionThreshold", src.detectionThreshold());
         obj.addProperty("wavelength", src.wavelength());
         var curve = writeColorCurve(src.colorCurve());
         if (curve != null) {

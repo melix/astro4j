@@ -179,7 +179,7 @@ public class SolexVideoProcessor implements Broadcaster {
         broadcast(OutputImageDimensionsDeterminedEvent.of(Constants.TYPE_RAW, width, newHeight));
         List<WorkflowState> imageList = createWorkflowStateSteps(width, newHeight);
         LOGGER.info(message("starting.reconstruction"));
-        var maybePolynomial = findPolynomial(width, height, processParams.spectrumParams().spectralLineDetectionThreshold(), averageImage, imageNamingStrategy);
+        var maybePolynomial = findPolynomial(width, height, averageImage, imageNamingStrategy);
         if (maybePolynomial.isPresent()) {
             var polynomial = maybePolynomial.get();
             ioForkJoinContext.blocking(() -> performImageReconstruction(converter, reader, start, end, geometry, width, height, polynomial, imageList.toArray(new WorkflowState[0])));
@@ -337,19 +337,10 @@ public class SolexVideoProcessor implements Broadcaster {
         LOGGER.info(message("processing.done.generate.images"));
     }
 
-    private Optional<DoubleTriplet> findPolynomial(int width, int height, double threshold, float[] averageImage, FileNamingStrategy imageNamingStrategy) {
-        Optional<DoubleTriplet> result = Optional.empty();
-        double t = threshold;
-        SpectrumFrameAnalyzer analyzer = null;
-        while (result.isEmpty() && t < 1.0d) {
-            analyzer = new SpectrumFrameAnalyzer(width, height, t, 5000d);
-            analyzer.analyze(averageImage);
-            result = analyzer.findDistortionPolynomial();
-            t = Math.min(1d, t + 0.10d);
-            if (result.isEmpty()) {
-                LOGGER.info("Sprectral line threshold too low, increasing to {}", String.format("%.2f", t));
-            }
-        }
+    private Optional<DoubleTriplet> findPolynomial(int width, int height, float[] averageImage, FileNamingStrategy imageNamingStrategy) {
+        SpectrumFrameAnalyzer analyzer = new SpectrumFrameAnalyzer(width, height, 5000d);
+        analyzer.analyze(averageImage);
+        var result = analyzer.findDistortionPolynomial();
         if (processParams.debugParams().generateDebugImages()) {
             var emitter = new DiscardNonRequiredImages(new NamingStrategyAwareImageEmitter(
                     new DefaultImageEmitter(this, mainForkJoinContext, outputDirectory.toFile()),
@@ -358,9 +349,8 @@ public class SolexVideoProcessor implements Broadcaster {
                     Constants.TYPE_DEBUG,
                     serFile.getName().substring(0, serFile.getName().lastIndexOf("."))),
                     processParams.requestedImages().images());
-            SpectrumFrameAnalyzer finalAnalyzer = analyzer;
             emitter.newColorImage(GeneratedImageKind.DEBUG, message("average"), "average", LinearStrechingStrategy.DEFAULT, width, height, () -> {
-                var rgb = new SpectralLineFrameImageCreator(finalAnalyzer, averageImage, width, height).generateDebugImage();
+                var rgb = new SpectralLineFrameImageCreator(analyzer, averageImage, width, height).generateDebugImage();
                 return new float[][]{rgb.r(), rgb.g(), rgb.b()};
             });
         }

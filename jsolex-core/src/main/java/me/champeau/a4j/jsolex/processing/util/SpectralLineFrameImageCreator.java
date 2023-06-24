@@ -17,9 +17,10 @@ package me.champeau.a4j.jsolex.processing.util;
 
 import me.champeau.a4j.jsolex.processing.sun.DistortionCorrection;
 import me.champeau.a4j.jsolex.processing.sun.SpectrumFrameAnalyzer;
-import me.champeau.a4j.jsolex.processing.sun.SpectrumLine;
+import me.champeau.a4j.math.Point2D;
 import me.champeau.a4j.math.tuples.DoubleTriplet;
 
+import java.util.List;
 import java.util.Optional;
 
 import static me.champeau.a4j.jsolex.processing.util.Constants.MAX_PIXEL_VALUE;
@@ -47,6 +48,7 @@ public class SpectralLineFrameImageCreator {
         } else {
             corrected = new float[size];
         }
+        List<Point2D> samples = analyzer.getSamplePoints();
         // We create RGB images for debugging, which contain the original image at top
         // and the corrected one at the bottom
         int spacing = 10 * width;
@@ -62,7 +64,7 @@ public class SpectralLineFrameImageCreator {
         System.arraycopy(corrected, 0, bb, offset, size);
         for (int x = 0; x < width; x++) {
             rr[x + size + 5 * width] = MAX_PIXEL_VALUE;
-            gg[x + size + 5 * width] = MAX_PIXEL_VALUE/2;
+            gg[x + size + 5 * width] = MAX_PIXEL_VALUE / 2;
             bb[x + size + 5 * width] = MAX_PIXEL_VALUE;
         }
         analyzer.leftSunBorder().ifPresent(bx -> {
@@ -79,8 +81,6 @@ public class SpectralLineFrameImageCreator {
                 bb[offset + bx + y * width] = 0;
             }
         });
-
-        analyzer.analyze(corrected);
         polynomial.ifPresent(p -> {
             var poly = p.asPolynomial();
             // Draw a line on the top graph corresponding to the detected curvature
@@ -88,25 +88,28 @@ public class SpectralLineFrameImageCreator {
                 int y = (int) Math.round(poly.applyAsDouble(x));
                 int idx = x + y * width;
                 if (idx < 0 || idx >= size) {
-                    break;
+                    continue;
                 }
                 rr[idx] = MAX_PIXEL_VALUE;
                 gg[idx] = 0;
                 bb[idx] = 0;
             }
         });
-
+        for (Point2D sample : samples) {
+            var x = sample.x();
+            var y = sample.y();
+            rr[(int) (x + y * width)] = 0;
+            gg[(int) (x + y * width)] = MAX_PIXEL_VALUE;
+            bb[(int) (x + y * width)] = 0;
+        }
+        analyzer.analyze(corrected);
         // Add green lines showing the detected spectrum line
-        SpectrumLine[] spectrumLines = analyzer.spectrumLinesArray();
-        for (int y = 0; y < height; y++) {
-            for (int x = 0; x < width; x++) {
-                SpectrumLine spectrumLine = spectrumLines[x];
-                if (spectrumLine != null && spectrumLine.top() <= y && spectrumLine.bottom() >= y) {
-                    rr[offset + x + y * width] = 0;
-                    gg[offset + x + y * width] = MAX_PIXEL_VALUE;
-                    bb[offset + x + y * width] = 0;
-                }
-            }
+        for (Point2D sample : samples) {
+            var x = sample.x();
+            var y = sample.y();
+            rr[(int) (offset + x + y * width)] = 0;
+            gg[(int) (offset + x + y * width)] = MAX_PIXEL_VALUE;
+            bb[(int) (offset + x + y * width)] = 0;
         }
         return new RGBImage(width, 2 * height + 10, rr, gg, bb);
     }

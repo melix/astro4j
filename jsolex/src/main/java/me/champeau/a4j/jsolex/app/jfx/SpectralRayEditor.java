@@ -54,8 +54,6 @@ public class SpectralRayEditor {
     @FXML
     private ImageView sunPreview;
     @FXML
-    private Slider spectralLineDetectionThreshold;
-    @FXML
     private Slider bIn;
     @FXML
     private Slider bOut;
@@ -99,7 +97,6 @@ public class SpectralRayEditor {
                 var item = items.get(index);
                 label.setText(item.label());
                 wavelength.setText(Double.toString(item.wavelength()));
-                spectralLineDetectionThreshold.setValue(item.detectionThreshold());
                 var curve = item.colorCurve();
                 if (curve == null) {
                     curveCheckbox.setSelected(false);
@@ -126,7 +123,6 @@ public class SpectralRayEditor {
         ChangeListener<Object> updateValueListener = (obs, oldValue, newValue) -> {
             if (updating.compareAndSet(false, true)) {
                 var newLabel = label.getText();
-                var newDetectionThreshold = spectralLineDetectionThreshold.getValue();
                 var newWavelen = toDoubleValue(wavelength.getText());
                 var hasColor = curveCheckbox.isSelected();
                 var rInValue = rIn.valueProperty().intValue();
@@ -138,7 +134,6 @@ public class SpectralRayEditor {
                 var newRay = new SpectralRay(
                         newLabel,
                         hasColor ? new ColorCurve(newLabel, rInValue, rOutValue, gInValue, gOutValue, bInValue, bOutValue) : null,
-                        newDetectionThreshold,
                         newWavelen
                 );
                 updateEditableInOut(hasColor);
@@ -148,7 +143,6 @@ public class SpectralRayEditor {
             }
         };
         label.textProperty().addListener(updateValueListener);
-        spectralLineDetectionThreshold.valueProperty().addListener(updateValueListener);
         wavelength.textProperty().addListener(updateValueListener);
         curveCheckbox.selectedProperty().addListener(updateValueListener);
         rIn.valueProperty().addListener(updateValueListener);
@@ -232,7 +226,6 @@ public class SpectralRayEditor {
         var spectralRay = new SpectralRay(
                 "<new> " + elements.getItems().size(),
                 null,
-                .25d,
                 0
         );
         elements.getItems().add(spectralRay);

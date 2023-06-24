@@ -98,8 +98,7 @@ public class ProcessParamsController {
     private TextField pixelShifting;
     @FXML
     private CheckBox sharpen;
-    @FXML
-    private Slider spectralLineDetectionThreshold;
+
     @FXML
     private CheckBox switchRedBlueChannels;
     @FXML
@@ -126,12 +125,6 @@ public class ProcessParamsController {
 
         wavelength.getItems().addAll(FXCollections.observableList(SpectralRayIO.loadDefaults()));
         wavelength.getSelectionModel().select(SpectralRay.H_ALPHA);
-        wavelength.valueProperty().addListener((observable, oldValue, newValue) -> {
-            if (newValue != null) {
-                spectralLineDetectionThreshold.setValue(newValue.detectionThreshold());
-            }
-        });
-        spectralLineDetectionThreshold.valueProperty().set(wavelength.getValue().detectionThreshold());
         observerName.textProperty().setValue(initialProcessParams.observationDetails().observer());
         email.textProperty().setValue(initialProcessParams.observationDetails().email());
         instrument.textProperty().setValue(initialProcessParams.observationDetails().instrument());
@@ -253,7 +246,7 @@ public class ProcessParamsController {
         var geo = toDoublePair(latitude, longitude);
         var debugImagesRequested = requestedImages.isEnabled(GeneratedImageKind.DEBUG);
         processParams = new ProcessParams(
-                new SpectrumParams(wavelength.getValue(), spectralLineDetectionThreshold.getValue(), getPixelShiftAsInt(), (int) Math.round(dopplerShifting.getValue()), switchRedBlueChannels.isSelected()),
+                new SpectrumParams(wavelength.getValue(), getPixelShiftAsInt(), (int) Math.round(dopplerShifting.getValue()), switchRedBlueChannels.isSelected()),
                 new ObservationDetails(
                         observerName.getText(),
                         email.getText(),
@@ -307,7 +300,6 @@ public class ProcessParamsController {
 
     @FXML
     public void resetRayParams() {
-        spectralLineDetectionThreshold.setValue(wavelength.getValue().detectionThreshold());
         pixelShifting.setText("0");
         dopplerShifting.setValue(3);
         verticalMirror.setSelected(false);

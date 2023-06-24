@@ -48,9 +48,6 @@ public class SpectralLineDebugger {
     private Label frameId;
 
     @FXML
-    private TextField spectrumDetectionThreshold;
-
-    @FXML
     private TextField sunDetectionThreshold;
 
     private SerFileReader reader;
@@ -66,7 +63,6 @@ public class SpectralLineDebugger {
             var geometry = header.geometry();
             int current = header.frameCount() / 2;
             imageView.fitWidthProperty().bind(scene.widthProperty());
-            spectrumDetectionThreshold.textProperty().set("0.2d");
             sunDetectionThreshold.textProperty().set("5000d");
             frameSlider.setMin(0);
             frameSlider.setMax(header.frameCount());
@@ -79,12 +75,6 @@ public class SpectralLineDebugger {
                         processFrame(converter, reader, geometry, frameId, imageFile)
                 );
                 pause.playFromStart();
-            });
-            spectrumDetectionThreshold.textProperty().addListener((observable, oldValue, newValue) -> {
-                if (!newValue.trim().isEmpty()) {
-                    pause.setOnFinished(e -> processFrame(converter, reader, geometry, frameSlider.valueProperty().intValue(), imageFile));
-                    pause.playFromStart();
-                }
             });
             sunDetectionThreshold.textProperty().addListener((observable, oldValue, newValue) -> {
                 if (!newValue.trim().isEmpty()) {
@@ -112,12 +102,10 @@ public class SpectralLineDebugger {
         converter.convert(frameId, reader.currentFrame().data(), geometry, buffer);
         int width = geometry.width();
         int height = geometry.height();
-        var spectrumThreshold = Double.parseDouble(spectrumDetectionThreshold.textProperty().getValue());
         var sunThreshold = Double.parseDouble(sunDetectionThreshold.textProperty().getValue());
         var analyzer = new SpectrumFrameAnalyzer(
                 width,
                 height,
-                spectrumThreshold,
                 sunThreshold
         );
         analyzer.analyze(buffer);
