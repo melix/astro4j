@@ -45,6 +45,7 @@ import java.util.function.DoubleUnaryOperator;
 import static me.champeau.a4j.jsolex.processing.sun.ImageUtils.createImageConverter;
 
 public class SpectralLineDebugger {
+    private static final double EPSILON = 0.25d;
     @FXML
     private Slider frameSlider;
 
@@ -200,8 +201,14 @@ public class SpectralLineDebugger {
                 redraw();
                 var cur = new Point2D(x, y);
                 var color = Color.RED;
-                if (Math.abs(x - ref.x()) <= 0.1d) {
-                    color = Color.GREEN;
+                if (Math.abs(x - ref.x()) <= EPSILON) {
+                    color = Color.ORANGE;
+                    if (polynomial != null) {
+                        var py = polynomial.applyAsDouble(x);
+                        if (Math.abs(py - y) <= EPSILON) {
+                            color = Color.GREEN;
+                        }
+                    }
                 }
                 graphicsContext.setStroke(color);
                 graphicsContext.strokeLine(ref.x(), ref.y(), x, y);
