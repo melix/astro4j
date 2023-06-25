@@ -29,7 +29,6 @@ import me.champeau.a4j.math.regression.EllipseRegression;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.Arrays;
 import java.util.stream.IntStream;
 
 import static me.champeau.a4j.jsolex.processing.util.Constants.message;
@@ -87,19 +86,24 @@ public class GeometryCorrector extends AbstractTask<GeometryCorrector.Result> {
         if (performTransform) {
             extendedWidth = width + (int) Math.ceil(Math.abs(maxDx));
             newBuffer = new float[height * extendedWidth];
-            Arrays.fill(newBuffer, blackPoint);
             for (int y = 0; y < height; y++) {
                 var dx = y * shear;
                 for (int x = 0; x < width; x++) {
-                    int nx = (int) (x - shift + dx);
-                    newBuffer[nx + y * extendedWidth] = buffer[x + y * width];
+                    var nx = x - shift + dx;
+                    var x1 = (int) Math.floor(nx);
+                    var x2 = x1 + 1;
+                    var factor = nx - x1;
+                    if (x1 >= 0 && x2 < extendedWidth) {
+                        newBuffer[x1 + y * extendedWidth] += (1 - factor) * buffer[x + y * width];
+                        newBuffer[x2 + y * extendedWidth] += factor * buffer[x + y * width];
+                    }
                     // reduce transform artifacts by filling with same border color
                     if (x == 0) {
                         for (int k = 0; k < nx; k++) {
                             newBuffer[k + y * extendedWidth] = buffer[x + y * width];
                         }
                     } else if (x == width - 1) {
-                        for (int k = nx; k < extendedWidth; k++) {
+                        for (int k = (int) nx; k < extendedWidth; k++) {
                             newBuffer[k + y * extendedWidth] = buffer[x + y * width];
                         }
                     }
