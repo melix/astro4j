@@ -25,10 +25,12 @@ import javafx.scene.control.CheckBox;
 import javafx.scene.control.ListView;
 import javafx.scene.control.TextArea;
 import javafx.scene.control.TextField;
+import javafx.scene.control.TextFormatter;
 import javafx.stage.FileChooser;
 import javafx.stage.Stage;
 import javafx.stage.WindowEvent;
 import me.champeau.a4j.jsolex.app.JSolEx;
+import me.champeau.a4j.jsolex.expr.Scanner;
 import me.champeau.a4j.jsolex.processing.expr.ShiftCollectingImageExpressionEvaluator;
 import me.champeau.a4j.jsolex.processing.params.ImageMathParams;
 import me.champeau.a4j.jsolex.processing.params.ImageMathProfileIO;
@@ -48,9 +50,11 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.TreeSet;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 public class ImageMathEditor {
+    private static final Pattern VAR_PATTERN = Pattern.compile(Scanner.VARIABLE_REGEX);
     private static final String MATH_EXTENSION = ".math";
     private static final FileChooser.ExtensionFilter MATH_PROFILE_EXTENSION_FILTER = new FileChooser.ExtensionFilter("ImageMath Profile", "*" + MATH_EXTENSION);
 
@@ -77,6 +81,13 @@ public class ImageMathEditor {
         this.stage = stage;
         this.configuration = null;
         this.pixelShifts.setEditable(false);
+        this.label.setTextFormatter(new TextFormatter<>(change -> {
+            if (VAR_PATTERN.matcher(change.getControlNewText()).matches()) {
+                return change;
+            } else {
+                return null;
+            }
+        }));
         var items = elements.getItems();
         if (imageMathParams != null) {
             populateFromParams(imageMathParams);

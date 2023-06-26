@@ -24,16 +24,16 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 public class Scanner {
-    private static final String VARIABLE_REGEX = "[a-zA-Z_]\\w*";
-    private static final String LITERAL_REGEX = "-?\\d+(\\.\\d+)?|(\\.\\d+)";
-    private static final String OPERATOR_REGEX = "[+\\-*/]";
-    private static final String FUNCTION_REGEX = Stream.concat(
+    public static final String VARIABLE_REGEX = "[a-zA-Z_]\\w*";
+    public static final String LITERAL_REGEX = "-?\\d+(\\.\\d+)?|(\\.\\d+)";
+    public static final String OPERATOR_REGEX = "[+\\-*/]";
+    public static final String FUNCTION_REGEX = Stream.concat(
             Arrays.stream(BuiltinFunction.values()).map(BuiltinFunction::name),
             Arrays.stream(BuiltinFunction.values()).map(BuiltinFunction::lowerCaseName)
     ).collect(Collectors.joining("|"));
-    private static final String LEFT_PARENTHESIS_REGEX = "\\(";
-    private static final String RIGHT_PARENTHESIS_REGEX = "\\)";
-    private static final String COMMA_REGEX = "[,;]";
+    public static final String LEFT_PARENTHESIS_REGEX = "\\(";
+    public static final String RIGHT_PARENTHESIS_REGEX = "\\)";
+    public static final String COMMA_REGEX = "[,;]";
 
     private static final Pattern TOKEN_PATTERN = Pattern.compile(
             "\\s*(" + VARIABLE_REGEX + ")|(" + LITERAL_REGEX + ")|(" + OPERATOR_REGEX + ")|(" + FUNCTION_REGEX + ")|(" + LEFT_PARENTHESIS_REGEX + ")|(" + RIGHT_PARENTHESIS_REGEX + ")|(" + COMMA_REGEX + ")\\s*"
