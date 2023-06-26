@@ -13,22 +13,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package me.champeau.a4j.jsolex.app.listeners;
+package me.champeau.a4j.jsolex.expr;
 
-import javafx.scene.control.TabPane;
-import me.champeau.a4j.jsolex.expr.ImageMathScriptExecutor;
-import me.champeau.a4j.jsolex.processing.util.ForkJoinContext;
-
-public interface JSolExInterface {
-    ForkJoinContext getCpuExecutor();
-
-    TabPane getMainPane();
-
-    void showProgress();
-
-    void hideProgress();
-
-    void updateProgress(double progress, String text);
-
-    void setImageMathExecutor(ImageMathScriptExecutor executor);
+public interface ImageMathScriptExecutor {
+    void execute(String script);
 }

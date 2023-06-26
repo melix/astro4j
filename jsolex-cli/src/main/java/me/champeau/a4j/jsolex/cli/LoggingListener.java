@@ -77,7 +77,7 @@ public class LoggingListener implements ProcessingEventListener {
 
     @Override
     public void onProcessingDone(ProcessingDoneEvent e) {
-        var duration = Duration.ofNanos(e.getPayload() - sd);
+        var duration = Duration.ofNanos(e.getPayload().timestamp() - sd);
         double seconds = duration.toMillis() / 1000d;
         LOGGER.info("Finished in {}s", seconds);
         if (!suggestions.isEmpty()) {

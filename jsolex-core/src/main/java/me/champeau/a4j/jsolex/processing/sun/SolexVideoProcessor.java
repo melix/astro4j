@@ -65,7 +65,6 @@ import java.io.File;
 import java.nio.file.Path;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -113,10 +112,6 @@ public class SolexVideoProcessor implements Broadcaster {
 
     public void addEventListener(ProcessingEventListener listener) {
         progressEventListeners.add(listener);
-    }
-
-    public void removeEventListener(ProcessingEventListener listener) {
-        progressEventListeners.remove(listener);
     }
 
     public void process() {
@@ -171,20 +166,21 @@ public class SolexVideoProcessor implements Broadcaster {
     }
 
     private void generateImages(ImageConverter<float[]> converter, SerFileReader reader, int start, int end, float[] averageImage) {
+        List<WorkflowState> imageList = new ArrayList<>();
+        var imageNamingStrategy = new FileNamingStrategy(
+                processParams.debugParams().fileNamePattern(),
+                processingDate,
+                reader.header()
+        );
+        var baseName = serFile.getName().substring(0, serFile.getName().lastIndexOf("."));
         mainForkJoinContext.blocking(blocking -> {
-            var imageNamingStrategy = new FileNamingStrategy(
-                    processParams.debugParams().fileNamePattern(),
-                    processingDate,
-                    reader.header()
-            );
-            var baseName = serFile.getName().substring(0, serFile.getName().lastIndexOf("."));
             var geometry = reader.header().geometry();
             int width = geometry.width();
             int height = geometry.height();
             var fps = reader.estimateFps();
             int newHeight = end - start;
             broadcast(OutputImageDimensionsDeterminedEvent.of(Constants.TYPE_RAW, width, newHeight));
-            var imageList = createWorkflowStateSteps(width, newHeight);
+            createWorkflowStateSteps(imageList, width, newHeight);
             var internalShifts = processParams.requestedImages().internalPixelShifts();
             if (!internalShifts.isEmpty()) {
                 for (WorkflowState state : imageList) {
@@ -275,8 +271,14 @@ public class SolexVideoProcessor implements Broadcaster {
                 LOGGER.error(message("unable.find.spectral.line"));
             }
         });
-
-        broadcast(new ProcessingDoneEvent(System.nanoTime()));
+        var images = new HashMap<Integer, ImageWrapper32>();
+        for (WorkflowState workflowState : imageList) {
+            var result = workflowState.findResult(WorkflowResults.GEOMETRY_CORRECTION);
+            if (result.isPresent() && result.get() instanceof GeometryCorrector.Result geo) {
+                images.put(workflowState.pixelShift(), geo.corrected());
+            }
+        }
+        broadcast(ProcessingDoneEvent.of(System.nanoTime(), images, createCustomImageEmitter(imageNamingStrategy, baseName)));
     }
 
     private void generateImageMaths(ForkJoinContext blockingContext, FileNamingStrategy imageNamingStrategy, String baseName, List<WorkflowState> imageList, ImageMathParams mathImages) {
@@ -293,11 +295,7 @@ public class SolexVideoProcessor implements Broadcaster {
                     }
                 }
             }
-            var emitter = new NamingStrategyAwareImageEmitter(new DefaultImageEmitter(this, mainForkJoinContext, outputDirectory.toFile()),
-                    imageNamingStrategy,
-                    sequenceNumber,
-                    Constants.TYPE_CUSTOM,
-                    baseName);
+            var emitter = createCustomImageEmitter(imageNamingStrategy, baseName);
             var circle = ellipse;
             for (String label : mathImages.imagesToGenerate()) {
                 blockingContext.async(() -> {
@@ -321,6 +319,14 @@ public class SolexVideoProcessor implements Broadcaster {
                 });
             }
         }
+    }
+
+    private ImageEmitter createCustomImageEmitter(FileNamingStrategy imageNamingStrategy, String baseName) {
+        return new NamingStrategyAwareImageEmitter(new DefaultImageEmitter(this, mainForkJoinContext, outputDirectory.toFile()),
+                imageNamingStrategy,
+                sequenceNumber,
+                Constants.TYPE_CUSTOM,
+                baseName);
     }
 
     private EllipseFittingTask.Result performEllipseFitting(List<WorkflowState> imageList, ImageEmitterFactory imageEmitterFactory, ForkJoinContext executor) {
@@ -362,7 +368,7 @@ public class SolexVideoProcessor implements Broadcaster {
         }
     }
 
-    private List<WorkflowState> createWorkflowStateSteps(int width, int newHeight) {
+    private void createWorkflowStateSteps(List<WorkflowState> imageList, int width, int newHeight) {
         var list = processParams.requestedImages()
                 .pixelShifts()
                 .stream()
@@ -374,9 +380,8 @@ public class SolexVideoProcessor implements Broadcaster {
             internalState.setInternal(true);
             list = new ArrayList<>(list);
             list.add(internalState);
-            list = Collections.unmodifiableList(list);
         }
-        return list;
+        imageList.addAll(list);
     }
 
     private void performImageReconstruction(ImageConverter<float[]> converter, SerFileReader reader, int start, int end, ImageGeometry geometry, int width, int height, DoubleTriplet polynomial, WorkflowState... images) {

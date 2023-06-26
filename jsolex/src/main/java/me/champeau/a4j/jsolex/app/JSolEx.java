@@ -38,6 +38,7 @@ import javafx.scene.control.TableCell;
 import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableView;
 import javafx.scene.control.TextArea;
+import javafx.scene.control.TitledPane;
 import javafx.scene.image.Image;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
@@ -54,6 +55,7 @@ import me.champeau.a4j.jsolex.app.jfx.ProcessParamsController;
 import me.champeau.a4j.jsolex.app.jfx.SpectralLineDebugger;
 import me.champeau.a4j.jsolex.app.listeners.BatchModeEventListener;
 import me.champeau.a4j.jsolex.app.listeners.BatchProcessingContext;
+import me.champeau.a4j.jsolex.expr.ImageMathScriptExecutor;
 import me.champeau.a4j.jsolex.app.listeners.JSolExInterface;
 import me.champeau.a4j.jsolex.app.listeners.SingleModeProcessingEventListener;
 import me.champeau.a4j.jsolex.processing.event.ProcessingEventListener;
@@ -73,7 +75,10 @@ import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.StandardOpenOption;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
@@ -87,6 +92,7 @@ import static me.champeau.a4j.jsolex.processing.util.LoggingSupport.logError;
 
 public class JSolEx extends Application implements JSolExInterface {
     private static final Logger LOGGER = LoggerFactory.getLogger(JSolEx.class);
+    private static final FileChooser.ExtensionFilter IMAGE_MATH_SCRIPTS = new FileChooser.ExtensionFilter("ImageMath scripts", "*.txt");
 
     private ForkJoinParallelExecutor cpuExecutor;
     private ForkJoinParallelExecutor ioExecutor;
@@ -113,6 +119,17 @@ public class JSolEx extends Application implements JSolExInterface {
     @FXML
     private HBox workButtons;
 
+    @FXML
+    private TitledPane imageMathPane;
+    @FXML
+    private TextArea imageMathScript;
+    @FXML
+    private Button imageMathRun;
+    @FXML
+    private Button imageMathLoad;
+    @FXML
+    private Button imageMathSave;
+
     @Override
     public ForkJoinContext getCpuExecutor() {
         return cpuExecutor;
@@ -132,6 +149,7 @@ public class JSolEx extends Application implements JSolExInterface {
 
         try {
             var root = (Parent) fxmlLoader.load();
+            imageMathPane.setDisable(true);
             var preferredDimensions = config.getPreferredDimensions();
             Scene rootScene = new Scene(root, preferredDimensions.a(), preferredDimensions.b());
             var pause = new PauseTransition(Duration.seconds(1));
@@ -226,6 +244,48 @@ public class JSolEx extends Application implements JSolExInterface {
         progressLabel.setText(message);
     }
 
+    @Override
+    public void setImageMathExecutor(ImageMathScriptExecutor executor) {
+        imageMathPane.setDisable(false);
+        imageMathRun.setOnAction(evt -> executor.execute(imageMathScript.getText()));
+        imageMathSave.setDisable(true);
+        imageMathLoad.setOnAction(evt -> {
+            var fileChooser = new FileChooser();
+            fileChooser.getExtensionFilters().add(IMAGE_MATH_SCRIPTS);
+            var file = fileChooser.showOpenDialog(rootStage);
+            if (file != null) {
+                try {
+                    var script = String.join("\n", Files.readAllLines(file.toPath()));
+                    imageMathScript.setText(script);
+                    imageMathSave.setDisable(true);
+                } catch (IOException e) {
+                    // ignore
+                }
+            }
+        });
+        imageMathScript.textProperty().addListener((o, oldValue, newValue) -> {
+            if (newValue != null) {
+                imageMathSave.setDisable(false);
+            }
+        });
+        imageMathSave.setOnAction(evt -> {
+            var fileChooser = new FileChooser();
+            fileChooser.getExtensionFilters().add(IMAGE_MATH_SCRIPTS);
+            var file = fileChooser.showSaveDialog(rootStage);
+            if (file != null) {
+                if (!file.getName().endsWith(".txt")) {
+                    file = new File(file.getParentFile(), file.getName() + ".txt");
+                }
+                try {
+                    Files.writeString(file.toPath(), imageMathScript.getText(), StandardCharsets.UTF_8, StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING);
+                    imageMathSave.setDisable(true);
+                } catch (IOException e) {
+                    // ignore
+                }
+            }
+        });
+    }
+
     @FXML
     private void open() {
         selectSerFileAndThen(this::doOpen);
@@ -309,6 +369,7 @@ public class JSolEx extends Application implements JSolExInterface {
     }
 
     private void doOpen(File selectedFile) {
+        imageMathPane.setDisable(true);
         config.loaded(selectedFile.toPath());
         configureThreadExceptionHandler();
         BatchOperations.submit(this::refreshRecentItemsMenu);
@@ -347,6 +408,7 @@ public class JSolEx extends Application implements JSolExInterface {
     }
 
     private void doOpenMany(List<File> selectedFiles) {
+        imageMathPane.setDisable(true);
         configureThreadExceptionHandler();
         File initial = selectedFiles.get(0);
         config.updateLastOpenDirectory(initial.toPath().getParent());
@@ -507,7 +569,6 @@ public class JSolEx extends Application implements JSolExInterface {
                     LoggingSupport.logError(ex);
                 } finally {
                     onComplete.run();
-                    processor.removeEventListener(listener);
                     appender.stop();
                     LogbackConfigurer.clearOwners();
                 }
