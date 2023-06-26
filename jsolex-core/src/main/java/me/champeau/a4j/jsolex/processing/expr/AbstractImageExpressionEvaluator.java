@@ -17,6 +17,7 @@ package me.champeau.a4j.jsolex.processing.expr;
 
 import me.champeau.a4j.jsolex.expr.BuiltinFunction;
 import me.champeau.a4j.jsolex.expr.ExpressionEvaluator;
+import me.champeau.a4j.jsolex.processing.stretching.ArcsinhStretchingStrategy;
 import me.champeau.a4j.jsolex.processing.stretching.NegativeImageStrategy;
 import me.champeau.a4j.jsolex.processing.sun.BandingReduction;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
@@ -101,7 +102,17 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
             case INVERT -> inverse(arguments);
             case RANGE -> createRange(arguments);
             case FIX_BANDING -> fixBanding(arguments);
+            case ASINH_STRETCH -> asinhStretch(arguments);
         };
+    }
+
+    private Object asinhStretch(List<Object> arguments) {
+        if (arguments.size() < 3) {
+            throw new IllegalArgumentException("asinh_stretch takes 3 arguments (image(s), blackpoint, stretch)");
+        }
+        float blackpoint = ((Number) arguments.get(1)).floatValue();
+        float stretch = ((Number) arguments.get(2)).floatValue();
+        return imageTransformer("asinh_stretch", 3, arguments, (width, height, data) -> new ArcsinhStretchingStrategy(blackpoint, stretch, stretch).stretch(data));
     }
 
     private Object fixBanding(List<Object> arguments) {

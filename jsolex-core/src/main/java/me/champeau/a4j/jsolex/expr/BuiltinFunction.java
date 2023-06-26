@@ -24,7 +24,8 @@ public enum BuiltinFunction {
     INVERT,
     MAX,
     MIN,
-    RANGE;
+    RANGE,
+    ASINH_STRETCH;
 
     public String lowerCaseName() {
         return name().toLowerCase(Locale.US);
