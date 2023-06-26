@@ -16,28 +16,36 @@
 package me.champeau.a4j.jsolex.expr;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 public class Scanner {
     private static final String VARIABLE_REGEX = "[a-zA-Z_]\\w*";
-    private static final String LITERAL_REGEX = "-?\\d+(\\.\\d+)?";
-    private static final String OPERATOR_REGEX = "\\+|\\-|\\*|\\/"; // Add more operators as needed
-    private static final String FUNCTION_REGEX = "max|min|avg|img|range|invert"; // Add more operators as needed
+    private static final String LITERAL_REGEX = "-?\\d+(\\.\\d+)?|(\\.\\d+)";
+    private static final String OPERATOR_REGEX = "[+\\-*/]";
+    private static final String FUNCTION_REGEX = Stream.concat(
+            Arrays.stream(BuiltinFunction.values()).map(BuiltinFunction::name),
+            Arrays.stream(BuiltinFunction.values()).map(BuiltinFunction::lowerCaseName)
+    ).collect(Collectors.joining("|"));
     private static final String LEFT_PARENTHESIS_REGEX = "\\(";
     private static final String RIGHT_PARENTHESIS_REGEX = "\\)";
     private static final String COMMA_REGEX = "[,;]";
 
     private static final Pattern TOKEN_PATTERN = Pattern.compile(
             "\\s*(" + VARIABLE_REGEX + ")|(" + LITERAL_REGEX + ")|(" + OPERATOR_REGEX + ")|(" + FUNCTION_REGEX + ")|(" + LEFT_PARENTHESIS_REGEX + ")|(" + RIGHT_PARENTHESIS_REGEX + ")|(" + COMMA_REGEX + ")\\s*"
-            );
+    );
 
     public List<Token> scan(String input) {
         List<Token> tokens = new ArrayList<>();
         Matcher matcher = TOKEN_PATTERN.matcher(input);
         Token previousToken = null;
         while (matcher.find()) {
+            int start = matcher.start();
+            int end = matcher.end();
             String value = matcher.group().trim();
             TokenType type = determineTokenType(value);
 
@@ -47,7 +55,7 @@ public class Scanner {
             }
 
             var token = new Token(type, value);
-            if (previousToken != null && previousToken.type() == TokenType.LITERAL && token.type() == TokenType.LITERAL) {
+            if (previousToken != null && !isMinusSeparator(previousToken) && token.type() == TokenType.LITERAL) {
                 if (token.value().startsWith("-")) {
                     // 1-1 is not (1, -1) but (1, -, 1)
                     tokens.add(new Token(TokenType.OPERATOR, "-"));
@@ -65,6 +73,11 @@ public class Scanner {
         }
 
         return tokens;
+    }
+
+    private static boolean isMinusSeparator(Token previousToken) {
+        var value = previousToken.value();
+        return value.equals("(") || value.equals(";") || value.equals(",");
     }
 
     private TokenType determineTokenType(String tokenValue) {

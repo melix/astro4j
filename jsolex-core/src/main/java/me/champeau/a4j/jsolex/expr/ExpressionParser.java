@@ -22,6 +22,7 @@ import java.util.List;
 
 public class ExpressionParser {
 
+    public static final Literal ZERO = new Literal(0.0d);
     private final Scanner scanner = new Scanner();
 
     public Expression parseExpression(String expression) {
@@ -97,18 +98,27 @@ public class ExpressionParser {
                     for (int i=0; i<argCount; i++) {
                         argList.add(0, queue.pop());
                     }
-                    var fun = new FunctionCall(token.value(), argList);
+                    var fun = new FunctionCall(BuiltinFunction.of(token.value()), argList);
                     queue.push(fun);
                 }
                 case OPERATOR -> {
-                    var right = queue.pop();
-                    var left = queue.pop();
-                    switch (token.value()) {
-                        case "+" -> queue.push(new Addition(left, right));
-                        case "-" -> queue.push(new Substraction(left, right));
-                        case "*" -> queue.push(new Multiplication(left, right));
-                        case "/" -> queue.push(new Division(left, right));
-                    }
+                        var right = queue.pop();
+                        if (queue.isEmpty()) {
+                            // unary operator
+                            switch (token.value()) {
+                                case "+" -> queue.push(new Addition(ZERO, right));
+                                case "-" -> queue.push(new Substraction(ZERO, right));
+                                default -> throw new IllegalStateException("Illegal operation '" + token.value() + "' : not enough operands on stack");
+                            }
+                        } else {
+                            var left = queue.pop();
+                            switch (token.value()) {
+                                case "+" -> queue.push(new Addition(left, right));
+                                case "-" -> queue.push(new Substraction(left, right));
+                                case "*" -> queue.push(new Multiplication(left, right));
+                                case "/" -> queue.push(new Division(left, right));
+                            }
+                        }
                 }
                 default -> {
                 }

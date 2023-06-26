@@ -35,6 +35,7 @@ import me.champeau.a4j.jsolex.processing.params.ImageMathParams;
 import me.champeau.a4j.jsolex.processing.params.ProcessParams;
 import me.champeau.a4j.jsolex.processing.stretching.LinearStrechingStrategy;
 import me.champeau.a4j.jsolex.processing.sun.tasks.EllipseFittingTask;
+import me.champeau.a4j.jsolex.processing.sun.tasks.GeometryCorrector;
 import me.champeau.a4j.jsolex.processing.sun.workflow.DefaultImageEmitter;
 import me.champeau.a4j.jsolex.processing.sun.workflow.DiscardNonRequiredImages;
 import me.champeau.a4j.jsolex.processing.sun.workflow.GeneratedImageKind;
@@ -51,6 +52,7 @@ import me.champeau.a4j.jsolex.processing.util.ProcessingException;
 import me.champeau.a4j.jsolex.processing.util.SpectralLineFrameImageCreator;
 import me.champeau.a4j.math.image.Image;
 import me.champeau.a4j.math.image.ImageMath;
+import me.champeau.a4j.math.regression.Ellipse;
 import me.champeau.a4j.math.tuples.DoubleTriplet;
 import me.champeau.a4j.ser.Header;
 import me.champeau.a4j.ser.ImageGeometry;
@@ -280,17 +282,27 @@ public class SolexVideoProcessor implements Broadcaster {
     private void generateImageMaths(ForkJoinContext blockingContext, FileNamingStrategy imageNamingStrategy, String baseName, List<WorkflowState> imageList, ImageMathParams mathImages) {
         if (!mathImages.imagesToGenerate().isEmpty()) {
             var images = new HashMap<Integer, ImageWrapper32>();
+            Ellipse ellipse = null;
             for (WorkflowState workflowState : imageList) {
                 images.put(workflowState.pixelShift(), workflowState.image());
+                if (ellipse == null) {
+                    var result = workflowState.findResult(WorkflowResults.GEOMETRY_CORRECTION);
+                    if (result.isPresent() && result.get() instanceof GeometryCorrector.Result geo) {
+                        ellipse = geo.correctedCircle();
+                    }
+                }
             }
             var emitter = new NamingStrategyAwareImageEmitter(new DefaultImageEmitter(this, mainForkJoinContext, outputDirectory.toFile()),
                     imageNamingStrategy,
                     sequenceNumber,
-                    Constants.TYPE_DEBUG,
+                    Constants.TYPE_CUSTOM,
                     baseName);
+            var circle = ellipse;
             for (String label : mathImages.imagesToGenerate()) {
                 blockingContext.async(() -> {
+                    broadcast(ProgressEvent.of(0, "Image " + label));
                     var eval = new ImageExpressionEvaluator(images);
+                    eval.putInContext(Ellipse.class, circle);
                     for (Map.Entry<String, String> entry : mathImages.expressions().entrySet()) {
                         eval.putVariable(entry.getKey(), entry.getValue());
                     }
@@ -304,6 +316,7 @@ public class SolexVideoProcessor implements Broadcaster {
                                 LinearStrechingStrategy.DEFAULT
                         );
                     }
+                    broadcast(ProgressEvent.of(1.0, "Image " + label));
                 });
             }
         }

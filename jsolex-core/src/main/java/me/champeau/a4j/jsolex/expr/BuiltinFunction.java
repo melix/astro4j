@@ -15,9 +15,22 @@
  */
 package me.champeau.a4j.jsolex.expr;
 
-public record Variable(String name) implements Expression {
-    @Override
-    public String toString() {
-        return "VAR(" + name + ")";
+import java.util.Locale;
+
+public enum BuiltinFunction {
+    AVG,
+    FIX_BANDING,
+    IMG,
+    INVERT,
+    MAX,
+    MIN,
+    RANGE;
+
+    public String lowerCaseName() {
+        return name().toLowerCase(Locale.US);
+    }
+
+    static BuiltinFunction of(String value) {
+        return valueOf(value.toUpperCase(Locale.US));
     }
 }

@@ -43,7 +43,7 @@ public interface ImageMath {
         return new Image(height, width, output);
     }
 
-    default float[] rotateRight(Image image) {
+    default Image rotateRight(Image image) {
         var data = image.data();
         var width = image.width();
         var height = image.height();
@@ -53,7 +53,7 @@ public interface ImageMath {
                 output[x * height + (height - y - 1)] = data[y * width + x];
             }
         }
-        return output;
+        return new Image(height, width, output);
     }
 
     default double[] lineAverages(Image image) {

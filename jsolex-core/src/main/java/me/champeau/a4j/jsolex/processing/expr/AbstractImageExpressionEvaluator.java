@@ -15,13 +15,19 @@
  */
 package me.champeau.a4j.jsolex.processing.expr;
 
+import me.champeau.a4j.jsolex.expr.BuiltinFunction;
 import me.champeau.a4j.jsolex.expr.ExpressionEvaluator;
 import me.champeau.a4j.jsolex.processing.stretching.NegativeImageStrategy;
+import me.champeau.a4j.jsolex.processing.sun.BandingReduction;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
+import me.champeau.a4j.math.regression.Ellipse;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 import java.util.OptionalDouble;
 import java.util.function.DoubleBinaryOperator;
 import java.util.function.Function;
@@ -29,6 +35,17 @@ import java.util.stream.DoubleStream;
 import java.util.stream.Stream;
 
 public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluator {
+
+    private final Map<Class<?>, Object> context = new HashMap<>();
+
+    public <T> void putInContext(Class<T> key, T value) {
+        context.put(key, value);
+    }
+
+    @SuppressWarnings("unchecked")
+    public <T> Optional<T> getFromContext(Class<T> type) {
+        return (Optional<T>) Optional.ofNullable(context.get(type));
+    }
 
     @Override
     protected Object plus(Object left, Object right) {
@@ -75,33 +92,53 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
     }
 
     @Override
-    protected Object functionCall(String name, List<Object> arguments) {
-        return switch (name) {
-            case "img" -> image(arguments);
-            case "avg" -> applyFunction(arguments, DoubleStream::average);
-            case "min" -> applyFunction(arguments, DoubleStream::min);
-            case "max" -> applyFunction(arguments, DoubleStream::max);
-            case "invert" -> inverse(arguments);
-            case "range" -> createRange(arguments);
-            default -> throw new IllegalArgumentException("Unknown function call '" + name + "'");
+    protected Object functionCall(BuiltinFunction function, List<Object> arguments) {
+        return switch (function) {
+            case IMG -> image(arguments);
+            case AVG -> applyFunction(arguments, DoubleStream::average);
+            case MIN -> applyFunction(arguments, DoubleStream::min);
+            case MAX -> applyFunction(arguments, DoubleStream::max);
+            case INVERT -> inverse(arguments);
+            case RANGE -> createRange(arguments);
+            case FIX_BANDING -> fixBanding(arguments);
         };
     }
 
+    private Object fixBanding(List<Object> arguments) {
+        if (arguments.size() < 3) {
+            throw new IllegalArgumentException("fix_banding takes 3 arguments (image, band size, passes)");
+        }
+        var ellipse = getFromContext(Ellipse.class);
+        int bandSize = ((Number) arguments.get(1)).intValue();
+        int passes = ((Number) arguments.get(2)).intValue();
+        return imageTransformer("fix_banding", 3, arguments, (width, height, data) -> {
+            for (int i = 0; i < passes; i++) {
+                BandingReduction.reduceBanding(width, height, data, bandSize, ellipse.orElse(null));
+            }
+        });
+    }
+
     private Object inverse(List<Object> arguments) {
-        if (arguments.size() != 1) {
-            throw new IllegalArgumentException("invert() call must have a single argument (image)");
+        return imageTransformer("invert", 1, arguments, (w, h, data) -> NegativeImageStrategy.DEFAULT.stretch(data));
+    }
+
+    private Object imageTransformer(String name, int maxArgCount, List<Object> arguments, ImageConsumer consumer) {
+        if (arguments.size() > maxArgCount) {
+            throw new IllegalArgumentException("Invalid number of arguments on '" + name + "' call");
         }
         var arg = arguments.get(0);
         if (arg instanceof ImageWrapper32 image) {
             var source = image.data();
-            var inverted = new float[source.length];
-            System.arraycopy(source, 0, inverted, 0, source.length);
-            NegativeImageStrategy.DEFAULT.stretch(inverted);
-            return new ImageWrapper32(image.width(), image.height(), inverted);
+            var width = image.width();
+            var height = image.height();
+            var output = new float[source.length];
+            System.arraycopy(source, 0, output, 0, source.length);
+            consumer.accept(width, height, output);
+            return new ImageWrapper32(image.width(), image.height(), output);
         } else if (arg instanceof List<?> list) {
             return list.stream().map(e -> inverse(List.of(e))).toList();
         }
-        throw new IllegalArgumentException("invert() call must have a single argument (image)");
+        throw new IllegalArgumentException(name + "first argument must be an image or a list of images");
     }
 
     protected abstract ImageWrapper32 findImage(int shift);
@@ -177,9 +214,15 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
                 throw new IllegalArgumentException("Both images must have the same dimensions");
             }
             float[] result = new float[length];
+            float min = 0;
             for (int i = 0; i < length; i++) {
-                result[i] = (float) operator.applyAsDouble(leftData[i], rightData[i]);
+                var v = (float) operator.applyAsDouble(leftData[i], rightData[i]);
+                if (v<min) {
+                    min = v;
+                }
+                result[i] = v;
             }
+            normalize(length, result, min);
             return new ImageWrapper32(width, height, result);
         }
         if (leftImage != null && rightScalar != null) {
@@ -189,9 +232,15 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
             var width = leftImage.width();
             var height = leftImage.height();
             float[] result = new float[length];
+            float min = 0;
             for (int i = 0; i < length; i++) {
-                result[i] = (float) operator.applyAsDouble(leftData[i], scalar);
+                var v = (float) operator.applyAsDouble(leftData[i], scalar);
+                if (v < min) {
+                    min = v;
+                }
+                result[i] = v;
             }
+            normalize(length, result, min);
             return new ImageWrapper32(width, height, result);
         }
         if (rightImage != null && leftScalar != null) {
@@ -201,15 +250,31 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
             var width = rightImage.width();
             var height = rightImage.height();
             float[] result = new float[length];
+            float min = 0;
             for (int i = 0; i < length; i++) {
-                result[i] = (float) operator.applyAsDouble(rightData[i], scalar);
+                var v = (float) operator.applyAsDouble(rightData[i], scalar);
+                if (v < min) {
+                    min = v;
+                }
+                result[i] = v;
             }
+            normalize(length, result, min);
             return new ImageWrapper32(width, height, result);
         }
         if (leftScalar != null && rightScalar != null) {
             return operator.applyAsDouble(leftScalar.doubleValue(), rightScalar.doubleValue());
         }
         throw new IllegalArgumentException("Unexpected operand types");
+    }
+
+    private static void normalize(int length, float[] result, float min) {
+        if (min < 0) {
+            // shift all values so that they are positive
+            var abs = Math.abs(min);
+            for (int i = 0; i < length; i++) {
+                result[i] += abs;
+            }
+        }
     }
 
     private ImageWrapper32 asImage(Object source) {
@@ -254,5 +319,10 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
             }
         }
         return Collections.unmodifiableList(images);
+    }
+
+    @FunctionalInterface
+    interface ImageConsumer {
+        void accept(int width, int height, float[] data);
     }
 }

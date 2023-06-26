@@ -70,6 +70,6 @@ public abstract class ExpressionEvaluator {
         throw new IllegalStateException("Undefined variable '" + name + "'");
     }
 
-    protected abstract Object functionCall(String name, List<Object> arguments);
+    protected abstract Object functionCall(BuiltinFunction function, List<Object> arguments);
 
 }

@@ -17,32 +17,65 @@ package me.champeau.a4j.jsolex.processing.sun;
 
 import me.champeau.a4j.math.image.Image;
 import me.champeau.a4j.math.image.ImageMath;
+import me.champeau.a4j.math.regression.Ellipse;
 
 public class BandingReduction {
     private BandingReduction() {
     }
 
-    public static void reduceBanding(int width, int height, float[] data, int bandSize) {
-        var imageMath = ImageMath.newInstance();
-        // compute average value of each line
-        double[] lineAverages = imageMath.lineAverages(new Image(width, height, data));
+    public static void reduceBanding(int width, int height, float[] data, int bandSize, Ellipse ellipse) {
+        double[] lineAverages = lineAverages(width, height, data, ellipse);
         for (int y = 0; y < height; y++) {
-            double sum = 0;
-            int count = 0;
-            for (int k = Math.max(0, y - bandSize); k < Math.min(y + bandSize, height); k++) {
-                if (k != y) {
-                    sum += lineAverages[k];
-                    count++;
-                }
-            }
-            double mean = sum / count;
-            double current = lineAverages[y];
-            Double correction = Double.valueOf(mean / current);
-            if (correction > 1 && !correction.isInfinite() && !correction.isNaN()) {
-                for (int x = 0; x < width; x++) {
-                    data[y * width + x] *= correction;
+            double bandAverage = computeAverageForBand(height, lineAverages, bandSize, y);
+            double currentLineAverage = lineAverages[y];
+            if (currentLineAverage < bandAverage) {
+                Double correction = bandAverage / currentLineAverage;
+                if (!correction.isInfinite() && !correction.isNaN()) {
+                    var offset = y * width;
+                    for (int x = 0; x < width; x++) {
+                        if (ellipse == null || ellipse.isWithin(x, y)) {
+                            data[offset + x] *= correction;
+                        }
+                    }
                 }
             }
         }
+    }
+
+    private static double computeAverageForBand(int height, double[] lineAverages, int bandSize, int y) {
+        int halfSize = bandSize / 2;
+        double sum = 0;
+        int count = 0;
+        for (int k = Math.max(0, y - halfSize); k < Math.min(y + halfSize + 1, height); k++) {
+            if (k != y) {
+                sum += lineAverages[k];
+                count++;
+            }
+        }
+        return sum / count;
+    }
+
+    private static double[] lineAverages(int width, int height, float[] data, Ellipse ellipse) {
+        if (ellipse == null) {
+            return ImageMath.newInstance().lineAverages(new Image(width, height, data));
+        }
+        double[] averages = new double[height];
+        for (int y = 0; y < height; y++) {
+            averages[y] = lineAverage(width, y, data, ellipse);
+        }
+        return averages;
+    }
+
+    private static double lineAverage(int width, int y, float[] data, Ellipse ellipse) {
+        double sum = 0;
+        int count = 0;
+        var offset = y * width;
+        for (int x = 0; x < width; x++) {
+            if (ellipse.isWithin(x, y)) {
+                sum += data[x + offset];
+                count++;
+            }
+        }
+        return sum / count;
     }
 }

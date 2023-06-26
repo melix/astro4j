@@ -57,6 +57,23 @@ spotless {
     }
 }
 
+val versionFile = layout.buildDirectory.file("version/version.txt")
+val writeVersionTxt = tasks.register("writeVersion") {
+    inputs.property("version", providers.gradleProperty("version"))
+    outputs.file(versionFile)
+    doLast {
+        versionFile.get().asFile.writeText(providers.gradleProperty("version").get())
+    }
+}
+
+sourceSets {
+    main {
+        resources {
+            srcDir(writeVersionTxt.map { versionFile.get().asFile.parent })
+        }
+    }
+}
+
 tasks.named("check") {
     dependsOn("spotlessCheck")
 }

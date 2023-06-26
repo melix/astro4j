@@ -128,11 +128,11 @@ class ExpressionEvaluatorTest extends Specification {
         }
 
         @Override
-        protected Object functionCall(String name, List<Object> arguments) {
-            return switch (name) {
-                case 'min' -> arguments.min()
-                case 'max' -> arguments.max()
-                case 'avg' -> arguments.average()
+        protected Object functionCall(BuiltinFunction fun, List<Object> arguments) {
+            return switch (fun) {
+                case BuiltinFunction.MIN -> arguments.min()
+                case BuiltinFunction.MAX -> arguments.max()
+                case BuiltinFunction.AVG -> arguments.average()
             }
         }
     }

@@ -23,6 +23,7 @@ public class Constants {
     public static final float MAX_PIXEL_VALUE = 65535f;
     public static final String TYPE_RAW = "raw";
     public static final String TYPE_DEBUG = "debug";
+    public static final String TYPE_CUSTOM = "custom";
     public static final String TYPE_PROCESSED = "processed";
     public static final int CONTINUUM_SHIFT = 15;
     public static final int DOPPLER_SHIFT = 3;

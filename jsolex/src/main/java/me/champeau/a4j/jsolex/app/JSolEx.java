@@ -286,8 +286,14 @@ public class JSolEx extends Application implements JSolExInterface {
         var alert = new Alert(Alert.AlertType.INFORMATION);
         alert.setResizable(true);
         alert.getDialogPane().setPrefSize(700, 400);
+        String version = "";
+        try {
+            version = new String(JSolEx.class.getResourceAsStream("/version.txt").readAllBytes(), "utf-8").trim();
+        } catch (IOException e) {
+            version = "unknown";
+        }
         alert.setTitle(I18N.string(getClass(), "about", "about.title"));
-        alert.setHeaderText(I18N.string(getClass(), "about", "about.header"));
+        alert.setHeaderText(I18N.string(getClass(), "about", "about.header") + ". Version " + version);
         alert.setContentText(I18N.string(getClass(), "about", "about.message"));
         var licenses = new TextArea();
         try {

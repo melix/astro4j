@@ -28,6 +28,7 @@ import javafx.scene.control.TextField;
 import javafx.stage.FileChooser;
 import javafx.stage.Stage;
 import javafx.stage.WindowEvent;
+import me.champeau.a4j.jsolex.app.JSolEx;
 import me.champeau.a4j.jsolex.processing.expr.ShiftCollectingImageExpressionEvaluator;
 import me.champeau.a4j.jsolex.processing.params.ImageMathParams;
 import me.champeau.a4j.jsolex.processing.params.ImageMathProfileIO;
@@ -213,8 +214,8 @@ public class ImageMathEditor {
             );
             if (!exportButton.isDisabled()) {
                 var alert = new Alert(Alert.AlertType.CONFIRMATION);
-                alert.setTitle("Export profile?");
-                alert.setHeaderText("Do you want to export the profile for use in future sessions?");
+                alert.setTitle(I18N.string(JSolEx.class, "imagemath-editor", "question.export.profile"));
+                alert.setHeaderText(I18N.string(JSolEx.class, "imagemath-editor", "question.export.profile.long"));
                 alert.getButtonTypes().setAll(ButtonType.YES, ButtonType.NO);
                 alert.showAndWait().ifPresent(buttonType -> {
                     if (buttonType == ButtonType.YES) {

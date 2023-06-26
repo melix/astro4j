@@ -25,6 +25,7 @@ module me.champeau.a4j.jsolex.core {
     requires com.google.gson;
     requires java.desktop;
     requires nom.tam.fits;
+    exports me.champeau.a4j.jsolex.expr;
     exports me.champeau.a4j.jsolex.processing.color;
     exports me.champeau.a4j.jsolex.processing.expr;
     exports me.champeau.a4j.jsolex.processing.event;
