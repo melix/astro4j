@@ -284,11 +284,12 @@ public class SolexVideoProcessor implements Broadcaster {
             var images = new HashMap<Integer, ImageWrapper32>();
             Ellipse ellipse = null;
             for (WorkflowState workflowState : imageList) {
-                images.put(workflowState.pixelShift(), workflowState.image());
-                if (ellipse == null) {
-                    var result = workflowState.findResult(WorkflowResults.GEOMETRY_CORRECTION);
-                    if (result.isPresent() && result.get() instanceof GeometryCorrector.Result geo) {
+                var result = workflowState.findResult(WorkflowResults.GEOMETRY_CORRECTION);
+                if (result.isPresent() && result.get() instanceof GeometryCorrector.Result geo) {
+                    images.put(workflowState.pixelShift(), geo.corrected());
+                    if (ellipse == null) {
                         ellipse = geo.correctedCircle();
+
                     }
                 }
             }
