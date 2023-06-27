@@ -25,7 +25,7 @@ import java.util.stream.Stream;
 
 public class Scanner {
     public static final String VARIABLE_REGEX = "[a-zA-Z_]\\w*";
-    public static final String LITERAL_REGEX = "-?\\d+(\\.\\d+)?|(\\.\\d+)";
+    public static final String LITERAL_REGEX = "(-?\\d+(\\.\\d+)?|(\\.\\d+))|(\"[^\"]*\")";
     public static final String OPERATOR_REGEX = "[+\\-*/]";
     public static final String FUNCTION_REGEX = Stream.concat(
             Arrays.stream(BuiltinFunction.values()).map(BuiltinFunction::name),

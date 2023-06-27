@@ -131,7 +131,7 @@ public class GeometryCorrector extends AbstractTask<GeometryCorrector.Result> {
         double finalSy = sy;
         var circle = computeCorrectedCircle(shear, shift, sx, finalSy);
         broadcaster.broadcast(ProgressEvent.of(1, "Correcting geometry"));
-        return new Result(ImageWrapper32.fromImage(rescaled), ellipse, circle);
+        return new Result(ImageWrapper32.fromImage(rescaled), ellipse, circle, blackPoint);
     }
 
     /**
@@ -165,7 +165,8 @@ public class GeometryCorrector extends AbstractTask<GeometryCorrector.Result> {
     public record Result(
             ImageWrapper32 corrected,
             Ellipse originalEllipse,
-            Ellipse correctedCircle
+            Ellipse correctedCircle,
+            float blackpoint
     ) {
     }
 }

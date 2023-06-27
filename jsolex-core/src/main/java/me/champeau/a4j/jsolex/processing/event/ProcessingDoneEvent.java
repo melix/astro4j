@@ -16,7 +16,9 @@
 package me.champeau.a4j.jsolex.processing.event;
 
 import me.champeau.a4j.jsolex.processing.sun.workflow.ImageEmitter;
+import me.champeau.a4j.jsolex.processing.sun.workflow.ImageStats;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
+import me.champeau.a4j.math.regression.Ellipse;
 
 import java.util.Collections;
 import java.util.Map;
@@ -26,11 +28,11 @@ public final class ProcessingDoneEvent extends ProcessingEvent<ProcessingDoneEve
         super(payload);
     }
 
-    public record Outcome(long timestamp, Map<Integer, ImageWrapper32> shiftImages, ImageEmitter customImageEmitter) {
+    public record Outcome(long timestamp, Map<Integer, ImageWrapper32> shiftImages, ImageEmitter customImageEmitter, Ellipse ellipse, ImageStats imageStats) {
 
     }
 
-    public static ProcessingDoneEvent of(long timestamp, Map<Integer, ImageWrapper32> images, ImageEmitter customImageEmitter) {
-        return new ProcessingDoneEvent(new Outcome(timestamp, Collections.unmodifiableMap(images), customImageEmitter));
+    public static ProcessingDoneEvent of(long timestamp, Map<Integer, ImageWrapper32> images, ImageEmitter customImageEmitter, Ellipse ellipse, ImageStats imageStats) {
+        return new ProcessingDoneEvent(new Outcome(timestamp, Collections.unmodifiableMap(images), customImageEmitter, ellipse, imageStats));
     }
 }

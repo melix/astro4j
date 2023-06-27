@@ -38,9 +38,9 @@ public class KnownCurves {
 
     public static final ColorCurve HELIUM = new ColorCurve(
             "Helium",
-            107, 180,
-            112, 157,
-            180, 40
+            81, 152,
+            91, 140,
+            175, 88
     );
 
     public static List<ColorCurve> all() {

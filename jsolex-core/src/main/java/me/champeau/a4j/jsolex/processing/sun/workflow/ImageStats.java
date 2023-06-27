@@ -13,26 +13,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package me.champeau.a4j.jsolex.expr;
+package me.champeau.a4j.jsolex.processing.sun.workflow;
 
-import java.util.Locale;
-
-public enum BuiltinFunction {
-    AVG,
-    FIX_BANDING,
-    IMG,
-    INVERT,
-    MAX,
-    MIN,
-    RANGE,
-    ASINH_STRETCH,
-    COLORIZE;
-
-    public String lowerCaseName() {
-        return name().toLowerCase(Locale.US);
-    }
-
-    static BuiltinFunction of(String value) {
-        return valueOf(value.toUpperCase(Locale.US));
-    }
+public record ImageStats(
+        float blackpoint
+) {
 }

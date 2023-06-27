@@ -90,10 +90,10 @@ public class ExpressionParser {
         Deque<Expression> queue = new ArrayDeque<>();
         for (Token token : tokens) {
             switch (token.type()) {
-                case LITERAL -> queue.push(new Literal(Double.parseDouble(token.value())));
+                case LITERAL -> queue.push(toLiteral(token));
                 case VARIABLE -> queue.push(new Variable(token.value()));
                 case FUNCTION -> {
-                    int argCount = ((Literal) queue.pop()).value().intValue();
+                    int argCount = ((Number)((Literal) queue.pop()).value()).intValue();
                     var argList = new ArrayList<Expression>();
                     for (int i=0; i<argCount; i++) {
                         argList.add(0, queue.pop());
@@ -128,6 +128,14 @@ public class ExpressionParser {
             throw new IllegalStateException("Unexpected expression result : " + queue);
         }
         return queue.pop();
+    }
+
+    private static Literal toLiteral(Token token) {
+        var value = token.value();
+        if (value.startsWith("\"") && value.endsWith("\"")) {
+            return new Literal(value.substring(1, value.length() - 1));
+        }
+        return new Literal(Double.parseDouble(value));
     }
 
     private static int operatorPrecedenceOf(Token operatorToken) {

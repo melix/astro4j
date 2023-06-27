@@ -15,7 +15,7 @@
  */
 package me.champeau.a4j.jsolex.expr;
 
-public record Literal(Number value) implements Expression {
+public record Literal(Object value) implements Expression {
     @Override
     public String toString() {
         return value.toString();

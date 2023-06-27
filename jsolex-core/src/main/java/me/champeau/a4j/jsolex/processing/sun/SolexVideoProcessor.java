@@ -42,6 +42,7 @@ import me.champeau.a4j.jsolex.processing.sun.workflow.DiscardNonRequiredImages;
 import me.champeau.a4j.jsolex.processing.sun.workflow.GeneratedImageKind;
 import me.champeau.a4j.jsolex.processing.sun.workflow.ImageEmitter;
 import me.champeau.a4j.jsolex.processing.sun.workflow.ImageEmitterFactory;
+import me.champeau.a4j.jsolex.processing.sun.workflow.ImageStats;
 import me.champeau.a4j.jsolex.processing.sun.workflow.NamingStrategyAwareImageEmitter;
 import me.champeau.a4j.jsolex.processing.sun.workflow.NoOpImageEmitter;
 import me.champeau.a4j.jsolex.processing.sun.workflow.ProcessingWorkflow;
@@ -274,14 +275,18 @@ public class SolexVideoProcessor implements Broadcaster {
                 LOGGER.error(message("unable.find.spectral.line"));
             }
         });
+        Ellipse ellipse = null;
+        ImageStats imageStats = null;
         var images = new HashMap<Integer, ImageWrapper32>();
         for (WorkflowState workflowState : imageList) {
             var result = workflowState.findResult(WorkflowResults.GEOMETRY_CORRECTION);
             if (result.isPresent() && result.get() instanceof GeometryCorrector.Result geo) {
                 images.put(workflowState.pixelShift(), geo.corrected());
+                ellipse = geo.correctedCircle();
+                imageStats = new ImageStats(geo.blackpoint());
             }
         }
-        broadcast(ProcessingDoneEvent.of(System.nanoTime(), images, createCustomImageEmitter(imageNamingStrategy, baseName)));
+        broadcast(ProcessingDoneEvent.of(System.nanoTime(), images, createCustomImageEmitter(imageNamingStrategy, baseName), ellipse, imageStats));
     }
 
     private void generateImageMaths(ForkJoinContext blockingContext, FileNamingStrategy imageNamingStrategy, String baseName, List<WorkflowState> imageList, ImageMathParams mathImages) {

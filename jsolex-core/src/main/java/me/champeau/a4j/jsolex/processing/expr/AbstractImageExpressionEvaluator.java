@@ -17,9 +17,14 @@ package me.champeau.a4j.jsolex.processing.expr;
 
 import me.champeau.a4j.jsolex.expr.BuiltinFunction;
 import me.champeau.a4j.jsolex.expr.ExpressionEvaluator;
+import me.champeau.a4j.jsolex.processing.color.ColorCurve;
+import me.champeau.a4j.jsolex.processing.params.SpectralRay;
+import me.champeau.a4j.jsolex.processing.params.SpectralRayIO;
 import me.champeau.a4j.jsolex.processing.stretching.ArcsinhStretchingStrategy;
 import me.champeau.a4j.jsolex.processing.stretching.NegativeImageStrategy;
 import me.champeau.a4j.jsolex.processing.sun.BandingReduction;
+import me.champeau.a4j.jsolex.processing.sun.ImageUtils;
+import me.champeau.a4j.jsolex.processing.util.ColorizedImageWrapper;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 import me.champeau.a4j.math.regression.Ellipse;
@@ -104,6 +109,7 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
             case RANGE -> createRange(arguments);
             case FIX_BANDING -> fixBanding(arguments);
             case ASINH_STRETCH -> asinhStretch(arguments);
+            case COLORIZE -> colorize(arguments);
         };
     }
 
@@ -113,7 +119,50 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
         }
         float blackpoint = ((Number) arguments.get(1)).floatValue();
         float stretch = ((Number) arguments.get(2)).floatValue();
-        return imageTransformer("asinh_stretch", 3, arguments, (width, height, data) -> new ArcsinhStretchingStrategy(blackpoint, stretch, stretch).stretch(data));
+        return monoToMonoImageTransformer("asinh_stretch", 3, arguments, (width, height, data) -> new ArcsinhStretchingStrategy(blackpoint, stretch, stretch).stretch(data));
+    }
+
+    private Object colorize(List<Object> arguments) {
+        if (arguments.size() != 7 && arguments.size() != 2) {
+            throw new IllegalArgumentException("colorize takes 3 arguments (image, rIn, rOut, gIn, gOut, bIn, bOut) or 2 arguments (image, profile name)");
+        }
+        var arg = arguments.get(0);
+        if (arg instanceof List<?> list) {
+            return list.stream().map(e -> colorize(List.of(e))).toList();
+        }
+        if (arguments.size() == 7) {
+            int rIn = ((Number) arguments.get(1)).intValue();
+            int rOut = ((Number) arguments.get(2)).intValue();
+            int gIn = ((Number) arguments.get(3)).intValue();
+            int gOut = ((Number) arguments.get(4)).intValue();
+            int bIn = ((Number) arguments.get(5)).intValue();
+            int bOut = ((Number) arguments.get(6)).intValue();
+            if (arg instanceof ImageWrapper32 mono) {
+                return new ColorizedImageWrapper(mono, data -> {
+                    var curve = new ColorCurve("adhoc", rIn, rOut, gIn, gOut, bIn, bOut);
+                    return doColorize(data, curve);
+                });
+            }
+        } else {
+            String profile = arguments.get(1).toString();
+            var rays = SpectralRayIO.loadDefaults();
+            for (SpectralRay ray : rays) {
+                if (ray.label().equalsIgnoreCase(profile) && (arg instanceof ImageWrapper32 mono)) {
+                    var curve = ray.colorCurve();
+                    if (curve != null) {
+                        return new ColorizedImageWrapper(mono, data -> doColorize(data, curve));
+                    }
+                }
+            }
+            throw new IllegalArgumentException("Cannot find color profile '" + profile + "'");
+        }
+        throw new IllegalArgumentException("colorize first argument must be an image or a list of images");
+    }
+
+    private float[][] doColorize(float[] data, ColorCurve curve) {
+        float[] copy = new float[data.length];
+        System.arraycopy(data, 0, copy, 0, copy.length);
+        return ImageUtils.convertToRGB(curve, copy);
     }
 
     private Object fixBanding(List<Object> arguments) {
@@ -123,7 +172,7 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
         var ellipse = getFromContext(Ellipse.class);
         int bandSize = ((Number) arguments.get(1)).intValue();
         int passes = ((Number) arguments.get(2)).intValue();
-        return imageTransformer("fix_banding", 3, arguments, (width, height, data) -> {
+        return monoToMonoImageTransformer("fix_banding", 3, arguments, (width, height, data) -> {
             for (int i = 0; i < passes; i++) {
                 BandingReduction.reduceBanding(width, height, data, bandSize, ellipse.orElse(null));
             }
@@ -131,10 +180,10 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
     }
 
     private Object inverse(List<Object> arguments) {
-        return imageTransformer("invert", 1, arguments, (w, h, data) -> NegativeImageStrategy.DEFAULT.stretch(data));
+        return monoToMonoImageTransformer("invert", 1, arguments, (w, h, data) -> NegativeImageStrategy.DEFAULT.stretch(data));
     }
 
-    private Object imageTransformer(String name, int maxArgCount, List<Object> arguments, ImageConsumer consumer) {
+    private Object monoToMonoImageTransformer(String name, int maxArgCount, List<Object> arguments, ImageConsumer consumer) {
         if (arguments.size() > maxArgCount) {
             throw new IllegalArgumentException("Invalid number of arguments on '" + name + "' call");
         }
@@ -148,7 +197,7 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
             consumer.accept(width, height, output);
             return new ImageWrapper32(image.width(), image.height(), output);
         } else if (arg instanceof List<?> list) {
-            return list.stream().map(e -> imageTransformer(name, maxArgCount, List.of(e), consumer)).toList();
+            return list.stream().map(e -> monoToMonoImageTransformer(name, maxArgCount, List.of(e), consumer)).toList();
         }
         throw new IllegalArgumentException(name + "first argument must be an image or a list of images");
     }
@@ -229,7 +278,7 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
             float min = 0;
             for (int i = 0; i < length; i++) {
                 var v = (float) operator.applyAsDouble(leftData[i], rightData[i]);
-                if (v<min) {
+                if (v < min) {
                     min = v;
                 }
                 result[i] = v;

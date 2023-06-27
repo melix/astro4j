@@ -15,21 +15,21 @@
  */
 package me.champeau.a4j.jsolex.processing.expr;
 
+import me.champeau.a4j.jsolex.processing.sun.workflow.ImageStats;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
 
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
-import java.util.Set;
 import java.util.TreeSet;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Function;
 
 public class DefaultImageScriptExecutor implements ImageMathScriptExecutor {
+    public static final String BLACK_POINT_VAR = "blackPoint";
     private final Function<Integer, ImageWrapper> imagesByShift;
     private final Map<Class, Object> context;
     private final AtomicInteger executionCount = new AtomicInteger(0);
@@ -51,7 +51,11 @@ public class DefaultImageScriptExecutor implements ImageMathScriptExecutor {
         return executeScript(evaluator, invalidExpressions, outputs, producedImages);
     }
 
-    private static ImageMathScriptResult executeScript(ShiftCollectingImageExpressionEvaluator evaluator, ArrayList<InvalidExpression> invalidExpressions, Map<String, String> outputs, HashMap<String, ImageWrapper> producedImages) {
+    private ImageMathScriptResult executeScript(ShiftCollectingImageExpressionEvaluator evaluator, ArrayList<InvalidExpression> invalidExpressions, Map<String, String> outputs, HashMap<String, ImageWrapper> producedImages) {
+        var imageStats = (ImageStats) context.get(ImageStats.class);
+        if (imageStats != null) {
+            evaluator.putVariable(BLACK_POINT_VAR, String.format("%.3f", imageStats.blackpoint()));
+        }
         var variableShifts = new TreeSet<>(evaluator.getShifts());
         for (Map.Entry<String, String> output : outputs.entrySet()) {
             var label = output.getKey();
@@ -88,7 +92,7 @@ public class DefaultImageScriptExecutor implements ImageMathScriptExecutor {
         var outputs = new HashMap<String, String>();
         int cpt = 0;
         String currentSection = null;
-        Set<String> variables = new HashSet<>();
+        Map<String, String> variables = new HashMap<>();
         for (String line : lines) {
             if (line.startsWith("//") || line.startsWith("#")) {
                 // comment
@@ -106,26 +110,33 @@ public class DefaultImageScriptExecutor implements ImageMathScriptExecutor {
                     outputs.put(name, expression);
                     continue;
                 }
-                variables.add(name);
+                variables.put(name, expression);
                 try {
                     evaluator.putVariable(name, expression);
                 } catch (Exception ex) {
                     invalidExpressions.add(new InvalidExpression(name, expression, ex));
                 }
             } else {
+                var dynamicVarName = "imagemath_" + index + "_" + cpt;
+                cpt++;
                 if (isOutputSection(currentSection)) {
-                    outputs.put("imagemath_" + index + "_" + cpt, line);
-                    cpt++;
+                    outputs.put(dynamicVarName, line);
+                } else {
+                    variables.put(dynamicVarName, line);
                 }
             }
         }
         // Collect internal shifts
-        for (String variable : variables) {
+        for (String variable : variables.keySet()) {
             try {
                 evaluator.evaluate(variable);
             } catch (Exception ex) {
                 // ignore
             }
+        }
+        if (outputs.isEmpty()) {
+            // no explicit [outputs] section, consider everything an output
+            outputs.putAll(variables);
         }
         return outputs;
     }

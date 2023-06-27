@@ -44,6 +44,8 @@ import me.champeau.a4j.jsolex.processing.expr.ImageMathScriptExecutor;
 import me.champeau.a4j.jsolex.processing.expr.ImageMathScriptResult;
 import me.champeau.a4j.jsolex.processing.params.ProcessParams;
 import me.champeau.a4j.jsolex.processing.sun.workflow.ImageEmitter;
+import me.champeau.a4j.jsolex.processing.sun.workflow.ImageStats;
+import me.champeau.a4j.math.regression.Ellipse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -54,6 +56,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.stream.Collectors;
 
 public class SingleModeProcessingEventListener implements ProcessingEventListener, ImageMathScriptExecutor {
     private static final Logger LOGGER = LoggerFactory.getLogger(SingleModeProcessingEventListener.class);
@@ -219,7 +222,12 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
     public void onProcessingDone(ProcessingDoneEvent e) {
         var payload = e.getPayload();
         imageEmitter = payload.customImageEmitter();
-        imageScriptExecutor = new DefaultImageScriptExecutor(payload.shiftImages()::get, Map.of());
+        imageScriptExecutor = new DefaultImageScriptExecutor(payload.shiftImages()::get,
+                Map.of(
+                        Ellipse.class, payload.ellipse(),
+                        ImageStats.class, payload.imageStats()
+                )
+        );
         ed = payload.timestamp();
         var duration = java.time.Duration.ofNanos(ed - sd);
         double seconds = duration.toMillis() / 1000d;
@@ -264,6 +272,19 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
     public ImageMathScriptResult execute(List<String> lines) {
         var result = imageScriptExecutor.execute(lines);
         ImageMathScriptExecutor.render(result, imageEmitter);
+        var invalidExpressions = result.invalidExpressions();
+        var errorCount = invalidExpressions.size();
+        if (errorCount > 0) {
+            String message = invalidExpressions.stream()
+                    .map(invalidExpression -> "Expression '" + invalidExpression.label() + "' (" + invalidExpression.expression() + ") : " + invalidExpression.error().getMessage())
+                    .collect(Collectors.joining(System.lineSeparator()));
+            onNotification(new NotificationEvent(new Notification(
+                    Notification.AlertType.ERROR,
+                    JSolEx.message("error.processing.script"),
+                    JSolEx.message("script.errors." + (errorCount == 1 ? "single" : "many")),
+                    message
+            )));
+        }
         return result;
     }
 }
