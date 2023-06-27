@@ -15,32 +15,24 @@
  */
 package me.champeau.a4j.jsolex.processing.expr;
 
-import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
+import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
 
 import java.util.Collections;
 import java.util.Set;
 import java.util.TreeSet;
 import java.util.function.Function;
 
-public class ShiftCollectingImageExpressionEvaluator extends AbstractImageExpressionEvaluator {
+public class ShiftCollectingImageExpressionEvaluator extends ImageExpressionEvaluator {
 
     private final Set<Integer> shifts = new TreeSet<>();
 
-    private final Function<Integer, ImageWrapper32> imageFactory;
-
-    public ShiftCollectingImageExpressionEvaluator(Function<Integer, ImageWrapper32> imageFactory) {
-        this.imageFactory = imageFactory;
+    public ShiftCollectingImageExpressionEvaluator(Function<Integer, ImageWrapper> imageFactory) {
+        super(imageFactory);
     }
 
-    @Override
-    public Object evaluate(String expression) {
-        shifts.clear();
-        return super.evaluate(expression);
-    }
-
-    protected ImageWrapper32 findImage(int shift) {
+    protected ImageWrapper findImage(int shift) {
         shifts.add(shift);
-        return imageFactory.apply(shift);
+        return super.findImage(shift);
     }
 
     public Set<Integer> getShifts() {

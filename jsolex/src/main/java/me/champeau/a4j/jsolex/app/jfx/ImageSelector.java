@@ -25,24 +25,26 @@ import javafx.scene.control.TextField;
 import javafx.stage.Stage;
 import javafx.stage.WindowEvent;
 import me.champeau.a4j.jsolex.app.JSolEx;
+import me.champeau.a4j.jsolex.processing.expr.DefaultImageScriptExecutor;
 import me.champeau.a4j.jsolex.processing.params.ImageMathParams;
 import me.champeau.a4j.jsolex.processing.params.RequestedImages;
 import me.champeau.a4j.jsolex.processing.sun.workflow.GeneratedImageKind;
 import me.champeau.a4j.jsolex.processing.util.Constants;
+import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
+import me.champeau.a4j.jsolex.processing.util.ProcessingException;
 
+import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.EnumSet;
-import java.util.HashSet;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.TreeSet;
 import java.util.stream.Collectors;
-
-import static me.champeau.a4j.jsolex.app.jfx.ImageMathEditor.createEvaluator;
 
 public class ImageSelector {
     @FXML
@@ -287,12 +289,8 @@ public class ImageSelector {
                     e.consume();
                 }
                 controller.getConfiguration().ifPresent(params -> {
-                    updatePixelShiftsWithSelectedImages(params.probedPixelShifts());
-                    this.internalPixelShifts = params.internalShifts();
-                    this.imageMathParams = new ImageMathParams(
-                            params.expressions(),
-                            params.output()
-                    );
+                    updatePixelShiftsWithSelectedImages(findPixelShifts(params));
+                    this.imageMathParams = params;
                 });
                 stage.setOnCloseRequest(onCloseRequest);
                 stage.setTitle(title);
@@ -302,24 +300,26 @@ public class ImageSelector {
         }
     }
 
+    private DefaultImageScriptExecutor createScriptExecutor() {
+        var images = new HashMap<Integer, ImageWrapper32>();
+        return new DefaultImageScriptExecutor(
+                i -> images.computeIfAbsent(i, unused -> new ImageWrapper32(0, 0, new float[0])),
+                Map.of()
+        );
+    }
+
     private List<Integer> findPixelShifts(ImageMathParams params) {
-        var evaluator = createEvaluator();
-        var invalidExpressions = new HashSet<String>();
-        for (Map.Entry<String, String> entry : params.expressions().entrySet()) {
-            try {
-                evaluator.putVariable(entry.getKey(), entry.getValue());
-            } catch (Exception ex) {
-                invalidExpressions.add(entry.getValue());
-            }
-        }
+        var executor = createScriptExecutor();
         var allShifts = new TreeSet<Integer>();
-        for (Map.Entry<String, String> entry : params.expressions().entrySet()) {
-            evaluator.clearShifts();
-            var expression = entry.getValue();
-            if (!invalidExpressions.contains(expression)) {
-                evaluator.evaluate(expression);
-                var expressionShifts = evaluator.getShifts();
-                allShifts.addAll(expressionShifts);
+        internalPixelShifts = new TreeSet<>();
+        for (File file : params.scriptFiles()) {
+            try {
+                var result = executor.execute(file.toPath());
+                allShifts.addAll(result.internalShifts());
+                internalPixelShifts.addAll(result.internalShifts());
+                allShifts.addAll(result.outputShifts());
+            } catch (IOException e) {
+                throw new ProcessingException(e);
             }
         }
         return allShifts.stream().toList();
@@ -341,4 +341,5 @@ public class ImageSelector {
             return I18N.string(JSolEx.class, "image-selection", label);
         }
     }
+
 }

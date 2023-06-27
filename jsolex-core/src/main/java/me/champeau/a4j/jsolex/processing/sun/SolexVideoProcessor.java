@@ -29,7 +29,8 @@ import me.champeau.a4j.jsolex.processing.event.ProcessingStartEvent;
 import me.champeau.a4j.jsolex.processing.event.ProgressEvent;
 import me.champeau.a4j.jsolex.processing.event.SuggestionEvent;
 import me.champeau.a4j.jsolex.processing.event.VideoMetadataEvent;
-import me.champeau.a4j.jsolex.processing.expr.ImageExpressionEvaluator;
+import me.champeau.a4j.jsolex.processing.expr.DefaultImageScriptExecutor;
+import me.champeau.a4j.jsolex.processing.expr.ImageMathScriptExecutor;
 import me.champeau.a4j.jsolex.processing.file.FileNamingStrategy;
 import me.champeau.a4j.jsolex.processing.params.ImageMathParams;
 import me.champeau.a4j.jsolex.processing.params.ProcessParams;
@@ -42,6 +43,7 @@ import me.champeau.a4j.jsolex.processing.sun.workflow.GeneratedImageKind;
 import me.champeau.a4j.jsolex.processing.sun.workflow.ImageEmitter;
 import me.champeau.a4j.jsolex.processing.sun.workflow.ImageEmitterFactory;
 import me.champeau.a4j.jsolex.processing.sun.workflow.NamingStrategyAwareImageEmitter;
+import me.champeau.a4j.jsolex.processing.sun.workflow.NoOpImageEmitter;
 import me.champeau.a4j.jsolex.processing.sun.workflow.ProcessingWorkflow;
 import me.champeau.a4j.jsolex.processing.sun.workflow.RenamingImageEmitter;
 import me.champeau.a4j.jsolex.processing.sun.workflow.WorkflowResults;
@@ -62,6 +64,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.File;
+import java.io.IOException;
 import java.nio.file.Path;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -121,7 +124,7 @@ public class SolexVideoProcessor implements Broadcaster {
             File configFile = outputDirectory.resolve("config.json").toFile();
             processParams.saveTo(configFile);
         }
-        broadcast(new ProcessingStartEvent(System.nanoTime()));
+        broadcast(ProcessingStartEvent.of(System.nanoTime(), processParams));
         var converter = ImageUtils.createImageConverter(processParams.videoParams().colorMode());
         var detector = new MagnitudeBasedSunEdgeDetector(converter, this);
         try (SerFileReader reader = SerFileReader.of(serFile)) {
@@ -221,12 +224,12 @@ public class SolexVideoProcessor implements Broadcaster {
                     }, context);
                     for (int step = 0; step < imageList.size(); step++) {
                         WorkflowState state = imageList.get(step);
-                        if (state.isInternal()) {
-                            continue;
-                        }
                         var imageEmitterFactory = new ImageEmitterFactory() {
                             @Override
                             public ImageEmitter newEmitter(Broadcaster broadcaster, ForkJoinContext executor, String kind, Path outputDirectory) {
+                                if (state.isInternal()) {
+                                    return new NoOpImageEmitter();
+                                }
                                 ImageEmitter emitter = new DefaultImageEmitter(broadcaster, executor, outputDirectory.toFile());
                                 var shift = state.pixelShift();
                                 if ("doppler".equals(kind)) {
@@ -282,7 +285,7 @@ public class SolexVideoProcessor implements Broadcaster {
     }
 
     private void generateImageMaths(ForkJoinContext blockingContext, FileNamingStrategy imageNamingStrategy, String baseName, List<WorkflowState> imageList, ImageMathParams mathImages) {
-        if (!mathImages.imagesToGenerate().isEmpty()) {
+        if (!mathImages.scriptFiles().isEmpty()) {
             var images = new HashMap<Integer, ImageWrapper32>();
             Ellipse ellipse = null;
             for (WorkflowState workflowState : imageList) {
@@ -297,25 +300,18 @@ public class SolexVideoProcessor implements Broadcaster {
             }
             var emitter = createCustomImageEmitter(imageNamingStrategy, baseName);
             var circle = ellipse;
-            for (String label : mathImages.imagesToGenerate()) {
+            for (File scriptFile : mathImages.scriptFiles()) {
                 blockingContext.async(() -> {
-                    broadcast(ProgressEvent.of(0, "Image " + label));
-                    var eval = new ImageExpressionEvaluator(images);
-                    eval.putInContext(Ellipse.class, circle);
-                    for (Map.Entry<String, String> entry : mathImages.expressions().entrySet()) {
-                        eval.putVariable(entry.getKey(), entry.getValue());
+                    broadcast(ProgressEvent.of(0, "Running script " + scriptFile.getName()));
+                    var scriptRunner = new DefaultImageScriptExecutor(images::get, Map.of(Ellipse.class, circle));
+                    try {
+                        var result = scriptRunner.execute(scriptFile.toPath());
+                        ImageMathScriptExecutor.render(result, emitter);
+                    } catch (IOException e) {
+                        throw new ProcessingException(e);
+                    } finally {
+                        broadcast(ProgressEvent.of(1.0, "Running script " + scriptFile.getName()));
                     }
-                    var result = eval.evaluate(mathImages.expressions().get(label));
-                    if (result instanceof ImageWrapper32 computed) {
-                        emitter.newMonoImage(
-                                GeneratedImageKind.IMAGE_MATH,
-                                label,
-                                label,
-                                computed,
-                                LinearStrechingStrategy.DEFAULT
-                        );
-                    }
-                    broadcast(ProgressEvent.of(1.0, "Image " + label));
                 });
             }
         }

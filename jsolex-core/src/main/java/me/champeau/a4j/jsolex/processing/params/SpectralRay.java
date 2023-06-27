@@ -31,6 +31,7 @@ public record SpectralRay(String label, ColorCurve colorCurve, double wavelength
     public static final SpectralRay H_BETA = new SpectralRay("H-beta", null, 486.134);
     public static final SpectralRay CALCIUM_K = new SpectralRay("Calcium (K)", KnownCurves.CALCIUM, 393.366);
     public static final SpectralRay CALCIUM_H = new SpectralRay("Calcium (H)", KnownCurves.CALCIUM, 396.847);
+    public static final SpectralRay HELIUM_D3 = new SpectralRay("Helium (D3)", KnownCurves.HELIUM, 587.562);
     public static final SpectralRay SODIUM_D1 = new SpectralRay("Sodium (D1)", null, 589.592);
     public static final SpectralRay SODIUM_D2 = new SpectralRay("Sodium (D2)", null, 588.995);
     public static final SpectralRay OTHER = new SpectralRay("Other", null, 0);
@@ -52,6 +53,7 @@ public record SpectralRay(String label, ColorCurve colorCurve, double wavelength
                 CALCIUM_H,
                 SODIUM_D1,
                 SODIUM_D2,
+                HELIUM_D3,
                 OTHER
         );
     }

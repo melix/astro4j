@@ -21,7 +21,7 @@ import spock.lang.Subject
 
 class ImageExpressionEvaluatorTest extends Specification {
     @Subject
-    AbstractImageExpressionEvaluator evaluator
+    ImageExpressionEvaluator evaluator
 
     private Map<Integer, ImageWrapper32> images = [:].withDefault { new ImageWrapper32(0, 0, new float[0]) }
 
@@ -36,12 +36,14 @@ class ImageExpressionEvaluatorTest extends Specification {
         evaluator.shifts ==~ [0]
 
         when:
+        evaluator.clearShifts()
         evaluator.evaluate("(img(1) + img(-1))/2")
 
         then:
         evaluator.shifts ==~ [1, -1]
 
         when:
+        evaluator.clearShifts()
         evaluator.putVariable("a", "5")
         evaluator.putVariable("b", "6")
         evaluator.evaluate("max(img(a), img(b))")
@@ -50,24 +52,28 @@ class ImageExpressionEvaluatorTest extends Specification {
         evaluator.shifts ==~ [5, 6]
 
         when:
+        evaluator.clearShifts()
         evaluator.evaluate("range(-5, 5)")
 
         then:
         evaluator.shifts ==~ [-5, -4, -3, -2, -1, 0, 1, 2, 3, 4, 5]
 
         when:
+        evaluator.clearShifts()
         evaluator.evaluate("range(-6,6,3)")
 
         then:
         evaluator.shifts ==~ [-6, -3, 0, 3, 6]
 
         when:
+        evaluator.clearShifts()
         evaluator.evaluate("range(-2,0) + range(0,2)")
 
         then:
         evaluator.shifts ==~ [-2, -1, 0, 1, 2]
 
         when:
+        evaluator.clearShifts()
         def list = evaluator.evaluate("range(-2,0) - range(0,2)")
 
         then:

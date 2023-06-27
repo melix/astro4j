@@ -28,7 +28,6 @@ import me.champeau.a4j.jsolex.app.jfx.BatchOperations;
 import me.champeau.a4j.jsolex.app.jfx.I18N;
 import me.champeau.a4j.jsolex.app.jfx.ImageViewer;
 import me.champeau.a4j.jsolex.app.jfx.ZoomableImageView;
-import me.champeau.a4j.jsolex.expr.ImageMathScriptExecutor;
 import me.champeau.a4j.jsolex.processing.event.DebugEvent;
 import me.champeau.a4j.jsolex.processing.event.ImageGeneratedEvent;
 import me.champeau.a4j.jsolex.processing.event.Notification;
@@ -40,21 +39,19 @@ import me.champeau.a4j.jsolex.processing.event.ProcessingEventListener;
 import me.champeau.a4j.jsolex.processing.event.ProcessingStartEvent;
 import me.champeau.a4j.jsolex.processing.event.ProgressEvent;
 import me.champeau.a4j.jsolex.processing.event.SuggestionEvent;
-import me.champeau.a4j.jsolex.processing.expr.ImageExpressionEvaluator;
+import me.champeau.a4j.jsolex.processing.expr.DefaultImageScriptExecutor;
+import me.champeau.a4j.jsolex.processing.expr.ImageMathScriptExecutor;
+import me.champeau.a4j.jsolex.processing.expr.ImageMathScriptResult;
 import me.champeau.a4j.jsolex.processing.params.ProcessParams;
-import me.champeau.a4j.jsolex.processing.stretching.LinearStrechingStrategy;
-import me.champeau.a4j.jsolex.processing.sun.workflow.GeneratedImageKind;
 import me.champeau.a4j.jsolex.processing.sun.workflow.ImageEmitter;
-import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -68,13 +65,13 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
     private final ProcessParams params;
     private final TabPane mainPane;
     private final AtomicInteger concurrentNotifications = new AtomicInteger();
+    private ImageEmitter imageEmitter;
+    private ImageMathScriptExecutor imageScriptExecutor;
     private long sd;
     private long ed;
     private int width;
     private int height;
-    private Map<Integer, ImageWrapper32> shiftImages;
-    private ImageEmitter customImageEmitter;
-    private AtomicInteger customImageCount = new AtomicInteger();
+    private ProcessParams processParams;
 
     public SingleModeProcessingEventListener(JSolExInterface owner, String baseName, ProcessParams params) {
         this.owner = owner;
@@ -87,7 +84,6 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
         width = 0;
         height = 0;
     }
-
 
     private ImageViewer newImageViewer() {
         var fxmlLoader = I18N.fxmlLoader(JSolEx.class, "imageview");
@@ -214,14 +210,16 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
 
     @Override
     public void onProcessingStart(ProcessingStartEvent e) {
-        sd = e.getPayload();
+        var payload = e.getPayload();
+        sd = payload.timestamp();
+        processParams = payload.params();
     }
 
     @Override
     public void onProcessingDone(ProcessingDoneEvent e) {
         var payload = e.getPayload();
-        shiftImages = payload.shiftImages();
-        customImageEmitter = payload.customImageEmitter();
+        imageEmitter = payload.customImageEmitter();
+        imageScriptExecutor = new DefaultImageScriptExecutor(payload.shiftImages()::get, Map.of());
         ed = payload.timestamp();
         var duration = java.time.Duration.ofNanos(ed - sd);
         double seconds = duration.toMillis() / 1000d;
@@ -240,7 +238,7 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
                         finishedString,
                         sb.toString()
                 )));
-        owner.setImageMathExecutor(this);
+        owner.prepareForScriptExecution(this, params);
         suggestions.clear();
         BatchOperations.submit(() -> owner.updateProgress(1.0, finishedString));
     }
@@ -263,39 +261,9 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
     }
 
     @Override
-    public void execute(String script) {
-        var lines = Arrays.stream(script.split("\r?\n"))
-                .map(String::trim)
-                .filter(s -> !s.isEmpty())
-                .toList();
-        var evaluator = new ImageExpressionEvaluator(shiftImages);
-        var outputs = new ArrayList<String>();
-        for (String line : lines) {
-            if (line.startsWith("//") || line.startsWith("#")) {
-                // comment
-                continue;
-            }
-            var i = line.indexOf("=");
-            if (i != -1) {
-                var name = line.substring(0, i).trim();
-                var expression = line.substring(i + 1).trim();
-                evaluator.putVariable(name, expression);
-            } else {
-                outputs.add(line);
-            }
-        }
-        for (String output : outputs) {
-            var result = evaluator.evaluate(output);
-            if (result instanceof ImageWrapper32 image) {
-                var label = "imagemath_" + customImageCount.getAndIncrement();
-                customImageEmitter.newMonoImage(
-                        GeneratedImageKind.IMAGE_MATH,
-                        label ,
-                        label,
-                        image,
-                        LinearStrechingStrategy.DEFAULT
-                );
-            }
-        }
+    public ImageMathScriptResult execute(List<String> lines) {
+        var result = imageScriptExecutor.execute(lines);
+        ImageMathScriptExecutor.render(result, imageEmitter);
+        return result;
     }
 }

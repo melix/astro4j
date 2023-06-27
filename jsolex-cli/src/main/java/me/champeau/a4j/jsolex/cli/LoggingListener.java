@@ -72,7 +72,7 @@ public class LoggingListener implements ProcessingEventListener {
 
     @Override
     public void onProcessingStart(ProcessingStartEvent e) {
-        sd = e.getPayload();
+        sd = e.getPayload().timestamp();
     }
 
     @Override

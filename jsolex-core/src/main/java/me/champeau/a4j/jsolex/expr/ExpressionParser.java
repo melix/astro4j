@@ -69,7 +69,7 @@ public class ExpressionParser {
                     }
                     operatorStack.pop();
                     if (!operatorStack.isEmpty() && operatorStack.peek().type() == TokenType.FUNCTION) {
-                        outputQueue.add(new Token(TokenType.LITERAL, String.valueOf(argCount)));
+                        outputQueue.add(new Token(TokenType.LITERAL, String.valueOf(argCount), -1, -1));
                         outputQueue.add(operatorStack.pop());
                     }
                 }

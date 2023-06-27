@@ -20,6 +20,7 @@ import me.champeau.a4j.jsolex.expr.ExpressionEvaluator;
 import me.champeau.a4j.jsolex.processing.stretching.ArcsinhStretchingStrategy;
 import me.champeau.a4j.jsolex.processing.stretching.NegativeImageStrategy;
 import me.champeau.a4j.jsolex.processing.sun.BandingReduction;
+import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 import me.champeau.a4j.math.regression.Ellipse;
 
@@ -152,9 +153,9 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
         throw new IllegalArgumentException(name + "first argument must be an image or a list of images");
     }
 
-    protected abstract ImageWrapper32 findImage(int shift);
+    protected abstract ImageWrapper findImage(int shift);
 
-    private ImageWrapper32 image(List<Object> arguments) {
+    private ImageWrapper image(List<Object> arguments) {
         if (arguments.size() != 1) {
             throw new IllegalArgumentException("img() call must have a single argument (image shift)");
         }
@@ -302,7 +303,7 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
         return null;
     }
 
-    private List<ImageWrapper32> createRange(List<Object> arguments) {
+    private List<ImageWrapper> createRange(List<Object> arguments) {
         if (arguments.size() < 2) {
             return List.of();
         }
@@ -315,7 +316,7 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
                 step = 1;
             }
         }
-        List<ImageWrapper32> images = new ArrayList<>();
+        List<ImageWrapper> images = new ArrayList<>();
         if (from != null && to != null) {
             int fromInt = from.intValue();
             int toInt = to.intValue();

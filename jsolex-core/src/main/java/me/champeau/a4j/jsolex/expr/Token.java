@@ -15,5 +15,5 @@
  */
 package me.champeau.a4j.jsolex.expr;
 
-public record Token(TokenType type, String value) {
+public record Token(TokenType type, String value, int start, int end) {
 }

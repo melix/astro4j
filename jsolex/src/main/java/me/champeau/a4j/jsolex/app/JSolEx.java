@@ -51,11 +51,12 @@ import me.champeau.a4j.jsolex.app.jfx.BatchItem;
 import me.champeau.a4j.jsolex.app.jfx.BatchOperations;
 import me.champeau.a4j.jsolex.app.jfx.ExplorerSupport;
 import me.champeau.a4j.jsolex.app.jfx.I18N;
+import me.champeau.a4j.jsolex.app.jfx.ImageMathEditor;
 import me.champeau.a4j.jsolex.app.jfx.ProcessParamsController;
 import me.champeau.a4j.jsolex.app.jfx.SpectralLineDebugger;
 import me.champeau.a4j.jsolex.app.listeners.BatchModeEventListener;
 import me.champeau.a4j.jsolex.app.listeners.BatchProcessingContext;
-import me.champeau.a4j.jsolex.expr.ImageMathScriptExecutor;
+import me.champeau.a4j.jsolex.processing.expr.ImageMathScriptExecutor;
 import me.champeau.a4j.jsolex.app.listeners.JSolExInterface;
 import me.champeau.a4j.jsolex.app.listeners.SingleModeProcessingEventListener;
 import me.champeau.a4j.jsolex.processing.event.ProcessingEventListener;
@@ -92,7 +93,7 @@ import static me.champeau.a4j.jsolex.processing.util.LoggingSupport.logError;
 
 public class JSolEx extends Application implements JSolExInterface {
     private static final Logger LOGGER = LoggerFactory.getLogger(JSolEx.class);
-    private static final FileChooser.ExtensionFilter IMAGE_MATH_SCRIPTS = new FileChooser.ExtensionFilter("ImageMath scripts", "*.txt");
+    public static final FileChooser.ExtensionFilter SER_FILES_EXTENSION_FILTER = new FileChooser.ExtensionFilter("SER files", "*.ser");
 
     private ForkJoinParallelExecutor cpuExecutor;
     private ForkJoinParallelExecutor ioExecutor;
@@ -245,23 +246,15 @@ public class JSolEx extends Application implements JSolExInterface {
     }
 
     @Override
-    public void setImageMathExecutor(ImageMathScriptExecutor executor) {
+    public void prepareForScriptExecution(ImageMathScriptExecutor executor, ProcessParams params) {
         imageMathPane.setDisable(false);
         imageMathRun.setOnAction(evt -> executor.execute(imageMathScript.getText()));
         imageMathSave.setDisable(true);
         imageMathLoad.setOnAction(evt -> {
             var fileChooser = new FileChooser();
-            fileChooser.getExtensionFilters().add(IMAGE_MATH_SCRIPTS);
+            fileChooser.getExtensionFilters().add(ImageMathEditor.MATH_SCRIPT_EXTENSION_FILTER);
             var file = fileChooser.showOpenDialog(rootStage);
-            if (file != null) {
-                try {
-                    var script = String.join("\n", Files.readAllLines(file.toPath()));
-                    imageMathScript.setText(script);
-                    imageMathSave.setDisable(true);
-                } catch (IOException e) {
-                    // ignore
-                }
-            }
+            loadImageMathScriptFrom(file);
         });
         imageMathScript.textProperty().addListener((o, oldValue, newValue) -> {
             if (newValue != null) {
@@ -270,11 +263,11 @@ public class JSolEx extends Application implements JSolExInterface {
         });
         imageMathSave.setOnAction(evt -> {
             var fileChooser = new FileChooser();
-            fileChooser.getExtensionFilters().add(IMAGE_MATH_SCRIPTS);
+            fileChooser.getExtensionFilters().add(ImageMathEditor.MATH_SCRIPT_EXTENSION_FILTER);
             var file = fileChooser.showSaveDialog(rootStage);
             if (file != null) {
-                if (!file.getName().endsWith(".txt")) {
-                    file = new File(file.getParentFile(), file.getName() + ".txt");
+                if (!file.getName().endsWith(ImageMathEditor.MATH_EXTENSION)) {
+                    file = new File(file.getParentFile(), file.getName() + ImageMathEditor.MATH_EXTENSION);
                 }
                 try {
                     Files.writeString(file.toPath(), imageMathScript.getText(), StandardCharsets.UTF_8, StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING);
@@ -284,6 +277,22 @@ public class JSolEx extends Application implements JSolExInterface {
                 }
             }
         });
+        var scriptFiles = params.requestedImages().mathImages().scriptFiles();
+        if (!scriptFiles.isEmpty()) {
+            loadImageMathScriptFrom(scriptFiles.get(0));
+        }
+    }
+
+    private void loadImageMathScriptFrom(File file) {
+        if (file != null) {
+            try {
+                var script = String.join("\n", Files.readAllLines(file.toPath()));
+                imageMathScript.setText(script);
+                imageMathSave.setDisable(true);
+            } catch (IOException e) {
+                // ignore
+            }
+        }
     }
 
     @FXML
@@ -294,7 +303,7 @@ public class JSolEx extends Application implements JSolExInterface {
     @FXML
     private void openBatch() {
         var fileChooser = new FileChooser();
-        fileChooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("SER files", "*.ser"));
+        fileChooser.getExtensionFilters().add(SER_FILES_EXTENSION_FILTER);
         config.findLastOpenDirectory().ifPresent(dir -> fileChooser.setInitialDirectory(dir.toFile()));
         var selectedFiles = fileChooser.showOpenMultipleDialog(rootStage);
         if (selectedFiles != null && !selectedFiles.isEmpty()) {
@@ -309,7 +318,7 @@ public class JSolEx extends Application implements JSolExInterface {
 
     private void selectSerFileAndThen(Consumer<? super File> consumer) {
         var fileChooser = new FileChooser();
-        fileChooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("SER files", "*.ser"));
+        fileChooser.getExtensionFilters().add(SER_FILES_EXTENSION_FILTER);
         config.findLastOpenDirectory().ifPresent(dir -> fileChooser.setInitialDirectory(dir.toFile()));
         var selectedFile = fileChooser.showOpenDialog(rootStage);
         if (selectedFile != null) {

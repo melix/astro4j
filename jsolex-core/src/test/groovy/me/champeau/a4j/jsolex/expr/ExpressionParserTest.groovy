@@ -115,17 +115,17 @@ class ExpressionParserTest extends Specification {
         expr.toString() == expected
 
         where:
-        expression                         | expected
-        '-a'                               | '(0.0-VAR(a))'
-        'a-2'                              | '(VAR(a)-2.0)'
-        '(a+b)/2'                          | '(VAR(a)+VAR(b))/2.0'
-        '-1*((a-b)/2)'                     | '-1.0*(VAR(a)-VAR(b))/2.0'
-        '-1*((a-b)/avg(a,b))'              | '-1.0*(VAR(a)-VAR(b))/AVG(VAR(a),VAR(b))'
-        'max(img(a),img(b))'               | 'MAX(IMG(VAR(a)),IMG(VAR(b)))'
-        '1-2'                              | '(1.0-2.0)'
-        'a-(2)'                            | '(VAR(a)-2.0)'
-        'img(shift) - coef*max(continuum)' | '(IMG(VAR(shift))-VAR(coef)*MAX(VAR(continuum)))'
-        'range(-100;-70;10)'               | 'RANGE(-100.0,-70.0,10.0)'
+        expression                                                                    | expected
+        '-a'                                                                          | '(0.0-VAR(a))'
+        'a-2'                                                                         | '(VAR(a)-2.0)'
+        '(a+b)/2'                                                                     | '(VAR(a)+VAR(b))/2.0'
+        '-1*((a-b)/2)'                                                                | '-1.0*(VAR(a)-VAR(b))/2.0'
+        '-1*((a-b)/avg(a,b))'                                                         | '-1.0*(VAR(a)-VAR(b))/AVG(VAR(a),VAR(b))'
+        'max(img(a),img(b))'                                                          | 'MAX(IMG(VAR(a)),IMG(VAR(b)))'
+        '1-2'                                                                         | '(1.0-2.0)'
+        'a-(2)'                                                                       | '(VAR(a)-2.0)'
+        'img(shift) - coef*max(continuum)'                                            | '(IMG(VAR(shift))-VAR(coef)*MAX(VAR(continuum)))'
+        'range(-100;-70;10)'                                                          | 'RANGE(-100.0,-70.0,10.0)'
         // unsupported yet
         //        '.5*(-a)'             | '0.5*VAR(a)'
         //        '.5*(-(a+b))'         | '0.5*(-(VAR(a)+VAR(b)))'

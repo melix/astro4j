@@ -36,7 +36,14 @@ public class KnownCurves {
             100, 75
     );
 
+    public static final ColorCurve HELIUM = new ColorCurve(
+            "Helium",
+            107, 180,
+            112, 157,
+            180, 40
+    );
+
     public static List<ColorCurve> all() {
-        return List.of(H_ALPHA, CALCIUM);
+        return List.of(H_ALPHA, CALCIUM, HELIUM);
     }
 }

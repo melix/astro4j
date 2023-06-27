@@ -54,12 +54,12 @@ public class Scanner {
                 continue;
             }
 
-            var token = new Token(type, value);
+            var token = new Token(type, value, start, end);
             if (previousToken != null && !isMinusSeparator(previousToken) && token.type() == TokenType.LITERAL) {
                 if (token.value().startsWith("-")) {
                     // 1-1 is not (1, -1) but (1, -, 1)
-                    tokens.add(new Token(TokenType.OPERATOR, "-"));
-                    var fixedToken = new Token(TokenType.LITERAL, token.value().substring(1));
+                    tokens.add(new Token(TokenType.OPERATOR, "-", start, start + 1));
+                    var fixedToken = new Token(TokenType.LITERAL, token.value().substring(1), start + 1, end);
                     tokens.add(fixedToken);
                     previousToken = fixedToken;
                 } else {

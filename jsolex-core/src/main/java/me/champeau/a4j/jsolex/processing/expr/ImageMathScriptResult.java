@@ -13,20 +13,18 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package me.champeau.a4j.jsolex.processing.event;
+package me.champeau.a4j.jsolex.processing.expr;
 
-import me.champeau.a4j.jsolex.processing.params.ProcessParams;
+import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
 
-public final class ProcessingStartEvent extends ProcessingEvent<ProcessingStartEvent.Payload> {
-    private ProcessingStartEvent(Payload payload) {
-        super(payload);
-    }
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
 
-    public record Payload(long timestamp, ProcessParams params) {
-
-    }
-
-    public static ProcessingStartEvent of(long timestamp, ProcessParams params) {
-        return new ProcessingStartEvent(new Payload(timestamp, params));
-    }
+public record ImageMathScriptResult(
+        Map<String, ImageWrapper> imagesByLabel,
+        List<InvalidExpression> invalidExpressions,
+        Set<Integer> internalShifts,
+        Set<Integer> outputShifts
+) {
 }

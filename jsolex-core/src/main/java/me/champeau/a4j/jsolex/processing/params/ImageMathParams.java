@@ -15,15 +15,13 @@
  */
 package me.champeau.a4j.jsolex.processing.params;
 
-import java.util.Map;
-import java.util.Set;
+import java.io.File;
+import java.util.List;
 
 public record ImageMathParams(
-        Map<String, String> expressions,
-        Set<String> imagesToGenerate
+        List<File> scriptFiles
 ) {
     public static final ImageMathParams NONE = new ImageMathParams(
-            Map.of(),
-            Set.of()
+            List.of()
     );
 }

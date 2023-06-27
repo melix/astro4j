@@ -15,19 +15,19 @@
  */
 package me.champeau.a4j.jsolex.processing.expr;
 
-import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
+import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
 
-import java.util.Map;
+import java.util.function.Function;
 
 public class ImageExpressionEvaluator extends AbstractImageExpressionEvaluator {
-    private final Map<Integer, ImageWrapper32> images;
+    private final Function<Integer, ImageWrapper> images;
 
-    public ImageExpressionEvaluator(Map<Integer, ImageWrapper32> images) {
+    public ImageExpressionEvaluator(Function<Integer, ImageWrapper> images) {
         this.images = images;
     }
 
-    protected ImageWrapper32 findImage(int shift) {
-        var image = images.get(shift);
+    protected ImageWrapper findImage(int shift) {
+        var image = images.apply(shift);
         if (image == null) {
             throw new IllegalArgumentException("Image for shift '" + shift + "' is missing");
         }

@@ -60,6 +60,7 @@ abstract class ProcessParamsIO {
         builder.registerTypeAdapter(SpectralRay.class, new SpectralRaySerializer());
         builder.registerTypeAdapter(ZonedDateTime.class, new ZonedDateTimeSerializer());
         builder.registerTypeAdapter(GeometryParams.class, new GeometryParamsSerializer());
+        builder.registerTypeAdapter(ImageMathParams.class, new ImageMathParamsSerializer());
         return builder.create();
     }
 

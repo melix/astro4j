@@ -128,6 +128,9 @@ public class ProcessingWorkflow {
         executor.submitAndThen(new GeometryCorrector(broadcaster, bandingFixed, ellipse, forcedTilt, fps, ratio, blackPoint, processParams, debugImagesEmitter, state), g -> {
             var geometryFixed = maybeSharpen(g);
             state.recordResult(WorkflowResults.GEOMETRY_CORRECTION, g);
+            if (state.isInternal()) {
+                return null;
+            }
             broadcaster.broadcast(OutputImageDimensionsDeterminedEvent.of(message("geometry.corrected"), geometryFixed.width(), geometryFixed.height()));
             processedImagesEmitter.newMonoImage(GeneratedImageKind.GEOMETRY_CORRECTED, message("disk"), "disk", geometryFixed, LinearStrechingStrategy.DEFAULT);
             executor.async(() -> {
