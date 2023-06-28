@@ -1,0 +1,7 @@
+= Astro4j
+Cédric champeau
+
+A collection of libraries and applications for Astronomy processing, written in Java.
+
+- link:en/jsolex.html[Documentation JSol'Ex (English)]
+- link:fr/jsolex.html[Documentation JSol'Ex (Français)]

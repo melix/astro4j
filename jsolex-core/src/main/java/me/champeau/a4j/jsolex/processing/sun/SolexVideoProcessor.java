@@ -293,22 +293,28 @@ public class SolexVideoProcessor implements Broadcaster {
         if (!mathImages.scriptFiles().isEmpty()) {
             var images = new HashMap<Integer, ImageWrapper32>();
             Ellipse ellipse = null;
+            ImageStats imageStats = null;
             for (WorkflowState workflowState : imageList) {
                 var result = workflowState.findResult(WorkflowResults.GEOMETRY_CORRECTION);
                 if (result.isPresent() && result.get() instanceof GeometryCorrector.Result geo) {
                     images.put(workflowState.pixelShift(), geo.corrected());
                     if (ellipse == null) {
                         ellipse = geo.correctedCircle();
-
+                    }
+                    if (imageStats == null) {
+                        imageStats = new ImageStats(geo.blackpoint());
                     }
                 }
             }
             var emitter = createCustomImageEmitter(imageNamingStrategy, baseName);
             var circle = ellipse;
             for (File scriptFile : mathImages.scriptFiles()) {
+                ImageStats finalImageStats = imageStats;
                 blockingContext.async(() -> {
                     broadcast(ProgressEvent.of(0, "Running script " + scriptFile.getName()));
-                    var scriptRunner = new DefaultImageScriptExecutor(images::get, Map.of(Ellipse.class, circle));
+                    var scriptRunner = new DefaultImageScriptExecutor(images::get, Map.of(
+                            Ellipse.class, circle,
+                            ImageStats.class, finalImageStats));
                     try {
                         var result = scriptRunner.execute(scriptFile.toPath());
                         ImageMathScriptExecutor.render(result, emitter);

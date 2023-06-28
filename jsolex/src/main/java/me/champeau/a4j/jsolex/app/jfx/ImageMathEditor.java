@@ -148,7 +148,7 @@ public class ImageMathEditor {
     public void loadScript() {
         if (doesNotHaveStaleChanges()) {
             var fileChooser = new FileChooser();
-            fileChooser.setTitle(I18N.string(ImageMathEditor.class, "imagemath-editor", "load.script"));
+            fileChooser.setTitle(I18N.string(JSolEx.class, "imagemath-editor", "load.script"));
             fileChooser.getExtensionFilters().add(MATH_SCRIPT_EXTENSION_FILTER);
             var file = fileChooser.showOpenDialog(stage);
             if (file != null) {
@@ -182,8 +182,8 @@ public class ImageMathEditor {
     public boolean doesNotHaveStaleChanges() {
         if (!saveButton.isDisabled()) {
             var alert = new Alert(Alert.AlertType.CONFIRMATION);
-            alert.setTitle("Unsaved changes");
-            alert.setHeaderText("You have unsaved changes on this script. You may loose changes if you don't save now.");
+            alert.setTitle(I18N.string(JSolEx.class, "imagemath-editor", "unsaved.changes"));
+            alert.setHeaderText(I18N.string(JSolEx.class, "imagemath-editor", "unsaved.changes.description"));
             alert.getButtonTypes().clear();
             alert.getButtonTypes().addAll(
                     BACK,
