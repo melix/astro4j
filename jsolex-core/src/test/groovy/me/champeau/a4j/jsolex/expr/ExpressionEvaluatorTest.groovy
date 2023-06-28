@@ -39,7 +39,7 @@ class ExpressionEvaluatorTest extends Specification {
         'max(1,3)*5' | 15.0
         'min(1,3)*5' | 5.0
         'avg(8,2)'   | 5.0
-        '"pi"/2'     | Math.PI / 2
+        'pi/2'       | Math.PI / 2
     }
 
     def "can evaluate math expressions with variables"() {
@@ -53,33 +53,33 @@ class ExpressionEvaluatorTest extends Specification {
 
         where:
         expression | result
-        '"x"+1'    | 6.0
-        '"x"*"y"'  | 30.0
-        '"x"*"x"'  | 25.0
+        'x+1'      | 6.0
+        'x*y'      | 30.0
+        'x*x'      | 25.0
     }
 
     def "variables can be other expressions"() {
         given:
         evaluator = new SimpleMathEvaluator()
         evaluator.putVariable('x', '5')
-        evaluator.putVariable('y', '"x"+2')
+        evaluator.putVariable('y', 'x+2')
 
         expect:
         evaluator.evaluate(expression) == result
 
         where:
         expression | result
-        '"y"'      | 7.0
-        '"x"*"y"'  | 35.0
+        'y'        | 7.0
+        'x*y'      | 35.0
     }
 
     def "variables cannot reference themselves"() {
         given:
         evaluator = new SimpleMathEvaluator()
-        evaluator.putVariable('y', '"y"+2')
+        evaluator.putVariable('y', 'y+2')
 
         when:
-        evaluator.evaluate('"y"')
+        evaluator.evaluate('y')
 
         then:
         StackOverflowError ex = thrown()
@@ -90,7 +90,7 @@ class ExpressionEvaluatorTest extends Specification {
         evaluator = new SimpleMathEvaluator()
 
         when:
-        evaluator.evaluate('"unknown"')
+        evaluator.evaluate('unknown')
 
         then:
         IllegalStateException ex = thrown()
