@@ -1,25 +1,44 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
 <?import javafx.geometry.Insets?>
+<?import javafx.scene.canvas.Canvas?>
 <?import javafx.scene.control.Label?>
+<?import javafx.scene.control.RadioButton?>
 <?import javafx.scene.control.Slider?>
-<?import javafx.scene.layout.GridPane?>
-<?import javafx.scene.image.ImageView?>
 <?import javafx.scene.control.TextField?>
-<GridPane
-        fx:controller="me.champeau.a4j.jsolex.app.jfx.SpectralLineDebugger"
-        xmlns:fx="http://javafx.com/fxml" alignment="center" hgap="10" vgap="10">
-    <padding>
-        <Insets top="10" right="10" bottom="10" left="10"/>
-    </padding>
-    <ImageView fx:id="imageView"
-               GridPane.columnIndex="0" GridPane.rowIndex="0" GridPane.columnSpan="2"/>
-    <Slider fx:id="frameSlider"
-            GridPane.columnIndex="0" GridPane.rowIndex="1"
-    />
-    <Label fx:id="frameId" GridPane.columnIndex="1" GridPane.rowIndex="1"/>
-    <Label text="%sun.detection.threshold"
-           GridPane.columnIndex="0" GridPane.rowIndex="3"/>
-    <TextField fx:id="sunDetectionThreshold"
-               GridPane.columnIndex="1" GridPane.rowIndex="3"/>
-</GridPane>
+<?import javafx.scene.Group?>
+<?import javafx.scene.layout.BorderPane?>
+<?import javafx.scene.layout.HBox?>
+<?import javafx.scene.layout.VBox?>
+<BorderPane xmlns="http://javafx.com/javafx/19" xmlns:fx="http://javafx.com/fxml/1" fx:controller="me.champeau.a4j.jsolex.app.jfx.SpectralLineDebugger">
+    <center>
+        <Group>
+            <Canvas fx:id="canvas"/>
+        </Group>
+    </center>
+    <bottom>
+        <VBox fx:id="status" spacing="4.0">
+            <HBox spacing="4.0">
+                <RadioButton fx:id="average" mnemonicParsing="false" text="%average"/>
+                <RadioButton fx:id="frames" mnemonicParsing="false" text="%frames"/>
+                <Slider fx:id="frameSlider"/>
+                <Label fx:id="frameId"/>
+                <VBox.margin>
+                    <Insets bottom="8.0" left="8.0" right="8.0" top="8.0"/>
+                </VBox.margin>
+            </HBox>
+            <HBox alignment="CENTER_LEFT">
+                <Label text="%sun.detection.threshold">
+                    <HBox.margin>
+                        <Insets bottom="4.0" left="4.0" right="4.0" top="4.0"/>
+                    </HBox.margin>
+                    <padding>
+                        <Insets bottom="4.0" left="4.0" right="4.0" top="4.0"/>
+                    </padding>
+                </Label>
+                <TextField fx:id="sunDetectionThreshold" maxWidth="100"/>
+                <Label fx:id="info" prefWidth="300"/>
+            </HBox>
+        </VBox>
+    </bottom>
+</BorderPane>

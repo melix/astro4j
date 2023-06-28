@@ -15,8 +15,18 @@
  */
 package me.champeau.a4j.jsolex.processing.event;
 
-public final class ProcessingStartEvent extends ProcessingEvent<Long> {
-    public ProcessingStartEvent(Long payload) {
+import me.champeau.a4j.jsolex.processing.params.ProcessParams;
+
+public final class ProcessingStartEvent extends ProcessingEvent<ProcessingStartEvent.Payload> {
+    private ProcessingStartEvent(Payload payload) {
         super(payload);
+    }
+
+    public record Payload(long timestamp, ProcessParams params) {
+
+    }
+
+    public static ProcessingStartEvent of(long timestamp, ProcessParams params) {
+        return new ProcessingStartEvent(new Payload(timestamp, params));
     }
 }

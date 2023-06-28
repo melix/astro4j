@@ -29,16 +29,22 @@ import me.champeau.a4j.jsolex.processing.event.ProcessingStartEvent;
 import me.champeau.a4j.jsolex.processing.event.ProgressEvent;
 import me.champeau.a4j.jsolex.processing.event.SuggestionEvent;
 import me.champeau.a4j.jsolex.processing.event.VideoMetadataEvent;
+import me.champeau.a4j.jsolex.processing.expr.DefaultImageScriptExecutor;
+import me.champeau.a4j.jsolex.processing.expr.ImageMathScriptExecutor;
 import me.champeau.a4j.jsolex.processing.file.FileNamingStrategy;
+import me.champeau.a4j.jsolex.processing.params.ImageMathParams;
 import me.champeau.a4j.jsolex.processing.params.ProcessParams;
 import me.champeau.a4j.jsolex.processing.stretching.LinearStrechingStrategy;
 import me.champeau.a4j.jsolex.processing.sun.tasks.EllipseFittingTask;
+import me.champeau.a4j.jsolex.processing.sun.tasks.GeometryCorrector;
 import me.champeau.a4j.jsolex.processing.sun.workflow.DefaultImageEmitter;
 import me.champeau.a4j.jsolex.processing.sun.workflow.DiscardNonRequiredImages;
 import me.champeau.a4j.jsolex.processing.sun.workflow.GeneratedImageKind;
 import me.champeau.a4j.jsolex.processing.sun.workflow.ImageEmitter;
 import me.champeau.a4j.jsolex.processing.sun.workflow.ImageEmitterFactory;
+import me.champeau.a4j.jsolex.processing.sun.workflow.ImageStats;
 import me.champeau.a4j.jsolex.processing.sun.workflow.NamingStrategyAwareImageEmitter;
+import me.champeau.a4j.jsolex.processing.sun.workflow.NoOpImageEmitter;
 import me.champeau.a4j.jsolex.processing.sun.workflow.ProcessingWorkflow;
 import me.champeau.a4j.jsolex.processing.sun.workflow.RenamingImageEmitter;
 import me.champeau.a4j.jsolex.processing.sun.workflow.WorkflowResults;
@@ -49,6 +55,7 @@ import me.champeau.a4j.jsolex.processing.util.ProcessingException;
 import me.champeau.a4j.jsolex.processing.util.SpectralLineFrameImageCreator;
 import me.champeau.a4j.math.image.Image;
 import me.champeau.a4j.math.image.ImageMath;
+import me.champeau.a4j.math.regression.Ellipse;
 import me.champeau.a4j.math.tuples.DoubleTriplet;
 import me.champeau.a4j.ser.Header;
 import me.champeau.a4j.ser.ImageGeometry;
@@ -58,14 +65,16 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.File;
+import java.io.IOException;
 import java.nio.file.Path;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
@@ -109,10 +118,6 @@ public class SolexVideoProcessor implements Broadcaster {
         progressEventListeners.add(listener);
     }
 
-    public void removeEventListener(ProcessingEventListener listener) {
-        progressEventListeners.remove(listener);
-    }
-
     public void process() {
         mainForkJoinContext.setUncaughtExceptionHandler((t, e) -> broadcastError(e));
         ioForkJoinContext.setUncaughtExceptionHandler((t, e) -> broadcastError(e));
@@ -120,7 +125,7 @@ public class SolexVideoProcessor implements Broadcaster {
             File configFile = outputDirectory.resolve("config.json").toFile();
             processParams.saveTo(configFile);
         }
-        broadcast(new ProcessingStartEvent(System.nanoTime()));
+        broadcast(ProcessingStartEvent.of(System.nanoTime(), processParams));
         var converter = ImageUtils.createImageConverter(processParams.videoParams().colorMode());
         var detector = new MagnitudeBasedSunEdgeDetector(converter, this);
         try (SerFileReader reader = SerFileReader.of(serFile)) {
@@ -165,97 +170,164 @@ public class SolexVideoProcessor implements Broadcaster {
     }
 
     private void generateImages(ImageConverter<float[]> converter, SerFileReader reader, int start, int end, float[] averageImage) {
+        List<WorkflowState> imageList = new ArrayList<>();
         var imageNamingStrategy = new FileNamingStrategy(
                 processParams.debugParams().fileNamePattern(),
                 processingDate,
                 reader.header()
         );
         var baseName = serFile.getName().substring(0, serFile.getName().lastIndexOf("."));
-        var geometry = reader.header().geometry();
-        int width = geometry.width();
-        int height = geometry.height();
-        var fps = reader.estimateFps();
-        int newHeight = end - start;
-        broadcast(OutputImageDimensionsDeterminedEvent.of(Constants.TYPE_RAW, width, newHeight));
-        List<WorkflowState> imageList = createWorkflowStateSteps(width, newHeight);
-        LOGGER.info(message("starting.reconstruction"));
-        var maybePolynomial = findPolynomial(width, height, averageImage, imageNamingStrategy);
-        if (maybePolynomial.isPresent()) {
-            var polynomial = maybePolynomial.get();
-            ioForkJoinContext.blocking(() -> performImageReconstruction(converter, reader, start, end, geometry, width, height, polynomial, imageList.toArray(new WorkflowState[0])));
-            try {
-                reader.close();
-            } catch (Exception e) {
-                throw new RuntimeException(e);
-            }
-            mainForkJoinContext.blocking(context -> {
+        mainForkJoinContext.blocking(blocking -> {
+            var geometry = reader.header().geometry();
+            int width = geometry.width();
+            int height = geometry.height();
+            var fps = reader.estimateFps();
+            int newHeight = end - start;
+            broadcast(OutputImageDimensionsDeterminedEvent.of(Constants.TYPE_RAW, width, newHeight));
+            createWorkflowStateSteps(imageList, width, newHeight);
+            var internalShifts = processParams.requestedImages().internalPixelShifts();
+            if (!internalShifts.isEmpty()) {
                 for (WorkflowState state : imageList) {
-                    context.async(() -> {
-                        var rotateLeft = ImageMath.newInstance().rotateLeft(new Image(width, newHeight, state.reconstructed()));
-                        var rotated = ImageWrapper32.fromImage(rotateLeft);
-                        maybePerformFlips(rotated);
-                        state.setImage(rotated);
-                    });
-                }
-            });
-            mainForkJoinContext.blocking(context -> {
-                var fitting = performEllipseFitting(imageList, (broadcaster, executor1, kind, outputDirectory) -> {
-                    ImageEmitter emitter = new DefaultImageEmitter(broadcaster, context, outputDirectory.toFile());
-                    emitter = new NamingStrategyAwareImageEmitter(emitter,
-                            imageNamingStrategy,
-                            sequenceNumber,
-                            kind,
-                            baseName);
-                    return new DiscardNonRequiredImages(emitter, processParams.requestedImages().images());
-                }, context);
-                for (int step = 0; step < imageList.size(); step++) {
-                    WorkflowState state = imageList.get(step);
-                    if (state.isInternal()) {
-                        continue;
+                    if (internalShifts.contains(state.pixelShift())) {
+                        state.setInternal(true);
                     }
-                    var imageEmitterFactory = new ImageEmitterFactory() {
-                        @Override
-                        public ImageEmitter newEmitter(Broadcaster broadcaster, ForkJoinContext executor, String kind, Path outputDirectory) {
-                            ImageEmitter emitter = new DefaultImageEmitter(broadcaster, executor, outputDirectory.toFile());
-                            var shift = state.pixelShift();
-                            if ("doppler".equals(kind)) {
-                                emitter = new NamingStrategyAwareImageEmitter(emitter,
-                                        imageNamingStrategy,
-                                        0,
-                                        kind,
-                                        baseName);
-                            } else {
-                                emitter = new NamingStrategyAwareImageEmitter(
-                                        new RenamingImageEmitter(emitter, name -> {
-                                            if (name.toLowerCase(Locale.US).contains("doppler")) {
-                                                return name;
-                                            }
-                                            var suffix = shift == processParams.spectrumParams().pixelShift() ? "" : " (" + (shift == Constants.CONTINUUM_SHIFT ? "continuum" : shift) + ")";
-                                            return name + suffix;
-                                        }, name -> {
-                                            if (name.toLowerCase(Locale.US).contains("doppler")) {
-                                                return name;
-                                            }
-                                            var suffix = "_" + shift;
-                                            return name + suffix;
-                                        }),
-                                        imageNamingStrategy,
-                                        sequenceNumber,
-                                        kind,
-                                        baseName);
-                            }
-                            return new DiscardNonRequiredImages(emitter, processParams.requestedImages().images());
-                        }
-                    };
-                    state.recordResult(WorkflowResults.MAIN_ELLIPSE_FITTING, fitting);
-                    var workflow = new ProcessingWorkflow(this, outputDirectory, context, imageList, step, processParams, fps.orElse(null), imageEmitterFactory);
-                    workflow.start();
                 }
-            });
-        } else {
-            LOGGER.error(message("unable.find.spectral.line"));
+            }
+            LOGGER.info(message("starting.reconstruction"));
+            var maybePolynomial = findPolynomial(width, height, averageImage, imageNamingStrategy);
+            if (maybePolynomial.isPresent()) {
+                var polynomial = maybePolynomial.get();
+                ioForkJoinContext.blocking(() -> performImageReconstruction(converter, reader, start, end, geometry, width, height, polynomial, imageList.toArray(new WorkflowState[0])));
+                try {
+                    reader.close();
+                } catch (Exception e) {
+                    throw new RuntimeException(e);
+                }
+                blocking.blocking(context -> {
+                    for (WorkflowState state : imageList) {
+                        context.async(() -> {
+                            var rotateLeft = ImageMath.newInstance().rotateLeft(new Image(width, newHeight, state.reconstructed()));
+                            var rotated = ImageWrapper32.fromImage(rotateLeft);
+                            maybePerformFlips(rotated);
+                            state.setImage(rotated);
+                        });
+                    }
+                });
+                blocking.blocking(context -> {
+                    var fitting = performEllipseFitting(imageList, (broadcaster, executor1, kind, outputDirectory) -> {
+                        ImageEmitter emitter = new DefaultImageEmitter(broadcaster, context, outputDirectory.toFile());
+                        emitter = new NamingStrategyAwareImageEmitter(emitter,
+                                imageNamingStrategy,
+                                sequenceNumber,
+                                kind,
+                                baseName);
+                        return new DiscardNonRequiredImages(emitter, processParams.requestedImages().images());
+                    }, context);
+                    for (int step = 0; step < imageList.size(); step++) {
+                        WorkflowState state = imageList.get(step);
+                        var imageEmitterFactory = new ImageEmitterFactory() {
+                            @Override
+                            public ImageEmitter newEmitter(Broadcaster broadcaster, ForkJoinContext executor, String kind, Path outputDirectory) {
+                                if (state.isInternal()) {
+                                    return new NoOpImageEmitter();
+                                }
+                                ImageEmitter emitter = new DefaultImageEmitter(broadcaster, executor, outputDirectory.toFile());
+                                var shift = state.pixelShift();
+                                if ("doppler".equals(kind)) {
+                                    emitter = new NamingStrategyAwareImageEmitter(emitter,
+                                            imageNamingStrategy,
+                                            sequenceNumber,
+                                            kind,
+                                            baseName);
+                                } else {
+                                    emitter = new NamingStrategyAwareImageEmitter(
+                                            new RenamingImageEmitter(emitter, name -> {
+                                                if (name.toLowerCase(Locale.US).contains("doppler")) {
+                                                    return name;
+                                                }
+                                                var suffix = shift == processParams.spectrumParams().pixelShift() ? "" : " (" + (shift == Constants.CONTINUUM_SHIFT ? "continuum" : shift) + ")";
+                                                return name + suffix;
+                                            }, name -> {
+                                                if (name.toLowerCase(Locale.US).contains("doppler")) {
+                                                    return name;
+                                                }
+                                                var suffix = "_" + shift;
+                                                return name + suffix;
+                                            }),
+                                            imageNamingStrategy,
+                                            sequenceNumber,
+                                            kind,
+                                            baseName);
+                                }
+                                return new DiscardNonRequiredImages(emitter, processParams.requestedImages().images());
+                            }
+                        };
+                        state.recordResult(WorkflowResults.MAIN_ELLIPSE_FITTING, fitting);
+                        var workflow = new ProcessingWorkflow(this, outputDirectory, context, imageList, step, processParams, fps.orElse(null), imageEmitterFactory);
+                        workflow.start();
+                    }
+                    blocking.blocking(() -> {
+                        var mathImages = processParams.requestedImages().mathImages();
+                        generateImageMaths(blocking, imageNamingStrategy, baseName, imageList, mathImages);
+                    });
+                });
+            } else {
+                LOGGER.error(message("unable.find.spectral.line"));
+            }
+        });
+        Ellipse ellipse = null;
+        ImageStats imageStats = null;
+        var images = new HashMap<Integer, ImageWrapper32>();
+        for (WorkflowState workflowState : imageList) {
+            var result = workflowState.findResult(WorkflowResults.GEOMETRY_CORRECTION);
+            if (result.isPresent() && result.get() instanceof GeometryCorrector.Result geo) {
+                images.put(workflowState.pixelShift(), geo.corrected());
+                ellipse = geo.correctedCircle();
+                imageStats = new ImageStats(geo.blackpoint());
+            }
         }
-        broadcast(new ProcessingDoneEvent(System.nanoTime()));
+        broadcast(ProcessingDoneEvent.of(System.nanoTime(), images, createCustomImageEmitter(imageNamingStrategy, baseName), ellipse, imageStats));
+    }
+
+    private void generateImageMaths(ForkJoinContext blockingContext, FileNamingStrategy imageNamingStrategy, String baseName, List<WorkflowState> imageList, ImageMathParams mathImages) {
+        if (!mathImages.scriptFiles().isEmpty()) {
+            var images = new HashMap<Integer, ImageWrapper32>();
+            Ellipse ellipse = null;
+            for (WorkflowState workflowState : imageList) {
+                var result = workflowState.findResult(WorkflowResults.GEOMETRY_CORRECTION);
+                if (result.isPresent() && result.get() instanceof GeometryCorrector.Result geo) {
+                    images.put(workflowState.pixelShift(), geo.corrected());
+                    if (ellipse == null) {
+                        ellipse = geo.correctedCircle();
+
+                    }
+                }
+            }
+            var emitter = createCustomImageEmitter(imageNamingStrategy, baseName);
+            var circle = ellipse;
+            for (File scriptFile : mathImages.scriptFiles()) {
+                blockingContext.async(() -> {
+                    broadcast(ProgressEvent.of(0, "Running script " + scriptFile.getName()));
+                    var scriptRunner = new DefaultImageScriptExecutor(images::get, Map.of(Ellipse.class, circle));
+                    try {
+                        var result = scriptRunner.execute(scriptFile.toPath());
+                        ImageMathScriptExecutor.render(result, emitter);
+                    } catch (IOException e) {
+                        throw new ProcessingException(e);
+                    } finally {
+                        broadcast(ProgressEvent.of(1.0, "Running script " + scriptFile.getName()));
+                    }
+                });
+            }
+        }
+    }
+
+    private ImageEmitter createCustomImageEmitter(FileNamingStrategy imageNamingStrategy, String baseName) {
+        return new NamingStrategyAwareImageEmitter(new DefaultImageEmitter(this, mainForkJoinContext, outputDirectory.toFile()),
+                imageNamingStrategy,
+                sequenceNumber,
+                Constants.TYPE_CUSTOM,
+                baseName);
     }
 
     private EllipseFittingTask.Result performEllipseFitting(List<WorkflowState> imageList, ImageEmitterFactory imageEmitterFactory, ForkJoinContext executor) {
@@ -297,7 +369,7 @@ public class SolexVideoProcessor implements Broadcaster {
         }
     }
 
-    private List<WorkflowState> createWorkflowStateSteps(int width, int newHeight) {
+    private void createWorkflowStateSteps(List<WorkflowState> imageList, int width, int newHeight) {
         var list = processParams.requestedImages()
                 .pixelShifts()
                 .stream()
@@ -309,9 +381,8 @@ public class SolexVideoProcessor implements Broadcaster {
             internalState.setInternal(true);
             list = new ArrayList<>(list);
             list.add(internalState);
-            list = Collections.unmodifiableList(list);
         }
-        return list;
+        imageList.addAll(list);
     }
 
     private void performImageReconstruction(ImageConverter<float[]> converter, SerFileReader reader, int start, int end, ImageGeometry geometry, int width, int height, DoubleTriplet polynomial, WorkflowState... images) {

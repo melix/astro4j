@@ -36,21 +36,11 @@ public class ImageBandingCorrector extends AbstractTask<ImageWrapper32> {
     @Override
     public ImageWrapper32 call() throws Exception {
         broadcaster.broadcast(ProgressEvent.of(0, "Banding reduction"));
-        float[] result = new float[buffer.length];
-        System.arraycopy(buffer, 0, result, 0, buffer.length);
         var passes = params.passes();
         for (int i = 0; i < passes; i++) {
-            BandingReduction.reduceBanding(width, height, result, params.width());
+            BandingReduction.reduceBanding(width, height, buffer, params.width(), ellipse);
             broadcaster.broadcast(ProgressEvent.of((i + 1d / passes), "Banding reduction"));
         }
-        for (int y = 0; y < height; y++) {
-            for (int x = 0; x < width; x++) {
-                int index = y * width + x;
-                if (!ellipse.isWithin(x, y)) {
-                    result[index] = buffer[index];
-                }
-            }
-        }
-        return new ImageWrapper32(width, height, result);
+        return new ImageWrapper32(width, height, buffer);
     }
 }

@@ -4,76 +4,94 @@
 <?import javafx.scene.control.Button?>
 <?import javafx.scene.control.ButtonBar?>
 <?import javafx.scene.control.CheckBox?>
+<?import javafx.scene.control.ChoiceBox?>
 <?import javafx.scene.control.Label?>
 <?import javafx.scene.control.TextField?>
 <?import javafx.scene.layout.BorderPane?>
 <?import javafx.scene.layout.ColumnConstraints?>
 <?import javafx.scene.layout.GridPane?>
+<?import javafx.scene.layout.HBox?>
 <?import javafx.scene.layout.RowConstraints?>
 <?import javafx.scene.layout.VBox?>
 
-<BorderPane maxHeight="-Infinity" maxWidth="-Infinity" minHeight="-Infinity" minWidth="-Infinity" prefHeight="400.0" prefWidth="600.0" xmlns="http://javafx.com/javafx/19" xmlns:fx="http://javafx.com/fxml/1" fx:controller="me.champeau.a4j.jsolex.app.jfx.ImageSelector">
-   <bottom>
-      <ButtonBar prefHeight="40.0" prefWidth="200.0" BorderPane.alignment="CENTER">
-        <buttons>
-            <Button mnemonicParsing="false" onAction="#cancel" text="%cancel" />
-          <Button mnemonicParsing="false" onAction="#process" text="%ok" />
-        </buttons>
-         <opaqueInsets>
-            <Insets />
-         </opaqueInsets>
-         <BorderPane.margin>
-            <Insets right="8.0" />
-         </BorderPane.margin>
-      </ButtonBar>
-   </bottom>
-   <opaqueInsets>
-      <Insets />
-   </opaqueInsets>
-   <center>
-      <GridPane BorderPane.alignment="CENTER">
-        <columnConstraints>
-          <ColumnConstraints hgrow="SOMETIMES" minWidth="10.0" prefWidth="100.0" />
-          <ColumnConstraints hgrow="SOMETIMES" minWidth="10.0" prefWidth="100.0" />
-        </columnConstraints>
-        <rowConstraints>
-          <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="NEVER" />
-          <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="NEVER" />
-          <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="SOMETIMES" />
-        </rowConstraints>
-         <children>
-            <Label text="%pixel.shifts" />
-            <TextField fx:id="pixelShifts" GridPane.columnIndex="1" />
-            <Label text="%images.to.generate" GridPane.rowIndex="1" />
-            <VBox prefHeight="200.0" prefWidth="100.0" spacing="4.0" GridPane.rowIndex="2">
+<BorderPane maxHeight="-Infinity" maxWidth="-Infinity" minHeight="-Infinity" minWidth="-Infinity" prefHeight="432.0" prefWidth="600.0" xmlns="http://javafx.com/javafx/19" xmlns:fx="http://javafx.com/fxml/1" fx:controller="me.champeau.a4j.jsolex.app.jfx.ImageSelector">
+    <bottom>
+        <ButtonBar prefHeight="40.0" prefWidth="200.0" BorderPane.alignment="CENTER">
+            <buttons>
+                <Button mnemonicParsing="false" onAction="#cancel" text="%cancel" />
+                <Button mnemonicParsing="false" onAction="#process" text="%ok" />
+            </buttons>
+            <opaqueInsets>
+                <Insets />
+            </opaqueInsets>
+            <BorderPane.margin>
+                <Insets right="8.0" />
+            </BorderPane.margin>
+        </ButtonBar>
+    </bottom>
+    <opaqueInsets>
+        <Insets />
+    </opaqueInsets>
+    <center>
+        <GridPane BorderPane.alignment="CENTER">
+            <columnConstraints>
+                <ColumnConstraints hgrow="SOMETIMES" minWidth="10.0" prefWidth="100.0" />
+                <ColumnConstraints hgrow="SOMETIMES" minWidth="10.0" prefWidth="100.0" />
+            </columnConstraints>
+            <rowConstraints>
+            <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="NEVER" />
+                <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="NEVER" />
+                <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="NEVER" />
+                <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="SOMETIMES" />
+            </rowConstraints>
+            <children>
+                <Label text="%pixel.shifts" GridPane.rowIndex="1" />
+                <TextField fx:id="pixelShifts" GridPane.columnIndex="1" GridPane.rowIndex="1" />
+                <Label text="%images.to.generate" GridPane.rowIndex="2" />
+                <VBox prefHeight="200.0" prefWidth="100.0" spacing="4.0" GridPane.rowIndex="3">
+                    <children>
+                        <CheckBox fx:id="reconstruction" mnemonicParsing="false" text="%reconstruction" />
+                        <CheckBox fx:id="raw" mnemonicParsing="false" text="%raw" />
+                        <CheckBox fx:id="stretched" mnemonicParsing="false" text="%stretched" />
+                        <CheckBox fx:id="geometryCorrected" mnemonicParsing="false" text="%geometry.corrected" />
+                        <CheckBox fx:id="geometryCorrectedStretched" mnemonicParsing="false" text="%geometry.corrected.stretched" />
+                        <CheckBox fx:id="colorized" mnemonicParsing="false" text="%colorized" />
+                        <CheckBox fx:id="virtualEclipse" mnemonicParsing="false" text="%eclipse" />
+                        <CheckBox fx:id="negative" mnemonicParsing="false" text="%negative.image" />
+                        <CheckBox fx:id="mixed" mnemonicParsing="false" text="%mixed.image" />
+                        <CheckBox fx:id="doppler" mnemonicParsing="false" text="%doppler.image" />
+                        <CheckBox fx:id="continuum" mnemonicParsing="false" text="%continuum" />
+                        <CheckBox fx:id="debug" mnemonicParsing="false" text="%debug.images" />
+                    </children>
+                    <padding>
+                        <Insets top="4.0" />
+                    </padding>
+                </VBox>
+                <VBox alignment="CENTER" prefHeight="200.0" prefWidth="100.0" spacing="8.0" GridPane.columnIndex="1" GridPane.rowIndex="3">
+                    <children>
+                        <Button mnemonicParsing="false" onAction="#selectAll" text="%select.all" />
+                        <Button mnemonicParsing="false" onAction="#unselectAll" text="%unselect.all" />
+                    </children>
+                </VBox>
+                <Button fx:id="openImageMathButton" mnemonicParsing="false" onAction="#openImageMath" text="%open.imagemath" GridPane.columnIndex="1" />
+            <HBox alignment="CENTER_LEFT" prefHeight="100.0" prefWidth="200.0">
                <children>
-                  <CheckBox fx:id="reconstruction" mnemonicParsing="false" text="%reconstruction" />
-                  <CheckBox fx:id="raw" mnemonicParsing="false" text="%raw" />
-                  <CheckBox fx:id="stretched" mnemonicParsing="false" text="%stretched" />
-                  <CheckBox fx:id="geometryCorrected" mnemonicParsing="false" text="%geometry.corrected" />
-                  <CheckBox fx:id="geometryCorrectedStretched" mnemonicParsing="false" text="%geometry.corrected.stretched" />
-                  <CheckBox fx:id="colorized" mnemonicParsing="false" text="%colorized" />
-                  <CheckBox fx:id="virtualEclipse" mnemonicParsing="false" text="%eclipse" />
-                  <CheckBox fx:id="negative" mnemonicParsing="false" text="%negative.image" />
-                  <CheckBox fx:id="mixed" mnemonicParsing="false" text="%mixed.image" />
-                  <CheckBox fx:id="doppler" mnemonicParsing="false" text="%doppler.image" />
-                  <CheckBox fx:id="continuum" mnemonicParsing="false" text="%continuum" />
-                  <CheckBox fx:id="debug" mnemonicParsing="false" text="%debug.images" />
+                  <Label text="%mode">
+                     <padding>
+                        <Insets right="8.0" />
+                     </padding>
+                  </Label>
+                  <ChoiceBox fx:id="mode" prefHeight="24.0" prefWidth="242.0">
+                     <padding>
+                        <Insets left="8.0" />
+                     </padding>
+                  </ChoiceBox>
                </children>
-               <padding>
-                  <Insets top="4.0" />
-               </padding>
-            </VBox>
-            <VBox alignment="CENTER" prefHeight="200.0" prefWidth="100.0" spacing="8.0" GridPane.columnIndex="1" GridPane.rowIndex="2">
-               <children>
-                  <Button mnemonicParsing="false" text="%select.all" onAction="#selectAll"/>
-                  <Button mnemonicParsing="false" text="%unselect.all" onAction="#unselectAll"/>
-               </children>
-            </VBox>
-         </children>
-         <padding>
-            <Insets bottom="8.0" left="8.0" right="8.0" top="8.0" />
-         </padding>
-      </GridPane>
-   </center>
+            </HBox>
+            </children>
+            <padding>
+                <Insets bottom="8.0" left="8.0" right="8.0" top="8.0" />
+            </padding>
+        </GridPane>
+    </center>
 </BorderPane>

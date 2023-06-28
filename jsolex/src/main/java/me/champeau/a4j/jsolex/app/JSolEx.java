@@ -38,6 +38,7 @@ import javafx.scene.control.TableCell;
 import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableView;
 import javafx.scene.control.TextArea;
+import javafx.scene.control.TitledPane;
 import javafx.scene.image.Image;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
@@ -50,6 +51,7 @@ import me.champeau.a4j.jsolex.app.jfx.BatchItem;
 import me.champeau.a4j.jsolex.app.jfx.BatchOperations;
 import me.champeau.a4j.jsolex.app.jfx.ExplorerSupport;
 import me.champeau.a4j.jsolex.app.jfx.I18N;
+import me.champeau.a4j.jsolex.app.jfx.ImageMathEditor;
 import me.champeau.a4j.jsolex.app.jfx.ProcessParamsController;
 import me.champeau.a4j.jsolex.app.jfx.SpectralLineDebugger;
 import me.champeau.a4j.jsolex.app.listeners.BatchModeEventListener;
@@ -57,6 +59,7 @@ import me.champeau.a4j.jsolex.app.listeners.BatchProcessingContext;
 import me.champeau.a4j.jsolex.app.listeners.JSolExInterface;
 import me.champeau.a4j.jsolex.app.listeners.SingleModeProcessingEventListener;
 import me.champeau.a4j.jsolex.processing.event.ProcessingEventListener;
+import me.champeau.a4j.jsolex.processing.expr.ImageMathScriptExecutor;
 import me.champeau.a4j.jsolex.processing.file.FileNamingStrategy;
 import me.champeau.a4j.jsolex.processing.params.ProcessParams;
 import me.champeau.a4j.jsolex.processing.sun.SolexVideoProcessor;
@@ -73,7 +76,10 @@ import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.StandardOpenOption;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
@@ -87,6 +93,7 @@ import static me.champeau.a4j.jsolex.processing.util.LoggingSupport.logError;
 
 public class JSolEx extends Application implements JSolExInterface {
     private static final Logger LOGGER = LoggerFactory.getLogger(JSolEx.class);
+    public static final FileChooser.ExtensionFilter SER_FILES_EXTENSION_FILTER = new FileChooser.ExtensionFilter("SER files", "*.ser");
 
     private ForkJoinParallelExecutor cpuExecutor;
     private ForkJoinParallelExecutor ioExecutor;
@@ -113,6 +120,17 @@ public class JSolEx extends Application implements JSolExInterface {
     @FXML
     private HBox workButtons;
 
+    @FXML
+    private TitledPane imageMathPane;
+    @FXML
+    private TextArea imageMathScript;
+    @FXML
+    private Button imageMathRun;
+    @FXML
+    private Button imageMathLoad;
+    @FXML
+    private Button imageMathSave;
+
     @Override
     public ForkJoinContext getCpuExecutor() {
         return cpuExecutor;
@@ -132,6 +150,7 @@ public class JSolEx extends Application implements JSolExInterface {
 
         try {
             var root = (Parent) fxmlLoader.load();
+            imageMathPane.setDisable(true);
             var preferredDimensions = config.getPreferredDimensions();
             Scene rootScene = new Scene(root, preferredDimensions.a(), preferredDimensions.b());
             var pause = new PauseTransition(Duration.seconds(1));
@@ -226,6 +245,56 @@ public class JSolEx extends Application implements JSolExInterface {
         progressLabel.setText(message);
     }
 
+    @Override
+    public void prepareForScriptExecution(ImageMathScriptExecutor executor, ProcessParams params) {
+        imageMathPane.setDisable(false);
+        imageMathRun.setOnAction(evt -> executor.execute(imageMathScript.getText()));
+        imageMathSave.setDisable(true);
+        imageMathLoad.setOnAction(evt -> {
+            var fileChooser = new FileChooser();
+            fileChooser.getExtensionFilters().add(ImageMathEditor.MATH_SCRIPT_EXTENSION_FILTER);
+            var file = fileChooser.showOpenDialog(rootStage);
+            loadImageMathScriptFrom(file);
+        });
+        imageMathScript.textProperty().addListener((o, oldValue, newValue) -> {
+            if (newValue != null) {
+                imageMathSave.setDisable(false);
+            }
+        });
+        imageMathSave.setOnAction(evt -> {
+            var fileChooser = new FileChooser();
+            fileChooser.getExtensionFilters().add(ImageMathEditor.MATH_SCRIPT_EXTENSION_FILTER);
+            var file = fileChooser.showSaveDialog(rootStage);
+            if (file != null) {
+                if (!file.getName().endsWith(ImageMathEditor.MATH_EXTENSION)) {
+                    file = new File(file.getParentFile(), file.getName() + ImageMathEditor.MATH_EXTENSION);
+                }
+                try {
+                    Files.writeString(file.toPath(), imageMathScript.getText(), StandardCharsets.UTF_8, StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING);
+                    imageMathSave.setDisable(true);
+                } catch (IOException e) {
+                    // ignore
+                }
+            }
+        });
+        var scriptFiles = params.requestedImages().mathImages().scriptFiles();
+        if (!scriptFiles.isEmpty()) {
+            loadImageMathScriptFrom(scriptFiles.get(0));
+        }
+    }
+
+    private void loadImageMathScriptFrom(File file) {
+        if (file != null) {
+            try {
+                var script = String.join("\n", Files.readAllLines(file.toPath()));
+                imageMathScript.setText(script);
+                imageMathSave.setDisable(true);
+            } catch (IOException e) {
+                // ignore
+            }
+        }
+    }
+
     @FXML
     private void open() {
         selectSerFileAndThen(this::doOpen);
@@ -234,7 +303,7 @@ public class JSolEx extends Application implements JSolExInterface {
     @FXML
     private void openBatch() {
         var fileChooser = new FileChooser();
-        fileChooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("SER files", "*.ser"));
+        fileChooser.getExtensionFilters().add(SER_FILES_EXTENSION_FILTER);
         config.findLastOpenDirectory().ifPresent(dir -> fileChooser.setInitialDirectory(dir.toFile()));
         var selectedFiles = fileChooser.showOpenMultipleDialog(rootStage);
         if (selectedFiles != null && !selectedFiles.isEmpty()) {
@@ -249,7 +318,7 @@ public class JSolEx extends Application implements JSolExInterface {
 
     private void selectSerFileAndThen(Consumer<? super File> consumer) {
         var fileChooser = new FileChooser();
-        fileChooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("SER files", "*.ser"));
+        fileChooser.getExtensionFilters().add(SER_FILES_EXTENSION_FILTER);
         config.findLastOpenDirectory().ifPresent(dir -> fileChooser.setInitialDirectory(dir.toFile()));
         var selectedFile = fileChooser.showOpenDialog(rootStage);
         if (selectedFile != null) {
@@ -286,8 +355,14 @@ public class JSolEx extends Application implements JSolExInterface {
         var alert = new Alert(Alert.AlertType.INFORMATION);
         alert.setResizable(true);
         alert.getDialogPane().setPrefSize(700, 400);
+        String version = "";
+        try {
+            version = new String(JSolEx.class.getResourceAsStream("/version.txt").readAllBytes(), "utf-8").trim();
+        } catch (IOException e) {
+            version = "unknown";
+        }
         alert.setTitle(I18N.string(getClass(), "about", "about.title"));
-        alert.setHeaderText(I18N.string(getClass(), "about", "about.header"));
+        alert.setHeaderText(I18N.string(getClass(), "about", "about.header") + ". Version " + version);
         alert.setContentText(I18N.string(getClass(), "about", "about.message"));
         var licenses = new TextArea();
         try {
@@ -303,6 +378,7 @@ public class JSolEx extends Application implements JSolExInterface {
     }
 
     private void doOpen(File selectedFile) {
+        imageMathPane.setDisable(true);
         config.loaded(selectedFile.toPath());
         configureThreadExceptionHandler();
         BatchOperations.submit(this::refreshRecentItemsMenu);
@@ -341,6 +417,7 @@ public class JSolEx extends Application implements JSolExInterface {
     }
 
     private void doOpenMany(List<File> selectedFiles) {
+        imageMathPane.setDisable(true);
         configureThreadExceptionHandler();
         File initial = selectedFiles.get(0);
         config.updateLastOpenDirectory(initial.toPath().getParent());
@@ -501,7 +578,6 @@ public class JSolEx extends Application implements JSolExInterface {
                     LoggingSupport.logError(ex);
                 } finally {
                     onComplete.run();
-                    processor.removeEventListener(listener);
                     appender.stop();
                     LogbackConfigurer.clearOwners();
                 }

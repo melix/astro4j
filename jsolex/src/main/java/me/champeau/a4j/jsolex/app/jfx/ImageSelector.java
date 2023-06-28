@@ -16,20 +16,34 @@
 package me.champeau.a4j.jsolex.app.jfx;
 
 import javafx.fxml.FXML;
+import javafx.scene.Parent;
+import javafx.scene.Scene;
+import javafx.scene.control.Button;
 import javafx.scene.control.CheckBox;
+import javafx.scene.control.ChoiceBox;
 import javafx.scene.control.TextField;
 import javafx.stage.Stage;
 import javafx.stage.WindowEvent;
+import me.champeau.a4j.jsolex.app.JSolEx;
+import me.champeau.a4j.jsolex.processing.expr.DefaultImageScriptExecutor;
+import me.champeau.a4j.jsolex.processing.params.ImageMathParams;
 import me.champeau.a4j.jsolex.processing.params.RequestedImages;
 import me.champeau.a4j.jsolex.processing.sun.workflow.GeneratedImageKind;
 import me.champeau.a4j.jsolex.processing.util.Constants;
+import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
+import me.champeau.a4j.jsolex.processing.util.ProcessingException;
 
+import java.io.File;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.EnumSet;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.TreeSet;
 import java.util.stream.Collectors;
 
 public class ImageSelector {
@@ -59,18 +73,51 @@ public class ImageSelector {
     private CheckBox reconstruction;
     @FXML
     private TextField pixelShifts;
+    @FXML
+    private Button openImageMathButton;
+    @FXML
+    private ChoiceBox<PixelShiftMode> mode;
 
     private Stage stage;
 
+    private int dopplerShift;
     private RequestedImages requestedImages;
+    private ImageMathParams imageMathParams;
+    private Set<Integer> internalPixelShifts;
 
     public void setup(Stage stage,
                       Set<GeneratedImageKind> images,
                       boolean debug,
-                      List<Integer> pixelShifts,
-                      int dopplerShift) {
+                      List<Integer> selectedPixelShifts,
+                      int dopplerShift,
+                      ImageMathParams imageMathParams) {
         this.stage = stage;
-        pixelShifts = new ArrayList<>(pixelShifts);
+        this.dopplerShift = dopplerShift;
+        this.imageMathParams = imageMathParams;
+        this.mode.getItems().add(PixelShiftMode.SIMPLE);
+        this.mode.getItems().add(PixelShiftMode.IMAGEMATH);
+        this.mode.getSelectionModel().selectedItemProperty().addListener((obj, oldValue, newValue) -> {
+            if (newValue != null) {
+                if (newValue == PixelShiftMode.SIMPLE) {
+                    openImageMathButton.setDisable(true);
+                    pixelShifts.setDisable(false);
+                    var newPixelShifts = new ArrayList<>(selectedPixelShifts);
+                    updatePixelShiftsWithSelectedImages(newPixelShifts);
+                } else {
+                    openImageMathButton.setDisable(false);
+                    pixelShifts.setDisable(true);
+                    updatePixelShiftsWithSelectedImages(findPixelShifts(imageMathParams));
+                }
+            }
+        });
+        var newPixelShifts = new ArrayList<Integer>();
+        if (imageMathParams != null && !imageMathParams.equals(ImageMathParams.NONE)) {
+            this.mode.getSelectionModel().select(PixelShiftMode.IMAGEMATH);
+            newPixelShifts.addAll(findPixelShifts(imageMathParams));
+        } else {
+            this.mode.getSelectionModel().select(PixelShiftMode.SIMPLE);
+            newPixelShifts.addAll(selectedPixelShifts);
+        }
         for (GeneratedImageKind image : images) {
             switch (image) {
                 case RAW -> raw.setSelected(true);
@@ -87,19 +134,24 @@ public class ImageSelector {
             }
         }
         this.debug.setSelected(debug);
-        if (pixelShifts.isEmpty()) {
-            pixelShifts.add(0);
-        }
-        if (continuum.isSelected()) {
-            pixelShifts.add(Constants.CONTINUUM_SHIFT);
-        }
-        if (doppler.isSelected()) {
-            pixelShifts.add(-dopplerShift);
-            pixelShifts.add(dopplerShift);
-        }
+        updatePixelShiftsWithSelectedImages(newPixelShifts);
         doppler.selectedProperty().addListener((observable, oldValue, newValue) -> adjustPixelShifts(newValue, -dopplerShift, dopplerShift));
         continuum.selectedProperty().addListener((observable, oldValue, newValue) -> adjustPixelShifts(newValue, Constants.CONTINUUM_SHIFT));
-        setPixelShiftText(pixelShifts);
+    }
+
+    private void updatePixelShiftsWithSelectedImages(List<Integer> newPixelShifts) {
+        var result = new TreeSet<>(newPixelShifts);
+        if (result.isEmpty()) {
+            result.add(0);
+        }
+        if (continuum.isSelected()) {
+            result.add(Constants.CONTINUUM_SHIFT);
+        }
+        if (doppler.isSelected()) {
+            result.add(-dopplerShift);
+            result.add(dopplerShift);
+        }
+        setPixelShiftText(result.stream().toList());
     }
 
     private void adjustPixelShifts(boolean newValue, int... shifts) {
@@ -185,7 +237,9 @@ public class ImageSelector {
         var pixelShifts = readPixelShifts();
         requestedImages = new RequestedImages(
                 images,
-                pixelShifts
+                pixelShifts,
+                mode.getSelectionModel().getSelectedItem() == PixelShiftMode.SIMPLE || internalPixelShifts == null ? Set.of() : internalPixelShifts,
+                mode.getSelectionModel().getSelectedItem() == PixelShiftMode.IMAGEMATH ? imageMathParams : ImageMathParams.NONE
         );
         requestClose();
     }
@@ -213,6 +267,79 @@ public class ImageSelector {
         continuum.setSelected(selected);
         reconstruction.setSelected(selected);
         debug.setSelected(selected);
+    }
+
+    @FXML
+    public void openImageMath() {
+        var fxmlLoader = I18N.fxmlLoader(JSolEx.class, "imagemath-editor");
+        try {
+            var node = (Parent) fxmlLoader.load();
+            var controller = (ImageMathEditor) fxmlLoader.getController();
+            controller.setup(stage, imageMathParams);
+            Scene scene = new Scene(node);
+            var currentScene = stage.getScene();
+            var onCloseRequest = stage.getOnCloseRequest();
+            var title = stage.getTitle();
+            stage.setTitle(I18N.string(JSolEx.class, "imagemath-editor", "frame.title"));
+            stage.setScene(scene);
+            stage.show();
+            stage.setOnCloseRequest(e -> {
+                if (stage.getScene() == scene) {
+                    stage.setScene(currentScene);
+                    e.consume();
+                }
+                controller.getConfiguration().ifPresent(params -> {
+                    updatePixelShiftsWithSelectedImages(findPixelShifts(params));
+                    this.imageMathParams = params;
+                });
+                stage.setOnCloseRequest(onCloseRequest);
+                stage.setTitle(title);
+            });
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    private DefaultImageScriptExecutor createScriptExecutor() {
+        var images = new HashMap<Integer, ImageWrapper32>();
+        return new DefaultImageScriptExecutor(
+                i -> images.computeIfAbsent(i, unused -> new ImageWrapper32(0, 0, new float[0])),
+                Map.of()
+        );
+    }
+
+    private List<Integer> findPixelShifts(ImageMathParams params) {
+        var executor = createScriptExecutor();
+        var allShifts = new TreeSet<Integer>();
+        internalPixelShifts = new TreeSet<>();
+        for (File file : params.scriptFiles()) {
+            try {
+                var result = executor.execute(file.toPath());
+                allShifts.addAll(result.internalShifts());
+                internalPixelShifts.addAll(result.internalShifts());
+                allShifts.addAll(result.outputShifts());
+            } catch (IOException e) {
+                throw new ProcessingException(e);
+            }
+        }
+        return allShifts.stream().toList();
+    }
+
+    private enum PixelShiftMode {
+        SIMPLE("mode.simple"),
+        IMAGEMATH("mode.imagemath");
+
+        private final String label;
+
+        PixelShiftMode(String label) {
+            this.label = label;
+        }
+
+
+        @Override
+        public String toString() {
+            return I18N.string(JSolEx.class, "image-selection", label);
+        }
     }
 
 }

@@ -53,7 +53,7 @@ public class ImageSaver {
                 FitsUtils.writeFitsFile(new RGBImage(image.width(), image.height(), r, g, b), toFits(target), processParams);
             }
         } else if (image instanceof RGBImage rgb) {
-            var stretched = stretch(rgb.r(), rgb.g(), rgb.g());
+            var stretched = stretch(rgb.r(), rgb.g(), rgb.b());
             var r = stretched[0];
             var g = stretched[1];
             var b = stretched[2];

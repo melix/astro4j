@@ -33,6 +33,7 @@ import me.champeau.a4j.jsolex.processing.params.BandingCorrectionParams;
 import me.champeau.a4j.jsolex.processing.params.DebugParams;
 import me.champeau.a4j.jsolex.processing.params.FileNamingPatternsIO;
 import me.champeau.a4j.jsolex.processing.params.GeometryParams;
+import me.champeau.a4j.jsolex.processing.params.ImageMathParams;
 import me.champeau.a4j.jsolex.processing.params.NamedPattern;
 import me.champeau.a4j.jsolex.processing.params.ObservationDetails;
 import me.champeau.a4j.jsolex.processing.params.ProcessParams;
@@ -50,6 +51,7 @@ import java.io.IOException;
 import java.time.ZonedDateTime;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 
 public class ProcessParamsController {
     @FXML
@@ -202,7 +204,9 @@ public class ProcessParamsController {
         int dopplerShift = (int) dopplerShifting.getValue();
         doProcess(new RequestedImages(
                 generateDebugImages.isSelected() ? RequestedImages.FULL_MODE_WITH_DEBUG :RequestedImages.FULL_MODE,
-                List.of(getPixelShiftAsInt(), dopplerShift, -dopplerShift)
+                List.of(getPixelShiftAsInt(), dopplerShift, -dopplerShift),
+                Set.of(),
+                ImageMathParams.NONE
         ));
     }
 
@@ -212,9 +216,18 @@ public class ProcessParamsController {
         try {
             var node = (Parent) fxmlLoader.load();
             var controller = (ImageSelector) fxmlLoader.getController();
-            controller.setup(stage, initialProcessParams.requestedImages().images(), generateDebugImages.isSelected(), List.of(getPixelShiftAsInt()), (int) dopplerShifting.getValue());
+            controller.setup(
+                    stage,
+                    initialProcessParams.requestedImages().images(),
+                    generateDebugImages.isSelected(),
+                    List.of(getPixelShiftAsInt()),
+                    (int) dopplerShifting.getValue(),
+                    initialProcessParams.requestedImages().mathImages()
+            );
             Scene scene = new Scene(node);
             var currentScene = stage.getScene();
+            var onCloseRequest = stage.getOnCloseRequest();
+            var title = stage.getTitle();
             stage.setTitle(I18N.string(JSolEx.class, "image-selection", "frame.title"));
             stage.setScene(scene);
             stage.show();
@@ -232,6 +245,8 @@ public class ProcessParamsController {
                     doProcess(requested);
                     stage.close();
                 });
+                stage.setOnCloseRequest(onCloseRequest);
+                stage.setTitle(title);
             });
         } catch (IOException e) {
             throw new RuntimeException(e);
@@ -290,7 +305,9 @@ public class ProcessParamsController {
     public void quickProcess() {
         doProcess(new RequestedImages(
                 generateDebugImages.isSelected() ? RequestedImages.QUICK_MODE_WITH_DEBUG : RequestedImages.QUICK_MODE,
-                List.of(getPixelShiftAsInt())
+                List.of(getPixelShiftAsInt()),
+                Set.of(),
+                ImageMathParams.NONE
         ));
     }
 

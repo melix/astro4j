@@ -39,7 +39,13 @@ import me.champeau.a4j.jsolex.processing.event.ProcessingEventListener;
 import me.champeau.a4j.jsolex.processing.event.ProcessingStartEvent;
 import me.champeau.a4j.jsolex.processing.event.ProgressEvent;
 import me.champeau.a4j.jsolex.processing.event.SuggestionEvent;
+import me.champeau.a4j.jsolex.processing.expr.DefaultImageScriptExecutor;
+import me.champeau.a4j.jsolex.processing.expr.ImageMathScriptExecutor;
+import me.champeau.a4j.jsolex.processing.expr.ImageMathScriptResult;
 import me.champeau.a4j.jsolex.processing.params.ProcessParams;
+import me.champeau.a4j.jsolex.processing.sun.workflow.ImageEmitter;
+import me.champeau.a4j.jsolex.processing.sun.workflow.ImageStats;
+import me.champeau.a4j.math.regression.Ellipse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -47,10 +53,12 @@ import java.io.IOException;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.stream.Collectors;
 
-public class SingleModeProcessingEventListener implements ProcessingEventListener {
+public class SingleModeProcessingEventListener implements ProcessingEventListener, ImageMathScriptExecutor {
     private static final Logger LOGGER = LoggerFactory.getLogger(SingleModeProcessingEventListener.class);
 
     private final Map<SuggestionEvent.SuggestionKind, String> suggestions = Collections.synchronizedMap(new LinkedHashMap<>());
@@ -60,10 +68,13 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
     private final ProcessParams params;
     private final TabPane mainPane;
     private final AtomicInteger concurrentNotifications = new AtomicInteger();
+    private ImageEmitter imageEmitter;
+    private ImageMathScriptExecutor imageScriptExecutor;
     private long sd;
     private long ed;
     private int width;
     private int height;
+    private ProcessParams processParams;
 
     public SingleModeProcessingEventListener(JSolExInterface owner, String baseName, ProcessParams params) {
         this.owner = owner;
@@ -76,7 +87,6 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
         width = 0;
         height = 0;
     }
-
 
     private ImageViewer newImageViewer() {
         var fxmlLoader = I18N.fxmlLoader(JSolEx.class, "imageview");
@@ -203,12 +213,22 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
 
     @Override
     public void onProcessingStart(ProcessingStartEvent e) {
-        sd = e.getPayload();
+        var payload = e.getPayload();
+        sd = payload.timestamp();
+        processParams = payload.params();
     }
 
     @Override
     public void onProcessingDone(ProcessingDoneEvent e) {
-        ed = e.getPayload();
+        var payload = e.getPayload();
+        imageEmitter = payload.customImageEmitter();
+        imageScriptExecutor = new DefaultImageScriptExecutor(payload.shiftImages()::get,
+                Map.of(
+                        Ellipse.class, payload.ellipse(),
+                        ImageStats.class, payload.imageStats()
+                )
+        );
+        ed = payload.timestamp();
         var duration = java.time.Duration.ofNanos(ed - sd);
         double seconds = duration.toMillis() / 1000d;
         var sb = new StringBuilder();
@@ -226,10 +246,9 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
                         finishedString,
                         sb.toString()
                 )));
+        owner.prepareForScriptExecution(this, params);
         suggestions.clear();
-        BatchOperations.submit(() -> {
-            owner.updateProgress(1.0, finishedString);
-        });
+        BatchOperations.submit(() -> owner.updateProgress(1.0, finishedString));
     }
 
     @Override
@@ -247,5 +266,25 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
     @Override
     public void onDebug(DebugEvent<?> e) {
 
+    }
+
+    @Override
+    public ImageMathScriptResult execute(List<String> lines) {
+        var result = imageScriptExecutor.execute(lines);
+        ImageMathScriptExecutor.render(result, imageEmitter);
+        var invalidExpressions = result.invalidExpressions();
+        var errorCount = invalidExpressions.size();
+        if (errorCount > 0) {
+            String message = invalidExpressions.stream()
+                    .map(invalidExpression -> "Expression '" + invalidExpression.label() + "' (" + invalidExpression.expression() + ") : " + invalidExpression.error().getMessage())
+                    .collect(Collectors.joining(System.lineSeparator()));
+            onNotification(new NotificationEvent(new Notification(
+                    Notification.AlertType.ERROR,
+                    JSolEx.message("error.processing.script"),
+                    JSolEx.message("script.errors." + (errorCount == 1 ? "single" : "many")),
+                    message
+            )));
+        }
+        return result;
     }
 }

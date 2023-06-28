@@ -128,6 +128,9 @@ public class ProcessingWorkflow {
         executor.submitAndThen(new GeometryCorrector(broadcaster, bandingFixed, ellipse, forcedTilt, fps, ratio, blackPoint, processParams, debugImagesEmitter, state), g -> {
             var geometryFixed = maybeSharpen(g);
             state.recordResult(WorkflowResults.GEOMETRY_CORRECTION, g);
+            if (state.isInternal()) {
+                return null;
+            }
             broadcaster.broadcast(OutputImageDimensionsDeterminedEvent.of(message("geometry.corrected"), geometryFixed.width(), geometryFixed.height()));
             processedImagesEmitter.newMonoImage(GeneratedImageKind.GEOMETRY_CORRECTED, message("disk"), "disk", geometryFixed, LinearStrechingStrategy.DEFAULT);
             executor.async(() -> {
@@ -233,7 +236,6 @@ public class ProcessingWorkflow {
     }
 
     private void produceColorizedImage(float blackPoint, ImageWrapper32 corrected, ProcessParams params) {
-        CutoffStretchingStrategy.DEFAULT.stretch(corrected.data());
         params.spectrumParams().ray().getColorCurve().ifPresent(curve ->
                 processedImagesEmitter.newColorImage(GeneratedImageKind.COLORIZED, MessageFormat.format(message("colorized"), curve.ray()), "colorized", corrected, new ArcsinhStretchingStrategy(blackPoint, 10, 200), mono -> ImageUtils.convertToRGB(curve, mono))
         );
