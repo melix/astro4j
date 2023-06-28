@@ -20,9 +20,11 @@ import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 import java.util.TreeSet;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Function;
@@ -86,6 +88,7 @@ public class DefaultImageScriptExecutor implements ImageMathScriptExecutor {
         var outputs = new HashMap<String, String>();
         int cpt = 0;
         String currentSection = null;
+        Set<String> variables = new HashSet<>();
         for (String line : lines) {
             if (line.startsWith("//") || line.startsWith("#")) {
                 // comment
@@ -103,6 +106,7 @@ public class DefaultImageScriptExecutor implements ImageMathScriptExecutor {
                     outputs.put(name, expression);
                     continue;
                 }
+                variables.add(name);
                 try {
                     evaluator.putVariable(name, expression);
                 } catch (Exception ex) {
@@ -113,6 +117,14 @@ public class DefaultImageScriptExecutor implements ImageMathScriptExecutor {
                     outputs.put("imagemath_" + index + "_" + cpt, line);
                     cpt++;
                 }
+            }
+        }
+        // Collect internal shifts
+        for (String variable : variables) {
+            try {
+                evaluator.evaluate(variable);
+            } catch (Exception ex) {
+                // ignore
             }
         }
         return outputs;
