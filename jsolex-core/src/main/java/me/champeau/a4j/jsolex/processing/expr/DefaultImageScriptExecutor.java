@@ -54,7 +54,7 @@ public class DefaultImageScriptExecutor implements ImageMathScriptExecutor {
     private ImageMathScriptResult executeScript(ShiftCollectingImageExpressionEvaluator evaluator, ArrayList<InvalidExpression> invalidExpressions, Map<String, String> outputs, HashMap<String, ImageWrapper> producedImages) {
         var imageStats = (ImageStats) context.get(ImageStats.class);
         if (imageStats != null) {
-            evaluator.putVariable(BLACK_POINT_VAR, String.format("%.3f", imageStats.blackpoint()));
+            evaluator.putVariable(BLACK_POINT_VAR, String.format(Locale.US, "%.3f", imageStats.blackpoint()));
         }
         var variableShifts = new TreeSet<>(evaluator.getShifts());
         for (Map.Entry<String, String> output : outputs.entrySet()) {
