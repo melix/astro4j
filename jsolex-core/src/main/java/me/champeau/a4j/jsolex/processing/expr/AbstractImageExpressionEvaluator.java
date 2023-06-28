@@ -148,7 +148,7 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
             consumer.accept(width, height, output);
             return new ImageWrapper32(image.width(), image.height(), output);
         } else if (arg instanceof List<?> list) {
-            return list.stream().map(e -> inverse(List.of(e))).toList();
+            return list.stream().map(e -> imageTransformer(name, maxArgCount, List.of(e), consumer)).toList();
         }
         throw new IllegalArgumentException(name + "first argument must be an image or a list of images");
     }
