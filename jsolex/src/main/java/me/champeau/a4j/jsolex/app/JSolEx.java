@@ -341,8 +341,8 @@ public class JSolEx extends Application implements JSolExInterface {
             }
             var controller = (SpectralLineDebugger) fxmlLoader.getController();
             var stage = new Stage();
-            Scene scene = new Scene((Parent) configWindow, 1024, 400);
-            controller.open(file, null, scene);
+            Scene scene = new Scene((Parent) configWindow);
+            controller.open(file, null, scene, stage);
             stage.setTitle(I18N.string(getClass(), "frame-debugger", "frame.debugger"));
             stage.setScene(scene);
             stage.showAndWait();

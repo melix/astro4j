@@ -39,8 +39,12 @@ public class SpectralLineFrameImageCreator {
     }
 
     public RGBImage generateDebugImage() {
+        return generateDebugImage(null);
+    }
+
+    public RGBImage generateDebugImage(DoubleTriplet forcedPolynomial) {
         int size = width * height;
-        Optional<DoubleTriplet> polynomial = analyzer.findDistortionPolynomial();
+        Optional<DoubleTriplet> polynomial = Optional.ofNullable(forcedPolynomial).or(analyzer::findDistortionPolynomial);
         float[] corrected;
         if (polynomial.isPresent()) {
             var distorsionCorrection = new DistortionCorrection(original, width, height);

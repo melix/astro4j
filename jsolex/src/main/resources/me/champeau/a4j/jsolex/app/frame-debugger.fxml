@@ -1,15 +1,17 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
 <?import javafx.geometry.Insets?>
+<?import javafx.scene.Group?>
 <?import javafx.scene.canvas.Canvas?>
+<?import javafx.scene.control.CheckBox?>
 <?import javafx.scene.control.Label?>
 <?import javafx.scene.control.RadioButton?>
 <?import javafx.scene.control.Slider?>
 <?import javafx.scene.control.TextField?>
-<?import javafx.scene.Group?>
 <?import javafx.scene.layout.BorderPane?>
 <?import javafx.scene.layout.HBox?>
 <?import javafx.scene.layout.VBox?>
+
 <BorderPane xmlns="http://javafx.com/javafx/19" xmlns:fx="http://javafx.com/fxml/1" fx:controller="me.champeau.a4j.jsolex.app.jfx.SpectralLineDebugger">
     <center>
         <Group>
@@ -21,13 +23,13 @@
             <HBox spacing="4.0">
                 <RadioButton fx:id="average" mnemonicParsing="false" text="%average"/>
                 <RadioButton fx:id="frames" mnemonicParsing="false" text="%frames"/>
-                <Slider fx:id="frameSlider"/>
+                <Slider fx:id="frameSlider" prefHeight="16.0" prefWidth="258.0"/>
                 <Label fx:id="frameId"/>
                 <VBox.margin>
                     <Insets bottom="8.0" left="8.0" right="8.0" top="8.0"/>
                 </VBox.margin>
             </HBox>
-            <HBox alignment="CENTER_LEFT">
+            <HBox alignment="CENTER_LEFT" spacing="8.0">
                 <Label text="%sun.detection.threshold">
                     <HBox.margin>
                         <Insets bottom="4.0" left="4.0" right="4.0" top="4.0"/>
@@ -37,6 +39,9 @@
                     </padding>
                 </Label>
                 <TextField fx:id="sunDetectionThreshold" maxWidth="100"/>
+                <CheckBox fx:id="lockPolynomialCheckbox" text="%lock.polynomial"/>
+                <Label text="%contrast"/>
+                <Slider fx:id="contrastBoost" max="200" min="0"/>
                 <Label fx:id="info" prefWidth="300"/>
             </HBox>
         </VBox>
