@@ -3,6 +3,8 @@ on:
   push:
     branches:
       - main
+    tags:
+      - '*'
 jobs:
   generate_documentation:
     runs-on: ubuntu-18.04
