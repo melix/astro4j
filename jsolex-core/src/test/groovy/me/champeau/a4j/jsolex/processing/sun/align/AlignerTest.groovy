@@ -113,7 +113,7 @@ class AlignerTest extends Specification {
         double detectedRotation = aligned.rotation()
 
         then:
-        ImageUtils.writeMonoImage(aligned.rotated().width(), aligned.rotated().height(), aligned.rotated().data(), new File("/tmp/rotation-$angle-${detectedRotation}.png"))
+        ImageUtils.writeMonoImage(aligned.rotated().width(), aligned.rotated().height(), aligned.rotated().data(), new File("/tmp/rotation-$angle-${detectedRotation}.png"), imageFormats)
         new File("/tmp/data.txt").append """
             angle: $angle detected: $detectedRotation diff: ${abs(detectedRotation + angle)}
         """
@@ -137,7 +137,7 @@ class AlignerTest extends Specification {
         double detectedRotation = aligned.rotation()
 
         then:
-        ImageUtils.writeMonoImage(aligned.rotated().width(), aligned.rotated().height(), aligned.rotated().data(), new File("/tmp/rotation-$angle-${detectedRotation}.png"))
+        ImageUtils.writeMonoImage(aligned.rotated().width(), aligned.rotated().height(), aligned.rotated().data(), new File("/tmp/rotation-$angle-${detectedRotation}.png"), imageFormats)
         new File("/tmp/data.txt").append """
             angle: $angle detected: $detectedRotation diff: ${abs(detectedRotation + angle)}
         """

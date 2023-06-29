@@ -401,8 +401,8 @@ public class JSolEx extends Application implements JSolExInterface {
             mainPane.getTabs().clear();
             console.textProperty().set("");
             var interruptButton = addInterruptButton();
-            var processingThread = new Thread(() -> cpuExecutor.blocking(context ->
-                    processSingleFile(context, params, selectedFile, false, 0, null, firstHeader, () -> {
+            var processingThread = new Thread(() -> cpuExecutor.blocking(() ->
+                    processSingleFile(cpuExecutor, params, selectedFile, false, 0, null, firstHeader, () -> {
                         BatchOperations.submit(() -> workButtons.getChildren().remove(interruptButton));
                     })
             ));
@@ -498,8 +498,8 @@ public class JSolEx extends Application implements JSolExInterface {
                 groups.add(current);
             }
             var batchContext = new BatchProcessingContext(batchItems, new AtomicInteger(), selectedFiles.get(0).getParentFile(), LocalDateTime.now());
-            cpuExecutor.blocking(context -> {
-                var semaphore = new Semaphore(Runtime.getRuntime().availableProcessors() / 2);
+            cpuExecutor.blocking(() -> {
+                var semaphore = new Semaphore(Math.max(1, Runtime.getRuntime().availableProcessors() / 4));
                 // We're using a separate task submission thread in order to not
                 // block the processing ones
                 var taskSubmissionThread = new Thread(() -> {
@@ -507,7 +507,7 @@ public class JSolEx extends Application implements JSolExInterface {
                     while (idx < selectedFiles.size() && !Thread.currentThread().isInterrupted()) {
                         semaphore.acquireUninterruptibly();
                         var selectedFile = selectedFiles.get(idx);
-                        processSingleFile(context, params, selectedFile, true, idx, batchContext, header, semaphore::release);
+                        processSingleFile(cpuExecutor, params, selectedFile, true, idx, batchContext, header, semaphore::release);
                         idx++;
                     }
                 });
@@ -550,7 +550,7 @@ public class JSolEx extends Application implements JSolExInterface {
                 var processingDate = context instanceof BatchProcessingContext batch ? batch.processingDate() : LocalDateTime.now();
                 ioIsolate.setOnTaskStart(t -> LogbackConfigurer.recordThreadOwner(t.getName(), sequenceNumber));
                 var namingStrategy = new FileNamingStrategy(
-                        params.debugParams().fileNamePattern(),
+                        params.extraParams().fileNamePattern(),
                         processingDate,
                         header
                 );

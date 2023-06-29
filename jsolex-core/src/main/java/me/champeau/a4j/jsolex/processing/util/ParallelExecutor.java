@@ -16,8 +16,6 @@
 package me.champeau.a4j.jsolex.processing.util;
 
 import me.champeau.a4j.jsolex.processing.sun.tasks.AbstractTask;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
@@ -29,9 +27,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 
 public class ParallelExecutor implements AutoCloseable {
-    private static final Logger LOGGER = LoggerFactory.getLogger(ParallelExecutor.class);
-
-    private final ExecutorService executorService = Executors.newCachedThreadPool();
+    private final ExecutorService executorService = Executors.newWorkStealingPool();
     private final Semaphore semaphore;
 
     private Consumer<? super Throwable> exceptionHandler = (Consumer<Throwable>) LoggingSupport::logError;

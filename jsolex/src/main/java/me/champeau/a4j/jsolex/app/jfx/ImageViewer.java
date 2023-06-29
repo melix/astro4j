@@ -38,6 +38,7 @@ import me.champeau.a4j.jsolex.processing.sun.ImageUtils;
 import me.champeau.a4j.jsolex.processing.util.ColorizedImageWrapper;
 import me.champeau.a4j.jsolex.processing.util.Constants;
 import me.champeau.a4j.jsolex.processing.util.ForkJoinContext;
+import me.champeau.a4j.jsolex.processing.util.ImageFormat;
 import me.champeau.a4j.jsolex.processing.util.ImageSaver;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
@@ -47,6 +48,7 @@ import me.champeau.a4j.jsolex.processing.util.RGBImage;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
+import java.util.EnumSet;
 import java.util.List;
 
 import static me.champeau.a4j.jsolex.app.JSolEx.message;
@@ -88,11 +90,20 @@ public class ImageViewer {
                       ProcessParams params) {
         this.broadcaster = broadcaster;
         this.image = image;
-        this.imageFile = new File(imageName.getParentFile(), baseName + "_" + imageName.getName());
+        this.imageFile = new File(imageName.getParentFile(), baseName + "_" + imageName.getName() + imageDisplayExtension(params));
         this.processParams = params;
         configureStretching(strategy);
-        if (params.debugParams().autosave()) {
+        if (params.extraParams().autosave()) {
             saveImage(imageFile);
+        }
+    }
+
+    private String imageDisplayExtension(ProcessParams params) {
+        var imageFormats = params.extraParams().imageFormats();
+        if (imageFormats.contains(ImageFormat.PNG)) {
+            return ImageFormat.PNG.extension();
+        } else {
+            return imageFormats.stream().filter(e -> e != ImageFormat.FITS).findFirst().orElse(ImageFormat.PNG).extension();
         }
     }
 
@@ -239,12 +250,13 @@ public class ImageViewer {
                 tmpImage.delete();
                 saveButton.setDisable(false);
             };
+            var imageFormats = EnumSet.of(ImageFormat.PNG);
             // For some reason the image doesn't look as good when using PixelWriter
             // so we write the image in a tmp file and load it from here.
             if (image instanceof ImageWrapper32 mono) {
                 var stretched = stretch(mono.data());
                 forkJoinContext.async(() -> {
-                    ImageUtils.writeMonoImage(width, height, stretched, tmpImage);
+                    ImageUtils.writeMonoImage(width, height, stretched, tmpImage, imageFormats);
                     BatchOperations.submit(updateDisplay);
                 });
             } else if (image instanceof ColorizedImageWrapper colorImage) {
@@ -254,13 +266,13 @@ public class ImageViewer {
                 var g = rgb[1];
                 var b = rgb[2];
                 forkJoinContext.async(() -> {
-                    ImageUtils.writeRgbImage(width, height, r, g, b, tmpImage);
+                    ImageUtils.writeRgbImage(width, height, r, g, b, tmpImage, imageFormats);
                     BatchOperations.submit(updateDisplay);
                 });
             } else if (image instanceof RGBImage rgb) {
                 var stretched = stretch(rgb.r(), rgb.g(), rgb.g());
                 forkJoinContext.async(() -> {
-                    ImageUtils.writeRgbImage(rgb.width(), rgb.height(), stretched[0], stretched[1], stretched[2], tmpImage);
+                    ImageUtils.writeRgbImage(rgb.width(), rgb.height(), stretched[0], stretched[1], stretched[2], tmpImage, imageFormats);
                     BatchOperations.submit(updateDisplay);
                 });
             }
@@ -270,7 +282,7 @@ public class ImageViewer {
     private File createTmpFile() {
         File tmpImage;
         try {
-            tmpImage = Files.createTempFile(imageFile.getName(), "jsolex").toFile();
+            tmpImage = Files.createTempFile(imageFile.getName(), "jsolex.png").toFile();
         } catch (IOException e) {
             throw new ProcessingException(e);
         }

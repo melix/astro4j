@@ -30,7 +30,7 @@ import javafx.util.converter.DoubleStringConverter;
 import javafx.util.converter.IntegerStringConverter;
 import me.champeau.a4j.jsolex.app.JSolEx;
 import me.champeau.a4j.jsolex.processing.params.BandingCorrectionParams;
-import me.champeau.a4j.jsolex.processing.params.DebugParams;
+import me.champeau.a4j.jsolex.processing.params.ExtraParams;
 import me.champeau.a4j.jsolex.processing.params.FileNamingPatternsIO;
 import me.champeau.a4j.jsolex.processing.params.GeometryParams;
 import me.champeau.a4j.jsolex.processing.params.ImageMathParams;
@@ -43,12 +43,14 @@ import me.champeau.a4j.jsolex.processing.params.SpectralRayIO;
 import me.champeau.a4j.jsolex.processing.params.SpectrumParams;
 import me.champeau.a4j.jsolex.processing.params.VideoParams;
 import me.champeau.a4j.jsolex.processing.sun.workflow.GeneratedImageKind;
+import me.champeau.a4j.jsolex.processing.util.ImageFormat;
 import me.champeau.a4j.math.tuples.DoublePair;
 import me.champeau.a4j.ser.ColorMode;
 import me.champeau.a4j.ser.Header;
 
 import java.io.IOException;
 import java.time.ZonedDateTime;
+import java.util.EnumSet;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -82,6 +84,12 @@ public class ProcessParamsController {
     private CheckBox generateDebugImages;
     @FXML
     private CheckBox generateFits;
+    @FXML
+    private CheckBox generatePng;
+    @FXML
+    private CheckBox generateJpg;
+    @FXML
+    private CheckBox generateTif;
     @FXML
     private CheckBox horizontalMirror;
     @FXML
@@ -132,9 +140,12 @@ public class ProcessParamsController {
         instrument.textProperty().setValue(initialProcessParams.observationDetails().instrument());
         telescope.textProperty().setValue(initialProcessParams.observationDetails().telescope());
         camera.textProperty().setValue(initialProcessParams.observationDetails().camera());
-        generateDebugImages.setSelected(initialProcessParams.debugParams().generateDebugImages());
-        generateFits.setSelected(initialProcessParams.debugParams().generateFits());
-        autoSave.setSelected(initialProcessParams.debugParams().autosave());
+        generateDebugImages.setSelected(initialProcessParams.extraParams().generateDebugImages());
+        generateFits.setSelected(initialProcessParams.extraParams().imageFormats().contains(ImageFormat.FITS));
+        generateJpg.setSelected(initialProcessParams.extraParams().imageFormats().contains(ImageFormat.JPG));
+        generatePng.setSelected(initialProcessParams.extraParams().imageFormats().contains(ImageFormat.PNG));
+        generateTif.setSelected(initialProcessParams.extraParams().imageFormats().contains(ImageFormat.TIF));
+        autoSave.setSelected(initialProcessParams.extraParams().autosave());
         focalLength.setTextFormatter(new TextFormatter<>(new IntegerStringConverter()));
         aperture.setTextFormatter(new TextFormatter<>(new IntegerStringConverter()));
         var length = initialProcessParams.observationDetails().focalLength();
@@ -178,7 +189,7 @@ public class ProcessParamsController {
         namingPattern.getItems().addAll(patterns);
         if (!patterns.isEmpty()) {
             namingPattern.getSelectionModel().selectFirst();
-            var pattern = initialProcessParams.debugParams().fileNamePattern();
+            var pattern = initialProcessParams.extraParams().fileNamePattern();
             if (pattern != null) {
                 patterns.stream()
                         .filter(p -> p.pattern().equals(pattern))
@@ -260,6 +271,23 @@ public class ProcessParamsController {
         var longitude = this.longitude.getText();
         var geo = toDoublePair(latitude, longitude);
         var debugImagesRequested = requestedImages.isEnabled(GeneratedImageKind.DEBUG);
+        var imageFormats = EnumSet.noneOf(ImageFormat.class);
+        if (generatePng.isSelected()) {
+            imageFormats.add(ImageFormat.PNG);
+        }
+        if (generateJpg.isSelected()) {
+            imageFormats.add(ImageFormat.JPG);
+        }
+        if (generateTif.isSelected()) {
+            imageFormats.add(ImageFormat.TIF);
+        }
+        if (generateFits.isSelected()) {
+            imageFormats.add(ImageFormat.FITS);
+        }
+        if (imageFormats.isEmpty()) {
+            // minimally add PNG
+            imageFormats.add(ImageFormat.PNG);
+        }
         processParams = new ProcessParams(
                 new SpectrumParams(wavelength.getValue(), getPixelShiftAsInt(), (int) Math.round(dopplerShifting.getValue()), switchRedBlueChannels.isSelected()),
                 new ObservationDetails(
@@ -272,7 +300,7 @@ public class ProcessParamsController {
                         geo,
                         ZonedDateTime.parse(observationDate.getText()),
                         camera.getText()),
-                new DebugParams(generateDebugImages.isSelected() || debugImagesRequested, autoSave.isSelected(), generateFits.isSelected(), namingPattern.getSelectionModel().getSelectedItem().pattern()),
+                new ExtraParams(generateDebugImages.isSelected() || debugImagesRequested, autoSave.isSelected(), imageFormats, namingPattern.getSelectionModel().getSelectedItem().pattern()),
                 new VideoParams(assumeMonoVideo.isSelected() ? ColorMode.MONO : null),
                 new GeometryParams(
                         forceTilt.isSelected() ? Double.parseDouble(tiltValue.getText()) : null,

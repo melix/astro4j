@@ -121,7 +121,7 @@ public class SolexVideoProcessor implements Broadcaster {
     public void process() {
         mainForkJoinContext.setUncaughtExceptionHandler((t, e) -> broadcastError(e));
         ioForkJoinContext.setUncaughtExceptionHandler((t, e) -> broadcastError(e));
-        if (processParams.debugParams().autosave()) {
+        if (processParams.extraParams().autosave()) {
             File configFile = outputDirectory.resolve("config.json").toFile();
             processParams.saveTo(configFile);
         }
@@ -157,7 +157,7 @@ public class SolexVideoProcessor implements Broadcaster {
     private void maybeUpdateProcessParams(Header header) {
         if (batchMode) {
             processParams = processParams.withDebugParams(
-                    processParams.debugParams().withAutosave(true)
+                    processParams.extraParams().withAutosave(true)
             ).withObservationDetails(
                     processParams.observationDetails().withDate(header.metadata().utcDateTime())
             );
@@ -172,7 +172,7 @@ public class SolexVideoProcessor implements Broadcaster {
     private void generateImages(ImageConverter<float[]> converter, SerFileReader reader, int start, int end, float[] averageImage) {
         List<WorkflowState> imageList = new ArrayList<>();
         var imageNamingStrategy = new FileNamingStrategy(
-                processParams.debugParams().fileNamePattern(),
+                processParams.extraParams().fileNamePattern(),
                 processingDate,
                 reader.header()
         );
@@ -203,9 +203,9 @@ public class SolexVideoProcessor implements Broadcaster {
                 } catch (Exception e) {
                     throw new RuntimeException(e);
                 }
-                blocking.blocking(context -> {
+                blocking.blocking(buildImagesContext -> {
                     for (WorkflowState state : imageList) {
-                        context.async(() -> {
+                        buildImagesContext.async(() -> {
                             var rotateLeft = ImageMath.newInstance().rotateLeft(new Image(width, newHeight, state.reconstructed()));
                             var rotated = ImageWrapper32.fromImage(rotateLeft);
                             maybePerformFlips(rotated);
@@ -266,9 +266,9 @@ public class SolexVideoProcessor implements Broadcaster {
                         var workflow = new ProcessingWorkflow(this, outputDirectory, context, imageList, step, processParams, fps.orElse(null), imageEmitterFactory);
                         workflow.start();
                     }
-                    blocking.blocking(() -> {
+                    blocking.blocking(imageMathContext -> {
                         var mathImages = processParams.requestedImages().mathImages();
-                        generateImageMaths(blocking, imageNamingStrategy, baseName, imageList, mathImages);
+                        generateImageMaths(imageMathContext, imageNamingStrategy, baseName, imageList, mathImages);
                     });
                 });
             } else {
@@ -419,7 +419,7 @@ public class SolexVideoProcessor implements Broadcaster {
         SpectrumFrameAnalyzer analyzer = new SpectrumFrameAnalyzer(width, height, 5000d);
         analyzer.analyze(averageImage);
         var result = analyzer.findDistortionPolynomial();
-        if (processParams.debugParams().generateDebugImages()) {
+        if (processParams.extraParams().generateDebugImages()) {
             var emitter = new DiscardNonRequiredImages(new NamingStrategyAwareImageEmitter(
                     new DefaultImageEmitter(this, mainForkJoinContext, outputDirectory.toFile()),
                     imageNamingStrategy,
@@ -464,7 +464,7 @@ public class SolexVideoProcessor implements Broadcaster {
             lastY = yi;
         }
         if (!internal) {
-            broadcast(new PartialReconstructionEvent(new ImageLine(pixelShift, offset / width, totalLines, line, processParams.debugParams().generateDebugImages() && processParams.requestedImages().isEnabled(GeneratedImageKind.RECONSTRUCTION))));
+            broadcast(new PartialReconstructionEvent(new ImageLine(pixelShift, offset / width, totalLines, line, processParams.extraParams().generateDebugImages() && processParams.requestedImages().isEnabled(GeneratedImageKind.RECONSTRUCTION))));
         }
     }
 

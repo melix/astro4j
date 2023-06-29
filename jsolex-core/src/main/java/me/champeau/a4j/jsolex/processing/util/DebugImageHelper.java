@@ -37,7 +37,7 @@ public class DebugImageHelper {
                                              ImageWrapper32 bandingFixed,
                                              Ellipse ellipse,
                                              Point2D... interestPoints) {
-        if (processParams.debugParams().generateDebugImages()) {
+        if (processParams.extraParams().generateDebugImages()) {
             var newData = new float[bandingFixed.data().length];
             var original = bandingFixed.data();
             System.arraycopy(original, 0, newData, 0, newData.length);

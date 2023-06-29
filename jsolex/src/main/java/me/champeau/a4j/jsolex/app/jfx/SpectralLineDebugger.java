@@ -38,6 +38,7 @@ import me.champeau.a4j.jsolex.processing.stretching.ArcsinhStretchingStrategy;
 import me.champeau.a4j.jsolex.processing.sun.ImageUtils;
 import me.champeau.a4j.jsolex.processing.sun.MagnitudeBasedSunEdgeDetector;
 import me.champeau.a4j.jsolex.processing.sun.SpectrumFrameAnalyzer;
+import me.champeau.a4j.jsolex.processing.util.ImageFormat;
 import me.champeau.a4j.jsolex.processing.util.SpectralLineFrameImageCreator;
 import me.champeau.a4j.math.Point2D;
 import me.champeau.a4j.math.tuples.DoubleTriplet;
@@ -49,6 +50,7 @@ import me.champeau.a4j.ser.bayer.ImageConverter;
 import java.io.File;
 import java.nio.file.Files;
 import java.util.ArrayList;
+import java.util.EnumSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
@@ -230,7 +232,7 @@ public class SpectralLineDebugger {
         }
         var creator = new SpectralLineFrameImageCreator(analyzer, buffer, width, height);
         var rgb = creator.generateDebugImage(lockedPolynomial);
-        ImageUtils.writeRgbImage(rgb.width(), rgb.height(), rgb.r(), rgb.g(), rgb.b(), imageFile);
+        ImageUtils.writeRgbImage(rgb.width(), rgb.height(), rgb.r(), rgb.g(), rgb.b(), imageFile, EnumSet.of(ImageFormat.PNG));
         image = new Image(imageFile.toURI().toString());
         canvas.setWidth(image.getWidth());
         canvas.setHeight(image.getHeight());

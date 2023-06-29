@@ -19,7 +19,7 @@ import ch.qos.logback.classic.Level;
 import io.micronaut.configuration.picocli.PicocliRunner;
 import io.micronaut.core.annotation.ReflectiveAccess;
 import me.champeau.a4j.jsolex.processing.params.BandingCorrectionParams;
-import me.champeau.a4j.jsolex.processing.params.DebugParams;
+import me.champeau.a4j.jsolex.processing.params.ExtraParams;
 import me.champeau.a4j.jsolex.processing.params.GeometryParams;
 import me.champeau.a4j.jsolex.processing.params.ObservationDetails;
 import me.champeau.a4j.jsolex.processing.params.ProcessParams;
@@ -27,6 +27,7 @@ import me.champeau.a4j.jsolex.processing.params.SpectralRay;
 import me.champeau.a4j.jsolex.processing.params.SpectrumParams;
 import me.champeau.a4j.jsolex.processing.sun.SolexVideoProcessor;
 import me.champeau.a4j.jsolex.processing.util.ForkJoinParallelExecutor;
+import me.champeau.a4j.jsolex.processing.util.ImageFormat;
 import me.champeau.a4j.jsolex.processing.util.ProcessingException;
 import me.champeau.a4j.math.tuples.DoublePair;
 import org.slf4j.Logger;
@@ -42,6 +43,7 @@ import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.util.ArrayList;
+import java.util.Set;
 
 
 @Command(name = "jsolex", description = "Sol'Ex spectroheliograph video processing",
@@ -102,7 +104,7 @@ public class Main implements Runnable {
         }
         processParams = processParams.withSpectrumParams(spectrumOptions.applyTo(processParams.spectrumParams()));
         processParams = processParams.withObservationDetails(observationOptions.applyTo(processParams.observationDetails()));
-        processParams = processParams.withDebugParams(miscOptions.applyTo(processParams.debugParams()).withAutosave(true));
+        processParams = processParams.withDebugParams(miscOptions.applyTo(processParams.extraParams()).withAutosave(true));
         processParams = processParams.withGeometryParams(geometryOptions.applyTo(processParams.geometryParams()));
         processParams = processParams.withBandingCorrectionParams(bandingCorrectionOptions.applyTo(processParams.bandingCorrectionParams()));
         LOGGER.info("Processing parameters: {}", processParams);
@@ -245,7 +247,7 @@ public class Main implements Runnable {
         }
     }
 
-    static class MiscOptions implements OptionsConfigurer<DebugParams> {
+    static class MiscOptions implements OptionsConfigurer<ExtraParams> {
         @Option(names = {"--debug"}, description = "Generate debug images", negatable = true)
         Boolean debugImages;
 
@@ -253,13 +255,13 @@ public class Main implements Runnable {
         Boolean generateFits;
 
         @Override
-        public DebugParams applyTo(DebugParams params) {
+        public ExtraParams applyTo(ExtraParams params) {
             var result = params;
             if (debugImages != null) {
                 result = result.withGenerateDebugImages(debugImages);
             }
             if (generateFits != null) {
-                result = result.withGenerateFits(generateFits);
+                result = result.withImageFormats(Set.of(ImageFormat.FITS, ImageFormat.PNG));
             }
             return result;
         }

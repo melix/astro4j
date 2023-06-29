@@ -47,14 +47,13 @@ class SpectrumFrameAnalyzerTest extends Specification {
         analyzer.rightSunBorder().get() == 1703
 
         and:
+        def polynomial = analyzer.findDistortionPolynomial()
+        polynomial.present
         def samples = analyzer.samplePoints
         samples.size() == 187
         samples[120].x() == 1170
         samples[120].y() == 17
 
-        and:
-        def polynomial = analyzer.findDistortionPolynomial()
-        polynomial.present
         def p = polynomial.get()
         for (int x = 0; x < image.width; x++) {
             def y = p.a() * x * x + p.b() * x + p.c()

@@ -21,7 +21,7 @@ import java.util.Optional;
 public record ProcessParams(
         SpectrumParams spectrumParams,
         ObservationDetails observationDetails,
-        DebugParams debugParams,
+        ExtraParams extraParams,
         VideoParams videoParams,
         GeometryParams geometryParams,
         BandingCorrectionParams bandingCorrectionParams,
@@ -47,7 +47,7 @@ public record ProcessParams(
         return new ProcessParams(
                 spectrumParams,
                 observationDetails,
-                debugParams,
+                extraParams,
                 videoParams,
                 new GeometryParams(tilt, xyRatio, geometryParams().isHorizontalMirror(), geometryParams().isVerticalMirror(), geometryParams.isSharpen()),
                 bandingCorrectionParams,
@@ -59,7 +59,7 @@ public record ProcessParams(
         return new ProcessParams(
                 spectrumParams,
                 observationDetails,
-                debugParams,
+                extraParams,
                 videoParams,
                 geometryParams,
                 bandingCorrectionParams,
@@ -71,7 +71,7 @@ public record ProcessParams(
         return new ProcessParams(
                 spectrumParams,
                 observationDetails,
-                debugParams,
+                extraParams,
                 videoParams,
                 geometryParams,
                 bandingCorrectionParams,
@@ -79,7 +79,7 @@ public record ProcessParams(
         );
     }
 
-    public ProcessParams withDebugParams(DebugParams debugParams) {
+    public ProcessParams withDebugParams(ExtraParams debugParams) {
         return new ProcessParams(
                 spectrumParams,
                 observationDetails,
@@ -95,7 +95,7 @@ public record ProcessParams(
         return new ProcessParams(
                 spectrumParams,
                 observationDetails,
-                debugParams,
+                extraParams,
                 videoParams,
                 geometryParams,
                 bandingCorrectionParams,
@@ -107,7 +107,7 @@ public record ProcessParams(
         return new ProcessParams(
                 spectrumParams,
                 observationDetails,
-                debugParams,
+                extraParams,
                 videoParams,
                 geometryParams,
                 bandingCorrectionParams,
@@ -119,7 +119,7 @@ public record ProcessParams(
         return new ProcessParams(
                 spectrumParams,
                 observationDetails,
-                debugParams,
+                extraParams,
                 videoParams,
                 geometryParams,
                 bandingCorrectionParams,
@@ -131,7 +131,7 @@ public record ProcessParams(
         return new ProcessParams(
                 spectrumParams,
                 observationDetails,
-                debugParams,
+                extraParams,
                 videoParams,
                 geometryParams,
                 bandingCorrectionParams,

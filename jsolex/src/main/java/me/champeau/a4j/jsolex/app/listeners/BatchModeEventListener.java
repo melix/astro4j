@@ -116,7 +116,7 @@ public class BatchModeEventListener implements ProcessingEventListener {
     private void maybeWriteLogs() {
         if (item.log().length() > 0 && header != null) {
             var namingStrategy = new FileNamingStrategy(
-                    processParams.debugParams().fileNamePattern(),
+                    processParams.extraParams().fileNamePattern(),
                     processingDate,
                     header
             );

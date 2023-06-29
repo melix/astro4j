@@ -1,0 +1,42 @@
+name: Publish documentation
+on:
+  push:
+    branches:
+      - main
+jobs:
+  generate_documentation:
+    runs-on: ubuntu-18.04
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 1
+          ssh-key: "${{ secrets.SSH_PRIVATE_KEY }}"
+      - uses: graalvm/setup-graalvm@v1
+        with:
+          version: '22.3.0'
+          java-version: '17'
+          components: 'native-image'
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          native-image-job-reports: 'true'
+      - uses: gradle/wrapper-validation-action@v1
+      - name: Setup Gradle
+        uses: gradle/gradle-build-action@v2
+      - name: Setup git
+        env:
+          GIT_SSH_COMMAND: "ssh -o StrictHostKeyChecking=no"
+          SSH_PRIVATE_KEY: "${{ secrets.SSH_PRIVATE_KEY }}"
+        run: |
+          mkdir -p ~/.ssh
+          echo "$SSH_PRIVATE_KEY" > ~/.ssh/id_rsa
+          chmod 700 -R ~/.ssh
+          eval "$(ssh-agent -s)"
+          ssh-add
+          ssh git@github.com || true
+          git config --global user.name 'GitHub bot'
+          git config --global user.email 'melix@users.noreply.github.com'
+      - uses: actions/setup-java@v1
+        with:
+          java-version: 17
+      - uses: gradle/gradle-build-action@v2
+        with:
+          arguments: :docs:gitPublishPush

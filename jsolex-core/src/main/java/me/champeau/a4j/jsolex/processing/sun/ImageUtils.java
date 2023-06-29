@@ -17,6 +17,7 @@ package me.champeau.a4j.jsolex.processing.sun;
 
 import me.champeau.a4j.jsolex.processing.color.ColorCurve;
 import me.champeau.a4j.jsolex.processing.stretching.LinearStrechingStrategy;
+import me.champeau.a4j.jsolex.processing.util.ImageFormat;
 import me.champeau.a4j.jsolex.processing.util.ProcessingException;
 import me.champeau.a4j.ser.ColorMode;
 import me.champeau.a4j.ser.EightBitConversionSupport;
@@ -31,7 +32,9 @@ import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
+import java.util.Arrays;
 import java.util.List;
+import java.util.Set;
 
 import static me.champeau.a4j.ser.bayer.BayerMatrixSupport.GREEN;
 
@@ -46,8 +49,8 @@ public class ImageUtils {
             int width,
             int height,
             float[] data,
-            File outputFile
-    ) {
+            File outputFile,
+            Set<ImageFormat> imageFormats) {
         var image = new BufferedImage(width, height, BufferedImage.TYPE_BYTE_GRAY);
         byte[] converted = EightBitConversionSupport.to8BitImage(data);
         int[] rgb = new int[width * height];
@@ -58,18 +61,30 @@ public class ImageUtils {
             }
         }
         image.setRGB(0, 0, width, height, rgb, 0, width);
+        writeAllFormats(outputFile, imageFormats, image);
+    }
+
+    private static void writeAllFormats(File outputFile, Set<ImageFormat> imageFormats, BufferedImage image) {
         try {
             createDirectoryFor(outputFile);
-            String format = findFormatFrom(outputFile);
-            ImageIO.write(image, format, outputFile);
+            var baseName = baseNameOf(outputFile);
+            for (ImageFormat format : imageFormats) {
+                if (format.equals(ImageFormat.FITS)) {
+                    continue;
+                }
+                ImageIO.write(image, format.name().toLowerCase(), new File(outputFile.getParentFile(), baseName + format.extension()));
+            }
         } catch (IOException e) {
             throw new ProcessingException(e);
         }
     }
 
-    private static String findFormatFrom(File outputFile) {
+    private static String baseNameOf(File outputFile) {
         String fileName = outputFile.getName();
-        return EXTENSIONS.stream().filter(e -> fileName.endsWith("." + e)).findFirst().orElse("png");
+        if (Arrays.stream(ImageFormat.values()).anyMatch(imageFormat -> outputFile.getName().endsWith(imageFormat.extension()))) {
+            return fileName.substring(0, fileName.lastIndexOf("."));
+        }
+        return fileName;
     }
 
     private static void createDirectoryFor(File outputFile) throws IOException {
@@ -83,7 +98,8 @@ public class ImageUtils {
             float[] r,
             float[] g,
             float[] b,
-            File outputFile
+            File outputFile,
+            Set<ImageFormat> imageFormats
     ) {
         var image = new BufferedImage(width, height, BufferedImage.TYPE_INT_RGB);
         for (int x = 0; x < width; x++) {
@@ -97,13 +113,7 @@ public class ImageUtils {
                 image.setRGB(x, y, rv << 16 | gv << 8 | bv);
             }
         }
-        try {
-            createDirectoryFor(outputFile);
-            String format = findFormatFrom(outputFile);
-            ImageIO.write(image, format, outputFile);
-        } catch (IOException e) {
-            throw new ProcessingException(e);
-        }
+        writeAllFormats(outputFile, imageFormats, image);
     }
 
     public static ImageConverter<float[]> createImageConverter(ColorMode colorMode) {

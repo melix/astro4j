@@ -108,7 +108,7 @@ public class EllipseFittingTask extends AbstractTask<EllipseFittingTask.Result> 
         LOGGER.debug("{}", ellipse);
         broadcaster.broadcast(ProgressEvent.of(1, fittingEllipseMessage));
         var result = new Result(ellipse, samples);
-        if (processParams != null && processParams.debugParams().generateDebugImages()) {
+        if (processParams != null && processParams.extraParams().generateDebugImages()) {
             produceEdgeDetectionImage(result, ImageWrapper32.fromImage(workingImage));
         }
         return result;
