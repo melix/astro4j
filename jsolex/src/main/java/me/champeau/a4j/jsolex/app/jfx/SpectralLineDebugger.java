@@ -33,6 +33,7 @@ import javafx.scene.paint.Color;
 import javafx.stage.Screen;
 import javafx.stage.Stage;
 import javafx.util.Duration;
+import me.champeau.a4j.jsolex.app.JSolEx;
 import me.champeau.a4j.jsolex.processing.stretching.ArcsinhStretchingStrategy;
 import me.champeau.a4j.jsolex.processing.sun.ImageUtils;
 import me.champeau.a4j.jsolex.processing.sun.MagnitudeBasedSunEdgeDetector;
@@ -90,7 +91,7 @@ public class SpectralLineDebugger {
     private Image image;
     private Point2D p1;
     private Point2D p2;
-    private final List<Point2D> samplePoints = new ArrayList<Point2D>();
+    private final List<Point2D> samplePoints = new ArrayList<>();
     private final List<Double> sampleDistances = new ArrayList<>();
 
     private DoubleUnaryOperator polynomial;
@@ -244,11 +245,12 @@ public class SpectralLineDebugger {
                 sampleDistances.add(dist);
                 samplePoints.add(new Point2D(x,y));
                 double avgDist = computeAverageDistanceToSpectralLineFromSamples();
-                info.setText("Average distance to spectral line " + Math.round(avgDist));
+                info.setText(localized("average.distance.spectral.line") + " " + Math.round(avgDist));
                 redraw();
                 return;
             }
             sampleDistances.clear();
+            samplePoints.clear();
             if (p1 == null) {
                 p1 = new Point2D(x, y);
                 sampleDistances.add(dist);
@@ -266,7 +268,7 @@ public class SpectralLineDebugger {
             var y = evt.getY();
             var sb = new StringBuilder();
             double dist = computeDistanceToSpectralLine(detectedPolynomial, x, y);
-            info.setText("Distance to spectral line " + Math.round(dist));
+            info.setText(localized("distance.spectral.line") + " " + Math.round(dist));
             double avgDist = computeAverageDistanceToSpectralLineFromSamples();
             sb.append("(").append(format(x)).append(",").append(format(y)).append(",").append(format(dist)).append(",").append(format(avgDist)).append(")");
             if (p1 != null) {
@@ -310,5 +312,9 @@ public class SpectralLineDebugger {
         graphicsContext.setStroke(color);
         graphicsContext.setLineWidth(4);
         graphicsContext.strokeLine(p1.x(), p1.y(), cur.x(), cur.y());
+    }
+
+    private static String localized(String key) {
+        return I18N.string(JSolEx.class, "frame-debugger", key);
     }
 }
