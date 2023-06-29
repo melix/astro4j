@@ -31,10 +31,13 @@ import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
+import java.util.List;
 
 import static me.champeau.a4j.ser.bayer.BayerMatrixSupport.GREEN;
 
 public class ImageUtils {
+    private static final List<String> EXTENSIONS = List.of("png", "jpg", "tif");
+
     private ImageUtils() {
 
     }
@@ -57,10 +60,16 @@ public class ImageUtils {
         image.setRGB(0, 0, width, height, rgb, 0, width);
         try {
             createDirectoryFor(outputFile);
-            ImageIO.write(image, "png", outputFile);
+            String format = findFormatFrom(outputFile);
+            ImageIO.write(image, format, outputFile);
         } catch (IOException e) {
             throw new ProcessingException(e);
         }
+    }
+
+    private static String findFormatFrom(File outputFile) {
+        String fileName = outputFile.getName();
+        return EXTENSIONS.stream().filter(e -> fileName.endsWith("." + e)).findFirst().orElse("png");
     }
 
     private static void createDirectoryFor(File outputFile) throws IOException {
@@ -90,7 +99,8 @@ public class ImageUtils {
         }
         try {
             createDirectoryFor(outputFile);
-            ImageIO.write(image, "png", outputFile);
+            String format = findFormatFrom(outputFile);
+            ImageIO.write(image, format, outputFile);
         } catch (IOException e) {
             throw new ProcessingException(e);
         }
