@@ -165,7 +165,7 @@ public class JSolEx extends Application implements JSolExInterface {
                 pause.playFromStart();
             });
             hideProgress();
-            stage.setTitle("JSol'Ex");
+            stage.setTitle("JSol'Ex " + getVersion());
             stage.setScene(rootScene);
             addIcons(stage);
             stage.show();
@@ -360,12 +360,7 @@ public class JSolEx extends Application implements JSolExInterface {
         var alert = new Alert(Alert.AlertType.INFORMATION);
         alert.setResizable(true);
         alert.getDialogPane().setPrefSize(700, 400);
-        String version = "";
-        try {
-            version = new String(JSolEx.class.getResourceAsStream("/version.txt").readAllBytes(), "utf-8").trim();
-        } catch (IOException e) {
-            version = "unknown";
-        }
+        String version = getVersion();
         alert.setTitle(I18N.string(getClass(), "about", "about.title"));
         alert.setHeaderText(I18N.string(getClass(), "about", "about.header") + ". Version " + version);
         alert.setContentText(I18N.string(getClass(), "about", "about.message"));
@@ -380,6 +375,17 @@ public class JSolEx extends Application implements JSolExInterface {
         scroll.fitToWidthProperty().set(true);
         alert.getDialogPane().setExpandableContent(scroll);
         alert.showAndWait();
+    }
+
+    private static String getVersion() {
+        String version = "";
+        try {
+            version = new String(JSolEx.class.getResourceAsStream("/version.txt").readAllBytes(), "utf-8").trim();
+            version = version.substring(0, version.indexOf("-SNAPSHOT"));
+        } catch (IOException e) {
+            version = "unknown";
+        }
+        return version;
     }
 
     private void doOpen(File selectedFile) {
