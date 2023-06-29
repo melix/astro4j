@@ -314,7 +314,8 @@ public class SolexVideoProcessor implements Broadcaster {
                     broadcast(ProgressEvent.of(0, "Running script " + scriptFile.getName()));
                     var scriptRunner = new DefaultImageScriptExecutor(images::get, Map.of(
                             Ellipse.class, circle,
-                            ImageStats.class, finalImageStats));
+                            ImageStats.class, finalImageStats),
+                            this);
                     try {
                         var result = scriptRunner.execute(scriptFile.toPath());
                         ImageMathScriptExecutor.render(result, emitter);

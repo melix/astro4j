@@ -223,7 +223,7 @@ RaieHelium = -85
 ContinuumLo=-80
 ContinuumHi=-70
 # Coefficient d'application du continuum
-ContinuumCoef=0.85
+ContinuumCoef=0.95
 # Stretch de l'image
 Stretch=10
 # Largeur de correction de bande
@@ -234,7 +234,7 @@ BandIterations=10
 ## Variables temporaires
 [tmp]
 continuum = max(range(ContinuumLo,ContinuumHi))
-helium_raw = img(RaieHelium) - ContinuumCoef*continuum
+helium_raw = autocrop(img(RaieHelium) - ContinuumCoef*continuum)
 
 ## Maintenant les images !
 [outputs]

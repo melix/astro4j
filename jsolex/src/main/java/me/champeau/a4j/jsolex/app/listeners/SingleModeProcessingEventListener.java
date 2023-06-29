@@ -35,14 +35,17 @@ import me.champeau.a4j.jsolex.processing.event.NotificationEvent;
 import me.champeau.a4j.jsolex.processing.event.OutputImageDimensionsDeterminedEvent;
 import me.champeau.a4j.jsolex.processing.event.PartialReconstructionEvent;
 import me.champeau.a4j.jsolex.processing.event.ProcessingDoneEvent;
+import me.champeau.a4j.jsolex.processing.event.ProcessingEvent;
 import me.champeau.a4j.jsolex.processing.event.ProcessingEventListener;
 import me.champeau.a4j.jsolex.processing.event.ProcessingStartEvent;
 import me.champeau.a4j.jsolex.processing.event.ProgressEvent;
 import me.champeau.a4j.jsolex.processing.event.SuggestionEvent;
+import me.champeau.a4j.jsolex.processing.event.VideoMetadataEvent;
 import me.champeau.a4j.jsolex.processing.expr.DefaultImageScriptExecutor;
 import me.champeau.a4j.jsolex.processing.expr.ImageMathScriptExecutor;
 import me.champeau.a4j.jsolex.processing.expr.ImageMathScriptResult;
 import me.champeau.a4j.jsolex.processing.params.ProcessParams;
+import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
 import me.champeau.a4j.jsolex.processing.sun.workflow.ImageEmitter;
 import me.champeau.a4j.jsolex.processing.sun.workflow.ImageStats;
 import me.champeau.a4j.math.regression.Ellipse;
@@ -58,7 +61,7 @@ import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 
-public class SingleModeProcessingEventListener implements ProcessingEventListener, ImageMathScriptExecutor {
+public class SingleModeProcessingEventListener implements ProcessingEventListener, ImageMathScriptExecutor, Broadcaster {
     private static final Logger LOGGER = LoggerFactory.getLogger(SingleModeProcessingEventListener.class);
 
     private final Map<SuggestionEvent.SuggestionKind, String> suggestions = Collections.synchronizedMap(new LinkedHashMap<>());
@@ -74,7 +77,6 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
     private long ed;
     private int width;
     private int height;
-    private ProcessParams processParams;
 
     public SingleModeProcessingEventListener(JSolExInterface owner, String baseName, ProcessParams params) {
         this.owner = owner;
@@ -215,7 +217,6 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
     public void onProcessingStart(ProcessingStartEvent e) {
         var payload = e.getPayload();
         sd = payload.timestamp();
-        processParams = payload.params();
     }
 
     @Override
@@ -226,7 +227,8 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
                 Map.of(
                         Ellipse.class, payload.ellipse(),
                         ImageStats.class, payload.imageStats()
-                )
+                ),
+                this
         );
         ed = payload.timestamp();
         var duration = java.time.Duration.ofNanos(ed - sd);
@@ -286,5 +288,30 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
             )));
         }
         return result;
+    }
+
+    @Override
+    public void broadcast(ProcessingEvent<?> event) {
+        if (event instanceof OutputImageDimensionsDeterminedEvent e) {
+            onOutputImageDimensionsDetermined(e);
+        } else if (event instanceof PartialReconstructionEvent e) {
+            onPartialReconstruction(e);
+        } else if (event instanceof ImageGeneratedEvent e) {
+            onImageGenerated(e);
+        } else if (event instanceof NotificationEvent e) {
+            onNotification(e);
+        } else if (event instanceof SuggestionEvent e) {
+            onSuggestion(e);
+        } else if (event instanceof ProcessingStartEvent e) {
+            onProcessingStart(e);
+        } else if (event instanceof ProcessingDoneEvent e) {
+            onProcessingDone(e);
+        } else if (event instanceof ProgressEvent e) {
+            onProgress(e);
+        } else if (event instanceof DebugEvent<?> e) {
+            onDebug(e);
+        } else if (event instanceof VideoMetadataEvent e) {
+            onVideoMetadataAvailable(e);
+        }
     }
 }

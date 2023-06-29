@@ -93,7 +93,9 @@ import static me.champeau.a4j.jsolex.processing.util.LoggingSupport.logError;
 
 public class JSolEx extends Application implements JSolExInterface {
     private static final Logger LOGGER = LoggerFactory.getLogger(JSolEx.class);
-    public static final FileChooser.ExtensionFilter SER_FILES_EXTENSION_FILTER = new FileChooser.ExtensionFilter("SER files", "*.ser");
+    private static final String LOG_EXTENSION = ".log";
+    private static final FileChooser.ExtensionFilter LOG_FILE_EXTENSION_FILTER = new FileChooser.ExtensionFilter("Log files (*" + LOG_EXTENSION + ")", "*" + LOG_EXTENSION);
+    private static final FileChooser.ExtensionFilter SER_FILES_EXTENSION_FILTER = new FileChooser.ExtensionFilter("SER files", "*.ser");
 
     private ForkJoinParallelExecutor cpuExecutor;
     private ForkJoinParallelExecutor ioExecutor;
@@ -248,7 +250,10 @@ public class JSolEx extends Application implements JSolExInterface {
     @Override
     public void prepareForScriptExecution(ImageMathScriptExecutor executor, ProcessParams params) {
         imageMathPane.setDisable(false);
-        imageMathRun.setOnAction(evt -> executor.execute(imageMathScript.getText()));
+        imageMathRun.setOnAction(evt -> {
+            var text = imageMathScript.getText();
+            cpuExecutor.async(() -> executor.execute(text));
+        });
         imageMathSave.setDisable(true);
         imageMathLoad.setOnAction(evt -> {
             var fileChooser = new FileChooser();
@@ -551,10 +556,10 @@ public class JSolEx extends Application implements JSolExInterface {
                 );
                 var outputDirectory = selectedFile.getParentFile();
                 var baseName = selectedFile.getName().substring(0, selectedFile.getName().lastIndexOf("."));
-                var logFileName = namingStrategy.render(sequenceNumber, "log", "log", baseName) + ".log";
+                var logFileName = namingStrategy.render(sequenceNumber, "log", "log", baseName) + LOG_EXTENSION;
                 var logFile = new File(outputDirectory, logFileName);
                 // For the log file we cannot _fully_ use the pattern since some data is not yet available (the file header)
-                logFile = new File(logFile.getParentFile(), String.format("%04d_%s.log", sequenceNumber, baseName));
+                logFile = new File(logFile.getParentFile(), String.format("%04d_%s" + LOG_EXTENSION, sequenceNumber, baseName));
                 if (context instanceof BatchProcessingContext ctx) {
                     ctx.items().get(sequenceNumber).generatedFiles().add(logFile);
                 }
@@ -614,6 +619,23 @@ public class JSolEx extends Application implements JSolExInterface {
     @FXML
     private void exit() {
         System.exit(0);
+    }
+
+    @FXML
+    private void saveLog() throws IOException {
+        var saveWindow = new FileChooser();
+        saveWindow.getExtensionFilters().add(LOG_FILE_EXTENSION_FILTER);
+        var file = saveWindow.showSaveDialog(rootStage);
+        if (file != null) {
+            if (!file.getName().endsWith(LOG_EXTENSION)) {
+                file = new File(file.getParentFile(), file.getName() + LOG_EXTENSION);
+            }
+            Files.writeString(file.toPath(), console.getText(), StandardCharsets.UTF_8, StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING);
+        }
+    }
+
+    @FXML void clearLog() {
+        console.clear();
     }
 
     public static String message(String label) {

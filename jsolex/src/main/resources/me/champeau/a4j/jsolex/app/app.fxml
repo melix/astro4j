@@ -37,38 +37,47 @@
     <center>
         <SplitPane dividerPositions="0.7">
             <TabPane fx:id="mainPane" prefWidth="400.0" />
-         <SplitPane dividerPositions="0.5" orientation="VERTICAL">
-            <items>
-                  <TextArea fx:id="console" editable="false" wrapText="true" />
-               <TitledPane text="%imagemath.script" fx:id="imageMathPane">
-                  <content>
-                     <VBox>
-                        <children>
-                           <TextArea fx:id="imageMathScript" wrapText="true" />
-                           <ButtonBar prefHeight="40.0" prefWidth="200.0">
-                             <buttons>
-                               <Button fx:id="imageMathLoad" mnemonicParsing="false" text="%imagemath.load" />
-                               <Button fx:id="imageMathSave" mnemonicParsing="false" text="%imagemath.save" />
-                               <Button fx:id="imageMathRun" mnemonicParsing="false" text="%imagemath.run" />
-                             </buttons>
-                           </ButtonBar>
-                        </children>
-                     </VBox>
-                  </content>
-               </TitledPane>
-            </items>
-         </SplitPane>
+            <SplitPane dividerPositions="0.5" orientation="VERTICAL">
+                <items>
+                    <VBox>
+                        <ButtonBar>
+                            <buttons>
+                                <Button onAction="#clearLog" text="%clear.log" />
+                                <Button onAction="#saveLog" text="%save.log" />
+                            </buttons>
+                        </ButtonBar>
+                        <TextArea fx:id="console" editable="false" wrapText="true" VBox.vgrow="ALWAYS" />
+                    </VBox>
+                    <TitledPane fx:id="imageMathPane" text="%imagemath.script">
+                        <content>
+                            <VBox>
+                                <children>
+                                    <TextArea fx:id="imageMathScript" wrapText="true" />
+                                    <ButtonBar prefHeight="40.0" prefWidth="200.0">
+                                        <buttons>
+                                            <Button fx:id="imageMathLoad" mnemonicParsing="false" text="%imagemath.load" />
+                                            <Button fx:id="imageMathSave" mnemonicParsing="false" text="%imagemath.save" />
+                                            <Button fx:id="imageMathRun" mnemonicParsing="false" text="%imagemath.run" />
+                                        </buttons>
+                                    </ButtonBar>
+                                </children>
+                            </VBox>
+                        </content>
+                    </TitledPane>
+                </items>
+            </SplitPane>
         </SplitPane>
     </center>
     <bottom>
         <HBox spacing="10.0">
-         <children>
-            <ProgressBar fx:id="progressBar" prefWidth="200.0" progress="0.0" />
-            <Label fx:id="progressLabel" />
-             <HBox fx:id="workButtons" spacing="10.0" />
-         </children>
-         <padding>
-            <Insets bottom="4.0" left="4.0" right="4.0" top="4.0" />
-         </padding></HBox>
+            <children>
+                <ProgressBar fx:id="progressBar" prefWidth="200.0" progress="0.0" />
+                <Label fx:id="progressLabel" />
+                <HBox fx:id="workButtons" spacing="10.0" />
+            </children>
+            <padding>
+                <Insets bottom="4.0" left="4.0" right="4.0" top="4.0" />
+            </padding>
+        </HBox>
     </bottom>
 </BorderPane>
