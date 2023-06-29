@@ -24,6 +24,8 @@ import me.champeau.a4j.jsolex.processing.stretching.ArcsinhStretchingStrategy;
 import me.champeau.a4j.jsolex.processing.stretching.NegativeImageStrategy;
 import me.champeau.a4j.jsolex.processing.sun.BandingReduction;
 import me.champeau.a4j.jsolex.processing.sun.ImageUtils;
+import me.champeau.a4j.jsolex.processing.sun.crop.Cropper;
+import me.champeau.a4j.jsolex.processing.sun.workflow.ImageStats;
 import me.champeau.a4j.jsolex.processing.util.ColorizedImageWrapper;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
@@ -110,7 +112,35 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
             case FIX_BANDING -> fixBanding(arguments);
             case ASINH_STRETCH -> asinhStretch(arguments);
             case COLORIZE -> colorize(arguments);
+            case AUTOCROP -> autocrop(arguments);
         };
+    }
+
+    private Object autocrop(List<Object> arguments) {
+        if (arguments.size() != 1) {
+            throw new IllegalArgumentException("autocrop takes 1 arguments (image(s))");
+        }
+        var arg = arguments.get(0);
+        if (arg instanceof List<?> list) {
+            return list.stream().map(e -> colorize(List.of(e))).toList();
+        }
+        var ellipse = getFromContext(Ellipse.class);
+        var blackpoint = getFromContext(ImageStats.class).map(ImageStats::blackpoint).orElse(0f);
+        if (ellipse.isPresent()) {
+            var circle = ellipse.get();
+            if (arg instanceof ImageWrapper32 mono) {
+                var image = mono.asImage();
+                var cropped = Cropper.cropToSquare(image, circle, blackpoint);
+                return ImageWrapper32.fromImage(cropped);
+            } else if (arg instanceof ColorizedImageWrapper wrapper) {
+                var mono = wrapper.mono();
+                var cropped = Cropper.cropToSquare(mono.asImage(), circle, blackpoint);
+                return new ColorizedImageWrapper(ImageWrapper32.fromImage(cropped), wrapper.converter());
+            }
+            throw new IllegalStateException("Unsupported image type");
+        } else {
+            throw new IllegalStateException("Sun disk not detected, cannot perform autocrop");
+        }
     }
 
     private Object asinhStretch(List<Object> arguments) {

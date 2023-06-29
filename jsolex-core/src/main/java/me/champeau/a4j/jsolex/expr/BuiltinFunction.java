@@ -19,6 +19,7 @@ import java.util.Locale;
 
 public enum BuiltinFunction {
     AVG,
+    AUTOCROP,
     FIX_BANDING,
     IMG,
     INVERT,
