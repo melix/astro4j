@@ -291,7 +291,7 @@ public class JSolEx extends Application implements JSolExInterface {
     private void loadImageMathScriptFrom(File file) {
         if (file != null) {
             try {
-                var script = String.join("\n", Files.readAllLines(file.toPath()));
+                var script = String.join(System.lineSeparator(), Files.readAllLines(file.toPath()));
                 imageMathScript.setText(script);
                 imageMathSave.setDisable(true);
             } catch (IOException e) {
