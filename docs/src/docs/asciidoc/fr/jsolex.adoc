@@ -282,3 +282,65 @@ image::batch-mode-fr.jpg[]
 La liste des fichiers comprend le _fichier de log_ du traitement de ce fichier, ainsi que toutes les images générées pour ce fichier.
 
 NOTE: En mode batch, nous recommendons d'utiliser un <<#modele-noms-fichier,modèle de nom de fichier>> qui met toutes les images dans le même dossier, ce qui rendra plus simple leur exploitation dans un programme tiers.
+
+== Mesures avec le débogueur de spectre
+
+JSol'Ex propose un outil permettant de visualiser la détection des lignes spectrales sur une vidéo.
+Cet outil peut être utilisé pour trouver, par exemple, le décalage de pixels à appliquer pour trouver la raie hélium.
+
+Pour se faire, ouvrez une vidéo en cliquant sur "Outils -> Débogueur de spectre".
+Le logiciel va calculer l'image moyenne pour la vidéo puis vous présenter cette fenêtre:
+
+image::spectral-debug-1-fr.jpg[]
+
+En haut, vous voyez l'image moyenne.
+La ligne rouge correspond à la ligne spectrale détectée.
+Sous la ligne violette s'affiche une image _corrigée en fonction du polynôme_ : ceci vous permet de vérifier facilement si le polynôme est correct: l'image du bas doit avoir des lignes spectrales parfaitement horizontales.
+
+Dans la partie basse de l'interface, vous trouverez:
+
+- le bouton radio "Moyenne / Images" qui permet de basculer entre l'image moyenne et les images individuelles du film SER
+- lorsqu'"Images" est sélectionné, le slider à droite permet de naviguer dans la vidéo
+- le seuil de détection du soleil peut être changé (non recommandé, le logiciel ne permet pas de modifier cette valeur, c'est un mode expert)
+- la case "vérouiller le polynôme" permet de figer la détection de ligne spectrale sur l'image actuelle : elle nous sera utile pour les mesures de distances
+- le slider "contraste" permet d'augmenter le contraste de l'image
+
+=== Application au calcul de décalage de la raie hélium
+
+Nous supposerons ici que notre fichier SER est une vidéo incluant à la fois la raie spectrale Hélium et une autre raie suffisamment sombre pour être bien détectée par JSol'Ex.
+
+Nous pouvons alors procéder par étapes.
+
+- vérouiller le polynôme sur l'image moyenne
+
+image::spectral-debug-2-fr.jpg[]
+
+- sélectionner le mode "Images"
+
+image::spectral-debug-3-fr.jpg[]
+
+- Augmenter le contraste
+
+image::spectral-debug-4-fr.jpg[]
+
+- Choisir une image au bord du limbe
+
+image::spectral-debug-5-fr.jpg[]
+
+Nous pouvons désormais effectuer des mesures.
+Lorsque vous déplacez la souris sur l'image, des coordonnées s'affichent :
+
+image::spectral-debug-6-fr.jpg[]
+
+Les 2 premiers nombres sont les coordonnées (x,y) du point sous le curseur de la souris.
+Le 3ème nombre est celui qui nous intéresse : c'est le décalage en pixels entre le point sous le curseur et la ligne spectrale en rouge.
+
+Le 4ème nombre nous permet d'obtenir une mesure plus précise, en calculant une moyenne sur un nombre d'échantillons.
+
+Pour ajouter un échantillon, trouvez un point sur la raie hélium et appuyez sur "CTRL" tout en cliquant.
+Vous pouvez ajouter autant de points que vous le souhaitez:
+
+image::spectral-debug-7-fr.jpg[]
+
+Le 4ème nombre représente la distance moyenne calculée.
+**Nous en déduisons que le décalage de pixels à appliquer est de -134**.
