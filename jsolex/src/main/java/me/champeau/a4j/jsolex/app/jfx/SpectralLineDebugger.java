@@ -270,12 +270,17 @@ public class SpectralLineDebugger {
             double dist = computeDistanceToSpectralLine(detectedPolynomial, x, y);
             info.setText(localized("distance.spectral.line") + " " + Math.round(dist));
             double avgDist = computeAverageDistanceToSpectralLineFromSamples();
-            sb.append("(").append(format(x)).append(",").append(format(y)).append(",").append(format(dist)).append(",").append(format(avgDist)).append(")");
+            sb.append("(x=").append(format(x)).append(",y=")
+                    .append(format(y)).append(",")
+                    .append(localized("distance.spectral.line.short")).append("=")
+                    .append(format(dist))
+                    .append(",")
+                    .append(localized("distance.spectral.line.avg.short")).append("=")
+                    .append(format(avgDist)).append(")");
             if (p1 != null) {
                 redraw();
                 var cur = p2 != null ? p2 : new Point2D(x, y);
                 drawline(graphicsContext, cur);
-                sb.append(" - dist ").append(format(cur.distanceTo(p1))).append(" pixels");
             }
             info.setText(sb.toString());
         });
