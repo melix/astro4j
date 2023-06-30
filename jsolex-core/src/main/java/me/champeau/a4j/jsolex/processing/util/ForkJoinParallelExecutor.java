@@ -101,6 +101,11 @@ public class ForkJoinParallelExecutor implements AutoCloseable, ForkJoinContext 
     }
 
     @Override
+    public <T, U> Supplier<U> submitAndThen(Callable<T> callable, Function<? super T, U> consumer) {
+        return executionContext.submitAndThen(callable, consumer);
+    }
+
+    @Override
     public void blocking(Runnable r) {
         executionContext.blocking(r);
     }
@@ -184,6 +189,11 @@ public class ForkJoinParallelExecutor implements AutoCloseable, ForkJoinContext 
         }
 
         @Override
+        public <T, U> Supplier<U> submitAndThen(Callable<T> callable, Function<? super T, U> consumer) {
+            return submit(() -> consumer.apply(submit(callable).get()));
+        }
+
+        @Override
         public <T> Supplier<T> forkJoin(Function<? super ForkJoinContext, T> consumer) {
             var context = new ExecutionContext(onTaskStart, onTaskEnd, uncaughtExceptionHandler);
             try {
@@ -204,6 +214,7 @@ public class ForkJoinParallelExecutor implements AutoCloseable, ForkJoinContext 
 
         public void waitFor() {
             lock.lock();
+            semaphore.release();
             try {
                 while (!tasks.isEmpty()) {
                     condition.await();
@@ -211,6 +222,7 @@ public class ForkJoinParallelExecutor implements AutoCloseable, ForkJoinContext 
             } catch (InterruptedException ex) {
                 Thread.currentThread().interrupt();
             } finally {
+                semaphore.acquireUninterruptibly();
                 lock.unlock();
             }
         }
@@ -218,6 +230,7 @@ public class ForkJoinParallelExecutor implements AutoCloseable, ForkJoinContext 
         private <T> Supplier<T> asSupplier(Future<T> future) {
             return () -> {
                 try {
+                    semaphore.release();
                     return future.get();
                 } catch (InterruptedException e) {
                     Thread.currentThread().interrupt();
@@ -229,6 +242,8 @@ public class ForkJoinParallelExecutor implements AutoCloseable, ForkJoinContext 
                         return null;
                     }
                     throw ex;
+                } finally {
+                    semaphore.acquireUninterruptibly();
                 }
             };
         }

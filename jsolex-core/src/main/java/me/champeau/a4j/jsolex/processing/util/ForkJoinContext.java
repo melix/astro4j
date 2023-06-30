@@ -89,9 +89,7 @@ public interface ForkJoinContext {
      * @param <T> the type of the result of the callable
      * @param <U> the type of the result of the computation
      */
-    default <T, U> Supplier<U> submitAndThen(Callable<T> callable, Function<? super T, U> consumer) {
-        return submit(() -> consumer.apply(submit(callable).get()));
-    }
+    <T, U> Supplier<U> submitAndThen(Callable<T> callable, Function<? super T, U> consumer);
 
     /**
      * A convenience method for running blocking code in a new context,

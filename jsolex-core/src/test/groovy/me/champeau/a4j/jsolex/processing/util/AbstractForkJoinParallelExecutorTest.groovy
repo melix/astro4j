@@ -22,9 +22,11 @@ import java.util.concurrent.Callable
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicInteger
 
-class ForkJoinParallelExecutorTest extends Specification {
+abstract class AbstractForkJoinParallelExecutorTest extends Specification {
     @Subject
-    private ForkJoinParallelExecutor executor = ForkJoinParallelExecutor.newExecutor()
+    private ForkJoinParallelExecutor executor = ForkJoinParallelExecutor.newExecutor(maxPermits())
+
+    abstract int maxPermits();
 
     void cleanup() {
         executor.close()
@@ -163,4 +165,23 @@ class ForkJoinParallelExecutorTest extends Specification {
         then:
         captured.size() == 1
     }
+
+    def "in a try-with-resources block executor waits for completion of tasks"() {
+        def b = new AtomicBoolean()
+        try (def executor = ForkJoinParallelExecutor.newExecutor()) {
+            executor.forkJoin {
+                // do not call .get()
+                it.submit {
+                    Thread.sleep(200)
+                    b.set(true)
+                    123
+                }
+                true
+            }
+        }
+
+        expect:
+        b.get()
+    }
+
 }
