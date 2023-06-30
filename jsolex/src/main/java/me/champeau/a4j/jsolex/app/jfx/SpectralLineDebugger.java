@@ -38,6 +38,7 @@ import me.champeau.a4j.jsolex.processing.stretching.ArcsinhStretchingStrategy;
 import me.champeau.a4j.jsolex.processing.sun.ImageUtils;
 import me.champeau.a4j.jsolex.processing.sun.MagnitudeBasedSunEdgeDetector;
 import me.champeau.a4j.jsolex.processing.sun.SpectrumFrameAnalyzer;
+import me.champeau.a4j.jsolex.processing.util.ImageFormat;
 import me.champeau.a4j.jsolex.processing.util.SpectralLineFrameImageCreator;
 import me.champeau.a4j.math.Point2D;
 import me.champeau.a4j.math.tuples.DoubleTriplet;
@@ -49,6 +50,7 @@ import me.champeau.a4j.ser.bayer.ImageConverter;
 import java.io.File;
 import java.nio.file.Files;
 import java.util.ArrayList;
+import java.util.EnumSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
@@ -230,7 +232,7 @@ public class SpectralLineDebugger {
         }
         var creator = new SpectralLineFrameImageCreator(analyzer, buffer, width, height);
         var rgb = creator.generateDebugImage(lockedPolynomial);
-        ImageUtils.writeRgbImage(rgb.width(), rgb.height(), rgb.r(), rgb.g(), rgb.b(), imageFile);
+        ImageUtils.writeRgbImage(rgb.width(), rgb.height(), rgb.r(), rgb.g(), rgb.b(), imageFile, EnumSet.of(ImageFormat.PNG));
         image = new Image(imageFile.toURI().toString());
         canvas.setWidth(image.getWidth());
         canvas.setHeight(image.getHeight());
@@ -270,12 +272,17 @@ public class SpectralLineDebugger {
             double dist = computeDistanceToSpectralLine(detectedPolynomial, x, y);
             info.setText(localized("distance.spectral.line") + " " + Math.round(dist));
             double avgDist = computeAverageDistanceToSpectralLineFromSamples();
-            sb.append("(").append(format(x)).append(",").append(format(y)).append(",").append(format(dist)).append(",").append(format(avgDist)).append(")");
+            sb.append("(x=").append(format(x)).append(",y=")
+                    .append(format(y)).append(",")
+                    .append(localized("distance.spectral.line.short")).append("=")
+                    .append(format(dist))
+                    .append(",")
+                    .append(localized("distance.spectral.line.avg.short")).append("=")
+                    .append(format(avgDist)).append(")");
             if (p1 != null) {
                 redraw();
                 var cur = p2 != null ? p2 : new Point2D(x, y);
                 drawline(graphicsContext, cur);
-                sb.append(" - dist ").append(format(cur.distanceTo(p1))).append(" pixels");
             }
             info.setText(sb.toString());
         });

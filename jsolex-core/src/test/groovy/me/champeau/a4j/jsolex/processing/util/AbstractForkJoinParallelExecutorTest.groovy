@@ -22,9 +22,15 @@ import java.util.concurrent.Callable
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicInteger
 
-class ForkJoinParallelExecutorTest extends Specification {
+abstract class AbstractForkJoinParallelExecutorTest extends Specification {
     @Subject
-    private ForkJoinParallelExecutor executor = ForkJoinParallelExecutor.newExecutor()
+    private ForkJoinParallelExecutor executor = ForkJoinParallelExecutor.newExecutor(maxPermits())
+
+    abstract int maxPermits();
+
+    void cleanup() {
+        executor.close()
+    }
 
     void "can run simple task"() {
         def fut = executor.submit((Callable<Integer>) {
@@ -33,14 +39,12 @@ class ForkJoinParallelExecutorTest extends Specification {
 
         expect:
         fut.get() == 123
-
-        cleanup:
-        executor.close()
     }
 
     void "can fork execution"() {
         when:
-        def result = executor.forkJoin {
+        def result = new AtomicInteger()
+        executor.forkJoin {
             def v1 = it.submit((Callable<Integer>) {
                 Thread.sleep(300)
                 100
@@ -49,7 +53,7 @@ class ForkJoinParallelExecutorTest extends Specification {
                 Thread.sleep(200)
                 23
             })
-            v1.get() + v2.get()
+            result.set(v1.get() + v2.get())
         }
 
         then:
@@ -59,18 +63,20 @@ class ForkJoinParallelExecutorTest extends Specification {
     void "can fork in fork"() {
         def check = new AtomicInteger()
         when:
-        def result = executor.forkJoin {
-            def v1 = it.forkJoin {
+        def result = new AtomicInteger()
+        executor.forkJoin {
+            def r1 = new AtomicInteger()
+            it.forkJoin {
                 Thread.sleep(10)
                 it.submit {
                     Thread.sleep(100)
                     check.incrementAndGet()
                 }
-                it.submit((Callable<Integer>) {
+                r1.set(it.submit((Callable<Integer>) {
                     Thread.sleep(200)
                     check.incrementAndGet()
                     100
-                }).get()
+                }).get())
             }
             def v2 = it.submit((Callable<Integer>) {
                 Thread.sleep(200)
@@ -79,7 +85,7 @@ class ForkJoinParallelExecutorTest extends Specification {
             })
             assert check.get() <= 3
             check.incrementAndGet()
-            v1.get() + v2.get()
+            result.set(r1.get() + v2.get())
         }
 
         then:
@@ -88,9 +94,10 @@ class ForkJoinParallelExecutorTest extends Specification {
     }
 
     void "can chain execution"() {
+        def result = new AtomicInteger()
         when:
-        def result = executor.forkJoin {
-            it.submitAndThen(() -> {
+        executor.forkJoin {
+            result.set(it.submitAndThen(() -> {
                 Thread.sleep(100)
                 100
             }, i -> {
@@ -98,7 +105,7 @@ class ForkJoinParallelExecutorTest extends Specification {
                     Thread.sleep(50)
                     i + 23
                 }).get()
-            }).get()
+            }).get())
         }
 
         then:
@@ -106,7 +113,8 @@ class ForkJoinParallelExecutorTest extends Specification {
     }
 
     void "can add tasks during execution"() {
-        def result = executor.forkJoin { ctx ->
+        def result = new AtomicInteger()
+        executor.forkJoin { ctx ->
             def cpt = new AtomicInteger(10)
             Callable<Integer> callback
             callback = {
@@ -117,7 +125,7 @@ class ForkJoinParallelExecutorTest extends Specification {
                     return ctx.submit(callback).get()
                 }
             }
-            ctx.submit(callback).get()
+            result.set(ctx.submit(callback).get())
         }
 
         expect:
@@ -145,18 +153,35 @@ class ForkJoinParallelExecutorTest extends Specification {
         executor.setUncaughtExceptionHandler {t, e ->
             captured << e
         }
-        def supplier = executor.forkJoin {
+
+
+        when:
+        executor.forkJoin {
             it.submit {
                 throw new RuntimeException("exception 1")
             }.get()
-            123
         }
-
-        when:
-        def result = supplier.get()
 
         then:
         captured.size() == 1
-        result == 123
     }
+
+    def "in a try-with-resources block executor waits for completion of tasks"() {
+        def b = new AtomicBoolean()
+        try (def executor = ForkJoinParallelExecutor.newExecutor()) {
+            executor.forkJoin {
+                // do not call .get()
+                it.submit {
+                    Thread.sleep(200)
+                    b.set(true)
+                    123
+                }
+                true
+            }
+        }
+
+        expect:
+        b.get()
+    }
+
 }

@@ -25,6 +25,7 @@ import java.util.List;
 import java.util.Optional;
 
 public class SpectrumFrameAnalyzer {
+    public static final int MAX_DEVIATION = 10;
     private final int width;
     private final int height;
     private final double sunDetectionThreshold;
@@ -35,6 +36,7 @@ public class SpectrumFrameAnalyzer {
     private double avg;
     private double max;
     private double min;
+    private float[] data;
 
     public SpectrumFrameAnalyzer(int width,
                                  int height,
@@ -67,19 +69,7 @@ public class SpectrumFrameAnalyzer {
                 rightBorder = x;
             }
         }
-        int l = 0;
-        int r = width;
-        if (leftBorder != null) {
-            l = leftBorder;
-        }
-        if (rightBorder != null) {
-            r = rightBorder + 1;
-        }
-        int step = 8;
-        for (int x = l; x < r; x += step) {
-            var y = findYAtMinimalValue(data, x);
-            samplePoints.add(new Point2D(x, y));
-        }
+        this.data = data;
     }
 
     private void reset() {
@@ -115,7 +105,32 @@ public class SpectrumFrameAnalyzer {
     }
 
     public Optional<DoubleTriplet> findDistortionPolynomial() {
+        int l = 0;
+        int r = width;
+        if (leftBorder != null) {
+            l = leftBorder;
+        }
+        if (rightBorder != null) {
+            r = rightBorder + 1;
+        }
+        int limit = (int) (0.5d*(r-l)/2);
+        // in the first pass we restrict samples to 50% of the spectrum
+        int step = 8;
+        for (int x = l + limit; x < r - limit; x += step) {
+            var y = findYAtMinimalValue(data, x);
+            samplePoints.add(new Point2D(x, y));
+        }
         if (samplePoints.size() > 2) {
+            var polynomial = LinearRegression.secondOrderRegression(samplePoints.toArray(new Point2D[0])).asPolynomial();
+            // In the 2d pass we consider all points but only keep those which are close enough to the first polynomial
+            samplePoints.clear();
+            for (int x = l ; x < r; x += step) {
+                var y = findYAtMinimalValue(data, x);
+                var yy = polynomial.applyAsDouble(x);
+                if (Math.abs(yy-y) < MAX_DEVIATION) {
+                    samplePoints.add(new Point2D(x, y));
+                }
+            }
             var triplet = LinearRegression.secondOrderRegression(samplePoints.toArray(new Point2D[0]));
             return Optional.of(triplet);
         }

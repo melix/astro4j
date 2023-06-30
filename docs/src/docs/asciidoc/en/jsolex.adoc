@@ -13,8 +13,6 @@ It is written in en Java and provided for free without any warranty.
 JSol'Ex can be downloaded from https://github.com/melix/astro4j/releases[this page].
 Installaters are available for Linux, Windows and MacOS.
 
-This page is documenting the latest release.
-
 Alternatively, you may run JSol'Ex by checking out the sources and running the following command:
 
 [source,bash]
@@ -345,3 +343,10 @@ image::spectral-debug-7-fr.jpg[]
 
 The 4th number is the average of distances and should be a good value to use in your ImageMath scripts.
 **In this example we deduce that the pixel shift is -134**.
+
+== Acknowledgements
+
+- Christian Buil for designing Sol'Ex and leading the community with great expertise
+- Valérie Desnoux for her remarkable work on INTI
+- Jean-François Pittet for his bug reports, test videos, and geometric correction formulas
+- Sylvain Weiller for his intensive beta-testing, valuable feedback, and processing ideas

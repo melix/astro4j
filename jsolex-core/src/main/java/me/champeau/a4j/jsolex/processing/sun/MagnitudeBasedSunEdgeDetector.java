@@ -17,7 +17,7 @@ package me.champeau.a4j.jsolex.processing.sun;
 
 import me.champeau.a4j.jsolex.processing.event.ProgressEvent;
 import me.champeau.a4j.jsolex.processing.stats.ChannelStats;
-import me.champeau.a4j.jsolex.processing.util.ParallelExecutor;
+import me.champeau.a4j.jsolex.processing.util.ForkJoinParallelExecutor;
 import me.champeau.a4j.jsolex.processing.util.ProcessingException;
 import me.champeau.a4j.math.image.ImageMath;
 import me.champeau.a4j.ser.ImageGeometry;
@@ -64,7 +64,7 @@ public class MagnitudeBasedSunEdgeDetector implements SunEdgeDetector {
         var imageMath = ImageMath.newInstance();
         averageImage = new float[geometry.width() * geometry.height()];
         var counter = new AtomicInteger(0);
-        try (var cpuExecutor = ParallelExecutor.newExecutor(1)) {
+        try (var cpuExecutor = ForkJoinParallelExecutor.newExecutor(1)) {
             try (var ioExecutor = IOUtils.newExecutor(imageSize)) {
                 for (int i = 0; i < frameCount; i++) {
                     int frameId = i;
@@ -79,7 +79,7 @@ public class MagnitudeBasedSunEdgeDetector implements SunEdgeDetector {
                         var buffer = imageConverter.createBuffer(geometry);
                         imageConverter.convert(frameId, ByteBuffer.wrap(copy), geometry, buffer);
                         magnitudes[frameId] = MagnitudeDetectorSupport.minMax(buffer).b();
-                        cpuExecutor.submit(() -> {
+                        cpuExecutor.async(() -> {
                             // we don't need to synchronize here since averaging is executed on a single thread
                             imageMath.incrementalAverage(buffer, averageImage, counter.incrementAndGet());
                         });

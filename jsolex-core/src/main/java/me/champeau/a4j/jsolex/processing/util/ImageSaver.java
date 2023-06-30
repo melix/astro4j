@@ -36,10 +36,11 @@ public class ImageSaver {
 
 
     public void save(ImageWrapper image, File target) {
+        var imageFormats = processParams.extraParams().imageFormats();
         if (image instanceof ImageWrapper32 mono) {
             float[] stretched = stretch(mono.data());
-            ImageUtils.writeMonoImage(image.width(), image.height(), stretched, target);
-            if (processParams.debugParams().generateFits()) {
+            ImageUtils.writeMonoImage(image.width(), image.height(), stretched, target, imageFormats);
+            if (imageFormats.contains(ImageFormat.FITS)) {
                 FitsUtils.writeFitsFile(new ImageWrapper32(image.width(), image.height(), stretched), toFits(target), processParams);
             }
         } else if (image instanceof ColorizedImageWrapper colorImage) {
@@ -48,8 +49,8 @@ public class ImageSaver {
             var r = colorized[0];
             var g = colorized[1];
             var b = colorized[2];
-            ImageUtils.writeRgbImage(colorImage.width(), colorImage.height(), r, g, b, target);
-            if (processParams.debugParams().generateFits()) {
+            ImageUtils.writeRgbImage(colorImage.width(), colorImage.height(), r, g, b, target, imageFormats);
+            if (imageFormats.contains(ImageFormat.FITS)) {
                 FitsUtils.writeFitsFile(new RGBImage(image.width(), image.height(), r, g, b), toFits(target), processParams);
             }
         } else if (image instanceof RGBImage rgb) {
@@ -57,8 +58,8 @@ public class ImageSaver {
             var r = stretched[0];
             var g = stretched[1];
             var b = stretched[2];
-            ImageUtils.writeRgbImage(rgb.width(), rgb.height(), r, g, b, target);
-            if (processParams.debugParams().generateFits()) {
+            ImageUtils.writeRgbImage(rgb.width(), rgb.height(), r, g, b, target, imageFormats);
+            if (imageFormats.contains(ImageFormat.FITS)) {
                 FitsUtils.writeFitsFile(new RGBImage(image.width(), image.height(), r, g, b), toFits(target), processParams);
             }
         }

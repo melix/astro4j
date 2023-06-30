@@ -32,6 +32,7 @@ import me.champeau.a4j.jsolex.processing.params.SpectralRay;
 import me.champeau.a4j.jsolex.processing.params.SpectralRayIO;
 import me.champeau.a4j.jsolex.processing.sun.ImageUtils;
 import me.champeau.a4j.jsolex.processing.util.ColorizedImageWrapper;
+import me.champeau.a4j.jsolex.processing.util.ImageFormat;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 import me.champeau.a4j.jsolex.processing.util.ProcessingException;
 
@@ -41,6 +42,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.EnumSet;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -179,7 +181,7 @@ public class SpectralRayEditor {
         Path tmpFile;
         try {
             tmpFile = Files.createTempFile("img", "png");
-            ImageUtils.writeRgbImage(colorImage.width(), colorImage.height(), r, g, b, tmpFile.toFile());
+            ImageUtils.writeRgbImage(colorImage.width(), colorImage.height(), r, g, b, tmpFile.toFile(), EnumSet.of(ImageFormat.PNG));
             sunPreview.setImage(new Image(tmpFile.toFile().toURI().toString()));
             Files.delete(tmpFile);
         } catch (IOException e) {

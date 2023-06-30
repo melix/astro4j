@@ -50,7 +50,7 @@ public abstract class AbstractImageWriterTask extends AbstractTask<Void> {
     @Override
     public final Void call() {
         transform();
-        File outputFile = new File(outputDirectory, name + ".png");
+        File outputFile = new File(outputDirectory, name);
         var image = new GeneratedImage(title, outputFile.toPath(), createImageWrapper(), stretchingStrategy);
         broadcaster.broadcast(new ImageGeneratedEvent(image));
         return null;

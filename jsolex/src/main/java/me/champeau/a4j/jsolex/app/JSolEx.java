@@ -165,7 +165,7 @@ public class JSolEx extends Application implements JSolExInterface {
                 pause.playFromStart();
             });
             hideProgress();
-            stage.setTitle("JSol'Ex");
+            stage.setTitle("JSol'Ex " + getVersion());
             stage.setScene(rootScene);
             addIcons(stage);
             stage.show();
@@ -291,7 +291,7 @@ public class JSolEx extends Application implements JSolExInterface {
     private void loadImageMathScriptFrom(File file) {
         if (file != null) {
             try {
-                var script = String.join("\n", Files.readAllLines(file.toPath()));
+                var script = String.join(System.lineSeparator(), Files.readAllLines(file.toPath()));
                 imageMathScript.setText(script);
                 imageMathSave.setDisable(true);
             } catch (IOException e) {
@@ -360,12 +360,7 @@ public class JSolEx extends Application implements JSolExInterface {
         var alert = new Alert(Alert.AlertType.INFORMATION);
         alert.setResizable(true);
         alert.getDialogPane().setPrefSize(700, 400);
-        String version = "";
-        try {
-            version = new String(JSolEx.class.getResourceAsStream("/version.txt").readAllBytes(), "utf-8").trim();
-        } catch (IOException e) {
-            version = "unknown";
-        }
+        String version = getVersion();
         alert.setTitle(I18N.string(getClass(), "about", "about.title"));
         alert.setHeaderText(I18N.string(getClass(), "about", "about.header") + ". Version " + version);
         alert.setContentText(I18N.string(getClass(), "about", "about.message"));
@@ -380,6 +375,17 @@ public class JSolEx extends Application implements JSolExInterface {
         scroll.fitToWidthProperty().set(true);
         alert.getDialogPane().setExpandableContent(scroll);
         alert.showAndWait();
+    }
+
+    private static String getVersion() {
+        String version = "";
+        try {
+            version = new String(JSolEx.class.getResourceAsStream("/version.txt").readAllBytes(), "utf-8").trim();
+            version = version.substring(0, version.indexOf("-SNAPSHOT"));
+        } catch (IOException e) {
+            version = "unknown";
+        }
+        return version;
     }
 
     private void doOpen(File selectedFile) {
@@ -401,8 +407,8 @@ public class JSolEx extends Application implements JSolExInterface {
             mainPane.getTabs().clear();
             console.textProperty().set("");
             var interruptButton = addInterruptButton();
-            var processingThread = new Thread(() -> cpuExecutor.blocking(context ->
-                    processSingleFile(context, params, selectedFile, false, 0, null, firstHeader, () -> {
+            var processingThread = new Thread(() -> cpuExecutor.blocking(() ->
+                    processSingleFile(cpuExecutor, params, selectedFile, false, 0, null, firstHeader, () -> {
                         BatchOperations.submit(() -> workButtons.getChildren().remove(interruptButton));
                     })
             ));
@@ -498,8 +504,8 @@ public class JSolEx extends Application implements JSolExInterface {
                 groups.add(current);
             }
             var batchContext = new BatchProcessingContext(batchItems, new AtomicInteger(), selectedFiles.get(0).getParentFile(), LocalDateTime.now());
-            cpuExecutor.blocking(context -> {
-                var semaphore = new Semaphore(Runtime.getRuntime().availableProcessors() / 2);
+            cpuExecutor.blocking(() -> {
+                var semaphore = new Semaphore(Math.max(1, Runtime.getRuntime().availableProcessors() / 4));
                 // We're using a separate task submission thread in order to not
                 // block the processing ones
                 var taskSubmissionThread = new Thread(() -> {
@@ -507,7 +513,7 @@ public class JSolEx extends Application implements JSolExInterface {
                     while (idx < selectedFiles.size() && !Thread.currentThread().isInterrupted()) {
                         semaphore.acquireUninterruptibly();
                         var selectedFile = selectedFiles.get(idx);
-                        processSingleFile(context, params, selectedFile, true, idx, batchContext, header, semaphore::release);
+                        processSingleFile(cpuExecutor, params, selectedFile, true, idx, batchContext, header, semaphore::release);
                         idx++;
                     }
                 });
@@ -550,7 +556,7 @@ public class JSolEx extends Application implements JSolExInterface {
                 var processingDate = context instanceof BatchProcessingContext batch ? batch.processingDate() : LocalDateTime.now();
                 ioIsolate.setOnTaskStart(t -> LogbackConfigurer.recordThreadOwner(t.getName(), sequenceNumber));
                 var namingStrategy = new FileNamingStrategy(
-                        params.debugParams().fileNamePattern(),
+                        params.extraParams().fileNamePattern(),
                         processingDate,
                         header
                 );

@@ -17,6 +17,7 @@ package me.champeau.a4j.jsolex.processing.params;
 
 import com.google.gson.Gson;
 import me.champeau.a4j.jsolex.processing.file.FileNamingStrategy;
+import me.champeau.a4j.jsolex.processing.util.ImageFormat;
 import me.champeau.a4j.ser.ColorMode;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -34,6 +35,7 @@ import java.nio.file.Paths;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
+import java.util.EnumSet;
 import java.util.List;
 import java.util.Set;
 
@@ -83,7 +85,7 @@ abstract class ProcessParamsIO {
                         null,
                         LocalDateTime.now().atZone(ZoneId.of("UTC")),
                         ""),
-                new DebugParams(false, true, true, FileNamingStrategy.DEFAULT_TEMPLATE),
+                new ExtraParams(false, true, EnumSet.of(ImageFormat.PNG), FileNamingStrategy.DEFAULT_TEMPLATE),
                 new VideoParams(ColorMode.MONO),
                 new GeometryParams(null, null, false, false, false),
                 new BandingCorrectionParams(24, 3),
@@ -102,7 +104,7 @@ abstract class ProcessParamsIO {
                         params = new ProcessParams(
                                 params.spectrumParams(),
                                 params.observationDetails(),
-                                params.debugParams(),
+                                params.extraParams(),
                                 new VideoParams(ColorMode.MONO),
                                 params.geometryParams(),
                                 params.bandingCorrectionParams(),
@@ -113,7 +115,7 @@ abstract class ProcessParamsIO {
                         params = new ProcessParams(
                                 params.spectrumParams(),
                                 params.observationDetails(),
-                                params.debugParams(),
+                                params.extraParams(),
                                 params.videoParams(),
                                 new GeometryParams(
                                         null,
@@ -129,7 +131,7 @@ abstract class ProcessParamsIO {
                         params = new ProcessParams(
                                 params.spectrumParams(),
                                 params.observationDetails(),
-                                params.debugParams(),
+                                params.extraParams(),
                                 params.videoParams(),
                                 params.geometryParams(),
                                 new BandingCorrectionParams(
@@ -143,12 +145,20 @@ abstract class ProcessParamsIO {
                         params = new ProcessParams(
                                 params.spectrumParams(),
                                 params.observationDetails(),
-                                params.debugParams(),
+                                params.extraParams(),
                                 params.videoParams(),
                                 params.geometryParams(),
                                 params.bandingCorrectionParams(),
                                 new RequestedImages(RequestedImages.FULL_MODE, List.of(0), Set.of(), ImageMathParams.NONE)
                         );
+                    }
+                    if (params.extraParams() == null) {
+                        params = params.withDebugParams(new ExtraParams(
+                                false,
+                                true,
+                                EnumSet.of(ImageFormat.PNG),
+                                FileNamingStrategy.DEFAULT_TEMPLATE
+                        ));
                     }
                     return params;
                 }

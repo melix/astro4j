@@ -12,8 +12,6 @@ JSol'Ex est un logiciel libre sous licence Apache 2, écrit en Java et fourni à
 JSol'Ex peut être téléchargé sur https://github.com/melix/astro4j/releases[cette page].
 Des installateurs sont disponibles pour Linux, Windows et MacOS.
 
-Cette page documente la dernière version.
-
 Alternativement, vous pouvez lancer JSol'Ex en téléchargeant les sources puis en exécutant la commande:
 
 [source,bash]
@@ -187,7 +185,7 @@ Fonctions "unitaires":
 - `img` demande une image à un décalage de pixels donné. Par exemple, `img(0)` est l'image centrée sur la raie, `img(-10)` est celle décalée de 10 pixels vers le haut.
 - `avg` permet de calculer la valeur moyenne d'images, par exemple: `avg(img(-1), img(0), img(1))` calcule la moyenne des images aux décalages -1, 0 et 1. Il est aussi possible d'écrire: `avg(range(-1,1))`
 - `max` permet de calculer la valeur maximale d'images, par exemple `max(img(-3), img(3))`. Le maximum est calculé pixel par pixel.
-- `min` permet de calculer la valeur minimale d'images, par exemple `min(img(-3), img(3))`. Le maximum est calculé pixel par pixel.
+- `min` permet de calculer la valeur minimale d'images, par exemple `min(img(-3), img(3))`. Le minimum est calculé pixel par pixel.
 - `range` permet de générer une suite d'images à des pixels décalés. Cette fonction prend au minimum 2 arguments, la valeur basse (inclue) et la valeur haute (inclue). Par exemple, `range(-5,5)` produira 11 images. Il est possible de générer une image tous les X pixels, en ajoutant un 3ème argument, le pas. Par exemple, `range(-5,5,5)` ne générera plus que 3 images, à -5, 0 et 5 pixels.
 
 Il est possible de faire des calculs sur les images, par exemple:
@@ -300,10 +298,10 @@ Sous la ligne violette s'affiche une image _corrigée en fonction du polynôme_ 
 Dans la partie basse de l'interface, vous trouverez:
 
 - le bouton radio "Moyenne / Images" qui permet de basculer entre l'image moyenne et les images individuelles du film SER
-- lorsqu'"Images" est sélectionné, le slider à droite permet de naviguer dans la vidéo
+- lorsque "Images" est sélectionné, le slider à droite permet de naviguer dans la vidéo
 - le seuil de détection du soleil peut être changé (non recommandé, le logiciel ne permet pas de modifier cette valeur, c'est un mode expert)
 - la case "vérouiller le polynôme" permet de figer la détection de ligne spectrale sur l'image actuelle : elle nous sera utile pour les mesures de distances
-- le slider "contraste" permet d'augmenter le contraste de l'image
+- le slider "contraste" permet d'augmenter le contraste et la luminosité de l'image (transformation arcsin hyperbolique)
 
 === Application au calcul de décalage de la raie hélium
 
@@ -344,3 +342,10 @@ image::spectral-debug-7-fr.jpg[]
 
 Le 4ème nombre représente la distance moyenne calculée.
 **Nous en déduisons que le décalage de pixels à appliquer est de -134**.
+
+== Remerciements
+
+- Christian Buil pour avoir conçu le Sol'Ex et diriger la communauté d'une main de maître
+- Valérie Desnoux pour son travail remarquable sur INTI
+- Jean-François Pittet pour ses rapports de bugs, ses vidéos de test et ses formules de correction géométrique
+- Sylvain Weiller pour son beta-testing intensif, ses retours précieux et ses idées de traitement
