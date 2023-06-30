@@ -252,7 +252,12 @@ The name of all other sections is arbitrary, you can create as many sections as 
 
 Here, we defined a `[params]` section which highlights which parameters we want users to be able to tweak for their needs.
 This is where we find the value of our helium ray pixel shift (`-85`).
+
+NOTE: A variable can only contain ASCII characters, digits (except for the 1st character) or the `_` character. For example, `myVariable`, `MyVariable` or `MyVariable0` all all valid identifiers. `hélium` is invalid (because of the accent).
+
 Variables can be used in other variables or function calls.
+
+IMPORTANT: Variables are case sensitive. `myVariable` et `MyVariable` are 2 distinct variables!
 
 Our 2d section, `[tmp]`, defines intermediate images we want to work with, but for which we don't care about seeing the result.
 Here we have 2 intermediate images: one of the continuum, which uses a max of the continuum range, and a "raw" helium image which is the reconstructed image, substracted with the continuum one.
@@ -264,6 +269,8 @@ Last but not least, the `[outputs]` section declares the images we want to gener
 The expression `helium_fixed = asinh_stretch(fix_banding(helium_raw;BandWidth;BandIterations),blackPoint, Stretch)` does something similar, but actually performs a banding correction in addition.
 
 Last, `helium_color = colorize(fix_banding(helium_raw;BandWidth;BandIterations), "Helium (D3)")` generates a colorized version of the image.
+
+NOTE: Comments can be added either with the `#` or `//` prefix.
 
 == Batch processing
 

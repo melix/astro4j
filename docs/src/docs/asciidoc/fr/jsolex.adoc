@@ -247,7 +247,12 @@ Le nom des autres sections est arbitraire, vous pouvez en définir autant que vo
 
 Ici, nous avons une section `[params]` qui permet de mettre en évidence les _paramètres de notre script_, autrement dit ce que l'utilisateur peut configurer.
 On y trouve des variables, déclarées par un nom (ex `RaieHelium`) et une valeur `-85`.
+
+NOTE: Une variable doit ne peut contenir que des caractères ascii, des numéros (hors premier caractère) ou le caractère _. Par exemple, `maVariable`, `MaVariable0` et `maVariable_0` sont tous valides, mais `hélium` ne l'est pas.
+
 Ces variables peuvent être réutilisés dans d'autres variables ou des appels de fonctions.
+
+IMPORTANT: Les variables sont sensibles à la casse. `maVariable` et `MaVariable` sont 2 variables distinctes !
 
 Ainsi, notre 2ème section, `[tmp]`, définit des images qui nous servent d'intermédiaire de calculs, mais pour lesquelles nous ne sommes pas intéressés par le résultat.
 Ici, nous calculons 2 images temporaires, une du continuum, qui est calculée en prenant la valeur maximale des images d'un intervalle dans le continuum, et une image "raw" de l'helium qui correspond à l'image de la raie Hélium à laquelle on soustrait l'image du continuum, pondérée par un coefficient définit dans notre section `[params]`.
@@ -259,6 +264,8 @@ Au final, la section `[outputs]` déclare les images qui nous intéressent:
 La formule `helium_fixed = asinh_stretch(fix_banding(helium_raw;BandWidth;BandIterations),blackPoint, Stretch)` fait la même chose, mais applique en plus l'algorithme de correction de bandes.
 
 Enfin, `helium_color = colorize(fix_banding(helium_raw;BandWidth;BandIterations), "Helium (D3)")` permet d'obtenir une version colorisée.
+
+NOTE: Vous pouvez mettre des commentaires sur une ligne commençant par `#` ou `//`
 
 == Traitement par lots
 
