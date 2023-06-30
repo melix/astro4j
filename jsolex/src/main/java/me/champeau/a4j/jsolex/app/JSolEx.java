@@ -381,7 +381,9 @@ public class JSolEx extends Application implements JSolExInterface {
         String version = "";
         try {
             version = new String(JSolEx.class.getResourceAsStream("/version.txt").readAllBytes(), "utf-8").trim();
-            version = version.substring(0, version.indexOf("-SNAPSHOT"));
+            if (version.contains("-SNAPSHOT")) {
+                version = version.substring(0, version.indexOf("-SNAPSHOT"));
+            }
         } catch (IOException e) {
             version = "unknown";
         }
