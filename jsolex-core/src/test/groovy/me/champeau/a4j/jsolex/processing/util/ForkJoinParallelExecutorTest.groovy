@@ -26,6 +26,10 @@ class ForkJoinParallelExecutorTest extends Specification {
     @Subject
     private ForkJoinParallelExecutor executor = ForkJoinParallelExecutor.newExecutor()
 
+    void cleanup() {
+        executor.close()
+    }
+
     void "can run simple task"() {
         def fut = executor.submit((Callable<Integer>) {
             123
@@ -33,9 +37,6 @@ class ForkJoinParallelExecutorTest extends Specification {
 
         expect:
         fut.get() == 123
-
-        cleanup:
-        executor.close()
     }
 
     void "can fork execution"() {
