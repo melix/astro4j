@@ -90,7 +90,7 @@ public class DefaultImageScriptExecutor implements ImageMathScriptExecutor {
             idx++;
             var label = output.getKey();
             var expression = output.getValue();
-            broadcaster.broadcast(ProgressEvent.of(idx/size, "ImageScript : " + expression));
+            broadcaster.broadcast(ProgressEvent.of(idx / size, "ImageScript : " + expression));
             try {
                 var result = evaluator.evaluate(expression);
                 if (result instanceof ImageWrapper image) {
@@ -119,6 +119,7 @@ public class DefaultImageScriptExecutor implements ImageMathScriptExecutor {
         String currentSection = null;
         Map<String, String> variables = new LinkedHashMap<>();
         for (String line : lines) {
+            line = line.trim();
             if (line.startsWith("//") || line.startsWith("#")) {
                 // comment
                 continue;
@@ -156,7 +157,7 @@ public class DefaultImageScriptExecutor implements ImageMathScriptExecutor {
         double size = variableNames.size();
         double idx = 0d;
         for (String variable : variableNames) {
-            broadcaster.broadcast(ProgressEvent.of(idx/size, "ImageScript evaluation " + variable));
+            broadcaster.broadcast(ProgressEvent.of(idx / size, "ImageScript evaluation " + variable));
             try {
                 evaluator.evaluate(variable);
             } catch (Exception ex) {

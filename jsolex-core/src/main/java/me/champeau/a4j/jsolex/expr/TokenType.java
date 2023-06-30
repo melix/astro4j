@@ -20,6 +20,7 @@ public enum TokenType {
     FUNCTION,
     LEFT_PARENTHESIS,
     LITERAL,
+    UNARY_OPERATOR,
     OPERATOR,
     RIGHT_PARENTHESIS,
     VARIABLE

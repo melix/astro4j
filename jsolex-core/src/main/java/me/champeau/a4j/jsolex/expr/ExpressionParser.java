@@ -37,6 +37,7 @@ public class ExpressionParser {
             switch (token.type()) {
                 case VARIABLE, LITERAL -> outputQueue.add(token);
                 case FUNCTION -> operatorStack.push(token);
+                case UNARY_OPERATOR -> operatorStack.push(token);
                 case OPERATOR -> {
                     while (!operatorStack.isEmpty() &&
                            operatorStack.peek().type() == TokenType.OPERATOR &&
@@ -101,12 +102,18 @@ public class ExpressionParser {
                     var fun = new FunctionCall(BuiltinFunction.of(token.value()), argList);
                     queue.push(fun);
                 }
+                case UNARY_OPERATOR -> {
+                    if (token.value().equals("-")) {
+                        var pop = queue.pop();
+                        queue.push(new Substraction(new Literal(0d), pop));
+                    }
+                }
                 case OPERATOR -> {
                         var right = queue.pop();
                         if (queue.isEmpty()) {
                             // unary operator
                             switch (token.value()) {
-                                case "+" -> queue.push(new Addition(ZERO, right));
+                                case "+" -> queue.push(right);
                                 case "-" -> queue.push(new Substraction(ZERO, right));
                                 default -> throw new IllegalStateException("Illegal operation '" + token.value() + "' : not enough operands on stack");
                             }

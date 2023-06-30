@@ -27,6 +27,7 @@ public class Scanner {
     public static final String VARIABLE_REGEX = "[a-zA-Z_]\\w*";
     public static final String LITERAL_REGEX = "(-?\\d+(\\.\\d+)?|(\\.\\d+))|(\"[^\"]*\")";
     public static final String OPERATOR_REGEX = "[+\\-*/]";
+    public static final String UNARY_OPERATOR_REGEX = "[+\\-]";
     public static final String FUNCTION_REGEX = Stream.concat(
             Arrays.stream(BuiltinFunction.values()).map(BuiltinFunction::name),
             Arrays.stream(BuiltinFunction.values()).map(BuiltinFunction::lowerCaseName)
@@ -36,7 +37,7 @@ public class Scanner {
     public static final String COMMA_REGEX = "[,;]";
 
     private static final Pattern TOKEN_PATTERN = Pattern.compile(
-            "\\s*(" + VARIABLE_REGEX + ")|(" + LITERAL_REGEX + ")|(" + OPERATOR_REGEX + ")|(" + FUNCTION_REGEX + ")|(" + LEFT_PARENTHESIS_REGEX + ")|(" + RIGHT_PARENTHESIS_REGEX + ")|(" + COMMA_REGEX + ")\\s*"
+            "\\s*(" + VARIABLE_REGEX + ")|(" + LITERAL_REGEX + ")|(" + OPERATOR_REGEX + ")|(" + UNARY_OPERATOR_REGEX + ")|(" + FUNCTION_REGEX + ")|(" + LEFT_PARENTHESIS_REGEX + ")|(" + RIGHT_PARENTHESIS_REGEX + ")|(" + COMMA_REGEX + ")\\s*"
     );
 
     public List<Token> scan(String input) {
@@ -62,10 +63,20 @@ public class Scanner {
                     var fixedToken = new Token(TokenType.LITERAL, token.value().substring(1), start + 1, end);
                     tokens.add(fixedToken);
                     previousToken = fixedToken;
+                } else if (token.value().startsWith("+")) {
+                    // Handle unary plus
+                    var fixedToken = new Token(TokenType.LITERAL, token.value().substring(1), start + 1, end);
+                    tokens.add(fixedToken);
+                    previousToken = fixedToken;
                 } else {
                     tokens.add(token);
                     previousToken = token;
                 }
+            } else if (token.type() == TokenType.OPERATOR && token.value().equals("-") && isUnaryOperator(previousToken)) {
+                // Handle unary minus
+                var fixedToken = new Token(TokenType.UNARY_OPERATOR, "-", start, end);
+                tokens.add(fixedToken);
+                previousToken = fixedToken;
             } else {
                 tokens.add(token);
                 previousToken = token;
@@ -80,11 +91,22 @@ public class Scanner {
         return value.equals("(") || value.equals(";") || value.equals(",");
     }
 
+    private static boolean isUnaryOperator(Token previousToken) {
+        if (previousToken == null) {
+            return true;
+        }
+
+        var value = previousToken.value();
+        return value.matches(LEFT_PARENTHESIS_REGEX) || value.matches(OPERATOR_REGEX);
+    }
+
     private TokenType determineTokenType(String tokenValue) {
         if (tokenValue.matches(LITERAL_REGEX)) {
             return TokenType.LITERAL;
         } else if (tokenValue.matches(OPERATOR_REGEX)) {
             return TokenType.OPERATOR;
+        } else if (tokenValue.matches(UNARY_OPERATOR_REGEX)) {
+            return TokenType.UNARY_OPERATOR;
         } else if (tokenValue.matches(FUNCTION_REGEX)) {
             return TokenType.FUNCTION;
         } else if (tokenValue.matches(COMMA_REGEX)) {

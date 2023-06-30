@@ -45,6 +45,7 @@ class ExpressionParserTest extends Specification {
         "85"       | 85d
         "-85"      | -85d
         '"hello"'  | "hello"
+        "+8"       | 8d
     }
 
     def "parses variable"() {
@@ -127,8 +128,8 @@ class ExpressionParserTest extends Specification {
         'a-(2)'                            | '(VAR(a)-2.0)'
         'img(shift) - coef*max(continuum)' | '(IMG(VAR(shift))-VAR(coef)*MAX(VAR(continuum)))'
         'range(-100;-70;10)'               | 'RANGE(-100.0,-70.0,10.0)'
-        // unsupported yet
-        //        '.5*(-a)'             | '0.5*VAR(a)'
-        //        '.5*(-(a+b))'         | '0.5*(-(VAR(a)+VAR(b)))'
+        '0.5*(-a)'                         | '0.5*(0.0-VAR(a))'
+        '.5*(-a)'                          | '0.5*(0.0-VAR(a))'
+        '.5*(-(a+b))'                      | '0.5*(0.0-(VAR(a)+VAR(b)))'
     }
 }
