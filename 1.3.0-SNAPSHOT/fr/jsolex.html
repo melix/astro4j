@@ -468,6 +468,7 @@ body.book #toc,body.book #preamble,body.book h1.sect0,body.book .sect1>h2{page-b
 <li><a href="#_application_au_calcul_de_décalage_de_la_raie_hélium">Application au calcul de décalage de la raie hélium</a></li>
 </ul>
 </li>
+<li><a href="#_remerciements">Remerciements</a></li>
 </ul>
 </div>
 </div>
@@ -490,9 +491,6 @@ S&#8217;il est principalement conçu pour traiter les images produites par Sol&#
 <div class="paragraph">
 <p>JSol&#8217;Ex peut être téléchargé sur <a href="https://github.com/melix/astro4j/releases">cette page</a>.
 Des installateurs sont disponibles pour Linux, Windows et MacOS.</p>
-</div>
-<div class="paragraph">
-<p>Cette page documente la dernière version.</p>
 </div>
 <div class="paragraph">
 <p>Alternativement, vous pouvez lancer JSol&#8217;Ex en téléchargeant les sources puis en exécutant la commande:</p>
@@ -849,7 +847,7 @@ Le script apparaît désormais dans la liste de gauche, il sera appliqué lors d
 <p><code>max</code> permet de calculer la valeur maximale d&#8217;images, par exemple <code>max(img(-3), img(3))</code>. Le maximum est calculé pixel par pixel.</p>
 </li>
 <li>
-<p><code>min</code> permet de calculer la valeur minimale d&#8217;images, par exemple <code>min(img(-3), img(3))</code>. Le maximum est calculé pixel par pixel.</p>
+<p><code>min</code> permet de calculer la valeur minimale d&#8217;images, par exemple <code>min(img(-3), img(3))</code>. Le minimum est calculé pixel par pixel.</p>
 </li>
 <li>
 <p><code>range</code> permet de générer une suite d&#8217;images à des pixels décalés. Cette fonction prend au minimum 2 arguments, la valeur basse (inclue) et la valeur haute (inclue). Par exemple, <code>range(-5,5)</code> produira 11 images. Il est possible de générer une image tous les X pixels, en ajoutant un 3ème argument, le pas. Par exemple, <code>range(-5,5,5)</code> ne générera plus que 3 images, à -5, 0 et 5 pixels.</p>
@@ -949,8 +947,34 @@ Le nom des autres sections est arbitraire, vous pouvez en définir autant que vo
 </div>
 <div class="paragraph">
 <p>Ici, nous avons une section <code>[params]</code> qui permet de mettre en évidence les <em>paramètres de notre script</em>, autrement dit ce que l&#8217;utilisateur peut configurer.
-On y trouve des variables, déclarées par un nom (ex <code>RaieHelium</code>) et une valeur <code>-85</code>.
-Ces variables peuvent être réutilisés dans d&#8217;autres variables ou des appels de fonctions.</p>
+On y trouve des variables, déclarées par un nom (ex <code>RaieHelium</code>) et une valeur <code>-85</code>.</p>
+</div>
+<div class="admonitionblock note">
+<table>
+<tr>
+<td class="icon">
+<div class="title">Note</div>
+</td>
+<td class="content">
+Une variable doit ne peut contenir que des caractères ascii, des numéros (hors premier caractère) ou le caractère _. Par exemple, <code>maVariable</code>, <code>MaVariable0</code> et <code>maVariable_0</code> sont tous valides, mais <code>hélium</code> ne l&#8217;est pas.
+</td>
+</tr>
+</table>
+</div>
+<div class="paragraph">
+<p>Ces variables peuvent être réutilisés dans d&#8217;autres variables ou des appels de fonctions.</p>
+</div>
+<div class="admonitionblock important">
+<table>
+<tr>
+<td class="icon">
+<div class="title">Important</div>
+</td>
+<td class="content">
+Les variables sont sensibles à la casse. <code>maVariable</code> et <code>MaVariable</code> sont 2 variables distinctes !
+</td>
+</tr>
+</table>
 </div>
 <div class="paragraph">
 <p>Ainsi, notre 2ème section, <code>[tmp]</code>, définit des images qui nous servent d&#8217;intermédiaire de calculs, mais pour lesquelles nous ne sommes pas intéressés par le résultat.
@@ -967,6 +991,18 @@ Ici, nous calculons 2 images temporaires, une du continuum, qui est calculée en
 </div>
 <div class="paragraph">
 <p>Enfin, <code>helium_color = colorize(fix_banding(helium_raw;BandWidth;BandIterations), "Helium (D3)")</code> permet d&#8217;obtenir une version colorisée.</p>
+</div>
+<div class="admonitionblock note">
+<table>
+<tr>
+<td class="icon">
+<div class="title">Note</div>
+</td>
+<td class="content">
+Vous pouvez mettre des commentaires sur une ligne commençant par <code>#</code> ou <code>//</code>
+</td>
+</tr>
+</table>
 </div>
 </div>
 </div>
@@ -1049,7 +1085,7 @@ Sous la ligne violette s&#8217;affiche une image <em>corrigée en fonction du po
 <p>le bouton radio "Moyenne / Images" qui permet de basculer entre l&#8217;image moyenne et les images individuelles du film SER</p>
 </li>
 <li>
-<p>lorsqu'"Images" est sélectionné, le slider à droite permet de naviguer dans la vidéo</p>
+<p>lorsque "Images" est sélectionné, le slider à droite permet de naviguer dans la vidéo</p>
 </li>
 <li>
 <p>le seuil de détection du soleil peut être changé (non recommandé, le logiciel ne permet pas de modifier cette valeur, c&#8217;est un mode expert)</p>
@@ -1058,7 +1094,7 @@ Sous la ligne violette s&#8217;affiche une image <em>corrigée en fonction du po
 <p>la case "vérouiller le polynôme" permet de figer la détection de ligne spectrale sur l&#8217;image actuelle : elle nous sera utile pour les mesures de distances</p>
 </li>
 <li>
-<p>le slider "contraste" permet d&#8217;augmenter le contraste de l&#8217;image</p>
+<p>le slider "contraste" permet d&#8217;augmenter le contraste et la luminosité de l&#8217;image (transformation arcsin hyperbolique)</p>
 </li>
 </ul>
 </div>
@@ -1147,6 +1183,27 @@ Vous pouvez ajouter autant de points que vous le souhaitez:</p>
 <p>Le 4ème nombre représente la distance moyenne calculée.
 <strong>Nous en déduisons que le décalage de pixels à appliquer est de -134</strong>.</p>
 </div>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_remerciements">Remerciements</h2>
+<div class="sectionbody">
+<div class="ulist">
+<ul>
+<li>
+<p>Christian Buil pour avoir conçu le Sol&#8217;Ex et diriger la communauté d&#8217;une main de maître</p>
+</li>
+<li>
+<p>Valérie Desnoux pour son travail remarquable sur INTI</p>
+</li>
+<li>
+<p>Jean-François Pittet pour ses rapports de bugs, ses vidéos de test et ses formules de correction géométrique</p>
+</li>
+<li>
+<p>Sylvain Weiller pour son beta-testing intensif, ses retours précieux et ses idées de traitement</p>
+</li>
+</ul>
 </div>
 </div>
 </div>

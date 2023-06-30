@@ -468,6 +468,7 @@ body.book #toc,body.book #preamble,body.book h1.sect0,body.book .sect1>h2{page-b
 <li><a href="#_example_of_application_to_determine_the_helium_ray_pixel_shift">Example of application to determine the helium ray pixel shift</a></li>
 </ul>
 </li>
+<li><a href="#_acknowledgements">Acknowledgements</a></li>
 </ul>
 </div>
 </div>
@@ -491,9 +492,6 @@ It is written in en Java and provided for free without any warranty.</p>
 <div class="paragraph">
 <p>JSol&#8217;Ex can be downloaded from <a href="https://github.com/melix/astro4j/releases">this page</a>.
 Installaters are available for Linux, Windows and MacOS.</p>
-</div>
-<div class="paragraph">
-<p>This page is documenting the latest release.</p>
 </div>
 <div class="paragraph">
 <p>Alternatively, you may run JSol&#8217;Ex by checking out the sources and running the following command:</p>
@@ -962,8 +960,34 @@ The name of all other sections is arbitrary, you can create as many sections as 
 </div>
 <div class="paragraph">
 <p>Here, we defined a <code>[params]</code> section which highlights which parameters we want users to be able to tweak for their needs.
-This is where we find the value of our helium ray pixel shift (<code>-85</code>).
-Variables can be used in other variables or function calls.</p>
+This is where we find the value of our helium ray pixel shift (<code>-85</code>).</p>
+</div>
+<div class="admonitionblock note">
+<table>
+<tr>
+<td class="icon">
+<div class="title">Note</div>
+</td>
+<td class="content">
+A variable can only contain ASCII characters, digits (except for the 1st character) or the <code>_</code> character. For example, <code>myVariable</code>, <code>MyVariable</code> or <code>MyVariable0</code> all all valid identifiers. <code>hélium</code> is invalid (because of the accent).
+</td>
+</tr>
+</table>
+</div>
+<div class="paragraph">
+<p>Variables can be used in other variables or function calls.</p>
+</div>
+<div class="admonitionblock important">
+<table>
+<tr>
+<td class="icon">
+<div class="title">Important</div>
+</td>
+<td class="content">
+Variables are case sensitive. <code>myVariable</code> et <code>MyVariable</code> are 2 distinct variables!
+</td>
+</tr>
+</table>
 </div>
 <div class="paragraph">
 <p>Our 2d section, <code>[tmp]</code>, defines intermediate images we want to work with, but for which we don&#8217;t care about seeing the result.
@@ -980,6 +1004,18 @@ Here we have 2 intermediate images: one of the continuum, which uses a max of th
 </div>
 <div class="paragraph">
 <p>Last, <code>helium_color = colorize(fix_banding(helium_raw;BandWidth;BandIterations), "Helium (D3)")</code> generates a colorized version of the image.</p>
+</div>
+<div class="admonitionblock note">
+<table>
+<tr>
+<td class="icon">
+<div class="title">Note</div>
+</td>
+<td class="content">
+Comments can be added either with the <code>#</code> or <code>//</code> prefix.
+</td>
+</tr>
+</table>
 </div>
 </div>
 </div>
@@ -1154,6 +1190,27 @@ You can add as many sample points as you wish.</p>
 <p>The 4th number is the average of distances and should be a good value to use in your ImageMath scripts.
 <strong>In this example we deduce that the pixel shift is -134</strong>.</p>
 </div>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_acknowledgements">Acknowledgements</h2>
+<div class="sectionbody">
+<div class="ulist">
+<ul>
+<li>
+<p>Christian Buil for designing Sol&#8217;Ex and leading the community with great expertise</p>
+</li>
+<li>
+<p>Valérie Desnoux for her remarkable work on INTI</p>
+</li>
+<li>
+<p>Jean-François Pittet for his bug reports, test videos, and geometric correction formulas</p>
+</li>
+<li>
+<p>Sylvain Weiller for his intensive beta-testing, valuable feedback, and processing ideas</p>
+</li>
+</ul>
 </div>
 </div>
 </div>
