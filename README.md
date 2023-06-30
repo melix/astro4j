@@ -38,3 +38,15 @@ You can also install the _development_ version of JSol'Ex as it can contain nume
 
 
 Licensed under Apache License version 2.
+
+## Building from sources
+
+You need to have a Java 17 SDK to build from sources.
+I recommend that you install [GraalVM for Java 17](https://www.graalvm.org/).
+
+- To run JSol'Ex, execute `./gradlew jsolex:run`
+- To run SerPlayer, execute `./gradlew ser-player:run`
+
+To execute tests: `./gradlew test`
+
+
