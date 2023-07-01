@@ -198,6 +198,7 @@ Les autres fonctions disponibles sont:
 
 - `invert`, qui permet d'obtenir le négatif d'une image
 - `asinh_stretch` permet d'appliquer la fonction d'étirement par arcsinus hyperbolique. Elle prend 3 paramètres: l'image, le point noir et le coefficient de stretch. Par exemple, `asinh_stretch(img(0), 200, 100)`.
+- `linear_stretch` augmente la plage dynamique d'une image. Elle prend soit 1, soit 3 paramètres : l'image, puis optionellement les valeurs min et max des pixels (valeur comprise entre 0 et 65535). Par exemple: `linear_stretch(img(0))`
 - `fix_banding` permet d'appliquer l'algorithme de corrections de bandes (ou transversallium). Il prend 3 arguments: l'image, la largeur de bande et le nombre d'itérations. Par exemple, `fix_banding(img(0), 10, 5)`.
 
 NOTE: Si vous ne connaissez pas la valeur du point noir, vous pouvez utiliser la valeur estimée par JSol'Ex, disponible dans une variable prédéfinie `blackPoint`: `asinh_stretch(img(0), blackPoint, 100)`

@@ -200,6 +200,7 @@ Other functions are available:
 
 - `invert`, generates a color inverted image
 - `asinh_stretch` applies the inverse arcsin hypobolic transformation to increase constrast. It accepts 3 arguments: the image, the black point value and a stretch value.
+- `linear_stretch` expands the image dynamic range. It takes either one or 3 arguments: the image and optionally the minimal and maximal value. The min/max values are used to determine to what range to expand. It's a 16-bit value between 0 and 65535. For example: `linear_stretch(img(0))`
 - `fix_banding` applies the banding correction algorithm. It accepts 3 arguments: the image, the banding width, the number of passes. For example, `fix_banding(img(0), 10, 5)`.
 
 NOTE: If you don't want to provide a custom black point value, you can use a predefined one, which is estimated from the image. It is available as the `blackPoint` variable, e.g  `asinh_stretch(img(0), blackPoint, 100)`
