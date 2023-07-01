@@ -31,6 +31,7 @@ public record ImageMetadata(
         String observer,
         String instrument,
         String telescope,
+        boolean hasTimestamps,
         LocalDateTime localDateTime,
         ZonedDateTime utcDateTime
 ) {
@@ -40,6 +41,17 @@ public record ImageMetadata(
      * @return true if timestamps are present for each frame
      */
     public boolean hasTimestamps() {
-        return localDateTime != null;
+        return hasTimestamps;
+    }
+
+    public ImageMetadata withoutTimestamps() {
+        return new ImageMetadata(
+                observer,
+                instrument,
+                telescope,
+                false,
+                localDateTime,
+                utcDateTime
+        );
     }
 }

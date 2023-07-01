@@ -136,6 +136,11 @@ public class SerFileReader implements AutoCloseable {
         }
         boolean hasTimestamps = header.metadata().localDateTime() != null;
         long dataLength = header.frameCount() * (long) bytesPerFrame;
+        if (headerLength + dataLength * 8L * header.frameCount() > file.length()) {
+            // Workaround for some videos where timestamps are truncated
+            hasTimestamps = false;
+            header = new Header(header.camera(), header.geometry(), header.frameCount(), header.metadata().withoutTimestamps());
+        }
         ByteBuffer timestampsBuffer = hasTimestamps ? channel.map(FileChannel.MapMode.READ_ONLY, headerLength + dataLength, 8L * header.frameCount()).order(ByteOrder.LITTLE_ENDIAN) : null;
         return new SerFileReader(raf, imageBuffers, (int) maxFramesInBuffer, timestampsBuffer, header);
     }
@@ -178,6 +183,7 @@ public class SerFileReader implements AutoCloseable {
                         observer,
                         instrument,
                         telescope,
+                        localDate != null,
                         localDate,
                         utcDate
                 )

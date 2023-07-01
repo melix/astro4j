@@ -69,6 +69,7 @@ import java.io.IOException;
 import java.nio.file.Path;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -286,6 +287,8 @@ public class SolexVideoProcessor implements Broadcaster {
                 images.put(workflowState.pixelShift(), geo.corrected());
                 ellipse = geo.correctedCircle();
                 imageStats = new ImageStats(geo.blackpoint());
+            } else {
+                images.put(workflowState.pixelShift(), new ImageWrapper32(workflowState.width(), workflowState.height(), workflowState.reconstructed()));
             }
         }
         broadcast(ProcessingDoneEvent.of(System.nanoTime(), images, createCustomImageEmitter(imageNamingStrategy, baseName), ellipse, imageStats));
@@ -306,6 +309,8 @@ public class SolexVideoProcessor implements Broadcaster {
                     if (imageStats == null) {
                         imageStats = new ImageStats(geo.blackpoint());
                     }
+                } else {
+                    images.put(workflowState.pixelShift(), new ImageWrapper32(workflowState.width(), workflowState.height(), workflowState.reconstructed()));
                 }
             }
             var emitter = createCustomImageEmitter(imageNamingStrategy, baseName);
@@ -314,9 +319,15 @@ public class SolexVideoProcessor implements Broadcaster {
                 ImageStats finalImageStats = imageStats;
                 blockingContext.async(() -> {
                     broadcast(ProgressEvent.of(0, "Running script " + scriptFile.getName()));
-                    var scriptRunner = new DefaultImageScriptExecutor(images::get, Map.of(
-                            Ellipse.class, circle,
-                            ImageStats.class, finalImageStats),
+                    Map<Class, Object> context = new HashMap<>();
+                    if (circle != null) {
+                        context.put(Ellipse.class, circle);
+                    }
+                    if (finalImageStats != null) {
+                        context.put(ImageStats.class, finalImageStats);
+                    }
+                    var scriptRunner = new DefaultImageScriptExecutor(images::get,
+                            Collections.unmodifiableMap(context),
                             this);
                     try {
                         var result = scriptRunner.execute(scriptFile.toPath());
@@ -354,7 +365,8 @@ public class SolexVideoProcessor implements Broadcaster {
                 .map(Optional::get)
                 .findFirst();
         if (selected.isEmpty()) {
-            throw new ProcessingException("Unable to perform ellipse regression");
+            LOGGER.error("Unable to perform ellipse regression");
+            return null;
         }
         return selected.get();
     }

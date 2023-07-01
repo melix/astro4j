@@ -26,6 +26,7 @@ public enum BuiltinFunction {
     MAX,
     MIN,
     RANGE,
+    LINEAR_STRETCH,
     ASINH_STRETCH,
     COLORIZE;
 

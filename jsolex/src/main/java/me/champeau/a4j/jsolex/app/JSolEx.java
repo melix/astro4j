@@ -371,6 +371,7 @@ public class JSolEx extends Application implements JSolExInterface {
                 null,
                 null,
                 null,
+                true,
                 now,
                 now.atZone(ZoneId.of("UTC"))
         ));

@@ -21,12 +21,14 @@ import me.champeau.a4j.jsolex.processing.color.ColorCurve;
 import me.champeau.a4j.jsolex.processing.params.SpectralRay;
 import me.champeau.a4j.jsolex.processing.params.SpectralRayIO;
 import me.champeau.a4j.jsolex.processing.stretching.ArcsinhStretchingStrategy;
+import me.champeau.a4j.jsolex.processing.stretching.LinearStrechingStrategy;
 import me.champeau.a4j.jsolex.processing.stretching.NegativeImageStrategy;
 import me.champeau.a4j.jsolex.processing.sun.BandingReduction;
 import me.champeau.a4j.jsolex.processing.sun.ImageUtils;
 import me.champeau.a4j.jsolex.processing.sun.crop.Cropper;
 import me.champeau.a4j.jsolex.processing.sun.workflow.ImageStats;
 import me.champeau.a4j.jsolex.processing.util.ColorizedImageWrapper;
+import me.champeau.a4j.jsolex.processing.util.Constants;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 import me.champeau.a4j.math.regression.Ellipse;
@@ -104,12 +106,13 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
     protected Object functionCall(BuiltinFunction function, List<Object> arguments) {
         return switch (function) {
             case IMG -> image(arguments);
-            case AVG -> applyFunction(arguments, DoubleStream::average);
-            case MIN -> applyFunction(arguments, DoubleStream::min);
-            case MAX -> applyFunction(arguments, DoubleStream::max);
+            case AVG -> applyFunction("avg", arguments, DoubleStream::average);
+            case MIN -> applyFunction("min", arguments, DoubleStream::min);
+            case MAX -> applyFunction("max", arguments, DoubleStream::max);
             case INVERT -> inverse(arguments);
             case RANGE -> createRange(arguments);
             case FIX_BANDING -> fixBanding(arguments);
+            case LINEAR_STRETCH -> linearStretch(arguments);
             case ASINH_STRETCH -> asinhStretch(arguments);
             case COLORIZE -> colorize(arguments);
             case AUTOCROP -> autocrop(arguments);
@@ -150,6 +153,22 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
         float blackpoint = ((Number) arguments.get(1)).floatValue();
         float stretch = ((Number) arguments.get(2)).floatValue();
         return monoToMonoImageTransformer("asinh_stretch", 3, arguments, (width, height, data) -> new ArcsinhStretchingStrategy(blackpoint, stretch, stretch).stretch(data));
+    }
+
+    private Object linearStretch(List<Object> arguments) {
+        if (arguments.size() != 1 && arguments.size() != 3) {
+            throw new IllegalArgumentException("linear_stretch takes 3 arguments (image(s), lo, hi)");
+        }
+        float lo;
+        float hi;
+        if (arguments.size() == 3) {
+            lo = Math.min(Constants.MAX_PIXEL_VALUE, Math.max(0, ((Number) arguments.get(1)).floatValue()));
+            hi = Math.min(Constants.MAX_PIXEL_VALUE, Math.max(0, ((Number) arguments.get(2)).floatValue()));
+        } else {
+            hi = Constants.MAX_PIXEL_VALUE;
+            lo = 0;
+        }
+        return monoToMonoImageTransformer("linear_stretch", 3, arguments, (width, height, data) -> new LinearStrechingStrategy(lo, hi).stretch(data));
     }
 
     private Object colorize(List<Object> arguments) {
@@ -246,20 +265,20 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
 
     }
 
-    private Object applyFunction(List<Object> arguments, Function<DoubleStream, OptionalDouble> operator) {
+    private Object applyFunction(String name, List<Object> arguments, Function<DoubleStream, OptionalDouble> operator) {
         if (arguments.size() == 1) {
             if (arguments.get(0) instanceof List<?> list) {
                 // unwrap
                 //noinspection unchecked
-                return applyFunction((List<Object>) list, operator);
+                return applyFunction(name, (List<Object>) list, operator);
             }
         }
         if (arguments.isEmpty()) {
-            throw new IllegalArgumentException("avg() must have at least one argument");
+            throw new IllegalArgumentException("'" + name + "' must have at least one argument");
         }
         var types = arguments.stream().map(Object::getClass).distinct().toList();
         if (types.size() > 1) {
-            throw new IllegalArgumentException("avg() only works on arguments of the same type");
+            throw new IllegalArgumentException("'" + name + "' only works on arguments of the same type");
         }
         var type = types.get(0);
         if (Number.class.isAssignableFrom(type)) {

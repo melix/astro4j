@@ -166,6 +166,7 @@ public class EllipseFittingTask extends AbstractTask<EllipseFittingTask.Result> 
                 var samplesAvg = sum / samples.size();
                 var closestNeighborDistances = samples
                         .stream()
+                        .distinct()
                         .collect(Collectors.toMap(p -> p, p -> {
                             double d = Double.MAX_VALUE;
                             for (Point2D sample : samples) {
