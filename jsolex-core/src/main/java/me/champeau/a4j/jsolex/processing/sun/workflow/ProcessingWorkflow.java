@@ -33,7 +33,6 @@ import me.champeau.a4j.jsolex.processing.sun.tasks.ImageBandingCorrector;
 import me.champeau.a4j.jsolex.processing.util.Constants;
 import me.champeau.a4j.jsolex.processing.util.ForkJoinContext;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
-import me.champeau.a4j.jsolex.processing.util.ProcessingException;
 import me.champeau.a4j.math.Point2D;
 import me.champeau.a4j.math.image.ImageMath;
 import me.champeau.a4j.math.image.Kernel33;
@@ -92,13 +91,13 @@ public class ProcessingWorkflow {
         rawImagesEmitter.newMonoImage(GeneratedImageKind.RAW, message(Constants.TYPE_RAW), "recon", image, CutoffStretchingStrategy.DEFAULT);
         rawImagesEmitter.newMonoImage(GeneratedImageKind.RAW_STRETCHED, message("raw.linear"), "linear", image, LinearStrechingStrategy.DEFAULT);
         var existingFitting = state.findResult(WorkflowResults.MAIN_ELLIPSE_FITTING);
-        if (existingFitting.isEmpty()) {
-            throw new ProcessingException("Expected to find the result of ellipse fitting but none was found");
-        } else {
+        if (existingFitting.isPresent()) {
             EllipseFittingTask.Result r = (EllipseFittingTask.Result) existingFitting.get();
             var bandingFixed = performBandingCorrection(r, image).get();
             state.recordResult(WorkflowResults.BANDING_CORRECTION, bandingFixed);
             geometryCorrection(r, bandingFixed);
+        } else {
+            processedImagesEmitter.newMonoImage(GeneratedImageKind.GEOMETRY_CORRECTED_STRETCHED, message("stretched"), "streched", image, new ArcsinhStretchingStrategy(0, 10, 100));
         }
     }
 

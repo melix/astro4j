@@ -223,11 +223,15 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
     public void onProcessingDone(ProcessingDoneEvent e) {
         var payload = e.getPayload();
         imageEmitter = payload.customImageEmitter();
+        Map<Class, Object> context = new HashMap<>();
+        if (payload.ellipse() != null) {
+            context.put(Ellipse.class, payload.ellipse());
+        }
+        if (payload.imageStats() != null) {
+            context.put(ImageStats.class, payload.imageStats());
+        }
         imageScriptExecutor = new DefaultImageScriptExecutor(payload.shiftImages()::get,
-                Map.of(
-                        Ellipse.class, payload.ellipse(),
-                        ImageStats.class, payload.imageStats()
-                ),
+                Collections.unmodifiableMap(context),
                 this
         );
         ed = payload.timestamp();
