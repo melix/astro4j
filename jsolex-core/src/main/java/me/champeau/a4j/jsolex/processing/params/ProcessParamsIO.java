@@ -81,7 +81,7 @@ abstract class ProcessParamsIO {
                         null,
                         LocalDateTime.now().atZone(ZoneId.of("UTC")),
                         ""),
-                new ExtraParams(false, true, EnumSet.of(ImageFormat.PNG), FileNamingStrategy.DEFAULT_TEMPLATE),
+                new ExtraParams(false, true, EnumSet.of(ImageFormat.PNG), FileNamingStrategy.DEFAULT_TEMPLATE, FileNamingStrategy.DEFAULT_DATETIME_FORMAT, FileNamingStrategy.DEFAULT_DATE_FORMAT),
                 new VideoParams(ColorMode.MONO),
                 new GeometryParams(null, null, false, false, false),
                 new BandingCorrectionParams(24, 3),
@@ -149,12 +149,20 @@ abstract class ProcessParamsIO {
                         );
                     }
                     if (params.extraParams() == null) {
-                        params = params.withDebugParams(new ExtraParams(
+                        params = params.withExtraParams(new ExtraParams(
                                 false,
                                 true,
                                 EnumSet.of(ImageFormat.PNG),
-                                FileNamingStrategy.DEFAULT_TEMPLATE
+                                FileNamingStrategy.DEFAULT_TEMPLATE,
+                                FileNamingStrategy.DEFAULT_DATETIME_FORMAT,
+                                FileNamingStrategy.DEFAULT_DATE_FORMAT
                         ));
+                    }
+                    if (params.extraParams().datetimeFormat() == null) {
+                        params = params.withExtraParams(params.extraParams().withDateTimeFormat(FileNamingStrategy.DEFAULT_DATETIME_FORMAT));
+                    }
+                    if (params.extraParams().dateFormat() == null) {
+                        params = params.withExtraParams(params.extraParams().withDateFormat(FileNamingStrategy.DEFAULT_DATE_FORMAT));
                     }
                     return params;
                 }

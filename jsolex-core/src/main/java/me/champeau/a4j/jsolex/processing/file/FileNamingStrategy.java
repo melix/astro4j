@@ -19,6 +19,7 @@ import me.champeau.a4j.jsolex.processing.params.NamedPattern;
 import me.champeau.a4j.ser.Header;
 
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.Collections;
 import java.util.HashMap;
@@ -31,19 +32,27 @@ import static me.champeau.a4j.jsolex.processing.util.Constants.message;
 public class FileNamingStrategy {
     public static final String DEFAULT_TEMPLATE = "%BASENAME%/%KIND%/%VIDEO_DATE%_%LABEL%";
     public static final String SAME_DIRECTORY = "%BASENAME%_%CURRENT_DATETIME%_%LABEL%";
+    public static final String DEFAULT_DATE_FORMAT = "yyyyMMdd";
+    public static final String DEFAULT_DATETIME_FORMAT = "yyyy-MM-dd'T'HH:mm:ss";
     public static final List<NamedPattern> DEFAULTS = List.of(
-            new NamedPattern(message("template.default"), DEFAULT_TEMPLATE),
-            new NamedPattern(message("template.same.directory"), SAME_DIRECTORY)
+            new NamedPattern(message("template.default"), DEFAULT_TEMPLATE, DEFAULT_DATETIME_FORMAT, DEFAULT_DATE_FORMAT),
+            new NamedPattern(message("template.same.directory"), SAME_DIRECTORY, DEFAULT_DATETIME_FORMAT, DEFAULT_DATE_FORMAT)
     );
 
     private final String pattern;
+    private final String dateTimeFormat;
+    private final String dateFormat;
     private final LocalDateTime processingDate;
     private final Header serHeader;
 
     public FileNamingStrategy(String pattern,
+                              String dateTimeFormat,
+                              String dateFormat,
                               LocalDateTime processingDate,
                               Header serHeader) {
         this.pattern = pattern;
+        this.dateTimeFormat = dateTimeFormat;
+        this.dateFormat = dateFormat;
         this.processingDate = processingDate;
         this.serHeader = serHeader;
     }
@@ -58,10 +67,10 @@ public class FileNamingStrategy {
                 case BASENAME -> serFileBasename;
                 case KIND -> imageKind;
                 case LABEL -> imageLabel;
-                case CURRENT_DATETIME -> processingDate.format(DateTimeFormatter.ISO_LOCAL_DATE_TIME).replace(':','-');
-                case CURRENT_DATE -> processingDate.format(DateTimeFormatter.ISO_DATE);
-                case VIDEO_DATE -> serHeader.metadata().utcDateTime().format(DateTimeFormatter.ISO_DATE);
-                case VIDEO_DATETIME -> serHeader.metadata().utcDateTime().format(DateTimeFormatter.ISO_LOCAL_DATE_TIME).replace(':','-');
+                case CURRENT_DATETIME -> processingDate.atZone(ZoneId.of("UTC")).format(DateTimeFormatter.ofPattern(dateTimeFormat)).replace(':','-');
+                case CURRENT_DATE -> processingDate.atZone(ZoneId.of("UTC")).format(DateTimeFormatter.ofPattern(dateFormat));
+                case VIDEO_DATE -> serHeader.metadata().utcDateTime().format(DateTimeFormatter.ofPattern(dateFormat));
+                case VIDEO_DATETIME -> serHeader.metadata().utcDateTime().format(DateTimeFormatter.ofPattern(dateTimeFormat)).replace(':','-');
                 case SEQUENCE_NUMBER -> String.format("%04d", sequenceNumber);
             });
         }

@@ -17,6 +17,8 @@ package me.champeau.a4j.jsolex.app.jfx;
 
 import javafx.beans.value.ChangeListener;
 import javafx.fxml.FXML;
+import javafx.scene.Parent;
+import javafx.scene.Scene;
 import javafx.scene.control.CheckBox;
 import javafx.scene.control.ListView;
 import javafx.scene.control.Slider;
@@ -27,6 +29,7 @@ import javafx.scene.image.ImageView;
 import javafx.stage.Stage;
 import javafx.stage.WindowEvent;
 import javafx.util.converter.DoubleStringConverter;
+import me.champeau.a4j.jsolex.app.JSolEx;
 import me.champeau.a4j.jsolex.processing.color.ColorCurve;
 import me.champeau.a4j.jsolex.processing.params.SpectralRay;
 import me.champeau.a4j.jsolex.processing.params.SpectralRayIO;
@@ -45,6 +48,7 @@ import java.nio.file.Path;
 import java.util.EnumSet;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.function.Consumer;
 
 public class SpectralRayEditor {
     private static final ImageWrapper32 MONO_SUN_IMAGE = SunDiskColorPreview.getMono();
@@ -75,6 +79,28 @@ public class SpectralRayEditor {
     private Stage stage;
     private SpectralRay selectedRay;
 
+    public static void openEditor(Stage stage, Consumer<? super SpectralRayEditor> onCloseRequest) {
+        var fxmlLoader = I18N.fxmlLoader(JSolEx.class, "spectral-ray-editor");
+        try {
+            var node = (Parent) fxmlLoader.load();
+            var controller = (SpectralRayEditor) fxmlLoader.getController();
+            controller.setup(stage);
+            Scene scene = new Scene(node);
+            var currentScene = stage.getScene();
+            stage.setTitle(I18N.string(JSolEx.class, "spectral-ray-editor", "frame.title"));
+            stage.setScene(scene);
+            stage.show();
+            stage.setOnCloseRequest(e -> {
+                if (stage.getScene() == scene) {
+                    stage.setScene(currentScene);
+                    e.consume();
+                }
+                onCloseRequest.accept(controller);
+            });
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+    }
     private static double toDoubleValue(String text) {
         if (text == null || text.isEmpty()) {
             return 0;
@@ -180,7 +206,7 @@ public class SpectralRayEditor {
         var b = colorized[2];
         Path tmpFile;
         try {
-            tmpFile = Files.createTempFile("img", "png");
+            tmpFile = Files.createTempFile("img", ".png");
             ImageUtils.writeRgbImage(colorImage.width(), colorImage.height(), r, g, b, tmpFile.toFile(), EnumSet.of(ImageFormat.PNG));
             sunPreview.setImage(new Image(tmpFile.toFile().toURI().toString()));
             Files.delete(tmpFile);

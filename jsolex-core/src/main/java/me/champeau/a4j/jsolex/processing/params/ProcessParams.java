@@ -79,7 +79,7 @@ public record ProcessParams(
         );
     }
 
-    public ProcessParams withDebugParams(ExtraParams debugParams) {
+    public ProcessParams withExtraParams(ExtraParams debugParams) {
         return new ProcessParams(
                 spectrumParams,
                 observationDetails,

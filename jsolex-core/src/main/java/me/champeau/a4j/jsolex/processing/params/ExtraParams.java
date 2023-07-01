@@ -23,20 +23,30 @@ public record ExtraParams(
         boolean generateDebugImages,
         boolean autosave,
         Set<ImageFormat> imageFormats,
-        String fileNamePattern) {
+        String fileNamePattern,
+        String datetimeFormat,
+        String dateFormat) {
     public ExtraParams withGenerateDebugImages(boolean generateDebugImages) {
-        return new ExtraParams(generateDebugImages, autosave, imageFormats, fileNamePattern);
+        return new ExtraParams(generateDebugImages, autosave, imageFormats, fileNamePattern, datetimeFormat, dateFormat);
     }
 
     public ExtraParams withAutosave(boolean autosave) {
-        return new ExtraParams(generateDebugImages, autosave, imageFormats, fileNamePattern);
+        return new ExtraParams(generateDebugImages, autosave, imageFormats, fileNamePattern, datetimeFormat, dateFormat);
     }
 
     public ExtraParams withImageFormats(Set<ImageFormat> imageFormats) {
-        return new ExtraParams(generateDebugImages, autosave, imageFormats, fileNamePattern);
+        return new ExtraParams(generateDebugImages, autosave, imageFormats, fileNamePattern, datetimeFormat, dateFormat);
     }
 
     public ExtraParams withFileNamePattern(String fileNamePattern) {
-        return new ExtraParams(generateDebugImages, autosave, imageFormats, fileNamePattern);
+        return new ExtraParams(generateDebugImages, autosave, imageFormats, fileNamePattern, datetimeFormat, dateFormat);
+    }
+
+    public ExtraParams withDateTimeFormat(String datetimeFormat) {
+        return new ExtraParams(generateDebugImages, autosave, imageFormats, fileNamePattern, datetimeFormat, dateFormat);
+    }
+
+    public ExtraParams withDateFormat(String dateFormat) {
+        return new ExtraParams(generateDebugImages, autosave, imageFormats, fileNamePattern, datetimeFormat, dateFormat);
     }
 }

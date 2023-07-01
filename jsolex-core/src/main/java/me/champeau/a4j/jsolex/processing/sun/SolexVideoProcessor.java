@@ -156,7 +156,7 @@ public class SolexVideoProcessor implements Broadcaster {
 
     private void maybeUpdateProcessParams(Header header) {
         if (batchMode) {
-            processParams = processParams.withDebugParams(
+            processParams = processParams.withExtraParams(
                     processParams.extraParams().withAutosave(true)
             ).withObservationDetails(
                     processParams.observationDetails().withDate(header.metadata().utcDateTime())
@@ -173,6 +173,8 @@ public class SolexVideoProcessor implements Broadcaster {
         List<WorkflowState> imageList = new ArrayList<>();
         var imageNamingStrategy = new FileNamingStrategy(
                 processParams.extraParams().fileNamePattern(),
+                processParams.extraParams().dateFormat(),
+                processParams.extraParams().datetimeFormat(),
                 processingDate,
                 reader.header()
         );

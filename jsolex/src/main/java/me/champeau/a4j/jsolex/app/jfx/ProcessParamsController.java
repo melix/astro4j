@@ -288,6 +288,7 @@ public class ProcessParamsController {
             // minimally add PNG
             imageFormats.add(ImageFormat.PNG);
         }
+        var namingStrategy = namingPattern.getSelectionModel().getSelectedItem();
         processParams = new ProcessParams(
                 new SpectrumParams(wavelength.getValue(), getPixelShiftAsInt(), (int) Math.round(dopplerShifting.getValue()), switchRedBlueChannels.isSelected()),
                 new ObservationDetails(
@@ -300,7 +301,7 @@ public class ProcessParamsController {
                         geo,
                         ZonedDateTime.parse(observationDate.getText()),
                         camera.getText()),
-                new ExtraParams(generateDebugImages.isSelected() || debugImagesRequested, autoSave.isSelected(), imageFormats, namingPattern.getSelectionModel().getSelectedItem().pattern()),
+                new ExtraParams(generateDebugImages.isSelected() || debugImagesRequested, autoSave.isSelected(), imageFormats, namingStrategy.pattern(), namingStrategy.datetimeFormat(), namingStrategy.dateFormat()),
                 new VideoParams(assumeMonoVideo.isSelected() ? ColorMode.MONO : null),
                 new GeometryParams(
                         forceTilt.isSelected() ? Double.parseDouble(tiltValue.getText()) : null,
@@ -363,57 +364,19 @@ public class ProcessParamsController {
 
     @FXML
     public void openWavelengthEditor() {
-        var fxmlLoader = I18N.fxmlLoader(JSolEx.class, "spectral-ray-editor");
-        try {
-            var node = (Parent) fxmlLoader.load();
-            var controller = (SpectralRayEditor) fxmlLoader.getController();
-            controller.setup(stage);
-            Scene scene = new Scene(node);
-            var currentScene = stage.getScene();
-            stage.setTitle(I18N.string(JSolEx.class, "spectral-ray-editor", "frame.title"));
-            stage.setScene(scene);
-            stage.show();
-            stage.setOnCloseRequest(e -> {
-                if (stage.getScene() == scene) {
-                    stage.setScene(currentScene);
-                    e.consume();
-                }
-                controller.getSelectedItem().ifPresent(ray -> {
-                    wavelength.getItems().clear();
-                    wavelength.getItems().addAll(SpectralRayIO.loadDefaults());
-                    wavelength.getSelectionModel().select(ray);
-                });
-            });
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        }
+        SpectralRayEditor.openEditor(stage, controller -> controller.getSelectedItem().ifPresent(ray -> {
+            wavelength.getItems().clear();
+            wavelength.getItems().addAll(SpectralRayIO.loadDefaults());
+            wavelength.getSelectionModel().select(ray);
+        }));
     }
 
     @FXML
     public void openNamingPatternEditor() {
-        var fxmlLoader = I18N.fxmlLoader(JSolEx.class, "naming-patterns");
-        try {
-            var node = (Parent) fxmlLoader.load();
-            var controller = (NamingPatternEditor) fxmlLoader.getController();
-            controller.setup(stage, serFileHeader);
-            Scene scene = new Scene(node);
-            var currentScene = stage.getScene();
-            stage.setTitle(I18N.string(JSolEx.class, "naming-patterns", "frame.title"));
-            stage.setScene(scene);
-            stage.show();
-            stage.setOnCloseRequest(e -> {
-                if (stage.getScene() == scene) {
-                    stage.setScene(currentScene);
-                    e.consume();
-                }
-                controller.getSelectedPattern().ifPresent(pattern -> {
-                    namingPattern.getItems().clear();
-                    namingPattern.getItems().addAll(FileNamingPatternsIO.loadDefaults());
-                    namingPattern.getSelectionModel().select(pattern);
-                });
-            });
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        }
+        NamingPatternEditor.openEditor(stage, serFileHeader, controller -> controller.getSelectedPattern().ifPresent(pattern -> {
+            namingPattern.getItems().clear();
+            namingPattern.getItems().addAll(FileNamingPatternsIO.loadDefaults());
+            namingPattern.getSelectionModel().select(pattern);
+        }));
     }
 }

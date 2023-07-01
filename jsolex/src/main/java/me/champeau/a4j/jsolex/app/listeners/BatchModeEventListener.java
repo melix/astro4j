@@ -117,6 +117,8 @@ public class BatchModeEventListener implements ProcessingEventListener {
         if (item.log().length() > 0 && header != null) {
             var namingStrategy = new FileNamingStrategy(
                     processParams.extraParams().fileNamePattern(),
+                    processParams.extraParams().datetimeFormat(),
+                    processParams.extraParams().dateFormat(),
                     processingDate,
                     header
             );
