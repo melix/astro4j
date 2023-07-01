@@ -29,6 +29,8 @@
             </Menu>
             <Menu text="%tools">
                 <MenuItem onAction="#showFrameDebugger" text="%spectrum.debugger" />
+                <MenuItem onAction="#showFileNamePatternEditor" text="%filename.pattern.editor" />
+                <MenuItem onAction="#showSpectralRayEditor" text="%spectralray.editor" />
                 <SeparatorMenuItem />
                 <MenuItem onAction="#about" text="%about" />
             </Menu>

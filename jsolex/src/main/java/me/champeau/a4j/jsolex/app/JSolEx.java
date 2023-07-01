@@ -52,8 +52,10 @@ import me.champeau.a4j.jsolex.app.jfx.BatchOperations;
 import me.champeau.a4j.jsolex.app.jfx.ExplorerSupport;
 import me.champeau.a4j.jsolex.app.jfx.I18N;
 import me.champeau.a4j.jsolex.app.jfx.ImageMathEditor;
+import me.champeau.a4j.jsolex.app.jfx.NamingPatternEditor;
 import me.champeau.a4j.jsolex.app.jfx.ProcessParamsController;
 import me.champeau.a4j.jsolex.app.jfx.SpectralLineDebugger;
+import me.champeau.a4j.jsolex.app.jfx.SpectralRayEditor;
 import me.champeau.a4j.jsolex.app.listeners.BatchModeEventListener;
 import me.champeau.a4j.jsolex.app.listeners.BatchProcessingContext;
 import me.champeau.a4j.jsolex.app.listeners.JSolExInterface;
@@ -71,6 +73,7 @@ import me.champeau.a4j.jsolex.processing.util.LoggingSupport;
 import me.champeau.a4j.jsolex.processing.util.ProcessingException;
 import me.champeau.a4j.math.VectorApiSupport;
 import me.champeau.a4j.ser.Header;
+import me.champeau.a4j.ser.ImageMetadata;
 import me.champeau.a4j.ser.SerFileReader;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -79,6 +82,7 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -350,6 +354,29 @@ public class JSolEx extends Application implements JSolExInterface {
     }
 
     @FXML
+    private void showFileNamePatternEditor() {
+        var now = LocalDateTime.now();
+        var stage = new Stage();
+        NamingPatternEditor.openEditor(stage, createFakeHeader(now), e -> stage.close());
+    }
+
+    @FXML
+    private void showSpectralRayEditor() {
+        var stage = new Stage();
+        SpectralRayEditor.openEditor(stage, e -> stage.close());
+    }
+
+    private static Header createFakeHeader(LocalDateTime now) {
+        return new Header(null, null, 0, new ImageMetadata(
+                null,
+                null,
+                null,
+                now,
+                now.atZone(ZoneId.of("UTC"))
+        ));
+    }
+
+    @FXML
     private void about() {
         var alert = new Alert(Alert.AlertType.INFORMATION);
         alert.setResizable(true);
@@ -553,6 +580,8 @@ public class JSolEx extends Application implements JSolExInterface {
                 ioIsolate.setOnTaskStart(t -> LogbackConfigurer.recordThreadOwner(t.getName(), sequenceNumber));
                 var namingStrategy = new FileNamingStrategy(
                         params.extraParams().fileNamePattern(),
+                        params.extraParams().datetimeFormat(),
+                        params.extraParams().dateFormat(),
                         processingDate,
                         header
                 );

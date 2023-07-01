@@ -104,7 +104,7 @@ public class Main implements Runnable {
         }
         processParams = processParams.withSpectrumParams(spectrumOptions.applyTo(processParams.spectrumParams()));
         processParams = processParams.withObservationDetails(observationOptions.applyTo(processParams.observationDetails()));
-        processParams = processParams.withDebugParams(miscOptions.applyTo(processParams.extraParams()).withAutosave(true));
+        processParams = processParams.withExtraParams(miscOptions.applyTo(processParams.extraParams()).withAutosave(true));
         processParams = processParams.withGeometryParams(geometryOptions.applyTo(processParams.geometryParams()));
         processParams = processParams.withBandingCorrectionParams(bandingCorrectionOptions.applyTo(processParams.bandingCorrectionParams()));
         LOGGER.info("Processing parameters: {}", processParams);

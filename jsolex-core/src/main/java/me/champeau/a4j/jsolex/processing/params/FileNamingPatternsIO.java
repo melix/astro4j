@@ -71,12 +71,26 @@ public abstract class FileNamingPatternsIO {
         if (Files.exists(configFile)) {
             try (var reader = FilesUtils.newTextReader(configFile)) {
                 var object = gson.fromJson(reader, TypeToken.getParameterized(List.class, NamedPattern.class));
-                return (List<NamedPattern>) object;
+                return fix((List<NamedPattern>) object);
             } catch (IOException e) {
                 // fallback to default params
             }
         }
         return null;
+    }
+
+    private static List<NamedPattern> fix(List<NamedPattern> patterns) {
+        return patterns.stream()
+                .map(pattern -> {
+                    var fixed = pattern;
+                    if (pattern.dateFormat() == null) {
+                        fixed = fixed.withDateFormat(FileNamingStrategy.DEFAULT_DATE_FORMAT);
+                    }
+                    if (fixed.datetimeFormat() == null) {
+                        fixed = fixed.withDateTimeFormat(FileNamingStrategy.DEFAULT_DATETIME_FORMAT);
+                    }
+                    return fixed;
+                }).toList();
     }
 
     public static void saveTo(List<NamedPattern> patterns, File destination) {
