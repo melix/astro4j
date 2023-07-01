@@ -47,12 +47,32 @@ jlink {
     }
 }
 
-tasks.register<Copy>("jpackageInstallers") {
-    setDestinationDir(layout.buildDirectory.dir("installers").get().asFile)
+val installersDir = layout.buildDirectory.dir("installers")
+
+var jpackageInstallers = tasks.register<Copy>("jpackageInstallers") {
+    setDestinationDir(installersDir.get().asFile)
     from(tasks.jpackage) {
         include("*.zip")
         include("*.msi")
         include("*.deb")
         include("*.pkg")
     }
+}
+
+val jlinkTgz = tasks.register<Tar>("jlinkTgz") {
+    destinationDirectory.set(installersDir)
+    mustRunAfter(tasks.jpackageImage, tasks.jpackage)
+    from(tasks.jlink)
+    setCompression(Compression.GZIP)
+    archiveExtension.set("tar.gz")
+}
+
+val jlinkZipArchive = tasks.register<Zip>("jlinkZipArchive") {
+    destinationDirectory.set(installersDir)
+    mustRunAfter(tasks.jpackageImage, tasks.jpackage)
+    from(tasks.jlink)
+}
+
+tasks.register("allDistributions") {
+    dependsOn(jpackageInstallers, jlinkTgz, jlinkZipArchive)
 }
