@@ -32,10 +32,13 @@ You can also install the _development_ version of JSol'Ex as it can contain nume
   - [JSol'Ex (Linux, deb, AMD64)](https://jsolex.s3.eu-west-3.amazonaws.com/jsolex-ubuntu-latest/jsolex-devel_1.3.1-1_amd64.deb)
   - [JSol'Ex (Windows)](https://jsolex.s3.eu-west-3.amazonaws.com/jsolex-windows-latest/jsolex-devel-1.3.1.msi)
   - [JSol'Ex (MacOS)](https://jsolex.s3.eu-west-3.amazonaws.com/jsolex-macos-latest/jsolex-devel-1.3.1.pkg)
+  - [JSol'Ex (Tarball)](https://jsolex.s3.eu-west-3.amazonaws.com/jsolex-macos-latest/jsolex-1.3.1-SNAPSHOT.tar.gz)
+  - [JSol'Ex (Zip)](https://jsolex.s3.eu-west-3.amazonaws.com/jsolex-macos-latest/jsolex-1.3.1-SNAPSHOT.zip)
   - [Ser Player (Linux, deb, AMD64)](https://jsolex.s3.eu-west-3.amazonaws.com/ser-player-ubuntu-latest/ser-player-devel_1.3.1-1_amd64.deb)
   - [Ser Player (Windows)](https://jsolex.s3.eu-west-3.amazonaws.com/ser-player-windows-latest/ser-player-devel-1.3.1.msi)
   - [Ser Player (MacOS)](https://jsolex.s3.eu-west-3.amazonaws.com/ser-player-macos-latest/ser-player-devel-1.3.1.pkg)
-
+  - [Ser Player (Tarball)](https://jsolex.s3.eu-west-3.amazonaws.com/ser-player-macos-latest/ser-player-1.3.1-SNAPSHOT.tar.gz)
+  - [Ser Player (Zip)](https://jsolex.s3.eu-west-3.amazonaws.com/ser-player-macos-latest/ser-player-1.3.1-SNAPSHOT.zip)
 
 Licensed under Apache License version 2.
 
@@ -44,9 +47,18 @@ Licensed under Apache License version 2.
 You need to have a Java 17 SDK to build from sources.
 I recommend that you install [GraalVM for Java 17](https://www.graalvm.org/).
 
-- To run JSol'Ex, execute `./gradlew jsolex:run`
-- To run SerPlayer, execute `./gradlew ser-player:run`
+This project makes use of [Gradle](https://gradle.org) to build.
+Here are some common tasks you may want to execute:
 
-To execute tests: `./gradlew test`
+| Description                 |Task|Example|
+|-----------------------------|----|-------|
+| Run the application         |`run`|`./gradlew :jsolex:run`|
+| Build without running tests |`assemble`|`./gradlew :ser-player:assemble|
+| Package as a Zip file       |`jlinkZipArchive`|`./gradlew :jsolex:jlinkZipArchive` <br/>the look into the `jsolex/build/installers` directory|
+| Execute tests               |`test`|`./gradlew :ser-player:test`|
+| Build all distributionss    |`allDistributions`|`./gradlew allDistributions` <br/>then look into the `build/installers` directories|
 
+Tasks can be executed on all projects by running `./gradlew <task>` or on a single subproject by running `./gradlew :subproject:<task>`.
 
+The most common projects you'll want to run on are `jsolex` (the JSol'Ex application) or `ser-player` (the SER Player application).
+For example : `./gradlew :jsolex:run`.
