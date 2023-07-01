@@ -277,6 +277,7 @@ public class ImageSelector {
             var controller = (ImageMathEditor) fxmlLoader.getController();
             controller.setup(stage, imageMathParams);
             Scene scene = new Scene(node);
+            scene.getStylesheets().add(JSolEx.class.getResource("syntax.css").toExternalForm());
             var currentScene = stage.getScene();
             var onCloseRequest = stage.getOnCloseRequest();
             var title = stage.getTitle();

@@ -1,0 +1,19 @@
+.comment {
+    -fx-fill: #999999;
+    -fx-font-weight: bold;
+}
+.variable {
+    -fx-fill: green;
+    -fx-font-weight: bold;
+}
+.section {
+    -fx-fill: blue;
+    -fx-font-weight: bold;
+}
+.expression {
+    -fx-fill: purple;
+}
+.invalid {
+    -fx-fill: red;
+    -fx-font-weight: bold;
+}

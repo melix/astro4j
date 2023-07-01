@@ -8,6 +8,13 @@ description = "A Sol'Ex spectroheliographic video file processor (JavaFX version
 
 dependencies {
     implementation(projects.jsolexCore)
+    implementation(libs.richtextfx) {
+        exclude(group = "org.openjfx")
+    }
+}
+
+jlink {
+    addExtraDependencies("javafx")
 }
 
 application {
