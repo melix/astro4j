@@ -19,12 +19,11 @@ import me.champeau.a4j.jsolex.processing.stretching.LinearStrechingStrategy;
 import me.champeau.a4j.jsolex.processing.sun.workflow.GeneratedImageKind;
 import me.champeau.a4j.jsolex.processing.sun.workflow.ImageEmitter;
 import me.champeau.a4j.jsolex.processing.util.ColorizedImageWrapper;
+import me.champeau.a4j.jsolex.processing.util.FilesUtils;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 
 import java.io.IOException;
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.List;
@@ -58,7 +57,7 @@ public interface ImageMathScriptExecutor {
     }
 
     default ImageMathScriptResult execute(Path source) throws IOException {
-        return execute(Files.readAllLines(source, StandardCharsets.UTF_8));
+        return execute(FilesUtils.readAllLines(source));
     }
 
     default ImageMathScriptResult execute(String script) {

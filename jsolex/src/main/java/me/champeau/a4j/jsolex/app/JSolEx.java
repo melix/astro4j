@@ -64,6 +64,7 @@ import me.champeau.a4j.jsolex.processing.file.FileNamingStrategy;
 import me.champeau.a4j.jsolex.processing.params.ProcessParams;
 import me.champeau.a4j.jsolex.processing.sun.SolexVideoProcessor;
 import me.champeau.a4j.jsolex.processing.util.Constants;
+import me.champeau.a4j.jsolex.processing.util.FilesUtils;
 import me.champeau.a4j.jsolex.processing.util.ForkJoinContext;
 import me.champeau.a4j.jsolex.processing.util.ForkJoinParallelExecutor;
 import me.champeau.a4j.jsolex.processing.util.LoggingSupport;
@@ -76,10 +77,7 @@ import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.io.IOException;
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.StandardOpenOption;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
@@ -275,7 +273,7 @@ public class JSolEx extends Application implements JSolExInterface {
                     file = new File(file.getParentFile(), file.getName() + ImageMathEditor.MATH_EXTENSION);
                 }
                 try {
-                    Files.writeString(file.toPath(), imageMathScript.getText(), StandardCharsets.UTF_8, StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING);
+                    FilesUtils.writeString(imageMathScript.getText(), file.toPath());
                     imageMathSave.setDisable(true);
                 } catch (IOException e) {
                     // ignore
@@ -290,13 +288,9 @@ public class JSolEx extends Application implements JSolExInterface {
 
     private void loadImageMathScriptFrom(File file) {
         if (file != null) {
-            try {
-                var script = String.join(System.lineSeparator(), Files.readAllLines(file.toPath()));
-                imageMathScript.setText(script);
-                imageMathSave.setDisable(true);
-            } catch (IOException e) {
-                // ignore
-            }
+            var script = String.join(System.lineSeparator(), FilesUtils.readAllLines(file.toPath()));
+            imageMathScript.setText(script);
+            imageMathSave.setDisable(true);
         }
     }
 
@@ -381,7 +375,9 @@ public class JSolEx extends Application implements JSolExInterface {
         String version = "";
         try {
             version = new String(JSolEx.class.getResourceAsStream("/version.txt").readAllBytes(), "utf-8").trim();
-            version = version.substring(0, version.indexOf("-SNAPSHOT"));
+            if (version.contains("-SNAPSHOT")) {
+                version = version.substring(0, version.indexOf("-SNAPSHOT"));
+            }
         } catch (IOException e) {
             version = "unknown";
         }
@@ -636,11 +632,12 @@ public class JSolEx extends Application implements JSolExInterface {
             if (!file.getName().endsWith(LOG_EXTENSION)) {
                 file = new File(file.getParentFile(), file.getName() + LOG_EXTENSION);
             }
-            Files.writeString(file.toPath(), console.getText(), StandardCharsets.UTF_8, StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING);
+            FilesUtils.writeString(console.getText(), file.toPath());
         }
     }
 
-    @FXML void clearLog() {
+    @FXML
+    void clearLog() {
         console.clear();
     }
 
