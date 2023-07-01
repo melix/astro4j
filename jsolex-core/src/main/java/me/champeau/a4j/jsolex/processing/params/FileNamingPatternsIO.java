@@ -18,16 +18,12 @@ package me.champeau.a4j.jsolex.processing.params;
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
 import me.champeau.a4j.jsolex.processing.file.FileNamingStrategy;
+import me.champeau.a4j.jsolex.processing.util.FilesUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileOutputStream;
 import java.io.IOException;
-import java.io.InputStreamReader;
-import java.io.OutputStreamWriter;
-import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -73,7 +69,7 @@ public abstract class FileNamingPatternsIO {
     public static List<NamedPattern> readFrom(Path configFile) {
         Gson gson = newGson();
         if (Files.exists(configFile)) {
-            try (var reader = new InputStreamReader(new FileInputStream(configFile.toFile()), StandardCharsets.UTF_8)) {
+            try (var reader = FilesUtils.newTextReader(configFile)) {
                 var object = gson.fromJson(reader, TypeToken.getParameterized(List.class, NamedPattern.class));
                 return (List<NamedPattern>) object;
             } catch (IOException e) {
@@ -86,7 +82,7 @@ public abstract class FileNamingPatternsIO {
     public static void saveTo(List<NamedPattern> patterns, File destination) {
         try {
             Files.createDirectories(destination.getParentFile().toPath());
-            try (var writer = new OutputStreamWriter(new FileOutputStream(destination), StandardCharsets.UTF_8)) {
+            try (var writer = FilesUtils.newTextWriter(destination.toPath())) {
                 var gson = newGson();
                 writer.write(gson.toJson(patterns));
             }

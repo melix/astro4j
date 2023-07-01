@@ -26,6 +26,7 @@ import javafx.stage.Stage;
 import javafx.stage.WindowEvent;
 import me.champeau.a4j.jsolex.app.JSolEx;
 import me.champeau.a4j.jsolex.processing.params.ImageMathParams;
+import me.champeau.a4j.jsolex.processing.util.FilesUtils;
 import me.champeau.a4j.jsolex.processing.util.ProcessingException;
 
 import java.io.File;
@@ -92,7 +93,7 @@ public class ImageMathEditor {
 
     private void loadScriptFile(File file) {
         try {
-            scriptTextArea.setText(Files.readString(file.toPath()));
+            scriptTextArea.setText(FilesUtils.readString(file.toPath()));
             saveButton.setDisable(true);
         } catch (IOException e) {
             throw new ProcessingException(e);

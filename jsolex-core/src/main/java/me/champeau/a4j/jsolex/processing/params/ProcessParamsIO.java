@@ -17,18 +17,14 @@ package me.champeau.a4j.jsolex.processing.params;
 
 import com.google.gson.Gson;
 import me.champeau.a4j.jsolex.processing.file.FileNamingStrategy;
+import me.champeau.a4j.jsolex.processing.util.FilesUtils;
 import me.champeau.a4j.jsolex.processing.util.ImageFormat;
 import me.champeau.a4j.ser.ColorMode;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileOutputStream;
 import java.io.IOException;
-import java.io.InputStreamReader;
-import java.io.OutputStreamWriter;
-import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -95,7 +91,7 @@ abstract class ProcessParamsIO {
 
     public static ProcessParams readFrom(Path configFile) {
         if (Files.exists(configFile)) {
-            try (var reader = new InputStreamReader(new FileInputStream(configFile.toFile()), StandardCharsets.UTF_8)) {
+            try (var reader = FilesUtils.newTextReader(configFile)) {
                 Gson gson = newGson();
                 var params = gson.fromJson(reader, ProcessParams.class);
                 if (params != null) {
@@ -172,7 +168,7 @@ abstract class ProcessParamsIO {
     public static void saveTo(ProcessParams params, File destination) {
         try {
             Files.createDirectories(destination.getParentFile().toPath());
-            try (var writer = new OutputStreamWriter(new FileOutputStream(destination), StandardCharsets.UTF_8)) {
+            try (var writer = FilesUtils.newTextWriter(destination.toPath())) {
                 var gson = newGson();
                 writer.write(gson.toJson(params));
             }
