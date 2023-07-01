@@ -28,6 +28,7 @@ import javafx.scene.control.Slider;
 import javafx.scene.control.TextField;
 import javafx.scene.control.ToggleGroup;
 import javafx.scene.image.Image;
+import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
 import javafx.scene.paint.Color;
 import javafx.stage.Screen;
@@ -59,6 +60,8 @@ import java.util.function.DoubleUnaryOperator;
 import static me.champeau.a4j.jsolex.processing.sun.ImageUtils.createImageConverter;
 
 public class SpectralLineDebugger {
+    private static final int FAST_MOVE = 10;
+    private static final int FINE_MOVE = 1;
     private static final double EPSILON = 0.5d;
     private static final DoubleTriplet UNDEFINED_POLY = new DoubleTriplet(0, 0, 0);
 
@@ -90,6 +93,9 @@ public class SpectralLineDebugger {
     @FXML
     private Slider contrastBoost;
 
+    @FXML
+    private HBox frameMoveGroup;
+
     private Image image;
     private Point2D p1;
     private Point2D p2;
@@ -106,9 +112,9 @@ public class SpectralLineDebugger {
         frames.setToggleGroup(toggleGroup);
         toggleGroup.selectedToggleProperty().addListener((obj, oldValue, newValue) -> {
             if (newValue == average) {
-                frameSlider.setDisable(true);
+                frameMoveGroup.setDisable(true);
             } else {
-                frameSlider.setDisable(false);
+                frameMoveGroup.setDisable(false);
             }
         });
         var converter = createImageConverter(colorMode);
@@ -323,5 +329,31 @@ public class SpectralLineDebugger {
 
     private static String localized(String key) {
         return I18N.string(JSolEx.class, "frame-debugger", key);
+    }
+
+    private void moveFrameBy(int amount) {
+        var max = frameSlider.getMax();
+        var newPosition = Math.max(0, Math.min(max, frameSlider.getValue() + amount));
+        frameSlider.setValue(newPosition);
+    }
+
+    @FXML
+    private void fastRewind() {
+        moveFrameBy(-FAST_MOVE);
+    }
+
+    @FXML
+    private void rewind() {
+        moveFrameBy(-FINE_MOVE);
+    }
+
+    @FXML
+    private void fastForward() {
+        moveFrameBy(FAST_MOVE);
+    }
+
+    @FXML
+    private void forward() {
+        moveFrameBy(FINE_MOVE);
     }
 }
