@@ -1,17 +1,19 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
 <?import javafx.geometry.Insets?>
+<?import javafx.scene.Group?>
 <?import javafx.scene.canvas.Canvas?>
+<?import javafx.scene.control.Button?>
 <?import javafx.scene.control.CheckBox?>
 <?import javafx.scene.control.Label?>
 <?import javafx.scene.control.RadioButton?>
 <?import javafx.scene.control.Slider?>
 <?import javafx.scene.control.TextField?>
-<?import javafx.scene.Group?>
 <?import javafx.scene.layout.BorderPane?>
 <?import javafx.scene.layout.HBox?>
 <?import javafx.scene.layout.VBox?>
 <?import javafx.scene.text.Font?>
+
 <BorderPane xmlns="http://javafx.com/javafx/19" xmlns:fx="http://javafx.com/fxml/1" fx:controller="me.champeau.a4j.jsolex.app.jfx.SpectralLineDebugger">
     <center>
         <Group>
@@ -20,11 +22,17 @@
     </center>
     <bottom>
         <VBox fx:id="status" spacing="4.0">
-            <HBox spacing="4.0">
+            <HBox alignment="CENTER_LEFT" spacing="4.0">
                 <RadioButton fx:id="average" mnemonicParsing="false" text="%average"/>
                 <RadioButton fx:id="frames" mnemonicParsing="false" text="%frames"/>
-                <Slider fx:id="frameSlider" prefHeight="16.0" prefWidth="258.0"/>
-                <Label fx:id="frameId"/>
+                <HBox fx:id="frameMoveGroup" alignment="CENTER_LEFT">
+                    <Button mnemonicParsing="false" onAction="#fastRewind" text="&lt;&lt;"/>
+                    <Button mnemonicParsing="false" onAction="#rewind" text="&lt;"/>
+                    <Slider fx:id="frameSlider" prefHeight="16.0" prefWidth="258.0"/>
+                    <Label fx:id="frameId"/>
+                    <Button mnemonicParsing="false" onAction="#forward" text="&gt;"/>
+                    <Button mnemonicParsing="false" onAction="#fastForward" text="&gt;&gt;"/>
+                </HBox>
                 <VBox.margin>
                     <Insets bottom="8.0" left="8.0" right="8.0" top="8.0"/>
                 </VBox.margin>
