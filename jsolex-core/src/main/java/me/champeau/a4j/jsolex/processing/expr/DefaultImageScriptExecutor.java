@@ -15,12 +15,14 @@
  */
 package me.champeau.a4j.jsolex.processing.expr;
 
+import me.champeau.a4j.jsolex.expr.BuiltinFunction;
 import me.champeau.a4j.jsolex.processing.event.ProgressEvent;
 import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
 import me.champeau.a4j.jsolex.processing.sun.workflow.ImageStats;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
@@ -132,6 +134,9 @@ public class DefaultImageScriptExecutor implements ImageMathScriptExecutor {
             if (i != -1) {
                 var name = line.substring(0, i).trim();
                 var expression = line.substring(i + 1).trim();
+                if (isReservedName(name)) {
+                    invalidExpressions.add(new InvalidExpression(name, expression, createReservedNameError(name)));
+                }
                 if (isOutputSection(currentSection)) {
                     outputs.put(name, expression);
                     continue;
@@ -172,6 +177,17 @@ public class DefaultImageScriptExecutor implements ImageMathScriptExecutor {
         return outputs;
     }
 
+    private static InvalidNameException createReservedNameError(String name) {
+        return new InvalidNameException("'" + name + "' is a reserved name. You cannot have a label which name is also the name of a built-in function.");
+    }
+
+    private boolean isReservedName(String name) {
+        String testName = name.toLowerCase(Locale.US);
+        return Arrays.stream(BuiltinFunction.values())
+                .map(BuiltinFunction::lowerCaseName)
+                .anyMatch(testName::equals);
+    }
+
     private void populateContext(AbstractImageExpressionEvaluator evaluator) {
         for (Map.Entry<Class, Object> entry : context.entrySet()) {
             var key = entry.getKey();
@@ -190,6 +206,12 @@ public class DefaultImageScriptExecutor implements ImageMathScriptExecutor {
         @Override
         public Object evaluate(String expression) {
             return memoizeCache.computeIfAbsent(expression, super::evaluate);
+        }
+    }
+
+    public static class InvalidNameException extends Exception {
+        public InvalidNameException(String message) {
+            super(message);
         }
     }
 }
