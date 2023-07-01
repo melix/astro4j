@@ -875,6 +875,9 @@ Le script apparaît désormais dans la liste de gauche, il sera appliqué lors d
 <p><code>asinh_stretch</code> permet d&#8217;appliquer la fonction d&#8217;étirement par arcsinus hyperbolique. Elle prend 3 paramètres: l&#8217;image, le point noir et le coefficient de stretch. Par exemple, <code>asinh_stretch(img(0), 200, 100)</code>.</p>
 </li>
 <li>
+<p><code>linear_stretch</code> augmente la plage dynamique d&#8217;une image. Elle prend soit 1, soit 3 paramètres : l&#8217;image, puis optionellement les valeurs min et max des pixels (valeur comprise entre 0 et 65535). Par exemple: <code>linear_stretch(img(0))</code></p>
+</li>
+<li>
 <p><code>fix_banding</code> permet d&#8217;appliquer l&#8217;algorithme de corrections de bandes (ou transversallium). Il prend 3 arguments: l&#8217;image, la largeur de bande et le nombre d&#8217;itérations. Par exemple, <code>fix_banding(img(0), 10, 5)</code>.</p>
 </li>
 </ul>

@@ -886,6 +886,9 @@ Click on "Ok" to start processing, you will now have the 21 required images gene
 <p><code>asinh_stretch</code> applies the inverse arcsin hypobolic transformation to increase constrast. It accepts 3 arguments: the image, the black point value and a stretch value.</p>
 </li>
 <li>
+<p><code>linear_stretch</code> expands the image dynamic range. It takes either one or 3 arguments: the image and optionally the minimal and maximal value. The min/max values are used to determine to what range to expand. It&#8217;s a 16-bit value between 0 and 65535. For example: <code>linear_stretch(img(0))</code></p>
+</li>
+<li>
 <p><code>fix_banding</code> applies the banding correction algorithm. It accepts 3 arguments: the image, the banding width, the number of passes. For example, <code>fix_banding(img(0), 10, 5)</code>.</p>
 </li>
 </ul>
