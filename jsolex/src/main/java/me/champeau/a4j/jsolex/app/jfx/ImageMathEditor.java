@@ -20,11 +20,11 @@ import javafx.scene.control.Alert;
 import javafx.scene.control.Button;
 import javafx.scene.control.ButtonType;
 import javafx.scene.control.ListView;
-import javafx.scene.control.TextArea;
 import javafx.stage.FileChooser;
 import javafx.stage.Stage;
 import javafx.stage.WindowEvent;
 import me.champeau.a4j.jsolex.app.JSolEx;
+import me.champeau.a4j.jsolex.app.jfx.ime.ImageMathTextArea;
 import me.champeau.a4j.jsolex.processing.params.ImageMathParams;
 import me.champeau.a4j.jsolex.processing.util.FilesUtils;
 import me.champeau.a4j.jsolex.processing.util.ProcessingException;
@@ -36,10 +36,8 @@ import java.nio.file.StandardOpenOption;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.regex.Pattern;
 
 public class ImageMathEditor {
-    private static final Pattern COMMENT_PATTERN = Pattern.compile("(?m)^\\s*(#|//).+$");
     private static final ButtonType PROCEED = new ButtonType(I18N.string(JSolEx.class, "imagemath-editor", "proceed.anyway"));
     private static final ButtonType BACK = new ButtonType(I18N.string(JSolEx.class, "imagemath-editor", "back"));
     public static final String MATH_EXTENSION = ".math";
@@ -49,7 +47,7 @@ public class ImageMathEditor {
     public ListView<ImageMathEntry> elements;
     private ImageMathParams params;
     @FXML
-    private TextArea scriptTextArea;
+    private ImageMathTextArea scriptTextArea;
 
     @FXML
     private Button saveButton;

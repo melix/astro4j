@@ -17,55 +17,60 @@
 <?import javafx.scene.layout.HBox?>
 <?import javafx.scene.layout.VBox?>
 
+<?import me.champeau.a4j.jsolex.app.jfx.ime.ImageMathTextArea?>
 <BorderPane xmlns="http://javafx.com/javafx/19" xmlns:fx="http://javafx.com/fxml/1">
     <top>
         <MenuBar>
             <Menu text="%file">
-                <MenuItem onAction="#open" text="%open.ser.file" />
-                <MenuItem onAction="#openBatch" text="%open.batch" />
-                <Menu fx:id="recentFilesMenu" text="%recent.files" />
-                <SeparatorMenuItem />
-                <MenuItem onAction="#exit" text="%exit" />
+                <MenuItem onAction="#open" text="%open.ser.file"/>
+                <MenuItem onAction="#openBatch" text="%open.batch"/>
+                <Menu fx:id="recentFilesMenu" text="%recent.files"/>
+                <SeparatorMenuItem/>
+                <MenuItem onAction="#exit" text="%exit"/>
             </Menu>
             <Menu text="%tools">
-                <MenuItem onAction="#showFrameDebugger" text="%spectrum.debugger" />
-                <MenuItem onAction="#showFileNamePatternEditor" text="%filename.pattern.editor" />
-                <MenuItem onAction="#showSpectralRayEditor" text="%spectralray.editor" />
-                <SeparatorMenuItem />
-                <MenuItem onAction="#about" text="%about" />
+                <MenuItem onAction="#showFrameDebugger" text="%spectrum.debugger"/>
+                <MenuItem onAction="#showFileNamePatternEditor" text="%filename.pattern.editor"/>
+                <MenuItem onAction="#showSpectralRayEditor" text="%spectralray.editor"/>
+                <SeparatorMenuItem/>
+                <MenuItem onAction="#about" text="%about"/>
             </Menu>
         </MenuBar>
     </top>
     <center>
         <SplitPane dividerPositions="0.7">
-            <TabPane fx:id="mainPane" prefWidth="400.0" />
+            <TabPane fx:id="mainPane" prefWidth="400.0"/>
             <SplitPane dividerPositions="0.5" orientation="VERTICAL">
                 <items>
                     <VBox>
                         <ButtonBar>
                             <buttons>
-                                <Button onAction="#clearLog" text="%clear.log" />
-                                <Button onAction="#saveLog" text="%save.log" />
+                                <Button onAction="#clearLog" text="%clear.log"/>
+                                <Button onAction="#saveLog" text="%save.log"/>
                             </buttons>
                         </ButtonBar>
-                        <TextArea fx:id="console" editable="false" wrapText="true" VBox.vgrow="ALWAYS" />
+                        <TextArea fx:id="console" editable="false" wrapText="true" VBox.vgrow="ALWAYS"/>
                     </VBox>
-                    <TitledPane fx:id="imageMathPane" text="%imagemath.script">
-                        <content>
-                            <VBox>
-                                <children>
-                                    <TextArea fx:id="imageMathScript" wrapText="true" />
-                                    <ButtonBar prefHeight="40.0" prefWidth="200.0">
-                                        <buttons>
-                                            <Button fx:id="imageMathLoad" mnemonicParsing="false" text="%imagemath.load" />
-                                            <Button fx:id="imageMathSave" mnemonicParsing="false" text="%imagemath.save" />
-                                            <Button fx:id="imageMathRun" mnemonicParsing="false" text="%imagemath.run" />
-                                        </buttons>
-                                    </ButtonBar>
-                                </children>
-                            </VBox>
-                        </content>
-                    </TitledPane>
+                    <VBox fx:id="imageMathPane">
+                        <children>
+                            <TitledPane text="%imagemath.script">
+                                <BorderPane>
+                                    <center>
+                                        <ImageMathTextArea fx:id="imageMathScript"/>
+                                    </center>
+                                    <bottom>
+                                        <ButtonBar prefHeight="40.0" prefWidth="200.0">
+                                            <buttons>
+                                                <Button fx:id="imageMathLoad" mnemonicParsing="false" text="%imagemath.load"/>
+                                                <Button fx:id="imageMathSave" mnemonicParsing="false" text="%imagemath.save"/>
+                                                <Button fx:id="imageMathRun" mnemonicParsing="false" text="%imagemath.run"/>
+                                            </buttons>
+                                        </ButtonBar>
+                                    </bottom>
+                                </BorderPane>
+                            </TitledPane>
+                        </children>
+                    </VBox>
                 </items>
             </SplitPane>
         </SplitPane>
@@ -73,12 +78,12 @@
     <bottom>
         <HBox spacing="10.0">
             <children>
-                <ProgressBar fx:id="progressBar" prefWidth="200.0" progress="0.0" />
-                <Label fx:id="progressLabel" />
-                <HBox fx:id="workButtons" spacing="10.0" />
+                <ProgressBar fx:id="progressBar" prefWidth="200.0" progress="0.0"/>
+                <Label fx:id="progressLabel"/>
+                <HBox fx:id="workButtons" spacing="10.0"/>
             </children>
             <padding>
-                <Insets bottom="4.0" left="4.0" right="4.0" top="4.0" />
+                <Insets bottom="4.0" left="4.0" right="4.0" top="4.0"/>
             </padding>
         </HBox>
     </bottom>

@@ -15,7 +15,9 @@
  */
 package me.champeau.a4j.jsolex.expr;
 
-public record Multiplication(Expression left, Expression right) implements Expression {
+import java.util.List;
+
+public record Multiplication(Expression left, Expression right, List<Token> tokens) implements Expression {
     @Override
     public String toString() {
         return left + "*" + right;

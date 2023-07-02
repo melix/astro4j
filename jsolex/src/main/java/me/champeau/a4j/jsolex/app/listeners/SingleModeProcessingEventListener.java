@@ -56,7 +56,6 @@ import java.io.IOException;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
@@ -275,8 +274,8 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
     }
 
     @Override
-    public ImageMathScriptResult execute(List<String> lines) {
-        var result = imageScriptExecutor.execute(lines);
+    public ImageMathScriptResult execute(String script) {
+        var result = imageScriptExecutor.execute(script);
         ImageMathScriptExecutor.render(result, imageEmitter);
         var invalidExpressions = result.invalidExpressions();
         var errorCount = invalidExpressions.size();

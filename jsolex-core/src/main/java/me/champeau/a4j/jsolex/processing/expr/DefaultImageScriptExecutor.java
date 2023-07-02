@@ -15,14 +15,13 @@
  */
 package me.champeau.a4j.jsolex.processing.expr;
 
-import me.champeau.a4j.jsolex.expr.BuiltinFunction;
+import me.champeau.a4j.jsolex.expr.Variable;
 import me.champeau.a4j.jsolex.processing.event.ProgressEvent;
 import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
 import me.champeau.a4j.jsolex.processing.sun.workflow.ImageStats;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
@@ -36,10 +35,13 @@ import java.util.function.Function;
 
 public class DefaultImageScriptExecutor implements ImageMathScriptExecutor {
     public static final String BLACK_POINT_VAR = "blackPoint";
+    public static final String OUTPUTS_SECTION_NAME = "outputs";
+
     private final Function<Integer, ImageWrapper> imagesByShift;
     private final Map<Class, Object> context;
     private final AtomicInteger executionCount = new AtomicInteger(0);
     private final Broadcaster broadcaster;
+    private final ScriptTokenizer tokenizer = new ScriptTokenizer();
 
     public DefaultImageScriptExecutor(Function<Integer, ImageWrapper> imagesByShift,
                                       Map<Class, Object> context,
@@ -55,12 +57,12 @@ public class DefaultImageScriptExecutor implements ImageMathScriptExecutor {
     }
 
     @Override
-    public ImageMathScriptResult execute(List<String> lines) {
+    public ImageMathScriptResult execute(String script) {
         var index = executionCount.getAndIncrement();
         var evaluator = new MemoizingExpressionEvaluator();
         populateContext(evaluator);
         var invalidExpressions = new ArrayList<InvalidExpression>();
-        var outputs = prepareOutputExpressions(lines, index, evaluator, invalidExpressions);
+        var outputs = prepareOutputExpressions(script, index, evaluator, invalidExpressions);
         var producedImages = new HashMap<String, ImageWrapper>();
         return executeScript(evaluator, invalidExpressions, outputs, producedImages);
     }
@@ -109,10 +111,10 @@ public class DefaultImageScriptExecutor implements ImageMathScriptExecutor {
     }
 
     private static boolean isOutputSection(String currentSection) {
-        return "[outputs]".equals(currentSection);
+        return OUTPUTS_SECTION_NAME.equals(currentSection);
     }
 
-    private Map<String, String> prepareOutputExpressions(List<String> lines,
+    private Map<String, String> prepareOutputExpressions(String script,
                                                          int index,
                                                          AbstractImageExpressionEvaluator evaluator,
                                                          List<InvalidExpression> invalidExpressions) {
@@ -120,41 +122,44 @@ public class DefaultImageScriptExecutor implements ImageMathScriptExecutor {
         int cpt = 0;
         String currentSection = null;
         Map<String, String> variables = new LinkedHashMap<>();
-        for (String line : lines) {
-            line = line.trim();
-            if (line.startsWith("//") || line.startsWith("#")) {
-                // comment
-                continue;
-            }
-            if (line.startsWith("[") && line.endsWith("]")) {
-                currentSection = line.toLowerCase(Locale.US);
-                continue;
-            }
-            var i = line.indexOf("=");
-            if (i != -1) {
-                var name = line.substring(0, i).trim();
-                var expression = line.substring(i + 1).trim();
-                if (isReservedName(name)) {
-                    invalidExpressions.add(new InvalidExpression(name, expression, createReservedNameError(name)));
+        var tokens = tokenizer.tokenize(script);
+        for (ScriptToken token : tokens) {
+            if (token instanceof ScriptToken.Section section) {
+                currentSection = section.name();
+            } else if (token instanceof ScriptToken.VariableDefinition variableDefinition) {
+                var variable = variableDefinition.variable();
+                var candidate = variableDefinition.expression();
+                var name = variable.name();
+                if (Variable.isReservedName(name)) {
+                    invalidExpressions.add(new InvalidExpression(name, candidate.value(), createReservedNameError(name)));
                 }
-                if (isOutputSection(currentSection)) {
-                    outputs.put(name, expression);
-                    continue;
+                if (candidate instanceof ScriptToken.Expression expression) {
+                    var text = expression.expression();
+                    if (isOutputSection(currentSection)) {
+                        outputs.put(name, text);
+                        continue;
+                    }
+                    variables.put(name, text);
+                    try {
+                        evaluator.putVariable(name, text);
+                    } catch (Exception ex) {
+                        invalidExpressions.add(new InvalidExpression(name, text, ex));
+                    }
+                } else if (candidate instanceof ScriptToken.Invalid invalid) {
+                    invalidExpressions.add(new InvalidExpression(name, invalid.value(), new SyntaxError("Syntax error")));
                 }
-                variables.put(name, expression);
-                try {
-                    evaluator.putVariable(name, expression);
-                } catch (Exception ex) {
-                    invalidExpressions.add(new InvalidExpression(name, expression, ex));
-                }
-            } else {
+            } else if (token instanceof ScriptToken.Expression expr) {
                 var dynamicVarName = "imagemath_" + index + "_" + cpt;
                 cpt++;
                 if (isOutputSection(currentSection)) {
-                    outputs.put(dynamicVarName, line);
+                    outputs.put(dynamicVarName, expr.expression());
                 } else {
-                    variables.put(dynamicVarName, line);
+                    variables.put(dynamicVarName, expr.expression());
                 }
+            } else if (token instanceof ScriptToken.Invalid invalid) {
+                var dynamicVarName = "imagemath_" + index + "_" + cpt;
+                cpt++;
+                invalidExpressions.add(new InvalidExpression(dynamicVarName, invalid.value(), new SyntaxError("Syntax error")));
             }
         }
         // Collect internal shifts
@@ -177,15 +182,8 @@ public class DefaultImageScriptExecutor implements ImageMathScriptExecutor {
         return outputs;
     }
 
-    private static InvalidNameException createReservedNameError(String name) {
-        return new InvalidNameException("'" + name + "' is a reserved name. You cannot have a label which name is also the name of a built-in function.");
-    }
-
-    private boolean isReservedName(String name) {
-        String testName = name.toLowerCase(Locale.US);
-        return Arrays.stream(BuiltinFunction.values())
-                .map(BuiltinFunction::lowerCaseName)
-                .anyMatch(testName::equals);
+    private static Variable.InvalidNameException createReservedNameError(String name) {
+        return new Variable.InvalidNameException("'" + name + "' is a reserved name. You cannot have a label which name is also the name of a built-in function.");
     }
 
     private void populateContext(AbstractImageExpressionEvaluator evaluator) {
@@ -209,9 +207,10 @@ public class DefaultImageScriptExecutor implements ImageMathScriptExecutor {
         }
     }
 
-    public static class InvalidNameException extends Exception {
-        public InvalidNameException(String message) {
+    public static class SyntaxError extends Exception {
+        public SyntaxError(String message) {
             super(message);
         }
     }
+
 }

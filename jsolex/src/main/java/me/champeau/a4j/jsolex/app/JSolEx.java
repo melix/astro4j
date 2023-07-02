@@ -22,6 +22,7 @@ import javafx.beans.property.SimpleDoubleProperty;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.collections.FXCollections;
 import javafx.fxml.FXML;
+import javafx.scene.Node;
 import javafx.scene.Parent;
 import javafx.scene.Scene;
 import javafx.scene.control.Alert;
@@ -38,7 +39,6 @@ import javafx.scene.control.TableCell;
 import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableView;
 import javafx.scene.control.TextArea;
-import javafx.scene.control.TitledPane;
 import javafx.scene.image.Image;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
@@ -56,6 +56,7 @@ import me.champeau.a4j.jsolex.app.jfx.NamingPatternEditor;
 import me.champeau.a4j.jsolex.app.jfx.ProcessParamsController;
 import me.champeau.a4j.jsolex.app.jfx.SpectralLineDebugger;
 import me.champeau.a4j.jsolex.app.jfx.SpectralRayEditor;
+import me.champeau.a4j.jsolex.app.jfx.ime.ImageMathTextArea;
 import me.champeau.a4j.jsolex.app.listeners.BatchModeEventListener;
 import me.champeau.a4j.jsolex.app.listeners.BatchProcessingContext;
 import me.champeau.a4j.jsolex.app.listeners.JSolExInterface;
@@ -125,9 +126,9 @@ public class JSolEx extends Application implements JSolExInterface {
     private HBox workButtons;
 
     @FXML
-    private TitledPane imageMathPane;
+    private Node imageMathPane;
     @FXML
-    private TextArea imageMathScript;
+    private ImageMathTextArea imageMathScript;
     @FXML
     private Button imageMathRun;
     @FXML
@@ -155,8 +156,10 @@ public class JSolEx extends Application implements JSolExInterface {
         try {
             var root = (Parent) fxmlLoader.load();
             imageMathPane.setDisable(true);
+            imageMathScript.setPrefHeight(10000);
             var preferredDimensions = config.getPreferredDimensions();
             Scene rootScene = new Scene(root, preferredDimensions.a(), preferredDimensions.b());
+            rootScene.getStylesheets().add(JSolEx.class.getResource("syntax.css").toExternalForm());
             var pause = new PauseTransition(Duration.seconds(1));
             rootScene.widthProperty().addListener((observable, oldValue, newValue) -> {
                 pause.setOnFinished(e -> config.setPreferredWidth(newValue.intValue()));
@@ -293,8 +296,10 @@ public class JSolEx extends Application implements JSolExInterface {
     private void loadImageMathScriptFrom(File file) {
         if (file != null) {
             var script = String.join(System.lineSeparator(), FilesUtils.readAllLines(file.toPath()));
-            imageMathScript.setText(script);
-            imageMathSave.setDisable(true);
+            BatchOperations.submit(() -> {
+                imageMathScript.setText(script);
+                imageMathSave.setDisable(true);
+            });
         }
     }
 

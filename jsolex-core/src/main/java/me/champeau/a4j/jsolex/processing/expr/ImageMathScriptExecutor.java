@@ -25,8 +25,6 @@ import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 
 import java.io.IOException;
 import java.nio.file.Path;
-import java.util.Arrays;
-import java.util.List;
 import java.util.Map;
 
 public interface ImageMathScriptExecutor {
@@ -57,14 +55,9 @@ public interface ImageMathScriptExecutor {
     }
 
     default ImageMathScriptResult execute(Path source) throws IOException {
-        return execute(FilesUtils.readAllLines(source));
+        return execute(FilesUtils.readString(source));
     }
 
-    default ImageMathScriptResult execute(String script) {
-        return execute(Arrays.asList(
-            script.split("\r?\n")
-        ));
-    }
+    ImageMathScriptResult execute(String script);
 
-    ImageMathScriptResult execute(List<String> lines);
 }

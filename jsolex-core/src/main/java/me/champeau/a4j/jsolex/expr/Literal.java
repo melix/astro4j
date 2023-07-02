@@ -15,7 +15,9 @@
  */
 package me.champeau.a4j.jsolex.expr;
 
-public record Literal(Object value) implements Expression {
+import java.util.List;
+
+public record Literal(Object value, List<Token> tokens) implements Expression {
     @Override
     public String toString() {
         return value.toString();

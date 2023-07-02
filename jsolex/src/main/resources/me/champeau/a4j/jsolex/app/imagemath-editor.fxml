@@ -12,6 +12,7 @@
 <?import javafx.scene.layout.StackPane?>
 <?import javafx.scene.layout.VBox?>
 
+<?import me.champeau.a4j.jsolex.app.jfx.ime.ImageMathTextArea?>
 <BorderPane maxHeight="-Infinity" maxWidth="-Infinity" minHeight="-Infinity" minWidth="-Infinity" prefHeight="420.0" prefWidth="748.0" xmlns="http://javafx.com/javafx/19"
             xmlns:fx="http://javafx.com/fxml/1" fx:controller="me.champeau.a4j.jsolex.app.jfx.ImageMathEditor">
     <center>
@@ -25,18 +26,11 @@
                         <Insets left="8.0"/>
                     </padding>
                 </Label>
-                <HBox>
-                    <children>
-                        <StackPane>
-                            <TextArea fx:id="scriptTextArea" maxHeight="250.0" prefHeight="250.0" prefWidth="592.0" text="%example.script" BorderPane.alignment="CENTER">
-                                <StackPane.margin>
-                                    <Insets bottom="8.0" left="8.0" right="8.0" top="8.0"/>
-                                </StackPane.margin>
-                            </TextArea>
-                        </StackPane>
-                    </children>
-                </HBox>
-
+                <ImageMathTextArea fx:id="scriptTextArea" maxHeight="250.0" prefHeight="250.0" prefWidth="592.0" BorderPane.alignment="CENTER">
+                    <VBox.margin>
+                        <Insets left="4" right="8" bottom="4" top="4"/>
+                    </VBox.margin>
+                </ImageMathTextArea>
                 <ButtonBar BorderPane.alignment="CENTER">
                     <buttons>
                         <Button mnemonicParsing="false" onAction="#newScript" prefHeight="24.0" prefWidth="86.0" text="%new"/>

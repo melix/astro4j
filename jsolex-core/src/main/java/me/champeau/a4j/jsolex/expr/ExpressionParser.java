@@ -17,12 +17,13 @@ package me.champeau.a4j.jsolex.expr;
 
 import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Deque;
 import java.util.List;
 
 public class ExpressionParser {
 
-    public static final Literal ZERO = new Literal(0.0d);
+    public static final Literal ZERO = new Literal(0.0d, List.of());
     private final Scanner scanner = new Scanner();
 
     public Expression parseExpression(String expression) {
@@ -92,38 +93,48 @@ public class ExpressionParser {
         for (Token token : tokens) {
             switch (token.type()) {
                 case LITERAL -> queue.push(toLiteral(token));
-                case VARIABLE -> queue.push(new Variable(token.value()));
+                case VARIABLE -> queue.push(new Variable(token.value(), List.of(token)));
                 case FUNCTION -> {
                     int argCount = ((Number)((Literal) queue.pop()).value()).intValue();
+                    List<Token> funTokens = new ArrayList<>(argCount + 1);
+                    funTokens.add(token);
                     var argList = new ArrayList<Expression>();
                     for (int i=0; i<argCount; i++) {
-                        argList.add(0, queue.pop());
+                        var arg = queue.pop();
+                        argList.add(0, arg);
+                        funTokens.addAll(arg.tokens());
                     }
-                    var fun = new FunctionCall(BuiltinFunction.of(token.value()), argList);
+                    var fun = new FunctionCall(BuiltinFunction.of(token.value()), argList, Collections.unmodifiableList(funTokens));
                     queue.push(fun);
                 }
                 case UNARY_OPERATOR -> {
                     if (token.value().equals("-")) {
-                        var pop = queue.pop();
-                        queue.push(new Substraction(new Literal(0d), pop));
+                        var operand = queue.pop();
+                        List<Token> allTokens = new ArrayList<>();
+                        allTokens.add(token);
+                        allTokens.addAll(operand.tokens());
+                        queue.push(new Substraction(new Literal(0d, List.of()), operand, Collections.unmodifiableList(allTokens)));
                     }
                 }
                 case OPERATOR -> {
                         var right = queue.pop();
+                        List<Token> allTokens = new ArrayList<>();
+                        allTokens.addAll(right.tokens());
                         if (queue.isEmpty()) {
                             // unary operator
                             switch (token.value()) {
                                 case "+" -> queue.push(right);
-                                case "-" -> queue.push(new Substraction(ZERO, right));
+                                case "-" -> queue.push(new Substraction(ZERO, right, Collections.unmodifiableList(allTokens)));
                                 default -> throw new IllegalStateException("Illegal operation '" + token.value() + "' : not enough operands on stack");
                             }
                         } else {
                             var left = queue.pop();
+                            allTokens.addAll(left.tokens());
                             switch (token.value()) {
-                                case "+" -> queue.push(new Addition(left, right));
-                                case "-" -> queue.push(new Substraction(left, right));
-                                case "*" -> queue.push(new Multiplication(left, right));
-                                case "/" -> queue.push(new Division(left, right));
+                                case "+" -> queue.push(new Addition(left, right, Collections.unmodifiableList(allTokens)));
+                                case "-" -> queue.push(new Substraction(left, right, Collections.unmodifiableList(allTokens)));
+                                case "*" -> queue.push(new Multiplication(left, right, Collections.unmodifiableList(allTokens)));
+                                case "/" -> queue.push(new Division(left, right, Collections.unmodifiableList(allTokens)));
                             }
                         }
                 }
@@ -140,9 +151,9 @@ public class ExpressionParser {
     private static Literal toLiteral(Token token) {
         var value = token.value();
         if (value.startsWith("\"") && value.endsWith("\"")) {
-            return new Literal(value.substring(1, value.length() - 1));
+            return new Literal(value.substring(1, value.length() - 1), List.of(token));
         }
-        return new Literal(Double.parseDouble(value));
+        return new Literal(Double.parseDouble(value), List.of(token));
     }
 
     private static int operatorPrecedenceOf(Token operatorToken) {

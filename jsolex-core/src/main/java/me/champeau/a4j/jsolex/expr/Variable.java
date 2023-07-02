@@ -15,9 +15,26 @@
  */
 package me.champeau.a4j.jsolex.expr;
 
-public record Variable(String name) implements Expression {
+import java.util.Arrays;
+import java.util.List;
+import java.util.Locale;
+
+public record Variable(String name, List<Token> tokens) implements Expression {
+    public static boolean isReservedName(String name) {
+        String testName = name.toLowerCase(Locale.US);
+        return Arrays.stream(BuiltinFunction.values())
+                .map(BuiltinFunction::lowerCaseName)
+                .anyMatch(testName::equals);
+    }
+
     @Override
     public String toString() {
         return "VAR(" + name + ")";
+    }
+
+    public static class InvalidNameException extends Exception {
+        public InvalidNameException(String message) {
+            super(message);
+        }
     }
 }

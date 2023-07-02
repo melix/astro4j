@@ -1,0 +1,37 @@
+.comment {
+    -fx-fill: #999999;
+    -fx-font-weight: bold;
+}
+.variable {
+    -fx-fill: green;
+    -fx-font-weight: bold;
+}
+.section {
+    -fx-fill: blue;
+    -fx-font-weight: bold;
+}
+.expression {
+    -fx-fill: purple;
+}
+.invalid {
+    -fx-fill: red;
+    -fx-font-weight: bold;
+}
+
+.token_function {
+    -fx-fill: purple;
+}
+
+.token_literal {
+    -fx-fill: blue;
+}
+
+.token_variable {
+    -fx-fill: black;
+}
+
+.underline_error {
+    -rtfx-underline-width: 1;
+    -rtfx-underline-color: red;
+    -rtfx-underline-wave-radius: 2;
+}
