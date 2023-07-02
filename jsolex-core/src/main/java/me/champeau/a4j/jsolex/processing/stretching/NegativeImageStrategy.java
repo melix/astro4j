@@ -23,14 +23,14 @@ public final class NegativeImageStrategy implements StretchingStrategy {
     }
 
     @Override
-    public void stretch(float[] data) {
+    public void stretch(int width, int height, float[] data) {
         for (int i = 0; i < data.length; i++) {
             data[i] = 65535 - data[i];
         }
     }
 
     @Override
-    public void stretch(float[][] rgb) {
+    public void stretch(int width, int height, float[][] rgb) {
         throw new IllegalStateException("Undefined on RGB images");
     }
 }

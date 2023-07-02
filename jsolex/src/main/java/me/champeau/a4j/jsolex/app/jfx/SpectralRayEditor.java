@@ -199,7 +199,7 @@ public class SpectralRayEditor {
             sunPreview.setImage(new Image(SunDiskColorPreview.getMonoImageStream()));
             return;
         }
-        var colorImage = new ColorizedImageWrapper(MONO_SUN_IMAGE, mono -> ImageUtils.convertToRGB(curve, mono));
+        var colorImage = new ColorizedImageWrapper(MONO_SUN_IMAGE, mono -> ImageUtils.convertToRGB(curve, MONO_SUN_IMAGE.width(), MONO_SUN_IMAGE.height(), mono));
         var colorized = colorImage.converter().apply(MONO_SUN_IMAGE.data());
         var r = colorized[0];
         var g = colorized[1];

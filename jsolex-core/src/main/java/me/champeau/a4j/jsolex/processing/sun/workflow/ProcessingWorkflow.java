@@ -236,7 +236,7 @@ public class ProcessingWorkflow {
 
     private void produceColorizedImage(float blackPoint, ImageWrapper32 corrected, ProcessParams params) {
         params.spectrumParams().ray().getColorCurve().ifPresent(curve ->
-                processedImagesEmitter.newColorImage(GeneratedImageKind.COLORIZED, MessageFormat.format(message("colorized"), curve.ray()), "colorized", corrected, new ArcsinhStretchingStrategy(blackPoint, 10, 200), mono -> ImageUtils.convertToRGB(curve, mono))
+                processedImagesEmitter.newColorImage(GeneratedImageKind.COLORIZED, MessageFormat.format(message("colorized"), curve.ray()), "colorized", corrected, new ArcsinhStretchingStrategy(blackPoint, 10, 200), mono -> ImageUtils.convertToRGB(curve, corrected.width(), corrected.height(), mono))
         );
     }
 
@@ -250,7 +250,7 @@ public class ProcessingWorkflow {
 
     private Supplier<Void> produceNegativeImage(float blackPoint, ImageWrapper32 geometryFixed) {
         var negated = geometryFixed.asImage().copy();
-        NegativeImageStrategy.DEFAULT.stretch(negated.data());
+        NegativeImageStrategy.DEFAULT.stretch(geometryFixed.width(), geometryFixed.height(), negated.data());
         return processedImagesEmitter.newMonoImage(GeneratedImageKind.NEGATIVE, message("negative"), "negative", ImageWrapper32.fromImage(negated), new ArcsinhStretchingStrategy(blackPoint, 10, 100));
     }
 
@@ -267,7 +267,7 @@ public class ProcessingWorkflow {
                             var data = geometryFixed.data();
                             var copy = new float[data.length];
                             System.arraycopy(data, 0, copy, 0, data.length);
-                            LinearStrechingStrategy.DEFAULT.stretch(copy);
+                            LinearStrechingStrategy.DEFAULT.stretch(geometryFixed.width(), geometryFixed.height(), copy);
                             var width = geometryFixed.width();
                             var height = geometryFixed.height();
                             float[] mix = new float[data.length];
@@ -289,7 +289,7 @@ public class ProcessingWorkflow {
                             var colorCurve = processParams.spectrumParams().ray().getColorCurve();
                             if (colorCurve.isPresent()) {
                                 var curve = colorCurve.get();
-                                processedImagesEmitter.newColorImage(GeneratedImageKind.MIXED, message("mix"), "mix", mixedImage, new ArcsinhStretchingStrategy(blackPoint, 10, 200), mono -> ImageUtils.convertToRGB(curve, mono));
+                                processedImagesEmitter.newColorImage(GeneratedImageKind.MIXED, message("mix"), "mix", mixedImage, new ArcsinhStretchingStrategy(blackPoint, 10, 200), mono -> ImageUtils.convertToRGB(curve, width, height, mono));
                             } else {
                                 processedImagesEmitter.newMonoImage(GeneratedImageKind.MIXED, message("mix"), "mix", mixedImage, LinearStrechingStrategy.DEFAULT);
                             }

@@ -36,7 +36,7 @@ public final class CutoffStretchingStrategy implements StretchingStrategy {
     }
 
     @Override
-    public void stretch(float[] data) {
+    public void stretch(int width, int height, float[] data) {
         for (int i = 0; i < data.length; i++) {
             if (data[i] < min) {
                 data[i] = zeroFill;
@@ -47,9 +47,9 @@ public final class CutoffStretchingStrategy implements StretchingStrategy {
     }
 
     @Override
-    public void stretch(float[][] rgb) {
-        stretch(rgb[0]);
-        stretch(rgb[1]);
-        stretch(rgb[2]);
+    public void stretch(int width, int height, float[][] rgb) {
+        stretch(width, height, rgb[0]);
+        stretch(width, height, rgb[1]);
+        stretch(width, height, rgb[2]);
     }
 }

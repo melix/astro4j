@@ -210,19 +210,19 @@ public class ImageViewer {
         stretchingParams.getChildren().addAll(List.of(loLabel, loSlider, loValueLabel, hiLabel, hiSlider, hiValueLabel));
     }
 
-    private float[] stretch(float[] data) {
+    private float[] stretch(int width, int height, float[] data) {
         broadcaster.onProgress(ProgressEvent.of(0, message("stretching") + " " + imageFile.getName()));
         try {
             float[] streched = new float[data.length];
             System.arraycopy(data, 0, streched, 0, data.length);
-            stretchingStrategy.stretch(streched);
+            stretchingStrategy.stretch(width, height, streched);
             return streched;
         } finally {
             broadcaster.onProgress(ProgressEvent.of(1, message("stretching") + " " + imageFile.getName()));
         }
     }
 
-    private float[][] stretch(float[] r, float[] g, float[] b) {
+    private float[][] stretch(int width, int height, float[] r, float[] g, float[] b) {
         broadcaster.onProgress(ProgressEvent.of(0, message("stretching") + " " + imageFile.getName()));
         try {
             float[] rr = new float[r.length];
@@ -232,7 +232,7 @@ public class ImageViewer {
             System.arraycopy(g, 0, gg, 0, g.length);
             System.arraycopy(b, 0, bb, 0, b.length);
             var rgb = new float[][]{rr, gg, bb};
-            stretchingStrategy.stretch(rgb);
+            stretchingStrategy.stretch(width, height, rgb);
             return rgb;
         } finally {
             broadcaster.onProgress(ProgressEvent.of(1, message("stretching") + " " + imageFile.getName()));
@@ -254,13 +254,13 @@ public class ImageViewer {
             // For some reason the image doesn't look as good when using PixelWriter
             // so we write the image in a tmp file and load it from here.
             if (image instanceof ImageWrapper32 mono) {
-                var stretched = stretch(mono.data());
+                var stretched = stretch(mono.width(), mono.height(), mono.data());
                 forkJoinContext.async(() -> {
                     ImageUtils.writeMonoImage(width, height, stretched, tmpImage, imageFormats);
                     BatchOperations.submit(updateDisplay);
                 });
             } else if (image instanceof ColorizedImageWrapper colorImage) {
-                var stretched = stretch(colorImage.mono().data());
+                var stretched = stretch(colorImage.width(), colorImage.height(), colorImage.mono().data());
                 var rgb = colorImage.converter().apply(stretched);
                 var r = rgb[0];
                 var g = rgb[1];
@@ -270,7 +270,7 @@ public class ImageViewer {
                     BatchOperations.submit(updateDisplay);
                 });
             } else if (image instanceof RGBImage rgb) {
-                var stretched = stretch(rgb.r(), rgb.g(), rgb.b());
+                var stretched = stretch(rgb.width(), rgb.height(), rgb.r(), rgb.g(), rgb.b());
                 forkJoinContext.async(() -> {
                     ImageUtils.writeRgbImage(rgb.width(), rgb.height(), stretched[0], stretched[1], stretched[2], tmpImage, imageFormats);
                     BatchOperations.submit(updateDisplay);

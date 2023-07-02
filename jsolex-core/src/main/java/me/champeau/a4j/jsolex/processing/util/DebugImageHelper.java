@@ -41,7 +41,7 @@ public class DebugImageHelper {
             var newData = new float[bandingFixed.data().length];
             var original = bandingFixed.data();
             System.arraycopy(original, 0, newData, 0, newData.length);
-            LinearStrechingStrategy.DEFAULT.stretch(newData);
+            LinearStrechingStrategy.DEFAULT.stretch(bandingFixed.width(), bandingFixed.height(), newData);
             var width = bandingFixed.width();
             var height = bandingFixed.height();
             drawEllipse(width, height, ellipse, newData);

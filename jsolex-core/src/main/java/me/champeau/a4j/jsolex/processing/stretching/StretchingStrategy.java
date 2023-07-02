@@ -20,6 +20,6 @@ public sealed interface StretchingStrategy permits ArcsinhStretchingStrategy,
         LinearStrechingStrategy,
         NegativeImageStrategy,
         RangeExpansionStrategy {
-    void stretch(float[] data);
-    void stretch(float[][] rgb);
+    void stretch(int width, int height, float[] data);
+    void stretch(int width, int height, float[][] rgb);
 }

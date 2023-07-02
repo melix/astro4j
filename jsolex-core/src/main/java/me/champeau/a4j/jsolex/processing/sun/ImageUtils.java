@@ -128,8 +128,8 @@ public class ImageUtils {
         );
     }
 
-    public static float[][] convertToRGB(ColorCurve curve, float[] mono) {
-        LinearStrechingStrategy.DEFAULT.stretch(mono);
+    public static float[][] convertToRGB(ColorCurve curve, int width, int height, float[] mono) {
+        LinearStrechingStrategy.DEFAULT.stretch(width, height, mono);
         float[] r = new float[mono.length];
         float[] g = new float[mono.length];
         float[] b = new float[mono.length];

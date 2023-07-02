@@ -74,7 +74,7 @@ public class Aligner {
      */
     static WorkImage prepareForAlignment(Image image, ImageMath imageMath) {
         var normalized = image.copy();
-        RangeExpansionStrategy.DEFAULT.stretch(normalized.data());
+        RangeExpansionStrategy.DEFAULT.stretch(image.width(), image.height(), normalized.data());
         var cropped = fitAndCrop(normalized);
         var rescaled = imageMath.rescale(cropped, WORK_SIZE, WORK_SIZE);
         return new WorkImage(cropped, rescaled);

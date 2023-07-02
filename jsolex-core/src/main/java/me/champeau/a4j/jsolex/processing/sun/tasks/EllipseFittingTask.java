@@ -91,7 +91,7 @@ public class EllipseFittingTask extends AbstractTask<EllipseFittingTask.Result> 
             var avg = imageMath.areaAverage(imageMath.integralImage(workingImage), 0, 0, width, height);
             // some images (in particular in calcium) can have large bright areas which interfere with detection
             // so we're keeping pixels which are "around" the average
-            new CutoffStretchingStrategy(0.8f * avg, 1.2f * avg, 0, 0).stretch(workingImage.data());
+            new CutoffStretchingStrategy(0.8f * avg, 1.2f * avg, 0, 0).stretch(width, height, workingImage.data());
         }
         var magnitude = imageMath.gradient(workingImage).magnitude();
         var magnitudes = magnitude.data();

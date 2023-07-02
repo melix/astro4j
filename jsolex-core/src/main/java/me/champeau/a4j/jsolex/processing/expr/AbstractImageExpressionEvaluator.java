@@ -152,7 +152,7 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
         }
         float blackpoint = ((Number) arguments.get(1)).floatValue();
         float stretch = ((Number) arguments.get(2)).floatValue();
-        return monoToMonoImageTransformer("asinh_stretch", 3, arguments, (width, height, data) -> new ArcsinhStretchingStrategy(blackpoint, stretch, stretch).stretch(data));
+        return monoToMonoImageTransformer("asinh_stretch", 3, arguments, (width, height, data) -> new ArcsinhStretchingStrategy(blackpoint, stretch, stretch).stretch(width, height, data));
     }
 
     private Object linearStretch(List<Object> arguments) {
@@ -168,7 +168,7 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
             hi = Constants.MAX_PIXEL_VALUE;
             lo = 0;
         }
-        return monoToMonoImageTransformer("linear_stretch", 3, arguments, (width, height, data) -> new LinearStrechingStrategy(lo, hi).stretch(data));
+        return monoToMonoImageTransformer("linear_stretch", 3, arguments, (width, height, data) -> new LinearStrechingStrategy(lo, hi).stretch(width, height, data));
     }
 
     private Object colorize(List<Object> arguments) {
@@ -189,7 +189,7 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
             if (arg instanceof ImageWrapper32 mono) {
                 return new ColorizedImageWrapper(mono, data -> {
                     var curve = new ColorCurve("adhoc", rIn, rOut, gIn, gOut, bIn, bOut);
-                    return doColorize(data, curve);
+                    return doColorize(mono.width(), mono.height(), data, curve);
                 });
             }
         } else {
@@ -199,7 +199,7 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
                 if (ray.label().equalsIgnoreCase(profile) && (arg instanceof ImageWrapper32 mono)) {
                     var curve = ray.colorCurve();
                     if (curve != null) {
-                        return new ColorizedImageWrapper(mono, data -> doColorize(data, curve));
+                        return new ColorizedImageWrapper(mono, data -> doColorize(mono.width(), mono.height(), data, curve));
                     }
                 }
             }
@@ -208,10 +208,10 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
         throw new IllegalArgumentException("colorize first argument must be an image or a list of images");
     }
 
-    private float[][] doColorize(float[] data, ColorCurve curve) {
+    private float[][] doColorize(int width, int height, float[] data, ColorCurve curve) {
         float[] copy = new float[data.length];
         System.arraycopy(data, 0, copy, 0, copy.length);
-        return ImageUtils.convertToRGB(curve, copy);
+        return ImageUtils.convertToRGB(curve, width, height, copy);
     }
 
     private Object fixBanding(List<Object> arguments) {
@@ -229,7 +229,7 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
     }
 
     private Object inverse(List<Object> arguments) {
-        return monoToMonoImageTransformer("invert", 1, arguments, (w, h, data) -> NegativeImageStrategy.DEFAULT.stretch(data));
+        return monoToMonoImageTransformer("invert", 1, arguments, NegativeImageStrategy.DEFAULT::stretch);
     }
 
     private Object monoToMonoImageTransformer(String name, int maxArgCount, List<Object> arguments, ImageConsumer consumer) {
