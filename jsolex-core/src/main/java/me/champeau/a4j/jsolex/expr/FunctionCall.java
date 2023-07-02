@@ -18,7 +18,7 @@ package me.champeau.a4j.jsolex.expr;
 import java.util.List;
 import java.util.stream.Collectors;
 
-public record FunctionCall(BuiltinFunction function, List<Expression> operands) implements Expression {
+public record FunctionCall(BuiltinFunction function, List<Expression> operands, List<Token> tokens) implements Expression {
     @Override
     public String toString() {
         return function + "(" + operands.stream().map(Expression::toString).collect(Collectors.joining(",")) + ")";

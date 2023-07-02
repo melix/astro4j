@@ -18,6 +18,11 @@ package me.champeau.a4j.jsolex.app.jfx.ime;
 import javafx.beans.value.ObservableValue;
 import javafx.concurrent.Task;
 import javafx.scene.layout.BorderPane;
+import me.champeau.a4j.jsolex.expr.ExpressionParser;
+import me.champeau.a4j.jsolex.expr.Token;
+import me.champeau.a4j.jsolex.expr.TokenType;
+import me.champeau.a4j.jsolex.expr.Variable;
+import me.champeau.a4j.jsolex.processing.expr.DefaultImageScriptExecutor;
 import me.champeau.a4j.jsolex.processing.expr.ScriptToken;
 import me.champeau.a4j.jsolex.processing.expr.ScriptTokenizer;
 import org.fxmisc.richtext.CodeArea;
@@ -27,15 +32,19 @@ import org.fxmisc.richtext.model.StyleSpansBuilder;
 
 import java.time.Duration;
 import java.util.Collection;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.stream.Collectors;
 
 public class ImageMathTextArea extends BorderPane {
     private final ExecutorService executor = Executors.newSingleThreadExecutor();
     private final CodeArea codeArea = new CodeArea();
+    private final ExpressionParser expressionParser;
 
     public ImageMathTextArea() {
         codeArea.prefWidthProperty().bind(widthProperty());
@@ -47,7 +56,7 @@ public class ImageMathTextArea extends BorderPane {
                 .supplyTask(this::computeHighlightingAsync)
                 .awaitLatest(codeArea.multiPlainChanges())
                 .filterMap(t -> {
-                    if(t.isSuccess()) {
+                    if (t.isSuccess()) {
                         return Optional.of(t.get());
                     } else {
                         t.getFailure().printStackTrace();
@@ -56,6 +65,7 @@ public class ImageMathTextArea extends BorderPane {
                 })
                 .subscribe(this::applyHighlighting);
         setCenter(codeArea);
+        expressionParser = new ExpressionParser();
     }
 
     public void setText(String text) {
@@ -91,18 +101,61 @@ public class ImageMathTextArea extends BorderPane {
     private StyleSpans<Collection<String>> computeHighlighting(String text) {
         var tokenizer = new ScriptTokenizer();
         var tokens = tokenizer.tokenize(text);
+        var knownVariables = tokens.stream()
+                .filter(ScriptToken.VariableDefinition.class::isInstance)
+                .map(ScriptToken.VariableDefinition.class::cast)
+                .map(ScriptToken.VariableDefinition::variable)
+                .map(ScriptToken.Variable::name)
+                .collect(Collectors.toSet());
+        knownVariables.add(DefaultImageScriptExecutor.BLACK_POINT_VAR);
         var spansBuilder = new StyleSpansBuilder<Collection<String>>();
         for (var token : tokens) {
             int tokenLength = token.length();
             if (token instanceof ScriptToken.VariableDefinition definition) {
                 spansBuilder.add(toStyleSpan(definition.variable()), definition.variable().length());
-                spansBuilder.add(List.of(), definition.expression().start() - definition.variable().end());
-                spansBuilder.add(toStyleSpan(definition.expression()), definition.expression().length());
+                var expression = definition.expression();
+                spansBuilder.add(List.of(), expression.start() - definition.variable().end());
+                if (expression instanceof ScriptToken.Expression expr) {
+                    highlightExpression(spansBuilder, expr, knownVariables);
+                } else {
+                    spansBuilder.add(toStyleSpan(definition.expression()), definition.expression().length());
+                }
+            } else if (token instanceof ScriptToken.Expression expression) {
+                highlightExpression(spansBuilder, expression, knownVariables);
             } else {
                 spansBuilder.add(toStyleSpan(token), tokenLength);
             }
         }
         return spansBuilder.create();
+    }
+
+    private void highlightExpression(StyleSpansBuilder<Collection<String>> spansBuilder, ScriptToken.Expression expression, Set<String> knownVariables) {
+        int offset = expression.start();
+        int start = 0;
+        int end = expression.end() - offset;
+        String text = expression.expression();
+        var tokens = expressionParser.parseExpression(text).tokens();
+        var sortedTokens = tokens.stream().sorted(Comparator.comparingInt(Token::start)).toList();
+        for (Token token : sortedTokens) {
+            var tokenStart = token.start();
+            var tokenEnd = token.end();
+            var tokenLen = tokenEnd - tokenStart;
+            if (tokenStart > start) {
+                spansBuilder.add(List.of(), tokenStart - start);
+            }
+            var tokenType = token.type().name().toLowerCase(Locale.US);
+            var value = token.value();
+            if (token.type() == TokenType.VARIABLE && !knownVariables.contains(value)) {
+                spansBuilder.add(List.of("underline_error", "token_" + tokenType), tokenLen);
+            } else {
+                spansBuilder.add(List.of("token_" + tokenType), tokenLen);
+            }
+            start = tokenEnd;
+        }
+        int pad = end - start;
+        if (pad > 0) {
+            spansBuilder.add(List.of(), pad);
+        }
     }
 
     public void close() {
@@ -112,6 +165,9 @@ public class ImageMathTextArea extends BorderPane {
     private List<String> toStyleSpan(ScriptToken token) {
         var simpleName = token.getClass().getSimpleName();
         var styleClass = simpleName.toLowerCase(Locale.US);
+        if (token instanceof ScriptToken.Variable variable && Variable.isReservedName(variable.name())) {
+            return List.of("underline_error", styleClass);
+        }
         return List.of(styleClass);
     }
 

@@ -15,14 +15,13 @@
  */
 package me.champeau.a4j.jsolex.processing.expr;
 
-import me.champeau.a4j.jsolex.expr.BuiltinFunction;
+import me.champeau.a4j.jsolex.expr.Variable;
 import me.champeau.a4j.jsolex.processing.event.ProgressEvent;
 import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
 import me.champeau.a4j.jsolex.processing.sun.workflow.ImageStats;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
@@ -131,7 +130,7 @@ public class DefaultImageScriptExecutor implements ImageMathScriptExecutor {
                 var variable = variableDefinition.variable();
                 var candidate = variableDefinition.expression();
                 var name = variable.name();
-                if (isReservedName(name)) {
+                if (Variable.isReservedName(name)) {
                     invalidExpressions.add(new InvalidExpression(name, candidate.value(), createReservedNameError(name)));
                 }
                 if (candidate instanceof ScriptToken.Expression expression) {
@@ -183,15 +182,8 @@ public class DefaultImageScriptExecutor implements ImageMathScriptExecutor {
         return outputs;
     }
 
-    private static InvalidNameException createReservedNameError(String name) {
-        return new InvalidNameException("'" + name + "' is a reserved name. You cannot have a label which name is also the name of a built-in function.");
-    }
-
-    private boolean isReservedName(String name) {
-        String testName = name.toLowerCase(Locale.US);
-        return Arrays.stream(BuiltinFunction.values())
-                .map(BuiltinFunction::lowerCaseName)
-                .anyMatch(testName::equals);
+    private static Variable.InvalidNameException createReservedNameError(String name) {
+        return new Variable.InvalidNameException("'" + name + "' is a reserved name. You cannot have a label which name is also the name of a built-in function.");
     }
 
     private void populateContext(AbstractImageExpressionEvaluator evaluator) {
@@ -221,9 +213,4 @@ public class DefaultImageScriptExecutor implements ImageMathScriptExecutor {
         }
     }
 
-    public static class InvalidNameException extends Exception {
-        public InvalidNameException(String message) {
-            super(message);
-        }
-    }
 }

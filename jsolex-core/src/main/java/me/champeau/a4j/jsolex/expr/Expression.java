@@ -15,6 +15,8 @@
  */
 package me.champeau.a4j.jsolex.expr;
 
+import java.util.List;
+
 public sealed interface Expression permits
         Addition,
         Substraction,
@@ -23,5 +25,5 @@ public sealed interface Expression permits
         Literal,
         Variable,
         FunctionCall {
-
+    List<Token> tokens();
 }
