@@ -12,12 +12,14 @@ javafx {
 }
 
 val os = System.getProperty("os.name").lowercase(Locale.ENGLISH)
+val jvmMemorySettings = listOf("-XX:MaxRAMPercentage=80", "-XX:+UseParallelGC", "-XX:MaxGCPauseMillis=250", "-XX:GCTimeRatio=49")
+
+application {
+    applicationDefaultJvmArgs = jvmMemorySettings + listOf("--enable-preview")
+}
 
 jlink {
     options.addAll(listOf("--strip-debug", "--compress", "2", "--no-header-files", "--no-man-pages"))
-    launcher {
-        jvmArgs.add("--enable-preview")
-    }
     jpackage {
         if (version.toString().endsWith("-SNAPSHOT")) {
             appVersion = version.toString().substringBefore("-SNAPSHOT")
@@ -75,4 +77,8 @@ val jlinkZipArchive = tasks.register<Zip>("jlinkZipArchive") {
 
 tasks.register("allDistributions") {
     dependsOn(jpackageInstallers, jlinkTgz, jlinkZipArchive)
+}
+
+tasks.withType<JavaExec>().configureEach {
+    jvmArgs(jvmMemorySettings)
 }
