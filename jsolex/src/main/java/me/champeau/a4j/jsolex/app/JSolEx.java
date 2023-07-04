@@ -15,7 +15,10 @@
  */
 package me.champeau.a4j.jsolex.app;
 
+import javafx.animation.Animation;
+import javafx.animation.KeyFrame;
 import javafx.animation.PauseTransition;
+import javafx.animation.Timeline;
 import javafx.application.Application;
 import javafx.beans.binding.Bindings;
 import javafx.beans.property.SimpleDoubleProperty;
@@ -135,6 +138,10 @@ public class JSolEx extends Application implements JSolExInterface {
     private Button imageMathLoad;
     @FXML
     private Button imageMathSave;
+    @FXML
+    private ProgressBar memory;
+    @FXML
+    private Label memoryLabel;
 
     @Override
     public ForkJoinContext getCpuExecutor() {
@@ -152,7 +159,7 @@ public class JSolEx extends Application implements JSolExInterface {
         this.rootStage = stage;
         var fxmlLoader = I18N.fxmlLoader(getClass(), "app");
         fxmlLoader.setController(this);
-
+        configureMemoryStatus();
         try {
             var root = (Parent) fxmlLoader.load();
             imageMathPane.setDisable(true);
@@ -196,6 +203,18 @@ public class JSolEx extends Application implements JSolExInterface {
         } catch (IOException exception) {
             throw new ProcessingException(exception);
         }
+    }
+
+    private void configureMemoryStatus() {
+        var timeline = new Timeline();
+        timeline.getKeyFrames().add(new KeyFrame(Duration.seconds(1), event -> {
+            var totalMemory = Runtime.getRuntime().totalMemory() >> 20;
+            var maxMemory = Runtime.getRuntime().maxMemory() >> 20;
+            memory.setProgress(totalMemory / (double) maxMemory);
+            memoryLabel.setText(String.format("%d M / %d M", totalMemory, maxMemory));
+        }));
+        timeline.setCycleCount(Animation.INDEFINITE);
+        timeline.play();
     }
 
     private void closeExecutors() {

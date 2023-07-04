@@ -13,10 +13,11 @@
 <?import javafx.scene.control.TabPane?>
 <?import javafx.scene.control.TextArea?>
 <?import javafx.scene.control.TitledPane?>
+<?import javafx.scene.layout.AnchorPane?>
 <?import javafx.scene.layout.BorderPane?>
 <?import javafx.scene.layout.HBox?>
+<?import javafx.scene.layout.StackPane?>
 <?import javafx.scene.layout.VBox?>
-
 <?import me.champeau.a4j.jsolex.app.jfx.ime.ImageMathTextArea?>
 <BorderPane xmlns="http://javafx.com/javafx/19" xmlns:fx="http://javafx.com/fxml/1">
     <top>
@@ -80,7 +81,17 @@
             <children>
                 <ProgressBar fx:id="progressBar" prefWidth="200.0" progress="0.0"/>
                 <Label fx:id="progressLabel"/>
-                <HBox fx:id="workButtons" spacing="10.0"/>
+                <HBox fx:id="workButtons" spacing="10.0" HBox.hgrow="SOMETIMES"/>
+                <HBox spacing="10.0" HBox.hgrow="ALWAYS">
+                    <AnchorPane prefWidth="200.0" HBox.hgrow="ALWAYS">
+                        <children>
+                            <StackPane AnchorPane.rightAnchor="10">
+                                <ProgressBar fx:id="memory" prefWidth="200.0" progress="0.0" blendMode="SOFT_LIGHT"/>
+                                <Label fx:id="memoryLabel" style="-fx-text-fill: #666666"/>
+                            </StackPane>
+                        </children>
+                    </AnchorPane>
+                </HBox>
             </children>
             <padding>
                 <Insets bottom="4.0" left="4.0" right="4.0" top="4.0"/>
