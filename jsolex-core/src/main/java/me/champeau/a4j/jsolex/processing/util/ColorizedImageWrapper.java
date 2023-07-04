@@ -35,4 +35,8 @@ public record ColorizedImageWrapper(
     public int height() {
         return mono.height();
     }
+
+    public ColorizedImageWrapper copy() {
+        return new ColorizedImageWrapper(mono.copy(), converter);
+    }
 }

@@ -238,13 +238,9 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
         }
         var arg = arguments.get(0);
         if (arg instanceof ImageWrapper32 image) {
-            var source = image.data();
-            var width = image.width();
-            var height = image.height();
-            var output = new float[source.length];
-            System.arraycopy(source, 0, output, 0, source.length);
-            consumer.accept(width, height, output);
-            return new ImageWrapper32(image.width(), image.height(), output);
+            var copy = image.copy();
+            consumer.accept(copy.width(), copy.height(), copy.data());
+            return copy;
         } else if (arg instanceof List<?> list) {
             return list.stream().map(e -> monoToMonoImageTransformer(name, maxArgCount, List.of(e), consumer)).toList();
         }

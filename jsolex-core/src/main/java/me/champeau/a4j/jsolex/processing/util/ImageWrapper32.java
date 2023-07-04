@@ -35,4 +35,10 @@ public record ImageWrapper32(
     public static ImageWrapper32 fromImage(Image image) {
         return new ImageWrapper32(image.width(), image.height(), image.data());
     }
+
+    public ImageWrapper32 copy() {
+        float[] copy = new float[data.length];
+        System.arraycopy(data, 0, copy, 0, data.length);
+        return new ImageWrapper32(width, height, copy);
+    }
 }

@@ -40,6 +40,10 @@ Vous pouvez préciser:
 - Forcer la valeur du tilt : lors de la correction géométrique d'image, JSol'Ex calcule une ellipse pour modéliser le disque solaire reconstitué. Cette ellipse est utilisée pour calculer des paramètre comme l'angle de tilt. Si le calcul effectué par le logiciel est erroné, vous disposez de la possibilité de surcharger la valeur calculée.
 - Forcer le rapport X/Y : de manière similaire, sur certaines images dans des raies difficiles, l'ellipse peut ne pas parfaitement correspondre au disque solaire et ne pas reconstituer un soleil parfaitement circulaire. Vous pouvez surcharger le rapport détecté pour corriger ces problèmes
 - Inverser l'axe horizontal/vertical : permet de retourner l'image verticalement et horizontalement pour avoir le Nord et l'Est bien orientés
+- Redimensionner au maximum: peut être utilisé si votre vidéo est sur-échantillonnée et que vous souhaitez conserver la résolution maximum. Ceci arrive par exemple si vous faites des scans à basse vitesse (ex, sidérale).
+
+WARNING: Activer ce paramètre peut produire des images sensiblement plus grandes et entraîner une forte pression mémoire. Il n'est pas recommandé d'activer ce paramètre.
+
 - Aiguiser les images : permet d'appliquer un filtre pour améliorer les détails de l'image après reconstitution
 
 == Paramètres d'observation

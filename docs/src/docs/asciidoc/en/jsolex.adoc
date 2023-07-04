@@ -41,6 +41,10 @@ You can specify:
 - Force tilt: the software is fitting an ellipse around the solar disk which is reconstructed, and uses that information to perform geometric correction. It is possible that the tilt detection is wrong, in which case you can force a value.
 - Force X/Y ratio: similarly, the X/Y ratio which is detected may be inaccurrate, in which case you can force it to a particular value.
 - Horizontal and vertical inversion let you mirror the image so that you match the North and East as expected in the output images.
+- Rescale to full resolution: can be used if your video is oversampled, which typically happens if you are scanning at lower rates (e.g sideral) and that you want to resize the generated image to its full resolution.
+
+WARNING: Enabling full resolution can lead in significantly larger images and very high memory pressure. It is not recommended to enable this flag.
+
 - Sharpen images: when checked, the generated images will be gently sharpened to increase image details
 
 == Observation parameters
