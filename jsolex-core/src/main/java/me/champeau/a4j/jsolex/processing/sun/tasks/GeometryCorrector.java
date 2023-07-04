@@ -83,6 +83,7 @@ public class GeometryCorrector extends AbstractTask<GeometryCorrector.Result> {
         var shift = maxDx < 0 ? maxDx : 0;
         float[] newBuffer;
         int extendedWidth = width;
+        var buffer = getBuffer();
         if (performTransform) {
             extendedWidth = width + (int) Math.ceil(Math.abs(maxDx));
             newBuffer = new float[height * extendedWidth];
@@ -120,8 +121,7 @@ public class GeometryCorrector extends AbstractTask<GeometryCorrector.Result> {
         if (xyRatio != null) {
             sy = xyRatio;
         }
-        if (sy < 1) {
-            // because we don't want to do downsampling, we're inverting ratios
+        if (sy < 1 || !processParams.geometryParams().isDisallowDownsampling()) {
             sx = 1 / sy;
             sy = 1.0d;
         } else {

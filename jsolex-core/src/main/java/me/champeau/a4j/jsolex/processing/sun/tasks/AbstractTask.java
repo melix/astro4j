@@ -23,7 +23,7 @@ import java.util.concurrent.Callable;
 import java.util.function.Supplier;
 
 public abstract class AbstractTask<T> implements Callable<T>, Supplier<T> {
-    protected final float[] buffer;
+    protected final ImageWrapper32 workImage;
     protected final Broadcaster broadcaster;
     protected final int width;
     protected final int height;
@@ -36,9 +36,8 @@ public abstract class AbstractTask<T> implements Callable<T>, Supplier<T> {
      */
     protected AbstractTask(Broadcaster broadcaster,
                            ImageWrapper32 image) {
-        this.buffer = new float[image.data().length];
+        this.workImage = image.copy();
         this.broadcaster = broadcaster;
-        System.arraycopy(image.data(), 0, this.buffer, 0, buffer.length);
         this.width = image.width();
         this.height = image.height();
     }
@@ -56,7 +55,7 @@ public abstract class AbstractTask<T> implements Callable<T>, Supplier<T> {
      * Returns this task image buffer
      */
     public final float[] getBuffer() {
-        return buffer;
+        return workImage.data();
     }
 
 }

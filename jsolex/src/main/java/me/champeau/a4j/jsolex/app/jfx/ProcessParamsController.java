@@ -108,6 +108,8 @@ public class ProcessParamsController {
     private TextField pixelShifting;
     @FXML
     private CheckBox sharpen;
+    @FXML
+    private CheckBox disallowDownsampling;
 
     @FXML
     private CheckBox switchRedBlueChannels;
@@ -308,7 +310,8 @@ public class ProcessParamsController {
                         forceXYRatio.isSelected() ? Double.parseDouble(xyRatioValue.getText()) : null,
                         horizontalMirror.isSelected(),
                         verticalMirror.isSelected(),
-                        sharpen.isSelected()),
+                        sharpen.isSelected(),
+                        disallowDownsampling.isSelected()),
                 new BandingCorrectionParams(
                         (int) Math.round(bandingCorrectionWidth.getValue()),
                         (int) Math.round(bandingCorrectionPasses.getValue())

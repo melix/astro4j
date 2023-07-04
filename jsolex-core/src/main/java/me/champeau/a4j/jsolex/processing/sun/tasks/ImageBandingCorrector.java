@@ -38,9 +38,9 @@ public class ImageBandingCorrector extends AbstractTask<ImageWrapper32> {
         broadcaster.broadcast(ProgressEvent.of(0, "Banding reduction"));
         var passes = params.passes();
         for (int i = 0; i < passes; i++) {
-            BandingReduction.reduceBanding(width, height, buffer, params.width(), ellipse);
+            BandingReduction.reduceBanding(width, height, getBuffer(), params.width(), ellipse);
             broadcaster.broadcast(ProgressEvent.of((i + 1d / passes), "Banding reduction"));
         }
-        return new ImageWrapper32(width, height, buffer);
+        return workImage;
     }
 }
