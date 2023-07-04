@@ -89,6 +89,12 @@ public abstract class FileNamingPatternsIO {
                     if (fixed.datetimeFormat() == null) {
                         fixed = fixed.withDateTimeFormat(FileNamingStrategy.DEFAULT_DATETIME_FORMAT);
                     }
+                    if (fixed.datetimeFormat().contains(":")) {
+                        fixed = fixed.withDateTimeFormat(fixed.datetimeFormat().replace(":", ""));
+                    }
+                    if (fixed.dateFormat().contains(":")) {
+                        fixed = fixed.withDateFormat(fixed.dateFormat().replace(":", ""));
+                    }
                     return fixed;
                 }).toList();
     }
