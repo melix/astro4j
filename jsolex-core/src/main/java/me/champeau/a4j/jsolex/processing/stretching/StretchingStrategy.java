@@ -15,11 +15,15 @@
  */
 package me.champeau.a4j.jsolex.processing.stretching;
 
-public sealed interface StretchingStrategy permits ArcsinhStretchingStrategy,
+public sealed interface StretchingStrategy permits
+        ArcsinhStretchingStrategy,
         CutoffStretchingStrategy,
         LinearStrechingStrategy,
         NegativeImageStrategy,
-        RangeExpansionStrategy {
+        RangeExpansionStrategy,
+        ClaheStrategy,
+        ConstrastAdjustmentStrategy {
     void stretch(int width, int height, float[] data);
+
     void stretch(int width, int height, float[][] rgb);
 }

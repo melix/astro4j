@@ -15,7 +15,6 @@
  */
 package me.champeau.a4j.jsolex.processing.sun.tasks;
 
-import me.champeau.a4j.jsolex.processing.stretching.StretchingStrategy;
 import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
@@ -28,13 +27,12 @@ public class WriteRGBImageTask extends AbstractImageWriterTask {
     private final Supplier<float[][]> supplier;
 
     public WriteRGBImageTask(Broadcaster broadcaster,
-                             StretchingStrategy stretchingStrategy,
                              ImageWrapper32 ref,
                              File outputDirectory,
                              String title,
                              String name,
                              Supplier<float[][]> supplier) {
-        super(broadcaster, ref, stretchingStrategy, outputDirectory, title, name);
+        super(broadcaster, ref, outputDirectory, title, name);
         this.supplier = supplier;
     }
 

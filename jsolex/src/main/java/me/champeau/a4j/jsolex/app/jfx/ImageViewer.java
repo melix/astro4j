@@ -30,13 +30,9 @@ import javafx.util.Duration;
 import me.champeau.a4j.jsolex.processing.event.ProcessingEventListener;
 import me.champeau.a4j.jsolex.processing.event.ProgressEvent;
 import me.champeau.a4j.jsolex.processing.params.ProcessParams;
-import me.champeau.a4j.jsolex.processing.stretching.ArcsinhStretchingStrategy;
-import me.champeau.a4j.jsolex.processing.stretching.CutoffStretchingStrategy;
-import me.champeau.a4j.jsolex.processing.stretching.LinearStrechingStrategy;
-import me.champeau.a4j.jsolex.processing.stretching.StretchingStrategy;
+import me.champeau.a4j.jsolex.processing.stretching.ConstrastAdjustmentStrategy;
 import me.champeau.a4j.jsolex.processing.sun.ImageUtils;
 import me.champeau.a4j.jsolex.processing.util.ColorizedImageWrapper;
-import me.champeau.a4j.jsolex.processing.util.Constants;
 import me.champeau.a4j.jsolex.processing.util.ForkJoinContext;
 import me.champeau.a4j.jsolex.processing.util.ImageFormat;
 import me.champeau.a4j.jsolex.processing.util.ImageSaver;
@@ -55,8 +51,7 @@ import static me.champeau.a4j.jsolex.app.JSolEx.message;
 
 public class ImageViewer {
     private Node root;
-    private StretchingStrategy initialStretchingStrategy = CutoffStretchingStrategy.DEFAULT;
-    private StretchingStrategy stretchingStrategy = CutoffStretchingStrategy.DEFAULT;
+    private ConstrastAdjustmentStrategy stretchingStrategy = ConstrastAdjustmentStrategy.DEFAULT;
     private ImageWrapper image;
     private File imageFile;
     private ProcessingEventListener broadcaster;
@@ -85,14 +80,13 @@ public class ImageViewer {
     public void setup(ProcessingEventListener broadcaster,
                       String baseName,
                       ImageWrapper image,
-                      StretchingStrategy strategy,
                       File imageName,
                       ProcessParams params) {
         this.broadcaster = broadcaster;
         this.image = image;
         this.imageFile = new File(imageName.getParentFile(), baseName + "_" + imageName.getName() + imageDisplayExtension(params));
         this.processParams = params;
-        configureStretching(strategy);
+        configureStretching();
         if (params.extraParams().autosave()) {
             saveImage(imageFile);
         }
@@ -118,19 +112,13 @@ public class ImageViewer {
         });
     }
 
-    private void configureStretching(StretchingStrategy strategy) {
-        this.stretchingStrategy = strategy;
-        this.initialStretchingStrategy = strategy;
-        switch (strategy) {
-            case LinearStrechingStrategy lin -> configureLinearStrategyPanel(lin);
-            case ArcsinhStretchingStrategy arcsin -> configureArcsinhStrategyPanel(arcsin);
-            default -> {
-            }
-        }
+    private void configureStretching() {
+        this.stretchingStrategy = ConstrastAdjustmentStrategy.DEFAULT;
+        configureContrastAdjustment();
         var reset = new Button(message("reset"));
         reset.setOnAction(event -> {
             stretchingParams.getChildren().clear();
-            configureStretching(initialStretchingStrategy);
+            configureStretching();
             strechAndDisplay();
         });
         saveButton = new Button(message("save"));
@@ -141,45 +129,14 @@ public class ImageViewer {
         strechAndDisplay();
     }
 
-    private void configureArcsinhStrategyPanel(ArcsinhStretchingStrategy arcsin) {
-        var blackpoint = arcsin.getBlackPoint();
-        var strech = arcsin.getStretch();
-        var blackpointSlider = new Slider(0, Constants.MAX_PIXEL_VALUE / 4, (int) blackpoint);
-        var blackpointValue = new Label("" + (int) arcsin.getBlackPoint());
-        var blackpointLabel = new Label(message("black.point") + " ");
-        var strechSlider = new Slider(0, arcsin.getMaxStretch(), (int) strech);
-        var pause = new PauseTransition(Duration.millis(500));
-        blackpointSlider.valueProperty().addListener((observable, oldValue, newValue) -> {
-            double value = (Double) newValue;
-            pause.setOnFinished(e -> {
-                stretchingStrategy = new ArcsinhStretchingStrategy((float) value, (float) strechSlider.getValue(), arcsin.getMaxStretch());
-                blackpointValue.setText(String.format("%.2f", value));
-                strechAndDisplay();
-            });
-            pause.playFromStart();
-        });
-        var strechSliderValue = new Label("" + (int) arcsin.getStretch());
-        var stretchLabel = new Label(message("stretch") + " ");
-        strechSlider.valueProperty().addListener((observable, oldValue, newValue) -> {
-            double value = (Double) newValue;
-            pause.setOnFinished(e -> {
-                stretchingStrategy = new ArcsinhStretchingStrategy((float) blackpointSlider.getValue(), (float) value, arcsin.getMaxStretch());
-                strechSliderValue.setText(String.format("%.2f", value));
-                strechAndDisplay();
-            });
-            pause.playFromStart();
-        });
-        stretchingParams.getChildren().addAll(List.of(blackpointLabel, blackpointSlider, blackpointValue, stretchLabel, strechSlider, strechSliderValue));
-    }
-
     private static float linValueOf(double sliderValue) {
         int rnd = (int) Math.round(sliderValue);
         return rnd << 8;
     }
 
-    private void configureLinearStrategyPanel(LinearStrechingStrategy lin) {
-        int lo = (int) lin.getLo() >> 8;
-        int hi = (int) lin.getHi() >> 8;
+    private void configureContrastAdjustment() {
+        int lo = (int) stretchingStrategy.getMin() >> 8;
+        int hi = (int) stretchingStrategy.getMax() >> 8;
         var loSlider = new Slider(0, 255, lo);
         var hiSlider = new Slider(0, 255, hi);
         var loValueLabel = new Label("" + lo);
@@ -192,7 +149,7 @@ public class ImageViewer {
         loSlider.valueProperty().addListener((observable, oldValue, newValue) -> {
             double value = (Double) newValue;
             pause.setOnFinished(e -> {
-                stretchingStrategy = new LinearStrechingStrategy(linValueOf(value), linValueOf(hiSlider.getValue()));
+                stretchingStrategy = stretchingStrategy.withRange(linValueOf(loSlider.getValue()), linValueOf(hiSlider.getValue()));
                 strechAndDisplay();
                 loValueLabel.setText("" + (int) (value));
             });
@@ -201,7 +158,7 @@ public class ImageViewer {
         hiSlider.valueProperty().addListener((observable, oldValue, newValue) -> {
             double value = (Double) newValue;
             pause.setOnFinished(e -> {
-                stretchingStrategy = new LinearStrechingStrategy(linValueOf(loSlider.getValue()), linValueOf(value));
+                stretchingStrategy = stretchingStrategy.withRange(linValueOf(loSlider.getValue()), linValueOf(hiSlider.getValue()));
                 strechAndDisplay();
                 hiValueLabel.setText("" + (int) (value));
             });

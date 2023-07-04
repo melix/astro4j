@@ -15,7 +15,6 @@
  */
 package me.champeau.a4j.jsolex.processing.sun.workflow;
 
-import me.champeau.a4j.jsolex.processing.stretching.StretchingStrategy;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 
 import java.util.function.Consumer;
@@ -38,22 +37,22 @@ public class RenamingImageEmitter implements ImageEmitter {
     }
 
     @Override
-    public Supplier<Void> newMonoImage(GeneratedImageKind kind, String title, String name, ImageWrapper32 image, StretchingStrategy stretchingStrategy, Consumer<? super float[]> bufferConsumer) {
-        return delegate.newMonoImage(kind, titleRenamer.apply(title), fileRenamer.apply(name), image, stretchingStrategy, bufferConsumer);
+    public Supplier<Void> newMonoImage(GeneratedImageKind kind, String title, String name, ImageWrapper32 image, Consumer<? super float[]> bufferConsumer) {
+        return delegate.newMonoImage(kind, titleRenamer.apply(title), fileRenamer.apply(name), image, bufferConsumer);
     }
 
     @Override
-    public Supplier<Void> newMonoImage(GeneratedImageKind kind, String title, String name, ImageWrapper32 image, StretchingStrategy stretchingStrategy) {
-        return delegate.newMonoImage(kind, titleRenamer.apply(title), fileRenamer.apply(name), image, stretchingStrategy);
+    public Supplier<Void> newMonoImage(GeneratedImageKind kind, String title, String name, ImageWrapper32 image) {
+        return delegate.newMonoImage(kind, titleRenamer.apply(title), fileRenamer.apply(name), image);
     }
 
     @Override
-    public Supplier<Void> newColorImage(GeneratedImageKind kind, String title, String name, ImageWrapper32 image, StretchingStrategy stretchingStrategy, Function<float[], float[][]> rgbSupplier) {
-        return delegate.newColorImage(kind, titleRenamer.apply(title), fileRenamer.apply(name), image, stretchingStrategy, rgbSupplier);
+    public Supplier<Void> newColorImage(GeneratedImageKind kind, String title, String name, ImageWrapper32 image, Function<float[], float[][]> rgbSupplier) {
+        return delegate.newColorImage(kind, titleRenamer.apply(title), fileRenamer.apply(name), image, rgbSupplier);
     }
 
     @Override
-    public Supplier<Void> newColorImage(GeneratedImageKind kind, String title, String name, StretchingStrategy stretchingStrategy, int width, int height, Supplier<float[][]> rgbSupplier) {
-        return delegate.newColorImage(kind, titleRenamer.apply(title), fileRenamer.apply(name), stretchingStrategy, width, height, rgbSupplier);
+    public Supplier<Void> newColorImage(GeneratedImageKind kind, String title, String name, int width, int height, Supplier<float[][]> rgbSupplier) {
+        return delegate.newColorImage(kind, titleRenamer.apply(title), fileRenamer.apply(name), width, height, rgbSupplier);
     }
 }

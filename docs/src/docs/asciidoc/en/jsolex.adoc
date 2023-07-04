@@ -203,6 +203,8 @@ Another example: `0.8*img(5) + 0.2*avg(range(0;10))`
 Other functions are available:
 
 - `invert`, generates a color inverted image
+- `clahe` performs https://en.wikipedia.org/wiki/Adaptive_histogram_equalization#Contrast_Limited_AHE[Contrast Limited Adaptative Histogram Equalization] on your image. It supports either 2 or 4 parameters. In the first form, it takes the image to equalize and clip factor, for example: `clahe(img(0); 1.5)`. In the long form, it takes 2 additional parameters which are the tile size (used to compute histograms) and the number of bins (the lower, the smaller the dynamic range). e.g `clahe(img(0); 128; 256; 1.2)`
+- `adjust_contrast` applies simple contrast adujstment by clipping values under the minimal value or above the maximal value. e.g `adjust_contrast(img(0), 10, 210)`. The range is must be between 0 and 255.
 - `asinh_stretch` applies the inverse arcsin hypobolic transformation to increase constrast. It accepts 3 arguments: the image, the black point value and a stretch value.
 - `linear_stretch` expands the image dynamic range. It takes either one or 3 arguments: the image and optionally the minimal and maximal value. The min/max values are used to determine to what range to expand. It's a 16-bit value between 0 and 65535. For example: `linear_stretch(img(0))`
 - `fix_banding` applies the banding correction algorithm. It accepts 3 arguments: the image, the banding width, the number of passes. For example, `fix_banding(img(0), 10, 5)`.

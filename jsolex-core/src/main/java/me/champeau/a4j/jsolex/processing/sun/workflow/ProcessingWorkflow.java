@@ -18,10 +18,8 @@ package me.champeau.a4j.jsolex.processing.sun.workflow;
 import me.champeau.a4j.jsolex.processing.event.OutputImageDimensionsDeterminedEvent;
 import me.champeau.a4j.jsolex.processing.event.SuggestionEvent;
 import me.champeau.a4j.jsolex.processing.params.ProcessParams;
-import me.champeau.a4j.jsolex.processing.params.SpectralRay;
 import me.champeau.a4j.jsolex.processing.stretching.ArcsinhStretchingStrategy;
-import me.champeau.a4j.jsolex.processing.stretching.CutoffStretchingStrategy;
-import me.champeau.a4j.jsolex.processing.stretching.LinearStrechingStrategy;
+import me.champeau.a4j.jsolex.processing.stretching.ClaheStrategy;
 import me.champeau.a4j.jsolex.processing.stretching.NegativeImageStrategy;
 import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
 import me.champeau.a4j.jsolex.processing.sun.ImageUtils;
@@ -88,8 +86,10 @@ public class ProcessingWorkflow {
 
     public void start() {
         var image = state.image();
-        rawImagesEmitter.newMonoImage(GeneratedImageKind.RAW, message(Constants.TYPE_RAW), "recon", image, CutoffStretchingStrategy.DEFAULT);
-        rawImagesEmitter.newMonoImage(GeneratedImageKind.RAW_STRETCHED, message("raw.linear"), "linear", image, LinearStrechingStrategy.DEFAULT);
+        rawImagesEmitter.newMonoImage(GeneratedImageKind.RAW, message(Constants.TYPE_RAW), "recon", image);
+        var clahe = image.copy();
+        ClaheStrategy.DEFAULT.stretch(clahe.width(), clahe.height(), clahe.data());
+        rawImagesEmitter.newMonoImage(GeneratedImageKind.RAW_STRETCHED, message("raw.linear"), "linear", clahe);
         var existingFitting = state.findResult(WorkflowResults.MAIN_ELLIPSE_FITTING);
         if (existingFitting.isPresent()) {
             EllipseFittingTask.Result r = (EllipseFittingTask.Result) existingFitting.get();
@@ -97,7 +97,7 @@ public class ProcessingWorkflow {
             state.recordResult(WorkflowResults.BANDING_CORRECTION, bandingFixed);
             geometryCorrection(r, bandingFixed);
         } else {
-            processedImagesEmitter.newMonoImage(GeneratedImageKind.GEOMETRY_CORRECTED_STRETCHED, message("stretched"), "streched", image, new ArcsinhStretchingStrategy(0, 10, 100));
+            processedImagesEmitter.newMonoImage(GeneratedImageKind.GEOMETRY_CORRECTED_STRETCHED, message("stretched"), "clahe", clahe);
         }
     }
 
@@ -125,39 +125,32 @@ public class ProcessingWorkflow {
         }
         Double ratio = geometryParams.xyRatio().isPresent() ? geometryParams.xyRatio().getAsDouble() : null;
         executor.submitAndThen(new GeometryCorrector(broadcaster, bandingFixed, ellipse, forcedTilt, fps, ratio, blackPoint, processParams, debugImagesEmitter, state), g -> {
-            var geometryFixed = maybeSharpen(g);
-            state.recordResult(WorkflowResults.GEOMETRY_CORRECTION, g);
-            if (state.isInternal()) {
-                return null;
-            }
-            broadcaster.broadcast(OutputImageDimensionsDeterminedEvent.of(message("geometry.corrected"), geometryFixed.width(), geometryFixed.height()));
-            processedImagesEmitter.newMonoImage(GeneratedImageKind.GEOMETRY_CORRECTED, message("disk"), "disk", geometryFixed, LinearStrechingStrategy.DEFAULT);
-            executor.async(() -> {
-                produceStretchedImage(blackPoint, geometryFixed);
-                if (isMainShift() && shouldProduce(GeneratedImageKind.NEGATIVE)) {
-                    produceNegativeImage(blackPoint, geometryFixed);
-                }
-            });
-            if (isMainShift() && shouldProduce(GeneratedImageKind.COLORIZED)) {
-                executor.async(() -> produceColorizedImage(blackPoint, geometryFixed, processParams));
-            }
-            if (isMainShift()) {
-                executor.async(() -> produceCoronagraph(blackPoint, geometryFixed));
-            }
-            if (shouldProduce(GeneratedImageKind.DOPPLER) && isHighestShift()) {
-                produceDopplerImage(blackPoint);
-            }
-            return null;
-        }).get();
+                    var geometryFixed = maybeSharpen(g);
+                    state.recordResult(WorkflowResults.GEOMETRY_CORRECTION, g);
+                    if (state.isInternal()) {
+                        return null;
+                    }
+                    broadcaster.broadcast(OutputImageDimensionsDeterminedEvent.of(message("geometry.corrected"), geometryFixed.width(), geometryFixed.height()));
+                    processedImagesEmitter.newMonoImage(GeneratedImageKind.GEOMETRY_CORRECTED, message("disk"), "disk", geometryFixed);
+                    executor.async(() -> produceStretchedImage(geometryFixed));
+                    if (isMainShift() && shouldProduce(GeneratedImageKind.NEGATIVE)) {
+                        executor.async(() -> produceNegativeImage(geometryFixed));
+                    }
+                    if (isMainShift() && shouldProduce(GeneratedImageKind.COLORIZED)) {
+                        executor.async(() -> produceColorizedImage(blackPoint, geometryFixed, processParams));
+                    }
+                    if (isMainShift()) {
+                        executor.async(() -> produceCoronagraph(blackPoint, geometryFixed));
+                    }
+                    return null;
+                }).
+
+                get();
+
     }
 
     private boolean isMainShift() {
         return state.pixelShift() == processParams.spectrumParams().pixelShift();
-    }
-
-    private boolean isHighestShift() {
-        var shifts = processParams.requestedImages().pixelShifts();
-        return state.pixelShift() == shifts.get(shifts.size() - 1);
     }
 
     private ImageWrapper32 maybeSharpen(GeometryCorrector.Result g) {
@@ -190,68 +183,33 @@ public class ProcessingWorkflow {
         return angle;
     }
 
-    private void produceDopplerImage(float blackPoint) {
-        if (!SpectralRay.H_ALPHA.equals(processParams.spectrumParams().ray())) {
-            return;
-        }
-        executor.async(() -> {
-            var dopplerShift = processParams.spectrumParams().dopplerShift();
-            int lookupShift = processParams.spectrumParams().switchRedBlueChannels() ? -dopplerShift : dopplerShift;
-            var first = states.stream().filter(s -> s.pixelShift() == lookupShift).findFirst();
-            var second = states.stream().filter(s -> s.pixelShift() == -lookupShift).findFirst();
-            first.ifPresent(s1 -> second.ifPresent(s2 -> {
-                s1.findResult(WorkflowResults.GEOMETRY_CORRECTION).ifPresent(i1 -> s2.findResult(WorkflowResults.GEOMETRY_CORRECTION).ifPresent(i2 -> {
-                    var grey1 = ((GeometryCorrector.Result) i1).corrected();
-                    var grey2 = ((GeometryCorrector.Result) i2).corrected();
-                    var width = grey1.width();
-                    var height = grey1.height();
-                    processedImagesEmitter.newColorImage(GeneratedImageKind.DOPPLER,
-                            "Doppler",
-                            "doppler",
-                            new ArcsinhStretchingStrategy(blackPoint, 1, 20),
-                            width,
-                            height,
-                            () -> toDopplerImage(width, height, grey1, grey2));
-                }));
-            }));
-        });
-    }
-
-    private static float[][] toDopplerImage(int width, int height, ImageWrapper32 grey1, ImageWrapper32 grey2) {
-        float[] r = new float[width * height];
-        float[] g = new float[width * height];
-        float[] b = new float[width * height];
-        var d1 = grey1.data();
-        var d2 = grey2.data();
-        for (int y = 0; y < height; y++) {
-            for (int x = 0; x < width; x++) {
-                var idx = x + y * width;
-                r[idx] = d1[idx];
-                g[idx] = (d1[idx] + d2[idx]) / 2;
-                b[idx] = d2[idx];
-            }
-        }
-        return new float[][]{r, g, b};
-    }
-
     private void produceColorizedImage(float blackPoint, ImageWrapper32 corrected, ProcessParams params) {
         params.spectrumParams().ray().getColorCurve().ifPresent(curve ->
-                processedImagesEmitter.newColorImage(GeneratedImageKind.COLORIZED, MessageFormat.format(message("colorized"), curve.ray()), "colorized", corrected, new ArcsinhStretchingStrategy(blackPoint, 10, 200), mono -> ImageUtils.convertToRGB(curve, corrected.width(), corrected.height(), mono))
+                processedImagesEmitter.newColorImage(GeneratedImageKind.COLORIZED, MessageFormat.format(message("colorized"), curve.ray()), "colorized", corrected, mono -> {
+                    createStretchingForColorization(blackPoint).stretch(corrected.width(), corrected.height(), mono);
+                    return ImageUtils.convertToRGB(curve, mono);
+                })
         );
+    }
+
+    private static ArcsinhStretchingStrategy createStretchingForColorization(float blackPoint) {
+        return new ArcsinhStretchingStrategy(blackPoint, 10, 10);
     }
 
     private Supplier<ImageWrapper32> performBandingCorrection(EllipseFittingTask.Result r, ImageWrapper32 geometryFixed) {
         return executor.submit(new ImageBandingCorrector(broadcaster, geometryFixed, r.ellipse(), processParams.bandingCorrectionParams()));
     }
 
-    private Supplier<Void> produceStretchedImage(float blackPoint, ImageWrapper32 geometryFixed) {
-        return processedImagesEmitter.newMonoImage(GeneratedImageKind.GEOMETRY_CORRECTED_STRETCHED, message("stretched"), "streched", geometryFixed, new ArcsinhStretchingStrategy(blackPoint, 10, 100));
+    private Supplier<Void> produceStretchedImage(ImageWrapper32 geometryFixed) {
+        var clahe = geometryFixed.copy();
+        ClaheStrategy.DEFAULT.stretch(clahe.width(), clahe.height(), clahe.data());
+        return processedImagesEmitter.newMonoImage(GeneratedImageKind.GEOMETRY_CORRECTED_STRETCHED, message("stretched"), "clahe", clahe);
     }
 
-    private Supplier<Void> produceNegativeImage(float blackPoint, ImageWrapper32 geometryFixed) {
-        var negated = geometryFixed.asImage().copy();
+    private Supplier<Void> produceNegativeImage(ImageWrapper32 geometryFixed) {
+        var negated = geometryFixed.copy();
         NegativeImageStrategy.DEFAULT.stretch(geometryFixed.width(), geometryFixed.height(), negated.data());
-        return processedImagesEmitter.newMonoImage(GeneratedImageKind.NEGATIVE, message("negative"), "negative", ImageWrapper32.fromImage(negated), new ArcsinhStretchingStrategy(blackPoint, 10, 100));
+        return processedImagesEmitter.newMonoImage(GeneratedImageKind.NEGATIVE, message("negative"), "negative", negated);
     }
 
     private void produceCoronagraph(float blackPoint, ImageWrapper32 geometryFixed) {
@@ -261,13 +219,14 @@ public class ProcessingWorkflow {
             var produceMixed = diskEllipse != null && shouldProduce(GeneratedImageKind.MIXED);
             if (produceVirtualEclipse || produceMixed) {
                 executor.submitAndThen(new CoronagraphTask(broadcaster, geometryFixed, diskEllipse, blackPoint), coronagraph -> {
-                    processedImagesEmitter.newMonoImage(GeneratedImageKind.VIRTUAL_ECLIPSE, message("protus"), "protus", coronagraph, LinearStrechingStrategy.DEFAULT);
+                    processedImagesEmitter.newMonoImage(GeneratedImageKind.VIRTUAL_ECLIPSE, message("protus"), "protus", coronagraph);
                     if (produceMixed) {
                         executor.async(() -> {
                             var data = geometryFixed.data();
                             var copy = new float[data.length];
                             System.arraycopy(data, 0, copy, 0, data.length);
-                            LinearStrechingStrategy.DEFAULT.stretch(geometryFixed.width(), geometryFixed.height(), copy);
+                            createStretchingForColorization(blackPoint).stretch(geometryFixed.width(), geometryFixed.height(), copy);
+                            ClaheStrategy.DEFAULT.stretch(geometryFixed.width(), geometryFixed.height(), copy);
                             var width = geometryFixed.width();
                             var height = geometryFixed.height();
                             float[] mix = new float[data.length];
@@ -289,9 +248,9 @@ public class ProcessingWorkflow {
                             var colorCurve = processParams.spectrumParams().ray().getColorCurve();
                             if (colorCurve.isPresent()) {
                                 var curve = colorCurve.get();
-                                processedImagesEmitter.newColorImage(GeneratedImageKind.MIXED, message("mix"), "mix", mixedImage, new ArcsinhStretchingStrategy(blackPoint, 10, 200), mono -> ImageUtils.convertToRGB(curve, width, height, mono));
+                                processedImagesEmitter.newColorImage(GeneratedImageKind.MIXED, message("mix"), "mix", mixedImage, mono -> ImageUtils.convertToRGB(curve, mono));
                             } else {
-                                processedImagesEmitter.newMonoImage(GeneratedImageKind.MIXED, message("mix"), "mix", mixedImage, LinearStrechingStrategy.DEFAULT);
+                                processedImagesEmitter.newMonoImage(GeneratedImageKind.MIXED, message("mix"), "mix", mixedImage);
                             }
                         });
                     }

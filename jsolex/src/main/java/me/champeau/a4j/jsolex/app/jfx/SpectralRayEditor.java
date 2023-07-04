@@ -33,6 +33,7 @@ import me.champeau.a4j.jsolex.app.JSolEx;
 import me.champeau.a4j.jsolex.processing.color.ColorCurve;
 import me.champeau.a4j.jsolex.processing.params.SpectralRay;
 import me.champeau.a4j.jsolex.processing.params.SpectralRayIO;
+import me.champeau.a4j.jsolex.processing.stretching.LinearStrechingStrategy;
 import me.champeau.a4j.jsolex.processing.sun.ImageUtils;
 import me.champeau.a4j.jsolex.processing.util.ColorizedImageWrapper;
 import me.champeau.a4j.jsolex.processing.util.ImageFormat;
@@ -199,7 +200,7 @@ public class SpectralRayEditor {
             sunPreview.setImage(new Image(SunDiskColorPreview.getMonoImageStream()));
             return;
         }
-        var colorImage = new ColorizedImageWrapper(MONO_SUN_IMAGE, mono -> ImageUtils.convertToRGB(curve, MONO_SUN_IMAGE.width(), MONO_SUN_IMAGE.height(), mono));
+        var colorImage = new ColorizedImageWrapper(MONO_SUN_IMAGE, mono -> ImageUtils.convertToRGB(curve, mono));
         var colorized = colorImage.converter().apply(MONO_SUN_IMAGE.data());
         var r = colorized[0];
         var g = colorized[1];
@@ -275,6 +276,7 @@ public class SpectralRayEditor {
             for (int i = 0; i < data.length; i++) {
                 data[i] = rgb[i] & 0xFF;
             }
+            LinearStrechingStrategy.DEFAULT.stretch(width, height, data);
             return new ImageWrapper32(width, height, data);
         }
 

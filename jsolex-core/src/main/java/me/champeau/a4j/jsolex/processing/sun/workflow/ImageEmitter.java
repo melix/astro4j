@@ -15,7 +15,6 @@
  */
 package me.champeau.a4j.jsolex.processing.sun.workflow;
 
-import me.champeau.a4j.jsolex.processing.stretching.StretchingStrategy;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 
 import java.util.function.Consumer;
@@ -23,11 +22,11 @@ import java.util.function.Function;
 import java.util.function.Supplier;
 
 public interface ImageEmitter {
-    Supplier<Void> newMonoImage(GeneratedImageKind kind, String title, String name, ImageWrapper32 image, StretchingStrategy stretchingStrategy, Consumer<? super float[]> bufferConsumer);
+    Supplier<Void> newMonoImage(GeneratedImageKind kind, String title, String name, ImageWrapper32 image, Consumer<? super float[]> bufferConsumer);
 
-    Supplier<Void> newMonoImage(GeneratedImageKind kind, String title, String name, ImageWrapper32 image, StretchingStrategy stretchingStrategy);
+    Supplier<Void> newMonoImage(GeneratedImageKind kind, String title, String name, ImageWrapper32 image);
 
-    Supplier<Void> newColorImage(GeneratedImageKind kind, String title, String name, ImageWrapper32 image, StretchingStrategy stretchingStrategy, Function<float[], float[][]> rgbSupplier);
+    Supplier<Void> newColorImage(GeneratedImageKind kind, String title, String name, ImageWrapper32 image, Function<float[], float[][]> rgbSupplier);
 
-    Supplier<Void> newColorImage(GeneratedImageKind kind, String title, String name, StretchingStrategy stretchingStrategy, int width, int height, Supplier<float[][]> rgbSupplier);
+    Supplier<Void> newColorImage(GeneratedImageKind kind, String title, String name, int width, int height, Supplier<float[][]> rgbSupplier);
 }

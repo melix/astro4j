@@ -15,7 +15,6 @@
  */
 package me.champeau.a4j.jsolex.processing.expr;
 
-import me.champeau.a4j.jsolex.processing.stretching.LinearStrechingStrategy;
 import me.champeau.a4j.jsolex.processing.sun.workflow.GeneratedImageKind;
 import me.champeau.a4j.jsolex.processing.sun.workflow.ImageEmitter;
 import me.champeau.a4j.jsolex.processing.util.ColorizedImageWrapper;
@@ -37,15 +36,13 @@ public interface ImageMathScriptExecutor {
                         GeneratedImageKind.IMAGE_MATH,
                         label,
                         label,
-                        mono,
-                        LinearStrechingStrategy.DEFAULT
+                        mono
                 );
             } else if (image instanceof ColorizedImageWrapper colorized) {
                 emitter.newColorImage(
                         GeneratedImageKind.IMAGE_MATH,
                         label,
                         label,
-                        LinearStrechingStrategy.DEFAULT,
                         colorized.width(),
                         colorized.height(),
                         () -> colorized.converter().apply(colorized.mono().data())

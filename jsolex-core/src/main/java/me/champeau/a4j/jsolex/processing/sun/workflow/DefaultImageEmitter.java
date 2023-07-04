@@ -15,7 +15,6 @@
  */
 package me.champeau.a4j.jsolex.processing.sun.workflow;
 
-import me.champeau.a4j.jsolex.processing.stretching.StretchingStrategy;
 import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
 import me.champeau.a4j.jsolex.processing.sun.tasks.WriteColorizedImageTask;
 import me.champeau.a4j.jsolex.processing.sun.tasks.WriteMonoImageTask;
@@ -49,11 +48,10 @@ public class DefaultImageEmitter implements ImageEmitter {
     }
 
     @Override
-    public Supplier<Void> newMonoImage(GeneratedImageKind kind, String title, String name, ImageWrapper32 image, StretchingStrategy stretchingStrategy, Consumer<? super float[]> bufferConsumer) {
+    public Supplier<Void> newMonoImage(GeneratedImageKind kind, String title, String name, ImageWrapper32 image, Consumer<? super float[]> bufferConsumer) {
         prepareOutput(name);
         return executor.submit(new WriteMonoImageTask(broadcaster,
                 image,
-                stretchingStrategy,
                 outputDir,
                 title,
                 name
@@ -75,11 +73,10 @@ public class DefaultImageEmitter implements ImageEmitter {
     }
 
     @Override
-    public Supplier<Void> newMonoImage(GeneratedImageKind kind, String title, String name, ImageWrapper32 image, StretchingStrategy stretchingStrategy) {
+    public Supplier<Void> newMonoImage(GeneratedImageKind kind, String title, String name, ImageWrapper32 image) {
         prepareOutput(name);
         return executor.submit(new WriteMonoImageTask(broadcaster,
                 image,
-                stretchingStrategy,
                 outputDir,
                 title,
                 name
@@ -87,11 +84,10 @@ public class DefaultImageEmitter implements ImageEmitter {
     }
 
     @Override
-    public Supplier<Void> newColorImage(GeneratedImageKind kind, String title, String name, ImageWrapper32 image, StretchingStrategy stretchingStrategy, Function<float[], float[][]> rgbSupplier) {
+    public Supplier<Void> newColorImage(GeneratedImageKind kind, String title, String name, ImageWrapper32 image, Function<float[], float[][]> rgbSupplier) {
         prepareOutput(name);
         return executor.submit(new WriteColorizedImageTask(broadcaster,
                 image,
-                stretchingStrategy,
                 outputDir,
                 title,
                 name,
@@ -100,10 +96,9 @@ public class DefaultImageEmitter implements ImageEmitter {
     }
 
     @Override
-    public Supplier<Void> newColorImage(GeneratedImageKind kind, String title, String name, StretchingStrategy stretchingStrategy, int width, int height, Supplier<float[][]> rgbSupplier) {
+    public Supplier<Void> newColorImage(GeneratedImageKind kind, String title, String name, int width, int height, Supplier<float[][]> rgbSupplier) {
         prepareOutput(name);
         return executor.submit(new WriteRGBImageTask(broadcaster,
-                stretchingStrategy,
                 new ImageWrapper32(width, height, new float[0]),
                 outputDir,
                 title,

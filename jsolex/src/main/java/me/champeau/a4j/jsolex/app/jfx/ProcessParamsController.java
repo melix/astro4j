@@ -216,9 +216,9 @@ public class ProcessParamsController {
     public void process() {
         int dopplerShift = (int) dopplerShifting.getValue();
         doProcess(new RequestedImages(
-                generateDebugImages.isSelected() ? RequestedImages.FULL_MODE_WITH_DEBUG :RequestedImages.FULL_MODE,
+                generateDebugImages.isSelected() ? RequestedImages.FULL_MODE_WITH_DEBUG : RequestedImages.FULL_MODE,
                 List.of(getPixelShiftAsInt(), dopplerShift, -dopplerShift),
-                Set.of(),
+                Set.of(-dopplerShift, dopplerShift),
                 ImageMathParams.NONE
         ));
     }

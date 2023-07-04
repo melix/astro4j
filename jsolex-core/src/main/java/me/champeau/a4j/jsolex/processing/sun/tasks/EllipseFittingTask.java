@@ -20,7 +20,6 @@ import me.champeau.a4j.jsolex.processing.event.NotificationEvent;
 import me.champeau.a4j.jsolex.processing.event.ProgressEvent;
 import me.champeau.a4j.jsolex.processing.params.ProcessParams;
 import me.champeau.a4j.jsolex.processing.stretching.CutoffStretchingStrategy;
-import me.champeau.a4j.jsolex.processing.stretching.LinearStrechingStrategy;
 import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
 import me.champeau.a4j.jsolex.processing.sun.workflow.GeneratedImageKind;
 import me.champeau.a4j.jsolex.processing.sun.workflow.ImageEmitter;
@@ -196,7 +195,7 @@ public class EllipseFittingTask extends AbstractTask<EllipseFittingTask.Result> 
 
     private void produceEdgeDetectionImage(EllipseFittingTask.Result result, ImageWrapper32 image) {
         if (debugImagesEmitter != null) {
-            debugImagesEmitter.newColorImage(GeneratedImageKind.DEBUG, message("edge.detection"), "edge-detection", image, new LinearStrechingStrategy(0, 6500), debugImage -> {
+            debugImagesEmitter.newColorImage(GeneratedImageKind.DEBUG, message("edge.detection"), "edge-detection", image, debugImage -> {
                 float[][] rgb = new float[3][];
                 float[] overlay = new float[debugImage.length];
                 System.arraycopy(debugImage, 0, overlay, 0, overlay.length);

@@ -18,6 +18,7 @@ package me.champeau.a4j.jsolex.processing.color;
 import me.champeau.a4j.math.Point2D;
 import me.champeau.a4j.math.regression.LinearRegression;
 import me.champeau.a4j.math.tuples.DoubleTriplet;
+import me.champeau.a4j.math.tuples.IntPair;
 
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -30,7 +31,7 @@ public record ColorCurve(
         int bIn, int bOut
 ) {
 
-    private static final Map<Long, DoubleUnaryOperator> POLYNOMIALS_CACHE = new ConcurrentHashMap<>();
+    private static final Map<IntPair, DoubleUnaryOperator> POLYNOMIALS_CACHE = new ConcurrentHashMap<>();
 
     public static final int MAX = 65535;
 
@@ -45,8 +46,7 @@ public record ColorCurve(
     }
 
     public static DoubleUnaryOperator cachedPolynomial(int in, int out) {
-        long key = ((long) in << 16) | out;
-        return POLYNOMIALS_CACHE.computeIfAbsent(key, k -> polynomialOf(in, out).asPolynomial());
+        return POLYNOMIALS_CACHE.computeIfAbsent(new IntPair(in, out), k -> polynomialOf(in, out).asPolynomial());
     }
 
     public DoubleTriplet toRGB(double grey) {

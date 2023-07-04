@@ -17,22 +17,19 @@ package me.champeau.a4j.jsolex.processing.stretching;
 
 import me.champeau.a4j.jsolex.processing.util.Constants;
 
-public final class CutoffStretchingStrategy implements StretchingStrategy {
-    public static final CutoffStretchingStrategy DEFAULT = new CutoffStretchingStrategy(0, Constants.MAX_PIXEL_VALUE);
+public final class ConstrastAdjustmentStrategy implements StretchingStrategy {
+    public static final ConstrastAdjustmentStrategy DEFAULT = new ConstrastAdjustmentStrategy(0, Constants.MAX_PIXEL_VALUE);
+
     private final float min;
     private final float max;
-    private final float zeroFill;
-    private final float maxFill;
 
-    public CutoffStretchingStrategy(float min, float max) {
-        this(min, max, min, max);
-    }
-
-    public CutoffStretchingStrategy(float min, float max, float zeroFill, float maxFill) {
+    public ConstrastAdjustmentStrategy(float min, float max) {
         this.min = min;
         this.max = max;
-        this.zeroFill = zeroFill;
-        this.maxFill = maxFill;
+    }
+
+    public ConstrastAdjustmentStrategy withRange(float min, float max) {
+        return new ConstrastAdjustmentStrategy(min, max);
     }
 
     public float getMin() {
@@ -43,23 +40,16 @@ public final class CutoffStretchingStrategy implements StretchingStrategy {
         return max;
     }
 
-    public CutoffStretchingStrategy withMin(float min) {
-        return new CutoffStretchingStrategy(min, max, zeroFill, maxFill);
-    }
-
-    public CutoffStretchingStrategy withMax(float max) {
-        return new CutoffStretchingStrategy(min, max, zeroFill, maxFill);
-    }
-
     @Override
     public void stretch(int width, int height, float[] data) {
         for (int i = 0; i < data.length; i++) {
             if (data[i] < min) {
-                data[i] = zeroFill;
+                data[i] = min;
             } else if (data[i] > max) {
-                data[i] = maxFill;
+                data[i] = max;
             }
         }
+        RangeExpansionStrategy.DEFAULT.stretch(width, height, data);
     }
 
     @Override

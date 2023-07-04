@@ -53,7 +53,7 @@ public class DebugImageHelper {
     }
 
     private static void produceOverlayImage(ImageEmitter processedImagesEmitter, int width, int height, float[] newData, float[] original) {
-        processedImagesEmitter.newColorImage(GeneratedImageKind.DEBUG, message("tilt.detection"), "tilt", LinearStrechingStrategy.DEFAULT, width, height, () -> {
+        processedImagesEmitter.newColorImage(GeneratedImageKind.DEBUG, message("tilt.detection"), "tilt", width, height, () -> {
             float[][] rgb = new float[3][];
             rgb[0] = newData;
             rgb[1] = original;

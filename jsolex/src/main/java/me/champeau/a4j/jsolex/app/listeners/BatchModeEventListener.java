@@ -29,6 +29,7 @@ import me.champeau.a4j.jsolex.processing.event.ProcessingStartEvent;
 import me.champeau.a4j.jsolex.processing.event.VideoMetadataEvent;
 import me.champeau.a4j.jsolex.processing.file.FileNamingStrategy;
 import me.champeau.a4j.jsolex.processing.params.ProcessParams;
+import me.champeau.a4j.jsolex.processing.stretching.LinearStrechingStrategy;
 import me.champeau.a4j.jsolex.processing.util.ImageSaver;
 import me.champeau.a4j.ser.Header;
 
@@ -71,11 +72,10 @@ public class BatchModeEventListener implements ProcessingEventListener {
     @Override
     public void onImageGenerated(ImageGeneratedEvent event) {
         var payload = event.getPayload();
-        var stretchingStrategy = payload.stretchingStrategy();
         var image = payload.image();
         var target = payload.path().toFile();
         owner.getCpuExecutor().async(() -> {
-            new ImageSaver(stretchingStrategy, processParams).save(image, target);
+            new ImageSaver(LinearStrechingStrategy.DEFAULT, processParams).save(image, target);
             item.generatedFiles().add(target);
         });
     }

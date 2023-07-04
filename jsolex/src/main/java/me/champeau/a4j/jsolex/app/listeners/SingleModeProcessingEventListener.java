@@ -173,7 +173,6 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
             viewer.setup(this,
                     baseName,
                     event.getPayload().image(),
-                    event.getPayload().stretchingStrategy(),
                     event.getPayload().path().toFile(),
                     params
             );

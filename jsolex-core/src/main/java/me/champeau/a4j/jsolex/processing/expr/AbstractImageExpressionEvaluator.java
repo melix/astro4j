@@ -21,6 +21,8 @@ import me.champeau.a4j.jsolex.processing.color.ColorCurve;
 import me.champeau.a4j.jsolex.processing.params.SpectralRay;
 import me.champeau.a4j.jsolex.processing.params.SpectralRayIO;
 import me.champeau.a4j.jsolex.processing.stretching.ArcsinhStretchingStrategy;
+import me.champeau.a4j.jsolex.processing.stretching.ClaheStrategy;
+import me.champeau.a4j.jsolex.processing.stretching.ConstrastAdjustmentStrategy;
 import me.champeau.a4j.jsolex.processing.stretching.LinearStrechingStrategy;
 import me.champeau.a4j.jsolex.processing.stretching.NegativeImageStrategy;
 import me.champeau.a4j.jsolex.processing.sun.BandingReduction;
@@ -114,6 +116,8 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
             case FIX_BANDING -> fixBanding(arguments);
             case LINEAR_STRETCH -> linearStretch(arguments);
             case ASINH_STRETCH -> asinhStretch(arguments);
+            case CLAHE -> clahe(arguments);
+            case ADJUST_CONTRAST -> adjustContrast(arguments);
             case COLORIZE -> colorize(arguments);
             case AUTOCROP -> autocrop(arguments);
         };
@@ -171,6 +175,39 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
         return monoToMonoImageTransformer("linear_stretch", 3, arguments, (width, height, data) -> new LinearStrechingStrategy(lo, hi).stretch(width, height, data));
     }
 
+    private Object clahe(List<Object> arguments) {
+        if (arguments.size() != 4 && arguments.size() != 2) {
+            throw new IllegalArgumentException("clahe takes either 2 or 4 arguments (image(s), [tile_size, bins], clip)");
+        }
+        if (arguments.size() == 2) {
+            double clip = ((Number) arguments.get(1)).doubleValue();
+            return monoToMonoImageTransformer("clahe", 2, arguments, (width, height, data) -> new ClaheStrategy(ClaheStrategy.DEFAULT_TILE_SIZE, ClaheStrategy.DEFAULT_BINS, clip).stretch(width, height, data));
+
+        }
+        int tileSize = ((Number) arguments.get(1)).intValue();
+        int bins = ((Number) arguments.get(2)).intValue();
+        double clip = ((Number) arguments.get(3)).doubleValue();
+        if (tileSize * tileSize / (double) bins < 1.0) {
+            throw new IllegalArgumentException("The number of bins is too high given the size of the tiles. Either reduce the bin count or increase the tile size");
+        }
+        return monoToMonoImageTransformer("clahe", 4, arguments, (width, height, data) -> new ClaheStrategy(tileSize, bins, clip).stretch(width, height, data));
+    }
+
+    private Object adjustContrast(List<Object> arguments) {
+        if (arguments.size() != 3) {
+            throw new IllegalArgumentException("adjust_contrast takes 3 arguments (image(s), min, max)");
+        }
+        int min = ((Number) arguments.get(1)).intValue();
+        int max = ((Number) arguments.get(2)).intValue();
+        if (min < 0 || min > 255) {
+            throw new IllegalArgumentException("adjust_contrast min must be between 0 and 255");
+        }
+        if (max < 0 || max > 255) {
+            throw new IllegalArgumentException("adjust_contrast max must be between 0 and 255");
+        }
+        return monoToMonoImageTransformer("adjust_contrast", 3, arguments, (width, height, data) -> new ConstrastAdjustmentStrategy(min << 8, max << 8).stretch(width, height, data));
+    }
+
     private Object colorize(List<Object> arguments) {
         if (arguments.size() != 7 && arguments.size() != 2) {
             throw new IllegalArgumentException("colorize takes 3 arguments (image, rIn, rOut, gIn, gOut, bIn, bOut) or 2 arguments (image, profile name)");
@@ -189,7 +226,7 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
             if (arg instanceof ImageWrapper32 mono) {
                 return new ColorizedImageWrapper(mono, data -> {
                     var curve = new ColorCurve("adhoc", rIn, rOut, gIn, gOut, bIn, bOut);
-                    return doColorize(mono.width(), mono.height(), data, curve);
+                    return doColorize(data, curve);
                 });
             }
         } else {
@@ -199,7 +236,7 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
                 if (ray.label().equalsIgnoreCase(profile) && (arg instanceof ImageWrapper32 mono)) {
                     var curve = ray.colorCurve();
                     if (curve != null) {
-                        return new ColorizedImageWrapper(mono, data -> doColorize(mono.width(), mono.height(), data, curve));
+                        return new ColorizedImageWrapper(mono, data -> doColorize(data, curve));
                     }
                 }
             }
@@ -208,10 +245,10 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
         throw new IllegalArgumentException("colorize first argument must be an image or a list of images");
     }
 
-    private float[][] doColorize(int width, int height, float[] data, ColorCurve curve) {
+    private float[][] doColorize(float[] data, ColorCurve curve) {
         float[] copy = new float[data.length];
         System.arraycopy(data, 0, copy, 0, copy.length);
-        return ImageUtils.convertToRGB(curve, width, height, copy);
+        return ImageUtils.convertToRGB(curve, copy);
     }
 
     private Object fixBanding(List<Object> arguments) {
