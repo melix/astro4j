@@ -30,6 +30,7 @@ import javafx.scene.Parent;
 import javafx.scene.Scene;
 import javafx.scene.control.Alert;
 import javafx.scene.control.Button;
+import javafx.scene.control.ButtonType;
 import javafx.scene.control.Hyperlink;
 import javafx.scene.control.Label;
 import javafx.scene.control.Menu;
@@ -88,6 +89,7 @@ import java.nio.file.Path;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.Semaphore;
@@ -198,11 +200,54 @@ public class JSolEx extends Application implements JSolExInterface {
                 }
                 System.exit(0);
             });
+            BatchOperations.submit(() -> UpdateChecker.findLatestRelease().ifPresent(this::maybeWarnAboutNewRelease));
             LOGGER.info("Java runtime version {}", System.getProperty("java.version"));
             LOGGER.info("Vector API support is {} and {}", VectorApiSupport.isPresent() ? "available" : "missing", VectorApiSupport.isEnabled() ? "enabled" : "disabled (enable by setting " + VectorApiSupport.VECTOR_API_ENV_VAR + " environment variable to true)");
         } catch (IOException exception) {
             throw new ProcessingException(exception);
         }
+    }
+
+    private void maybeWarnAboutNewRelease(UpdateChecker.ReleaseInfo release) {
+        var currentVersion = toVersionLong(getVersion());
+        var latestRelease = toVersionLong(release.version());
+        if (latestRelease > currentVersion) {
+            var alert = new Alert(Alert.AlertType.INFORMATION);
+            alert.setTitle(message("new.release.available"));
+            alert.setHeaderText("JSol'Ex " + release.version() + " " + message("has.been.released"));
+            var textArea = new TextArea();
+            textArea.setEditable(false);
+            var scroll = new ScrollPane(textArea);
+            textArea.setText(release.notes());
+            scroll.fitToHeightProperty().set(true);
+            scroll.fitToWidthProperty().set(true);
+            alert.getDialogPane().setExpandableContent(scroll);
+            alert.getButtonTypes().clear();
+            var download = new ButtonType(message("download"));
+            alert.getButtonTypes().add(download);
+            alert.getButtonTypes().add(ButtonType.CLOSE);
+            alert.showAndWait().ifPresent(button -> {
+                if (button == download) {
+                    getHostServices().showDocument("https://github.com/melix/astro4j");
+                }
+            });
+        }
+    }
+
+    private long toVersionLong(String version) {
+        var v = version;
+        if (v.endsWith("-SNAPSHOT")) {
+            v = version.substring(0, v.indexOf("-SNAPSHOT"));
+        }
+        var parts = Arrays.asList(v.split("[.]"));
+        if (parts.size() < 3) {
+            parts.add("0");
+        }
+        long id = 0;
+        for (int i = 2; i >= 0; i--) {
+            id += Math.pow(1000, 2 - i) * Long.parseLong(parts.get(i));
+        }
+        return id;
     }
 
     private void configureMemoryStatus() {
