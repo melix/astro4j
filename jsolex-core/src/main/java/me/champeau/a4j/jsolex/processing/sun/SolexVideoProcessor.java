@@ -51,6 +51,7 @@ import me.champeau.a4j.jsolex.processing.sun.workflow.WorkflowResults;
 import me.champeau.a4j.jsolex.processing.util.Constants;
 import me.champeau.a4j.jsolex.processing.util.ForkJoinContext;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
+import me.champeau.a4j.jsolex.processing.util.ParallelExecutor;
 import me.champeau.a4j.jsolex.processing.util.ProcessingException;
 import me.champeau.a4j.jsolex.processing.util.SpectralLineFrameImageCreator;
 import me.champeau.a4j.math.image.Image;
@@ -66,6 +67,7 @@ import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.io.IOException;
+import java.nio.ByteBuffer;
 import java.nio.file.Path;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -407,20 +409,26 @@ public class SolexVideoProcessor implements Broadcaster {
     }
 
     private void performImageReconstruction(ImageConverter<float[]> converter, SerFileReader reader, int start, int end, ImageGeometry geometry, int width, int height, DoubleTriplet polynomial, WorkflowState... images) {
-        try (var executor = IOUtils.newExecutor(width * height * 4)) {
+        try (var executor = ParallelExecutor.newExecutor(Runtime.getRuntime().availableProcessors())) {
             executor.setExceptionHandler(this::broadcastError);
             reader.seekFrame(start);
             LOGGER.info(message("distortion.polynomial"), polynomial.a(), polynomial.b(), polynomial.c());
             reader.seekFrame(start);
             int totalLines = end - start;
             for (int i = start, j = 0; i < end; i++, j += width) {
-                var original = converter.createBuffer(geometry);
-                // The converter makes sure we only have a single channel
-                converter.convert(i, reader.currentFrame().data(), geometry, original);
+                var currentFrame = reader.currentFrame().data().array();
+                byte[] copy = new byte[currentFrame.length];
+                System.arraycopy(currentFrame, 0, copy, 0, currentFrame.length);
                 reader.nextFrame();
                 int offset = j;
                 for (WorkflowState state : images) {
-                    executor.submit(() -> processSingleFrame(state.isInternal(), width, height, state.reconstructed(), offset, original, polynomial, state.pixelShift(), totalLines));
+                    int index = i;
+                    executor.submit(() -> {
+                        var original = converter.createBuffer(geometry);
+                        // The converter makes sure we only have a single channel
+                        converter.convert(index, ByteBuffer.wrap(copy), geometry, original);
+                        processSingleFrame(state.isInternal(), width, height, state.reconstructed(), offset, original, polynomial, state.pixelShift(), totalLines);
+                    });
                 }
             }
         } catch (Exception e) {
