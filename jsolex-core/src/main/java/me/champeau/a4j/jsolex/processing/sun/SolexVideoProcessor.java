@@ -51,7 +51,6 @@ import me.champeau.a4j.jsolex.processing.sun.workflow.WorkflowResults;
 import me.champeau.a4j.jsolex.processing.util.Constants;
 import me.champeau.a4j.jsolex.processing.util.ForkJoinContext;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
-import me.champeau.a4j.jsolex.processing.util.ParallelExecutor;
 import me.champeau.a4j.jsolex.processing.util.ProcessingException;
 import me.champeau.a4j.jsolex.processing.util.SpectralLineFrameImageCreator;
 import me.champeau.a4j.math.image.Image;
@@ -81,6 +80,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.Semaphore;
 
 import static me.champeau.a4j.jsolex.processing.util.Constants.message;
 import static me.champeau.a4j.jsolex.processing.util.LoggingSupport.logError;
@@ -409,8 +409,8 @@ public class SolexVideoProcessor implements Broadcaster {
     }
 
     private void performImageReconstruction(ImageConverter<float[]> converter, SerFileReader reader, int start, int end, ImageGeometry geometry, int width, int height, DoubleTriplet polynomial, WorkflowState... images) {
-        try (var executor = ParallelExecutor.newExecutor(Runtime.getRuntime().availableProcessors())) {
-            executor.setExceptionHandler(this::broadcastError);
+        var semaphore = new Semaphore(Runtime.getRuntime().availableProcessors());
+        mainForkJoinContext.blocking(executor -> {
             reader.seekFrame(start);
             LOGGER.info(message("distortion.polynomial"), polynomial.a(), polynomial.b(), polynomial.c());
             reader.seekFrame(start);
@@ -423,17 +423,20 @@ public class SolexVideoProcessor implements Broadcaster {
                 int offset = j;
                 for (WorkflowState state : images) {
                     int index = i;
-                    executor.submit(() -> {
-                        var original = converter.createBuffer(geometry);
-                        // The converter makes sure we only have a single channel
-                        converter.convert(index, ByteBuffer.wrap(copy), geometry, original);
-                        processSingleFrame(state.isInternal(), width, height, state.reconstructed(), offset, original, polynomial, state.pixelShift(), totalLines);
+                    semaphore.acquireUninterruptibly();
+                    executor.async(() -> {
+                        try {
+                            var original = converter.createBuffer(geometry);
+                            // The converter makes sure we only have a single channel
+                            converter.convert(index, ByteBuffer.wrap(copy), geometry, original);
+                            processSingleFrame(state.isInternal(), width, height, state.reconstructed(), offset, original, polynomial, state.pixelShift(), totalLines);
+                        } finally {
+                            semaphore.release();
+                        }
                     });
                 }
             }
-        } catch (Exception e) {
-            throw ProcessingException.wrap(e);
-        }
+        });
         LOGGER.info(message("processing.done.generate.images"));
     }
 
