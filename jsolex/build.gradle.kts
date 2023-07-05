@@ -8,6 +8,7 @@ description = "A Sol'Ex spectroheliographic video file processor (JavaFX version
 
 dependencies {
     implementation(projects.jsolexCore)
+    implementation(libs.gson)
     implementation(libs.richtextfx) {
         exclude(group = "org.openjfx")
     }
