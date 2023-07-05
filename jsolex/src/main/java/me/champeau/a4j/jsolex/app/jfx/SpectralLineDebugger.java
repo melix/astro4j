@@ -23,6 +23,7 @@ import javafx.scene.canvas.Canvas;
 import javafx.scene.canvas.GraphicsContext;
 import javafx.scene.control.CheckBox;
 import javafx.scene.control.Label;
+import javafx.scene.control.ProgressBar;
 import javafx.scene.control.RadioButton;
 import javafx.scene.control.Slider;
 import javafx.scene.control.TextField;
@@ -35,10 +36,12 @@ import javafx.stage.Screen;
 import javafx.stage.Stage;
 import javafx.util.Duration;
 import me.champeau.a4j.jsolex.app.JSolEx;
+import me.champeau.a4j.jsolex.processing.event.ProgressEvent;
 import me.champeau.a4j.jsolex.processing.stretching.ArcsinhStretchingStrategy;
 import me.champeau.a4j.jsolex.processing.sun.ImageUtils;
 import me.champeau.a4j.jsolex.processing.sun.MagnitudeBasedSunEdgeDetector;
 import me.champeau.a4j.jsolex.processing.sun.SpectrumFrameAnalyzer;
+import me.champeau.a4j.jsolex.processing.util.ForkJoinParallelExecutor;
 import me.champeau.a4j.jsolex.processing.util.ImageFormat;
 import me.champeau.a4j.jsolex.processing.util.SpectralLineFrameImageCreator;
 import me.champeau.a4j.math.Point2D;
@@ -96,6 +99,11 @@ public class SpectralLineDebugger {
     @FXML
     private HBox frameMoveGroup;
 
+    @FXML
+    private HBox progressBox;
+    @FXML
+    private ProgressBar progressBar;
+
     private Image image;
     private Point2D p1;
     private Point2D p2;
@@ -106,7 +114,7 @@ public class SpectralLineDebugger {
     private DoubleTriplet lockedPolynomial;
     private SerFileReader reader;
 
-    public void open(File file, ColorMode colorMode, Scene scene, Stage stage) {
+    public void open(File file, ColorMode colorMode, Scene scene, Stage stage, ForkJoinParallelExecutor executor) {
         var toggleGroup = new ToggleGroup();
         average.setToggleGroup(toggleGroup);
         frames.setToggleGroup(toggleGroup);
@@ -117,8 +125,17 @@ public class SpectralLineDebugger {
                 frameMoveGroup.setDisable(false);
             }
         });
+        status.setDisable(true);
+        executor.async(() -> prepareView(file, colorMode, scene, stage, toggleGroup));
+    }
+
+    private void prepareView(File file, ColorMode colorMode, Scene scene, Stage stage, ToggleGroup toggleGroup) {
         var converter = createImageConverter(colorMode);
+        BatchOperations.submit(() -> progressBox.setVisible(true));
         var detector = new MagnitudeBasedSunEdgeDetector(converter, event -> {
+            if (event instanceof ProgressEvent progress) {
+                BatchOperations.submitOneOfAKind("progress", () -> progressBar.setProgress(progress.getPayload().progress()));
+            }
         });
         try {
             reader = SerFileReader.of(file);
@@ -127,48 +144,52 @@ public class SpectralLineDebugger {
             var tmpPath = Files.createTempFile("debug_", ".png");
             File imageFile = tmpPath.toFile();
             imageFile.deleteOnExit();
-            var header = reader.header();
-            var geometry = header.geometry();
-            int current = header.frameCount() / 2;
-            var screenWidth = Screen.getPrimary().getBounds().getWidth();
-            stage.setWidth(Math.max(screenWidth, Math.min(1024, header.geometry().width())));
-
-            status.maxWidthProperty().bind(scene.widthProperty());
-            scene.widthProperty().addListener((o, oldValue, newValue) -> {
-                if (image != null) {
-                    canvas.setScaleX(newValue.doubleValue() / image.getWidth());
-                    redraw();
-                }
+            BatchOperations.submit(() -> {
+                status.setDisable(false);
+                progressBox.setVisible(false);
+                var header = reader.header();
+                var geometry = header.geometry();
+                int current = header.frameCount() / 2;
+                var screenWidth = Screen.getPrimary().getBounds().getWidth();
+                stage.setWidth(Math.max(screenWidth, Math.min(1024, header.geometry().width())));
+                stage.setHeight(stage.getHeight() + 2 * geometry.height() + 10);
+                status.maxWidthProperty().bind(scene.widthProperty());
+                scene.widthProperty().addListener((o, oldValue, newValue) -> {
+                    if (image != null) {
+                        canvas.setScaleX(newValue.doubleValue() / image.getWidth());
+                        redraw();
+                    }
+                });
+                scene.heightProperty().addListener((o, oldValue, newValue) -> {
+                    if (image != null) {
+                        redraw();
+                    }
+                });
+                sunDetectionThreshold.textProperty().set("5000d");
+                frameSlider.setMin(0);
+                frameSlider.setMax(header.frameCount());
+                frameSlider.setValue(current);
+                frameId.textProperty().bind(frameSlider.valueProperty().asString("Frame %.0f"));
+                var pause = new PauseTransition(Duration.millis(50));
+                ChangeListener listener = (observable, oldValue, newValue) -> {
+                    int frameId = frameSlider.valueProperty().intValue();
+                    pause.setOnFinished(e ->
+                            processFrame(converter, reader, geometry, frameId, imageFile, null, scene)
+                    );
+                    pause.playFromStart();
+                };
+                frameSlider.valueProperty().addListener(listener);
+                contrastBoost.valueProperty().addListener(listener);
+                sunDetectionThreshold.textProperty().addListener((observable, oldValue, newValue) -> {
+                    if (!newValue.trim().isEmpty()) {
+                        processFrame(converter, reader, geometry, frameSlider.valueProperty().intValue(), imageFile, toggleGroup.getSelectedToggle() == average ? averageImage : null, scene);
+                    }
+                });
+                toggleGroup.selectedToggleProperty().addListener((obj, oldValue, newValue) -> {
+                    processFrame(converter, reader, geometry, current, imageFile, newValue == average ? averageImage : null, scene);
+                });
+                toggleGroup.selectToggle(average);
             });
-            scene.heightProperty().addListener((o, oldValue, newValue) -> {
-                if (image != null) {
-                    redraw();
-                }
-            });
-            sunDetectionThreshold.textProperty().set("5000d");
-            frameSlider.setMin(0);
-            frameSlider.setMax(header.frameCount());
-            frameSlider.setValue(current);
-            frameId.textProperty().bind(frameSlider.valueProperty().asString("Frame %.0f"));
-            var pause = new PauseTransition(Duration.millis(50));
-            ChangeListener listener = (observable, oldValue, newValue) -> {
-                int frameId = frameSlider.valueProperty().intValue();
-                pause.setOnFinished(e ->
-                        processFrame(converter, reader, geometry, frameId, imageFile, null, scene)
-                );
-                pause.playFromStart();
-            };
-            frameSlider.valueProperty().addListener(listener);
-            contrastBoost.valueProperty().addListener(listener);
-            sunDetectionThreshold.textProperty().addListener((observable, oldValue, newValue) -> {
-                if (!newValue.trim().isEmpty()) {
-                    processFrame(converter, reader, geometry, frameSlider.valueProperty().intValue(), imageFile, toggleGroup.getSelectedToggle() == average ? averageImage : null, scene);
-                }
-            });
-            toggleGroup.selectedToggleProperty().addListener((obj, oldValue, newValue) -> {
-                processFrame(converter, reader, geometry, current, imageFile, newValue == average ? averageImage : null, scene);
-            });
-            toggleGroup.selectToggle(average);
         } catch (
                 Exception e) {
             throw new RuntimeException(e);
