@@ -902,6 +902,12 @@ Click on "Ok" to start processing, you will now have the 21 required images gene
 <p><code>invert</code>, generates a color inverted image</p>
 </li>
 <li>
+<p><code>clahe</code> performs <a href="https://en.wikipedia.org/wiki/Adaptive_histogram_equalization#Contrast_Limited_AHE">Contrast Limited Adaptative Histogram Equalization</a> on your image. It supports either 2 or 4 parameters. In the first form, it takes the image to equalize and clip factor, for example: <code>clahe(img(0); 1.5)</code>. In the long form, it takes 2 additional parameters which are the tile size (used to compute histograms) and the number of bins (the lower, the smaller the dynamic range). e.g <code>clahe(img(0); 128; 256; 1.2)</code></p>
+</li>
+<li>
+<p><code>adjust_contrast</code> applies simple contrast adujstment by clipping values under the minimal value or above the maximal value. e.g <code>adjust_contrast(img(0), 10, 210)</code>. The range is must be between 0 and 255.</p>
+</li>
+<li>
 <p><code>asinh_stretch</code> applies the inverse arcsin hypobolic transformation to increase constrast. It accepts 3 arguments: the image, the black point value and a stretch value.</p>
 </li>
 <li>

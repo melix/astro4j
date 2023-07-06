@@ -891,6 +891,15 @@ Le script apparaît désormais dans la liste de gauche, il sera appliqué lors d
 <p><code>invert</code>, qui permet d&#8217;obtenir le négatif d&#8217;une image</p>
 </li>
 <li>
+<p><code>invert</code>, generates a color inverted image</p>
+</li>
+<li>
+<p><code>clahe</code> applique une <a href="https://en.wikipedia.org/wiki/Adaptive_histogram_equalization#Contrast_Limited_AHE">transformation d&#8217;histogramme adaptative (CLAHE)</a> sur votre image. Cette fonctiona accepte soit 2, soit 4 arguments. Dans la version courte, elle prend l&#8217;image et un facteur de clipping. Par exemple: <code>clahe(img(0); 1.5)</code>. Dans sa version longue, elle accepte 2 paramètres supplémentaires: la taille des tuiles utilisées pour calculer les histogrammes et la résolution de l&#8217;histogramme. Plus la résolution est élevée, plus la dynamique est élevée, mais plus vous devrez utiliser des tuiles petites. Par exemple: <code>clahe(img(0); 128; 256; 1.2)</code>.</p>
+</li>
+<li>
+<p><code>adjust_contrast</code> permet d&#8217;appliquer un ajustement très simple du contraste, en coupant les pixels sous une limite minimale ou au-dessus de la limite maximale. Par exemple: <code>adjust_contrast(img(0), 10, 210)</code>. L&#8217;intervalle doit être entre 0 et 255.</p>
+</li>
+<li>
 <p><code>asinh_stretch</code> permet d&#8217;appliquer la fonction d&#8217;étirement par arcsinus hyperbolique. Elle prend 3 paramètres: l&#8217;image, le point noir et le coefficient de stretch. Par exemple, <code>asinh_stretch(img(0), 200, 100)</code>.</p>
 </li>
 <li>
