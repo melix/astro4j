@@ -270,7 +270,7 @@ public class ImageViewer {
                     BatchOperations.submit(updateDisplay);
                 });
             } else if (image instanceof RGBImage rgb) {
-                var stretched = stretch(rgb.r(), rgb.g(), rgb.g());
+                var stretched = stretch(rgb.r(), rgb.g(), rgb.b());
                 forkJoinContext.async(() -> {
                     ImageUtils.writeRgbImage(rgb.width(), rgb.height(), stretched[0], stretched[1], stretched[2], tmpImage, imageFormats);
                     BatchOperations.submit(updateDisplay);
