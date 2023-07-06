@@ -25,7 +25,7 @@ public final class RangeExpansionStrategy implements StretchingStrategy {
     }
 
     @Override
-    public void stretch(float[] data) {
+    public void stretch(int width, int height, float[] data) {
         double max = Double.MIN_VALUE;
         for (float v : data) {
             if (v > max) {
@@ -38,7 +38,7 @@ public final class RangeExpansionStrategy implements StretchingStrategy {
     }
 
     @Override
-    public void stretch(float[][] rgb) {
+    public void stretch(int width, int height, float[][] rgb) {
         double max = Double.MIN_VALUE;
         for (float[] channel : rgb) {
             for (float v : channel) {

@@ -16,7 +16,6 @@
 package me.champeau.a4j.jsolex.processing.sun;
 
 import me.champeau.a4j.jsolex.processing.color.ColorCurve;
-import me.champeau.a4j.jsolex.processing.stretching.LinearStrechingStrategy;
 import me.champeau.a4j.jsolex.processing.util.ImageFormat;
 import me.champeau.a4j.jsolex.processing.util.ProcessingException;
 import me.champeau.a4j.ser.ColorMode;
@@ -129,7 +128,6 @@ public class ImageUtils {
     }
 
     public static float[][] convertToRGB(ColorCurve curve, float[] mono) {
-        LinearStrechingStrategy.DEFAULT.stretch(mono);
         float[] r = new float[mono.length];
         float[] g = new float[mono.length];
         float[] b = new float[mono.length];

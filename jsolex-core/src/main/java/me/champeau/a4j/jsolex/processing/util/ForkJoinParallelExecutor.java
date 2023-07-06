@@ -40,7 +40,7 @@ public class ForkJoinParallelExecutor implements AutoCloseable, ForkJoinContext 
 
     private ForkJoinParallelExecutor(int maxParallel) {
         this.maxParallel = maxParallel;
-        executionContext = new ExecutionContext( null, null, null);
+        executionContext = new ExecutionContext(null, null, null);
     }
 
     public static ForkJoinParallelExecutor newExecutor() {
@@ -169,6 +169,14 @@ public class ForkJoinParallelExecutor implements AutoCloseable, ForkJoinContext 
                             onTaskStart.accept(Thread.currentThread());
                         }
                         return callable.call();
+                    } catch (Exception ex) {
+                        var wrapped = ProcessingException.wrap(ex);
+                        if (uncaughtExceptionHandler != null) {
+                            uncaughtExceptionHandler.uncaughtException(Thread.currentThread(), wrapped);
+                            return null;
+                        } else {
+                            throw wrapped;
+                        }
                     } finally {
                         lock.lock();
                         try {

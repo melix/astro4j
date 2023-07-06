@@ -28,6 +28,8 @@ public enum BuiltinFunction {
     RANGE,
     LINEAR_STRETCH,
     ASINH_STRETCH,
+    CLAHE,
+    ADJUST_CONTRAST,
     COLORIZE;
 
     public String lowerCaseName() {

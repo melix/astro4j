@@ -49,7 +49,7 @@ public final class ArcsinhStretchingStrategy implements StretchingStrategy {
     }
 
     @Override
-    public void stretch(float[] data) {
+    public void stretch(int width, int height, float[] data) {
         double max = Constants.MAX_PIXEL_VALUE;
         var bp = blackPoint / max;
         for (int i = 0; i < data.length; i++) {
@@ -58,11 +58,11 @@ public final class ArcsinhStretchingStrategy implements StretchingStrategy {
             double stretched = (pixel * asinh(original * stretch)) / (original * asinh);
             data[i] = (float) (stretched * max);
         }
-        LinearStrechingStrategy.DEFAULT.stretch(data);
+        LinearStrechingStrategy.DEFAULT.stretch(width, height, data);
     }
 
     @Override
-    public void stretch(float[][] rgb) {
+    public void stretch(int width, int height, float[][] rgb) {
         double max = Constants.MAX_PIXEL_VALUE;
         var bp = blackPoint / max;
         int length = rgb[0].length;
@@ -75,7 +75,7 @@ public final class ArcsinhStretchingStrategy implements StretchingStrategy {
                 rgb[j][i] = (float) (stretched * max);
             }
         }
-        LinearStrechingStrategy.DEFAULT.stretch(rgb);
+        LinearStrechingStrategy.DEFAULT.stretch(width, height, rgb);
     }
 
 }

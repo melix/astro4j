@@ -201,6 +201,9 @@ Ou encore: `0.8*img(5) + 0.2*avg(range(0;10))`
 Les autres fonctions disponibles sont:
 
 - `invert`, qui permet d'obtenir le négatif d'une image
+- `invert`, generates a color inverted image
+- `clahe` applique une https://en.wikipedia.org/wiki/Adaptive_histogram_equalization#Contrast_Limited_AHE[transformation d'histogramme adaptative (CLAHE)] sur votre image. Cette fonctiona accepte soit 2, soit 4 arguments. Dans la version courte, elle prend l'image et un facteur de clipping. Par exemple: `clahe(img(0); 1.5)`. Dans sa version longue, elle accepte 2 paramètres supplémentaires: la taille des tuiles utilisées pour calculer les histogrammes et la résolution de l'histogramme. Plus la résolution est élevée, plus la dynamique est élevée, mais plus vous devrez utiliser des tuiles petites. Par exemple: `clahe(img(0); 128; 256; 1.2)`.
+- `adjust_contrast` permet d'appliquer un ajustement très simple du contraste, en coupant les pixels sous une limite minimale ou au-dessus de la limite maximale. Par exemple: `adjust_contrast(img(0), 10, 210)`. L'intervalle doit être entre 0 et 255.
 - `asinh_stretch` permet d'appliquer la fonction d'étirement par arcsinus hyperbolique. Elle prend 3 paramètres: l'image, le point noir et le coefficient de stretch. Par exemple, `asinh_stretch(img(0), 200, 100)`.
 - `linear_stretch` augmente la plage dynamique d'une image. Elle prend soit 1, soit 3 paramètres : l'image, puis optionellement les valeurs min et max des pixels (valeur comprise entre 0 et 65535). Par exemple: `linear_stretch(img(0))`
 - `fix_banding` permet d'appliquer l'algorithme de corrections de bandes (ou transversallium). Il prend 3 arguments: l'image, la largeur de bande et le nombre d'itérations. Par exemple, `fix_banding(img(0), 10, 5)`.

@@ -19,6 +19,7 @@
 <?import javafx.scene.layout.StackPane?>
 <?import javafx.scene.layout.VBox?>
 <?import me.champeau.a4j.jsolex.app.jfx.ime.ImageMathTextArea?>
+<?import javafx.scene.control.CheckBox?>
 <BorderPane xmlns="http://javafx.com/javafx/19" xmlns:fx="http://javafx.com/fxml/1">
     <top>
         <MenuBar>
@@ -60,13 +61,16 @@
                                         <ImageMathTextArea fx:id="imageMathScript"/>
                                     </center>
                                     <bottom>
-                                        <ButtonBar prefHeight="40.0" prefWidth="200.0">
-                                            <buttons>
-                                                <Button fx:id="imageMathLoad" mnemonicParsing="false" text="%imagemath.load"/>
-                                                <Button fx:id="imageMathSave" mnemonicParsing="false" text="%imagemath.save"/>
-                                                <Button fx:id="imageMathRun" mnemonicParsing="false" text="%imagemath.run"/>
-                                            </buttons>
-                                        </ButtonBar>
+                                        <HBox alignment="CENTER_LEFT">
+                                            <CheckBox fx:id="clearImagesCheckbox" text="%clear.images"/>
+                                            <ButtonBar prefHeight="40.0" prefWidth="200.0">
+                                                <buttons>
+                                                    <Button fx:id="imageMathLoad" mnemonicParsing="false" text="%imagemath.load"/>
+                                                    <Button fx:id="imageMathSave" mnemonicParsing="false" text="%imagemath.save"/>
+                                                    <Button fx:id="imageMathRun" mnemonicParsing="false" text="%imagemath.run"/>
+                                                </buttons>
+                                            </ButtonBar>
+                                        </HBox>
                                     </bottom>
                                 </BorderPane>
                             </TitledPane>

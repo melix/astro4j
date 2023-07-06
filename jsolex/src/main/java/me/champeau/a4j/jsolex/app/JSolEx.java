@@ -31,6 +31,7 @@ import javafx.scene.Scene;
 import javafx.scene.control.Alert;
 import javafx.scene.control.Button;
 import javafx.scene.control.ButtonType;
+import javafx.scene.control.CheckBox;
 import javafx.scene.control.Hyperlink;
 import javafx.scene.control.Label;
 import javafx.scene.control.Menu;
@@ -134,6 +135,8 @@ public class JSolEx extends Application implements JSolExInterface {
     private Node imageMathPane;
     @FXML
     private ImageMathTextArea imageMathScript;
+    @FXML
+    private CheckBox clearImagesCheckbox;
     @FXML
     private Button imageMathRun;
     @FXML
@@ -321,7 +324,12 @@ public class JSolEx extends Application implements JSolExInterface {
         imageMathPane.setDisable(false);
         imageMathRun.setOnAction(evt -> {
             var text = imageMathScript.getText();
-            cpuExecutor.async(() -> executor.execute(text));
+            cpuExecutor.async(() -> {
+                if (clearImagesCheckbox.isSelected()) {
+                    BatchOperations.submit(() -> mainPane.getTabs().clear());
+                }
+                executor.execute(text);
+            });
         });
         imageMathSave.setDisable(true);
         imageMathLoad.setOnAction(evt -> {

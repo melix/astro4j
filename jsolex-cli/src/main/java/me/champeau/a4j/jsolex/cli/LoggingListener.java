@@ -23,6 +23,7 @@ import me.champeau.a4j.jsolex.processing.event.ProcessingEventListener;
 import me.champeau.a4j.jsolex.processing.event.ProcessingStartEvent;
 import me.champeau.a4j.jsolex.processing.event.SuggestionEvent;
 import me.champeau.a4j.jsolex.processing.params.ProcessParams;
+import me.champeau.a4j.jsolex.processing.stretching.LinearStrechingStrategy;
 import me.champeau.a4j.jsolex.processing.util.ImageSaver;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -47,8 +48,7 @@ public class LoggingListener implements ProcessingEventListener {
         var payload = event.getPayload();
         var image = payload.image();
         var target = payload.path().toFile();
-        var stretchingStrategy = payload.stretchingStrategy();
-        new ImageSaver(stretchingStrategy, processParams).save(image, target);
+        new ImageSaver(LinearStrechingStrategy.DEFAULT, processParams).save(image, target);
         LOGGER.info("Image {} generated at {}", payload.title(), payload.path());
     }
 

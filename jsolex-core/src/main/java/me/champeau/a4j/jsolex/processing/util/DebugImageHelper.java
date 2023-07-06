@@ -41,7 +41,7 @@ public class DebugImageHelper {
             var newData = new float[bandingFixed.data().length];
             var original = bandingFixed.data();
             System.arraycopy(original, 0, newData, 0, newData.length);
-            LinearStrechingStrategy.DEFAULT.stretch(newData);
+            LinearStrechingStrategy.DEFAULT.stretch(bandingFixed.width(), bandingFixed.height(), newData);
             var width = bandingFixed.width();
             var height = bandingFixed.height();
             drawEllipse(width, height, ellipse, newData);
@@ -53,7 +53,7 @@ public class DebugImageHelper {
     }
 
     private static void produceOverlayImage(ImageEmitter processedImagesEmitter, int width, int height, float[] newData, float[] original) {
-        processedImagesEmitter.newColorImage(GeneratedImageKind.DEBUG, message("tilt.detection"), "tilt", LinearStrechingStrategy.DEFAULT, width, height, () -> {
+        processedImagesEmitter.newColorImage(GeneratedImageKind.DEBUG, message("tilt.detection"), "tilt", width, height, () -> {
             float[][] rgb = new float[3][];
             rgb[0] = newData;
             rgb[1] = original;

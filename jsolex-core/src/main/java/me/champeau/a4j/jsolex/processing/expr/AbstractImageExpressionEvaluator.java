@@ -21,6 +21,8 @@ import me.champeau.a4j.jsolex.processing.color.ColorCurve;
 import me.champeau.a4j.jsolex.processing.params.SpectralRay;
 import me.champeau.a4j.jsolex.processing.params.SpectralRayIO;
 import me.champeau.a4j.jsolex.processing.stretching.ArcsinhStretchingStrategy;
+import me.champeau.a4j.jsolex.processing.stretching.ClaheStrategy;
+import me.champeau.a4j.jsolex.processing.stretching.ConstrastAdjustmentStrategy;
 import me.champeau.a4j.jsolex.processing.stretching.LinearStrechingStrategy;
 import me.champeau.a4j.jsolex.processing.stretching.NegativeImageStrategy;
 import me.champeau.a4j.jsolex.processing.sun.BandingReduction;
@@ -114,6 +116,8 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
             case FIX_BANDING -> fixBanding(arguments);
             case LINEAR_STRETCH -> linearStretch(arguments);
             case ASINH_STRETCH -> asinhStretch(arguments);
+            case CLAHE -> clahe(arguments);
+            case ADJUST_CONTRAST -> adjustContrast(arguments);
             case COLORIZE -> colorize(arguments);
             case AUTOCROP -> autocrop(arguments);
         };
@@ -152,7 +156,7 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
         }
         float blackpoint = ((Number) arguments.get(1)).floatValue();
         float stretch = ((Number) arguments.get(2)).floatValue();
-        return monoToMonoImageTransformer("asinh_stretch", 3, arguments, (width, height, data) -> new ArcsinhStretchingStrategy(blackpoint, stretch, stretch).stretch(data));
+        return monoToMonoImageTransformer("asinh_stretch", 3, arguments, (width, height, data) -> new ArcsinhStretchingStrategy(blackpoint, stretch, stretch).stretch(width, height, data));
     }
 
     private Object linearStretch(List<Object> arguments) {
@@ -168,7 +172,40 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
             hi = Constants.MAX_PIXEL_VALUE;
             lo = 0;
         }
-        return monoToMonoImageTransformer("linear_stretch", 3, arguments, (width, height, data) -> new LinearStrechingStrategy(lo, hi).stretch(data));
+        return monoToMonoImageTransformer("linear_stretch", 3, arguments, (width, height, data) -> new LinearStrechingStrategy(lo, hi).stretch(width, height, data));
+    }
+
+    private Object clahe(List<Object> arguments) {
+        if (arguments.size() != 4 && arguments.size() != 2) {
+            throw new IllegalArgumentException("clahe takes either 2 or 4 arguments (image(s), [tile_size, bins], clip)");
+        }
+        if (arguments.size() == 2) {
+            double clip = ((Number) arguments.get(1)).doubleValue();
+            return monoToMonoImageTransformer("clahe", 2, arguments, (width, height, data) -> new ClaheStrategy(ClaheStrategy.DEFAULT_TILE_SIZE, ClaheStrategy.DEFAULT_BINS, clip).stretch(width, height, data));
+
+        }
+        int tileSize = ((Number) arguments.get(1)).intValue();
+        int bins = ((Number) arguments.get(2)).intValue();
+        double clip = ((Number) arguments.get(3)).doubleValue();
+        if (tileSize * tileSize / (double) bins < 1.0) {
+            throw new IllegalArgumentException("The number of bins is too high given the size of the tiles. Either reduce the bin count or increase the tile size");
+        }
+        return monoToMonoImageTransformer("clahe", 4, arguments, (width, height, data) -> new ClaheStrategy(tileSize, bins, clip).stretch(width, height, data));
+    }
+
+    private Object adjustContrast(List<Object> arguments) {
+        if (arguments.size() != 3) {
+            throw new IllegalArgumentException("adjust_contrast takes 3 arguments (image(s), min, max)");
+        }
+        int min = ((Number) arguments.get(1)).intValue();
+        int max = ((Number) arguments.get(2)).intValue();
+        if (min < 0 || min > 255) {
+            throw new IllegalArgumentException("adjust_contrast min must be between 0 and 255");
+        }
+        if (max < 0 || max > 255) {
+            throw new IllegalArgumentException("adjust_contrast max must be between 0 and 255");
+        }
+        return monoToMonoImageTransformer("adjust_contrast", 3, arguments, (width, height, data) -> new ConstrastAdjustmentStrategy(min << 8, max << 8).stretch(width, height, data));
     }
 
     private Object colorize(List<Object> arguments) {
@@ -229,7 +266,7 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
     }
 
     private Object inverse(List<Object> arguments) {
-        return monoToMonoImageTransformer("invert", 1, arguments, (w, h, data) -> NegativeImageStrategy.DEFAULT.stretch(data));
+        return monoToMonoImageTransformer("invert", 1, arguments, NegativeImageStrategy.DEFAULT::stretch);
     }
 
     private Object monoToMonoImageTransformer(String name, int maxArgCount, List<Object> arguments, ImageConsumer consumer) {

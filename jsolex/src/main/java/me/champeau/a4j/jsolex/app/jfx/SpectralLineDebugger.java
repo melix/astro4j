@@ -255,7 +255,7 @@ public class SpectralLineDebugger {
         });
         var boostValue = contrastBoost.getValue();
         if (boostValue > 0) {
-            new ArcsinhStretchingStrategy(0f, (float) boostValue, boostValue).stretch(buffer);
+            new ArcsinhStretchingStrategy(0f, (float) boostValue, boostValue).stretch(width, height, buffer);
         }
         var creator = new SpectralLineFrameImageCreator(analyzer, buffer, width, height);
         var rgb = creator.generateDebugImage(lockedPolynomial);

@@ -15,7 +15,6 @@
  */
 package me.champeau.a4j.jsolex.processing.sun.tasks;
 
-import me.champeau.a4j.jsolex.processing.stretching.StretchingStrategy;
 import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
@@ -23,8 +22,8 @@ import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 import java.io.File;
 
 public class WriteMonoImageTask extends AbstractImageWriterTask {
-    public WriteMonoImageTask(Broadcaster broadcaster, ImageWrapper32 image, StretchingStrategy stretchingStrategy, File outputDirectory, String title, String name) {
-        super(broadcaster, image, stretchingStrategy, outputDirectory, title, name);
+    public WriteMonoImageTask(Broadcaster broadcaster, ImageWrapper32 image, File outputDirectory, String title, String name) {
+        super(broadcaster, image, outputDirectory, title, name);
     }
 
     @Override

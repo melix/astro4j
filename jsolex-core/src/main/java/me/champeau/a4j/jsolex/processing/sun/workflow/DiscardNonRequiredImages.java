@@ -15,7 +15,6 @@
  */
 package me.champeau.a4j.jsolex.processing.sun.workflow;
 
-import me.champeau.a4j.jsolex.processing.stretching.StretchingStrategy;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 
 import java.util.Set;
@@ -37,34 +36,34 @@ public class DiscardNonRequiredImages implements ImageEmitter {
     }
 
     @Override
-    public Supplier<Void> newMonoImage(GeneratedImageKind kind, String title, String name, ImageWrapper32 image, StretchingStrategy stretchingStrategy, Consumer<? super float[]> bufferConsumer) {
+    public Supplier<Void> newMonoImage(GeneratedImageKind kind, String title, String name, ImageWrapper32 image, Consumer<? super float[]> bufferConsumer) {
         if (!allowed.contains(kind)) {
             return VOID;
         }
-        return delegate.newMonoImage(kind, title, name, image, stretchingStrategy, bufferConsumer);
+        return delegate.newMonoImage(kind, title, name, image, bufferConsumer);
     }
 
     @Override
-    public Supplier<Void> newMonoImage(GeneratedImageKind kind, String title, String name, ImageWrapper32 image, StretchingStrategy stretchingStrategy) {
+    public Supplier<Void> newMonoImage(GeneratedImageKind kind, String title, String name, ImageWrapper32 image) {
         if (!allowed.contains(kind)) {
             return VOID;
         }
-        return delegate.newMonoImage(kind, title, name, image, stretchingStrategy);
+        return delegate.newMonoImage(kind, title, name, image);
     }
 
     @Override
-    public Supplier<Void> newColorImage(GeneratedImageKind kind, String title, String name, ImageWrapper32 image, StretchingStrategy stretchingStrategy, Function<float[], float[][]> rgbSupplier) {
+    public Supplier<Void> newColorImage(GeneratedImageKind kind, String title, String name, ImageWrapper32 image, Function<float[], float[][]> rgbSupplier) {
         if (!allowed.contains(kind)) {
             return VOID;
         }
-        return delegate.newColorImage(kind, title, name, image, stretchingStrategy, rgbSupplier);
+        return delegate.newColorImage(kind, title, name, image, rgbSupplier);
     }
 
     @Override
-    public Supplier<Void> newColorImage(GeneratedImageKind kind, String title, String name, StretchingStrategy stretchingStrategy, int width, int height, Supplier<float[][]> rgbSupplier) {
+    public Supplier<Void> newColorImage(GeneratedImageKind kind, String title, String name, int width, int height, Supplier<float[][]> rgbSupplier) {
         if (!allowed.contains(kind)) {
             return VOID;
         }
-        return delegate.newColorImage(kind, title, name, stretchingStrategy, width, height, rgbSupplier);
+        return delegate.newColorImage(kind, title, name, width, height, rgbSupplier);
     }
 }

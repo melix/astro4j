@@ -39,7 +39,7 @@ public final class LinearStrechingStrategy implements StretchingStrategy {
     }
 
     @Override
-    public void stretch(float[] data) {
+    public void stretch(int width, int height, float[] data) {
         double min = min(data).orElse((double) lo);
         double max = max(data).orElse((double) lo);
         double range = max - min;
@@ -53,11 +53,11 @@ public final class LinearStrechingStrategy implements StretchingStrategy {
     }
 
     @Override
-    public void stretch(float[][] rgb) {
+    public void stretch(int width, int height, float[][] rgb) {
         var cutoff = new CutoffStretchingStrategy(lo, Float.MAX_VALUE);
-        cutoff.stretch(rgb[0]);
-        cutoff.stretch(rgb[1]);
-        cutoff.stretch(rgb[2]);
+        cutoff.stretch(width, height, rgb[0]);
+        cutoff.stretch(width, height, rgb[1]);
+        cutoff.stretch(width, height, rgb[2]);
         double minR = min(rgb[0]).orElse((double) lo);
         double minG = min(rgb[1]).orElse((double) lo);
         double minB = min(rgb[2]).orElse((double) lo);

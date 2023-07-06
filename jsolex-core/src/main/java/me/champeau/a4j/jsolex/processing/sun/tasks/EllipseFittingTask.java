@@ -20,7 +20,6 @@ import me.champeau.a4j.jsolex.processing.event.NotificationEvent;
 import me.champeau.a4j.jsolex.processing.event.ProgressEvent;
 import me.champeau.a4j.jsolex.processing.params.ProcessParams;
 import me.champeau.a4j.jsolex.processing.stretching.CutoffStretchingStrategy;
-import me.champeau.a4j.jsolex.processing.stretching.LinearStrechingStrategy;
 import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
 import me.champeau.a4j.jsolex.processing.sun.workflow.GeneratedImageKind;
 import me.champeau.a4j.jsolex.processing.sun.workflow.ImageEmitter;
@@ -91,7 +90,7 @@ public class EllipseFittingTask extends AbstractTask<EllipseFittingTask.Result> 
             var avg = imageMath.areaAverage(imageMath.integralImage(workingImage), 0, 0, width, height);
             // some images (in particular in calcium) can have large bright areas which interfere with detection
             // so we're keeping pixels which are "around" the average
-            new CutoffStretchingStrategy(0.8f * avg, 1.2f * avg, 0, 0).stretch(workingImage.data());
+            new CutoffStretchingStrategy(0.8f * avg, 1.2f * avg, 0, 0).stretch(width, height, workingImage.data());
         }
         var magnitude = imageMath.gradient(workingImage).magnitude();
         var magnitudes = magnitude.data();
@@ -196,7 +195,7 @@ public class EllipseFittingTask extends AbstractTask<EllipseFittingTask.Result> 
 
     private void produceEdgeDetectionImage(EllipseFittingTask.Result result, ImageWrapper32 image) {
         if (debugImagesEmitter != null) {
-            debugImagesEmitter.newColorImage(GeneratedImageKind.DEBUG, message("edge.detection"), "edge-detection", image, new LinearStrechingStrategy(0, 6500), debugImage -> {
+            debugImagesEmitter.newColorImage(GeneratedImageKind.DEBUG, message("edge.detection"), "edge-detection", image, debugImage -> {
                 float[][] rgb = new float[3][];
                 float[] overlay = new float[debugImage.length];
                 System.arraycopy(debugImage, 0, overlay, 0, overlay.length);

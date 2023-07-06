@@ -17,7 +17,6 @@ package me.champeau.a4j.jsolex.processing.sun.align;
 
 import me.champeau.a4j.jsolex.processing.event.GeneratedImage;
 import me.champeau.a4j.jsolex.processing.event.ImageGeneratedEvent;
-import me.champeau.a4j.jsolex.processing.stretching.LinearStrechingStrategy;
 import me.champeau.a4j.jsolex.processing.stretching.RangeExpansionStrategy;
 import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
 import me.champeau.a4j.jsolex.processing.sun.crop.Cropper;
@@ -60,7 +59,7 @@ public class Aligner {
         var imageMath = ImageMath.newInstance();
         var prepared = prepareForAlignment(ref, imageMath);
         broadcaster.broadcast(new ImageGeneratedEvent(new GeneratedImage(
-                "Reference", Path.of("/tmp/cropped.png"), ImageWrapper32.fromImage(prepared.cropped), LinearStrechingStrategy.DEFAULT
+                "Reference", Path.of("/tmp/cropped.png"), ImageWrapper32.fromImage(prepared.cropped)
         )));
         return new Aligner(broadcaster, imageMath, prepared.cropped, Layer.of(prepared.rescaled));
     }
@@ -74,7 +73,7 @@ public class Aligner {
      */
     static WorkImage prepareForAlignment(Image image, ImageMath imageMath) {
         var normalized = image.copy();
-        RangeExpansionStrategy.DEFAULT.stretch(normalized.data());
+        RangeExpansionStrategy.DEFAULT.stretch(image.width(), image.height(), normalized.data());
         var cropped = fitAndCrop(normalized);
         var rescaled = imageMath.rescale(cropped, WORK_SIZE, WORK_SIZE);
         return new WorkImage(cropped, rescaled);

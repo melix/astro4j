@@ -38,13 +38,13 @@ public class ImageSaver {
     public void save(ImageWrapper image, File target) {
         var imageFormats = processParams.extraParams().imageFormats();
         if (image instanceof ImageWrapper32 mono) {
-            float[] stretched = stretch(mono.data());
+            float[] stretched = stretch(mono.width(), mono.height(), mono.data());
             ImageUtils.writeMonoImage(image.width(), image.height(), stretched, target, imageFormats);
             if (imageFormats.contains(ImageFormat.FITS)) {
                 FitsUtils.writeFitsFile(new ImageWrapper32(image.width(), image.height(), stretched), toFits(target), processParams);
             }
         } else if (image instanceof ColorizedImageWrapper colorImage) {
-            float[] stretched = stretch(colorImage.mono().data());
+            float[] stretched = stretch(colorImage.width(), colorImage.height(), colorImage.mono().data());
             var colorized = colorImage.converter().apply(stretched);
             var r = colorized[0];
             var g = colorized[1];
@@ -54,7 +54,7 @@ public class ImageSaver {
                 FitsUtils.writeFitsFile(new RGBImage(image.width(), image.height(), r, g, b), toFits(target), processParams);
             }
         } else if (image instanceof RGBImage rgb) {
-            var stretched = stretch(rgb.r(), rgb.g(), rgb.b());
+            var stretched = stretch(rgb.width(), rgb.height(), rgb.r(), rgb.g(), rgb.b());
             var r = stretched[0];
             var g = stretched[1];
             var b = stretched[2];
@@ -65,14 +65,14 @@ public class ImageSaver {
         }
     }
 
-    private float[] stretch(float[] data) {
+    private float[] stretch(int width, int height, float[] data) {
         float[] streched = new float[data.length];
         System.arraycopy(data, 0, streched, 0, data.length);
-        stretchingStrategy.stretch(streched);
+        stretchingStrategy.stretch(width, height, streched);
         return streched;
     }
 
-    private float[][] stretch(float[] r, float[] g, float[] b) {
+    private float[][] stretch(int width, int height, float[] r, float[] g, float[] b) {
         float[] rr = new float[r.length];
         float[] gg = new float[g.length];
         float[] bb = new float[b.length];
@@ -80,7 +80,7 @@ public class ImageSaver {
         System.arraycopy(g, 0, gg, 0, g.length);
         System.arraycopy(b, 0, bb, 0, b.length);
         var rgb = new float[][]{rr, gg, bb};
-        stretchingStrategy.stretch(rgb);
+        stretchingStrategy.stretch(width, height, rgb);
         return rgb;
     }
 
