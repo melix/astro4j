@@ -40,6 +40,7 @@ import static me.champeau.a4j.ser.bayer.BayerMatrixSupport.GREEN;
 
 public class ImageUtils {
     private static final List<String> EXTENSIONS = List.of("png", "jpg", "tif");
+    public static final float MAX_VALUE = 65535.0f;
 
     private ImageUtils() {
 
@@ -154,4 +155,125 @@ public class ImageUtils {
             }
         }
     }
+
+    public static float[][] fromRGBtoHSL(float[][] rgb) {
+        return fromRGBtoHSL(rgb, new float[3][rgb[0].length]);
+    }
+
+    public static float[][] fromRGBtoHSL(float[][] rgb, float[][] output) {
+        float[] rChannel = rgb[0];
+        float[] gChannel = rgb[1];
+        float[] bChannel = rgb[2];
+        int size = rChannel.length;
+
+        for (int i = 0; i < size; i++) {
+            float r = rChannel[i] / MAX_VALUE;
+            float g = gChannel[i] / MAX_VALUE;
+            float b = bChannel[i] / MAX_VALUE;
+
+            float max = Math.max(r, Math.max(g, b));
+            float min = Math.min(r, Math.min(g, b));
+            float delta = max - min;
+
+            // Calculate the hue
+            float hue = 0.0f;
+            if (delta == 0) {
+                hue = 0.0f;
+            } else if (max == r) {
+                hue = ((g - b) / delta) % 6;
+            } else if (max == g) {
+                hue = (b - r) / delta + 2;
+            } else if (max == b) {
+                hue = (r - g) / delta + 4;
+            }
+            hue *= 60.0f;
+            if (hue < 0) {
+                hue += 360.0f;
+            }
+
+            // Calculate the lightness
+            float lightness = (max + min) / 2;
+
+            // Calculate the saturation
+            float saturation;
+            if (delta == 0) {
+                saturation = 0;
+            } else {
+                saturation = delta / (1 - Math.abs(2 * lightness - 1));
+            }
+            // Handle the case when lightness is close to or equal to zero
+            if (lightness <= 0.0001f) {
+                saturation = 0;
+            }
+            // handle rounding errors
+            output[0][i] = Math.max(0, Math.min(360, hue));
+            output[1][i] = Math.max(0, Math.min(saturation, 1.0f));
+            output[2][i] = Math.max(0, Math.min(lightness, 1.0f));
+        }
+
+        return output;
+    }
+
+    public static float[][] fromHSLtoRGB(float[][] hsl) {
+        return fromHSLtoRGB(hsl, new float[3][hsl[0].length]);
+    }
+
+    public static float[][] fromHSLtoRGB(float[][] hsl, float[][] output) {
+        float[] hChannel = hsl[0];
+        float[] sChannel = hsl[1];
+        float[] lChannel = hsl[2];
+        int size = hChannel.length;
+
+        for (int i = 0; i < size; i++) {
+            float h = hChannel[i];
+            float s = sChannel[i];
+            float l = lChannel[i];
+
+            // Calculate chroma
+            float chroma = (1 - Math.abs(2 * l - 1)) * s;
+
+            // Calculate hue segment and offset within segment
+            float hueSegment = h / 60.0f;
+            float hueOffset = hueSegment - (float) Math.floor(hueSegment);
+
+            // Calculate intermediate values
+            float x = chroma * (1 - Math.abs(hueOffset - 1));
+            float m = l - chroma / 2;
+
+            float r, g, b;
+            if (hueSegment < 1) {
+                r = chroma;
+                g = x;
+                b = 0;
+            } else if (hueSegment < 2) {
+                r = x;
+                g = chroma;
+                b = 0;
+            } else if (hueSegment < 3) {
+                r = 0;
+                g = chroma;
+                b = x;
+            } else if (hueSegment < 4) {
+                r = 0;
+                g = x;
+                b = chroma;
+            } else if (hueSegment < 5) {
+                r = x;
+                g = 0;
+                b = chroma;
+            } else {
+                r = chroma;
+                g = 0;
+                b = x;
+            }
+
+            // Adjust values by adding the lightness offset
+            output[0][i] = (r + m) * MAX_VALUE;
+            output[1][i] = (g + m) * MAX_VALUE;
+            output[2][i] = (b + m) * MAX_VALUE;
+        }
+
+        return output;
+    }
+
 }

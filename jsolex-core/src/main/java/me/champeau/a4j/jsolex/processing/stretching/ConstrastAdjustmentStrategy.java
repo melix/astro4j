@@ -52,10 +52,4 @@ public final class ConstrastAdjustmentStrategy implements StretchingStrategy {
         RangeExpansionStrategy.DEFAULT.stretch(width, height, data);
     }
 
-    @Override
-    public void stretch(int width, int height, float[][] rgb) {
-        stretch(width, height, rgb[0]);
-        stretch(width, height, rgb[1]);
-        stretch(width, height, rgb[2]);
-    }
 }

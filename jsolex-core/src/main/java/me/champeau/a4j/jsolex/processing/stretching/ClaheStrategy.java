@@ -270,11 +270,6 @@ public final class ClaheStrategy implements StretchingStrategy {
         return w11 * v11 + w12 * v12 + w21 * v21 + w22 * v22;
     }
 
-    @Override
-    public void stretch(int width, int height, float[][] rgb) {
-        throw new UnsupportedOperationException("CLAHE not available on RGB images");
-    }
-
     private record Histogram(
             int[] values,
             int pixelCount,
