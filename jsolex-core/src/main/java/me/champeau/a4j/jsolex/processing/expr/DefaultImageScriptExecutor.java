@@ -99,6 +99,13 @@ public class DefaultImageScriptExecutor implements ImageMathScriptExecutor {
                 var result = evaluator.evaluate(expression);
                 if (result instanceof ImageWrapper image) {
                     producedImages.put(label, image);
+                } else if (result instanceof List<?> images) {
+                    int img = 0;
+                    for (Object o : images) {
+                        if (o instanceof ImageWrapper image) {
+                            producedImages.put(label + "_" + img++, image);
+                        }
+                    }
                 }
             } catch (Exception ex) {
                 invalidExpressions.add(new InvalidExpression(label, expression, ex));
