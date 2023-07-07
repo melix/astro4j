@@ -29,6 +29,8 @@ public class DocsHelper {
     public static void openHelp(HostServices hostServices, String section) {
         if (section == null) {
             section = "";
+        } else {
+            section = "#" + section;
         }
         var country = Locale.getDefault().getCountry().toLowerCase(Locale.US);
         if (!country.equals("fr") && !country.equals("en")) {
