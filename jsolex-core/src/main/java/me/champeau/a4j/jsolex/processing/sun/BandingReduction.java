@@ -19,6 +19,8 @@ import me.champeau.a4j.math.image.Image;
 import me.champeau.a4j.math.image.ImageMath;
 import me.champeau.a4j.math.regression.Ellipse;
 
+import static me.champeau.a4j.jsolex.processing.sun.ImageUtils.bilinearSmoothing;
+
 public class BandingReduction {
     private BandingReduction() {
     }
@@ -39,6 +41,9 @@ public class BandingReduction {
                     }
                 }
             }
+        }
+        if (ellipse != null) {
+            bilinearSmoothing(ellipse, width, height, data);
         }
     }
 
