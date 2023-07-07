@@ -15,6 +15,7 @@
  */
 package me.champeau.a4j.jsolex.app.jfx;
 
+import javafx.application.HostServices;
 import javafx.collections.FXCollections;
 import javafx.fxml.FXML;
 import javafx.scene.Parent;
@@ -56,6 +57,7 @@ import java.util.Optional;
 import java.util.Set;
 
 public class ProcessParamsController {
+    private HostServices hostServices;
     @FXML
     private Accordion accordion;
     @FXML
@@ -129,9 +131,10 @@ public class ProcessParamsController {
     private ProcessParams initialProcessParams;
     private ProcessParams processParams;
 
-    public void setup(Stage stage, Header serFileHeader, boolean batchMode) {
+    public void setup(Stage stage, Header serFileHeader, boolean batchMode, HostServices hostServices) {
         this.stage = stage;
         this.serFileHeader = serFileHeader;
+        this.hostServices = hostServices;
         this.initialProcessParams = ProcessParams.loadDefaults();
         accordion.setExpandedPane(accordion.getPanes().get(0));
 
@@ -235,7 +238,8 @@ public class ProcessParamsController {
                     generateDebugImages.isSelected(),
                     List.of(getPixelShiftAsInt()),
                     (int) dopplerShifting.getValue(),
-                    initialProcessParams.requestedImages().mathImages()
+                    initialProcessParams.requestedImages().mathImages(),
+                    hostServices
             );
             Scene scene = new Scene(node);
             var currentScene = stage.getScene();

@@ -15,6 +15,7 @@
  */
 package me.champeau.a4j.jsolex.app.jfx;
 
+import javafx.application.HostServices;
 import javafx.fxml.FXML;
 import javafx.scene.control.Alert;
 import javafx.scene.control.Button;
@@ -45,6 +46,7 @@ public class ImageMathEditor {
 
     @FXML
     public ListView<ImageMathEntry> elements;
+
     private ImageMathParams params;
     @FXML
     private ImageMathTextArea scriptTextArea;
@@ -53,9 +55,11 @@ public class ImageMathEditor {
     private Button saveButton;
 
     private Stage stage;
+    private HostServices hostServices;
 
-    public void setup(Stage stage, ImageMathParams imageMathParams) {
+    public void setup(Stage stage, ImageMathParams imageMathParams, HostServices hostServices) {
         this.stage = stage;
+        this.hostServices = hostServices;
         this.params = null;
         var items = elements.getItems();
         if (imageMathParams != null) {
@@ -223,6 +227,11 @@ public class ImageMathEditor {
         elements.getSelectionModel().select(targetEntry);
     }
 
+    @FXML
+    public void openDocs() {
+        DocsHelper.openHelp(hostServices, "imagemath");
+    }
+
     private record ImageMathEntry(File scriptFile) {
         @Override
         public String toString() {
@@ -235,4 +244,5 @@ public class ImageMathEditor {
     ) {
 
     }
+
 }

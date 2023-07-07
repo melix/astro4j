@@ -54,6 +54,7 @@ import javafx.util.Callback;
 import javafx.util.Duration;
 import me.champeau.a4j.jsolex.app.jfx.BatchItem;
 import me.champeau.a4j.jsolex.app.jfx.BatchOperations;
+import me.champeau.a4j.jsolex.app.jfx.DocsHelper;
 import me.champeau.a4j.jsolex.app.jfx.ExplorerSupport;
 import me.champeau.a4j.jsolex.app.jfx.I18N;
 import me.champeau.a4j.jsolex.app.jfx.ImageMathEditor;
@@ -476,13 +477,23 @@ public class JSolEx extends Application implements JSolExInterface {
         alert.showAndWait();
     }
 
-    private static String getVersion() {
+    @FXML
+    private void showHelp() {
+        DocsHelper.openHelp(getHostServices(), null);
+    }
+
+    public static String getVersion() {
+        String version = getFullVersion();
+        if (version.contains("-SNAPSHOT")) {
+            version = version.substring(0, version.indexOf("-SNAPSHOT"));
+        }
+        return version;
+    }
+
+    public static String getFullVersion() {
         String version = "";
         try {
             version = new String(JSolEx.class.getResourceAsStream("/version.txt").readAllBytes(), "utf-8").trim();
-            if (version.contains("-SNAPSHOT")) {
-                version = version.substring(0, version.indexOf("-SNAPSHOT"));
-            }
         } catch (IOException e) {
             version = "unknown";
         }
@@ -714,7 +725,7 @@ public class JSolEx extends Application implements JSolExInterface {
             var content = (Parent) loader.load();
             var controller = (ProcessParamsController) loader.getController();
             var scene = new Scene(content);
-            controller.setup(dialog, serFileReader.header(), batchMode);
+            controller.setup(dialog, serFileReader.header(), batchMode, getHostServices());
             dialog.setScene(scene);
             dialog.initOwner(rootStage);
             dialog.initModality(Modality.APPLICATION_MODAL);

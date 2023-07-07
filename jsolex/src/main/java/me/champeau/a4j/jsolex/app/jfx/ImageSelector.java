@@ -15,6 +15,7 @@
  */
 package me.champeau.a4j.jsolex.app.jfx;
 
+import javafx.application.HostServices;
 import javafx.fxml.FXML;
 import javafx.scene.Parent;
 import javafx.scene.Scene;
@@ -47,6 +48,7 @@ import java.util.TreeSet;
 import java.util.stream.Collectors;
 
 public class ImageSelector {
+    private HostServices hostServices;
     @FXML
     private CheckBox raw;
     @FXML
@@ -90,8 +92,10 @@ public class ImageSelector {
                       boolean debug,
                       List<Integer> selectedPixelShifts,
                       int dopplerShift,
-                      ImageMathParams imageMathParams) {
+                      ImageMathParams imageMathParams,
+                      HostServices hostServices) {
         this.stage = stage;
+        this.hostServices = hostServices;
         this.dopplerShift = dopplerShift;
         this.imageMathParams = imageMathParams;
         this.mode.getItems().add(PixelShiftMode.SIMPLE);
@@ -275,7 +279,7 @@ public class ImageSelector {
         try {
             var node = (Parent) fxmlLoader.load();
             var controller = (ImageMathEditor) fxmlLoader.getController();
-            controller.setup(stage, imageMathParams);
+            controller.setup(stage, imageMathParams, hostServices);
             Scene scene = new Scene(node);
             scene.getStylesheets().add(JSolEx.class.getResource("syntax.css").toExternalForm());
             var currentScene = stage.getScene();

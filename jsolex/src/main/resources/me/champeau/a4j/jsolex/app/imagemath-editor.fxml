@@ -13,6 +13,7 @@
 <?import javafx.scene.layout.VBox?>
 
 <?import me.champeau.a4j.jsolex.app.jfx.ime.ImageMathTextArea?>
+<?import javafx.scene.control.Hyperlink?>
 <BorderPane maxHeight="-Infinity" maxWidth="-Infinity" minHeight="-Infinity" minWidth="-Infinity" prefHeight="420.0" prefWidth="748.0" xmlns="http://javafx.com/javafx/19"
             xmlns:fx="http://javafx.com/fxml/1" fx:controller="me.champeau.a4j.jsolex.app.jfx.ImageMathEditor">
     <center>
@@ -26,6 +27,7 @@
                         <Insets left="8.0"/>
                     </padding>
                 </Label>
+                <Hyperlink fx:id="docsLink" text="%open.documentation" onAction="#openDocs"/>
                 <ImageMathTextArea fx:id="scriptTextArea" maxHeight="250.0" prefHeight="250.0" prefWidth="592.0" BorderPane.alignment="CENTER">
                     <VBox.margin>
                         <Insets left="4" right="8" bottom="4" top="4"/>

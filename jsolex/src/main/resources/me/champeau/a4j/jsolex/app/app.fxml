@@ -35,6 +35,7 @@
                 <MenuItem onAction="#showFileNamePatternEditor" text="%filename.pattern.editor"/>
                 <MenuItem onAction="#showSpectralRayEditor" text="%spectralray.editor"/>
                 <SeparatorMenuItem/>
+                <MenuItem onAction="#showHelp" text="%help"/>
                 <MenuItem onAction="#about" text="%about"/>
             </Menu>
         </MenuBar>

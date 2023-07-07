@@ -144,6 +144,7 @@ A noter que si vous cochez certaines images comme "Doppler", certains décalages
 
 Si ceci ne suffit pas, vous pouvez utiliser le mode avancé "ImageMath" qui est extrêmement puissant tout en restant simple d'accès.
 
+[[imagemath]]
 == ImageMath : scripts de calcul d'images
 === Introduction à ImageMath
 

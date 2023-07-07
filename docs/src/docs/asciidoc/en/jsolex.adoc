@@ -145,6 +145,7 @@ It's worth noting that if you check some images like "Doppler", some pixel shift
 
 If this isn't good enough for you, you can go even more advanced by enabling the "ImageMath" mode which is extremely powerful while relatively simple to grasp.
 
+[[imagemath]]
 == ImageMath : images generation scripts
 === Introduction to ImageMath
 
