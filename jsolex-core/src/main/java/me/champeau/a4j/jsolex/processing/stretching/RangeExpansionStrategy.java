@@ -37,20 +37,4 @@ public final class RangeExpansionStrategy implements StretchingStrategy {
         }
     }
 
-    @Override
-    public void stretch(int width, int height, float[][] rgb) {
-        double max = Double.MIN_VALUE;
-        for (float[] channel : rgb) {
-            for (float v : channel) {
-                if (v > max) {
-                    max = v;
-                }
-            }
-        }
-        for (float[] channel : rgb) {
-            for (int i = 0; i < channel.length; i++) {
-                channel[i] = (float) ((MAX_VALUE / max) * channel[i]);
-            }
-        }
-    }
 }

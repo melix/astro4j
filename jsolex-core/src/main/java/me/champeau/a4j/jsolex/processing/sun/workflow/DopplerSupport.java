@@ -17,6 +17,7 @@ package me.champeau.a4j.jsolex.processing.sun.workflow;
 
 import me.champeau.a4j.jsolex.processing.params.ProcessParams;
 import me.champeau.a4j.jsolex.processing.params.SpectralRay;
+import me.champeau.a4j.jsolex.processing.sun.ImageUtils;
 import me.champeau.a4j.jsolex.processing.sun.WorkflowState;
 import me.champeau.a4j.jsolex.processing.sun.tasks.GeometryCorrector;
 import me.champeau.a4j.jsolex.processing.util.ForkJoinContext;
@@ -75,8 +76,17 @@ public class DopplerSupport {
                 r[idx] = d1[idx];
                 g[idx] = (d1[idx] + d2[idx]) / 2;
                 b[idx] = d2[idx];
+
             }
         }
-        return new float[][]{r, g, b};
+        var rgb = new float[][]{r, g, b};
+        var hsl = ImageUtils.fromRGBtoHSL(rgb);
+        var saturation = hsl[1];
+        for (int i = 0; i < saturation.length; i++) {
+            var sat = Math.sqrt(saturation[i]);
+            saturation[i] = (float) sat;
+        }
+        ImageUtils.fromHSLtoRGB(hsl, rgb);
+        return rgb;
     }
 }

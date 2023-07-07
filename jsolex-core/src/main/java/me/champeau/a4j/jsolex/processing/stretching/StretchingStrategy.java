@@ -15,6 +15,8 @@
  */
 package me.champeau.a4j.jsolex.processing.stretching;
 
+import me.champeau.a4j.jsolex.processing.sun.ImageUtils;
+
 public sealed interface StretchingStrategy permits
         ArcsinhStretchingStrategy,
         CutoffStretchingStrategy,
@@ -25,5 +27,17 @@ public sealed interface StretchingStrategy permits
         ConstrastAdjustmentStrategy {
     void stretch(int width, int height, float[] data);
 
-    void stretch(int width, int height, float[][] rgb);
+    default void stretch(int width, int height, float[][] rgb) {
+        float[][] hsl = ImageUtils.fromRGBtoHSL(rgb);
+        var lightness = hsl[2];
+        float[] rescaledL = new float[lightness.length];
+        for (int i = 0; i < lightness.length; i++) {
+            rescaledL[i] = lightness[i] * 65535f;
+        }
+        stretch(width, height, rescaledL);
+        for (int i = 0; i < rescaledL.length; i++) {
+            lightness[i] = rescaledL[i] / 65535f;
+        }
+        ImageUtils.fromHSLtoRGB(hsl, rgb);
+    }
 }

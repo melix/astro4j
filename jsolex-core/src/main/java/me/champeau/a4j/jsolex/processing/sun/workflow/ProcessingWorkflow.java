@@ -209,6 +209,7 @@ public class ProcessingWorkflow {
 
     private Supplier<Void> produceNegativeImage(ImageWrapper32 geometryFixed) {
         var negated = geometryFixed.copy();
+        new ClaheStrategy(128, 512, .8f).stretch(geometryFixed.width(), geometryFixed.height(), negated.data());
         NegativeImageStrategy.DEFAULT.stretch(geometryFixed.width(), geometryFixed.height(), negated.data());
         return processedImagesEmitter.newMonoImage(GeneratedImageKind.NEGATIVE, message("negative"), "negative", negated);
     }
