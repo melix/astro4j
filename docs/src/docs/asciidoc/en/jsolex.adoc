@@ -213,6 +213,7 @@ NOTE: If you don't want to provide a custom black point value, you can use a pre
 
 - `autocrop` will perform a square cropping of the image. It makes use of the detected ellipse to center the image on the sun center. e.g `autocrop(img(0))`.
 - `colorize` triggers colorization of the image. It either takes 2 parameters, the image and a profile name, or 7 parameters. The profile name is the name of the color profile as found in the process parameters. For example: `colorize(img(0), "h-alpha"). The long version takes the image and for each RGB color channel, the "in" and "out" values determining the color curves, in the 0..255 range. e.g `colorize(img(0), 84, 139, 95, 20, 218, 65)` is strictly equivalent to the `h-alpha` version. It's worth noting that colorizing is highly sensitive to the source pixel values. It may be required to run an `asin_stretch` function before colorizing.
+- `remove_bg` performs background removal on an image. This can be used when the contrast is very low (e.g in helium processing) and that stretching the image also stretches the background. This process computes the average value of pixels outside the disk, then uses that to perform an adaptative suppression depending on the distance from the limb, in order to preserve light structures around the limb. For example: `remove_bg(stretched)`. Another variant lets you specify a tolerance value: `remove_bg(stretched, 0.2)`. The lower the tolerance, the weaker the correction will be.
 
 === ImageMath scripts
 

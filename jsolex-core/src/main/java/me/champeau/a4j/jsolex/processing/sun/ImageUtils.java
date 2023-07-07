@@ -18,6 +18,7 @@ package me.champeau.a4j.jsolex.processing.sun;
 import me.champeau.a4j.jsolex.processing.color.ColorCurve;
 import me.champeau.a4j.jsolex.processing.util.ImageFormat;
 import me.champeau.a4j.jsolex.processing.util.ProcessingException;
+import me.champeau.a4j.math.regression.Ellipse;
 import me.champeau.a4j.ser.ColorMode;
 import me.champeau.a4j.ser.EightBitConversionSupport;
 import me.champeau.a4j.ser.bayer.BilinearDemosaicingStrategy;
@@ -56,7 +57,7 @@ public class ImageUtils {
         for (int x = 0; x < width; x++) {
             for (int y = 0; y < height; y++) {
                 int value = converted[y * width + x] & 0xFF;
-                rgb[x + y*width] = value << 16 | value << 8 | value;
+                rgb[x + y * width] = value << 16 | value << 8 | value;
             }
         }
         image.setRGB(0, 0, width, height, rgb, 0, width);
@@ -138,5 +139,19 @@ public class ImageUtils {
             b[i] = (float) rgb.c();
         }
         return new float[][]{r, g, b};
+    }
+
+    public static void bilinearSmoothing(Ellipse e, int width, int height, float[] data) {
+        double radius = (e.semiAxis().a() + e.semiAxis().b()) / 2;
+        double alpha = 1 / radius;
+        for (double angle = 0; angle < 2 * Math.PI; angle += alpha) {
+            var p = e.toCartesian(angle);
+            int x = (int) Math.round(p.x());
+            int y = (int) Math.round(p.y());
+            if (x > 0 && x < width - 1 && y > 0 && y < height - 1) {
+                data[x + y * width] = (data[(x - 1) + y * width] + data[x + 1 + y * width]
+                                       + data[x + (y - 1) * width] + data[x + (y + 1) * width]) / 4;
+            }
+        }
     }
 }

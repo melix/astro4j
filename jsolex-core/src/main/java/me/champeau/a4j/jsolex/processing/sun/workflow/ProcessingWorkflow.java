@@ -110,7 +110,8 @@ public class ProcessingWorkflow {
     private void geometryCorrection(EllipseFittingTask.Result result, ImageWrapper32 bandingFixed) {
         var ellipse = result.ellipse();
         var tilt = processParams.geometryParams().tilt().orElseGet(() -> estimateTilt(bandingFixed, ellipse));
-        float blackPoint = (float) estimateBlackPoint(bandingFixed, ellipse) * 1.2f;
+        float blackPoint = (float) AnalysisUtils.estimateBlackPoint(bandingFixed, ellipse) * 1.2f;
+        LOGGER.info(message("black.estimate"), String.format("%.2f", blackPoint));
         var tiltDegrees = tilt / Math.PI * 180;
         var geometryParams = processParams.geometryParams();
         var tiltString = String.format("%.2f", tiltDegrees);
@@ -287,29 +288,6 @@ public class ProcessingWorkflow {
                 }
             }
         }
-    }
-
-    private static double estimateBlackPoint(ImageWrapper32 image, Ellipse ellipse) {
-        var width = image.width();
-        var height = image.height();
-        var buffer = image.data();
-        double blackEstimate = Double.MAX_VALUE;
-        int cpt = 0;
-        var cx = width / 2d;
-        var cy = height / 2d;
-        for (int x = 0; x < width; x++) {
-            for (int y = 0; y < height; y++) {
-                if (!ellipse.isWithin(x, y)) {
-                    var v = buffer[x + y * width];
-                    if (v > 0) {
-                        var offcenter = 2 * Math.sqrt((x - cx) * (x - cx) + (y - cy) * (y - cy)) / (width + height);
-                        blackEstimate = blackEstimate + (offcenter * v - blackEstimate) / (++cpt);
-                    }
-                }
-            }
-        }
-        LOGGER.info(message("black.estimate"), String.format("%.2f", blackEstimate));
-        return blackEstimate;
     }
 
 }

@@ -18,19 +18,20 @@ package me.champeau.a4j.jsolex.expr;
 import java.util.Locale;
 
 public enum BuiltinFunction {
-    AVG,
+    ADJUST_CONTRAST,
+    ASINH_STRETCH,
     AUTOCROP,
+    AVG,
+    CLAHE,
+    COLORIZE,
     FIX_BANDING,
     IMG,
     INVERT,
+    LINEAR_STRETCH,
     MAX,
     MIN,
     RANGE,
-    LINEAR_STRETCH,
-    ASINH_STRETCH,
-    CLAHE,
-    ADJUST_CONTRAST,
-    COLORIZE;
+    REMOVE_BG;
 
     public String lowerCaseName() {
         return name().toLowerCase(Locale.US);

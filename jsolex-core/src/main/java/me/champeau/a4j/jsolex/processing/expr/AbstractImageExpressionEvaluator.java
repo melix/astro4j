@@ -28,6 +28,7 @@ import me.champeau.a4j.jsolex.processing.stretching.NegativeImageStrategy;
 import me.champeau.a4j.jsolex.processing.sun.BandingReduction;
 import me.champeau.a4j.jsolex.processing.sun.ImageUtils;
 import me.champeau.a4j.jsolex.processing.sun.crop.Cropper;
+import me.champeau.a4j.jsolex.processing.sun.workflow.AnalysisUtils;
 import me.champeau.a4j.jsolex.processing.sun.workflow.ImageStats;
 import me.champeau.a4j.jsolex.processing.util.ColorizedImageWrapper;
 import me.champeau.a4j.jsolex.processing.util.Constants;
@@ -46,6 +47,8 @@ import java.util.function.DoubleBinaryOperator;
 import java.util.function.Function;
 import java.util.stream.DoubleStream;
 import java.util.stream.Stream;
+
+import static me.champeau.a4j.jsolex.processing.sun.ImageUtils.bilinearSmoothing;
 
 public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluator {
 
@@ -120,7 +123,55 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
             case ADJUST_CONTRAST -> adjustContrast(arguments);
             case COLORIZE -> colorize(arguments);
             case AUTOCROP -> autocrop(arguments);
+            case REMOVE_BG -> removeBackground(arguments);
         };
+    }
+
+    private Object removeBackground(List<Object> arguments) {
+        if (arguments.size() != 1 && arguments.size() != 2) {
+            throw new IllegalArgumentException("masked takes 1 or 2 arguments (image(s), [tolerance])");
+        }
+        var ellipse = getFromContext(Ellipse.class);
+        if (ellipse.isEmpty()) {
+            throw new IllegalArgumentException("Cannot perform masked merge because ellipse isn't found");
+        }
+        var arg = arguments.get(0);
+        if (arg instanceof List<?>) {
+            return expandToImageList(arguments, this::removeBackground);
+        }
+        double tolerance;
+        if (arguments.size() == 2) {
+            tolerance = ((Number) arguments.get(1)).doubleValue();
+            if (tolerance < 0) {
+                throw new IllegalArgumentException("Tolerance should be greater than 0");
+            }
+        } else {
+            tolerance = .9;
+        }
+        if (arg instanceof ImageWrapper32 ref) {
+            return monoToMonoImageTransformer("remove_bg", 2, arguments, (width, height, data) -> {
+                var e = ellipse.get();
+                var cx = e.center().a();
+                var cy = e.center().b();
+                var radius = (e.semiAxis().a() + e.semiAxis().b()) / 2;
+                var background = AnalysisUtils.estimateBackground(ref, e);
+                for (int y = 0; y < height; y++) {
+                    for (int x = 0; x < width; x++) {
+                        int offset = y * width + x;
+                        if (!e.isWithin(x, y)) {
+                            var v = data[offset];
+                            var offcenter = Math.sqrt((x - cx) * (x - cx) + (y - cy) * (y - cy)) / radius;
+                            var correction = tolerance * (offcenter * offcenter) * background;
+                            var corrected = Math.max(0, v - correction);
+                            data[offset] = (float) corrected;
+                        }
+                    }
+                }
+                // perform bilinear interpolation at edges for smoothing
+                bilinearSmoothing(e, width, height, data);
+            });
+        }
+        throw new IllegalArgumentException("remove_bg only supports mono images");
     }
 
     private Object autocrop(List<Object> arguments) {
@@ -128,8 +179,8 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
             throw new IllegalArgumentException("autocrop takes 1 arguments (image(s))");
         }
         var arg = arguments.get(0);
-        if (arg instanceof List<?> list) {
-            return list.stream().map(e -> colorize(List.of(e))).toList();
+        if (arg instanceof List<?>) {
+            return expandToImageList(arguments, this::autocrop);
         }
         var ellipse = getFromContext(Ellipse.class);
         var blackpoint = getFromContext(ImageStats.class).map(ImageStats::blackpoint).orElse(0f);
@@ -208,13 +259,25 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
         return monoToMonoImageTransformer("adjust_contrast", 3, arguments, (width, height, data) -> new ConstrastAdjustmentStrategy(min << 8, max << 8).stretch(width, height, data));
     }
 
+    @SuppressWarnings("unchecked")
+    private List<Object> expandToImageList(List<Object> arguments, Function<List<Object>, Object> function) {
+        var listOfImages = (List) arguments.get(0);
+        var params = arguments.subList(1, arguments.size());
+        return listOfImages.stream().map(img -> {
+            var allArgs = new ArrayList<>();
+            allArgs.add(img);
+            allArgs.addAll(params);
+            return function.apply(allArgs);
+        }).toList();
+    }
+
     private Object colorize(List<Object> arguments) {
         if (arguments.size() != 7 && arguments.size() != 2) {
             throw new IllegalArgumentException("colorize takes 3 arguments (image, rIn, rOut, gIn, gOut, bIn, bOut) or 2 arguments (image, profile name)");
         }
         var arg = arguments.get(0);
-        if (arg instanceof List<?> list) {
-            return list.stream().map(e -> colorize(List.of(e))).toList();
+        if (arg instanceof List<?>) {
+            return expandToImageList(arguments, this::colorize);
         }
         if (arguments.size() == 7) {
             int rIn = ((Number) arguments.get(1)).intValue();
@@ -281,7 +344,7 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
         } else if (arg instanceof List<?> list) {
             return list.stream().map(e -> monoToMonoImageTransformer(name, maxArgCount, List.of(e), consumer)).toList();
         }
-        throw new IllegalArgumentException(name + "first argument must be an image or a list of images");
+        throw new IllegalArgumentException(name + "first argument must be a mono image or a list of images");
     }
 
     protected abstract ImageWrapper findImage(int shift);

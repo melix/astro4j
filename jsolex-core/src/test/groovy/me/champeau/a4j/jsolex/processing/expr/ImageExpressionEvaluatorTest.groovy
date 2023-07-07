@@ -16,10 +16,13 @@
 package me.champeau.a4j.jsolex.processing.expr
 
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32
+import me.champeau.a4j.math.regression.Ellipse
+import me.champeau.a4j.math.tuples.DoubleSextuplet
 import spock.lang.Specification
 import spock.lang.Subject
 
 class ImageExpressionEvaluatorTest extends Specification {
+    public static final Ellipse DUMMY_ELLIPSE = Ellipse.ofCartesian(new DoubleSextuplet(0, 0, 0, 0, 0, 0))
     @Subject
     ImageExpressionEvaluator evaluator
 
@@ -79,5 +82,36 @@ class ImageExpressionEvaluatorTest extends Specification {
         then:
         evaluator.shifts ==~ [-2, -1, 0, 1, 2]
         list.size() == 2
+    }
+
+    def "can apply #function on a list of images"() {
+        given:
+        evaluator = new ShiftCollectingImageExpressionEvaluator(images::get)
+        evaluator.putInContext(Ellipse, DUMMY_ELLIPSE)
+
+        when:
+        var result = evaluator.evaluate("$function($parameters)")
+        resultType.isAssignableFrom(result.class)
+
+        then:
+        noExceptionThrown()
+
+        where:
+        function          | parameters                  | resultType
+        "avg"             | "range(0,1)"                | ImageWrapper32
+        "min"             | "range(0,1)"                | ImageWrapper32
+        "max"             | "range(0,1)"                | ImageWrapper32
+        "colorize"        | "range(0,1), \"h-alpha\""   | List
+        "colorize"        | "range(0,1),0,0,0,0,0,0"    | List
+        "remove_bg"       | "range(0,1)"                | List
+        "remove_bg"       | "range(0,1),0.5"            | List
+        "invert"          | "range(0,1)"                | List
+        "fix_banding"     | "range(0,1), 10, 1"         | List
+        "linear_stretch"  | "range(0,1)"                | List
+        "ASINH_STRETCH"   | "range(0,1), 0, 10"         | List
+        "CLAHE"           | "range(0,1), 1.2"           | List
+        "CLAHE"           | "range(0,1), 128, 512, 1.2" | List
+        "ADJUST_CONTRAST" | "range(0,1), 0, 255"        | List
+        "autocrop"        | "range(0,1)"                | List
     }
 }
