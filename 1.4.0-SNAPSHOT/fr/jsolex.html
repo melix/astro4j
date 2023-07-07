@@ -908,6 +908,9 @@ Le script apparaît désormais dans la liste de gauche, il sera appliqué lors d
 <li>
 <p><code>fix_banding</code> permet d&#8217;appliquer l&#8217;algorithme de corrections de bandes (ou transversallium). Il prend 3 arguments: l&#8217;image, la largeur de bande et le nombre d&#8217;itérations. Par exemple, <code>fix_banding(img(0), 10, 5)</code>.</p>
 </li>
+<li>
+<p><code>remove_bg</code> permet de supprimer l&#8217;arrière plan d&#8217;une image. Ceci peut être utile lorsque le constraste est très faible (par exemple en raie hélium). Le processus calcule la valeur moyenne des pixels en dehors du disque, puis applique une suppression de l&#8217;arrière plan en fonction de la distance au limbe. Par exemple: <code>remove_bg(stretched)</code>. Une variante est disponible avec une tolerance: <code>remove_bg(stretched, 0.2)</code>. Plus la tolérance est proche de 0, moins la suppression est forte.</p>
+</li>
 </ul>
 </div>
 <div class="admonitionblock note">
