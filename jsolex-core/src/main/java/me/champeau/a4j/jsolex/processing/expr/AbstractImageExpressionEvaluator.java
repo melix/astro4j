@@ -25,6 +25,7 @@ import me.champeau.a4j.jsolex.processing.stretching.ClaheStrategy;
 import me.champeau.a4j.jsolex.processing.stretching.ConstrastAdjustmentStrategy;
 import me.champeau.a4j.jsolex.processing.stretching.LinearStrechingStrategy;
 import me.champeau.a4j.jsolex.processing.stretching.NegativeImageStrategy;
+import me.champeau.a4j.jsolex.processing.sun.BackgroundRemoval;
 import me.champeau.a4j.jsolex.processing.sun.BandingReduction;
 import me.champeau.a4j.jsolex.processing.sun.ImageUtils;
 import me.champeau.a4j.jsolex.processing.sun.crop.Cropper;
@@ -47,8 +48,6 @@ import java.util.function.DoubleBinaryOperator;
 import java.util.function.Function;
 import java.util.stream.DoubleStream;
 import java.util.stream.Stream;
-
-import static me.champeau.a4j.jsolex.processing.sun.ImageUtils.bilinearSmoothing;
 
 public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluator {
 
@@ -151,24 +150,8 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
         if (arg instanceof ImageWrapper32 ref) {
             return monoToMonoImageTransformer("remove_bg", 2, arguments, (width, height, data) -> {
                 var e = ellipse.get();
-                var cx = e.center().a();
-                var cy = e.center().b();
-                var radius = (e.semiAxis().a() + e.semiAxis().b()) / 2;
                 var background = AnalysisUtils.estimateBackground(ref, e);
-                for (int y = 0; y < height; y++) {
-                    for (int x = 0; x < width; x++) {
-                        int offset = y * width + x;
-                        if (!e.isWithin(x, y)) {
-                            var v = data[offset];
-                            var offcenter = Math.sqrt((x - cx) * (x - cx) + (y - cy) * (y - cy)) / radius;
-                            var correction = tolerance * (offcenter * offcenter) * background;
-                            var corrected = Math.max(0, v - correction);
-                            data[offset] = (float) corrected;
-                        }
-                    }
-                }
-                // perform bilinear interpolation at edges for smoothing
-                bilinearSmoothing(e, width, height, data);
+                BackgroundRemoval.removeBackground(width, height, data, tolerance, background, e);
             });
         }
         throw new IllegalArgumentException("remove_bg only supports mono images");

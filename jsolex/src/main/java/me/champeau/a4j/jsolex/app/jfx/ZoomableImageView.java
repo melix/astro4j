@@ -145,6 +145,8 @@ public class ZoomableImageView extends HBox {
     public void setImage(Image image) {
         imageView.setImage(image);
         imageView.setPreserveRatio(true);
+        zoom = getWidth() / image.getWidth();
+        triggerOnZoomChanged();
         applyZoom();
     }
 

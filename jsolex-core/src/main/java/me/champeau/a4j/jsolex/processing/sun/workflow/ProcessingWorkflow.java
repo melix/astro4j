@@ -43,6 +43,7 @@ import java.text.MessageFormat;
 import java.util.List;
 import java.util.function.Supplier;
 
+import static me.champeau.a4j.jsolex.processing.sun.ImageUtils.bilinearSmoothing;
 import static me.champeau.a4j.jsolex.processing.util.Constants.message;
 import static me.champeau.a4j.jsolex.processing.util.DebugImageHelper.maybeDisplayTiltImage;
 
@@ -245,6 +246,9 @@ public class ProcessingWorkflow {
                                         mix[index] = filtered[index];
                                     }
                                 }
+                            }
+                            for (int i = 0; i < 2; i++) {
+                                bilinearSmoothing(diskEllipse, width, height, data);
                             }
                             var mixedImage = new ImageWrapper32(width, height, mix);
                             var colorCurve = processParams.spectrumParams().ray().getColorCurve();
