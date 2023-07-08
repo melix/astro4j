@@ -17,47 +17,117 @@ package me.champeau.a4j.jsolex.app.jfx;
 
 import javafx.scene.control.ContextMenu;
 import javafx.scene.control.MenuItem;
+import javafx.scene.control.ScrollPane;
 import javafx.scene.control.Tab;
+import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import javafx.scene.input.MouseButton;
+import javafx.scene.input.MouseEvent;
+import javafx.scene.input.ScrollEvent;
+import javafx.scene.layout.HBox;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.function.BiConsumer;
+import java.util.function.Consumer;
 
-public class ZoomableImageView extends ImageView {
-    private static final Logger LOGGER = LoggerFactory.getLogger(ZoomableImageView.class);
+public class ZoomableImageView extends HBox {
+    private final ScrollPane scrollPane;
+    private final ImageView imageView;
+    private BiConsumer<? super Double, ? super Double> onCoordinatesListener;
+    private Consumer<? super Double> onZoomChanged;
 
-    private Path imagePath;
     private Tab parentTab;
+    private double zoom = 1.0;
+    private double lastX = 0;
+    private double lastY = 0;
+    private Path imagePath;
 
     public ZoomableImageView() {
         super();
-        setOnScroll(event -> {
-            double deltaY = event.getDeltaY();
-            if (deltaY != 0) {
-                double zoomFactor = 0.95;
-                double scaleX = getScaleX();
-                double scaleY = getScaleY();
-                if (deltaY < 0) {
-                    setScaleX(scaleX * zoomFactor);
-                    setScaleY(scaleY * zoomFactor);
-                } else {
-                    setScaleX(scaleX / zoomFactor);
-                    setScaleY(scaleY / zoomFactor);
-                }
+        this.scrollPane = new ScrollPane();
+        this.imageView = new ImageView();
+
+        scrollPane.setPannable(true);
+        scrollPane.setContent(imageView);
+
+        imageView.setOnScroll(this::handleScroll);
+        imageView.setOnMouseDragged(this::handleMouseDragged);
+        imageView.setOnMouseMoved(evt -> {
+            if (onCoordinatesListener != null) {
+                onCoordinatesListener.accept(evt.getX() / zoom, evt.getY() / zoom);
             }
-            event.consume();
         });
+        imageView.setOnMouseClicked(evt -> {
+            if (evt.getButton().equals(MouseButton.PRIMARY) && evt.getClickCount() == 2) {
+                zoom = 1.0;
+                triggerOnZoomChanged();
+            }
+        });
+
         var ctxMenu = new ContextMenu();
         var showFile = new MenuItem("Show file in files");
         showFile.setOnAction(e -> ExplorerSupport.openInExplorer(imagePath));
         ctxMenu.getItems().add(showFile);
+
         setOnContextMenuRequested(e -> {
             if (imagePath != null && Files.exists(imagePath)) {
                 ctxMenu.show(ZoomableImageView.this, e.getScreenX(), e.getScreenY());
             }
         });
+
+        getChildren().add(scrollPane);
+    }
+
+    private void handleScroll(ScrollEvent event) {
+        if (event.isControlDown()) {
+            double deltaY = event.getDeltaY();
+            if (deltaY != 0) {
+                double zoomFactor = 1.05;
+                if (deltaY < 0) {
+                    zoom /= zoomFactor;
+                } else {
+                    zoom *= zoomFactor;
+                }
+                zoom = Math.max(0.1, Math.min(zoom, 5));
+                triggerOnZoomChanged();
+                applyZoom();
+            }
+            event.consume();
+        }
+    }
+
+    private void triggerOnZoomChanged() {
+        if (onZoomChanged != null) {
+            onZoomChanged.accept(zoom);
+        }
+    }
+
+    private void handleMouseDragged(MouseEvent event) {
+        if (event.isPrimaryButtonDown()) {
+            double currentX = event.getX();
+            double currentY = event.getY();
+            double deltaX = currentX - lastX;
+            double deltaY = currentY - lastY;
+            lastX = currentX;
+            lastY = currentY;
+
+            scrollPane.setHvalue(scrollPane.getHvalue() - deltaX / imageView.getFitWidth());
+            scrollPane.setVvalue(scrollPane.getVvalue() - deltaY / imageView.getFitHeight());
+        }
+    }
+
+    private void applyZoom() {
+        var image = imageView.getImage();
+        imageView.setFitWidth(image.getWidth() * zoom);
+        imageView.setFitHeight(image.getHeight() * zoom);
+        adjustScrollPane();
+    }
+
+    private void adjustScrollPane() {
+        var boundsInLocal = imageView.getBoundsInLocal();
+        scrollPane.setPrefViewportWidth(boundsInLocal.getWidth());
+        scrollPane.setPrefViewportHeight(boundsInLocal.getHeight());
     }
 
     public Tab getParentTab() {
@@ -70,5 +140,28 @@ public class ZoomableImageView extends ImageView {
 
     public void setImagePath(Path imagePath) {
         this.imagePath = imagePath;
+    }
+
+    public void setImage(Image image) {
+        imageView.setImage(image);
+        imageView.setPreserveRatio(true);
+        applyZoom();
+    }
+
+    public Image getImage() {
+        return imageView.getImage();
+    }
+
+    public void setZoom(double v) {
+        zoom = v;
+        applyZoom();
+    }
+
+    public void setOnZoomChanged(Consumer<? super Double> consumer) {
+        onZoomChanged = consumer;
+    }
+
+    public void setCoordinatesListener(BiConsumer<? super Double, ? super Double> consumer) {
+        onCoordinatesListener = consumer;
     }
 }

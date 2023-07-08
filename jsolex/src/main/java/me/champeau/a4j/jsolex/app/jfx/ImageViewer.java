@@ -74,7 +74,7 @@ public class ImageViewer {
     }
 
     public DoubleProperty fitWidthProperty() {
-        return imageView.fitWidthProperty();
+        return imageView.prefWidthProperty();
     }
 
     public void setup(ProcessingEventListener broadcaster,
@@ -125,7 +125,16 @@ public class ImageViewer {
         saveButton.setOnAction(e -> saveImage(imageFile));
         var dimensions = new Label();
         dimensions.setText(image.width() + "x" + image.height());
-        stretchingParams.getChildren().addAll(reset, saveButton, dimensions);
+        var zoomLabel = new Label("Zoom");
+        var zoomSlider = new Slider(0.1, 5, 0.1);
+        zoomSlider.setMajorTickUnit(1);
+        zoomSlider.setShowTickLabels(true);
+        zoomSlider.setValue(1.0);
+        imageView.setOnZoomChanged(zoomSlider::setValue);
+        var coordinatesLabel = new Label();
+        imageView.setCoordinatesListener((x, y) -> coordinatesLabel.setText("(" + x.intValue() + "," + y.intValue() + ")"));
+        zoomSlider.valueProperty().addListener((obj, oldValue, newValue) -> imageView.setZoom(newValue.doubleValue()));
+        stretchingParams.getChildren().addAll(reset, saveButton, zoomLabel, zoomSlider, dimensions, coordinatesLabel);
         strechAndDisplay();
     }
 

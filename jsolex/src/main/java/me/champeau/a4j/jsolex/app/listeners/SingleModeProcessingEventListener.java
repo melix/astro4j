@@ -110,8 +110,7 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
 
     private ZoomableImageView createImageView(int pixelShift) {
         var imageView = new ZoomableImageView();
-        imageView.setPreserveRatio(true);
-        imageView.fitWidthProperty().bind(mainPane.widthProperty());
+        imageView.prefWidthProperty().bind(mainPane.widthProperty());
         imageView.setImage(new WritableImage(width, height));
         var colorAdjust = new ColorAdjust();
         colorAdjust.brightnessProperty().setValue(0.2);
@@ -176,9 +175,7 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
                     event.getPayload().path().toFile(),
                     params
             );
-            var scrollPane = new ScrollPane();
-            scrollPane.setContent(viewer.getRoot());
-            tab.setContent(scrollPane);
+            tab.setContent(viewer.getRoot());
             mainPane.getTabs().add(tab);
         });
     }
