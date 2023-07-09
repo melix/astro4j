@@ -520,7 +520,7 @@ public class JSolEx extends Application implements JSolExInterface {
             console.textProperty().set("");
             var interruptButton = addInterruptButton();
             var processingThread = new Thread(() -> cpuExecutor.blocking(() ->
-                    processSingleFile(cpuExecutor, params, selectedFile, false, 0, null, firstHeader, () -> {
+                    processSingleFile(cpuExecutor, params, selectedFile, false, 0, selectedFile, firstHeader, () -> {
                         BatchOperations.submit(() -> workButtons.getChildren().remove(interruptButton));
                     })
             ));
@@ -714,7 +714,9 @@ public class JSolEx extends Application implements JSolExInterface {
         if (batchMode) {
             return new BatchModeEventListener(this, sequenceNumber, (BatchProcessingContext) context, params);
         }
-        return new SingleModeProcessingEventListener(this, baseName, params);
+        var serFile = (File) context;
+        var outputDirectory = serFile.getParentFile().toPath();
+        return new SingleModeProcessingEventListener(this, baseName, serFile, cpuExecutor, ioExecutor, outputDirectory, params);
     }
 
     private ProcessParamsController createProcessParams(SerFileReader serFileReader, boolean batchMode) {

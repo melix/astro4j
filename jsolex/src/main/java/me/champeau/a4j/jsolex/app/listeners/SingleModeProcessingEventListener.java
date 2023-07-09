@@ -44,21 +44,34 @@ import me.champeau.a4j.jsolex.processing.event.VideoMetadataEvent;
 import me.champeau.a4j.jsolex.processing.expr.DefaultImageScriptExecutor;
 import me.champeau.a4j.jsolex.processing.expr.ImageMathScriptExecutor;
 import me.champeau.a4j.jsolex.processing.expr.ImageMathScriptResult;
+import me.champeau.a4j.jsolex.processing.expr.ShiftCollectingImageExpressionEvaluator;
+import me.champeau.a4j.jsolex.processing.params.ImageMathParams;
 import me.champeau.a4j.jsolex.processing.params.ProcessParams;
+import me.champeau.a4j.jsolex.processing.params.RequestedImages;
 import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
+import me.champeau.a4j.jsolex.processing.sun.SolexVideoProcessor;
+import me.champeau.a4j.jsolex.processing.sun.workflow.GeneratedImageKind;
 import me.champeau.a4j.jsolex.processing.sun.workflow.ImageEmitter;
 import me.champeau.a4j.jsolex.processing.sun.workflow.ImageStats;
+import me.champeau.a4j.jsolex.processing.util.ForkJoinContext;
+import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 import me.champeau.a4j.math.regression.Ellipse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.File;
 import java.io.IOException;
+import java.nio.file.Path;
+import java.time.LocalDateTime;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.Set;
+import java.util.TreeSet;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 public class SingleModeProcessingEventListener implements ProcessingEventListener, ImageMathScriptExecutor, Broadcaster {
     private static final Logger LOGGER = LoggerFactory.getLogger(SingleModeProcessingEventListener.class);
@@ -67,21 +80,38 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
     private final Map<Integer, ZoomableImageView> imageViews;
     private final JSolExInterface owner;
     private final String baseName;
+    private final File serFile;
+    private final ForkJoinContext forkJoinContext;
+    private final ForkJoinContext ioContext;
+    private final Path outputDirectory;
     private final ProcessParams params;
     private final TabPane mainPane;
     private final AtomicInteger concurrentNotifications = new AtomicInteger();
+    private Map<Class, Object> scriptExecutionContext;
     private ImageEmitter imageEmitter;
     private ImageMathScriptExecutor imageScriptExecutor;
     private long sd;
     private long ed;
+    private final Map<Integer, ImageWrapper32> shiftImages;
     private int width;
     private int height;
 
-    public SingleModeProcessingEventListener(JSolExInterface owner, String baseName, ProcessParams params) {
+    public SingleModeProcessingEventListener(JSolExInterface owner,
+                                             String baseName,
+                                             File serFile,
+                                             ForkJoinContext forkJoinContext,
+                                             ForkJoinContext ioContext,
+                                             Path outputDirectory,
+                                             ProcessParams params) {
         this.owner = owner;
         this.baseName = baseName;
+        this.serFile = serFile;
+        this.forkJoinContext = forkJoinContext;
+        this.ioContext = ioContext;
+        this.outputDirectory = outputDirectory;
         this.params = params;
         this.mainPane = owner.getMainPane();
+        this.shiftImages = new HashMap<>();
         imageViews = new HashMap<>();
         sd = 0;
         ed = 0;
@@ -218,15 +248,10 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
     public void onProcessingDone(ProcessingDoneEvent e) {
         var payload = e.getPayload();
         imageEmitter = payload.customImageEmitter();
-        Map<Class, Object> context = new HashMap<>();
-        if (payload.ellipse() != null) {
-            context.put(Ellipse.class, payload.ellipse());
-        }
-        if (payload.imageStats() != null) {
-            context.put(ImageStats.class, payload.imageStats());
-        }
-        imageScriptExecutor = new DefaultImageScriptExecutor(payload.shiftImages()::get,
-                Collections.unmodifiableMap(context),
+        scriptExecutionContext = prepareExecutionContext(payload);
+        shiftImages.putAll(payload.shiftImages());
+        imageScriptExecutor = new DefaultImageScriptExecutor(shiftImages::get,
+                Collections.unmodifiableMap(scriptExecutionContext),
                 this
         );
         ed = payload.timestamp();
@@ -252,6 +277,17 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
         BatchOperations.submit(() -> owner.updateProgress(1.0, finishedString));
     }
 
+    private static Map<Class, Object> prepareExecutionContext(ProcessingDoneEvent.Outcome payload) {
+        Map<Class, Object> context = new HashMap<>();
+        if (payload.ellipse() != null) {
+            context.put(Ellipse.class, payload.ellipse());
+        }
+        if (payload.imageStats() != null) {
+            context.put(ImageStats.class, payload.imageStats());
+        }
+        return context;
+    }
+
     @Override
     public void onProgress(ProgressEvent e) {
         BatchOperations.submitOneOfAKind("progress", () -> {
@@ -271,6 +307,12 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
 
     @Override
     public ImageMathScriptResult execute(String script) {
+        // perform a first pass just to check if they are missing image shifts
+        Set<Integer> missingShifts = determineShiftsRequiredInScript(script);
+        missingShifts.removeAll(shiftImages.keySet());
+        if (!missingShifts.isEmpty()) {
+            restartProcessForMissingShifts(missingShifts);
+        }
         var result = imageScriptExecutor.execute(script);
         ImageMathScriptExecutor.render(result, imageEmitter);
         var invalidExpressions = result.invalidExpressions();
@@ -287,6 +329,37 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
             )));
         }
         return result;
+    }
+
+    private void restartProcessForMissingShifts(Set<Integer> missingShifts) {
+        LOGGER.warn(JSolEx.message("restarting.process.missing.shifts"), missingShifts);;
+        // restart processing to include missing images
+        var tmpParams = params.withRequestedImages(
+                new RequestedImages(Set.of(GeneratedImageKind.GEOMETRY_CORRECTED),
+                        Stream.concat(params.requestedImages().pixelShifts().stream(), missingShifts.stream()).toList(),
+                        missingShifts,
+                        ImageMathParams.NONE)
+        ).withExtraParams(params.extraParams().withAutosave(false));
+        var solexVideoProcessor = new SolexVideoProcessor(serFile, outputDirectory, 0, tmpParams, forkJoinContext, ioContext, LocalDateTime.now(), false);
+        solexVideoProcessor.addEventListener(new ProcessingEventListener() {
+            @Override
+            public void onProcessingDone(ProcessingDoneEvent e) {
+                shiftImages.putAll(e.getPayload().shiftImages());
+            }
+        });
+        solexVideoProcessor.process();
+    }
+
+    private Set<Integer> determineShiftsRequiredInScript(String script) {
+        var collectingExecutor = new DefaultImageScriptExecutor(
+                ShiftCollectingImageExpressionEvaluator.zeroImages(),
+                scriptExecutionContext
+        );
+        var shiftCollectionResult = collectingExecutor.execute(script);
+        Set<Integer> allShifts = new TreeSet<>();
+        allShifts.addAll(shiftCollectionResult.outputShifts());
+        allShifts.addAll(shiftCollectionResult.internalShifts());
+        return allShifts;
     }
 
     @Override

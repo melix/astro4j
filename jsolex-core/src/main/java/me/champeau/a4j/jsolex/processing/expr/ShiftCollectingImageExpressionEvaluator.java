@@ -16,8 +16,10 @@
 package me.champeau.a4j.jsolex.processing.expr;
 
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
+import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.Set;
 import java.util.TreeSet;
 import java.util.function.Function;
@@ -26,6 +28,14 @@ public class ShiftCollectingImageExpressionEvaluator extends ImageExpressionEval
 
     private final Set<Integer> shifts = new TreeSet<>();
 
+    public static Function<Integer, ImageWrapper> zeroImages() {
+        var map = new HashMap<Integer, ImageWrapper>();
+        return (Integer idx) -> map.computeIfAbsent(idx, unused -> new ImageWrapper32(0, 0, new float[0]));
+    }
+
+    public ShiftCollectingImageExpressionEvaluator() {
+        this(zeroImages());
+    }
     public ShiftCollectingImageExpressionEvaluator(Function<Integer, ImageWrapper> imageFactory) {
         super(imageFactory);
     }
