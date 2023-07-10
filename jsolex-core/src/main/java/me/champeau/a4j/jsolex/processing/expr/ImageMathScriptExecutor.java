@@ -21,6 +21,7 @@ import me.champeau.a4j.jsolex.processing.util.ColorizedImageWrapper;
 import me.champeau.a4j.jsolex.processing.util.FilesUtils;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
+import me.champeau.a4j.jsolex.processing.util.RGBImage;
 
 import java.io.IOException;
 import java.nio.file.Path;
@@ -46,6 +47,15 @@ public interface ImageMathScriptExecutor {
                         colorized.width(),
                         colorized.height(),
                         () -> colorized.converter().apply(colorized.mono().data())
+                );
+            } else if (image instanceof RGBImage rgb) {
+                emitter.newColorImage(
+                        GeneratedImageKind.IMAGE_MATH,
+                        label,
+                        label,
+                        rgb.width(),
+                        rgb.height(),
+                        () -> new float[][]{rgb.r(), rgb.g(), rgb.b()}
                 );
             }
         }
