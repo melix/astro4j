@@ -54,6 +54,8 @@ public class ImageMathEditor {
     @FXML
     private Button saveButton;
 
+    private final AtomicBoolean hasPendingUpdates = new AtomicBoolean();
+    private final AtomicBoolean updatingText = new AtomicBoolean();
     private Stage stage;
     private HostServices hostServices;
 
@@ -86,7 +88,14 @@ public class ImageMathEditor {
                 }
             }
         });
-        scriptTextArea.textProperty().addListener((obj, oldValue, newValue) -> saveButton.setDisable(false));
+        scriptTextArea.textProperty().addListener((obj, oldValue, newValue) -> {
+            if (updatingText.get()) {
+                updatingText.set(false);
+                return;
+            }
+            saveButton.setDisable(false);
+            hasPendingUpdates.set(true);
+        });
         saveButton.setDisable(true);
         if (!items.isEmpty()) {
             elements.getSelectionModel().selectFirst();
@@ -95,8 +104,10 @@ public class ImageMathEditor {
 
     private void loadScriptFile(File file) {
         try {
+            updatingText.set(true);
             scriptTextArea.setText(FilesUtils.readString(file.toPath()));
             saveButton.setDisable(true);
+            hasPendingUpdates.set(false);
         } catch (IOException e) {
             throw new ProcessingException(e);
         }
@@ -133,18 +144,27 @@ public class ImageMathEditor {
 
     @FXML
     public void removeSelectedItem() {
-        var selectionModel = elements.getSelectionModel();
-        var idx = selectionModel.getSelectedIndex();
-        if (idx >= 0) {
-            var items = elements.getItems();
-            items.remove(idx);
-            selectionModel.clearSelection();
-            if (items.isEmpty()) {
-                scriptTextArea.setText("");
-            } else {
-                selectionModel.selectFirst();
+        if (doesNotHaveStaleChanges()) {
+            var selectionModel = elements.getSelectionModel();
+            var idx = selectionModel.getSelectedIndex();
+            if (idx >= 0) {
+                var items = elements.getItems();
+                items.remove(idx);
+                selectionModel.clearSelection();
+                if (items.isEmpty()) {
+                    clearTextArea();
+                } else {
+                    selectionModel.selectFirst();
+                }
             }
         }
+    }
+
+    private void clearTextArea() {
+        scriptTextArea.setText("");
+        saveButton.setDisable(true);
+        hasPendingUpdates.set(false);
+        updatingText.set(true);
     }
 
     @FXML
@@ -155,6 +175,7 @@ public class ImageMathEditor {
             fileChooser.getExtensionFilters().add(MATH_SCRIPT_EXTENSION_FILTER);
             var file = fileChooser.showOpenDialog(stage);
             if (file != null) {
+                hasPendingUpdates.set(false);
                 var items = elements.getItems();
                 for (ImageMathEntry item : items) {
                     if (item.scriptFile().equals(file)) {
@@ -177,13 +198,13 @@ public class ImageMathEditor {
     @FXML
     private void newScript() {
         if (doesNotHaveStaleChanges()) {
-            scriptTextArea.setText("");
+            clearTextArea();
             elements.getSelectionModel().select(null);
         }
     }
 
     public boolean doesNotHaveStaleChanges() {
-        if (!saveButton.isDisabled()) {
+        if (hasPendingUpdates.get()) {
             var alert = new Alert(Alert.AlertType.CONFIRMATION);
             alert.setTitle(I18N.string(JSolEx.class, "imagemath-editor", "unsaved.changes"));
             alert.setHeaderText(I18N.string(JSolEx.class, "imagemath-editor", "unsaved.changes.description"));
@@ -225,6 +246,7 @@ public class ImageMathEditor {
         }
         Files.writeString(targetFile.toPath(), scriptTextArea.getText(), StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING);
         elements.getSelectionModel().select(targetEntry);
+        hasPendingUpdates.set(false);
     }
 
     @FXML

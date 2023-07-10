@@ -129,6 +129,9 @@ public class ImageMathTextArea extends BorderPane {
                 spansBuilder.add(toStyleSpan(token), tokenLength);
             }
         }
+        if (tokens.isEmpty()) {
+            spansBuilder.add(List.of(""), 0);
+        }
         return spansBuilder.create();
     }
 
