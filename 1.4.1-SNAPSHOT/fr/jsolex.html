@@ -933,6 +933,12 @@ Si vous ne connaissez pas la valeur du point noir, vous pouvez utiliser la valeu
 <li>
 <p><code>colorize</code> permet de coloriser une image. Elle prend au choix 2 ou 7 paramètres. Dans sa version la plus simple à 2 paramètres, le premier est l&#8217;image à coloriser, et le second est le nom du profil de colorisation, tel que trouvé dans la fenêtre de paramétrage, par exemple: <code>colorize(img(0), "h-alpha")</code>. Dans sa version longue, les paramètres de colorisation sont les points "entrée" et "sortie" pour chacun des canaux rouge, bleu et vert, entre 0 et 255. Par exemple: <code>colorize(img(0), 84, 139, 95, 20, 218, 65)</code> est équivalent à l&#8217;entrée précédente. Notez que la colorisation varie fortement en fonction des images en entrée et qu&#8217;il <em>peut</em> être nécessaire d&#8217;avoir appliqué la fonction <code>asinh_stretch</code> avant pour obtenir les couleurs souhaitées.</p>
 </li>
+<li>
+<p><code>rgb</code> permet de créer une image RGB à partir de 3 images mono. Elle prend donc 3 paramètres, par exemple: <code>rgb(img(3), avg(img(3), img(-3)), img(-3))</code>.</p>
+</li>
+<li>
+<p><code>saturate</code> permet de (dé)saturer une image RGB. Elle accepte 2 paramètres : une image couleur et un facteur de saturation (relatif à la saturation courante de l&#8217;image). Par exemple: <code>saturate(doppler, 2)</code>.</p>
+</li>
 </ul>
 </div>
 </div>
