@@ -35,6 +35,7 @@ import me.champeau.a4j.jsolex.processing.util.ColorizedImageWrapper;
 import me.champeau.a4j.jsolex.processing.util.Constants;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
+import me.champeau.a4j.jsolex.processing.util.RGBImage;
 import me.champeau.a4j.math.regression.Ellipse;
 
 import java.util.ArrayList;
@@ -123,7 +124,27 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
             case COLORIZE -> colorize(arguments);
             case AUTOCROP -> autocrop(arguments);
             case REMOVE_BG -> removeBackground(arguments);
+            case RGB -> combineToRGB(arguments);
+            case SATURATE -> saturate(arguments);
         };
+    }
+
+    private Object combineToRGB(List<Object> arguments) {
+        if (arguments.size() != 3) {
+            throw new IllegalArgumentException("rgb takes 3 arguments (red image, green image, blue image)");
+        }
+        var ra = arguments.get(0);
+        var ga = arguments.get(1);
+        var ba = arguments.get(2);
+        if (ra instanceof ImageWrapper32 r && ga instanceof ImageWrapper32 g && ba instanceof ImageWrapper32 b) {
+            if ((r.width() == g.width()) && (r.width() == b.width())
+                && (r.height() == g.height()) && (r.height() == b.height())) {
+                return new RGBImage(r.width(), r.height(), r.data(), g.data(), b.data());
+            } else {
+                throw new IllegalArgumentException("Images must have the same dimensions");
+            }
+        }
+        throw new IllegalArgumentException("rgb only supports mono images as arguments");
     }
 
     private Object removeBackground(List<Object> arguments) {
@@ -207,6 +228,42 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
             lo = 0;
         }
         return monoToMonoImageTransformer("linear_stretch", 3, arguments, (width, height, data) -> new LinearStrechingStrategy(lo, hi).stretch(width, height, data));
+    }
+
+    private Object saturate(List<Object> arguments) {
+        if (arguments.size() != 2) {
+            throw new IllegalArgumentException("saturate takes 2 argument (image(s), saturation)");
+        }
+        var arg = arguments.get(0);
+        if (arg instanceof List) {
+            return expandToImageList(arguments, this::saturate);
+        }
+        var saturation = ((Number) arguments.get(1)).doubleValue();
+        var exponent = Math.pow(2, -saturation);
+        if (arg instanceof ColorizedImageWrapper colorized) {
+            return new ColorizedImageWrapper(colorized.mono(), mono -> {
+                var rgb = colorized.converter().apply(mono);
+                var hsl = ImageUtils.fromRGBtoHSL(rgb);
+                var s = hsl[1];
+                for (int i = 0; i < s.length; i++) {
+                    var sat = Math.pow(s[i], exponent);
+                    s[i] = (float) sat;
+                }
+                ImageUtils.fromHSLtoRGB(hsl, rgb);
+                return rgb;
+            });
+        } else if (arg instanceof RGBImage rgb) {
+            var hsl = ImageUtils.fromRGBtoHSL(new float[][]{rgb.r(), rgb.g(), rgb.b()});
+            var s = hsl[1];
+            for (int i = 0; i < s.length; i++) {
+                var sat = Math.pow(s[i], exponent);
+                s[i] = (float) sat;
+            }
+            var output = new float[3][rgb.r().length];
+            ImageUtils.fromHSLtoRGB(hsl, output);
+            return new RGBImage(rgb.width(), rgb.height(), output[0], output[1], output[2]);
+        }
+        return arg;
     }
 
     private Object clahe(List<Object> arguments) {

@@ -31,7 +31,9 @@ public enum BuiltinFunction {
     MAX,
     MIN,
     RANGE,
-    REMOVE_BG;
+    REMOVE_BG,
+    RGB,
+    SATURATE;
 
     public String lowerCaseName() {
         return name().toLowerCase(Locale.US);
