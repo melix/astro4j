@@ -18,6 +18,7 @@ package me.champeau.a4j.jsolex.processing.sun.workflow;
 import me.champeau.a4j.jsolex.processing.file.FileNamingStrategy;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 
+import java.nio.file.Path;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
@@ -63,5 +64,10 @@ public class NamingStrategyAwareImageEmitter implements ImageEmitter {
     @Override
     public Supplier<Void> newColorImage(GeneratedImageKind kind, String title, String name, int width, int height, Supplier<float[][]> rgbSupplier) {
         return delegate.newColorImage(kind, title, rename(name), width, height, rgbSupplier);
+    }
+
+    @Override
+    public Supplier<Void> newGenericFile(GeneratedImageKind kind, String title, String name, Path file) {
+        return delegate.newGenericFile(kind, title, rename(name), file);
     }
 }

@@ -17,12 +17,14 @@ package me.champeau.a4j.jsolex.processing.expr;
 
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
 
+import java.nio.file.Path;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
 public record ImageMathScriptResult(
         Map<String, ImageWrapper> imagesByLabel,
+        Map<String, Path> filesByLabel,
         List<InvalidExpression> invalidExpressions,
         Set<Integer> internalShifts,
         Set<Integer> outputShifts

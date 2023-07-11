@@ -13,28 +13,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package me.champeau.a4j.jsolex.processing.event;
+package me.champeau.a4j.jsolex.processing.expr;
 
-public abstract sealed class ProcessingEvent<T> permits
-        ImageGeneratedEvent,
-        FileGeneratedEvent,
-        NotificationEvent,
-        OutputImageDimensionsDeterminedEvent,
-        PartialReconstructionEvent,
-        ProcessingStartEvent,
-        ProcessingDoneEvent,
-        SuggestionEvent,
-        ProgressEvent,
-        DebugEvent,
-        VideoMetadataEvent {
-    private final T payload;
+import java.nio.file.Path;
 
-    public ProcessingEvent(T payload) {
-        this.payload = payload;
-    }
-
-    public T getPayload() {
-        return payload;
-    }
-
+/**
+ * A generic return type when the generated output is a file
+ * @param file the path to the generated file
+ */
+public record FileOutput(Path file) {
 }

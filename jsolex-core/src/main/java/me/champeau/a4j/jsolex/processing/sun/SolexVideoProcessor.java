@@ -16,6 +16,7 @@
 package me.champeau.a4j.jsolex.processing.sun;
 
 import me.champeau.a4j.jsolex.processing.event.DebugEvent;
+import me.champeau.a4j.jsolex.processing.event.FileGeneratedEvent;
 import me.champeau.a4j.jsolex.processing.event.ImageGeneratedEvent;
 import me.champeau.a4j.jsolex.processing.event.ImageLine;
 import me.champeau.a4j.jsolex.processing.event.Notification;
@@ -300,7 +301,9 @@ public class SolexVideoProcessor implements Broadcaster {
                     if (finalImageStats != null) {
                         context.put(ImageStats.class, finalImageStats);
                     }
-                    var scriptRunner = new DefaultImageScriptExecutor(images::get,
+                    var scriptRunner = new DefaultImageScriptExecutor(
+                            mainForkJoinContext,
+                            images::get,
                             Collections.unmodifiableMap(context),
                             this);
                     try {
@@ -479,6 +482,8 @@ public class SolexVideoProcessor implements Broadcaster {
                 listener.onPartialReconstruction(e);
             } else if (event instanceof ImageGeneratedEvent e) {
                 listener.onImageGenerated(e);
+            } else if (event instanceof FileGeneratedEvent e) {
+                listener.onFileGenerated(e);
             } else if (event instanceof NotificationEvent e) {
                 listener.onNotification(e);
             } else if (event instanceof SuggestionEvent e) {

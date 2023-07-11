@@ -19,8 +19,10 @@ import me.champeau.a4j.jsolex.expr.Variable;
 import me.champeau.a4j.jsolex.processing.event.ProgressEvent;
 import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
 import me.champeau.a4j.jsolex.processing.sun.workflow.ImageStats;
+import me.champeau.a4j.jsolex.processing.util.ForkJoinContext;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
 
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -37,40 +39,46 @@ public class DefaultImageScriptExecutor implements ImageMathScriptExecutor {
     public static final String BLACK_POINT_VAR = "blackPoint";
     public static final String OUTPUTS_SECTION_NAME = "outputs";
 
+    private final ForkJoinContext forkJoinContext;
     private final Function<Integer, ImageWrapper> imagesByShift;
     private final Map<Class, Object> context;
     private final AtomicInteger executionCount = new AtomicInteger(0);
     private final Broadcaster broadcaster;
     private final ScriptTokenizer tokenizer = new ScriptTokenizer();
 
-    public DefaultImageScriptExecutor(Function<Integer, ImageWrapper> imagesByShift,
+    public DefaultImageScriptExecutor(ForkJoinContext forkJoinContext,
+                                      Function<Integer, ImageWrapper> imagesByShift,
                                       Map<Class, Object> context,
                                       Broadcaster broadcaster) {
+        this.forkJoinContext = forkJoinContext;
         this.imagesByShift = imagesByShift;
         this.context = context;
         this.broadcaster = broadcaster;
     }
 
-    public DefaultImageScriptExecutor(Function<Integer, ImageWrapper> imagesByShift,
+    public DefaultImageScriptExecutor(ForkJoinContext forkJoinContext,
+                                      Function<Integer, ImageWrapper> imagesByShift,
                                       Map<Class, Object> context) {
-        this(imagesByShift, context, Broadcaster.NO_OP);
+        this(forkJoinContext, imagesByShift, context, Broadcaster.NO_OP);
     }
 
     @Override
     public ImageMathScriptResult execute(String script) {
         var index = executionCount.getAndIncrement();
-        var evaluator = new MemoizingExpressionEvaluator();
+        var evaluator = new MemoizingExpressionEvaluator(forkJoinContext);
         populateContext(evaluator);
         var invalidExpressions = new ArrayList<InvalidExpression>();
         var outputs = prepareOutputExpressions(script, index, evaluator, invalidExpressions);
         var producedImages = new HashMap<String, ImageWrapper>();
-        return executeScript(evaluator, invalidExpressions, outputs, producedImages);
+        var producedFiles = new HashMap<String, Path>();
+        return executeScript(evaluator, invalidExpressions, outputs, producedImages, producedFiles);
     }
 
     private ImageMathScriptResult executeScript(ShiftCollectingImageExpressionEvaluator evaluator,
                                                 List<InvalidExpression> invalidExpressions,
                                                 Map<String, String> outputs,
-                                                Map<String, ImageWrapper> producedImages) {
+                                                Map<String, ImageWrapper> producedImages,
+                                                Map<String, Path> producedFiles) {
         var imageStats = (ImageStats) context.get(ImageStats.class);
         if (imageStats != null) {
             evaluator.putVariable(BLACK_POINT_VAR, String.format(Locale.US, "%.3f", imageStats.blackpoint()));
@@ -99,11 +107,15 @@ public class DefaultImageScriptExecutor implements ImageMathScriptExecutor {
                 var result = evaluator.evaluate(expression);
                 if (result instanceof ImageWrapper image) {
                     producedImages.put(label, image);
+                }  else if (result instanceof FileOutput file) {
+                    producedFiles.put(label, file.file());
                 } else if (result instanceof List<?> images) {
                     int img = 0;
                     for (Object o : images) {
                         if (o instanceof ImageWrapper image) {
                             producedImages.put(label + "_" + img++, image);
+                        } else if (o instanceof FileOutput file) {
+                            producedFiles.put(label + "_" + img++, file.file());
                         }
                     }
                 }
@@ -114,7 +126,7 @@ public class DefaultImageScriptExecutor implements ImageMathScriptExecutor {
         broadcaster.broadcast(ProgressEvent.of(1.0, "ImageScript evaluation"));
         var expressionShifts = new TreeSet<>(evaluator.getShifts());
         expressionShifts.removeAll(variableShifts);
-        return new ImageMathScriptResult(producedImages, invalidExpressions, Collections.unmodifiableSet(variableShifts), Collections.unmodifiableSet(expressionShifts));
+        return new ImageMathScriptResult(producedImages, producedFiles, invalidExpressions, Collections.unmodifiableSet(variableShifts), Collections.unmodifiableSet(expressionShifts));
     }
 
     private static boolean isOutputSection(String currentSection) {
@@ -204,13 +216,22 @@ public class DefaultImageScriptExecutor implements ImageMathScriptExecutor {
     private class MemoizingExpressionEvaluator extends ShiftCollectingImageExpressionEvaluator {
         private final Map<String, Object> memoizeCache = new ConcurrentHashMap<>();
 
-        public MemoizingExpressionEvaluator() {
-            super(DefaultImageScriptExecutor.this.imagesByShift);
+        public MemoizingExpressionEvaluator(ForkJoinContext forkJoinContext) {
+            super(forkJoinContext, DefaultImageScriptExecutor.this.imagesByShift);
         }
 
         @Override
         public Object evaluate(String expression) {
-            return memoizeCache.computeIfAbsent(expression, super::evaluate);
+            return memoizeCache.computeIfAbsent(expression, this::doEvaluate);
+        }
+
+        public Object doEvaluate(String expression) {
+            broadcaster.broadcast(ProgressEvent.of(0, "Evaluating " + expression));
+            try {
+                return super.evaluate(expression);
+            } finally {
+                broadcaster.broadcast(ProgressEvent.of(1.0, "Evaluating " + expression));
+            }
         }
     }
 

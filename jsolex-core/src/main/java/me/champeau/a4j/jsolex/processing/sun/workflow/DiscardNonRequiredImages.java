@@ -17,6 +17,7 @@ package me.champeau.a4j.jsolex.processing.sun.workflow;
 
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 
+import java.nio.file.Path;
 import java.util.Set;
 import java.util.function.Consumer;
 import java.util.function.Function;
@@ -65,5 +66,13 @@ public class DiscardNonRequiredImages implements ImageEmitter {
             return VOID;
         }
         return delegate.newColorImage(kind, title, name, width, height, rgbSupplier);
+    }
+
+    @Override
+    public Supplier<Void> newGenericFile(GeneratedImageKind kind, String title, String name, Path file) {
+        if (!allowed.contains(kind)) {
+            return VOID;
+        }
+        return delegate.newGenericFile(kind, title, name, file);
     }
 }

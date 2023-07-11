@@ -217,6 +217,7 @@ NOTE: If you don't want to provide a custom black point value, you can use a pre
 - `remove_bg` performs background removal on an image. This can be used when the contrast is very low (e.g in helium processing) and that stretching the image also stretches the background. This process computes the average value of pixels outside the disk, then uses that to perform an adaptative suppression depending on the distance from the limb, in order to preserve light structures around the limb. For example: `remove_bg(stretched)`. Another variant lets you specify a tolerance value: `remove_bg(stretched, 0.2)`. The lower the tolerance, the weaker the correction will be.
 - `rgb` creates an RGB image by associating mono images on the respective R, G and B channels. As a consequence it accepts 3 parameters, for exemple: `rgb(img(3), avg(img(3), img(-3)), img(-3))`.
 - `saturate` (de)saturates an RGB image. It takes 2 arguments : an RGB image and a saturation factor (relative to the current image saturation). e.g: `saturate(doppler, 2)`.
+- `anim` allows the creation of MP4 files from your individual frames. It takes a list of images as the first parameter, and an optional delay (default 250ms) between frames as 2d parameter. e.g `anim(range(-5;5))`. Warning: animation creation is a resource intensive operation.
 
 === ImageMath scripts
 

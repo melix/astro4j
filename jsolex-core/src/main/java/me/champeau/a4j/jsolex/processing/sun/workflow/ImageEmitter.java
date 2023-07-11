@@ -17,6 +17,7 @@ package me.champeau.a4j.jsolex.processing.sun.workflow;
 
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 
+import java.nio.file.Path;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
@@ -29,4 +30,6 @@ public interface ImageEmitter {
     Supplier<Void> newColorImage(GeneratedImageKind kind, String title, String name, ImageWrapper32 image, Function<float[], float[][]> rgbSupplier);
 
     Supplier<Void> newColorImage(GeneratedImageKind kind, String title, String name, int width, int height, Supplier<float[][]> rgbSupplier);
+
+    Supplier<Void> newGenericFile(GeneratedImageKind kind, String title, String name, Path file);
 }

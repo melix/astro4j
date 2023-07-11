@@ -33,7 +33,8 @@ public enum BuiltinFunction {
     RANGE,
     REMOVE_BG,
     RGB,
-    SATURATE;
+    SATURATE,
+    ANIM;
 
     public String lowerCaseName() {
         return name().toLowerCase(Locale.US);
