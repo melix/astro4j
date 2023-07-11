@@ -947,6 +947,9 @@ If you don&#8217;t want to provide a custom black point value, you can use a pre
 <li>
 <p><code>saturate</code> (de)saturates an RGB image. It takes 2 arguments : an RGB image and a saturation factor (relative to the current image saturation). e.g: <code>saturate(doppler, 2)</code>.</p>
 </li>
+<li>
+<p><code>anim</code> allows the creation of MP4 files from your individual frames. It takes a list of images as the first parameter, and an optional delay (default 250ms) between frames as 2d parameter. e.g <code>anim(range(-5;5))</code>. Warning: animation creation is a resource intensive operation.</p>
+</li>
 </ul>
 </div>
 </div>
