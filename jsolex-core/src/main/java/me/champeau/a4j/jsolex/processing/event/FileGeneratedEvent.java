@@ -15,26 +15,19 @@
  */
 package me.champeau.a4j.jsolex.processing.event;
 
-public abstract sealed class ProcessingEvent<T> permits
-        ImageGeneratedEvent,
-        FileGeneratedEvent,
-        NotificationEvent,
-        OutputImageDimensionsDeterminedEvent,
-        PartialReconstructionEvent,
-        ProcessingStartEvent,
-        ProcessingDoneEvent,
-        SuggestionEvent,
-        ProgressEvent,
-        DebugEvent,
-        VideoMetadataEvent {
-    private final T payload;
+import java.nio.file.Path;
 
-    public ProcessingEvent(T payload) {
-        this.payload = payload;
+public final class FileGeneratedEvent extends ProcessingEvent<FileGeneratedEvent.GeneratedFile> {
+
+    private FileGeneratedEvent(GeneratedFile path) {
+        super(path);
     }
 
-    public T getPayload() {
-        return payload;
+    public static FileGeneratedEvent of(String title, Path path) {
+        return new FileGeneratedEvent(new GeneratedFile(title, path));
     }
 
+    public record GeneratedFile(String title, Path path) {
+
+    }
 }

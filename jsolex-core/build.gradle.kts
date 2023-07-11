@@ -14,6 +14,7 @@ dependencies {
     implementation(libs.fits) {
         setTransitive(false)
     }
+    implementation(libs.jcodec)
     testImplementation(testFixtures(projects.jserfile))
 }
 

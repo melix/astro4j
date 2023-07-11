@@ -15,20 +15,29 @@
  */
 package me.champeau.a4j.jsolex.app.listeners;
 
+import javafx.geometry.Pos;
 import javafx.scene.Node;
 import javafx.scene.control.Alert;
+import javafx.scene.control.Button;
 import javafx.scene.control.ScrollPane;
 import javafx.scene.control.Tab;
 import javafx.scene.control.TabPane;
 import javafx.scene.effect.ColorAdjust;
 import javafx.scene.image.PixelFormat;
 import javafx.scene.image.WritableImage;
+import javafx.scene.layout.HBox;
+import javafx.scene.layout.VBox;
+import javafx.scene.media.Media;
+import javafx.scene.media.MediaPlayer;
+import javafx.scene.media.MediaView;
 import me.champeau.a4j.jsolex.app.JSolEx;
 import me.champeau.a4j.jsolex.app.jfx.BatchOperations;
+import me.champeau.a4j.jsolex.app.jfx.ExplorerSupport;
 import me.champeau.a4j.jsolex.app.jfx.I18N;
 import me.champeau.a4j.jsolex.app.jfx.ImageViewer;
 import me.champeau.a4j.jsolex.app.jfx.ZoomableImageView;
 import me.champeau.a4j.jsolex.processing.event.DebugEvent;
+import me.champeau.a4j.jsolex.processing.event.FileGeneratedEvent;
 import me.champeau.a4j.jsolex.processing.event.ImageGeneratedEvent;
 import me.champeau.a4j.jsolex.processing.event.Notification;
 import me.champeau.a4j.jsolex.processing.event.NotificationEvent;
@@ -81,7 +90,7 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
     private final JSolExInterface owner;
     private final String baseName;
     private final File serFile;
-    private final ForkJoinContext forkJoinContext;
+    private final ForkJoinContext cpuContext;
     private final ForkJoinContext ioContext;
     private final Path outputDirectory;
     private final ProcessParams params;
@@ -99,14 +108,14 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
     public SingleModeProcessingEventListener(JSolExInterface owner,
                                              String baseName,
                                              File serFile,
-                                             ForkJoinContext forkJoinContext,
+                                             ForkJoinContext cpuContext,
                                              ForkJoinContext ioContext,
                                              Path outputDirectory,
                                              ProcessParams params) {
         this.owner = owner;
         this.baseName = baseName;
         this.serFile = serFile;
-        this.forkJoinContext = forkJoinContext;
+        this.cpuContext = cpuContext;
         this.ioContext = ioContext;
         this.outputDirectory = outputDirectory;
         this.params = params;
@@ -211,6 +220,42 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
     }
 
     @Override
+    public void onFileGenerated(FileGeneratedEvent event) {
+        var filePath = event.getPayload().path();
+        if (filePath.toFile().getName().endsWith(".mp4")) {
+            BatchOperations.submit(() -> {
+                var tab = new Tab(event.getPayload().title());
+                var media = new Media(filePath.toUri().toString());
+                var mediaPlayer = new MediaPlayer(media);
+                var viewer = new MediaView(mediaPlayer);
+                tab.setContent(viewer);
+                // Create the buttons
+                var rewindButton = new Button("<<");
+                var playButton = new Button("Play");
+                var stopButton = new Button("Stop");
+                var openButton = new Button(JSolEx.message("open.in.files"));
+                openButton.setOnAction(e -> ExplorerSupport.openInExplorer(filePath));
+                mediaPlayer.setOnEndOfMedia(() -> mediaPlayer.seek(javafx.util.Duration.ZERO));
+                playButton.setOnAction(e -> mediaPlayer.play());
+                stopButton.setOnAction(e -> mediaPlayer.stop());
+                rewindButton.setOnAction(e -> {
+                    mediaPlayer.stop();
+                    mediaPlayer.seek(javafx.util.Duration.ZERO);
+                });
+                var buttonBox = new HBox(playButton, stopButton, rewindButton, openButton);
+                buttonBox.setSpacing(10);
+                var contentBox = new VBox(new ScrollPane(viewer), buttonBox);
+                contentBox.setAlignment(Pos.CENTER);
+                tab.setContent(contentBox);
+                mainPane.getTabs().add(tab);
+                mainPane.getSelectionModel().select(tab);
+                viewer.fitWidthProperty().bind(mainPane.widthProperty());
+                viewer.fitHeightProperty().bind(mainPane.heightProperty().subtract(buttonBox.heightProperty()));
+            });
+        }
+    }
+
+    @Override
     public void onNotification(NotificationEvent e) {
         if (concurrentNotifications.incrementAndGet() > 3) {
             // If there are too many events,
@@ -250,7 +295,9 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
         imageEmitter = payload.customImageEmitter();
         scriptExecutionContext = prepareExecutionContext(payload);
         shiftImages.putAll(payload.shiftImages());
-        imageScriptExecutor = new DefaultImageScriptExecutor(shiftImages::get,
+        imageScriptExecutor = new DefaultImageScriptExecutor(
+                cpuContext,
+                shiftImages::get,
                 Collections.unmodifiableMap(scriptExecutionContext),
                 this
         );
@@ -340,11 +387,16 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
                         missingShifts,
                         ImageMathParams.NONE)
         ).withExtraParams(params.extraParams().withAutosave(false));
-        var solexVideoProcessor = new SolexVideoProcessor(serFile, outputDirectory, 0, tmpParams, forkJoinContext, ioContext, LocalDateTime.now(), false);
+        var solexVideoProcessor = new SolexVideoProcessor(serFile, outputDirectory, 0, tmpParams, cpuContext, ioContext, LocalDateTime.now(), false);
         solexVideoProcessor.addEventListener(new ProcessingEventListener() {
             @Override
             public void onProcessingDone(ProcessingDoneEvent e) {
                 shiftImages.putAll(e.getPayload().shiftImages());
+            }
+
+            @Override
+            public void onProgress(ProgressEvent e) {
+                BatchOperations.submitOneOfAKind("progress", () -> owner.updateProgress(e.getPayload().progress(), e.getPayload().task()));
             }
         });
         solexVideoProcessor.process();
@@ -352,6 +404,7 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
 
     private Set<Integer> determineShiftsRequiredInScript(String script) {
         var collectingExecutor = new DefaultImageScriptExecutor(
+                cpuContext,
                 ShiftCollectingImageExpressionEvaluator.zeroImages(),
                 scriptExecutionContext
         );
@@ -370,6 +423,8 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
             onPartialReconstruction(e);
         } else if (event instanceof ImageGeneratedEvent e) {
             onImageGenerated(e);
+        } else if (event instanceof FileGeneratedEvent e) {
+            onFileGenerated(e);
         } else if (event instanceof NotificationEvent e) {
             onNotification(e);
         } else if (event instanceof SuggestionEvent e) {

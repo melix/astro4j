@@ -44,6 +44,7 @@ import me.champeau.a4j.jsolex.processing.params.SpectralRayIO;
 import me.champeau.a4j.jsolex.processing.params.SpectrumParams;
 import me.champeau.a4j.jsolex.processing.params.VideoParams;
 import me.champeau.a4j.jsolex.processing.sun.workflow.GeneratedImageKind;
+import me.champeau.a4j.jsolex.processing.util.ForkJoinContext;
 import me.champeau.a4j.jsolex.processing.util.ImageFormat;
 import me.champeau.a4j.math.tuples.DoublePair;
 import me.champeau.a4j.ser.ColorMode;
@@ -130,11 +131,13 @@ public class ProcessParamsController {
     private Header serFileHeader;
     private ProcessParams initialProcessParams;
     private ProcessParams processParams;
+    private ForkJoinContext forkJoinContext;
 
-    public void setup(Stage stage, Header serFileHeader, boolean batchMode, HostServices hostServices) {
+    public void setup(Stage stage, ForkJoinContext forkJoinContext, Header serFileHeader, boolean batchMode, HostServices hostServices) {
         this.stage = stage;
         this.serFileHeader = serFileHeader;
         this.hostServices = hostServices;
+        this.forkJoinContext = forkJoinContext;
         this.initialProcessParams = ProcessParams.loadDefaults();
         accordion.setExpandedPane(accordion.getPanes().get(0));
 
@@ -234,6 +237,7 @@ public class ProcessParamsController {
             var controller = (ImageSelector) fxmlLoader.getController();
             controller.setup(
                     stage,
+                    forkJoinContext, 
                     initialProcessParams.requestedImages().images(),
                     generateDebugImages.isSelected(),
                     List.of(getPixelShiftAsInt()),

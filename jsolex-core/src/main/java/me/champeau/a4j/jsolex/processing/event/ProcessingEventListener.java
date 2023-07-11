@@ -24,6 +24,9 @@ public interface ProcessingEventListener {
     default void onImageGenerated(ImageGeneratedEvent event) {
     }
 
+    default void onFileGenerated(FileGeneratedEvent event) {
+    }
+
     default void onPartialReconstruction(PartialReconstructionEvent event) {
     }
 

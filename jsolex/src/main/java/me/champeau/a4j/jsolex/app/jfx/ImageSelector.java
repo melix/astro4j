@@ -31,6 +31,7 @@ import me.champeau.a4j.jsolex.processing.params.ImageMathParams;
 import me.champeau.a4j.jsolex.processing.params.RequestedImages;
 import me.champeau.a4j.jsolex.processing.sun.workflow.GeneratedImageKind;
 import me.champeau.a4j.jsolex.processing.util.Constants;
+import me.champeau.a4j.jsolex.processing.util.ForkJoinContext;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 import me.champeau.a4j.jsolex.processing.util.ProcessingException;
 
@@ -86,8 +87,10 @@ public class ImageSelector {
     private RequestedImages requestedImages;
     private ImageMathParams imageMathParams;
     private Set<Integer> internalPixelShifts;
+    private ForkJoinContext forkJoinContext;
 
     public void setup(Stage stage,
+                      ForkJoinContext forkJoinContext,
                       Set<GeneratedImageKind> images,
                       boolean debug,
                       List<Integer> selectedPixelShifts,
@@ -98,6 +101,7 @@ public class ImageSelector {
         this.hostServices = hostServices;
         this.dopplerShift = dopplerShift;
         this.imageMathParams = imageMathParams;
+        this.forkJoinContext = forkJoinContext;
         this.mode.getItems().add(PixelShiftMode.SIMPLE);
         this.mode.getItems().add(PixelShiftMode.IMAGEMATH);
         this.mode.getSelectionModel().selectedItemProperty().addListener((obj, oldValue, newValue) -> {
@@ -308,6 +312,7 @@ public class ImageSelector {
     private DefaultImageScriptExecutor createScriptExecutor() {
         var images = new HashMap<Integer, ImageWrapper32>();
         return new DefaultImageScriptExecutor(
+                forkJoinContext,
                 i -> images.computeIfAbsent(i, unused -> new ImageWrapper32(0, 0, new float[0])),
                 Map.of()
         );

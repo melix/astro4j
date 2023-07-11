@@ -216,6 +216,7 @@ NOTE: Si vous ne connaissez pas la valeur du point noir, vous pouvez utiliser la
 - `colorize` permet de coloriser une image. Elle prend au choix 2 ou 7 paramètres. Dans sa version la plus simple à 2 paramètres, le premier est l'image à coloriser, et le second est le nom du profil de colorisation, tel que trouvé dans la fenêtre de paramétrage, par exemple: `colorize(img(0), "h-alpha")`. Dans sa version longue, les paramètres de colorisation sont les points "entrée" et "sortie" pour chacun des canaux rouge, bleu et vert, entre 0 et 255. Par exemple: `colorize(img(0), 84, 139, 95, 20, 218, 65)` est équivalent à l'entrée précédente. Notez que la colorisation varie fortement en fonction des images en entrée et qu'il _peut_ être nécessaire d'avoir appliqué la fonction `asinh_stretch` avant pour obtenir les couleurs souhaitées.
 - `rgb` permet de créer une image RGB à partir de 3 images mono. Elle prend donc 3 paramètres, par exemple: `rgb(img(3), avg(img(3), img(-3)), img(-3))`.
 - `saturate` permet de (dé)saturer une image RGB. Elle accepte 2 paramètres : une image couleur et un facteur de saturation (relatif à la saturation courante de l'image). Par exemple: `saturate(doppler, 2)`.
+- `anim` permet de créer une animation vidéo à partir de vos images individuelles. Elle accepte une list d'images en premier argument, et en 2ème optionnel le délai entre chaque image (par défaut 250ms). Par exemple `anim(range(-5;5))`. Attention: la création d'animations demande beaucoup de ressources système.
 
 === Scripts ImageMath
 

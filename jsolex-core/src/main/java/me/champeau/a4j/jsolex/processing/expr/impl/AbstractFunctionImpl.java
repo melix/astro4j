@@ -13,26 +13,24 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package me.champeau.a4j.jsolex.processing.expr;
+package me.champeau.a4j.jsolex.processing.expr.impl;
 
 import me.champeau.a4j.jsolex.processing.util.ForkJoinContext;
-import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
 
-import java.util.function.Function;
+import java.util.Map;
+import java.util.Optional;
 
-public class ImageExpressionEvaluator extends AbstractImageExpressionEvaluator {
-    private final Function<Integer, ImageWrapper> images;
+class AbstractFunctionImpl {
+    protected final ForkJoinContext forkJoinContext;
+    protected final Map<Class<?>, Object> context;
 
-    public ImageExpressionEvaluator(ForkJoinContext forkJoinContext, Function<Integer, ImageWrapper> images) {
-        super(forkJoinContext);
-        this.images = images;
+    protected AbstractFunctionImpl(ForkJoinContext forkJoinContext, Map<Class<?>, Object> context) {
+        this.forkJoinContext = forkJoinContext;
+        this.context = context;
     }
 
-    protected ImageWrapper findImage(int shift) {
-        var image = images.apply(shift);
-        if (image == null) {
-            throw new IllegalArgumentException("Image for shift '" + shift + "' is missing");
-        }
-        return image;
+    protected <T> Optional<T> getFromContext(Class<T> type) {
+        return (Optional<T>) Optional.ofNullable(context.get(type));
     }
+
 }

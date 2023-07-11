@@ -59,6 +59,14 @@ public interface ImageMathScriptExecutor {
                 );
             }
         }
+        for (Map.Entry<String, Path> entry : result.filesByLabel().entrySet()) {
+            var label = entry.getKey();
+            var file = entry.getValue();
+            emitter.newGenericFile(GeneratedImageKind.IMAGE_MATH,
+                    label,
+                    label,
+                    file);
+        }
     }
 
     default ImageMathScriptResult execute(Path source) throws IOException {

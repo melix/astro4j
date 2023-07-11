@@ -17,26 +17,17 @@ package me.champeau.a4j.jsolex.processing.expr;
 
 import me.champeau.a4j.jsolex.expr.BuiltinFunction;
 import me.champeau.a4j.jsolex.expr.ExpressionEvaluator;
-import me.champeau.a4j.jsolex.processing.color.ColorCurve;
-import me.champeau.a4j.jsolex.processing.params.SpectralRay;
-import me.champeau.a4j.jsolex.processing.params.SpectralRayIO;
-import me.champeau.a4j.jsolex.processing.stretching.ArcsinhStretchingStrategy;
-import me.champeau.a4j.jsolex.processing.stretching.ClaheStrategy;
-import me.champeau.a4j.jsolex.processing.stretching.ConstrastAdjustmentStrategy;
-import me.champeau.a4j.jsolex.processing.stretching.LinearStrechingStrategy;
-import me.champeau.a4j.jsolex.processing.stretching.NegativeImageStrategy;
-import me.champeau.a4j.jsolex.processing.sun.BackgroundRemoval;
-import me.champeau.a4j.jsolex.processing.sun.BandingReduction;
-import me.champeau.a4j.jsolex.processing.sun.ImageUtils;
-import me.champeau.a4j.jsolex.processing.sun.crop.Cropper;
-import me.champeau.a4j.jsolex.processing.sun.workflow.AnalysisUtils;
-import me.champeau.a4j.jsolex.processing.sun.workflow.ImageStats;
-import me.champeau.a4j.jsolex.processing.util.ColorizedImageWrapper;
-import me.champeau.a4j.jsolex.processing.util.Constants;
+import me.champeau.a4j.jsolex.processing.expr.impl.Animate;
+import me.champeau.a4j.jsolex.processing.expr.impl.BackgroundRemoval;
+import me.champeau.a4j.jsolex.processing.expr.impl.Colorize;
+import me.champeau.a4j.jsolex.processing.expr.impl.Crop;
+import me.champeau.a4j.jsolex.processing.expr.impl.FixBanding;
+import me.champeau.a4j.jsolex.processing.expr.impl.RGBCombination;
+import me.champeau.a4j.jsolex.processing.expr.impl.Saturation;
+import me.champeau.a4j.jsolex.processing.expr.impl.ScriptSupport;
+import me.champeau.a4j.jsolex.processing.util.ForkJoinContext;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
-import me.champeau.a4j.jsolex.processing.util.RGBImage;
-import me.champeau.a4j.math.regression.Ellipse;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -44,15 +35,24 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.OptionalDouble;
 import java.util.function.DoubleBinaryOperator;
-import java.util.function.Function;
 import java.util.stream.DoubleStream;
 import java.util.stream.Stream;
 
+import static me.champeau.a4j.jsolex.processing.expr.impl.AdjustContrast.adjustContrast;
+import static me.champeau.a4j.jsolex.processing.expr.impl.Clahe.clahe;
+import static me.champeau.a4j.jsolex.processing.expr.impl.ScriptSupport.applyFunction;
+import static me.champeau.a4j.jsolex.processing.expr.impl.Stretching.asinhStretch;
+import static me.champeau.a4j.jsolex.processing.expr.impl.Stretching.linearStretch;
+
 public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluator {
 
+    private final ForkJoinContext forkJoinContext;
     private final Map<Class<?>, Object> context = new HashMap<>();
+
+    protected AbstractImageExpressionEvaluator(ForkJoinContext forkJoinContext) {
+        this.forkJoinContext = forkJoinContext;
+    }
 
     public <T> void putInContext(Class<T> key, T value) {
         context.put(key, value);
@@ -114,277 +114,20 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
             case AVG -> applyFunction("avg", arguments, DoubleStream::average);
             case MIN -> applyFunction("min", arguments, DoubleStream::min);
             case MAX -> applyFunction("max", arguments, DoubleStream::max);
-            case INVERT -> inverse(arguments);
+            case INVERT -> ScriptSupport.inverse(arguments);
             case RANGE -> createRange(arguments);
-            case FIX_BANDING -> fixBanding(arguments);
+            case FIX_BANDING -> new FixBanding(forkJoinContext, context).fixBanding(arguments);
             case LINEAR_STRETCH -> linearStretch(arguments);
             case ASINH_STRETCH -> asinhStretch(arguments);
             case CLAHE -> clahe(arguments);
             case ADJUST_CONTRAST -> adjustContrast(arguments);
-            case COLORIZE -> colorize(arguments);
-            case AUTOCROP -> autocrop(arguments);
-            case REMOVE_BG -> removeBackground(arguments);
-            case RGB -> combineToRGB(arguments);
-            case SATURATE -> saturate(arguments);
+            case COLORIZE -> Colorize.of(forkJoinContext).colorize(arguments);
+            case AUTOCROP -> new Crop(forkJoinContext, context).autocrop(arguments);
+            case REMOVE_BG -> new BackgroundRemoval(forkJoinContext, context).removeBackground(arguments);
+            case RGB -> RGBCombination.combine(arguments);
+            case SATURATE -> new Saturation(forkJoinContext, context).saturate(arguments);
+            case ANIM -> Animate.of(forkJoinContext).createAnimation(arguments);
         };
-    }
-
-    private Object combineToRGB(List<Object> arguments) {
-        if (arguments.size() != 3) {
-            throw new IllegalArgumentException("rgb takes 3 arguments (red image, green image, blue image)");
-        }
-        var ra = arguments.get(0);
-        var ga = arguments.get(1);
-        var ba = arguments.get(2);
-        if (ra instanceof ImageWrapper32 r && ga instanceof ImageWrapper32 g && ba instanceof ImageWrapper32 b) {
-            if ((r.width() == g.width()) && (r.width() == b.width())
-                && (r.height() == g.height()) && (r.height() == b.height())) {
-                return new RGBImage(r.width(), r.height(), r.data(), g.data(), b.data());
-            } else {
-                throw new IllegalArgumentException("Images must have the same dimensions");
-            }
-        }
-        throw new IllegalArgumentException("rgb only supports mono images as arguments");
-    }
-
-    private Object removeBackground(List<Object> arguments) {
-        if (arguments.size() != 1 && arguments.size() != 2) {
-            throw new IllegalArgumentException("masked takes 1 or 2 arguments (image(s), [tolerance])");
-        }
-        var ellipse = getFromContext(Ellipse.class);
-        if (ellipse.isEmpty()) {
-            throw new IllegalArgumentException("Cannot perform masked merge because ellipse isn't found");
-        }
-        var arg = arguments.get(0);
-        if (arg instanceof List<?>) {
-            return expandToImageList(arguments, this::removeBackground);
-        }
-        double tolerance;
-        if (arguments.size() == 2) {
-            tolerance = ((Number) arguments.get(1)).doubleValue();
-            if (tolerance < 0) {
-                throw new IllegalArgumentException("Tolerance should be greater than 0");
-            }
-        } else {
-            tolerance = .9;
-        }
-        if (arg instanceof ImageWrapper32 ref) {
-            return monoToMonoImageTransformer("remove_bg", 2, arguments, (width, height, data) -> {
-                var e = ellipse.get();
-                var background = AnalysisUtils.estimateBackground(ref, e);
-                BackgroundRemoval.removeBackground(width, height, data, tolerance, background, e);
-            });
-        }
-        throw new IllegalArgumentException("remove_bg only supports mono images");
-    }
-
-    private Object autocrop(List<Object> arguments) {
-        if (arguments.size() != 1) {
-            throw new IllegalArgumentException("autocrop takes 1 arguments (image(s))");
-        }
-        var arg = arguments.get(0);
-        if (arg instanceof List<?>) {
-            return expandToImageList(arguments, this::autocrop);
-        }
-        var ellipse = getFromContext(Ellipse.class);
-        var blackpoint = getFromContext(ImageStats.class).map(ImageStats::blackpoint).orElse(0f);
-        if (ellipse.isPresent()) {
-            var circle = ellipse.get();
-            if (arg instanceof ImageWrapper32 mono) {
-                var image = mono.asImage();
-                var cropped = Cropper.cropToSquare(image, circle, blackpoint);
-                return ImageWrapper32.fromImage(cropped);
-            } else if (arg instanceof ColorizedImageWrapper wrapper) {
-                var mono = wrapper.mono();
-                var cropped = Cropper.cropToSquare(mono.asImage(), circle, blackpoint);
-                return new ColorizedImageWrapper(ImageWrapper32.fromImage(cropped), wrapper.converter());
-            }
-            throw new IllegalStateException("Unsupported image type");
-        } else {
-            throw new IllegalStateException("Sun disk not detected, cannot perform autocrop");
-        }
-    }
-
-    private Object asinhStretch(List<Object> arguments) {
-        if (arguments.size() < 3) {
-            throw new IllegalArgumentException("asinh_stretch takes 3 arguments (image(s), blackpoint, stretch)");
-        }
-        float blackpoint = ((Number) arguments.get(1)).floatValue();
-        float stretch = ((Number) arguments.get(2)).floatValue();
-        return monoToMonoImageTransformer("asinh_stretch", 3, arguments, (width, height, data) -> new ArcsinhStretchingStrategy(blackpoint, stretch, stretch).stretch(width, height, data));
-    }
-
-    private Object linearStretch(List<Object> arguments) {
-        if (arguments.size() != 1 && arguments.size() != 3) {
-            throw new IllegalArgumentException("linear_stretch takes 3 arguments (image(s), lo, hi)");
-        }
-        float lo;
-        float hi;
-        if (arguments.size() == 3) {
-            lo = Math.min(Constants.MAX_PIXEL_VALUE, Math.max(0, ((Number) arguments.get(1)).floatValue()));
-            hi = Math.min(Constants.MAX_PIXEL_VALUE, Math.max(0, ((Number) arguments.get(2)).floatValue()));
-        } else {
-            hi = Constants.MAX_PIXEL_VALUE;
-            lo = 0;
-        }
-        return monoToMonoImageTransformer("linear_stretch", 3, arguments, (width, height, data) -> new LinearStrechingStrategy(lo, hi).stretch(width, height, data));
-    }
-
-    private Object saturate(List<Object> arguments) {
-        if (arguments.size() != 2) {
-            throw new IllegalArgumentException("saturate takes 2 argument (image(s), saturation)");
-        }
-        var arg = arguments.get(0);
-        if (arg instanceof List) {
-            return expandToImageList(arguments, this::saturate);
-        }
-        var saturation = ((Number) arguments.get(1)).doubleValue();
-        var exponent = Math.pow(2, -saturation);
-        if (arg instanceof ColorizedImageWrapper colorized) {
-            return new ColorizedImageWrapper(colorized.mono(), mono -> {
-                var rgb = colorized.converter().apply(mono);
-                var hsl = ImageUtils.fromRGBtoHSL(rgb);
-                var s = hsl[1];
-                for (int i = 0; i < s.length; i++) {
-                    var sat = Math.pow(s[i], exponent);
-                    s[i] = (float) sat;
-                }
-                ImageUtils.fromHSLtoRGB(hsl, rgb);
-                return rgb;
-            });
-        } else if (arg instanceof RGBImage rgb) {
-            var hsl = ImageUtils.fromRGBtoHSL(new float[][]{rgb.r(), rgb.g(), rgb.b()});
-            var s = hsl[1];
-            for (int i = 0; i < s.length; i++) {
-                var sat = Math.pow(s[i], exponent);
-                s[i] = (float) sat;
-            }
-            var output = new float[3][rgb.r().length];
-            ImageUtils.fromHSLtoRGB(hsl, output);
-            return new RGBImage(rgb.width(), rgb.height(), output[0], output[1], output[2]);
-        }
-        return arg;
-    }
-
-    private Object clahe(List<Object> arguments) {
-        if (arguments.size() != 4 && arguments.size() != 2) {
-            throw new IllegalArgumentException("clahe takes either 2 or 4 arguments (image(s), [tile_size, bins], clip)");
-        }
-        if (arguments.size() == 2) {
-            double clip = ((Number) arguments.get(1)).doubleValue();
-            return monoToMonoImageTransformer("clahe", 2, arguments, (width, height, data) -> new ClaheStrategy(ClaheStrategy.DEFAULT_TILE_SIZE, ClaheStrategy.DEFAULT_BINS, clip).stretch(width, height, data));
-
-        }
-        int tileSize = ((Number) arguments.get(1)).intValue();
-        int bins = ((Number) arguments.get(2)).intValue();
-        double clip = ((Number) arguments.get(3)).doubleValue();
-        if (tileSize * tileSize / (double) bins < 1.0) {
-            throw new IllegalArgumentException("The number of bins is too high given the size of the tiles. Either reduce the bin count or increase the tile size");
-        }
-        return monoToMonoImageTransformer("clahe", 4, arguments, (width, height, data) -> new ClaheStrategy(tileSize, bins, clip).stretch(width, height, data));
-    }
-
-    private Object adjustContrast(List<Object> arguments) {
-        if (arguments.size() != 3) {
-            throw new IllegalArgumentException("adjust_contrast takes 3 arguments (image(s), min, max)");
-        }
-        int min = ((Number) arguments.get(1)).intValue();
-        int max = ((Number) arguments.get(2)).intValue();
-        if (min < 0 || min > 255) {
-            throw new IllegalArgumentException("adjust_contrast min must be between 0 and 255");
-        }
-        if (max < 0 || max > 255) {
-            throw new IllegalArgumentException("adjust_contrast max must be between 0 and 255");
-        }
-        return monoToMonoImageTransformer("adjust_contrast", 3, arguments, (width, height, data) -> new ConstrastAdjustmentStrategy(min << 8, max << 8).stretch(width, height, data));
-    }
-
-    @SuppressWarnings("unchecked")
-    private List<Object> expandToImageList(List<Object> arguments, Function<List<Object>, Object> function) {
-        var listOfImages = (List) arguments.get(0);
-        var params = arguments.subList(1, arguments.size());
-        return listOfImages.stream().map(img -> {
-            var allArgs = new ArrayList<>();
-            allArgs.add(img);
-            allArgs.addAll(params);
-            return function.apply(allArgs);
-        }).toList();
-    }
-
-    private Object colorize(List<Object> arguments) {
-        if (arguments.size() != 7 && arguments.size() != 2) {
-            throw new IllegalArgumentException("colorize takes 3 arguments (image, rIn, rOut, gIn, gOut, bIn, bOut) or 2 arguments (image, profile name)");
-        }
-        var arg = arguments.get(0);
-        if (arg instanceof List<?>) {
-            return expandToImageList(arguments, this::colorize);
-        }
-        if (arguments.size() == 7) {
-            int rIn = ((Number) arguments.get(1)).intValue();
-            int rOut = ((Number) arguments.get(2)).intValue();
-            int gIn = ((Number) arguments.get(3)).intValue();
-            int gOut = ((Number) arguments.get(4)).intValue();
-            int bIn = ((Number) arguments.get(5)).intValue();
-            int bOut = ((Number) arguments.get(6)).intValue();
-            if (arg instanceof ImageWrapper32 mono) {
-                return new ColorizedImageWrapper(mono, data -> {
-                    var curve = new ColorCurve("adhoc", rIn, rOut, gIn, gOut, bIn, bOut);
-                    return doColorize(data, curve);
-                });
-            }
-        } else {
-            String profile = arguments.get(1).toString();
-            var rays = SpectralRayIO.loadDefaults();
-            for (SpectralRay ray : rays) {
-                if (ray.label().equalsIgnoreCase(profile) && (arg instanceof ImageWrapper32 mono)) {
-                    var curve = ray.colorCurve();
-                    if (curve != null) {
-                        return new ColorizedImageWrapper(mono, data -> doColorize(data, curve));
-                    }
-                }
-            }
-            throw new IllegalArgumentException("Cannot find color profile '" + profile + "'");
-        }
-        throw new IllegalArgumentException("colorize first argument must be an image or a list of images");
-    }
-
-    private float[][] doColorize(float[] data, ColorCurve curve) {
-        float[] copy = new float[data.length];
-        System.arraycopy(data, 0, copy, 0, copy.length);
-        return ImageUtils.convertToRGB(curve, copy);
-    }
-
-    private Object fixBanding(List<Object> arguments) {
-        if (arguments.size() < 3) {
-            throw new IllegalArgumentException("fix_banding takes 3 arguments (image, band size, passes)");
-        }
-        var ellipse = getFromContext(Ellipse.class);
-        int bandSize = ((Number) arguments.get(1)).intValue();
-        int passes = ((Number) arguments.get(2)).intValue();
-        return monoToMonoImageTransformer("fix_banding", 3, arguments, (width, height, data) -> {
-            for (int i = 0; i < passes; i++) {
-                BandingReduction.reduceBanding(width, height, data, bandSize, ellipse.orElse(null));
-            }
-        });
-    }
-
-    private Object inverse(List<Object> arguments) {
-        return monoToMonoImageTransformer("invert", 1, arguments, NegativeImageStrategy.DEFAULT::stretch);
-    }
-
-    private Object monoToMonoImageTransformer(String name, int maxArgCount, List<Object> arguments, ImageConsumer consumer) {
-        if (arguments.size() > maxArgCount) {
-            throw new IllegalArgumentException("Invalid number of arguments on '" + name + "' call");
-        }
-        var arg = arguments.get(0);
-        if (arg instanceof ImageWrapper32 image) {
-            var copy = image.copy();
-            consumer.accept(copy.width(), copy.height(), copy.data());
-            return copy;
-        } else if (arg instanceof List<?> list) {
-            return list.stream().map(e -> monoToMonoImageTransformer(name, maxArgCount, List.of(e), consumer)).toList();
-        }
-        throw new IllegalArgumentException(name + "first argument must be a mono image or a list of images");
     }
 
     protected abstract ImageWrapper findImage(int shift);
@@ -401,51 +144,7 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
 
     }
 
-    private Object applyFunction(String name, List<Object> arguments, Function<DoubleStream, OptionalDouble> operator) {
-        if (arguments.size() == 1) {
-            if (arguments.get(0) instanceof List<?> list) {
-                // unwrap
-                //noinspection unchecked
-                return applyFunction(name, (List<Object>) list, operator);
-            }
-        }
-        if (arguments.isEmpty()) {
-            throw new IllegalArgumentException("'" + name + "' must have at least one argument");
-        }
-        var types = arguments.stream().map(Object::getClass).distinct().toList();
-        if (types.size() > 1) {
-            throw new IllegalArgumentException("'" + name + "' only works on arguments of the same type");
-        }
-        var type = types.get(0);
-        if (Number.class.isAssignableFrom(type)) {
-            return operator.apply(arguments.stream()
-                            .map(Number.class::cast)
-                            .mapToDouble(Number::doubleValue))
-                    .orElse(0);
-        }
-        if (ImageWrapper32.class.isAssignableFrom(type)) {
-            var images = arguments
-                    .stream()
-                    .map(ImageWrapper32.class::cast)
-                    .toList();
-            var first = images.get(0);
-            var width = first.width();
-            var height = first.height();
-            var length = first.data().length;
-            if (images.stream().anyMatch(i -> i.data().length != length || i.width() != width || i.height() != height)) {
-                throw new IllegalArgumentException("All images must have the same dimensions");
-            }
-            float[] result = new float[length];
-            for (int i = 0; i < length; i++) {
-                var idx = i;
-                result[i] = (float) operator.apply(images.stream().mapToDouble(img -> img.data()[idx])).orElse(0);
-            }
-            return new ImageWrapper32(width, height, result);
-        }
-        throw new IllegalArgumentException("Unexpected argument type '" + type + "'");
-    }
-
-    private Object apply(ImageWrapper32 leftImage,
+    private static Object apply(ImageWrapper32 leftImage,
                          ImageWrapper32 rightImage,
                          Number leftScalar,
                          Number rightScalar,
@@ -523,14 +222,14 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
         }
     }
 
-    private ImageWrapper32 asImage(Object source) {
+    private static ImageWrapper32 asImage(Object source) {
         if (source instanceof ImageWrapper32 image) {
             return image;
         }
         return null;
     }
 
-    private Number asScalar(Object source) {
+    private static Number asScalar(Object source) {
         if (source instanceof Number number) {
             return number;
         }
@@ -567,8 +266,4 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
         return Collections.unmodifiableList(images);
     }
 
-    @FunctionalInterface
-    interface ImageConsumer {
-        void accept(int width, int height, float[] data);
-    }
 }

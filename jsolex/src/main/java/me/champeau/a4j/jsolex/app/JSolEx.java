@@ -727,7 +727,7 @@ public class JSolEx extends Application implements JSolExInterface {
             var content = (Parent) loader.load();
             var controller = (ProcessParamsController) loader.getController();
             var scene = new Scene(content);
-            controller.setup(dialog, serFileReader.header(), batchMode, getHostServices());
+            controller.setup(dialog, cpuExecutor, serFileReader.header(), batchMode, getHostServices());
             dialog.setScene(scene);
             dialog.initOwner(rootStage);
             dialog.initModality(Modality.APPLICATION_MODAL);

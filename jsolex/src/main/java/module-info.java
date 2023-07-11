@@ -22,6 +22,7 @@ module me.champeau.a4j.jsolex {
     requires ch.qos.logback.classic;
     requires javafx.controls;
     requires javafx.fxml;
+    requires javafx.media;
     requires java.prefs;
     requires jdk.incubator.vector;
     requires org.fxmisc.richtext;
