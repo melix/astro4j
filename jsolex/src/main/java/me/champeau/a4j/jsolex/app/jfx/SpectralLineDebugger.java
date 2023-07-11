@@ -109,7 +109,7 @@ public class SpectralLineDebugger {
     private Point2D p2;
     private final List<Point2D> samplePoints = new ArrayList<>();
     private final List<Double> sampleDistances = new ArrayList<>();
-
+    private double zoom = 1.0;
     private DoubleUnaryOperator polynomial;
     private DoubleTriplet lockedPolynomial;
     private SerFileReader reader;
@@ -118,6 +118,22 @@ public class SpectralLineDebugger {
         var toggleGroup = new ToggleGroup();
         average.setToggleGroup(toggleGroup);
         frames.setToggleGroup(toggleGroup);
+        canvas.setOnScroll(event -> {
+            if (event.isControlDown()) {
+                double deltaY = event.getDeltaY();
+                if (deltaY != 0) {
+                    double zoomFactor = 1.05;
+                    if (deltaY < 0) {
+                        zoom /= zoomFactor;
+                    } else {
+                        zoom *= zoomFactor;
+                    }
+                    zoom = Math.max(0.1, Math.min(zoom, 5));
+                    fireZoomChanged(scene);
+                }
+                event.consume();
+            }
+        });
         toggleGroup.selectedToggleProperty().addListener((obj, oldValue, newValue) -> {
             if (newValue == average) {
                 frameMoveGroup.setDisable(true);
@@ -127,6 +143,16 @@ public class SpectralLineDebugger {
         });
         status.setDisable(true);
         executor.async(() -> prepareView(file, colorMode, scene, stage, toggleGroup));
+    }
+
+    private void fireZoomChanged(Scene scene) {
+        double scale = zoom;
+        if (image != null) {
+            scale = zoom * scene.getWidth() / image.getWidth();
+        }
+        canvas.setScaleX(scale);
+        canvas.setScaleY(scale);
+        redraw();
     }
 
     private void prepareView(File file, ColorMode colorMode, Scene scene, Stage stage, ToggleGroup toggleGroup) {
@@ -156,8 +182,7 @@ public class SpectralLineDebugger {
                 status.maxWidthProperty().bind(scene.widthProperty());
                 scene.widthProperty().addListener((o, oldValue, newValue) -> {
                     if (image != null) {
-                        canvas.setScaleX(newValue.doubleValue() / image.getWidth());
-                        redraw();
+                        fireZoomChanged(scene);
                     }
                 });
                 scene.heightProperty().addListener((o, oldValue, newValue) -> {
