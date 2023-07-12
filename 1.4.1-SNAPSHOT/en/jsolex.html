@@ -871,6 +871,9 @@ Click on "Ok" to start processing, you will now have the 21 required images gene
 <p><code>img</code> requests an image at a particular pixel shift. For example, <code>img(0)</code> is the image centered on the detected spectral ray, while <code>img(-10)</code> is a continuum image, shifted 10 pixels up.</p>
 </li>
 <li>
+<p><code>list</code> builds a list from its arguments. e.g <code>list(img(-3), img(3))</code></p>
+</li>
+<li>
 <p><code>avg</code> computes the average of different images. For example: <code>avg(img(-1), img(0), img(1))</code> computes the average of images at pixel shifts -1, 0 and +1. It is also possible to use the simpler <code>avg(range(-1,1))</code> expression</p>
 </li>
 <li>
@@ -949,6 +952,12 @@ If you don&#8217;t want to provide a custom black point value, you can use a pre
 </li>
 <li>
 <p><code>anim</code> allows the creation of MP4 files from your individual frames. It takes a list of images as the first parameter, and an optional delay (default 250ms) between frames as 2d parameter. e.g <code>anim(range(-5;5))</code>. Warning: animation creation is a resource intensive operation.</p>
+</li>
+<li>
+<p><code>load</code> loads an image from the file system. It takes the path to the file as an argument. For example: <code>load("/path/to/some/image.png")</code>. Instead of using an absolute path, it is possible to use <code>workdir</code> in combination.</p>
+</li>
+<li>
+<p><code>workdir</code> sets the default working directory, which is used whenever the <code>load</code> operation is done with relative paths. e.g <code>workdir("/path/to/session")</code></p>
 </li>
 </ul>
 </div>

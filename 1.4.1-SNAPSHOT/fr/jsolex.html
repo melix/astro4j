@@ -860,6 +860,9 @@ Le script apparaît désormais dans la liste de gauche, il sera appliqué lors d
 <p><code>img</code> demande une image à un décalage de pixels donné. Par exemple, <code>img(0)</code> est l&#8217;image centrée sur la raie, <code>img(-10)</code> est celle décalée de 10 pixels vers le haut.</p>
 </li>
 <li>
+<p><code>list</code> crée une liste à partir des arguments. Par exemple <code>list(img(-3), img(3))</code></p>
+</li>
+<li>
 <p><code>avg</code> permet de calculer la valeur moyenne d&#8217;images, par exemple: <code>avg(img(-1), img(0), img(1))</code> calcule la moyenne des images aux décalages -1, 0 et 1. Il est aussi possible d&#8217;écrire: <code>avg(range(-1,1))</code></p>
 </li>
 <li>
@@ -941,6 +944,12 @@ Si vous ne connaissez pas la valeur du point noir, vous pouvez utiliser la valeu
 </li>
 <li>
 <p><code>anim</code> permet de créer une animation vidéo à partir de vos images individuelles. Elle accepte une list d&#8217;images en premier argument, et en 2ème optionnel le délai entre chaque image (par défaut 250ms). Par exemple <code>anim(range(-5;5))</code>. Attention: la création d&#8217;animations demande beaucoup de ressources système.</p>
+</li>
+<li>
+<p><code>load</code> charge une image depuis le système de fichiers. Elle prend le chemin vers le fichier en paramètre. Par exemple: <code>load("/chemin/vers/une/image.png")</code>. Au lieu d&#8217;utiliser un chemin complet, il est possible de combiner avec la fonction <code>workdir</code>.</p>
+</li>
+<li>
+<p><code>workdir</code> définit le dossier de travail par défaut. Il est notamment utilisé pour charger les images avec <code>load</code>. Par exemple: <code>workdir("/chemin/vers/dossier/images")</code>.</p>
 </li>
 </ul>
 </div>
