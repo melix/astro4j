@@ -127,6 +127,7 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
             case ADJUST_CONTRAST -> adjustContrast(arguments);
             case COLORIZE -> Colorize.of(forkJoinContext).colorize(arguments);
             case AUTOCROP -> new Crop(forkJoinContext, context).autocrop(arguments);
+            case AUTOCROP2 -> new Crop(forkJoinContext, context).autocrop2(arguments);
             case REMOVE_BG -> new BackgroundRemoval(forkJoinContext, context).removeBackground(arguments);
             case RGB -> RGBCombination.combine(arguments);
             case SATURATE -> new Saturation(forkJoinContext, context).saturate(arguments);
@@ -134,6 +135,7 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
             case LIST -> arguments;
             case LOAD -> loader.load(arguments);
             case WORKDIR -> setWorkDir(arguments);
+            case CROP -> new Crop(forkJoinContext, context).crop(arguments);
         };
     }
 

@@ -32,7 +32,7 @@ public class Cropper {
 
     }
 
-    public static Image cropToSquare(Image image, Ellipse sunDisk, float blackPoint, Double diameterRatio) {
+    public static Image cropToSquare(Image image, Ellipse sunDisk, float blackPoint, Double diameterFactor, Integer rounding) {
         var source = image.data();
         // at this stage, the new fitting should give us a good estimate of the center and radius
         // because if geometry correction worked, the disk should be circle, so we can crop to a square
@@ -44,11 +44,12 @@ public class Cropper {
         var width = image.width();
         var height = image.height();
         var square = diameter > width || diameter > height ? Math.max(width, height) : Math.min(width, height);
-        if (diameterRatio != null) {
-            square = (int) (diameter * diameterRatio);
-            int remainder = square % 16;
+        if (diameterFactor != null) {
+            square = (int) (diameter * diameterFactor);
+            int remainder = square % rounding;
             if (remainder != 0) {
-                square += 16 - remainder;
+                int closestMultiple = (remainder <= rounding / 2) ? -remainder : (rounding - remainder);
+                square += closestMultiple;
             }
         }
         LOGGER.info("Diameter {}", diameter);
