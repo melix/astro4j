@@ -15,6 +15,7 @@
  */
 package me.champeau.a4j.jsolex.processing.sun;
 
+import me.champeau.a4j.jsolex.processing.util.Constants;
 import me.champeau.a4j.math.Point2D;
 import me.champeau.a4j.math.regression.LinearRegression;
 import me.champeau.a4j.math.tuples.DoubleTriplet;
@@ -93,7 +94,11 @@ public class SpectrumFrameAnalyzer {
                 min = value;
             }
         }
-        return minY;
+        // If frame is overexposed, ignore match
+        if (min < 0.95 * Constants.MAX_PIXEL_VALUE) {
+            return minY;
+        }
+        return -1;
     }
 
     public Optional<Integer> leftSunBorder() {
@@ -113,26 +118,43 @@ public class SpectrumFrameAnalyzer {
         if (rightBorder != null) {
             r = rightBorder + 1;
         }
-        int limit = (int) (0.5d*(r-l)/2);
+        int limit = (int) (0.5d * (r - l) / 2);
         // in the first pass we restrict samples to 50% of the spectrum
         int step = 8;
         for (int x = l + limit; x < r - limit; x += step) {
             var y = findYAtMinimalValue(data, x);
-            samplePoints.add(new Point2D(x, y));
+            if (y >= 0) {
+                samplePoints.add(new Point2D(x, y));
+            }
         }
         if (samplePoints.size() > 2) {
             var polynomial = LinearRegression.secondOrderRegression(samplePoints.toArray(new Point2D[0])).asPolynomial();
             // In the 2d pass we consider all points but only keep those which are close enough to the first polynomial
             samplePoints.clear();
-            for (int x = l ; x < r; x += step) {
+            for (int x = l; x < r; x += step) {
                 var y = findYAtMinimalValue(data, x);
-                var yy = polynomial.applyAsDouble(x);
-                if (Math.abs(yy-y) < MAX_DEVIATION) {
-                    samplePoints.add(new Point2D(x, y));
+                if (y >= 0) {
+                    var yy = polynomial.applyAsDouble(x);
+                    if (Math.abs(yy - y) < MAX_DEVIATION) {
+                        samplePoints.add(new Point2D(x, y));
+                    }
                 }
             }
             var triplet = LinearRegression.secondOrderRegression(samplePoints.toArray(new Point2D[0]));
             return Optional.of(triplet);
+        } else {
+            // Not enough sample points, we have to include the whole width
+            samplePoints.clear();
+            for (int x = l; x < r; x += step) {
+                var y = findYAtMinimalValue(data, x);
+                if (y >= 0) {
+                    samplePoints.add(new Point2D(x, y));
+                }
+            }
+            if (samplePoints.size() > 2) {
+                var triplet = LinearRegression.secondOrderRegression(samplePoints.toArray(new Point2D[0]));
+                return Optional.of(triplet);
+            }
         }
         return Optional.empty();
     }

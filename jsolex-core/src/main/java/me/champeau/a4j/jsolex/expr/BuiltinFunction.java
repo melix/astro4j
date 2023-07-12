@@ -19,6 +19,7 @@ import java.util.Locale;
 
 public enum BuiltinFunction {
     ADJUST_CONTRAST,
+    ANIM,
     ASINH_STRETCH,
     AUTOCROP,
     AVG,
@@ -28,13 +29,15 @@ public enum BuiltinFunction {
     IMG,
     INVERT,
     LINEAR_STRETCH,
+    LIST,
+    LOAD,
     MAX,
     MIN,
     RANGE,
     REMOVE_BG,
     RGB,
     SATURATE,
-    ANIM;
+    WORKDIR;
 
     public String lowerCaseName() {
         return name().toLowerCase(Locale.US);

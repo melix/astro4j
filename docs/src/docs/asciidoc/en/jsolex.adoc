@@ -190,6 +190,7 @@ For now we've only used one function called `range`, which let us generate about
 Base functions:
 
 - `img` requests an image at a particular pixel shift. For example, `img(0)` is the image centered on the detected spectral ray, while `img(-10)` is a continuum image, shifted 10 pixels up.
+- `list` builds a list from its arguments. e.g `list(img(-3), img(3))`
 - `avg` computes the average of different images. For example: `avg(img(-1), img(0), img(1))` computes the average of images at pixel shifts -1, 0 and +1. It is also possible to use the simpler `avg(range(-1,1))` expression
 - `max` computes the maximum of multiple images, for example `max(img(-3), img(3))`. Maximum is per pixel.
 - `min` computes the minimum of multiple images, for example `min(img(-3), img(3))`. Minimum is per pixel.
@@ -218,6 +219,8 @@ NOTE: If you don't want to provide a custom black point value, you can use a pre
 - `rgb` creates an RGB image by associating mono images on the respective R, G and B channels. As a consequence it accepts 3 parameters, for exemple: `rgb(img(3), avg(img(3), img(-3)), img(-3))`.
 - `saturate` (de)saturates an RGB image. It takes 2 arguments : an RGB image and a saturation factor (relative to the current image saturation). e.g: `saturate(doppler, 2)`.
 - `anim` allows the creation of MP4 files from your individual frames. It takes a list of images as the first parameter, and an optional delay (default 250ms) between frames as 2d parameter. e.g `anim(range(-5;5))`. Warning: animation creation is a resource intensive operation.
+- `load` loads an image from the file system. It takes the path to the file as an argument. For example: `load("/path/to/some/image.png")`. Instead of using an absolute path, it is possible to use `workdir` in combination.
+- `workdir` sets the default working directory, which is used whenever the `load` operation is done with relative paths. e.g `workdir("/path/to/session")`
 
 === ImageMath scripts
 

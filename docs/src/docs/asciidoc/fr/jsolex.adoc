@@ -188,6 +188,7 @@ Nous avons utilisé ici une seule fonction, `range`, qui a permis de générer e
 Fonctions "unitaires":
 
 - `img` demande une image à un décalage de pixels donné. Par exemple, `img(0)` est l'image centrée sur la raie, `img(-10)` est celle décalée de 10 pixels vers le haut.
+- `list` crée une liste à partir des arguments. Par exemple `list(img(-3), img(3))`
 - `avg` permet de calculer la valeur moyenne d'images, par exemple: `avg(img(-1), img(0), img(1))` calcule la moyenne des images aux décalages -1, 0 et 1. Il est aussi possible d'écrire: `avg(range(-1,1))`
 - `max` permet de calculer la valeur maximale d'images, par exemple `max(img(-3), img(3))`. Le maximum est calculé pixel par pixel.
 - `min` permet de calculer la valeur minimale d'images, par exemple `min(img(-3), img(3))`. Le minimum est calculé pixel par pixel.
@@ -217,6 +218,8 @@ NOTE: Si vous ne connaissez pas la valeur du point noir, vous pouvez utiliser la
 - `rgb` permet de créer une image RGB à partir de 3 images mono. Elle prend donc 3 paramètres, par exemple: `rgb(img(3), avg(img(3), img(-3)), img(-3))`.
 - `saturate` permet de (dé)saturer une image RGB. Elle accepte 2 paramètres : une image couleur et un facteur de saturation (relatif à la saturation courante de l'image). Par exemple: `saturate(doppler, 2)`.
 - `anim` permet de créer une animation vidéo à partir de vos images individuelles. Elle accepte une list d'images en premier argument, et en 2ème optionnel le délai entre chaque image (par défaut 250ms). Par exemple `anim(range(-5;5))`. Attention: la création d'animations demande beaucoup de ressources système.
+- `load` charge une image depuis le système de fichiers. Elle prend le chemin vers le fichier en paramètre. Par exemple: `load("/chemin/vers/une/image.png")`. Au lieu d'utiliser un chemin complet, il est possible de combiner avec la fonction `workdir`.
+- `workdir` définit le dossier de travail par défaut. Il est notamment utilisé pour charger les images avec `load`. Par exemple: `workdir("/chemin/vers/dossier/images")`.
 
 === Scripts ImageMath
 

@@ -40,17 +40,32 @@ public class Crop extends AbstractFunctionImpl {
         if (arg instanceof List<?>) {
             return expandToImageList(forkJoinContext, arguments, this::autocrop);
         }
+        return doAutocrop(arg, null);
+    }
+
+    public Object autocrop2(List<Object> arguments) {
+        if (arguments.size() != 1) {
+            throw new IllegalArgumentException("autocrop takes 1 arguments (image(s))");
+        }
+        var arg = arguments.get(0);
+        if (arg instanceof List<?>) {
+            return expandToImageList(forkJoinContext, arguments, this::autocrop);
+        }
+        return doAutocrop(arg, 1.2);
+    }
+
+    private Object doAutocrop(Object arg, Double diameterRatio) {
         var ellipse = getFromContext(Ellipse.class);
         var blackpoint = getFromContext(ImageStats.class).map(ImageStats::blackpoint).orElse(0f);
         if (ellipse.isPresent()) {
             var circle = ellipse.get();
             if (arg instanceof ImageWrapper32 mono) {
                 var image = mono.asImage();
-                var cropped = Cropper.cropToSquare(image, circle, blackpoint);
+                var cropped = Cropper.cropToSquare(image, circle, blackpoint, diameterRatio);
                 return ImageWrapper32.fromImage(cropped);
             } else if (arg instanceof ColorizedImageWrapper wrapper) {
                 var mono = wrapper.mono();
-                var cropped = Cropper.cropToSquare(mono.asImage(), circle, blackpoint);
+                var cropped = Cropper.cropToSquare(mono.asImage(), circle, blackpoint, diameterRatio);
                 return new ColorizedImageWrapper(ImageWrapper32.fromImage(cropped), wrapper.converter());
             }
             throw new IllegalStateException("Unsupported image type");
