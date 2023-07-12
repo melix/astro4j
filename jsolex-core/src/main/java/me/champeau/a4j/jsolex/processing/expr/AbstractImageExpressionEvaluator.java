@@ -22,6 +22,7 @@ import me.champeau.a4j.jsolex.processing.expr.impl.BackgroundRemoval;
 import me.champeau.a4j.jsolex.processing.expr.impl.Colorize;
 import me.champeau.a4j.jsolex.processing.expr.impl.Crop;
 import me.champeau.a4j.jsolex.processing.expr.impl.FixBanding;
+import me.champeau.a4j.jsolex.processing.expr.impl.Loader;
 import me.champeau.a4j.jsolex.processing.expr.impl.RGBCombination;
 import me.champeau.a4j.jsolex.processing.expr.impl.Saturation;
 import me.champeau.a4j.jsolex.processing.expr.impl.ScriptSupport;
@@ -29,6 +30,7 @@ import me.champeau.a4j.jsolex.processing.util.ForkJoinContext;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -49,9 +51,11 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
 
     private final ForkJoinContext forkJoinContext;
     private final Map<Class<?>, Object> context = new HashMap<>();
+    private final Loader loader;
 
     protected AbstractImageExpressionEvaluator(ForkJoinContext forkJoinContext) {
         this.forkJoinContext = forkJoinContext;
+        this.loader = new Loader(forkJoinContext, context);
     }
 
     public <T> void putInContext(Class<T> key, T value) {
@@ -127,7 +131,19 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
             case RGB -> RGBCombination.combine(arguments);
             case SATURATE -> new Saturation(forkJoinContext, context).saturate(arguments);
             case ANIM -> Animate.of(forkJoinContext).createAnimation(arguments);
+            case LIST -> arguments;
+            case LOAD -> loader.load(arguments);
+            case WORKDIR -> setWorkDir(arguments);
         };
+    }
+
+    private Object setWorkDir(List<Object> arguments) {
+        if (arguments.size() != 1) {
+            throw new IllegalStateException("workdir accepts a single argument: path to directory");
+        }
+        var path = arguments.get(0).toString();
+        loader.setWorkingDirectory(Paths.get(path));
+        return path;
     }
 
     protected abstract ImageWrapper findImage(int shift);
