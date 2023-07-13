@@ -32,15 +32,13 @@ import java.util.function.Supplier;
 public class ForkJoinParallelExecutor implements AutoCloseable, ForkJoinContext {
     private final ExecutorService executor = Executors.newCachedThreadPool();
     private final ExecutionContext executionContext;
-    private final int maxParallel;
 
     private ForkJoinParallelExecutor() {
         this(Runtime.getRuntime().availableProcessors());
     }
 
     private ForkJoinParallelExecutor(int maxParallel) {
-        this.maxParallel = maxParallel;
-        executionContext = new ExecutionContext(null, null, null);
+        executionContext = new ExecutionContext(null, null, null, new Semaphore(maxParallel));
     }
 
     public static ForkJoinParallelExecutor newExecutor() {
@@ -119,11 +117,11 @@ public class ForkJoinParallelExecutor implements AutoCloseable, ForkJoinContext 
         private Consumer<? super Thread> onTaskStart;
         private Consumer<? super Thread> onTaskEnd;
 
-        public ExecutionContext(Consumer<? super Thread> onTaskStart, Consumer<? super Thread> onTaskEnd, Thread.UncaughtExceptionHandler uncaughtExceptionHandler) {
-            this.semaphore = new Semaphore(maxParallel);
+        public ExecutionContext(Consumer<? super Thread> onTaskStart, Consumer<? super Thread> onTaskEnd, Thread.UncaughtExceptionHandler uncaughtExceptionHandler, Semaphore semaphore) {
             this.onTaskStart = onTaskStart;
             this.onTaskEnd = onTaskEnd;
             this.uncaughtExceptionHandler = uncaughtExceptionHandler;
+            this.semaphore = semaphore;
         }
 
         @Override
@@ -143,7 +141,7 @@ public class ForkJoinParallelExecutor implements AutoCloseable, ForkJoinContext 
 
         @Override
         public void isolate(Consumer<? super ForkJoinContext> context) {
-            var ctx = new ExecutionContext(onTaskStart, onTaskEnd, uncaughtExceptionHandler);
+            var ctx = new ExecutionContext(onTaskStart, onTaskEnd, uncaughtExceptionHandler, semaphore);
             context.accept(ctx);
         }
 
@@ -152,6 +150,19 @@ public class ForkJoinParallelExecutor implements AutoCloseable, ForkJoinContext 
                 r.run();
                 return null;
             });
+        }
+
+        @Override
+        public void blocking(Runnable r) {
+            submit(() -> {
+                semaphore.acquireUninterruptibly();
+                try {
+                    r.run();
+                    return null;
+                } finally {
+                    semaphore.release();
+                }
+            }).get();
         }
 
         @Override
@@ -203,7 +214,7 @@ public class ForkJoinParallelExecutor implements AutoCloseable, ForkJoinContext 
 
         @Override
         public <T> Supplier<T> forkJoin(Function<? super ForkJoinContext, T> consumer) {
-            var context = new ExecutionContext(onTaskStart, onTaskEnd, uncaughtExceptionHandler);
+            var context = new ExecutionContext(onTaskStart, onTaskEnd, uncaughtExceptionHandler, semaphore);
             try {
                 return context.submit(() -> consumer.apply(context));
             } finally {
