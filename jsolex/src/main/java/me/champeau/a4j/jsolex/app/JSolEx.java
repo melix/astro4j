@@ -413,6 +413,7 @@ public class JSolEx extends Application implements JSolExInterface {
     @FXML
     private void showFrameDebugger() {
         selectSerFileAndThen(file -> {
+            config.loaded(file.toPath());
             var fxmlLoader = I18N.fxmlLoader(getClass(), "frame-debugger");
             Object configWindow;
             try {
