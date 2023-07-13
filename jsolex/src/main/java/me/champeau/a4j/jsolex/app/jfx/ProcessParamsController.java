@@ -142,7 +142,12 @@ public class ProcessParamsController {
         accordion.setExpandedPane(accordion.getPanes().get(0));
 
         wavelength.getItems().addAll(FXCollections.observableList(SpectralRayIO.loadDefaults()));
-        wavelength.getSelectionModel().select(SpectralRay.H_ALPHA);
+        var ray = initialProcessParams.spectrumParams().ray();
+        if (wavelength.getItems().contains(ray)) {
+            wavelength.getSelectionModel().select(ray);
+        } else {
+            wavelength.getSelectionModel().select(SpectralRay.H_ALPHA);
+        }
         observerName.textProperty().setValue(initialProcessParams.observationDetails().observer());
         email.textProperty().setValue(initialProcessParams.observationDetails().email());
         instrument.textProperty().setValue(initialProcessParams.observationDetails().instrument());
