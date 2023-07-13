@@ -952,7 +952,16 @@ Si vous ne connaissez pas la valeur du point noir, vous pouvez utiliser la valeu
 <p><code>load</code> charge une image depuis le système de fichiers. Elle prend le chemin vers le fichier en paramètre. Par exemple: <code>load("/chemin/vers/une/image.png")</code>. Au lieu d&#8217;utiliser un chemin complet, il est possible de combiner avec la fonction <code>workdir</code>.</p>
 </li>
 <li>
+<p><code>loadMany</code> permet de charger plusieurs images d&#8217;un coup, à partir d&#8217;un dossier. Par exemple: <code>loadMany("/chemin/vers/dossier")</code>. Un paramètre optionnel accepte une expression régulière pour filtrer les images: <code>loadMany("/chemin/vers/dossier", ".*cropped.*")</code>.</p>
+</li>
+<li>
 <p><code>workdir</code> définit le dossier de travail par défaut. Il est notamment utilisé pour charger les images avec <code>load</code>. Par exemple: <code>workdir("/chemin/vers/dossier/images")</code>.</p>
+</li>
+<li>
+<p><code>sharpen</code> applique un filtre d&#8217;augmentation des détails à votre image. Exemple: <code>sharpen(img(0))</code>.</p>
+</li>
+<li>
+<p><code>blur</code> applique un flou gaussien à votre image. Par exemple : <code>blur(img(0))</code>.</p>
 </li>
 </ul>
 </div>
