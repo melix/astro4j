@@ -83,6 +83,8 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.Semaphore;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 
 import static me.champeau.a4j.jsolex.processing.util.Constants.message;
 import static me.champeau.a4j.jsolex.processing.util.LoggingSupport.logError;
@@ -133,29 +135,39 @@ public class SolexVideoProcessor implements Broadcaster {
         broadcast(ProcessingStartEvent.of(System.nanoTime(), processParams));
         var converter = ImageUtils.createImageConverter(processParams.videoParams().colorMode());
         var detector = new MagnitudeBasedSunEdgeDetector(converter, this);
-        try (SerFileReader reader = SerFileReader.of(serFile)) {
-            var header = reader.header();
-            broadcast(new VideoMetadataEvent(header));
-            maybeUpdateProcessParams(header);
-            ImageGeometry geometry = header.geometry();
-            var frameCount = header.frameCount();
-            LOGGER.info(message("ser.file.date"), header.metadata().utcDateTime());
-            LOGGER.info(message("ser.file.contains"), frameCount);
-            LOGGER.info(message("color.mode.geometry"), geometry.colorMode(), geometry.getBytesPerPixel(), geometry.pixelDepthPerPlane());
-            LOGGER.info(message("width.height"), geometry.width(), geometry.height());
-            LOGGER.info(message("computing.average.image.limb.detect"));
-            // We use the IO executor to make sure we only read as single SER file at a time
-            ioForkJoinContext.blocking(() -> detector.detectEdges(reader));
+        AtomicInteger frameCountRef = new AtomicInteger();
+        AtomicReference<Header> headerRef = new AtomicReference<>();
+        AtomicReference<Double> fpsRef = new AtomicReference<>();
+        ioForkJoinContext.blocking(() -> {
+            try (SerFileReader reader = SerFileReader.of(serFile)) {
+                var header = reader.header();
+                broadcast(new VideoMetadataEvent(header));
+                maybeUpdateProcessParams(header);
+                ImageGeometry geometry = header.geometry();
+                var frameCount = header.frameCount();
+                LOGGER.info(message("ser.file.date"), header.metadata().utcDateTime());
+                LOGGER.info(message("ser.file.contains"), frameCount);
+                LOGGER.info(message("color.mode.geometry"), geometry.colorMode(), geometry.getBytesPerPixel(), geometry.pixelDepthPerPlane());
+                LOGGER.info(message("width.height"), geometry.width(), geometry.height());
+                LOGGER.info(message("computing.average.image.limb.detect"));
+                // We use the IO executor to make sure we only read as single SER file at a time
+                detector.detectEdges(reader);
+                frameCountRef.set(frameCount);
+                headerRef.set(header);
+                fpsRef.set(reader.estimateFps().orElse(null));
+            } catch (Exception e) {
+                broadcastError(e);
+            }
+        });
+        if (headerRef.get() != null) {
             var averageImage = detector.getAverageImage();
             detector.ifEdgesDetected((start, end) -> {
                 LOGGER.info(message("sun.edges.detected"), start, end);
-                generateImages(converter, reader, Math.max(0, start - 40), Math.min(end + 40, frameCount) - 1, averageImage);
+                generateImages(converter, headerRef.get(), fpsRef.get(), serFile, Math.max(0, start - 40), Math.min(end + 40, frameCountRef.get()) - 1, averageImage);
             }, () -> {
                 LOGGER.info(message("sun.edges.detected.full"));
-                generateImages(converter, reader, 0, frameCount - 1, averageImage);
+                generateImages(converter, headerRef.get(), fpsRef.get(), serFile, 0, frameCountRef.get() - 1, averageImage);
             });
-        } catch (Exception e) {
-            broadcastError(e);
         }
     }
 
@@ -174,21 +186,20 @@ public class SolexVideoProcessor implements Broadcaster {
         broadcast(new NotificationEvent(new Notification(Notification.AlertType.ERROR, message("unexpected.error"), message("error.during.processing"), trace)));
     }
 
-    private void generateImages(ImageConverter<float[]> converter, SerFileReader reader, int start, int end, float[] averageImage) {
+    private void generateImages(ImageConverter<float[]> converter, Header header, Double fps, File serFile, int start, int end, float[] averageImage) {
         List<WorkflowState> imageList = new ArrayList<>();
         var imageNamingStrategy = new FileNamingStrategy(
                 processParams.extraParams().fileNamePattern(),
                 processParams.extraParams().dateFormat(),
                 processParams.extraParams().datetimeFormat(),
                 processingDate,
-                reader.header()
+                header
         );
         var baseName = serFile.getName().substring(0, serFile.getName().lastIndexOf("."));
         mainForkJoinContext.blocking(blocking -> {
-            var geometry = reader.header().geometry();
+            var geometry = header.geometry();
             int width = geometry.width();
             int height = geometry.height();
-            var fps = reader.estimateFps();
             int newHeight = end - start;
             broadcast(OutputImageDimensionsDeterminedEvent.of(Constants.TYPE_RAW, width, newHeight));
             createWorkflowStateSteps(imageList, width, newHeight);
@@ -200,16 +211,16 @@ public class SolexVideoProcessor implements Broadcaster {
                     }
                 }
             }
-            LOGGER.info(message("starting.reconstruction"));
             var maybePolynomial = findPolynomial(width, height, averageImage, imageNamingStrategy);
             if (maybePolynomial.isPresent()) {
                 var polynomial = maybePolynomial.get();
-                ioForkJoinContext.blocking(() -> performImageReconstruction(converter, reader, start, end, geometry, width, height, polynomial, imageList.toArray(new WorkflowState[0])));
-                try {
-                    reader.close();
-                } catch (Exception e) {
-                    throw new RuntimeException(e);
-                }
+                ioForkJoinContext.blocking(() -> {
+                    try (var reader = SerFileReader.of(serFile)) {
+                        performImageReconstruction(converter, reader, start, end, geometry, width, height, polynomial, imageList.toArray(new WorkflowState[0]));
+                    } catch (Exception e) {
+                        throw new ProcessingException(e);
+                    }
+                });
                 blocking.blocking(buildImagesContext -> {
                     for (WorkflowState state : imageList) {
                         buildImagesContext.async(() -> {
@@ -235,7 +246,7 @@ public class SolexVideoProcessor implements Broadcaster {
                             WorkflowState state = imageList.get(step);
                             var imageEmitterFactory = new ProcessAwareImageEmitterFactory(state, imageNamingStrategy, baseName);
                             state.recordResult(WorkflowResults.MAIN_ELLIPSE_FITTING, fitting);
-                            var workflow = new ProcessingWorkflow(this, outputDirectory, context, imageList, step, processParams, fps.orElse(null), imageEmitterFactory);
+                            var workflow = new ProcessingWorkflow(this, outputDirectory, context, imageList, step, processParams, fps, imageEmitterFactory);
                             ctx.async(workflow::start);
                         }
                     });
@@ -389,6 +400,7 @@ public class SolexVideoProcessor implements Broadcaster {
     }
 
     private void performImageReconstruction(ImageConverter<float[]> converter, SerFileReader reader, int start, int end, ImageGeometry geometry, int width, int height, DoubleTriplet polynomial, WorkflowState... images) {
+        LOGGER.info(message("starting.reconstruction"));
         var semaphore = new Semaphore(Runtime.getRuntime().availableProcessors());
         mainForkJoinContext.blocking(executor -> {
             reader.seekFrame(start);

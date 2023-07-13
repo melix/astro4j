@@ -55,12 +55,7 @@ public interface ForkJoinContext {
      * blocks until the result is available
      * @param r the runnable
      */
-    default void blocking(Runnable r) {
-        submit(() -> {
-            r.run();
-            return null;
-        }).get();
-    }
+    void blocking(Runnable r);
 
     /**
      * Submits a callable for asynchonous execution.
