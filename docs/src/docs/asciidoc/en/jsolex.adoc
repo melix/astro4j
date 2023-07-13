@@ -222,7 +222,10 @@ NOTE: If you don't want to provide a custom black point value, you can use a pre
 - `saturate` (de)saturates an RGB image. It takes 2 arguments : an RGB image and a saturation factor (relative to the current image saturation). e.g: `saturate(doppler, 2)`.
 - `anim` allows the creation of MP4 files from your individual frames. It takes a list of images as the first parameter, and an optional delay (default 250ms) between frames as 2d parameter. e.g `anim(range(-5;5))`. Warning: animation creation is a resource intensive operation.
 - `load` loads an image from the file system. It takes the path to the file as an argument. For example: `load("/path/to/some/image.png")`. Instead of using an absolute path, it is possible to use `workdir` in combination.
+- `loadMany` allows loading several images at once from a directory. For example: `loadMany("/path/to/folder")`. An optional parameter lets you specify a regular expression to filter images: `loadMany("/chemin/vers/dossier", ".\*cropped.*")`.
 - `workdir` sets the default working directory, which is used whenever the `load` operation is done with relative paths. e.g `workdir("/path/to/session")`
+- `sharpen` will apply sharpening the target image. For example, `sharpen(img(0))`.
+- `blur` will apply Gaussian blur the target image. For example, `blur(img(0))`.
 
 === ImageMath scripts
 

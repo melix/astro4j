@@ -220,7 +220,10 @@ NOTE: Si vous ne connaissez pas la valeur du point noir, vous pouvez utiliser la
 - `saturate` permet de (dé)saturer une image RGB. Elle accepte 2 paramètres : une image couleur et un facteur de saturation (relatif à la saturation courante de l'image). Par exemple: `saturate(doppler, 2)`.
 - `anim` permet de créer une animation vidéo à partir de vos images individuelles. Elle accepte une list d'images en premier argument, et en 2ème optionnel le délai entre chaque image (par défaut 250ms). Par exemple `anim(range(-5;5))`. Attention: la création d'animations demande beaucoup de ressources système.
 - `load` charge une image depuis le système de fichiers. Elle prend le chemin vers le fichier en paramètre. Par exemple: `load("/chemin/vers/une/image.png")`. Au lieu d'utiliser un chemin complet, il est possible de combiner avec la fonction `workdir`.
+- `loadMany` permet de charger plusieurs images d'un coup, à partir d'un dossier. Par exemple: `loadMany("/chemin/vers/dossier")`. Un paramètre optionnel accepte une expression régulière pour filtrer les images: `loadMany("/chemin/vers/dossier", ".\*cropped.*")`.
 - `workdir` définit le dossier de travail par défaut. Il est notamment utilisé pour charger les images avec `load`. Par exemple: `workdir("/chemin/vers/dossier/images")`.
+- `sharpen` applique un filtre d'augmentation des détails à votre image. Exemple: `sharpen(img(0))`.
+- `blur` applique un flou gaussien à votre image. Par exemple : `blur(img(0))`.
 
 === Scripts ImageMath
 

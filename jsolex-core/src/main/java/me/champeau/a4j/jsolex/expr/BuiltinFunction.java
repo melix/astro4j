@@ -24,6 +24,7 @@ public enum BuiltinFunction {
     AUTOCROP,
     AUTOCROP2,
     AVG,
+    BLUR,
     CLAHE,
     COLORIZE,
     CROP,
@@ -33,12 +34,14 @@ public enum BuiltinFunction {
     LINEAR_STRETCH,
     LIST,
     LOAD,
+    LOAD_MANY,
     MAX,
     MIN,
     RANGE,
     REMOVE_BG,
     RGB,
     SATURATE,
+    SHARPEN,
     WORKDIR;
 
     public String lowerCaseName() {

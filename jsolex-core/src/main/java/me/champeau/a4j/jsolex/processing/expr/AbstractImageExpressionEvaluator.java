@@ -20,6 +20,7 @@ import me.champeau.a4j.jsolex.expr.ExpressionEvaluator;
 import me.champeau.a4j.jsolex.processing.expr.impl.Animate;
 import me.champeau.a4j.jsolex.processing.expr.impl.BackgroundRemoval;
 import me.champeau.a4j.jsolex.processing.expr.impl.Colorize;
+import me.champeau.a4j.jsolex.processing.expr.impl.Convolution;
 import me.champeau.a4j.jsolex.processing.expr.impl.Crop;
 import me.champeau.a4j.jsolex.processing.expr.impl.FixBanding;
 import me.champeau.a4j.jsolex.processing.expr.impl.Loader;
@@ -52,10 +53,12 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
     private final ForkJoinContext forkJoinContext;
     private final Map<Class<?>, Object> context = new HashMap<>();
     private final Loader loader;
+    private final Convolution convolution;
 
     protected AbstractImageExpressionEvaluator(ForkJoinContext forkJoinContext) {
         this.forkJoinContext = forkJoinContext;
         this.loader = new Loader(forkJoinContext, context);
+        this.convolution = new Convolution(forkJoinContext, context);
     }
 
     public <T> void putInContext(Class<T> key, T value) {
@@ -123,6 +126,7 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
             case FIX_BANDING -> new FixBanding(forkJoinContext, context).fixBanding(arguments);
             case LINEAR_STRETCH -> linearStretch(arguments);
             case ASINH_STRETCH -> asinhStretch(arguments);
+            case BLUR -> convolution.blur(arguments);
             case CLAHE -> clahe(arguments);
             case ADJUST_CONTRAST -> adjustContrast(arguments);
             case COLORIZE -> Colorize.of(forkJoinContext).colorize(arguments);
@@ -131,9 +135,11 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
             case REMOVE_BG -> new BackgroundRemoval(forkJoinContext, context).removeBackground(arguments);
             case RGB -> RGBCombination.combine(arguments);
             case SATURATE -> new Saturation(forkJoinContext, context).saturate(arguments);
+            case SHARPEN -> convolution.sharpen(arguments);
             case ANIM -> Animate.of(forkJoinContext).createAnimation(arguments);
             case LIST -> arguments;
             case LOAD -> loader.load(arguments);
+            case LOAD_MANY -> loader.loadMany(arguments);
             case WORKDIR -> setWorkDir(arguments);
             case CROP -> new Crop(forkJoinContext, context).crop(arguments);
         };
