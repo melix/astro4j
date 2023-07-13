@@ -20,6 +20,7 @@ import javafx.fxml.FXML;
 import javafx.scene.control.Alert;
 import javafx.scene.control.Button;
 import javafx.scene.control.ButtonType;
+import javafx.scene.control.ChoiceBox;
 import javafx.scene.control.ListView;
 import javafx.stage.FileChooser;
 import javafx.stage.Stage;
@@ -45,7 +46,7 @@ public class ImageMathEditor {
     public static final FileChooser.ExtensionFilter MATH_SCRIPT_EXTENSION_FILTER = new FileChooser.ExtensionFilter("ImageMath Script (*.math)", "*" + MATH_EXTENSION);
 
     @FXML
-    public ListView<ImageMathEntry> elements;
+    public ListView<ImageMathEntry> scriptsToApply;
 
     private ImageMathParams params;
     @FXML
@@ -53,6 +54,9 @@ public class ImageMathEditor {
 
     @FXML
     private Button saveButton;
+
+    @FXML
+    private ChoiceBox<PredefinedScript> predefinedScripts;
 
     private final AtomicBoolean hasPendingUpdates = new AtomicBoolean();
     private final AtomicBoolean updatingText = new AtomicBoolean();
@@ -63,11 +67,12 @@ public class ImageMathEditor {
         this.stage = stage;
         this.hostServices = hostServices;
         this.params = null;
-        var items = elements.getItems();
+        loadPredefinedScripts();
+        var items = scriptsToApply.getItems();
         if (imageMathParams != null) {
             populateFromParams(imageMathParams);
         }
-        var selectionModel = elements.getSelectionModel();
+        var selectionModel = scriptsToApply.getSelectionModel();
         var updating = new AtomicBoolean();
         selectionModel.selectedIndexProperty().addListener((observable, oldValue, newValue) -> {
             if (items.isEmpty()) {
@@ -98,7 +103,35 @@ public class ImageMathEditor {
         });
         saveButton.setDisable(true);
         if (!items.isEmpty()) {
-            elements.getSelectionModel().selectFirst();
+            scriptsToApply.getSelectionModel().selectFirst();
+        }
+    }
+
+    private void loadPredefinedScripts() {
+        predefinedScripts.getItems().add(new PredefinedScript("", ""));
+        loadPredefinedScript("helium-processing");
+        loadPredefinedScript("continuum-animation");
+        loadPredefinedScript("doppler");
+        loadPredefinedScript("virtual-eclipse");
+        predefinedScripts.getSelectionModel().selectedItemProperty().addListener((o, oldValue, newValue) -> {
+            if (doesNotHaveStaleChanges()) {
+                saveButton.setDisable(false);
+                scriptsToApply.getSelectionModel().clearSelection();
+                scriptTextArea.setText(newValue.script());
+            }
+        });
+    }
+
+    private void loadPredefinedScript(String id) {
+        predefinedScripts.getItems().add(loadScriptFromClasspath(id));
+    }
+
+    private PredefinedScript loadScriptFromClasspath(String name) {
+        var label = JSolEx.message("script." + name.replace('-', '.'));
+        try {
+            return new PredefinedScript(label, new String(ImageMathEditor.class.getResourceAsStream("/me/champeau/a4j/jsolex/templates/" + name + ".math").readAllBytes(), "utf-8"));
+        } catch (IOException e) {
+            return new PredefinedScript(label, "");
         }
     }
 
@@ -114,7 +147,7 @@ public class ImageMathEditor {
     }
 
     private void populateFromParams(ImageMathParams imageMathParams) {
-        var items = elements.getItems();
+        var items = scriptsToApply.getItems();
         items.clear();
         var scriptFiles = imageMathParams.scriptFiles();
         for (File file : scriptFiles) {
@@ -135,7 +168,7 @@ public class ImageMathEditor {
     private void ok() {
         if (doesNotHaveStaleChanges()) {
             params = new ImageMathParams(
-                    elements.getItems().stream().map(ImageMathEntry::scriptFile).toList()
+                    scriptsToApply.getItems().stream().map(ImageMathEntry::scriptFile).toList()
             );
             requestClose();
         }
@@ -145,10 +178,10 @@ public class ImageMathEditor {
     @FXML
     public void removeSelectedItem() {
         if (doesNotHaveStaleChanges()) {
-            var selectionModel = elements.getSelectionModel();
+            var selectionModel = scriptsToApply.getSelectionModel();
             var idx = selectionModel.getSelectedIndex();
             if (idx >= 0) {
-                var items = elements.getItems();
+                var items = scriptsToApply.getItems();
                 items.remove(idx);
                 selectionModel.clearSelection();
                 if (items.isEmpty()) {
@@ -176,16 +209,16 @@ public class ImageMathEditor {
             var file = fileChooser.showOpenDialog(stage);
             if (file != null) {
                 hasPendingUpdates.set(false);
-                var items = elements.getItems();
+                var items = scriptsToApply.getItems();
                 for (ImageMathEntry item : items) {
                     if (item.scriptFile().equals(file)) {
-                        elements.getSelectionModel().select(item);
+                        scriptsToApply.getSelectionModel().select(item);
                         return;
                     }
                 }
                 var item = new ImageMathEntry(file);
                 items.add(item);
-                elements.getSelectionModel().select(item);
+                scriptsToApply.getSelectionModel().select(item);
                 loadScriptFile(file);
             }
         }
@@ -199,7 +232,7 @@ public class ImageMathEditor {
     private void newScript() {
         if (doesNotHaveStaleChanges()) {
             clearTextArea();
-            elements.getSelectionModel().select(null);
+            scriptsToApply.getSelectionModel().select(null);
         }
     }
 
@@ -222,31 +255,34 @@ public class ImageMathEditor {
     @FXML
     private void saveScript() throws IOException {
         File targetFile;
-        saveButton.setDisable(true);
-        ImageMathEntry targetEntry = null;
-        if (elements.getSelectionModel().getSelectedItem() == null) {
+        ImageMathEntry targetEntry;
+        if (scriptsToApply.getSelectionModel().getSelectedItem() == null) {
             var saveDialog = new FileChooser();
             saveDialog.getExtensionFilters().add(MATH_SCRIPT_EXTENSION_FILTER);
             targetFile = saveDialog.showSaveDialog(stage);
+            if (targetFile == null) {
+                return;
+            }
+            saveButton.setDisable(true);
             if (!targetFile.getName().endsWith(MATH_EXTENSION)) {
                 targetFile = new File(targetFile.getParentFile(), targetFile.getName() + MATH_EXTENSION);
             }
             var candidateFile = targetFile;
-            var candidateEntry = elements.getItems().stream().filter(e -> e.scriptFile().equals(candidateFile)).findAny();
+            var candidateEntry = scriptsToApply.getItems().stream().filter(e -> e.scriptFile().equals(candidateFile)).findAny();
             if (candidateEntry.isPresent()) {
                 targetEntry = candidateEntry.get();
             } else {
                 var entry = new ImageMathEntry(candidateFile);
-                elements.getItems().add(entry);
+                scriptsToApply.getItems().add(entry);
                 targetEntry = entry;
             }
         } else {
-            targetEntry = elements.getSelectionModel().getSelectedItem();
+            targetEntry = scriptsToApply.getSelectionModel().getSelectedItem();
             targetFile = targetEntry.scriptFile();
         }
         Files.writeString(targetFile.toPath(), scriptTextArea.getText(), StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING);
-        elements.getSelectionModel().select(targetEntry);
         hasPendingUpdates.set(false);
+        scriptsToApply.getSelectionModel().select(targetEntry);
     }
 
     @FXML
@@ -267,4 +303,10 @@ public class ImageMathEditor {
 
     }
 
+    private record PredefinedScript(String label, String script) {
+        @Override
+        public String toString() {
+            return JSolEx.message(label);
+        }
+    }
 }

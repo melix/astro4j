@@ -1,0 +1,15 @@
+#
+# Generates a virtual eclipse, similar to the built-in one
+#
+
+[params]
+# autocrop factor
+cropFactor=1.1
+# contrast adjustment
+clip=10
+
+[tmp]
+eclipse_raw = remove_bg(disk_fill(clahe(img(0);clip)))
+
+[outputs]
+eclipse = autocrop2(eclipse_raw;cropFactor)

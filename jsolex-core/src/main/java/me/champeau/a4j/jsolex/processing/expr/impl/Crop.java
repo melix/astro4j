@@ -21,6 +21,7 @@ import me.champeau.a4j.jsolex.processing.util.ColorizedImageWrapper;
 import me.champeau.a4j.jsolex.processing.util.ForkJoinContext;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 import me.champeau.a4j.jsolex.processing.util.RGBImage;
+import me.champeau.a4j.math.image.Image;
 import me.champeau.a4j.math.regression.Ellipse;
 
 import java.util.List;
@@ -121,6 +122,11 @@ public class Crop extends AbstractFunctionImpl {
                 var mono = wrapper.mono();
                 var cropped = Cropper.cropToSquare(mono.asImage(), circle, blackpoint, diameterFactor, rounding);
                 return new ColorizedImageWrapper(ImageWrapper32.fromImage(cropped), wrapper.converter());
+            } else if (arg instanceof RGBImage rgb) {
+                var r = Cropper.cropToSquare(new Image(rgb.width(), rgb.height(), rgb.r()), circle, blackpoint, diameterFactor, rounding);
+                var g = Cropper.cropToSquare(new Image(rgb.width(), rgb.height(), rgb.g()), circle, blackpoint, diameterFactor, rounding);
+                var b = Cropper.cropToSquare(new Image(rgb.width(), rgb.height(), rgb.b()), circle, blackpoint, diameterFactor, rounding);
+                return new RGBImage(r.width(), r.height(), r.data(), g.data(), b.data());
             }
             throw new IllegalStateException("Unsupported image type");
         } else {

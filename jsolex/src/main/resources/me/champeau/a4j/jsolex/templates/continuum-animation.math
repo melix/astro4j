@@ -1,0 +1,22 @@
+#
+# Creates an animation of the continuum
+#
+
+[params]
+# the animation will be created with images from [-shift;+shift]
+shift=5
+# banding correction width and iterations
+bandingWidth=25
+bandingIterations=3
+# autocrop factor
+cropFactor=1.1
+# contrast adjustment
+clip=0.8
+
+[tmp]
+continuum_fixed=fix_banding(range(-shift,shift);bandingWidth;bandingIterations)
+cropped=autocrop2(continuum_fixed;cropFactor)
+contrast_adjusted=clahe(cropped;clip)
+
+[outputs]
+continuum_anim = anim(contrast_adjusted)

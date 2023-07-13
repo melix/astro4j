@@ -226,6 +226,7 @@ NOTE: If you don't want to provide a custom black point value, you can use a pre
 - `workdir` sets the default working directory, which is used whenever the `load` operation is done with relative paths. e.g `workdir("/path/to/session")`
 - `sharpen` will apply sharpening the target image. For example, `sharpen(img(0))`.
 - `blur` will apply Gaussian blur the target image. For example, `blur(img(0))`.
+- `disk_fill` will fill the detected sun disk with a fill color (by default, the detected black point). e.g `disk_fill(img(0))` or `disk_fill(img(0), 0)`.
 
 === ImageMath scripts
 

@@ -22,6 +22,7 @@ import me.champeau.a4j.jsolex.processing.expr.impl.BackgroundRemoval;
 import me.champeau.a4j.jsolex.processing.expr.impl.Colorize;
 import me.champeau.a4j.jsolex.processing.expr.impl.Convolution;
 import me.champeau.a4j.jsolex.processing.expr.impl.Crop;
+import me.champeau.a4j.jsolex.processing.expr.impl.DiskFill;
 import me.champeau.a4j.jsolex.processing.expr.impl.FixBanding;
 import me.champeau.a4j.jsolex.processing.expr.impl.Loader;
 import me.champeau.a4j.jsolex.processing.expr.impl.RGBCombination;
@@ -142,6 +143,7 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
             case LOAD_MANY -> loader.loadMany(arguments);
             case WORKDIR -> setWorkDir(arguments);
             case CROP -> new Crop(forkJoinContext, context).crop(arguments);
+            case DISK_FILL -> new DiskFill(forkJoinContext, context).fill(arguments);
         };
     }
 

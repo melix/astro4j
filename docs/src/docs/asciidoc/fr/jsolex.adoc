@@ -224,6 +224,7 @@ NOTE: Si vous ne connaissez pas la valeur du point noir, vous pouvez utiliser la
 - `workdir` définit le dossier de travail par défaut. Il est notamment utilisé pour charger les images avec `load`. Par exemple: `workdir("/chemin/vers/dossier/images")`.
 - `sharpen` applique un filtre d'augmentation des détails à votre image. Exemple: `sharpen(img(0))`.
 - `blur` applique un flou gaussien à votre image. Par exemple : `blur(img(0))`.
+- `disk_fill` remplit le disque solaire détecté avec une valeur donnée (par défault, celle du point noir détecté). Par exemple `disk_fill(img(0))` ou `disk_fill(img(0), 0)`.
 
 === Scripts ImageMath
 

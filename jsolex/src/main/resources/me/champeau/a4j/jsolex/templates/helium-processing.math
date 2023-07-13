@@ -1,0 +1,38 @@
+#
+# ImageMath Script for processing an Helium video
+# By Sylvain Weiller and Cédric Champeau
+#
+
+[params]
+# The shifting between the helium line and the detected line (in pixels)
+HeliumShift=-60
+# Continuum Hi and Lo values
+ContinuumLo=-40
+ContinuumHi=-35
+# Continuum substraction coefficient
+ContinuumCoef=1
+# Stretching factor of the image (for brightness/contrast)
+Stretch=80
+ContrastLimit=200
+# Banding correction width
+BandWidth=25
+# Banding correction iterations
+BandIterations=20
+# Clahe clip limit and contrast
+Clip=1.2
+# Autocrop factor (of diameter)
+AutoCropFactor=1.1
+
+## Temporary variables
+[tmp]
+continuum = max(range(ContinuumLo,ContinuumHi))
+helium_raw = img(HeliumShift) - ContinuumCoef*continuum
+# Warning! Banding fix must be done before any cropping!
+helium_fixed = fix_banding(helium_raw;BandWidth;BandIterations)
+helium_bg = remove_bg(helium_fixed)
+cropped = autocrop2(clahe(helium_bg;Clip);AutoCropFactor)
+
+## Let's produce the images now!
+[outputs]
+helium_clahe = adjust_contrast(cropped;10;ContrastLimit)
+helium_color = colorize(helium_clahe, 81, 152, 91, 140, 175, 88)
