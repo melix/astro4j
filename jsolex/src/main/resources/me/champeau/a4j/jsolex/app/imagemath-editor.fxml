@@ -14,7 +14,8 @@
 
 <?import me.champeau.a4j.jsolex.app.jfx.ime.ImageMathTextArea?>
 <?import javafx.scene.control.Hyperlink?>
-<BorderPane maxHeight="-Infinity" maxWidth="-Infinity" minHeight="-Infinity" minWidth="-Infinity" prefHeight="420.0" prefWidth="748.0" xmlns="http://javafx.com/javafx/19"
+<?import javafx.scene.control.ChoiceBox?>
+<BorderPane maxHeight="-Infinity" maxWidth="-Infinity" minHeight="-Infinity" minWidth="-Infinity" prefHeight="420.0" prefWidth="1024.0" xmlns="http://javafx.com/javafx/19"
             xmlns:fx="http://javafx.com/fxml/1" fx:controller="me.champeau.a4j.jsolex.app.jfx.ImageMathEditor">
     <center>
         <VBox>
@@ -33,16 +34,20 @@
                         <Insets left="4" right="8" bottom="4" top="4"/>
                     </VBox.margin>
                 </ImageMathTextArea>
-                <ButtonBar BorderPane.alignment="CENTER">
-                    <buttons>
-                        <Button mnemonicParsing="false" onAction="#newScript" prefHeight="24.0" prefWidth="86.0" text="%new"/>
-                        <Button mnemonicParsing="false" onAction="#loadScript" prefHeight="24.0" prefWidth="86.0" text="%load"/>
-                        <Button fx:id="saveButton" mnemonicParsing="false" onAction="#saveScript" prefHeight="24.0" prefWidth="86.0" text="%save"/>
-                    </buttons>
-                    <padding>
-                        <Insets right="4.0" top="4.0"/>
-                    </padding>
-                </ButtonBar>
+                <HBox BorderPane.alignment="CENTER" alignment="CENTER_LEFT" spacing="4.0">
+                    <Label text="%predefined.scripts"/>
+                    <ChoiceBox fx:id="predefinedScripts"/>
+                    <ButtonBar BorderPane.alignment="CENTER">
+                        <buttons>
+                            <Button mnemonicParsing="false" onAction="#newScript" prefHeight="24.0" prefWidth="86.0" text="%new"/>
+                            <Button mnemonicParsing="false" onAction="#loadScript" prefHeight="24.0" prefWidth="86.0" text="%load"/>
+                            <Button fx:id="saveButton" mnemonicParsing="false" onAction="#saveScript" prefHeight="24.0" prefWidth="86.0" text="%save"/>
+                        </buttons>
+                        <padding>
+                            <Insets right="4.0" top="4.0"/>
+                        </padding>
+                    </ButtonBar>
+                </HBox>
             </children>
         </VBox>
     </center>
@@ -67,7 +72,7 @@
                                 <Insets bottom="2.0"/>
                             </VBox.margin>
                         </Label>
-                        <ListView fx:id="elements" prefHeight="320.0" prefWidth="204.0"/>
+                        <ListView fx:id="scriptsToApply" prefHeight="320.0" prefWidth="204.0"/>
                     </children>
                 </VBox>
             </center>

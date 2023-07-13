@@ -38,6 +38,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.stream.Collectors;
@@ -74,6 +75,7 @@ public class ImageMathTextArea extends BorderPane {
             codeArea.replaceText(text);
             codeArea.moveTo(0);
             codeArea.showParagraphAtTop(0);
+            requestHighlighting();
         });
     }
 
@@ -99,6 +101,14 @@ public class ImageMathTextArea extends BorderPane {
 
     private void applyHighlighting(StyleSpans<Collection<String>> highlighting) {
         codeArea.setStyleSpans(0, highlighting);
+    }
+
+    public void requestHighlighting() {
+        try {
+            applyHighlighting(computeHighlightingAsync().get());
+        } catch (InterruptedException | ExecutionException e) {
+            // ignore
+        }
     }
 
     private StyleSpans<Collection<String>> computeHighlighting(String text) {

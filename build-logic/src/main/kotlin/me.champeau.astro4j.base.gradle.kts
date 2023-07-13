@@ -45,6 +45,7 @@ tasks.rat {
     excludes.add("**/*.fxml")
     excludes.add("**/*.xml")
     excludes.add("**/*.md")
+    excludes.add("**/*.math")
     excludes.add("**/*.properties")
     excludes.add("**/javadoc.options")
 }
