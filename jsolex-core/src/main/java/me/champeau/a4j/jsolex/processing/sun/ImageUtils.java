@@ -20,7 +20,6 @@ import me.champeau.a4j.jsolex.processing.util.ImageFormat;
 import me.champeau.a4j.jsolex.processing.util.ProcessingException;
 import me.champeau.a4j.math.regression.Ellipse;
 import me.champeau.a4j.ser.ColorMode;
-import me.champeau.a4j.ser.EightBitConversionSupport;
 import me.champeau.a4j.ser.bayer.BilinearDemosaicingStrategy;
 import me.champeau.a4j.ser.bayer.ChannelExtractingConverter;
 import me.champeau.a4j.ser.bayer.DemosaicingRGBImageConverter;
@@ -29,6 +28,7 @@ import me.champeau.a4j.ser.bayer.ImageConverter;
 
 import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;
+import java.awt.image.DataBufferUShort;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -52,16 +52,11 @@ public class ImageUtils {
             float[] data,
             File outputFile,
             Set<ImageFormat> imageFormats) {
-        var image = new BufferedImage(width, height, BufferedImage.TYPE_BYTE_GRAY);
-        byte[] converted = EightBitConversionSupport.to8BitImage(data);
-        int[] rgb = new int[width * height];
-        for (int x = 0; x < width; x++) {
-            for (int y = 0; y < height; y++) {
-                int value = converted[y * width + x] & 0xFF;
-                rgb[x + y * width] = value << 16 | value << 8 | value;
-            }
+        var image = new BufferedImage(width, height, BufferedImage.TYPE_USHORT_GRAY);
+        short[] converted = ((DataBufferUShort) image.getRaster().getDataBuffer()).getData();
+        for (int i = 0; i < converted.length; i++) {
+            converted[i] = (short) Math.round(data[i]);
         }
-        image.setRGB(0, 0, width, height, rgb, 0, width);
         writeAllFormats(outputFile, imageFormats, image);
     }
 

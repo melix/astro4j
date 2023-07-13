@@ -22,6 +22,7 @@ import me.champeau.a4j.jsolex.processing.util.RGBImage;
 
 import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;
+import java.awt.image.DataBufferUShort;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Path;
@@ -71,9 +72,17 @@ public class Loader extends AbstractFunctionImpl {
                 return new RGBImage(width, height, r, g, b);
             } else {
                 var data = new float[size];
-                var rgb = image.getRGB(0, 0, width, height, null, 0, width);
-                for (int i = 0; i < data.length; i++) {
-                    data[i] = rgb[i] & 0xFF;
+                var dataBuffer = image.getRaster().getDataBuffer();
+                if (dataBuffer instanceof DataBufferUShort shortBuffer) {
+                    // 16-bit image
+                    for (int i = 0; i < size; i++) {
+                        data[i] = shortBuffer.getElemFloat(i);
+                    }
+                } else {
+                    var rgb = image.getRGB(0, 0, width, height, null, 0, width);
+                    for (int i = 0; i < data.length; i++) {
+                        data[i] = rgb[i] & 0xFF;
+                    }
                 }
                 return new ImageWrapper32(width, height, data);
             }
