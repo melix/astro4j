@@ -16,22 +16,37 @@
 package me.champeau.a4j.jsolex.processing.expr.impl;
 
 import me.champeau.a4j.jsolex.processing.util.ForkJoinContext;
+import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 import me.champeau.a4j.jsolex.processing.util.ProcessingException;
 import me.champeau.a4j.jsolex.processing.util.RGBImage;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;
 import java.awt.image.DataBufferUShort;
 import java.io.File;
 import java.io.IOException;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
+import java.util.regex.Pattern;
 
 import static me.champeau.a4j.jsolex.processing.expr.impl.ScriptSupport.expandToImageList;
 
 public class Loader extends AbstractFunctionImpl {
+    private static final Logger LOGGER = LoggerFactory.getLogger(Loader.class);
+    private static final Set<String> RECOGNIZED_IMAGE_FORMATS = Set.of(
+            "png",
+            "jpg",
+            "jpeg",
+            "tif",
+            "tiff"
+    );
 
     public Loader(ForkJoinContext forkJoinContext, Map<Class<?>, Object> context) {
         super(forkJoinContext, context);
@@ -48,46 +63,82 @@ public class Loader extends AbstractFunctionImpl {
             return expandToImageList(forkJoinContext, arguments, this::load);
         }
         if (arg instanceof String path) {
-            BufferedImage image;
-            try {
-                image = ImageIO.read(workingDirectory.resolve(path).toFile());
-            } catch (IOException e) {
-                throw new ProcessingException(e);
-            }
-            var width = image.getWidth();
-            var height = image.getHeight();
-            var colorModel = image.getColorModel();
-            var size = width * height;
-            if (colorModel.getNumComponents() == 3) {
-                var r = new float[size];
-                var g = new float[size];
-                var b = new float[size];
-                var color = image.getRGB(0, 0, width, height, null, 0, width);
-                for (int i = 0; i < size; i++) {
-                    var pixel = color[i];
-                    r[i] = (pixel >> 16) & 0xFF;
-                    g[i] = (pixel >> 8) & 0xFF;
-                    b[i] = pixel & 0xFF;
-                }
-                return new RGBImage(width, height, r, g, b);
-            } else {
-                var data = new float[size];
-                var dataBuffer = image.getRaster().getDataBuffer();
-                if (dataBuffer instanceof DataBufferUShort shortBuffer) {
-                    // 16-bit image
-                    for (int i = 0; i < size; i++) {
-                        data[i] = shortBuffer.getElemFloat(i);
-                    }
-                } else {
-                    var rgb = image.getRGB(0, 0, width, height, null, 0, width);
-                    for (int i = 0; i < data.length; i++) {
-                        data[i] = rgb[i] & 0xFF;
-                    }
-                }
-                return new ImageWrapper32(width, height, data);
-            }
+            var file = workingDirectory.resolve(path).toFile();
+            return doLoadImage(file);
         }
         throw new IllegalArgumentException("Unsupported argument '" + arg + "' to load()");
+    }
+
+    private static ImageWrapper doLoadImage(File file) {
+        BufferedImage image;
+        try {
+            image = ImageIO.read(file);
+        } catch (IOException e) {
+            throw new ProcessingException(e);
+        }
+        var width = image.getWidth();
+        var height = image.getHeight();
+        var colorModel = image.getColorModel();
+        var size = width * height;
+        if (colorModel.getNumComponents() == 3) {
+            var r = new float[size];
+            var g = new float[size];
+            var b = new float[size];
+            var color = image.getRGB(0, 0, width, height, null, 0, width);
+            for (int i = 0; i < size; i++) {
+                var pixel = color[i];
+                r[i] = (pixel >> 16) & 0xFF;
+                g[i] = (pixel >> 8) & 0xFF;
+                b[i] = pixel & 0xFF;
+            }
+            return new RGBImage(width, height, r, g, b);
+        } else {
+            var data = new float[size];
+            var dataBuffer = image.getRaster().getDataBuffer();
+            if (dataBuffer instanceof DataBufferUShort shortBuffer) {
+                // 16-bit image
+                for (int i = 0; i < size; i++) {
+                    data[i] = shortBuffer.getElemFloat(i);
+                }
+            } else {
+                var rgb = image.getRGB(0, 0, width, height, null, 0, width);
+                for (int i = 0; i < data.length; i++) {
+                    data[i] = rgb[i] & 0xFF;
+                }
+            }
+            return new ImageWrapper32(width, height, data);
+        }
+    }
+
+    public List<ImageWrapper> loadMany(List<Object> arguments) {
+        if (arguments.size() > 2) {
+            throw new IllegalArgumentException("loadMany takes 1 or 2 arguments (directory, [pattern])");
+        }
+        var directory = (String) arguments.get(0);
+        var pattern = Pattern.compile(arguments.size() == 2 ? (String) arguments.get(1) : ".*");
+        var lookupDir = workingDirectory.resolve(directory);
+        if (Files.isDirectory(lookupDir)) {
+            try (var stream = Files.list(lookupDir)) {
+                return stream.map(Path::toFile)
+                        .filter(p -> pattern.matcher(p.getName()).matches())
+                        .filter(Loader::isImageFile)
+                        .map(Loader::doLoadImage)
+                        .toList();
+            } catch (IOException e) {
+                LOGGER.error("Unable to load files", e);
+                return List.of();
+            }
+        }
+        return List.of();
+    }
+
+    private static boolean isImageFile(File file) {
+        var name = file.getName();
+        if (!name.contains(".")) {
+            return false;
+        }
+        var extension = name.substring(name.lastIndexOf(".") + 1).toLowerCase(Locale.US);
+        return RECOGNIZED_IMAGE_FORMATS.contains(extension);
     }
 
     public Path getWorkingDirectory() {

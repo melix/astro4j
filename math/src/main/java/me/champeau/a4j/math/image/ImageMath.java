@@ -23,6 +23,8 @@ import static java.lang.Math.round;
 
 public interface ImageMath {
 
+    int MAX_VALUE = 65535;
+
     static ImageMath newInstance() {
         if (VectorApiSupport.isEnabled()) {
             return new VectorApiImageMath();
@@ -308,7 +310,8 @@ public interface ImageMath {
                         sum += coef * source[cx + cy * width];
                     }
                 }
-                convolved[x + y * width] = sum * kernel.factor();
+                var val = Math.min(Math.max(0, sum * kernel.factor()), MAX_VALUE);
+                convolved[x + y * width] = val;
             }
         }
         return image.withData(convolved);
