@@ -18,6 +18,8 @@ package me.champeau.a4j.jsolex.app.listeners;
 import me.champeau.a4j.jsolex.app.JSolEx;
 import me.champeau.a4j.jsolex.app.jfx.BatchItem;
 import me.champeau.a4j.jsolex.app.jfx.BatchOperations;
+import me.champeau.a4j.jsolex.processing.event.FileGeneratedEvent;
+import me.champeau.a4j.jsolex.processing.event.GeneratedImage;
 import me.champeau.a4j.jsolex.processing.event.ImageGeneratedEvent;
 import me.champeau.a4j.jsolex.processing.event.Notification;
 import me.champeau.a4j.jsolex.processing.event.NotificationEvent;
@@ -26,25 +28,39 @@ import me.champeau.a4j.jsolex.processing.event.PartialReconstructionEvent;
 import me.champeau.a4j.jsolex.processing.event.ProcessingDoneEvent;
 import me.champeau.a4j.jsolex.processing.event.ProcessingEventListener;
 import me.champeau.a4j.jsolex.processing.event.ProcessingStartEvent;
+import me.champeau.a4j.jsolex.processing.event.ScriptExecutionResultEvent;
 import me.champeau.a4j.jsolex.processing.event.VideoMetadataEvent;
+import me.champeau.a4j.jsolex.processing.expr.DefaultImageScriptExecutor;
+import me.champeau.a4j.jsolex.processing.expr.ImageMathScriptExecutor;
+import me.champeau.a4j.jsolex.processing.expr.ImageMathScriptResult;
 import me.champeau.a4j.jsolex.processing.file.FileNamingStrategy;
 import me.champeau.a4j.jsolex.processing.params.ProcessParams;
 import me.champeau.a4j.jsolex.processing.stretching.LinearStrechingStrategy;
+import me.champeau.a4j.jsolex.processing.util.Constants;
 import me.champeau.a4j.jsolex.processing.util.ImageSaver;
+import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
+import me.champeau.a4j.jsolex.processing.util.ProcessingException;
 import me.champeau.a4j.ser.Header;
 
 import java.io.File;
 import java.io.IOException;
 import java.nio.charset.Charset;
 import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.stream.Collectors;
 
 import static me.champeau.a4j.jsolex.processing.util.LoggingSupport.LOGGER;
 
-public class BatchModeEventListener implements ProcessingEventListener {
+public class BatchModeEventListener implements ProcessingEventListener, ImageMathScriptExecutor {
 
     private final JSolExInterface owner;
+    private final SingleModeProcessingEventListener delegate;
     private final ProcessParams processParams;
     private final BatchItem item;
     private final AtomicInteger completed;
@@ -52,18 +68,23 @@ public class BatchModeEventListener implements ProcessingEventListener {
     private final File outputDirectory;
     private final LocalDateTime processingDate;
     private final int sequenceNumber;
+    private DefaultImageScriptExecutor batchScriptExecutor;
 
     private Header header;
+    private final Map<String, List<ImageWrapper>> imagesByLabel;
 
     public BatchModeEventListener(JSolExInterface owner,
+                                  SingleModeProcessingEventListener delegate,
                                   int sequenceNumber,
                                   BatchProcessingContext context,
                                   ProcessParams processParams) {
         this.owner = owner;
+        this.delegate = delegate;
         this.processParams = processParams;
         this.completed = context.progress();
         this.outputDirectory = context.outputDirectory();
         this.processingDate = context.processingDate();
+        this.imagesByLabel = context.imagesByLabel();
         this.item = context.items().stream().filter(batchItem -> batchItem.id() == sequenceNumber).findFirst().get();
         this.totalItems = context.items().size();
         this.sequenceNumber = sequenceNumber;
@@ -111,17 +132,89 @@ public class BatchModeEventListener implements ProcessingEventListener {
             return;
         }
         item.status().set(JSolEx.message("batch.ok"));
+        if (completed.get() == totalItems) {
+            executeBatchScriptExpressions();
+        }
+    }
+
+    private void executeBatchScriptExpressions() {
+        var scriptFiles = processParams.requestedImages().mathImages().scriptFiles();
+        if (scriptFiles.isEmpty()) {
+            return;
+        }
+        batchScriptExecutor = new DefaultImageScriptExecutor(
+                owner.getCpuExecutor(),
+                idx -> {
+                    throw new IllegalStateException("Cannot call img() in batch outputs. Use variables to store images instead");
+                },
+                Map.of()
+        );
+        for (Map.Entry<String, List<ImageWrapper>> entry : imagesByLabel.entrySet()) {
+            batchScriptExecutor.putVariable(entry.getKey(), entry.getValue());
+        }
+        var namingStrategy = createNamingStrategy();
+        boolean initial = true;
+        for (File scriptFile : scriptFiles) {
+            if (initial) {
+                owner.prepareForScriptExecution(this, processParams);
+                initial = false;
+            }
+            executeBatchScript(namingStrategy, scriptFile);
+        }
+    }
+
+
+    private void executeBatchScript(FileNamingStrategy namingStrategy, File scriptFile) {
+        ImageMathScriptResult result;
+        try {
+            result = batchScriptExecutor.execute(scriptFile.toPath(), ImageMathScriptExecutor.SectionKind.BATCH);
+        } catch (IOException e) {
+            throw new ProcessingException(e);
+        }
+        renderBatchOutputs(namingStrategy, result);
+    }
+
+    private void renderBatchOutputs(FileNamingStrategy namingStrategy, ImageMathScriptResult result) {
+        for (Map.Entry<String, ImageWrapper> entry : result.imagesByLabel().entrySet()) {
+            owner.getCpuExecutor().async(() -> {
+                var name = namingStrategy.render(0, Constants.TYPE_PROCESSED, entry.getKey(), "batch");
+                var outputFile = new File(outputDirectory, name);
+                delegate.onImageGenerated(new ImageGeneratedEvent(
+                        new GeneratedImage(entry.getKey(), outputFile.toPath(), entry.getValue())
+                ));
+
+            });
+        }
+        for (Map.Entry<String, Path> entry : result.filesByLabel().entrySet()) {
+            owner.getCpuExecutor().async(() -> {
+                var name = namingStrategy.render(0, Constants.TYPE_PROCESSED, entry.getKey(), "batch");
+                try {
+                    var fileName = entry.getValue().toFile().getName();
+                    var ext = fileName.substring(fileName.lastIndexOf("."));
+                    var targetPath = new File(outputDirectory, name + ext).toPath();
+                    Files.move(entry.getValue(), targetPath, StandardCopyOption.REPLACE_EXISTING);
+                    delegate.onFileGenerated(FileGeneratedEvent.of(entry.getKey(), targetPath));
+                } catch (IOException e) {
+                    throw new ProcessingException(e);
+                }
+            });
+        }
+    }
+
+    @Override
+    public void onScriptExecutionResult(ScriptExecutionResultEvent e) {
+        synchronized (imagesByLabel) {
+            var images = e.getPayload().imagesByLabel();
+            for (Map.Entry<String, ImageWrapper> entry : images.entrySet()) {
+                imagesByLabel.computeIfAbsent(entry.getKey(), unused -> new ArrayList<>())
+                        .add(entry.getValue());
+            }
+        }
     }
 
     private void maybeWriteLogs() {
         if (item.log().length() > 0 && header != null) {
-            var namingStrategy = new FileNamingStrategy(
-                    processParams.extraParams().fileNamePattern(),
-                    processParams.extraParams().datetimeFormat(),
-                    processParams.extraParams().dateFormat(),
-                    processingDate,
-                    header
-            );
+            var namingStrategy = createNamingStrategy();
             var fileName = item.file().getName();
             var logFileName = namingStrategy.render(sequenceNumber, "log", "notifications", fileName.substring(0, fileName.lastIndexOf("."))) + ".txt";
             try {
@@ -132,6 +225,16 @@ public class BatchModeEventListener implements ProcessingEventListener {
                 // ignore
             }
         }
+    }
+
+    private FileNamingStrategy createNamingStrategy() {
+        return new FileNamingStrategy(
+                processParams.extraParams().fileNamePattern(),
+                processParams.extraParams().datetimeFormat(),
+                processParams.extraParams().dateFormat(),
+                processingDate,
+                header
+        );
     }
 
     private void updateProgressStatus(boolean increment) {
@@ -160,5 +263,25 @@ public class BatchModeEventListener implements ProcessingEventListener {
         if (e.type() == Notification.AlertType.ERROR) {
             item.status().set(JSolEx.message("batch.error"));
         }
+    }
+
+    @Override
+    public ImageMathScriptResult execute(String script, SectionKind kind) {
+        var result = batchScriptExecutor.execute(script, SectionKind.BATCH);
+        var invalidExpressions = result.invalidExpressions();
+        renderBatchOutputs(createNamingStrategy(), result);
+        var errorCount = invalidExpressions.size();
+        if (errorCount > 0) {
+            String message = invalidExpressions.stream()
+                    .map(invalidExpression -> "Expression '" + invalidExpression.label() + "' (" + invalidExpression.expression() + ") : " + invalidExpression.error().getMessage())
+                    .collect(Collectors.joining(System.lineSeparator()));
+            delegate.onNotification(new NotificationEvent(new Notification(
+                    Notification.AlertType.ERROR,
+                    JSolEx.message("error.processing.script"),
+                    JSolEx.message("script.errors." + (errorCount == 1 ? "single" : "many")),
+                    message
+            )));
+        }
+        return result;
     }
 }

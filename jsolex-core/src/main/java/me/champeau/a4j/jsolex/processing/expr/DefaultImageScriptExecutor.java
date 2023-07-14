@@ -25,6 +25,7 @@ import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.EnumMap;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -38,6 +39,7 @@ import java.util.function.Function;
 public class DefaultImageScriptExecutor implements ImageMathScriptExecutor {
     public static final String BLACK_POINT_VAR = "blackPoint";
     public static final String OUTPUTS_SECTION_NAME = "outputs";
+    public static final String BATCH_SECTION_NAME = "batch";
 
     private final ForkJoinContext forkJoinContext;
     private final Function<Integer, ImageWrapper> imagesByShift;
@@ -45,6 +47,7 @@ public class DefaultImageScriptExecutor implements ImageMathScriptExecutor {
     private final AtomicInteger executionCount = new AtomicInteger(0);
     private final Broadcaster broadcaster;
     private final ScriptTokenizer tokenizer = new ScriptTokenizer();
+    private final Map<String, Object> variables = new HashMap<>();
 
     public DefaultImageScriptExecutor(ForkJoinContext forkJoinContext,
                                       Function<Integer, ImageWrapper> imagesByShift,
@@ -63,27 +66,32 @@ public class DefaultImageScriptExecutor implements ImageMathScriptExecutor {
     }
 
     @Override
-    public ImageMathScriptResult execute(String script) {
+    public void putVariable(String name, Object value) {
+        variables.put(name, value);
+    }
+
+    @Override
+    public ImageMathScriptResult execute(String script, SectionKind kind) {
         var index = executionCount.getAndIncrement();
         var evaluator = new MemoizingExpressionEvaluator(forkJoinContext);
         populateContext(evaluator);
-        var invalidExpressions = new ArrayList<InvalidExpression>();
-        var outputs = prepareOutputExpressions(script, index, evaluator, invalidExpressions);
+        var outputs = prepareOutputExpressions(script, index, evaluator, kind);
         var producedImages = new HashMap<String, ImageWrapper>();
         var producedFiles = new HashMap<String, Path>();
-        return executeScript(evaluator, invalidExpressions, outputs, producedImages, producedFiles);
+        return executeScript(evaluator, outputs, producedImages, producedFiles);
     }
 
     private ImageMathScriptResult executeScript(ShiftCollectingImageExpressionEvaluator evaluator,
-                                                List<InvalidExpression> invalidExpressions,
-                                                Map<String, String> outputs,
+                                                PreparedScript preparedScript,
                                                 Map<String, ImageWrapper> producedImages,
                                                 Map<String, Path> producedFiles) {
         var imageStats = (ImageStats) context.get(ImageStats.class);
         if (imageStats != null) {
             evaluator.putVariable(BLACK_POINT_VAR, String.format(Locale.US, "%.3f", imageStats.blackpoint()));
         }
+        var invalidExpressions = new ArrayList<InvalidExpression>();
         var variableShifts = new TreeSet<>(evaluator.getShifts());
+        var outputs = preparedScript.outputs;
         for (Map.Entry<String, String> output : outputs.entrySet()) {
             var label = output.getKey();
             var expression = output.getValue();
@@ -107,7 +115,7 @@ public class DefaultImageScriptExecutor implements ImageMathScriptExecutor {
                 var result = evaluator.evaluate(expression);
                 if (result instanceof ImageWrapper image) {
                     producedImages.put(label, image);
-                }  else if (result instanceof FileOutput file) {
+                } else if (result instanceof FileOutput file) {
                     producedFiles.put(label, file.file());
                 } else if (result instanceof List<?> images) {
                     int img = 0;
@@ -133,18 +141,33 @@ public class DefaultImageScriptExecutor implements ImageMathScriptExecutor {
         return OUTPUTS_SECTION_NAME.equals(currentSection);
     }
 
-    private Map<String, String> prepareOutputExpressions(String script,
-                                                         int index,
-                                                         AbstractImageExpressionEvaluator evaluator,
-                                                         List<InvalidExpression> invalidExpressions) {
-        var outputs = new LinkedHashMap<String, String>();
+    private static boolean isBatchSectionName(String currentSection) {
+        return BATCH_SECTION_NAME.equals(currentSection);
+    }
+
+    private PreparedScript prepareOutputExpressions(String script,
+                                                    int index,
+                                                    AbstractImageExpressionEvaluator evaluator,
+                                                    SectionKind kind) {
+        var scriptsPerSection = new EnumMap<SectionKind, PreparedScript>(SectionKind.class);
+        var currentSectionKind = SectionKind.SINGLE;
         int cpt = 0;
         String currentSection = null;
-        Map<String, String> variables = new LinkedHashMap<>();
+        var invalidExpressions = new ArrayList<InvalidExpression>();
+        var variables = new LinkedHashMap<String, String>();
+        var outputs = new LinkedHashMap<String, String>();
         var tokens = tokenizer.tokenize(script);
         for (ScriptToken token : tokens) {
             if (token instanceof ScriptToken.Section section) {
                 currentSection = section.name();
+                if (section.isMajor() && isBatchSectionName(currentSection)) {
+                    collectInternalShifts(evaluator, variables, outputs);
+                    scriptsPerSection.put(SectionKind.SINGLE, new PreparedScript(outputs, invalidExpressions));
+                    outputs = new LinkedHashMap<>();
+                    invalidExpressions = new ArrayList<>();
+                    variables = new LinkedHashMap<>();
+                    currentSectionKind = SectionKind.BATCH;
+                }
             } else if (token instanceof ScriptToken.VariableDefinition variableDefinition) {
                 var variable = variableDefinition.variable();
                 var candidate = variableDefinition.expression();
@@ -181,6 +204,29 @@ public class DefaultImageScriptExecutor implements ImageMathScriptExecutor {
                 invalidExpressions.add(new InvalidExpression(dynamicVarName, invalid.value(), new SyntaxError("Syntax error")));
             }
         }
+        collectInternalShifts(evaluator, variables, outputs);
+        scriptsPerSection.put(currentSectionKind, new PreparedScript(outputs, invalidExpressions));
+        var single = scriptsPerSection.get(SectionKind.SINGLE);
+        var batch = scriptsPerSection.get(SectionKind.BATCH);
+        return switch (kind) {
+            case SINGLE -> single;
+            case BATCH -> scriptsPerSection.get(SectionKind.BATCH);
+            case ALL -> {
+                var allOutputs = new HashMap<>(single.outputs());
+                var allInvalidExpressions = new ArrayList<>(single.invalidExpressions());
+                if (batch != null) {
+                    allOutputs.putAll(batch.outputs());
+                    allInvalidExpressions.addAll(batch.invalidExpressions());
+                }
+                yield new PreparedScript(
+                        allOutputs,
+                        allInvalidExpressions
+                );
+            }
+        };
+    }
+
+    private void collectInternalShifts(AbstractImageExpressionEvaluator evaluator, LinkedHashMap<String, String> variables, LinkedHashMap<String, String> outputs) {
         // Collect internal shifts
         var variableNames = variables.keySet();
         double size = variableNames.size();
@@ -198,7 +244,6 @@ public class DefaultImageScriptExecutor implements ImageMathScriptExecutor {
             // no explicit [outputs] section, consider everything an output
             outputs.putAll(variables);
         }
-        return outputs;
     }
 
     private static Variable.InvalidNameException createReservedNameError(String name) {
@@ -221,6 +266,14 @@ public class DefaultImageScriptExecutor implements ImageMathScriptExecutor {
         }
 
         @Override
+        protected Object variable(String name) {
+            if (variables.containsKey(name)) {
+                return variables.get(name);
+            }
+            return super.variable(name);
+        }
+
+        @Override
         public Object evaluate(String expression) {
             return memoizeCache.computeIfAbsent(expression, this::doEvaluate);
         }
@@ -239,6 +292,11 @@ public class DefaultImageScriptExecutor implements ImageMathScriptExecutor {
         public SyntaxError(String message) {
             super(message);
         }
+    }
+
+    private record PreparedScript(Map<String, String> outputs,
+                                  List<InvalidExpression> invalidExpressions) {
+
     }
 
 }

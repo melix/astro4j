@@ -13,44 +13,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package me.champeau.a4j.jsolex.expr;
+package me.champeau.a4j.jsolex.processing.event;
 
-import java.util.Locale;
+import me.champeau.a4j.jsolex.processing.expr.ImageMathScriptResult;
 
-public enum BuiltinFunction {
-    ADJUST_CONTRAST,
-    ANIM,
-    ASINH_STRETCH,
-    AUTOCROP,
-    AUTOCROP2,
-    AVG,
-    MEDIAN,
-    BLUR,
-    CLAHE,
-    COLORIZE,
-    CROP,
-    DISK_FILL,
-    FIX_BANDING,
-    IMG,
-    INVERT,
-    LINEAR_STRETCH,
-    LIST,
-    LOAD,
-    LOAD_MANY,
-    MAX,
-    MIN,
-    RANGE,
-    REMOVE_BG,
-    RGB,
-    SATURATE,
-    SHARPEN,
-    WORKDIR;
+public final class ScriptExecutionResultEvent extends ProcessingEvent<ImageMathScriptResult> {
 
-    public String lowerCaseName() {
-        return name().toLowerCase(Locale.US);
-    }
-
-    static BuiltinFunction of(String value) {
-        return valueOf(value.toUpperCase(Locale.US));
+    public ScriptExecutionResultEvent(ImageMathScriptResult result) {
+        super(result);
     }
 }

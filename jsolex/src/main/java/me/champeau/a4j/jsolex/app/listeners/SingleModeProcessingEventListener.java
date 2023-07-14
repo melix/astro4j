@@ -353,14 +353,14 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
     }
 
     @Override
-    public ImageMathScriptResult execute(String script) {
+    public ImageMathScriptResult execute(String script, SectionKind kind) {
         // perform a first pass just to check if they are missing image shifts
         Set<Integer> missingShifts = determineShiftsRequiredInScript(script);
         missingShifts.removeAll(shiftImages.keySet());
         if (!missingShifts.isEmpty()) {
             restartProcessForMissingShifts(missingShifts);
         }
-        var result = imageScriptExecutor.execute(script);
+        var result = imageScriptExecutor.execute(script, SectionKind.SINGLE);
         ImageMathScriptExecutor.render(result, imageEmitter);
         var invalidExpressions = result.invalidExpressions();
         var errorCount = invalidExpressions.size();
@@ -408,7 +408,7 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
                 ShiftCollectingImageExpressionEvaluator.zeroImages(),
                 scriptExecutionContext
         );
-        var shiftCollectionResult = collectingExecutor.execute(script);
+        var shiftCollectionResult = collectingExecutor.execute(script, SectionKind.SINGLE);
         Set<Integer> allShifts = new TreeSet<>();
         allShifts.addAll(shiftCollectionResult.outputShifts());
         allShifts.addAll(shiftCollectionResult.internalShifts());

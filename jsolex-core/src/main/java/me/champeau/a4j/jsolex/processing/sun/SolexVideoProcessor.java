@@ -28,6 +28,7 @@ import me.champeau.a4j.jsolex.processing.event.ProcessingEvent;
 import me.champeau.a4j.jsolex.processing.event.ProcessingEventListener;
 import me.champeau.a4j.jsolex.processing.event.ProcessingStartEvent;
 import me.champeau.a4j.jsolex.processing.event.ProgressEvent;
+import me.champeau.a4j.jsolex.processing.event.ScriptExecutionResultEvent;
 import me.champeau.a4j.jsolex.processing.event.SuggestionEvent;
 import me.champeau.a4j.jsolex.processing.event.VideoMetadataEvent;
 import me.champeau.a4j.jsolex.processing.expr.DefaultImageScriptExecutor;
@@ -318,13 +319,14 @@ public class SolexVideoProcessor implements Broadcaster {
                             Collections.unmodifiableMap(context),
                             this);
                     try {
-                        var result = scriptRunner.execute(scriptFile.toPath());
+                        var result = scriptRunner.execute(scriptFile.toPath(), ImageMathScriptExecutor.SectionKind.SINGLE);
                         ImageMathScriptExecutor.render(result, emitter);
                         if (!result.invalidExpressions().isEmpty()) {
                             for (InvalidExpression expression : result.invalidExpressions()) {
                                 LOGGER.error("Found invalid expression {} ({}): {}", expression.label(), expression.expression(), expression.error());
                             }
                         }
+                        broadcast(new ScriptExecutionResultEvent(result));
                     } catch (IOException e) {
                         throw new ProcessingException(e);
                     } finally {
@@ -510,6 +512,8 @@ public class SolexVideoProcessor implements Broadcaster {
                 listener.onDebug(e);
             } else if (event instanceof VideoMetadataEvent e) {
                 listener.onVideoMetadataAvailable(e);
+            } else if (event instanceof ScriptExecutionResultEvent e) {
+                listener.onScriptExecutionResult(e);
             }
         }
     }

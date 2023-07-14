@@ -27,6 +27,5 @@ public record ImageMathScriptResult(
         Map<String, Path> filesByLabel,
         List<InvalidExpression> invalidExpressions,
         Set<Integer> internalShifts,
-        Set<Integer> outputShifts
-) {
+        Set<Integer> outputShifts) {
 }

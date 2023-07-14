@@ -27,6 +27,7 @@ import javafx.stage.Stage;
 import javafx.stage.WindowEvent;
 import me.champeau.a4j.jsolex.app.JSolEx;
 import me.champeau.a4j.jsolex.processing.expr.DefaultImageScriptExecutor;
+import me.champeau.a4j.jsolex.processing.expr.ImageMathScriptExecutor;
 import me.champeau.a4j.jsolex.processing.params.ImageMathParams;
 import me.champeau.a4j.jsolex.processing.params.RequestedImages;
 import me.champeau.a4j.jsolex.processing.sun.workflow.GeneratedImageKind;
@@ -324,7 +325,7 @@ public class ImageSelector {
         internalPixelShifts = new TreeSet<>();
         for (File file : params.scriptFiles()) {
             try {
-                var result = executor.execute(file.toPath());
+                var result = executor.execute(file.toPath(), ImageMathScriptExecutor.SectionKind.SINGLE);
                 allShifts.addAll(result.internalShifts());
                 internalPixelShifts.addAll(result.internalShifts());
                 allShifts.addAll(result.outputShifts());

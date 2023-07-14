@@ -24,7 +24,7 @@ import java.util.regex.Pattern;
 public class ScriptTokenizer {
     private static final String COMMENT = "\\s*(#|//).*$";
     private static final Pattern COMMENT_PATTERN = Pattern.compile(COMMENT);
-    private static final String SECTION = "\\s*\\[.+?\\]";
+    private static final String SECTION = "\\s*(?:\\[{2}.+?\\]{2})|(?:\\[.+?\\])";
     private static final Pattern SECTION_PATTERN = Pattern.compile(SECTION);
     private static final String LINE = "(?:(\\s*[a-zA-Z_]\\w*)\\s*=\\s*)?(.*)";
     private static final Pattern LINE_PATTERN = Pattern.compile(LINE);
@@ -44,7 +44,7 @@ public class ScriptTokenizer {
                 continue;
             }
             int start = matcher.start();
-            if (start>0 && start > pEnd) {
+            if (start > 0 && start > pEnd) {
                 if (pEnd == -1) {
                     tokens.addAll(asToken(script, 0, start));
                 } else {
