@@ -191,8 +191,8 @@ public class SolexVideoProcessor implements Broadcaster {
         List<WorkflowState> imageList = new ArrayList<>();
         var imageNamingStrategy = new FileNamingStrategy(
                 processParams.extraParams().fileNamePattern(),
-                processParams.extraParams().dateFormat(),
                 processParams.extraParams().datetimeFormat(),
+                processParams.extraParams().dateFormat(),
                 processingDate,
                 header
         );
