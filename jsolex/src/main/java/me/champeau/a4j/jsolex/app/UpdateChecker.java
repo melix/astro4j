@@ -17,11 +17,11 @@ package me.champeau.a4j.jsolex.app;
 
 import com.google.gson.Gson;
 
+import java.io.BufferedReader;
 import java.io.IOException;
-import java.net.URI;
-import java.net.http.HttpClient;
-import java.net.http.HttpRequest;
-import java.net.http.HttpResponse;
+import java.io.InputStreamReader;
+import java.net.HttpURLConnection;
+import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.nio.file.StandardOpenOption;
@@ -65,35 +65,49 @@ class UpdateChecker {
 
     private static Optional<ReleaseInfo> doFindFromRemote() {
         try {
-            var body = HttpClient.newHttpClient()
-                    .send(HttpRequest.newBuilder()
-                            .uri(new URI(RELEASES_URI))
-                            .header("X-GitHub-Api-Version", "2022-11-28")
-                            .header("Accept", APPLICATION_VND_GITHUB_JSON)
-                            .build(), HttpResponse.BodyHandlers.ofString())
-                    .body();
-            var builder = new Gson().newBuilder();
-            @SuppressWarnings("unchecked")
-            List<Map<String, Object>> releases = builder.create().fromJson(body, List.class);
-            var release = releases.stream()
-                    .filter(r -> Boolean.FALSE.equals(r.get("prerelease")))
-                    .findFirst();
-            if (release.isPresent()) {
-                var map = release.get();
-                return Optional.of(new ReleaseInfo(
-                        (String) map.get("name"),
-                        (String) map.get("body")
-                ));
+            var url = new URL(RELEASES_URI);
+            var connection = (HttpURLConnection) url.openConnection();
+            connection.setRequestMethod("GET");
+            connection.setRequestProperty("X-GitHub-Api-Version", "2022-11-28");
+            connection.setRequestProperty("Accept", APPLICATION_VND_GITHUB_JSON);
+
+            int responseCode = connection.getResponseCode();
+            if (responseCode == HttpURLConnection.HTTP_OK) {
+                StringBuilder content = new StringBuilder();
+                try (var in = new BufferedReader(new InputStreamReader(connection.getInputStream()))) {
+                    String line;
+                    while ((line = in.readLine()) != null) {
+                        content.append(line).append(System.lineSeparator());
+                    }
+                }
+
+                String responseBody = content.toString();
+
+                var builder = new Gson().newBuilder();
+                @SuppressWarnings("unchecked")
+                List<Map<String, Object>> releases = builder.create().fromJson(responseBody, List.class);
+                var release = releases.stream()
+                        .filter(r -> Boolean.FALSE.equals(r.get("prerelease")))
+                        .findFirst();
+                if (release.isPresent()) {
+                    var map = release.get();
+                    return Optional.of(new ReleaseInfo(
+                            (String) map.get("name"),
+                            (String) map.get("body")
+                    ));
+                }
             }
             return Optional.empty();
-        } catch (Exception ex) {
-            LOGGER.warn("Unable to fetch release information", ex);
-            return Optional.empty();
+        } catch (IOException e) {
+            LOGGER.warn("Unable to fetch release information", e);
+            throw new RuntimeException(e);
         }
+
     }
 
     record ReleaseInfo(
             String version,
             String notes
-    ) {}
+    ) {
+    }
 }
