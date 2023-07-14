@@ -27,7 +27,6 @@ module me.champeau.a4j.jsolex {
     requires jdk.incubator.vector;
     requires org.fxmisc.richtext;
     requires com.google.gson;
-    requires java.net.http;
     exports me.champeau.a4j.jsolex.app to javafx.graphics;
     exports me.champeau.a4j.jsolex.app.jfx.ime to javafx.fxml, javafx.graphics;
     opens me.champeau.a4j.jsolex.app to javafx.fxml;
