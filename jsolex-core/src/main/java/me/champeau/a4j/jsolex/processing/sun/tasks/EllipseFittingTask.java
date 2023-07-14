@@ -27,14 +27,14 @@ import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 import me.champeau.a4j.math.Point2D;
 import me.champeau.a4j.math.image.Image;
 import me.champeau.a4j.math.image.ImageMath;
-import me.champeau.a4j.math.image.Kernel33;
 import me.champeau.a4j.math.regression.Ellipse;
 import me.champeau.a4j.math.regression.EllipseRegression;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 import static me.champeau.a4j.jsolex.processing.util.Constants.message;
@@ -85,12 +85,12 @@ public class EllipseFittingTask extends AbstractTask<EllipseFittingTask.Result> 
         var analyzingDiskGeometryMsg = message("analyzing.disk.geometry");
         broadcaster.broadcast(ProgressEvent.of(0, analyzingDiskGeometryMsg));
         var imageMath = ImageMath.newInstance();
-        var workingImage = imageMath.convolve(image, Kernel33.GAUSSIAN_BLUR);
+        var workingImage = image.copy();
         if (prefilter) {
             var avg = imageMath.areaAverage(imageMath.integralImage(workingImage), 0, 0, width, height);
             // some images (in particular in calcium) can have large bright areas which interfere with detection
             // so we're keeping pixels which are "around" the average
-            new CutoffStretchingStrategy(0.8f * avg, 1.2f * avg, 0, 0).stretch(width, height, workingImage.data());
+            new CutoffStretchingStrategy(0.9f * avg, 1.1f * avg, avg, avg).stretch(width, height, workingImage.data());
         }
         var magnitude = imageMath.gradient(workingImage).magnitude();
         var magnitudes = magnitude.data();
@@ -108,17 +108,16 @@ public class EllipseFittingTask extends AbstractTask<EllipseFittingTask.Result> 
         broadcaster.broadcast(ProgressEvent.of(1, fittingEllipseMessage));
         var result = new Result(ellipse, samples);
         if (processParams != null && processParams.extraParams().generateDebugImages()) {
-            produceEdgeDetectionImage(result, ImageWrapper32.fromImage(workingImage));
+            produceEdgeDetectionImage(result, ImageWrapper32.fromImage(magnitude));
         }
         return result;
     }
 
     private List<Point2D> findSamplesUsingDynamicSensitivity(String analyzingDiskGeometryMsg, float[] magnitudes) {
-        List<Point2D> samples = new ArrayList<>();
+        Set<Point2D> samples = new LinkedHashSet<>();
         double sensitivity = 0.00d;
         var maxMagnitude = maxOf(magnitudes);
         while (samples.size() < MINIMUM_SAMPLES && sensitivity < 1) {
-            samples.clear();
             var minLimit = sensitivity * maxMagnitude;
             sensitivity += 0.05d;
             // We can have bad samples because the sun disk can be truncated
@@ -133,7 +132,7 @@ public class EllipseFittingTask extends AbstractTask<EllipseFittingTask.Result> 
                 broadcaster.broadcast(ProgressEvent.of((y + 1d / height) / height, analyzingDiskGeometryMsg));
                 int min = -1;
                 int max = -1;
-                for (int x = 0; x < width; x++) {
+                for (int x = 0; x < width / 2; x++) {
                     var mag = magnitudes[x + y * width];
                     if (min == -1 && mag > minLimit) {
                         min = x;
@@ -150,15 +149,17 @@ public class EllipseFittingTask extends AbstractTask<EllipseFittingTask.Result> 
                 }
                 if (min >= 0 && Math.abs(min - lastMin) > threshold) {
                     var candidate = new Point2D(min, y);
-                    samples.add(candidate);
-                    lastMin = min;
-                    sum += minVal;
+                    if (samples.add(candidate)) {
+                        lastMin = min;
+                        sum += minVal;
+                    }
                 }
                 if (max >= 0 && Math.abs(max - lastMax) > threshold) {
                     var candidate = new Point2D(max, y);
-                    samples.add(candidate);
-                    lastMax = max;
-                    sum += maxVal;
+                    if (samples.add(candidate)) {
+                        lastMax = max;
+                        sum += maxVal;
+                    }
                 }
             }
             if (samples.size() >= MINIMUM_SAMPLES) {
@@ -182,7 +183,7 @@ public class EllipseFittingTask extends AbstractTask<EllipseFittingTask.Result> 
                 );
             }
         }
-        return samples;
+        return samples.stream().toList();
     }
 
     private boolean notEnoughSamples(String fittingEllipseMessage, List<Point2D> filteredSamples) {
