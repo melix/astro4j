@@ -134,6 +134,9 @@ public class BatchModeEventListener implements ProcessingEventListener, ImageMat
         item.status().set(JSolEx.message("batch.ok"));
         if (completed.get() == totalItems) {
             executeBatchScriptExpressions();
+            BatchOperations.submit(() -> {
+                owner.updateProgress(1.0, String.format(JSolEx.message("batch.finished")));
+            });
         }
     }
 
@@ -142,29 +145,34 @@ public class BatchModeEventListener implements ProcessingEventListener, ImageMat
         if (scriptFiles.isEmpty()) {
             return;
         }
-        batchScriptExecutor = new DefaultImageScriptExecutor(
-                owner.getCpuExecutor(),
-                idx -> {
-                    throw new IllegalStateException("Cannot call img() in batch outputs. Use variables to store images instead");
-                },
-                Map.of()
-        );
-        for (Map.Entry<String, List<ImageWrapper>> entry : imagesByLabel.entrySet()) {
-            batchScriptExecutor.putVariable(entry.getKey(), entry.getValue());
-        }
-        var namingStrategy = createNamingStrategy();
-        boolean initial = true;
-        for (File scriptFile : scriptFiles) {
-            if (initial) {
-                owner.prepareForScriptExecution(this, processParams);
-                initial = false;
+        owner.getCpuExecutor().blocking(() -> {
+            batchScriptExecutor = new DefaultImageScriptExecutor(
+                    owner.getCpuExecutor(),
+                    idx -> {
+                        throw new IllegalStateException("Cannot call img() in batch outputs. Use variables to store images instead");
+                    },
+                    Map.of()
+            );
+            for (Map.Entry<String, List<ImageWrapper>> entry : imagesByLabel.entrySet()) {
+                batchScriptExecutor.putVariable(entry.getKey(), entry.getValue());
             }
-            executeBatchScript(namingStrategy, scriptFile);
-        }
+            var namingStrategy = createNamingStrategy();
+            boolean initial = true;
+            for (File scriptFile : scriptFiles) {
+                if (initial) {
+                    owner.prepareForScriptExecution(this, processParams);
+                    initial = false;
+                }
+                executeBatchScript(namingStrategy, scriptFile);
+            }
+        });
     }
 
 
     private void executeBatchScript(FileNamingStrategy namingStrategy, File scriptFile) {
+        BatchOperations.submit(() -> {
+            owner.updateProgress(0, String.format(JSolEx.message("executing.script"), scriptFile));
+        });
         ImageMathScriptResult result;
         try {
             result = batchScriptExecutor.execute(scriptFile.toPath(), ImageMathScriptExecutor.SectionKind.BATCH);
@@ -172,6 +180,9 @@ public class BatchModeEventListener implements ProcessingEventListener, ImageMat
             throw new ProcessingException(e);
         }
         renderBatchOutputs(namingStrategy, result);
+        BatchOperations.submit(() -> {
+            owner.updateProgress(1, String.format(JSolEx.message("executing.script"), scriptFile));
+        });
     }
 
     private void renderBatchOutputs(FileNamingStrategy namingStrategy, ImageMathScriptResult result) {
@@ -243,7 +254,6 @@ public class BatchModeEventListener implements ProcessingEventListener, ImageMat
             var prog = done / totalItems;
             if (completed.get() == (int) totalItems) {
                 owner.showProgress();
-                owner.updateProgress(1.0, String.format(JSolEx.message("batch.finished"), done, (int) totalItems));
             } else {
                 owner.showProgress();
                 owner.updateProgress(prog, String.format(JSolEx.message("batch.progress"), done, (int) totalItems));

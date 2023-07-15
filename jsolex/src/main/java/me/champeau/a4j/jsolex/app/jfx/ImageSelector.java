@@ -50,6 +50,7 @@ import java.util.TreeSet;
 import java.util.stream.Collectors;
 
 public class ImageSelector {
+    private boolean batchMode;
     private HostServices hostServices;
     @FXML
     private CheckBox raw;
@@ -97,12 +98,14 @@ public class ImageSelector {
                       List<Integer> selectedPixelShifts,
                       int dopplerShift,
                       ImageMathParams imageMathParams,
-                      HostServices hostServices) {
+                      HostServices hostServices,
+                      boolean batchMode) {
         this.stage = stage;
         this.hostServices = hostServices;
         this.dopplerShift = dopplerShift;
         this.imageMathParams = imageMathParams;
         this.forkJoinContext = forkJoinContext;
+        this.batchMode = batchMode;
         this.mode.getItems().add(PixelShiftMode.SIMPLE);
         this.mode.getItems().add(PixelShiftMode.IMAGEMATH);
         this.mode.getSelectionModel().selectedItemProperty().addListener((obj, oldValue, newValue) -> {
@@ -284,7 +287,7 @@ public class ImageSelector {
         try {
             var node = (Parent) fxmlLoader.load();
             var controller = (ImageMathEditor) fxmlLoader.getController();
-            controller.setup(stage, imageMathParams, hostServices);
+            controller.setup(stage, imageMathParams, hostServices, batchMode);
             Scene scene = new Scene(node);
             scene.getStylesheets().add(JSolEx.class.getResource("syntax.css").toExternalForm());
             var currentScene = stage.getScene();
