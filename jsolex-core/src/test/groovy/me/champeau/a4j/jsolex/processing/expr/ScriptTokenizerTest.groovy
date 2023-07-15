@@ -41,7 +41,10 @@ img("foo # invalid expression
    # indented comment
    indentedVar = indented
    
-helium_raw = autocrop(img(HeliumShift) - ContinuumCoef*continuum)   
+helium_raw = autocrop(img(HeliumShift) - ContinuumCoef*continuum)
+
+[[major-section]]
+foo=bar
 """
         when:
         def tokens = tokenizer.tokenize(script)
@@ -70,5 +73,9 @@ helium_raw = autocrop(img(HeliumShift) - ContinuumCoef*continuum)
         relevantTokens[11] instanceof ScriptToken.Comment
         relevantTokens[12] instanceof ScriptToken.VariableDefinition
         relevantTokens[13] instanceof ScriptToken.VariableDefinition
+        relevantTokens[14] instanceof ScriptToken.Section
+        relevantTokens[14].isMajor()
+        relevantTokens[14].name() == 'major-section'
+        relevantTokens[15] instanceof ScriptToken.VariableDefinition
     }
 }

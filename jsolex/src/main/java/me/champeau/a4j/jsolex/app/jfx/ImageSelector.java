@@ -27,6 +27,7 @@ import javafx.stage.Stage;
 import javafx.stage.WindowEvent;
 import me.champeau.a4j.jsolex.app.JSolEx;
 import me.champeau.a4j.jsolex.processing.expr.DefaultImageScriptExecutor;
+import me.champeau.a4j.jsolex.processing.expr.ImageMathScriptExecutor;
 import me.champeau.a4j.jsolex.processing.params.ImageMathParams;
 import me.champeau.a4j.jsolex.processing.params.RequestedImages;
 import me.champeau.a4j.jsolex.processing.sun.workflow.GeneratedImageKind;
@@ -49,6 +50,7 @@ import java.util.TreeSet;
 import java.util.stream.Collectors;
 
 public class ImageSelector {
+    private boolean batchMode;
     private HostServices hostServices;
     @FXML
     private CheckBox raw;
@@ -96,12 +98,14 @@ public class ImageSelector {
                       List<Integer> selectedPixelShifts,
                       int dopplerShift,
                       ImageMathParams imageMathParams,
-                      HostServices hostServices) {
+                      HostServices hostServices,
+                      boolean batchMode) {
         this.stage = stage;
         this.hostServices = hostServices;
         this.dopplerShift = dopplerShift;
         this.imageMathParams = imageMathParams;
         this.forkJoinContext = forkJoinContext;
+        this.batchMode = batchMode;
         this.mode.getItems().add(PixelShiftMode.SIMPLE);
         this.mode.getItems().add(PixelShiftMode.IMAGEMATH);
         this.mode.getSelectionModel().selectedItemProperty().addListener((obj, oldValue, newValue) -> {
@@ -283,7 +287,7 @@ public class ImageSelector {
         try {
             var node = (Parent) fxmlLoader.load();
             var controller = (ImageMathEditor) fxmlLoader.getController();
-            controller.setup(stage, imageMathParams, hostServices);
+            controller.setup(stage, imageMathParams, hostServices, batchMode);
             Scene scene = new Scene(node);
             scene.getStylesheets().add(JSolEx.class.getResource("syntax.css").toExternalForm());
             var currentScene = stage.getScene();
@@ -324,7 +328,7 @@ public class ImageSelector {
         internalPixelShifts = new TreeSet<>();
         for (File file : params.scriptFiles()) {
             try {
-                var result = executor.execute(file.toPath());
+                var result = executor.execute(file.toPath(), ImageMathScriptExecutor.SectionKind.SINGLE);
                 allShifts.addAll(result.internalShifts());
                 internalPixelShifts.addAll(result.internalShifts());
                 allShifts.addAll(result.outputShifts());

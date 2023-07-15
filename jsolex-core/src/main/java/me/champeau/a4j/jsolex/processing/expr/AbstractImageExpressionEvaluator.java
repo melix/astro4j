@@ -34,11 +34,13 @@ import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 
 import java.nio.file.Paths;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.OptionalDouble;
 import java.util.function.DoubleBinaryOperator;
 import java.util.stream.DoubleStream;
 import java.util.stream.Stream;
@@ -118,33 +120,50 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
     @Override
     protected Object functionCall(BuiltinFunction function, List<Object> arguments) {
         return switch (function) {
-            case IMG -> image(arguments);
-            case AVG -> applyFunction("avg", arguments, DoubleStream::average);
-            case MIN -> applyFunction("min", arguments, DoubleStream::min);
-            case MAX -> applyFunction("max", arguments, DoubleStream::max);
-            case INVERT -> ScriptSupport.inverse(arguments);
-            case RANGE -> createRange(arguments);
-            case FIX_BANDING -> new FixBanding(forkJoinContext, context).fixBanding(arguments);
-            case LINEAR_STRETCH -> linearStretch(arguments);
-            case ASINH_STRETCH -> asinhStretch(arguments);
-            case BLUR -> convolution.blur(arguments);
-            case CLAHE -> clahe(arguments);
             case ADJUST_CONTRAST -> adjustContrast(arguments);
-            case COLORIZE -> Colorize.of(forkJoinContext).colorize(arguments);
+            case ANIM -> Animate.of(forkJoinContext).createAnimation(arguments);
+            case ASINH_STRETCH -> asinhStretch(arguments);
             case AUTOCROP -> new Crop(forkJoinContext, context).autocrop(arguments);
             case AUTOCROP2 -> new Crop(forkJoinContext, context).autocrop2(arguments);
+            case AVG -> applyFunction("avg", arguments, DoubleStream::average);
+            case BLUR -> convolution.blur(arguments);
+            case CLAHE -> clahe(arguments);
+            case COLORIZE -> Colorize.of(forkJoinContext).colorize(arguments);
+            case CROP -> new Crop(forkJoinContext, context).crop(arguments);
+            case DISK_FILL -> new DiskFill(forkJoinContext, context).fill(arguments);
+            case FIX_BANDING -> new FixBanding(forkJoinContext, context).fixBanding(arguments);
+            case IMG -> image(arguments);
+            case INVERT -> ScriptSupport.inverse(arguments);
+            case LINEAR_STRETCH -> linearStretch(arguments);
+            case LIST -> arguments;
+            case LOAD -> loader.load(arguments);
+            case LOAD_MANY -> loader.loadMany(arguments);
+            case MAX -> applyFunction("max", arguments, DoubleStream::max);
+            case MEDIAN -> applyFunction("max", arguments, AbstractImageExpressionEvaluator::median);
+            case MIN -> applyFunction("min", arguments, DoubleStream::min);
+            case RANGE -> createRange(arguments);
             case REMOVE_BG -> new BackgroundRemoval(forkJoinContext, context).removeBackground(arguments);
             case RGB -> RGBCombination.combine(arguments);
             case SATURATE -> new Saturation(forkJoinContext, context).saturate(arguments);
             case SHARPEN -> convolution.sharpen(arguments);
-            case ANIM -> Animate.of(forkJoinContext).createAnimation(arguments);
-            case LIST -> arguments;
-            case LOAD -> loader.load(arguments);
-            case LOAD_MANY -> loader.loadMany(arguments);
             case WORKDIR -> setWorkDir(arguments);
-            case CROP -> new Crop(forkJoinContext, context).crop(arguments);
-            case DISK_FILL -> new DiskFill(forkJoinContext, context).fill(arguments);
         };
+    }
+
+    private static OptionalDouble median(DoubleStream doubleStream) {
+        var array = doubleStream.toArray();
+        if (array.length == 0) {
+            return OptionalDouble.empty();
+        }
+        Arrays.sort(array);
+        double median;
+        int length = array.length;
+        if (length % 2 == 0) {
+            median = (array[length / 2 - 1] + array[length / 2]) / 2.0;
+        } else {
+            median = array[length / 2];
+        }
+        return OptionalDouble.of(median);
     }
 
     private Object setWorkDir(List<Object> arguments) {
@@ -171,10 +190,10 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
     }
 
     private static Object apply(ImageWrapper32 leftImage,
-                         ImageWrapper32 rightImage,
-                         Number leftScalar,
-                         Number rightScalar,
-                         DoubleBinaryOperator operator) {
+                                ImageWrapper32 rightImage,
+                                Number leftScalar,
+                                Number rightScalar,
+                                DoubleBinaryOperator operator) {
         if (leftImage != null && rightImage != null) {
             var leftData = leftImage.data();
             var rightData = rightImage.data();

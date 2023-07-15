@@ -55,4 +55,8 @@ public interface ProcessingEventListener {
     default void onDebug(DebugEvent<?> e) {
 
     }
+
+    default void onScriptExecutionResult(ScriptExecutionResultEvent e) {
+
+    }
 }

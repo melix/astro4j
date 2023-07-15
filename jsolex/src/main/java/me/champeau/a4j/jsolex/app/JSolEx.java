@@ -92,6 +92,7 @@ import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.Semaphore;
@@ -329,7 +330,7 @@ public class JSolEx extends Application implements JSolExInterface {
                 if (clearImagesCheckbox.isSelected()) {
                     BatchOperations.submit(() -> mainPane.getTabs().clear());
                 }
-                executor.execute(text);
+                executor.execute(text, ImageMathScriptExecutor.SectionKind.SINGLE);
             });
         });
         imageMathSave.setDisable(true);
@@ -616,7 +617,7 @@ public class JSolEx extends Application implements JSolExInterface {
             if (!current.isEmpty()) {
                 groups.add(current);
             }
-            var batchContext = new BatchProcessingContext(batchItems, new AtomicInteger(), selectedFiles.get(0).getParentFile(), LocalDateTime.now());
+            var batchContext = new BatchProcessingContext(batchItems, new AtomicInteger(), selectedFiles.get(0).getParentFile(), LocalDateTime.now(), new HashMap<>());
             cpuExecutor.blocking(() -> {
                 var semaphore = new Semaphore(Math.max(1, Runtime.getRuntime().availableProcessors() / 4));
                 // We're using a separate task submission thread in order to not
@@ -713,7 +714,10 @@ public class JSolEx extends Application implements JSolExInterface {
 
     private ProcessingEventListener createListener(String baseName, ProcessParams params, boolean batchMode, int sequenceNumber, Object context) {
         if (batchMode) {
-            return new BatchModeEventListener(this, sequenceNumber, (BatchProcessingContext) context, params);
+            var batchProcessingContext = (BatchProcessingContext) context;
+            var outputDirectory = batchProcessingContext.outputDirectory();
+            var delegate = new SingleModeProcessingEventListener(this, baseName, null, cpuExecutor, ioExecutor, outputDirectory.toPath(), params);
+            return new BatchModeEventListener(this, delegate, sequenceNumber, batchProcessingContext, params);
         }
         var serFile = (File) context;
         var outputDirectory = serFile.getParentFile().toPath();

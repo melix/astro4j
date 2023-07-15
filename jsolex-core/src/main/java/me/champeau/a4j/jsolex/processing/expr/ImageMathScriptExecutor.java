@@ -69,10 +69,19 @@ public interface ImageMathScriptExecutor {
         }
     }
 
-    default ImageMathScriptResult execute(Path source) throws IOException {
-        return execute(FilesUtils.readString(source));
+    default ImageMathScriptResult execute(Path source, SectionKind kind) throws IOException {
+        return execute(FilesUtils.readString(source), kind);
     }
 
-    ImageMathScriptResult execute(String script);
+    ImageMathScriptResult execute(String script, SectionKind kind);
 
+    default void putVariable(String name, Object value) {
+
+    }
+
+    enum SectionKind {
+        ALL,
+        SINGLE,
+        BATCH
+    }
 }

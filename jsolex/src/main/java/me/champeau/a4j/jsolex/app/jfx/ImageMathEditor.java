@@ -62,10 +62,12 @@ public class ImageMathEditor {
     private final AtomicBoolean updatingText = new AtomicBoolean();
     private Stage stage;
     private HostServices hostServices;
+    private boolean batchMode;
 
-    public void setup(Stage stage, ImageMathParams imageMathParams, HostServices hostServices) {
+    public void setup(Stage stage, ImageMathParams imageMathParams, HostServices hostServices, boolean batchMode) {
         this.stage = stage;
         this.hostServices = hostServices;
+        this.batchMode = batchMode;
         this.params = null;
         loadPredefinedScripts();
         var items = scriptsToApply.getItems();
@@ -113,6 +115,9 @@ public class ImageMathEditor {
         loadPredefinedScript("continuum-animation");
         loadPredefinedScript("doppler");
         loadPredefinedScript("virtual-eclipse");
+        if (batchMode) {
+            loadPredefinedScript("stacking");
+        }
         predefinedScripts.getSelectionModel().selectedItemProperty().addListener((o, oldValue, newValue) -> {
             if (doesNotHaveStaleChanges()) {
                 saveButton.setDisable(false);

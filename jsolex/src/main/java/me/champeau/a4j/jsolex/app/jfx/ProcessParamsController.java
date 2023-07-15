@@ -58,6 +58,7 @@ import java.util.Optional;
 import java.util.Set;
 
 public class ProcessParamsController {
+    private boolean batchMode;
     private HostServices hostServices;
     @FXML
     private Accordion accordion;
@@ -139,6 +140,7 @@ public class ProcessParamsController {
         this.hostServices = hostServices;
         this.forkJoinContext = forkJoinContext;
         this.initialProcessParams = ProcessParams.loadDefaults();
+        this.batchMode = batchMode;
         accordion.setExpandedPane(accordion.getPanes().get(0));
 
         wavelength.getItems().addAll(FXCollections.observableList(SpectralRayIO.loadDefaults()));
@@ -248,7 +250,8 @@ public class ProcessParamsController {
                     List.of(getPixelShiftAsInt()),
                     (int) dopplerShifting.getValue(),
                     initialProcessParams.requestedImages().mathImages(),
-                    hostServices
+                    hostServices,
+                    batchMode
             );
             Scene scene = new Scene(node);
             var currentScene = stage.getScene();

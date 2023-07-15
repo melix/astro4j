@@ -17,8 +17,11 @@ package me.champeau.a4j.jsolex.processing.expr;
 
 public sealed interface ScriptToken {
     String value();
+
     int start();
+
     int end();
+
     default int length() {
         return end() - start();
     }
@@ -30,7 +33,12 @@ public sealed interface ScriptToken {
     record Section(String value, int start, int end) implements ScriptToken {
         public String name() {
             String trim = value.trim();
-            return trim.substring(1, trim.length()-1);
+            int offset = isMajor() ? 2 : 1;
+            return trim.substring(offset, trim.length() - offset);
+        }
+
+        public boolean isMajor() {
+            return value.trim().startsWith("[[");
         }
     }
 

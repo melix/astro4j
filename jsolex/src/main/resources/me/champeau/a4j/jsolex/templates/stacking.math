@@ -1,0 +1,24 @@
+#
+# Performs stacking of several images processed in batch mode
+#
+
+[params]
+# banding correction width and iterations
+bandingWidth=25
+bandingIterations=3
+# autocrop factor
+cropFactor=1.1
+# contrast adjustment
+clip=.8
+
+[tmp]
+corrected = fix_banding(img(0);bandingWidth;bandingIterations)
+contrast_fixed = clahe(corrected;clip)
+
+[outputs]
+cropped = autocrop2(contrast_fixed;cropFactor;32)
+
+# This is where we stack images, simply using a median
+# and assuming all images will have the same output size
+[[batch]]
+stacked=sharpen(median(cropped))

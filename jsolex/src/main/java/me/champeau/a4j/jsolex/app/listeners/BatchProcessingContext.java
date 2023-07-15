@@ -16,17 +16,19 @@
 package me.champeau.a4j.jsolex.app.listeners;
 
 import me.champeau.a4j.jsolex.app.jfx.BatchItem;
+import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
 
 import java.io.File;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 
 public record BatchProcessingContext(
         List<BatchItem> items,
         AtomicInteger progress,
         File outputDirectory,
-        LocalDateTime processingDate
+        LocalDateTime processingDate,
+        Map<String, List<ImageWrapper>> imagesByLabel
 ) {
-
 }
