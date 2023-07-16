@@ -130,6 +130,7 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
             case CLAHE -> clahe(arguments);
             case COLORIZE -> Colorize.of(forkJoinContext).colorize(arguments);
             case CROP -> new Crop(forkJoinContext, context).crop(arguments);
+            case CROP_RECT -> new Crop(forkJoinContext, context).cropToRect(arguments);
             case DISK_FILL -> new DiskFill(forkJoinContext, context).fill(arguments);
             case FIX_BANDING -> new FixBanding(forkJoinContext, context).fixBanding(arguments);
             case IMG -> image(arguments);
@@ -139,7 +140,7 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
             case LOAD -> loader.load(arguments);
             case LOAD_MANY -> loader.loadMany(arguments);
             case MAX -> applyFunction("max", arguments, DoubleStream::max);
-            case MEDIAN -> applyFunction("max", arguments, AbstractImageExpressionEvaluator::median);
+            case MEDIAN -> applyFunction("median", arguments, AbstractImageExpressionEvaluator::median);
             case MIN -> applyFunction("min", arguments, DoubleStream::min);
             case RANGE -> createRange(arguments);
             case REMOVE_BG -> new BackgroundRemoval(forkJoinContext, context).removeBackground(arguments);

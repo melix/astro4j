@@ -65,6 +65,42 @@ public class Crop extends AbstractFunctionImpl {
         throw new IllegalStateException("Unexpected image type " + img);
     }
 
+    public Object cropToRect(List<Object> arguments) {
+        if (arguments.size() != 3) {
+            throw new IllegalArgumentException("crop takes 5 arguments (image(s), width, height)");
+        }
+        var arg = arguments.get(0);
+        if (arg instanceof List<?>) {
+            return expandToImageList(forkJoinContext, arguments, this::cropToRect);
+        }
+        var img = arguments.get(0);
+        var width = ((Number) arguments.get(1)).intValue();
+        var height = ((Number) arguments.get(2)).intValue();
+        if (width < 0 || height < 0) {
+            throw new IllegalArgumentException("top and left values must be >=0");
+        }
+        var ellipse = getFromContext(Ellipse.class);
+        if (ellipse.isPresent()) {
+            var sunDisk = ellipse.get();
+            float blackPoint = getFromContext(ImageStats.class).map(ImageStats::blackpoint).orElse(0f);
+            if (img instanceof ImageWrapper32 mono) {
+                return cropToRectMonoImage(width, height, mono, sunDisk, blackPoint);
+            } else if (img instanceof ColorizedImageWrapper colorized) {
+                var mono = colorized.mono();
+                return new ColorizedImageWrapper(cropToRectMonoImage(width, height, mono, sunDisk, blackPoint), colorized.converter());
+            } else if (img instanceof RGBImage rgb) {
+                return new RGBImage(width, height,
+                        cropToRectMonoImage(width, height, new ImageWrapper32(rgb.width(), rgb.height(), rgb.r()), sunDisk, blackPoint).data(),
+                        cropToRectMonoImage(width, height, new ImageWrapper32(rgb.width(), rgb.height(), rgb.g()), sunDisk, blackPoint).data(),
+                        cropToRectMonoImage(width, height, new ImageWrapper32(rgb.width(), rgb.height(), rgb.b()), sunDisk, blackPoint).data()
+                );
+            }
+            throw new IllegalStateException("Unexpected image type " + img);
+        } else {
+            throw new IllegalStateException("Ellipse not found, cannot perform cropping");
+        }
+    }
+
     private static ImageWrapper32 cropMonoImage(int left, int top, int width, int height, ImageWrapper32 mono) {
         if (left + width > mono.width()) {
             throw new IllegalArgumentException("Crop width too large");
@@ -77,6 +113,10 @@ public class Crop extends AbstractFunctionImpl {
             System.arraycopy(mono.data(), left + (y + top) * mono.width(), cropped, y * width, width);
         }
         return new ImageWrapper32(width, height, cropped);
+    }
+
+    private static ImageWrapper32 cropToRectMonoImage(int width, int height, ImageWrapper32 mono, Ellipse sunDisk, float blackPoint) {
+        return ImageWrapper32.fromImage(Cropper.cropToRectangle(mono.asImage(), sunDisk, blackPoint, width, height));
     }
 
     public Object autocrop(List<Object> arguments) {
