@@ -67,4 +67,28 @@ public class Cropper {
         }
         return new Image(square, square, cropped);
     }
+
+    public static Image cropToRectangle(Image image, Ellipse sunDisk, float blackPoint, int width, int height) {
+        var source = image.data();
+        var sourceWidth = image.width();
+        var sourceHeight = image.height();
+        var center = sunDisk.center();
+        var cx = center.a();
+        var cy = center.b();
+        var offsetX = width / 2;
+        var offsetY = height / 2;
+        var cropped = new float[width * height];
+        Arrays.fill(cropped, blackPoint);
+        for (int yy = 0; yy < height; yy++) {
+            for (int xx = 0; xx < width; xx++) {
+                int sourceX = (int) cx - offsetX + xx;
+                int sourceY = (int) cy - offsetY + yy;
+                if (sourceX >= 0 && sourceY >= 0 && sourceX < sourceWidth && sourceY < sourceHeight) {
+                    cropped[xx + yy * width] = source[sourceX + sourceY * sourceWidth];
+                }
+            }
+        }
+
+        return new Image(width, height, cropped);
+    }
 }

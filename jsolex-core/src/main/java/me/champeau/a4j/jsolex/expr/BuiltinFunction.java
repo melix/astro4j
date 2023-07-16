@@ -29,6 +29,7 @@ public enum BuiltinFunction {
     CLAHE,
     COLORIZE,
     CROP,
+    CROP_RECT,
     DISK_FILL,
     FIX_BANDING,
     IMG,
