@@ -934,6 +934,9 @@ Si vous ne connaissez pas la valeur du point noir, vous pouvez utiliser la valeu
 <p><code>crop</code> permet de réduire l&#8217;image aux dimensions souhaitées. Cette fonction prend 5 paramètres: l&#8217;image à réduire, les coordonnées du point en haut à gauche, puis la largeur et la hauteur de l&#8217;image souhaitée. Par exemple: <code>crop(img(0), 100, 100, 300, 300)</code>.</p>
 </li>
 <li>
+<p><code>crop_rect</code> permet de réduire l&#8217;image aux dimensions indiquées, en garantissant que le centre du disque solaire sera au centre de l&#8217;image. Par exemple: <code>crop-rect(img(0), 1024, 1024)</code>. Il n&#8217;y a pas de changement d&#8217;échelle : si le disque solaire n&#8217;entre pas dans les dimensions cibles, il sera tronqué.</p>
+</li>
+<li>
 <p><code>autocrop</code> permet de réduire l&#8217;image à un carré autour du disque solaire. Cette fonction fonctionne grâce à l&#8217;ellipse corrigée et utilise le centre du disque pour centrer l&#8217;image. Par exemple: <code>autocrop(img(0))</code>.</p>
 </li>
 <li>

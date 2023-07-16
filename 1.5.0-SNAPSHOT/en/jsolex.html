@@ -939,6 +939,9 @@ If you don&#8217;t want to provide a custom black point value, you can use a pre
 <p><code>crop</code> will perform arbitrary cropping of an image. This function takes 5 parameters: the coordinates of the top left point, then the width and height of the desired image. For example: <code>crop(img(0), 100, 100, 300, 300)</code>.</p>
 </li>
 <li>
+<p><code>crop_rect</code> crops the image do the specified dimensions, with the guarantee that the center of the sun disk will be in the center of the new image. For example: <code>crop-rect(img(0), 1024, 1024)</code>. This doesn&#8217;t perform any scale change: if the target image cannot fit the solar disk, it will be truncated.</p>
+</li>
+<li>
 <p><code>autocrop</code> will perform a square cropping of the image. It makes use of the detected ellipse to center the image on the sun center. e.g <code>autocrop(img(0))</code>.</p>
 </li>
 <li>
