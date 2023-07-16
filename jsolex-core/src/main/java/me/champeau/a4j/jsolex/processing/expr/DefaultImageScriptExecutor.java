@@ -15,6 +15,7 @@
  */
 package me.champeau.a4j.jsolex.processing.expr;
 
+import me.champeau.a4j.jsolex.expr.Expression;
 import me.champeau.a4j.jsolex.expr.Variable;
 import me.champeau.a4j.jsolex.processing.event.ProgressEvent;
 import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
@@ -81,7 +82,7 @@ public class DefaultImageScriptExecutor implements ImageMathScriptExecutor {
         return executeScript(evaluator, outputs, producedImages, producedFiles);
     }
 
-    private ImageMathScriptResult executeScript(ShiftCollectingImageExpressionEvaluator evaluator,
+    private ImageMathScriptResult executeScript(MemoizingExpressionEvaluator evaluator,
                                                 PreparedScript preparedScript,
                                                 Map<String, ImageWrapper> producedImages,
                                                 Map<String, Path> producedFiles) {
@@ -102,6 +103,7 @@ public class DefaultImageScriptExecutor implements ImageMathScriptExecutor {
             }
         }
         evaluator.clearShifts();
+        evaluator.clearCache();
         broadcaster.broadcast(ProgressEvent.of(0d, "ImageScript evaluation"));
         var entries = outputs.entrySet();
         double size = entries.size();
@@ -256,6 +258,7 @@ public class DefaultImageScriptExecutor implements ImageMathScriptExecutor {
             var value = entry.getValue();
             evaluator.putInContext(key, value);
         }
+        evaluator.putInContext(Broadcaster.class, broadcaster);
     }
 
     private class MemoizingExpressionEvaluator extends ShiftCollectingImageExpressionEvaluator {
@@ -275,16 +278,28 @@ public class DefaultImageScriptExecutor implements ImageMathScriptExecutor {
 
         @Override
         public Object evaluate(String expression) {
-            return memoizeCache.computeIfAbsent(expression, this::doEvaluate);
-        }
-
-        public Object doEvaluate(String expression) {
             broadcaster.broadcast(ProgressEvent.of(0, "Evaluating " + expression));
             try {
                 return super.evaluate(expression);
             } finally {
                 broadcaster.broadcast(ProgressEvent.of(1.0, "Evaluating " + expression));
             }
+        }
+
+        @Override
+        protected Object doEvaluate(Expression expression) {
+            // Not using `computeIfAbsent` to avoid recursive update
+            var exprAsString = expression.toString();
+            if (memoizeCache.containsKey(exprAsString)) {
+                return memoizeCache.get(exprAsString);
+            }
+            var result = super.doEvaluate(expression);
+            memoizeCache.put(exprAsString, result);
+            return result;
+        }
+
+        public void clearCache() {
+            memoizeCache.clear();
         }
     }
 

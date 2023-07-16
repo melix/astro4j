@@ -33,15 +33,13 @@ public class DiskFill extends AbstractFunctionImpl {
     }
 
     public Object fill(List<Object> arguments) {
-        if (arguments.size() > 2 || arguments.isEmpty()) {
-            throw new IllegalArgumentException("disk_fill takes 1 or 2 arguments (image(s), [fillColor])");
-        }
+        assertExpectedArgCount(arguments, "disk_fill takes 1, 2 or 3 arguments (image(s), [fillColor], [ellipse])", 1, 3);
         var arg = arguments.get(0);
         if (arg instanceof List<?>) {
             return expandToImageList(forkJoinContext, arguments, this::fill);
         }
         var img = arguments.get(0);
-        var ellipse = getFromContext(Ellipse.class);
+        var ellipse = getArgument(Ellipse.class, arguments, 2).or(() -> getFromContext(Ellipse.class));
         if (ellipse.isPresent()) {
             var blackpoint = getFromContext(ImageStats.class).map(ImageStats::blackpoint).orElse(0f);
             var fill = arguments.size() == 2 ? ((Number) arguments.get(1)).floatValue() : blackpoint;
