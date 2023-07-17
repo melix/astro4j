@@ -324,7 +324,7 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
         BatchOperations.submit(() -> owner.updateProgress(1.0, finishedString));
     }
 
-    private static Map<Class, Object> prepareExecutionContext(ProcessingDoneEvent.Outcome payload) {
+    private Map<Class, Object> prepareExecutionContext(ProcessingDoneEvent.Outcome payload) {
         Map<Class, Object> context = new HashMap<>();
         if (payload.ellipse() != null) {
             context.put(Ellipse.class, payload.ellipse());
@@ -332,6 +332,8 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
         if (payload.imageStats() != null) {
             context.put(ImageStats.class, payload.imageStats());
         }
+        context.put(ProcessParams.class, params);
+        context.put(ImageEmitter.class, payload.customImageEmitter());
         return context;
     }
 

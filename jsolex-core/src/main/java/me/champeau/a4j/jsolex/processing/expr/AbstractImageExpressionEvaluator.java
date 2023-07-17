@@ -23,6 +23,7 @@ import me.champeau.a4j.jsolex.processing.expr.impl.Colorize;
 import me.champeau.a4j.jsolex.processing.expr.impl.Convolution;
 import me.champeau.a4j.jsolex.processing.expr.impl.Crop;
 import me.champeau.a4j.jsolex.processing.expr.impl.DiskFill;
+import me.champeau.a4j.jsolex.processing.expr.impl.EllipseFit;
 import me.champeau.a4j.jsolex.processing.expr.impl.FixBanding;
 import me.champeau.a4j.jsolex.processing.expr.impl.Loader;
 import me.champeau.a4j.jsolex.processing.expr.impl.RGBCombination;
@@ -132,6 +133,7 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
             case CROP -> new Crop(forkJoinContext, context).crop(arguments);
             case CROP_RECT -> new Crop(forkJoinContext, context).cropToRect(arguments);
             case DISK_FILL -> new DiskFill(forkJoinContext, context).fill(arguments);
+            case ELLIPSE_FIT -> new EllipseFit(forkJoinContext, context).fit(arguments);
             case FIX_BANDING -> new FixBanding(forkJoinContext, context).fixBanding(arguments);
             case IMG -> image(arguments);
             case INVERT -> ScriptSupport.inverse(arguments);

@@ -22,6 +22,7 @@ import me.champeau.a4j.math.regression.Ellipse;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 import static me.champeau.a4j.jsolex.processing.expr.impl.ScriptSupport.expandToImageList;
 
@@ -31,12 +32,10 @@ public class BackgroundRemoval extends AbstractFunctionImpl {
     }
 
     public Object removeBackground(List<Object> arguments) {
-        if (arguments.size() != 1 && arguments.size() != 2) {
-            throw new IllegalArgumentException("masked takes 1 or 2 arguments (image(s), [tolerance])");
-        }
-        var ellipse = getFromContext(Ellipse.class);
+        assertExpectedArgCount(arguments, "remove_bg takes 1, 2 or 3 arguments (image(s), [tolerance], [fitting])", 1, 2);
+        Optional<Ellipse> ellipse = getArgument(Ellipse.class, arguments, 2).or(() -> getFromContext(Ellipse.class));
         if (ellipse.isEmpty()) {
-            throw new IllegalArgumentException("Cannot perform masked merge because ellipse isn't found");
+            throw new IllegalArgumentException("Cannot perform background removal because ellipse isn't found");
         }
         var arg = arguments.get(0);
         if (arg instanceof List<?>) {

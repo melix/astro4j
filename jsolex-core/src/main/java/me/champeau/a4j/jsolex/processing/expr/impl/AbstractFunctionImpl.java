@@ -17,6 +17,7 @@ package me.champeau.a4j.jsolex.processing.expr.impl;
 
 import me.champeau.a4j.jsolex.processing.util.ForkJoinContext;
 
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
@@ -31,6 +32,20 @@ class AbstractFunctionImpl {
 
     protected <T> Optional<T> getFromContext(Class<T> type) {
         return (Optional<T>) Optional.ofNullable(context.get(type));
+    }
+
+    protected void assertExpectedArgCount(List<Object> arguments, String help, int min, int max) {
+        var size = arguments.size();
+        if (size < min || size > max) {
+            throw new IllegalArgumentException(help);
+        }
+    }
+
+    protected <T> Optional<T> getArgument(Class<T> clazz, List<Object> args, int position) {
+        if (position < args.size()) {
+            return Optional.of((T) args.get(position));
+        }
+        return Optional.empty();
     }
 
 }

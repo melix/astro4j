@@ -26,6 +26,7 @@ import me.champeau.a4j.math.regression.Ellipse;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 import static me.champeau.a4j.jsolex.processing.expr.impl.ScriptSupport.expandToImageList;
 
@@ -66,9 +67,7 @@ public class Crop extends AbstractFunctionImpl {
     }
 
     public Object cropToRect(List<Object> arguments) {
-        if (arguments.size() != 3) {
-            throw new IllegalArgumentException("crop takes 5 arguments (image(s), width, height)");
-        }
+        assertExpectedArgCount(arguments, "crop_rect takes 3 or 4 arguments (image(s), width, height, [ellipse])", 3, 4);
         var arg = arguments.get(0);
         if (arg instanceof List<?>) {
             return expandToImageList(forkJoinContext, arguments, this::cropToRect);
@@ -77,9 +76,9 @@ public class Crop extends AbstractFunctionImpl {
         var width = ((Number) arguments.get(1)).intValue();
         var height = ((Number) arguments.get(2)).intValue();
         if (width < 0 || height < 0) {
-            throw new IllegalArgumentException("top and left values must be >=0");
+            throw new IllegalArgumentException("width and height values must be >=0");
         }
-        var ellipse = getFromContext(Ellipse.class);
+        var ellipse = getArgument(Ellipse.class, arguments, 3).or(() -> getFromContext(Ellipse.class));
         if (ellipse.isPresent()) {
             var sunDisk = ellipse.get();
             float blackPoint = getFromContext(ImageStats.class).map(ImageStats::blackpoint).orElse(0f);
@@ -120,20 +119,17 @@ public class Crop extends AbstractFunctionImpl {
     }
 
     public Object autocrop(List<Object> arguments) {
-        if (arguments.size() != 1) {
-            throw new IllegalArgumentException("autocrop takes 1 arguments (image(s))");
-        }
+        assertExpectedArgCount(arguments, "autocrop takes 1 or 2 arguments (image(s), [ellipse])", 1, 2);
         var arg = arguments.get(0);
         if (arg instanceof List<?>) {
             return expandToImageList(forkJoinContext, arguments, this::autocrop);
         }
-        return doAutocrop(arg, null, null);
+        var ellipse = getArgument(Ellipse.class, arguments, 1).or(() -> getFromContext(Ellipse.class));
+        return doAutocrop(arg, ellipse, null, null);
     }
 
     public Object autocrop2(List<Object> arguments) {
-        if (arguments.size() != 2 && arguments.size() != 3) {
-            throw new IllegalArgumentException("autocrop2 takes 2 or 3 arguments (image(s), factor, rounding)");
-        }
+        assertExpectedArgCount(arguments, "autocrop2 takes 2, 3 or 4 arguments (image(s), factor, [rounding], [ellipse])", 2, 4);
         var arg = arguments.get(0);
         if (arg instanceof List<?>) {
             return expandToImageList(forkJoinContext, arguments, this::autocrop2);
@@ -146,11 +142,11 @@ public class Crop extends AbstractFunctionImpl {
                 throw new IllegalArgumentException("Rounding must be a factor of 2");
             }
         }
-        return doAutocrop(arg, factor, rounding);
+        var ellipse = getArgument(Ellipse.class, arguments, 3).or(() -> getFromContext(Ellipse.class));
+        return doAutocrop(arg, ellipse, factor, rounding);
     }
 
-    private Object doAutocrop(Object arg, Double diameterFactor, Integer rounding) {
-        var ellipse = getFromContext(Ellipse.class);
+    private Object doAutocrop(Object arg, Optional<Ellipse> ellipse, Double diameterFactor, Integer rounding) {
         var blackpoint = getFromContext(ImageStats.class).map(ImageStats::blackpoint).orElse(0f);
         if (ellipse.isPresent()) {
             var circle = ellipse.get();

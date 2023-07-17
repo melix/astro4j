@@ -32,7 +32,7 @@ public abstract class ExpressionEvaluator {
         return doEvaluate(parser.parseExpression(expression));
     }
 
-    private Object doEvaluate(Expression expression) {
+    protected Object doEvaluate(Expression expression) {
         if (expression instanceof Literal literal) {
             return literal.value();
         }
