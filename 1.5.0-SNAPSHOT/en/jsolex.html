@@ -980,6 +980,12 @@ If you don&#8217;t want to provide a custom black point value, you can use a pre
 <li>
 <p><code>disk_fill</code> will fill the detected sun disk with a fill color (by default, the detected black point). e.g <code>disk_fill(img(0))</code> or <code>disk_fill(img(0), 0)</code>.</p>
 </li>
+<li>
+<p><code>rescale_rel</code> rescales an image. It accepts 3 arguments: the image, then the scaling factors for X and Y. For example, <code>rescale_rel(img(0);2;2)</code> will double the size of an image.</p>
+</li>
+<li>
+<p><code>rescale_abs</code> rescales an image to the specified dimensions. It takes 3 arguments: the image then the desired width and height. For example, <code>rescale_abs(img(0);2048;2048)</code>.</p>
+</li>
 </ul>
 </div>
 </div>

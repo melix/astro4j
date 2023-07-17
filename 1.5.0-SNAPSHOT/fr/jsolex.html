@@ -969,6 +969,12 @@ Si vous ne connaissez pas la valeur du point noir, vous pouvez utiliser la valeu
 <li>
 <p><code>disk_fill</code> remplit le disque solaire détecté avec une valeur donnée (par défault, celle du point noir détecté). Par exemple <code>disk_fill(img(0))</code> ou <code>disk_fill(img(0), 0)</code>.</p>
 </li>
+<li>
+<p><code>rescale_rel</code> permet d&#8217;agrandir ou réduire la taille d&#8217;une image. Elle prend 3 paramètres: l&#8217;image, puis les facteurs d&#8217;agrandissement en X et Y. Par exemple, <code>rescale_rel(img(0);2;2)</code> pour doubler la taille d&#8217;une image.</p>
+</li>
+<li>
+<p><code>rescale_abs</code> permet d&#8217;agrandir ou réduire la taille d&#8217;une image. Elle prend 3 paramètres: l&#8217;image, puis les dimensions finales souhaitées. Par exemple, <code>rescale_abs(img(0);2048;2048)</code>.</p>
+</li>
 </ul>
 </div>
 </div>
