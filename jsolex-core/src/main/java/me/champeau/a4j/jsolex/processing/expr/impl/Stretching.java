@@ -18,32 +18,35 @@ package me.champeau.a4j.jsolex.processing.expr.impl;
 import me.champeau.a4j.jsolex.processing.stretching.ArcsinhStretchingStrategy;
 import me.champeau.a4j.jsolex.processing.stretching.LinearStrechingStrategy;
 import me.champeau.a4j.jsolex.processing.util.Constants;
+import me.champeau.a4j.jsolex.processing.util.ForkJoinContext;
 
 import java.util.List;
+import java.util.Map;
 
-public class Stretching {
-    private Stretching() {
+public class Stretching extends AbstractFunctionImpl {
 
+    public Stretching(ForkJoinContext forkJoinContext, Map<Class<?>, Object> context) {
+        super(forkJoinContext, context);
     }
 
-    public static Object asinhStretch(List<Object> arguments) {
+    public Object asinhStretch(List<Object> arguments) {
         if (arguments.size() < 3) {
             throw new IllegalArgumentException("asinh_stretch takes 3 arguments (image(s), blackpoint, stretch)");
         }
-        float blackpoint = ((Number) arguments.get(1)).floatValue();
-        float stretch = ((Number) arguments.get(2)).floatValue();
+        float blackpoint = floatArg(arguments, 1);
+        float stretch = floatArg(arguments, 2);
         return ScriptSupport.monoToMonoImageTransformer("asinh_stretch", 3, arguments, (width, height, data) -> new ArcsinhStretchingStrategy(blackpoint, stretch, stretch).stretch(width, height, data));
     }
 
-    public static Object linearStretch(List<Object> arguments) {
+    public Object linearStretch(List<Object> arguments) {
         if (arguments.size() != 1 && arguments.size() != 3) {
             throw new IllegalArgumentException("linear_stretch takes 3 arguments (image(s), lo, hi)");
         }
         float lo;
         float hi;
         if (arguments.size() == 3) {
-            lo = Math.min(Constants.MAX_PIXEL_VALUE, Math.max(0, ((Number) arguments.get(1)).floatValue()));
-            hi = Math.min(Constants.MAX_PIXEL_VALUE, Math.max(0, ((Number) arguments.get(2)).floatValue()));
+            lo = Math.min(Constants.MAX_PIXEL_VALUE, Math.max(0, floatArg(arguments, 1)));
+            hi = Math.min(Constants.MAX_PIXEL_VALUE, Math.max(0, floatArg(arguments, 2)));
         } else {
             hi = Constants.MAX_PIXEL_VALUE;
             lo = 0;

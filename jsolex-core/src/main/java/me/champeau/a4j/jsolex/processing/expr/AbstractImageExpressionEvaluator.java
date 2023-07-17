@@ -17,8 +17,10 @@ package me.champeau.a4j.jsolex.processing.expr;
 
 import me.champeau.a4j.jsolex.expr.BuiltinFunction;
 import me.champeau.a4j.jsolex.expr.ExpressionEvaluator;
+import me.champeau.a4j.jsolex.processing.expr.impl.AdjustContrast;
 import me.champeau.a4j.jsolex.processing.expr.impl.Animate;
 import me.champeau.a4j.jsolex.processing.expr.impl.BackgroundRemoval;
+import me.champeau.a4j.jsolex.processing.expr.impl.Clahe;
 import me.champeau.a4j.jsolex.processing.expr.impl.Colorize;
 import me.champeau.a4j.jsolex.processing.expr.impl.Convolution;
 import me.champeau.a4j.jsolex.processing.expr.impl.Crop;
@@ -28,7 +30,9 @@ import me.champeau.a4j.jsolex.processing.expr.impl.FixBanding;
 import me.champeau.a4j.jsolex.processing.expr.impl.Loader;
 import me.champeau.a4j.jsolex.processing.expr.impl.RGBCombination;
 import me.champeau.a4j.jsolex.processing.expr.impl.Saturation;
+import me.champeau.a4j.jsolex.processing.expr.impl.Scaling;
 import me.champeau.a4j.jsolex.processing.expr.impl.ScriptSupport;
+import me.champeau.a4j.jsolex.processing.expr.impl.Stretching;
 import me.champeau.a4j.jsolex.processing.util.ForkJoinContext;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
@@ -46,23 +50,45 @@ import java.util.function.DoubleBinaryOperator;
 import java.util.stream.DoubleStream;
 import java.util.stream.Stream;
 
-import static me.champeau.a4j.jsolex.processing.expr.impl.AdjustContrast.adjustContrast;
-import static me.champeau.a4j.jsolex.processing.expr.impl.Clahe.clahe;
 import static me.champeau.a4j.jsolex.processing.expr.impl.ScriptSupport.applyFunction;
-import static me.champeau.a4j.jsolex.processing.expr.impl.Stretching.asinhStretch;
-import static me.champeau.a4j.jsolex.processing.expr.impl.Stretching.linearStretch;
 
 public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluator {
 
     private final ForkJoinContext forkJoinContext;
     private final Map<Class<?>, Object> context = new HashMap<>();
-    private final Loader loader;
+
+    // Function implementations
+    private final AdjustContrast adjustContrast;
+    private final Animate animate;
+    private final BackgroundRemoval bgRemoval;
+    private final Clahe clahe;
+    private final Colorize colorize;
     private final Convolution convolution;
+    private final Crop crop;
+    private final DiskFill diskFill;
+    private final EllipseFit ellipseFit;
+    private final FixBanding fixBanding;
+    private final Loader loader;
+    private final Saturation saturation;
+    private final Scaling scaling;
+    private final Stretching stretching;
 
     protected AbstractImageExpressionEvaluator(ForkJoinContext forkJoinContext) {
         this.forkJoinContext = forkJoinContext;
-        this.loader = new Loader(forkJoinContext, context);
+        this.adjustContrast = new AdjustContrast(forkJoinContext, context);
+        this.animate = new Animate(forkJoinContext, context);
+        this.bgRemoval = new BackgroundRemoval(forkJoinContext, context);
+        this.clahe = new Clahe(forkJoinContext, context);
+        this.colorize = new Colorize(forkJoinContext, context);
         this.convolution = new Convolution(forkJoinContext, context);
+        this.crop = new Crop(forkJoinContext, context);
+        this.diskFill = new DiskFill(forkJoinContext, context);
+        this.ellipseFit = new EllipseFit(forkJoinContext, context);
+        this.fixBanding = new FixBanding(forkJoinContext, context);
+        this.loader = new Loader(forkJoinContext, context);
+        this.saturation = new Saturation(forkJoinContext, context);
+        this.scaling = new Scaling(forkJoinContext, context);
+        this.stretching = new Stretching(forkJoinContext, context);
     }
 
     public <T> void putInContext(Class<T> key, T value) {
@@ -121,23 +147,23 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
     @Override
     protected Object functionCall(BuiltinFunction function, List<Object> arguments) {
         return switch (function) {
-            case ADJUST_CONTRAST -> adjustContrast(arguments);
-            case ANIM -> Animate.of(forkJoinContext).createAnimation(arguments);
-            case ASINH_STRETCH -> asinhStretch(arguments);
-            case AUTOCROP -> new Crop(forkJoinContext, context).autocrop(arguments);
-            case AUTOCROP2 -> new Crop(forkJoinContext, context).autocrop2(arguments);
+            case ADJUST_CONTRAST -> adjustContrast.adjustContrast(arguments);
+            case ANIM -> animate.createAnimation(arguments);
+            case ASINH_STRETCH -> stretching.asinhStretch(arguments);
+            case AUTOCROP -> crop.autocrop(arguments);
+            case AUTOCROP2 -> crop.autocrop2(arguments);
             case AVG -> applyFunction("avg", arguments, DoubleStream::average);
             case BLUR -> convolution.blur(arguments);
-            case CLAHE -> clahe(arguments);
-            case COLORIZE -> Colorize.of(forkJoinContext).colorize(arguments);
-            case CROP -> new Crop(forkJoinContext, context).crop(arguments);
-            case CROP_RECT -> new Crop(forkJoinContext, context).cropToRect(arguments);
-            case DISK_FILL -> new DiskFill(forkJoinContext, context).fill(arguments);
-            case ELLIPSE_FIT -> new EllipseFit(forkJoinContext, context).fit(arguments);
-            case FIX_BANDING -> new FixBanding(forkJoinContext, context).fixBanding(arguments);
+            case CLAHE -> clahe.clahe(arguments);
+            case COLORIZE -> colorize.colorize(arguments);
+            case CROP -> crop.crop(arguments);
+            case CROP_RECT -> crop.cropToRect(arguments);
+            case DISK_FILL -> diskFill.fill(arguments);
+            case ELLIPSE_FIT -> ellipseFit.fit(arguments);
+            case FIX_BANDING -> fixBanding.fixBanding(arguments);
             case IMG -> image(arguments);
             case INVERT -> ScriptSupport.inverse(arguments);
-            case LINEAR_STRETCH -> linearStretch(arguments);
+            case LINEAR_STRETCH -> stretching.linearStretch(arguments);
             case LIST -> arguments;
             case LOAD -> loader.load(arguments);
             case LOAD_MANY -> loader.loadMany(arguments);
@@ -145,9 +171,11 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
             case MEDIAN -> applyFunction("median", arguments, AbstractImageExpressionEvaluator::median);
             case MIN -> applyFunction("min", arguments, DoubleStream::min);
             case RANGE -> createRange(arguments);
-            case REMOVE_BG -> new BackgroundRemoval(forkJoinContext, context).removeBackground(arguments);
+            case REMOVE_BG -> bgRemoval.removeBackground(arguments);
+            case RESCALE_ABS -> scaling.absoluteRescale(arguments);
+            case RESCALE_REL -> scaling.relativeRescale(arguments);
             case RGB -> RGBCombination.combine(arguments);
-            case SATURATE -> new Saturation(forkJoinContext, context).saturate(arguments);
+            case SATURATE -> saturation.saturate(arguments);
             case SHARPEN -> convolution.sharpen(arguments);
             case WORKDIR -> setWorkDir(arguments);
         };

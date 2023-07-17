@@ -43,7 +43,7 @@ public class BackgroundRemoval extends AbstractFunctionImpl {
         }
         double tolerance;
         if (arguments.size() == 2) {
-            tolerance = ((Number) arguments.get(1)).doubleValue();
+            tolerance = doubleArg(arguments, 1);
             if (tolerance < 0) {
                 throw new IllegalArgumentException("Tolerance should be greater than 0");
             }

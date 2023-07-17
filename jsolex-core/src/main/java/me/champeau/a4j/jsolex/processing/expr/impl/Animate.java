@@ -31,19 +31,15 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 
 import static me.champeau.a4j.ser.EightBitConversionSupport.to8BitImage;
 
-public class Animate {
+public class Animate extends AbstractFunctionImpl {
     private static final int DEFAULT_DELAY = 250;
-    private final ForkJoinContext context;
 
-    private Animate(ForkJoinContext context) {
-        this.context = context;
-    }
-
-    public static Animate of(ForkJoinContext context) {
-        return new Animate(context);
+    public Animate(ForkJoinContext forkJoinContext, Map<Class<?>, Object> context) {
+        super(forkJoinContext, context);
     }
 
     public Object createAnimation(List<Object> arguments) {
@@ -54,7 +50,7 @@ public class Animate {
         if (!(images instanceof List)) {
             throw new IllegalArgumentException("anim must use a list of images as first argument");
         }
-        var delay = arguments.size() == 1 ? DEFAULT_DELAY : ((Number)arguments.get(1)).doubleValue();
+        var delay = arguments.size() == 1 ? DEFAULT_DELAY : doubleArg(arguments, 1);
         try {
             var tempFile = Files.createTempFile("video_jsolex", ".mp4");
             var encoder = SequenceEncoder.createWithFps(NIOUtils.writableChannel(tempFile.toFile()),

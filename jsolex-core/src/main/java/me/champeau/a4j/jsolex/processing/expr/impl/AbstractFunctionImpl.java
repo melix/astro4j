@@ -48,4 +48,26 @@ class AbstractFunctionImpl {
         return Optional.empty();
     }
 
+    protected double doubleArg(List<Object> arguments, int position) {
+        return getAsNumber(arguments, position).doubleValue();
+    }
+
+    protected float floatArg(List<Object> arguments, int position) {
+        return getAsNumber(arguments, position).floatValue();
+    }
+
+    protected int intArg(List<Object> arguments, int position) {
+        return getAsNumber(arguments, position).intValue();
+    }
+
+    protected Number getAsNumber(List<Object> arguments, int position) {
+        if (position < arguments.size()) {
+            var obj = arguments.get(position);
+            if (obj instanceof Number num) {
+                return num;
+            }
+            throw new IllegalStateException("Expected to find a number argument at position " + position + " but it as a " + obj.getClass());
+        }
+        throw new IllegalStateException("Not enough arguments to select a number at position " + position);
+    }
 }

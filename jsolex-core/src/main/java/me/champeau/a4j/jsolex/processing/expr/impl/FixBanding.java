@@ -30,8 +30,8 @@ public class FixBanding extends AbstractFunctionImpl {
     public Object fixBanding(List<Object> arguments) {
         assertExpectedArgCount(arguments, "fix_banding takes 3 or 4 arguments (image, band size, passes, [ellipse])", 3, 4);
         var ellipse = getArgument(Ellipse.class, arguments, 3).or(() -> getFromContext(Ellipse.class));
-        int bandSize = ((Number) arguments.get(1)).intValue();
-        int passes = ((Number) arguments.get(2)).intValue();
+        int bandSize = intArg(arguments, 1);
+        int passes = intArg(arguments, 2);
         return ScriptSupport.monoToMonoImageTransformer("fix_banding", 3, arguments, (width, height, data) -> {
             for (int i = 0; i < passes; i++) {
                 BandingReduction.reduceBanding(width, height, data, bandSize, ellipse.orElse(null));

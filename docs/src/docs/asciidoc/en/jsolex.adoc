@@ -228,6 +228,8 @@ NOTE: If you don't want to provide a custom black point value, you can use a pre
 - `sharpen` will apply sharpening the target image. For example, `sharpen(img(0))`.
 - `blur` will apply Gaussian blur the target image. For example, `blur(img(0))`.
 - `disk_fill` will fill the detected sun disk with a fill color (by default, the detected black point). e.g `disk_fill(img(0))` or `disk_fill(img(0), 0)`.
+- `rescale_rel` rescales an image. It accepts 3 arguments: the image, then the scaling factors for X and Y. For example, `rescale_rel(img(0);2;2)` will double the size of an image.
+- `rescale_abs` rescales an image to the specified dimensions. It takes 3 arguments: the image then the desired width and height. For example, `rescale_abs(img(0);2048;2048)`.
 
 === ImageMath scripts
 
