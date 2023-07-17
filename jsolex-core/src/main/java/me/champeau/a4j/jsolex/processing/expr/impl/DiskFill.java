@@ -42,7 +42,7 @@ public class DiskFill extends AbstractFunctionImpl {
         var ellipse = getArgument(Ellipse.class, arguments, 2).or(() -> getFromContext(Ellipse.class));
         if (ellipse.isPresent()) {
             var blackpoint = getFromContext(ImageStats.class).map(ImageStats::blackpoint).orElse(0f);
-            var fill = arguments.size() == 2 ? ((Number) arguments.get(1)).floatValue() : blackpoint;
+            var fill = arguments.size() == 2 ? floatArg(arguments, 1) : blackpoint;
             if (img instanceof ImageWrapper32 mono) {
                 var copy = mono.copy();
                 doFill(ellipse.get(), copy.data(), copy.width(), fill);

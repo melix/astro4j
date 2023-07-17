@@ -43,6 +43,8 @@ public enum BuiltinFunction {
     MIN,
     RANGE,
     REMOVE_BG,
+    RESCALE_ABS,
+    RESCALE_REL,
     RGB,
     SATURATE,
     SHARPEN,

@@ -44,10 +44,10 @@ public class Crop extends AbstractFunctionImpl {
             return expandToImageList(forkJoinContext, arguments, this::crop);
         }
         var img = arguments.get(0);
-        var left = ((Number) arguments.get(1)).intValue();
-        var top = ((Number) arguments.get(2)).intValue();
-        var width = ((Number) arguments.get(3)).intValue();
-        var height = ((Number) arguments.get(4)).intValue();
+        var left = intArg(arguments, 1);
+        var top = intArg(arguments, 2);
+        var width = intArg(arguments, 3);
+        var height = intArg(arguments, 4);
         if (left < 0 || top < 0) {
             throw new IllegalArgumentException("top and left values must be >=0");
         }
@@ -73,8 +73,8 @@ public class Crop extends AbstractFunctionImpl {
             return expandToImageList(forkJoinContext, arguments, this::cropToRect);
         }
         var img = arguments.get(0);
-        var width = ((Number) arguments.get(1)).intValue();
-        var height = ((Number) arguments.get(2)).intValue();
+        var width = intArg(arguments, 1);
+        var height = intArg(arguments, 2);
         if (width < 0 || height < 0) {
             throw new IllegalArgumentException("width and height values must be >=0");
         }
@@ -134,10 +134,10 @@ public class Crop extends AbstractFunctionImpl {
         if (arg instanceof List<?>) {
             return expandToImageList(forkJoinContext, arguments, this::autocrop2);
         }
-        var factor = ((Number) arguments.get(1)).doubleValue();
+        var factor = doubleArg(arguments, 1);
         int rounding = 16;
         if (arguments.size() == 3) {
-            rounding = ((Number) arguments.get(2)).intValue();
+            rounding = intArg(arguments, 2);
             if (rounding % 2 == 1) {
                 throw new IllegalArgumentException("Rounding must be a factor of 2");
             }

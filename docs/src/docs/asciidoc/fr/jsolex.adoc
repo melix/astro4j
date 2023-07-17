@@ -226,6 +226,8 @@ NOTE: Si vous ne connaissez pas la valeur du point noir, vous pouvez utiliser la
 - `sharpen` applique un filtre d'augmentation des détails à votre image. Exemple: `sharpen(img(0))`.
 - `blur` applique un flou gaussien à votre image. Par exemple : `blur(img(0))`.
 - `disk_fill` remplit le disque solaire détecté avec une valeur donnée (par défault, celle du point noir détecté). Par exemple `disk_fill(img(0))` ou `disk_fill(img(0), 0)`.
+- `rescale_rel` permet d'agrandir ou réduire la taille d'une image. Elle prend 3 paramètres: l'image, puis les facteurs d'agrandissement en X et Y. Par exemple, `rescale_rel(img(0);2;2)` pour doubler la taille d'une image.
+- `rescale_abs` permet d'agrandir ou réduire la taille d'une image. Elle prend 3 paramètres: l'image, puis les dimensions finales souhaitées. Par exemple, `rescale_abs(img(0);2048;2048)`.
 
 === Scripts ImageMath
 

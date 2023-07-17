@@ -38,7 +38,7 @@ public class Saturation extends AbstractFunctionImpl {
         if (arg instanceof List) {
             return expandToImageList(forkJoinContext, arguments, this::saturate);
         }
-        var saturation = ((Number) arguments.get(1)).doubleValue();
+        var saturation = doubleArg(arguments, 1);
         var exponent = Math.pow(2, -saturation);
         if (arg instanceof ColorizedImageWrapper colorized) {
             return new ColorizedImageWrapper(colorized.mono(), mono -> {
