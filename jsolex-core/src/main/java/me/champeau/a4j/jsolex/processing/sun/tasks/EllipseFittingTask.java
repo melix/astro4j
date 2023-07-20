@@ -23,15 +23,20 @@ import me.champeau.a4j.jsolex.processing.stretching.CutoffStretchingStrategy;
 import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
 import me.champeau.a4j.jsolex.processing.sun.workflow.GeneratedImageKind;
 import me.champeau.a4j.jsolex.processing.sun.workflow.ImageEmitter;
+import me.champeau.a4j.jsolex.processing.util.Constants;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 import me.champeau.a4j.math.Point2D;
+import me.champeau.a4j.math.image.BlurKernel;
 import me.champeau.a4j.math.image.Image;
 import me.champeau.a4j.math.image.ImageMath;
+import me.champeau.a4j.math.image.Kernel;
+import me.champeau.a4j.math.image.Kernel33;
 import me.champeau.a4j.math.regression.Ellipse;
 import me.champeau.a4j.math.regression.EllipseRegression;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
@@ -43,12 +48,11 @@ import static me.champeau.a4j.jsolex.processing.util.DebugImageHelper.plot;
 public class EllipseFittingTask extends AbstractTask<EllipseFittingTask.Result> {
     private static final Logger LOGGER = LoggerFactory.getLogger(EllipseFittingTask.class);
     private static final int MINIMUM_SAMPLES = 64;
-
+    private static final Kernel BLUR_8 = BlurKernel.of(8);
+    private static final Kernel BLUR_4 = BlurKernel.of(4);
     private final Image image;
     private final ProcessParams processParams;
     private final ImageEmitter debugImagesEmitter;
-
-    private boolean prefilter = false;
 
     /**
      * Creates ellipse fitting task
@@ -75,24 +79,26 @@ public class EllipseFittingTask extends AbstractTask<EllipseFittingTask.Result> 
         this(broadcaster, image, null, null);
     }
 
-    public EllipseFittingTask withPrefilter() {
-        prefilter = true;
-        return this;
-    }
-
     @Override
     public EllipseFittingTask.Result call() throws Exception {
         var analyzingDiskGeometryMsg = message("analyzing.disk.geometry");
         broadcaster.broadcast(ProgressEvent.of(0, analyzingDiskGeometryMsg));
         var imageMath = ImageMath.newInstance();
         var workingImage = image.copy();
-        if (prefilter) {
-            var avg = imageMath.areaAverage(imageMath.integralImage(workingImage), 0, 0, width, height);
-            // some images (in particular in calcium) can have large bright areas which interfere with detection
-            // so we're keeping pixels which are "around" the average
-            new CutoffStretchingStrategy(0.9f * avg, 1.1f * avg, avg, avg).stretch(width, height, workingImage.data());
+        workingImage = imageMath.convolve(workingImage, BLUR_8);
+        var data = workingImage.data();
+        var stats = statsOf(data);
+        LOGGER.debug("before stats = {}", stats);
+        // some images (in particular in calcium) can have large bright areas which interfere with detection
+        // so we're keeping pixels which are "around" the average
+        new CutoffStretchingStrategy((float) (stats.avg - Math.sqrt(stats.stddev)), (float) (stats.avg + Math.sqrt(stats.stddev)), 0, Constants.MAX_PIXEL_VALUE).stretch(width, height, data);
+        stats = statsOf(data);
+        LOGGER.debug("after stats = {}", stats);
+        workingImage = imageMath.convolve(workingImage, BLUR_4);
+        if (LOGGER.isDebugEnabled()) {
+            debugImagesEmitter.newMonoImage(GeneratedImageKind.DEBUG, "Prefiltered", "prefilter", ImageWrapper32.fromImage(workingImage));
         }
-        var magnitude = imageMath.gradient(workingImage).magnitude();
+        var magnitude = imageMath.convolve(workingImage, Kernel33.EDGE_DETECTION);
         var magnitudes = magnitude.data();
         var samples = findSamplesUsingDynamicSensitivity(analyzingDiskGeometryMsg, magnitudes);
         var fittingEllipseMessage = message("fitting.ellipse");
@@ -117,15 +123,11 @@ public class EllipseFittingTask extends AbstractTask<EllipseFittingTask.Result> 
         Set<Point2D> samples = new LinkedHashSet<>();
         double sensitivity = 0.00d;
         var maxMagnitude = maxOf(magnitudes);
+        double maxMag = Double.MIN_VALUE;
         while (samples.size() < MINIMUM_SAMPLES && sensitivity < 1) {
-            var minLimit = sensitivity * maxMagnitude;
             sensitivity += 0.05d;
-            // We can have bad samples because the sun disk can be truncated
-            // so we remove those which are within a small distance of x coordinate of the previous sample
-            int threshold = 3;
-            int lastMin = -1;
-            int lastMax = -1;
-            double sum = 0;
+            LOGGER.debug("Sensitivity {}", sensitivity);
+            var minLimit = sensitivity * maxMagnitude;
             double minVal = 0;
             double maxVal = 0;
             for (int y = 0; y < height; y++) {
@@ -147,43 +149,44 @@ public class EllipseFittingTask extends AbstractTask<EllipseFittingTask.Result> 
                         break;
                     }
                 }
-                if (min >= 0 && Math.abs(min - lastMin) > threshold) {
+                if (min >= 0) {
                     var candidate = new Point2D(min, y);
                     if (samples.add(candidate)) {
-                        lastMin = min;
-                        sum += minVal;
+                        maxMag = Math.max(minVal, maxMag);
                     }
                 }
-                if (max >= 0 && Math.abs(max - lastMax) > threshold) {
+                if (max >= 0) {
                     var candidate = new Point2D(max, y);
                     if (samples.add(candidate)) {
-                        lastMax = max;
-                        sum += maxVal;
+                        maxMag = Math.max(maxVal, maxMag);
                     }
                 }
             }
             if (samples.size() >= MINIMUM_SAMPLES) {
-                var samplesAvg = sum / samples.size();
-                var closestNeighborDistances = samples
-                        .stream()
-                        .distinct()
-                        .collect(Collectors.toMap(p -> p, p -> {
-                            double d = Double.MAX_VALUE;
-                            for (Point2D sample : samples) {
-                                if (sample != p) {
-                                    d = Math.min(d, p.distanceTo(sample));
-                                }
-                            }
-                            return d;
-                        }));
-                var avgMinDistance = closestNeighborDistances.values().stream().mapToDouble(Double::doubleValue).average().orElse(Double.MAX_VALUE);
-                samples.removeIf(p ->
-                        (magnitudes[(int) (p.x() + p.y() * width)] < .5f * samplesAvg)
-                        || (closestNeighborDistances.get(p) > 8 * avgMinDistance)
-                );
+                filterOutliers(magnitudes, samples, maxMag);
             }
         }
         return samples.stream().toList();
+    }
+
+    private void filterOutliers(float[] magnitudes, Set<Point2D> samples, double maxMag) {
+        var closestNeighborDistances = samples
+                .stream()
+                .distinct()
+                .collect(Collectors.toMap(p -> p, p -> {
+                    double d = Double.MAX_VALUE;
+                    for (Point2D sample : samples) {
+                        if (sample != p) {
+                            d = Math.min(d, p.distanceTo(sample));
+                        }
+                    }
+                    return d;
+                }));
+        var avgMinDistance = closestNeighborDistances.values().stream().mapToDouble(Double::doubleValue).average().orElse(Double.MAX_VALUE);
+        samples.removeIf(p ->
+                (magnitudes[(int) (p.x() + p.y() * width)] < .5f * maxMag)
+                || (closestNeighborDistances.get(p) > 2 * avgMinDistance)
+        );
     }
 
     private boolean notEnoughSamples(String fittingEllipseMessage, List<Point2D> filteredSamples) {
@@ -222,6 +225,32 @@ public class EllipseFittingTask extends AbstractTask<EllipseFittingTask.Result> 
             }
         }
         return max;
+    }
+
+    private static Stats statsOf(float[] array) {
+        float min = Float.MAX_VALUE;
+        float max = Float.MIN_VALUE;
+        float sum = 0.0f;
+        var distinctValues = new HashSet<Float>();
+
+        int n = array.length;
+        for (float v : array) {
+            sum += v;
+            min = Math.min(min, v);
+            max = Math.max(max, v);
+            distinctValues.add(v);
+        }
+        float average = sum / n;
+        float stddev = 0;
+        for (float v : array) {
+            stddev += (v - average) * (v - average);
+        }
+        stddev = (float) Math.sqrt(stddev / (n - 1));
+        return new Stats(average, stddev, min, max, distinctValues.size());
+    }
+
+    private record Stats(float avg, float stddev, float min, float max, int distinctValues) {
+
     }
 
     public record Result(

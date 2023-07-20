@@ -41,6 +41,7 @@ public enum BuiltinFunction {
     LOAD_MANY,
     MAX,
     MIN,
+    RADIUS_RESCALE,
     RANGE,
     REMOVE_BG,
     RESCALE_ABS,

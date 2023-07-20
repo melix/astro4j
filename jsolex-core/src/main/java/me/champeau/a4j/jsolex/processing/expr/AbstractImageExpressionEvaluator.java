@@ -170,6 +170,7 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
             case MAX -> applyFunction("max", arguments, DoubleStream::max);
             case MEDIAN -> applyFunction("median", arguments, AbstractImageExpressionEvaluator::median);
             case MIN -> applyFunction("min", arguments, DoubleStream::min);
+            case RADIUS_RESCALE -> scaling.radiusRescale(arguments);
             case RANGE -> createRange(arguments);
             case REMOVE_BG -> bgRemoval.removeBackground(arguments);
             case RESCALE_ABS -> scaling.absoluteRescale(arguments);

@@ -230,6 +230,7 @@ NOTE: If you don't want to provide a custom black point value, you can use a pre
 - `disk_fill` will fill the detected sun disk with a fill color (by default, the detected black point). e.g `disk_fill(img(0))` or `disk_fill(img(0), 0)`.
 - `rescale_rel` rescales an image. It accepts 3 arguments: the image, then the scaling factors for X and Y. For example, `rescale_rel(img(0);2;2)` will double the size of an image.
 - `rescale_abs` rescales an image to the specified dimensions. It takes 3 arguments: the image then the desired width and height. For example, `rescale_abs(img(0);2048;2048)`.
+- `radius_rescale` is a relative scaling method which can facilitate mosaic composition. It will therefore most likely be used in <<#batch-mode,batch mode>>. It allows rescaling a set of images so that they all have the same solar disk radius (in pixels). In order to do so, it will perform an ellipse regression against each image to compute their solar disk, then will rescale all images to match the radius of the largest one. For example: `radius_rescale(cropped)`.
 
 === ImageMath scripts
 
@@ -296,6 +297,7 @@ Last, `helium_color = colorize(fix_banding(helium_raw;BandWidth;BandIterations),
 
 NOTE: Comments can be added either with the `#` or `//` prefix.
 
+[[batch-mode]]
 == Batch processing
 
 In addition to single SER file processing, JSol'Ex provides a batch mode.
@@ -314,6 +316,64 @@ image::batch-mode-fr.jpg[]
 The file list for each SER file will include the log file for each video, as well as all generated images for that SER file.
 
 NOTE: In batch mode, we recommend that you pick a custom <<#filename-templates,file name template>> which will output all images in a single directory: using the sequence number, this will make it easier to import into 3rd party software.
+
+=== ImageMath extensions available in batch mode
+
+When you are in batch mode, an additional section is available in <<#imagemath,ImageMath scripts>>.
+This section allows making computations on the results of the processing of each individual image, in order to compose a final image for example (e.g stacking), or to create an animation of several images.
+
+This section must appear at the end of a script and is introduced by the `\[[batch]]` delimiter:
+
+[source]
+----
+#
+# Performs (simple) stacking of images in batch mode
+#
+
+[params]
+# banding correction width and iterations
+bandingWidth=25
+bandingIterations=3
+# autocrop factor
+cropFactor=1.1
+# contrast adjustment
+clip=.8
+
+[tmp]
+corrected = fix_banding(img(0);bandingWidth;bandingIterations) # <1>
+contrast_fixed = clahe(corrected;clip)                         # <2>
+
+[outputs]
+cropped = autocrop2(contrast_fixed;cropFactor;32)              # <3>
+
+# This is where we stack images, simply using a median
+# and assuming all images will have the same output size
+[[batch]]                                                      # <4>
+[outputs]
+stacked=sharpen(median(cropped))                               # <5>
+----
+<1> For each SER file, we compute an intermediate corrected image (not stored on disk)
+<2> We perform contrast adjustment on the corrected images
+<3> Important for stacking: we crop the image to a square centered on the solar disk. The square has a width rounded to the closest multiple of 32 pixels. This is the output of each individual SER file processing.
+<4> We declare a `\[[batch]]` section to describe the outputs of the batch itself
+<5> An image called `stacked` will be calculated by using the median value of each individual `cropped` image
+
+It is important to understand that only the images which appear in the `[outputs]` section of the individual file processing are available for use in the `\[[batch]]` section.
+Therefore, the `cropped` image of a single SER file becomes a _list_ of images in the `\[[batch]]` section.
+Some functions, like `img` are not available in the `batch` mode.
+If you need individual images to be available in the batch processing section, then you must assign them to a variable in the `[outputs]` section:
+
+[source]
+----
+[outputs]
+frame=img(0)       # <1>
+
+[[batch]]
+[outputs]
+video=anim(frame)  # <2>
+----
+<1> In order to make the `img(0)` image visible to the batch section, we must assign it to a variable that we call `frame`
+<2> An animation is created using each `frame`
 
 == Measurements thanks to the spectrum debugger
 

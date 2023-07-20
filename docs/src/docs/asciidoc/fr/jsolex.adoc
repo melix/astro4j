@@ -1,5 +1,6 @@
 = JSol'Ex
 Cédric Champeau
+:icons: font
 
 JSol'Ex est un traitement d'images solaires produites par l'intermédiaire du http://www.astrosurf.com/solex/[Sol'Ex de Christian Buil].
 Il permet de traiter les fichiers SER capturés avec cet instrument pour produire des images du disque solaire, de manière similaire à http://valerie.desnoux.free.fr/inti/[INTI de Valérie Desnoux].
@@ -228,6 +229,7 @@ NOTE: Si vous ne connaissez pas la valeur du point noir, vous pouvez utiliser la
 - `disk_fill` remplit le disque solaire détecté avec une valeur donnée (par défault, celle du point noir détecté). Par exemple `disk_fill(img(0))` ou `disk_fill(img(0), 0)`.
 - `rescale_rel` permet d'agrandir ou réduire la taille d'une image. Elle prend 3 paramètres: l'image, puis les facteurs d'agrandissement en X et Y. Par exemple, `rescale_rel(img(0);2;2)` pour doubler la taille d'une image.
 - `rescale_abs` permet d'agrandir ou réduire la taille d'une image. Elle prend 3 paramètres: l'image, puis les dimensions finales souhaitées. Par exemple, `rescale_abs(img(0);2048;2048)`.
+- `radius_rescale` est une méthode de redimensionnement relative qui peut être utile pour faciliter les mosaïques d'images. Elle sera donc typiquement utilisée en <<#batch-mode,traitement par lots>>. Elle permet de redimensionner un ensemble d'images pour que toutes aient le même rayon solaire. Elle procède à une recherche du disque pour chaque image, trouve celle qui a le disque le plus grand, et redimensionne toutes les autres images pour qu'elles aient le même rayon solaire. Par exemple: `radius_rescale(cropped)`.
 
 === Scripts ImageMath
 
@@ -291,6 +293,7 @@ Enfin, `helium_color = colorize(fix_banding(helium_raw;BandWidth;BandIterations)
 
 NOTE: Vous pouvez mettre des commentaires sur une ligne commençant par `#` ou `//`
 
+[[batch-mode]]
 == Traitement par lots
 
 En plus du traitement individuel, JSol'Ex propose une mécanique de traitement par lot.
@@ -311,6 +314,67 @@ image::batch-mode-fr.jpg[]
 La liste des fichiers comprend le _fichier de log_ du traitement de ce fichier, ainsi que toutes les images générées pour ce fichier.
 
 NOTE: En mode batch, nous recommendons d'utiliser un <<#modele-noms-fichier,modèle de nom de fichier>> qui met toutes les images dans le même dossier, ce qui rendra plus simple leur exploitation dans un programme tiers.
+
+=== Extensions d'ImageMath disponibles en mode batch
+
+Lorsque vous utilisez le mode batch, une nouvelle section est disponible dans les <<#imagemath,scripts ImageMath>>.
+Cette section permet de composer des images à partir du résultat du traitement de chaque image individuelle.
+Typiquement, ceci peut-être utilisé pour faire de l'empilement.
+
+Cette section doit apparaître en fin de script et se délimite par le bloc `\[[batch]]`:
+
+[source]
+----
+#
+# Empile des images en utilisant le mode batch
+#
+
+[params]
+# banding correction width and iterations
+bandingWidth=25
+bandingIterations=3
+# autocrop factor
+cropFactor=1.1
+# contrast adjustment
+clip=.8
+
+[tmp]
+corrected = fix_banding(img(0);bandingWidth;bandingIterations) # <1>
+contrast_fixed = clahe(corrected;clip)                         # <2>
+
+[outputs]
+cropped = autocrop2(contrast_fixed;cropFactor;32)              # <3>
+
+# This is where we stack images, simply using a median
+# and assuming all images will have the same output size
+[[batch]]                                                      # <4>
+[outputs]
+stacked=sharpen(median(cropped))                               # <5>
+----
+<1> Pour chaque film, on calcule une image intermédiaire corrigée (qui ne sera pas stockée sur disque)
+<2> On applique une correction de contraste sur cette image corrigée
+<3> Important pour l'empilement : on réduit les images à un carré centré sur le disque solaire et on arondit les dimensions à un multiple de 32 pixels. Il s'agit de notre image de sortie pour chaque film du lot.
+<4> On déclare une section `\[[batch]]` pour décrire la sortie du mode batch
+<5> Une image nommée `stacked` sera calculée en utilisant la médiane des images `cropped`
+
+Il est important de bien comprendre que seules les images apparaissant dans la partie `[outputs]` du traitement individiduel peuvent être utilisées dans la section `\[[batch]]`.
+Ainsi, une image `cropped` apparaissant dans la partie individuelle devient implicitement une _liste_ d'images dans la section `\[[batch]]`: on travaille bien sur la liste des images générées dans le lot !
+
+Certaines fonctions comme `img` ne sont pas disponibles dans le mode `batch`.
+Si vous avez besoin d'images individuelles, vous devez les stocker dans une variable de sortie.
+Par exemple:
+
+[source]
+----
+[outputs]
+frame=img(0)       # <1>
+
+[[batch]]
+[outputs]
+video=anim(frame)  # <2>
+----
+<1> Pour que `img(0)` soit disponible dans la section `batch`, on l'assigne dans une variable nommée `frame`
+<2> On crée une animation dont chaque image est constituée d'une `frame`
 
 == Mesures avec le débogueur de spectre
 

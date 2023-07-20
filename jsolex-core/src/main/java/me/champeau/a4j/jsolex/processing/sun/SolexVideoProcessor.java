@@ -349,7 +349,7 @@ public class SolexVideoProcessor implements Broadcaster {
         var selected = imageList.stream()
                 .sorted(Comparator.comparing(WorkflowState::pixelShift))
                 .map(state -> {
-                    var ellipseFittingTask = new EllipseFittingTask(this, state.image(), processParams, imageEmitterFactory.newEmitter(this, executor, Constants.TYPE_DEBUG, outputDirectory)).withPrefilter();
+                    var ellipseFittingTask = new EllipseFittingTask(this, state.image(), processParams, imageEmitterFactory.newEmitter(this, executor, Constants.TYPE_DEBUG, outputDirectory));
                     try {
                         return Optional.of(ellipseFittingTask.call());
                     } catch (Exception e) {
