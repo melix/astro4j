@@ -78,42 +78,35 @@ public class GeometryCorrector extends AbstractTask<GeometryCorrector.Result> {
         var sin = Math.sin(theta);
         var shear = (m * cos * a * a + sin * b * b) / (b * b * cos - a * a * m * sin);
         LOGGER.debug("a = {}, b={}, theta={}", a, b, theta);
-        boolean performTransform = Math.abs(180 * theta / Math.PI) > 1;
         var maxDx = height * shear;
         var shift = maxDx < 0 ? maxDx : 0;
         float[] newBuffer;
-        int extendedWidth = width;
+        int extendedWidth;
         var buffer = getBuffer();
-        if (performTransform) {
-            extendedWidth = width + (int) Math.ceil(Math.abs(maxDx));
-            newBuffer = new float[height * extendedWidth];
-            for (int y = 0; y < height; y++) {
-                var dx = y * shear;
-                for (int x = 0; x < width; x++) {
-                    var nx = x - shift + dx;
-                    var x1 = (int) Math.floor(nx);
-                    var x2 = x1 + 1;
-                    var factor = nx - x1;
-                    if (x1 >= 0 && x2 < extendedWidth) {
-                        newBuffer[x1 + y * extendedWidth] += (1 - factor) * buffer[x + y * width];
-                        newBuffer[x2 + y * extendedWidth] += factor * buffer[x + y * width];
+        extendedWidth = width + (int) Math.ceil(Math.abs(maxDx));
+        newBuffer = new float[height * extendedWidth];
+        for (int y = 0; y < height; y++) {
+            var dx = y * shear;
+            for (int x = 0; x < width; x++) {
+                var nx = x - shift + dx;
+                var x1 = (int) Math.floor(nx);
+                var x2 = x1 + 1;
+                var factor = nx - x1;
+                if (x1 >= 0 && x2 < extendedWidth) {
+                    newBuffer[x1 + y * extendedWidth] += (1 - factor) * buffer[x + y * width];
+                    newBuffer[x2 + y * extendedWidth] += factor * buffer[x + y * width];
+                }
+                // reduce transform artifacts by filling with same border color
+                if (x == 0) {
+                    for (int k = 0; k < nx; k++) {
+                        newBuffer[k + y * extendedWidth] = buffer[x + y * width];
                     }
-                    // reduce transform artifacts by filling with same border color
-                    if (x == 0) {
-                        for (int k = 0; k < nx; k++) {
-                            newBuffer[k + y * extendedWidth] = buffer[x + y * width];
-                        }
-                    } else if (x == width - 1) {
-                        for (int k = (int) nx; k < extendedWidth; k++) {
-                            newBuffer[k + y * extendedWidth] = buffer[x + y * width];
-                        }
+                } else if (x == width - 1) {
+                    for (int k = (int) nx; k < extendedWidth; k++) {
+                        newBuffer[k + y * extendedWidth] = buffer[x + y * width];
                     }
                 }
             }
-        } else {
-            LOGGER.info(message("good.tilt"));
-            newBuffer = new float[buffer.length];
-            System.arraycopy(buffer, 0, newBuffer, 0, buffer.length);
         }
         double sx;
         double sy = Math.abs((a * b * Math.sqrt((a * a * m * m + b * b) / (a * a * sin * sin + b * b * cos * cos)) / (b * b * cos - a * a * m * sin)));
@@ -138,6 +131,7 @@ public class GeometryCorrector extends AbstractTask<GeometryCorrector.Result> {
      * Performs new ellipse regression, where sample points are taken from the
      * original ellipse, but corrected in the same way as we correct the image,
      * that is to say with a shear transform + x/y ratio correction.
+     *
      * @param shear the shear value
      * @param shift pixel shifting to avoid negative number overflow
      * @param sx the x correction ratio

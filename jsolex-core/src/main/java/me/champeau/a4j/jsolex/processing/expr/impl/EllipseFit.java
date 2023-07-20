@@ -48,7 +48,6 @@ public class EllipseFit extends AbstractFunctionImpl {
                     getFromContext(ProcessParams.class).orElse(null),
                     getFromContext(ImageEmitter.class).orElse(null)
             );
-            task.withPrefilter();
             EllipseFittingTask.Result result;
             try {
                 result = task.call();

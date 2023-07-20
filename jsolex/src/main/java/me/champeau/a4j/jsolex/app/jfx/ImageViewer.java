@@ -132,7 +132,14 @@ public class ImageViewer {
         zoomSlider.setValue(1.0);
         imageView.setOnZoomChanged(zoomSlider::setValue);
         var coordinatesLabel = new Label();
-        imageView.setCoordinatesListener((x, y) -> coordinatesLabel.setText("(" + x.intValue() + "," + y.intValue() + ")"));
+        imageView.setCoordinatesListener((x, y) -> {
+            String extra = "";
+            if (image instanceof ImageWrapper32 mono) {
+                var pixelValue = mono.data()[x.intValue() + y.intValue() * mono.width()];
+                extra = ", " + pixelValue;
+            }
+            coordinatesLabel.setText("(" + x.intValue() + "," + y.intValue() + extra + ")");
+        });
         zoomSlider.valueProperty().addListener((obj, oldValue, newValue) -> imageView.setZoom(newValue.doubleValue()));
         stretchingParams.getChildren().addAll(reset, saveButton, zoomLabel, zoomSlider, dimensions, coordinatesLabel);
         strechAndDisplay();

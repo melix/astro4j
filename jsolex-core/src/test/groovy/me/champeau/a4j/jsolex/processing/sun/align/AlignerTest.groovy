@@ -52,7 +52,6 @@ class AlignerTest extends Specification {
         !aligned.flipped()
     }
 
-    @PendingFeature
     def "can detect flips without rotation"() {
         var ref = REFERENCE
         aligner = Aligner.forReferenceImage(broadcaster, ref)

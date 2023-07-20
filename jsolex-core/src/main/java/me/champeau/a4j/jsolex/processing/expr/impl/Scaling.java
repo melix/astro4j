@@ -22,7 +22,10 @@ import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 import me.champeau.a4j.jsolex.processing.util.RGBImage;
 import me.champeau.a4j.math.image.Image;
 import me.champeau.a4j.math.image.ImageMath;
+import me.champeau.a4j.math.regression.Ellipse;
 
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -30,9 +33,11 @@ import static me.champeau.a4j.jsolex.processing.expr.impl.ScriptSupport.expandTo
 
 public class Scaling extends AbstractFunctionImpl {
     private final ImageMath imageMath = ImageMath.newInstance();
+    private final EllipseFit ellipseFit;
 
     public Scaling(ForkJoinContext forkJoinContext, Map<Class<?>, Object> context) {
         super(forkJoinContext, context);
+        ellipseFit = new EllipseFit(forkJoinContext, context);
     }
 
     public Object relativeRescale(List<Object> arguments) {
@@ -75,6 +80,47 @@ public class Scaling extends AbstractFunctionImpl {
             }
         }
         throw new IllegalArgumentException("Unsupported image type");
+    }
+
+    public Object radiusRescale(List<Object> arguments) {
+        assertExpectedArgCount(arguments, "radius_rescale takes 1 arguments (image(s))", 1, 1);
+        var arg = arguments.get(0);
+        if (arg instanceof List<?> list) {
+            var fittings = new LinkedHashMap<ImageWrapper, Double>();
+            for (Object obj : list) {
+                if (obj instanceof ImageWrapper img) {
+                    var fit = ellipseFit.fit(List.of(img));
+                    if (fit instanceof Ellipse e) {
+                        fittings.put(img, radiusOf(e));
+                    }
+                }
+            }
+            var maxRadius = fittings.values().stream().mapToDouble(Double::doubleValue).max();
+            if (maxRadius.isPresent()) {
+                var result = new ArrayList<ImageWrapper>();
+                var maxRadiusValue = maxRadius.getAsDouble();
+                for (Map.Entry<ImageWrapper, Double> entry : fittings.entrySet()) {
+                    var img = entry.getKey();
+                    var radius = entry.getValue();
+                    if (radius.equals(maxRadiusValue)) {
+                        result.add(img);
+                    } else {
+                        var scale = maxRadiusValue / radius;
+                        result.add(doRescale(img, (int) Math.round(img.width() * scale), (int) Math.round(img.height() * scale)));
+                    }
+                }
+                return result;
+            }
+            throw new IllegalArgumentException("Unable to determine max radius of images");
+        } else {
+            throw new IllegalArgumentException("radius_rescale requires a list of images");
+        }
+    }
+
+    // At this stage, we're assuming that the ellipse represents a circle
+    private double radiusOf(Ellipse e) {
+        var semiAxis = e.semiAxis();
+        return (semiAxis.a() + semiAxis.b()) / 2d;
     }
 
     private ImageWrapper doRescale(ImageWrapper img, int width, int height) {
