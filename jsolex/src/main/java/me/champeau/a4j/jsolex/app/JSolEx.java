@@ -463,6 +463,7 @@ public class JSolEx extends Application implements JSolExInterface {
                         reusedProcessParams = null;
                         key.cancel();
                         watchService.close();
+                        watchService = null;
                     } catch (IOException ex) {
                         // ignore
                     }
