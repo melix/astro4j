@@ -436,6 +436,7 @@ body.book #toc,body.book #preamble,body.book h1.sect0,body.book .sect1>h2{page-b
 #footer-text{color:rgba(0,0,0,.6);font-size:.9em}}
 @media amzn-kf8{#header,#content,#footnotes,#footer{padding:0}}
 </style>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
 </head>
 <body class="article toc2 toc-left">
 <div id="header">
@@ -462,7 +463,11 @@ body.book #toc,body.book #preamble,body.book h1.sect0,body.book .sect1>h2{page-b
 <li><a href="#_scripts_imagemath">Scripts ImageMath</a></li>
 </ul>
 </li>
-<li><a href="#_traitement_par_lots">Traitement par lots</a></li>
+<li><a href="#batch-mode">Traitement par lots</a>
+<ul class="sectlevel2">
+<li><a href="#_extensions_dimagemath_disponibles_en_mode_batch">Extensions d&#8217;ImageMath disponibles en mode batch</a></li>
+</ul>
+</li>
 <li><a href="#_mesures_avec_le_débogueur_de_spectre">Mesures avec le débogueur de spectre</a>
 <ul class="sectlevel2">
 <li><a href="#_application_au_calcul_de_décalage_de_la_raie_hélium">Application au calcul de décalage de la raie hélium</a></li>
@@ -556,7 +561,7 @@ Vous pouvez préciser:</p>
 <table>
 <tr>
 <td class="icon">
-<div class="title">Warning</div>
+<i class="fa icon-warning" title="Warning"></i>
 </td>
 <td class="content">
 Activer ce paramètre peut produire des images sensiblement plus grandes et entraîner une forte pression mémoire. Il n&#8217;est pas recommandé d&#8217;activer ce paramètre.
@@ -920,7 +925,7 @@ Le script apparaît désormais dans la liste de gauche, il sera appliqué lors d
 <table>
 <tr>
 <td class="icon">
-<div class="title">Note</div>
+<i class="fa icon-note" title="Note"></i>
 </td>
 <td class="content">
 Si vous ne connaissez pas la valeur du point noir, vous pouvez utiliser la valeur estimée par JSol&#8217;Ex, disponible dans une variable prédéfinie <code>blackPoint</code>: <code>asinh_stretch(img(0), blackPoint, 100)</code>
@@ -974,6 +979,9 @@ Si vous ne connaissez pas la valeur du point noir, vous pouvez utiliser la valeu
 </li>
 <li>
 <p><code>rescale_abs</code> permet d&#8217;agrandir ou réduire la taille d&#8217;une image. Elle prend 3 paramètres: l&#8217;image, puis les dimensions finales souhaitées. Par exemple, <code>rescale_abs(img(0);2048;2048)</code>.</p>
+</li>
+<li>
+<p><code>radius_rescale</code> est une méthode de redimensionnement relative qui peut être utile pour faciliter les mosaïques d&#8217;images. Elle sera donc typiquement utilisée en <a href="#batch-mode">traitement par lots</a>. Elle permet de redimensionner un ensemble d&#8217;images pour que toutes aient le même rayon solaire. Elle procède à une recherche du disque pour chaque image, trouve celle qui a le disque le plus grand, et redimensionne toutes les autres images pour qu&#8217;elles aient le même rayon solaire. Par exemple: <code>radius_rescale(cropped)</code>.</p>
 </li>
 </ul>
 </div>
@@ -1029,7 +1037,7 @@ On y trouve des variables, déclarées par un nom (ex <code>RaieHelium</code>) e
 <table>
 <tr>
 <td class="icon">
-<div class="title">Note</div>
+<i class="fa icon-note" title="Note"></i>
 </td>
 <td class="content">
 Une variable doit ne peut contenir que des caractères ascii, des numéros (hors premier caractère) ou le caractère _. Par exemple, <code>maVariable</code>, <code>MaVariable0</code> et <code>maVariable_0</code> sont tous valides, mais <code>hélium</code> ne l&#8217;est pas.
@@ -1044,7 +1052,7 @@ Une variable doit ne peut contenir que des caractères ascii, des numéros (hors
 <table>
 <tr>
 <td class="icon">
-<div class="title">Important</div>
+<i class="fa icon-important" title="Important"></i>
 </td>
 <td class="content">
 Les variables sont sensibles à la casse. <code>maVariable</code> et <code>MaVariable</code> sont 2 variables distinctes !
@@ -1072,7 +1080,7 @@ Ici, nous calculons 2 images temporaires, une du continuum, qui est calculée en
 <table>
 <tr>
 <td class="icon">
-<div class="title">Note</div>
+<i class="fa icon-note" title="Note"></i>
 </td>
 <td class="content">
 Vous pouvez mettre des commentaires sur une ligne commençant par <code>#</code> ou <code>//</code>
@@ -1084,7 +1092,7 @@ Vous pouvez mettre des commentaires sur une ligne commençant par <code>#</code>
 </div>
 </div>
 <div class="sect1">
-<h2 id="_traitement_par_lots">Traitement par lots</h2>
+<h2 id="batch-mode">Traitement par lots</h2>
 <div class="sectionbody">
 <div class="paragraph">
 <p>En plus du traitement individuel, JSol&#8217;Ex propose une mécanique de traitement par lot.
@@ -1121,13 +1129,108 @@ Lorsque le traitement est lancé, il y a cependant quelques différences:</p>
 <table>
 <tr>
 <td class="icon">
-<div class="title">Note</div>
+<i class="fa icon-note" title="Note"></i>
 </td>
 <td class="content">
 En mode batch, nous recommendons d&#8217;utiliser un <a href="#modele-noms-fichier">modèle de nom de fichier</a> qui met toutes les images dans le même dossier, ce qui rendra plus simple leur exploitation dans un programme tiers.
 </td>
 </tr>
 </table>
+</div>
+<div class="sect2">
+<h3 id="_extensions_dimagemath_disponibles_en_mode_batch">Extensions d&#8217;ImageMath disponibles en mode batch</h3>
+<div class="paragraph">
+<p>Lorsque vous utilisez le mode batch, une nouvelle section est disponible dans les <a href="#imagemath">scripts ImageMath</a>.
+Cette section permet de composer des images à partir du résultat du traitement de chaque image individuelle.
+Typiquement, ceci peut-être utilisé pour faire de l&#8217;empilement.</p>
+</div>
+<div class="paragraph">
+<p>Cette section doit apparaître en fin de script et se délimite par le bloc <code>[[batch]]</code>:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-none hljs">#
+# Empile des images en utilisant le mode batch
+#
+
+[params]
+# banding correction width and iterations
+bandingWidth=25
+bandingIterations=3
+# autocrop factor
+cropFactor=1.1
+# contrast adjustment
+clip=.8
+
+[tmp]
+corrected = fix_banding(img(0);bandingWidth;bandingIterations) <i class="conum" data-value="1"></i><b>(1)</b>
+contrast_fixed = clahe(corrected;clip)                         <i class="conum" data-value="2"></i><b>(2)</b>
+
+[outputs]
+cropped = autocrop2(contrast_fixed;cropFactor;32)              <i class="conum" data-value="3"></i><b>(3)</b>
+
+# This is where we stack images, simply using a median
+# and assuming all images will have the same output size
+[[batch]]                                                      <i class="conum" data-value="4"></i><b>(4)</b>
+[outputs]
+stacked=sharpen(median(cropped))                               <i class="conum" data-value="5"></i><b>(5)</b></code></pre>
+</div>
+</div>
+<div class="colist arabic">
+<table>
+<tr>
+<td><i class="conum" data-value="1"></i><b>1</b></td>
+<td>Pour chaque film, on calcule une image intermédiaire corrigée (qui ne sera pas stockée sur disque)</td>
+</tr>
+<tr>
+<td><i class="conum" data-value="2"></i><b>2</b></td>
+<td>On applique une correction de contraste sur cette image corrigée</td>
+</tr>
+<tr>
+<td><i class="conum" data-value="3"></i><b>3</b></td>
+<td>Important pour l&#8217;empilement : on réduit les images à un carré centré sur le disque solaire et on arondit les dimensions à un multiple de 32 pixels. Il s&#8217;agit de notre image de sortie pour chaque film du lot.</td>
+</tr>
+<tr>
+<td><i class="conum" data-value="4"></i><b>4</b></td>
+<td>On déclare une section <code>[[batch]]</code> pour décrire la sortie du mode batch</td>
+</tr>
+<tr>
+<td><i class="conum" data-value="5"></i><b>5</b></td>
+<td>Une image nommée <code>stacked</code> sera calculée en utilisant la médiane des images <code>cropped</code></td>
+</tr>
+</table>
+</div>
+<div class="paragraph">
+<p>Il est important de bien comprendre que seules les images apparaissant dans la partie <code>[outputs]</code> du traitement individiduel peuvent être utilisées dans la section <code>[[batch]]</code>.
+Ainsi, une image <code>cropped</code> apparaissant dans la partie individuelle devient implicitement une <em>liste</em> d&#8217;images dans la section <code>[[batch]]</code>: on travaille bien sur la liste des images générées dans le lot !</p>
+</div>
+<div class="paragraph">
+<p>Certaines fonctions comme <code>img</code> ne sont pas disponibles dans le mode <code>batch</code>.
+Si vous avez besoin d&#8217;images individuelles, vous devez les stocker dans une variable de sortie.
+Par exemple:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-none hljs">[outputs]
+frame=img(0)       <i class="conum" data-value="1"></i><b>(1)</b>
+
+[[batch]]
+[outputs]
+video=anim(frame)  <i class="conum" data-value="2"></i><b>(2)</b></code></pre>
+</div>
+</div>
+<div class="colist arabic">
+<table>
+<tr>
+<td><i class="conum" data-value="1"></i><b>1</b></td>
+<td>Pour que <code>img(0)</code> soit disponible dans la section <code>batch</code>, on l&#8217;assigne dans une variable nommée <code>frame</code></td>
+</tr>
+<tr>
+<td><i class="conum" data-value="2"></i><b>2</b></td>
+<td>On crée une animation dont chaque image est constituée d&#8217;une <code>frame</code></td>
+</tr>
+</table>
+</div>
 </div>
 </div>
 </div>

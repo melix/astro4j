@@ -462,7 +462,11 @@ body.book #toc,body.book #preamble,body.book h1.sect0,body.book .sect1>h2{page-b
 <li><a href="#_imagemath_scripts">ImageMath scripts</a></li>
 </ul>
 </li>
-<li><a href="#_batch_processing">Batch processing</a></li>
+<li><a href="#batch-mode">Batch processing</a>
+<ul class="sectlevel2">
+<li><a href="#_imagemath_extensions_available_in_batch_mode">ImageMath extensions available in batch mode</a></li>
+</ul>
+</li>
 <li><a href="#_measurements_thanks_to_the_spectrum_debugger">Measurements thanks to the spectrum debugger</a>
 <ul class="sectlevel2">
 <li><a href="#_example_of_application_to_determine_the_helium_ray_pixel_shift">Example of application to determine the helium ray pixel shift</a></li>
@@ -986,6 +990,9 @@ If you don&#8217;t want to provide a custom black point value, you can use a pre
 <li>
 <p><code>rescale_abs</code> rescales an image to the specified dimensions. It takes 3 arguments: the image then the desired width and height. For example, <code>rescale_abs(img(0);2048;2048)</code>.</p>
 </li>
+<li>
+<p><code>radius_rescale</code> is a relative scaling method which can facilitate mosaic composition. It will therefore most likely be used in <a href="#batch-mode">batch mode</a>. It allows rescaling a set of images so that they all have the same solar disk radius (in pixels). In order to do so, it will perform an ellipse regression against each image to compute their solar disk, then will rescale all images to match the radius of the largest one. For example: <code>radius_rescale(cropped)</code>.</p>
+</li>
 </ul>
 </div>
 </div>
@@ -1097,7 +1104,7 @@ Comments can be added either with the <code>#</code> or <code>//</code> prefix.
 </div>
 </div>
 <div class="sect1">
-<h2 id="_batch_processing">Batch processing</h2>
+<h2 id="batch-mode">Batch processing</h2>
 <div class="sectionbody">
 <div class="paragraph">
 <p>In addition to single SER file processing, JSol&#8217;Ex provides a batch mode.
@@ -1140,6 +1147,90 @@ In batch mode, we recommend that you pick a custom <a href="#filename-templates"
 </td>
 </tr>
 </table>
+</div>
+<div class="sect2">
+<h3 id="_imagemath_extensions_available_in_batch_mode">ImageMath extensions available in batch mode</h3>
+<div class="paragraph">
+<p>When you are in batch mode, an additional section is available in <a href="#imagemath">ImageMath scripts</a>.
+This section allows making computations on the results of the processing of each individual image, in order to compose a final image for example (e.g stacking), or to create an animation of several images.</p>
+</div>
+<div class="paragraph">
+<p>This section must appear at the end of a script and is introduced by the <code>[[batch]]</code> delimiter:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-none hljs">#
+# Performs (simple) stacking of images in batch mode
+#
+
+[params]
+# banding correction width and iterations
+bandingWidth=25
+bandingIterations=3
+# autocrop factor
+cropFactor=1.1
+# contrast adjustment
+clip=.8
+
+[tmp]
+corrected = fix_banding(img(0);bandingWidth;bandingIterations) # <b class="conum">(1)</b>
+contrast_fixed = clahe(corrected;clip)                         # <b class="conum">(2)</b>
+
+[outputs]
+cropped = autocrop2(contrast_fixed;cropFactor;32)              # <b class="conum">(3)</b>
+
+# This is where we stack images, simply using a median
+# and assuming all images will have the same output size
+[[batch]]                                                      # <b class="conum">(4)</b>
+[outputs]
+stacked=sharpen(median(cropped))                               # <b class="conum">(5)</b></code></pre>
+</div>
+</div>
+<div class="colist arabic">
+<ol>
+<li>
+<p>For each SER file, we compute an intermediate corrected image (not stored on disk)</p>
+</li>
+<li>
+<p>We perform contrast adjustment on the corrected images</p>
+</li>
+<li>
+<p>Important for stacking: we crop the image to a square centered on the solar disk. The square has a width rounded to the closest multiple of 32 pixels. This is the output of each individual SER file processing.</p>
+</li>
+<li>
+<p>We declare a <code>[[batch]]</code> section to describe the outputs of the batch itself</p>
+</li>
+<li>
+<p>An image called <code>stacked</code> will be calculated by using the median value of each individual <code>cropped</code> image</p>
+</li>
+</ol>
+</div>
+<div class="paragraph">
+<p>It is important to understand that only the images which appear in the <code>[outputs]</code> section of the individual file processing are available for use in the <code>[[batch]]</code> section.
+Therefore, the <code>cropped</code> image of a single SER file becomes a <em>list</em> of images in the <code>[[batch]]</code> section.
+Some functions, like <code>img</code> are not available in the <code>batch</code> mode.
+If you need individual images to be available in the batch processing section, then you must assign them to a variable in the <code>[outputs]</code> section:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-none hljs">[outputs]
+frame=img(0)       # <b class="conum">(1)</b>
+
+[[batch]]
+[outputs]
+video=anim(frame)  # <b class="conum">(2)</b></code></pre>
+</div>
+</div>
+<div class="colist arabic">
+<ol>
+<li>
+<p>In order to make the <code>img(0)</code> image visible to the batch section, we must assign it to a variable that we call <code>frame</code></p>
+</li>
+<li>
+<p>An animation is created using each <code>frame</code></p>
+</li>
+</ol>
+</div>
 </div>
 </div>
 </div>
