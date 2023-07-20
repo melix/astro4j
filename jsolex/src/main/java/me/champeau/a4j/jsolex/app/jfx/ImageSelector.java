@@ -212,33 +212,64 @@ public class ImageSelector {
         Set<GeneratedImageKind> images = EnumSet.noneOf(GeneratedImageKind.class);
         if (raw.isSelected()) {
             images.add(GeneratedImageKind.RAW);
+            if (internalPixelShifts != null) {
+                internalPixelShifts.remove(0);
+            }
         }
         if (stretched.isSelected()) {
             images.add(GeneratedImageKind.RAW_STRETCHED);
+            if (internalPixelShifts != null) {
+                internalPixelShifts.remove(0);
+            }
         }
         if (geometryCorrected.isSelected()) {
             images.add(GeneratedImageKind.GEOMETRY_CORRECTED);
+            if (internalPixelShifts != null) {
+                internalPixelShifts.remove(0);
+            }
         }
         if (geometryCorrectedStretched.isSelected()) {
             images.add(GeneratedImageKind.GEOMETRY_CORRECTED_STRETCHED);
+            if (internalPixelShifts != null) {
+                internalPixelShifts.remove(0);
+            }
         }
         if (colorized.isSelected()) {
             images.add(GeneratedImageKind.COLORIZED);
+            if (internalPixelShifts != null) {
+                internalPixelShifts.remove(0);
+            }
         }
         if (virtualEclipse.isSelected()) {
             images.add(GeneratedImageKind.VIRTUAL_ECLIPSE);
+            if (internalPixelShifts != null) {
+                internalPixelShifts.remove(0);
+            }
         }
         if (negative.isSelected()) {
             images.add(GeneratedImageKind.NEGATIVE);
+            if (internalPixelShifts != null) {
+                internalPixelShifts.remove(0);
+            }
         }
         if (mixed.isSelected()) {
             images.add(GeneratedImageKind.MIXED);
+            if (internalPixelShifts != null) {
+                internalPixelShifts.remove(0);
+            }
         }
         if (doppler.isSelected()) {
             images.add(GeneratedImageKind.DOPPLER);
+            if (internalPixelShifts != null) {
+                internalPixelShifts.remove(-dopplerShift);
+                internalPixelShifts.remove(dopplerShift);
+            }
         }
         if (continuum.isSelected()) {
             images.add(GeneratedImageKind.CONTINUUM);
+            if (internalPixelShifts != null) {
+                internalPixelShifts.remove(Constants.CONTINUUM_SHIFT);
+            }
         }
         if (reconstruction.isSelected()) {
             images.add(GeneratedImageKind.RECONSTRUCTION);

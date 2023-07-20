@@ -20,6 +20,7 @@ import org.slf4j.LoggerFactory;
 
 import java.io.ByteArrayOutputStream;
 import java.io.PrintWriter;
+import java.nio.channels.ClosedByInterruptException;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.RejectedExecutionException;
 
@@ -29,7 +30,7 @@ public class LoggingSupport {
     public static final Logger LOGGER = LoggerFactory.getLogger(LoggingSupport.class);
 
     public static String logError(Throwable ex) {
-        if (ex instanceof CancellationException || ex instanceof RejectedExecutionException) {
+        if (isProcessingCancelled(ex)) {
             var message = message("processing.cancelled");
             LOGGER.error(message);
             return message;
@@ -41,5 +42,18 @@ public class LoggingSupport {
         String trace = out.toString();
         LOGGER.error("Error while processing\n{}", trace);
         return trace;
+    }
+
+    private static boolean isProcessingCancelled(Throwable ex) {
+        if (ex instanceof CancellationException
+            || ex instanceof RejectedExecutionException
+            || ex instanceof InterruptedException
+            || ex instanceof ClosedByInterruptException) {
+            return true;
+        }
+        if (ex instanceof ProcessingException pe) {
+            return isProcessingCancelled(pe.getCause());
+        }
+        return false;
     }
 }

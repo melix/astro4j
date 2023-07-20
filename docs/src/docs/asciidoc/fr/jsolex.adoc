@@ -118,7 +118,7 @@ Vous avez le choix entre 3 modes de traitement.
     - une image Doppler
 - le mode "personnalisé" permet de choisir plus précisément les images générées, voire de générer des images non prévues à l'origine par le logiciel (voir la <<#custom_images,section suivante>>).
 
-== Affichage des images produites
+=== Affichage des images produites
 
 Lorsque les images sont produites, elles apparaissent au fur et à mesure en onglets.
 Il vous est alors possible, en fonction des images, de modifier des paramètres de constraste et d'enregistrer les images.
@@ -127,6 +127,26 @@ image::image-display-fr.jpg[]
 
 Vous pouvez zoomer dans les images en utilisant la molette de la souris.
 Un clic droit vous permettra d'ouvrir l'image générée dans votre explorateur de fichiers.
+
+== Mode surveillance de répertoire
+
+Lors de la mise au point, il peut être utile de traiter "à la chaîne" de nouvelles vidéos jusqu'à avoir obtenu un résultat satisfaisant (image centrée, mise au point correcte, etc.).
+JSol'Ex offre une façon simple de gagner du temps, en surveillant un dossier : les vidéos qui apparaissent dans le dossier seront automatiquement traitées.
+
+Pour ce faire, dans le menu fichier, sélectionnez "Surveiller un dossier" puis sélectionnez le dossier dans lequel seront enregistrés vos fichiers SER (par exemple là où SharpCap va enregistrer).
+
+JSol'Ex bascule en mode "surveillance" que vous pouvez interrompre en cliquant sur le bouton en bas à gauche.
+
+Ouvrez maintenant votre logiciel de capture et enregistrez une nouvelle vidéo.
+Lorsque vous rebasculerez sur JSol'Ex, le logiciel ouvrira automatiquement la fenètre de paramétrage.
+Choisissez vos options et lancez le traitement.
+
+Une fois le résultat obtenu, rebasculez sur le logiciel d'acquisition et enregistrez une nouvelle vidéo.
+Lorsque vous rebasculerez sur JSol'Ex, cette fois-ci le logiciel réutilisera les paramètres utilisés lors du traitement de la première vidéo : vous obtiendrez donc rapidement une nouvelle image !
+
+Lorsque vous avez terminé, cliquez sur le bouton "Interrompre la surveillance" en bas à gauche.
+
+WARNING: Lorsque vous basculez de votre logiciel de capture à JSol'Ex, faites attention à ce que l'enregistrement soit terminé. Dans le cas contraire, le traitement serait lancé sur un fichier SER incomplet, ce qui échouera.
 
 [[custom_images]]
 == Personnalisation des images générées

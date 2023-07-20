@@ -47,6 +47,7 @@ import javafx.scene.control.TextArea;
 import javafx.scene.image.Image;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
+import javafx.stage.DirectoryChooser;
 import javafx.stage.FileChooser;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
@@ -87,7 +88,12 @@ import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.io.IOException;
+import java.nio.file.FileSystems;
+import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.StandardWatchEventKinds;
+import java.nio.file.WatchEvent;
+import java.nio.file.WatchService;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.ArrayList;
@@ -100,6 +106,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
+import static java.nio.file.StandardWatchEventKinds.OVERFLOW;
 import static me.champeau.a4j.jsolex.processing.util.LoggingSupport.logError;
 
 public class JSolEx extends Application implements JSolExInterface {
@@ -149,6 +156,11 @@ public class JSolEx extends Application implements JSolExInterface {
     private ProgressBar memory;
     @FXML
     private Label memoryLabel;
+
+    private ProcessParams reusedProcessParams;
+    private Path watchedDirectory;
+    private WatchService watchService;
+    private Button interruptWatchButton;
 
     @Override
     public ForkJoinContext getCpuExecutor() {
@@ -204,6 +216,33 @@ public class JSolEx extends Application implements JSolExInterface {
                     // ignore
                 }
                 System.exit(0);
+            });
+            stage.focusedProperty().addListener((o, oldValue, newValue) -> {
+                if (Boolean.TRUE.equals(newValue) && watchService != null) {
+                    var watchKey = watchService.poll();
+                    if (watchKey == null) {
+                        return;
+                    }
+                    for (var event : watchKey.pollEvents()) {
+                        var kind = event.kind();
+
+                        if (kind == OVERFLOW) {
+                            continue;
+                        }
+
+                        var ev = (WatchEvent<Path>) event;
+                        Path filename = ev.context();
+                        Path child = watchedDirectory.resolve(filename);
+                        if (Files.isRegularFile(child) && filename.toString().endsWith(".ser")) {
+                            doOpen(child.toFile(), true);
+                        }
+                    }
+
+                    boolean valid = watchKey.reset();
+                    if (!valid) {
+                        watchKey.cancel();
+                    }
+                }
             });
             BatchOperations.submit(() -> UpdateChecker.findLatestRelease().ifPresent(this::maybeWarnAboutNewRelease));
             LOGGER.info("Java runtime version {}", System.getProperty("java.version"));
@@ -267,17 +306,17 @@ public class JSolEx extends Application implements JSolExInterface {
         timeline.play();
     }
 
-    private void closeExecutors() {
+    private void cancelExecutors() {
         if (cpuExecutor != null) {
             try {
-                cpuExecutor.close();
+                cpuExecutor.cancel();
             } catch (Exception e) {
                 // ignore
             }
         }
         if (ioExecutor != null) {
             try {
-                ioExecutor.close();
+                ioExecutor.cancel();
             } catch (Exception e) {
                 // ignore
             }
@@ -301,7 +340,7 @@ public class JSolEx extends Application implements JSolExInterface {
         recentFilesMenu.getItems().clear();
         for (Path recentFile : config.getRecentFiles()) {
             var recent = new MenuItem(recentFile.toAbsolutePath().toString());
-            recent.setOnAction(e -> doOpen(recentFile.toFile()));
+            recent.setOnAction(e -> doOpen(recentFile.toFile(), false));
             recentFilesMenu.getItems().add(recent);
         }
     }
@@ -379,7 +418,7 @@ public class JSolEx extends Application implements JSolExInterface {
 
     @FXML
     private void open() {
-        selectSerFileAndThen(this::doOpen);
+        selectSerFileAndThen(f -> doOpen(f, false));
     }
 
     @FXML
@@ -395,6 +434,45 @@ public class JSolEx extends Application implements JSolExInterface {
             doOpenMany(selectedFiles);
         } else {
             LoggingSupport.LOGGER.info(message("no.selected.file"));
+        }
+    }
+
+    @FXML
+    private void watchMode() {
+        var fileChooser = new DirectoryChooser();
+        config.findLastOpenDirectory().ifPresent(dir -> fileChooser.setInitialDirectory(dir.toFile()));
+        var directory = fileChooser.showDialog(rootStage);
+        if (directory != null) {
+            LOGGER.info(message("watching"), directory);
+            try {
+                var watcher = FileSystems.getDefault().newWatchService();
+                if (watchService != null) {
+                    reusedProcessParams = null;
+                    watchService.close();
+                    if (interruptWatchButton != null) {
+                        workButtons.getChildren().remove(interruptWatchButton);
+                        interruptWatchButton = null;
+                    }
+                }
+                watchService = watcher;
+                watchedDirectory = directory.toPath();
+                var key = watchedDirectory.register(watcher, StandardWatchEventKinds.ENTRY_CREATE);
+                interruptWatchButton = new Button(message("stop.watching"));
+                interruptWatchButton.setOnAction(e -> {
+                    try {
+                        reusedProcessParams = null;
+                        key.cancel();
+                        watchService.close();
+                    } catch (IOException ex) {
+                        // ignore
+                    }
+                    workButtons.getChildren().remove(interruptWatchButton);
+                    LOGGER.info(message("stopped.watching"), watchedDirectory);
+                });
+                workButtons.getChildren().add(interruptWatchButton);
+            } catch (IOException e) {
+                LOGGER.error("Cannot create watch service", e);
+            }
         }
     }
 
@@ -420,7 +498,7 @@ public class JSolEx extends Application implements JSolExInterface {
             try {
                 configWindow = fxmlLoader.load();
             } catch (IOException e) {
-                throw new RuntimeException(e);
+                throw new ProcessingException(e);
             }
             var controller = (SpectralLineDebugger) fxmlLoader.getController();
             var stage = new Stage();
@@ -502,39 +580,50 @@ public class JSolEx extends Application implements JSolExInterface {
         return version;
     }
 
-    private void doOpen(File selectedFile) {
+    private void doOpen(File selectedFile, boolean rememberProcessParams) {
         imageMathPane.setDisable(true);
         config.loaded(selectedFile.toPath());
         configureThreadExceptionHandler();
         BatchOperations.submit(this::refreshRecentItemsMenu);
         Optional<ProcessParams> processParams;
-        Header header = null;
+        Header header;
         try (var reader = SerFileReader.of(selectedFile)) {
-            var controller = createProcessParams(reader, false);
-            processParams = controller.getProcessParams();
             header = reader.header();
+            if (reusedProcessParams != null) {
+                processParams = Optional.of(reusedProcessParams.withObservationDetails(
+                        reusedProcessParams.observationDetails().withDate(header.metadata().utcDateTime())
+                ));
+            } else {
+                var controller = createProcessParams(reader, false);
+                processParams = controller.getProcessParams();
+            }
         } catch (Exception e) {
             throw ProcessingException.wrap(e);
         }
         var firstHeader = header;
         processParams.ifPresent(params -> {
-            mainPane.getTabs().clear();
-            console.textProperty().set("");
-            var interruptButton = addInterruptButton();
-            var processingThread = new Thread(() -> cpuExecutor.blocking(() ->
-                    processSingleFile(cpuExecutor, params, selectedFile, false, 0, selectedFile, firstHeader, () -> {
-                        BatchOperations.submit(() -> workButtons.getChildren().remove(interruptButton));
-                    })
-            ));
-            interruptButton.setOnAction(e -> {
-                closeExecutors();
-                prepareExecutors();
-                BatchOperations.submit(() -> updateProgress(0, message("interrupted")));
-                workButtons.getChildren().remove(interruptButton);
-                processingThread.interrupt();
-            });
-            processingThread.start();
+            if (rememberProcessParams) {
+                reusedProcessParams = params;
+            }
+            processFileWithParams(selectedFile, firstHeader, params);
         });
+    }
+
+    private void processFileWithParams(File selectedFile, Header firstHeader, ProcessParams params) {
+        mainPane.getTabs().clear();
+        console.textProperty().set("");
+        var interruptButton = addInterruptButton();
+        var processingThread = new Thread(() -> cpuExecutor.blocking(() ->
+                processSingleFile(cpuExecutor, params, selectedFile, false, 0, selectedFile, firstHeader, () -> BatchOperations.submit(() -> workButtons.getChildren().remove(interruptButton)))
+        ));
+        interruptButton.setOnAction(e -> {
+            cancelExecutors();
+            prepareExecutors();
+            BatchOperations.submit(() -> updateProgress(0, message("interrupted")));
+            workButtons.getChildren().remove(interruptButton);
+            processingThread.interrupt();
+        });
+        processingThread.start();
     }
 
     private static void configureThreadExceptionHandler() {
@@ -634,7 +723,7 @@ public class JSolEx extends Application implements JSolExInterface {
                 interruptButton.setOnAction(e -> {
                     interruptButton.setDisable(true);
                     taskSubmissionThread.interrupt();
-                    closeExecutors();
+                    cancelExecutors();
                     prepareExecutors();
                     updateProgress(0, message("batch.interrupted"));
                 });
