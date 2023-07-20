@@ -26,6 +26,7 @@
             <Menu text="%file">
                 <MenuItem onAction="#open" text="%open.ser.file"/>
                 <MenuItem onAction="#openBatch" text="%open.batch"/>
+                <MenuItem onAction="#watchMode" text="%open.watch"/>
                 <Menu fx:id="recentFilesMenu" text="%recent.files"/>
                 <SeparatorMenuItem/>
                 <MenuItem onAction="#exit" text="%exit"/>
@@ -84,9 +85,9 @@
     <bottom>
         <HBox spacing="10.0">
             <children>
+                <HBox fx:id="workButtons" spacing="10.0" HBox.hgrow="SOMETIMES"/>
                 <ProgressBar fx:id="progressBar" prefWidth="200.0" progress="0.0"/>
                 <Label fx:id="progressLabel"/>
-                <HBox fx:id="workButtons" spacing="10.0" HBox.hgrow="SOMETIMES"/>
                 <HBox spacing="10.0" HBox.hgrow="ALWAYS">
                     <AnchorPane prefWidth="200.0" HBox.hgrow="ALWAYS">
                         <children>

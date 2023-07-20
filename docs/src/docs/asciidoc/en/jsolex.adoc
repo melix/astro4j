@@ -1,5 +1,6 @@
 = JSol'Ex
 Cédric Champeau
+:icons: font
 
 JSol'Ex is a solar images processing software for http://www.astrosurf.com/solex/sol-ex-presentation-en.html[Christian Buil's Sol'Ex].
 It is capable of processing SER files captured with this instrument in order to produce images of the solar disk, in a similar way to what http://valerie.desnoux.free.fr/inti/[INTI from Valérie Desnoux] is doing.
@@ -118,7 +119,7 @@ JSol'Ex provides 3 processing modes: quick, full and custom.
     - a Doppler image
 - the "custom" mode will let you precisely pick which images you want to generate. It even provides a more advanced mode letting you script generated images, allowing the generation of images which weren't designed initially (see the <<#custom_images,section about custom images>>).
 
-== Image display
+=== Image display
 
 Once images are generated, they appear one after each other in tabs.
 These tabs provide you with the ability to tweak the contrast of images and save them, typically when you unchecked the automatic save option.
@@ -127,6 +128,26 @@ image::image-display-fr.jpg[]
 
 It is possible to zoom into the images by using the mouse wheel.
 In addition, right-clicking the image will let you open it into your file explorer.
+
+== Watching a directory for changes
+
+When trying to find the ideal focus, it can be useful to process video files quickly until we obtain a satisfying result.
+JSol'Ex offers an easy way to do this, by watching the changes in a directory : new videos which are saved in that directory will immediately be processed.
+
+To do this, in the file menu, choose "Watch directory" then select the directory where your SER files will be recorded (e.g the output directory of SharpCap).
+
+JSol'Ex will switch to watch mode, which you can interrupt by clicking the button which appeared in the bottom left of the interface.
+
+Now, open your capture software and record a new video.
+Once it's done, switch to JSol'Ex : it will open the process parameters configuration window.
+Select your processing parameters then start the processing.
+
+Once you have the result, switch back to your capture software and acquire a new video.
+Once its done, switch back to JSol'Ex: this time, the process parameters window won't open, because it's going to reuse the parameters from the first video, allowing to process new videos very quickly!
+
+Once you're happy with the result, click on the "Stop watching" button on the bottom left.
+
+WARNING: Make sure that when you switch from your capture software to JSol'Ex that the recording is finished. If not, processing can start on an incomplete file and fail.
 
 [[custom_images]]
 == Customization of generated images

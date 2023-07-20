@@ -74,7 +74,7 @@ public class ForkJoinParallelExecutor implements AutoCloseable, ForkJoinContext 
         try {
             executor.shutdownNow();
         } catch (Exception e) {
-            throw new RuntimeException(e);
+            throw ProcessingException.wrap(e);
         }
     }
 
