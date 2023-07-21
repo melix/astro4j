@@ -29,6 +29,7 @@ import me.champeau.a4j.jsolex.processing.expr.impl.EllipseFit;
 import me.champeau.a4j.jsolex.processing.expr.impl.FixBanding;
 import me.champeau.a4j.jsolex.processing.expr.impl.Loader;
 import me.champeau.a4j.jsolex.processing.expr.impl.RGBCombination;
+import me.champeau.a4j.jsolex.processing.expr.impl.Rotate;
 import me.champeau.a4j.jsolex.processing.expr.impl.Saturation;
 import me.champeau.a4j.jsolex.processing.expr.impl.Scaling;
 import me.champeau.a4j.jsolex.processing.expr.impl.ScriptSupport;
@@ -69,6 +70,7 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
     private final EllipseFit ellipseFit;
     private final FixBanding fixBanding;
     private final Loader loader;
+    private final Rotate rotate;
     private final Saturation saturation;
     private final Scaling scaling;
     private final Stretching stretching;
@@ -86,6 +88,7 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
         this.ellipseFit = new EllipseFit(forkJoinContext, context);
         this.fixBanding = new FixBanding(forkJoinContext, context);
         this.loader = new Loader(forkJoinContext, context);
+        this.rotate = new Rotate(forkJoinContext, context);
         this.saturation = new Saturation(forkJoinContext, context);
         this.scaling = new Scaling(forkJoinContext, context);
         this.stretching = new Stretching(forkJoinContext, context);
@@ -175,6 +178,10 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
             case REMOVE_BG -> bgRemoval.removeBackground(arguments);
             case RESCALE_ABS -> scaling.absoluteRescale(arguments);
             case RESCALE_REL -> scaling.relativeRescale(arguments);
+            case ROTATE_LEFT -> rotate.rotateLeft(arguments);
+            case ROTATE_RIGHT -> rotate.rotateRight(arguments);
+            case ROTATE_DEG -> rotate.rotateDegrees(arguments);
+            case ROTATE_RAD -> rotate.rotateRadians(arguments);
             case RGB -> RGBCombination.combine(arguments);
             case SATURATE -> saturation.saturate(arguments);
             case SHARPEN -> convolution.sharpen(arguments);
