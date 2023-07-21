@@ -1036,6 +1036,18 @@ Si vous ne connaissez pas la valeur du point noir, vous pouvez utiliser la valeu
 <li>
 <p><code>radius_rescale</code> est une méthode de redimensionnement relative qui peut être utile pour faciliter les mosaïques d&#8217;images. Elle sera donc typiquement utilisée en <a href="#batch-mode">traitement par lots</a>. Elle permet de redimensionner un ensemble d&#8217;images pour que toutes aient le même rayon solaire. Elle procède à une recherche du disque pour chaque image, trouve celle qui a le disque le plus grand, et redimensionne toutes les autres images pour qu&#8217;elles aient le même rayon solaire. Par exemple: <code>radius_rescale(cropped)</code>.</p>
 </li>
+<li>
+<p><code>rotate_left</code> effectue une rotation vers la gauche de l&#8217;image. Par exemple, <code>rotate_left(img(0))</code>.</p>
+</li>
+<li>
+<p><code>rotate_right</code> effectue une rotation vers la droite de l&#8217;image. Par exemple, <code>rotate_right(img(0))</code>.</p>
+</li>
+<li>
+<p><code>rotate_deg</code> effectue une rotation d&#8217;un angle arbitraire en degrés. Elle accepte entre 2 et 4 paramètres: l&#8217;image, l&#8217;angle de rotation sont obligatoires. Par exemple <code>rotate_deg(img(0), 45)</code>. Vous pouvez ensuite spécifier la valeur du fond à utiliser pour remplir les portions manquantes:  <code>rotate_deg(img(0), 45, 800)</code> et enfin si vous ajoutez <code>1</code> en dernier paramètre l&#8217;image sera redimensionnée au maximum pour que tous les pixels de l&#8217;image d&#8217;origine apparaissent dans l&#8217;image tournée.</p>
+</li>
+<li>
+<p><code>rotate_rad</code> effectue une rotation d&#8217;un angle arbitraire en radians. Elle accepte entre 2 et 4 paramètres: l&#8217;image, l&#8217;angle de rotation sont obligatoires. Par exemple <code>rotate_rad(img(0), .2)</code>. Vous pouvez ensuite spécifier la valeur du fond à utiliser pour remplir les portions manquantes:  <code>rotate_rad(img(0), .2, 800)</code> et enfin si vous ajoutez <code>1</code> en dernier paramètre l&#8217;image sera redimensionnée au maximum pour que tous les pixels de l&#8217;image d&#8217;origine apparaissent dans l&#8217;image tournée.</p>
+</li>
 </ul>
 </div>
 </div>

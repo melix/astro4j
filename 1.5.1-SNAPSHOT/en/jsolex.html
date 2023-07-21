@@ -1047,6 +1047,18 @@ If you don&#8217;t want to provide a custom black point value, you can use a pre
 <li>
 <p><code>radius_rescale</code> is a relative scaling method which can facilitate mosaic composition. It will therefore most likely be used in <a href="#batch-mode">batch mode</a>. It allows rescaling a set of images so that they all have the same solar disk radius (in pixels). In order to do so, it will perform an ellipse regression against each image to compute their solar disk, then will rescale all images to match the radius of the largest one. For example: <code>radius_rescale(cropped)</code>.</p>
 </li>
+<li>
+<p><code>rotate_left</code> performs a rotation of the image to the left. For example, <code>rotate_left(img(0))</code>.</p>
+</li>
+<li>
+<p><code>rotate_right</code> performs a rotation of the image to the right. For example <code>rotate_right(img(0))</code>.</p>
+</li>
+<li>
+<p><code>rotate_deg</code> performs an arbitrary rotation, in degrees. It accepts between 2 and 4 parameters: the image and the rotation angle are mandatory. For example: <code>rotate_deg(img(0), 45)</code>. You can then specify the fill value for the pixels which didn&#8217;t belong to the original image:  <code>rotate_deg(img(0), 45, 800)</code> and last, if you add <code>1</code> as the last argument, the image will be rescaled so that all pixels from the original image are found in the rotated version.</p>
+</li>
+<li>
+<p><code>rotate_rad</code> performs an arbitrary rotation, in degrees. It accepts between 2 and 4 parameters: the image and the rotation angle are mandatory. For example: <code>rotate_rad(img(0), 0.25)</code>. You can then specify the fill value for the pixels which didn&#8217;t belong to the original image:  <code>rotate_rad(img(0), 0.25, 800)</code> and last, if you add <code>1</code> as the last argument, the image will be rescaled so that all pixels from the original image are found in the rotated version.</p>
+</li>
 </ul>
 </div>
 </div>
