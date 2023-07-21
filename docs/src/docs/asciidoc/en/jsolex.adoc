@@ -127,7 +127,7 @@ These tabs provide you with the ability to tweak the contrast of images and save
 image::image-display-fr.jpg[]
 
 It is possible to zoom into the images by using the mouse wheel.
-In addition, right-clicking the image will let you open it into your file explorer.
+In addition, right-clicking the image will let you open it into your file explorer or in a separate window.
 
 == Watching a directory for changes
 
@@ -145,9 +145,11 @@ Select your processing parameters then start the processing.
 Once you have the result, switch back to your capture software and acquire a new video.
 Once its done, switch back to JSol'Ex: this time, the process parameters window won't open, because it's going to reuse the parameters from the first video, allowing to process new videos very quickly!
 
+WARNING: Make sure that when you switch from your capture software to JSol'Ex that the recording is finished. If not, processing can start on an incomplete file and fail.
+
 Once you're happy with the result, click on the "Stop watching" button on the bottom left.
 
-WARNING: Make sure that when you switch from your capture software to JSol'Ex that the recording is finished. If not, processing can start on an incomplete file and fail.
+TIP: You can combine the watch mode with opening an image in a new window (by right-clicking on an image, you can open it in a new window). When a new SER file will be processed, the corresponding image will automatically replace the one in the external window. This can be useful in demonstrations, if you have for example a separate monitor where you would only show the result of processing.
 
 [[custom_images]]
 == Customization of generated images

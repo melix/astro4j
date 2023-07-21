@@ -59,6 +59,7 @@ import me.champeau.a4j.jsolex.app.jfx.DocsHelper;
 import me.champeau.a4j.jsolex.app.jfx.ExplorerSupport;
 import me.champeau.a4j.jsolex.app.jfx.I18N;
 import me.champeau.a4j.jsolex.app.jfx.ImageMathEditor;
+import me.champeau.a4j.jsolex.app.jfx.ImageViewer;
 import me.champeau.a4j.jsolex.app.jfx.NamingPatternEditor;
 import me.champeau.a4j.jsolex.app.jfx.ProcessParamsController;
 import me.champeau.a4j.jsolex.app.jfx.SpectralLineDebugger;
@@ -100,6 +101,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -156,6 +158,8 @@ public class JSolEx extends Application implements JSolExInterface {
     private ProgressBar memory;
     @FXML
     private Label memoryLabel;
+
+    private final Map<String, ImageViewer> popupViewers = new HashMap<>();
 
     private ProcessParams reusedProcessParams;
     private Path watchedDirectory;
@@ -806,12 +810,12 @@ public class JSolEx extends Application implements JSolExInterface {
         if (batchMode) {
             var batchProcessingContext = (BatchProcessingContext) context;
             var outputDirectory = batchProcessingContext.outputDirectory();
-            var delegate = new SingleModeProcessingEventListener(this, baseName, null, cpuExecutor, ioExecutor, outputDirectory.toPath(), params);
+            var delegate = new SingleModeProcessingEventListener(this, baseName, null, cpuExecutor, ioExecutor, outputDirectory.toPath(), params, popupViewers);
             return new BatchModeEventListener(this, delegate, sequenceNumber, batchProcessingContext, params);
         }
         var serFile = (File) context;
         var outputDirectory = serFile.getParentFile().toPath();
-        return new SingleModeProcessingEventListener(this, baseName, serFile, cpuExecutor, ioExecutor, outputDirectory, params);
+        return new SingleModeProcessingEventListener(this, baseName, serFile, cpuExecutor, ioExecutor, outputDirectory, params, popupViewers);
     }
 
     private ProcessParamsController createProcessParams(SerFileReader serFileReader, boolean batchMode) {

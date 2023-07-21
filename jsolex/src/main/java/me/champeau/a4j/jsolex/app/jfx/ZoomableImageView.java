@@ -34,6 +34,7 @@ import java.util.function.Consumer;
 public class ZoomableImageView extends HBox {
     private final ScrollPane scrollPane;
     private final ImageView imageView;
+    private final ContextMenu ctxMenu;
     private BiConsumer<? super Double, ? super Double> onCoordinatesListener;
     private Consumer<? super Double> onZoomChanged;
 
@@ -65,7 +66,7 @@ public class ZoomableImageView extends HBox {
             }
         });
 
-        var ctxMenu = new ContextMenu();
+        ctxMenu = new ContextMenu();
         var showFile = new MenuItem("Show file in files");
         showFile.setOnAction(e -> ExplorerSupport.openInExplorer(imagePath));
         ctxMenu.getItems().add(showFile);
@@ -148,6 +149,10 @@ public class ZoomableImageView extends HBox {
         zoom = getWidth() / image.getWidth();
         triggerOnZoomChanged();
         applyZoom();
+    }
+
+    public ContextMenu getCtxMenu() {
+        return ctxMenu;
     }
 
     public Image getImage() {
