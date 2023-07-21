@@ -47,6 +47,10 @@ public enum BuiltinFunction {
     RESCALE_ABS,
     RESCALE_REL,
     RGB,
+    ROTATE_LEFT,
+    ROTATE_RIGHT,
+    ROTATE_DEG,
+    ROTATE_RAD,
     SATURATE,
     SHARPEN,
     WORKDIR;
