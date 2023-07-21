@@ -19,14 +19,19 @@ import javafx.animation.PauseTransition;
 import javafx.beans.property.DoubleProperty;
 import javafx.fxml.FXML;
 import javafx.scene.Node;
+import javafx.scene.Parent;
+import javafx.scene.Scene;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
+import javafx.scene.control.MenuItem;
 import javafx.scene.control.Slider;
 import javafx.scene.control.Tab;
 import javafx.scene.control.TabPane;
 import javafx.scene.image.Image;
 import javafx.scene.layout.HBox;
+import javafx.stage.Stage;
 import javafx.util.Duration;
+import me.champeau.a4j.jsolex.app.JSolEx;
 import me.champeau.a4j.jsolex.processing.event.ProcessingEventListener;
 import me.champeau.a4j.jsolex.processing.event.ProgressEvent;
 import me.champeau.a4j.jsolex.processing.params.ProcessParams;
@@ -44,8 +49,10 @@ import me.champeau.a4j.jsolex.processing.util.RGBImage;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.EnumSet;
 import java.util.List;
+import java.util.Map;
 
 import static me.champeau.a4j.jsolex.app.JSolEx.message;
 
@@ -53,6 +60,7 @@ public class ImageViewer {
     private Node root;
     private ConstrastAdjustmentStrategy stretchingStrategy = ConstrastAdjustmentStrategy.DEFAULT;
     private ImageWrapper image;
+    private String baseName;
     private File imageFile;
     private ProcessingEventListener broadcaster;
     private ProcessParams processParams;
@@ -78,17 +86,47 @@ public class ImageViewer {
     }
 
     public void setup(ProcessingEventListener broadcaster,
+                      String title,
                       String baseName,
                       ImageWrapper image,
                       File imageName,
-                      ProcessParams params) {
+                      ProcessParams params,
+                      Map<String, ImageViewer> popupViews) {
         this.broadcaster = broadcaster;
         this.image = image;
         this.imageFile = new File(imageName.getParentFile(), baseName + "_" + imageName.getName() + imageDisplayExtension(params));
         this.processParams = params;
+        this.baseName = baseName;
         configureStretching();
         if (params.extraParams().autosave()) {
             saveImage(imageFile);
+        }
+        if (!popupViews.containsKey(title)) {
+            var openInNewWindow = new MenuItem(message("open.new.window"));
+            openInNewWindow.setOnAction(e -> {
+                try {
+                    var fxmlLoader = I18N.fxmlLoader(JSolEx.class, "imageview");
+                    var node = (Node) fxmlLoader.load();
+                    var controller = (ImageViewer) fxmlLoader.getController();
+                    controller.init(node, null, forkJoinContext);
+                    controller.setup(new ProcessingEventListener() {
+                    }, title, baseName, image, imageFile, processParams, popupViews);
+                    var stage = new Stage();
+                    var scene = new Scene((Parent) node);
+                    controller.saveButton.setVisible(false);
+                    controller.fitWidthProperty().bind(stage.widthProperty());
+                    stage.setTitle(title);
+                    stage.setWidth(1024);
+                    stage.setHeight(768);
+                    stage.setScene(scene);
+                    stage.setOnCloseRequest(evt -> popupViews.remove(title));
+                    stage.show();
+                    popupViews.put(title, controller);
+                } catch (IOException ex) {
+                    throw new ProcessingException(ex);
+                }
+            });
+            imageView.getCtxMenu().getItems().add(openInNewWindow);
         }
     }
 
@@ -219,7 +257,9 @@ public class ImageViewer {
             var height = image.height();
             Runnable updateDisplay = () -> {
                 imageView.setImage(new Image(tmpImage.toURI().toString()));
-                tabPane.getSelectionModel().select(imageView.getParentTab());
+                if (tabPane != null) {
+                    tabPane.getSelectionModel().select(imageView.getParentTab());
+                }
                 tmpImage.delete();
                 saveButton.setDisable(false);
             };
@@ -268,5 +308,16 @@ public class ImageViewer {
 
     public void setTab(Tab tab) {
         imageView.setParentTab(tab);
+    }
+
+    public void setImage(ImageWrapper image, Path path) {
+        this.image = image;
+        this.imageFile = new File(path.toFile().getParentFile(), baseName + "_" + path.getFileName() + imageDisplayExtension(processParams));
+        imageView.setImagePath(path);
+        BatchOperations.submit(() -> {
+            imageView.setImage(new Image(imageFile.toURI().toString()));
+            saveButton.setDisable(true);
+            strechAndDisplay();
+        });
     }
 }

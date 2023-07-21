@@ -126,7 +126,7 @@ Il vous est alors possible, en fonction des images, de modifier des paramètres 
 image::image-display-fr.jpg[]
 
 Vous pouvez zoomer dans les images en utilisant la molette de la souris.
-Un clic droit vous permettra d'ouvrir l'image générée dans votre explorateur de fichiers.
+Un clic droit vous permettra d'ouvrir l'image générée dans votre explorateur de fichiers ou dans une nouvelle fenêtre.
 
 == Mode surveillance de répertoire
 
@@ -144,9 +144,11 @@ Choisissez vos options et lancez le traitement.
 Une fois le résultat obtenu, rebasculez sur le logiciel d'acquisition et enregistrez une nouvelle vidéo.
 Lorsque vous rebasculerez sur JSol'Ex, cette fois-ci le logiciel réutilisera les paramètres utilisés lors du traitement de la première vidéo : vous obtiendrez donc rapidement une nouvelle image !
 
+WARNING: Lorsque vous basculez de votre logiciel de capture à JSol'Ex, faites attention à ce que l'enregistrement soit terminé. Dans le cas contraire, le traitement serait lancé sur un fichier SER incomplet, ce qui échouera.
+
 Lorsque vous avez terminé, cliquez sur le bouton "Interrompre la surveillance" en bas à gauche.
 
-WARNING: Lorsque vous basculez de votre logiciel de capture à JSol'Ex, faites attention à ce que l'enregistrement soit terminé. Dans le cas contraire, le traitement serait lancé sur un fichier SER incomplet, ce qui échouera.
+TIP: Vous pouvez combiner le fait d'être en mode surveillance avec le fait d'ouvrir une image dans une fenêtre externe (en faisant un clic droit sur l'image choisie). En effet, lors du traitement de la nouvelle vidéo, l'image dans la fenêtre sera automatiquement remplacée par la nouvelle version. Ceci peut par exemple être intéressant dans des présentations publiques, en ayant une fenêtre montrant simplement le résultat du traitement.
 
 [[custom_images]]
 == Personnalisation des images générées

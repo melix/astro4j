@@ -95,6 +95,7 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
     private final Path outputDirectory;
     private final ProcessParams params;
     private final TabPane mainPane;
+    private final Map<String, ImageViewer> popupViews;
     private final AtomicInteger concurrentNotifications = new AtomicInteger();
     private Map<Class, Object> scriptExecutionContext;
     private ImageEmitter imageEmitter;
@@ -111,7 +112,8 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
                                              ForkJoinContext cpuContext,
                                              ForkJoinContext ioContext,
                                              Path outputDirectory,
-                                             ProcessParams params) {
+                                             ProcessParams params,
+                                             Map<String, ImageViewer> popupViews) {
         this.owner = owner;
         this.baseName = baseName;
         this.serFile = serFile;
@@ -120,6 +122,7 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
         this.outputDirectory = outputDirectory;
         this.params = params;
         this.mainPane = owner.getMainPane();
+        this.popupViews = popupViews;
         this.shiftImages = new HashMap<>();
         imageViews = new HashMap<>();
         sd = 0;
@@ -204,18 +207,26 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
     @Override
     public void onImageGenerated(ImageGeneratedEvent event) {
         BatchOperations.submit(() -> {
-            var tab = new Tab(event.getPayload().title());
+            var payload = event.getPayload();
+            var title = payload.title();
+            var tab = new Tab(title);
             var viewer = newImageViewer();
             viewer.fitWidthProperty().bind(mainPane.widthProperty());
             viewer.setTab(tab);
             viewer.setup(this,
+                    title,
                     baseName,
-                    event.getPayload().image(),
-                    event.getPayload().path().toFile(),
-                    params
+                    payload.image(),
+                    payload.path().toFile(),
+                    params,
+                    popupViews
             );
             tab.setContent(viewer.getRoot());
             mainPane.getTabs().add(tab);
+            var imageViewer = popupViews.get(title);
+            if (imageViewer != null) {
+                imageViewer.setImage(payload.image(), payload.path());
+            }
         });
     }
 
@@ -312,13 +323,8 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
             }
         }
         var finishedString = String.format(JSolEx.message("finished.in"), seconds);
-        onNotification(new NotificationEvent(
-                new Notification(
-                        Notification.AlertType.INFORMATION,
-                        JSolEx.message("processing.done"),
-                        finishedString,
-                        sb.toString()
-                )));
+        LOGGER.info(JSolEx.message("processing.done"));
+        LOGGER.info(finishedString);
         owner.prepareForScriptExecution(this, params);
         suggestions.clear();
         BatchOperations.submit(() -> owner.updateProgress(1.0, finishedString));
