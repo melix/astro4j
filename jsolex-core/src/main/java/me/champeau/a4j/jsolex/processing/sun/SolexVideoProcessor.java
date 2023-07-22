@@ -267,7 +267,7 @@ public class SolexVideoProcessor implements Broadcaster {
         });
         Ellipse ellipse = null;
         ImageStats imageStats = null;
-        var images = new HashMap<Integer, ImageWrapper32>();
+        var images = new HashMap<Double, ImageWrapper32>();
         for (WorkflowState workflowState : imageList) {
             var result = workflowState.findResult(WorkflowResults.GEOMETRY_CORRECTION);
             if (result.isPresent() && result.get() instanceof GeometryCorrector.Result geo) {
@@ -283,7 +283,7 @@ public class SolexVideoProcessor implements Broadcaster {
 
     private void generateImageMaths(ForkJoinContext blockingContext, FileNamingStrategy imageNamingStrategy, String baseName, List<WorkflowState> imageList, ImageMathParams mathImages) {
         if (!mathImages.scriptFiles().isEmpty()) {
-            var images = new HashMap<Integer, ImageWrapper32>();
+            var images = new HashMap<Double, ImageWrapper32>();
             Ellipse ellipse = null;
             ImageStats imageStats = null;
             for (WorkflowState workflowState : imageList) {
@@ -454,7 +454,7 @@ public class SolexVideoProcessor implements Broadcaster {
         return result;
     }
 
-    private void processSingleFrame(boolean internal, int width, int height, float[] outputBuffer, int offset, float[] buffer, DoubleTriplet p, int pixelShift, int totalLines) {
+    private void processSingleFrame(boolean internal, int width, int height, float[] outputBuffer, int offset, float[] buffer, DoubleTriplet p, double pixelShift, int totalLines) {
         var fun = p.asPolynomial();
         double[] line = new double[width];
         int lastY = 0;

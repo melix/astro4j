@@ -45,7 +45,8 @@ public class ScriptSupport {
                     var allArgs = new ArrayList<>();
                     allArgs.add(image);
                     allArgs.addAll(params);
-                    collected.put(idx, function.apply(allArgs));
+                    var result = function.apply(allArgs);
+                    collected.put(idx, result);
                 });
             }
         });
@@ -53,7 +54,7 @@ public class ScriptSupport {
         return collected.keySet().stream().map(collected::get).toList();
     }
 
-    public static Object monoToMonoImageTransformer(String name, int maxArgCount, List<Object> arguments, ImageConsumer consumer) {
+    public static Object monoToMonoImageTransformer(ForkJoinContext forkJoinContext, String name, int maxArgCount, List<Object> arguments, ImageConsumer consumer) {
         if (arguments.size() > maxArgCount) {
             throw new IllegalArgumentException("Invalid number of arguments on '" + name + "' call");
         }
@@ -62,14 +63,14 @@ public class ScriptSupport {
             var copy = image.copy();
             consumer.accept(copy.width(), copy.height(), copy.data());
             return copy;
-        } else if (arg instanceof List<?> list) {
-            return list.stream().map(e -> monoToMonoImageTransformer(name, maxArgCount, List.of(e), consumer)).toList();
+        } else if (arg instanceof List<?>) {
+            return expandToImageList(forkJoinContext, arguments, e -> monoToMonoImageTransformer(forkJoinContext, name, maxArgCount, e, consumer));
         }
         throw new IllegalArgumentException(name + "first argument must be a mono image or a list of images");
     }
 
-    public static Object inverse(List<Object> arguments) {
-        return monoToMonoImageTransformer("invert", 1, arguments, NegativeImageStrategy.DEFAULT::stretch);
+    public static Object inverse(ForkJoinContext forkJoinContext, List<Object> arguments) {
+        return monoToMonoImageTransformer(forkJoinContext, "invert", 1, arguments, NegativeImageStrategy.DEFAULT::stretch);
     }
 
     public static Object applyFunction(String name, List<Object> arguments, Function<DoubleStream, OptionalDouble> operator) {

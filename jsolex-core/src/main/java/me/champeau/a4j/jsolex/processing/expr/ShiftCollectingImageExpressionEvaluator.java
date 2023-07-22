@@ -27,27 +27,27 @@ import java.util.function.Function;
 
 public class ShiftCollectingImageExpressionEvaluator extends ImageExpressionEvaluator {
 
-    private final Set<Integer> shifts = new TreeSet<>();
+    private final Set<Double> shifts = new TreeSet<>();
 
-    public static Function<Integer, ImageWrapper> zeroImages() {
-        var map = new HashMap<Integer, ImageWrapper>();
-        return (Integer idx) -> map.computeIfAbsent(idx, unused -> new ImageWrapper32(0, 0, new float[0]));
+    public static Function<Double, ImageWrapper> zeroImages() {
+        var map = new HashMap<Double, ImageWrapper>();
+        return (Double idx) -> map.computeIfAbsent(idx, unused -> new ImageWrapper32(0, 0, new float[0]));
     }
 
     public ShiftCollectingImageExpressionEvaluator(ForkJoinContext forkJoinContext) {
         this(forkJoinContext, zeroImages());
     }
 
-    public ShiftCollectingImageExpressionEvaluator(ForkJoinContext forkJoinContext, Function<Integer, ImageWrapper> imageFactory) {
+    public ShiftCollectingImageExpressionEvaluator(ForkJoinContext forkJoinContext, Function<Double, ImageWrapper> imageFactory) {
         super(forkJoinContext, imageFactory);
     }
 
-    protected ImageWrapper findImage(int shift) {
+    protected ImageWrapper findImage(double shift) {
         shifts.add(shift);
         return super.findImage(shift);
     }
 
-    public Set<Integer> getShifts() {
+    public Set<Double> getShifts() {
         return Collections.unmodifiableSet(shifts);
     }
 

@@ -28,11 +28,11 @@ public final class ProcessingDoneEvent extends ProcessingEvent<ProcessingDoneEve
         super(payload);
     }
 
-    public record Outcome(long timestamp, Map<Integer, ImageWrapper32> shiftImages, ImageEmitter customImageEmitter, Ellipse ellipse, ImageStats imageStats) {
+    public record Outcome(long timestamp, Map<Double, ImageWrapper32> shiftImages, ImageEmitter customImageEmitter, Ellipse ellipse, ImageStats imageStats) {
 
     }
 
-    public static ProcessingDoneEvent of(long timestamp, Map<Integer, ImageWrapper32> images, ImageEmitter customImageEmitter, Ellipse ellipse, ImageStats imageStats) {
+    public static ProcessingDoneEvent of(long timestamp, Map<Double, ImageWrapper32> images, ImageEmitter customImageEmitter, Ellipse ellipse, ImageStats imageStats) {
         return new ProcessingDoneEvent(new Outcome(timestamp, Collections.unmodifiableMap(images), customImageEmitter, ellipse, imageStats));
     }
 }

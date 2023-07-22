@@ -85,7 +85,7 @@ abstract class ProcessParamsIO {
                 new VideoParams(ColorMode.MONO),
                 new GeometryParams(null, null, false, false, false, false),
                 new BandingCorrectionParams(24, 3),
-                new RequestedImages(RequestedImages.FULL_MODE, List.of(0), Set.of(), ImageMathParams.NONE)
+                new RequestedImages(RequestedImages.FULL_MODE, List.of(0d), Set.of(), ImageMathParams.NONE)
         );
     }
 
@@ -146,7 +146,7 @@ abstract class ProcessParamsIO {
                                 params.videoParams(),
                                 params.geometryParams(),
                                 params.bandingCorrectionParams(),
-                                new RequestedImages(RequestedImages.FULL_MODE, List.of(0), Set.of(), ImageMathParams.NONE)
+                                new RequestedImages(RequestedImages.FULL_MODE, List.of(0d), Set.of(), ImageMathParams.NONE)
                         );
                     }
                     if (params.extraParams() == null) {

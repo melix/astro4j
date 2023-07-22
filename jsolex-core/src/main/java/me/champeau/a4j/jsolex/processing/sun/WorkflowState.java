@@ -24,7 +24,7 @@ import java.util.Optional;
 public final class WorkflowState {
     private final int width;
     private final int height;
-    private final int pixelShift;
+    private final double pixelShift;
     private final float[] reconstructed;
     private final EnumMap<WorkflowResults, Object> outcomes = new EnumMap<>(WorkflowResults.class);
     private ImageWrapper32 image;
@@ -33,7 +33,7 @@ public final class WorkflowState {
     public WorkflowState(
             int width,
             int height,
-            int pixelShift,
+            double pixelShift,
             float[] buffer
     ) {
         this.width = width;
@@ -50,7 +50,7 @@ public final class WorkflowState {
         this.internal = internal;
     }
 
-    public static WorkflowState prepare(int width, int height, int pixelShift) {
+    public static WorkflowState prepare(int width, int height, double pixelShift) {
         return new WorkflowState(width, height, pixelShift, new float[width * height]);
     }
 
@@ -75,7 +75,7 @@ public final class WorkflowState {
         return height;
     }
 
-    public int pixelShift() {
+    public double pixelShift() {
         return pixelShift;
     }
 

@@ -43,7 +43,7 @@ public class DefaultImageScriptExecutor implements ImageMathScriptExecutor {
     public static final String BATCH_SECTION_NAME = "batch";
 
     private final ForkJoinContext forkJoinContext;
-    private final Function<Integer, ImageWrapper> imagesByShift;
+    private final Function<Double, ImageWrapper> imagesByShift;
     private final Map<Class, Object> context;
     private final AtomicInteger executionCount = new AtomicInteger(0);
     private final Broadcaster broadcaster;
@@ -51,7 +51,7 @@ public class DefaultImageScriptExecutor implements ImageMathScriptExecutor {
     private final Map<String, Object> variables = new HashMap<>();
 
     public DefaultImageScriptExecutor(ForkJoinContext forkJoinContext,
-                                      Function<Integer, ImageWrapper> imagesByShift,
+                                      Function<Double, ImageWrapper> imagesByShift,
                                       Map<Class, Object> context,
                                       Broadcaster broadcaster) {
         this.forkJoinContext = forkJoinContext;
@@ -61,7 +61,7 @@ public class DefaultImageScriptExecutor implements ImageMathScriptExecutor {
     }
 
     public DefaultImageScriptExecutor(ForkJoinContext forkJoinContext,
-                                      Function<Integer, ImageWrapper> imagesByShift,
+                                      Function<Double, ImageWrapper> imagesByShift,
                                       Map<Class, Object> context) {
         this(forkJoinContext, imagesByShift, context, Broadcaster.NO_OP);
     }

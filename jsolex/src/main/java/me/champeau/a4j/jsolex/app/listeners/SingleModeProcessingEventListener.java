@@ -86,7 +86,7 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
     private static final Logger LOGGER = LoggerFactory.getLogger(SingleModeProcessingEventListener.class);
 
     private final Map<SuggestionEvent.SuggestionKind, String> suggestions = Collections.synchronizedMap(new LinkedHashMap<>());
-    private final Map<Integer, ZoomableImageView> imageViews;
+    private final Map<Double, ZoomableImageView> imageViews;
     private final JSolExInterface owner;
     private final String baseName;
     private final File serFile;
@@ -102,7 +102,7 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
     private ImageMathScriptExecutor imageScriptExecutor;
     private long sd;
     private long ed;
-    private final Map<Integer, ImageWrapper32> shiftImages;
+    private final Map<Double, ImageWrapper32> shiftImages;
     private int width;
     private int height;
 
@@ -150,7 +150,7 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
         height = event.getHeight();
     }
 
-    private ZoomableImageView createImageView(int pixelShift) {
+    private ZoomableImageView createImageView(double pixelShift) {
         var imageView = new ZoomableImageView();
         imageView.prefWidthProperty().bind(mainPane.widthProperty());
         imageView.setImage(new WritableImage(width, height));
@@ -363,7 +363,7 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
     @Override
     public ImageMathScriptResult execute(String script, SectionKind kind) {
         // perform a first pass just to check if they are missing image shifts
-        Set<Integer> missingShifts = determineShiftsRequiredInScript(script);
+        Set<Double> missingShifts = determineShiftsRequiredInScript(script);
         missingShifts.removeAll(shiftImages.keySet());
         if (!missingShifts.isEmpty()) {
             restartProcessForMissingShifts(missingShifts);
@@ -386,8 +386,8 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
         return result;
     }
 
-    private void restartProcessForMissingShifts(Set<Integer> missingShifts) {
-        LOGGER.warn(JSolEx.message("restarting.process.missing.shifts"), missingShifts);;
+    private void restartProcessForMissingShifts(Set<Double> missingShifts) {
+        LOGGER.warn(JSolEx.message("restarting.process.missing.shifts"), missingShifts.stream().map(d -> String.format("%.2f", d)).toList());
         // restart processing to include missing images
         var tmpParams = params.withRequestedImages(
                 new RequestedImages(Set.of(GeneratedImageKind.GEOMETRY_CORRECTED),
@@ -410,14 +410,14 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
         solexVideoProcessor.process();
     }
 
-    private Set<Integer> determineShiftsRequiredInScript(String script) {
+    private Set<Double> determineShiftsRequiredInScript(String script) {
         var collectingExecutor = new DefaultImageScriptExecutor(
                 cpuContext,
                 ShiftCollectingImageExpressionEvaluator.zeroImages(),
                 scriptExecutionContext
         );
         var shiftCollectionResult = collectingExecutor.execute(script, SectionKind.SINGLE);
-        Set<Integer> allShifts = new TreeSet<>();
+        Set<Double> allShifts = new TreeSet<>();
         allShifts.addAll(shiftCollectionResult.outputShifts());
         allShifts.addAll(shiftCollectionResult.internalShifts());
         return allShifts;

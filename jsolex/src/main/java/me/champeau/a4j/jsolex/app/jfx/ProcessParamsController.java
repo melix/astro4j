@@ -180,7 +180,7 @@ public class ProcessParamsController {
             latitude.setText(Double.toString(coordinates.a()));
             longitude.setText(Double.toString(coordinates.b()));
         }
-        pixelShifting.setTextFormatter(new TextFormatter<>(new IntegerStringConverter()));
+        pixelShifting.setTextFormatter(new TextFormatter<>(new DoubleStringConverter()));
         pixelShifting.textProperty().set(String.valueOf(initialProcessParams.spectrumParams().pixelShift()));
         dopplerShifting.valueProperty().set(initialProcessParams.spectrumParams().dopplerShift());
         switchRedBlueChannels.setSelected(initialProcessParams.spectrumParams().switchRedBlueChannels());
@@ -227,10 +227,10 @@ public class ProcessParamsController {
 
     @FXML
     public void process() {
-        int dopplerShift = (int) dopplerShifting.getValue();
+        double dopplerShift = dopplerShifting.getValue();
         doProcess(new RequestedImages(
                 generateDebugImages.isSelected() ? RequestedImages.FULL_MODE_WITH_DEBUG : RequestedImages.FULL_MODE,
-                List.of(getPixelShiftAsInt(), dopplerShift, -dopplerShift),
+                List.of(getPixelShiftAsDouble(), dopplerShift, -dopplerShift),
                 Set.of(-dopplerShift, dopplerShift),
                 ImageMathParams.NONE
         ));
@@ -247,8 +247,8 @@ public class ProcessParamsController {
                     forkJoinContext, 
                     initialProcessParams.requestedImages().images(),
                     generateDebugImages.isSelected(),
-                    List.of(getPixelShiftAsInt()),
-                    (int) dopplerShifting.getValue(),
+                    List.of(getPixelShiftAsDouble()),
+                    (double) dopplerShifting.getValue(),
                     initialProcessParams.requestedImages().mathImages(),
                     hostServices,
                     batchMode
@@ -268,7 +268,7 @@ public class ProcessParamsController {
                 controller.getRequestedImages().ifPresent(requested -> {
                     generateDebugImages.setSelected(controller.hasDebug());
                     var shifts = requested.pixelShifts();
-                    if (!shifts.contains(getPixelShiftAsInt())) {
+                    if (!shifts.contains(getPixelShiftAsDouble())) {
                         pixelShifting.setText(String.valueOf(shifts.get(0)));
                     }
                     doProcess(requested);
@@ -308,7 +308,7 @@ public class ProcessParamsController {
         }
         var namingStrategy = namingPattern.getSelectionModel().getSelectedItem();
         processParams = new ProcessParams(
-                new SpectrumParams(wavelength.getValue(), getPixelShiftAsInt(), (int) Math.round(dopplerShifting.getValue()), switchRedBlueChannels.isSelected()),
+                new SpectrumParams(wavelength.getValue(), getPixelShiftAsDouble(), (int) Math.round(dopplerShifting.getValue()), switchRedBlueChannels.isSelected()),
                 new ObservationDetails(
                         observerName.getText(),
                         email.getText(),
@@ -338,8 +338,12 @@ public class ProcessParamsController {
         stage.close();
     }
 
-    private Integer getPixelShiftAsInt() {
-        return Integer.parseInt(pixelShifting.getText());
+    private Double getPixelShiftAsDouble() {
+        var text = pixelShifting.getText();
+        if (text.isEmpty()) {
+            return 0d;
+        }
+        return Double.parseDouble(text);
     }
 
     private DoublePair toDoublePair(String latitude, String longitude) {
@@ -353,7 +357,7 @@ public class ProcessParamsController {
     public void quickProcess() {
         doProcess(new RequestedImages(
                 generateDebugImages.isSelected() ? RequestedImages.QUICK_MODE_WITH_DEBUG : RequestedImages.QUICK_MODE,
-                List.of(getPixelShiftAsInt()),
+                List.of(getPixelShiftAsDouble()),
                 Set.of(),
                 ImageMathParams.NONE
         ));

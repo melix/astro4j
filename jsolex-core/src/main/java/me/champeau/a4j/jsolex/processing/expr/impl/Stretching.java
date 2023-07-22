@@ -35,7 +35,7 @@ public class Stretching extends AbstractFunctionImpl {
         }
         float blackpoint = floatArg(arguments, 1);
         float stretch = floatArg(arguments, 2);
-        return ScriptSupport.monoToMonoImageTransformer("asinh_stretch", 3, arguments, (width, height, data) -> new ArcsinhStretchingStrategy(blackpoint, stretch, stretch).stretch(width, height, data));
+        return ScriptSupport.monoToMonoImageTransformer(forkJoinContext, "asinh_stretch", 3, arguments, (width, height, data) -> new ArcsinhStretchingStrategy(blackpoint, stretch, stretch).stretch(width, height, data));
     }
 
     public Object linearStretch(List<Object> arguments) {
@@ -51,6 +51,6 @@ public class Stretching extends AbstractFunctionImpl {
             hi = Constants.MAX_PIXEL_VALUE;
             lo = 0;
         }
-        return ScriptSupport.monoToMonoImageTransformer("linear_stretch", 3, arguments, (width, height, data) -> new LinearStrechingStrategy(lo, hi).stretch(width, height, data));
+        return ScriptSupport.monoToMonoImageTransformer(forkJoinContext, "linear_stretch", 3, arguments, (width, height, data) -> new LinearStrechingStrategy(lo, hi).stretch(width, height, data));
     }
 }

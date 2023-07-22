@@ -21,14 +21,14 @@ import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
 import java.util.function.Function;
 
 public class ImageExpressionEvaluator extends AbstractImageExpressionEvaluator {
-    private final Function<Integer, ImageWrapper> images;
+    private final Function<Double, ImageWrapper> images;
 
-    public ImageExpressionEvaluator(ForkJoinContext forkJoinContext, Function<Integer, ImageWrapper> images) {
+    public ImageExpressionEvaluator(ForkJoinContext forkJoinContext, Function<Double, ImageWrapper> images) {
         super(forkJoinContext);
         this.images = images;
     }
 
-    protected ImageWrapper findImage(int shift) {
+    protected ImageWrapper findImage(double shift) {
         var image = images.apply(shift);
         if (image == null) {
             throw new IllegalArgumentException("Image for shift '" + shift + "' is missing");

@@ -28,8 +28,8 @@ import java.util.Set;
  */
 public record RequestedImages(
         Set<GeneratedImageKind> images,
-        List<Integer> pixelShifts,
-        Set<Integer> internalPixelShifts,
+        List<Double> pixelShifts,
+        Set<Double> internalPixelShifts,
         ImageMathParams mathImages
 ) {
     public static final Set<GeneratedImageKind> FULL_MODE = EnumSet.of(
@@ -79,11 +79,11 @@ public record RequestedImages(
         return new RequestedImages(images, pixelShifts, internalPixelShifts, mathImages);
     }
 
-    public RequestedImages withPixelShifts(List<Integer> pixelShifts) {
+    public RequestedImages withPixelShifts(List<Double> pixelShifts) {
         return new RequestedImages(images, pixelShifts, internalPixelShifts, mathImages);
     }
 
-    public RequestedImages withInternalPixelShifts(Set<Integer> internalPixelShifts) {
+    public RequestedImages withInternalPixelShifts(Set<Double> internalPixelShifts) {
         return new RequestedImages(images, pixelShifts, internalPixelShifts, mathImages);
     }
 }

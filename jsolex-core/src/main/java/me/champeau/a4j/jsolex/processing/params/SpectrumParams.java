@@ -17,19 +17,19 @@ package me.champeau.a4j.jsolex.processing.params;
 
 public record SpectrumParams(
         SpectralRay ray,
-        int pixelShift,
-        int dopplerShift,
+        double pixelShift,
+        double dopplerShift,
         boolean switchRedBlueChannels
 ) {
     public SpectrumParams withRay(SpectralRay ray) {
         return new SpectrumParams(ray, pixelShift, dopplerShift, switchRedBlueChannels);
     }
 
-    public SpectrumParams withPixelShift(int pixelShift) {
+    public SpectrumParams withPixelShift(double pixelShift) {
         return new SpectrumParams(ray, pixelShift, dopplerShift, switchRedBlueChannels);
     }
 
-    public SpectrumParams withDopplerShift(int dopplerShift) {
+    public SpectrumParams withDopplerShift(double dopplerShift) {
         return new SpectrumParams(ray, pixelShift, dopplerShift, switchRedBlueChannels);
     }
 
