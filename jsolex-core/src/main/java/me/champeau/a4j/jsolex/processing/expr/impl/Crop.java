@@ -18,6 +18,7 @@ package me.champeau.a4j.jsolex.processing.expr.impl;
 import me.champeau.a4j.jsolex.processing.sun.crop.Cropper;
 import me.champeau.a4j.jsolex.processing.sun.workflow.ImageStats;
 import me.champeau.a4j.jsolex.processing.util.ColorizedImageWrapper;
+import me.champeau.a4j.jsolex.processing.util.FileBackedImage;
 import me.champeau.a4j.jsolex.processing.util.ForkJoinContext;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 import me.champeau.a4j.jsolex.processing.util.RGBImage;
@@ -51,6 +52,9 @@ public class Crop extends AbstractFunctionImpl {
         if (left < 0 || top < 0) {
             throw new IllegalArgumentException("top and left values must be >=0");
         }
+        if (img instanceof FileBackedImage fileBackedImage) {
+            img = fileBackedImage.unwrapToMemory();
+        }
         if (img instanceof ImageWrapper32 mono) {
             return cropMonoImage(left, top, width, height, mono);
         } else if (img instanceof ColorizedImageWrapper colorized) {
@@ -82,6 +86,9 @@ public class Crop extends AbstractFunctionImpl {
         if (ellipse.isPresent()) {
             var sunDisk = ellipse.get();
             float blackPoint = getFromContext(ImageStats.class).map(ImageStats::blackpoint).orElse(0f);
+            if (img instanceof FileBackedImage fileBackedImage) {
+                img = fileBackedImage.unwrapToMemory();
+            }
             if (img instanceof ImageWrapper32 mono) {
                 return cropToRectMonoImage(width, height, mono, sunDisk, blackPoint);
             } else if (img instanceof ColorizedImageWrapper colorized) {
@@ -150,6 +157,9 @@ public class Crop extends AbstractFunctionImpl {
         var blackpoint = getFromContext(ImageStats.class).map(ImageStats::blackpoint).orElse(0f);
         if (ellipse.isPresent()) {
             var circle = ellipse.get();
+            if (arg instanceof FileBackedImage fileBackedImage) {
+                arg = fileBackedImage.unwrapToMemory();
+            }
             if (arg instanceof ImageWrapper32 mono) {
                 var image = mono.asImage();
                 var cropped = Cropper.cropToSquare(image, circle, blackpoint, diameterFactor, rounding);

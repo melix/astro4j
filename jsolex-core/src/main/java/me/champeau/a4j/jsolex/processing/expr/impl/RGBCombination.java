@@ -15,6 +15,7 @@
  */
 package me.champeau.a4j.jsolex.processing.expr.impl;
 
+import me.champeau.a4j.jsolex.processing.util.FileBackedImage;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 import me.champeau.a4j.jsolex.processing.util.RGBImage;
 
@@ -32,6 +33,15 @@ public class RGBCombination {
         var ra = arguments.get(0);
         var ga = arguments.get(1);
         var ba = arguments.get(2);
+        if (ra instanceof FileBackedImage fileBackedImage) {
+            ra = fileBackedImage.unwrapToMemory();
+        }
+        if (ga instanceof FileBackedImage fileBackedImage) {
+            ga = fileBackedImage.unwrapToMemory();
+        }
+        if (ba instanceof FileBackedImage fileBackedImage) {
+            ba = fileBackedImage.unwrapToMemory();
+        }
         if (ra instanceof ImageWrapper32 r && ga instanceof ImageWrapper32 g && ba instanceof ImageWrapper32 b) {
             if ((r.width() == g.width()) && (r.width() == b.width())
                 && (r.height() == g.height()) && (r.height() == b.height())) {

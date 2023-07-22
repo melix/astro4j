@@ -37,6 +37,9 @@ public class ImageSaver {
 
     public void save(ImageWrapper image, File target) {
         var imageFormats = processParams.extraParams().imageFormats();
+        if (image instanceof FileBackedImage fbi) {
+            image = fbi.unwrapToMemory();
+        }
         if (image instanceof ImageWrapper32 mono) {
             float[] stretched = stretch(mono.width(), mono.height(), mono.data());
             ImageUtils.writeMonoImage(image.width(), image.height(), stretched, target, imageFormats);

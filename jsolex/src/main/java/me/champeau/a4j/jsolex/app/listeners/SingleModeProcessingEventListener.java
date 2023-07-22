@@ -63,7 +63,7 @@ import me.champeau.a4j.jsolex.processing.sun.workflow.GeneratedImageKind;
 import me.champeau.a4j.jsolex.processing.sun.workflow.ImageEmitter;
 import me.champeau.a4j.jsolex.processing.sun.workflow.ImageStats;
 import me.champeau.a4j.jsolex.processing.util.ForkJoinContext;
-import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
+import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
 import me.champeau.a4j.math.regression.Ellipse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -102,7 +102,7 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
     private ImageMathScriptExecutor imageScriptExecutor;
     private long sd;
     private long ed;
-    private final Map<Double, ImageWrapper32> shiftImages;
+    private final Map<Double, ImageWrapper> shiftImages;
     private int width;
     private int height;
 
@@ -327,7 +327,10 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
         LOGGER.info(finishedString);
         owner.prepareForScriptExecution(this, params);
         suggestions.clear();
-        BatchOperations.submit(() -> owner.updateProgress(1.0, finishedString));
+        BatchOperations.submit(() -> {
+            owner.updateProgress(1.0, finishedString);
+            System.gc();
+        });
     }
 
     private Map<Class, Object> prepareExecutionContext(ProcessingDoneEvent.Outcome payload) {

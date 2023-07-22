@@ -20,6 +20,7 @@ import me.champeau.a4j.jsolex.expr.Variable;
 import me.champeau.a4j.jsolex.processing.event.ProgressEvent;
 import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
 import me.champeau.a4j.jsolex.processing.sun.workflow.ImageStats;
+import me.champeau.a4j.jsolex.processing.util.FileBackedImage;
 import me.champeau.a4j.jsolex.processing.util.ForkJoinContext;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
 
@@ -294,6 +295,16 @@ public class DefaultImageScriptExecutor implements ImageMathScriptExecutor {
                 return memoizeCache.get(exprAsString);
             }
             var result = super.doEvaluate(expression);
+            if (result instanceof ImageWrapper image) {
+                result = FileBackedImage.wrap(image);
+            } else if (result instanceof List<?> list) {
+                if (list.stream().allMatch(ImageWrapper.class::isInstance)) {
+                    result = list.stream()
+                            .map(ImageWrapper.class::cast)
+                            .map(FileBackedImage::wrap)
+                            .toList();
+                }
+            }
             memoizeCache.put(exprAsString, result);
             return result;
         }

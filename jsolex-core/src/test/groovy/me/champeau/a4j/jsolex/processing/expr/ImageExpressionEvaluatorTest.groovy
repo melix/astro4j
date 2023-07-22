@@ -45,14 +45,14 @@ class ImageExpressionEvaluatorTest extends Specification {
         evaluator.evaluate("img(0)")
 
         then:
-        evaluator.shifts ==~ [0]
+        evaluator.shifts ==~ [0d]
 
         when:
         evaluator.clearShifts()
         evaluator.evaluate("(img(1) + img(-1))/2")
 
         then:
-        evaluator.shifts ==~ [1, -1]
+        evaluator.shifts ==~ [1d, -1d]
 
         when:
         evaluator.clearShifts()
@@ -61,36 +61,43 @@ class ImageExpressionEvaluatorTest extends Specification {
         evaluator.evaluate("max(img(a), img(b))")
 
         then:
-        evaluator.shifts ==~ [5, 6]
+        evaluator.shifts ==~ [5d, 6d]
 
         when:
         evaluator.clearShifts()
         evaluator.evaluate("range(-5, 5)")
 
         then:
-        evaluator.shifts ==~ [-5, -4, -3, -2, -1, 0, 1, 2, 3, 4, 5]
+        evaluator.shifts ==~ [-5d, -4d, -3d, -2d, -1d, 0d, 1d, 2d, 3d, 4d, 5d]
 
         when:
         evaluator.clearShifts()
         evaluator.evaluate("range(-6,6,3)")
 
         then:
-        evaluator.shifts ==~ [-6, -3, 0, 3, 6]
+        evaluator.shifts ==~ [-6d, -3d, 0d, 3d, 6d]
 
         when:
         evaluator.clearShifts()
         evaluator.evaluate("range(-2,0) + range(0,2)")
 
         then:
-        evaluator.shifts ==~ [-2, -1, 0, 1, 2]
+        evaluator.shifts ==~ [-2d, -1d, 0d, 1d, 2d]
 
         when:
         evaluator.clearShifts()
         def list = evaluator.evaluate("range(-2,0) - range(0,2)")
 
         then:
-        evaluator.shifts ==~ [-2, -1, 0, 1, 2]
+        evaluator.shifts ==~ [-2d, -1d, 0d, 1d, 2d]
         list.size() == 2
+
+        when:
+        evaluator.clearShifts()
+        evaluator.evaluate("range(-1,1;.5)")
+
+        then:
+        evaluator.shifts ==~ [-1d, -0.5d, 0d, 0.5d, 1d]
     }
 
     def "can apply #function on a list of images"() {

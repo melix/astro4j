@@ -17,6 +17,7 @@ package me.champeau.a4j.jsolex.processing.expr.impl;
 
 import me.champeau.a4j.jsolex.processing.sun.workflow.ImageStats;
 import me.champeau.a4j.jsolex.processing.util.ColorizedImageWrapper;
+import me.champeau.a4j.jsolex.processing.util.FileBackedImage;
 import me.champeau.a4j.jsolex.processing.util.ForkJoinContext;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 import me.champeau.a4j.jsolex.processing.util.RGBImage;
@@ -43,6 +44,9 @@ public class DiskFill extends AbstractFunctionImpl {
         if (ellipse.isPresent()) {
             var blackpoint = getFromContext(ImageStats.class).map(ImageStats::blackpoint).orElse(0f);
             var fill = arguments.size() == 2 ? floatArg(arguments, 1) : blackpoint;
+            if (img instanceof FileBackedImage fileBackedImage) {
+                img = fileBackedImage.unwrapToMemory();
+            }
             if (img instanceof ImageWrapper32 mono) {
                 var copy = mono.copy();
                 doFill(ellipse.get(), copy.data(), copy.width(), fill);

@@ -49,6 +49,9 @@ class FitsUtils {
     }
 
     private void write(ImageWrapper image) {
+        if (image instanceof FileBackedImage fbi) {
+            image = fbi.unwrapToMemory();
+        }
         if (Objects.requireNonNull(image) instanceof ImageWrapper32 mono) {
             writeMono(mono);
         } else if (image instanceof ColorizedImageWrapper colorized) {

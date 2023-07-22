@@ -22,6 +22,7 @@ import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 
 import java.io.File;
+import java.util.function.Supplier;
 
 public abstract class AbstractImageWriterTask extends AbstractTask<Void> {
     private final File outputDirectory;
@@ -29,7 +30,7 @@ public abstract class AbstractImageWriterTask extends AbstractTask<Void> {
     private final String name;
 
     protected AbstractImageWriterTask(Broadcaster broadcaster,
-                                      ImageWrapper32 image,
+                                      Supplier<ImageWrapper32> image,
                                       File outputDirectory,
                                       String title,
                                       String name) {
@@ -44,7 +45,7 @@ public abstract class AbstractImageWriterTask extends AbstractTask<Void> {
     }
 
     @Override
-    public final Void call() {
+    protected final Void doCall() {
         transform();
         File outputFile = new File(outputDirectory, name);
         var image = new GeneratedImage(title, outputFile.toPath(), createImageWrapper());

@@ -15,19 +15,23 @@
  */
 package me.champeau.a4j.jsolex.processing.expr;
 
+import me.champeau.a4j.jsolex.processing.util.FileBackedImage;
 import me.champeau.a4j.jsolex.processing.util.ForkJoinContext;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.Map;
 import java.util.Set;
 import java.util.TreeSet;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Function;
 
 public class ShiftCollectingImageExpressionEvaluator extends ImageExpressionEvaluator {
 
     private final Set<Double> shifts = new TreeSet<>();
+    private final Map<Double, ImageWrapper> cache = new ConcurrentHashMap<>();
 
     public static Function<Double, ImageWrapper> zeroImages() {
         var map = new HashMap<Double, ImageWrapper>();
@@ -44,7 +48,7 @@ public class ShiftCollectingImageExpressionEvaluator extends ImageExpressionEval
 
     protected ImageWrapper findImage(double shift) {
         shifts.add(shift);
-        return super.findImage(shift);
+        return cache.computeIfAbsent(shift, s -> FileBackedImage.wrap(super.findImage(s)));
     }
 
     public Set<Double> getShifts() {

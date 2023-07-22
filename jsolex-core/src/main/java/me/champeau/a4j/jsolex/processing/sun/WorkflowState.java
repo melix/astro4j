@@ -16,6 +16,8 @@
 package me.champeau.a4j.jsolex.processing.sun;
 
 import me.champeau.a4j.jsolex.processing.sun.workflow.WorkflowResults;
+import me.champeau.a4j.jsolex.processing.util.FileBackedImage;
+import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 
 import java.util.EnumMap;
@@ -25,21 +27,18 @@ public final class WorkflowState {
     private final int width;
     private final int height;
     private final double pixelShift;
-    private final float[] reconstructed;
     private final EnumMap<WorkflowResults, Object> outcomes = new EnumMap<>(WorkflowResults.class);
-    private ImageWrapper32 image;
     private boolean internal;
 
     public WorkflowState(
             int width,
             int height,
-            double pixelShift,
-            float[] buffer
+            double pixelShift
     ) {
         this.width = width;
         this.height = height;
         this.pixelShift = pixelShift;
-        this.reconstructed = buffer;
+        this.recordResult(WorkflowResults.RECONSTRUCTED, new float[width * height]);
     }
 
     public boolean isInternal() {
@@ -51,10 +50,13 @@ public final class WorkflowState {
     }
 
     public static WorkflowState prepare(int width, int height, double pixelShift) {
-        return new WorkflowState(width, height, pixelShift, new float[width * height]);
+        return new WorkflowState(width, height, pixelShift);
     }
 
     public void recordResult(WorkflowResults step, Object result) {
+        if (result instanceof ImageWrapper img) {
+            result = FileBackedImage.wrap(img);
+        }
         outcomes.put(step, result);
     }
 
@@ -64,7 +66,11 @@ public final class WorkflowState {
 
     public <T> Optional<T> findResult(WorkflowResults step) {
         //noinspection unchecked
-        return Optional.ofNullable((T) outcomes.get(step));
+        var obj = outcomes.get(step);
+        if (obj instanceof FileBackedImage img) {
+            obj = img.unwrapToMemory();
+        }
+        return Optional.ofNullable((T) obj);
     }
 
     public int width() {
@@ -80,14 +86,15 @@ public final class WorkflowState {
     }
 
     public void setImage(ImageWrapper32 image) {
-        this.image = image;
+        recordResult(WorkflowResults.ROTATED, image);
+        discardResult(WorkflowResults.RECONSTRUCTED);
     }
 
     public ImageWrapper32 image() {
-        return image;
+        return findResult(WorkflowResults.ROTATED).map(ImageWrapper32.class::cast).orElse(null);
     }
 
     public float[] reconstructed() {
-        return reconstructed;
+        return findResult(WorkflowResults.RECONSTRUCTED).map(float[].class::cast).orElse(new float[0]);
     }
 }

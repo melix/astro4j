@@ -15,14 +15,13 @@
  */
 package me.champeau.a4j.jsolex.processing.util;
 
-import java.util.ArrayList;
-import java.util.List;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.Semaphore;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Consumer;
@@ -112,7 +111,7 @@ public class ForkJoinParallelExecutor implements AutoCloseable, ForkJoinContext 
         private final Semaphore semaphore;
         private final ReentrantLock lock = new ReentrantLock();
         private final Condition condition = lock.newCondition();
-        private final List<Object> tasks = new ArrayList<>();
+        private final AtomicInteger tasks = new AtomicInteger();
         private Thread.UncaughtExceptionHandler uncaughtExceptionHandler;
         private Consumer<? super Thread> onTaskStart;
         private Consumer<? super Thread> onTaskEnd;
@@ -169,7 +168,7 @@ public class ForkJoinParallelExecutor implements AutoCloseable, ForkJoinContext 
         public <T> Supplier<T> submit(Callable<T> callable) {
             lock.lock();
             try {
-                tasks.add(callable);
+                tasks.incrementAndGet();
                 return asSupplier(executor.submit(() -> {
                     try {
                         semaphore.acquireUninterruptibly();
@@ -191,7 +190,7 @@ public class ForkJoinParallelExecutor implements AutoCloseable, ForkJoinContext 
                     } finally {
                         lock.lock();
                         try {
-                            tasks.remove(callable);
+                            tasks.decrementAndGet();
                             if (onTaskEnd != null) {
                                 onTaskEnd.accept(Thread.currentThread());
                             }
@@ -235,7 +234,7 @@ public class ForkJoinParallelExecutor implements AutoCloseable, ForkJoinContext 
             lock.lock();
             semaphore.release();
             try {
-                while (!tasks.isEmpty()) {
+                while (tasks.get() > 0) {
                     condition.await();
                 }
             } catch (InterruptedException ex) {

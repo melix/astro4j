@@ -34,6 +34,7 @@ import me.champeau.a4j.jsolex.processing.expr.impl.Saturation;
 import me.champeau.a4j.jsolex.processing.expr.impl.Scaling;
 import me.champeau.a4j.jsolex.processing.expr.impl.ScriptSupport;
 import me.champeau.a4j.jsolex.processing.expr.impl.Stretching;
+import me.champeau.a4j.jsolex.processing.util.FileBackedImage;
 import me.champeau.a4j.jsolex.processing.util.ForkJoinContext;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
@@ -309,6 +310,9 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
     private static ImageWrapper32 asImage(Object source) {
         if (source instanceof ImageWrapper32 image) {
             return image;
+        }
+        if (source instanceof FileBackedImage fileBackedImage) {
+            return asImage(fileBackedImage.unwrapToMemory());
         }
         return null;
     }

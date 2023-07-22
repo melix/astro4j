@@ -23,27 +23,41 @@ import java.util.concurrent.Callable;
 import java.util.function.Supplier;
 
 public abstract class AbstractTask<T> implements Callable<T>, Supplier<T> {
-    protected final ImageWrapper32 workImage;
+    protected final Supplier<ImageWrapper32> workImageSupplier;
     protected final Broadcaster broadcaster;
-    protected final int width;
-    protected final int height;
+    protected ImageWrapper32 workImage;
+    protected int width;
+    protected int height;
 
     /**
      * Creates an abstract task
      *
-     * @param image the current image. A copy will be created in the
+     * @param imageSupplier the current image. A copy will be created in the
      * constructor, so that this task works with its own buffer
      */
     protected AbstractTask(Broadcaster broadcaster,
-                           ImageWrapper32 image) {
-        this.workImage = image.copy();
+                           Supplier<ImageWrapper32> imageSupplier) {
         this.broadcaster = broadcaster;
+        this.workImageSupplier = imageSupplier;
+    }
+
+    @Override
+    public final T call() throws Exception {
+        prepareImage();
+        return doCall();
+    }
+
+    protected void prepareImage() {
+        var image = workImageSupplier.get();
+        this.workImage = image.copy();
         this.width = image.width();
         this.height = image.height();
     }
 
+    protected abstract T doCall() throws Exception ;
+
     @Override
-    public T get() {
+    public final T get() {
         try {
             return call();
         } catch (Exception e) {

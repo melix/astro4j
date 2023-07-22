@@ -40,6 +40,7 @@ import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
 import static me.champeau.a4j.jsolex.processing.util.Constants.message;
@@ -50,9 +51,9 @@ public class EllipseFittingTask extends AbstractTask<EllipseFittingTask.Result> 
     private static final int MINIMUM_SAMPLES = 64;
     private static final Kernel BLUR_8 = BlurKernel.of(8);
     private static final Kernel BLUR_4 = BlurKernel.of(4);
-    private final Image image;
     private final ProcessParams processParams;
     private final ImageEmitter debugImagesEmitter;
+    private Image image;
 
     /**
      * Creates ellipse fitting task
@@ -60,11 +61,10 @@ public class EllipseFittingTask extends AbstractTask<EllipseFittingTask.Result> 
      * @param image the image to work with
      */
     public EllipseFittingTask(Broadcaster broadcaster,
-                              ImageWrapper32 image,
+                              Supplier<ImageWrapper32> image,
                               ProcessParams processParams,
                               ImageEmitter debugImagesEmitter) {
         super(broadcaster, image);
-        this.image = image.asImage();
         this.processParams = processParams;
         this.debugImagesEmitter = debugImagesEmitter;
     }
@@ -75,12 +75,18 @@ public class EllipseFittingTask extends AbstractTask<EllipseFittingTask.Result> 
      * @param image the image to work with
      */
     public EllipseFittingTask(Broadcaster broadcaster,
-                              ImageWrapper32 image) {
+                              Supplier<ImageWrapper32> image) {
         this(broadcaster, image, null, null);
     }
 
     @Override
-    public EllipseFittingTask.Result call() throws Exception {
+    protected void prepareImage() {
+        super.prepareImage();
+        this.image = workImage.asImage();
+    }
+
+    @Override
+    public EllipseFittingTask.Result doCall() throws Exception {
         var analyzingDiskGeometryMsg = message("analyzing.disk.geometry");
         broadcaster.broadcast(ProgressEvent.of(0, analyzingDiskGeometryMsg));
         var imageMath = ImageMath.newInstance();

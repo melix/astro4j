@@ -16,6 +16,7 @@
 package me.champeau.a4j.jsolex.processing.expr.impl;
 
 import me.champeau.a4j.jsolex.processing.util.ColorizedImageWrapper;
+import me.champeau.a4j.jsolex.processing.util.FileBackedImage;
 import me.champeau.a4j.jsolex.processing.util.ForkJoinContext;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
@@ -124,6 +125,9 @@ public class Scaling extends AbstractFunctionImpl {
     }
 
     private ImageWrapper doRescale(ImageWrapper img, int width, int height) {
+        if (img instanceof FileBackedImage fileBackedImage) {
+            img = fileBackedImage.unwrapToMemory();
+        }
         if (img instanceof ImageWrapper32 mono) {
             return ImageWrapper32.fromImage(
                     imageMath.rescale(mono.asImage(),

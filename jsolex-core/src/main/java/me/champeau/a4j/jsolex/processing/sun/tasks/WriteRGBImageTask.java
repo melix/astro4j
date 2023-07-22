@@ -27,7 +27,7 @@ public class WriteRGBImageTask extends AbstractImageWriterTask {
     private final Supplier<float[][]> supplier;
 
     public WriteRGBImageTask(Broadcaster broadcaster,
-                             ImageWrapper32 ref,
+                             Supplier<ImageWrapper32> ref,
                              File outputDirectory,
                              String title,
                              String name,

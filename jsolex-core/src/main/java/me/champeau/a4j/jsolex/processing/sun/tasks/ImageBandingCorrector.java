@@ -22,19 +22,21 @@ import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 import me.champeau.a4j.math.regression.Ellipse;
 
+import java.util.function.Supplier;
+
 public class ImageBandingCorrector extends AbstractTask<ImageWrapper32> {
 
     private final Ellipse ellipse;
     private final BandingCorrectionParams params;
 
-    public ImageBandingCorrector(Broadcaster broadcaster, ImageWrapper32 image, Ellipse ellipse, BandingCorrectionParams params) {
+    public ImageBandingCorrector(Broadcaster broadcaster, Supplier<ImageWrapper32> image, Ellipse ellipse, BandingCorrectionParams params) {
         super(broadcaster, image);
         this.ellipse = ellipse;
         this.params = params;
     }
 
     @Override
-    public ImageWrapper32 call() throws Exception {
+    protected ImageWrapper32 doCall() throws Exception {
         broadcaster.broadcast(ProgressEvent.of(0, "Banding reduction"));
         var passes = params.passes();
         for (int i = 0; i < passes; i++) {

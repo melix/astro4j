@@ -16,6 +16,7 @@
 package me.champeau.a4j.jsolex.processing.expr.impl;
 
 import me.champeau.a4j.jsolex.processing.stretching.NegativeImageStrategy;
+import me.champeau.a4j.jsolex.processing.util.FileBackedImage;
 import me.champeau.a4j.jsolex.processing.util.ForkJoinContext;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 
@@ -59,6 +60,9 @@ public class ScriptSupport {
             throw new IllegalArgumentException("Invalid number of arguments on '" + name + "' call");
         }
         var arg = arguments.get(0);
+        if (arg instanceof FileBackedImage fileBackedImage) {
+            arg = fileBackedImage.unwrapToMemory();
+        }
         if (arg instanceof ImageWrapper32 image) {
             var copy = image.copy();
             consumer.accept(copy.width(), copy.height(), copy.data());
@@ -95,9 +99,10 @@ public class ScriptSupport {
                             .mapToDouble(Number::doubleValue))
                     .orElse(0);
         }
-        if (ImageWrapper32.class.isAssignableFrom(type)) {
+        if (ImageWrapper32.class.isAssignableFrom(type) || FileBackedImage.class.isAssignableFrom(type)) {
             var images = arguments
                     .stream()
+                    .map(i -> i instanceof FileBackedImage fbi ? fbi.unwrapToMemory() : i)
                     .map(ImageWrapper32.class::cast)
                     .toList();
             var first = images.get(0);
