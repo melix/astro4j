@@ -559,7 +559,7 @@ public class SolexVideoProcessor implements Broadcaster {
                             if (name.toLowerCase(Locale.US).contains("doppler")) {
                                 return name;
                             }
-                            var suffix = "_" + shift;
+                            var suffix = "_" + String.format(Locale.US, "%.2f",shift).replace('.', '_');
                             return name + suffix;
                         }),
                         imageNamingStrategy,
