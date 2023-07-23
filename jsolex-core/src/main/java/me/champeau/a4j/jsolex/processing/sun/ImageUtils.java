@@ -25,6 +25,8 @@ import me.champeau.a4j.ser.bayer.ChannelExtractingConverter;
 import me.champeau.a4j.ser.bayer.DemosaicingRGBImageConverter;
 import me.champeau.a4j.ser.bayer.FloatPrecisionImageConverter;
 import me.champeau.a4j.ser.bayer.ImageConverter;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;
@@ -33,13 +35,13 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.util.Arrays;
-import java.util.List;
 import java.util.Set;
 
 import static me.champeau.a4j.ser.bayer.BayerMatrixSupport.GREEN;
 
 public class ImageUtils {
-    private static final List<String> EXTENSIONS = List.of("png", "jpg", "tif");
+    private static final Logger LOGGER = LoggerFactory.getLogger(ImageUtils.class);
+
     public static final float MAX_VALUE = 65535.0f;
 
     private ImageUtils() {
@@ -68,11 +70,50 @@ public class ImageUtils {
                 if (format.equals(ImageFormat.FITS)) {
                     continue;
                 }
-                ImageIO.write(image, format.name().toLowerCase(), new File(outputFile.getParentFile(), baseName + format.extension()));
+                var output = new File(outputFile.getParentFile(), baseName + format.extension());
+                var formatName = format.name().toLowerCase();
+                if (isJpegFormat(formatName) && is16BitGreyscale(image)) {
+                    image = convertToRGB(image);
+                }
+                ImageIO.write(image, formatName, output);
+                LOGGER.debug("Wrote {}", output);
             }
         } catch (IOException e) {
             throw new ProcessingException(e);
         }
+    }
+
+    private static boolean is16BitGreyscale(BufferedImage image) {
+        return image.getType() == BufferedImage.TYPE_USHORT_GRAY;
+    }
+
+    private static boolean isJpegFormat(String formatName) {
+        return "jpg".equals(formatName) || "jpeg".equals(formatName);
+    }
+
+    private static BufferedImage convertToRGB(BufferedImage source) {
+        if (source.getType() != BufferedImage.TYPE_USHORT_GRAY) {
+            throw new IllegalArgumentException("Source image must be of type TYPE_USHORT_GRAY.");
+        }
+
+        int width = source.getWidth();
+        int height = source.getHeight();
+
+        var rgbImage = new BufferedImage(width, height, BufferedImage.TYPE_INT_RGB);
+
+        short[] sourceData = ((java.awt.image.DataBufferUShort) source.getRaster().getDataBuffer()).getData();
+        int[] destData = ((java.awt.image.DataBufferInt) rgbImage.getRaster().getDataBuffer()).getData();
+
+        for (int y = 0; y < height; y++) {
+            for (int x = 0; x < width; x++) {
+                short grayValue = sourceData[y * width + x];
+                int rgbValue = (grayValue >> 8) & 0xFF;
+                int rgbColor = (rgbValue << 16) | (rgbValue << 8) | rgbValue;
+                destData[y * width + x] = rgbColor;
+            }
+        }
+
+        return rgbImage;
     }
 
     private static String baseNameOf(File outputFile) {
