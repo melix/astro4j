@@ -20,6 +20,7 @@ import me.champeau.a4j.jsolex.processing.params.SpectralRay;
 import me.champeau.a4j.jsolex.processing.params.SpectralRayIO;
 import me.champeau.a4j.jsolex.processing.sun.ImageUtils;
 import me.champeau.a4j.jsolex.processing.util.ColorizedImageWrapper;
+import me.champeau.a4j.jsolex.processing.util.FileBackedImage;
 import me.champeau.a4j.jsolex.processing.util.ForkJoinContext;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 
@@ -47,6 +48,9 @@ public class Colorize extends AbstractFunctionImpl {
             int gOut = intArg(arguments, 4);
             int bIn = intArg(arguments, 5);
             int bOut = intArg(arguments, 6);
+            if (arg instanceof FileBackedImage fileBackedImage) {
+                arg = fileBackedImage.unwrapToMemory();
+            }
             if (arg instanceof ImageWrapper32 mono) {
                 return new ColorizedImageWrapper(mono, data -> {
                     var curve = new ColorCurve("adhoc", rIn, rOut, gIn, gOut, bIn, bOut);
@@ -54,6 +58,9 @@ public class Colorize extends AbstractFunctionImpl {
                 });
             }
         } else {
+            if (arg instanceof FileBackedImage fileBackedImage) {
+                arg = fileBackedImage.unwrapToMemory();
+            }
             String profile = arguments.get(1).toString();
             var rays = SpectralRayIO.loadDefaults();
             for (SpectralRay ray : rays) {

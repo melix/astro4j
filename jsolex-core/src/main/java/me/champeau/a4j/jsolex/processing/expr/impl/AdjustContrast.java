@@ -38,6 +38,6 @@ public class AdjustContrast extends AbstractFunctionImpl {
         if (max < 0 || max > 255) {
             throw new IllegalArgumentException("adjust_contrast max must be between 0 and 255");
         }
-        return ScriptSupport.monoToMonoImageTransformer("adjust_contrast", 3, arguments, (width, height, data) -> new ConstrastAdjustmentStrategy(min << 8, max << 8).stretch(width, height, data));
+        return ScriptSupport.monoToMonoImageTransformer(forkJoinContext, "adjust_contrast", 3, arguments, (width, height, data) -> new ConstrastAdjustmentStrategy(min << 8, max << 8).stretch(width, height, data));
     }
 }

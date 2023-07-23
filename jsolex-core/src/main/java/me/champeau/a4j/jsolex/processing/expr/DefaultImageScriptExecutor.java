@@ -20,6 +20,7 @@ import me.champeau.a4j.jsolex.expr.Variable;
 import me.champeau.a4j.jsolex.processing.event.ProgressEvent;
 import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
 import me.champeau.a4j.jsolex.processing.sun.workflow.ImageStats;
+import me.champeau.a4j.jsolex.processing.util.FileBackedImage;
 import me.champeau.a4j.jsolex.processing.util.ForkJoinContext;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
 
@@ -43,7 +44,7 @@ public class DefaultImageScriptExecutor implements ImageMathScriptExecutor {
     public static final String BATCH_SECTION_NAME = "batch";
 
     private final ForkJoinContext forkJoinContext;
-    private final Function<Integer, ImageWrapper> imagesByShift;
+    private final Function<Double, ImageWrapper> imagesByShift;
     private final Map<Class, Object> context;
     private final AtomicInteger executionCount = new AtomicInteger(0);
     private final Broadcaster broadcaster;
@@ -51,7 +52,7 @@ public class DefaultImageScriptExecutor implements ImageMathScriptExecutor {
     private final Map<String, Object> variables = new HashMap<>();
 
     public DefaultImageScriptExecutor(ForkJoinContext forkJoinContext,
-                                      Function<Integer, ImageWrapper> imagesByShift,
+                                      Function<Double, ImageWrapper> imagesByShift,
                                       Map<Class, Object> context,
                                       Broadcaster broadcaster) {
         this.forkJoinContext = forkJoinContext;
@@ -61,7 +62,7 @@ public class DefaultImageScriptExecutor implements ImageMathScriptExecutor {
     }
 
     public DefaultImageScriptExecutor(ForkJoinContext forkJoinContext,
-                                      Function<Integer, ImageWrapper> imagesByShift,
+                                      Function<Double, ImageWrapper> imagesByShift,
                                       Map<Class, Object> context) {
         this(forkJoinContext, imagesByShift, context, Broadcaster.NO_OP);
     }
@@ -294,6 +295,16 @@ public class DefaultImageScriptExecutor implements ImageMathScriptExecutor {
                 return memoizeCache.get(exprAsString);
             }
             var result = super.doEvaluate(expression);
+            if (result instanceof ImageWrapper image) {
+                result = FileBackedImage.wrap(image);
+            } else if (result instanceof List<?> list) {
+                if (list.stream().allMatch(ImageWrapper.class::isInstance)) {
+                    result = list.stream()
+                            .map(ImageWrapper.class::cast)
+                            .map(FileBackedImage::wrap)
+                            .toList();
+                }
+            }
             memoizeCache.put(exprAsString, result);
             return result;
         }

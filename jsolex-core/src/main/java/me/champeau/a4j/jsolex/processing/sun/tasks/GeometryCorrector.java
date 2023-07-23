@@ -29,6 +29,7 @@ import me.champeau.a4j.math.regression.EllipseRegression;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.function.Supplier;
 import java.util.stream.IntStream;
 
 import static me.champeau.a4j.jsolex.processing.util.Constants.message;
@@ -46,7 +47,7 @@ public class GeometryCorrector extends AbstractTask<GeometryCorrector.Result> {
     private final WorkflowState state;
 
     public GeometryCorrector(Broadcaster broadcaster,
-                             ImageWrapper32 image,
+                             Supplier<ImageWrapper32> image,
                              Ellipse ellipse,
                              Double forcedTilt,
                              Double frameRate,
@@ -67,7 +68,7 @@ public class GeometryCorrector extends AbstractTask<GeometryCorrector.Result> {
     }
 
     @Override
-    public Result call() throws Exception {
+    public Result doCall() throws Exception {
         broadcaster.broadcast(ProgressEvent.of(0, "Correcting geometry"));
         var theta = forcedTilt == null ? ellipse.rotationAngle() : forcedTilt;
         var m = Math.tan(-theta);

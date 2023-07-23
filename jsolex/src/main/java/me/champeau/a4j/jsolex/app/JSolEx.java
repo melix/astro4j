@@ -301,10 +301,10 @@ public class JSolEx extends Application implements JSolExInterface {
     private void configureMemoryStatus() {
         var timeline = new Timeline();
         timeline.getKeyFrames().add(new KeyFrame(Duration.seconds(1), event -> {
-            var totalMemory = Runtime.getRuntime().totalMemory() >> 20;
+            var usedMemory = (Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory()) >> 20;
             var maxMemory = Runtime.getRuntime().maxMemory() >> 20;
-            memory.setProgress(totalMemory / (double) maxMemory);
-            memoryLabel.setText(String.format("%d M / %d M", totalMemory, maxMemory));
+            memory.setProgress(usedMemory / (double) maxMemory);
+            memoryLabel.setText(String.format("%d M / %d M", usedMemory, maxMemory));
         }));
         timeline.setCycleCount(Animation.INDEFINITE);
         timeline.play();

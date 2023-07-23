@@ -15,39 +15,43 @@
  */
 package me.champeau.a4j.jsolex.processing.expr;
 
+import me.champeau.a4j.jsolex.processing.util.FileBackedImage;
 import me.champeau.a4j.jsolex.processing.util.ForkJoinContext;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.Map;
 import java.util.Set;
 import java.util.TreeSet;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Function;
 
 public class ShiftCollectingImageExpressionEvaluator extends ImageExpressionEvaluator {
 
-    private final Set<Integer> shifts = new TreeSet<>();
+    private final Set<Double> shifts = new TreeSet<>();
+    private final Map<Double, ImageWrapper> cache = new ConcurrentHashMap<>();
 
-    public static Function<Integer, ImageWrapper> zeroImages() {
-        var map = new HashMap<Integer, ImageWrapper>();
-        return (Integer idx) -> map.computeIfAbsent(idx, unused -> new ImageWrapper32(0, 0, new float[0]));
+    public static Function<Double, ImageWrapper> zeroImages() {
+        var map = new HashMap<Double, ImageWrapper>();
+        return (Double idx) -> map.computeIfAbsent(idx, unused -> new ImageWrapper32(0, 0, new float[0]));
     }
 
     public ShiftCollectingImageExpressionEvaluator(ForkJoinContext forkJoinContext) {
         this(forkJoinContext, zeroImages());
     }
 
-    public ShiftCollectingImageExpressionEvaluator(ForkJoinContext forkJoinContext, Function<Integer, ImageWrapper> imageFactory) {
+    public ShiftCollectingImageExpressionEvaluator(ForkJoinContext forkJoinContext, Function<Double, ImageWrapper> imageFactory) {
         super(forkJoinContext, imageFactory);
     }
 
-    protected ImageWrapper findImage(int shift) {
+    protected ImageWrapper findImage(double shift) {
         shifts.add(shift);
-        return super.findImage(shift);
+        return cache.computeIfAbsent(shift, s -> FileBackedImage.wrap(super.findImage(s)));
     }
 
-    public Set<Integer> getShifts() {
+    public Set<Double> getShifts() {
         return Collections.unmodifiableSet(shifts);
     }
 

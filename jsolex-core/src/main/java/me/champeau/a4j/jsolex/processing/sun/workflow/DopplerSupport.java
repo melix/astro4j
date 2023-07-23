@@ -44,7 +44,7 @@ public class DopplerSupport {
         }
         executor.async(() -> {
             var dopplerShift = processParams.spectrumParams().dopplerShift();
-            int lookupShift = processParams.spectrumParams().switchRedBlueChannels() ? -dopplerShift : dopplerShift;
+            double lookupShift = processParams.spectrumParams().switchRedBlueChannels() ? -dopplerShift : dopplerShift;
             var first = states.stream().filter(s -> s.pixelShift() == lookupShift).findFirst();
             var second = states.stream().filter(s -> s.pixelShift() == -lookupShift).findFirst();
             first.ifPresent(s1 -> second.ifPresent(s2 -> {

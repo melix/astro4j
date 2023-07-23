@@ -22,13 +22,14 @@ import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 
 import java.io.File;
 import java.util.function.Function;
+import java.util.function.Supplier;
 
 public class WriteColorizedImageTask extends AbstractImageWriterTask {
-    private final ImageWrapper32 mono;
+    private final Supplier<ImageWrapper32> mono;
     private final Function<float[], float[][]> converter;
 
     public WriteColorizedImageTask(Broadcaster broadcaster,
-                                   ImageWrapper32 image,
+                                   Supplier<ImageWrapper32> image,
                                    File outputDirectory,
                                    String title,
                                    String name,
@@ -40,6 +41,6 @@ public class WriteColorizedImageTask extends AbstractImageWriterTask {
 
     @Override
     public ImageWrapper createImageWrapper() {
-        return new ColorizedImageWrapper(mono, converter);
+        return new ColorizedImageWrapper(mono.get(), converter);
     }
 }

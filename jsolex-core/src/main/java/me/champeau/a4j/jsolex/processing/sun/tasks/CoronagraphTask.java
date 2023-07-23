@@ -22,12 +22,14 @@ import me.champeau.a4j.jsolex.processing.sun.workflow.AnalysisUtils;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 import me.champeau.a4j.math.regression.Ellipse;
 
+import java.util.function.Supplier;
+
 public class CoronagraphTask extends AbstractTask<ImageWrapper32> {
     private final Ellipse fitting;
     private final float blackPoint;
 
     public CoronagraphTask(Broadcaster broadcaster,
-                           ImageWrapper32 image,
+                           Supplier<ImageWrapper32> image,
                            Ellipse fitting,
                            float blackPoint) {
         super(broadcaster, image);
@@ -36,7 +38,7 @@ public class CoronagraphTask extends AbstractTask<ImageWrapper32> {
     }
 
     @Override
-    public ImageWrapper32 call() throws Exception {
+    protected ImageWrapper32 doCall() throws Exception {
         var buffer = getBuffer();
         fill(fitting, buffer, width, 0);
         new ArcsinhStretchingStrategy(blackPoint * .25f, 5000, 20000).stretch(width, height, buffer);

@@ -38,6 +38,7 @@ import me.champeau.a4j.jsolex.processing.params.ProcessParams;
 import me.champeau.a4j.jsolex.processing.stretching.ConstrastAdjustmentStrategy;
 import me.champeau.a4j.jsolex.processing.sun.ImageUtils;
 import me.champeau.a4j.jsolex.processing.util.ColorizedImageWrapper;
+import me.champeau.a4j.jsolex.processing.util.FileBackedImage;
 import me.champeau.a4j.jsolex.processing.util.ForkJoinContext;
 import me.champeau.a4j.jsolex.processing.util.ImageFormat;
 import me.champeau.a4j.jsolex.processing.util.ImageSaver;
@@ -93,7 +94,7 @@ public class ImageViewer {
                       ProcessParams params,
                       Map<String, ImageViewer> popupViews) {
         this.broadcaster = broadcaster;
-        this.image = image;
+        this.image = image instanceof FileBackedImage fbi ? fbi.unwrapToMemory() : image;
         this.imageFile = new File(imageName.getParentFile(), baseName + "_" + imageName.getName() + imageDisplayExtension(params));
         this.processParams = params;
         this.baseName = baseName;
@@ -311,7 +312,7 @@ public class ImageViewer {
     }
 
     public void setImage(ImageWrapper image, Path path) {
-        this.image = image;
+        this.image = image instanceof FileBackedImage fbi ? fbi.unwrapToMemory() : image;
         this.imageFile = new File(path.toFile().getParentFile(), baseName + "_" + path.getFileName() + imageDisplayExtension(processParams));
         imageView.setImagePath(path);
         BatchOperations.submit(() -> {

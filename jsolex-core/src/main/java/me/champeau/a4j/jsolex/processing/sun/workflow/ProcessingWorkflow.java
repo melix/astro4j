@@ -55,7 +55,6 @@ public class ProcessingWorkflow {
 
     private final ForkJoinContext executor;
     private final ProcessParams processParams;
-    private final List<WorkflowState> states;
     private final WorkflowState state;
     private final Double fps;
     private final ImageEmitter rawImagesEmitter;
@@ -75,7 +74,6 @@ public class ProcessingWorkflow {
             ImageEmitterFactory imageEmitterFactory) {
         this.broadcaster = broadcaster;
         this.executor = executor;
-        this.states = states;
         this.state = states.get(currentStep);
         this.processParams = processParams;
         this.fps = fps;
@@ -85,20 +83,24 @@ public class ProcessingWorkflow {
         this.currentStep = currentStep;
     }
 
-    public void start() {
-        var image = state.image();
-        rawImagesEmitter.newMonoImage(GeneratedImageKind.RAW, message(Constants.TYPE_RAW), "recon", image);
-        var clahe = image.copy();
-        ClaheStrategy.DEFAULT.stretch(clahe.width(), clahe.height(), clahe.data());
-        rawImagesEmitter.newMonoImage(GeneratedImageKind.RAW_STRETCHED, message("raw.linear"), "linear", clahe);
-        var existingFitting = state.findResult(WorkflowResults.MAIN_ELLIPSE_FITTING);
-        if (existingFitting.isPresent()) {
-            EllipseFittingTask.Result r = (EllipseFittingTask.Result) existingFitting.get();
-            var bandingFixed = performBandingCorrection(r, image).get();
-            state.recordResult(WorkflowResults.BANDING_CORRECTION, bandingFixed);
-            geometryCorrection(r, bandingFixed);
-        } else {
-            processedImagesEmitter.newMonoImage(GeneratedImageKind.GEOMETRY_CORRECTED_STRETCHED, message("stretched"), "clahe", clahe);
+    public void start(Runnable onComplete) {
+        try {
+            var reconstructed = state.image();
+            rawImagesEmitter.newMonoImage(GeneratedImageKind.RAW, message(Constants.TYPE_RAW), "recon", reconstructed);
+            var clahe = reconstructed.copy();
+            ClaheStrategy.DEFAULT.stretch(clahe.width(), clahe.height(), clahe.data());
+            rawImagesEmitter.newMonoImage(GeneratedImageKind.RAW_STRETCHED, message("raw.linear"), "linear", clahe);
+            var existingFitting = state.findResult(WorkflowResults.MAIN_ELLIPSE_FITTING);
+            if (existingFitting.isPresent()) {
+                EllipseFittingTask.Result r = (EllipseFittingTask.Result) existingFitting.get();
+                var bandingFixed = performBandingCorrection(r).get();
+                state.recordResult(WorkflowResults.BANDING_CORRECTION, bandingFixed);
+                geometryCorrection(r, bandingFixed);
+            } else {
+                processedImagesEmitter.newMonoImage(GeneratedImageKind.GEOMETRY_CORRECTED_STRETCHED, message("stretched"), "clahe", clahe);
+            }
+        } finally {
+            onComplete.run();
         }
     }
 
@@ -106,6 +108,18 @@ public class ProcessingWorkflow {
         if (currentStep == 0) {
             LOGGER.info(message, params);
         }
+    }
+
+    private Supplier<ImageWrapper32> imageSupplier(WorkflowResults step) {
+        return () -> state.findResult(step).map(r -> {
+            if (r instanceof GeometryCorrector.Result geo) {
+                return geo.corrected();
+            }
+            if (r instanceof ImageWrapper32 img) {
+                return img;
+            }
+            throw new IllegalStateException("Unexpected result type " + r);
+        }).orElse(null);
     }
 
     private void geometryCorrection(EllipseFittingTask.Result result, ImageWrapper32 bandingFixed) {
@@ -126,7 +140,7 @@ public class ProcessingWorkflow {
             LOGGER.info(message("overriding.tilt"), String.format("%.2f", geometryParams.tilt().getAsDouble()));
         }
         Double ratio = geometryParams.xyRatio().isPresent() ? geometryParams.xyRatio().getAsDouble() : null;
-        executor.submitAndThen(new GeometryCorrector(broadcaster, bandingFixed, ellipse, forcedTilt, fps, ratio, blackPoint, processParams, debugImagesEmitter, state), g -> {
+        executor.submitAndThen(new GeometryCorrector(broadcaster, imageSupplier(WorkflowResults.BANDING_CORRECTION), ellipse, forcedTilt, fps, ratio, blackPoint, processParams, debugImagesEmitter, state), g -> {
                     var geometryFixed = maybeSharpen(g);
                     state.recordResult(WorkflowResults.GEOMETRY_CORRECTION, g);
                     if (state.isInternal()) {
@@ -198,8 +212,8 @@ public class ProcessingWorkflow {
         return new ArcsinhStretchingStrategy(blackPoint, 10, 10);
     }
 
-    private Supplier<ImageWrapper32> performBandingCorrection(EllipseFittingTask.Result r, ImageWrapper32 geometryFixed) {
-        return executor.submit(new ImageBandingCorrector(broadcaster, geometryFixed, r.ellipse(), processParams.bandingCorrectionParams()));
+    private Supplier<ImageWrapper32> performBandingCorrection(EllipseFittingTask.Result r) {
+        return executor.submit(new ImageBandingCorrector(broadcaster, imageSupplier(WorkflowResults.ROTATED), r.ellipse(), processParams.bandingCorrectionParams()));
     }
 
     private Supplier<Void> produceStretchedImage(ImageWrapper32 geometryFixed) {
@@ -221,7 +235,7 @@ public class ProcessingWorkflow {
             var produceVirtualEclipse = diskEllipse != null && shouldProduce(GeneratedImageKind.VIRTUAL_ECLIPSE);
             var produceMixed = diskEllipse != null && shouldProduce(GeneratedImageKind.MIXED);
             if (produceVirtualEclipse || produceMixed) {
-                executor.submitAndThen(new CoronagraphTask(broadcaster, geometryFixed, diskEllipse, blackPoint), coronagraph -> {
+                executor.submitAndThen(new CoronagraphTask(broadcaster, imageSupplier(WorkflowResults.GEOMETRY_CORRECTION), diskEllipse, blackPoint), coronagraph -> {
                     processedImagesEmitter.newMonoImage(GeneratedImageKind.VIRTUAL_ECLIPSE, message("protus"), "protus", coronagraph);
                     if (produceMixed) {
                         executor.async(() -> {

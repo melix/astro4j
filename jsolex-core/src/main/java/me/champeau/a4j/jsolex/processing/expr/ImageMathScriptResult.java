@@ -26,6 +26,6 @@ public record ImageMathScriptResult(
         Map<String, ImageWrapper> imagesByLabel,
         Map<String, Path> filesByLabel,
         List<InvalidExpression> invalidExpressions,
-        Set<Integer> internalShifts,
-        Set<Integer> outputShifts) {
+        Set<Double> internalShifts,
+        Set<Double> outputShifts) {
 }

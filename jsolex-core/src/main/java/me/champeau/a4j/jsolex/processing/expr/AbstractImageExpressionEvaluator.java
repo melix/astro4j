@@ -34,6 +34,7 @@ import me.champeau.a4j.jsolex.processing.expr.impl.Saturation;
 import me.champeau.a4j.jsolex.processing.expr.impl.Scaling;
 import me.champeau.a4j.jsolex.processing.expr.impl.ScriptSupport;
 import me.champeau.a4j.jsolex.processing.expr.impl.Stretching;
+import me.champeau.a4j.jsolex.processing.util.FileBackedImage;
 import me.champeau.a4j.jsolex.processing.util.ForkJoinContext;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
@@ -165,7 +166,7 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
             case ELLIPSE_FIT -> ellipseFit.fit(arguments);
             case FIX_BANDING -> fixBanding.fixBanding(arguments);
             case IMG -> image(arguments);
-            case INVERT -> ScriptSupport.inverse(arguments);
+            case INVERT -> ScriptSupport.inverse(forkJoinContext, arguments);
             case LINEAR_STRETCH -> stretching.linearStretch(arguments);
             case LIST -> arguments;
             case LOAD -> loader.load(arguments);
@@ -214,7 +215,7 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
         return path;
     }
 
-    protected abstract ImageWrapper findImage(int shift);
+    protected abstract ImageWrapper findImage(double shift);
 
     private ImageWrapper image(List<Object> arguments) {
         if (arguments.size() != 1) {
@@ -222,7 +223,7 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
         }
         var arg = arguments.get(0);
         if (arg instanceof Number shift) {
-            return findImage(shift.intValue());
+            return findImage(shift.doubleValue());
         }
         throw new IllegalArgumentException("img() argument must be a number representing an image shift");
 
@@ -310,6 +311,9 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
         if (source instanceof ImageWrapper32 image) {
             return image;
         }
+        if (source instanceof FileBackedImage fileBackedImage) {
+            return asImage(fileBackedImage.unwrapToMemory());
+        }
         return null;
     }
 
@@ -335,15 +339,15 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
         }
         List<ImageWrapper> images = new ArrayList<>();
         if (from != null && to != null) {
-            int fromInt = from.intValue();
-            int toInt = to.intValue();
-            int stepInt = step.intValue();
-            if (fromInt > toInt) {
-                int tmp = fromInt;
-                fromInt = toInt;
-                toInt = tmp;
+            double fromDouble = from.doubleValue();
+            double toDouble = to.doubleValue();
+            double stepDouble = step.doubleValue();
+            if (fromDouble > toDouble) {
+                double tmp = fromDouble;
+                fromDouble = toDouble;
+                toDouble = tmp;
             }
-            for (int i = fromInt; i <= toInt; i += stepInt) {
+            for (double i = fromDouble; i <= toDouble; i += stepDouble) {
                 images.add(findImage(i));
             }
         }

@@ -16,6 +16,8 @@
 package me.champeau.a4j.jsolex.processing.sun.workflow;
 
 public enum WorkflowResults {
+    RECONSTRUCTED,
+    ROTATED,
     BANDING_CORRECTION,
     MAIN_ELLIPSE_FITTING,
     GEOMETRY_CORRECTION

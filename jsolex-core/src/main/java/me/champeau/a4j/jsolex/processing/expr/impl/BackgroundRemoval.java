@@ -16,6 +16,7 @@
 package me.champeau.a4j.jsolex.processing.expr.impl;
 
 import me.champeau.a4j.jsolex.processing.sun.workflow.AnalysisUtils;
+import me.champeau.a4j.jsolex.processing.util.FileBackedImage;
 import me.champeau.a4j.jsolex.processing.util.ForkJoinContext;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 import me.champeau.a4j.math.regression.Ellipse;
@@ -50,8 +51,11 @@ public class BackgroundRemoval extends AbstractFunctionImpl {
         } else {
             tolerance = .9;
         }
+        if (arg instanceof FileBackedImage fileBackedImage) {
+            arg = fileBackedImage.unwrapToMemory();
+        }
         if (arg instanceof ImageWrapper32 ref) {
-            return ScriptSupport.monoToMonoImageTransformer("remove_bg", 2, arguments, (width, height, data) -> {
+            return ScriptSupport.monoToMonoImageTransformer(forkJoinContext, "remove_bg", 2, arguments, (width, height, data) -> {
                 var e = ellipse.get();
                 var background = AnalysisUtils.estimateBackground(ref, e);
                 me.champeau.a4j.jsolex.processing.sun.BackgroundRemoval.removeBackground(width, height, data, tolerance, background, e);

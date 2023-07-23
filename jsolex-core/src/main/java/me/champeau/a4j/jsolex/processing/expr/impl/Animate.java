@@ -17,9 +17,11 @@ package me.champeau.a4j.jsolex.processing.expr.impl;
 
 import me.champeau.a4j.jsolex.processing.expr.FileOutput;
 import me.champeau.a4j.jsolex.processing.util.ColorizedImageWrapper;
+import me.champeau.a4j.jsolex.processing.util.FileBackedImage;
 import me.champeau.a4j.jsolex.processing.util.ForkJoinContext;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 import me.champeau.a4j.jsolex.processing.util.ProcessingException;
+import me.champeau.a4j.jsolex.processing.util.RGBImage;
 import me.champeau.a4j.ser.EightBitConversionSupport;
 import org.jcodec.api.SequenceEncoder;
 import org.jcodec.common.io.NIOUtils;
@@ -57,10 +59,15 @@ public class Animate extends AbstractFunctionImpl {
                     new Rational((int) (1000 / delay), 1));
             var frames = (List) arguments.get(0);
             for (Object argument : frames) {
+                if (argument instanceof FileBackedImage fileBackedImage) {
+                    argument = fileBackedImage.unwrapToMemory();
+                }
                 if (argument instanceof ImageWrapper32 image) {
                     addMonoFrame(encoder, image);
                 } else if (argument instanceof ColorizedImageWrapper image) {
                     addColorFrame(encoder, image);
+                } else if (argument instanceof RGBImage rgb) {
+                    throw new UnsupportedOperationException();
                 }
             }
             encoder.finish();

@@ -85,18 +85,18 @@ public class ImageSelector {
 
     private Stage stage;
 
-    private int dopplerShift;
+    private double dopplerShift;
     private RequestedImages requestedImages;
     private ImageMathParams imageMathParams;
-    private Set<Integer> internalPixelShifts;
+    private Set<Double> internalPixelShifts;
     private ForkJoinContext forkJoinContext;
 
     public void setup(Stage stage,
                       ForkJoinContext forkJoinContext,
                       Set<GeneratedImageKind> images,
                       boolean debug,
-                      List<Integer> selectedPixelShifts,
-                      int dopplerShift,
+                      List<Double> selectedPixelShifts,
+                      double dopplerShift,
                       ImageMathParams imageMathParams,
                       HostServices hostServices,
                       boolean batchMode) {
@@ -122,7 +122,7 @@ public class ImageSelector {
                 }
             }
         });
-        var newPixelShifts = new ArrayList<Integer>();
+        var newPixelShifts = new ArrayList<Double>();
         if (imageMathParams != null && !imageMathParams.equals(ImageMathParams.NONE)) {
             this.mode.getSelectionModel().select(PixelShiftMode.IMAGEMATH);
             newPixelShifts.addAll(findPixelShifts(imageMathParams));
@@ -151,10 +151,10 @@ public class ImageSelector {
         continuum.selectedProperty().addListener((observable, oldValue, newValue) -> adjustPixelShifts(newValue, Constants.CONTINUUM_SHIFT));
     }
 
-    private void updatePixelShiftsWithSelectedImages(List<Integer> newPixelShifts) {
+    private void updatePixelShiftsWithSelectedImages(List<Double> newPixelShifts) {
         var result = new TreeSet<>(newPixelShifts);
         if (result.isEmpty()) {
-            result.add(0);
+            result.add(0d);
         }
         if (continuum.isSelected()) {
             result.add(Constants.CONTINUUM_SHIFT);
@@ -166,26 +166,26 @@ public class ImageSelector {
         setPixelShiftText(result.stream().toList());
     }
 
-    private void adjustPixelShifts(boolean newValue, int... shifts) {
+    private void adjustPixelShifts(boolean newValue, double... shifts) {
         var newPixelShifts = new ArrayList<>(readPixelShifts());
-        for (int shift : shifts) {
+        for (double shift : shifts) {
             if (newValue) {
                 newPixelShifts.add(shift);
             } else {
-                newPixelShifts.remove((Integer) shift);
+                newPixelShifts.remove(shift);
             }
             setPixelShiftText(newPixelShifts);
         }
     }
 
-    private void setPixelShiftText(List<Integer> pixelShifts) {
+    private void setPixelShiftText(List<Double> pixelShifts) {
         this.pixelShifts.setText(pixelShifts.stream().distinct().sorted().map(String::valueOf).collect(Collectors.joining(";")));
     }
 
-    private List<Integer> readPixelShifts() {
+    private List<Double> readPixelShifts() {
         return Arrays.stream(pixelShifts.getText().split("\s*;\s*"))
                 .filter(s -> !s.isEmpty())
-                .map(Integer::parseInt)
+                .map(Double::parseDouble)
                 .toList();
     }
 
@@ -213,49 +213,49 @@ public class ImageSelector {
         if (raw.isSelected()) {
             images.add(GeneratedImageKind.RAW);
             if (internalPixelShifts != null) {
-                internalPixelShifts.remove(0);
+                internalPixelShifts.remove(0d);
             }
         }
         if (stretched.isSelected()) {
             images.add(GeneratedImageKind.RAW_STRETCHED);
             if (internalPixelShifts != null) {
-                internalPixelShifts.remove(0);
+                internalPixelShifts.remove(0d);
             }
         }
         if (geometryCorrected.isSelected()) {
             images.add(GeneratedImageKind.GEOMETRY_CORRECTED);
             if (internalPixelShifts != null) {
-                internalPixelShifts.remove(0);
+                internalPixelShifts.remove(0d);
             }
         }
         if (geometryCorrectedStretched.isSelected()) {
             images.add(GeneratedImageKind.GEOMETRY_CORRECTED_STRETCHED);
             if (internalPixelShifts != null) {
-                internalPixelShifts.remove(0);
+                internalPixelShifts.remove(0d);
             }
         }
         if (colorized.isSelected()) {
             images.add(GeneratedImageKind.COLORIZED);
             if (internalPixelShifts != null) {
-                internalPixelShifts.remove(0);
+                internalPixelShifts.remove(0d);
             }
         }
         if (virtualEclipse.isSelected()) {
             images.add(GeneratedImageKind.VIRTUAL_ECLIPSE);
             if (internalPixelShifts != null) {
-                internalPixelShifts.remove(0);
+                internalPixelShifts.remove(0d);
             }
         }
         if (negative.isSelected()) {
             images.add(GeneratedImageKind.NEGATIVE);
             if (internalPixelShifts != null) {
-                internalPixelShifts.remove(0);
+                internalPixelShifts.remove(0d);
             }
         }
         if (mixed.isSelected()) {
             images.add(GeneratedImageKind.MIXED);
             if (internalPixelShifts != null) {
-                internalPixelShifts.remove(0);
+                internalPixelShifts.remove(0d);
             }
         }
         if (doppler.isSelected()) {
@@ -345,7 +345,7 @@ public class ImageSelector {
     }
 
     private DefaultImageScriptExecutor createScriptExecutor() {
-        var images = new HashMap<Integer, ImageWrapper32>();
+        var images = new HashMap<Double, ImageWrapper32>();
         return new DefaultImageScriptExecutor(
                 forkJoinContext,
                 i -> images.computeIfAbsent(i, unused -> new ImageWrapper32(0, 0, new float[0])),
@@ -353,9 +353,9 @@ public class ImageSelector {
         );
     }
 
-    private List<Integer> findPixelShifts(ImageMathParams params) {
+    private List<Double> findPixelShifts(ImageMathParams params) {
         var executor = createScriptExecutor();
-        var allShifts = new TreeSet<Integer>();
+        var allShifts = new TreeSet<Double>();
         internalPixelShifts = new TreeSet<>();
         for (File file : params.scriptFiles()) {
             try {

@@ -17,6 +17,7 @@ package me.champeau.a4j.jsolex.processing.expr.impl;
 
 import me.champeau.a4j.jsolex.processing.sun.ImageUtils;
 import me.champeau.a4j.jsolex.processing.util.ColorizedImageWrapper;
+import me.champeau.a4j.jsolex.processing.util.FileBackedImage;
 import me.champeau.a4j.jsolex.processing.util.ForkJoinContext;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
@@ -59,6 +60,9 @@ public class Convolution extends AbstractFunctionImpl {
     }
 
     private Object convolve(ImageWrapper image, Kernel kernel) {
+        if (image instanceof FileBackedImage fileBackedImage) {
+            image = fileBackedImage.unwrapToMemory();
+        }
         if (image instanceof ImageWrapper32 mono) {
             return new ImageWrapper32(mono.width(), mono.height(), imageMath.convolve(mono.asImage(), kernel).data());
         } else if (image instanceof ColorizedImageWrapper colorized) {

@@ -17,6 +17,7 @@ package me.champeau.a4j.jsolex.processing.expr.impl;
 
 import me.champeau.a4j.jsolex.processing.sun.workflow.ImageStats;
 import me.champeau.a4j.jsolex.processing.util.ColorizedImageWrapper;
+import me.champeau.a4j.jsolex.processing.util.FileBackedImage;
 import me.champeau.a4j.jsolex.processing.util.ForkJoinContext;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 import me.champeau.a4j.jsolex.processing.util.RGBImage;
@@ -78,6 +79,9 @@ public class Rotate extends AbstractFunctionImpl {
         var arg = arguments.get(0);
         if (arg instanceof List<?>) {
             return expandToImageList(forkJoinContext, arguments, this::rotateLeft);
+        }
+        if (arg instanceof FileBackedImage fileBackedImage) {
+            arg = fileBackedImage.unwrapToMemory();
         }
         if (arg instanceof ImageWrapper32 mono) {
             var trn = rotateFunction.apply(mono.asImage());
