@@ -22,7 +22,6 @@ import javafx.scene.control.Tab;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.scene.input.MouseButton;
-import javafx.scene.input.MouseEvent;
 import javafx.scene.input.ScrollEvent;
 import javafx.scene.layout.HBox;
 
@@ -55,7 +54,6 @@ public class ZoomableImageView extends HBox {
         scrollPane.setContent(imageView);
 
         imageView.setOnScroll(this::handleScroll);
-        imageView.setOnMouseDragged(this::handleMouseDragged);
         imageView.setOnMouseMoved(evt -> {
             if (onCoordinatesListener != null) {
                 onCoordinatesListener.accept(evt.getX() / zoom, evt.getY() / zoom);
@@ -103,20 +101,6 @@ public class ZoomableImageView extends HBox {
     private void triggerOnZoomChanged() {
         if (onZoomChanged != null) {
             onZoomChanged.accept(zoom);
-        }
-    }
-
-    private void handleMouseDragged(MouseEvent event) {
-        if (event.isPrimaryButtonDown()) {
-            double currentX = event.getX();
-            double currentY = event.getY();
-            double deltaX = currentX - lastX;
-            double deltaY = currentY - lastY;
-            lastX = currentX;
-            lastY = currentY;
-
-            scrollPane.setHvalue(scrollPane.getHvalue() - deltaX / imageView.getFitWidth());
-            scrollPane.setVvalue(scrollPane.getVvalue() - deltaY / imageView.getFitHeight());
         }
     }
 
