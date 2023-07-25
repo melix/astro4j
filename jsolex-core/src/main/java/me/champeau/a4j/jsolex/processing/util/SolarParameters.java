@@ -27,7 +27,7 @@ public record SolarParameters(
         double p
 ) {
 
-    private static final String ANGLE = "%.2f⁰";
+    private static final String ANGLE = "%.2f°";
 
     public String toString() {
         return "Carrington rotation = " + carringtonRotation +
