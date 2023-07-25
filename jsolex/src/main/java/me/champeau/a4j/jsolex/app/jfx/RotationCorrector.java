@@ -20,6 +20,7 @@ import me.champeau.a4j.jsolex.processing.util.FileBackedImage;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 import me.champeau.a4j.jsolex.processing.util.RGBImage;
+import me.champeau.a4j.math.image.Image;
 import me.champeau.a4j.math.image.ImageMath;
 
 public class RotationCorrector {
@@ -40,11 +41,11 @@ public class RotationCorrector {
             var trn = imageMath.rotate(mono.asImage(), angle, 0, false);
             return new ColorizedImageWrapper(ImageWrapper32.fromImage(trn), colorized.converter());
         } else if (img instanceof RGBImage rgb) {
-            var height = rgb.width();
-            var width = rgb.height();
-            var r = imageMath.rotate(new me.champeau.a4j.math.image.Image(width, height, rgb.r()), angle, 0, false);
-            var g = imageMath.rotate(new me.champeau.a4j.math.image.Image(width, height, rgb.g()), angle, 0, false);
-            var b = imageMath.rotate(new me.champeau.a4j.math.image.Image(width, height, rgb.b()), angle, 0, false);
+            var height = rgb.height();
+            var width = rgb.width();
+            var r = imageMath.rotate(new Image(width, height, rgb.r()), angle, 0, false);
+            var g = imageMath.rotate(new Image(width, height, rgb.g()), angle, 0, false);
+            var b = imageMath.rotate(new Image(width, height, rgb.b()), angle, 0, false);
             return new RGBImage(r.width(), r.height(), r.data(), g.data(), b.data());
         }
         throw new IllegalArgumentException("Unsupported image type");
