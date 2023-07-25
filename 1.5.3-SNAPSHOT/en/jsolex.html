@@ -549,6 +549,9 @@ You can specify:</p>
 <p>the Doppler shift is only used when you are observing in h-alpha. JSol&#8217;Ex will produce a couple more images shifted in one direction and the other in order to produce a Doppler image. By default, a shift of 3 pixels is used but you can override that parameter.</p>
 </li>
 <li>
+<p>Autocorrect P angle: when checked, the solar angle P will be computed from the observation date (available in the SER file). The generated images will be automatically corrected so that the North is at the top. This parameter will not affect images generated via ImageMath, which need to perform their own correction.</p>
+</li>
+<li>
 <p>Force tilt: the software is fitting an ellipse around the solar disk which is reconstructed, and uses that information to perform geometric correction. It is possible that the tilt detection is wrong, in which case you can force a value.</p>
 </li>
 <li>
@@ -1047,6 +1050,25 @@ If you don&#8217;t want to provide a custom black point value, you can use a pre
 <li>
 <p><code>radius_rescale</code> is a relative scaling method which can facilitate mosaic composition. It will therefore most likely be used in <a href="#batch-mode">batch mode</a>. It allows rescaling a set of images so that they all have the same solar disk radius (in pixels). In order to do so, it will perform an ellipse regression against each image to compute their solar disk, then will rescale all images to match the radius of the largest one. For example: <code>radius_rescale(cropped)</code>.</p>
 </li>
+</ul>
+</div>
+<div class="paragraph">
+<p>Rotation functions:</p>
+</div>
+<div class="admonitionblock tip">
+<table>
+<tr>
+<td class="icon">
+<i class="fa icon-tip" title="Tip"></i>
+</td>
+<td class="content">
+A special variable named <code>angleP</code> contains the computed solar P angle, from the observation details. It is expressed in radians and can typically be used with the <code>rotate_rad</code> function to perform correction.
+</td>
+</tr>
+</table>
+</div>
+<div class="ulist">
+<ul>
 <li>
 <p><code>rotate_left</code> performs a rotation of the image to the left. For example, <code>rotate_left(img(0))</code>.</p>
 </li>

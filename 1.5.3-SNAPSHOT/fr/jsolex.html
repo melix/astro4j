@@ -548,6 +548,9 @@ Vous pouvez préciser:</p>
 <p>le décalage Doppler est utilisé uniquement lorsque vous observez en raie h-alpha pour générer une image Doppler. Par défaut, le logiciel utilise 2 images décalées de 3 pixels pour reconstituer une image en couleur.</p>
 </li>
 <li>
+<p>Correction angle P : lorsque cette case est cochée, l&#8217;angle P du soleil sera calculé automatiquement à partir de la date d&#8217;observation (disponible dans le fichier SER). Les images seront automatiquement corrigées de cet angle, pour que le Nord soit bien en haut. Ce paramètre n&#8217;affecte pas les images générées avec ImageMath, qui doivent faire leur propre correction.</p>
+</li>
+<li>
 <p>Forcer la valeur du tilt : lors de la correction géométrique d&#8217;image, JSol&#8217;Ex calcule une ellipse pour modéliser le disque solaire reconstitué. Cette ellipse est utilisée pour calculer des paramètre comme l&#8217;angle de tilt. Si le calcul effectué par le logiciel est erroné, vous disposez de la possibilité de surcharger la valeur calculée.</p>
 </li>
 <li>
@@ -1036,6 +1039,25 @@ Si vous ne connaissez pas la valeur du point noir, vous pouvez utiliser la valeu
 <li>
 <p><code>radius_rescale</code> est une méthode de redimensionnement relative qui peut être utile pour faciliter les mosaïques d&#8217;images. Elle sera donc typiquement utilisée en <a href="#batch-mode">traitement par lots</a>. Elle permet de redimensionner un ensemble d&#8217;images pour que toutes aient le même rayon solaire. Elle procède à une recherche du disque pour chaque image, trouve celle qui a le disque le plus grand, et redimensionne toutes les autres images pour qu&#8217;elles aient le même rayon solaire. Par exemple: <code>radius_rescale(cropped)</code>.</p>
 </li>
+</ul>
+</div>
+<div class="paragraph">
+<p>Fonctions de rotation :</p>
+</div>
+<div class="admonitionblock tip">
+<table>
+<tr>
+<td class="icon">
+<i class="fa icon-tip" title="Tip"></i>
+</td>
+<td class="content">
+Une variable spéciale nommée <code>angleP</code> contient la valeur calculée pour l&#8217;angle P en fonction de la date d&#8217;observation. Elle est exprimée en radians et peut typiquement être utilisée avec la fonction <code>rotate_rad</code> pour effectuer une correction.
+</td>
+</tr>
+</table>
+</div>
+<div class="ulist">
+<ul>
 <li>
 <p><code>rotate_left</code> effectue une rotation vers la gauche de l&#8217;image. Par exemple, <code>rotate_left(img(0))</code>.</p>
 </li>
