@@ -23,6 +23,7 @@ import me.champeau.a4j.jsolex.processing.sun.workflow.ImageStats;
 import me.champeau.a4j.jsolex.processing.util.FileBackedImage;
 import me.champeau.a4j.jsolex.processing.util.ForkJoinContext;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
+import me.champeau.a4j.jsolex.processing.util.SolarParameters;
 
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -33,6 +34,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 import java.util.TreeSet;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -40,6 +42,7 @@ import java.util.function.Function;
 
 public class DefaultImageScriptExecutor implements ImageMathScriptExecutor {
     public static final String BLACK_POINT_VAR = "blackPoint";
+    public static final String ANGLE_P_VAR = "angleP";
     public static final String OUTPUTS_SECTION_NAME = "outputs";
     public static final String BATCH_SECTION_NAME = "batch";
 
@@ -80,7 +83,7 @@ public class DefaultImageScriptExecutor implements ImageMathScriptExecutor {
         var outputs = prepareOutputExpressions(script, index, evaluator, kind);
         var producedImages = new HashMap<String, ImageWrapper>();
         var producedFiles = new HashMap<String, Path>();
-        return executeScript(evaluator, outputs, producedImages, producedFiles);
+        return outputs == null ? new ImageMathScriptResult(producedImages, producedFiles, List.of(), Set.of(), Set.of()) : executeScript(evaluator, outputs, producedImages, producedFiles);
     }
 
     private ImageMathScriptResult executeScript(MemoizingExpressionEvaluator evaluator,
@@ -90,6 +93,10 @@ public class DefaultImageScriptExecutor implements ImageMathScriptExecutor {
         var imageStats = (ImageStats) context.get(ImageStats.class);
         if (imageStats != null) {
             evaluator.putVariable(BLACK_POINT_VAR, String.format(Locale.US, "%.3f", imageStats.blackpoint()));
+        }
+        var solarParams = (SolarParameters) context.get(SolarParameters.class);
+        if (solarParams != null) {
+            evaluator.putVariable(ANGLE_P_VAR,  String.format(Locale.US, "%.4f", solarParams.p()));
         }
         var invalidExpressions = new ArrayList<InvalidExpression>();
         var variableShifts = new TreeSet<>(evaluator.getShifts());

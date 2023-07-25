@@ -57,6 +57,7 @@ import me.champeau.a4j.jsolex.processing.util.ForkJoinContext;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 import me.champeau.a4j.jsolex.processing.util.ProcessingException;
+import me.champeau.a4j.jsolex.processing.util.SolarParameters;
 import me.champeau.a4j.jsolex.processing.util.SolarParametersUtils;
 import me.champeau.a4j.jsolex.processing.util.SpectralLineFrameImageCreator;
 import me.champeau.a4j.math.image.Image;
@@ -315,6 +316,9 @@ public class SolexVideoProcessor implements Broadcaster {
                 blockingContext.async(() -> {
                     broadcast(ProgressEvent.of(0, "Running script " + scriptFile.getName()));
                     Map<Class, Object> context = new HashMap<>();
+                    context.put(SolarParameters.class, SolarParametersUtils.computeSolarParams(
+                            processParams.observationDetails().date().toLocalDateTime()
+                    ));
                     if (circle != null) {
                         context.put(Ellipse.class, circle);
                     }

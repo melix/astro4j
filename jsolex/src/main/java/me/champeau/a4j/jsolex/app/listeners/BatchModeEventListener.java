@@ -18,6 +18,7 @@ package me.champeau.a4j.jsolex.app.listeners;
 import me.champeau.a4j.jsolex.app.JSolEx;
 import me.champeau.a4j.jsolex.app.jfx.BatchItem;
 import me.champeau.a4j.jsolex.app.jfx.BatchOperations;
+import me.champeau.a4j.jsolex.app.jfx.RotationCorrector;
 import me.champeau.a4j.jsolex.processing.event.FileGeneratedEvent;
 import me.champeau.a4j.jsolex.processing.event.GeneratedImage;
 import me.champeau.a4j.jsolex.processing.event.ImageGeneratedEvent;
@@ -36,10 +37,12 @@ import me.champeau.a4j.jsolex.processing.expr.ImageMathScriptResult;
 import me.champeau.a4j.jsolex.processing.file.FileNamingStrategy;
 import me.champeau.a4j.jsolex.processing.params.ProcessParams;
 import me.champeau.a4j.jsolex.processing.stretching.LinearStrechingStrategy;
+import me.champeau.a4j.jsolex.processing.sun.workflow.GeneratedImageKind;
 import me.champeau.a4j.jsolex.processing.util.Constants;
 import me.champeau.a4j.jsolex.processing.util.ImageSaver;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
 import me.champeau.a4j.jsolex.processing.util.ProcessingException;
+import me.champeau.a4j.jsolex.processing.util.SolarParametersUtils;
 import me.champeau.a4j.ser.Header;
 
 import java.io.File;
@@ -94,9 +97,17 @@ public class BatchModeEventListener implements ProcessingEventListener, ImageMat
     public void onImageGenerated(ImageGeneratedEvent event) {
         var payload = event.getPayload();
         var image = payload.image();
+        var kind = payload.kind();
         var target = payload.path().toFile();
         owner.getCpuExecutor().async(() -> {
-            new ImageSaver(LinearStrechingStrategy.DEFAULT, processParams).save(image, target);
+            var img = image;
+            if (kind != GeneratedImageKind.IMAGE_MATH && processParams.geometryParams().isAutocorrectAngleP()) {
+                var p = SolarParametersUtils.computeSolarParams(
+                        processParams.observationDetails().date().toLocalDateTime()
+                ).p();
+                img = RotationCorrector.rotate(img, p);
+            }
+            new ImageSaver(LinearStrechingStrategy.DEFAULT, processParams).save(img, target);
             item.generatedFiles().add(target);
         });
     }
@@ -191,7 +202,7 @@ public class BatchModeEventListener implements ProcessingEventListener, ImageMat
                 var name = namingStrategy.render(0, Constants.TYPE_PROCESSED, entry.getKey(), "batch");
                 var outputFile = new File(outputDirectory, name);
                 delegate.onImageGenerated(new ImageGeneratedEvent(
-                        new GeneratedImage(entry.getKey(), outputFile.toPath(), entry.getValue())
+                        new GeneratedImage(GeneratedImageKind.IMAGE_MATH, entry.getKey(), outputFile.toPath(), entry.getValue())
                 ));
 
             });

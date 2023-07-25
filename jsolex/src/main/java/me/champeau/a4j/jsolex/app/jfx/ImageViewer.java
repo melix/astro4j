@@ -18,10 +18,12 @@ package me.champeau.a4j.jsolex.app.jfx;
 import javafx.animation.PauseTransition;
 import javafx.beans.property.DoubleProperty;
 import javafx.fxml.FXML;
+import javafx.geometry.Pos;
 import javafx.scene.Node;
 import javafx.scene.Parent;
 import javafx.scene.Scene;
 import javafx.scene.control.Button;
+import javafx.scene.control.CheckBox;
 import javafx.scene.control.Label;
 import javafx.scene.control.MenuItem;
 import javafx.scene.control.Slider;
@@ -29,6 +31,7 @@ import javafx.scene.control.Tab;
 import javafx.scene.control.TabPane;
 import javafx.scene.image.Image;
 import javafx.scene.layout.HBox;
+import javafx.scene.layout.VBox;
 import javafx.stage.Stage;
 import javafx.util.Duration;
 import me.champeau.a4j.jsolex.app.JSolEx;
@@ -37,6 +40,7 @@ import me.champeau.a4j.jsolex.processing.event.ProgressEvent;
 import me.champeau.a4j.jsolex.processing.params.ProcessParams;
 import me.champeau.a4j.jsolex.processing.stretching.ConstrastAdjustmentStrategy;
 import me.champeau.a4j.jsolex.processing.sun.ImageUtils;
+import me.champeau.a4j.jsolex.processing.sun.workflow.GeneratedImageKind;
 import me.champeau.a4j.jsolex.processing.util.ColorizedImageWrapper;
 import me.champeau.a4j.jsolex.processing.util.FileBackedImage;
 import me.champeau.a4j.jsolex.processing.util.ForkJoinContext;
@@ -46,6 +50,7 @@ import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 import me.champeau.a4j.jsolex.processing.util.ProcessingException;
 import me.champeau.a4j.jsolex.processing.util.RGBImage;
+import me.champeau.a4j.jsolex.processing.util.SolarParametersUtils;
 
 import java.io.File;
 import java.io.IOException;
@@ -63,15 +68,17 @@ public class ImageViewer {
     private ImageWrapper image;
     private String baseName;
     private File imageFile;
+    private GeneratedImageKind kind;
     private ProcessingEventListener broadcaster;
     private ProcessParams processParams;
 
     @FXML
-    private HBox stretchingParams;
+    private VBox stretchingParams;
 
     @FXML
     private ZoomableImageView imageView;
 
+    private CheckBox correctAngleP;
     private Button saveButton;
     private TabPane tabPane;
     private ForkJoinContext forkJoinContext;
@@ -89,6 +96,7 @@ public class ImageViewer {
     public void setup(ProcessingEventListener broadcaster,
                       String title,
                       String baseName,
+                      GeneratedImageKind kind,
                       ImageWrapper image,
                       File imageName,
                       ProcessParams params,
@@ -98,6 +106,7 @@ public class ImageViewer {
         this.imageFile = new File(imageName.getParentFile(), baseName + "_" + imageName.getName() + imageDisplayExtension(params));
         this.processParams = params;
         this.baseName = baseName;
+        this.kind = kind;
         configureStretching();
         if (params.extraParams().autosave()) {
             saveImage(imageFile);
@@ -111,7 +120,7 @@ public class ImageViewer {
                     var controller = (ImageViewer) fxmlLoader.getController();
                     controller.init(node, null, forkJoinContext);
                     controller.setup(new ProcessingEventListener() {
-                    }, title, baseName, image, imageFile, processParams, popupViews);
+                    }, title, baseName, kind, image, imageFile, processParams, popupViews);
                     var stage = new Stage();
                     var scene = new Scene((Parent) node);
                     controller.saveButton.setVisible(false);
@@ -143,6 +152,7 @@ public class ImageViewer {
     private void saveImage(File target) {
         forkJoinContext.async(() -> {
             imageView.setImagePath(target.toPath());
+            var image = maybeRotate(this.image);
             new ImageSaver(stretchingStrategy, processParams).save(image, target);
             BatchOperations.submit(() -> {
                 imageView.setImage(new Image(imageFile.toURI().toString()));
@@ -153,7 +163,11 @@ public class ImageViewer {
 
     private void configureStretching() {
         this.stretchingStrategy = ConstrastAdjustmentStrategy.DEFAULT;
-        configureContrastAdjustment();
+        var line1 = new HBox(4);
+        line1.setAlignment(Pos.CENTER_LEFT);
+        var line2 = new HBox(4);
+        line2.setAlignment(Pos.CENTER_LEFT);
+        configureContrastAdjustment(line1);
         var reset = new Button(message("reset"));
         reset.setOnAction(event -> {
             stretchingParams.getChildren().clear();
@@ -180,7 +194,13 @@ public class ImageViewer {
             coordinatesLabel.setText("(" + x.intValue() + "," + y.intValue() + extra + ")");
         });
         zoomSlider.valueProperty().addListener((obj, oldValue, newValue) -> imageView.setZoom(newValue.doubleValue()));
-        stretchingParams.getChildren().addAll(reset, saveButton, zoomLabel, zoomSlider, dimensions, coordinatesLabel);
+        correctAngleP = new CheckBox(message("correct.p.angle"));
+        correctAngleP.setSelected(processParams.geometryParams().isAutocorrectAngleP());
+        correctAngleP.selectedProperty().addListener((obj, oldValue, newValue) -> strechAndDisplay());
+        correctAngleP.setDisable(kind == GeneratedImageKind.IMAGE_MATH);
+        line1.getChildren().addAll(reset, saveButton);
+        line2.getChildren().addAll(correctAngleP, zoomLabel, zoomSlider, dimensions, coordinatesLabel);
+        stretchingParams.getChildren().addAll(line1, line2);
         strechAndDisplay();
     }
 
@@ -189,7 +209,7 @@ public class ImageViewer {
         return rnd << 8;
     }
 
-    private void configureContrastAdjustment() {
+    private void configureContrastAdjustment(HBox container) {
         int lo = (int) stretchingStrategy.getMin() >> 8;
         int hi = (int) stretchingStrategy.getMax() >> 8;
         var loSlider = new Slider(0, 255, lo);
@@ -219,7 +239,7 @@ public class ImageViewer {
             });
             pause.playFromStart();
         });
-        stretchingParams.getChildren().addAll(List.of(loLabel, loSlider, loValueLabel, hiLabel, hiSlider, hiValueLabel));
+        container.getChildren().addAll(List.of(loLabel, loSlider, loValueLabel, hiLabel, hiSlider, hiValueLabel));
     }
 
     private float[] stretch(int width, int height, float[] data) {
@@ -267,6 +287,7 @@ public class ImageViewer {
             var imageFormats = EnumSet.of(ImageFormat.PNG);
             // For some reason the image doesn't look as good when using PixelWriter
             // so we write the image in a tmp file and load it from here.
+            var image = maybeRotate(this.image);
             if (image instanceof ImageWrapper32 mono) {
                 var stretched = stretch(mono.width(), mono.height(), mono.data());
                 forkJoinContext.async(() -> {
@@ -291,6 +312,15 @@ public class ImageViewer {
                 });
             }
         });
+    }
+
+    private ImageWrapper maybeRotate(ImageWrapper image) {
+        if (kind != GeneratedImageKind.IMAGE_MATH && correctAngleP.isSelected()) {
+            image = image.copy();
+            var p = SolarParametersUtils.computeSolarParams(processParams.observationDetails().date().toLocalDateTime()).p();
+            return RotationCorrector.rotate(image, p);
+        }
+        return image;
     }
 
     private File createTmpFile() {
@@ -321,4 +351,5 @@ public class ImageViewer {
             strechAndDisplay();
         });
     }
+
 }

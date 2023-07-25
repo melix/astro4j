@@ -20,7 +20,7 @@ import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
 import java.nio.file.Path;
 
 public record GeneratedImage(
-        String title,
+        me.champeau.a4j.jsolex.processing.sun.workflow.GeneratedImageKind kind, String title,
         Path path,
         ImageWrapper image
 ) {

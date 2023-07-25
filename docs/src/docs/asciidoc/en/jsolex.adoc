@@ -39,6 +39,7 @@ You can specify:
 - the observation bandwidth: while it's not mandatory to select that field, doing so will enable automatic colorization of the images. Should your observation bandwidth not be available in the list, you can add more by clicking on the "..." button.
 - Pixel shift : by default, the software will identify the darkest line in the image and model it as a second order polynomial. Then the image is reconstructed by picking the center of the line, which corresponds to a shift of 0. By using a different shift value, you can produce an image which is "off center", for example to produce images of the solar continuum or to select a different wavelength which isn't the darkest, such as when observing in helium for example
 - the Doppler shift is only used when you are observing in h-alpha. JSol'Ex will produce a couple more images shifted in one direction and the other in order to produce a Doppler image. By default, a shift of 3 pixels is used but you can override that parameter.
+- Autocorrect P angle: when checked, the solar angle P will be computed from the observation date (available in the SER file). The generated images will be automatically corrected so that the North is at the top. This parameter will not affect images generated via ImageMath, which need to perform their own correction.
 - Force tilt: the software is fitting an ellipse around the solar disk which is reconstructed, and uses that information to perform geometric correction. It is possible that the tilt detection is wrong, in which case you can force a value.
 - Force X/Y ratio: similarly, the X/Y ratio which is detected may be inaccurrate, in which case you can force it to a particular value.
 - Horizontal and vertical inversion let you mirror the image so that you match the North and East as expected in the output images.
@@ -254,6 +255,11 @@ NOTE: If you don't want to provide a custom black point value, you can use a pre
 - `rescale_rel` rescales an image. It accepts 3 arguments: the image, then the scaling factors for X and Y. For example, `rescale_rel(img(0);2;2)` will double the size of an image.
 - `rescale_abs` rescales an image to the specified dimensions. It takes 3 arguments: the image then the desired width and height. For example, `rescale_abs(img(0);2048;2048)`.
 - `radius_rescale` is a relative scaling method which can facilitate mosaic composition. It will therefore most likely be used in <<#batch-mode,batch mode>>. It allows rescaling a set of images so that they all have the same solar disk radius (in pixels). In order to do so, it will perform an ellipse regression against each image to compute their solar disk, then will rescale all images to match the radius of the largest one. For example: `radius_rescale(cropped)`.
+
+Rotation functions:
+
+TIP: A special variable named `angleP` contains the computed solar P angle, from the observation details. It is expressed in radians and can typically be used with the `rotate_rad` function to perform correction.
+
 - `rotate_left` performs a rotation of the image to the left. For example, `rotate_left(img(0))`.
 - `rotate_right` performs a rotation of the image to the right. For example `rotate_right(img(0))`.
 - `rotate_deg` performs an arbitrary rotation, in degrees. It accepts between 2 and 4 parameters: the image and the rotation angle are mandatory. For example: `rotate_deg(img(0), 45)`. You can then specify the fill value for the pixels which didn't belong to the original image:  `rotate_deg(img(0), 45, 800)` and last, if you add `1` as the last argument, the image will be rescaled so that all pixels from the original image are found in the rotated version.

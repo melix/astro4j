@@ -9,7 +9,7 @@
             style="-fx-padding: 5; "
             fx:controller="me.champeau.a4j.jsolex.app.jfx.ImageViewer">
     <top>
-        <HBox alignment="CENTER_LEFT" style="-fx-spacing:5; -fx-padding: 10;" fx:id="stretchingParams"/>
+        <VBox alignment="CENTER_LEFT" style="-fx-spacing:5; -fx-padding: 10;" fx:id="stretchingParams"/>
     </top>
     <center>
         <ZoomableImageView fx:id="imageView"/>

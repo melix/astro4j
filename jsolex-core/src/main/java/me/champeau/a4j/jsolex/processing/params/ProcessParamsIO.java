@@ -83,7 +83,7 @@ abstract class ProcessParamsIO {
                         ""),
                 new ExtraParams(false, true, EnumSet.of(ImageFormat.PNG), FileNamingStrategy.DEFAULT_TEMPLATE, FileNamingStrategy.DEFAULT_DATETIME_FORMAT, FileNamingStrategy.DEFAULT_DATE_FORMAT),
                 new VideoParams(ColorMode.MONO),
-                new GeometryParams(null, null, false, false, false, false),
+                new GeometryParams(null, null, false, false, false, false, true),
                 new BandingCorrectionParams(24, 3),
                 new RequestedImages(RequestedImages.FULL_MODE, List.of(0d), Set.of(), ImageMathParams.NONE)
         );
@@ -119,7 +119,8 @@ abstract class ProcessParamsIO {
                                         false,
                                         false,
                                         false,
-                                        false),
+                                        false,
+                                        true),
                                 params.bandingCorrectionParams(),
                                 params.requestedImages()
                         );

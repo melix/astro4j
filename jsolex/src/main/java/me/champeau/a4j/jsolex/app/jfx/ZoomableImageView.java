@@ -31,6 +31,8 @@ import java.nio.file.Path;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 
+import static me.champeau.a4j.jsolex.app.JSolEx.message;
+
 public class ZoomableImageView extends HBox {
     private final ScrollPane scrollPane;
     private final ImageView imageView;
@@ -67,7 +69,7 @@ public class ZoomableImageView extends HBox {
         });
 
         ctxMenu = new ContextMenu();
-        var showFile = new MenuItem("Show file in files");
+        var showFile = new MenuItem(message("show.in.files"));
         showFile.setOnAction(e -> ExplorerSupport.openInExplorer(imagePath));
         ctxMenu.getItems().add(showFile);
 
