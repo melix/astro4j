@@ -57,6 +57,7 @@ import me.champeau.a4j.jsolex.processing.util.ForkJoinContext;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 import me.champeau.a4j.jsolex.processing.util.ProcessingException;
+import me.champeau.a4j.jsolex.processing.util.SolarParametersUtils;
 import me.champeau.a4j.jsolex.processing.util.SpectralLineFrameImageCreator;
 import me.champeau.a4j.math.image.Image;
 import me.champeau.a4j.math.image.ImageMath;
@@ -148,10 +149,12 @@ public class SolexVideoProcessor implements Broadcaster {
                 maybeUpdateProcessParams(header);
                 ImageGeometry geometry = header.geometry();
                 var frameCount = header.frameCount();
-                LOGGER.info(message("ser.file.date"), header.metadata().utcDateTime());
+                var dateTime = header.metadata().utcDateTime().toLocalDateTime();
+                LOGGER.info(message("ser.file.date"), dateTime);
                 LOGGER.info(message("ser.file.contains"), frameCount);
                 LOGGER.info(message("color.mode.geometry"), geometry.colorMode(), geometry.getBytesPerPixel(), geometry.pixelDepthPerPlane());
                 LOGGER.info(message("width.height"), geometry.width(), geometry.height());
+                LOGGER.info(message("solar.parameters"), SolarParametersUtils.computeSolarParams(dateTime));
                 LOGGER.info(message("computing.average.image.limb.detect"));
                 // We use the IO executor to make sure we only read as single SER file at a time
                 detector.detectEdges(reader);
