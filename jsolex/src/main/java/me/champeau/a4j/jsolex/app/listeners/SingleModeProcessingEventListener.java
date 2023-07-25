@@ -228,7 +228,7 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
             mainPane.getTabs().add(tab);
             var imageViewer = popupViews.get(title);
             if (imageViewer != null) {
-                imageViewer.setImage(payload.image(), payload.path());
+                imageViewer.setImage(baseName, params, payload.image(), payload.path());
             }
         });
     }
