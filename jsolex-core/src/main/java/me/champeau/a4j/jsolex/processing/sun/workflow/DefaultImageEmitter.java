@@ -57,7 +57,8 @@ public class DefaultImageEmitter implements ImageEmitter {
                 () -> image,
                 outputDir,
                 title,
-                name
+                name,
+                kind
         ) {
             @Override
             public void transform() {
@@ -82,8 +83,8 @@ public class DefaultImageEmitter implements ImageEmitter {
                 () -> image,
                 outputDir,
                 title,
-                name
-        ));
+                name,
+                kind));
     }
 
     @Override
@@ -94,6 +95,7 @@ public class DefaultImageEmitter implements ImageEmitter {
                 outputDir,
                 title,
                 name,
+                kind,
                 rgbSupplier)
         );
     }
@@ -106,6 +108,7 @@ public class DefaultImageEmitter implements ImageEmitter {
                 outputDir,
                 title,
                 name,
+                kind,
                 rgbSupplier)
         );
     }

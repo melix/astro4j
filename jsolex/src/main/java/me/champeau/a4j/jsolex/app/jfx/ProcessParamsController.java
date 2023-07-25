@@ -67,6 +67,8 @@ public class ProcessParamsController {
     @FXML
     private CheckBox assumeMonoVideo;
     @FXML
+    private CheckBox autocorrectAngleP;
+    @FXML
     private CheckBox autoSave;
     @FXML
     private Slider bandingCorrectionPasses;
@@ -202,6 +204,7 @@ public class ProcessParamsController {
         sharpen.setSelected(initialProcessParams.geometryParams().isSharpen());
         var patterns = FXCollections.observableList(FileNamingPatternsIO.loadDefaults());
         namingPattern.getItems().addAll(patterns);
+        autocorrectAngleP.setSelected(initialProcessParams.geometryParams().isAutocorrectAngleP());
         if (!patterns.isEmpty()) {
             namingPattern.getSelectionModel().selectFirst();
             var pattern = initialProcessParams.extraParams().fileNamePattern();
@@ -327,7 +330,8 @@ public class ProcessParamsController {
                         horizontalMirror.isSelected(),
                         verticalMirror.isSelected(),
                         sharpen.isSelected(),
-                        disallowDownsampling.isSelected()),
+                        disallowDownsampling.isSelected(),
+                        autocorrectAngleP.isSelected()),
                 new BandingCorrectionParams(
                         (int) Math.round(bandingCorrectionWidth.getValue()),
                         (int) Math.round(bandingCorrectionPasses.getValue())

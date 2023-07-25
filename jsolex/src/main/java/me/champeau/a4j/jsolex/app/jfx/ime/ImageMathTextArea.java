@@ -121,6 +121,7 @@ public class ImageMathTextArea extends BorderPane {
                 .map(ScriptToken.Variable::name)
                 .collect(Collectors.toSet());
         knownVariables.add(DefaultImageScriptExecutor.BLACK_POINT_VAR);
+        knownVariables.add(DefaultImageScriptExecutor.ANGLE_P_VAR);
         var spansBuilder = new StyleSpansBuilder<Collection<String>>();
         for (var token : tokens) {
             int tokenLength = token.length();

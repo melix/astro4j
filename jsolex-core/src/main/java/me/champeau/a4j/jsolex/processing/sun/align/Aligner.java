@@ -21,6 +21,7 @@ import me.champeau.a4j.jsolex.processing.stretching.RangeExpansionStrategy;
 import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
 import me.champeau.a4j.jsolex.processing.sun.crop.Cropper;
 import me.champeau.a4j.jsolex.processing.sun.tasks.EllipseFittingTask;
+import me.champeau.a4j.jsolex.processing.sun.workflow.GeneratedImageKind;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 import me.champeau.a4j.jsolex.processing.util.ParallelExecutor;
 import me.champeau.a4j.jsolex.processing.util.ProcessingException;
@@ -59,7 +60,7 @@ public class Aligner {
         var imageMath = ImageMath.newInstance();
         var prepared = prepareForAlignment(ref, imageMath);
         broadcaster.broadcast(new ImageGeneratedEvent(new GeneratedImage(
-                "Reference", Path.of("/tmp/cropped.png"), ImageWrapper32.fromImage(prepared.cropped)
+                GeneratedImageKind.DEBUG, "Reference", Path.of("/tmp/cropped.png"), ImageWrapper32.fromImage(prepared.cropped)
         )));
         return new Aligner(broadcaster, imageMath, prepared.cropped, Layer.of(prepared.rescaled));
     }

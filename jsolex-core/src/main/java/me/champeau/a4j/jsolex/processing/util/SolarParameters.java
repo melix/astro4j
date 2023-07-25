@@ -13,15 +13,26 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package me.champeau.a4j.jsolex.processing.event;
+package me.champeau.a4j.jsolex.processing.util;
 
-import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
+import static java.lang.Math.toDegrees;
 
-import java.nio.file.Path;
-
-public record GeneratedImage(
-        me.champeau.a4j.jsolex.processing.sun.workflow.GeneratedImageKind kind, String title,
-        Path path,
-        ImageWrapper image
+/**
+ * The Carrington rotation, B0, L0 and P angles.
+ */
+public record SolarParameters(
+        int carringtonRotation,
+        double b0,
+        double l0,
+        double p
 ) {
+
+    private static final String ANGLE = "%.2f°";
+
+    public String toString() {
+        return "Carrington rotation = " + carringtonRotation +
+               ", B0 = " + String.format(ANGLE, toDegrees(b0)) +
+               ", L0 = " + String.format(ANGLE, toDegrees(l0)) +
+               ", P = " + String.format(ANGLE, toDegrees(p));
+    }
 }

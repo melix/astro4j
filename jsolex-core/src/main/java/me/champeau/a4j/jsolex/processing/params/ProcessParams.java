@@ -49,7 +49,7 @@ public record ProcessParams(
                 observationDetails,
                 extraParams,
                 videoParams,
-                new GeometryParams(tilt, xyRatio, geometryParams().isHorizontalMirror(), geometryParams().isVerticalMirror(), geometryParams().isSharpen(), geometryParams().isDisallowDownsampling()),
+                new GeometryParams(tilt, xyRatio, geometryParams().isHorizontalMirror(), geometryParams().isVerticalMirror(), geometryParams().isSharpen(), geometryParams().isDisallowDownsampling(), geometryParams().isAutocorrectAngleP()),
                 bandingCorrectionParams,
                 requestedImages
         );

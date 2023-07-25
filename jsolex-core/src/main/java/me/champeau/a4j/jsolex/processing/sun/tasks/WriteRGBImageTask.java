@@ -16,6 +16,7 @@
 package me.champeau.a4j.jsolex.processing.sun.tasks;
 
 import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
+import me.champeau.a4j.jsolex.processing.sun.workflow.GeneratedImageKind;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 import me.champeau.a4j.jsolex.processing.util.RGBImage;
@@ -31,8 +32,9 @@ public class WriteRGBImageTask extends AbstractImageWriterTask {
                              File outputDirectory,
                              String title,
                              String name,
+                             GeneratedImageKind kind,
                              Supplier<float[][]> supplier) {
-        super(broadcaster, ref, outputDirectory, title, name);
+        super(broadcaster, ref, outputDirectory, title, name, kind);
         this.supplier = supplier;
     }
 

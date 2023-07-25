@@ -91,8 +91,8 @@ public class Rotate extends AbstractFunctionImpl {
             var trn = rotateFunction.apply(mono.asImage());
             return new ColorizedImageWrapper(ImageWrapper32.fromImage(trn), colorized.converter());
         } else if (arg instanceof RGBImage rgb) {
-            var height = rgb.width();
-            var width = rgb.height();
+            var height = rgb.height();
+            var width = rgb.width();
             var r = rotateFunction.apply(new Image(width, height, rgb.r()));
             var g = rotateFunction.apply(new Image(width, height, rgb.g()));
             var b = rotateFunction.apply(new Image(width, height, rgb.b()));

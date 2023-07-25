@@ -150,7 +150,12 @@
                                                 <Tooltip text="%sharpen.images.tooltip"/>
                                             </tooltip>
                                         </CheckBox>
-                                        <CheckBox fx:id="switchRedBlueChannels" mnemonicParsing="false" text="%doppler.switch.red.blue.channels" GridPane.rowIndex="3">
+                                        <CheckBox fx:id="autocorrectAngleP" mnemonicParsing="false" text="%autocorrect.p.angle" GridPane.rowIndex="3">
+                                            <tooltip>
+                                                <Tooltip text="%autocorrect.p.angle.tooltip"/>
+                                            </tooltip>
+                                        </CheckBox>
+                                        <CheckBox fx:id="switchRedBlueChannels" mnemonicParsing="false" text="%doppler.switch.red.blue.channels" GridPane.rowIndex="3" GridPane.columnIndex="1">
                                             <tooltip>
                                                 <Tooltip text="%doppler.switch.red.blue.channels.tooltip"/>
                                             </tooltip>

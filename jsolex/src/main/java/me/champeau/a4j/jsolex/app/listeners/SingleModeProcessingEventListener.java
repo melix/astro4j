@@ -64,6 +64,8 @@ import me.champeau.a4j.jsolex.processing.sun.workflow.ImageEmitter;
 import me.champeau.a4j.jsolex.processing.sun.workflow.ImageStats;
 import me.champeau.a4j.jsolex.processing.util.ForkJoinContext;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
+import me.champeau.a4j.jsolex.processing.util.SolarParameters;
+import me.champeau.a4j.jsolex.processing.util.SolarParametersUtils;
 import me.champeau.a4j.math.regression.Ellipse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -216,6 +218,7 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
             viewer.setup(this,
                     title,
                     baseName,
+                    payload.kind(),
                     payload.image(),
                     payload.path().toFile(),
                     params,
@@ -341,6 +344,7 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
         if (payload.imageStats() != null) {
             context.put(ImageStats.class, payload.imageStats());
         }
+        context.put(SolarParameters.class, SolarParametersUtils.computeSolarParams(params.observationDetails().date().toLocalDateTime()));
         context.put(ProcessParams.class, params);
         context.put(ImageEmitter.class, payload.customImageEmitter());
         return context;
