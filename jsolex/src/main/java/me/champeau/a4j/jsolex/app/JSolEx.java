@@ -94,6 +94,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardWatchEventKinds;
 import java.nio.file.WatchEvent;
+import java.nio.file.WatchKey;
 import java.nio.file.WatchService;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
@@ -101,8 +102,10 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
@@ -116,6 +119,7 @@ public class JSolEx extends Application implements JSolExInterface {
     private static final String LOG_EXTENSION = ".log";
     private static final FileChooser.ExtensionFilter LOG_FILE_EXTENSION_FILTER = new FileChooser.ExtensionFilter("Log files (*" + LOG_EXTENSION + ")", "*" + LOG_EXTENSION);
     private static final FileChooser.ExtensionFilter SER_FILES_EXTENSION_FILTER = new FileChooser.ExtensionFilter("SER files", "*.ser");
+    private static final int FILE_WATCH_TIMEOUT = 2_500;
 
     private ForkJoinParallelExecutor cpuExecutor;
     private ForkJoinParallelExecutor ioExecutor;
@@ -221,39 +225,79 @@ public class JSolEx extends Application implements JSolExInterface {
                 }
                 System.exit(0);
             });
-            stage.focusedProperty().addListener((o, oldValue, newValue) -> {
-                if (Boolean.TRUE.equals(newValue) && watchService != null) {
-                    var watchKey = watchService.poll();
-                    if (watchKey == null) {
-                        return;
-                    }
-                    for (var event : watchKey.pollEvents()) {
-                        var kind = event.kind();
-
-                        if (kind == OVERFLOW) {
-                            continue;
-                        }
-
-                        var ev = (WatchEvent<Path>) event;
-                        Path filename = ev.context();
-                        Path child = watchedDirectory.resolve(filename);
-                        if (Files.isRegularFile(child) && filename.toString().endsWith(".ser")) {
-                            doOpen(child.toFile(), true);
-                        }
-                    }
-
-                    boolean valid = watchKey.reset();
-                    if (!valid) {
-                        watchKey.cancel();
-                    }
-                }
-            });
+            startWatcherThread();
             BatchOperations.submit(() -> UpdateChecker.findLatestRelease().ifPresent(this::maybeWarnAboutNewRelease));
             LOGGER.info("Java runtime version {}", System.getProperty("java.version"));
             LOGGER.info("Vector API support is {} and {}", VectorApiSupport.isPresent() ? "available" : "missing", VectorApiSupport.isEnabled() ? "enabled" : "disabled (enable by setting " + VectorApiSupport.VECTOR_API_ENV_VAR + " environment variable to true)");
         } catch (IOException exception) {
             throw new ProcessingException(exception);
         }
+    }
+
+    private Thread startWatcherThread() {
+        var newFiles = new ConcurrentHashMap<Path, Long>();
+        var watcherThread = new Thread(() -> {
+            while (!Thread.currentThread().isInterrupted()) {
+                // look into the list of new files, if their size haven't changed, consider that we can start processing
+                for (Map.Entry<Path, Long> entry : newFiles.entrySet()) {
+                    var child = entry.getKey();
+                    var oldSize = entry.getValue();
+                    try {
+                        var currentSize = Files.size(child);
+                        if (currentSize == oldSize) {
+                            newFiles.remove(child);
+                            BatchOperations.submit(() -> {
+                                LOGGER.info(message("no.change.on.file"), child.getFileName());
+                                doOpen(child.toFile(), true);
+                            });
+                        } else {
+                            newFiles.put(child, currentSize);
+                        }
+                    } catch (IOException e) {
+                        newFiles.remove(child);
+                        LOGGER.error("Unable to determine size of {}", child);
+                    }
+                }
+                if (watchService != null) {
+                    WatchKey watchKey;
+                    while ((watchKey = watchService.poll()) != null) {
+                        for (var event : watchKey.pollEvents()) {
+                            var kind = event.kind();
+
+                            if (kind == OVERFLOW) {
+                                continue;
+                            }
+
+                            var ev = (WatchEvent<Path>) event;
+                            Path filename = ev.context();
+                            Path child = watchedDirectory.resolve(filename);
+                            if (Files.isRegularFile(child) && filename.toString().toLowerCase(Locale.US).endsWith(".ser")) {
+                                try {
+                                    newFiles.put(child, Files.size(child));
+                                    LOGGER.info(message("file.added.wait.list"), filename);
+                                } catch (IOException e) {
+                                    LOGGER.error("Unable to determine size of {}", child);
+                                }
+                            }
+                        }
+
+                        boolean valid = watchKey.reset();
+                        if (!valid) {
+                            watchKey.cancel();
+                        }
+                    }
+                }
+                try {
+                    Thread.sleep(FILE_WATCH_TIMEOUT);
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                }
+
+            }
+        });
+        watcherThread.setDaemon(true);
+        watcherThread.start();
+        return watcherThread;
     }
 
     private void maybeWarnAboutNewRelease(UpdateChecker.ReleaseInfo release) {
