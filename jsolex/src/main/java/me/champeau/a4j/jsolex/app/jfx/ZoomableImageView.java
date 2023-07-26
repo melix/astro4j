@@ -15,6 +15,7 @@
  */
 package me.champeau.a4j.jsolex.app.jfx;
 
+import javafx.beans.binding.Bindings;
 import javafx.scene.control.ContextMenu;
 import javafx.scene.control.MenuItem;
 import javafx.scene.control.ScrollPane;
@@ -41,8 +42,6 @@ public class ZoomableImageView extends HBox {
 
     private Tab parentTab;
     private double zoom = 1.0;
-    private double lastX = 0;
-    private double lastY = 0;
     private Path imagePath;
 
     public ZoomableImageView() {
@@ -68,14 +67,11 @@ public class ZoomableImageView extends HBox {
 
         ctxMenu = new ContextMenu();
         var showFile = new MenuItem(message("show.in.files"));
+        showFile.disableProperty().bind(Bindings.createBooleanBinding(() -> imagePath == null || !Files.exists(imagePath)));
         showFile.setOnAction(e -> ExplorerSupport.openInExplorer(imagePath));
         ctxMenu.getItems().add(showFile);
 
-        setOnContextMenuRequested(e -> {
-            if (imagePath != null && Files.exists(imagePath)) {
-                ctxMenu.show(ZoomableImageView.this, e.getScreenX(), e.getScreenY());
-            }
-        });
+        setOnContextMenuRequested(e -> ctxMenu.show(ZoomableImageView.this, e.getScreenX(), e.getScreenY()));
 
         getChildren().add(scrollPane);
     }
@@ -132,9 +128,6 @@ public class ZoomableImageView extends HBox {
     public void setImage(Image image) {
         imageView.setImage(image);
         imageView.setPreserveRatio(true);
-        zoom = getWidth() / image.getWidth();
-        triggerOnZoomChanged();
-        applyZoom();
     }
 
     public ContextMenu getCtxMenu() {
@@ -156,5 +149,11 @@ public class ZoomableImageView extends HBox {
 
     public void setCoordinatesListener(BiConsumer<? super Double, ? super Double> consumer) {
         onCoordinatesListener = consumer;
+    }
+
+    public void resetZoom() {
+        zoom = getWidth() / imageView.getImage().getWidth();
+        triggerOnZoomChanged();
+        applyZoom();
     }
 }
