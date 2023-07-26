@@ -178,7 +178,7 @@ public class SpectralLineDebugger {
                 int current = header.frameCount() / 2;
                 var screenWidth = Screen.getPrimary().getBounds().getWidth();
                 stage.setWidth(Math.max(screenWidth, Math.min(1024, header.geometry().width())));
-                stage.setHeight(stage.getHeight() + 2 * geometry.height() + 10);
+                stage.setHeight(stage.getHeight() + 2 * geometry.height() + 20);
                 status.maxWidthProperty().bind(scene.widthProperty());
                 scene.widthProperty().addListener((o, oldValue, newValue) -> {
                     if (image != null) {
