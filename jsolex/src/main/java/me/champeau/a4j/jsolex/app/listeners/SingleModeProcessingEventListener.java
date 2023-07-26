@@ -156,6 +156,7 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
         var imageView = new ZoomableImageView();
         imageView.prefWidthProperty().bind(mainPane.widthProperty());
         imageView.setImage(new WritableImage(width, height));
+        imageView.resetZoom();
         var colorAdjust = new ColorAdjust();
         colorAdjust.brightnessProperty().setValue(0.2);
         imageView.setEffect(colorAdjust);

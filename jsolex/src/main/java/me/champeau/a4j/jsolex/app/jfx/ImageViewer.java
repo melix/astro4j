@@ -17,6 +17,11 @@ package me.champeau.a4j.jsolex.app.jfx;
 
 import javafx.animation.PauseTransition;
 import javafx.beans.property.DoubleProperty;
+import javafx.beans.property.IntegerProperty;
+import javafx.beans.property.ListProperty;
+import javafx.beans.property.SimpleIntegerProperty;
+import javafx.beans.property.SimpleListProperty;
+import javafx.collections.FXCollections;
 import javafx.fxml.FXML;
 import javafx.geometry.Pos;
 import javafx.scene.Node;
@@ -67,12 +72,10 @@ public class ImageViewer {
     private Stage stage;
     private ConstrastAdjustmentStrategy stretchingStrategy = ConstrastAdjustmentStrategy.DEFAULT;
     private ImageWrapper image;
-    private String baseName;
     private File imageFile;
     private GeneratedImageKind kind;
     private ProcessingEventListener broadcaster;
     private ProcessParams processParams;
-    private int updateCount;
 
     @FXML
     private VBox stretchingParams;
@@ -85,6 +88,9 @@ public class ImageViewer {
     private TabPane tabPane;
     private ForkJoinContext forkJoinContext;
     private String title;
+
+    private final ListProperty<ImageState> imageHistory = new SimpleListProperty<>(FXCollections.observableArrayList());
+    private final IntegerProperty currentImage = new SimpleIntegerProperty(0);
 
     public void init(Node root, TabPane tabPane, ForkJoinContext cpuExecutor) {
         this.root = root;
@@ -108,9 +114,9 @@ public class ImageViewer {
         this.image = image instanceof FileBackedImage fbi ? fbi.unwrapToMemory() : image;
         this.imageFile = new File(imageName.getParentFile(), baseName + "_" + imageName.getName() + imageDisplayExtension(params));
         this.processParams = params;
-        this.baseName = baseName;
         this.kind = kind;
         this.title = title;
+        recordImage(baseName, image);
         configureStretching();
         if (params.extraParams().autosave()) {
             saveImage(imageFile);
@@ -143,6 +149,10 @@ public class ImageViewer {
             });
             imageView.getCtxMenu().getItems().add(openInNewWindow);
         }
+    }
+
+    private void recordImage(String baseName, ImageWrapper image) {
+        imageHistory.add(new ImageState(processParams, baseName, image, imageFile));
     }
 
     private String imageDisplayExtension(ProcessParams params) {
@@ -203,10 +213,24 @@ public class ImageViewer {
         correctAngleP.setSelected(processParams.geometryParams().isAutocorrectAngleP());
         correctAngleP.selectedProperty().addListener((obj, oldValue, newValue) -> strechAndDisplay());
         correctAngleP.setDisable(kind == GeneratedImageKind.IMAGE_MATH);
-        line1.getChildren().addAll(reset, saveButton);
+        var prevButton = new Button(message("prev.image"));
+        prevButton.disableProperty().bind(currentImage.isEqualTo(0));
+        prevButton.visibleProperty().bind(imageHistory.sizeProperty().greaterThan(1));
+        prevButton.setOnAction(evt -> {
+            currentImage.set(currentImage.get() - 1);
+            showImage();
+        });
+        var nextButton = new Button(message("next.image"));
+        nextButton.setOnAction(evt -> {
+            currentImage.set(currentImage.get() + 1);
+            showImage();
+        });
+        nextButton.disableProperty().bind(currentImage.isEqualTo(imageHistory.sizeProperty().subtract(1)));
+        nextButton.visibleProperty().bind(imageHistory.sizeProperty().greaterThan(1));
+        line1.getChildren().addAll(reset, saveButton, prevButton, nextButton);
         line2.getChildren().addAll(correctAngleP, zoomLabel, zoomSlider, dimensions, coordinatesLabel);
         stretchingParams.getChildren().addAll(line1, line2);
-        strechAndDisplay();
+        strechAndDisplay(true);
     }
 
     private static float linValueOf(double sliderValue) {
@@ -277,12 +301,19 @@ public class ImageViewer {
     }
 
     private void strechAndDisplay() {
+        strechAndDisplay(false);
+    }
+
+    private void strechAndDisplay(boolean resetZoom) {
         forkJoinContext.async(() -> {
             File tmpImage = createTmpFile();
             var width = image.width();
             var height = image.height();
             Runnable updateDisplay = () -> {
                 imageView.setImage(new Image(tmpImage.toURI().toString()));
+                if (resetZoom) {
+                    imageView.resetZoom();
+                }
                 if (tabPane != null) {
                     tabPane.getSelectionModel().select(imageView.getParentTab());
                 }
@@ -348,10 +379,19 @@ public class ImageViewer {
 
     public synchronized void setImage(String baseName, ProcessParams params, ImageWrapper image, Path path) {
         this.processParams = params;
-        this.baseName = baseName;
         this.image = image instanceof FileBackedImage fbi ? fbi.unwrapToMemory() : image;
         this.imageFile = new File(path.toFile().getParentFile(), baseName + "_" + path.getFileName() + imageDisplayExtension(processParams));
         this.imageView.setImagePath(path);
+        recordImage(baseName, image);
+        currentImage.set(imageHistory.size() - 1);
+        showImage();
+    }
+
+    public void showImage() {
+        var currentState = imageHistory.get(currentImage.get());
+        this.processParams = currentState.processParams;
+        this.image = currentState.image;
+        this.imageFile = currentState.imageFile;
         BatchOperations.submit(() -> {
             updateTitle();
             imageView.setImage(new Image(imageFile.toURI().toString()));
@@ -362,8 +402,17 @@ public class ImageViewer {
 
     private void updateTitle() {
         if (stage != null) {
-            stage.titleProperty().set(title + " (" + imageFile.getName() + ") - " + updateCount++);
+            stage.titleProperty().set(title + " (" + imageFile.getName() + ") - " + currentImage.get());
         }
+    }
+
+    private record ImageState(
+            ProcessParams processParams,
+            String baseName,
+            ImageWrapper image,
+            File imageFile
+    ) {
+
     }
 
 }
