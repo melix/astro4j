@@ -19,6 +19,8 @@ import me.champeau.a4j.math.Point2D;
 import me.champeau.a4j.math.tuples.DoublePair;
 import me.champeau.a4j.math.tuples.DoubleSextuplet;
 
+import java.util.Optional;
+
 /**
  * Represents an ellipse, as the result of ellipse regression.
  */
@@ -178,6 +180,19 @@ public class Ellipse {
                 new Point2D(cx - s2 * cosOrtho, cy - s2 * sinOrtho),
                 new Point2D(cx + s2 * cosOrtho, cy + s2 * sinOrtho)
         };
+    }
+
+    public Optional<DoublePair> findY(double x) {
+        var a = cart.c();
+        var b = cart.b() * x + cart.e();
+        var c = cart.a() * x * x + cart.d() * x + cart.f();
+        var disc = b * b - 4 * a * c;
+        if (disc >= 0 && 2 * a != 0) {
+            var y1 = (-b + Math.sqrt(disc)) / 2 * a;
+            var y2 = (-b - Math.sqrt(disc)) / 2 * a;
+            return Optional.of(new DoublePair(y1, y2));
+        }
+        return Optional.empty();
     }
 
     public boolean isWithin(Point2D point) {

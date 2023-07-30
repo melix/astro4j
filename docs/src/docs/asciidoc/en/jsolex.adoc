@@ -265,6 +265,10 @@ TIP: A special variable named `angleP` contains the computed solar P angle, from
 - `rotate_deg` performs an arbitrary rotation, in degrees. It accepts between 2 and 4 parameters: the image and the rotation angle are mandatory. For example: `rotate_deg(img(0), 45)`. You can then specify the fill value for the pixels which didn't belong to the original image:  `rotate_deg(img(0), 45, 800)` and last, if you add `1` as the last argument, the image will be rescaled so that all pixels from the original image are found in the rotated version.
 - `rotate_rad` performs an arbitrary rotation, in degrees. It accepts between 2 and 4 parameters: the image and the rotation angle are mandatory. For example: `rotate_rad(img(0), 0.25)`. You can then specify the fill value for the pixels which didn't belong to the original image:  `rotate_rad(img(0), 0.25, 800)` and last, if you add `1` as the last argument, the image will be rescaled so that all pixels from the original image are found in the rotated version.
 
+Decorative functions
+
+- `draw_globe` draws a globe which orientation and diameter matches the detected solar parameters. It takes between 1 and 4 arguments. The 1st one is the image on which to draw the globe. e.g: `draw_globe(img(0))`. The next, optional parameters are the P angle (in radians), the B0 angle (in radians) and the ellipse. e.g: `draw_globe(img(0), p, b0, ellipse)`.
+
 === ImageMath scripts
 
 In the previous section, we have seen the building blocks of ImageMath, which permit computation of new images.

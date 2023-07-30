@@ -84,6 +84,7 @@ public final class FileBackedImage implements ImageWrapper {
                     floatBuffer.put(r);
                     floatBuffer.put(g);
                     floatBuffer.put(b);
+                    return new FileBackedImage(width, height, backingFile, null);
                 }
                 throw new ProcessingException("Unexpected image type " + wrapper);
             }

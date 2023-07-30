@@ -27,6 +27,7 @@ import me.champeau.a4j.jsolex.processing.expr.impl.Crop;
 import me.champeau.a4j.jsolex.processing.expr.impl.DiskFill;
 import me.champeau.a4j.jsolex.processing.expr.impl.EllipseFit;
 import me.champeau.a4j.jsolex.processing.expr.impl.FixBanding;
+import me.champeau.a4j.jsolex.processing.expr.impl.ImageDraw;
 import me.champeau.a4j.jsolex.processing.expr.impl.Loader;
 import me.champeau.a4j.jsolex.processing.expr.impl.RGBCombination;
 import me.champeau.a4j.jsolex.processing.expr.impl.Rotate;
@@ -70,6 +71,7 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
     private final DiskFill diskFill;
     private final EllipseFit ellipseFit;
     private final FixBanding fixBanding;
+    private final ImageDraw imageDraw;
     private final Loader loader;
     private final Rotate rotate;
     private final Saturation saturation;
@@ -88,6 +90,7 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
         this.diskFill = new DiskFill(forkJoinContext, context);
         this.ellipseFit = new EllipseFit(forkJoinContext, context);
         this.fixBanding = new FixBanding(forkJoinContext, context);
+        this.imageDraw = new ImageDraw(forkJoinContext, context);
         this.loader = new Loader(forkJoinContext, context);
         this.rotate = new Rotate(forkJoinContext, context);
         this.saturation = new Saturation(forkJoinContext, context);
@@ -163,6 +166,7 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
             case CROP -> crop.crop(arguments);
             case CROP_RECT -> crop.cropToRect(arguments);
             case DISK_FILL -> diskFill.fill(arguments);
+            case DRAW_GLOBE -> imageDraw.drawGlobe(arguments);
             case ELLIPSE_FIT -> ellipseFit.fit(arguments);
             case FIX_BANDING -> fixBanding.fixBanding(arguments);
             case IMG -> image(arguments);

@@ -76,6 +76,10 @@ public class Loader extends AbstractFunctionImpl {
         } catch (IOException e) {
             throw new ProcessingException(e);
         }
+        return toImageWrapper(image);
+    }
+
+    static ImageWrapper toImageWrapper(BufferedImage image) {
         var width = image.getWidth();
         var height = image.getHeight();
         var colorModel = image.getColorModel();

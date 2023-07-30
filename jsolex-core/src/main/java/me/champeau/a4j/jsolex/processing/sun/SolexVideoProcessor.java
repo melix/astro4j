@@ -403,9 +403,10 @@ public class SolexVideoProcessor implements Broadcaster {
                 .stream()
                 .map(i -> WorkflowState.prepare(width, newHeight, i))
                 .toList();
-        if (list.stream().noneMatch(s -> s.pixelShift() <= -Constants.CONTINUUM_SHIFT)) {
+        var detectionShift = processParams.spectrumParams().pixelShift() - 6;
+        if (list.stream().noneMatch(s -> s.pixelShift() == detectionShift)) {
             // add an internal state used for edge detection only
-            var internalState = WorkflowState.prepare(width, newHeight, -Constants.CONTINUUM_SHIFT);
+            var internalState = WorkflowState.prepare(width, newHeight, detectionShift);
             internalState.setInternal(true);
             list = new ArrayList<>(list);
             list.add(internalState);
@@ -566,7 +567,7 @@ public class SolexVideoProcessor implements Broadcaster {
                             if (name.toLowerCase(Locale.US).contains("doppler")) {
                                 return name;
                             }
-                            var suffix = "_" + String.format(Locale.US, "%.2f",shift).replace('.', '_');
+                            var suffix = "_" + String.format(Locale.US, "%.2f", shift).replace('.', '_');
                             return name + suffix;
                         }),
                         imageNamingStrategy,

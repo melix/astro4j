@@ -43,6 +43,9 @@ import java.util.function.Function;
 public class DefaultImageScriptExecutor implements ImageMathScriptExecutor {
     public static final String BLACK_POINT_VAR = "blackPoint";
     public static final String ANGLE_P_VAR = "angleP";
+    public static final String B0_VAR = "b0";
+    public static final String L0_VAR = "l0";
+    public static final String CARROT_VAR = "carrot";
     public static final String OUTPUTS_SECTION_NAME = "outputs";
     public static final String BATCH_SECTION_NAME = "batch";
 
@@ -97,6 +100,9 @@ public class DefaultImageScriptExecutor implements ImageMathScriptExecutor {
         var solarParams = (SolarParameters) context.get(SolarParameters.class);
         if (solarParams != null) {
             evaluator.putVariable(ANGLE_P_VAR,  String.format(Locale.US, "%.4f", solarParams.p()));
+            evaluator.putVariable(B0_VAR,  String.format(Locale.US, "%.4f", solarParams.b0()));
+            evaluator.putVariable(L0_VAR,  String.format(Locale.US, "%.4f", solarParams.l0()));
+            evaluator.putVariable(CARROT_VAR, String.valueOf(solarParams.carringtonRotation()));
         }
         var invalidExpressions = new ArrayList<InvalidExpression>();
         var variableShifts = new TreeSet<>(evaluator.getShifts());
