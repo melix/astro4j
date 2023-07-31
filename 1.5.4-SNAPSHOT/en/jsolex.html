@@ -1083,6 +1083,22 @@ A special variable named <code>angleP</code> contains the computed solar P angle
 </li>
 </ul>
 </div>
+<div class="paragraph">
+<p>Decorative functions</p>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p><code>draw_globe</code> draws a globe which orientation and diameter matches the detected solar parameters. It takes between 1 and 4 arguments. The 1st one is the image on which to draw the globe. e.g: <code>draw_globe(img(0))</code>. The next, optional parameters are the P angle (in radians), the B0 angle (in radians) and the ellipse. e.g: <code>draw_globe(img(0), p, b0, ellipse)</code>.</p>
+</li>
+<li>
+<p><code>draw_obs_details</code> prints on the image the observation details. For example: <code>draw_obs_details(img(0))</code>. By default, placed in the top left corner. It&#8217;s possible to set the (x,y) position explicitly: <code>draw_obs_details(img(0), 100, 100)</code>.</p>
+</li>
+<li>
+<p><code>draw_solar_params</code> prints on the image the detected solar parameters. For example: <code>draw_solar_params(img(0))</code>. By default, placed in the top right corner. It&#8217;s possible to set the (x,y) position explicitly, for example: <code>draw_solar_params(img(0), 500, 100)</code>.</p>
+</li>
+</ul>
+</div>
 </div>
 <div class="sect2">
 <h3 id="_imagemath_scripts">ImageMath scripts</h3>
