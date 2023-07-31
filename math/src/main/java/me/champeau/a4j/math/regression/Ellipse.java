@@ -210,6 +210,29 @@ public class Ellipse {
         return a >= 0 && value <= 0 || a <= 0 && value >= 0;
     }
 
+    /**
+     * Computes the parameters of this ellipse translated by vector (u,v)
+     * @param u the translation on the X axis
+     * @param v the translation on the Y axis
+     * @return the new ellipse
+     */
+    public Ellipse translate(double u, double v) {
+        var a = cart.a();
+        var b = cart.b();
+        var c = cart.c();
+        var d = cart.d();
+        var e = cart.e();
+        var f = cart.f();
+        return new Ellipse(new DoubleSextuplet(
+                a,
+                b,
+                c,
+                d - 2 * a * u - b * v,
+                e - 2 * c * v - b * u,
+                a * u * u + b * u * v + c * v * v - d * u - e * v + f
+        ));
+    }
+
     @Override
     public String toString() {
         var sb = new StringBuilder();

@@ -15,6 +15,7 @@
  */
 package me.champeau.a4j.jsolex.processing.expr.impl;
 
+import me.champeau.a4j.jsolex.processing.params.ProcessParams;
 import me.champeau.a4j.jsolex.processing.util.ColorizedImageWrapper;
 import me.champeau.a4j.jsolex.processing.util.Constants;
 import me.champeau.a4j.jsolex.processing.util.FileBackedImage;
@@ -29,6 +30,7 @@ import java.awt.*;
 import java.awt.geom.AffineTransform;
 import java.awt.image.BufferedImage;
 import java.awt.image.DataBufferUShort;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Map;
 import java.util.function.BiConsumer;
@@ -45,6 +47,69 @@ public class ImageDraw extends AbstractFunctionImpl {
 
     public ImageDraw(ForkJoinContext forkJoinContext, Map<Class<?>, Object> context) {
         super(forkJoinContext, context);
+    }
+
+    private static StringBuilder appendLine(String element, StringBuilder sb) {
+        if (element != null && !element.trim().isBlank()) {
+            sb.append(element).append("\n");
+        }
+        return sb;
+    }
+
+    private static void writeMultiline(Graphics2D g, CharSequence seq, int x, int y) {
+        var yb = y;
+        var lineHeight = g.getFontMetrics().getHeight();
+        var f = g.getFont();
+        for (String s : seq.toString().split("\n")) {
+            if (s.startsWith("<b>")) {
+                g.setFont(f.deriveFont(Font.BOLD));
+                s = s.substring(3);
+            }
+            g.drawString(s, x, yb);
+            g.setFont(f);
+            yb += lineHeight;
+        }
+    }
+
+    public Object drawObservationDetails(List<Object> arguments) {
+        assertExpectedArgCount(arguments, "draw_obs_details takes 1, 2, or 3 (image(s), [x], [y])", 1, 3);
+        var arg = arguments.get(0);
+        if (arg instanceof List<?>) {
+            return expandToImageList(forkJoinContext, arguments, this::drawGlobe);
+        }
+        var x = getArgument(Number.class, arguments, 1).map(Number::intValue).orElse(50);
+        var y = getArgument(Number.class, arguments, 2).map(Number::intValue).orElse(50);
+        if (arg instanceof ImageWrapper img) {
+            var processParams = getFromContext(ProcessParams.class);
+            if (processParams.isPresent()) {
+                return drawOnImage(img, (g, image) -> {
+                    getFromContext(Ellipse.class).ifPresent(ellipse -> {
+                        var semiAxis = ellipse.semiAxis();
+                        var radius = (semiAxis.a() + semiAxis.b()) / 2;
+                        autoScaleFont(g, 1.2d, radius);
+                    });
+                    var sb = new StringBuilder("<b>");
+                    var params = processParams.get();
+                    var details = params.observationDetails();
+                    appendLine(details.observer(), sb);
+                    var date = details.date();
+                    sb.append(date.format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss 'UTC'"))).append("\n");
+                    appendLine(details.instrument() + " - " + params.spectrumParams().ray(), sb);
+                    appendLine(details.telescope(), sb);
+                    if (details.focalLength() != null) {
+                        appendLine("Focal length " + details.focalLength() + "mm", sb);
+                    }
+                    if (details.aperture() != null) {
+                        appendLine("Aperture " + details.aperture() + "mm", sb);
+                    }
+                    appendLine(details.camera(), sb);
+                    writeMultiline(g, sb, x, y);
+                });
+            } else {
+                throw new IllegalStateException("Cannot determine process parameters");
+            }
+        }
+        throw new IllegalArgumentException("Unexpected image type: " + arg);
     }
 
     public Object drawGlobe(List<Object> arguments) {
@@ -90,19 +155,15 @@ public class ImageDraw extends AbstractFunctionImpl {
     }
 
     private ImageWrapper doDrawGlobe(ImageWrapper wrapper, Ellipse ellipse, double angleP, double b0) {
-        return drawOnImage(wrapper, (bufferedImage, image) -> {
-            var g = bufferedImage.createGraphics();
+        return drawOnImage(wrapper, (g, image) -> {
             var font = g.getFont();
             g.setFont(font.deriveFont(AffineTransform.getRotateInstance(-angleP)));
-            int greyValue = 80 * maxValue(image) / 100;
-            g.setColor(new Color(greyValue, greyValue, greyValue));
-            g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
             double centerX = ellipse.center().a();
             double centerY = ellipse.center().b();
             double radius = (ellipse.semiAxis().a() + ellipse.semiAxis().b()) / 2d;
             double resolution = 0.04d;
             var diameter = (int) Math.round(2 * radius);
-            g.setFont(g.getFont().deriveFont((float) (radius / 48)));
+            autoScaleFont(g, 1.0d, radius);
             g.drawOval((int) (centerX - radius), (int) (centerY - radius), diameter, diameter);
             g.drawOval((int) (centerX - radius), (int) (centerY - radius), diameter - 1, diameter - 1);
             int geodesisInc = 180 / DIVISIONS;
@@ -124,18 +185,23 @@ public class ImageDraw extends AbstractFunctionImpl {
             }
             drawAngleLabels(angleP, geodesisInc, radius, g, centerX, centerY);
             drawRotationAxis(angleP, radius, g, centerX, centerY);
+            drawRotationAxis(0, radius, g, centerX, centerY);
             g.setFont(font);
         });
     }
 
-    private static void drawRotationAxis(double angleP, double radius, Graphics2D g, double centerX, double centerY) {
+    private static void autoScaleFont(Graphics2D g, double radius, double factor) {
+        g.setFont(g.getFont().deriveFont((float) (factor * radius / 48)));
+    }
+
+    private static void drawRotationAxis(double angle, double radius, Graphics2D g, double centerX, double centerY) {
         // draw rotation axis
         var x0 = 0;
         var y0 = -(radius * 1.1);
-        var p0 = rotate(x0, y0, -angleP);
+        var p0 = rotate(x0, y0, -angle);
         var x1 = 0;
         var y1 = (radius * 1.1);
-        var p1 = rotate(x1, y1, -angleP);
+        var p1 = rotate(x1, y1, -angle);
         g.drawLine((int) (centerX + p0[0]), (int) (centerY + p0[1]), (int) (centerX + p1[0]), (int) (centerY + p1[1]));
     }
 
@@ -156,7 +222,7 @@ public class ImageDraw extends AbstractFunctionImpl {
                 g.setFont(font.deriveFont(Font.BOLD));
                 g.drawString("N", (int) (centerX - p[0]), (int) (centerY - p[1]));
                 g.drawString("S", (int) (centerX + p[0]), (int) (centerY + p[1]));
-                p = rotate(0, radius * 1.05, Math.PI/2 - angleP);
+                p = rotate(0, radius * 1.05, Math.PI / 2 - angleP);
                 g.drawString("W", (int) (centerX - p[0]), (int) (centerY - p[1]));
                 g.drawString("E", (int) (centerX + p[0]), (int) (centerY + p[1]));
                 g.setFont(font);
@@ -164,7 +230,10 @@ public class ImageDraw extends AbstractFunctionImpl {
         }
     }
 
-    public ImageWrapper drawOnImage(ImageWrapper wrapper, BiConsumer<? super BufferedImage, ? super ImageWrapper> consumer) {
+    public ImageWrapper drawOnImage(ImageWrapper wrapper, BiConsumer<? super Graphics2D, ? super ImageWrapper> consumer) {
+        if (wrapper.width() == 0 || wrapper.height() == 0) {
+            return wrapper;
+        }
         BufferedImage image = null;
         if (wrapper instanceof FileBackedImage fileBacked) {
             wrapper = fileBacked.unwrapToMemory();
@@ -189,7 +258,11 @@ public class ImageDraw extends AbstractFunctionImpl {
             image = toBufferedImage(rgb.width(), rgb.height(), rgb.r(), rgb.g(), rgb.b());
         }
         if (image != null) {
-            consumer.accept(image, wrapper);
+            var g = image.createGraphics();
+            int greyValue = 80 * maxValue(wrapper) / 100;
+            g.setColor(new Color(greyValue, greyValue, greyValue));
+            g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+            consumer.accept(g, wrapper);
             return Loader.toImageWrapper(image);
         }
         return null;

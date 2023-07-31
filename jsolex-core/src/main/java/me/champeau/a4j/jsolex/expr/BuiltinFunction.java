@@ -32,6 +32,7 @@ public enum BuiltinFunction {
     CROP_RECT,
     DISK_FILL,
     DRAW_GLOBE,
+    DRAW_OBS_DETAILS,
     ELLIPSE_FIT,
     FIX_BANDING,
     IMG,

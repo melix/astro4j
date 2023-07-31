@@ -167,6 +167,7 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
             case CROP_RECT -> crop.cropToRect(arguments);
             case DISK_FILL -> diskFill.fill(arguments);
             case DRAW_GLOBE -> imageDraw.drawGlobe(arguments);
+            case DRAW_OBS_DETAILS -> imageDraw.drawObservationDetails(arguments);
             case ELLIPSE_FIT -> ellipseFit.fit(arguments);
             case FIX_BANDING -> fixBanding.fixBanding(arguments);
             case IMG -> image(arguments);

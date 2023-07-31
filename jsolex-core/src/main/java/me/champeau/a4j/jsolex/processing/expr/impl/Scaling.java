@@ -72,7 +72,7 @@ public class Scaling extends AbstractFunctionImpl {
         int width = intArg(arguments, 1);
         int height = intArg(arguments, 2);
         if (width < 0 || height < 0) {
-            throw new IllegalArgumentException("Width and height must be > 0");
+            throw new IllegalArgumentException("Width and height must be >= 0");
         }
         if (arg instanceof ImageWrapper img) {
             var result = doRescale(img, width, height);
