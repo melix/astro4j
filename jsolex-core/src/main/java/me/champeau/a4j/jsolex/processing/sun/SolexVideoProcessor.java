@@ -317,11 +317,7 @@ public class SolexVideoProcessor implements Broadcaster {
                 ImageStats finalImageStats = imageStats;
                 blockingContext.async(() -> {
                     broadcast(ProgressEvent.of(0, "Running script " + scriptFile.getName()));
-                    Map<Class, Object> context = new HashMap<>();
-                    context.put(ProcessParams.class, processParams);
-                    context.put(SolarParameters.class, SolarParametersUtils.computeSolarParams(
-                            processParams.observationDetails().date().toLocalDateTime()
-                    ));
+                    var context = createBaseExecutionContext(processParams);
                     if (circle != null) {
                         context.put(Ellipse.class, circle);
                     }
@@ -350,6 +346,15 @@ public class SolexVideoProcessor implements Broadcaster {
                 });
             }
         }
+    }
+
+    public static Map<Class<?>, Object> createBaseExecutionContext(ProcessParams processParams) {
+        Map<Class<?>, Object> context = new HashMap<>();
+        context.put(ProcessParams.class, processParams);
+        context.put(SolarParameters.class, SolarParametersUtils.computeSolarParams(
+                processParams.observationDetails().date().toLocalDateTime()
+        ));
+        return context;
     }
 
     private ImageEmitter createCustomImageEmitter(FileNamingStrategy imageNamingStrategy, String baseName) {

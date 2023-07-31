@@ -32,6 +32,7 @@ import java.awt.image.BufferedImage;
 import java.awt.image.DataBufferUShort;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.function.BiConsumer;
 
@@ -83,7 +84,7 @@ public class ImageDraw extends AbstractFunctionImpl {
             var processParams = getFromContext(ProcessParams.class);
             if (processParams.isPresent()) {
                 return drawOnImage(img, (g, image) -> {
-                    getFromContext(Ellipse.class).ifPresent(ellipse -> {
+                    getEllipse(arguments, 3).ifPresent(ellipse -> {
                         var semiAxis = ellipse.semiAxis();
                         var radius = (semiAxis.a() + semiAxis.b()) / 2;
                         autoScaleFont(g, 1.2d, radius);
@@ -94,7 +95,12 @@ public class ImageDraw extends AbstractFunctionImpl {
                     appendLine(details.observer(), sb);
                     var date = details.date();
                     sb.append(date.format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss 'UTC'"))).append("\n");
-                    appendLine(details.instrument() + " - " + params.spectrumParams().ray(), sb);
+                    var ray = params.spectrumParams().ray();
+                    String rayDetails = "";
+                    if (ray.wavelength() > 0) {
+                        rayDetails = " (" + String.format(Locale.US, "%.2fÅ", 10 * ray.wavelength()) + ")";
+                    }
+                    appendLine(details.instrument() + " - " + ray + rayDetails, sb);
                     appendLine(details.telescope(), sb);
                     if (details.focalLength() != null) {
                         appendLine("Focal length " + details.focalLength() + "mm", sb);
@@ -110,6 +116,48 @@ public class ImageDraw extends AbstractFunctionImpl {
             }
         }
         throw new IllegalArgumentException("Unexpected image type: " + arg);
+    }
+
+    public Object drawSolarParameters(List<Object> arguments) {
+        assertExpectedArgCount(arguments, "draw_solar_params takes 1, 2, or 3 (image(s), [x], [y])", 1, 3);
+        var arg = arguments.get(0);
+        if (arg instanceof List<?>) {
+            return expandToImageList(forkJoinContext, arguments, this::drawGlobe);
+        }
+        if (arg instanceof ImageWrapper img) {
+            var x = getArgument(Number.class, arguments, 1).map(Number::intValue).orElse(-1);
+            var y = getArgument(Number.class, arguments, 2).map(Number::intValue).orElse(50);
+            var processParams = getFromContext(ProcessParams.class);
+            if (processParams.isPresent()) {
+                return drawOnImage(img, (g, image) -> {
+                    getEllipse(arguments, 3).ifPresent(ellipse -> {
+                        var semiAxis = ellipse.semiAxis();
+                        var radius = (semiAxis.a() + semiAxis.b()) / 2;
+                        autoScaleFont(g, 1.2d, radius);
+                    });
+                    getFromContext(SolarParameters.class).ifPresent(solarParams -> {
+                        var sb = new StringBuilder("<b>");
+                        appendLine("Solar parameters", sb);
+                        appendLine("P " + toDegrees(solarParams.p()), sb);
+                        appendLine("B0 " + toDegrees(solarParams.b0()), sb);
+                        appendLine("L0 " + toDegrees(solarParams.l0()), sb);
+                        appendLine("Carrington rot. " + solarParams.carringtonRotation(), sb);
+                        var fx = x;
+                        if (fx == -1) {
+                            fx = image.width() - 20 * g.getFontMetrics().charWidth('X');
+                        }
+                        writeMultiline(g, sb, fx, y);
+                    });
+                });
+            } else {
+                throw new IllegalStateException("Cannot determine process parameters");
+            }
+        }
+        throw new IllegalArgumentException("Unexpected image type: " + arg);
+    }
+
+    private static String toDegrees(double radians) {
+        return String.format(Locale.US, "%.2f°", Math.toDegrees(radians));
     }
 
     public Object drawGlobe(List<Object> arguments) {

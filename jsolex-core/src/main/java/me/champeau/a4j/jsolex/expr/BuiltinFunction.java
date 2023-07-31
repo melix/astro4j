@@ -33,6 +33,7 @@ public enum BuiltinFunction {
     DISK_FILL,
     DRAW_GLOBE,
     DRAW_OBS_DETAILS,
+    DRAW_SOLAR_PARAMS,
     ELLIPSE_FIT,
     FIX_BANDING,
     IMG,

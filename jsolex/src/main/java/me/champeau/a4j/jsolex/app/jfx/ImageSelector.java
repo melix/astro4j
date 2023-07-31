@@ -77,6 +77,8 @@ public class ImageSelector {
     @FXML
     private CheckBox reconstruction;
     @FXML
+    private CheckBox technicalCard;
+    @FXML
     private TextField pixelShifts;
     @FXML
     private Button openImageMathButton;
@@ -143,6 +145,7 @@ public class ImageSelector {
                 case DOPPLER -> doppler.setSelected(true);
                 case CONTINUUM -> continuum.setSelected(true);
                 case RECONSTRUCTION -> reconstruction.setSelected(true);
+                case TECHNICAL_CARD -> technicalCard.setSelected(true);
             }
         }
         this.debug.setSelected(debug);
@@ -212,51 +215,39 @@ public class ImageSelector {
         Set<GeneratedImageKind> images = EnumSet.noneOf(GeneratedImageKind.class);
         if (raw.isSelected()) {
             images.add(GeneratedImageKind.RAW);
-            if (internalPixelShifts != null) {
-                internalPixelShifts.remove(0d);
-            }
+            makeDefaultShiftNonInternal();
         }
         if (stretched.isSelected()) {
             images.add(GeneratedImageKind.RAW_STRETCHED);
-            if (internalPixelShifts != null) {
-                internalPixelShifts.remove(0d);
-            }
+            makeDefaultShiftNonInternal();
+        }
+        if (technicalCard.isSelected()) {
+            images.add(GeneratedImageKind.TECHNICAL_CARD);
+            makeDefaultShiftNonInternal();
         }
         if (geometryCorrected.isSelected()) {
             images.add(GeneratedImageKind.GEOMETRY_CORRECTED);
-            if (internalPixelShifts != null) {
-                internalPixelShifts.remove(0d);
-            }
+            makeDefaultShiftNonInternal();
         }
         if (geometryCorrectedStretched.isSelected()) {
             images.add(GeneratedImageKind.GEOMETRY_CORRECTED_STRETCHED);
-            if (internalPixelShifts != null) {
-                internalPixelShifts.remove(0d);
-            }
+            makeDefaultShiftNonInternal();
         }
         if (colorized.isSelected()) {
             images.add(GeneratedImageKind.COLORIZED);
-            if (internalPixelShifts != null) {
-                internalPixelShifts.remove(0d);
-            }
+            makeDefaultShiftNonInternal();
         }
         if (virtualEclipse.isSelected()) {
             images.add(GeneratedImageKind.VIRTUAL_ECLIPSE);
-            if (internalPixelShifts != null) {
-                internalPixelShifts.remove(0d);
-            }
+            makeDefaultShiftNonInternal();
         }
         if (negative.isSelected()) {
             images.add(GeneratedImageKind.NEGATIVE);
-            if (internalPixelShifts != null) {
-                internalPixelShifts.remove(0d);
-            }
+            makeDefaultShiftNonInternal();
         }
         if (mixed.isSelected()) {
             images.add(GeneratedImageKind.MIXED);
-            if (internalPixelShifts != null) {
-                internalPixelShifts.remove(0d);
-            }
+            makeDefaultShiftNonInternal();
         }
         if (doppler.isSelected()) {
             images.add(GeneratedImageKind.DOPPLER);
@@ -287,6 +278,12 @@ public class ImageSelector {
         requestClose();
     }
 
+    private void makeDefaultShiftNonInternal() {
+        if (internalPixelShifts != null) {
+            internalPixelShifts.remove(0d);
+        }
+    }
+
     @FXML
     private void selectAll() {
         selectAll(true);
@@ -309,6 +306,7 @@ public class ImageSelector {
         doppler.setSelected(selected);
         continuum.setSelected(selected);
         reconstruction.setSelected(selected);
+        technicalCard.setSelected(selected);
         debug.setSelected(selected);
     }
 

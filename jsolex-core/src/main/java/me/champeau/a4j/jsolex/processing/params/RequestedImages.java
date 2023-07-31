@@ -41,7 +41,8 @@ public record RequestedImages(
             GeneratedImageKind.NEGATIVE,
             GeneratedImageKind.DOPPLER,
             GeneratedImageKind.GEOMETRY_CORRECTED_STRETCHED,
-            GeneratedImageKind.CONTINUUM
+            GeneratedImageKind.CONTINUUM,
+            GeneratedImageKind.TECHNICAL_CARD
     );
     public static final Set<GeneratedImageKind> FULL_MODE_WITH_DEBUG = EnumSet.of(
             GeneratedImageKind.DEBUG,
@@ -53,7 +54,8 @@ public record RequestedImages(
             GeneratedImageKind.NEGATIVE,
             GeneratedImageKind.DOPPLER,
             GeneratedImageKind.GEOMETRY_CORRECTED_STRETCHED,
-            GeneratedImageKind.CONTINUUM
+            GeneratedImageKind.CONTINUUM,
+            GeneratedImageKind.TECHNICAL_CARD
     );
     public static final Set<GeneratedImageKind> QUICK_MODE = EnumSet.of(
             GeneratedImageKind.RECONSTRUCTION,

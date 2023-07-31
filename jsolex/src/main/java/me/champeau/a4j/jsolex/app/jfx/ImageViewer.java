@@ -172,6 +172,7 @@ public class ImageViewer {
             BatchOperations.submit(() -> {
                 imageView.setImage(new Image(imageFile.toURI().toString()));
                 saveButton.setDisable(true);
+                imageView.fileSaved();
             });
         });
     }
@@ -234,7 +235,9 @@ public class ImageViewer {
     }
 
     private boolean shouldDisableCorrectionOfAngleP() {
-        return kind == GeneratedImageKind.IMAGE_MATH || kind == GeneratedImageKind.DEBUG;
+        return kind == GeneratedImageKind.IMAGE_MATH
+               || kind == GeneratedImageKind.DEBUG
+               || kind == GeneratedImageKind.TECHNICAL_CARD;
     }
 
     private static float linValueOf(double sliderValue) {
