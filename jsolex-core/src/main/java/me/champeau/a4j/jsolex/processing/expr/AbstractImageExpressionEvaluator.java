@@ -27,6 +27,7 @@ import me.champeau.a4j.jsolex.processing.expr.impl.Crop;
 import me.champeau.a4j.jsolex.processing.expr.impl.DiskFill;
 import me.champeau.a4j.jsolex.processing.expr.impl.EllipseFit;
 import me.champeau.a4j.jsolex.processing.expr.impl.FixBanding;
+import me.champeau.a4j.jsolex.processing.expr.impl.ImageDraw;
 import me.champeau.a4j.jsolex.processing.expr.impl.Loader;
 import me.champeau.a4j.jsolex.processing.expr.impl.RGBCombination;
 import me.champeau.a4j.jsolex.processing.expr.impl.Rotate;
@@ -44,6 +45,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -70,6 +72,7 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
     private final DiskFill diskFill;
     private final EllipseFit ellipseFit;
     private final FixBanding fixBanding;
+    private final ImageDraw imageDraw;
     private final Loader loader;
     private final Rotate rotate;
     private final Saturation saturation;
@@ -88,6 +91,7 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
         this.diskFill = new DiskFill(forkJoinContext, context);
         this.ellipseFit = new EllipseFit(forkJoinContext, context);
         this.fixBanding = new FixBanding(forkJoinContext, context);
+        this.imageDraw = new ImageDraw(forkJoinContext, context);
         this.loader = new Loader(forkJoinContext, context);
         this.rotate = new Rotate(forkJoinContext, context);
         this.saturation = new Saturation(forkJoinContext, context);
@@ -163,6 +167,9 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
             case CROP -> crop.crop(arguments);
             case CROP_RECT -> crop.cropToRect(arguments);
             case DISK_FILL -> diskFill.fill(arguments);
+            case DRAW_GLOBE -> imageDraw.drawGlobe(arguments);
+            case DRAW_OBS_DETAILS -> imageDraw.drawObservationDetails(arguments);
+            case DRAW_SOLAR_PARAMS -> imageDraw.drawSolarParameters(arguments);
             case ELLIPSE_FIT -> ellipseFit.fit(arguments);
             case FIX_BANDING -> fixBanding.fixBanding(arguments);
             case IMG -> image(arguments);
@@ -253,7 +260,10 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
                 result[i] = v;
             }
             normalize(length, result, min);
-            return new ImageWrapper32(width, height, result);
+            Map<Class<?>, Object> metadata = new LinkedHashMap<>();
+            metadata.putAll(leftImage.metadata());
+            metadata.putAll(rightImage.metadata());
+            return new ImageWrapper32(width, height, result, metadata);
         }
         if (leftImage != null && rightScalar != null) {
             var scalar = rightScalar.doubleValue();
@@ -271,7 +281,7 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
                 result[i] = v;
             }
             normalize(length, result, min);
-            return new ImageWrapper32(width, height, result);
+            return new ImageWrapper32(width, height, result, leftImage.metadata());
         }
         if (rightImage != null && leftScalar != null) {
             var scalar = leftScalar.doubleValue();
@@ -289,7 +299,7 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
                 result[i] = v;
             }
             normalize(length, result, min);
-            return new ImageWrapper32(width, height, result);
+            return new ImageWrapper32(width, height, result, rightImage.metadata());
         }
         if (leftScalar != null && rightScalar != null) {
             return operator.applyAsDouble(leftScalar.doubleValue(), rightScalar.doubleValue());

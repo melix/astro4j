@@ -16,6 +16,7 @@
 package me.champeau.a4j.jsolex.app.jfx;
 
 import javafx.beans.binding.Bindings;
+import javafx.beans.binding.BooleanBinding;
 import javafx.scene.control.ContextMenu;
 import javafx.scene.control.MenuItem;
 import javafx.scene.control.ScrollPane;
@@ -37,6 +38,7 @@ public class ZoomableImageView extends HBox {
     private final ScrollPane scrollPane;
     private final ImageView imageView;
     private final ContextMenu ctxMenu;
+    private final BooleanBinding allowFileOpen;
     private BiConsumer<? super Double, ? super Double> onCoordinatesListener;
     private Consumer<? super Double> onZoomChanged;
 
@@ -60,14 +62,19 @@ public class ZoomableImageView extends HBox {
         });
         imageView.setOnMouseClicked(evt -> {
             if (evt.getButton().equals(MouseButton.PRIMARY) && evt.getClickCount() == 2) {
-                zoom = 1.0;
+                if (zoom == 1.0) {
+                    zoom = getWidth() / imageView.getImage().getWidth();
+                } else {
+                    zoom = 1.0;
+                }
                 triggerOnZoomChanged();
             }
         });
 
         ctxMenu = new ContextMenu();
         var showFile = new MenuItem(message("show.in.files"));
-        showFile.disableProperty().bind(Bindings.createBooleanBinding(() -> imagePath == null || !Files.exists(imagePath)));
+        allowFileOpen = Bindings.createBooleanBinding(() -> imagePath == null || !Files.exists(imagePath));
+        showFile.disableProperty().bind(allowFileOpen);
         showFile.setOnAction(e -> ExplorerSupport.openInExplorer(imagePath));
         ctxMenu.getItems().add(showFile);
 
@@ -128,6 +135,10 @@ public class ZoomableImageView extends HBox {
     public void setImage(Image image) {
         imageView.setImage(image);
         imageView.setPreserveRatio(true);
+    }
+
+    public void fileSaved() {
+        allowFileOpen.invalidate();
     }
 
     public ContextMenu getCtxMenu() {

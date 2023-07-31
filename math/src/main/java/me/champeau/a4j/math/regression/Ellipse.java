@@ -19,6 +19,8 @@ import me.champeau.a4j.math.Point2D;
 import me.champeau.a4j.math.tuples.DoublePair;
 import me.champeau.a4j.math.tuples.DoubleSextuplet;
 
+import java.util.Optional;
+
 /**
  * Represents an ellipse, as the result of ellipse regression.
  */
@@ -135,27 +137,11 @@ public class Ellipse {
         );
     }
 
-    public Ellipse translatedBy(double dx, double dy) {
-        var a = cart.a();
-        var b = cart.b();
-        var c = cart.c();
-        var d = cart.d();
-        var e = cart.e();
-        var f = cart.f();
-
-        var newD = d - 2 * a * dx - b * dy;
-        var newE = e - 2 * c * dy - b * dx;
-        var newF = f + a * dx * dx + b * dx * dy + c * dy * dy - d * dx - e * dy;
-
-        return Ellipse.ofCartesian(new DoubleSextuplet(a, b, c, newD, newE, newF));
-    }
-
-
     public Ellipse centeredAt(int cx, int cy) {
         var center = center();
         var dx = cx - center.a();
         var dy = cy - center.b();
-        return translatedBy(dx, dy);
+        return translate(dx, dy);
     }
 
 
@@ -180,6 +166,19 @@ public class Ellipse {
         };
     }
 
+    public Optional<DoublePair> findY(double x) {
+        var a = cart.c();
+        var b = cart.b() * x + cart.e();
+        var c = cart.a() * x * x + cart.d() * x + cart.f();
+        var disc = b * b - 4 * a * c;
+        if (disc >= 0 && 2 * a != 0) {
+            var y1 = (-b + Math.sqrt(disc)) / 2 * a;
+            var y2 = (-b - Math.sqrt(disc)) / 2 * a;
+            return Optional.of(new DoublePair(y1, y2));
+        }
+        return Optional.empty();
+    }
+
     public boolean isWithin(Point2D point) {
         return isWithin(point.x(), point.y());
     }
@@ -193,6 +192,29 @@ public class Ellipse {
         var f = cart.f();
         double value = a * x * x + b * x * y + c * y * y + d * x + e * y + f;
         return a >= 0 && value <= 0 || a <= 0 && value >= 0;
+    }
+
+    /**
+     * Computes the parameters of this ellipse translated by vector (u,v)
+     * @param u the translation on the X axis
+     * @param v the translation on the Y axis
+     * @return the new ellipse
+     */
+    public Ellipse translate(double u, double v) {
+        var a = cart.a();
+        var b = cart.b();
+        var c = cart.c();
+        var d = cart.d();
+        var e = cart.e();
+        var f = cart.f();
+        return new Ellipse(new DoubleSextuplet(
+                a,
+                b,
+                c,
+                d - 2 * a * u - b * v,
+                e - 2 * c * v - b * u,
+                a * u * u + b * u * v + c * v * v - d * u - e * v + f
+        ));
     }
 
     @Override

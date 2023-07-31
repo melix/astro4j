@@ -21,6 +21,7 @@ import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 
 import java.io.File;
+import java.util.Map;
 import java.util.function.Supplier;
 
 public class WriteMonoImageTask extends AbstractImageWriterTask {
@@ -30,6 +31,6 @@ public class WriteMonoImageTask extends AbstractImageWriterTask {
 
     @Override
     public ImageWrapper createImageWrapper() {
-        return new ImageWrapper32(width, height, getBuffer());
+        return new ImageWrapper32(width, height, getBuffer(), Map.of());
     }
 }

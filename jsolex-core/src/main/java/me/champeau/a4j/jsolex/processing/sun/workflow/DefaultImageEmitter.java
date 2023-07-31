@@ -29,6 +29,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
+import java.util.Map;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
@@ -104,7 +105,7 @@ public class DefaultImageEmitter implements ImageEmitter {
     public Supplier<Void> newColorImage(GeneratedImageKind kind, String title, String name, int width, int height, Supplier<float[][]> rgbSupplier) {
         prepareOutput(name);
         return executor.submit(new WriteRGBImageTask(broadcaster,
-                () -> new ImageWrapper32(width, height, new float[0]),
+                () -> new ImageWrapper32(width, height, new float[0], Map.of()),
                 outputDir,
                 title,
                 name,

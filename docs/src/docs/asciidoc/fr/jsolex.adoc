@@ -263,6 +263,12 @@ TIP: Une variable spéciale nommée `angleP` contient la valeur calculée pour l
 - `rotate_deg` effectue une rotation d'un angle arbitraire en degrés. Elle accepte entre 2 et 4 paramètres: l'image, l'angle de rotation sont obligatoires. Par exemple `rotate_deg(img(0), 45)`. Vous pouvez ensuite spécifier la valeur du fond à utiliser pour remplir les portions manquantes:  `rotate_deg(img(0), 45, 800)` et enfin si vous ajoutez `1` en dernier paramètre l'image sera redimensionnée au maximum pour que tous les pixels de l'image d'origine apparaissent dans l'image tournée.
 - `rotate_rad` effectue une rotation d'un angle arbitraire en radians. Elle accepte entre 2 et 4 paramètres: l'image, l'angle de rotation sont obligatoires. Par exemple `rotate_rad(img(0), .2)`. Vous pouvez ensuite spécifier la valeur du fond à utiliser pour remplir les portions manquantes:  `rotate_rad(img(0), .2, 800)` et enfin si vous ajoutez `1` en dernier paramètre l'image sera redimensionnée au maximum pour que tous les pixels de l'image d'origine apparaissent dans l'image tournée.
 
+Fonctions décoratives
+
+- `draw_globe` dessine un globe dont l'orientation et le diamètre correspond aux paramètres solaires détectés. Elle prend entre 1 et 4 paramètres. Le premier est l'image sur laquelle dessiner le globe. Par exemple: `draw_globe(img(0))`. Les paramètres optionnels suivants sont l'angle P (en radians), l'angle B0 (en radians) et l'ellipse du disque solaire. Par exemple: `draw_globe(img(0), p, b0, ellipse)`.
+- `draw_obs_details` affiche sur l'image les données d'observation. Par exemple: `draw_obs_details(img(0))`. Par défaut, positionné en haut à gauche. Il est possible de spéficier les coordonnées (x,y) où écrire : `draw_obs_details(img(0), 100, 100)`.
+- `draw_solar_params` affiche sur l'image les paramètres solaires. Par exemple: `draw_solar_params(img(0))`. Par défaut, positionné en haut à droite. Il est possible de spéficier les coordonnées (x,y) où écrire : `draw_solar_params(img(0), 500, 100)`.
+
 === Scripts ImageMath
 
 Dans la section précédente, nous avons vu les "briques élémentaires" d'ImageMath, qui permettent de calculer des images.

@@ -89,14 +89,14 @@ public class Rotate extends AbstractFunctionImpl {
         } else if (arg instanceof ColorizedImageWrapper colorized) {
             var mono = colorized.mono();
             var trn = rotateFunction.apply(mono.asImage());
-            return new ColorizedImageWrapper(ImageWrapper32.fromImage(trn), colorized.converter());
+            return new ColorizedImageWrapper(ImageWrapper32.fromImage(trn), colorized.converter(), mono.metadata());
         } else if (arg instanceof RGBImage rgb) {
             var height = rgb.height();
             var width = rgb.width();
             var r = rotateFunction.apply(new Image(width, height, rgb.r()));
             var g = rotateFunction.apply(new Image(width, height, rgb.g()));
             var b = rotateFunction.apply(new Image(width, height, rgb.b()));
-            return new RGBImage(r.width(), r.height(), r.data(), g.data(), b.data());
+            return new RGBImage(r.width(), r.height(), r.data(), g.data(), b.data(), rgb.metadata());
         }
         throw new IllegalArgumentException("Unsupported image type");
     }

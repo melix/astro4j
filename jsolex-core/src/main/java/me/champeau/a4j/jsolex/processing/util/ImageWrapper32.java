@@ -17,6 +17,9 @@ package me.champeau.a4j.jsolex.processing.util;
 
 import me.champeau.a4j.math.image.Image;
 
+import java.util.LinkedHashMap;
+import java.util.Map;
+
 /**
  * A wrapper for images which are using 32-bit floats.
  * @param width the width of the image
@@ -26,19 +29,24 @@ import me.champeau.a4j.math.image.Image;
 public record ImageWrapper32(
         int width,
         int height,
-        float[] data
+        float[] data,
+        Map<Class<?>, Object> metadata
 ) implements ImageWrapper {
     public Image asImage() {
         return new Image(width, height, data);
     }
 
     public static ImageWrapper32 fromImage(Image image) {
-        return new ImageWrapper32(image.width(), image.height(), image.data());
+        return new ImageWrapper32(image.width(), image.height(), image.data(), Map.of());
+    }
+
+    public static ImageWrapper32 fromImage(Image image, Map<Class<?>, Object> metadata) {
+        return new ImageWrapper32(image.width(), image.height(), image.data(), metadata);
     }
 
     public ImageWrapper32 copy() {
         float[] copy = new float[data.length];
         System.arraycopy(data, 0, copy, 0, data.length);
-        return new ImageWrapper32(width, height, copy);
+        return new ImageWrapper32(width, height, copy, new LinkedHashMap<>(metadata));
     }
 }

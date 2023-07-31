@@ -29,6 +29,7 @@ import me.champeau.a4j.math.regression.EllipseRegression;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.Map;
 import java.util.function.Supplier;
 import java.util.stream.IntStream;
 
@@ -125,7 +126,7 @@ public class GeometryCorrector extends AbstractTask<GeometryCorrector.Result> {
         double finalSy = sy;
         var circle = computeCorrectedCircle(shear, shift, sx, finalSy);
         broadcaster.broadcast(ProgressEvent.of(1, "Correcting geometry"));
-        return new Result(ImageWrapper32.fromImage(rescaled), ellipse, circle, blackPoint);
+        return new Result(ImageWrapper32.fromImage(rescaled, Map.of(Ellipse.class, circle)), ellipse, circle, blackPoint);
     }
 
     /**

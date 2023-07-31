@@ -19,11 +19,9 @@ import me.champeau.a4j.jsolex.processing.event.Notification;
 import me.champeau.a4j.jsolex.processing.event.NotificationEvent;
 import me.champeau.a4j.jsolex.processing.event.ProgressEvent;
 import me.champeau.a4j.jsolex.processing.params.ProcessParams;
-import me.champeau.a4j.jsolex.processing.stretching.CutoffStretchingStrategy;
 import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
 import me.champeau.a4j.jsolex.processing.sun.workflow.GeneratedImageKind;
 import me.champeau.a4j.jsolex.processing.sun.workflow.ImageEmitter;
-import me.champeau.a4j.jsolex.processing.util.Constants;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 import me.champeau.a4j.math.Point2D;
 import me.champeau.a4j.math.image.BlurKernel;
@@ -48,7 +46,7 @@ import static me.champeau.a4j.jsolex.processing.util.DebugImageHelper.plot;
 
 public class EllipseFittingTask extends AbstractTask<EllipseFittingTask.Result> {
     private static final Logger LOGGER = LoggerFactory.getLogger(EllipseFittingTask.class);
-    private static final int MINIMUM_SAMPLES = 64;
+    private static final int MINIMUM_SAMPLES = 32;
     private static final Kernel BLUR_8 = BlurKernel.of(8);
     private static final Kernel BLUR_4 = BlurKernel.of(4);
     private final ProcessParams processParams;
@@ -92,15 +90,6 @@ public class EllipseFittingTask extends AbstractTask<EllipseFittingTask.Result> 
         var imageMath = ImageMath.newInstance();
         var workingImage = image.copy();
         workingImage = imageMath.convolve(workingImage, BLUR_8);
-        var data = workingImage.data();
-        var stats = statsOf(data);
-        LOGGER.debug("before stats = {}", stats);
-        // some images (in particular in calcium) can have large bright areas which interfere with detection
-        // so we're keeping pixels which are "around" the average
-        new CutoffStretchingStrategy((float) (stats.avg - Math.sqrt(stats.stddev)), (float) (stats.avg + Math.sqrt(stats.stddev)), 0, Constants.MAX_PIXEL_VALUE).stretch(width, height, data);
-        stats = statsOf(data);
-        LOGGER.debug("after stats = {}", stats);
-        workingImage = imageMath.convolve(workingImage, BLUR_4);
         if (LOGGER.isDebugEnabled()) {
             debugImagesEmitter.newMonoImage(GeneratedImageKind.DEBUG, "Prefiltered", "prefilter", ImageWrapper32.fromImage(workingImage));
         }
@@ -109,7 +98,7 @@ public class EllipseFittingTask extends AbstractTask<EllipseFittingTask.Result> 
         var samples = findSamplesUsingDynamicSensitivity(analyzingDiskGeometryMsg, magnitudes);
         var fittingEllipseMessage = message("fitting.ellipse");
         broadcaster.broadcast(ProgressEvent.of(0, fittingEllipseMessage));
-        if (notEnoughSamples(fittingEllipseMessage, samples)) {
+        if (notEnoughSamples(samples)) {
             var template = message("ellipse.not.enough.samples").replace("{}", "%s");
             var message = String.format(template, samples.size(), MINIMUM_SAMPLES);
             broadcaster.broadcast(new NotificationEvent(new Notification(Notification.AlertType.ERROR, message("not.enough.samples.title"), "", message)));
@@ -167,10 +156,11 @@ public class EllipseFittingTask extends AbstractTask<EllipseFittingTask.Result> 
                         maxMag = Math.max(maxVal, maxMag);
                     }
                 }
+                if (min >= 0 || max >= 0) {
+                    y += 2;
+                }
             }
-            if (samples.size() >= MINIMUM_SAMPLES) {
-                filterOutliers(magnitudes, samples, maxMag);
-            }
+            filterOutliers(magnitudes, samples, maxMag);
         }
         return samples.stream().toList();
     }
@@ -182,8 +172,9 @@ public class EllipseFittingTask extends AbstractTask<EllipseFittingTask.Result> 
                 .collect(Collectors.toMap(p -> p, p -> {
                     double d = Double.MAX_VALUE;
                     for (Point2D sample : samples) {
-                        if (sample != p) {
-                            d = Math.min(d, p.distanceTo(sample));
+                        var dist = p.distanceTo(sample);
+                        if (!sample.equals(p) && dist < d) {
+                            d = dist;
                         }
                     }
                     return d;
@@ -191,13 +182,12 @@ public class EllipseFittingTask extends AbstractTask<EllipseFittingTask.Result> 
         var avgMinDistance = closestNeighborDistances.values().stream().mapToDouble(Double::doubleValue).average().orElse(Double.MAX_VALUE);
         samples.removeIf(p ->
                 (magnitudes[(int) (p.x() + p.y() * width)] < .5f * maxMag)
-                || (closestNeighborDistances.get(p) > 2 * avgMinDistance)
+                || (closestNeighborDistances.get(p) > 1.5 * avgMinDistance)
         );
     }
 
-    private boolean notEnoughSamples(String fittingEllipseMessage, List<Point2D> filteredSamples) {
+    private boolean notEnoughSamples(List<Point2D> filteredSamples) {
         if (filteredSamples.size() < MINIMUM_SAMPLES) {
-            broadcaster.broadcast(ProgressEvent.of(1, fittingEllipseMessage));
             return true;
         }
         return false;

@@ -17,12 +17,15 @@ package me.champeau.a4j.jsolex.processing.sun.workflow;
 
 import me.champeau.a4j.jsolex.processing.event.OutputImageDimensionsDeterminedEvent;
 import me.champeau.a4j.jsolex.processing.event.SuggestionEvent;
+import me.champeau.a4j.jsolex.processing.expr.impl.Crop;
+import me.champeau.a4j.jsolex.processing.expr.impl.ImageDraw;
 import me.champeau.a4j.jsolex.processing.params.ProcessParams;
 import me.champeau.a4j.jsolex.processing.stretching.ArcsinhStretchingStrategy;
 import me.champeau.a4j.jsolex.processing.stretching.ClaheStrategy;
 import me.champeau.a4j.jsolex.processing.stretching.NegativeImageStrategy;
 import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
 import me.champeau.a4j.jsolex.processing.sun.ImageUtils;
+import me.champeau.a4j.jsolex.processing.sun.SolexVideoProcessor;
 import me.champeau.a4j.jsolex.processing.sun.WorkflowState;
 import me.champeau.a4j.jsolex.processing.sun.tasks.CoronagraphTask;
 import me.champeau.a4j.jsolex.processing.sun.tasks.EllipseFittingTask;
@@ -41,6 +44,7 @@ import org.slf4j.LoggerFactory;
 import java.nio.file.Path;
 import java.text.MessageFormat;
 import java.util.List;
+import java.util.Map;
 import java.util.function.Supplier;
 
 import static me.champeau.a4j.jsolex.processing.sun.ImageUtils.bilinearSmoothing;
@@ -219,7 +223,25 @@ public class ProcessingWorkflow {
     private Supplier<Void> produceStretchedImage(ImageWrapper32 geometryFixed) {
         var clahe = geometryFixed.copy();
         ClaheStrategy.DEFAULT.stretch(clahe.width(), clahe.height(), clahe.data());
-        return processedImagesEmitter.newMonoImage(GeneratedImageKind.GEOMETRY_CORRECTED_STRETCHED, message("stretched"), "clahe", clahe);
+        var supplier = processedImagesEmitter.newMonoImage(GeneratedImageKind.GEOMETRY_CORRECTED_STRETCHED, message("stretched"), "clahe", clahe);
+        if (shouldProduce(GeneratedImageKind.TECHNICAL_CARD)) {
+            produceTechnicalCard(clahe);
+        }
+        return supplier;
+    }
+
+    private void produceTechnicalCard(ImageWrapper32 clahe) {
+        var details = clahe.copy();
+        var context = SolexVideoProcessor.createBaseExecutionContext(processParams);
+        var crop = new Crop(executor, context);
+        var draw = new ImageDraw(executor, context);
+        var cropped = crop.autocrop2(List.of(details, 1.2d));
+        var decorated = (ImageWrapper32) draw.drawSolarParameters(List.of(
+                draw.drawObservationDetails(List.of(
+                        draw.drawGlobe(List.of(cropped))
+                ))
+        ));
+        processedImagesEmitter.newMonoImage(GeneratedImageKind.TECHNICAL_CARD, message("technical.card"), "card", decorated);
     }
 
     private Supplier<Void> produceNegativeImage(ImageWrapper32 geometryFixed) {
@@ -264,7 +286,7 @@ public class ProcessingWorkflow {
                             for (int i = 0; i < 2; i++) {
                                 bilinearSmoothing(diskEllipse, width, height, data);
                             }
-                            var mixedImage = new ImageWrapper32(width, height, mix);
+                            var mixedImage = new ImageWrapper32(width, height, mix, Map.of(Ellipse.class, diskEllipse));
                             var colorCurve = processParams.spectrumParams().ray().getColorCurve();
                             if (colorCurve.isPresent()) {
                                 var curve = colorCurve.get();

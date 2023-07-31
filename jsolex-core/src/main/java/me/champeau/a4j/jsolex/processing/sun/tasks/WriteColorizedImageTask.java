@@ -22,6 +22,7 @@ import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 
 import java.io.File;
+import java.util.Map;
 import java.util.function.Function;
 import java.util.function.Supplier;
 
@@ -43,6 +44,6 @@ public class WriteColorizedImageTask extends AbstractImageWriterTask {
 
     @Override
     public ImageWrapper createImageWrapper() {
-        return new ColorizedImageWrapper(mono.get(), converter);
+        return new ColorizedImageWrapper(mono.get(), converter, Map.of());
     }
 }

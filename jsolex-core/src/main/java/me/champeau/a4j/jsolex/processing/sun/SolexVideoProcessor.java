@@ -284,7 +284,8 @@ public class SolexVideoProcessor implements Broadcaster {
                 ellipse = geo.correctedCircle();
                 imageStats = new ImageStats(geo.blackpoint());
             } else {
-                images.put(workflowState.pixelShift(), FileBackedImage.wrap(new ImageWrapper32(workflowState.width(), workflowState.height(), workflowState.reconstructed())));
+                Map<Class<?>, Object> metadata = ellipse != null ? Map.of(Ellipse.class, ellipse) : Map.of();
+                images.put(workflowState.pixelShift(), FileBackedImage.wrap(new ImageWrapper32(workflowState.width(), workflowState.height(), workflowState.reconstructed(), metadata)));
             }
         }
         broadcast(ProcessingDoneEvent.of(System.nanoTime(), images, createCustomImageEmitter(imageNamingStrategy, baseName), ellipse, imageStats));
@@ -306,7 +307,8 @@ public class SolexVideoProcessor implements Broadcaster {
                         imageStats = new ImageStats(geo.blackpoint());
                     }
                 } else {
-                    images.put(workflowState.pixelShift(), new ImageWrapper32(workflowState.width(), workflowState.height(), workflowState.reconstructed()));
+                    Map<Class<?>, Object> metadata = ellipse != null ? Map.of(Ellipse.class, ellipse) : Map.of();
+                    images.put(workflowState.pixelShift(), new ImageWrapper32(workflowState.width(), workflowState.height(), workflowState.reconstructed(), metadata));
                 }
             }
             var emitter = createCustomImageEmitter(imageNamingStrategy, baseName);
@@ -315,10 +317,7 @@ public class SolexVideoProcessor implements Broadcaster {
                 ImageStats finalImageStats = imageStats;
                 blockingContext.async(() -> {
                     broadcast(ProgressEvent.of(0, "Running script " + scriptFile.getName()));
-                    Map<Class, Object> context = new HashMap<>();
-                    context.put(SolarParameters.class, SolarParametersUtils.computeSolarParams(
-                            processParams.observationDetails().date().toLocalDateTime()
-                    ));
+                    var context = createBaseExecutionContext(processParams);
                     if (circle != null) {
                         context.put(Ellipse.class, circle);
                     }
@@ -347,6 +346,15 @@ public class SolexVideoProcessor implements Broadcaster {
                 });
             }
         }
+    }
+
+    public static Map<Class<?>, Object> createBaseExecutionContext(ProcessParams processParams) {
+        Map<Class<?>, Object> context = new HashMap<>();
+        context.put(ProcessParams.class, processParams);
+        context.put(SolarParameters.class, SolarParametersUtils.computeSolarParams(
+                processParams.observationDetails().date().toLocalDateTime()
+        ));
+        return context;
     }
 
     private ImageEmitter createCustomImageEmitter(FileNamingStrategy imageNamingStrategy, String baseName) {
@@ -403,9 +411,10 @@ public class SolexVideoProcessor implements Broadcaster {
                 .stream()
                 .map(i -> WorkflowState.prepare(width, newHeight, i))
                 .toList();
-        if (list.stream().noneMatch(s -> s.pixelShift() <= -Constants.CONTINUUM_SHIFT)) {
+        var detectionShift = processParams.spectrumParams().pixelShift() - 6;
+        if (list.stream().noneMatch(s -> s.pixelShift() == detectionShift)) {
             // add an internal state used for edge detection only
-            var internalState = WorkflowState.prepare(width, newHeight, -Constants.CONTINUUM_SHIFT);
+            var internalState = WorkflowState.prepare(width, newHeight, detectionShift);
             internalState.setInternal(true);
             list = new ArrayList<>(list);
             list.add(internalState);
@@ -566,7 +575,7 @@ public class SolexVideoProcessor implements Broadcaster {
                             if (name.toLowerCase(Locale.US).contains("doppler")) {
                                 return name;
                             }
-                            var suffix = "_" + String.format(Locale.US, "%.2f",shift).replace('.', '_');
+                            var suffix = "_" + String.format(Locale.US, "%.2f", shift).replace('.', '_');
                             return name + suffix;
                         }),
                         imageNamingStrategy,

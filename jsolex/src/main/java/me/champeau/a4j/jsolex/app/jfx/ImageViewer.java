@@ -172,6 +172,7 @@ public class ImageViewer {
             BatchOperations.submit(() -> {
                 imageView.setImage(new Image(imageFile.toURI().toString()));
                 saveButton.setDisable(true);
+                imageView.fileSaved();
             });
         });
     }
@@ -212,7 +213,7 @@ public class ImageViewer {
         correctAngleP = new CheckBox(message("correct.p.angle"));
         correctAngleP.setSelected(processParams.geometryParams().isAutocorrectAngleP());
         correctAngleP.selectedProperty().addListener((obj, oldValue, newValue) -> strechAndDisplay());
-        correctAngleP.setDisable(kind == GeneratedImageKind.IMAGE_MATH);
+        correctAngleP.setDisable(shouldDisableCorrectionOfAngleP());
         var prevButton = new Button(message("prev.image"));
         prevButton.disableProperty().bind(currentImage.isEqualTo(0));
         prevButton.visibleProperty().bind(imageHistory.sizeProperty().greaterThan(1));
@@ -231,6 +232,12 @@ public class ImageViewer {
         line2.getChildren().addAll(correctAngleP, zoomLabel, zoomSlider, dimensions, coordinatesLabel);
         stretchingParams.getChildren().addAll(line1, line2);
         strechAndDisplay(true);
+    }
+
+    private boolean shouldDisableCorrectionOfAngleP() {
+        return kind == GeneratedImageKind.IMAGE_MATH
+               || kind == GeneratedImageKind.DEBUG
+               || kind == GeneratedImageKind.TECHNICAL_CARD;
     }
 
     private static float linValueOf(double sliderValue) {
@@ -351,7 +358,7 @@ public class ImageViewer {
     }
 
     private ImageWrapper maybeRotate(ImageWrapper image) {
-        if (kind != GeneratedImageKind.IMAGE_MATH && correctAngleP.isSelected()) {
+        if (!shouldDisableCorrectionOfAngleP() && correctAngleP.isSelected()) {
             image = image.copy();
             var p = SolarParametersUtils.computeSolarParams(processParams.observationDetails().date().toLocalDateTime()).p();
             return RotationCorrector.rotate(image, p);

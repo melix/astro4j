@@ -21,6 +21,7 @@ import java.lang.ref.Cleaner;
 import java.nio.channels.FileChannel;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Map;
 import java.util.function.Function;
 
 /**
@@ -36,12 +37,14 @@ public final class FileBackedImage implements ImageWrapper {
     private final int width;
     private final int height;
     private final Path backingFile;
+    private final Map<Class<?>, Object> metadata;
     private final Object keptInMemory;
 
-    private FileBackedImage(int width, int height, Path backingFile, Object keptInMemory) {
+    private FileBackedImage(int width, int height, Path backingFile, Map<Class<?>, Object> metadata, Object keptInMemory) {
         this.width = width;
         this.height = height;
         this.backingFile = backingFile;
+        this.metadata = metadata;
         this.keptInMemory = keptInMemory;
         CLEANER.register(this, () -> clean(backingFile));
     }
@@ -63,7 +66,7 @@ public final class FileBackedImage implements ImageWrapper {
                     byteBuffer.put(MONO);
                     byteBuffer.putInt(data.length);
                     byteBuffer.asFloatBuffer().put(data);
-                    return new FileBackedImage(width, height, backingFile, null);
+                    return new FileBackedImage(width, height, backingFile, mono.metadata(), null);
                 }
                 if (wrapper instanceof ColorizedImageWrapper colorized) {
                     var data = colorized.mono().data();
@@ -71,7 +74,7 @@ public final class FileBackedImage implements ImageWrapper {
                     byteBuffer.put(COLORIZED);
                     byteBuffer.putInt(data.length);
                     byteBuffer.asFloatBuffer().put(data);
-                    return new FileBackedImage(width, height, backingFile, colorized.converter());
+                    return new FileBackedImage(width, height, backingFile, colorized.metadata(), colorized.converter());
                 }
                 if (wrapper instanceof RGBImage rgb) {
                     var r = rgb.r();
@@ -84,6 +87,7 @@ public final class FileBackedImage implements ImageWrapper {
                     floatBuffer.put(r);
                     floatBuffer.put(g);
                     floatBuffer.put(b);
+                    return new FileBackedImage(width, height, backingFile, rgb.metadata(), null);
                 }
                 throw new ProcessingException("Unexpected image type " + wrapper);
             }
@@ -103,13 +107,13 @@ public final class FileBackedImage implements ImageWrapper {
                     // Mono image
                     float[] data = new float[size];
                     byteBuffer.asFloatBuffer().get(data);
-                    yield new ImageWrapper32(width, height, data);
+                    yield new ImageWrapper32(width, height, data, metadata);
                 }
                 case COLORIZED -> {
                     // Colorized image
                     float[] data = new float[size];
                     byteBuffer.asFloatBuffer().get(data);
-                    yield new ColorizedImageWrapper(new ImageWrapper32(width, height, data), (Function<float[], float[][]>) keptInMemory);
+                    yield new ColorizedImageWrapper(new ImageWrapper32(width, height, data, metadata), (Function<float[], float[][]>) keptInMemory, metadata);
                 }
                 case RGB -> {
                     // RGB image
@@ -120,7 +124,7 @@ public final class FileBackedImage implements ImageWrapper {
                     floatBuffer.get(r);
                     floatBuffer.get(g);
                     floatBuffer.get(b);
-                    yield new RGBImage(width, height, r, g, b);
+                    yield new RGBImage(width, height, r, g, b, metadata);
                 }
                 default -> throw new IllegalStateException("Undefined image kind " + kind);
             };
@@ -137,6 +141,11 @@ public final class FileBackedImage implements ImageWrapper {
     @Override
     public int height() {
         return height;
+    }
+
+    @Override
+    public Map<Class<?>, Object> metadata() {
+        return metadata;
     }
 
     @Override

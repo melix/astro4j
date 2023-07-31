@@ -32,5 +32,6 @@ public enum GeneratedImageKind {
     RAW_STRETCHED,
     RECONSTRUCTION,
     VIRTUAL_ECLIPSE,
+    TECHNICAL_CARD,
     IMAGE_MATH
 }

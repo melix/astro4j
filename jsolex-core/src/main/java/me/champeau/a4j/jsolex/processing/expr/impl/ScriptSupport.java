@@ -117,7 +117,7 @@ public class ScriptSupport {
                 var idx = i;
                 result[i] = (float) operator.apply(images.stream().mapToDouble(img -> img.data()[idx])).orElse(0);
             }
-            return new ImageWrapper32(width, height, result);
+            return new ImageWrapper32(width, height, result, first.metadata());
         }
         throw new IllegalArgumentException("Unexpected argument type '" + type + "'");
     }

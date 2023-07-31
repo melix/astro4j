@@ -40,7 +40,7 @@ public class DiskFill extends AbstractFunctionImpl {
             return expandToImageList(forkJoinContext, arguments, this::fill);
         }
         var img = arguments.get(0);
-        var ellipse = getArgument(Ellipse.class, arguments, 2).or(() -> getFromContext(Ellipse.class));
+        var ellipse = getEllipse(arguments, 2);
         if (ellipse.isPresent()) {
             var blackpoint = getFromContext(ImageStats.class).map(ImageStats::blackpoint).orElse(0f);
             var fill = arguments.size() == 2 ? floatArg(arguments, 1) : blackpoint;
@@ -54,7 +54,7 @@ public class DiskFill extends AbstractFunctionImpl {
             } else if (img instanceof ColorizedImageWrapper colorized) {
                 var copy = colorized.mono().copy();
                 doFill(ellipse.get(), copy.data(), copy.width(), fill);
-                return new ColorizedImageWrapper(copy, colorized.converter());
+                return new ColorizedImageWrapper(copy, colorized.converter(), colorized.metadata());
             } else if (img instanceof RGBImage rgb) {
                 var r = new float[rgb.r().length];
                 System.arraycopy(rgb.r(), 0, r, 0, r.length);
@@ -65,7 +65,7 @@ public class DiskFill extends AbstractFunctionImpl {
                 var b = new float[rgb.b().length];
                 System.arraycopy(rgb.b(), 0, b, 0, b.length);
                 doFill(ellipse.get(), b, rgb.width(), fill);
-                return new RGBImage(rgb.width(), rgb.height(), r, g, b);
+                return new RGBImage(rgb.width(), rgb.height(), r, g, b, rgb.metadata());
             }
         }
         throw new IllegalArgumentException("Ellipse fitting not found, cannot perform fill");

@@ -35,7 +35,7 @@ public class ShiftCollectingImageExpressionEvaluator extends ImageExpressionEval
 
     public static Function<Double, ImageWrapper> zeroImages() {
         var map = new HashMap<Double, ImageWrapper>();
-        return (Double idx) -> map.computeIfAbsent(idx, unused -> new ImageWrapper32(0, 0, new float[0]));
+        return (Double idx) -> map.computeIfAbsent(idx, unused -> new ImageWrapper32(0, 0, new float[0], Map.of()));
     }
 
     public ShiftCollectingImageExpressionEvaluator(ForkJoinContext forkJoinContext) {

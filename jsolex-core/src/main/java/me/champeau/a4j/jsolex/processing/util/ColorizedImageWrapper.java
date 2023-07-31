@@ -15,6 +15,8 @@
  */
 package me.champeau.a4j.jsolex.processing.util;
 
+import java.util.LinkedHashMap;
+import java.util.Map;
 import java.util.function.Function;
 
 /**
@@ -24,7 +26,8 @@ import java.util.function.Function;
  */
 public record ColorizedImageWrapper(
         ImageWrapper32 mono,
-        Function<float[], float[][]> converter
+        Function<float[], float[][]> converter,
+        Map<Class<?>, Object> metadata
 ) implements ImageWrapper {
     @Override
     public int width() {
@@ -37,6 +40,6 @@ public record ColorizedImageWrapper(
     }
 
     public ColorizedImageWrapper copy() {
-        return new ColorizedImageWrapper(mono.copy(), converter);
+        return new ColorizedImageWrapper(mono.copy(), converter, new LinkedHashMap<>(metadata));
     }
 }
