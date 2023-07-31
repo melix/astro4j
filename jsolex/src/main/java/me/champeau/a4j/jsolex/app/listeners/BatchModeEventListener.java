@@ -101,7 +101,7 @@ public class BatchModeEventListener implements ProcessingEventListener, ImageMat
         var target = payload.path().toFile();
         owner.getCpuExecutor().async(() -> {
             var img = image;
-            if (kind != GeneratedImageKind.IMAGE_MATH && processParams.geometryParams().isAutocorrectAngleP()) {
+            if (!kind.shouldDisableCorrectionOfAngleP() && processParams.geometryParams().isAutocorrectAngleP()) {
                 var p = SolarParametersUtils.computeSolarParams(
                         processParams.observationDetails().date().toLocalDateTime()
                 ).p();

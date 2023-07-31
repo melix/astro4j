@@ -235,9 +235,7 @@ public class ImageViewer {
     }
 
     private boolean shouldDisableCorrectionOfAngleP() {
-        return kind == GeneratedImageKind.IMAGE_MATH
-               || kind == GeneratedImageKind.DEBUG
-               || kind == GeneratedImageKind.TECHNICAL_CARD;
+        return kind.shouldDisableCorrectionOfAngleP();
     }
 
     private static float linValueOf(double sliderValue) {
