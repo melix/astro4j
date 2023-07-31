@@ -150,6 +150,8 @@ public interface ImageMath {
         int newCenterY = newHeight / 2;
         float[] output = new float[newWidth * newHeight];
         Arrays.fill(output, blackpoint);
+        double meanFill = 0;
+        double missFill = 0;
         for (int y = 0; y < newHeight; y++) {
             for (int x = 0; x < newWidth; x++) {
                 var rx = (x - newCenterX);
@@ -172,6 +174,31 @@ public interface ImageMath {
                                              (1 - fracX) * fracY * val12 +
                                              fracX * fracY * val22);
                     output[x + newWidth * y] = interpVal;
+                } else {
+                    int prevSX = Math.min(Math.max(0, sourceX1), width - 1);
+                    int prevSY = Math.min(Math.max(0, sourceY1), height - 1);
+                    var cur = data[prevSX + prevSY * width];
+                    meanFill = meanFill + ((cur - meanFill) / (++missFill));
+                }
+            }
+        }
+        if (blackpoint < 0) {
+            // fill "missing" pixels with average computed value
+            for (int y = 0; y < newHeight; y++) {
+                for (int x = 0; x < newWidth; x++) {
+                    var rx = (x - newCenterX);
+                    var ry = (y - newCenterY);
+                    var sx = rx * cos + ry * sin + centerX;
+                    var sy = -rx * sin + ry * cos + centerY;
+                    var sourceX1 = (int) sx;
+                    var sourceY1 = (int) sy;
+                    var sourceX2 = sourceX1 + 1;
+                    var sourceY2 = sourceY1 + 1;
+                    var fracX = sx - sourceX1;
+                    var fracY = sy - sourceY1;
+                    if (sourceX1 < 0 || sourceX2 >= width || sourceY1 < 0 || sourceY2 >= height || (fracX < 0) || (fracY < 0)) {
+                        output[x + newWidth * y] = (float) meanFill;
+                    }
                 }
             }
         }
