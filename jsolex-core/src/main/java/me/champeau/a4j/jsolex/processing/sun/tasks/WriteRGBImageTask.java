@@ -22,6 +22,7 @@ import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 import me.champeau.a4j.jsolex.processing.util.RGBImage;
 
 import java.io.File;
+import java.util.Map;
 import java.util.function.Supplier;
 
 public class WriteRGBImageTask extends AbstractImageWriterTask {
@@ -41,6 +42,6 @@ public class WriteRGBImageTask extends AbstractImageWriterTask {
     @Override
     public ImageWrapper createImageWrapper() {
         var rgb = supplier.get();
-        return new RGBImage(width, height, rgb[0], rgb[1], rgb[2]);
+        return new RGBImage(width, height, rgb[0], rgb[1], rgb[2], Map.of());
     }
 }

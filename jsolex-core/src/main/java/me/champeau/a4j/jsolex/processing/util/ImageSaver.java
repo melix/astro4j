@@ -44,7 +44,7 @@ public class ImageSaver {
             float[] stretched = stretch(mono.width(), mono.height(), mono.data());
             ImageUtils.writeMonoImage(image.width(), image.height(), stretched, target, imageFormats);
             if (imageFormats.contains(ImageFormat.FITS)) {
-                FitsUtils.writeFitsFile(new ImageWrapper32(image.width(), image.height(), stretched), toFits(target), processParams);
+                FitsUtils.writeFitsFile(new ImageWrapper32(image.width(), image.height(), stretched, mono.metadata()), toFits(target), processParams);
             }
         } else if (image instanceof ColorizedImageWrapper colorImage) {
             float[] stretched = stretch(colorImage.width(), colorImage.height(), colorImage.mono().data());
@@ -54,7 +54,7 @@ public class ImageSaver {
             var b = colorized[2];
             ImageUtils.writeRgbImage(colorImage.width(), colorImage.height(), r, g, b, target, imageFormats);
             if (imageFormats.contains(ImageFormat.FITS)) {
-                FitsUtils.writeFitsFile(new RGBImage(image.width(), image.height(), r, g, b), toFits(target), processParams);
+                FitsUtils.writeFitsFile(new RGBImage(image.width(), image.height(), r, g, b, colorImage.metadata()), toFits(target), processParams);
             }
         } else if (image instanceof RGBImage rgb) {
             var stretched = stretch(rgb.width(), rgb.height(), rgb.r(), rgb.g(), rgb.b());
@@ -63,7 +63,7 @@ public class ImageSaver {
             var b = stretched[2];
             ImageUtils.writeRgbImage(rgb.width(), rgb.height(), r, g, b, target, imageFormats);
             if (imageFormats.contains(ImageFormat.FITS)) {
-                FitsUtils.writeFitsFile(new RGBImage(image.width(), image.height(), r, g, b), toFits(target), processParams);
+                FitsUtils.writeFitsFile(new RGBImage(image.width(), image.height(), r, g, b, rgb.metadata()), toFits(target), processParams);
             }
         }
     }

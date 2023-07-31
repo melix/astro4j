@@ -76,10 +76,10 @@ public class Loader extends AbstractFunctionImpl {
         } catch (IOException e) {
             throw new ProcessingException(e);
         }
-        return toImageWrapper(image);
+        return toImageWrapper(image, Map.of());
     }
 
-    static ImageWrapper toImageWrapper(BufferedImage image) {
+    static ImageWrapper toImageWrapper(BufferedImage image, Map<Class<?>, Object> metadata) {
         var width = image.getWidth();
         var height = image.getHeight();
         var colorModel = image.getColorModel();
@@ -95,7 +95,7 @@ public class Loader extends AbstractFunctionImpl {
                 g[i] = (pixel >> 8) & 0xFF;
                 b[i] = pixel & 0xFF;
             }
-            return new RGBImage(width, height, r, g, b);
+            return new RGBImage(width, height, r, g, b, metadata);
         } else {
             var data = new float[size];
             var dataBuffer = image.getRaster().getDataBuffer();
@@ -110,7 +110,7 @@ public class Loader extends AbstractFunctionImpl {
                     data[i] = rgb[i] & 0xFF;
                 }
             }
-            return new ImageWrapper32(width, height, data);
+            return new ImageWrapper32(width, height, data, metadata);
         }
     }
 

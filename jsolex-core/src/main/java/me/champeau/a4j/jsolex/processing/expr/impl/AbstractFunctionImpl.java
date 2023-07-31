@@ -16,6 +16,8 @@
 package me.champeau.a4j.jsolex.processing.expr.impl;
 
 import me.champeau.a4j.jsolex.processing.util.ForkJoinContext;
+import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
+import me.champeau.a4j.math.regression.Ellipse;
 
 import java.util.List;
 import java.util.Map;
@@ -28,6 +30,27 @@ class AbstractFunctionImpl {
     protected AbstractFunctionImpl(ForkJoinContext forkJoinContext, Map<Class<?>, Object> context) {
         this.forkJoinContext = forkJoinContext;
         this.context = context;
+    }
+
+    protected Optional<Ellipse> getEllipse(List<Object> arguments, int index) {
+        if (index >= 0) {
+            return getArgument(Ellipse.class, arguments, index)
+                    .or(() -> findEllipseInArguments(arguments))
+                    .or(() -> getFromContext(Ellipse.class));
+        }
+        return findEllipseInArguments(arguments)
+                .or(() -> getFromContext(Ellipse.class));
+    }
+
+    private static Optional<Ellipse> findEllipseInArguments(List<Object> arguments) {
+        if (arguments.isEmpty()) {
+            return Optional.empty();
+        }
+        var first = arguments.get(0);
+        if (first instanceof ImageWrapper img) {
+            return img.findMetadata(Ellipse.class);
+        }
+        return Optional.empty();
     }
 
     protected <T> Optional<T> getFromContext(Class<T> type) {

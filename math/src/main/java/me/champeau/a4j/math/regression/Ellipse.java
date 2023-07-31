@@ -137,27 +137,11 @@ public class Ellipse {
         );
     }
 
-    public Ellipse translatedBy(double dx, double dy) {
-        var a = cart.a();
-        var b = cart.b();
-        var c = cart.c();
-        var d = cart.d();
-        var e = cart.e();
-        var f = cart.f();
-
-        var newD = d - 2 * a * dx - b * dy;
-        var newE = e - 2 * c * dy - b * dx;
-        var newF = f + a * dx * dx + b * dx * dy + c * dy * dy - d * dx - e * dy;
-
-        return Ellipse.ofCartesian(new DoubleSextuplet(a, b, c, newD, newE, newF));
-    }
-
-
     public Ellipse centeredAt(int cx, int cy) {
         var center = center();
         var dx = cx - center.a();
         var dy = cy - center.b();
-        return translatedBy(dx, dy);
+        return translate(dx, dy);
     }
 
 

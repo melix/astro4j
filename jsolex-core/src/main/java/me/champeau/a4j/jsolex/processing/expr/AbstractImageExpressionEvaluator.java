@@ -45,6 +45,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -258,7 +259,10 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
                 result[i] = v;
             }
             normalize(length, result, min);
-            return new ImageWrapper32(width, height, result);
+            Map<Class<?>, Object> metadata = new LinkedHashMap<>();
+            metadata.putAll(leftImage.metadata());
+            metadata.putAll(rightImage.metadata());
+            return new ImageWrapper32(width, height, result, metadata);
         }
         if (leftImage != null && rightScalar != null) {
             var scalar = rightScalar.doubleValue();
@@ -276,7 +280,7 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
                 result[i] = v;
             }
             normalize(length, result, min);
-            return new ImageWrapper32(width, height, result);
+            return new ImageWrapper32(width, height, result, leftImage.metadata());
         }
         if (rightImage != null && leftScalar != null) {
             var scalar = leftScalar.doubleValue();
@@ -294,7 +298,7 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
                 result[i] = v;
             }
             normalize(length, result, min);
-            return new ImageWrapper32(width, height, result);
+            return new ImageWrapper32(width, height, result, rightImage.metadata());
         }
         if (leftScalar != null && rightScalar != null) {
             return operator.applyAsDouble(leftScalar.doubleValue(), rightScalar.doubleValue());

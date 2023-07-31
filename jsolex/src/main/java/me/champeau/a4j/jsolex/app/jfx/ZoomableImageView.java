@@ -60,7 +60,11 @@ public class ZoomableImageView extends HBox {
         });
         imageView.setOnMouseClicked(evt -> {
             if (evt.getButton().equals(MouseButton.PRIMARY) && evt.getClickCount() == 2) {
-                zoom = 1.0;
+                if (zoom == 1.0) {
+                    zoom = getWidth() / imageView.getImage().getWidth();
+                } else {
+                    zoom = 1.0;
+                }
                 triggerOnZoomChanged();
             }
         });

@@ -30,7 +30,7 @@ class ImageExpressionEvaluatorTest extends Specification {
 
     ForkJoinContext forkJoinContext = ForkJoinParallelExecutor.newExecutor()
 
-    private Map<Integer, ImageWrapper32> images = [:].withDefault { new ImageWrapper32(0, 0, new float[0]) }
+    private Map<Integer, ImageWrapper32> images = [:].withDefault { new ImageWrapper32(0, 0, new float[0], [:]) }
 
 
     def cleanup() {

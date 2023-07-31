@@ -64,14 +64,14 @@ public class Convolution extends AbstractFunctionImpl {
             image = fileBackedImage.unwrapToMemory();
         }
         if (image instanceof ImageWrapper32 mono) {
-            return new ImageWrapper32(mono.width(), mono.height(), imageMath.convolve(mono.asImage(), kernel).data());
+            return new ImageWrapper32(mono.width(), mono.height(), imageMath.convolve(mono.asImage(), kernel).data(), mono.metadata());
         } else if (image instanceof ColorizedImageWrapper colorized) {
-            return new ColorizedImageWrapper((ImageWrapper32) convolve(colorized.mono(), kernel), colorized.converter());
+            return new ColorizedImageWrapper((ImageWrapper32) convolve(colorized.mono(), kernel), colorized.converter(), colorized.metadata());
         } else if (image instanceof RGBImage rgb) {
             var hsl = ImageUtils.fromRGBtoHSL(new float[][] { rgb.r(), rgb.g(), rgb.b() });
             hsl[2] = imageMath.convolve(new Image(rgb.width(), rgb.height(), hsl[2]), kernel).data();
             var transformed = ImageUtils.fromHSLtoRGB(hsl);
-            return new RGBImage(rgb.width(), rgb.height(), transformed[0], transformed[1], transformed[2]);
+            return new RGBImage(rgb.width(), rgb.height(), transformed[0], transformed[1], transformed[2], rgb.metadata());
         }
         throw new IllegalArgumentException("Unsupported image type " + image);
     }

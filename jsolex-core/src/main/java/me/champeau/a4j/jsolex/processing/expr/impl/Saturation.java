@@ -51,7 +51,7 @@ public class Saturation extends AbstractFunctionImpl {
                 }
                 ImageUtils.fromHSLtoRGB(hsl, rgb);
                 return rgb;
-            });
+            }, colorized.metadata());
         } else if (arg instanceof RGBImage rgb) {
             var hsl = ImageUtils.fromRGBtoHSL(new float[][]{rgb.r(), rgb.g(), rgb.b()});
             var s = hsl[1];
@@ -61,7 +61,7 @@ public class Saturation extends AbstractFunctionImpl {
             }
             var output = new float[3][rgb.r().length];
             ImageUtils.fromHSLtoRGB(hsl, output);
-            return new RGBImage(rgb.width(), rgb.height(), output[0], output[1], output[2]);
+            return new RGBImage(rgb.width(), rgb.height(), output[0], output[1], output[2], rgb.metadata());
         }
         return arg;
     }

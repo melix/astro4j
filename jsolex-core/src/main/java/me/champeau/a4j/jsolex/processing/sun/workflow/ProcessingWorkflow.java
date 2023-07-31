@@ -41,6 +41,7 @@ import org.slf4j.LoggerFactory;
 import java.nio.file.Path;
 import java.text.MessageFormat;
 import java.util.List;
+import java.util.Map;
 import java.util.function.Supplier;
 
 import static me.champeau.a4j.jsolex.processing.sun.ImageUtils.bilinearSmoothing;
@@ -264,7 +265,7 @@ public class ProcessingWorkflow {
                             for (int i = 0; i < 2; i++) {
                                 bilinearSmoothing(diskEllipse, width, height, data);
                             }
-                            var mixedImage = new ImageWrapper32(width, height, mix);
+                            var mixedImage = new ImageWrapper32(width, height, mix, Map.of(Ellipse.class, diskEllipse));
                             var colorCurve = processParams.spectrumParams().ray().getColorCurve();
                             if (colorCurve.isPresent()) {
                                 var curve = colorCurve.get();

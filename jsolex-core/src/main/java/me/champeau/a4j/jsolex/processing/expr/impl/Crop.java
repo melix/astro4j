@@ -25,6 +25,7 @@ import me.champeau.a4j.jsolex.processing.util.RGBImage;
 import me.champeau.a4j.math.image.Image;
 import me.champeau.a4j.math.regression.Ellipse;
 
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -59,12 +60,17 @@ public class Crop extends AbstractFunctionImpl {
             return cropMonoImage(left, top, width, height, mono);
         } else if (img instanceof ColorizedImageWrapper colorized) {
             var mono = colorized.mono();
-            return new ColorizedImageWrapper(cropMonoImage(left, top, width, height, mono), colorized.converter());
+            var cropped = cropMonoImage(left, top, width, height, mono);
+            return new ColorizedImageWrapper(cropped, colorized.converter(), cropped.metadata());
         } else if (img instanceof RGBImage rgb) {
+            var ri = cropMonoImage(left, top, width, height, new ImageWrapper32(rgb.width(), rgb.height(), rgb.r(), rgb.metadata()));
+            var gi = cropMonoImage(left, top, width, height, new ImageWrapper32(rgb.width(), rgb.height(), rgb.g(), rgb.metadata()));
+            var bi = cropMonoImage(left, top, width, height, new ImageWrapper32(rgb.width(), rgb.height(), rgb.b(), rgb.metadata()));
             return new RGBImage(width, height,
-                    cropMonoImage(left, top, width, height, new ImageWrapper32(rgb.width(), rgb.height(), rgb.r())).data(),
-                    cropMonoImage(left, top, width, height, new ImageWrapper32(rgb.width(), rgb.height(), rgb.g())).data(),
-                    cropMonoImage(left, top, width, height, new ImageWrapper32(rgb.width(), rgb.height(), rgb.b())).data()
+                    ri.data(),
+                    gi.data(),
+                    bi.data(),
+                    ri.metadata()
             );
         }
         throw new IllegalStateException("Unexpected image type " + img);
@@ -82,7 +88,7 @@ public class Crop extends AbstractFunctionImpl {
         if (width < 0 || height < 0) {
             throw new IllegalArgumentException("width and height values must be >=0");
         }
-        var ellipse = getArgument(Ellipse.class, arguments, 3).or(() -> getFromContext(Ellipse.class));
+        var ellipse = getEllipse(arguments, 3);
         if (ellipse.isPresent()) {
             var sunDisk = ellipse.get();
             float blackPoint = getFromContext(ImageStats.class).map(ImageStats::blackpoint).orElse(0f);
@@ -93,12 +99,17 @@ public class Crop extends AbstractFunctionImpl {
                 return cropToRectMonoImage(width, height, mono, sunDisk, blackPoint);
             } else if (img instanceof ColorizedImageWrapper colorized) {
                 var mono = colorized.mono();
-                return new ColorizedImageWrapper(cropToRectMonoImage(width, height, mono, sunDisk, blackPoint), colorized.converter());
+                var cropped = cropToRectMonoImage(width, height, mono, sunDisk, blackPoint);
+                return new ColorizedImageWrapper(cropped, colorized.converter(), cropped.metadata());
             } else if (img instanceof RGBImage rgb) {
+                var ri = cropToRectMonoImage(width, height, new ImageWrapper32(rgb.width(), rgb.height(), rgb.r(), rgb.metadata()), sunDisk, blackPoint);
+                var gi = cropToRectMonoImage(width, height, new ImageWrapper32(rgb.width(), rgb.height(), rgb.g(), rgb.metadata()), sunDisk, blackPoint);
+                var bi = cropToRectMonoImage(width, height, new ImageWrapper32(rgb.width(), rgb.height(), rgb.b(), rgb.metadata()), sunDisk, blackPoint);
                 return new RGBImage(width, height,
-                        cropToRectMonoImage(width, height, new ImageWrapper32(rgb.width(), rgb.height(), rgb.r()), sunDisk, blackPoint).data(),
-                        cropToRectMonoImage(width, height, new ImageWrapper32(rgb.width(), rgb.height(), rgb.g()), sunDisk, blackPoint).data(),
-                        cropToRectMonoImage(width, height, new ImageWrapper32(rgb.width(), rgb.height(), rgb.b()), sunDisk, blackPoint).data()
+                        ri.data(),
+                        gi.data(),
+                        bi.data(),
+                        ri.metadata()
                 );
             }
             throw new IllegalStateException("Unexpected image type " + img);
@@ -118,11 +129,16 @@ public class Crop extends AbstractFunctionImpl {
         for (int y = 0; y < height; y++) {
             System.arraycopy(mono.data(), left + (y + top) * mono.width(), cropped, y * width, width);
         }
-        return new ImageWrapper32(width, height, cropped);
+        var metadata = new HashMap<>(mono.metadata());
+        mono.findMetadata(Ellipse.class).ifPresent(ellipse -> metadata.put(Ellipse.class, ellipse.translate(-left, -top)));
+        return new ImageWrapper32(width, height, cropped, metadata);
     }
 
     private static ImageWrapper32 cropToRectMonoImage(int width, int height, ImageWrapper32 mono, Ellipse sunDisk, float blackPoint) {
-        return ImageWrapper32.fromImage(Cropper.cropToRectangle(mono.asImage(), sunDisk, blackPoint, width, height));
+        var cropResult = Cropper.cropToRectangle(mono.asImage(), sunDisk, blackPoint, width, height);
+        var metadata = new HashMap<>(mono.metadata());
+        metadata.put(Ellipse.class, sunDisk.translate(-cropResult.centerShift().a(), -cropResult.centerShift().b()));
+        return ImageWrapper32.fromImage(cropResult.cropped(), metadata);
     }
 
     public Object autocrop(List<Object> arguments) {
@@ -131,7 +147,7 @@ public class Crop extends AbstractFunctionImpl {
         if (arg instanceof List<?>) {
             return expandToImageList(forkJoinContext, arguments, this::autocrop);
         }
-        var ellipse = getArgument(Ellipse.class, arguments, 1).or(() -> getFromContext(Ellipse.class));
+        var ellipse = getEllipse(arguments, 1);
         return doAutocrop(arg, ellipse, null, null);
     }
 
@@ -149,7 +165,7 @@ public class Crop extends AbstractFunctionImpl {
                 throw new IllegalArgumentException("Rounding must be a factor of 2");
             }
         }
-        var ellipse = getArgument(Ellipse.class, arguments, 3).or(() -> getFromContext(Ellipse.class));
+        var ellipse = getEllipse(arguments, 3);
         return doAutocrop(arg, ellipse, factor, rounding);
     }
 
@@ -162,17 +178,24 @@ public class Crop extends AbstractFunctionImpl {
             }
             if (arg instanceof ImageWrapper32 mono) {
                 var image = mono.asImage();
-                var cropped = Cropper.cropToSquare(image, circle, blackpoint, diameterFactor, rounding);
-                return ImageWrapper32.fromImage(cropped);
+                var cropResult = Cropper.cropToSquare(image, circle, blackpoint, diameterFactor, rounding);
+                var metadata = new HashMap<>(mono.metadata());
+                metadata.put(Ellipse.class, circle.translate(-cropResult.centerShift().a(), -cropResult.centerShift().b()));
+                return ImageWrapper32.fromImage(cropResult.cropped(), metadata);
             } else if (arg instanceof ColorizedImageWrapper wrapper) {
                 var mono = wrapper.mono();
-                var cropped = Cropper.cropToSquare(mono.asImage(), circle, blackpoint, diameterFactor, rounding);
-                return new ColorizedImageWrapper(ImageWrapper32.fromImage(cropped), wrapper.converter());
+                var cropResult = Cropper.cropToSquare(mono.asImage(), circle, blackpoint, diameterFactor, rounding);
+                var metadata = new HashMap<>(mono.metadata());
+                metadata.put(Ellipse.class, circle.translate(-cropResult.centerShift().a(), -cropResult.centerShift().b()));
+                return new ColorizedImageWrapper(ImageWrapper32.fromImage(cropResult.cropped()), wrapper.converter(), metadata);
             } else if (arg instanceof RGBImage rgb) {
-                var r = Cropper.cropToSquare(new Image(rgb.width(), rgb.height(), rgb.r()), circle, blackpoint, diameterFactor, rounding);
-                var g = Cropper.cropToSquare(new Image(rgb.width(), rgb.height(), rgb.g()), circle, blackpoint, diameterFactor, rounding);
-                var b = Cropper.cropToSquare(new Image(rgb.width(), rgb.height(), rgb.b()), circle, blackpoint, diameterFactor, rounding);
-                return new RGBImage(r.width(), r.height(), r.data(), g.data(), b.data());
+                var cropResult = Cropper.cropToSquare(new Image(rgb.width(), rgb.height(), rgb.r()), circle, blackpoint, diameterFactor, rounding);
+                var metadata = new HashMap<>(rgb.metadata());
+                metadata.put(Ellipse.class, circle.translate(-cropResult.centerShift().a(), -cropResult.centerShift().b()));
+                var r = cropResult.cropped();
+                var g = Cropper.cropToSquare(new Image(rgb.width(), rgb.height(), rgb.g()), circle, blackpoint, diameterFactor, rounding).cropped();
+                var b = Cropper.cropToSquare(new Image(rgb.width(), rgb.height(), rgb.b()), circle, blackpoint, diameterFactor, rounding).cropped();
+                return new RGBImage(r.width(), r.height(), r.data(), g.data(), b.data(), metadata);
             }
             throw new IllegalStateException("Unsupported image type");
         } else {

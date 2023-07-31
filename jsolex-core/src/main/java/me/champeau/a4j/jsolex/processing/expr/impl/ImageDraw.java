@@ -122,7 +122,7 @@ public class ImageDraw extends AbstractFunctionImpl {
         if (img instanceof ImageWrapper image) {
             var angleP = getArgument(Number.class, arguments, 1).map(Number::doubleValue).or(() -> getFromContext(SolarParameters.class).map(SolarParameters::p)).orElse(0d);
             var b0 = getArgument(Number.class, arguments, 2).map(Number::doubleValue).or(() -> getFromContext(SolarParameters.class).map(SolarParameters::b0)).orElse(0d);
-            var ellipse = getArgument(Ellipse.class, arguments, 3).or(() -> getFromContext(Ellipse.class)).orElseThrow(() -> new IllegalArgumentException("Ellipse not defined"));
+            var ellipse = getEllipse(arguments, 3).orElseThrow(() -> new IllegalArgumentException("Ellipse not defined"));
             return doDrawGlobe(image, ellipse, angleP, b0);
         }
         throw new IllegalArgumentException("Unexpected image type: " + img);
@@ -263,7 +263,7 @@ public class ImageDraw extends AbstractFunctionImpl {
             g.setColor(new Color(greyValue, greyValue, greyValue));
             g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
             consumer.accept(g, wrapper);
-            return Loader.toImageWrapper(image);
+            return Loader.toImageWrapper(image, wrapper.metadata());
         }
         return null;
     }

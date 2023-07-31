@@ -34,13 +34,13 @@ public class BackgroundRemoval extends AbstractFunctionImpl {
 
     public Object removeBackground(List<Object> arguments) {
         assertExpectedArgCount(arguments, "remove_bg takes 1, 2 or 3 arguments (image(s), [tolerance], [fitting])", 1, 2);
-        Optional<Ellipse> ellipse = getArgument(Ellipse.class, arguments, 2).or(() -> getFromContext(Ellipse.class));
-        if (ellipse.isEmpty()) {
-            throw new IllegalArgumentException("Cannot perform background removal because ellipse isn't found");
-        }
         var arg = arguments.get(0);
         if (arg instanceof List<?>) {
             return expandToImageList(forkJoinContext, arguments, this::removeBackground);
+        }
+        Optional<Ellipse> ellipse = getEllipse(arguments, 2);
+        if (ellipse.isEmpty()) {
+            throw new IllegalArgumentException("Cannot perform background removal because ellipse isn't found");
         }
         double tolerance;
         if (arguments.size() == 2) {

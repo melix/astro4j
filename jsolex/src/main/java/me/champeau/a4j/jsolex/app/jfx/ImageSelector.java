@@ -348,7 +348,7 @@ public class ImageSelector {
         var images = new HashMap<Double, ImageWrapper32>();
         return new DefaultImageScriptExecutor(
                 forkJoinContext,
-                i -> images.computeIfAbsent(i, unused -> new ImageWrapper32(0, 0, new float[0])),
+                i -> images.computeIfAbsent(i, unused -> new ImageWrapper32(0, 0, new float[0], Map.of())),
                 Map.of()
         );
     }

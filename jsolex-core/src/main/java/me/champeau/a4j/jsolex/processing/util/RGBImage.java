@@ -15,10 +15,20 @@
  */
 package me.champeau.a4j.jsolex.processing.util;
 
-public record RGBImage(int width, int height, float[] r, float[] g, float[] b) implements ImageWrapper {
+import java.util.LinkedHashMap;
+import java.util.Map;
+
+public record RGBImage(
+        int width,
+        int height,
+        float[] r,
+        float[] g,
+        float[] b,
+        Map<Class<?>, Object> metadata
+) implements ImageWrapper {
     @Override
     public RGBImage copy() {
-        return new RGBImage(width, height, copyOf(r), copyOf(g), copyOf(b));
+        return new RGBImage(width, height, copyOf(r), copyOf(g), copyOf(b), new LinkedHashMap<>(metadata));
     }
 
     private static float[] copyOf(float[] array) {

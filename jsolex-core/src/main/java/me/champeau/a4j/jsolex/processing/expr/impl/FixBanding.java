@@ -17,7 +17,6 @@ package me.champeau.a4j.jsolex.processing.expr.impl;
 
 import me.champeau.a4j.jsolex.processing.sun.BandingReduction;
 import me.champeau.a4j.jsolex.processing.util.ForkJoinContext;
-import me.champeau.a4j.math.regression.Ellipse;
 
 import java.util.List;
 import java.util.Map;
@@ -29,7 +28,7 @@ public class FixBanding extends AbstractFunctionImpl {
 
     public Object fixBanding(List<Object> arguments) {
         assertExpectedArgCount(arguments, "fix_banding takes 3 or 4 arguments (image, band size, passes, [ellipse])", 3, 4);
-        var ellipse = getArgument(Ellipse.class, arguments, 3).or(() -> getFromContext(Ellipse.class));
+        var ellipse = getEllipse(arguments, 3);
         int bandSize = intArg(arguments, 1);
         int passes = intArg(arguments, 2);
         return ScriptSupport.monoToMonoImageTransformer(forkJoinContext, "fix_banding", 3, arguments, (width, height, data) -> {

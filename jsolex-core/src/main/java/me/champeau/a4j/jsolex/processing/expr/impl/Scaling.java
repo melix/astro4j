@@ -141,7 +141,7 @@ public class Scaling extends AbstractFunctionImpl {
                             imageMath.rescale(mono.asImage(),
                                     width,
                                     height
-                            )), colorized.converter()
+                            )), colorized.converter(), Map.of()
             );
         } else if (img instanceof RGBImage rgb) {
             var r = new Image(rgb.width(), rgb.height(), rgb.r());
@@ -152,7 +152,8 @@ public class Scaling extends AbstractFunctionImpl {
                     height,
                     imageMath.rescale(r, width, height).data(),
                     imageMath.rescale(g, width, height).data(),
-                    imageMath.rescale(b, width, height).data()
+                    imageMath.rescale(b, width, height).data(),
+                    Map.of()
             );
         }
         return null;

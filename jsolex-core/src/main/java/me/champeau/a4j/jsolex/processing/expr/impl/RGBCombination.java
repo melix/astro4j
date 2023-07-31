@@ -45,7 +45,7 @@ public class RGBCombination {
         if (ra instanceof ImageWrapper32 r && ga instanceof ImageWrapper32 g && ba instanceof ImageWrapper32 b) {
             if ((r.width() == g.width()) && (r.width() == b.width())
                 && (r.height() == g.height()) && (r.height() == b.height())) {
-                return new RGBImage(r.width(), r.height(), r.data(), g.data(), b.data());
+                return new RGBImage(r.width(), r.height(), r.data(), g.data(), b.data(), r.metadata());
             } else {
                 throw new IllegalArgumentException("Images must have the same dimensions");
             }

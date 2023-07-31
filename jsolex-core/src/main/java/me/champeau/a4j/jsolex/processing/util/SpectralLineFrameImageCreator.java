@@ -21,6 +21,7 @@ import me.champeau.a4j.math.Point2D;
 import me.champeau.a4j.math.tuples.DoubleTriplet;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 import static me.champeau.a4j.jsolex.processing.util.Constants.MAX_PIXEL_VALUE;
@@ -115,6 +116,6 @@ public class SpectralLineFrameImageCreator {
             gg[(int) (offset + x + y * width)] = MAX_PIXEL_VALUE;
             bb[(int) (offset + x + y * width)] = 0;
         }
-        return new RGBImage(width, 2 * height + 10, rr, gg, bb);
+        return new RGBImage(width, 2 * height + 10, rr, gg, bb, Map.of());
     }
 }

@@ -17,6 +17,7 @@ package me.champeau.a4j.jsolex.processing.sun.crop;
 
 import me.champeau.a4j.math.image.Image;
 import me.champeau.a4j.math.regression.Ellipse;
+import me.champeau.a4j.math.tuples.DoublePair;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -32,7 +33,7 @@ public class Cropper {
 
     }
 
-    public static Image cropToSquare(Image image, Ellipse sunDisk, float blackPoint, Double diameterFactor, Integer rounding) {
+    public static CropResult cropToSquare(Image image, Ellipse sunDisk, float blackPoint, Double diameterFactor, Integer rounding) {
         var source = image.data();
         // at this stage, the new fitting should give us a good estimate of the center and radius
         // because if geometry correction worked, the disk should be circle, so we can crop to a square
@@ -65,10 +66,13 @@ public class Cropper {
                 }
             }
         }
-        return new Image(square, square, cropped);
+        return new CropResult(
+                new Image(square, square, cropped),
+                new DoublePair(cx - half, cy - half)
+        );
     }
 
-    public static Image cropToRectangle(Image image, Ellipse sunDisk, float blackPoint, int width, int height) {
+    public static CropResult cropToRectangle(Image image, Ellipse sunDisk, float blackPoint, int width, int height) {
         var source = image.data();
         var sourceWidth = image.width();
         var sourceHeight = image.height();
@@ -89,6 +93,15 @@ public class Cropper {
             }
         }
 
-        return new Image(width, height, cropped);
+        return new CropResult(
+                new Image(width, height, cropped),
+                new DoublePair(cx - offsetX, cy - offsetY)
+        );
+    }
+
+    public record CropResult(
+            Image cropped,
+            DoublePair centerShift
+    ) {
     }
 }

@@ -284,7 +284,8 @@ public class SolexVideoProcessor implements Broadcaster {
                 ellipse = geo.correctedCircle();
                 imageStats = new ImageStats(geo.blackpoint());
             } else {
-                images.put(workflowState.pixelShift(), FileBackedImage.wrap(new ImageWrapper32(workflowState.width(), workflowState.height(), workflowState.reconstructed())));
+                Map<Class<?>, Object> metadata = ellipse != null ? Map.of(Ellipse.class, ellipse) : Map.of();
+                images.put(workflowState.pixelShift(), FileBackedImage.wrap(new ImageWrapper32(workflowState.width(), workflowState.height(), workflowState.reconstructed(), metadata)));
             }
         }
         broadcast(ProcessingDoneEvent.of(System.nanoTime(), images, createCustomImageEmitter(imageNamingStrategy, baseName), ellipse, imageStats));
@@ -306,7 +307,8 @@ public class SolexVideoProcessor implements Broadcaster {
                         imageStats = new ImageStats(geo.blackpoint());
                     }
                 } else {
-                    images.put(workflowState.pixelShift(), new ImageWrapper32(workflowState.width(), workflowState.height(), workflowState.reconstructed()));
+                    Map<Class<?>, Object> metadata = ellipse != null ? Map.of(Ellipse.class, ellipse) : Map.of();
+                    images.put(workflowState.pixelShift(), new ImageWrapper32(workflowState.width(), workflowState.height(), workflowState.reconstructed(), metadata));
                 }
             }
             var emitter = createCustomImageEmitter(imageNamingStrategy, baseName);
