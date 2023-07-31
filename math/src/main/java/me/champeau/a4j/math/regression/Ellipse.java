@@ -172,8 +172,8 @@ public class Ellipse {
         var c = cart.a() * x * x + cart.d() * x + cart.f();
         var disc = b * b - 4 * a * c;
         if (disc >= 0 && 2 * a != 0) {
-            var y1 = (-b + Math.sqrt(disc)) / 2 * a;
-            var y2 = (-b - Math.sqrt(disc)) / 2 * a;
+            var y1 = (-b + Math.sqrt(disc)) / (2 * a);
+            var y2 = (-b - Math.sqrt(disc)) / (2 * a);
             return Optional.of(new DoublePair(y1, y2));
         }
         return Optional.empty();

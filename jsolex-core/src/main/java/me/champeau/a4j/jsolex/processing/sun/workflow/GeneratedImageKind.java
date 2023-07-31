@@ -33,5 +33,11 @@ public enum GeneratedImageKind {
     RECONSTRUCTION,
     VIRTUAL_ECLIPSE,
     TECHNICAL_CARD,
-    IMAGE_MATH
+    IMAGE_MATH;
+
+    public boolean shouldDisableCorrectionOfAngleP() {
+        return this == GeneratedImageKind.IMAGE_MATH
+               || this == GeneratedImageKind.DEBUG
+               || this == GeneratedImageKind.TECHNICAL_CARD;
+    }
 }

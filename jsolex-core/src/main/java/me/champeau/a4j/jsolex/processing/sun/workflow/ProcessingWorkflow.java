@@ -224,7 +224,7 @@ public class ProcessingWorkflow {
         var clahe = geometryFixed.copy();
         ClaheStrategy.DEFAULT.stretch(clahe.width(), clahe.height(), clahe.data());
         var supplier = processedImagesEmitter.newMonoImage(GeneratedImageKind.GEOMETRY_CORRECTED_STRETCHED, message("stretched"), "clahe", clahe);
-        if (shouldProduce(GeneratedImageKind.TECHNICAL_CARD)) {
+        if (shouldProduce(GeneratedImageKind.TECHNICAL_CARD) && isMainShift()) {
             produceTechnicalCard(clahe);
         }
         return supplier;

@@ -34,6 +34,7 @@ import me.champeau.a4j.math.regression.EllipseRegression;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -94,6 +95,7 @@ public class EllipseFittingTask extends AbstractTask<EllipseFittingTask.Result> 
             debugImagesEmitter.newMonoImage(GeneratedImageKind.DEBUG, "Prefiltered", "prefilter", ImageWrapper32.fromImage(workingImage));
         }
         var magnitude = imageMath.convolve(workingImage, Kernel33.EDGE_DETECTION);
+        magnitude = imageMath.convolve(magnitude, Kernel33.GAUSSIAN_BLUR);
         var magnitudes = magnitude.data();
         var samples = findSamplesUsingDynamicSensitivity(analyzingDiskGeometryMsg, magnitudes);
         var fittingEllipseMessage = message("fitting.ellipse");
@@ -104,6 +106,16 @@ public class EllipseFittingTask extends AbstractTask<EllipseFittingTask.Result> 
             broadcaster.broadcast(new NotificationEvent(new Notification(Notification.AlertType.ERROR, message("not.enough.samples.title"), "", message)));
             return null;
         }
+        var initialEllipse = new EllipseRegression(samples).solve();
+        samples.removeIf(p -> {
+            var maybeY = initialEllipse.findY(p.x());
+            if (maybeY.isEmpty()) {
+                return true;
+            }
+            var doublePair = maybeY.get();
+            var dmin = Math.min(Math.abs(p.y()-doublePair.a()), Math.abs(p.y()-doublePair.b()));
+            return dmin > 20;
+        });
         var ellipse = new EllipseRegression(samples).solve();
         LOGGER.debug("{}", ellipse);
         broadcaster.broadcast(ProgressEvent.of(1, fittingEllipseMessage));
@@ -157,12 +169,12 @@ public class EllipseFittingTask extends AbstractTask<EllipseFittingTask.Result> 
                     }
                 }
                 if (min >= 0 || max >= 0) {
-                    y += 2;
+                    y += 4;
                 }
             }
             filterOutliers(magnitudes, samples, maxMag);
         }
-        return samples.stream().toList();
+        return new ArrayList<>(samples.stream().toList());
     }
 
     private void filterOutliers(float[] magnitudes, Set<Point2D> samples, double maxMag) {

@@ -88,7 +88,8 @@ public class ImageSaver {
     }
 
     private File toFits(File target) {
-        String fileNameWithoutExtension = target.getName().substring(0, target.getName().lastIndexOf("."));
+        var endIndex = target.getName().lastIndexOf(".");
+        String fileNameWithoutExtension = endIndex >= 0 ? target.getName().substring(0, endIndex) : target.getName();
         return new File(target.getParentFile(), fileNameWithoutExtension + ".fits");
     }
 }
