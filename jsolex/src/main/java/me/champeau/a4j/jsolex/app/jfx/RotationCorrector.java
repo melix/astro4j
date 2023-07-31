@@ -34,18 +34,18 @@ public class RotationCorrector {
             img = fileBackedImage.unwrapToMemory();
         }
         if (img instanceof ImageWrapper32 mono) {
-            var trn = imageMath.rotate(mono.asImage(), angle, 0, false);
+            var trn = imageMath.rotate(mono.asImage(), angle, -1, false);
             return ImageWrapper32.fromImage(trn, mono.metadata());
         } else if (img instanceof ColorizedImageWrapper colorized) {
             var mono = colorized.mono();
-            var trn = imageMath.rotate(mono.asImage(), angle, 0, false);
+            var trn = imageMath.rotate(mono.asImage(), angle, -1, false);
             return new ColorizedImageWrapper(ImageWrapper32.fromImage(trn), colorized.converter(), colorized.metadata());
         } else if (img instanceof RGBImage rgb) {
             var height = rgb.height();
             var width = rgb.width();
-            var r = imageMath.rotate(new Image(width, height, rgb.r()), angle, 0, false);
-            var g = imageMath.rotate(new Image(width, height, rgb.g()), angle, 0, false);
-            var b = imageMath.rotate(new Image(width, height, rgb.b()), angle, 0, false);
+            var r = imageMath.rotate(new Image(width, height, rgb.r()), angle, -1, false);
+            var g = imageMath.rotate(new Image(width, height, rgb.g()), angle, -1, false);
+            var b = imageMath.rotate(new Image(width, height, rgb.b()), angle, -1, false);
             return new RGBImage(r.width(), r.height(), r.data(), g.data(), b.data(), rgb.metadata());
         }
         throw new IllegalArgumentException("Unsupported image type");
