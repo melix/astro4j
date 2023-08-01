@@ -125,6 +125,7 @@ public class Scaling extends AbstractFunctionImpl {
     }
 
     private ImageWrapper doRescale(ImageWrapper img, int width, int height) {
+        var metadata = fixMetadata(img, width, height);
         if (img instanceof FileBackedImage fileBackedImage) {
             img = fileBackedImage.unwrapToMemory();
         }
@@ -133,7 +134,8 @@ public class Scaling extends AbstractFunctionImpl {
                     imageMath.rescale(mono.asImage(),
                             width,
                             height
-                    ));
+                    ),
+                    metadata);
         } else if (img instanceof ColorizedImageWrapper colorized) {
             var mono = colorized.mono();
             return new ColorizedImageWrapper(
@@ -141,7 +143,7 @@ public class Scaling extends AbstractFunctionImpl {
                             imageMath.rescale(mono.asImage(),
                                     width,
                                     height
-                            )), colorized.converter(), Map.of()
+                            ), metadata), colorized.converter(), metadata
             );
         } else if (img instanceof RGBImage rgb) {
             var r = new Image(rgb.width(), rgb.height(), rgb.r());
@@ -153,9 +155,20 @@ public class Scaling extends AbstractFunctionImpl {
                     imageMath.rescale(r, width, height).data(),
                     imageMath.rescale(g, width, height).data(),
                     imageMath.rescale(b, width, height).data(),
-                    Map.of()
+                    metadata
             );
         }
         return null;
+    }
+
+    private static Map<Class<?>, Object> fixMetadata(ImageWrapper image, double width, double height) {
+        var metadata = new LinkedHashMap<>(image.metadata());
+        image.findMetadata(Ellipse.class).ifPresent(ellipse -> {
+            double sx = image.width() / width;
+            double sy = image.height() / height;
+            var rescaled = ellipse.rescale(sx, sy);
+            metadata.put(Ellipse.class, rescaled);
+        });
+        return metadata;
     }
 }

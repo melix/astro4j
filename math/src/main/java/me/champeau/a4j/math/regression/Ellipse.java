@@ -35,27 +35,10 @@ public class Ellipse {
         return new Ellipse(coefficients);
     }
 
-    public Ellipse scale(double scaleFactor) {
-        return new Ellipse(new DoubleSextuplet(
-                cart.a(),
-                cart.b(),
-                cart.c(),
-                cart.d(),
-                cart.e(),
-                cart.f() / scaleFactor
-        ));
-    }
-
     public DoubleSextuplet getCartesianCoefficients() {
         return cart;
     }
 
-    public boolean isAlmostCircle(double epsilon) {
-        var a = cart.a();
-        var b = cart.b();
-        var c = cart.c();
-        return !(Math.abs(a - c) < epsilon && Math.abs(b) < epsilon);
-    }
 
     /**
      * Computes the rotation angle of the ellipse
@@ -209,6 +192,7 @@ public class Ellipse {
 
     /**
      * Computes the parameters of this ellipse translated by vector (u,v)
+     *
      * @param u the translation on the X axis
      * @param v the translation on the Y axis
      * @return the new ellipse
@@ -229,6 +213,64 @@ public class Ellipse {
                 a * u * u + b * u * v + c * v * v - d * u - e * v + f
         ));
     }
+
+    public Ellipse rescale(double scaleX, double scaleY) {
+        var a = cart.a();
+        var b = cart.b();
+        var c = cart.c();
+        var d = cart.d();
+        var e = cart.e();
+        var f = cart.f();
+        return new Ellipse(new DoubleSextuplet(
+                a * scaleX * scaleX,
+                b * scaleX * scaleY,
+                c * scaleY * scaleY,
+                d * scaleX,
+                e * scaleY,
+                f
+        ));
+    }
+
+    /**
+     * Rotates an ellipse using the origin (0,0) as the rotation center.
+     * @param theta the rotation angle
+     * @return the rotated ellipse
+     */
+    public Ellipse rotate(double theta) {
+        // In SageMath, use:
+        // x,y,a,b,c,d,e,f,u,v,t=var("x,y,a,b,c,d,e,f,u,v,t")
+        // expand(a*(x*cos(u)-y*sin(u))^2+b*(x*cos(u)-y*sin(u))*(x*sin(u)+y*cos(u))+c*(x*sin(u)+y*cos(u))^2+d*(x*cos(u)-y*sin(u))+e*(x*sin(u)+y*cos(u))+f).maxima_methods().collectterms(x,y)
+        var a = cart.a();
+        var b = cart.b();
+        var c = cart.c();
+        var d = cart.d();
+        var e = cart.e();
+        var f = cart.f();
+        var cos = Math.cos(theta);
+        var sin = Math.sin(theta);
+        return new Ellipse(new DoubleSextuplet(
+                a * cos * cos + b * cos * sin + c * sin * sin,
+                b * cos * cos - 2 * a * cos * sin + 2 * c * cos * sin - b * sin * sin,
+                c * cos * cos - b * cos * sin + a * sin * sin,
+                d * cos + e * sin,
+                e * cos - d * sin,
+                f
+        ));
+    }
+
+    /**
+     * Rotates an ellipse using the supplied rotation center.
+     * @param theta the rotation angle
+     * @return the rotated ellipse
+     */
+    public Ellipse rotate(double theta, Point2D rotationCenter) {
+        var cx = rotationCenter.x();
+        var cy = rotationCenter.y();
+        var e1 = translate(-cx, -cy);
+        var e2 = e1.rotate(theta);
+        return e2.translate(cx, cy);
+    }
+
 
     @Override
     public String toString() {
