@@ -19,11 +19,15 @@ import me.champeau.a4j.jsolex.processing.sun.workflow.ImageStats;
 import me.champeau.a4j.jsolex.processing.util.ColorizedImageWrapper;
 import me.champeau.a4j.jsolex.processing.util.FileBackedImage;
 import me.champeau.a4j.jsolex.processing.util.ForkJoinContext;
+import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 import me.champeau.a4j.jsolex.processing.util.RGBImage;
+import me.champeau.a4j.math.Point2D;
 import me.champeau.a4j.math.image.Image;
 import me.champeau.a4j.math.image.ImageMath;
+import me.champeau.a4j.math.regression.Ellipse;
 
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.function.UnaryOperator;
@@ -39,28 +43,24 @@ public class Rotate extends AbstractFunctionImpl {
 
     public Object rotateLeft(List<Object> arguments) {
         assertExpectedArgCount(arguments, "rotate_left takes 1 arguments (image(s))", 1, 1);
-        return doRotate(arguments, imageMath::rotateLeft);
+        return doRotate(arguments, image -> arbitraryRotation(arguments, image, -Math.PI / 2), -Math.PI / 2);
     }
 
     public Object rotateRight(List<Object> arguments) {
         assertExpectedArgCount(arguments, "rotate_right takes 1 arguments (image(s))", 1, 1);
-        return doRotate(arguments, imageMath::rotateRight);
+        return doRotate(arguments, image -> arbitraryRotation(arguments, image, Math.PI / 2), Math.PI / 2);
     }
 
     public Object rotateDegrees(List<Object> arguments) {
         assertExpectedArgCount(arguments, "rotate_deg takes 2 to 4 arguments (image(s), angle, [blackPoint], [resize])", 1, 4);
-        return doRotate(arguments, image -> {
-            var angle = 180d * doubleArg(arguments, 1) / Math.PI;
-            return arbitraryRotation(arguments, image, angle);
-        });
+        var angle = Math.toRadians(doubleArg(arguments, 1));
+        return doRotate(arguments, image -> arbitraryRotation(arguments, image, angle), angle);
     }
 
     public Object rotateRadians(List<Object> arguments) {
         assertExpectedArgCount(arguments, "rotate_rad takes 2 to 4 arguments (image(s), angle, [blackPoint], [resize])", 1, 4);
-        return doRotate(arguments, image -> {
-            var angle = doubleArg(arguments, 1);
-            return arbitraryRotation(arguments, image, angle);
-        });
+        var angle = doubleArg(arguments, 1);
+        return doRotate(arguments, image -> arbitraryRotation(arguments, image, angle), angle);
     }
 
     private Image arbitraryRotation(List<Object> arguments, Image image, double angle) {
@@ -75,7 +75,7 @@ public class Rotate extends AbstractFunctionImpl {
         return imageMath.rotate(image, angle, blackpoint, resize);
     }
 
-    private Object doRotate(List<Object> arguments, UnaryOperator<Image> rotateFunction) {
+    private Object doRotate(List<Object> arguments, UnaryOperator<Image> rotateFunction, double angle) {
         var arg = arguments.get(0);
         if (arg instanceof List<?>) {
             return expandToImageList(forkJoinContext, arguments, this::rotateLeft);
@@ -85,20 +85,31 @@ public class Rotate extends AbstractFunctionImpl {
         }
         if (arg instanceof ImageWrapper32 mono) {
             var trn = rotateFunction.apply(mono.asImage());
-            return ImageWrapper32.fromImage(trn);
+            return ImageWrapper32.fromImage(trn, fixMetadata(mono, angle));
         } else if (arg instanceof ColorizedImageWrapper colorized) {
             var mono = colorized.mono();
             var trn = rotateFunction.apply(mono.asImage());
-            return new ColorizedImageWrapper(ImageWrapper32.fromImage(trn), colorized.converter(), mono.metadata());
+            var md = fixMetadata(mono, angle);
+            return new ColorizedImageWrapper(ImageWrapper32.fromImage(trn, md), colorized.converter(), md);
         } else if (arg instanceof RGBImage rgb) {
             var height = rgb.height();
             var width = rgb.width();
+            var md = fixMetadata(rgb, angle);
             var r = rotateFunction.apply(new Image(width, height, rgb.r()));
             var g = rotateFunction.apply(new Image(width, height, rgb.g()));
             var b = rotateFunction.apply(new Image(width, height, rgb.b()));
-            return new RGBImage(r.width(), r.height(), r.data(), g.data(), b.data(), rgb.metadata());
+            return new RGBImage(r.width(), r.height(), r.data(), g.data(), b.data(), md);
         }
         throw new IllegalArgumentException("Unsupported image type");
     }
 
+    private static Map<Class<?>, Object> fixMetadata(ImageWrapper wrapper, double angle) {
+        var metadata = new LinkedHashMap<>(wrapper.metadata());
+        wrapper.findMetadata(Ellipse.class).ifPresent(ellipse -> {
+            var sx = wrapper.width() / 2;
+            var sy = wrapper.height() / 2;
+            metadata.put(Ellipse.class, ellipse.rotate(-angle, new Point2D(sx, sy)));
+        });
+        return metadata;
+    }
 }
