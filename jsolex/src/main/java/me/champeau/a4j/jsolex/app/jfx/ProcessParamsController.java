@@ -21,6 +21,8 @@ import javafx.fxml.FXML;
 import javafx.scene.Parent;
 import javafx.scene.Scene;
 import javafx.scene.control.Accordion;
+import javafx.scene.control.Alert;
+import javafx.scene.control.ButtonType;
 import javafx.scene.control.CheckBox;
 import javafx.scene.control.ChoiceBox;
 import javafx.scene.control.Slider;
@@ -56,6 +58,8 @@ import java.util.EnumSet;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
+
+import static me.champeau.a4j.jsolex.app.JSolEx.message;
 
 public class ProcessParamsController {
     private boolean batchMode;
@@ -205,6 +209,19 @@ public class ProcessParamsController {
         var patterns = FXCollections.observableList(FileNamingPatternsIO.loadDefaults());
         namingPattern.getItems().addAll(patterns);
         autocorrectAngleP.setSelected(initialProcessParams.geometryParams().isAutocorrectAngleP());
+        disallowDownsampling.setOnAction(e -> {
+            if (disallowDownsampling.isSelected()) {
+                var alert = new Alert(Alert.AlertType.CONFIRMATION);
+                alert.setTitle(message("disallow.downsampling.confirm.title"));
+                alert.setHeaderText(message("disallow.downsampling.header"));
+                alert.setContentText(message("disallow.downsampling.content"));
+                alert.showAndWait().ifPresent(buttonType -> {
+                    if (buttonType == ButtonType.CANCEL) {
+                        disallowDownsampling.setSelected(false);
+                    }
+                });
+            }
+        });
         if (!patterns.isEmpty()) {
             namingPattern.getSelectionModel().selectFirst();
             var pattern = initialProcessParams.extraParams().fileNamePattern();
@@ -251,7 +268,7 @@ public class ProcessParamsController {
                     initialProcessParams.requestedImages().images(),
                     generateDebugImages.isSelected(),
                     List.of(getPixelShiftAsDouble()),
-                    (double) dopplerShifting.getValue(),
+                    dopplerShifting.getValue(),
                     initialProcessParams.requestedImages().mathImages(),
                     hostServices,
                     batchMode
