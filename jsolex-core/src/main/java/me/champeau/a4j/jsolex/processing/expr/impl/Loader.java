@@ -91,9 +91,9 @@ public class Loader extends AbstractFunctionImpl {
             var color = image.getRGB(0, 0, width, height, null, 0, width);
             for (int i = 0; i < size; i++) {
                 var pixel = color[i];
-                r[i] = (pixel >> 16) & 0xFF;
-                g[i] = (pixel >> 8) & 0xFF;
-                b[i] = pixel & 0xFF;
+                r[i] = ((pixel >> 16) & 0xFF) << 8;
+                g[i] = ((pixel >> 8) & 0xFF) << 8;
+                b[i] = (pixel & 0xFF) << 8;
             }
             return new RGBImage(width, height, r, g, b, metadata);
         } else {
