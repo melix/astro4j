@@ -35,6 +35,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -91,11 +92,11 @@ public class EllipseFittingTask extends AbstractTask<EllipseFittingTask.Result> 
         var imageMath = ImageMath.newInstance();
         var workingImage = image.copy();
         workingImage = imageMath.convolve(workingImage, BLUR_8);
+        workingImage = imageMath.convolve(workingImage, Kernel33.GAUSSIAN_BLUR);
         if (LOGGER.isDebugEnabled()) {
             debugImagesEmitter.newMonoImage(GeneratedImageKind.DEBUG, "Prefiltered", "prefilter", ImageWrapper32.fromImage(workingImage));
         }
         var magnitude = imageMath.convolve(workingImage, Kernel33.EDGE_DETECTION);
-        magnitude = imageMath.convolve(magnitude, Kernel33.GAUSSIAN_BLUR);
         var magnitudes = magnitude.data();
         var samples = findSamplesUsingDynamicSensitivity(analyzingDiskGeometryMsg, magnitudes);
         var fittingEllipseMessage = message("fitting.ellipse");
@@ -106,16 +107,6 @@ public class EllipseFittingTask extends AbstractTask<EllipseFittingTask.Result> 
             broadcaster.broadcast(new NotificationEvent(new Notification(Notification.AlertType.ERROR, message("not.enough.samples.title"), "", message)));
             return null;
         }
-        var initialEllipse = new EllipseRegression(samples).solve();
-        samples.removeIf(p -> {
-            var maybeY = initialEllipse.findY(p.x());
-            if (maybeY.isEmpty()) {
-                return true;
-            }
-            var doublePair = maybeY.get();
-            var dmin = Math.min(Math.abs(p.y()-doublePair.a()), Math.abs(p.y()-doublePair.b()));
-            return dmin > 20;
-        });
         var ellipse = new EllipseRegression(samples).solve();
         LOGGER.debug("{}", ellipse);
         broadcaster.broadcast(ProgressEvent.of(1, fittingEllipseMessage));
@@ -124,6 +115,50 @@ public class EllipseFittingTask extends AbstractTask<EllipseFittingTask.Result> 
             produceEdgeDetectionImage(result, ImageWrapper32.fromImage(magnitude));
         }
         return result;
+    }
+
+    /**
+     * Performs filtering of samples by computing their distance to the
+     * detected ellipse.
+     * @param samples the samples to be filtered
+     */
+    private static void filterOutliersByDistanceToEllipse(Collection<Point2D> samples) {
+        Ellipse initialEllipse;
+        try {
+            initialEllipse = new EllipseRegression(samples.stream().toList()).solve();
+        } catch (Exception e) {
+            // ignore, this will be caught later
+            return;
+        }
+        var avgDistanceToEllipse = samples.stream()
+                .filter(p -> initialEllipse.findY(p.x()).isPresent() || initialEllipse.findX(p.y()).isPresent())
+                .mapToDouble(p -> {
+                    var maybeY = initialEllipse.findY(p.x());
+                    if (maybeY.isEmpty()) {
+                        var doublePair = initialEllipse.findX(p.y()).get();
+                        return Math.min(Math.abs(p.x() - doublePair.a()), Math.abs(p.x() - doublePair.b()));
+                    }
+                    var doublePair = maybeY.get();
+                    return Math.min(Math.abs(p.y() - doublePair.a()), Math.abs(p.y() - doublePair.b()));
+                })
+                .average()
+                .orElse(10);
+        var threshold = 3 * avgDistanceToEllipse;
+        samples.removeIf(p -> {
+            var maybeY = initialEllipse.findY(p.x());
+            if (maybeY.isEmpty()) {
+                var maybeX = initialEllipse.findX(p.y());
+                if (maybeX.isEmpty()) {
+                    return true;
+                }
+                var doublePair = maybeX.get();
+                var dmin = Math.min(Math.abs(p.x() - doublePair.a()), Math.abs(p.x() - doublePair.b()));
+                return dmin > threshold;
+            }
+            var doublePair = maybeY.get();
+            var dmin = Math.min(Math.abs(p.y() - doublePair.a()), Math.abs(p.y() - doublePair.b()));
+            return dmin > threshold;
+        });
     }
 
     private List<Point2D> findSamplesUsingDynamicSensitivity(String analyzingDiskGeometryMsg, float[] magnitudes) {
@@ -196,6 +231,7 @@ public class EllipseFittingTask extends AbstractTask<EllipseFittingTask.Result> 
                 (magnitudes[(int) (p.x() + p.y() * width)] < .5f * maxMag)
                 || (closestNeighborDistances.get(p) > 1.5 * avgMinDistance)
         );
+        filterOutliersByDistanceToEllipse(samples);
     }
 
     private boolean notEnoughSamples(List<Point2D> filteredSamples) {

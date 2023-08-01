@@ -179,6 +179,19 @@ public class Ellipse {
         return Optional.empty();
     }
 
+    public Optional<DoublePair> findX(double y) {
+        var a = cart.c();
+        var b = cart.d() * y + cart.f();
+        var c = cart.a() * y * y + cart.b() * y + cart.e();
+        var disc = b * b - 4 * a * c;
+        if (disc >= 0 && 2 * a != 0) {
+            var x1 = (-b + Math.sqrt(disc)) / (2 * a);
+            var x2 = (-b - Math.sqrt(disc)) / (2 * a);
+            return Optional.of(new DoublePair(x1, x2));
+        }
+        return Optional.empty();
+    }
+
     public boolean isWithin(Point2D point) {
         return isWithin(point.x(), point.y());
     }
