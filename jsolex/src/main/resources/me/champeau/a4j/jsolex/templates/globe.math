@@ -1,0 +1,15 @@
+#
+# Generates a technical card similar to the built-in one
+#
+
+[params]
+contrast=1.0
+cropFactor=1.2
+
+[tmp]
+_clahe=sharpen(clahe(img(0);contrast))
+cropped=autocrop2(_clahe;cropFactor)
+globe=draw_globe(cropped)
+
+[outputs]
+techcard=draw_solar_params(draw_obs_details(globe))

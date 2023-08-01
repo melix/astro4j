@@ -115,6 +115,7 @@ public class ImageMathEditor {
         loadPredefinedScript("continuum-animation");
         loadPredefinedScript("doppler");
         loadPredefinedScript("virtual-eclipse");
+        loadPredefinedScript("globe");
         if (batchMode) {
             loadPredefinedScript("stacking");
         }
