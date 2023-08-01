@@ -19,6 +19,7 @@ import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 import me.champeau.a4j.jsolex.processing.util.ProcessingException;
 
+import java.util.Map;
 import java.util.concurrent.Callable;
 import java.util.function.Supplier;
 
@@ -70,6 +71,10 @@ public abstract class AbstractTask<T> implements Callable<T>, Supplier<T> {
      */
     public final float[] getBuffer() {
         return workImage.data();
+    }
+
+    public Map<Class<?>, Object> getMetadata() {
+        return workImage.metadata();
     }
 
 }

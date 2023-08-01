@@ -344,9 +344,24 @@ public interface ImageMath {
         return image.withData(convolved);
     }
 
-    default Gradient gradient(Image image) {
-        var gx = convolve(image, Kernel33.SOBEL_X).data();
-        var gy = convolve(image, Kernel33.SOBEL_Y).data();
+    default Gradient gradientLT(Image image) {
+        var gx = convolve(image, Kernel33.SOBEL_LEFT).data();
+        var gy = convolve(image, Kernel33.SOBEL_TOP).data();
+        var length = image.length();
+        float[] mag = new float[length];
+        float[] dir = new float[length];
+        for (int i = 0; i < length; i++) {
+            var x = gx[i];
+            var y = gy[i];
+            mag[i] = (float) Math.sqrt(x * x + y * y);
+            dir[i] = (float) Math.atan2(y, x);
+        }
+        return new Gradient(image.withData(mag), image.withData(dir));
+    }
+
+    default Gradient gradientRB(Image image) {
+        var gx = convolve(image, Kernel33.SOBEL_RIGHT).data();
+        var gy = convolve(image, Kernel33.SOBEL_BOTTOM).data();
         var length = image.length();
         float[] mag = new float[length];
         float[] dir = new float[length];

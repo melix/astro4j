@@ -231,9 +231,10 @@ public class SolexVideoProcessor implements Broadcaster {
                 blocking.blocking(buildImagesContext -> {
                     for (WorkflowState state : imageList) {
                         buildImagesContext.async(() -> {
-                            var rotateLeft = ImageMath.newInstance().rotateLeft(
-                                    new Image(width, newHeight, state.reconstructed()));
-                            var rotated = ImageWrapper32.fromImage(rotateLeft);
+                            ImageWrapper32 rotated;
+                            var recon = new Image(width, newHeight, state.reconstructed());
+                            var rotateLeft = ImageMath.newInstance().rotateLeft(recon);
+                            rotated = ImageWrapper32.fromImage(rotateLeft);
                             maybePerformFlips(rotated);
                             state.setImage(rotated);
                         });

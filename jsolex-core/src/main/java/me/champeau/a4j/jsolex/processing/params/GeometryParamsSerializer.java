@@ -24,6 +24,7 @@ import com.google.gson.JsonSerializationContext;
 import com.google.gson.JsonSerializer;
 
 import java.lang.reflect.Type;
+import java.util.Locale;
 
 class GeometryParamsSerializer implements JsonSerializer<GeometryParams>, JsonDeserializer<GeometryParams> {
 
@@ -37,6 +38,8 @@ class GeometryParamsSerializer implements JsonSerializer<GeometryParams>, JsonDe
         var sharpen = o.get("sharpen") != null ? o.get("sharpen").getAsBoolean() : false;
         var allowDownsampling = o.get("allowDownsampling") != null ? o.get("allowDownsampling").getAsBoolean() : false;
         var autocorrectAngleP = o.get("autocorrectAngleP") != null ? o.get("autocorrectAngleP").getAsBoolean() : true;
+        var rotation = o.get("rotation");
+        var scanDirection = rotation != null ? RotationKind.valueOf(rotation.getAsString().toUpperCase(Locale.US)) : RotationKind.NONE;
         return new GeometryParams(
                 tilt == null ? null : tilt.getAsDouble(),
                 ratio == null ? null : ratio.getAsDouble(),
@@ -44,7 +47,8 @@ class GeometryParamsSerializer implements JsonSerializer<GeometryParams>, JsonDe
                 verticalMirror,
                 sharpen,
                 allowDownsampling,
-                autocorrectAngleP);
+                autocorrectAngleP,
+                scanDirection);
     }
 
     @Override
@@ -54,6 +58,8 @@ class GeometryParamsSerializer implements JsonSerializer<GeometryParams>, JsonDe
         src.xyRatio().ifPresent(ratio -> jsonObject.addProperty("xyRatio", ratio));
         jsonObject.addProperty("horizontalMirror", src.isHorizontalMirror());
         jsonObject.addProperty("verticalMirror", src.isVerticalMirror());
+        jsonObject.addProperty("autocorrectAngleP", String.valueOf(src.isAutocorrectAngleP()));
+        jsonObject.addProperty("rotation", src.rotation().toString());
         return jsonObject;
     }
 }

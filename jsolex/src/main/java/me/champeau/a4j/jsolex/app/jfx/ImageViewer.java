@@ -43,6 +43,7 @@ import me.champeau.a4j.jsolex.app.JSolEx;
 import me.champeau.a4j.jsolex.processing.event.ProcessingEventListener;
 import me.champeau.a4j.jsolex.processing.event.ProgressEvent;
 import me.champeau.a4j.jsolex.processing.params.ProcessParams;
+import me.champeau.a4j.jsolex.processing.params.RotationKind;
 import me.champeau.a4j.jsolex.processing.stretching.ConstrastAdjustmentStrategy;
 import me.champeau.a4j.jsolex.processing.sun.ImageUtils;
 import me.champeau.a4j.jsolex.processing.sun.workflow.GeneratedImageKind;
@@ -72,11 +73,13 @@ public class ImageViewer {
     private Stage stage;
     private ConstrastAdjustmentStrategy stretchingStrategy = ConstrastAdjustmentStrategy.DEFAULT;
     private ImageWrapper image;
+    private ImageWrapper rotatedImage;
     private File imageFile;
     private GeneratedImageKind kind;
     private ProcessingEventListener broadcaster;
     private ProcessParams processParams;
 
+    private Label dimensions;
     @FXML
     private VBox stretchingParams;
 
@@ -192,8 +195,7 @@ public class ImageViewer {
         });
         saveButton = new Button(message("save"));
         saveButton.setOnAction(e -> saveImage(imageFile));
-        var dimensions = new Label();
-        dimensions.setText(image.width() + "x" + image.height());
+        dimensions = new Label();
         var zoomLabel = new Label("Zoom");
         var zoomSlider = new Slider(0.1, 5, 0.1);
         zoomSlider.setMajorTickUnit(1);
@@ -203,17 +205,20 @@ public class ImageViewer {
         var coordinatesLabel = new Label();
         imageView.setCoordinatesListener((x, y) -> {
             String extra = "";
-            if (image instanceof ImageWrapper32 mono) {
+            if (rotatedImage == null) {
+                rotatedImage = image;
+            }
+            if (rotatedImage instanceof ImageWrapper32 mono) {
                 var pixelValue = mono.data()[x.intValue() + y.intValue() * mono.width()];
                 extra = ", " + pixelValue;
             }
-            coordinatesLabel.setText("(" + x.intValue() + "," + y.intValue() + extra + ")");
+            coordinatesLabel.setText("(" + x.intValue() + ", " + y.intValue() + extra + ")");
         });
         zoomSlider.valueProperty().addListener((obj, oldValue, newValue) -> imageView.setZoom(newValue.doubleValue()));
         correctAngleP = new CheckBox(message("correct.p.angle"));
         correctAngleP.setSelected(processParams.geometryParams().isAutocorrectAngleP());
         correctAngleP.selectedProperty().addListener((obj, oldValue, newValue) -> strechAndDisplay());
-        correctAngleP.setDisable(shouldDisableCorrectionOfAngleP());
+        correctAngleP.setDisable(kind.shouldRotateImage());
         var prevButton = new Button(message("prev.image"));
         prevButton.disableProperty().bind(currentImage.isEqualTo(0));
         prevButton.visibleProperty().bind(imageHistory.sizeProperty().greaterThan(1));
@@ -232,10 +237,6 @@ public class ImageViewer {
         line2.getChildren().addAll(correctAngleP, zoomLabel, zoomSlider, dimensions, coordinatesLabel);
         stretchingParams.getChildren().addAll(line1, line2);
         strechAndDisplay(true);
-    }
-
-    private boolean shouldDisableCorrectionOfAngleP() {
-        return kind.shouldDisableCorrectionOfAngleP();
     }
 
     private static float linValueOf(double sliderValue) {
@@ -312,9 +313,10 @@ public class ImageViewer {
     private void strechAndDisplay(boolean resetZoom) {
         forkJoinContext.async(() -> {
             File tmpImage = createTmpFile();
-            var width = image.width();
-            var height = image.height();
             Runnable updateDisplay = () -> {
+                if (rotatedImage != null) {
+                    dimensions.setText(rotatedImage.width() + "x" + rotatedImage.height());
+                }
                 imageView.setImage(new Image(tmpImage.toURI().toString()));
                 if (resetZoom) {
                     imageView.resetZoom();
@@ -328,24 +330,24 @@ public class ImageViewer {
             var imageFormats = EnumSet.of(ImageFormat.PNG);
             // For some reason the image doesn't look as good when using PixelWriter
             // so we write the image in a tmp file and load it from here.
-            var image = maybeRotate(this.image);
-            if (image instanceof ImageWrapper32 mono) {
+            rotatedImage = maybeRotate(this.image);
+            if (rotatedImage instanceof ImageWrapper32 mono) {
                 var stretched = stretch(mono.width(), mono.height(), mono.data());
                 forkJoinContext.async(() -> {
-                    ImageUtils.writeMonoImage(width, height, stretched, tmpImage, imageFormats);
+                    ImageUtils.writeMonoImage(mono.width(), mono.height(), stretched, tmpImage, imageFormats);
                     BatchOperations.submit(updateDisplay);
                 });
-            } else if (image instanceof ColorizedImageWrapper colorImage) {
+            } else if (rotatedImage instanceof ColorizedImageWrapper colorImage) {
                 var stretched = stretch(colorImage.width(), colorImage.height(), colorImage.mono().data());
                 var rgb = colorImage.converter().apply(stretched);
                 var r = rgb[0];
                 var g = rgb[1];
                 var b = rgb[2];
                 forkJoinContext.async(() -> {
-                    ImageUtils.writeRgbImage(width, height, r, g, b, tmpImage, imageFormats);
+                    ImageUtils.writeRgbImage(colorImage.width(), colorImage.height(), r, g, b, tmpImage, imageFormats);
                     BatchOperations.submit(updateDisplay);
                 });
-            } else if (image instanceof RGBImage rgb) {
+            } else if (rotatedImage instanceof RGBImage rgb) {
                 var stretched = stretch(rgb.width(), rgb.height(), rgb.r(), rgb.g(), rgb.b());
                 forkJoinContext.async(() -> {
                     ImageUtils.writeRgbImage(rgb.width(), rgb.height(), stretched[0], stretched[1], stretched[2], tmpImage, imageFormats);
@@ -356,10 +358,16 @@ public class ImageViewer {
     }
 
     private ImageWrapper maybeRotate(ImageWrapper image) {
-        if (!shouldDisableCorrectionOfAngleP() && correctAngleP.isSelected()) {
+        double correction = 0;
+        if (!kind.shouldRotateImage()) {
+            correction = image.findMetadata(RotationKind.class).orElseGet(() -> processParams.geometryParams().rotation()).angle();
+            if (correctAngleP.isSelected()) {
+                correction += SolarParametersUtils.computeSolarParams(processParams.observationDetails().date().toLocalDateTime()).p();
+            }
+        }
+        if (correction != 0) {
             image = image.copy();
-            var p = SolarParametersUtils.computeSolarParams(processParams.observationDetails().date().toLocalDateTime()).p();
-            return RotationCorrector.rotate(image, p);
+            return RotationCorrector.rotate(image, correction);
         }
         return image;
     }

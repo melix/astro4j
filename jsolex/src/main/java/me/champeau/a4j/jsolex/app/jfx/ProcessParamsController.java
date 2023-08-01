@@ -29,6 +29,7 @@ import javafx.scene.control.Slider;
 import javafx.scene.control.TextField;
 import javafx.scene.control.TextFormatter;
 import javafx.stage.Stage;
+import javafx.util.StringConverter;
 import javafx.util.converter.DoubleStringConverter;
 import javafx.util.converter.IntegerStringConverter;
 import me.champeau.a4j.jsolex.app.JSolEx;
@@ -41,6 +42,7 @@ import me.champeau.a4j.jsolex.processing.params.NamedPattern;
 import me.champeau.a4j.jsolex.processing.params.ObservationDetails;
 import me.champeau.a4j.jsolex.processing.params.ProcessParams;
 import me.champeau.a4j.jsolex.processing.params.RequestedImages;
+import me.champeau.a4j.jsolex.processing.params.RotationKind;
 import me.champeau.a4j.jsolex.processing.params.SpectralRay;
 import me.champeau.a4j.jsolex.processing.params.SpectralRayIO;
 import me.champeau.a4j.jsolex.processing.params.SpectrumParams;
@@ -120,7 +122,6 @@ public class ProcessParamsController {
     private CheckBox sharpen;
     @FXML
     private CheckBox disallowDownsampling;
-
     @FXML
     private CheckBox switchRedBlueChannels;
     @FXML
@@ -133,6 +134,8 @@ public class ProcessParamsController {
     private ChoiceBox<SpectralRay> wavelength;
     @FXML
     private TextField xyRatioValue;
+    @FXML
+    private ChoiceBox<RotationKind> rotation;
 
     private Stage stage;
     private Header serFileHeader;
@@ -222,6 +225,19 @@ public class ProcessParamsController {
                 });
             }
         });
+        rotation.getItems().addAll(RotationKind.NONE, RotationKind.LEFT, RotationKind.RIGHT);
+        rotation.getSelectionModel().select(initialProcessParams.geometryParams().rotation());
+        rotation.setConverter(new StringConverter<>() {
+            @Override
+            public String toString(RotationKind dir) {
+                return message("rotation." + dir);
+            }
+
+            @Override
+            public RotationKind fromString(String string) {
+                return RotationKind.valueOf(string);
+            }
+        });
         if (!patterns.isEmpty()) {
             namingPattern.getSelectionModel().selectFirst();
             var pattern = initialProcessParams.extraParams().fileNamePattern();
@@ -289,7 +305,11 @@ public class ProcessParamsController {
                     generateDebugImages.setSelected(controller.hasDebug());
                     var shifts = requested.pixelShifts();
                     if (!shifts.contains(getPixelShiftAsDouble())) {
-                        pixelShifting.setText(String.valueOf(shifts.get(0)));
+                        if (shifts.isEmpty()) {
+                            pixelShifting.setText("0");
+                        } else {
+                            pixelShifting.setText(String.valueOf(shifts.get(0)));
+                        }
                     }
                     doProcess(requested);
                     stage.close();
@@ -348,7 +368,8 @@ public class ProcessParamsController {
                         verticalMirror.isSelected(),
                         sharpen.isSelected(),
                         disallowDownsampling.isSelected(),
-                        autocorrectAngleP.isSelected()),
+                        autocorrectAngleP.isSelected(),
+                        rotation.getValue()),
                 new BandingCorrectionParams(
                         (int) Math.round(bandingCorrectionWidth.getValue()),
                         (int) Math.round(bandingCorrectionPasses.getValue())
@@ -394,6 +415,12 @@ public class ProcessParamsController {
         dopplerShifting.setValue(3);
         verticalMirror.setSelected(false);
         horizontalMirror.setSelected(false);
+        sharpen.setSelected(false);
+        rotation.getSelectionModel().select(RotationKind.NONE);
+        autocorrectAngleP.setSelected(true);
+        forceTilt.setSelected(false);
+        forceXYRatio.setSelected(false);
+        disallowDownsampling.setSelected(false);
     }
 
     @FXML

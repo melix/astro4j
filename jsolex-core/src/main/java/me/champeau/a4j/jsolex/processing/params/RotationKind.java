@@ -13,31 +13,20 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package me.champeau.a4j.jsolex.processing.sun.workflow;
+package me.champeau.a4j.jsolex.processing.params;
 
-/**
- * The different kinds of images that this software
- * supports.
- */
-public enum GeneratedImageKind {
-    COLORIZED,
-    CONTINUUM,
-    DEBUG,
-    DOPPLER,
-    GEOMETRY_CORRECTED,
-    GEOMETRY_CORRECTED_STRETCHED,
-    MIXED,
-    NEGATIVE,
-    RAW,
-    RAW_STRETCHED,
-    RECONSTRUCTION,
-    VIRTUAL_ECLIPSE,
-    TECHNICAL_CARD,
-    IMAGE_MATH;
+public enum RotationKind {
+    NONE(0),
+    LEFT(-Math.PI / 2),
+    RIGHT(Math.PI / 2);
 
-    public boolean shouldRotateImage() {
-        return this == GeneratedImageKind.IMAGE_MATH
-               || this == GeneratedImageKind.DEBUG
-               || this == GeneratedImageKind.TECHNICAL_CARD;
+    private final double angle;
+
+    RotationKind(double angle) {
+        this.angle = angle;
+    }
+
+    public double angle() {
+        return angle;
     }
 }

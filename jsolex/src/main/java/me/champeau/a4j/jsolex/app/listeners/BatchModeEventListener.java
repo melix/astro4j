@@ -36,6 +36,7 @@ import me.champeau.a4j.jsolex.processing.expr.ImageMathScriptExecutor;
 import me.champeau.a4j.jsolex.processing.expr.ImageMathScriptResult;
 import me.champeau.a4j.jsolex.processing.file.FileNamingStrategy;
 import me.champeau.a4j.jsolex.processing.params.ProcessParams;
+import me.champeau.a4j.jsolex.processing.params.RotationKind;
 import me.champeau.a4j.jsolex.processing.stretching.LinearStrechingStrategy;
 import me.champeau.a4j.jsolex.processing.sun.workflow.GeneratedImageKind;
 import me.champeau.a4j.jsolex.processing.util.Constants;
@@ -101,11 +102,15 @@ public class BatchModeEventListener implements ProcessingEventListener, ImageMat
         var target = payload.path().toFile();
         owner.getCpuExecutor().async(() -> {
             var img = image;
-            if (!kind.shouldDisableCorrectionOfAngleP() && processParams.geometryParams().isAutocorrectAngleP()) {
-                var p = SolarParametersUtils.computeSolarParams(
-                        processParams.observationDetails().date().toLocalDateTime()
-                ).p();
-                img = RotationCorrector.rotate(img, p);
+            double correction =0;
+            if (!kind.shouldRotateImage()) {
+                correction = image.findMetadata(RotationKind.class).orElseGet(() -> processParams.geometryParams().rotation()).angle();
+                if (processParams.geometryParams().isAutocorrectAngleP()) {
+                    correction += SolarParametersUtils.computeSolarParams(processParams.observationDetails().date().toLocalDateTime()).p();
+                }
+            }
+            if (correction != 0) {
+                img = RotationCorrector.rotate(img, correction);
             }
             new ImageSaver(LinearStrechingStrategy.DEFAULT, processParams).save(img, target);
             item.generatedFiles().add(target);
