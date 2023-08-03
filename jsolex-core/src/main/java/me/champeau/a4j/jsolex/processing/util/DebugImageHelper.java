@@ -16,7 +16,7 @@
 package me.champeau.a4j.jsolex.processing.util;
 
 import me.champeau.a4j.jsolex.processing.params.ProcessParams;
-import me.champeau.a4j.jsolex.processing.stretching.LinearStrechingStrategy;
+import me.champeau.a4j.jsolex.processing.stretching.RangeExpansionStrategy;
 import me.champeau.a4j.jsolex.processing.sun.workflow.GeneratedImageKind;
 import me.champeau.a4j.jsolex.processing.sun.workflow.ImageEmitter;
 import me.champeau.a4j.math.Point2D;
@@ -41,7 +41,7 @@ public class DebugImageHelper {
             var newData = new float[bandingFixed.data().length];
             var original = bandingFixed.data();
             System.arraycopy(original, 0, newData, 0, newData.length);
-            LinearStrechingStrategy.DEFAULT.stretch(bandingFixed.width(), bandingFixed.height(), newData);
+            RangeExpansionStrategy.DEFAULT.stretch(bandingFixed.width(), bandingFixed.height(), newData);
             var width = bandingFixed.width();
             var height = bandingFixed.height();
             drawEllipse(width, height, ellipse, newData);
