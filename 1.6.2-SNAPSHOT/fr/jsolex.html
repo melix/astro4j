@@ -554,6 +554,22 @@ Vous pouvez préciser:</p>
 <p>Rotation : permet d&#8217;effectuer une rotation à gauche ou à droite (90 degrés) de l&#8217;image. Ceci peut par exemple être utile dans le cas d&#8217;un scan fait en déclinaison, pour corriger l&#8217;orientation. Ce paramètre n&#8217;affecte pas les images crées avec ImageMath.</p>
 </li>
 <li>
+<p>Rognage : permet d&#8217;effectuer un rognage automatique de l&#8217;image après correction géométrique. Il existe plusieurs modes:</p>
+<div class="ulist">
+<ul>
+<li>
+<p>Aucun: pas de rognage (par défaut)</p>
+</li>
+<li>
+<p>Largeur d&#8217;origine : l&#8217;image sera redimensionnée dans un carré de la taille de la largeur de la vidéo d&#8217;origine. Idéal pour les disques solaires complets.</p>
+</li>
+<li>
+<p>Rayon (x&#8230;&#8203;) : l&#8217;image sera redimensionnée en fonction du rayon du disque solaire, en appliquant un multiplicateur. Peut-être utile par exemple lorsque le disque est tronqué et que l&#8217;on veut avoir une image carrée permettant de "remettre" la portion à sa place.</p>
+</li>
+</ul>
+</div>
+</li>
+<li>
 <p>Forcer la valeur du tilt : lors de la correction géométrique d&#8217;image, JSol&#8217;Ex calcule une ellipse pour modéliser le disque solaire reconstitué. Cette ellipse est utilisée pour calculer des paramètre comme l&#8217;angle de tilt. Si le calcul effectué par le logiciel est erroné, vous disposez de la possibilité de surcharger la valeur calculée.</p>
 </li>
 <li>

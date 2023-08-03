@@ -552,6 +552,22 @@ You can specify:</p>
 <p>Rotation : allows performing a left or right rotation (90 degrees) of the images. This can be useful for scans performed in declination, to fix the orientation. This parameter doesn&#8217;t affect images produced with ImageMath.</p>
 </li>
 <li>
+<p>Autocrop : allows automatic cropping of images after geometric transformation. There are multiple modes:</p>
+<div class="ulist">
+<ul>
+<li>
+<p>Off: no autocrop (this is the default)</p>
+</li>
+<li>
+<p>Original width: the image will be cropped to a square which width corresponds to the width of the original SER file. Ideal for full solar disks.</p>
+</li>
+<li>
+<p>Radius (x&#8230;&#8203;) : the image will be cropped or rescaled to a factor of the determined solar radius. This can be useful for example with truncated disks, if you want to "see" where it would be positioned.</p>
+</li>
+</ul>
+</div>
+</li>
+<li>
 <p>Autocorrect P angle: when checked, the solar angle P will be computed from the observation date (available in the SER file). The generated images will be automatically corrected so that the North is at the top. This parameter will not affect images generated via ImageMath, which need to perform their own correction.</p>
 </li>
 <li>
