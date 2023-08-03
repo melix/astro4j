@@ -40,6 +40,7 @@ import me.champeau.a4j.math.Point2D;
 import me.champeau.a4j.math.image.ImageMath;
 import me.champeau.a4j.math.image.Kernel33;
 import me.champeau.a4j.math.regression.Ellipse;
+import me.champeau.a4j.ser.Header;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -60,6 +61,7 @@ public class ProcessingWorkflow {
     private static final Logger LOGGER = LoggerFactory.getLogger(ProcessingWorkflow.class);
 
     private final ForkJoinContext executor;
+    private final Header header;
     private final ProcessParams processParams;
     private final WorkflowState state;
     private final Double fps;
@@ -77,9 +79,11 @@ public class ProcessingWorkflow {
             int currentStep,
             ProcessParams processParams,
             Double fps,
-            ImageEmitterFactory imageEmitterFactory) {
+            ImageEmitterFactory imageEmitterFactory,
+            Header header) {
         this.broadcaster = broadcaster;
         this.executor = executor;
+        this.header = header;
         this.state = states.get(currentStep);
         this.processParams = processParams;
         this.fps = fps;
@@ -99,7 +103,8 @@ public class ProcessingWorkflow {
             var existingFitting = state.findResult(WorkflowResults.MAIN_ELLIPSE_FITTING);
             if (existingFitting.isPresent()) {
                 EllipseFittingTask.Result r = (EllipseFittingTask.Result) existingFitting.get();
-                var bandingFixed = performBandingCorrection(r).get();
+                var ellipse = r.ellipse();
+                var bandingFixed = performBandingCorrection(ellipse).get();
                 state.recordResult(WorkflowResults.BANDING_CORRECTION, bandingFixed);
                 geometryCorrection(r, bandingFixed);
             } else {
@@ -146,7 +151,7 @@ public class ProcessingWorkflow {
             LOGGER.info(message("overriding.tilt"), String.format("%.2f", geometryParams.tilt().getAsDouble()));
         }
         Double ratio = geometryParams.xyRatio().isPresent() ? geometryParams.xyRatio().getAsDouble() : null;
-        executor.submitAndThen(new GeometryCorrector(broadcaster, imageSupplier(WorkflowResults.BANDING_CORRECTION), ellipse, forcedTilt, fps, ratio, blackPoint, processParams, debugImagesEmitter, state), g -> {
+        executor.submitAndThen(new GeometryCorrector(broadcaster, imageSupplier(WorkflowResults.BANDING_CORRECTION), ellipse, forcedTilt, fps, ratio, blackPoint, processParams, debugImagesEmitter, state, executor, header), g -> {
                     var geometryFixed = maybeSharpen(g);
                     state.recordResult(WorkflowResults.GEOMETRY_CORRECTION, g);
                     if (state.isInternal()) {
@@ -177,7 +182,7 @@ public class ProcessingWorkflow {
 
     private ImageWrapper32 maybeSharpen(GeometryCorrector.Result g) {
         if (processParams.geometryParams().isSharpen()) {
-            return ImageWrapper32.fromImage(ImageMath.newInstance().convolve(g.corrected().asImage(), Kernel33.SHARPEN2));
+            return ImageWrapper32.fromImage(ImageMath.newInstance().convolve(g.corrected().asImage(), Kernel33.SHARPEN2), g.corrected().metadata());
         }
         return g.corrected();
     }
@@ -218,8 +223,8 @@ public class ProcessingWorkflow {
         return new ArcsinhStretchingStrategy(blackPoint, 10, 10);
     }
 
-    private Supplier<ImageWrapper32> performBandingCorrection(EllipseFittingTask.Result r) {
-        return executor.submit(new ImageBandingCorrector(broadcaster, imageSupplier(WorkflowResults.ROTATED), r.ellipse(), processParams.bandingCorrectionParams()));
+    private Supplier<ImageWrapper32> performBandingCorrection(Ellipse ellipse) {
+        return executor.submit(new ImageBandingCorrector(broadcaster, imageSupplier(WorkflowResults.ROTATED), ellipse, processParams.bandingCorrectionParams()));
     }
 
     private Supplier<Void> produceStretchedImage(ImageWrapper32 geometryFixed) {
