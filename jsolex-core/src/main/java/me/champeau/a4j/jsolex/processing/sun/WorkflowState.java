@@ -24,8 +24,6 @@ import java.util.EnumMap;
 import java.util.Optional;
 
 public final class WorkflowState {
-    private final int width;
-    private final int height;
     private final double pixelShift;
     private final EnumMap<WorkflowResults, Object> outcomes = new EnumMap<>(WorkflowResults.class);
     private boolean internal;
@@ -35,8 +33,6 @@ public final class WorkflowState {
             int height,
             double pixelShift
     ) {
-        this.width = width;
-        this.height = height;
         this.pixelShift = pixelShift;
         this.recordResult(WorkflowResults.RECONSTRUCTED, new float[width * height]);
     }
@@ -74,11 +70,11 @@ public final class WorkflowState {
     }
 
     public int width() {
-        return width;
+        return image().width();
     }
 
     public int height() {
-        return height;
+        return image().height();
     }
 
     public double pixelShift() {

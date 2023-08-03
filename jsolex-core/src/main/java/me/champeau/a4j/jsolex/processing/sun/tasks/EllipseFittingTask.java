@@ -19,6 +19,8 @@ import me.champeau.a4j.jsolex.processing.event.Notification;
 import me.champeau.a4j.jsolex.processing.event.NotificationEvent;
 import me.champeau.a4j.jsolex.processing.event.ProgressEvent;
 import me.champeau.a4j.jsolex.processing.params.ProcessParams;
+import me.champeau.a4j.jsolex.processing.stretching.CutoffStretchingStrategy;
+import me.champeau.a4j.jsolex.processing.stretching.RangeExpansionStrategy;
 import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
 import me.champeau.a4j.jsolex.processing.sun.workflow.GeneratedImageKind;
 import me.champeau.a4j.jsolex.processing.sun.workflow.ImageEmitter;
@@ -36,12 +38,12 @@ import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Comparator;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.function.Supplier;
-import java.util.stream.Collectors;
 
 import static me.champeau.a4j.jsolex.processing.util.Constants.message;
 import static me.champeau.a4j.jsolex.processing.util.DebugImageHelper.plot;
@@ -49,8 +51,8 @@ import static me.champeau.a4j.jsolex.processing.util.DebugImageHelper.plot;
 public class EllipseFittingTask extends AbstractTask<EllipseFittingTask.Result> {
     private static final Logger LOGGER = LoggerFactory.getLogger(EllipseFittingTask.class);
     private static final int MINIMUM_SAMPLES = 32;
+    public static final int EDGE_FILTER = 8;
     private static final Kernel BLUR_8 = BlurKernel.of(8);
-    private static final Kernel BLUR_4 = BlurKernel.of(4);
     private final ProcessParams processParams;
     private final ImageEmitter debugImagesEmitter;
     private Image image;
@@ -92,13 +94,15 @@ public class EllipseFittingTask extends AbstractTask<EllipseFittingTask.Result> 
         var imageMath = ImageMath.newInstance();
         var workingImage = image.copy();
         workingImage = imageMath.convolve(workingImage, BLUR_8);
-        workingImage = imageMath.convolve(workingImage, Kernel33.GAUSSIAN_BLUR);
-        if (LOGGER.isDebugEnabled()) {
-            debugImagesEmitter.newMonoImage(GeneratedImageKind.DEBUG, "Prefiltered", "prefilter", ImageWrapper32.fromImage(workingImage));
-        }
+        var data = workingImage.data();
+        // Normalize to the 0-65535 range
+        RangeExpansionStrategy.DEFAULT.stretch(width, height, data);
+        var stats = statsOf(data);
+        filterIrrelevantPixels(data, stats);
         var magnitude = imageMath.convolve(workingImage, Kernel33.EDGE_DETECTION);
+        magnitude = imageMath.convolve(magnitude, Kernel33.GAUSSIAN_BLUR);
         var magnitudes = magnitude.data();
-        var samples = findSamplesUsingDynamicSensitivity(analyzingDiskGeometryMsg, magnitudes);
+        var samples = findSamplesUsingDynamicSensitivity(magnitudes);
         var fittingEllipseMessage = message("fitting.ellipse");
         broadcaster.broadcast(ProgressEvent.of(0, fittingEllipseMessage));
         if (notEnoughSamples(samples)) {
@@ -117,9 +121,21 @@ public class EllipseFittingTask extends AbstractTask<EllipseFittingTask.Result> 
         return result;
     }
 
+    private void filterIrrelevantPixels(float[] data, Stats stats) {
+        double dx = 0;
+        for (float d : data) {
+            if (d > stats.avg) {
+                dx++;
+            }
+        }
+        dx = dx / data.length;
+        new CutoffStretchingStrategy((float) (stats.avg - dx * dx * stats.stddev), stats.avg, 0, stats.avg).stretch(width, height, data);
+    }
+
     /**
      * Performs filtering of samples by computing their distance to the
      * detected ellipse.
+     *
      * @param samples the samples to be filtered
      */
     private static void filterOutliersByDistanceToEllipse(Collection<Point2D> samples) {
@@ -161,77 +177,80 @@ public class EllipseFittingTask extends AbstractTask<EllipseFittingTask.Result> 
         });
     }
 
-    private List<Point2D> findSamplesUsingDynamicSensitivity(String analyzingDiskGeometryMsg, float[] magnitudes) {
+    private List<Point2D> findSamplesUsingDynamicSensitivity(float[] magnitudes) {
         Set<Point2D> samples = new LinkedHashSet<>();
         double sensitivity = 0.00d;
         var maxMagnitude = maxOf(magnitudes);
-        double maxMag = Double.MIN_VALUE;
+        var minX = 0;
+        var minY = 0;
+        var maxX = width;
+        var maxY = height;
+        boolean first = true;
         while (samples.size() < MINIMUM_SAMPLES && sensitivity < 1) {
             sensitivity += 0.05d;
             LOGGER.debug("Sensitivity {}", sensitivity);
             var minLimit = sensitivity * maxMagnitude;
-            double minVal = 0;
-            double maxVal = 0;
-            for (int y = 0; y < height; y++) {
-                broadcaster.broadcast(ProgressEvent.of((y + 1d / height) / height, analyzingDiskGeometryMsg));
-                int min = -1;
-                int max = -1;
-                for (int x = 0; x < width / 2; x++) {
-                    var mag = magnitudes[x + y * width];
-                    if (min == -1 && mag > minLimit) {
-                        min = x;
-                        minVal = mag;
-                    }
-                    mag = magnitudes[(width - x - 1) + y * width];
-                    if (max == -1 && mag > minLimit) {
-                        max = (width - x - 1);
-                        maxVal = mag;
-                    }
-                    if (min != -1 && max != -1) {
-                        break;
+            scan(samples, minLimit, width, height, magnitudes, true, minX, maxX, minY, maxY);
+            scan(samples, minLimit, width, height, magnitudes, false, minX, maxX, minY, maxY);
+            if (samples.size() > 2) {
+                // remove the top-most, bottom-most, left-most and right-most samples, because they can be outliers in truncated disks
+                var sortedByX = samples.stream().sorted(Comparator.comparing(Point2D::x)).toList();
+                var finalMinX = (int) sortedByX.get(0).x();
+                var finalMaxX = (int) sortedByX.get(samples.size() - 1).x();
+                samples.removeIf(p -> Math.abs(p.x() - finalMinX) < EDGE_FILTER || Math.abs(p.x() - finalMaxX) < EDGE_FILTER);
+                if (samples.size() > 2) {
+                    var sortedByY = samples.stream().sorted(Comparator.comparing(Point2D::y)).toList();
+                    var finalMinY = (int) sortedByY.get(0).y();
+                    var finalMaxY = (int) sortedByY.get(samples.size() - 1).y();
+                    samples.removeIf(p -> Math.abs(p.y() - finalMinY) < EDGE_FILTER || Math.abs(p.y() - finalMaxY) < EDGE_FILTER);
+                    if (first) {
+                        minY = finalMinY + EDGE_FILTER;
+                        maxY = finalMaxY - EDGE_FILTER;
                     }
                 }
-                if (min >= 0) {
-                    var candidate = new Point2D(min, y);
-                    if (samples.add(candidate)) {
-                        maxMag = Math.max(minVal, maxMag);
-                    }
-                }
-                if (max >= 0) {
-                    var candidate = new Point2D(max, y);
-                    if (samples.add(candidate)) {
-                        maxMag = Math.max(maxVal, maxMag);
-                    }
-                }
-                if (min >= 0 || max >= 0) {
-                    y += 4;
+                if (first) {
+                    first = false;
+                    minX = finalMinX + EDGE_FILTER;
+                    maxX = finalMaxX - EDGE_FILTER;
+                    sensitivity = 0; // start over
                 }
             }
-            filterOutliers(magnitudes, samples, maxMag);
+            filterOutliersByDistanceToEllipse(samples);
         }
         return new ArrayList<>(samples.stream().toList());
     }
 
-    private void filterOutliers(float[] magnitudes, Set<Point2D> samples, double maxMag) {
-        var closestNeighborDistances = samples
-                .stream()
-                .distinct()
-                .collect(Collectors.toMap(p -> p, p -> {
-                    double d = Double.MAX_VALUE;
-                    for (Point2D sample : samples) {
-                        var dist = p.distanceTo(sample);
-                        if (!sample.equals(p) && dist < d) {
-                            d = dist;
-                        }
-                    }
-                    return d;
-                }));
-        var avgMinDistance = closestNeighborDistances.values().stream().mapToDouble(Double::doubleValue).average().orElse(Double.MAX_VALUE);
-        samples.removeIf(p ->
-                (magnitudes[(int) (p.x() + p.y() * width)] < .5f * maxMag)
-                || (closestNeighborDistances.get(p) > 1.5 * avgMinDistance)
-        );
-        filterOutliersByDistanceToEllipse(samples);
+    private void scan(Set<Point2D> samples, double minLimit, int width, int height, float[] magnitudes, boolean scanInYDirection, int minX, int maxX, int minY, int maxY) {
+        for (int i = scanInYDirection ? minY : minX; i < (scanInYDirection ? maxY : maxX); i++) {
+            int min = -1;
+            int max = -1;
+            for (int j = scanInYDirection ? minX : minY; j < (scanInYDirection ? maxX : maxY); j++) {
+                int x = scanInYDirection ? j : i;
+                int y = scanInYDirection ? i : j;
+                var mag = magnitudes[x + y * width];
+                if (min == -1 && mag > minLimit) {
+                    min = scanInYDirection ? x : y;
+                }
+                mag = magnitudes[scanInYDirection ? (width - x - 1) + y * width : x + (height - y - 1) * width];
+                if (max == -1 && mag > minLimit) {
+                    max = scanInYDirection ? (width - x - 1) : (height - y - 1);
+                }
+                if (min != -1 && max != -1) {
+                    break;
+                }
+            }
+            if (min >= 0) {
+                var candidate = scanInYDirection ? new Point2D(min, i) : new Point2D(i, min);
+                samples.add(candidate);
+            }
+            if (max >= 0) {
+                var candidate = scanInYDirection ? new Point2D(max, i) : new Point2D(i, max);
+                samples.add(candidate);
+            }
+            if (min >= 0 || max >= 0) {
+                i += EDGE_FILTER;
+            }
+        }
     }
 
     private boolean notEnoughSamples(List<Point2D> filteredSamples) {

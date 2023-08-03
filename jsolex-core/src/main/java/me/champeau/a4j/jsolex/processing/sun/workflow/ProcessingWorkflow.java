@@ -19,7 +19,9 @@ import me.champeau.a4j.jsolex.processing.event.OutputImageDimensionsDeterminedEv
 import me.champeau.a4j.jsolex.processing.event.SuggestionEvent;
 import me.champeau.a4j.jsolex.processing.expr.impl.Crop;
 import me.champeau.a4j.jsolex.processing.expr.impl.ImageDraw;
+import me.champeau.a4j.jsolex.processing.expr.impl.Rotate;
 import me.champeau.a4j.jsolex.processing.params.ProcessParams;
+import me.champeau.a4j.jsolex.processing.params.RotationKind;
 import me.champeau.a4j.jsolex.processing.stretching.ArcsinhStretchingStrategy;
 import me.champeau.a4j.jsolex.processing.stretching.ClaheStrategy;
 import me.champeau.a4j.jsolex.processing.stretching.NegativeImageStrategy;
@@ -233,14 +235,24 @@ public class ProcessingWorkflow {
     private void produceTechnicalCard(ImageWrapper32 clahe) {
         var details = clahe.copy();
         var context = SolexVideoProcessor.createBaseExecutionContext(processParams);
+        var rotate = new Rotate(executor, context);
         var crop = new Crop(executor, context);
         var draw = new ImageDraw(executor, context);
+        var rotation = processParams.geometryParams().rotation();
+        if (rotation.angle() != 0) {
+            details = switch (rotation) {
+                case LEFT -> (ImageWrapper32) rotate.rotateRadians(List.of(details, -Math.PI / 2d, -1, 1));
+                case RIGHT -> (ImageWrapper32) rotate.rotateRadians(List.of(details, Math.PI / 2d, -1, 1));
+                case NONE -> details;
+            };
+        }
         var cropped = crop.autocrop2(List.of(details, 1.2d));
         var decorated = (ImageWrapper32) draw.drawSolarParameters(List.of(
                 draw.drawObservationDetails(List.of(
                         draw.drawGlobe(List.of(cropped))
                 ))
         ));
+        decorated.metadata().put(RotationKind.class, RotationKind.NONE);
         processedImagesEmitter.newMonoImage(GeneratedImageKind.TECHNICAL_CARD, message("technical.card"), "card", decorated);
     }
 

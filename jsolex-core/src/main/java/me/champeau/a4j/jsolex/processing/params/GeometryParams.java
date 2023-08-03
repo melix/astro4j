@@ -25,8 +25,16 @@ public class GeometryParams {
     private final boolean sharpen;
     private final boolean disallowDownsampling;
     private final boolean autocorrectAngleP;
+    private final RotationKind rotation;
 
-    public GeometryParams(Double tilt, Double xyRatio, boolean horizontalMirror, boolean verticalMirror, boolean sharpen, boolean disallowDownsampling, boolean autocorrectAngleP) {
+    public GeometryParams(Double tilt,
+                          Double xyRatio,
+                          boolean horizontalMirror,
+                          boolean verticalMirror,
+                          boolean sharpen,
+                          boolean disallowDownsampling,
+                          boolean autocorrectAngleP,
+                          RotationKind rotation) {
         this.tilt = tilt;
         this.xyRatio = xyRatio;
         this.horizontalMirror = horizontalMirror;
@@ -34,6 +42,7 @@ public class GeometryParams {
         this.sharpen = sharpen;
         this.disallowDownsampling = disallowDownsampling;
         this.autocorrectAngleP = autocorrectAngleP;
+        this.rotation = rotation;
     }
 
     public OptionalDouble tilt() {
@@ -64,32 +73,40 @@ public class GeometryParams {
         return autocorrectAngleP;
     }
 
+    public RotationKind rotation() {
+        return rotation;
+    }
+
     public GeometryParams withTilt(Double tilt) {
-        return new GeometryParams(tilt, xyRatio, horizontalMirror, verticalMirror, sharpen, disallowDownsampling, autocorrectAngleP);
+        return new GeometryParams(tilt, xyRatio, horizontalMirror, verticalMirror, sharpen, disallowDownsampling, autocorrectAngleP, rotation);
     }
 
     public GeometryParams withXYRatio(Double xyRatio) {
-        return new GeometryParams(tilt, xyRatio, horizontalMirror, verticalMirror, sharpen, disallowDownsampling, autocorrectAngleP);
+        return new GeometryParams(tilt, xyRatio, horizontalMirror, verticalMirror, sharpen, disallowDownsampling, autocorrectAngleP, rotation);
     }
 
     public GeometryParams withHorizontalMirror(boolean horizontalMirror) {
-        return new GeometryParams(tilt, xyRatio, horizontalMirror, verticalMirror, sharpen, disallowDownsampling, autocorrectAngleP);
+        return new GeometryParams(tilt, xyRatio, horizontalMirror, verticalMirror, sharpen, disallowDownsampling, autocorrectAngleP, rotation);
     }
 
     public GeometryParams withVerticalMirror(boolean verticalMirror) {
-        return new GeometryParams(tilt, xyRatio, horizontalMirror, verticalMirror, sharpen, disallowDownsampling, autocorrectAngleP);
+        return new GeometryParams(tilt, xyRatio, horizontalMirror, verticalMirror, sharpen, disallowDownsampling, autocorrectAngleP, rotation);
     }
 
     public GeometryParams withSharpen(boolean sharpen) {
-        return new GeometryParams(tilt, xyRatio, horizontalMirror, verticalMirror, sharpen, disallowDownsampling, autocorrectAngleP);
+        return new GeometryParams(tilt, xyRatio, horizontalMirror, verticalMirror, sharpen, disallowDownsampling, autocorrectAngleP, rotation);
     }
 
     public GeometryParams withDisallowDownsampling(boolean disallowDownsampling) {
-        return new GeometryParams(tilt, xyRatio, horizontalMirror, verticalMirror, sharpen, disallowDownsampling, autocorrectAngleP);
+        return new GeometryParams(tilt, xyRatio, horizontalMirror, verticalMirror, sharpen, disallowDownsampling, autocorrectAngleP, rotation);
     }
 
     public GeometryParams withAutocorrectAngleP(boolean autocorrectAngleP) {
-        return new GeometryParams(tilt, xyRatio, horizontalMirror, verticalMirror, sharpen, disallowDownsampling, autocorrectAngleP);
+        return new GeometryParams(tilt, xyRatio, horizontalMirror, verticalMirror, sharpen, disallowDownsampling, autocorrectAngleP, rotation);
+    }
+
+    public GeometryParams withRotation(RotationKind rotation) {
+        return new GeometryParams(tilt, xyRatio, horizontalMirror, verticalMirror, sharpen, disallowDownsampling, autocorrectAngleP, rotation);
     }
 
 
