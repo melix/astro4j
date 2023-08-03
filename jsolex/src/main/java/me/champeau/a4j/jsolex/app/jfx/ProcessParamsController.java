@@ -33,6 +33,7 @@ import javafx.util.StringConverter;
 import javafx.util.converter.DoubleStringConverter;
 import javafx.util.converter.IntegerStringConverter;
 import me.champeau.a4j.jsolex.app.JSolEx;
+import me.champeau.a4j.jsolex.processing.params.AutocropMode;
 import me.champeau.a4j.jsolex.processing.params.BandingCorrectionParams;
 import me.champeau.a4j.jsolex.processing.params.ExtraParams;
 import me.champeau.a4j.jsolex.processing.params.FileNamingPatternsIO;
@@ -136,6 +137,8 @@ public class ProcessParamsController {
     private TextField xyRatioValue;
     @FXML
     private ChoiceBox<RotationKind> rotation;
+    @FXML
+    private ChoiceBox<AutocropMode> autocrop;
 
     private Stage stage;
     private Header serFileHeader;
@@ -236,6 +239,19 @@ public class ProcessParamsController {
             @Override
             public RotationKind fromString(String string) {
                 return RotationKind.valueOf(string);
+            }
+        });
+        autocrop.getItems().addAll(AutocropMode.values());
+        autocrop.getSelectionModel().select(initialProcessParams.geometryParams().autocropMode());
+        autocrop.setConverter(new StringConverter<>() {
+            @Override
+            public String toString(AutocropMode mode) {
+                return message("autocrop." + mode);
+            }
+
+            @Override
+            public AutocropMode fromString(String string) {
+                return AutocropMode.valueOf(string);
             }
         });
         if (!patterns.isEmpty()) {
@@ -369,7 +385,8 @@ public class ProcessParamsController {
                         sharpen.isSelected(),
                         disallowDownsampling.isSelected(),
                         autocorrectAngleP.isSelected(),
-                        rotation.getValue()),
+                        rotation.getValue(),
+                        autocrop.getValue()),
                 new BandingCorrectionParams(
                         (int) Math.round(bandingCorrectionWidth.getValue()),
                         (int) Math.round(bandingCorrectionPasses.getValue())

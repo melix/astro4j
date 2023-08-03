@@ -40,6 +40,7 @@ class GeometryParamsSerializer implements JsonSerializer<GeometryParams>, JsonDe
         var autocorrectAngleP = o.get("autocorrectAngleP") != null ? o.get("autocorrectAngleP").getAsBoolean() : true;
         var rotation = o.get("rotation");
         var scanDirection = rotation != null ? RotationKind.valueOf(rotation.getAsString().toUpperCase(Locale.US)) : RotationKind.NONE;
+        var autocropMode = o.get("autocropMode") != null ? AutocropMode.valueOf(o.get("autocropMode").getAsString()) : AutocropMode.OFF;
         return new GeometryParams(
                 tilt == null ? null : tilt.getAsDouble(),
                 ratio == null ? null : ratio.getAsDouble(),
@@ -48,7 +49,8 @@ class GeometryParamsSerializer implements JsonSerializer<GeometryParams>, JsonDe
                 sharpen,
                 allowDownsampling,
                 autocorrectAngleP,
-                scanDirection);
+                scanDirection,
+                autocropMode);
     }
 
     @Override
@@ -60,6 +62,7 @@ class GeometryParamsSerializer implements JsonSerializer<GeometryParams>, JsonDe
         jsonObject.addProperty("verticalMirror", src.isVerticalMirror());
         jsonObject.addProperty("autocorrectAngleP", String.valueOf(src.isAutocorrectAngleP()));
         jsonObject.addProperty("rotation", src.rotation().toString());
+        jsonObject.addProperty("autocropMode", src.autocropMode().toString());
         return jsonObject;
     }
 }

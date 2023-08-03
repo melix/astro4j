@@ -257,7 +257,7 @@ public class SolexVideoProcessor implements Broadcaster {
                             WorkflowState state = imageList.get(step);
                             var imageEmitterFactory = new ProcessAwareImageEmitterFactory(state, imageNamingStrategy, baseName);
                             state.recordResult(WorkflowResults.MAIN_ELLIPSE_FITTING, fitting);
-                            var workflow = new ProcessingWorkflow(this, outputDirectory, context, imageList, step, processParams, fps, imageEmitterFactory);
+                            var workflow = new ProcessingWorkflow(this, outputDirectory, context, imageList, step, processParams, fps, imageEmitterFactory, header);
                             ctx.async(() -> workflow.start(semaphore::release));
                         }
                     });

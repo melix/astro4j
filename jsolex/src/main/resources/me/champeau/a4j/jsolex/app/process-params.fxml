@@ -49,9 +49,9 @@
 <?import javafx.scene.layout.HBox?>
 <?import javafx.scene.layout.RowConstraints?>
 
-<BorderPane maxHeight="-Infinity" maxWidth="-Infinity" minHeight="-Infinity" minWidth="-Infinity" prefHeight="400.0" prefWidth="650.0" xmlns="http://javafx.com/javafx/19" xmlns:fx="http://javafx.com/fxml/1" fx:controller="me.champeau.a4j.jsolex.app.jfx.ProcessParamsController">
+<BorderPane maxHeight="-Infinity" maxWidth="-Infinity" minHeight="-Infinity" minWidth="-Infinity" prefHeight="458.0" prefWidth="650.0" xmlns="http://javafx.com/javafx/19" xmlns:fx="http://javafx.com/fxml/1" fx:controller="me.champeau.a4j.jsolex.app.jfx.ProcessParamsController">
     <bottom>
-        <AnchorPane>
+        <AnchorPane prefWidth="650.0">
             <children>
                 <Button layoutX="491.0" layoutY="8.0" mnemonicParsing="false" onAction="#process" text="%full.process" />
                 <Button layoutX="31.0" layoutY="8.0" mnemonicParsing="false" onAction="#cancel" text="%cancel" />
@@ -74,7 +74,7 @@
     <center>
         <Accordion fx:id="accordion" BorderPane.alignment="CENTER">
             <panes>
-                <TitledPane animated="false" text="%process.parameters">
+                <TitledPane animated="false" prefHeight="353.0" prefWidth="650.0" text="%process.parameters">
                     <content>
                         <AnchorPane minHeight="0.0" minWidth="0.0">
                             <children>
@@ -84,6 +84,7 @@
                                         <ColumnConstraints hgrow="SOMETIMES" maxWidth="375.0" minWidth="10.0" prefWidth="367.0" />
                                     </columnConstraints>
                                     <rowConstraints>
+                                        <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="SOMETIMES" />
                                         <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="SOMETIMES" />
                                         <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="SOMETIMES" />
                                         <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="SOMETIMES" />
@@ -113,23 +114,23 @@
                                                 <Tooltip text="%pixel.shifting.tooltip" />
                                             </tooltip>
                                         </TextField>
-                                        <Button alignment="CENTER" contentDisplay="CENTER" mnemonicParsing="false" onAction="#resetRayParams" text="%reset.to.defaults" GridPane.columnIndex="1" GridPane.rowIndex="9" />
-                                        <CheckBox fx:id="forceTilt" mnemonicParsing="false" text="%override.tilt" GridPane.rowIndex="5">
+                                        <Button alignment="CENTER" contentDisplay="CENTER" mnemonicParsing="false" onAction="#resetRayParams" text="%reset.to.defaults" GridPane.columnIndex="1" GridPane.rowIndex="10" />
+                                        <CheckBox fx:id="forceTilt" mnemonicParsing="false" text="%override.tilt" GridPane.rowIndex="6">
                                             <tooltip>
                                                 <Tooltip text="%override.tilt.tooltip" />
                                             </tooltip>
                                         </CheckBox>
-                                        <CheckBox fx:id="forceXYRatio" mnemonicParsing="false" text="%override.xy" GridPane.rowIndex="6">
+                                        <CheckBox fx:id="forceXYRatio" mnemonicParsing="false" text="%override.xy" GridPane.rowIndex="7">
                                             <tooltip>
                                                 <Tooltip text="%override.xy.tooltip" />
                                             </tooltip>
                                         </CheckBox>
-                                        <TextField fx:id="tiltValue" GridPane.columnIndex="1" GridPane.rowIndex="5">
+                                        <TextField fx:id="tiltValue" GridPane.columnIndex="1" GridPane.rowIndex="6">
                                             <tooltip>
                                                 <Tooltip text="%tilt.angle" />
                                             </tooltip>
                                         </TextField>
-                                        <TextField GridPane.columnIndex="1" GridPane.rowIndex="6" fx:id="xyRatioValue">
+                                        <TextField GridPane.columnIndex="1" GridPane.rowIndex="7" fx:id="xyRatioValue">
                                             <tooltip>
                                                 <Tooltip text="%xy.ratio.tooltip" />
                                             </tooltip>
@@ -140,26 +141,28 @@
                                                 <Tooltip text="%doppler.tooltip" />
                                             </tooltip>
                                         </Slider>
-                                        <CheckBox fx:id="horizontalMirror" mnemonicParsing="false" text="%horizontal.flip" GridPane.columnIndex="0" GridPane.rowIndex="7" />
-                                        <CheckBox fx:id="verticalMirror" mnemonicParsing="false" text="%vertical.flip" GridPane.columnIndex="1" GridPane.rowIndex="7" />
-                                        <CheckBox fx:id="sharpen" mnemonicParsing="false" text="%sharpen.images" GridPane.columnIndex="0" GridPane.rowIndex="9">
+                                        <CheckBox fx:id="horizontalMirror" mnemonicParsing="false" text="%horizontal.flip" GridPane.columnIndex="0" GridPane.rowIndex="8" />
+                                        <CheckBox fx:id="verticalMirror" mnemonicParsing="false" text="%vertical.flip" GridPane.columnIndex="1" GridPane.rowIndex="8" />
+                                        <CheckBox fx:id="sharpen" mnemonicParsing="false" text="%sharpen.images" GridPane.columnIndex="0" GridPane.rowIndex="10">
                                             <tooltip>
                                                 <Tooltip text="%sharpen.images.tooltip" />
                                             </tooltip>
                                         </CheckBox>
-                                        <CheckBox fx:id="autocorrectAngleP" mnemonicParsing="false" text="%autocorrect.p.angle" GridPane.rowIndex="4">
+                                        <CheckBox fx:id="autocorrectAngleP" mnemonicParsing="false" text="%autocorrect.p.angle" GridPane.rowIndex="5">
                                             <tooltip>
                                                 <Tooltip text="%autocorrect.p.angle.tooltip" />
                                             </tooltip>
                                         </CheckBox>
-                                        <CheckBox fx:id="switchRedBlueChannels" mnemonicParsing="false" text="%doppler.switch.red.blue.channels" GridPane.columnIndex="1" GridPane.rowIndex="4">
+                                        <CheckBox fx:id="switchRedBlueChannels" mnemonicParsing="false" text="%doppler.switch.red.blue.channels" GridPane.columnIndex="1" GridPane.rowIndex="5">
                                             <tooltip>
                                                 <Tooltip text="%doppler.switch.red.blue.channels.tooltip" />
                                             </tooltip>
                                         </CheckBox>
-                                        <CheckBox fx:id="disallowDownsampling" mnemonicParsing="false" text="%disallow.downsampling" GridPane.columnSpan="2" GridPane.rowIndex="8" />
+                                        <CheckBox fx:id="disallowDownsampling" mnemonicParsing="false" text="%disallow.downsampling" GridPane.columnSpan="2" GridPane.rowIndex="9" />
                                         <Label text="%rotation" GridPane.rowIndex="3" />
-                                        <ChoiceBox fx:id="rotation" prefHeight="24.0" prefWidth="363.0" GridPane.columnIndex="1" GridPane.rowIndex="3" />
+                                        <ChoiceBox fx:id="rotation" prefHeight="24.0" prefWidth="362.0" GridPane.columnIndex="1" GridPane.rowIndex="3" />
+                                        <Label text="%autocrop" GridPane.rowIndex="4" />
+                                        <ChoiceBox fx:id="autocrop" prefHeight="24.0" prefWidth="362.0" GridPane.columnIndex="1" GridPane.rowIndex="4" />
                                     </children>
                                 </GridPane>
                             </children>

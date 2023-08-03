@@ -16,19 +16,23 @@
 package me.champeau.a4j.jsolex.processing.sun.tasks;
 
 import me.champeau.a4j.jsolex.processing.event.ProgressEvent;
+import me.champeau.a4j.jsolex.processing.expr.impl.Crop;
 import me.champeau.a4j.jsolex.processing.params.ProcessParams;
 import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
 import me.champeau.a4j.jsolex.processing.sun.WorkflowState;
 import me.champeau.a4j.jsolex.processing.sun.workflow.ImageEmitter;
+import me.champeau.a4j.jsolex.processing.util.ForkJoinContext;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 import me.champeau.a4j.math.Point2D;
 import me.champeau.a4j.math.image.Image;
 import me.champeau.a4j.math.image.ImageMath;
 import me.champeau.a4j.math.regression.Ellipse;
 import me.champeau.a4j.math.regression.EllipseRegression;
+import me.champeau.a4j.ser.Header;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.List;
 import java.util.Map;
 import java.util.function.Supplier;
 import java.util.stream.IntStream;
@@ -46,6 +50,8 @@ public class GeometryCorrector extends AbstractTask<GeometryCorrector.Result> {
     private final ProcessParams processParams;
     private final ImageEmitter imageEmitter;
     private final WorkflowState state;
+    private final ForkJoinContext forkJoinContext;
+    private final Header header;
 
     public GeometryCorrector(Broadcaster broadcaster,
                              Supplier<ImageWrapper32> image,
@@ -56,7 +62,9 @@ public class GeometryCorrector extends AbstractTask<GeometryCorrector.Result> {
                              float blackPoint,
                              ProcessParams processParams,
                              ImageEmitter imageEmitter,
-                             WorkflowState state) {
+                             WorkflowState state,
+                             ForkJoinContext forkJoinContext,
+                             Header header) {
         super(broadcaster, image);
         this.ellipse = ellipse;
         this.forcedTilt = forcedTilt;
@@ -66,6 +74,8 @@ public class GeometryCorrector extends AbstractTask<GeometryCorrector.Result> {
         this.processParams = processParams;
         this.imageEmitter = imageEmitter;
         this.state = state;
+        this.forkJoinContext = forkJoinContext;
+        this.header = header;
     }
 
     @Override
@@ -122,11 +132,36 @@ public class GeometryCorrector extends AbstractTask<GeometryCorrector.Result> {
         } else {
             sx = 1.0d;
         }
-        var rescaled = ImageMath.newInstance().rotateAndScale(new Image(extendedWidth, height, newBuffer), 0, blackPoint, sx, sy);
+        var imageMath = ImageMath.newInstance();
+        var rescaled = imageMath.rotateAndScale(new Image(extendedWidth, height, newBuffer), 0, blackPoint, sx, sy);
         double finalSy = sy;
         var circle = computeCorrectedCircle(shear, shift, sx, finalSy);
+        var corrected = ImageWrapper32.fromImage(rescaled, Map.of(Ellipse.class, circle));
+        var autocropMode = processParams.geometryParams().autocropMode();
+        if (autocropMode != null) {
+            var cropping = new Crop(forkJoinContext, Map.of(Ellipse.class, ellipse));
+            corrected = switch (autocropMode) {
+                case RADIUS_1_1 -> (ImageWrapper32) cropping.autocrop2(List.of(corrected, 1.1));
+                case RADIUS_1_2 -> (ImageWrapper32) cropping.autocrop2(List.of(corrected, 1.2));
+                case RADIUS_1_5 -> (ImageWrapper32) cropping.autocrop2(List.of(corrected, 1.5));
+                case SOURCE_WIDTH -> {
+                    var targetWidth = header.geometry().width();
+                    var center = circle.center();
+                    var halfWidth = targetWidth / 2d;
+                    var cx = center.a();
+                    var cy = center.b();
+                    if (cx - halfWidth >= 0 && (cy - halfWidth >= 0) && (cx + halfWidth <= targetWidth) && (cy+halfWidth<=targetWidth)) {
+                        yield (ImageWrapper32) cropping.cropToRect(List.of(corrected, targetWidth, targetWidth, circle));
+                    } else {
+                        LOGGER.warn(message("destructive.cannot.crop"));
+                        yield corrected;
+                    }
+                }
+                default -> corrected;
+            };
+        }
         broadcaster.broadcast(ProgressEvent.of(1, "Correcting geometry"));
-        return new Result(ImageWrapper32.fromImage(rescaled, Map.of(Ellipse.class, circle)), ellipse, circle, blackPoint);
+        return new Result(corrected, ellipse, corrected.findMetadata(Ellipse.class).orElse(circle), blackPoint);
     }
 
     /**
