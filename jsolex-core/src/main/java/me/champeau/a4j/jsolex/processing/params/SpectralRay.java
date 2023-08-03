@@ -41,6 +41,33 @@ public record SpectralRay(String label, ColorCurve colorCurve, double wavelength
     }
 
     @Override
+    public boolean equals(Object o) {
+        if (this == o) {
+            return true;
+        }
+        if (o == null || getClass() != o.getClass()) {
+            return false;
+        }
+
+        SpectralRay that = (SpectralRay) o;
+
+        if (Double.compare(wavelength, that.wavelength) != 0) {
+            return false;
+        }
+        return label.equals(that.label);
+    }
+
+    @Override
+    public int hashCode() {
+        int result;
+        long temp;
+        result = label.hashCode();
+        temp = Double.doubleToLongBits(wavelength);
+        result = 31 * result + (int) (temp ^ (temp >>> 32));
+        return result;
+    }
+
+    @Override
     public String toString() {
         return label;
     }
