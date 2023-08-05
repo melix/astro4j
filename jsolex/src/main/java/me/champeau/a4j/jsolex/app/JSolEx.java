@@ -28,6 +28,7 @@ import javafx.fxml.FXML;
 import javafx.scene.Node;
 import javafx.scene.Parent;
 import javafx.scene.Scene;
+import javafx.scene.chart.BarChart;
 import javafx.scene.control.Alert;
 import javafx.scene.control.Button;
 import javafx.scene.control.ButtonType;
@@ -163,6 +164,9 @@ public class JSolEx extends Application implements JSolExInterface {
     @FXML
     private Label memoryLabel;
 
+    @FXML
+    private Tab statsTab;
+
     private final Map<String, ImageViewer> popupViewers = new HashMap<>();
 
     private ProcessParams reusedProcessParams;
@@ -178,6 +182,11 @@ public class JSolEx extends Application implements JSolExInterface {
     @Override
     public TabPane getMainPane() {
         return mainPane;
+    }
+
+    @Override
+    public Tab getStatsTab() {
+        return statsTab;
     }
 
     @Override

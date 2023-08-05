@@ -17,6 +17,10 @@ package me.champeau.a4j.jsolex.app.listeners;
 
 import javafx.geometry.Pos;
 import javafx.scene.Node;
+import javafx.scene.chart.BarChart;
+import javafx.scene.chart.CategoryAxis;
+import javafx.scene.chart.NumberAxis;
+import javafx.scene.chart.XYChart;
 import javafx.scene.control.Alert;
 import javafx.scene.control.Button;
 import javafx.scene.control.ScrollPane;
@@ -62,10 +66,15 @@ import me.champeau.a4j.jsolex.processing.sun.SolexVideoProcessor;
 import me.champeau.a4j.jsolex.processing.sun.workflow.GeneratedImageKind;
 import me.champeau.a4j.jsolex.processing.sun.workflow.ImageEmitter;
 import me.champeau.a4j.jsolex.processing.sun.workflow.ImageStats;
+import me.champeau.a4j.jsolex.processing.util.ColorizedImageWrapper;
 import me.champeau.a4j.jsolex.processing.util.ForkJoinContext;
+import me.champeau.a4j.jsolex.processing.util.Histogram;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
+import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
+import me.champeau.a4j.jsolex.processing.util.RGBImage;
 import me.champeau.a4j.jsolex.processing.util.SolarParameters;
 import me.champeau.a4j.jsolex.processing.util.SolarParametersUtils;
+import me.champeau.a4j.math.image.Image;
 import me.champeau.a4j.math.regression.Ellipse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -74,18 +83,25 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeSet;
+import java.util.WeakHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import static me.champeau.a4j.jsolex.app.JSolEx.message;
+
 public class SingleModeProcessingEventListener implements ProcessingEventListener, ImageMathScriptExecutor, Broadcaster {
     private static final Logger LOGGER = LoggerFactory.getLogger(SingleModeProcessingEventListener.class);
+    private static final String[] RGB_COLORS = {"red", "green", "blue"};
+    private static final int BINS = 256;
 
     private final Map<SuggestionEvent.SuggestionKind, String> suggestions = Collections.synchronizedMap(new LinkedHashMap<>());
     private final Map<Double, ZoomableImageView> imageViews;
@@ -99,6 +115,9 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
     private final TabPane mainPane;
     private final Map<String, ImageViewer> popupViews;
     private final AtomicInteger concurrentNotifications = new AtomicInteger();
+    private final Tab statsTab;
+    private final WeakHashMap<ImageWrapper, List<CachedHistogram>> cachedHistograms = new WeakHashMap<>();
+    private BarChart<String, Number> histogramChart;
     private Map<Class, Object> scriptExecutionContext;
     private ImageEmitter imageEmitter;
     private ImageMathScriptExecutor imageScriptExecutor;
@@ -124,6 +143,7 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
         this.outputDirectory = outputDirectory;
         this.params = params;
         this.mainPane = owner.getMainPane();
+        this.statsTab = owner.getStatsTab();
         this.popupViews = popupViews;
         this.shiftImages = new HashMap<>();
         imageViews = new HashMap<>();
@@ -147,7 +167,7 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
 
     @Override
     public void onOutputImageDimensionsDetermined(OutputImageDimensionsDeterminedEvent event) {
-        LOGGER.info(JSolEx.message("dimensions.determined"), event.getLabel(), event.getWidth(), event.getHeight());
+        LOGGER.info(message("dimensions.determined"), event.getLabel(), event.getWidth(), event.getHeight());
         width = event.getWidth();
         height = event.getHeight();
     }
@@ -167,7 +187,7 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
             if (pixelShift != 0) {
                 suffix = " (" + pixelShift + ")";
             }
-            var tab = new Tab(JSolEx.message("image.reconstruction") + suffix, scrollPane);
+            var tab = new Tab(message("image.reconstruction") + suffix, scrollPane);
             imageView.setParentTab(tab);
             mainPane.getTabs().add(tab);
         });
@@ -191,7 +211,7 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
                 rgb[3 * x + 2] = c;
             }
             var pixelformat = PixelFormat.getByteRgbInstance();
-            onProgress(ProgressEvent.of((y + 1d) / height, JSolEx.message("reconstructing")));
+            onProgress(ProgressEvent.of((y + 1d) / height, message("reconstructing")));
             BatchOperations.submit(() -> {
                 if (event.getPayload().pixelShift() == 0) {
                     mainPane.getSelectionModel().select(imageView.getParentTab());
@@ -199,7 +219,7 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
                 image.getPixelWriter().setPixels(0, y, line.length, 1, pixelformat, rgb, 0, 3 * line.length);
             });
         } else {
-            onProgress(ProgressEvent.of((y + 1d) / height, JSolEx.message("reconstructing")));
+            onProgress(ProgressEvent.of((y + 1d) / height, message("reconstructing")));
         }
     }
 
@@ -216,22 +236,95 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
             var viewer = newImageViewer();
             viewer.fitWidthProperty().bind(mainPane.widthProperty());
             viewer.setTab(tab);
+            var imageWrapper = payload.image();
             viewer.setup(this,
                     title,
                     baseName,
                     payload.kind(),
-                    payload.image(),
+                    imageWrapper,
                     payload.path().toFile(),
                     params,
                     popupViews
             );
+            viewer.setOnDisplayUpdate(() -> {
+                if (tab.isSelected()) {
+                    showHistogram(viewer.getStretchedImage());
+                }
+            });
             tab.setContent(viewer.getRoot());
             mainPane.getTabs().add(tab);
             var imageViewer = popupViews.get(title);
             if (imageViewer != null) {
-                imageViewer.setImage(baseName, params, payload.image(), payload.path());
+                imageViewer.setImage(baseName, params, imageWrapper, payload.path());
             }
+            tab.selectedProperty().addListener((observable, oldValue, newValue) -> {
+                if (Boolean.TRUE.equals(newValue)) {
+                    showHistogram(viewer.getStretchedImage());
+                }
+            });
         });
+    }
+
+    private void showHistogram(ImageWrapper imageWrapper) {
+        prepareHistogram();
+        var histograms = cachedHistograms.computeIfAbsent(imageWrapper, unused -> {
+            if (imageWrapper instanceof ImageWrapper32 mono) {
+                return List.of(new CachedHistogram(Histogram.of(
+                        new Image(mono.width(), mono.height(), mono.data()), BINS
+                ), "grey"));
+            } else if (imageWrapper instanceof ColorizedImageWrapper colorized) {
+                var rgb = colorized.converter().apply(colorized.mono().data());
+                List<CachedHistogram> result = new ArrayList<>(rgb.length);
+                for (int i = 0; i < rgb.length; i++) {
+                    float[] channel = rgb[i];
+                    result.add(new CachedHistogram(Histogram.of(
+                            new Image(colorized.width(), colorized.height(), channel), BINS
+                    ), RGB_COLORS[i]));
+                }
+                return result;
+            } else if (imageWrapper instanceof RGBImage rgbImage) {
+                var rgb = new float[][]{rgbImage.r(), rgbImage.g(), rgbImage.b()};
+                List<CachedHistogram> result = new ArrayList<>(rgb.length);
+                for (int i = 0; i < rgb.length; i++) {
+                    float[] channel = rgb[i];
+                    result.add(new CachedHistogram(Histogram.of(
+                            new Image(rgbImage.width(), rgbImage.height(), channel), BINS
+                    ), RGB_COLORS[i]));
+                }
+                return result;
+            }
+            return List.of();
+        });
+        histograms.forEach(c -> addSeries(c.histogram, c.color));
+    }
+
+    private void prepareHistogram() {
+        if (histogramChart == null) {
+            var xAxis = new CategoryAxis();
+            var yAxis = new NumberAxis();
+            xAxis.setLabel(message("pixel.value"));
+            yAxis.setLabel(message("pixel.count"));
+            histogramChart = new BarChart<>(xAxis, yAxis);
+            histogramChart.setTitle(message("image.histogram"));
+            histogramChart.setBarGap(0);
+            statsTab.setContent(histogramChart);
+            histogramChart.setLegendVisible(false);
+        }
+        histogramChart.getData().clear();
+    }
+
+    private void addSeries(Histogram histogram, String color) {
+        var series = new XYChart.Series<String, Number>();
+        for (int i = 0; i < histogram.values().length; i++) {
+            var d = new XYChart.Data<String, Number>(String.valueOf(i), histogram.values()[i]);
+            series.getData().add(d);
+        }
+
+        // Add the series to the bar chart
+        histogramChart.getData().add(series);
+        for (XYChart.Data<String, Number> d : series.getData()) {
+            d.getNode().setStyle("-fx-bar-fill: " + color + ";");
+        }
     }
 
     @Override
@@ -248,7 +341,7 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
                 var rewindButton = new Button("<<");
                 var playButton = new Button("Play");
                 var stopButton = new Button("Stop");
-                var openButton = new Button(JSolEx.message("open.in.files"));
+                var openButton = new Button(message("open.in.files"));
                 openButton.setOnAction(e -> ExplorerSupport.openInExplorer(filePath));
                 mediaPlayer.setOnEndOfMedia(() -> mediaPlayer.seek(javafx.util.Duration.ZERO));
                 playButton.setOnAction(e -> mediaPlayer.play());
@@ -321,13 +414,13 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
         double seconds = duration.toMillis() / 1000d;
         var sb = new StringBuilder();
         if (!suggestions.isEmpty()) {
-            sb.append(JSolEx.message("suggestions") + " :\n");
+            sb.append(message("suggestions") + " :\n");
             for (String suggestion : suggestions.values()) {
                 sb.append("    - ").append(suggestion).append("\n");
             }
         }
-        var finishedString = String.format(JSolEx.message("finished.in"), seconds);
-        LOGGER.info(JSolEx.message("processing.done"));
+        var finishedString = String.format(message("finished.in"), seconds);
+        LOGGER.info(message("processing.done"));
         LOGGER.info(finishedString);
         owner.prepareForScriptExecution(this, params);
         suggestions.clear();
@@ -386,8 +479,8 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
                     .collect(Collectors.joining(System.lineSeparator()));
             onNotification(new NotificationEvent(new Notification(
                     Notification.AlertType.ERROR,
-                    JSolEx.message("error.processing.script"),
-                    JSolEx.message("script.errors." + (errorCount == 1 ? "single" : "many")),
+                    message("error.processing.script"),
+                    message("script.errors." + (errorCount == 1 ? "single" : "many")),
                     message
             )));
         }
@@ -395,7 +488,7 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
     }
 
     private void restartProcessForMissingShifts(Set<Double> missingShifts) {
-        LOGGER.warn(JSolEx.message("restarting.process.missing.shifts"), missingShifts.stream().map(d -> String.format("%.2f", d)).toList());
+        LOGGER.warn(message("restarting.process.missing.shifts"), missingShifts.stream().map(d -> String.format("%.2f", d)).toList());
         // restart processing to include missing images
         var tmpParams = params.withRequestedImages(
                 new RequestedImages(Set.of(GeneratedImageKind.GEOMETRY_CORRECTED),
@@ -456,5 +549,8 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
         } else if (event instanceof VideoMetadataEvent e) {
             onVideoMetadataAvailable(e);
         }
+    }
+
+    private record CachedHistogram(Histogram histogram, String color) {
     }
 }

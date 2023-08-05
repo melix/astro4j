@@ -15,6 +15,8 @@
  */
 package me.champeau.a4j.jsolex.processing.stretching;
 
+import me.champeau.a4j.jsolex.processing.util.Histogram;
+
 public final class ClaheStrategy implements StretchingStrategy {
     public static final int DEFAULT_TILE_SIZE = 64;
     public static final int DEFAULT_BINS = 512;
@@ -54,7 +56,7 @@ public final class ClaheStrategy implements StretchingStrategy {
         for (int y = 0; y < yTilesCount; y++) {
             for (int x = 0; x < xTilesCount; x++) {
                 var histogram = histogram(width, height, data, x, y, tileSize);
-                clipHistogram(histogram, (int) (clipRatio * histogram.pixelCount / bins));
+                clipHistogram(histogram, (int) (clipRatio * histogram.pixelCount() / bins));
                 cdf[y][x] = computeCdf(histogram);
             }
         }
@@ -167,7 +169,7 @@ public final class ClaheStrategy implements StretchingStrategy {
     }
 
     private void clipHistogram(Histogram histogram, int clipLimit) {
-        var values = histogram.values;
+        var values = histogram.values();
         int excess = 0;
         for (int i = 0; i < bins; i++) {
             if (values[i] > clipLimit) {
@@ -198,7 +200,7 @@ public final class ClaheStrategy implements StretchingStrategy {
      * @return the mapping function
      */
     private CumulativeDistributionFunction computeCdf(Histogram histogram) {
-        var values = histogram.values;
+        var values = histogram.values();
         float[] cumulative = new float[values.length];
         cumulative[0] = values[0];
         for (int i = 1; i < values.length; i++) {
@@ -268,13 +270,6 @@ public final class ClaheStrategy implements StretchingStrategy {
         var w21 = (x - x1) * (y2 - y) / d;
         var w22 = (x - x1) * (y - y1) / d;
         return w11 * v11 + w12 * v12 + w21 * v21 + w22 * v22;
-    }
-
-    private record Histogram(
-            int[] values,
-            int pixelCount,
-            int maxValue
-    ) {
     }
 
     private record CumulativeDistributionFunction(

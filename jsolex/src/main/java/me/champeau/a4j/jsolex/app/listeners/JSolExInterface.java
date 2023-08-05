@@ -15,6 +15,7 @@
  */
 package me.champeau.a4j.jsolex.app.listeners;
 
+import javafx.scene.control.Tab;
 import javafx.scene.control.TabPane;
 import me.champeau.a4j.jsolex.processing.expr.ImageMathScriptExecutor;
 import me.champeau.a4j.jsolex.processing.params.ProcessParams;
@@ -24,6 +25,8 @@ public interface JSolExInterface {
     ForkJoinContext getCpuExecutor();
 
     TabPane getMainPane();
+
+    Tab getStatsTab();
 
     void showProgress();
 

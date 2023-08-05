@@ -24,7 +24,7 @@ public sealed interface StretchingStrategy permits
         NegativeImageStrategy,
         RangeExpansionStrategy,
         ClaheStrategy,
-        ConstrastAdjustmentStrategy {
+        ContrastAdjustmentStrategy {
     void stretch(int width, int height, float[] data);
 
     default void stretch(int width, int height, float[][] rgb) {

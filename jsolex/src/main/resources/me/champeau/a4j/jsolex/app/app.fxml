@@ -20,6 +20,8 @@
 <?import javafx.scene.layout.VBox?>
 <?import me.champeau.a4j.jsolex.app.jfx.ime.ImageMathTextArea?>
 <?import javafx.scene.control.CheckBox?>
+<?import javafx.scene.control.Tab?>
+<?import javafx.scene.chart.BarChart?>
 <BorderPane xmlns="http://javafx.com/javafx/19" xmlns:fx="http://javafx.com/fxml/1">
     <top>
         <MenuBar>
@@ -46,15 +48,25 @@
             <TabPane fx:id="mainPane" prefWidth="400.0"/>
             <SplitPane dividerPositions="0.5" orientation="VERTICAL">
                 <items>
-                    <VBox>
-                        <ButtonBar>
-                            <buttons>
-                                <Button onAction="#clearLog" text="%clear.log"/>
-                                <Button onAction="#saveLog" text="%save.log"/>
-                            </buttons>
-                        </ButtonBar>
-                        <TextArea fx:id="console" editable="false" wrapText="true" VBox.vgrow="ALWAYS"/>
-                    </VBox>
+                    <TabPane side="right">
+                        <Tab text="%logs">
+                            <VBox>
+                                <ButtonBar>
+                                    <padding>
+                                        <Insets bottom="4.0" left="4.0" right="20.0" top="4.0"/>
+                                    </padding>
+                                    <buttons>
+                                        <Button onAction="#clearLog" text="%clear.log"/>
+                                        <Button onAction="#saveLog" text="%save.log"/>
+                                    </buttons>
+                                </ButtonBar>
+                                <TextArea fx:id="console" editable="false" wrapText="true" VBox.vgrow="ALWAYS"/>
+                            </VBox>
+                        </Tab>
+                        <Tab fx:id="statsTab" text="%stats">
+
+                        </Tab>
+                    </TabPane>
                     <VBox fx:id="imageMathPane">
                         <children>
                             <TitledPane text="%imagemath.script">
