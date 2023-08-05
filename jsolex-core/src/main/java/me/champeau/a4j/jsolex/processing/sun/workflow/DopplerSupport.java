@@ -17,6 +17,7 @@ package me.champeau.a4j.jsolex.processing.sun.workflow;
 
 import me.champeau.a4j.jsolex.processing.params.ProcessParams;
 import me.champeau.a4j.jsolex.processing.params.SpectralRay;
+import me.champeau.a4j.jsolex.processing.stretching.RangeExpansionStrategy;
 import me.champeau.a4j.jsolex.processing.sun.ImageUtils;
 import me.champeau.a4j.jsolex.processing.sun.WorkflowState;
 import me.champeau.a4j.jsolex.processing.sun.tasks.GeometryCorrector;
@@ -87,6 +88,7 @@ public class DopplerSupport {
             saturation[i] = (float) sat;
         }
         ImageUtils.fromHSLtoRGB(hsl, rgb);
+        RangeExpansionStrategy.DEFAULT.stretch(width, height, rgb);
         return rgb;
     }
 }

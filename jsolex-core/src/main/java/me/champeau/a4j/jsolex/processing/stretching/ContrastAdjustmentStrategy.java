@@ -17,19 +17,19 @@ package me.champeau.a4j.jsolex.processing.stretching;
 
 import me.champeau.a4j.jsolex.processing.util.Constants;
 
-public final class ConstrastAdjustmentStrategy implements StretchingStrategy {
-    public static final ConstrastAdjustmentStrategy DEFAULT = new ConstrastAdjustmentStrategy(0, Constants.MAX_PIXEL_VALUE);
+public final class ContrastAdjustmentStrategy implements StretchingStrategy {
+    public static final ContrastAdjustmentStrategy DEFAULT = new ContrastAdjustmentStrategy(0, Constants.MAX_PIXEL_VALUE);
 
     private final float min;
     private final float max;
 
-    public ConstrastAdjustmentStrategy(float min, float max) {
+    public ContrastAdjustmentStrategy(float min, float max) {
         this.min = min;
         this.max = max;
     }
 
-    public ConstrastAdjustmentStrategy withRange(float min, float max) {
-        return new ConstrastAdjustmentStrategy(min, max);
+    public ContrastAdjustmentStrategy withRange(float min, float max) {
+        return new ContrastAdjustmentStrategy(min, max);
     }
 
     public float getMin() {
@@ -44,12 +44,11 @@ public final class ConstrastAdjustmentStrategy implements StretchingStrategy {
     public void stretch(int width, int height, float[] data) {
         for (int i = 0; i < data.length; i++) {
             if (data[i] < min) {
-                data[i] = min;
+                data[i] = 0;
             } else if (data[i] > max) {
                 data[i] = max;
             }
         }
-        RangeExpansionStrategy.DEFAULT.stretch(width, height, data);
     }
 
 }

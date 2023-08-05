@@ -44,7 +44,7 @@ import me.champeau.a4j.jsolex.processing.event.ProcessingEventListener;
 import me.champeau.a4j.jsolex.processing.event.ProgressEvent;
 import me.champeau.a4j.jsolex.processing.params.ProcessParams;
 import me.champeau.a4j.jsolex.processing.params.RotationKind;
-import me.champeau.a4j.jsolex.processing.stretching.ConstrastAdjustmentStrategy;
+import me.champeau.a4j.jsolex.processing.stretching.ContrastAdjustmentStrategy;
 import me.champeau.a4j.jsolex.processing.sun.ImageUtils;
 import me.champeau.a4j.jsolex.processing.sun.workflow.GeneratedImageKind;
 import me.champeau.a4j.jsolex.processing.util.ColorizedImageWrapper;
@@ -71,9 +71,10 @@ import static me.champeau.a4j.jsolex.app.JSolEx.message;
 public class ImageViewer {
     private Node root;
     private Stage stage;
-    private ConstrastAdjustmentStrategy stretchingStrategy = ConstrastAdjustmentStrategy.DEFAULT;
+    private ContrastAdjustmentStrategy stretchingStrategy = ContrastAdjustmentStrategy.DEFAULT;
     private ImageWrapper image;
-    private ImageWrapper rotatedImage;
+    private ImageWrapper displayImage;
+    private ImageWrapper stretchedImage;
     private File imageFile;
     private GeneratedImageKind kind;
     private ProcessingEventListener broadcaster;
@@ -91,6 +92,7 @@ public class ImageViewer {
     private TabPane tabPane;
     private ForkJoinContext forkJoinContext;
     private String title;
+    private Runnable onDisplayUpdate;
 
     private final ListProperty<ImageState> imageHistory = new SimpleListProperty<>(FXCollections.observableArrayList());
     private final IntegerProperty currentImage = new SimpleIntegerProperty(0);
@@ -154,6 +156,10 @@ public class ImageViewer {
         }
     }
 
+    public void setOnDisplayUpdate(Runnable onDisplayUpdate) {
+        this.onDisplayUpdate = onDisplayUpdate;
+    }
+
     private void recordImage(String baseName, ImageWrapper image) {
         imageHistory.add(new ImageState(processParams, baseName, image, imageFile));
     }
@@ -181,7 +187,7 @@ public class ImageViewer {
     }
 
     private void configureStretching() {
-        this.stretchingStrategy = ConstrastAdjustmentStrategy.DEFAULT;
+        this.stretchingStrategy = ContrastAdjustmentStrategy.DEFAULT;
         var line1 = new HBox(4);
         line1.setAlignment(Pos.CENTER_LEFT);
         var line2 = new HBox(4);
@@ -191,7 +197,7 @@ public class ImageViewer {
         reset.setOnAction(event -> {
             stretchingParams.getChildren().clear();
             configureStretching();
-            strechAndDisplay();
+            stretchAndDisplay();
         });
         saveButton = new Button(message("save"));
         saveButton.setOnAction(e -> saveImage(imageFile));
@@ -205,10 +211,10 @@ public class ImageViewer {
         var coordinatesLabel = new Label();
         imageView.setCoordinatesListener((x, y) -> {
             String extra = "";
-            if (rotatedImage == null) {
-                rotatedImage = image;
+            if (displayImage == null) {
+                displayImage = image;
             }
-            if (rotatedImage instanceof ImageWrapper32 mono) {
+            if (displayImage instanceof ImageWrapper32 mono) {
                 var pixelValue = mono.data()[x.intValue() + y.intValue() * mono.width()];
                 extra = ", " + pixelValue;
             }
@@ -217,7 +223,7 @@ public class ImageViewer {
         zoomSlider.valueProperty().addListener((obj, oldValue, newValue) -> imageView.setZoom(newValue.doubleValue()));
         correctAngleP = new CheckBox(message("correct.p.angle"));
         correctAngleP.setSelected(processParams.geometryParams().isAutocorrectAngleP());
-        correctAngleP.selectedProperty().addListener((obj, oldValue, newValue) -> strechAndDisplay());
+        correctAngleP.selectedProperty().addListener((obj, oldValue, newValue) -> stretchAndDisplay());
         correctAngleP.setDisable(kind.shouldRotateImage());
         var prevButton = new Button(message("prev.image"));
         prevButton.disableProperty().bind(currentImage.isEqualTo(0));
@@ -236,7 +242,7 @@ public class ImageViewer {
         line1.getChildren().addAll(reset, saveButton, prevButton, nextButton);
         line2.getChildren().addAll(correctAngleP, zoomLabel, zoomSlider, dimensions, coordinatesLabel);
         stretchingParams.getChildren().addAll(line1, line2);
-        strechAndDisplay(true);
+        stretchAndDisplay(true);
     }
 
     private static float linValueOf(double sliderValue) {
@@ -260,7 +266,7 @@ public class ImageViewer {
             double value = (Double) newValue;
             pause.setOnFinished(e -> {
                 stretchingStrategy = stretchingStrategy.withRange(linValueOf(loSlider.getValue()), linValueOf(hiSlider.getValue()));
-                strechAndDisplay();
+                stretchAndDisplay();
                 loValueLabel.setText("" + (int) (value));
             });
             pause.playFromStart();
@@ -269,7 +275,7 @@ public class ImageViewer {
             double value = (Double) newValue;
             pause.setOnFinished(e -> {
                 stretchingStrategy = stretchingStrategy.withRange(linValueOf(loSlider.getValue()), linValueOf(hiSlider.getValue()));
-                strechAndDisplay();
+                stretchAndDisplay();
                 hiValueLabel.setText("" + (int) (value));
             });
             pause.playFromStart();
@@ -306,16 +312,16 @@ public class ImageViewer {
         }
     }
 
-    private void strechAndDisplay() {
-        strechAndDisplay(false);
+    private void stretchAndDisplay() {
+        stretchAndDisplay(false);
     }
 
-    private void strechAndDisplay(boolean resetZoom) {
+    private void stretchAndDisplay(boolean resetZoom) {
         forkJoinContext.async(() -> {
             File tmpImage = createTmpFile();
             Runnable updateDisplay = () -> {
-                if (rotatedImage != null) {
-                    dimensions.setText(rotatedImage.width() + "x" + rotatedImage.height());
+                if (displayImage != null) {
+                    dimensions.setText(displayImage.width() + "x" + displayImage.height());
                 }
                 imageView.setImage(new Image(tmpImage.toURI().toString()));
                 if (resetZoom) {
@@ -326,19 +332,24 @@ public class ImageViewer {
                 }
                 tmpImage.delete();
                 saveButton.setDisable(false);
+                if (onDisplayUpdate != null) {
+                    onDisplayUpdate.run();
+                }
             };
             var imageFormats = EnumSet.of(ImageFormat.PNG);
             // For some reason the image doesn't look as good when using PixelWriter
             // so we write the image in a tmp file and load it from here.
-            rotatedImage = maybeRotate(this.image);
-            if (rotatedImage instanceof ImageWrapper32 mono) {
+            displayImage = maybeRotate(this.image);
+            if (displayImage instanceof ImageWrapper32 mono) {
                 var stretched = stretch(mono.width(), mono.height(), mono.data());
+                stretchedImage = new ImageWrapper32(mono.width(), mono.height(), stretched, mono.metadata());
                 forkJoinContext.async(() -> {
                     ImageUtils.writeMonoImage(mono.width(), mono.height(), stretched, tmpImage, imageFormats);
                     BatchOperations.submit(updateDisplay);
                 });
-            } else if (rotatedImage instanceof ColorizedImageWrapper colorImage) {
+            } else if (displayImage instanceof ColorizedImageWrapper colorImage) {
                 var stretched = stretch(colorImage.width(), colorImage.height(), colorImage.mono().data());
+                stretchedImage = new ColorizedImageWrapper(new ImageWrapper32(colorImage.width(), colorImage.height(), stretched, colorImage.metadata()), colorImage.converter(), colorImage.metadata());
                 var rgb = colorImage.converter().apply(stretched);
                 var r = rgb[0];
                 var g = rgb[1];
@@ -347,8 +358,9 @@ public class ImageViewer {
                     ImageUtils.writeRgbImage(colorImage.width(), colorImage.height(), r, g, b, tmpImage, imageFormats);
                     BatchOperations.submit(updateDisplay);
                 });
-            } else if (rotatedImage instanceof RGBImage rgb) {
+            } else if (displayImage instanceof RGBImage rgb) {
                 var stretched = stretch(rgb.width(), rgb.height(), rgb.r(), rgb.g(), rgb.b());
+                stretchedImage = new RGBImage(rgb.width(), rgb.height(), stretched[0], stretched[1], stretched[2], rgb.metadata());
                 forkJoinContext.async(() -> {
                     ImageUtils.writeRgbImage(rgb.width(), rgb.height(), stretched[0], stretched[1], stretched[2], tmpImage, imageFormats);
                     BatchOperations.submit(updateDisplay);
@@ -370,6 +382,10 @@ public class ImageViewer {
             return RotationCorrector.rotate(image, correction);
         }
         return image;
+    }
+
+    public ImageWrapper getStretchedImage() {
+        return stretchedImage == null ? image : stretchedImage;
     }
 
     private File createTmpFile() {
@@ -409,7 +425,7 @@ public class ImageViewer {
             updateTitle();
             imageView.setImage(new Image(imageFile.toURI().toString()));
             saveButton.setDisable(true);
-            strechAndDisplay();
+            stretchAndDisplay();
         });
     }
 
