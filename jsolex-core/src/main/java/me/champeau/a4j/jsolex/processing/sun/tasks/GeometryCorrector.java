@@ -32,6 +32,7 @@ import me.champeau.a4j.ser.Header;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Supplier;
@@ -136,7 +137,9 @@ public class GeometryCorrector extends AbstractTask<GeometryCorrector.Result> {
         var rescaled = imageMath.rotateAndScale(new Image(extendedWidth, height, newBuffer), 0, blackPoint, sx, sy);
         double finalSy = sy;
         var circle = computeCorrectedCircle(shear, shift, sx, finalSy);
-        var corrected = ImageWrapper32.fromImage(rescaled, Map.of(Ellipse.class, circle));
+        var metadata = new HashMap<>(getMetadata());
+        metadata.put(Ellipse.class, circle);
+        var corrected = ImageWrapper32.fromImage(rescaled, metadata);
         var autocropMode = processParams.geometryParams().autocropMode();
         if (autocropMode != null) {
             var cropping = new Crop(forkJoinContext, Map.of(Ellipse.class, ellipse));

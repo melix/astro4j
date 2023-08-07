@@ -34,6 +34,7 @@ import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Optional;
 import java.util.function.BiConsumer;
 
 import static java.lang.Math.cos;
@@ -81,7 +82,7 @@ public class ImageDraw extends AbstractFunctionImpl {
         var x = getArgument(Number.class, arguments, 1).map(Number::intValue).orElse(50);
         var y = getArgument(Number.class, arguments, 2).map(Number::intValue).orElse(50);
         if (arg instanceof ImageWrapper img) {
-            var processParams = getFromContext(ProcessParams.class);
+            var processParams = findProcessParams(img);
             if (processParams.isPresent()) {
                 return drawOnImage(img, (g, image) -> {
                     getEllipse(arguments, 3).ifPresent(ellipse -> {
@@ -127,7 +128,7 @@ public class ImageDraw extends AbstractFunctionImpl {
         if (arg instanceof ImageWrapper img) {
             var x = getArgument(Number.class, arguments, 1).map(Number::intValue).orElse(-1);
             var y = getArgument(Number.class, arguments, 2).map(Number::intValue).orElse(50);
-            var processParams = getFromContext(ProcessParams.class);
+            var processParams = findProcessParams(img);
             if (processParams.isPresent()) {
                 return drawOnImage(img, (g, image) -> {
                     getEllipse(arguments, 3).ifPresent(ellipse -> {
@@ -135,7 +136,7 @@ public class ImageDraw extends AbstractFunctionImpl {
                         var radius = (semiAxis.a() + semiAxis.b()) / 2;
                         autoScaleFont(g, 1.2d, radius);
                     });
-                    getFromContext(SolarParameters.class).ifPresent(solarParams -> {
+                    findSolarParams(img).ifPresent(solarParams -> {
                         var sb = new StringBuilder("<b>");
                         appendLine("Solar parameters", sb);
                         appendLine("P " + toDegrees(solarParams.p()), sb);
@@ -156,6 +157,10 @@ public class ImageDraw extends AbstractFunctionImpl {
         throw new IllegalArgumentException("Unexpected image type: " + arg);
     }
 
+    private Optional<ProcessParams> findProcessParams(ImageWrapper img) {
+        return img.findMetadata(ProcessParams.class).or(() -> getFromContext(ProcessParams.class));
+    }
+
     private static String toDegrees(double radians) {
         return String.format(Locale.US, "%.2f°", Math.toDegrees(radians));
     }
@@ -168,12 +173,16 @@ public class ImageDraw extends AbstractFunctionImpl {
         }
         var img = arguments.get(0);
         if (img instanceof ImageWrapper image) {
-            var angleP = getArgument(Number.class, arguments, 1).map(Number::doubleValue).or(() -> getFromContext(SolarParameters.class).map(SolarParameters::p)).orElse(0d);
-            var b0 = getArgument(Number.class, arguments, 2).map(Number::doubleValue).or(() -> getFromContext(SolarParameters.class).map(SolarParameters::b0)).orElse(0d);
+            var angleP = getArgument(Number.class, arguments, 1).map(Number::doubleValue).or(() -> findSolarParams(image).map(SolarParameters::p)).orElse(0d);
+            var b0 = getArgument(Number.class, arguments, 2).map(Number::doubleValue).or(() -> findSolarParams(image).map(SolarParameters::b0)).orElse(0d);
             var ellipse = getEllipse(arguments, 3).orElseThrow(() -> new IllegalArgumentException("Ellipse not defined"));
             return doDrawGlobe(image, ellipse, angleP, b0);
         }
         throw new IllegalArgumentException("Unexpected image type: " + img);
+    }
+
+    private Optional<SolarParameters> findSolarParams(ImageWrapper image) {
+        return image.findMetadata(SolarParameters.class).or(() -> getFromContext(SolarParameters.class));
     }
 
     private static int maxValue(ImageWrapper wrapper) {

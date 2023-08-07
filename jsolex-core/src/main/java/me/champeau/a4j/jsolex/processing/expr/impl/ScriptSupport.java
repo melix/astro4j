@@ -15,20 +15,35 @@
  */
 package me.champeau.a4j.jsolex.processing.expr.impl;
 
+import me.champeau.a4j.jsolex.processing.params.ProcessParams;
 import me.champeau.a4j.jsolex.processing.stretching.NegativeImageStrategy;
 import me.champeau.a4j.jsolex.processing.util.FileBackedImage;
 import me.champeau.a4j.jsolex.processing.util.ForkJoinContext;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
+import me.champeau.a4j.jsolex.processing.util.SolarParameters;
+import me.champeau.a4j.jsolex.processing.util.SolarParametersUtils;
+import me.champeau.a4j.math.Point2D;
+import me.champeau.a4j.math.regression.Ellipse;
+import me.champeau.a4j.math.regression.EllipseRegression;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
+import java.time.Instant;
+import java.time.ZoneId;
+import java.time.ZonedDateTime;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.OptionalDouble;
 import java.util.TreeMap;
 import java.util.function.Function;
 import java.util.stream.DoubleStream;
 
 public class ScriptSupport {
+    private static final Logger LOGGER = LoggerFactory.getLogger(ScriptSupport.class);
+
     private ScriptSupport() {
 
     }
@@ -117,7 +132,45 @@ public class ScriptSupport {
                 var idx = i;
                 result[i] = (float) operator.apply(images.stream().mapToDouble(img -> img.data()[idx])).orElse(0);
             }
-            return new ImageWrapper32(width, height, result, first.metadata());
+            Map<Class<?>, Object> metadata = new HashMap<>();
+            List<Point2D> ellipseSamplePoints = new ArrayList<>();
+            long avgDate = 0;
+            int cpt = 0;
+            for (ImageWrapper32 image : images) {
+                image.findMetadata(Ellipse.class).ifPresent(ellipse -> {
+                    // add sample points to the list in order to compute an "average" ellipse for all images
+                    for (double theta = 0; theta < 2 * Math.PI; theta += Math.PI / 4) {
+                        ellipseSamplePoints.add(ellipse.toCartesian(theta));
+                    }
+                });
+                var processParamsOptional = image.findMetadata(ProcessParams.class);
+                if (processParamsOptional.isPresent()) {
+                    var pp = processParamsOptional.get();
+                    double date = pp.observationDetails().date().toEpochSecond();
+                    avgDate = (long) (avgDate + (date - avgDate) / (++cpt));
+                    metadata.put(ProcessParams.class, pp.withObservationDetails(
+                            pp.observationDetails().withDate(
+                                    ZonedDateTime.ofInstant(Instant.ofEpochSecond(avgDate), ZoneId.of("UTC"))
+                            )
+                    ));
+                }
+            }
+            if (!ellipseSamplePoints.isEmpty()) {
+                try {
+                    var ellipseFit = new EllipseRegression(ellipseSamplePoints);
+                    metadata.put(Ellipse.class, ellipseFit.solve());
+                } catch (Exception ex) {
+                    LOGGER.warn("Cannot estimate average ellipse for many images");
+                }
+            }
+            ProcessParams pp = (ProcessParams) metadata.get(ProcessParams.class);
+            if (pp != null) {
+                var solarParams = SolarParametersUtils.computeSolarParams(
+                        pp.observationDetails().date().toLocalDateTime()
+                );
+                metadata.put(SolarParameters.class, solarParams);
+            }
+            return new ImageWrapper32(width, height, result, metadata);
         }
         throw new IllegalArgumentException("Unexpected argument type '" + type + "'");
     }
