@@ -234,7 +234,7 @@ public class SolexVideoProcessor implements Broadcaster {
                             ImageWrapper32 rotated;
                             var recon = new Image(width, newHeight, state.reconstructed());
                             var rotateLeft = ImageMath.newInstance().rotateLeft(recon);
-                            rotated = ImageWrapper32.fromImage(rotateLeft);
+                            rotated = ImageWrapper32.fromImage(rotateLeft, createMetadata(processParams));
                             maybePerformFlips(rotated);
                             state.setImage(rotated);
                         });
@@ -318,7 +318,7 @@ public class SolexVideoProcessor implements Broadcaster {
                 ImageStats finalImageStats = imageStats;
                 blockingContext.async(() -> {
                     broadcast(ProgressEvent.of(0, "Running script " + scriptFile.getName()));
-                    var context = createBaseExecutionContext(processParams);
+                    var context = createMetadata(processParams);
                     if (circle != null) {
                         context.put(Ellipse.class, circle);
                     }
@@ -349,7 +349,7 @@ public class SolexVideoProcessor implements Broadcaster {
         }
     }
 
-    public static Map<Class<?>, Object> createBaseExecutionContext(ProcessParams processParams) {
+    public static Map<Class<?>, Object> createMetadata(ProcessParams processParams) {
         Map<Class<?>, Object> context = new HashMap<>();
         context.put(ProcessParams.class, processParams);
         context.put(SolarParameters.class, SolarParametersUtils.computeSolarParams(
