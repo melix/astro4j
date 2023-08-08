@@ -16,6 +16,7 @@
 package me.champeau.a4j.jsolex.processing.expr.impl;
 
 import me.champeau.a4j.jsolex.processing.params.ProcessParams;
+import me.champeau.a4j.jsolex.processing.stretching.CutoffStretchingStrategy;
 import me.champeau.a4j.jsolex.processing.stretching.NegativeImageStrategy;
 import me.champeau.a4j.jsolex.processing.util.FileBackedImage;
 import me.champeau.a4j.jsolex.processing.util.ForkJoinContext;
@@ -132,6 +133,7 @@ public class ScriptSupport {
                 var idx = i;
                 result[i] = (float) operator.apply(images.stream().mapToDouble(img -> img.data()[idx])).orElse(0);
             }
+            CutoffStretchingStrategy.DEFAULT.stretch(width, height, result);
             Map<Class<?>, Object> metadata = new HashMap<>();
             List<Point2D> ellipseSamplePoints = new ArrayList<>();
             long avgDate = 0;
