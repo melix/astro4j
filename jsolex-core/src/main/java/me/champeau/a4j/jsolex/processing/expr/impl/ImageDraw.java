@@ -165,6 +165,16 @@ public class ImageDraw extends AbstractFunctionImpl {
         return String.format(Locale.US, "%.2f°", Math.toDegrees(radians));
     }
 
+    private static String toArcMin(double radians) {
+        var degrees = Math.toDegrees(radians);
+        var arcMinutes = (int) (degrees * 60d);
+        var remainder = (degrees * 60d - arcMinutes) * 60d;
+        var arcSeconds = (int) remainder;
+
+        return String.format(Locale.US, "%d'%d\"", arcMinutes, arcSeconds);
+    }
+
+
     public Object drawGlobe(List<Object> arguments) {
         assertExpectedArgCount(arguments, "draw_globe takes 1, 2, 3 or 4 arguments (image(s), [angleP], [b0], [ellipse])", 1, 4);
         var arg = arguments.get(0);
