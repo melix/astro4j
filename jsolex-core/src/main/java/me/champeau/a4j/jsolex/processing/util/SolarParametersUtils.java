@@ -106,6 +106,7 @@ public final class SolarParametersUtils {
                 + (0.019993 - 0.000101 * t) * sin(2 * m)
                 + 0.000289 * sin(3 * m);
         var trueLong = geoMeanLong + c;
+        var trueAnomaly = m + c;
         var apparentLong = trueLong - 0.00569 - 0.00478 * sin(toRadians(125.04 - 1934.136 * t));
         // Page 147
         var meanObliquity = 23.439291111d - 0.013004167d * t - 0.000000164d * t * t + 0.000000504d * t * t * t;
@@ -132,11 +133,15 @@ public final class SolarParametersUtils {
         }
         var l0 = toPositiveAngle(n - toRadians(theta % 360d));
 
+        var eccentricity = 0.016708634 - 0.000042037 * t - 0.0000001267 * t * t;
+        var earthSunDist = 1.000001018 * (1 - eccentricity*eccentricity)/(1+eccentricity * cos(toRadians(trueAnomaly)));
+        var sunApparentSizeDegrees = (959.63 / earthSunDist)/1800;
         return new SolarParameters(
                 computeCarringtonRotationNumber(julianDate),
                 b0,
                 l0,
-                p
+                p,
+                toRadians(sunApparentSizeDegrees)
         );
     }
 

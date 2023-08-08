@@ -24,7 +24,8 @@ public record SolarParameters(
         int carringtonRotation,
         double b0,
         double l0,
-        double p
+        double p,
+        double apparentSize
 ) {
 
     private static final String ANGLE = "%.2f°";
