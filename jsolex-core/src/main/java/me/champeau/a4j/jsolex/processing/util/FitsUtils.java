@@ -16,6 +16,9 @@
 package me.champeau.a4j.jsolex.processing.util;
 
 import me.champeau.a4j.jsolex.processing.params.ProcessParams;
+import me.champeau.a4j.math.regression.Ellipse;
+import nom.tam.fits.BinaryTable;
+import nom.tam.fits.BinaryTableHDU;
 import nom.tam.fits.Fits;
 import nom.tam.fits.FitsException;
 import nom.tam.fits.FitsFactory;
@@ -36,6 +39,8 @@ import java.util.Objects;
 import static nom.tam.fits.header.extra.NOAOExt.CAMERA;
 
 class FitsUtils {
+    public static final String JSOLEX_HEADER_KEY = "JSOLEX";
+    public static final String ELLIPSE_VALUE = "Ellipse";
     private final ProcessParams params;
     private final File destination;
 
@@ -67,6 +72,7 @@ class FitsUtils {
             var header = hdu.getHeader();
             writeHeader(rgb, header);
             fits.addHDU(hdu);
+            writeMetadata(rgb, fits);
             fits.write(destination);
         } catch (IOException | FitsException e) {
             throw new RuntimeException(e);
@@ -74,7 +80,8 @@ class FitsUtils {
     }
 
     private void writeColorized(ColorizedImageWrapper colorized) {
-        throw new UnsupportedOperationException();
+        var rgb = colorized.converter().apply(colorized.mono().data());
+        writeRGB(new RGBImage(colorized.width(), colorized.height(), rgb[0], rgb[1], rgb[2], colorized.metadata()));
     }
 
     private void writeMono(ImageWrapper32 mono) {
@@ -83,10 +90,34 @@ class FitsUtils {
             var header = hdu.getHeader();
             writeHeader(mono, header);
             fits.addHDU(hdu);
+            writeMetadata(mono, fits);
             fits.write(destination);
         } catch (IOException | FitsException e) {
             throw new RuntimeException(e);
         }
+    }
+
+    private static void writeMetadata(ImageWrapper image, Fits fits) throws FitsException {
+        if (!image.metadata().isEmpty()) {
+            var metadata = image.findMetadata(Ellipse.class);
+            if (metadata.isPresent()) {
+                var ellipse = metadata.get();
+                var table = new BinaryTable();
+                var cart = ellipse.getCartesianCoefficients();
+                table.addRow(new Double[] {
+                        cart.a(),
+                        cart.b(),
+                        cart.c(),
+                        cart.d(),
+                        cart.e(),
+                        cart.f()
+                });
+                var binaryTableHDU = BinaryTableHDU.wrap(table);
+                binaryTableHDU.getHeader().addValue(JSOLEX_HEADER_KEY, ELLIPSE_VALUE, "Ellipse parameters");
+                fits.addHDU(binaryTableHDU);
+            }
+        }
+
     }
 
     private void writeHeader(ImageWrapper image, Header header) throws HeaderCardException {
@@ -157,7 +188,7 @@ class FitsUtils {
                 } else if (value > 65536) {
                     value = 65536;
                 }
-                result[x + y * width] = (short) ((value-32768) & 0xFFFF);
+                result[x + y * width] = (short) ((value - 32768) & 0xFFFF);
             }
         }
         return result;
