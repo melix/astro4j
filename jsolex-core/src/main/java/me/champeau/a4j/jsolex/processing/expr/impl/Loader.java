@@ -15,6 +15,7 @@
  */
 package me.champeau.a4j.jsolex.processing.expr.impl;
 
+import me.champeau.a4j.jsolex.processing.util.FitsUtils;
 import me.champeau.a4j.jsolex.processing.util.ForkJoinContext;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
@@ -45,7 +46,9 @@ public class Loader extends AbstractFunctionImpl {
             "jpg",
             "jpeg",
             "tif",
-            "tiff"
+            "tiff",
+            "fits",
+            "fit"
     );
 
     public Loader(ForkJoinContext forkJoinContext, Map<Class<?>, Object> context) {
@@ -70,6 +73,9 @@ public class Loader extends AbstractFunctionImpl {
     }
 
     private static ImageWrapper doLoadImage(File file) {
+        if (file.getName().toLowerCase(Locale.US).endsWith(".fits")) {
+            return FitsUtils.readFitsFile(file);
+        }
         BufferedImage image;
         try {
             image = ImageIO.read(file);

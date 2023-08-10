@@ -61,7 +61,7 @@ public class DiskFill extends AbstractFunctionImpl {
                 doFill(ellipse.get(), r, rgb.width(), fill);
                 var g = new float[rgb.g().length];
                 System.arraycopy(rgb.g(), 0, g, 0, g.length);
-                doFill(ellipse.get(), r, rgb.width(), fill);
+                doFill(ellipse.get(), g, rgb.width(), fill);
                 var b = new float[rgb.b().length];
                 System.arraycopy(rgb.b(), 0, b, 0, b.length);
                 doFill(ellipse.get(), b, rgb.width(), fill);

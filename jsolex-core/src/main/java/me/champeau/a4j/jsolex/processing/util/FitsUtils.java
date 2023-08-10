@@ -16,11 +16,18 @@
 package me.champeau.a4j.jsolex.processing.util;
 
 import me.champeau.a4j.jsolex.processing.params.ProcessParams;
+import me.champeau.a4j.jsolex.processing.params.ProcessParamsIO;
+import me.champeau.a4j.math.regression.Ellipse;
+import me.champeau.a4j.math.tuples.DoubleSextuplet;
+import nom.tam.fits.BasicHDU;
+import nom.tam.fits.BinaryTable;
+import nom.tam.fits.BinaryTableHDU;
 import nom.tam.fits.Fits;
 import nom.tam.fits.FitsException;
 import nom.tam.fits.FitsFactory;
 import nom.tam.fits.Header;
 import nom.tam.fits.HeaderCardException;
+import nom.tam.fits.ImageHDU;
 import nom.tam.fits.header.DataDescription;
 import nom.tam.fits.header.IFitsHeader;
 import nom.tam.fits.header.InstrumentDescription;
@@ -29,13 +36,21 @@ import nom.tam.fits.header.extra.SBFitsExt;
 
 import java.io.File;
 import java.io.IOException;
+import java.io.StringReader;
+import java.nio.charset.StandardCharsets;
 import java.text.Normalizer;
 import java.time.format.DateTimeFormatter;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Objects;
 
 import static nom.tam.fits.header.extra.NOAOExt.CAMERA;
 
-class FitsUtils {
+public class FitsUtils {
+    public static final String JSOLEX_HEADER_KEY = "JSOLEX";
+    public static final String ELLIPSE_VALUE = "Ellipse";
+    public static final String PROCESS_PARAMS_VALUE = "PrParams";
+    public static final String SOLAR_PARAMS_VALUE = "SoParams";
     private final ProcessParams params;
     private final File destination;
 
@@ -46,6 +61,99 @@ class FitsUtils {
 
     static void writeFitsFile(ImageWrapper image, File destination, ProcessParams params) {
         new FitsUtils(params, destination).write(image);
+    }
+
+    public static ImageWrapper readFitsFile(File source) {
+        try (var fits = new Fits(source)) {
+            float[] data = null;
+            float[][] rgb = null;
+            int rows = 0;
+            int cols = 0;
+            Map<Class<?>, Object> metadata = new HashMap<>();
+            var hdus = fits.read();
+            for (BasicHDU<?> hdu : hdus) {
+                if (hdu instanceof ImageHDU imageHdu) {
+                    var kernel = imageHdu.getKernel();
+                    if (kernel instanceof short[][] mono) {
+                        rows = mono.length;
+                        cols = rows == 0 ? 0 : mono[0].length;
+                        data = readChannel(mono, rows, cols);
+                    } else if (kernel instanceof short[][][] channels) {
+                        rgb = new float[3][];
+                        for (int i = 0; i < channels.length; i++) {
+                            short[][] channel = channels[i];
+                            rows = channel.length;
+                            cols = rows == 0 ? 0 : channel[0].length;
+                            rgb[i] = readChannel(channel, rows, cols);
+                        }
+                    } else {
+                        throw new UnsupportedOperationException("Unsupported FITS file format");
+                    }
+                } else if (hdu instanceof BinaryTableHDU binaryTableHdu) {
+                    readMetadata(binaryTableHdu, metadata);
+                }
+            }
+            if (data != null) {
+                return new ImageWrapper32(cols, rows, data, metadata);
+            }
+            if (rgb != null) {
+                return new RGBImage(cols, rows, rgb[0], rgb[1], rgb[2], metadata);
+            }
+
+        } catch (IOException | FitsException e) {
+            throw new ProcessingException(e);
+        }
+        throw new UnsupportedOperationException("Unsupported FITS file format");
+    }
+
+    private static float[] readChannel(short[][] mono, int rows, int cols) {
+        float[] data;
+        data = new float[rows * cols];
+        for (int y = 0; y < rows; y++) {
+            for (int x = 0; x < cols; x++) {
+                data[x + y * cols] = mono[y][x] + 32768f;
+            }
+        }
+        return data;
+    }
+
+    private static void readMetadata(BinaryTableHDU binaryTableHdu, Map<Class<?>, Object> metadata) throws FitsException {
+        var iterator = binaryTableHdu.getHeader().iterator();
+        while (iterator.hasNext()) {
+            var card = iterator.next();
+            if (JSOLEX_HEADER_KEY.equals(card.getKey())) {
+                if (ELLIPSE_VALUE.equals(card.getValue())) {
+                    var cart = new double[6];
+                    var binaryTable = binaryTableHdu.getData();
+                    for (int i = 0; i < cart.length; i++) {
+                        cart[i] = binaryTable.getDouble(0, i);
+                    }
+                    metadata.put(Ellipse.class, Ellipse.ofCartesian(new DoubleSextuplet(
+                            cart[0],
+                            cart[1],
+                            cart[2],
+                            cart[3],
+                            cart[4],
+                            cart[5]
+                    )));
+                } else if (PROCESS_PARAMS_VALUE.equals(card.getValue())) {
+                    var bytes = (byte[]) binaryTableHdu.getData().get(0, 0);
+                    var json = new String(bytes, StandardCharsets.UTF_8);
+                    var pp = ProcessParamsIO.readFrom(new StringReader(json));
+                    metadata.put(ProcessParams.class, pp);
+                } else if (SOLAR_PARAMS_VALUE.equals(card.getValue())) {
+                    var binaryTable = binaryTableHdu.getData();
+                    var sp = new SolarParameters(
+                          binaryTable.getNumber(0,0).intValue(),
+                          binaryTable.getDouble(0, 1),
+                          binaryTable.getDouble(0, 2),
+                          binaryTable.getDouble(0, 3),
+                          binaryTable.getDouble(0, 4)
+                    );
+                    metadata.put(SolarParameters.class, sp);
+                }
+            }
+        }
     }
 
     private void write(ImageWrapper image) {
@@ -67,6 +175,7 @@ class FitsUtils {
             var header = hdu.getHeader();
             writeHeader(rgb, header);
             fits.addHDU(hdu);
+            writeMetadata(rgb, fits);
             fits.write(destination);
         } catch (IOException | FitsException e) {
             throw new RuntimeException(e);
@@ -74,7 +183,8 @@ class FitsUtils {
     }
 
     private void writeColorized(ColorizedImageWrapper colorized) {
-        throw new UnsupportedOperationException();
+        var rgb = colorized.converter().apply(colorized.mono().data());
+        writeRGB(new RGBImage(colorized.width(), colorized.height(), rgb[0], rgb[1], rgb[2], colorized.metadata()));
     }
 
     private void writeMono(ImageWrapper32 mono) {
@@ -83,9 +193,69 @@ class FitsUtils {
             var header = hdu.getHeader();
             writeHeader(mono, header);
             fits.addHDU(hdu);
+            writeMetadata(mono, fits);
             fits.write(destination);
         } catch (IOException | FitsException e) {
             throw new RuntimeException(e);
+        }
+    }
+
+    private static void writeMetadata(ImageWrapper image, Fits fits) throws FitsException {
+        if (!image.metadata().isEmpty()) {
+            writeEllipse(image, fits);
+            writeProcessParams(image, fits);
+            writeSolarParams(image, fits);
+        }
+    }
+
+    private static void writeEllipse(ImageWrapper image, Fits fits) throws FitsException {
+        var metadata = image.findMetadata(Ellipse.class);
+        if (metadata.isPresent()) {
+            var ellipse = metadata.get();
+            var table = new BinaryTable();
+            var cart = ellipse.getCartesianCoefficients();
+            table.addRow(new Double[]{
+                    cart.a(),
+                    cart.b(),
+                    cart.c(),
+                    cart.d(),
+                    cart.e(),
+                    cart.f()
+            });
+            var binaryTableHDU = BinaryTableHDU.wrap(table);
+            binaryTableHDU.getHeader().addValue(JSOLEX_HEADER_KEY, ELLIPSE_VALUE, "Ellipse parameters");
+            fits.addHDU(binaryTableHDU);
+        }
+    }
+
+    private static void writeSolarParams(ImageWrapper image, Fits fits) throws FitsException {
+        var metadata = image.findMetadata(SolarParameters.class);
+        if (metadata.isPresent()) {
+            var sp = metadata.get();
+            var table = new BinaryTable();
+            table.addRow(new Object[]{
+                    sp.carringtonRotation(),
+                    sp.b0(),
+                    sp.l0(),
+                    sp.p(),
+                    sp.apparentSize()
+            });
+            var binaryTableHDU = BinaryTableHDU.wrap(table);
+            binaryTableHDU.getHeader().addValue(JSOLEX_HEADER_KEY, SOLAR_PARAMS_VALUE, "Solar parameters");
+            fits.addHDU(binaryTableHDU);
+        }
+    }
+
+    private static void writeProcessParams(ImageWrapper image, Fits fits) throws FitsException {
+        var metadata = image.findMetadata(ProcessParams.class);
+        if (metadata.isPresent()) {
+            var processParams = metadata.get();
+            var json = ProcessParamsIO.serializeToJson(processParams);
+            var table = new BinaryTable();
+            table.addRow(new Object[] { json.getBytes(StandardCharsets.UTF_8) });
+            var binaryTableHDU = BinaryTableHDU.wrap(table);
+            binaryTableHDU.getHeader().addValue(JSOLEX_HEADER_KEY, PROCESS_PARAMS_VALUE, "Process parameters");
+            fits.addHDU(binaryTableHDU);
         }
     }
 
@@ -157,7 +327,7 @@ class FitsUtils {
                 } else if (value > 65536) {
                     value = 65536;
                 }
-                result[x + y * width] = (short) ((value-32768) & 0xFFFF);
+                result[x + y * width] = (short) ((value - 32768) & 0xFFFF);
             }
         }
         return result;
