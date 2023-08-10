@@ -50,6 +50,7 @@ public class FitsUtils {
     public static final String JSOLEX_HEADER_KEY = "JSOLEX";
     public static final String ELLIPSE_VALUE = "Ellipse";
     public static final String PROCESS_PARAMS_VALUE = "PrParams";
+    public static final String SOLAR_PARAMS_VALUE = "SoParams";
     private final ProcessParams params;
     private final File destination;
 
@@ -140,6 +141,16 @@ public class FitsUtils {
                     var json = new String(bytes, StandardCharsets.UTF_8);
                     var pp = ProcessParamsIO.readFrom(new StringReader(json));
                     metadata.put(ProcessParams.class, pp);
+                } else if (SOLAR_PARAMS_VALUE.equals(card.getValue())) {
+                    var binaryTable = binaryTableHdu.getData();
+                    var sp = new SolarParameters(
+                          binaryTable.getNumber(0,0).intValue(),
+                          binaryTable.getDouble(0, 1),
+                          binaryTable.getDouble(0, 2),
+                          binaryTable.getDouble(0, 3),
+                          binaryTable.getDouble(0, 4)
+                    );
+                    metadata.put(SolarParameters.class, sp);
                 }
             }
         }
@@ -193,6 +204,7 @@ public class FitsUtils {
         if (!image.metadata().isEmpty()) {
             writeEllipse(image, fits);
             writeProcessParams(image, fits);
+            writeSolarParams(image, fits);
         }
     }
 
@@ -212,6 +224,24 @@ public class FitsUtils {
             });
             var binaryTableHDU = BinaryTableHDU.wrap(table);
             binaryTableHDU.getHeader().addValue(JSOLEX_HEADER_KEY, ELLIPSE_VALUE, "Ellipse parameters");
+            fits.addHDU(binaryTableHDU);
+        }
+    }
+
+    private static void writeSolarParams(ImageWrapper image, Fits fits) throws FitsException {
+        var metadata = image.findMetadata(SolarParameters.class);
+        if (metadata.isPresent()) {
+            var sp = metadata.get();
+            var table = new BinaryTable();
+            table.addRow(new Object[]{
+                    sp.carringtonRotation(),
+                    sp.b0(),
+                    sp.l0(),
+                    sp.p(),
+                    sp.apparentSize()
+            });
+            var binaryTableHDU = BinaryTableHDU.wrap(table);
+            binaryTableHDU.getHeader().addValue(JSOLEX_HEADER_KEY, SOLAR_PARAMS_VALUE, "Solar parameters");
             fits.addHDU(binaryTableHDU);
         }
     }
