@@ -25,6 +25,7 @@ import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.io.IOException;
+import java.io.Reader;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -35,13 +36,12 @@ import java.util.EnumSet;
 import java.util.List;
 import java.util.Set;
 
-abstract class ProcessParamsIO {
+public abstract class ProcessParamsIO {
     private static final Logger LOGGER = LoggerFactory.getLogger(ProcessParamsIO.class);
 
     private ProcessParamsIO() {
 
     }
-
 
     private static Path resolveDefaultsFile() {
         var jsolexDir = Paths.get(System.getProperty("user.home"), ".jsolex");
@@ -92,82 +92,8 @@ abstract class ProcessParamsIO {
     public static ProcessParams readFrom(Path configFile) {
         if (Files.exists(configFile)) {
             try (var reader = FilesUtils.newTextReader(configFile)) {
-                Gson gson = newGson();
-                var params = gson.fromJson(reader, ProcessParams.class);
+                var params = readFrom(reader);
                 if (params != null) {
-                    if (params.videoParams() == null) {
-                        // happens if loading an old config file
-                        params = new ProcessParams(
-                                params.spectrumParams(),
-                                params.observationDetails(),
-                                params.extraParams(),
-                                new VideoParams(ColorMode.MONO),
-                                params.geometryParams(),
-                                params.bandingCorrectionParams(),
-                                params.requestedImages()
-                        );
-                    }
-                    if (params.geometryParams() == null) {
-                        params = new ProcessParams(
-                                params.spectrumParams(),
-                                params.observationDetails(),
-                                params.extraParams(),
-                                params.videoParams(),
-                                new GeometryParams(
-                                        null,
-                                        null,
-                                        false,
-                                        false,
-                                        false,
-                                        false,
-                                        true,
-                                        RotationKind.NONE,
-                                        AutocropMode.OFF),
-                                params.bandingCorrectionParams(),
-                                params.requestedImages()
-                        );
-                    }
-                    if (params.bandingCorrectionParams() == null) {
-                        params = new ProcessParams(
-                                params.spectrumParams(),
-                                params.observationDetails(),
-                                params.extraParams(),
-                                params.videoParams(),
-                                params.geometryParams(),
-                                new BandingCorrectionParams(
-                                        24,
-                                        3
-                                ),
-                                params.requestedImages()
-                        );
-                    }
-                    if (params.requestedImages() == null) {
-                        params = new ProcessParams(
-                                params.spectrumParams(),
-                                params.observationDetails(),
-                                params.extraParams(),
-                                params.videoParams(),
-                                params.geometryParams(),
-                                params.bandingCorrectionParams(),
-                                new RequestedImages(RequestedImages.FULL_MODE, List.of(0d), Set.of(), ImageMathParams.NONE)
-                        );
-                    }
-                    if (params.extraParams() == null) {
-                        params = params.withExtraParams(new ExtraParams(
-                                false,
-                                true,
-                                EnumSet.of(ImageFormat.PNG),
-                                FileNamingStrategy.DEFAULT_TEMPLATE,
-                                FileNamingStrategy.DEFAULT_DATETIME_FORMAT,
-                                FileNamingStrategy.DEFAULT_DATE_FORMAT
-                        ));
-                    }
-                    if (params.extraParams().datetimeFormat() == null) {
-                        params = params.withExtraParams(params.extraParams().withDateTimeFormat(FileNamingStrategy.DEFAULT_DATETIME_FORMAT));
-                    }
-                    if (params.extraParams().dateFormat() == null) {
-                        params = params.withExtraParams(params.extraParams().withDateFormat(FileNamingStrategy.DEFAULT_DATE_FORMAT));
-                    }
                     return params;
                 }
             } catch (IOException e) {
@@ -175,6 +101,93 @@ abstract class ProcessParamsIO {
             }
         }
         return null;
+    }
+
+    public static ProcessParams readFrom(Reader reader) {
+        Gson gson = newGson();
+        var params = gson.fromJson(reader, ProcessParams.class);
+        if (params != null) {
+            if (params.videoParams() == null) {
+                // happens if loading an old config file
+                params = new ProcessParams(
+                        params.spectrumParams(),
+                        params.observationDetails(),
+                        params.extraParams(),
+                        new VideoParams(ColorMode.MONO),
+                        params.geometryParams(),
+                        params.bandingCorrectionParams(),
+                        params.requestedImages()
+                );
+            }
+            if (params.geometryParams() == null) {
+                params = new ProcessParams(
+                        params.spectrumParams(),
+                        params.observationDetails(),
+                        params.extraParams(),
+                        params.videoParams(),
+                        new GeometryParams(
+                                null,
+                                null,
+                                false,
+                                false,
+                                false,
+                                false,
+                                true,
+                                RotationKind.NONE,
+                                AutocropMode.OFF),
+                        params.bandingCorrectionParams(),
+                        params.requestedImages()
+                );
+            }
+            if (params.bandingCorrectionParams() == null) {
+                params = new ProcessParams(
+                        params.spectrumParams(),
+                        params.observationDetails(),
+                        params.extraParams(),
+                        params.videoParams(),
+                        params.geometryParams(),
+                        new BandingCorrectionParams(
+                                24,
+                                3
+                        ),
+                        params.requestedImages()
+                );
+            }
+            if (params.requestedImages() == null) {
+                params = new ProcessParams(
+                        params.spectrumParams(),
+                        params.observationDetails(),
+                        params.extraParams(),
+                        params.videoParams(),
+                        params.geometryParams(),
+                        params.bandingCorrectionParams(),
+                        new RequestedImages(RequestedImages.FULL_MODE, List.of(0d), Set.of(), ImageMathParams.NONE)
+                );
+            }
+            if (params.extraParams() == null) {
+                params = params.withExtraParams(new ExtraParams(
+                        false,
+                        true,
+                        EnumSet.of(ImageFormat.PNG),
+                        FileNamingStrategy.DEFAULT_TEMPLATE,
+                        FileNamingStrategy.DEFAULT_DATETIME_FORMAT,
+                        FileNamingStrategy.DEFAULT_DATE_FORMAT
+                ));
+            }
+            if (params.extraParams().datetimeFormat() == null) {
+                params = params.withExtraParams(params.extraParams().withDateTimeFormat(FileNamingStrategy.DEFAULT_DATETIME_FORMAT));
+            }
+            if (params.extraParams().dateFormat() == null) {
+                params = params.withExtraParams(params.extraParams().withDateFormat(FileNamingStrategy.DEFAULT_DATE_FORMAT));
+            }
+            return params;
+        }
+        return null;
+    }
+
+    public static String serializeToJson(ProcessParams params) {
+        var gson = newGson();
+        return gson.toJson(params);
     }
 
     public static void saveTo(ProcessParams params, File destination) {

@@ -16,6 +16,7 @@
 package me.champeau.a4j.jsolex.processing.util;
 
 import me.champeau.a4j.jsolex.processing.params.ProcessParams;
+import me.champeau.a4j.jsolex.processing.params.ProcessParamsIO;
 import me.champeau.a4j.math.regression.Ellipse;
 import me.champeau.a4j.math.tuples.DoubleSextuplet;
 import nom.tam.fits.BasicHDU;
@@ -35,6 +36,8 @@ import nom.tam.fits.header.extra.SBFitsExt;
 
 import java.io.File;
 import java.io.IOException;
+import java.io.StringReader;
+import java.nio.charset.StandardCharsets;
 import java.text.Normalizer;
 import java.time.format.DateTimeFormatter;
 import java.util.HashMap;
@@ -46,6 +49,7 @@ import static nom.tam.fits.header.extra.NOAOExt.CAMERA;
 public class FitsUtils {
     public static final String JSOLEX_HEADER_KEY = "JSOLEX";
     public static final String ELLIPSE_VALUE = "Ellipse";
+    public static final String PROCESS_PARAMS_VALUE = "PrParams";
     private final ProcessParams params;
     private final File destination;
 
@@ -116,7 +120,8 @@ public class FitsUtils {
         var iterator = binaryTableHdu.getHeader().iterator();
         while (iterator.hasNext()) {
             var card = iterator.next();
-            if (JSOLEX_HEADER_KEY.equals(card.getKey()) && ELLIPSE_VALUE.equals(card.getValue())) {
+            if (JSOLEX_HEADER_KEY.equals(card.getKey())) {
+                if (ELLIPSE_VALUE.equals(card.getValue())) {
                     var cart = new double[6];
                     var binaryTable = binaryTableHdu.getData();
                     for (int i = 0; i < cart.length; i++) {
@@ -130,7 +135,12 @@ public class FitsUtils {
                             cart[4],
                             cart[5]
                     )));
-
+                } else if (PROCESS_PARAMS_VALUE.equals(card.getValue())) {
+                    var bytes = (byte[]) binaryTableHdu.getData().get(0, 0);
+                    var json = new String(bytes, StandardCharsets.UTF_8);
+                    var pp = ProcessParamsIO.readFrom(new StringReader(json));
+                    metadata.put(ProcessParams.class, pp);
+                }
             }
         }
     }
@@ -181,25 +191,42 @@ public class FitsUtils {
 
     private static void writeMetadata(ImageWrapper image, Fits fits) throws FitsException {
         if (!image.metadata().isEmpty()) {
-            var metadata = image.findMetadata(Ellipse.class);
-            if (metadata.isPresent()) {
-                var ellipse = metadata.get();
-                var table = new BinaryTable();
-                var cart = ellipse.getCartesianCoefficients();
-                table.addRow(new Double[]{
-                        cart.a(),
-                        cart.b(),
-                        cart.c(),
-                        cart.d(),
-                        cart.e(),
-                        cart.f()
-                });
-                var binaryTableHDU = BinaryTableHDU.wrap(table);
-                binaryTableHDU.getHeader().addValue(JSOLEX_HEADER_KEY, ELLIPSE_VALUE, "Ellipse parameters");
-                fits.addHDU(binaryTableHDU);
-            }
+            writeEllipse(image, fits);
+            writeProcessParams(image, fits);
         }
+    }
 
+    private static void writeEllipse(ImageWrapper image, Fits fits) throws FitsException {
+        var metadata = image.findMetadata(Ellipse.class);
+        if (metadata.isPresent()) {
+            var ellipse = metadata.get();
+            var table = new BinaryTable();
+            var cart = ellipse.getCartesianCoefficients();
+            table.addRow(new Double[]{
+                    cart.a(),
+                    cart.b(),
+                    cart.c(),
+                    cart.d(),
+                    cart.e(),
+                    cart.f()
+            });
+            var binaryTableHDU = BinaryTableHDU.wrap(table);
+            binaryTableHDU.getHeader().addValue(JSOLEX_HEADER_KEY, ELLIPSE_VALUE, "Ellipse parameters");
+            fits.addHDU(binaryTableHDU);
+        }
+    }
+
+    private static void writeProcessParams(ImageWrapper image, Fits fits) throws FitsException {
+        var metadata = image.findMetadata(ProcessParams.class);
+        if (metadata.isPresent()) {
+            var processParams = metadata.get();
+            var json = ProcessParamsIO.serializeToJson(processParams);
+            var table = new BinaryTable();
+            table.addRow(new Object[] { json.getBytes(StandardCharsets.UTF_8) });
+            var binaryTableHDU = BinaryTableHDU.wrap(table);
+            binaryTableHDU.getHeader().addValue(JSOLEX_HEADER_KEY, PROCESS_PARAMS_VALUE, "Process parameters");
+            fits.addHDU(binaryTableHDU);
+        }
     }
 
     private void writeHeader(ImageWrapper image, Header header) throws HeaderCardException {
