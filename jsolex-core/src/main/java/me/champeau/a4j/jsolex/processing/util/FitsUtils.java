@@ -17,6 +17,8 @@ package me.champeau.a4j.jsolex.processing.util;
 
 import me.champeau.a4j.jsolex.processing.params.ProcessParams;
 import me.champeau.a4j.math.regression.Ellipse;
+import me.champeau.a4j.math.tuples.DoubleSextuplet;
+import nom.tam.fits.BasicHDU;
 import nom.tam.fits.BinaryTable;
 import nom.tam.fits.BinaryTableHDU;
 import nom.tam.fits.Fits;
@@ -24,6 +26,7 @@ import nom.tam.fits.FitsException;
 import nom.tam.fits.FitsFactory;
 import nom.tam.fits.Header;
 import nom.tam.fits.HeaderCardException;
+import nom.tam.fits.ImageHDU;
 import nom.tam.fits.header.DataDescription;
 import nom.tam.fits.header.IFitsHeader;
 import nom.tam.fits.header.InstrumentDescription;
@@ -34,11 +37,13 @@ import java.io.File;
 import java.io.IOException;
 import java.text.Normalizer;
 import java.time.format.DateTimeFormatter;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Objects;
 
 import static nom.tam.fits.header.extra.NOAOExt.CAMERA;
 
-class FitsUtils {
+public class FitsUtils {
     public static final String JSOLEX_HEADER_KEY = "JSOLEX";
     public static final String ELLIPSE_VALUE = "Ellipse";
     private final ProcessParams params;
@@ -51,6 +56,83 @@ class FitsUtils {
 
     static void writeFitsFile(ImageWrapper image, File destination, ProcessParams params) {
         new FitsUtils(params, destination).write(image);
+    }
+
+    public static ImageWrapper readFitsFile(File source) {
+        try (var fits = new Fits(source)) {
+            float[] data = null;
+            float[][] rgb = null;
+            int rows = 0;
+            int cols = 0;
+            Map<Class<?>, Object> metadata = new HashMap<>();
+            var hdus = fits.read();
+            for (BasicHDU<?> hdu : hdus) {
+                if (hdu instanceof ImageHDU imageHdu) {
+                    var kernel = imageHdu.getKernel();
+                    if (kernel instanceof short[][] mono) {
+                        rows = mono.length;
+                        cols = rows == 0 ? 0 : mono[0].length;
+                        data = readChannel(mono, rows, cols);
+                    } else if (kernel instanceof short[][][] channels) {
+                        rgb = new float[3][];
+                        for (int i = 0; i < channels.length; i++) {
+                            short[][] channel = channels[i];
+                            rows = channel.length;
+                            cols = rows == 0 ? 0 : channel[0].length;
+                            rgb[i] = readChannel(channel, rows, cols);
+                        }
+                    } else {
+                        throw new UnsupportedOperationException("Unsupported FITS file format");
+                    }
+                } else if (hdu instanceof BinaryTableHDU binaryTableHdu) {
+                    readMetadata(binaryTableHdu, metadata);
+                }
+            }
+            if (data != null) {
+                return new ImageWrapper32(cols, rows, data, metadata);
+            }
+            if (rgb != null) {
+                return new RGBImage(cols, rows, rgb[0], rgb[1], rgb[2], metadata);
+            }
+
+        } catch (IOException | FitsException e) {
+            throw new ProcessingException(e);
+        }
+        throw new UnsupportedOperationException("Unsupported FITS file format");
+    }
+
+    private static float[] readChannel(short[][] mono, int rows, int cols) {
+        float[] data;
+        data = new float[rows * cols];
+        for (int y = 0; y < rows; y++) {
+            for (int x = 0; x < cols; x++) {
+                data[x + y * cols] = mono[y][x] + 32768f;
+            }
+        }
+        return data;
+    }
+
+    private static void readMetadata(BinaryTableHDU binaryTableHdu, Map<Class<?>, Object> metadata) throws FitsException {
+        var iterator = binaryTableHdu.getHeader().iterator();
+        while (iterator.hasNext()) {
+            var card = iterator.next();
+            if (JSOLEX_HEADER_KEY.equals(card.getKey()) && ELLIPSE_VALUE.equals(card.getValue())) {
+                    var cart = new double[6];
+                    var binaryTable = binaryTableHdu.getData();
+                    for (int i = 0; i < cart.length; i++) {
+                        cart[i] = binaryTable.getDouble(0, i);
+                    }
+                    metadata.put(Ellipse.class, Ellipse.ofCartesian(new DoubleSextuplet(
+                            cart[0],
+                            cart[1],
+                            cart[2],
+                            cart[3],
+                            cart[4],
+                            cart[5]
+                    )));
+
+            }
+        }
     }
 
     private void write(ImageWrapper image) {
@@ -104,7 +186,7 @@ class FitsUtils {
                 var ellipse = metadata.get();
                 var table = new BinaryTable();
                 var cart = ellipse.getCartesianCoefficients();
-                table.addRow(new Double[] {
+                table.addRow(new Double[]{
                         cart.a(),
                         cart.b(),
                         cart.c(),
