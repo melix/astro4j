@@ -90,9 +90,9 @@ public class Scaling extends AbstractFunctionImpl {
             var fittings = new LinkedHashMap<ImageWrapper, Double>();
             for (Object obj : list) {
                 if (obj instanceof ImageWrapper img) {
-                    var fit = ellipseFit.fit(List.of(img));
-                    if (fit instanceof Ellipse e) {
-                        fittings.put(img, radiusOf(e));
+                    var fit = img.findMetadata(Ellipse.class).orElseGet(() -> (Ellipse) ellipseFit.fit(List.of(img)));
+                    if (fit != null) {
+                        fittings.put(img, radiusOf(fit));
                     }
                 }
             }
