@@ -58,4 +58,8 @@ public class ShiftCollectingImageExpressionEvaluator extends ImageExpressionEval
     public void clearShifts() {
         shifts.clear();
     }
+
+    public void clearCache() {
+        cache.clear();
+    }
 }

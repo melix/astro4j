@@ -17,6 +17,8 @@ package me.champeau.a4j.jsolex.app.jfx;
 
 import javafx.application.HostServices;
 import javafx.fxml.FXML;
+import javafx.scene.Parent;
+import javafx.scene.Scene;
 import javafx.scene.control.Alert;
 import javafx.scene.control.Button;
 import javafx.scene.control.ButtonType;
@@ -38,6 +40,7 @@ import java.nio.file.StandardOpenOption;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.function.Consumer;
 
 public class ImageMathEditor {
     private static final ButtonType PROCEED = new ButtonType(I18N.string(JSolEx.class, "imagemath-editor", "proceed.anyway"));
@@ -46,7 +49,7 @@ public class ImageMathEditor {
     public static final FileChooser.ExtensionFilter MATH_SCRIPT_EXTENSION_FILTER = new FileChooser.ExtensionFilter("ImageMath Script (*.math)", "*" + MATH_EXTENSION);
 
     @FXML
-    public ListView<ImageMathEntry> scriptsToApply;
+    private ListView<ImageMathEntry> scriptsToApply;
 
     private ImageMathParams params;
     @FXML
@@ -63,6 +66,38 @@ public class ImageMathEditor {
     private Stage stage;
     private HostServices hostServices;
     private boolean batchMode;
+
+    public static void create(Stage stage,
+                              ImageMathParams imageMathParams,
+                              HostServices hostServices,
+                              boolean batchMode,
+                              Consumer<? super ImageMathEditor> onClose) {
+        var fxmlLoader = I18N.fxmlLoader(JSolEx.class, "imagemath-editor");
+        try {
+            var node = (Parent) fxmlLoader.load();
+            var controller = (ImageMathEditor) fxmlLoader.getController();
+            controller.setup(stage, imageMathParams, hostServices, batchMode);
+            Scene scene = new Scene(node);
+            scene.getStylesheets().add(JSolEx.class.getResource("syntax.css").toExternalForm());
+            var currentScene = stage.getScene();
+            var onCloseRequest = stage.getOnCloseRequest();
+            var title = stage.getTitle();
+            stage.setTitle(I18N.string(JSolEx.class, "imagemath-editor", "frame.title"));
+            stage.setScene(scene);
+            stage.show();
+            stage.setOnCloseRequest(e -> {
+                if (stage.getScene() == scene) {
+                    stage.setScene(currentScene);
+                    e.consume();
+                }
+                onClose.accept(controller);
+                stage.setOnCloseRequest(onCloseRequest);
+                stage.setTitle(title);
+            });
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+    }
 
     public void setup(Stage stage, ImageMathParams imageMathParams, HostServices hostServices, boolean batchMode) {
         this.stage = stage;

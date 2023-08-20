@@ -15,7 +15,9 @@
  */
 package me.champeau.a4j.jsolex.processing.expr;
 
+import me.champeau.a4j.jsolex.expr.BuiltinFunction;
 import me.champeau.a4j.jsolex.expr.Expression;
+import me.champeau.a4j.jsolex.expr.FunctionCall;
 import me.champeau.a4j.jsolex.expr.Variable;
 import me.champeau.a4j.jsolex.processing.event.ProgressEvent;
 import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
@@ -23,6 +25,7 @@ import me.champeau.a4j.jsolex.processing.sun.workflow.ImageStats;
 import me.champeau.a4j.jsolex.processing.util.FileBackedImage;
 import me.champeau.a4j.jsolex.processing.util.ForkJoinContext;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
+import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 import me.champeau.a4j.jsolex.processing.util.SolarParameters;
 
 import java.nio.file.Path;
@@ -57,12 +60,14 @@ public class DefaultImageScriptExecutor implements ImageMathScriptExecutor {
     private final ScriptTokenizer tokenizer = new ScriptTokenizer();
     private final Map<String, Object> variables = new HashMap<>();
 
+    private boolean isCollectingShifts = false;
+
     public DefaultImageScriptExecutor(ForkJoinContext forkJoinContext,
-                                      Function<Double, ImageWrapper> imagesByShift,
+                                      Function<Double, ImageWrapper> imageSupplier,
                                       Map<Class, Object> context,
                                       Broadcaster broadcaster) {
         this.forkJoinContext = forkJoinContext;
-        this.imagesByShift = imagesByShift;
+        this.imagesByShift = img -> isCollectingShifts ? newDummyImage() : imageSupplier.apply(img);
         this.context = context;
         this.broadcaster = broadcaster;
     }
@@ -71,6 +76,10 @@ public class DefaultImageScriptExecutor implements ImageMathScriptExecutor {
                                       Function<Double, ImageWrapper> imagesByShift,
                                       Map<Class, Object> context) {
         this(forkJoinContext, imagesByShift, context, Broadcaster.NO_OP);
+    }
+
+    private static ImageWrapper32 newDummyImage() {
+        return new ImageWrapper32(0, 0, new float[0], Map.of());
     }
 
     @Override
@@ -99,9 +108,9 @@ public class DefaultImageScriptExecutor implements ImageMathScriptExecutor {
         }
         var solarParams = (SolarParameters) context.get(SolarParameters.class);
         if (solarParams != null) {
-            evaluator.putVariable(ANGLE_P_VAR,  String.format(Locale.US, "%.4f", solarParams.p()));
-            evaluator.putVariable(B0_VAR,  String.format(Locale.US, "%.4f", solarParams.b0()));
-            evaluator.putVariable(L0_VAR,  String.format(Locale.US, "%.4f", solarParams.l0()));
+            evaluator.putVariable(ANGLE_P_VAR, String.format(Locale.US, "%.4f", solarParams.p()));
+            evaluator.putVariable(B0_VAR, String.format(Locale.US, "%.4f", solarParams.b0()));
+            evaluator.putVariable(L0_VAR, String.format(Locale.US, "%.4f", solarParams.l0()));
             evaluator.putVariable(CARROT_VAR, String.valueOf(solarParams.carringtonRotation()));
         }
         var invalidExpressions = new ArrayList<InvalidExpression>();
@@ -120,8 +129,16 @@ public class DefaultImageScriptExecutor implements ImageMathScriptExecutor {
         evaluator.clearCache();
         broadcaster.broadcast(ProgressEvent.of(0d, "ImageScript evaluation"));
         var entries = outputs.entrySet();
-        double size = entries.size();
+        var vars = preparedScript.variables();
+        double size = entries.size() + vars.size();
         double idx = 0d;
+        for (Map.Entry<String, String> entry : vars.entrySet()) {
+            try {
+                evaluator.evaluate(entry.getValue());
+            } catch (Exception ex) {
+                // ignore
+            }
+        }
         for (Map.Entry<String, String> output : entries) {
             idx++;
             var label = output.getKey();
@@ -178,7 +195,7 @@ public class DefaultImageScriptExecutor implements ImageMathScriptExecutor {
                 currentSection = section.name();
                 if (section.isMajor() && isBatchSectionName(currentSection)) {
                     collectInternalShifts(evaluator, variables, outputs);
-                    scriptsPerSection.put(SectionKind.SINGLE, new PreparedScript(outputs, invalidExpressions));
+                    scriptsPerSection.put(SectionKind.SINGLE, new PreparedScript(outputs, variables, invalidExpressions));
                     outputs = new LinkedHashMap<>();
                     invalidExpressions = new ArrayList<>();
                     variables = new LinkedHashMap<>();
@@ -221,7 +238,7 @@ public class DefaultImageScriptExecutor implements ImageMathScriptExecutor {
             }
         }
         collectInternalShifts(evaluator, variables, outputs);
-        scriptsPerSection.put(currentSectionKind, new PreparedScript(outputs, invalidExpressions));
+        scriptsPerSection.put(currentSectionKind, new PreparedScript(outputs, variables, invalidExpressions));
         var single = scriptsPerSection.get(SectionKind.SINGLE);
         var batch = scriptsPerSection.get(SectionKind.BATCH);
         return switch (kind) {
@@ -236,6 +253,7 @@ public class DefaultImageScriptExecutor implements ImageMathScriptExecutor {
                 }
                 yield new PreparedScript(
                         allOutputs,
+                        variables,
                         allInvalidExpressions
                 );
             }
@@ -243,22 +261,27 @@ public class DefaultImageScriptExecutor implements ImageMathScriptExecutor {
     }
 
     private void collectInternalShifts(AbstractImageExpressionEvaluator evaluator, LinkedHashMap<String, String> variables, LinkedHashMap<String, String> outputs) {
-        // Collect internal shifts
-        var variableNames = variables.keySet();
-        double size = variableNames.size();
-        double idx = 0d;
-        for (String variable : variableNames) {
-            broadcaster.broadcast(ProgressEvent.of(idx / size, "ImageScript evaluation " + variable));
-            try {
-                evaluator.evaluate(variable);
-            } catch (Exception ex) {
-                // ignore
+        isCollectingShifts = true;
+        try {
+            // Collect internal shifts
+            var variableNames = variables.keySet();
+            double size = variableNames.size();
+            double idx = 0d;
+            for (String variable : variableNames) {
+                broadcaster.broadcast(ProgressEvent.of(idx / size, "ImageScript evaluation " + variable));
+                try {
+                    evaluator.evaluate(variable);
+                } catch (Exception ex) {
+                    // ignore
+                }
             }
-        }
-        broadcaster.broadcast(ProgressEvent.of(1.0d, "ImageScript evaluation"));
-        if (outputs.isEmpty()) {
-            // no explicit [outputs] section, consider everything an output
-            outputs.putAll(variables);
+            if (outputs.isEmpty()) {
+                // no explicit [outputs] section, consider everything an output
+                outputs.putAll(variables);
+            }
+        } finally {
+            broadcaster.broadcast(ProgressEvent.of(1.0d, "ImageScript evaluation"));
+            isCollectingShifts = false;
         }
     }
 
@@ -302,27 +325,41 @@ public class DefaultImageScriptExecutor implements ImageMathScriptExecutor {
 
         @Override
         protected Object doEvaluate(Expression expression) {
+            if (isCollectingShifts && expression instanceof FunctionCall funCall) {
+                if (funCall.function() == BuiltinFunction.LOAD) {
+                    return newDummyImage();
+                }
+                if (funCall.function() == BuiltinFunction.LOAD_MANY) {
+                    return List.of();
+                }
+            }
             // Not using `computeIfAbsent` to avoid recursive update
             var exprAsString = expression.toString();
             if (memoizeCache.containsKey(exprAsString)) {
                 return memoizeCache.get(exprAsString);
             }
-            var result = super.doEvaluate(expression);
-            if (result instanceof ImageWrapper image) {
-                result = FileBackedImage.wrap(image);
-            } else if (result instanceof List<?> list) {
-                if (list.stream().allMatch(ImageWrapper.class::isInstance)) {
-                    result = list.stream()
-                            .map(ImageWrapper.class::cast)
-                            .map(FileBackedImage::wrap)
-                            .toList();
+            broadcaster.broadcast(ProgressEvent.of(0, "Evaluating " + expression));
+            try {
+                var result = super.doEvaluate(expression);
+                if (result instanceof ImageWrapper image) {
+                    result = FileBackedImage.wrap(image);
+                } else if (result instanceof List<?> list) {
+                    if (list.stream().allMatch(ImageWrapper.class::isInstance)) {
+                        result = list.stream()
+                                .map(ImageWrapper.class::cast)
+                                .map(FileBackedImage::wrap)
+                                .toList();
+                    }
                 }
+                memoizeCache.put(exprAsString, result);
+                return result;
+            } finally {
+                broadcaster.broadcast(ProgressEvent.of(1.0, "Evaluating " + expression));
             }
-            memoizeCache.put(exprAsString, result);
-            return result;
         }
 
         public void clearCache() {
+            super.clearCache();
             memoizeCache.clear();
         }
     }
@@ -334,6 +371,7 @@ public class DefaultImageScriptExecutor implements ImageMathScriptExecutor {
     }
 
     private record PreparedScript(Map<String, String> outputs,
+                                  Map<String, String> variables,
                                   List<InvalidExpression> invalidExpressions) {
 
     }

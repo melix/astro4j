@@ -56,7 +56,17 @@ public enum BuiltinFunction {
     ROTATE_RAD,
     SATURATE,
     SHARPEN,
-    WORKDIR;
+    WORKDIR(true);
+
+    private final boolean hasSideEffect;
+
+    BuiltinFunction(boolean hasSideEffect) {
+        this.hasSideEffect = hasSideEffect;
+    }
+
+    BuiltinFunction() {
+        this(false);
+    }
 
     public String lowerCaseName() {
         return name().toLowerCase(Locale.US);
@@ -64,5 +74,9 @@ public enum BuiltinFunction {
 
     static BuiltinFunction of(String value) {
         return valueOf(value.toUpperCase(Locale.US));
+    }
+
+    public boolean hasSideEffect() {
+        return hasSideEffect;
     }
 }

@@ -419,6 +419,17 @@ video=anim(frame)  # <2>
 <1> In order to make the `img(0)` image visible to the batch section, we must assign it to a variable that we call `frame`
 <2> An animation is created using each `frame`
 
+=== Standalone scripts
+
+An additional way to benefit from scripting is to reuse the results of previous sessions (typically, images produced in one or many previous sessions) without having to process a new video.
+
+To do so, you must open the "Tools" menu and select "ImageMath editor".
+The interface which pops up is exactly the same as when you are processing a single video, or a batch of files.
+The main difference is how images are loaded.
+In this mode, you must use either the `load` or the `load_many` function to load images, instead of the `img` function.
+
+IMPORTANT: If you use this mode, it is important to load images saved in previous sessions with the FITS format. These files include metadata such as the detected ellipse (solar disk), process parameters, etc. which will permit applying the same functions as you do in a standard processing session.
+
 == Measurements thanks to the spectrum debugger
 
 JSol'Ex provides a tool which will let you see what the detected spectral line is for a particular video.
