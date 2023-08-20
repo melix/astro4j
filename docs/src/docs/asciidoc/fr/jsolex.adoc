@@ -419,6 +419,16 @@ video=anim(frame)  # <2>
 <1> Pour que `img(0)` soit disponible dans la section `batch`, on l'assigne dans une variable nommée `frame`
 <2> On crée une animation dont chaque image est constituée d'une `frame`
 
+=== Scripts indépendants
+
+Une dernière façon d'utiliser des scripts est de réutiliser des résultats de sessions précédentes (typiquement des images traitées lors d'une ou plusieurs sessions) sans avoir besoin de traiter une nouvelle vidéo.
+
+Pour se faire, vous pouvez passer par le menu "Outils" puis "Editeur ImageMath".
+L'interface qui apparaît est exactement la même que lors du traitement d'une vidéo ou d'un lot de vidéos.
+La principale différence dans ce mode est que les images doivent être chargées avec les fonctions `load` ou `load_many` (au lieu d'utiliser `img`).
+
+IMPORTANT: Si vous utilisez ce mode, il est important de charger des images enregistrées au format FITS. En effet, ces images contiennent des métadonnées telles que les ellipses détectées, les paramètres de traitement, etc. qui permettent de faire les mêmes traitements avec des images enregistrées sur disque que ceux obtenus dans une session de traitement classique.
+
 == Mesures avec le débogueur de spectre
 
 JSol'Ex propose un outil permettant de visualiser la détection des lignes spectrales sur une vidéo.

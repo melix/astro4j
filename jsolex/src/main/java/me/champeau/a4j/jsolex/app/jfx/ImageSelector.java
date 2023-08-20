@@ -17,8 +17,6 @@ package me.champeau.a4j.jsolex.app.jfx;
 
 import javafx.application.HostServices;
 import javafx.fxml.FXML;
-import javafx.scene.Parent;
-import javafx.scene.Scene;
 import javafx.scene.control.Button;
 import javafx.scene.control.CheckBox;
 import javafx.scene.control.ChoiceBox;
@@ -312,34 +310,12 @@ public class ImageSelector {
 
     @FXML
     public void openImageMath() {
-        var fxmlLoader = I18N.fxmlLoader(JSolEx.class, "imagemath-editor");
-        try {
-            var node = (Parent) fxmlLoader.load();
-            var controller = (ImageMathEditor) fxmlLoader.getController();
-            controller.setup(stage, imageMathParams, hostServices, batchMode);
-            Scene scene = new Scene(node);
-            scene.getStylesheets().add(JSolEx.class.getResource("syntax.css").toExternalForm());
-            var currentScene = stage.getScene();
-            var onCloseRequest = stage.getOnCloseRequest();
-            var title = stage.getTitle();
-            stage.setTitle(I18N.string(JSolEx.class, "imagemath-editor", "frame.title"));
-            stage.setScene(scene);
-            stage.show();
-            stage.setOnCloseRequest(e -> {
-                if (stage.getScene() == scene) {
-                    stage.setScene(currentScene);
-                    e.consume();
-                }
-                controller.getConfiguration().ifPresent(params -> {
-                    updatePixelShiftsWithSelectedImages(findPixelShifts(params));
-                    this.imageMathParams = params;
-                });
-                stage.setOnCloseRequest(onCloseRequest);
-                stage.setTitle(title);
+        ImageMathEditor.create(stage, imageMathParams, hostServices, batchMode, controller -> {
+            controller.getConfiguration().ifPresent(params -> {
+                updatePixelShiftsWithSelectedImages(findPixelShifts(params));
+                this.imageMathParams = params;
             });
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        }
+        });
     }
 
     private DefaultImageScriptExecutor createScriptExecutor() {

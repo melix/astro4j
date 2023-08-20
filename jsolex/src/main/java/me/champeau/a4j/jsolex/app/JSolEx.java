@@ -69,15 +69,23 @@ import me.champeau.a4j.jsolex.app.listeners.BatchModeEventListener;
 import me.champeau.a4j.jsolex.app.listeners.BatchProcessingContext;
 import me.champeau.a4j.jsolex.app.listeners.JSolExInterface;
 import me.champeau.a4j.jsolex.app.listeners.SingleModeProcessingEventListener;
+import me.champeau.a4j.jsolex.processing.event.FileGeneratedEvent;
+import me.champeau.a4j.jsolex.processing.event.GeneratedImage;
+import me.champeau.a4j.jsolex.processing.event.ImageGeneratedEvent;
 import me.champeau.a4j.jsolex.processing.event.ProcessingEventListener;
+import me.champeau.a4j.jsolex.processing.expr.DefaultImageScriptExecutor;
 import me.champeau.a4j.jsolex.processing.expr.ImageMathScriptExecutor;
+import me.champeau.a4j.jsolex.processing.expr.ImageMathScriptResult;
+import me.champeau.a4j.jsolex.processing.expr.InvalidExpression;
 import me.champeau.a4j.jsolex.processing.file.FileNamingStrategy;
 import me.champeau.a4j.jsolex.processing.params.ProcessParams;
 import me.champeau.a4j.jsolex.processing.sun.SolexVideoProcessor;
+import me.champeau.a4j.jsolex.processing.sun.workflow.GeneratedImageKind;
 import me.champeau.a4j.jsolex.processing.util.Constants;
 import me.champeau.a4j.jsolex.processing.util.FilesUtils;
 import me.champeau.a4j.jsolex.processing.util.ForkJoinContext;
 import me.champeau.a4j.jsolex.processing.util.ForkJoinParallelExecutor;
+import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
 import me.champeau.a4j.jsolex.processing.util.LoggingSupport;
 import me.champeau.a4j.jsolex.processing.util.ProcessingException;
 import me.champeau.a4j.math.VectorApiSupport;
@@ -92,6 +100,7 @@ import java.io.IOException;
 import java.nio.file.FileSystems;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
 import java.nio.file.StandardWatchEventKinds;
 import java.nio.file.WatchEvent;
 import java.nio.file.WatchKey;
@@ -579,6 +588,108 @@ public class JSolEx extends Application implements JSolExInterface {
     private void showSpectralRayEditor() {
         var stage = new Stage();
         SpectralRayEditor.openEditor(stage, e -> stage.close());
+    }
+
+    @FXML
+    private void showImageMathEditor() {
+        var stage = new Stage();
+        var params = ProcessParams.loadDefaults();
+        ImageMathEditor.create(
+                stage,
+                params.requestedImages().mathImages(),
+                getHostServices(),
+                true,
+                e -> {
+                    stage.close();
+                    e.getConfiguration().ifPresent(scripts -> executeStandaloneScripts(
+                            params.withRequestedImages(
+                                    params.requestedImages().withMathImages(scripts)
+                            )
+                    ));
+                }
+        );
+    }
+
+    private void executeStandaloneScripts(ProcessParams params) {
+        var scriptFiles = params.requestedImages().mathImages()
+                .scriptFiles();
+        var scriptFile = scriptFiles
+                .stream()
+                .findFirst();
+        scriptFile.ifPresent(script -> {
+            var outputDirectory = script.getParentFile();
+            var listener = new SingleModeProcessingEventListener(
+                    this,
+                    "",
+                    null,
+                    cpuExecutor,
+                    ioExecutor,
+                    outputDirectory.toPath(),
+                    params,
+                    popupViewers
+            );
+            var processingDate = LocalDateTime.now();
+            var namingStrategy = new FileNamingStrategy(
+                    params.extraParams().fileNamePattern(),
+                    params.extraParams().datetimeFormat(),
+                    params.extraParams().dateFormat(),
+                    processingDate,
+                    createFakeHeader(processingDate)
+            );
+            var imageScriptExecutor = new DefaultImageScriptExecutor(
+                    cpuExecutor,
+                    img -> {
+                        throw new ProcessingException("img() is not available in standalone image math scripts. Use load or load_many to load images");
+                    },
+                    Map.of(),
+                    listener
+            ) {
+                @Override
+                public ImageMathScriptResult execute(String script, SectionKind kind) {
+                    var result = super.execute(script, kind);
+                    processResult(result);
+                    return result;
+                }
+
+                private void processResult(ImageMathScriptResult result) {
+                    for (Map.Entry<String, ImageWrapper> entry : result.imagesByLabel().entrySet()) {
+                        cpuExecutor.async(() -> {
+                            var name = namingStrategy.render(0, Constants.TYPE_PROCESSED, entry.getKey(), "standalone");
+                            var outputFile = new File(outputDirectory, name);
+                            listener.onImageGenerated(new ImageGeneratedEvent(
+                                    new GeneratedImage(GeneratedImageKind.IMAGE_MATH, entry.getKey(), outputFile.toPath(), entry.getValue())
+                            ));
+
+                        });
+                    }
+                    for (Map.Entry<String, Path> entry : result.filesByLabel().entrySet()) {
+                        cpuExecutor.async(() -> {
+                            var name = namingStrategy.render(0, Constants.TYPE_PROCESSED, entry.getKey(), "standalone");
+                            try {
+                                var fileName = entry.getValue().toFile().getName();
+                                var ext = fileName.substring(fileName.lastIndexOf("."));
+                                var targetPath = new File(outputDirectory, name + ext).toPath();
+                                Files.move(entry.getValue(), targetPath, StandardCopyOption.REPLACE_EXISTING);
+                                listener.onFileGenerated(FileGeneratedEvent.of(entry.getKey(), targetPath));
+                            } catch (IOException e) {
+                                throw new ProcessingException(e);
+                            }
+                        });
+                    }
+                    for (InvalidExpression expression : result.invalidExpressions()) {
+                        LOGGER.error("Found invalid expression {} ({}): {}", expression.label(), expression.expression(), expression.error().getMessage());
+                    }
+                }
+            };
+            for (File file : scriptFiles) {
+                try {
+                    imageScriptExecutor.execute(file.toPath(), ImageMathScriptExecutor.SectionKind.SINGLE);
+                } catch (IOException e) {
+                    throw new ProcessingException(e);
+                }
+                prepareForScriptExecution(imageScriptExecutor, params);
+            }
+        });
     }
 
     private static Header createFakeHeader(LocalDateTime now) {

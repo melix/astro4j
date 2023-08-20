@@ -37,6 +37,7 @@
                 <MenuItem onAction="#showFrameDebugger" text="%spectrum.debugger"/>
                 <MenuItem onAction="#showFileNamePatternEditor" text="%filename.pattern.editor"/>
                 <MenuItem onAction="#showSpectralRayEditor" text="%spectralray.editor"/>
+                <MenuItem onAction="#showImageMathEditor" text="%imagemath.editor"/>
                 <SeparatorMenuItem/>
                 <MenuItem onAction="#showHelp" text="%help"/>
                 <MenuItem onAction="#about" text="%about"/>
