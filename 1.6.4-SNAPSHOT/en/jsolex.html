@@ -470,6 +470,7 @@ body.book #toc,body.book #preamble,body.book h1.sect0,body.book .sect1>h2{page-b
 <li><a href="#batch-mode">Batch processing</a>
 <ul class="sectlevel2">
 <li><a href="#_imagemath_extensions_available_in_batch_mode">ImageMath extensions available in batch mode</a></li>
+<li><a href="#_standalone_scripts">Standalone scripts</a></li>
 </ul>
 </li>
 <li><a href="#_measurements_thanks_to_the_spectrum_debugger">Measurements thanks to the spectrum debugger</a>
@@ -1358,6 +1359,30 @@ video=anim(frame)  <i class="conum" data-value="2"></i><b>(2)</b></code></pre>
 <tr>
 <td><i class="conum" data-value="2"></i><b>2</b></td>
 <td>An animation is created using each <code>frame</code></td>
+</tr>
+</table>
+</div>
+</div>
+<div class="sect2">
+<h3 id="_standalone_scripts">Standalone scripts</h3>
+<div class="paragraph">
+<p>An additional way to benefit from scripting is to reuse the results of previous sessions (typically, images produced in one or many previous sessions) without having to process a new video.</p>
+</div>
+<div class="paragraph">
+<p>To do so, you must open the "Tools" menu and select "ImageMath editor".
+The interface which pops up is exactly the same as when you are processing a single video, or a batch of files.
+The main difference is how images are loaded.
+In this mode, you must use either the <code>load</code> or the <code>load_many</code> function to load images, instead of the <code>img</code> function.</p>
+</div>
+<div class="admonitionblock important">
+<table>
+<tr>
+<td class="icon">
+<i class="fa icon-important" title="Important"></i>
+</td>
+<td class="content">
+If you use this mode, it is important to load images saved in previous sessions with the FITS format. These files include metadata such as the detected ellipse (solar disk), process parameters, etc. which will permit applying the same functions as you do in a standard processing session.
+</td>
 </tr>
 </table>
 </div>

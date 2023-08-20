@@ -470,6 +470,7 @@ body.book #toc,body.book #preamble,body.book h1.sect0,body.book .sect1>h2{page-b
 <li><a href="#batch-mode">Traitement par lots</a>
 <ul class="sectlevel2">
 <li><a href="#_extensions_dimagemath_disponibles_en_mode_batch">Extensions d&#8217;ImageMath disponibles en mode batch</a></li>
+<li><a href="#_scripts_indépendants">Scripts indépendants</a></li>
 </ul>
 </li>
 <li><a href="#_mesures_avec_le_débogueur_de_spectre">Mesures avec le débogueur de spectre</a>
@@ -1350,6 +1351,29 @@ video=anim(frame)  <i class="conum" data-value="2"></i><b>(2)</b></code></pre>
 <tr>
 <td><i class="conum" data-value="2"></i><b>2</b></td>
 <td>On crée une animation dont chaque image est constituée d&#8217;une <code>frame</code></td>
+</tr>
+</table>
+</div>
+</div>
+<div class="sect2">
+<h3 id="_scripts_indépendants">Scripts indépendants</h3>
+<div class="paragraph">
+<p>Une dernière façon d&#8217;utiliser des scripts est de réutiliser des résultats de sessions précédentes (typiquement des images traitées lors d&#8217;une ou plusieurs sessions) sans avoir besoin de traiter une nouvelle vidéo.</p>
+</div>
+<div class="paragraph">
+<p>Pour se faire, vous pouvez passer par le menu "Outils" puis "Editeur ImageMath".
+L&#8217;interface qui apparaît est exactement la même que lors du traitement d&#8217;une vidéo ou d&#8217;un lot de vidéos.
+La principale différence dans ce mode est que les images doivent être chargées avec les fonctions <code>load</code> ou <code>load_many</code> (au lieu d&#8217;utiliser <code>img</code>).</p>
+</div>
+<div class="admonitionblock important">
+<table>
+<tr>
+<td class="icon">
+<i class="fa icon-important" title="Important"></i>
+</td>
+<td class="content">
+Si vous utilisez ce mode, il est important de charger des images enregistrées au format FITS. En effet, ces images contiennent des métadonnées telles que les ellipses détectées, les paramètres de traitement, etc. qui permettent de faire les mêmes traitements avec des images enregistrées sur disque que ceux obtenus dans une session de traitement classique.
+</td>
 </tr>
 </table>
 </div>
