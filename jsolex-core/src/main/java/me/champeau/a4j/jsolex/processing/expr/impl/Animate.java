@@ -19,6 +19,7 @@ import me.champeau.a4j.jsolex.processing.expr.FileOutput;
 import me.champeau.a4j.jsolex.processing.util.ColorizedImageWrapper;
 import me.champeau.a4j.jsolex.processing.util.FileBackedImage;
 import me.champeau.a4j.jsolex.processing.util.ForkJoinContext;
+import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 import me.champeau.a4j.jsolex.processing.util.ProcessingException;
 import me.champeau.a4j.jsolex.processing.util.RGBImage;
@@ -34,6 +35,7 @@ import java.nio.file.Files;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Stream;
 
 import static me.champeau.a4j.ser.EightBitConversionSupport.to8BitImage;
 
@@ -67,7 +69,7 @@ public class Animate extends AbstractFunctionImpl {
                 } else if (argument instanceof ColorizedImageWrapper image) {
                     addColorFrame(encoder, image);
                 } else if (argument instanceof RGBImage rgb) {
-                    throw new UnsupportedOperationException();
+                    addColorFrame(encoder, rgb);
                 }
             }
             encoder.finish();
@@ -119,7 +121,25 @@ public class Animate extends AbstractFunctionImpl {
             height--;
         }
         var origRGB = image.converter().apply(image.mono().data());
-        var bytes = Arrays.stream(origRGB).map(EightBitConversionSupport::to8BitImage).toArray(byte[][]::new);
+        var colorChannelsStream = Arrays.stream(origRGB);
+        addColorFrame(encoder, image, colorChannelsStream, width, height);
+    }
+
+    private static void addColorFrame(SequenceEncoder encoder, RGBImage image) {
+        int width = image.width();
+        int height = image.height();
+        if (width % 2 == 1) {
+            width--;
+        }
+        if (height % 2 == 1) {
+            height--;
+        }
+        var colorChannelsStream = Stream.of(image.r(), image.g(), image.b());
+        addColorFrame(encoder, image, colorChannelsStream, width, height);
+    }
+
+    private static void addColorFrame(SequenceEncoder encoder, ImageWrapper image, Stream<float[]> colorChannelsStream, int width, int height) {
+        var bytes = colorChannelsStream.map(EightBitConversionSupport::to8BitImage).toArray(byte[][]::new);
         if (width != image.width() || height != image.height()) {
             for (int channel = 0; channel < 3; channel++) {
                 var data = new byte[width * height];
