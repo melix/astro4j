@@ -1,17 +1,22 @@
 {
   "extends": [
-    "config:base"
+    "config:recommended"
   ],
-  "addLabels": ["type: dependency-upgrade"],
+  "addLabels": [
+    "type: dependency-upgrade"
+  ],
   "schedule": [
-    "after 9pm every day"
+    "after 9pm"
   ],
+  "repositories": ["melix/astro4j"],
   "prHourlyLimit": 1,
   "prConcurrentLimit": 20,
   "timezone": "Europe/Prague",
   "packageRules": [
     {
-      "matchPackagePatterns": ["actions.*"],
+      "matchPackagePatterns": [
+        "actions.*"
+      ],
       "dependencyDashboardApproval": true
     }
   ]
