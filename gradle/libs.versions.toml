@@ -5,7 +5,7 @@ commons-math = "3.6.1"
 fits = "1.18.0"
 gson = "2.10.1"
 micronaut = "4.0.0-M2"
-richtextfx = "0.11.0"
+richtextfx = "0.11.1"
 jcodec="0.2.5"
 
 [libraries]
