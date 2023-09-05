@@ -38,15 +38,19 @@ public class DiscardNonRequiredImages implements ImageEmitter {
 
     @Override
     public Supplier<Void> newMonoImage(GeneratedImageKind kind, String title, String name, ImageWrapper32 image, Consumer<? super float[]> bufferConsumer) {
-        if (!allowed.contains(kind)) {
+        if (discard(kind)) {
             return VOID;
         }
         return delegate.newMonoImage(kind, title, name, image, bufferConsumer);
     }
 
+    private boolean discard(GeneratedImageKind kind) {
+        return !allowed.contains(kind);
+    }
+
     @Override
     public Supplier<Void> newMonoImage(GeneratedImageKind kind, String title, String name, ImageWrapper32 image) {
-        if (!allowed.contains(kind)) {
+        if (discard(kind)) {
             return VOID;
         }
         return delegate.newMonoImage(kind, title, name, image);
@@ -54,7 +58,7 @@ public class DiscardNonRequiredImages implements ImageEmitter {
 
     @Override
     public Supplier<Void> newColorImage(GeneratedImageKind kind, String title, String name, ImageWrapper32 image, Function<float[], float[][]> rgbSupplier) {
-        if (!allowed.contains(kind)) {
+        if (discard(kind)) {
             return VOID;
         }
         return delegate.newColorImage(kind, title, name, image, rgbSupplier);
@@ -62,7 +66,7 @@ public class DiscardNonRequiredImages implements ImageEmitter {
 
     @Override
     public Supplier<Void> newColorImage(GeneratedImageKind kind, String title, String name, int width, int height, Supplier<float[][]> rgbSupplier) {
-        if (!allowed.contains(kind)) {
+        if (discard(kind)) {
             return VOID;
         }
         return delegate.newColorImage(kind, title, name, width, height, rgbSupplier);
@@ -70,7 +74,7 @@ public class DiscardNonRequiredImages implements ImageEmitter {
 
     @Override
     public Supplier<Void> newGenericFile(GeneratedImageKind kind, String title, String name, Path file) {
-        if (!allowed.contains(kind)) {
+        if (discard(kind)) {
             return VOID;
         }
         return delegate.newGenericFile(kind, title, name, file);

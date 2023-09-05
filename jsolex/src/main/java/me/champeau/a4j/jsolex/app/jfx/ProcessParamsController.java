@@ -49,6 +49,7 @@ import me.champeau.a4j.jsolex.processing.params.SpectralRayIO;
 import me.champeau.a4j.jsolex.processing.params.SpectrumParams;
 import me.champeau.a4j.jsolex.processing.params.VideoParams;
 import me.champeau.a4j.jsolex.processing.sun.workflow.GeneratedImageKind;
+import me.champeau.a4j.jsolex.processing.util.Constants;
 import me.champeau.a4j.jsolex.processing.util.ForkJoinContext;
 import me.champeau.a4j.jsolex.processing.util.ImageFormat;
 import me.champeau.a4j.math.tuples.DoublePair;
@@ -282,7 +283,7 @@ public class ProcessParamsController {
         double dopplerShift = dopplerShifting.getValue();
         doProcess(new RequestedImages(
                 generateDebugImages.isSelected() ? RequestedImages.FULL_MODE_WITH_DEBUG : RequestedImages.FULL_MODE,
-                List.of(getPixelShiftAsDouble(), dopplerShift, -dopplerShift),
+                List.of(getPixelShiftAsDouble(), dopplerShift, -dopplerShift, Constants.CONTINUUM_SHIFT),
                 Set.of(-dopplerShift, dopplerShift),
                 ImageMathParams.NONE
         ));

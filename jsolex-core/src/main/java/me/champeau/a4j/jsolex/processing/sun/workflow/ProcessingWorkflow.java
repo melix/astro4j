@@ -158,7 +158,11 @@ public class ProcessingWorkflow {
                         return null;
                     }
                     broadcaster.broadcast(OutputImageDimensionsDeterminedEvent.of(message("geometry.corrected"), geometryFixed.width(), geometryFixed.height()));
-                    processedImagesEmitter.newMonoImage(GeneratedImageKind.GEOMETRY_CORRECTED, message("disk"), "disk", geometryFixed);
+                    var kind = GeneratedImageKind.GEOMETRY_CORRECTED;
+                    if (state.pixelShift() == Constants.CONTINUUM_SHIFT) {
+                        kind = GeneratedImageKind.CONTINUUM;
+                    }
+                    processedImagesEmitter.newMonoImage(kind, message("disk"), "disk", geometryFixed);
                     executor.async(() -> produceStretchedImage(geometryFixed));
                     if (isMainShift() && shouldProduce(GeneratedImageKind.NEGATIVE)) {
                         executor.async(() -> produceNegativeImage(geometryFixed));
