@@ -2,7 +2,7 @@
 slf4j-api = "2.0.9"
 logback = "1.4.11"
 commons-math = "3.6.1"
-fits = "1.18.0"
+fits = "1.18.1"
 gson = "2.10.1"
 micronaut = "4.0.0-M2"
 richtextfx = "0.11.1"
