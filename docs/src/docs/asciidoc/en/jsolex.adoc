@@ -490,6 +490,20 @@ image::spectral-debug-7-fr.jpg[]
 The 4th number is the average of distances and should be a good value to use in your ImageMath scripts.
 **In this example we deduce that the pixel shift is -134**.
 
+== Optimal exposure calculator
+
+In the "tools" menu, you will find the optimal exposure calculator.
+This calculator will determine the optimal exposure time, in order to achieve a perfectly circular sun disk and avoid undersampling.
+
+Enter the following parameters:
+
+- the camera pixel size (in microns) and the binning
+- the focal length of your instrument
+- the scan speed (a multiple of sideral speed, e.g 2, 4, 8, ...)
+- the declination of the sun at the moment of the observation
+
+The software will then automatically compute the optimal exposure time in milliseconds.
+
 == Acknowledgements
 
 - Christian Buil for designing Sol'Ex and leading the community with great expertise

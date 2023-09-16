@@ -57,6 +57,7 @@ import me.champeau.a4j.jsolex.app.jfx.BatchItem;
 import me.champeau.a4j.jsolex.app.jfx.BatchOperations;
 import me.champeau.a4j.jsolex.app.jfx.DocsHelper;
 import me.champeau.a4j.jsolex.app.jfx.ExplorerSupport;
+import me.champeau.a4j.jsolex.app.jfx.ExposureCalculator;
 import me.champeau.a4j.jsolex.app.jfx.I18N;
 import me.champeau.a4j.jsolex.app.jfx.ImageMathEditor;
 import me.champeau.a4j.jsolex.app.jfx.ImageViewer;
@@ -608,6 +609,23 @@ public class JSolEx extends Application implements JSolExInterface {
                     ));
                 }
         );
+    }
+
+    @FXML
+    private void showExposureCalculator() {
+        var fxmlLoader = I18N.fxmlLoader(JSolEx.class, "exposure-calculator");
+        try {
+            var stage = new Stage();
+            var node = (Parent) fxmlLoader.load();
+            var controller = (ExposureCalculator) fxmlLoader.getController();
+            controller.setup(stage);
+            Scene scene = new Scene(node);
+            stage.setTitle(I18N.string(JSolEx.class, "exposure-calculator", "frame.title"));
+            stage.setScene(scene);
+            stage.show();
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
     }
 
     private void executeStandaloneScripts(ProcessParams params) {
