@@ -478,6 +478,7 @@ body.book #toc,body.book #preamble,body.book h1.sect0,body.book .sect1>h2{page-b
 <li><a href="#_example_of_application_to_determine_the_helium_ray_pixel_shift">Example of application to determine the helium ray pixel shift</a></li>
 </ul>
 </li>
+<li><a href="#_optimal_exposure_calculator">Optimal exposure calculator</a></li>
 <li><a href="#_acknowledgements">Acknowledgements</a></li>
 </ul>
 </div>
@@ -1512,6 +1513,37 @@ You can add as many sample points as you wish.</p>
 <p>The 4th number is the average of distances and should be a good value to use in your ImageMath scripts.
 <strong>In this example we deduce that the pixel shift is -134</strong>.</p>
 </div>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_optimal_exposure_calculator">Optimal exposure calculator</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>In the "tools" menu, you will find the optimal exposure calculator.
+This calculator will determine the optimal exposure time, in order to achieve a perfectly circular sun disk and avoid undersampling.</p>
+</div>
+<div class="paragraph">
+<p>Enter the following parameters:</p>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p>the camera pixel size (in microns) and the binning</p>
+</li>
+<li>
+<p>the focal length of your instrument</p>
+</li>
+<li>
+<p>the scan speed (a multiple of sideral speed, e.g 2, 4, 8, &#8230;&#8203;)</p>
+</li>
+<li>
+<p>the declination of the sun at the moment of the observation</p>
+</li>
+</ul>
+</div>
+<div class="paragraph">
+<p>The software will then automatically compute the optimal exposure time in milliseconds.</p>
 </div>
 </div>
 </div>
