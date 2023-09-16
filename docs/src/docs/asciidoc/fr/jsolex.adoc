@@ -491,6 +491,20 @@ image::spectral-debug-7-fr.jpg[]
 Le 4ème nombre représente la distance moyenne calculée.
 **Nous en déduisons que le décalage de pixels à appliquer est de -134**.
 
+== Calculatrice d'exposition optimale
+
+Dans le menu "Outils", vous trouverez la calculatrice d'exposition optimale.
+Cette calculatrice vous permet de déterminer le temps d'exposition optimal que vous devrez utiliser pour obtenir une image du soleil parfaitement ronde et éviter le sous-échantillonage.
+
+Entrez :
+
+- la taille des pixels de votre caméra et le binning utilisé
+- la longueur focale de votre instrument
+- la vitesse du scan (en multiple de la vitesse sidérale, par exemple 2, 4, 8, ...)
+- la déclinaison du soleil en degrés au moment de l'observation
+
+Le logiciel calculera alors l'exposition optimale en fonction de ces paramètres, en millisecondes.
+
 == Remerciements
 
 - Christian Buil pour avoir conçu le Sol'Ex et diriger la communauté d'une main de maître

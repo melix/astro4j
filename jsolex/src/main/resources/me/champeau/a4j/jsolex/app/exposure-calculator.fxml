@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.Button?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.control.TextField?>
+<?import javafx.scene.layout.ColumnConstraints?>
+<?import javafx.scene.layout.GridPane?>
+<?import javafx.scene.layout.RowConstraints?>
+
+<GridPane maxHeight="-Infinity" maxWidth="-Infinity" minHeight="-Infinity" minWidth="-Infinity" prefHeight="216.0" prefWidth="600.0" xmlns="http://javafx.com/javafx/19" xmlns:fx="http://javafx.com/fxml/1" fx:controller="me.champeau.a4j.jsolex.app.jfx.ExposureCalculator">
+    <columnConstraints>
+        <ColumnConstraints hgrow="SOMETIMES" minWidth="10.0" prefWidth="100.0" />
+        <ColumnConstraints hgrow="SOMETIMES" minWidth="10.0" prefWidth="100.0" />
+    </columnConstraints>
+    <rowConstraints>
+        <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="SOMETIMES" />
+      <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="SOMETIMES" />
+        <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="SOMETIMES" />
+        <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="SOMETIMES" />
+        <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="SOMETIMES" />
+        <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="SOMETIMES" />
+        <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="SOMETIMES" />
+    </rowConstraints>
+    <children>
+        <Label text="%pixel.size" />
+        <Label text="%binning" GridPane.rowIndex="1" />
+        <Label text="%focal.length" GridPane.rowIndex="2" />
+        <Label text="%scan.speed" GridPane.rowIndex="3" />
+        <Label text="%sun.declination" GridPane.rowIndex="4" />
+        <Label text="%optimal.exposure" GridPane.rowIndex="5" />
+        <TextField fx:id="pixelSize" GridPane.columnIndex="1" />
+        <TextField fx:id="binning" GridPane.columnIndex="1" GridPane.rowIndex="1" />
+        <TextField fx:id="focalLength" GridPane.columnIndex="1" GridPane.rowIndex="2" />
+        <TextField fx:id="scanSpeed" GridPane.columnIndex="1" GridPane.rowIndex="3" />
+        <TextField fx:id="declination" GridPane.columnIndex="1" GridPane.rowIndex="4" />
+        <TextField fx:id="exposure" disable="true" editable="false" GridPane.columnIndex="1" GridPane.rowIndex="5" />
+        <Button mnemonicParsing="false" onAction="#close" text="Ok" GridPane.columnIndex="1" GridPane.halignment="CENTER" GridPane.rowIndex="6" />
+    </children>
+    <padding>
+        <Insets bottom="8.0" left="8.0" right="8.0" top="8.0" />
+    </padding>
+</GridPane>
