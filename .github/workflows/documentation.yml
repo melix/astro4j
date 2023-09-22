@@ -15,9 +15,8 @@ jobs:
           ssh-key: "${{ secrets.SSH_PRIVATE_KEY }}"
       - uses: graalvm/setup-graalvm@v1
         with:
-          version: '22.3.0'
-          java-version: '17'
-          components: 'native-image'
+          java-version: '21'
+          distribution: 'graalvm'
           github-token: ${{ secrets.GITHUB_TOKEN }}
           native-image-job-reports: 'true'
       - uses: gradle/wrapper-validation-action@v1

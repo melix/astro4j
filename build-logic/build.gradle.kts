@@ -1,3 +1,6 @@
+import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+import org.jetbrains.kotlin.gradle.tasks.KotlinJvmCompile
+
 plugins {
     `kotlin-dsl`
 }
@@ -20,4 +23,14 @@ dependencies {
     implementation("org.asciidoctor:asciidoctor-gradle-jvm:3.3.2")
     implementation("org.ajoberstar:gradle-git-publish:3.0.0")
 
+}
+
+tasks.withType<KotlinJvmCompile>().configureEach {
+    compilerOptions {
+        jvmTarget.set(JvmTarget.JVM_17)
+    }
+}
+
+tasks.withType<JavaCompile>().configureEach {
+    targetCompatibility = "17"
 }
