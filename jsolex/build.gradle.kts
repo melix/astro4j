@@ -47,3 +47,20 @@ tasks.withType<Javadoc>().configureEach {
         (this as CoreJavadocOptions).optionFiles?.add(file("src/javadoc.options"))
     }
 }
+
+tasks.withType<JavaCompile>().configureEach {
+    doFirst {
+        options.compilerArgs.addAll(
+            listOf("--module-path", classpath.asPath)
+        )
+        classpath = files()
+    }
+}
+
+
+tasks.withType<Javadoc>().configureEach {
+    doFirst {
+        options.setModulePath(classpath.files.toList())
+        classpath = files()
+    }
+}

@@ -41,7 +41,11 @@ abstract class AutomaticModuleNameFixup : TransformAction<TransformParameters.No
     override
     fun transform(outputs: TransformOutputs) {
         val input = inputArtifact.get().asFile
-        val output = outputs.file(input.name.replace("platform-native", "platform.ntve"))
+        val output = outputs.file(
+            input.name.replace("platform-native", "platform.ntve")
+                .replace("-M2", "")
+        )
+
         input.copyTo(output, overwrite = true)
     }
 }
