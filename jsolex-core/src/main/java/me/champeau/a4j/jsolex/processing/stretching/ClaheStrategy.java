@@ -18,9 +18,9 @@ package me.champeau.a4j.jsolex.processing.stretching;
 import me.champeau.a4j.jsolex.processing.util.Histogram;
 
 public final class ClaheStrategy implements StretchingStrategy {
-    public static final int DEFAULT_TILE_SIZE = 64;
-    public static final int DEFAULT_BINS = 512;
-    public static final double DEFAULT_CLIP = 0.9d;
+    public static final int DEFAULT_TILE_SIZE = 16;
+    public static final int DEFAULT_BINS = 256;
+    public static final double DEFAULT_CLIP = 1.1d;
 
     public static final ClaheStrategy DEFAULT = new ClaheStrategy(DEFAULT_TILE_SIZE, DEFAULT_BINS, DEFAULT_CLIP);
 
