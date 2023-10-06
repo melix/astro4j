@@ -246,7 +246,7 @@ public class JSolEx extends Application implements JSolExInterface {
             startWatcherThread();
             BatchOperations.submit(() -> UpdateChecker.findLatestRelease().ifPresent(this::maybeWarnAboutNewRelease));
             LOGGER.info("Java runtime version {}", System.getProperty("java.version"));
-            LOGGER.info("Vector API support is {} and {}", VectorApiSupport.isPresent() ? "available" : "missing", VectorApiSupport.isEnabled() ? "enabled" : "disabled (enable by setting " + VectorApiSupport.VECTOR_API_ENV_VAR + " environment variable to true)");
+            LOGGER.info("Vector API support is {} and {}", VectorApiSupport.isPresent() ? "available" : "missing", VectorApiSupport.isEnabled() ? "enabled (disable by setting " + VectorApiSupport.VECTOR_API_ENV_VAR + " environment variable to false)" : "disabled");
         } catch (IOException exception) {
             throw new ProcessingException(exception);
         }
