@@ -57,6 +57,14 @@ tasks.withType<JavaCompile>().configureEach {
     }
 }
 
+tasks.named<JavaExec>("run") {
+    doFirst {
+        jvmArgs(
+            listOf("--module-path", classpath.asPath)
+        )
+        classpath = files()
+    }
+}
 
 tasks.withType<Javadoc>().configureEach {
     doFirst {

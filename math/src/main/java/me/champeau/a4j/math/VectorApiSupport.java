@@ -16,7 +16,7 @@
 package me.champeau.a4j.math;
 
 public class VectorApiSupport {
-    public static final String VECTOR_API_ENV_VAR = "EXPERIMENTAL_VECTOR_API";
+    public static final String VECTOR_API_ENV_VAR = "VECTOR_API";
     private static final boolean VECTOR_API_PRESENT;
 
     static {
@@ -32,7 +32,7 @@ public class VectorApiSupport {
     public static boolean isEnabled() {
         var enabled = System.getenv(VECTOR_API_ENV_VAR);
         if (enabled == null) {
-            enabled = "false";
+            enabled = "true";
         }
         return VECTOR_API_PRESENT && Boolean.parseBoolean(enabled);
     }
