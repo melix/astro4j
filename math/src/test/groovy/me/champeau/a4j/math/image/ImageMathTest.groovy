@@ -57,4 +57,74 @@ class ImageMathTest extends Specification {
         'vectorized' | new VectorApiImageMath()
 
     }
+
+    def "computes average of line (#label)"() {
+        def image = newImage(851, 344)
+
+        expect:
+        imageMath.averageOf(image, 343) == 768
+
+        where:
+        label        | imageMath
+        'fallback'   | new FallbackImageMath()
+        'vectorized' | new VectorApiImageMath()
+    }
+
+    def "computes average of double array (#label)"() {
+        double[] array = new double[851]
+        for (int i = 0; i < array.length; i++) {
+            array[i] = 2d * i;
+        }
+
+        expect:
+        imageMath.averageOf(array) == 850d
+
+        where:
+        label        | imageMath
+        'fallback'   | new FallbackImageMath()
+        'vectorized' | new VectorApiImageMath()
+    }
+
+    def "computes incremental average (#label)"() {
+        float[] current = new float[333]
+        for (int i = 0; i < current.length; i++) {
+            current[i] = i
+        }
+        float[] average = new float[333]
+
+        when:
+        imageMath.incrementalAverage(current, average, 10)
+
+        then:
+        average[0] == 0
+        average[1] == 0.1f
+        average[2] == 0.2f
+        average[120] == 12f
+        average[332] == 33.2f
+
+        when:
+        imageMath.incrementalAverage(current, average, 11)
+
+        then:
+        average[0] == 0
+        average[1] == 0.18181819f
+        average[120] == 21.818182f
+        average[332] == 60.363636f
+
+        where:
+        label        | imageMath
+        'fallback'   | new FallbackImageMath()
+        'vectorized' | new VectorApiImageMath()
+    }
+
+    static Image newImage(int width, int height) {
+        var size = width * height
+        var data = new float[size]
+        for (int y = 0; y < height; y++) {
+            for (int x = 0; x < width; x++) {
+                data[y * width + x] = y + x
+            }
+        }
+        return new Image(width, height, data)
+    }
 }

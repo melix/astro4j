@@ -1,5 +1,8 @@
+import java.util.*
+
 plugins {
     id("me.champeau.astro4j.library")
+    id("me.champeau.jmh") version "0.7.1"
 }
 
 description = "Provides some mathematical functions like linear or elliptic regression"
@@ -13,11 +16,13 @@ dependencies {
 }
 
 tasks.withType<JavaCompile>().configureEach {
-    doFirst {
-        options.compilerArgs.addAll(
-            listOf("--module-path", classpath.asPath)
-        )
-        classpath = files()
+    if (!name.lowercase(Locale.ENGLISH).contains("jmh")) {
+        doFirst {
+            options.compilerArgs.addAll(
+                listOf("--module-path", classpath.asPath)
+            )
+            classpath = files()
+        }
     }
 }
 

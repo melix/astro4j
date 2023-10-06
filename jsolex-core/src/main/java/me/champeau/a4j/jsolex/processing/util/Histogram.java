@@ -17,6 +17,8 @@ package me.champeau.a4j.jsolex.processing.util;
 
 import me.champeau.a4j.math.image.Image;
 
+import java.util.Arrays;
+
 /**
  * Histogram of an image
  *
@@ -39,5 +41,16 @@ public record Histogram(
             histogram[i]++;
         }
         return new Histogram(histogram, pixelCount, maxValue);
+    }
+
+    /**
+     * Returns the number of distinct levels count
+     * in the image.
+     * @return the number of bins which have a non-zero number of pixels
+     */
+    public int levelsCount() {
+        return (int) Arrays.stream(values)
+                .filter(i -> i>0)
+                .count();
     }
 }
