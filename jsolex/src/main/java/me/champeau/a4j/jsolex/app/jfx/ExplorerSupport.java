@@ -40,7 +40,13 @@ public class ExplorerSupport {
                 builder.command("open", imagePath.getParent().toAbsolutePath().toString());
                 builder.start();
             } catch (IOException ex) {
-                LOGGER.info("Opening files not supported on this platform");
+                try {
+                    var builder = new ProcessBuilder();
+                    builder.command("explorer.exe", "/select,"+imagePath.getParent().toAbsolutePath());
+                    builder.start();
+                } catch (IOException ex2) {
+                    LOGGER.info("Opening files not supported on this platform");
+                }
             }
         }
     }

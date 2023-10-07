@@ -20,6 +20,7 @@ import me.champeau.a4j.jsolex.processing.event.SuggestionEvent;
 import me.champeau.a4j.jsolex.processing.expr.impl.Crop;
 import me.champeau.a4j.jsolex.processing.expr.impl.ImageDraw;
 import me.champeau.a4j.jsolex.processing.expr.impl.Rotate;
+import me.champeau.a4j.jsolex.processing.params.ClaheParams;
 import me.champeau.a4j.jsolex.processing.params.ProcessParams;
 import me.champeau.a4j.jsolex.processing.params.RotationKind;
 import me.champeau.a4j.jsolex.processing.stretching.ArcsinhStretchingStrategy;
@@ -98,7 +99,7 @@ public class ProcessingWorkflow {
             var reconstructed = state.image();
             rawImagesEmitter.newMonoImage(GeneratedImageKind.RAW, message(Constants.TYPE_RAW), "recon", reconstructed);
             var clahe = reconstructed.copy();
-            ClaheStrategy.DEFAULT.stretch(clahe.width(), clahe.height(), clahe.data());
+            ClaheStrategy.of(processParams.claheParams()).stretch(clahe.width(), clahe.height(), clahe.data());
             rawImagesEmitter.newMonoImage(GeneratedImageKind.RAW_STRETCHED, message("raw.linear"), "linear", clahe);
             var existingFitting = state.findResult(WorkflowResults.MAIN_ELLIPSE_FITTING);
             if (existingFitting.isPresent()) {
@@ -163,7 +164,7 @@ public class ProcessingWorkflow {
                         kind = GeneratedImageKind.CONTINUUM;
                     }
                     processedImagesEmitter.newMonoImage(kind, message("disk"), "disk", geometryFixed);
-                    executor.async(() -> produceStretchedImage(geometryFixed));
+                    executor.async(() -> produceStretchedImage(geometryFixed, processParams.claheParams()));
                     if (isMainShift() && shouldProduce(GeneratedImageKind.NEGATIVE)) {
                         executor.async(() -> produceNegativeImage(geometryFixed));
                     }
@@ -231,9 +232,9 @@ public class ProcessingWorkflow {
         return executor.submit(new ImageBandingCorrector(broadcaster, imageSupplier(WorkflowResults.ROTATED), ellipse, processParams.bandingCorrectionParams()));
     }
 
-    private Supplier<Void> produceStretchedImage(ImageWrapper32 geometryFixed) {
+    private Supplier<Void> produceStretchedImage(ImageWrapper32 geometryFixed, ClaheParams claheParams) {
         var clahe = geometryFixed.copy();
-        ClaheStrategy.DEFAULT.stretch(clahe.width(), clahe.height(), clahe.data());
+        ClaheStrategy.of(claheParams).stretch(clahe.width(), clahe.height(), clahe.data());
         var supplier = processedImagesEmitter.newMonoImage(GeneratedImageKind.GEOMETRY_CORRECTED_STRETCHED, message("stretched"), "clahe", clahe);
         if (shouldProduce(GeneratedImageKind.TECHNICAL_CARD) && isMainShift()) {
             produceTechnicalCard(clahe);
@@ -286,7 +287,7 @@ public class ProcessingWorkflow {
                             var copy = new float[data.length];
                             System.arraycopy(data, 0, copy, 0, data.length);
                             createStretchingForColorization(blackPoint).stretch(geometryFixed.width(), geometryFixed.height(), copy);
-                            ClaheStrategy.DEFAULT.stretch(geometryFixed.width(), geometryFixed.height(), copy);
+                            ClaheStrategy.of(processParams.claheParams()).stretch(geometryFixed.width(), geometryFixed.height(), copy);
                             var width = geometryFixed.width();
                             var height = geometryFixed.height();
                             float[] mix = new float[data.length];
