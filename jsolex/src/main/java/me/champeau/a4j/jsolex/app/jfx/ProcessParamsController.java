@@ -35,6 +35,7 @@ import javafx.util.converter.IntegerStringConverter;
 import me.champeau.a4j.jsolex.app.JSolEx;
 import me.champeau.a4j.jsolex.processing.params.AutocropMode;
 import me.champeau.a4j.jsolex.processing.params.BandingCorrectionParams;
+import me.champeau.a4j.jsolex.processing.params.ClaheParams;
 import me.champeau.a4j.jsolex.processing.params.ExtraParams;
 import me.champeau.a4j.jsolex.processing.params.FileNamingPatternsIO;
 import me.champeau.a4j.jsolex.processing.params.GeometryParams;
@@ -48,6 +49,7 @@ import me.champeau.a4j.jsolex.processing.params.SpectralRay;
 import me.champeau.a4j.jsolex.processing.params.SpectralRayIO;
 import me.champeau.a4j.jsolex.processing.params.SpectrumParams;
 import me.champeau.a4j.jsolex.processing.params.VideoParams;
+import me.champeau.a4j.jsolex.processing.stretching.ClaheStrategy;
 import me.champeau.a4j.jsolex.processing.sun.workflow.GeneratedImageKind;
 import me.champeau.a4j.jsolex.processing.util.Constants;
 import me.champeau.a4j.jsolex.processing.util.ForkJoinContext;
@@ -84,6 +86,12 @@ public class ProcessParamsController {
     private Slider bandingCorrectionWidth;
     @FXML
     private TextField camera;
+    @FXML
+    private ChoiceBox<Integer> claheTileSize;
+    @FXML
+    private ChoiceBox<Integer> claheBins;
+    @FXML
+    private TextField claheClipping;
     @FXML
     private Slider dopplerShifting;
     @FXML
@@ -255,6 +263,37 @@ public class ProcessParamsController {
                 return AutocropMode.valueOf(string);
             }
         });
+        claheTileSize.getItems().addAll(
+                8, 16, 32, 64, 128, 256, 512, 1024
+        );
+        claheTileSize.valueProperty().addListener((obs, oldValue, newValue) -> {
+            var bins = claheBins.getValue();
+            if (bins != null && bins > newValue * newValue) {
+                claheBins.setValue(newValue * newValue);
+            }
+        });
+        claheTileSize.getSelectionModel().select(Integer.valueOf(initialProcessParams.claheParams().tileSize()));
+        claheBins.getItems().addAll(
+                32, 64, 128, 256, 512, 1024
+        );
+        claheBins.valueProperty().addListener((obs, oldValue, newValue) -> {
+            var tileSize = claheTileSize.getValue();
+            if (newValue > tileSize * tileSize) {
+                claheBins.setValue(oldValue);
+            }
+        });
+        claheBins.getSelectionModel().select(Integer.valueOf(initialProcessParams.claheParams().bins()));
+        claheClipping.setTextFormatter(new TextFormatter<>(new DoubleStringConverter() {
+            @Override
+            public Double fromString(String value) {
+                var v = super.fromString(value);
+                if (v != null && v < 0) {
+                    return 0d;
+                }
+                return v;
+            }
+        }));
+        claheClipping.setText("" + initialProcessParams.claheParams().clipping());
         if (!patterns.isEmpty()) {
             namingPattern.getSelectionModel().selectFirst();
             var pattern = initialProcessParams.extraParams().fileNamePattern();
@@ -297,7 +336,7 @@ public class ProcessParamsController {
             var controller = (ImageSelector) fxmlLoader.getController();
             controller.setup(
                     stage,
-                    forkJoinContext, 
+                    forkJoinContext,
                     initialProcessParams.requestedImages().images(),
                     generateDebugImages.isSelected(),
                     List.of(getPixelShiftAsDouble()),
@@ -392,7 +431,12 @@ public class ProcessParamsController {
                         (int) Math.round(bandingCorrectionWidth.getValue()),
                         (int) Math.round(bandingCorrectionPasses.getValue())
                 ),
-                requestedImages
+                requestedImages,
+                new ClaheParams(
+                        claheTileSize.getValue(),
+                        claheBins.getValue(),
+                        Double.parseDouble(claheClipping.getText())
+                )
         );
         ProcessParams.saveDefaults(processParams);
         stage.close();
@@ -449,6 +493,9 @@ public class ProcessParamsController {
         generateFits.setSelected(true);
         bandingCorrectionWidth.setValue(24);
         bandingCorrectionPasses.setValue(3);
+        claheTileSize.getSelectionModel().select(ClaheStrategy.DEFAULT_TILE_SIZE);
+        claheBins.getSelectionModel().select(ClaheStrategy.DEFAULT_BINS);
+        claheClipping.setText("" + ClaheStrategy.DEFAULT_CLIP);
     }
 
     @FXML

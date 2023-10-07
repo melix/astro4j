@@ -15,15 +15,13 @@
  */
 package me.champeau.a4j.jsolex.processing.stretching;
 
+import me.champeau.a4j.jsolex.processing.params.ClaheParams;
 import me.champeau.a4j.jsolex.processing.util.Histogram;
 
 public final class ClaheStrategy implements StretchingStrategy {
     public static final int DEFAULT_TILE_SIZE = 16;
     public static final int DEFAULT_BINS = 256;
     public static final double DEFAULT_CLIP = 1.1d;
-
-    public static final ClaheStrategy DEFAULT = new ClaheStrategy(DEFAULT_TILE_SIZE, DEFAULT_BINS, DEFAULT_CLIP);
-
     private static final int MAX_PIXEL_VALUE = 65535;
 
     private final int tileSize;
@@ -34,6 +32,10 @@ public final class ClaheStrategy implements StretchingStrategy {
         this.tileSize = tileSize;
         this.bins = bins;
         this.clipRatio = clipRatio;
+    }
+
+    public static ClaheStrategy of(ClaheParams claheParams) {
+        return new ClaheStrategy(claheParams.tileSize(), claheParams.bins(), claheParams.clipping());
     }
 
     public ClaheStrategy withClipRatio(double clipRatio) {
