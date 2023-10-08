@@ -21,6 +21,7 @@ import org.slf4j.LoggerFactory;
 import java.awt.*;
 import java.io.IOException;
 import java.nio.file.Path;
+import java.util.Locale;
 
 public class ExplorerSupport {
     private static final Logger LOGGER = LoggerFactory.getLogger(ExplorerSupport.class);
@@ -41,9 +42,13 @@ public class ExplorerSupport {
                 builder.start();
             } catch (IOException ex) {
                 try {
-                    var builder = new ProcessBuilder();
-                    builder.command("explorer.exe", "/select,"+imagePath.getParent().toAbsolutePath());
-                    builder.start();
+                    if (System.getProperty("os.name").toLowerCase(Locale.ENGLISH).contains("windows")) {
+                        var builder = new ProcessBuilder();
+                        builder.command("explorer.exe", "/select,\"" + imagePath.toAbsolutePath() + "\"");
+                        builder.start();
+                    } else {
+                        LOGGER.info("Opening files not supported on this platform");
+                    }
                 } catch (IOException ex2) {
                     LOGGER.info("Opening files not supported on this platform");
                 }
