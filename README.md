@@ -19,7 +19,7 @@ The following binaries are provided as a convenience and built from sources usin
 They are provided as-is, without any warranty.
 
 - Latest release is version 1.7.0 ([documentation](https://melix.github.io/astro4j/1.7.0))
-  - [JSol'Ex 1.7.0 (Linux, deb, AMD64)](https://jsolex.s3.eu-west-3.amazonaws.com/jsolex-ubuntu-latest/jsolex_1.7.0-1_amd64.deb)
+  - [JSol'Ex 1.7.0 (Linux, deb, AMD64)](https://jsolex.s3.eu-west-3.amazonaws.com/jsolex-ubuntu-latest/jsolex_1.7.0_amd64.deb)
   - [JSol'Ex 1.7.0 (Windows)](https://jsolex.s3.eu-west-3.amazonaws.com/jsolex-windows-latest/jsolex-1.7.0.msi)
   - [JSol'Ex 1.7.0 (MacOS)](https://jsolex.s3.eu-west-3.amazonaws.com/jsolex-macos-latest/jsolex-1.7.0.pkg)
   - [JSol'Ex (Tarball)](https://jsolex.s3.eu-west-3.amazonaws.com/jsolex-macos-latest/jsolex-1.7.0.tar.gz)
@@ -33,7 +33,7 @@ They are provided as-is, without any warranty.
 You can also install the _development_ version of JSol'Ex as it can contain numerous bugfixes and improvements over the release versions.
 
 - Development versions (updated on each commit)
-  - [JSol'Ex (Linux, deb, AMD64)](https://jsolex.s3.eu-west-3.amazonaws.com/jsolex-ubuntu-latest/jsolex-devel_1.7.1-1_amd64.deb)
+  - [JSol'Ex (Linux, deb, AMD64)](https://jsolex.s3.eu-west-3.amazonaws.com/jsolex-ubuntu-latest/jsolex-devel_1.7.1_amd64.deb)
   - [JSol'Ex (Windows)](https://jsolex.s3.eu-west-3.amazonaws.com/jsolex-windows-latest/jsolex-devel-1.7.1.msi)
   - [JSol'Ex (MacOS)](https://jsolex.s3.eu-west-3.amazonaws.com/jsolex-macos-latest/jsolex-devel-1.7.1.pkg)
   - [JSol'Ex (Tarball)](https://jsolex.s3.eu-west-3.amazonaws.com/jsolex-macos-latest/jsolex-1.7.1-SNAPSHOT.tar.gz)
