@@ -53,6 +53,9 @@ class LinearRegressionTest extends Specification {
 
 
         DoubleTriplet reg = LinearRegression.secondOrderRegression(series)
+        double[] generic = LinearRegression.kOrderRegression(series, 2)
+        DoubleTriplet genericReg = new DoubleTriplet(generic[0], generic[1], generic[2])
+
         when:
         def (a, b, c) = [reg.a(), reg.b(), reg.c()]
         series.each { Point2D p ->
@@ -61,6 +64,9 @@ class LinearRegressionTest extends Specification {
         }
 
         then:
+        assertEquals(reg.a(), genericReg.a())
+        assertEquals(reg.b(), genericReg.b())
+        assertEquals(reg.c(), genericReg.c())
         assertEquals(a, expectedA)
         assertEquals(b, expectedB)
         assertEquals(c, expectedC)

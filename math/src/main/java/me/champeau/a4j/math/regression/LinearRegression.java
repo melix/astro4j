@@ -16,7 +16,9 @@
 package me.champeau.a4j.math.regression;
 
 import me.champeau.a4j.math.Point2D;
+import me.champeau.a4j.math.matrix.DoubleMatrix;
 import me.champeau.a4j.math.tuples.DoublePair;
+import me.champeau.a4j.math.tuples.DoubleQuadruplet;
 import me.champeau.a4j.math.tuples.DoubleTriplet;
 
 /**
@@ -89,5 +91,55 @@ public abstract class LinearRegression {
         double c = (sumY / n - b * sumX / n - a * sumXX / n);
         return new DoubleTriplet(a, b, c);
     }
+
+    /**
+     * Computes the third order regression of a series of points using the method of least squares.
+     *
+     * @param series the series of points
+     * @return the coefficients of the regression for the form y = a * x^3 + b * x^2 + c * x + d
+     */
+    public static DoubleQuadruplet thirdOrderRegression(Point2D[] series) {
+        var result = kOrderRegression(series, 3);
+
+        return new DoubleQuadruplet(result[0], result[1], result[2], result[3]);
+    }
+
+    /**
+     * Computes the k-order linear regression of a series of points using the method of
+     * least squares. More precisely, this uses matrix computations, which is slower than
+     * the direct methods which should be preferred for order 1 and 2.
+     *
+     * @param series the series of points
+     * @param k the order of the polynomial
+     * @return the polynomial coefficients
+     */
+    public static double[] kOrderRegression(Point2D[] series, int k) {
+        if (k < 0) {
+            throw new IllegalArgumentException("Order must be >= 0");
+        }
+        double[][] m = new double[series.length][];
+        double[][] yy = new double[series.length][];
+        for (int i = 0; i < series.length; i++) {
+            Point2D point = series[i];
+            double x = point.x();
+            double y = point.y();
+            double[] mm = new double[k + 1];
+            yy[i] = new double[]{y};
+            for (int j = 0; j <= k; j++) {
+                mm[j] = Math.pow(x, j);
+            }
+            m[i] = mm;
+        }
+
+        var mm = DoubleMatrix.of(m);
+        var mmT = mm.transpose();
+        double[][] result = mmT.mul(mm).inverse().mul(mmT).mul(DoubleMatrix.of(yy)).asArray();
+        double[] res = new double[k + 1];
+        for (int i = 0; i <= k; i++) {
+            res[k - i] = result[i][0];
+        }
+        return res;
+    }
+
 
 }

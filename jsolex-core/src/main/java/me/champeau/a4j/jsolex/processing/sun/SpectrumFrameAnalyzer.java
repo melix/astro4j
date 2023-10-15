@@ -18,12 +18,12 @@ package me.champeau.a4j.jsolex.processing.sun;
 import me.champeau.a4j.jsolex.processing.util.Constants;
 import me.champeau.a4j.math.Point2D;
 import me.champeau.a4j.math.regression.LinearRegression;
-import me.champeau.a4j.math.tuples.DoubleTriplet;
 
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
+import java.util.function.DoubleUnaryOperator;
 
 public class SpectrumFrameAnalyzer {
     public static final int MAX_DEVIATION = 10;
@@ -109,7 +109,7 @@ public class SpectrumFrameAnalyzer {
         return Optional.ofNullable(rightBorder);
     }
 
-    public Optional<DoubleTriplet> findDistortionPolynomial() {
+    public Optional<DoubleUnaryOperator> findDistortionPolynomial() {
         int l = 0;
         int r = width;
         if (leftBorder != null) {
@@ -128,7 +128,7 @@ public class SpectrumFrameAnalyzer {
             }
         }
         if (samplePoints.size() > 2) {
-            var polynomial = LinearRegression.secondOrderRegression(samplePoints.toArray(new Point2D[0])).asPolynomial();
+            var polynomial = LinearRegression.thirdOrderRegression(samplePoints.toArray(new Point2D[0])).asPolynomial();
             // In the 2d pass we consider all points but only keep those which are close enough to the first polynomial
             samplePoints.clear();
             for (int x = l; x < r; x += step) {
@@ -140,8 +140,8 @@ public class SpectrumFrameAnalyzer {
                     }
                 }
             }
-            var triplet = LinearRegression.secondOrderRegression(samplePoints.toArray(new Point2D[0]));
-            return Optional.of(triplet);
+            var regression = LinearRegression.thirdOrderRegression(samplePoints.toArray(new Point2D[0]));
+            return Optional.of(regression.asPolynomial());
         } else {
             // Not enough sample points, we have to include the whole width
             samplePoints.clear();
@@ -152,8 +152,8 @@ public class SpectrumFrameAnalyzer {
                 }
             }
             if (samplePoints.size() > 2) {
-                var triplet = LinearRegression.secondOrderRegression(samplePoints.toArray(new Point2D[0]));
-                return Optional.of(triplet);
+                var triplet = LinearRegression.thirdOrderRegression(samplePoints.toArray(new Point2D[0]));
+                return Optional.of(triplet.asPolynomial());
             }
         }
         return Optional.empty();

@@ -56,12 +56,12 @@ class SpectrumFrameAnalyzerTest extends Specification {
 
         def p = polynomial.get()
         for (int x = 0; x < image.width; x++) {
-            def y = p.a() * x * x + p.b() * x + p.c()
+            def y = p.applyAsDouble(x)
             image.setRGB(x, y as int, 0xFF0000)
         }
         ImageIO.write(image, "png", new File(tempDir, "spectrum.png"))
         def imageCorrector = new DistortionCorrection(data, image.width, image.height)
-        def corrected = imageCorrector.secondOrderPolynomialCorrection(p)
+        def corrected = imageCorrector.polynomialCorrection(p)
         for (int x = 0; x < image.width; x++) {
             for (int y = 0; y < image.height; y++) {
                 int correctedValue = (corrected[x + y * image.width] as int) & 0xFF

@@ -63,7 +63,6 @@ import me.champeau.a4j.jsolex.processing.util.SpectralLineFrameImageCreator;
 import me.champeau.a4j.math.image.Image;
 import me.champeau.a4j.math.image.ImageMath;
 import me.champeau.a4j.math.regression.Ellipse;
-import me.champeau.a4j.math.tuples.DoubleTriplet;
 import me.champeau.a4j.ser.Header;
 import me.champeau.a4j.ser.ImageGeometry;
 import me.champeau.a4j.ser.SerFileReader;
@@ -90,6 +89,7 @@ import java.util.Set;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.DoubleUnaryOperator;
 
 import static me.champeau.a4j.jsolex.processing.util.Constants.message;
 import static me.champeau.a4j.jsolex.processing.util.LoggingSupport.logError;
@@ -423,12 +423,12 @@ public class SolexVideoProcessor implements Broadcaster {
         imageList.addAll(list);
     }
 
-    private void performImageReconstruction(ImageConverter<float[]> converter, SerFileReader reader, int start, int end, ImageGeometry geometry, int width, int height, DoubleTriplet polynomial, WorkflowState... images) {
+    private void performImageReconstruction(ImageConverter<float[]> converter, SerFileReader reader, int start, int end, ImageGeometry geometry, int width, int height, DoubleUnaryOperator polynomial, WorkflowState... images) {
         LOGGER.info(message("starting.reconstruction"));
         var semaphore = new Semaphore(Runtime.getRuntime().availableProcessors());
         mainForkJoinContext.blocking(executor -> {
             reader.seekFrame(start);
-            LOGGER.info(message("distortion.polynomial"), polynomial.a(), polynomial.b(), polynomial.c());
+            LOGGER.info(message("distortion.polynomial"), polynomial);
             reader.seekFrame(start);
             int totalLines = end - start;
             for (int i = start, j = 0; i < end; i++, j += width) {
@@ -456,7 +456,7 @@ public class SolexVideoProcessor implements Broadcaster {
         LOGGER.info(message("processing.done.generate.images"));
     }
 
-    private Optional<DoubleTriplet> findPolynomial(int width, int height, float[] averageImage, FileNamingStrategy imageNamingStrategy) {
+    private Optional<DoubleUnaryOperator> findPolynomial(int width, int height, float[] averageImage, FileNamingStrategy imageNamingStrategy) {
         SpectrumFrameAnalyzer analyzer = new SpectrumFrameAnalyzer(width, height, 5000d);
         analyzer.analyze(averageImage);
         var result = analyzer.findDistortionPolynomial();
@@ -476,13 +476,12 @@ public class SolexVideoProcessor implements Broadcaster {
         return result;
     }
 
-    private void processSingleFrame(boolean internal, int width, int height, float[] outputBuffer, int offset, float[] buffer, DoubleTriplet p, double pixelShift, int totalLines) {
-        var fun = p.asPolynomial();
+    private void processSingleFrame(boolean internal, int width, int height, float[] outputBuffer, int offset, float[] buffer, DoubleUnaryOperator p, double pixelShift, int totalLines) {
         double[] line = new double[width];
         int lastY = 0;
         for (int x = 0; x < width; x++) {
             // To reconstruct the image, we use the polynom to find which pixel to use
-            double yd = fun.applyAsDouble(x) + pixelShift;
+            double yd = p.applyAsDouble(x) + pixelShift;
             int yi = (int) yd;
             if (yi < 0 || yi >= height) {
                 yi = lastY;

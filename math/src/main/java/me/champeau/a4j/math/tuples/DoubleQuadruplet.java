@@ -15,6 +15,8 @@
  */
 package me.champeau.a4j.math.tuples;
 
+import java.util.function.DoubleUnaryOperator;
+
 /**
  * A quadruplet of doubles.
  */
@@ -24,4 +26,20 @@ public record DoubleQuadruplet(
         double c,
         double d
 ) {
+    public DoubleUnaryOperator asPolynomial() {
+        return new Operator();
+    }
+
+    private class Operator implements DoubleUnaryOperator {
+
+        @Override
+        public double applyAsDouble(double x) {
+            return a * x * x * x + b * x * x + c * x + d;
+        }
+
+        @Override
+        public String toString() {
+            return String.format("ax3 + bx2 + cx + d = 0\n   - a = %s\n   - b = %s\n   - c = %s\n   - d = %s", a, b, c, d);
+        }
+    }
 }

@@ -45,7 +45,7 @@ import me.champeau.a4j.jsolex.processing.util.ForkJoinParallelExecutor;
 import me.champeau.a4j.jsolex.processing.util.ImageFormat;
 import me.champeau.a4j.jsolex.processing.util.SpectralLineFrameImageCreator;
 import me.champeau.a4j.math.Point2D;
-import me.champeau.a4j.math.tuples.DoubleTriplet;
+import me.champeau.a4j.math.tuples.DoubleQuadruplet;
 import me.champeau.a4j.ser.ColorMode;
 import me.champeau.a4j.ser.ImageGeometry;
 import me.champeau.a4j.ser.SerFileReader;
@@ -66,7 +66,7 @@ public class SpectralLineDebugger {
     private static final int FAST_MOVE = 10;
     private static final int FINE_MOVE = 1;
     private static final double EPSILON = 0.5d;
-    private static final DoubleTriplet UNDEFINED_POLY = new DoubleTriplet(0, 0, 0);
+    private static final DoubleUnaryOperator UNDEFINED_POLY = e -> 0;
 
     @FXML
     private Slider frameSlider;
@@ -111,7 +111,7 @@ public class SpectralLineDebugger {
     private final List<Double> sampleDistances = new ArrayList<>();
     private double zoom = 1.0;
     private DoubleUnaryOperator polynomial;
-    private DoubleTriplet lockedPolynomial;
+    private DoubleUnaryOperator lockedPolynomial;
     private SerFileReader reader;
 
     public void open(File file, ColorMode colorMode, Scene scene, Stage stage, ForkJoinParallelExecutor executor) {
@@ -269,7 +269,7 @@ public class SpectralLineDebugger {
                 sunThreshold
         );
         analyzer.analyze(buffer);
-        analyzer.findDistortionPolynomial().ifPresent(triplet -> this.polynomial = triplet.asPolynomial());
+        analyzer.findDistortionPolynomial().ifPresent(p -> this.polynomial = p);
         var detectedPolynomial = analyzer.findDistortionPolynomial().orElse(null);
         lockPolynomialCheckbox.selectedProperty().addListener((obj, oldValue, newValue) -> {
             if (Boolean.TRUE.equals(newValue) && detectedPolynomial != null) {
@@ -344,11 +344,10 @@ public class SpectralLineDebugger {
         return sampleDistances.stream().mapToDouble(d -> d).average().orElse(0);
     }
 
-    private double computeDistanceToSpectralLine(DoubleTriplet detectedPolynomial, double x, double y) {
+    private double computeDistanceToSpectralLine(DoubleUnaryOperator detectedPolynomial, double x, double y) {
         var poly = Optional.ofNullable(lockedPolynomial)
                 .or(() -> Optional.ofNullable(detectedPolynomial))
-                .orElse(UNDEFINED_POLY)
-                .asPolynomial();
+                .orElse(UNDEFINED_POLY);
         var yy = poly.applyAsDouble(x);
         return y - yy;
     }
