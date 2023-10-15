@@ -18,11 +18,11 @@ package me.champeau.a4j.jsolex.processing.util;
 import me.champeau.a4j.jsolex.processing.sun.DistortionCorrection;
 import me.champeau.a4j.jsolex.processing.sun.SpectrumFrameAnalyzer;
 import me.champeau.a4j.math.Point2D;
-import me.champeau.a4j.math.tuples.DoubleTriplet;
 
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.function.DoubleUnaryOperator;
 
 import static me.champeau.a4j.jsolex.processing.util.Constants.MAX_PIXEL_VALUE;
 
@@ -43,13 +43,13 @@ public class SpectralLineFrameImageCreator {
         return generateDebugImage(null);
     }
 
-    public RGBImage generateDebugImage(DoubleTriplet forcedPolynomial) {
+    public RGBImage generateDebugImage(DoubleUnaryOperator forcedPolynomial) {
         int size = width * height;
-        Optional<DoubleTriplet> polynomial = Optional.ofNullable(forcedPolynomial).or(analyzer::findDistortionPolynomial);
+        Optional<DoubleUnaryOperator> polynomial = Optional.ofNullable(forcedPolynomial).or(analyzer::findDistortionPolynomial);
         float[] corrected;
         if (polynomial.isPresent()) {
             var distorsionCorrection = new DistortionCorrection(original, width, height);
-            corrected = distorsionCorrection.secondOrderPolynomialCorrection(polynomial.get());
+            corrected = distorsionCorrection.polynomialCorrection(polynomial.get());
         } else {
             corrected = new float[size];
         }
@@ -86,8 +86,7 @@ public class SpectralLineFrameImageCreator {
                 bb[offset + bx + y * width] = 0;
             }
         });
-        polynomial.ifPresent(p -> {
-            var poly = p.asPolynomial();
+        polynomial.ifPresent(poly -> {
             // Draw a line on the top graph corresponding to the detected curvature
             for (int x = 0; x < width; x++) {
                 int y = (int) Math.round(poly.applyAsDouble(x));

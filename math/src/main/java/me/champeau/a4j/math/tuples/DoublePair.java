@@ -17,6 +17,7 @@ package me.champeau.a4j.math.tuples;
 
 /**
  * A double pair.
+ *
  * @param a the first component
  * @param b the 2d component
  */
@@ -24,4 +25,5 @@ public record DoublePair(
         double a,
         double b
 ) {
+
 }

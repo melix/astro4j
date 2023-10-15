@@ -30,6 +30,19 @@ public record DoubleTriplet(
         double c
 ) {
     public DoubleUnaryOperator asPolynomial() {
-        return x -> a * x * x + b * x + c;
+        return new Operator();
+    }
+
+    private class Operator implements DoubleUnaryOperator {
+
+        @Override
+        public double applyAsDouble(double x) {
+            return a * x * x + b * x + c;
+        }
+
+        @Override
+        public String toString() {
+            return String.format("ax2 + bx + c = 0\n   - a = %s\n   - b = %s\n   - c = %s\n   - d = %s", a, b, c);
+        }
     }
 }
