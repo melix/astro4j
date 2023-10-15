@@ -29,8 +29,7 @@ continuum = max(range(ContinuumLo,ContinuumHi))
 helium_raw = img(HeliumShift) - ContinuumCoef*continuum
 # Warning! Banding fix must be done before any cropping!
 helium_fixed = fix_banding(helium_raw;BandWidth;BandIterations)
-helium_bg = remove_bg(helium_fixed)
-cropped = autocrop2(clahe(helium_bg;Clip);AutoCropFactor)
+cropped = autocrop2(clahe(helium_fixed;Clip);AutoCropFactor)
 
 ## Let's produce the images now!
 [outputs]
