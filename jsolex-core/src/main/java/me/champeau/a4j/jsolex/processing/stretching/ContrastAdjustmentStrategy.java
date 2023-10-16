@@ -18,18 +18,28 @@ package me.champeau.a4j.jsolex.processing.stretching;
 import me.champeau.a4j.jsolex.processing.util.Constants;
 
 public final class ContrastAdjustmentStrategy implements StretchingStrategy {
-    public static final ContrastAdjustmentStrategy DEFAULT = new ContrastAdjustmentStrategy(0, Constants.MAX_PIXEL_VALUE);
+    public static final ContrastAdjustmentStrategy DEFAULT = new ContrastAdjustmentStrategy(0, .95f*Constants.MAX_PIXEL_VALUE);
 
+    private final boolean normalize;
     private final float min;
     private final float max;
 
     public ContrastAdjustmentStrategy(float min, float max) {
+        this(min, max, false);
+    }
+
+    private ContrastAdjustmentStrategy(float min, float max, boolean normalize) {
         this.min = min;
         this.max = max;
+        this.normalize = normalize;
     }
 
     public ContrastAdjustmentStrategy withRange(float min, float max) {
-        return new ContrastAdjustmentStrategy(min, max);
+        return new ContrastAdjustmentStrategy(min, max, normalize);
+    }
+
+    public ContrastAdjustmentStrategy withNormalize(boolean normalize) {
+        return new ContrastAdjustmentStrategy(min, max, normalize);
     }
 
     public float getMin() {
@@ -48,6 +58,9 @@ public final class ContrastAdjustmentStrategy implements StretchingStrategy {
             } else if (data[i] > max) {
                 data[i] = max;
             }
+        }
+        if (normalize) {
+            LinearStrechingStrategy.DEFAULT.stretch(width, height, data);
         }
     }
 
