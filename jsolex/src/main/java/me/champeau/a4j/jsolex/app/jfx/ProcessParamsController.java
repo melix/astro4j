@@ -62,6 +62,7 @@ import java.io.IOException;
 import java.time.ZonedDateTime;
 import java.util.EnumSet;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 
@@ -148,6 +149,10 @@ public class ProcessParamsController {
     private ChoiceBox<RotationKind> rotation;
     @FXML
     private ChoiceBox<AutocropMode> autocrop;
+    @FXML
+    private ChoiceBox<Integer> binning;
+    @FXML
+    private TextField pixelSize;
 
     private Stage stage;
     private Header serFileHeader;
@@ -165,6 +170,7 @@ public class ProcessParamsController {
         accordion.setExpandedPane(accordion.getPanes().get(0));
 
         wavelength.getItems().addAll(FXCollections.observableList(SpectralRayIO.loadDefaults()));
+        binning.getItems().addAll(1, 2, 3, 4);
         var ray = initialProcessParams.spectrumParams().ray();
         if (wavelength.getItems().contains(ray)) {
             wavelength.getSelectionModel().select(ray);
@@ -264,7 +270,7 @@ public class ProcessParamsController {
             }
         });
         claheTileSize.getItems().addAll(
-                8, 16, 32, 64, 128, 256, 512, 1024
+            8, 16, 32, 64, 128, 256, 512, 1024
         );
         claheTileSize.valueProperty().addListener((obs, oldValue, newValue) -> {
             var bins = claheBins.getValue();
@@ -274,7 +280,7 @@ public class ProcessParamsController {
         });
         claheTileSize.getSelectionModel().select(Integer.valueOf(initialProcessParams.claheParams().tileSize()));
         claheBins.getItems().addAll(
-                32, 64, 128, 256, 512, 1024
+            32, 64, 128, 256, 512, 1024
         );
         claheBins.valueProperty().addListener((obs, oldValue, newValue) -> {
             var tileSize = claheTileSize.getValue();
@@ -299,9 +305,9 @@ public class ProcessParamsController {
             var pattern = initialProcessParams.extraParams().fileNamePattern();
             if (pattern != null) {
                 patterns.stream()
-                        .filter(p -> p.pattern().equals(pattern))
-                        .findFirst()
-                        .ifPresent(e -> namingPattern.getSelectionModel().select(e));
+                    .filter(p -> p.pattern().equals(pattern))
+                    .findFirst()
+                    .ifPresent(e -> namingPattern.getSelectionModel().select(e));
             }
 
         }
@@ -309,6 +315,12 @@ public class ProcessParamsController {
             autoSave.setSelected(true);
             autoSave.setDisable(true);
             observationDate.setDisable(true);
+        }
+        var bin = initialProcessParams.observationDetails().binning();
+        binning.setValue(Objects.requireNonNullElse(bin, 1));
+        var pSize = initialProcessParams.observationDetails().pixelSize();
+        if (pSize != null) {
+            pixelSize.setText(String.valueOf(pSize));
         }
     }
 
@@ -321,10 +333,10 @@ public class ProcessParamsController {
     public void process() {
         double dopplerShift = dopplerShifting.getValue();
         doProcess(new RequestedImages(
-                generateDebugImages.isSelected() ? RequestedImages.FULL_MODE_WITH_DEBUG : RequestedImages.FULL_MODE,
-                List.of(getPixelShiftAsDouble(), dopplerShift, -dopplerShift, Constants.CONTINUUM_SHIFT),
-                Set.of(-dopplerShift, dopplerShift),
-                ImageMathParams.NONE
+            generateDebugImages.isSelected() ? RequestedImages.FULL_MODE_WITH_DEBUG : RequestedImages.FULL_MODE,
+            List.of(getPixelShiftAsDouble(), dopplerShift, -dopplerShift, Constants.CONTINUUM_SHIFT),
+            Set.of(-dopplerShift, dopplerShift),
+            ImageMathParams.NONE
         ));
     }
 
@@ -335,15 +347,15 @@ public class ProcessParamsController {
             var node = (Parent) fxmlLoader.load();
             var controller = (ImageSelector) fxmlLoader.getController();
             controller.setup(
-                    stage,
-                    forkJoinContext,
-                    initialProcessParams.requestedImages().images(),
-                    generateDebugImages.isSelected(),
-                    List.of(getPixelShiftAsDouble()),
-                    dopplerShifting.getValue(),
-                    initialProcessParams.requestedImages().mathImages(),
-                    hostServices,
-                    batchMode
+                stage,
+                forkJoinContext,
+                initialProcessParams.requestedImages().images(),
+                generateDebugImages.isSelected(),
+                List.of(getPixelShiftAsDouble()),
+                dopplerShifting.getValue(),
+                initialProcessParams.requestedImages().mathImages(),
+                hostServices,
+                batchMode
             );
             Scene scene = new Scene(node);
             var currentScene = stage.getScene();
@@ -404,50 +416,61 @@ public class ProcessParamsController {
         }
         var namingStrategy = namingPattern.getSelectionModel().getSelectedItem();
         processParams = new ProcessParams(
-                new SpectrumParams(wavelength.getValue(), getPixelShiftAsDouble(), (int) Math.round(dopplerShifting.getValue()), switchRedBlueChannels.isSelected()),
-                new ObservationDetails(
-                        observerName.getText(),
-                        email.getText(),
-                        instrument.getText(),
-                        telescope.getText(),
-                        focalLength.isEmpty() ? null : Integer.parseInt(focalLength),
-                        aperture.isEmpty() ? null : Integer.parseInt(aperture),
-                        geo,
-                        ZonedDateTime.parse(observationDate.getText()),
-                        camera.getText()),
-                new ExtraParams(generateDebugImages.isSelected() || debugImagesRequested, autoSave.isSelected(), imageFormats, namingStrategy.pattern(), namingStrategy.datetimeFormat(), namingStrategy.dateFormat()),
-                new VideoParams(assumeMonoVideo.isSelected() ? ColorMode.MONO : null),
-                new GeometryParams(
-                        forceTilt.isSelected() ? Double.parseDouble(tiltValue.getText()) : null,
-                        forceXYRatio.isSelected() ? Double.parseDouble(xyRatioValue.getText()) : null,
-                        horizontalMirror.isSelected(),
-                        verticalMirror.isSelected(),
-                        sharpen.isSelected(),
-                        disallowDownsampling.isSelected(),
-                        autocorrectAngleP.isSelected(),
-                        rotation.getValue(),
-                        autocrop.getValue()),
-                new BandingCorrectionParams(
-                        (int) Math.round(bandingCorrectionWidth.getValue()),
-                        (int) Math.round(bandingCorrectionPasses.getValue())
-                ),
-                requestedImages,
-                new ClaheParams(
-                        claheTileSize.getValue(),
-                        claheBins.getValue(),
-                        Double.parseDouble(claheClipping.getText())
-                )
+            new SpectrumParams(wavelength.getValue(), getPixelShiftAsDouble(), (int) Math.round(dopplerShifting.getValue()), switchRedBlueChannels.isSelected()),
+            new ObservationDetails(
+                observerName.getText(),
+                email.getText(),
+                instrument.getText(),
+                telescope.getText(),
+                focalLength.isEmpty() ? null : Integer.parseInt(focalLength),
+                aperture.isEmpty() ? null : Integer.parseInt(aperture),
+                geo,
+                ZonedDateTime.parse(observationDate.getText()),
+                camera.getText(),
+                binning.getValue(),
+                getPixelSizeAsDouble()
+            ),
+            new ExtraParams(generateDebugImages.isSelected() || debugImagesRequested, autoSave.isSelected(), imageFormats, namingStrategy.pattern(), namingStrategy.datetimeFormat(), namingStrategy.dateFormat()),
+            new VideoParams(assumeMonoVideo.isSelected() ? ColorMode.MONO : null),
+            new GeometryParams(
+                forceTilt.isSelected() ? Double.parseDouble(tiltValue.getText()) : null,
+                forceXYRatio.isSelected() ? Double.parseDouble(xyRatioValue.getText()) : null,
+                horizontalMirror.isSelected(),
+                verticalMirror.isSelected(),
+                sharpen.isSelected(),
+                disallowDownsampling.isSelected(),
+                autocorrectAngleP.isSelected(),
+                rotation.getValue(),
+                autocrop.getValue()),
+            new BandingCorrectionParams(
+                (int) Math.round(bandingCorrectionWidth.getValue()),
+                (int) Math.round(bandingCorrectionPasses.getValue())
+            ),
+            requestedImages,
+            new ClaheParams(
+                claheTileSize.getValue(),
+                claheBins.getValue(),
+                Double.parseDouble(claheClipping.getText())
+            )
         );
         ProcessParams.saveDefaults(processParams);
         stage.close();
     }
 
-    private Double getPixelShiftAsDouble() {
-        var text = pixelShifting.getText();
+    private Double getPixelSizeAsDouble() {
+        return textFieldToDouble(pixelSize);
+    }
+
+    private static double textFieldToDouble(TextField pixelSize) {
+        var text = pixelSize.getText();
         if (text.isEmpty()) {
             return 0d;
         }
         return Double.parseDouble(text);
+    }
+
+    private Double getPixelShiftAsDouble() {
+        return textFieldToDouble(pixelShifting);
     }
 
     private DoublePair toDoublePair(String latitude, String longitude) {
@@ -460,10 +483,10 @@ public class ProcessParamsController {
     @FXML
     public void quickProcess() {
         doProcess(new RequestedImages(
-                generateDebugImages.isSelected() ? RequestedImages.QUICK_MODE_WITH_DEBUG : RequestedImages.QUICK_MODE,
-                List.of(getPixelShiftAsDouble()),
-                Set.of(),
-                ImageMathParams.NONE
+            generateDebugImages.isSelected() ? RequestedImages.QUICK_MODE_WITH_DEBUG : RequestedImages.QUICK_MODE,
+            List.of(getPixelShiftAsDouble()),
+            Set.of(),
+            ImageMathParams.NONE
         ));
     }
 

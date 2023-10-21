@@ -188,6 +188,7 @@
                                         <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="SOMETIMES" />
                                         <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="SOMETIMES" />
                                         <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="SOMETIMES" />
+                              <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="SOMETIMES" />
                                     </rowConstraints>
                                     <children>
                                         <Label text="%observer.name" />
@@ -238,6 +239,10 @@
                                                 <Tooltip text="%contact.email.tooltip" />
                                             </tooltip>
                                         </TextField>
+                              <ChoiceBox fx:id="binning" prefWidth="150.0" GridPane.columnIndex="1" GridPane.rowIndex="7" />
+                              <TextField fx:id="pixelSize" GridPane.columnIndex="3" GridPane.rowIndex="7" />
+                              <Label text="%binning" GridPane.rowIndex="7" />
+                              <Label text="%pixel.size" GridPane.columnIndex="2" GridPane.rowIndex="7" />
                                     </children>
                                 </GridPane>
                             </children>

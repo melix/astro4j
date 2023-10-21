@@ -8,7 +8,7 @@ plugins {
 
 javafx {
     version = "21"
-    modules("javafx.controls", "javafx.fxml", "javafx.media")
+    modules("javafx.controls", "javafx.fxml", "javafx.media", "javafx.swing")
 }
 
 val os = System.getProperty("os.name").lowercase(Locale.ENGLISH)

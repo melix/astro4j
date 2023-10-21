@@ -15,6 +15,7 @@
  */
 package me.champeau.a4j.jsolex.processing.sun;
 
+import me.champeau.a4j.jsolex.processing.event.AverageImageComputedEvent;
 import me.champeau.a4j.jsolex.processing.event.DebugEvent;
 import me.champeau.a4j.jsolex.processing.event.FileGeneratedEvent;
 import me.champeau.a4j.jsolex.processing.event.ImageGeneratedEvent;
@@ -166,14 +167,15 @@ public class SolexVideoProcessor implements Broadcaster {
                 broadcastError(e);
             }
         });
-        if (headerRef.get() != null) {
+        var header = headerRef.get();
+        if (header != null) {
             var averageImage = detector.getAverageImage();
             detector.ifEdgesDetected((start, end) -> {
                 LOGGER.info(message("sun.edges.detected"), start, end);
-                generateImages(converter, headerRef.get(), fpsRef.get(), serFile, Math.max(0, start - 40), Math.min(end + 40, frameCountRef.get()) - 1, averageImage);
+                generateImages(converter, header, fpsRef.get(), serFile, Math.max(0, start - 40), Math.min(end + 40, frameCountRef.get()) - 1, averageImage);
             }, () -> {
                 LOGGER.info(message("sun.edges.detected.full"));
-                generateImages(converter, headerRef.get(), fpsRef.get(), serFile, 0, frameCountRef.get() - 1, averageImage);
+                generateImages(converter, header, fpsRef.get(), serFile, 0, frameCountRef.get() - 1, averageImage);
             });
         }
     }
@@ -221,6 +223,10 @@ public class SolexVideoProcessor implements Broadcaster {
             var maybePolynomial = findPolynomial(width, height, averageImage, imageNamingStrategy);
             if (maybePolynomial.isPresent()) {
                 var polynomial = maybePolynomial.get();
+                var avgImage = new Image(width, height, averageImage);
+                broadcast(new AverageImageComputedEvent(
+                    new AverageImageComputedEvent.AverageImage(avgImage, polynomial, Math.max(0,start), Math.min(end, width), processParams.spectrumParams().ray(), processParams.observationDetails())
+                ));
                 ioForkJoinContext.blocking(() -> {
                     try (var reader = SerFileReader.of(serFile)) {
                         performImageReconstruction(converter, reader, start, end, geometry, width, height, polynomial, imageList.toArray(new WorkflowState[0]));
@@ -535,6 +541,8 @@ public class SolexVideoProcessor implements Broadcaster {
                 listener.onVideoMetadataAvailable(e);
             } else if (event instanceof ScriptExecutionResultEvent e) {
                 listener.onScriptExecutionResult(e);
+            } else if (event instanceof AverageImageComputedEvent e) {
+                listener.onAverageImageComputed(e);
             }
         }
     }

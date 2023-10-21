@@ -28,6 +28,8 @@ public interface JSolExInterface {
 
     Tab getStatsTab();
 
+    Tab getProfileTab();
+
     void showProgress();
 
     void hideProgress();
