@@ -68,6 +68,10 @@
                         <Tab fx:id="statsTab" text="%stats">
 
                         </Tab>
+
+                        <Tab fx:id="profileTab" text="%profile">
+
+                        </Tab>
                     </TabPane>
                     <VBox fx:id="imageMathPane">
                         <children>

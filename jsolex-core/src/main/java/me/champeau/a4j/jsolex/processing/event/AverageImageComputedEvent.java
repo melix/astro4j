@@ -15,28 +15,26 @@
  */
 package me.champeau.a4j.jsolex.processing.event;
 
-public abstract sealed class ProcessingEvent<T> permits
-    AverageImageComputedEvent,
-        ImageGeneratedEvent,
-        FileGeneratedEvent,
-        NotificationEvent,
-        OutputImageDimensionsDeterminedEvent,
-        PartialReconstructionEvent,
-        ProcessingStartEvent,
-        ProcessingDoneEvent,
-        SuggestionEvent,
-        ProgressEvent,
-        DebugEvent,
-        VideoMetadataEvent,
-        ScriptExecutionResultEvent {
-    private final T payload;
+import me.champeau.a4j.jsolex.processing.params.ObservationDetails;
+import me.champeau.a4j.jsolex.processing.params.SpectralRay;
+import me.champeau.a4j.math.image.Image;
 
-    public ProcessingEvent(T payload) {
-        this.payload = payload;
+import java.util.function.DoubleUnaryOperator;
+
+public final class AverageImageComputedEvent extends ProcessingEvent<AverageImageComputedEvent.AverageImage> {
+
+    public AverageImageComputedEvent(AverageImage image) {
+        super(image);
     }
 
-    public T getPayload() {
-        return payload;
-    }
+    public record AverageImage(
+        Image image,
+        DoubleUnaryOperator polynomial,
+        int leftBorder,
+        int rightBorder,
+        SpectralRay spectralRay,
+        ObservationDetails observationDetails
+    ) {
 
+    }
 }

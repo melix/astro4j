@@ -28,41 +28,53 @@ public record ObservationDetails(
         Integer aperture,
         DoublePair coordinates,
         ZonedDateTime date,
-        String camera
+        String camera,
+        Integer binning,
+        Double pixelSize
 ) {
     public ObservationDetails withObserver(String observer) {
-        return new ObservationDetails(observer, email, instrument, telescope, focalLength, aperture, coordinates, date, camera);
+        return new ObservationDetails(observer, email, instrument, telescope, focalLength, aperture, coordinates, date, camera, binning, pixelSize);
     }
 
     public ObservationDetails withEmail(String email) {
-        return new ObservationDetails(observer, email, instrument, telescope, focalLength, aperture, coordinates, date, camera);
+        return new ObservationDetails(observer, email, instrument, telescope, focalLength, aperture, coordinates, date, camera, binning, pixelSize);
     }
 
     public ObservationDetails withInstrument(String instrument) {
-        return new ObservationDetails(observer, email, instrument, telescope, focalLength, aperture, coordinates, date, camera);
+        return new ObservationDetails(observer, email, instrument, telescope, focalLength, aperture, coordinates, date, camera, binning, pixelSize);
     }
 
     public ObservationDetails withTelescope(String telescope) {
-        return new ObservationDetails(observer, email, instrument, telescope, focalLength, aperture, coordinates, date, camera);
+        return new ObservationDetails(observer, email, instrument, telescope, focalLength, aperture, coordinates, date, camera, binning, pixelSize);
     }
 
     public ObservationDetails withFocalLength(Integer focalLength) {
-        return new ObservationDetails(observer, email, instrument, telescope, focalLength, aperture, coordinates, date, camera);
+        return new ObservationDetails(observer, email, instrument, telescope, focalLength, aperture, coordinates, date, camera, binning, pixelSize);
     }
 
     public ObservationDetails withAperture(Integer aperture) {
-        return new ObservationDetails(observer, email, instrument, telescope, focalLength, aperture, coordinates, date, camera);
+        return new ObservationDetails(observer, email, instrument, telescope, focalLength, aperture, coordinates, date, camera, binning, pixelSize);
     }
 
     public ObservationDetails withCoordinates(DoublePair coordinates) {
-        return new ObservationDetails(observer, email, instrument, telescope, focalLength, aperture, coordinates, date, camera);
+        return new ObservationDetails(observer, email, instrument, telescope, focalLength, aperture, coordinates, date, camera, binning, pixelSize);
     }
 
     public ObservationDetails withDate(ZonedDateTime date) {
-        return new ObservationDetails(observer, email, instrument, telescope, focalLength, aperture, coordinates, date, camera);
+        return new ObservationDetails(observer, email, instrument, telescope, focalLength, aperture, coordinates, date, camera, binning, pixelSize);
     }
 
     public ObservationDetails withCamera(String camera) {
-        return new ObservationDetails(observer, email, instrument, telescope, focalLength, aperture, coordinates, date, camera);
+        return new ObservationDetails(observer, email, instrument, telescope, focalLength, aperture, coordinates, date, camera, binning, pixelSize);
     }
+
+    public ObservationDetails withBinning(int binning) {
+        return new ObservationDetails(observer, email, instrument, telescope, focalLength, aperture, coordinates, date, camera, binning, pixelSize);
+    }
+
+    public ObservationDetails withPixelSize(double pixelSize) {
+        return new ObservationDetails(observer, email, instrument, telescope, focalLength, aperture, coordinates, date, camera, binning, pixelSize);
+    }
+
+
 }

@@ -59,4 +59,8 @@ public interface ProcessingEventListener {
     default void onScriptExecutionResult(ScriptExecutionResultEvent e) {
 
     }
+
+    default void onAverageImageComputed(AverageImageComputedEvent e) {
+
+    }
 }

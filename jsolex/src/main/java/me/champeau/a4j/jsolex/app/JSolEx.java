@@ -176,6 +176,9 @@ public class JSolEx extends Application implements JSolExInterface {
     @FXML
     private Tab statsTab;
 
+    @FXML
+    private Tab profileTab;
+
     private final Map<String, ImageViewer> popupViewers = new HashMap<>();
 
     private ProcessParams reusedProcessParams;
@@ -196,6 +199,11 @@ public class JSolEx extends Application implements JSolExInterface {
     @Override
     public Tab getStatsTab() {
         return statsTab;
+    }
+
+    @Override
+    public Tab getProfileTab() {
+        return profileTab;
     }
 
     @Override
@@ -636,6 +644,7 @@ public class JSolEx extends Application implements JSolExInterface {
                 .findFirst();
         scriptFile.ifPresent(script -> {
             var outputDirectory = script.getParentFile();
+            var processingDate = LocalDateTime.now();
             var listener = new SingleModeProcessingEventListener(
                     this,
                     "",
@@ -644,9 +653,9 @@ public class JSolEx extends Application implements JSolExInterface {
                     ioExecutor,
                     outputDirectory.toPath(),
                     params,
+                    processingDate,
                     popupViewers
             );
-            var processingDate = LocalDateTime.now();
             var namingStrategy = new FileNamingStrategy(
                     params.extraParams().fileNamePattern(),
                     params.extraParams().datetimeFormat(),
@@ -991,12 +1000,12 @@ public class JSolEx extends Application implements JSolExInterface {
         if (batchMode) {
             var batchProcessingContext = (BatchProcessingContext) context;
             var outputDirectory = batchProcessingContext.outputDirectory();
-            var delegate = new SingleModeProcessingEventListener(this, baseName, null, cpuExecutor, ioExecutor, outputDirectory.toPath(), params, popupViewers);
+            var delegate = new SingleModeProcessingEventListener(this, baseName, null, cpuExecutor, ioExecutor, outputDirectory.toPath(), params, ((BatchProcessingContext) context).processingDate(), popupViewers);
             return new BatchModeEventListener(this, delegate, sequenceNumber, batchProcessingContext, params);
         }
         var serFile = (File) context;
         var outputDirectory = serFile.getParentFile().toPath();
-        return new SingleModeProcessingEventListener(this, baseName, serFile, cpuExecutor, ioExecutor, outputDirectory, params, popupViewers);
+        return new SingleModeProcessingEventListener(this, baseName, serFile, cpuExecutor, ioExecutor, outputDirectory, params, LocalDateTime.now(), popupViewers);
     }
 
     private ProcessParamsController createProcessParams(SerFileReader serFileReader, boolean batchMode) {
