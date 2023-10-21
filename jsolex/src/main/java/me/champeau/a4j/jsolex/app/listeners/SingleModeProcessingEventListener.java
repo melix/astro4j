@@ -681,7 +681,7 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
             if (lambda > 0 && pixSize > 0) {
                 double disp = 10 * computeSpectralDispersion(DEFAULT_ORDER, DEFAULT_DENSITY, lambda, pixelSize * binning, DEFAULT_FOCAL_LEN);
                 double wavelen = 10 * (lambda + (pixelShift - mid) * disp);
-                return String.format("%.2fÅ", wavelen);
+                return String.format("%.1f", wavelen);
             }
         }
         return String.format("%.2f", pixelShift - mid);
