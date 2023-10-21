@@ -100,7 +100,6 @@ public class ProcessingWorkflow {
             rawImagesEmitter.newMonoImage(GeneratedImageKind.RAW, message(Constants.TYPE_RAW), "recon", reconstructed);
             var clahe = reconstructed.copy();
             ClaheStrategy.of(processParams.claheParams()).stretch(clahe.width(), clahe.height(), clahe.data());
-            rawImagesEmitter.newMonoImage(GeneratedImageKind.RAW_STRETCHED, message("raw.linear"), "linear", clahe);
             var existingFitting = state.findResult(WorkflowResults.MAIN_ELLIPSE_FITTING);
             if (existingFitting.isPresent()) {
                 EllipseFittingTask.Result r = (EllipseFittingTask.Result) existingFitting.get();
@@ -108,7 +107,11 @@ public class ProcessingWorkflow {
                 var bandingFixed = performBandingCorrection(ellipse).get();
                 state.recordResult(WorkflowResults.BANDING_CORRECTION, bandingFixed);
                 geometryCorrection(r, bandingFixed);
+                state.<GeometryCorrector.Result>findResult(WorkflowResults.GEOMETRY_CORRECTION).ifPresent(geometryCorrected ->
+                    rawImagesEmitter.newMonoImage(GeneratedImageKind.RAW_STRETCHED, message("raw.linear"), "linear", geometryCorrected.corrected())
+                );
             } else {
+                rawImagesEmitter.newMonoImage(GeneratedImageKind.RAW_STRETCHED, message("raw.linear"), "linear", reconstructed);
                 processedImagesEmitter.newMonoImage(GeneratedImageKind.GEOMETRY_CORRECTED_STRETCHED, message("stretched"), "clahe", clahe);
             }
         } finally {
