@@ -97,7 +97,7 @@ public class ProcessingWorkflow {
     public void start(Runnable onComplete) {
         try {
             var reconstructed = state.image();
-            rawImagesEmitter.newMonoImage(GeneratedImageKind.RAW, message(Constants.TYPE_RAW), "recon", reconstructed);
+            rawImagesEmitter.newMonoImage(GeneratedImageKind.RECONSTRUCTION, message(Constants.TYPE_RAW), "recon", reconstructed);
             var clahe = reconstructed.copy();
             ClaheStrategy.of(processParams.claheParams()).stretch(clahe.width(), clahe.height(), clahe.data());
             var existingFitting = state.findResult(WorkflowResults.MAIN_ELLIPSE_FITTING);
