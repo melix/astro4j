@@ -638,7 +638,7 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
             if (cpt > 0) {
                 var label = formatWavelength(y, mid, wavelength, binning, pixelSize);
                 var d = new XYChart.Data<String, Number>(label, val / cpt);
-                var tooltip = new Tooltip(label);
+                var tooltip = new Tooltip(label + String.format("(pixel shift: %.2f)", y - mid));
                 series.getData().add(d);
                 var node = d.getNode();
                 Tooltip.install(node, tooltip);

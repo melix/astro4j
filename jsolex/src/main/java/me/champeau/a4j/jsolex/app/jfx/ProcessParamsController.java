@@ -28,6 +28,7 @@ import javafx.scene.control.ChoiceBox;
 import javafx.scene.control.Slider;
 import javafx.scene.control.TextField;
 import javafx.scene.control.TextFormatter;
+import javafx.scene.layout.Pane;
 import javafx.stage.Stage;
 import javafx.util.StringConverter;
 import javafx.util.converter.DoubleStringConverter;
@@ -36,6 +37,7 @@ import me.champeau.a4j.jsolex.app.JSolEx;
 import me.champeau.a4j.jsolex.processing.params.AutocropMode;
 import me.champeau.a4j.jsolex.processing.params.BandingCorrectionParams;
 import me.champeau.a4j.jsolex.processing.params.ClaheParams;
+import me.champeau.a4j.jsolex.processing.params.DeconvolutionMode;
 import me.champeau.a4j.jsolex.processing.params.ExtraParams;
 import me.champeau.a4j.jsolex.processing.params.FileNamingPatternsIO;
 import me.champeau.a4j.jsolex.processing.params.GeometryParams;
@@ -44,6 +46,7 @@ import me.champeau.a4j.jsolex.processing.params.NamedPattern;
 import me.champeau.a4j.jsolex.processing.params.ObservationDetails;
 import me.champeau.a4j.jsolex.processing.params.ProcessParams;
 import me.champeau.a4j.jsolex.processing.params.RequestedImages;
+import me.champeau.a4j.jsolex.processing.params.RichardsonLucyDeconvolutionParams;
 import me.champeau.a4j.jsolex.processing.params.RotationKind;
 import me.champeau.a4j.jsolex.processing.params.SpectralRay;
 import me.champeau.a4j.jsolex.processing.params.SpectralRayIO;
@@ -153,6 +156,17 @@ public class ProcessParamsController {
     private ChoiceBox<Integer> binning;
     @FXML
     private TextField pixelSize;
+    @FXML
+    private ChoiceBox<DeconvolutionMode> deconvolutionMode;
+    @FXML
+    private Pane rlParams;
+    @FXML
+    private TextField rlRadius;
+    @FXML
+    private TextField rlSigma;
+    @FXML
+    private TextField rlIterations;
+
 
     private Stage stage;
     private Header serFileHeader;
@@ -322,6 +336,38 @@ public class ProcessParamsController {
         if (pSize != null) {
             pixelSize.setText(String.valueOf(pSize));
         }
+        deconvolutionMode.getItems().addAll(DeconvolutionMode.values());
+        deconvolutionMode.setConverter(new StringConverter<>() {
+            @Override
+            public String toString(DeconvolutionMode mode) {
+                return message("deconvolution." + mode);
+            }
+
+            @Override
+            public DeconvolutionMode fromString(String string) {
+                return DeconvolutionMode.valueOf(string);
+            }
+        });
+        deconvolutionMode.getSelectionModel().select(initialProcessParams.geometryParams().deconvolutionMode());
+        rlRadius.setTextFormatter(new TextFormatter<>(new DoubleStringConverter()));
+        rlSigma.setTextFormatter(new TextFormatter<>(new DoubleStringConverter()));
+        rlIterations.setTextFormatter(new TextFormatter<>(new IntegerStringConverter()));
+        rlParams.disableProperty().bind(deconvolutionMode.getSelectionModel().selectedItemProperty().isNotEqualTo(DeconvolutionMode.RICHARDSON_LUCY));
+        var richardsonLucyDeconvolutionParams = initialProcessParams.geometryParams().richardsonLucyDeconvolutionParams();
+        if (richardsonLucyDeconvolutionParams.isPresent()) {
+            rlRadius.setText(String.valueOf(richardsonLucyDeconvolutionParams.get().radius()));
+            rlSigma.setText(String.valueOf(richardsonLucyDeconvolutionParams.get().sigma()));
+            rlIterations.setText(String.valueOf(richardsonLucyDeconvolutionParams.get().iterations()));
+        } else {
+            configureRichardsonLucyDefaults();
+        }
+        sharpen.setSelected(initialProcessParams.geometryParams().isSharpen());
+    }
+
+    private void configureRichardsonLucyDefaults() {
+        rlRadius.setText("2.5");
+        rlSigma.setText("2.5");
+        rlIterations.setText("5");
     }
 
     @FXML
@@ -441,7 +487,13 @@ public class ProcessParamsController {
                 disallowDownsampling.isSelected(),
                 autocorrectAngleP.isSelected(),
                 rotation.getValue(),
-                autocrop.getValue()),
+                autocrop.getValue(),
+                deconvolutionMode.getValue(),
+                new RichardsonLucyDeconvolutionParams(
+                    Double.parseDouble(rlRadius.getText()),
+                    Double.parseDouble(rlSigma.getText()),
+                    Integer.parseInt(rlIterations.getText())
+                )),
             new BandingCorrectionParams(
                 (int) Math.round(bandingCorrectionWidth.getValue()),
                 (int) Math.round(bandingCorrectionPasses.getValue())
@@ -500,7 +552,6 @@ public class ProcessParamsController {
         dopplerShifting.setValue(3);
         verticalMirror.setSelected(false);
         horizontalMirror.setSelected(false);
-        sharpen.setSelected(false);
         rotation.getSelectionModel().select(RotationKind.NONE);
         autocorrectAngleP.setSelected(true);
         forceTilt.setSelected(false);
@@ -514,11 +565,6 @@ public class ProcessParamsController {
         generateDebugImages.setSelected(false);
         autoSave.setSelected(true);
         generateFits.setSelected(true);
-        bandingCorrectionWidth.setValue(24);
-        bandingCorrectionPasses.setValue(3);
-        claheTileSize.getSelectionModel().select(ClaheStrategy.DEFAULT_TILE_SIZE);
-        claheBins.getSelectionModel().select(ClaheStrategy.DEFAULT_BINS);
-        claheClipping.setText("" + ClaheStrategy.DEFAULT_CLIP);
     }
 
     @FXML
@@ -537,5 +583,25 @@ public class ProcessParamsController {
             namingPattern.getItems().addAll(FileNamingPatternsIO.loadDefaults());
             namingPattern.getSelectionModel().select(pattern);
         }));
+    }
+
+    @FXML
+    public void resetImageEnhancementsParams() {
+        deconvolutionMode.getSelectionModel().select(DeconvolutionMode.NONE);
+        sharpen.setSelected(false);
+        configureRichardsonLucyDefaults();
+        configureClaheDefaults();
+        configureBandingCorrectionDefaults();
+    }
+
+    private void configureBandingCorrectionDefaults() {
+        bandingCorrectionWidth.setValue(24);
+        bandingCorrectionPasses.setValue(3);
+    }
+
+    private void configureClaheDefaults() {
+        claheTileSize.setValue(ClaheStrategy.DEFAULT_TILE_SIZE);
+        claheBins.setValue(ClaheStrategy.DEFAULT_BINS);
+        claheClipping.setText("" + ClaheStrategy.DEFAULT_CLIP);
     }
 }

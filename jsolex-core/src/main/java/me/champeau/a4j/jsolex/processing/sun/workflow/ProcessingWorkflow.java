@@ -16,11 +16,13 @@
 package me.champeau.a4j.jsolex.processing.sun.workflow;
 
 import me.champeau.a4j.jsolex.processing.event.OutputImageDimensionsDeterminedEvent;
+import me.champeau.a4j.jsolex.processing.event.ProgressEvent;
 import me.champeau.a4j.jsolex.processing.event.SuggestionEvent;
 import me.champeau.a4j.jsolex.processing.expr.impl.Crop;
 import me.champeau.a4j.jsolex.processing.expr.impl.ImageDraw;
 import me.champeau.a4j.jsolex.processing.expr.impl.Rotate;
 import me.champeau.a4j.jsolex.processing.params.ClaheParams;
+import me.champeau.a4j.jsolex.processing.params.DeconvolutionMode;
 import me.champeau.a4j.jsolex.processing.params.ProcessParams;
 import me.champeau.a4j.jsolex.processing.params.RotationKind;
 import me.champeau.a4j.jsolex.processing.stretching.ArcsinhStretchingStrategy;
@@ -38,6 +40,7 @@ import me.champeau.a4j.jsolex.processing.util.Constants;
 import me.champeau.a4j.jsolex.processing.util.ForkJoinContext;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 import me.champeau.a4j.math.Point2D;
+import me.champeau.a4j.math.image.Deconvolution;
 import me.champeau.a4j.math.image.ImageMath;
 import me.champeau.a4j.math.image.Kernel33;
 import me.champeau.a4j.math.regression.Ellipse;
@@ -61,6 +64,7 @@ import static me.champeau.a4j.jsolex.processing.util.DebugImageHelper.maybeDispl
 public class ProcessingWorkflow {
     private static final Logger LOGGER = LoggerFactory.getLogger(ProcessingWorkflow.class);
 
+    private final ImageMath imageMath = ImageMath.newInstance();
     private final ForkJoinContext executor;
     private final Header header;
     private final ProcessParams processParams;
@@ -73,15 +77,15 @@ public class ProcessingWorkflow {
     private final int currentStep;
 
     public ProcessingWorkflow(
-            Broadcaster broadcaster,
-            Path outputDirectory,
-            ForkJoinContext executor,
-            List<WorkflowState> states,
-            int currentStep,
-            ProcessParams processParams,
-            Double fps,
-            ImageEmitterFactory imageEmitterFactory,
-            Header header) {
+        Broadcaster broadcaster,
+        Path outputDirectory,
+        ForkJoinContext executor,
+        List<WorkflowState> states,
+        int currentStep,
+        ProcessParams processParams,
+        Double fps,
+        ImageEmitterFactory imageEmitterFactory,
+        Header header) {
         this.broadcaster = broadcaster;
         this.executor = executor;
         this.header = header;
@@ -156,31 +160,38 @@ public class ProcessingWorkflow {
         }
         Double ratio = geometryParams.xyRatio().isPresent() ? geometryParams.xyRatio().getAsDouble() : null;
         executor.submitAndThen(new GeometryCorrector(broadcaster, imageSupplier(WorkflowResults.BANDING_CORRECTION), ellipse, forcedTilt, fps, ratio, blackPoint, processParams, debugImagesEmitter, state, executor, header), g -> {
-                    var geometryFixed = maybeSharpen(g);
-                    state.recordResult(WorkflowResults.GEOMETRY_CORRECTION, g);
-                    if (state.isInternal()) {
-                        return null;
-                    }
-                    broadcaster.broadcast(OutputImageDimensionsDeterminedEvent.of(message("geometry.corrected"), geometryFixed.width(), geometryFixed.height()));
-                    var kind = GeneratedImageKind.GEOMETRY_CORRECTED;
-                    if (state.pixelShift() == Constants.CONTINUUM_SHIFT) {
-                        kind = GeneratedImageKind.CONTINUUM;
-                    }
+                var kind = GeneratedImageKind.GEOMETRY_CORRECTED;
+                var geometryFixed = g.corrected();
+                if (state.pixelShift() == Constants.CONTINUUM_SHIFT) {
+                    kind = GeneratedImageKind.CONTINUUM;
+                }
+                if (!state.isInternal()) {
                     processedImagesEmitter.newMonoImage(kind, message("disk"), "disk", geometryFixed);
-                    executor.async(() -> produceStretchedImage(geometryFixed, processParams.claheParams()));
-                    if (isMainShift() && shouldProduce(GeneratedImageKind.NEGATIVE)) {
-                        executor.async(() -> produceNegativeImage(geometryFixed));
-                    }
-                    if (isMainShift() && shouldProduce(GeneratedImageKind.COLORIZED)) {
-                        executor.async(() -> produceColorizedImage(blackPoint, geometryFixed, processParams));
-                    }
-                    if (isMainShift()) {
-                        executor.async(() -> produceCoronagraph(blackPoint, geometryFixed));
-                    }
+                }
+                g = performEnhancements(g);
+                var enhanced = g.enhanced();
+                state.recordResult(WorkflowResults.GEOMETRY_CORRECTION, g);
+                if (state.isInternal()) {
                     return null;
-                }).
+                }
+                broadcaster.broadcast(OutputImageDimensionsDeterminedEvent.of(message("geometry.corrected"), geometryFixed.width(), geometryFixed.height()));
+                if (enhanced != geometryFixed) {
+                    processedImagesEmitter.newMonoImage(kind, message("enhanced"), "deconv", enhanced);
+                }
+                executor.async(() -> produceStretchedImage(enhanced, processParams.claheParams()));
+                if (isMainShift() && shouldProduce(GeneratedImageKind.NEGATIVE)) {
+                    executor.async(() -> produceNegativeImage(enhanced));
+                }
+                if (isMainShift() && shouldProduce(GeneratedImageKind.COLORIZED)) {
+                    executor.async(() -> produceColorizedImage(blackPoint, enhanced, processParams));
+                }
+                if (isMainShift()) {
+                    executor.async(() -> produceCoronagraph(blackPoint, enhanced));
+                }
+                return null;
+            }).
 
-                get();
+            get();
 
     }
 
@@ -188,11 +199,33 @@ public class ProcessingWorkflow {
         return state.pixelShift() == processParams.spectrumParams().pixelShift();
     }
 
-    private ImageWrapper32 maybeSharpen(GeometryCorrector.Result g) {
-        if (processParams.geometryParams().isSharpen()) {
-            return ImageWrapper32.fromImage(ImageMath.newInstance().convolve(g.corrected().asImage(), Kernel33.SHARPEN2), g.corrected().metadata());
+    private GeometryCorrector.Result performEnhancements(GeometryCorrector.Result g) {
+        var corrected = g.corrected();
+        var image = corrected.asImage();
+        boolean enhanced = false;
+        if (processParams.geometryParams().deconvolutionMode() == DeconvolutionMode.RICHARDSON_LUCY) {
+            var deconv = new Deconvolution(imageMath);
+            var deconvolutionParams = processParams.geometryParams().richardsonLucyDeconvolutionParams();
+            if (deconvolutionParams.isPresent()) {
+                enhanced = true;
+                var kernel = Deconvolution.generateGaussianPSF(deconvolutionParams.get().radius(), deconvolutionParams.get().sigma());
+                var iterations = deconvolutionParams.get().iterations();
+                for (int i = 0; i < iterations; i++) {
+                    broadcaster.broadcast(ProgressEvent.of(1d / iterations * i, message("deconvolution") + " " + (i + 1) + "/" + iterations));
+                    image = deconv.richardsonLucy(image, kernel, 1);
+                }
+                broadcaster.broadcast(ProgressEvent.of(1d, message("deconvolution")));
+            }
         }
-        return g.corrected();
+        if (processParams.geometryParams().isSharpen()) {
+            enhanced = true;
+            image = imageMath.convolve(image, Kernel33.SHARPEN2);
+        }
+        if (enhanced) {
+            var result = new ImageWrapper32(corrected.width(), corrected.height(), image.data(), corrected.metadata());
+            return g.withEnhanced(result);
+        }
+        return g;
     }
 
     private double estimateTilt(ImageWrapper32 bandingFixed, Ellipse ellipse) {
@@ -220,10 +253,10 @@ public class ProcessingWorkflow {
 
     private void produceColorizedImage(float blackPoint, ImageWrapper32 corrected, ProcessParams params) {
         params.spectrumParams().ray().getColorCurve().ifPresent(curve ->
-                processedImagesEmitter.newColorImage(GeneratedImageKind.COLORIZED, MessageFormat.format(message("colorized"), curve.ray()), "colorized", corrected, mono -> {
-                    createStretchingForColorization(blackPoint).stretch(corrected.width(), corrected.height(), mono);
-                    return ImageUtils.convertToRGB(curve, mono);
-                })
+            processedImagesEmitter.newColorImage(GeneratedImageKind.COLORIZED, MessageFormat.format(message("colorized"), curve.ray()), "colorized", corrected, mono -> {
+                createStretchingForColorization(blackPoint).stretch(corrected.width(), corrected.height(), mono);
+                return ImageUtils.convertToRGB(curve, mono);
+            })
         );
     }
 
@@ -261,9 +294,9 @@ public class ProcessingWorkflow {
         }
         var cropped = crop.autocrop2(List.of(details, 1.2d));
         var decorated = (ImageWrapper32) draw.drawSolarParameters(List.of(
-                draw.drawObservationDetails(List.of(
-                        draw.drawGlobe(List.of(cropped))
-                ))
+            draw.drawObservationDetails(List.of(
+                draw.drawGlobe(List.of(cropped))
+            ))
         ));
         decorated.metadata().put(RotationKind.class, RotationKind.NONE);
         processedImagesEmitter.newMonoImage(GeneratedImageKind.TECHNICAL_CARD, message("technical.card"), "card", decorated);

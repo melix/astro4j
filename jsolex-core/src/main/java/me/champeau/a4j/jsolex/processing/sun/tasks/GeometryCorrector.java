@@ -164,7 +164,7 @@ public class GeometryCorrector extends AbstractTask<GeometryCorrector.Result> {
             };
         }
         broadcaster.broadcast(ProgressEvent.of(1, "Correcting geometry"));
-        return new Result(corrected, ellipse, corrected.findMetadata(Ellipse.class).orElse(circle), blackPoint);
+        return new Result(corrected, corrected, ellipse, corrected.findMetadata(Ellipse.class).orElse(circle), blackPoint);
     }
 
     /**
@@ -198,9 +198,13 @@ public class GeometryCorrector extends AbstractTask<GeometryCorrector.Result> {
 
     public record Result(
             ImageWrapper32 corrected,
+            ImageWrapper32 enhanced,
             Ellipse originalEllipse,
             Ellipse correctedCircle,
             float blackpoint
     ) {
+        public Result withEnhanced(ImageWrapper32 enhanced) {
+            return new Result(corrected, enhanced, originalEllipse, correctedCircle, blackpoint);
+        }
     }
 }
