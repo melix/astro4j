@@ -252,6 +252,7 @@ NOTE: Si vous ne connaissez pas la valeur du point noir, vous pouvez utiliser la
 - `load` charge une image depuis le système de fichiers. Elle prend le chemin vers le fichier en paramètre. Par exemple: `load("/chemin/vers/une/image.png")`. Au lieu d'utiliser un chemin complet, il est possible de combiner avec la fonction `workdir`.
 - `load_many` permet de charger plusieurs images d'un coup, à partir d'un dossier. Par exemple: `load_many("/chemin/vers/dossier")`. Un paramètre optionnel accepte une expression régulière pour filtrer les images: `load_many("/chemin/vers/dossier", ".\*cropped.*")`.
 - `workdir` définit le dossier de travail par défaut. Il est notamment utilisé pour charger les images avec `load`. Par exemple: `workdir("/chemin/vers/dossier/images")`.
+- `rl_decon` applique l'algorithme de déconvolution de Richardson-Lucy à l'image. Cette fonction utilise un PSF synthétique. Au minimum, cette fonction accepte un paramètre : l'image. Par exemple : `rl_decon(img(0))`. 3 autres paramètres optionnels sont disponibles : le rayon du PSF en pixels, le facteur sigma et le nombre d'itérations. Par exemple: `rl_decon(img(0), 2.5, 2.5, 10)`.
 - `sharpen` applique un filtre d'augmentation des détails à votre image. Exemple: `sharpen(img(0))`.
 - `blur` applique un flou gaussien à votre image. Par exemple : `blur(img(0))`.
 - `disk_fill` remplit le disque solaire détecté avec une valeur donnée (par défault, celle du point noir détecté). Par exemple `disk_fill(img(0))` ou `disk_fill(img(0), 0)`.

@@ -22,6 +22,11 @@ package me.champeau.a4j.math.image;
 public class Deconvolution {
     private static final float EPSILON = 1e-7f;
     private static final int MAX_VALUE = 65535;
+
+    public static final double DEFAULT_RADIUS = 2.5;
+    public static final double DEFAULT_SIGMA = 2.5;
+    public static final double DEFAULT_ITERATIONS = 5;
+
     private final ImageMath imageMath;
 
     public Deconvolution(ImageMath imageMath) {

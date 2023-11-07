@@ -186,6 +186,7 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
             case REMOVE_BG -> bgRemoval.removeBackground(arguments);
             case RESCALE_ABS -> scaling.absoluteRescale(arguments);
             case RESCALE_REL -> scaling.relativeRescale(arguments);
+            case RL_DECON -> convolution.richardsonLucy(arguments);
             case ROTATE_LEFT -> rotate.rotateLeft(arguments);
             case ROTATE_RIGHT -> rotate.rotateRight(arguments);
             case ROTATE_DEG -> rotate.rotateDegrees(arguments);

@@ -57,6 +57,7 @@ import me.champeau.a4j.jsolex.processing.sun.workflow.GeneratedImageKind;
 import me.champeau.a4j.jsolex.processing.util.Constants;
 import me.champeau.a4j.jsolex.processing.util.ForkJoinContext;
 import me.champeau.a4j.jsolex.processing.util.ImageFormat;
+import me.champeau.a4j.math.image.Deconvolution;
 import me.champeau.a4j.math.tuples.DoublePair;
 import me.champeau.a4j.ser.ColorMode;
 import me.champeau.a4j.ser.Header;
@@ -365,9 +366,9 @@ public class ProcessParamsController {
     }
 
     private void configureRichardsonLucyDefaults() {
-        rlRadius.setText("2.5");
-        rlSigma.setText("2.5");
-        rlIterations.setText("5");
+        rlRadius.setText(String.valueOf(Deconvolution.DEFAULT_RADIUS));
+        rlSigma.setText(String.valueOf(Deconvolution.DEFAULT_SIGMA));
+        rlIterations.setText(String.valueOf(Deconvolution.DEFAULT_ITERATIONS));
     }
 
     @FXML

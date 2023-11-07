@@ -49,6 +49,7 @@ public enum BuiltinFunction {
     REMOVE_BG,
     RESCALE_ABS,
     RESCALE_REL,
+    RL_DECON,
     RGB,
     ROTATE_LEFT,
     ROTATE_RIGHT,
