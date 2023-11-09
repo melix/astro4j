@@ -17,6 +17,8 @@ package me.champeau.a4j.jsolex.processing.util;
 
 import me.champeau.a4j.jsolex.processing.params.ProcessParams;
 import me.champeau.a4j.jsolex.processing.params.ProcessParamsIO;
+import me.champeau.a4j.jsolex.processing.sun.workflow.PixelShift;
+import me.champeau.a4j.jsolex.processing.sun.workflow.TransformationHistory;
 import me.champeau.a4j.math.regression.Ellipse;
 import me.champeau.a4j.math.tuples.DoubleSextuplet;
 import nom.tam.fits.BasicHDU;
@@ -51,6 +53,9 @@ public class FitsUtils {
     public static final String ELLIPSE_VALUE = "Ellipse";
     public static final String PROCESS_PARAMS_VALUE = "PrParams";
     public static final String SOLAR_PARAMS_VALUE = "SoParams";
+    public static final String TRANSFORMS_VALUE = "Transforms";
+    public static final String PIXELSHIFT_VALUE = "PixelShift";
+
     private final ProcessParams params;
     private final File destination;
 
@@ -151,6 +156,19 @@ public class FitsUtils {
                           binaryTable.getDouble(0, 4)
                     );
                     metadata.put(SolarParameters.class, sp);
+                } else if (TRANSFORMS_VALUE.equals(card.getValue())) {
+                    var binaryTable = binaryTableHdu.getData();
+                    var transforms = new TransformationHistory();
+                    Object[] row = binaryTable.getRow(0);
+                    for (Object o : row) {
+                        var bytes = (byte[]) o;
+                        transforms = transforms.transform(new String(bytes, StandardCharsets.UTF_8));
+                    }
+                    metadata.put(TransformationHistory.class, transforms);
+                } else if (PIXELSHIFT_VALUE.equals(card.getValue())) {
+                    var binaryTable = binaryTableHdu.getData();
+                    var pixelShift = new PixelShift(binaryTable.getDouble(0, 0));
+                    metadata.put(PixelShift.class, pixelShift);
                 }
             }
         }
@@ -205,6 +223,32 @@ public class FitsUtils {
             writeEllipse(image, fits);
             writeProcessParams(image, fits);
             writeSolarParams(image, fits);
+            writeTransformationHistory(image, fits);
+            writePixelShift(image, fits);
+        }
+    }
+
+    private static void writePixelShift(ImageWrapper image, Fits fits) throws FitsException {
+        var metadata = image.findMetadata(PixelShift.class);
+        if (metadata.isPresent()) {
+            var pixelShift = metadata.get();
+            var table = new BinaryTable();
+            table.addRow(new Object[] { pixelShift.pixelShift()});
+            var binaryTableHDU = BinaryTableHDU.wrap(table);
+            binaryTableHDU.getHeader().addValue(JSOLEX_HEADER_KEY, PIXELSHIFT_VALUE, "Pixel shift");
+            fits.addHDU(binaryTableHDU);
+        }
+    }
+
+    private static void writeTransformationHistory(ImageWrapper image, Fits fits) throws FitsException {
+        var metadata = image.findMetadata(TransformationHistory.class);
+        if (metadata.isPresent()) {
+            var history = metadata.get();
+            var table = new BinaryTable();
+            table.addRow(history.transforms().stream().map(s -> s.getBytes(StandardCharsets.UTF_8)).toArray());
+            var binaryTableHDU = BinaryTableHDU.wrap(table);
+            binaryTableHDU.getHeader().addValue(JSOLEX_HEADER_KEY, TRANSFORMS_VALUE, "Transformation history");
+            fits.addHDU(binaryTableHDU);
         }
     }
 

@@ -41,16 +41,30 @@ class GeometryParamsSerializer implements JsonSerializer<GeometryParams>, JsonDe
         var rotation = o.get("rotation");
         var scanDirection = rotation != null ? RotationKind.valueOf(rotation.getAsString().toUpperCase(Locale.US)) : RotationKind.NONE;
         var autocropMode = o.get("autocropMode") != null ? AutocropMode.valueOf(o.get("autocropMode").getAsString()) : AutocropMode.OFF;
+        var deconvolutionMode = o.get("deconvolutionMode") != null ? DeconvolutionMode.valueOf(o.get("deconvolutionMode").getAsString()) : DeconvolutionMode.NONE;
+        var richardsonLucyDeconvolutionParams = readRichardsonLucyDeconvolutionParams(o.get("richardsonLucyDeconvolutionParams"));
         return new GeometryParams(
-                tilt == null ? null : tilt.getAsDouble(),
-                ratio == null ? null : ratio.getAsDouble(),
-                horizontalMirror,
-                verticalMirror,
-                sharpen,
-                allowDownsampling,
-                autocorrectAngleP,
-                scanDirection,
-                autocropMode);
+            tilt == null ? null : tilt.getAsDouble(),
+            ratio == null ? null : ratio.getAsDouble(),
+            horizontalMirror,
+            verticalMirror,
+            sharpen,
+            allowDownsampling,
+            autocorrectAngleP,
+            scanDirection,
+            autocropMode,
+            deconvolutionMode,
+            richardsonLucyDeconvolutionParams);
+    }
+
+    private RichardsonLucyDeconvolutionParams readRichardsonLucyDeconvolutionParams(JsonElement params) {
+        if (params instanceof JsonObject obj) {
+            var radius = obj.get("radius").getAsDouble();
+            var sigma = obj.get("sigma").getAsDouble();
+            var iterations = obj.get("iterations").getAsInt();
+            return new RichardsonLucyDeconvolutionParams(radius, sigma, iterations);
+        }
+        return null;
     }
 
     @Override
@@ -63,6 +77,15 @@ class GeometryParamsSerializer implements JsonSerializer<GeometryParams>, JsonDe
         jsonObject.addProperty("autocorrectAngleP", String.valueOf(src.isAutocorrectAngleP()));
         jsonObject.addProperty("rotation", src.rotation().toString());
         jsonObject.addProperty("autocropMode", src.autocropMode().toString());
+        jsonObject.addProperty("deconvolutionMode", src.deconvolutionMode().toString());
+        jsonObject.addProperty("sharpen", src.isSharpen());
+        src.richardsonLucyDeconvolutionParams().ifPresent(rl -> {
+            var value = new JsonObject();
+            value.addProperty("radius", rl.radius());
+            value.addProperty("sigma", rl.sigma());
+            value.addProperty("iterations", rl.iterations());
+            jsonObject.add("richardsonLucyDeconvolutionParams", value);
+        });
         return jsonObject;
     }
 }

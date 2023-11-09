@@ -30,6 +30,8 @@ public interface JSolExInterface {
 
     Tab getProfileTab();
 
+    Tab getMetadataTab();
+
     void showProgress();
 
     void hideProgress();

@@ -373,4 +373,49 @@ public interface ImageMath {
         }
         return new Gradient(image.withData(mag), image.withData(dir));
     }
+
+    default Image add(Image source, float f) {
+        var firstData = source.data();
+        var length = source.length();
+        float[] result = new float[length];
+        for (int i = 0; i < length; i++) {
+            result[i] = firstData[i] + f;
+        }
+        return new Image(source.width(), source.height(), result);
+    }
+
+    default Image multiply(Image source, float f) {
+        var firstData = source.data();
+        var length = source.length();
+        float[] result = new float[length];
+        for (int i = 0; i < length; i++) {
+            result[i] = firstData[i] * f;
+        }
+        return new Image(source.width(), source.height(), result);
+    }
+
+    default Image divide(Image first, Image second) {
+        var firstData = first.data();
+        var secondData = second.data();
+        var length = first.length();
+        float[] result = new float[length];
+        for (int i = 0; i < length; i++) {
+            var denum = secondData[i];
+            if (denum > 0) {
+                result[i] = firstData[i] / denum;
+            }
+        }
+        return new Image(first.width(), first.height(), result);
+    }
+
+    default Image multiply(Image first, Image second) {
+        var firstData = first.data();
+        var secondData = second.data();
+        var length = first.length();
+        float[] result = new float[length];
+        for (int i = 0; i < length; i++) {
+            result[i] = firstData[i] * secondData[i];
+        }
+        return new Image(first.width(), first.height(), result);
+    }
 }

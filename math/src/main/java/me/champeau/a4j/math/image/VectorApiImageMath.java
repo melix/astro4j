@@ -95,4 +95,76 @@ class VectorApiImageMath implements ImageMath {
             average[j] = average[j] + (current[j] - average[j]) / n;
         }
     }
+
+    @Override
+    public Image multiply(Image source, float f) {
+        var data = source.data();
+        int max = data.length;
+        int i = 0;
+        var result = new float[max];
+        for (; i < FLOAT_SPECIES.loopBound(max); i += FLOAT_SPECIES.length()) {
+            var mulVector = FloatVector.broadcast(FLOAT_SPECIES, f);
+            var v = FloatVector.fromArray(FLOAT_SPECIES, data, i);
+            mulVector = mulVector.mul(v);
+            mulVector.intoArray(result, i);
+        }
+        for (; i < max; i++) {
+            result[i] = data[i] * f;
+        }
+        return new Image(source.width(), source.height(), result);
+    }
+
+    @Override
+    public Image add(Image source, float f) {
+        var data = source.data();
+        int max = data.length;
+        int i = 0;
+        var result = new float[max];
+        for (; i < FLOAT_SPECIES.loopBound(max); i += FLOAT_SPECIES.length()) {
+            var sumVector = FloatVector.broadcast(FLOAT_SPECIES, f);
+            var v = FloatVector.fromArray(FLOAT_SPECIES, data, i);
+            sumVector = sumVector.add(v);
+            sumVector.intoArray(result, i);
+        }
+        for (; i < max; i++) {
+            result[i] = data[i] + f;
+        }
+        return new Image(source.width(), source.height(), result);
+    }
+
+    @Override
+    public Image divide(Image first, Image second) {
+        var one = first.data();
+        var two = second.data();
+        int max = one.length;
+        int i = 0;
+        var result = new float[max];
+        for (; i < FLOAT_SPECIES.loopBound(max); i += FLOAT_SPECIES.length()) {
+            var v1 = FloatVector.fromArray(FLOAT_SPECIES, one, i);
+            var v2 = FloatVector.fromArray(FLOAT_SPECIES, two, i);
+            v1.div(v2).intoArray(result, i);
+        }
+        for (; i < max; i++) {
+            result[i] = one[i] + two[i];
+        }
+        return new Image(first.width(), second.height(), result);
+    }
+
+    @Override
+    public Image multiply(Image first, Image second) {
+        var one = first.data();
+        var two = second.data();
+        int max = one.length;
+        int i = 0;
+        var result = new float[max];
+        for (; i < FLOAT_SPECIES.loopBound(max); i += FLOAT_SPECIES.length()) {
+            var v1 = FloatVector.fromArray(FLOAT_SPECIES, one, i);
+            var v2 = FloatVector.fromArray(FLOAT_SPECIES, two, i);
+            v1.mul(v2).intoArray(result, i);
+        }
+        for (; i < max; i++) {
+            result[i] = one[i] + two[i];
+        }
+        return new Image(first.width(), second.height(), result);
+    }
 }

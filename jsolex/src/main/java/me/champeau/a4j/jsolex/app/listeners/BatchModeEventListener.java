@@ -42,6 +42,7 @@ import me.champeau.a4j.jsolex.processing.sun.workflow.GeneratedImageKind;
 import me.champeau.a4j.jsolex.processing.util.Constants;
 import me.champeau.a4j.jsolex.processing.util.ImageSaver;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
+import me.champeau.a4j.jsolex.processing.util.MutableMap;
 import me.champeau.a4j.jsolex.processing.util.ProcessingException;
 import me.champeau.a4j.jsolex.processing.util.SolarParametersUtils;
 import me.champeau.a4j.ser.Header;
@@ -167,7 +168,7 @@ public class BatchModeEventListener implements ProcessingEventListener, ImageMat
                     idx -> {
                         throw new IllegalStateException("Cannot call img() in batch outputs. Use variables to store images instead");
                     },
-                    Map.of()
+                    MutableMap.of()
             );
             for (Map.Entry<String, List<ImageWrapper>> entry : imagesByLabel.entrySet()) {
                 batchScriptExecutor.putVariable(entry.getKey(), entry.getValue());

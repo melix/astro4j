@@ -21,8 +21,10 @@ import me.champeau.a4j.jsolex.processing.params.ProcessParams;
 import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
 import me.champeau.a4j.jsolex.processing.sun.WorkflowState;
 import me.champeau.a4j.jsolex.processing.sun.workflow.ImageEmitter;
+import me.champeau.a4j.jsolex.processing.sun.workflow.TransformationHistory;
 import me.champeau.a4j.jsolex.processing.util.ForkJoinContext;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
+import me.champeau.a4j.jsolex.processing.util.MutableMap;
 import me.champeau.a4j.math.Point2D;
 import me.champeau.a4j.math.image.Image;
 import me.champeau.a4j.math.image.ImageMath;
@@ -34,7 +36,6 @@ import org.slf4j.LoggerFactory;
 
 import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.function.Supplier;
 import java.util.stream.IntStream;
 
@@ -142,7 +143,7 @@ public class GeometryCorrector extends AbstractTask<GeometryCorrector.Result> {
         var corrected = ImageWrapper32.fromImage(rescaled, metadata);
         var autocropMode = processParams.geometryParams().autocropMode();
         if (autocropMode != null) {
-            var cropping = new Crop(forkJoinContext, Map.of(Ellipse.class, ellipse));
+            var cropping = new Crop(forkJoinContext, MutableMap.of(Ellipse.class, ellipse));
             corrected = switch (autocropMode) {
                 case RADIUS_1_1 -> (ImageWrapper32) cropping.autocrop2(List.of(corrected, 1.1));
                 case RADIUS_1_2 -> (ImageWrapper32) cropping.autocrop2(List.of(corrected, 1.2));
@@ -164,7 +165,8 @@ public class GeometryCorrector extends AbstractTask<GeometryCorrector.Result> {
             };
         }
         broadcaster.broadcast(ProgressEvent.of(1, "Correcting geometry"));
-        return new Result(corrected, ellipse, corrected.findMetadata(Ellipse.class).orElse(circle), blackPoint);
+        TransformationHistory.recordTransform(corrected, "Geometry correction");
+        return new Result(corrected, corrected, ellipse, corrected.findMetadata(Ellipse.class).orElse(circle), blackPoint);
     }
 
     /**
@@ -198,9 +200,13 @@ public class GeometryCorrector extends AbstractTask<GeometryCorrector.Result> {
 
     public record Result(
             ImageWrapper32 corrected,
+            ImageWrapper32 enhanced,
             Ellipse originalEllipse,
             Ellipse correctedCircle,
             float blackpoint
     ) {
+        public Result withEnhanced(ImageWrapper32 enhanced) {
+            return new Result(corrected, enhanced, originalEllipse, correctedCircle, blackpoint);
+        }
     }
 }

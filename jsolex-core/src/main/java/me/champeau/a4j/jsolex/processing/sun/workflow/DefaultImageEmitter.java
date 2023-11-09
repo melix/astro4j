@@ -22,6 +22,7 @@ import me.champeau.a4j.jsolex.processing.sun.tasks.WriteMonoImageTask;
 import me.champeau.a4j.jsolex.processing.sun.tasks.WriteRGBImageTask;
 import me.champeau.a4j.jsolex.processing.util.ForkJoinContext;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
+import me.champeau.a4j.jsolex.processing.util.MutableMap;
 import me.champeau.a4j.jsolex.processing.util.ProcessingException;
 
 import java.io.File;
@@ -29,7 +30,6 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
-import java.util.Map;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
@@ -54,18 +54,23 @@ public class DefaultImageEmitter implements ImageEmitter {
     @Override
     public Supplier<Void> newMonoImage(GeneratedImageKind kind, String title, String name, ImageWrapper32 image, Consumer<? super float[]> bufferConsumer) {
         prepareOutput(name);
+        storeMetadata(kind, title, name, image);
         return executor.submit(new WriteMonoImageTask(broadcaster,
-                () -> image,
-                outputDir,
-                title,
-                name,
-                kind
+            () -> image,
+            outputDir,
+            title,
+            name,
+            kind
         ) {
             @Override
             public void transform() {
                 bufferConsumer.accept(getBuffer());
             }
         });
+    }
+
+    private static Object storeMetadata(GeneratedImageKind kind, String title, String name, ImageWrapper32 image) {
+        return image.metadata().put(GeneratedImageMetadata.class, new GeneratedImageMetadata(kind, title, name));
     }
 
     private void prepareOutput(String name) {
@@ -80,24 +85,26 @@ public class DefaultImageEmitter implements ImageEmitter {
     @Override
     public Supplier<Void> newMonoImage(GeneratedImageKind kind, String title, String name, ImageWrapper32 image) {
         prepareOutput(name);
+        storeMetadata(kind, title, name, image);
         return executor.submit(new WriteMonoImageTask(broadcaster,
-                () -> image,
-                outputDir,
-                title,
-                name,
-                kind));
+            () -> image,
+            outputDir,
+            title,
+            name,
+            kind));
     }
 
     @Override
     public Supplier<Void> newColorImage(GeneratedImageKind kind, String title, String name, ImageWrapper32 image, Function<float[], float[][]> rgbSupplier) {
         prepareOutput(name);
+        storeMetadata(kind, title, name, image);
         return executor.submit(new WriteColorizedImageTask(broadcaster,
-                () -> image,
-                outputDir,
-                title,
-                name,
-                kind,
-                rgbSupplier)
+            () -> image,
+            outputDir,
+            title,
+            name,
+            kind,
+            rgbSupplier)
         );
     }
 
@@ -105,12 +112,16 @@ public class DefaultImageEmitter implements ImageEmitter {
     public Supplier<Void> newColorImage(GeneratedImageKind kind, String title, String name, int width, int height, Supplier<float[][]> rgbSupplier) {
         prepareOutput(name);
         return executor.submit(new WriteRGBImageTask(broadcaster,
-                () -> new ImageWrapper32(width, height, new float[0], Map.of()),
-                outputDir,
-                title,
-                name,
-                kind,
-                rgbSupplier)
+            () -> {
+                var image = new ImageWrapper32(width, height, new float[0], MutableMap.of());
+                storeMetadata(kind, title, name, image);
+                return image;
+            },
+            outputDir,
+            title,
+            name,
+            kind,
+            rgbSupplier)
         );
     }
 

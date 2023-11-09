@@ -254,6 +254,7 @@ NOTE: If you don't want to provide a custom black point value, you can use a pre
 - `load` loads an image from the file system. It takes the path to the file as an argument. For example: `load("/path/to/some/image.png")`. Instead of using an absolute path, it is possible to use `workdir` in combination.
 - `load_many` allows loading several images at once from a directory. For example: `load_many("/path/to/folder")`. An optional parameter lets you specify a regular expression to filter images: `load_many("/chemin/vers/dossier", ".\*cropped.*")`.
 - `workdir` sets the default working directory, which is used whenever the `load` operation is done with relative paths. e.g `workdir("/path/to/session")`
+- `rl_decon` applies theRichardson-Lucy deconvolution algorithm to the image. This function makes use of a synthetic PSF. It requires a single mandatory parameter which is the image to process. For example: `rl_decon(img(0))`. 3 optional parameters are available: the PSF radius in pixels, the sigma factor and the number of iterations. For example: `rl_decon(img(0), 2.5, 2.5, 10)`.
 - `sharpen` will apply sharpening the target image. For example, `sharpen(img(0))`.
 - `blur` will apply Gaussian blur the target image. For example, `blur(img(0))`.
 - `disk_fill` will fill the detected sun disk with a fill color (by default, the detected black point). e.g `disk_fill(img(0))` or `disk_fill(img(0), 0)`.

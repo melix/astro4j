@@ -19,6 +19,7 @@ import me.champeau.a4j.jsolex.processing.util.FitsUtils;
 import me.champeau.a4j.jsolex.processing.util.ForkJoinContext;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
+import me.champeau.a4j.jsolex.processing.util.MutableMap;
 import me.champeau.a4j.jsolex.processing.util.ProcessingException;
 import me.champeau.a4j.jsolex.processing.util.RGBImage;
 import org.slf4j.Logger;
@@ -82,7 +83,7 @@ public class Loader extends AbstractFunctionImpl {
         } catch (IOException e) {
             throw new ProcessingException(e);
         }
-        return toImageWrapper(image, Map.of());
+        return toImageWrapper(image, MutableMap.of());
     }
 
     static ImageWrapper toImageWrapper(BufferedImage image, Map<Class<?>, Object> metadata) {

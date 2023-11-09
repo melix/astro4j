@@ -21,6 +21,7 @@ import java.lang.ref.Cleaner;
 import java.nio.channels.FileChannel;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.function.Function;
 
@@ -150,7 +151,7 @@ public final class FileBackedImage implements ImageWrapper {
 
     @Override
     public ImageWrapper copy() {
-        throw new UnsupportedOperationException();
+        return new FileBackedImage(width, height, backingFile, new LinkedHashMap<>(metadata), keptInMemory);
     }
 
     private static void clean(Path backingFile) {

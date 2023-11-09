@@ -15,6 +15,7 @@
  */
 package me.champeau.a4j.jsolex.processing.params;
 
+import java.util.Optional;
 import java.util.OptionalDouble;
 
 public class GeometryParams {
@@ -27,6 +28,8 @@ public class GeometryParams {
     private final boolean autocorrectAngleP;
     private final RotationKind rotation;
     private final AutocropMode autocropMode;
+    private final DeconvolutionMode deconvolutionMode;
+    private final RichardsonLucyDeconvolutionParams richardsonLucyDeconvolutionParams;
 
     public GeometryParams(Double tilt,
                           Double xyRatio,
@@ -35,7 +38,10 @@ public class GeometryParams {
                           boolean sharpen,
                           boolean disallowDownsampling,
                           boolean autocorrectAngleP,
-                          RotationKind rotation, AutocropMode autocropMode) {
+                          RotationKind rotation,
+                          AutocropMode autocropMode,
+                          DeconvolutionMode deconvolutionMode,
+                          RichardsonLucyDeconvolutionParams richardsonLucyDeconvolutionParams) {
         this.tilt = tilt;
         this.xyRatio = xyRatio;
         this.horizontalMirror = horizontalMirror;
@@ -45,6 +51,8 @@ public class GeometryParams {
         this.autocorrectAngleP = autocorrectAngleP;
         this.rotation = rotation;
         this.autocropMode = autocropMode;
+        this.deconvolutionMode = deconvolutionMode;
+        this.richardsonLucyDeconvolutionParams = richardsonLucyDeconvolutionParams;
     }
 
     public OptionalDouble tilt() {
@@ -83,40 +91,56 @@ public class GeometryParams {
         return autocropMode;
     }
 
+    public DeconvolutionMode deconvolutionMode() {
+        return deconvolutionMode;
+    }
+
+    public Optional<RichardsonLucyDeconvolutionParams> richardsonLucyDeconvolutionParams() {
+        return Optional.ofNullable(richardsonLucyDeconvolutionParams);
+    }
+
     public GeometryParams withTilt(Double tilt) {
-        return new GeometryParams(tilt, xyRatio, horizontalMirror, verticalMirror, sharpen, disallowDownsampling, autocorrectAngleP, rotation, autocropMode);
+        return new GeometryParams(tilt, xyRatio, horizontalMirror, verticalMirror, sharpen, disallowDownsampling, autocorrectAngleP, rotation, autocropMode, deconvolutionMode, richardsonLucyDeconvolutionParams);
     }
 
     public GeometryParams withXYRatio(Double xyRatio) {
-        return new GeometryParams(tilt, xyRatio, horizontalMirror, verticalMirror, sharpen, disallowDownsampling, autocorrectAngleP, rotation, autocropMode);
+        return new GeometryParams(tilt, xyRatio, horizontalMirror, verticalMirror, sharpen, disallowDownsampling, autocorrectAngleP, rotation, autocropMode, deconvolutionMode, richardsonLucyDeconvolutionParams);
     }
 
     public GeometryParams withHorizontalMirror(boolean horizontalMirror) {
-        return new GeometryParams(tilt, xyRatio, horizontalMirror, verticalMirror, sharpen, disallowDownsampling, autocorrectAngleP, rotation, autocropMode);
+        return new GeometryParams(tilt, xyRatio, horizontalMirror, verticalMirror, sharpen, disallowDownsampling, autocorrectAngleP, rotation, autocropMode, deconvolutionMode, richardsonLucyDeconvolutionParams);
     }
 
     public GeometryParams withVerticalMirror(boolean verticalMirror) {
-        return new GeometryParams(tilt, xyRatio, horizontalMirror, verticalMirror, sharpen, disallowDownsampling, autocorrectAngleP, rotation, autocropMode);
+        return new GeometryParams(tilt, xyRatio, horizontalMirror, verticalMirror, sharpen, disallowDownsampling, autocorrectAngleP, rotation, autocropMode, deconvolutionMode, richardsonLucyDeconvolutionParams);
     }
 
     public GeometryParams withSharpen(boolean sharpen) {
-        return new GeometryParams(tilt, xyRatio, horizontalMirror, verticalMirror, sharpen, disallowDownsampling, autocorrectAngleP, rotation, autocropMode);
+        return new GeometryParams(tilt, xyRatio, horizontalMirror, verticalMirror, sharpen, disallowDownsampling, autocorrectAngleP, rotation, autocropMode, deconvolutionMode, richardsonLucyDeconvolutionParams);
     }
 
     public GeometryParams withDisallowDownsampling(boolean disallowDownsampling) {
-        return new GeometryParams(tilt, xyRatio, horizontalMirror, verticalMirror, sharpen, disallowDownsampling, autocorrectAngleP, rotation, autocropMode);
+        return new GeometryParams(tilt, xyRatio, horizontalMirror, verticalMirror, sharpen, disallowDownsampling, autocorrectAngleP, rotation, autocropMode, deconvolutionMode, richardsonLucyDeconvolutionParams);
     }
 
     public GeometryParams withAutocorrectAngleP(boolean autocorrectAngleP) {
-        return new GeometryParams(tilt, xyRatio, horizontalMirror, verticalMirror, sharpen, disallowDownsampling, autocorrectAngleP, rotation, autocropMode);
+        return new GeometryParams(tilt, xyRatio, horizontalMirror, verticalMirror, sharpen, disallowDownsampling, autocorrectAngleP, rotation, autocropMode, deconvolutionMode, richardsonLucyDeconvolutionParams);
     }
 
     public GeometryParams withRotation(RotationKind rotation) {
-        return new GeometryParams(tilt, xyRatio, horizontalMirror, verticalMirror, sharpen, disallowDownsampling, autocorrectAngleP, rotation, autocropMode);
+        return new GeometryParams(tilt, xyRatio, horizontalMirror, verticalMirror, sharpen, disallowDownsampling, autocorrectAngleP, rotation, autocropMode, deconvolutionMode, richardsonLucyDeconvolutionParams);
     }
 
     public GeometryParams withAutocropMode(AutocropMode autocropMode) {
-        return new GeometryParams(tilt, xyRatio, horizontalMirror, verticalMirror, sharpen, disallowDownsampling, autocorrectAngleP, rotation, autocropMode);
+        return new GeometryParams(tilt, xyRatio, horizontalMirror, verticalMirror, sharpen, disallowDownsampling, autocorrectAngleP, rotation, autocropMode, deconvolutionMode, richardsonLucyDeconvolutionParams);
+    }
+
+    public GeometryParams withDeconvolutionMode(DeconvolutionMode deconvolutionMode) {
+        return new GeometryParams(tilt, xyRatio, horizontalMirror, verticalMirror, sharpen, disallowDownsampling, autocorrectAngleP, rotation, autocropMode, deconvolutionMode, richardsonLucyDeconvolutionParams);
+    }
+
+    public GeometryParams withRichardsonLucyDeconvolutionParams(RichardsonLucyDeconvolutionParams richardsonLucyDeconvolutionParams) {
+        return new GeometryParams(tilt, xyRatio, horizontalMirror, verticalMirror, sharpen, disallowDownsampling, autocorrectAngleP, rotation, autocropMode, deconvolutionMode, richardsonLucyDeconvolutionParams);
     }
 
     @Override
