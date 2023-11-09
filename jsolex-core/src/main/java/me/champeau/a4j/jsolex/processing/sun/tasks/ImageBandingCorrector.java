@@ -19,6 +19,7 @@ import me.champeau.a4j.jsolex.processing.event.ProgressEvent;
 import me.champeau.a4j.jsolex.processing.params.BandingCorrectionParams;
 import me.champeau.a4j.jsolex.processing.sun.BandingReduction;
 import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
+import me.champeau.a4j.jsolex.processing.sun.workflow.TransformationHistory;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 import me.champeau.a4j.math.regression.Ellipse;
 
@@ -39,10 +40,12 @@ public class ImageBandingCorrector extends AbstractTask<ImageWrapper32> {
     protected ImageWrapper32 doCall() throws Exception {
         broadcaster.broadcast(ProgressEvent.of(0, "Banding reduction"));
         var passes = params.passes();
+        var bandSize = params.width();
         for (int i = 0; i < passes; i++) {
-            BandingReduction.reduceBanding(width, height, getBuffer(), params.width(), ellipse);
+            BandingReduction.reduceBanding(width, height, getBuffer(), bandSize, ellipse);
             broadcaster.broadcast(ProgressEvent.of((i + 1d / passes), "Banding reduction"));
         }
+        TransformationHistory.recordTransform(workImage, "Banding reduction (band size: " + bandSize + " passes: " + passes + ")");
         return workImage;
     }
 }

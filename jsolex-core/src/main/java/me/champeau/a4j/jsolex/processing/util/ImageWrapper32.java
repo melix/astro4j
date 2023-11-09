@@ -37,7 +37,7 @@ public record ImageWrapper32(
     }
 
     public static ImageWrapper32 fromImage(Image image) {
-        return new ImageWrapper32(image.width(), image.height(), image.data(), Map.of());
+        return new ImageWrapper32(image.width(), image.height(), image.data(), MutableMap.of());
     }
 
     public static ImageWrapper32 fromImage(Image image, Map<Class<?>, Object> metadata) {

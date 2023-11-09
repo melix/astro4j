@@ -57,6 +57,7 @@ import me.champeau.a4j.jsolex.processing.util.FileBackedImage;
 import me.champeau.a4j.jsolex.processing.util.ForkJoinContext;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
+import me.champeau.a4j.jsolex.processing.util.MutableMap;
 import me.champeau.a4j.jsolex.processing.util.ProcessingException;
 import me.champeau.a4j.jsolex.processing.util.SolarParameters;
 import me.champeau.a4j.jsolex.processing.util.SolarParametersUtils;
@@ -291,7 +292,7 @@ public class SolexVideoProcessor implements Broadcaster {
                 ellipse = geo.correctedCircle();
                 imageStats = new ImageStats(geo.blackpoint());
             } else {
-                Map<Class<?>, Object> metadata = ellipse != null ? Map.of(Ellipse.class, ellipse) : Map.of();
+                Map<Class<?>, Object> metadata = ellipse != null ? MutableMap.of(Ellipse.class, ellipse) : MutableMap.of();
                 images.put(workflowState.pixelShift(), FileBackedImage.wrap(new ImageWrapper32(workflowState.width(), workflowState.height(), workflowState.reconstructed(), metadata)));
             }
         }
@@ -314,7 +315,7 @@ public class SolexVideoProcessor implements Broadcaster {
                         imageStats = new ImageStats(geo.blackpoint());
                     }
                 } else {
-                    Map<Class<?>, Object> metadata = ellipse != null ? Map.of(Ellipse.class, ellipse) : Map.of();
+                    Map<Class<?>, Object> metadata = ellipse != null ? MutableMap.of(Ellipse.class, ellipse) : MutableMap.of();
                     images.put(workflowState.pixelShift(), new ImageWrapper32(workflowState.width(), workflowState.height(), workflowState.reconstructed(), metadata));
                 }
             }

@@ -39,6 +39,7 @@ import me.champeau.a4j.jsolex.processing.sun.tasks.ImageBandingCorrector;
 import me.champeau.a4j.jsolex.processing.util.Constants;
 import me.champeau.a4j.jsolex.processing.util.ForkJoinContext;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
+import me.champeau.a4j.jsolex.processing.util.MutableMap;
 import me.champeau.a4j.math.Point2D;
 import me.champeau.a4j.math.image.Deconvolution;
 import me.champeau.a4j.math.image.ImageMath;
@@ -50,8 +51,9 @@ import org.slf4j.LoggerFactory;
 
 import java.nio.file.Path;
 import java.text.MessageFormat;
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.function.Supplier;
 
 import static me.champeau.a4j.jsolex.processing.sun.ImageUtils.bilinearSmoothing;
@@ -101,9 +103,8 @@ public class ProcessingWorkflow {
     public void start(Runnable onComplete) {
         try {
             var reconstructed = state.image();
+            reconstructed.metadata().put(PixelShift.class, new PixelShift(state.pixelShift()));
             rawImagesEmitter.newMonoImage(GeneratedImageKind.RECONSTRUCTION, message(Constants.TYPE_RAW), "recon", reconstructed);
-            var clahe = reconstructed.copy();
-            ClaheStrategy.of(processParams.claheParams()).stretch(clahe.width(), clahe.height(), clahe.data());
             var existingFitting = state.findResult(WorkflowResults.MAIN_ELLIPSE_FITTING);
             if (existingFitting.isPresent()) {
                 EllipseFittingTask.Result r = (EllipseFittingTask.Result) existingFitting.get();
@@ -116,7 +117,11 @@ public class ProcessingWorkflow {
                 );
             } else {
                 rawImagesEmitter.newMonoImage(GeneratedImageKind.RAW_STRETCHED, message("raw.linear"), "linear", reconstructed);
-                processedImagesEmitter.newMonoImage(GeneratedImageKind.GEOMETRY_CORRECTED_STRETCHED, message("stretched"), "clahe", clahe);
+                var clahe = reconstructed.copy();
+                var claheParams = processParams.claheParams();
+                ClaheStrategy.of(claheParams).stretch(clahe.width(), clahe.height(), clahe.data());
+                TransformationHistory.recordTransform(clahe, "CLAHE (tile size: " + claheParams.tileSize() + ", clip limit: " + claheParams.clipping() + ", bins: " + claheParams.bins() + ")");
+                processedImagesEmitter.newMonoImage(GeneratedImageKind.GEOMETRY_CORRECTED_PROCESSED, message("processed"), "clahe", clahe);
             }
         } finally {
             onComplete.run();
@@ -202,27 +207,33 @@ public class ProcessingWorkflow {
     private GeometryCorrector.Result performEnhancements(GeometryCorrector.Result g) {
         var corrected = g.corrected();
         var image = corrected.asImage();
-        boolean enhanced = false;
+        List<String> enhancements = new ArrayList<>();
         if (processParams.geometryParams().deconvolutionMode() == DeconvolutionMode.RICHARDSON_LUCY) {
             var deconv = new Deconvolution(imageMath);
             var deconvolutionParams = processParams.geometryParams().richardsonLucyDeconvolutionParams();
             if (deconvolutionParams.isPresent()) {
-                enhanced = true;
-                var kernel = Deconvolution.generateGaussianPSF(deconvolutionParams.get().radius(), deconvolutionParams.get().sigma());
+                var radius = deconvolutionParams.get().radius();
+                var sigma = deconvolutionParams.get().sigma();
+                var kernel = Deconvolution.generateGaussianPSF(radius, sigma);
                 var iterations = deconvolutionParams.get().iterations();
                 for (int i = 0; i < iterations; i++) {
                     broadcaster.broadcast(ProgressEvent.of(1d / iterations * i, message("deconvolution") + " " + (i + 1) + "/" + iterations));
                     image = deconv.richardsonLucy(image, kernel, 1);
                 }
+                enhancements.add("Richardson-Lucy deconvolution (" + iterations + " iterations, radius: " + radius + ", sigma: " + sigma + ")");
                 broadcaster.broadcast(ProgressEvent.of(1d, message("deconvolution")));
             }
         }
         if (processParams.geometryParams().isSharpen()) {
-            enhanced = true;
+            enhancements.add("Sharpening");
             image = imageMath.convolve(image, Kernel33.SHARPEN2);
         }
-        if (enhanced) {
-            var result = new ImageWrapper32(corrected.width(), corrected.height(), image.data(), corrected.metadata());
+        if (!enhancements.isEmpty()) {
+            var metadata = new HashMap<>(corrected.metadata());
+            var result = new ImageWrapper32(corrected.width(), corrected.height(), image.data(), metadata);
+            for (String enhancement : enhancements) {
+                TransformationHistory.recordTransform(result, enhancement);
+            }
             return g.withEnhanced(result);
         }
         return g;
@@ -271,7 +282,8 @@ public class ProcessingWorkflow {
     private Supplier<Void> produceStretchedImage(ImageWrapper32 geometryFixed, ClaheParams claheParams) {
         var clahe = geometryFixed.copy();
         ClaheStrategy.of(claheParams).stretch(clahe.width(), clahe.height(), clahe.data());
-        var supplier = processedImagesEmitter.newMonoImage(GeneratedImageKind.GEOMETRY_CORRECTED_STRETCHED, message("stretched"), "clahe", clahe);
+        TransformationHistory.recordTransform(clahe, "CLAHE (tile size: " + claheParams.tileSize() + ", clip limit: " + claheParams.clipping() + ", bins: " + claheParams.bins() + ")");
+        var supplier = processedImagesEmitter.newMonoImage(GeneratedImageKind.GEOMETRY_CORRECTED_PROCESSED, message("processed"), "clahe", clahe);
         if (shouldProduce(GeneratedImageKind.TECHNICAL_CARD) && isMainShift()) {
             produceTechnicalCard(clahe);
         }
@@ -306,6 +318,7 @@ public class ProcessingWorkflow {
         var negated = geometryFixed.copy();
         new ClaheStrategy(128, 512, .8f).stretch(geometryFixed.width(), geometryFixed.height(), negated.data());
         NegativeImageStrategy.DEFAULT.stretch(geometryFixed.width(), geometryFixed.height(), negated.data());
+        TransformationHistory.recordTransform(negated, "Negative");
         return processedImagesEmitter.newMonoImage(GeneratedImageKind.NEGATIVE, message("negative"), "negative", negated);
     }
 
@@ -344,7 +357,7 @@ public class ProcessingWorkflow {
                             for (int i = 0; i < 2; i++) {
                                 bilinearSmoothing(diskEllipse, width, height, data);
                             }
-                            var mixedImage = new ImageWrapper32(width, height, mix, Map.of(Ellipse.class, diskEllipse));
+                            var mixedImage = new ImageWrapper32(width, height, mix, MutableMap.of(Ellipse.class, diskEllipse));
                             var colorCurve = processParams.spectrumParams().ray().getColorCurve();
                             if (colorCurve.isPresent()) {
                                 var curve = colorCurve.get();

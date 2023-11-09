@@ -22,6 +22,7 @@ import me.champeau.a4j.jsolex.expr.Variable;
 import me.champeau.a4j.jsolex.processing.event.ProgressEvent;
 import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
 import me.champeau.a4j.jsolex.processing.sun.workflow.ImageStats;
+import me.champeau.a4j.jsolex.processing.sun.workflow.TransformationHistory;
 import me.champeau.a4j.jsolex.processing.util.FileBackedImage;
 import me.champeau.a4j.jsolex.processing.util.ForkJoinContext;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
@@ -336,17 +337,33 @@ public class DefaultImageScriptExecutor implements ImageMathScriptExecutor {
             // Not using `computeIfAbsent` to avoid recursive update
             var exprAsString = expression.toString();
             if (memoizeCache.containsKey(exprAsString)) {
-                return memoizeCache.get(exprAsString);
+                var o = memoizeCache.get(exprAsString);
+                if (o instanceof ImageWrapper image) {
+                    return image.copy();
+                } else if (o instanceof List<?> list) {
+                    var copy = new ArrayList<>(list.size());
+                    for (Object object : list) {
+                        if (object instanceof ImageWrapper image) {
+                            copy.add(image.copy());
+                        } else {
+                            copy.add(object);
+                        }
+                    }
+                    return Collections.unmodifiableList(copy);
+                }
+                return o;
             }
             broadcaster.broadcast(ProgressEvent.of(0, "Evaluating " + expression));
             try {
                 var result = super.doEvaluate(expression);
                 if (result instanceof ImageWrapper image) {
+                    TransformationHistory.recordTransform(image, "ImageMath: " + expression);
                     result = FileBackedImage.wrap(image);
                 } else if (result instanceof List<?> list) {
                     if (list.stream().allMatch(ImageWrapper.class::isInstance)) {
                         result = list.stream()
                                 .map(ImageWrapper.class::cast)
+                                .map(image -> TransformationHistory.recordTransform(image, "ImageMath: " + expression))
                                 .map(FileBackedImage::wrap)
                                 .toList();
                     }

@@ -20,7 +20,6 @@ import me.champeau.a4j.jsolex.processing.sun.SpectrumFrameAnalyzer;
 import me.champeau.a4j.math.Point2D;
 
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 import java.util.function.DoubleUnaryOperator;
 
@@ -115,6 +114,6 @@ public class SpectralLineFrameImageCreator {
             gg[(int) (offset + x + y * width)] = MAX_PIXEL_VALUE;
             bb[(int) (offset + x + y * width)] = 0;
         }
-        return new RGBImage(width, 2 * height + 10, rr, gg, bb, Map.of());
+        return new RGBImage(width, 2 * height + 10, rr, gg, bb, MutableMap.of());
     }
 }

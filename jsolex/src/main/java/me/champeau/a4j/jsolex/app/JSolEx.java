@@ -88,6 +88,7 @@ import me.champeau.a4j.jsolex.processing.util.ForkJoinContext;
 import me.champeau.a4j.jsolex.processing.util.ForkJoinParallelExecutor;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
 import me.champeau.a4j.jsolex.processing.util.LoggingSupport;
+import me.champeau.a4j.jsolex.processing.util.MutableMap;
 import me.champeau.a4j.jsolex.processing.util.ProcessingException;
 import me.champeau.a4j.math.VectorApiSupport;
 import me.champeau.a4j.ser.Header;
@@ -179,6 +180,9 @@ public class JSolEx extends Application implements JSolExInterface {
     @FXML
     private Tab profileTab;
 
+    @FXML
+    private Tab metadataTab;
+
     private final Map<String, ImageViewer> popupViewers = new HashMap<>();
 
     private ProcessParams reusedProcessParams;
@@ -204,6 +208,11 @@ public class JSolEx extends Application implements JSolExInterface {
     @Override
     public Tab getProfileTab() {
         return profileTab;
+    }
+
+    @Override
+    public Tab getMetadataTab() {
+        return metadataTab;
     }
 
     @Override
@@ -668,7 +677,7 @@ public class JSolEx extends Application implements JSolExInterface {
                     img -> {
                         throw new ProcessingException("img() is not available in standalone image math scripts. Use load or load_many to load images");
                     },
-                    Map.of(),
+                    MutableMap.of(),
                     listener
             ) {
                 @Override

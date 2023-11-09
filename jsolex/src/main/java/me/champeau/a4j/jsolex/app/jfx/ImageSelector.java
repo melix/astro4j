@@ -32,6 +32,7 @@ import me.champeau.a4j.jsolex.processing.sun.workflow.GeneratedImageKind;
 import me.champeau.a4j.jsolex.processing.util.Constants;
 import me.champeau.a4j.jsolex.processing.util.ForkJoinContext;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
+import me.champeau.a4j.jsolex.processing.util.MutableMap;
 import me.champeau.a4j.jsolex.processing.util.ProcessingException;
 
 import java.io.File;
@@ -135,7 +136,7 @@ public class ImageSelector {
                 case RAW -> raw.setSelected(true);
                 case RAW_STRETCHED -> stretched.setSelected(true);
                 case GEOMETRY_CORRECTED -> geometryCorrected.setSelected(true);
-                case GEOMETRY_CORRECTED_STRETCHED -> geometryCorrectedStretched.setSelected(true);
+                case GEOMETRY_CORRECTED_PROCESSED -> geometryCorrectedStretched.setSelected(true);
                 case COLORIZED -> colorized.setSelected(true);
                 case VIRTUAL_ECLIPSE -> virtualEclipse.setSelected(true);
                 case NEGATIVE -> negative.setSelected(true);
@@ -228,7 +229,7 @@ public class ImageSelector {
             makeDefaultShiftNonInternal();
         }
         if (geometryCorrectedStretched.isSelected()) {
-            images.add(GeneratedImageKind.GEOMETRY_CORRECTED_STRETCHED);
+            images.add(GeneratedImageKind.GEOMETRY_CORRECTED_PROCESSED);
             makeDefaultShiftNonInternal();
         }
         if (colorized.isSelected()) {
@@ -323,7 +324,7 @@ public class ImageSelector {
         return new DefaultImageScriptExecutor(
                 forkJoinContext,
                 i -> images.computeIfAbsent(i, unused -> new ImageWrapper32(0, 0, new float[0], Map.of())),
-                Map.of()
+                MutableMap.of()
         );
     }
 

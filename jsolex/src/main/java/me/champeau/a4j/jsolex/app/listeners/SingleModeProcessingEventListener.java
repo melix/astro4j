@@ -31,6 +31,7 @@ import javafx.scene.control.MenuItem;
 import javafx.scene.control.ScrollPane;
 import javafx.scene.control.Tab;
 import javafx.scene.control.TabPane;
+import javafx.scene.control.TextArea;
 import javafx.scene.control.Tooltip;
 import javafx.scene.effect.ColorAdjust;
 import javafx.scene.image.PixelFormat;
@@ -81,6 +82,7 @@ import me.champeau.a4j.jsolex.processing.util.ForkJoinContext;
 import me.champeau.a4j.jsolex.processing.util.Histogram;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
+import me.champeau.a4j.jsolex.processing.util.MetadataRenderer;
 import me.champeau.a4j.jsolex.processing.util.ProcessingException;
 import me.champeau.a4j.jsolex.processing.util.RGBImage;
 import me.champeau.a4j.jsolex.processing.util.SolarParameters;
@@ -103,6 +105,7 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.TreeSet;
 import java.util.WeakHashMap;
@@ -135,6 +138,7 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
     private final AtomicInteger concurrentNotifications = new AtomicInteger();
     private final Tab profileTab;
     private final Tab statsTab;
+    private final Tab metadataTab;
     private final WeakHashMap<ImageWrapper, List<CachedHistogram>> cachedHistograms = new WeakHashMap<>();
     private final LocalDateTime processingDate;
     private Header header;
@@ -167,6 +171,7 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
         this.mainPane = owner.getMainPane();
         this.statsTab = owner.getStatsTab();
         this.profileTab = owner.getProfileTab();
+        this.metadataTab = owner.getMetadataTab();
         this.popupViews = popupViews;
         this.shiftImages = new HashMap<>();
         this.processingDate = processingDate;
@@ -214,6 +219,11 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
             var tab = new Tab(message("image.reconstruction") + suffix, scrollPane);
             imageView.setParentTab(tab);
             mainPane.getTabs().add(tab);
+            tab.selectedProperty().addListener((observable, oldValue, newValue) -> {
+                if (Boolean.TRUE.equals(newValue)) {
+                    metadataTab.setContent(null);
+                }
+            });
         });
         return imageView;
     }
@@ -284,9 +294,29 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
             tab.selectedProperty().addListener((observable, oldValue, newValue) -> {
                 if (Boolean.TRUE.equals(newValue)) {
                     showHistogram(viewer.getStretchedImage());
+                    showMetadata(imageWrapper.metadata());
                 }
             });
         });
+    }
+
+    private void showMetadata(Map<Class<?>, Object> metadata) {
+        var metadataPane = new VBox();
+        metadataPane.setSpacing(10);
+        var metadataContent = new ScrollPane(metadataPane);
+        metadataContent.setFitToWidth(true);
+        metadataContent.setFitToHeight(true);
+        metadataTab.setContent(metadataContent);
+        var view = new TextArea();
+        view.setEditable(false);
+        view.setWrapText(true);
+        view.setText(metadata.entrySet().stream()
+            .sorted(Map.Entry.comparingByKey(new MetadataComparator()))
+            .map(e -> MetadataRenderer.render(e.getKey(), e.getValue()))
+            .filter(Optional::isPresent)
+            .map(Optional::get)
+            .collect(Collectors.joining("\n")));
+        metadataContent.setContent(view);
     }
 
     private void showHistogram(ImageWrapper imageWrapper) {

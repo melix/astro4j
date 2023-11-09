@@ -40,7 +40,7 @@ public record RequestedImages(
             GeneratedImageKind.MIXED,
             GeneratedImageKind.NEGATIVE,
             GeneratedImageKind.DOPPLER,
-            GeneratedImageKind.GEOMETRY_CORRECTED_STRETCHED,
+            GeneratedImageKind.GEOMETRY_CORRECTED_PROCESSED,
             GeneratedImageKind.CONTINUUM,
             GeneratedImageKind.TECHNICAL_CARD
     );
@@ -53,20 +53,20 @@ public record RequestedImages(
             GeneratedImageKind.MIXED,
             GeneratedImageKind.NEGATIVE,
             GeneratedImageKind.DOPPLER,
-            GeneratedImageKind.GEOMETRY_CORRECTED_STRETCHED,
+            GeneratedImageKind.GEOMETRY_CORRECTED_PROCESSED,
             GeneratedImageKind.CONTINUUM,
             GeneratedImageKind.TECHNICAL_CARD
     );
     public static final Set<GeneratedImageKind> QUICK_MODE = EnumSet.of(
             GeneratedImageKind.RECONSTRUCTION,
             GeneratedImageKind.RAW_STRETCHED,
-            GeneratedImageKind.GEOMETRY_CORRECTED_STRETCHED
+            GeneratedImageKind.GEOMETRY_CORRECTED_PROCESSED
     );
     public static final Set<GeneratedImageKind> QUICK_MODE_WITH_DEBUG = EnumSet.of(
             GeneratedImageKind.DEBUG,
             GeneratedImageKind.RECONSTRUCTION,
             GeneratedImageKind.RAW_STRETCHED,
-            GeneratedImageKind.GEOMETRY_CORRECTED_STRETCHED
+            GeneratedImageKind.GEOMETRY_CORRECTED_PROCESSED
     );
 
     public boolean isEnabled(GeneratedImageKind kind) {

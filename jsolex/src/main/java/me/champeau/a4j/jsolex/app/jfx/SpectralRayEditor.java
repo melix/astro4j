@@ -38,6 +38,7 @@ import me.champeau.a4j.jsolex.processing.sun.ImageUtils;
 import me.champeau.a4j.jsolex.processing.util.ColorizedImageWrapper;
 import me.champeau.a4j.jsolex.processing.util.ImageFormat;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
+import me.champeau.a4j.jsolex.processing.util.MutableMap;
 import me.champeau.a4j.jsolex.processing.util.ProcessingException;
 
 import javax.imageio.ImageIO;
@@ -47,7 +48,6 @@ import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.EnumSet;
-import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
@@ -201,7 +201,7 @@ public class SpectralRayEditor {
             sunPreview.setImage(new Image(SunDiskColorPreview.getMonoImageStream()));
             return;
         }
-        var colorImage = new ColorizedImageWrapper(MONO_SUN_IMAGE, mono -> ImageUtils.convertToRGB(curve, mono), Map.of());
+        var colorImage = new ColorizedImageWrapper(MONO_SUN_IMAGE, mono -> ImageUtils.convertToRGB(curve, mono), MutableMap.of());
         var colorized = colorImage.converter().apply(MONO_SUN_IMAGE.data());
         var r = colorized[0];
         var g = colorized[1];
@@ -278,7 +278,7 @@ public class SpectralRayEditor {
                 data[i] = rgb[i] & 0xFF;
             }
             LinearStrechingStrategy.DEFAULT.stretch(width, height, data);
-            return new ImageWrapper32(width, height, data, Map.of());
+            return new ImageWrapper32(width, height, data, MutableMap.of());
         }
 
         private static InputStream getMonoImageStream() {
