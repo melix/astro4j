@@ -235,6 +235,7 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
         int y = payload.line();
         if (payload.display()) {
             var imageView = getOrCreateImageView(event);
+            imageView.resetZoom();
             WritableImage image = (WritableImage) imageView.getImage();
             double[] line = payload.data();
             byte[] rgb = new byte[3 * line.length];

@@ -163,8 +163,11 @@ public class ZoomableImageView extends HBox {
     }
 
     public void resetZoom() {
+        var oldZoom = zoom;
         zoom = getWidth() / imageView.getImage().getWidth();
-        triggerOnZoomChanged();
-        applyZoom();
+        if (zoom != oldZoom) {
+            triggerOnZoomChanged();
+            applyZoom();
+        }
     }
 }
