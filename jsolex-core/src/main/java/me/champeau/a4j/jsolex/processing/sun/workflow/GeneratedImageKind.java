@@ -20,17 +20,17 @@ package me.champeau.a4j.jsolex.processing.sun.workflow;
  * supports.
  */
 public enum GeneratedImageKind {
+    RECONSTRUCTION,
+    RAW,
     DEBUG,
-    COLORIZED,
-    CONTINUUM,
-    DOPPLER,
     GEOMETRY_CORRECTED,
     GEOMETRY_CORRECTED_PROCESSED,
-    MIXED,
-    NEGATIVE,
-    RAW,
-    RECONSTRUCTION,
     VIRTUAL_ECLIPSE,
+    COLORIZED,
+    CONTINUUM,
+    MIXED,
+    DOPPLER,
+    NEGATIVE,
     TECHNICAL_CARD,
     IMAGE_MATH;
 
