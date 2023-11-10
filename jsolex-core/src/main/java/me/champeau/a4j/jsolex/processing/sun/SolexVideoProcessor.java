@@ -511,7 +511,7 @@ public class SolexVideoProcessor implements Broadcaster {
             lastY = yi;
         }
         if (!internal) {
-            broadcast(new PartialReconstructionEvent(new ImageLine(pixelShift, offset / width, totalLines, line, processParams.extraParams().generateDebugImages() && processParams.requestedImages().isEnabled(GeneratedImageKind.RECONSTRUCTION))));
+            broadcast(new PartialReconstructionEvent(new ImageLine(pixelShift, offset / width, totalLines, line, processParams.extraParams().generateDebugImages() || processParams.requestedImages().isEnabled(GeneratedImageKind.RECONSTRUCTION))));
         }
     }
 

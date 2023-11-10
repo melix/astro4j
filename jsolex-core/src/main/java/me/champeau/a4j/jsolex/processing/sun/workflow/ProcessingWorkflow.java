@@ -104,7 +104,7 @@ public class ProcessingWorkflow {
         try {
             var reconstructed = state.image();
             reconstructed.metadata().put(PixelShift.class, new PixelShift(state.pixelShift()));
-            rawImagesEmitter.newMonoImage(GeneratedImageKind.RECONSTRUCTION, message(Constants.TYPE_RAW), "recon", reconstructed);
+            rawImagesEmitter.newMonoImage(GeneratedImageKind.RAW, message(Constants.TYPE_RAW), "recon", reconstructed);
             var existingFitting = state.findResult(WorkflowResults.MAIN_ELLIPSE_FITTING);
             if (existingFitting.isPresent()) {
                 EllipseFittingTask.Result r = (EllipseFittingTask.Result) existingFitting.get();
@@ -176,9 +176,6 @@ public class ProcessingWorkflow {
                     return null;
                 }
                 broadcaster.broadcast(OutputImageDimensionsDeterminedEvent.of(message("geometry.corrected"), geometryFixed.width(), geometryFixed.height()));
-                if (enhanced != geometryFixed) {
-                    processedImagesEmitter.newMonoImage(kind, message("enhanced"), "deconv", enhanced);
-                }
                 executor.async(() -> produceStretchedImage(enhanced, processParams.claheParams()));
                 if (isMainShift() && shouldProduce(GeneratedImageKind.NEGATIVE)) {
                     executor.async(() -> produceNegativeImage(enhanced));

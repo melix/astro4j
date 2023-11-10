@@ -248,7 +248,7 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
             var pixelformat = PixelFormat.getByteRgbInstance();
             onProgress(ProgressEvent.of((y + 1d) / height, message("reconstructing")));
             BatchOperations.submit(() -> {
-                if (event.getPayload().pixelShift() == 0) {
+                if (event.getPayload().pixelShift() == params.spectrumParams().pixelShift()) {
                     mainPane.getSelectionModel().select(imageView.getParentTab());
                 }
                 image.getPixelWriter().setPixels(0, y, line.length, DEFAULT_ORDER, pixelformat, rgb, 0, 3 * line.length);
