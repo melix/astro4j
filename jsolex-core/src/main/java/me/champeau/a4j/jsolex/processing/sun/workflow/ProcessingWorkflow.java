@@ -112,11 +112,7 @@ public class ProcessingWorkflow {
                 var bandingFixed = performBandingCorrection(ellipse).get();
                 state.recordResult(WorkflowResults.BANDING_CORRECTION, bandingFixed);
                 geometryCorrection(r, bandingFixed);
-                state.<GeometryCorrector.Result>findResult(WorkflowResults.GEOMETRY_CORRECTION).ifPresent(geometryCorrected ->
-                    rawImagesEmitter.newMonoImage(GeneratedImageKind.RAW_STRETCHED, message("raw.linear"), "linear", geometryCorrected.corrected())
-                );
             } else {
-                rawImagesEmitter.newMonoImage(GeneratedImageKind.RAW_STRETCHED, message("raw.linear"), "linear", reconstructed);
                 var clahe = reconstructed.copy();
                 var claheParams = processParams.claheParams();
                 ClaheStrategy.of(claheParams).stretch(clahe.width(), clahe.height(), clahe.data());

@@ -23,7 +23,7 @@ public class KnownCurves {
     }
 
     public static final ColorCurve H_ALPHA = new ColorCurve(
-            "Hα",
+            "H-alpha",
             84, 139,
             95, 20,
             218, 65

@@ -52,7 +52,6 @@
                     <children>
                         <CheckBox fx:id="reconstruction" mnemonicParsing="false" text="%reconstruction" />
                         <CheckBox fx:id="raw" mnemonicParsing="false" text="%raw" />
-                        <CheckBox fx:id="stretched" mnemonicParsing="false" text="%stretched" />
                         <CheckBox fx:id="geometryCorrected" mnemonicParsing="false" text="%geometry.corrected" />
                         <CheckBox fx:id="geometryCorrectedStretched" mnemonicParsing="false" text="%geometry.corrected.stretched" />
                         <CheckBox fx:id="colorized" mnemonicParsing="false" text="%colorized" />

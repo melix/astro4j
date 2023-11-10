@@ -34,7 +34,6 @@ public record RequestedImages(
 ) {
     public static final Set<GeneratedImageKind> FULL_MODE = EnumSet.of(
             GeneratedImageKind.RECONSTRUCTION,
-            GeneratedImageKind.RAW_STRETCHED,
             GeneratedImageKind.VIRTUAL_ECLIPSE,
             GeneratedImageKind.COLORIZED,
             GeneratedImageKind.MIXED,
@@ -47,7 +46,6 @@ public record RequestedImages(
     public static final Set<GeneratedImageKind> FULL_MODE_WITH_DEBUG = EnumSet.of(
             GeneratedImageKind.DEBUG,
             GeneratedImageKind.RECONSTRUCTION,
-            GeneratedImageKind.RAW_STRETCHED,
             GeneratedImageKind.VIRTUAL_ECLIPSE,
             GeneratedImageKind.COLORIZED,
             GeneratedImageKind.MIXED,
@@ -59,13 +57,11 @@ public record RequestedImages(
     );
     public static final Set<GeneratedImageKind> QUICK_MODE = EnumSet.of(
             GeneratedImageKind.RECONSTRUCTION,
-            GeneratedImageKind.RAW_STRETCHED,
             GeneratedImageKind.GEOMETRY_CORRECTED_PROCESSED
     );
     public static final Set<GeneratedImageKind> QUICK_MODE_WITH_DEBUG = EnumSet.of(
             GeneratedImageKind.DEBUG,
             GeneratedImageKind.RECONSTRUCTION,
-            GeneratedImageKind.RAW_STRETCHED,
             GeneratedImageKind.GEOMETRY_CORRECTED_PROCESSED
     );
 
