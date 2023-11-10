@@ -16,6 +16,8 @@
 package me.champeau.a4j.jsolex.processing.sun.workflow;
 
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -24,6 +26,8 @@ import java.util.List;
 public record TransformationHistory(
     List<String> transforms
 ) {
+    private static final Logger LOGGER = LoggerFactory.getLogger(TransformationHistory.class);
+
     public TransformationHistory(List<String> transforms) {
         this.transforms = Collections.unmodifiableList(transforms);
     }
@@ -39,11 +43,16 @@ public record TransformationHistory(
     }
 
     public static ImageWrapper recordTransform(ImageWrapper image, String transform) {
-        var history = (TransformationHistory) image.metadata().computeIfAbsent(
-            TransformationHistory.class,
-            unused -> new TransformationHistory()
-        );
-        image.metadata().put(TransformationHistory.class, history.transform(transform));
-        return image;
+        try {
+            var history = (TransformationHistory) image.metadata().computeIfAbsent(
+                TransformationHistory.class,
+                unused -> new TransformationHistory()
+            );
+            image.metadata().put(TransformationHistory.class, history.transform(transform));
+            return image;
+        } catch (UnsupportedOperationException ex) {
+            LOGGER.warn("Cannot record transformation history on image {}", image, ex);
+            return image;
+        }
     }
 }
