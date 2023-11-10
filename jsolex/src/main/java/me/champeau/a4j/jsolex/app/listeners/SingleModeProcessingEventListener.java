@@ -42,6 +42,7 @@ import javafx.scene.media.Media;
 import javafx.scene.media.MediaPlayer;
 import javafx.scene.media.MediaView;
 import javafx.scene.transform.Transform;
+import javafx.util.Duration;
 import me.champeau.a4j.jsolex.app.JSolEx;
 import me.champeau.a4j.jsolex.app.jfx.BatchOperations;
 import me.champeau.a4j.jsolex.app.jfx.ExplorerSupport;
@@ -668,10 +669,44 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
             if (cpt > 0) {
                 var label = formatWavelength(y, mid, wavelength, binning, pixelSize);
                 var d = new XYChart.Data<String, Number>(label, val / cpt);
-                var tooltip = new Tooltip(label + String.format("(pixel shift: %.2f)", y - mid));
+                var pixelShift = y - mid;
+                var tooltipText = new StringBuilder();
+                tooltipText.append(label).append(" ");
+                tooltipText.append(String.format("(pixel shift: %.2f)", pixelShift)).append("\n");
+                tooltipText.append(message("click.to.reprocess"));
+                var tooltip = new Tooltip(tooltipText.toString());
                 series.getData().add(d);
                 var node = d.getNode();
+                tooltip.setShowDelay(Duration.ZERO);
+                tooltip.setHideDelay(Duration.ZERO);
                 Tooltip.install(node, tooltip);
+                node.setOnMouseClicked(event -> {
+                    var menu = new ContextMenu();
+                    var process = new MenuItem(message("reprocess"));
+                    menu.getItems().add(process);
+                    process.setOnAction(evt -> Thread.startVirtualThread(() -> {
+                        var newParams = params.withSpectrumParams(
+                            params.spectrumParams().withPixelShift(pixelShift)
+                        ).withRequestedImages(
+                            params.requestedImages().withPixelShifts(List.of(pixelShift))
+                        );
+                        var solexVideoProcessor = new SolexVideoProcessor(serFile, outputDirectory, 0, newParams, cpuContext, ioContext, LocalDateTime.now(), false);
+                        solexVideoProcessor.addEventListener(this);
+                        solexVideoProcessor.addEventListener(new ProcessingEventListener() {
+                            @Override
+                            public void onProcessingDone(ProcessingDoneEvent e) {
+                                shiftImages.putAll(e.getPayload().shiftImages());
+                            }
+
+                            @Override
+                            public void onProgress(ProgressEvent e) {
+                                BatchOperations.submitOneOfAKind("progress", () -> owner.updateProgress(e.getPayload().progress(), e.getPayload().task()));
+                            }
+                        });
+                        solexVideoProcessor.process();
+                    }));
+                    menu.show(node, event.getScreenX(), event.getScreenY());
+                });
             }
         }
         BatchOperations.submit(() -> profileTab.setContent(lineChart));
