@@ -48,7 +48,7 @@ public class MetadataRenderer {
         var sb = new StringBuilder();
         sb.append(message("generated.image.metadata")).append("\n");
         sb.append("  - ").append(message("generated.image.title")).append(": ").append(image.title()).append("\n");
-        sb.append("  - ").append(message("generated.image.kind")).append(": ").append(message("imageKind." + image.kind())).append("\n");
+        sb.append("  - ").append(message("generated.image.kind")).append(": ").append(message("imagekind." + image.kind())).append("\n");
         sb.append("  - ").append(message("generated.image.path")).append(": ").append(image.name()).append("\n");
         return sb.toString();
     }

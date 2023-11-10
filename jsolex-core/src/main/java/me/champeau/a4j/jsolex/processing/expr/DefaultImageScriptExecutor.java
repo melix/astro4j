@@ -27,6 +27,7 @@ import me.champeau.a4j.jsolex.processing.util.FileBackedImage;
 import me.champeau.a4j.jsolex.processing.util.ForkJoinContext;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
+import me.champeau.a4j.jsolex.processing.util.MutableMap;
 import me.champeau.a4j.jsolex.processing.util.SolarParameters;
 
 import java.nio.file.Path;
@@ -80,7 +81,7 @@ public class DefaultImageScriptExecutor implements ImageMathScriptExecutor {
     }
 
     private static ImageWrapper32 newDummyImage() {
-        return new ImageWrapper32(0, 0, new float[0], Map.of());
+        return new ImageWrapper32(0, 0, new float[0], MutableMap.of());
     }
 
     @Override

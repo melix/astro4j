@@ -193,6 +193,10 @@ public class ImageViewer {
         }
         var line1 = new HBox(4);
         line1.setAlignment(Pos.CENTER_LEFT);
+        var titleLabel = new Label(title);
+        // bold text for label
+        titleLabel.setStyle("-fx-font-weight: bold");
+        line1.getChildren().add(titleLabel);
         var line2 = new HBox(4);
         line2.setAlignment(Pos.CENTER_LEFT);
         configureContrastAdjustment(line1);
