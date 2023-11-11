@@ -196,10 +196,12 @@ public class BatchModeEventListener implements ProcessingEventListener, ImageMat
         } catch (IOException e) {
             throw new ProcessingException(e);
         }
-        renderBatchOutputs(namingStrategy, result);
-        BatchOperations.submit(() -> {
-            owner.updateProgress(1, String.format(JSolEx.message("executing.script"), scriptFile));
-        });
+        try {
+            processScriptErrors(result);
+            renderBatchOutputs(namingStrategy, result);
+        } finally {
+            BatchOperations.submit(() -> owner.updateProgress(1, String.format(JSolEx.message("executing.script"), scriptFile)));
+        }
     }
 
     private void renderBatchOutputs(FileNamingStrategy namingStrategy, ImageMathScriptResult result) {
@@ -295,6 +297,11 @@ public class BatchModeEventListener implements ProcessingEventListener, ImageMat
     @Override
     public ImageMathScriptResult execute(String script, SectionKind kind) {
         var result = batchScriptExecutor.execute(script, SectionKind.BATCH);
+        processScriptErrors(result);
+        return result;
+    }
+
+    private void processScriptErrors(ImageMathScriptResult result) {
         var invalidExpressions = result.invalidExpressions();
         renderBatchOutputs(createNamingStrategy(), result);
         var errorCount = invalidExpressions.size();
@@ -309,6 +316,5 @@ public class BatchModeEventListener implements ProcessingEventListener, ImageMat
                     message
             )));
         }
-        return result;
     }
 }
