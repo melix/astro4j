@@ -51,14 +51,34 @@ Vous pouvez préciser:
 
 WARNING: Activer ce paramètre peut produire des images sensiblement plus grandes et entraîner une forte pression mémoire. Il n'est pas recommandé d'activer ce paramètre.
 
-- Aiguiser les images : permet d'appliquer un filtre pour améliorer les détails de l'image après reconstitution
+== Paramètres d'amélioration de l'image
+
+Cette section permet de configurer les transformations qui seront appliqueés aux images de façon à améliorer leur aspect esthétique.
+
+image::params-2-fr.jpg[]
+
+- Paramètres CLAHE : permet de configurer l'algorithme d'amélioration de contraste CLAHE.
+Il est possible de configurer la taille des tuiles utilisées pour calculer les histogrammes, la résolution de l'histogramme et le facteur de clipping.
+
+Viennent ensuite les paramètres de correction de bandes, qui permettent de corriger les bandes transversales qui peuvent apparaître sur les images par exemple à cause de poussières sur la fente.
+
+- Largeur de correction de bande : c'est la largeur des bandes qui sont utilisées pour l'algorithme de correction de transversallium. L'algorithme calcule la valeur moyenne des pixels dans ces bandes et corrige la luminosité d'une ligne en fonction de cette valeur.
+- Nombre de passes de correction de bande : plus vous ferez de passes, plus il sera possible de corriger de gros défauts, au prix d'une image moins contrastée et/ou moins lumineuse
+
+Une autre section permet de configurer la déconvolution des images.
+Par défaut, aucune déconvolution n'est appliquée, mais vous pouvez choisir l'agorithme de déconvolution et ses paramètres.
+
+Pour la déconvolution de Richardson-Lucy, vous pouvez choisir la taille du PSF synthétique, le facteur sigma et le nombre d'itérations.
+
+Enfin, vous pouvez choisir d'appliquer un filtre d'amélioration des détails à la fin du traitement en cochant la case "aiguiser les images".
 
 == Paramètres d'observation
 
 Les paramètres d'observation sont utilisés lorsque vous enregistrez vos images au format FITS, pour remplir certaines métadonnées.
+Elles servent aussi à calculer le graphique de longueur d'ondes.
 A noter qu'à ce stade, nous ne recommandons pas d'envoyer les images générées par JSol'Ex sur la base de données BASSS2000, les champs de métadonnées entrés n'étant pas exactement les mêmes.
 
-image::params-2-fr.jpg[]
+image::params-3-fr.jpg[]
 
 Voici les champs disponibles dans JSol'Ex:
 
@@ -70,17 +90,17 @@ Voici les champs disponibles dans JSol'Ex:
 - Latitude et longitude du site d'observation
 - Caméra
 - Date : pré-rempli avec les métadonnées du fichier SER, en zone UTC
+- Binning : le binning appliqué à la caméra lors de l'acquisition
+- Taille des pixels : la taille des pixels de la caméra, en microns
 
 == Autres paramètres disponibles
 
-image::params-3-fr.jpg[]
+image::params-4-fr.jpg[]
 
 - Supposer vidéo mono : si cette cache est cochée, JSol'Ex n'essaiera pas de faire un dématriçage de la vidéo d'entrée, ce qui permet d'accélérer considérablement les temps de traitement. En règle générale, vos vidéos seront en mono, il est donc utile de conserver cette case cochée.
 - Enregistrement automatique des images : si cette case est cochée, toutes les images générées sont automatiquement enregistrées sur disque. Dans le cas contraire, vous devrez dans l'interface qui affiche les images générés appuyer sur le bouton "Enregistrer" pour conserver les images produites
 - Générer des images de debug : permet de générer des images telles que la reconnaissance de contours, la reconnaissance d'ellipse/tilt, l'image moyenne. Utile pour vérifier si le logiciel ne se comporte pas correctement sur votre vidéo et que vous souhaitez vérifier là où il se trompe
 - Générer des fichiers FITS : permet de générer des fichiers FITS, non destructifs, en plus des images PNG
-- Largeur de correction de bande : c'est la largeur des bandes qui sont utilisées pour l'algorithme de correction de transversallium. L'algorithme calcule la valeur moyenne des pixels dans ces bandes et corrige la luminosité d'une ligne en fonction de cette valeur.
-- Nombre de passes de correction de bande : plus vous ferez de passes, plus il sera possible de corriger de gros défauts, au prix d'une image moins contrastée et/ou moins lumineuse
 
 [[modele-noms-fichier]]
 == Modèles de noms de fichier
@@ -88,7 +108,7 @@ image::params-3-fr.jpg[]
 Par défaut, JSol'Ex enregistre les images produites dans un sous-dossier correspondant au nom de la vidéo, et dans ce sous-dossier un autre sous-dossier par type d'image (raw, debug, traitées, etc...).
 Si ce modèle ne vous convient pas, vous pouvez créer vos propres modèles de nommage, en cliquant sur les "...":
 
-image::params-4-fr.jpg[]
+image::params-5-fr.jpg[]
 
 Un modèle de nommage consiste en un label (un nom), mais surtout un modèle dont les composantes sont des jetons entre `%`.
 
