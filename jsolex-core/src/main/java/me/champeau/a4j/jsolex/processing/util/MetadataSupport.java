@@ -21,15 +21,17 @@ import me.champeau.a4j.jsolex.processing.sun.workflow.PixelShift;
 import me.champeau.a4j.jsolex.processing.sun.workflow.TransformationHistory;
 import me.champeau.a4j.math.regression.Ellipse;
 
+import java.util.List;
 import java.util.Optional;
+import java.util.function.Supplier;
 
 import static me.champeau.a4j.jsolex.processing.util.Constants.message;
 
 /**
  * A utility class to render image metadata as text.
  */
-public class MetadataRenderer {
-    private MetadataRenderer() {
+public class MetadataSupport {
+    private MetadataSupport() {
     }
 
     public static Optional<String> render(Class<?> clazz, Object value) {
@@ -70,5 +72,18 @@ public class MetadataRenderer {
 
     private static String renderToString(Class<?> clazz, Object value) {
         return clazz.getSimpleName() + " = " + value.toString();
+    }
+
+    public static Object applyMetadata(String message, Supplier<Object> supplier) {
+        var object = supplier.get();
+        if (object instanceof ImageWrapper wrapper) {
+            return TransformationHistory.recordTransform(wrapper, message);
+        }
+        if (object instanceof List<?> list) {
+            return list.stream()
+                    .map(o -> applyMetadata(message, () -> o))
+                    .toList();
+        }
+        return object;
     }
 }

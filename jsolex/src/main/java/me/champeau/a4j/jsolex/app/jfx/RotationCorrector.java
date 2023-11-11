@@ -19,35 +19,41 @@ import me.champeau.a4j.jsolex.processing.util.ColorizedImageWrapper;
 import me.champeau.a4j.jsolex.processing.util.FileBackedImage;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
+import me.champeau.a4j.jsolex.processing.util.MetadataSupport;
 import me.champeau.a4j.jsolex.processing.util.RGBImage;
 import me.champeau.a4j.math.image.Image;
 import me.champeau.a4j.math.image.ImageMath;
+
+import static me.champeau.a4j.jsolex.processing.util.Constants.message;
 
 public class RotationCorrector {
     private RotationCorrector() {
 
     }
 
-    public static ImageWrapper rotate(ImageWrapper img, double angle) {
-        var imageMath = ImageMath.newInstance();
-        if (img instanceof FileBackedImage fileBackedImage) {
-            img = fileBackedImage.unwrapToMemory();
-        }
-        if (img instanceof ImageWrapper32 mono) {
-            var trn = imageMath.rotate(mono.asImage(), angle, -1, true);
-            return ImageWrapper32.fromImage(trn, mono.metadata());
-        } else if (img instanceof ColorizedImageWrapper colorized) {
-            var mono = colorized.mono();
-            var trn = imageMath.rotate(mono.asImage(), angle, -1, true);
-            return new ColorizedImageWrapper(ImageWrapper32.fromImage(trn), colorized.converter(), colorized.metadata());
-        } else if (img instanceof RGBImage rgb) {
-            var height = rgb.height();
-            var width = rgb.width();
-            var r = imageMath.rotate(new Image(width, height, rgb.r()), angle, -1, true);
-            var g = imageMath.rotate(new Image(width, height, rgb.g()), angle, -1, true);
-            var b = imageMath.rotate(new Image(width, height, rgb.b()), angle, -1, true);
-            return new RGBImage(r.width(), r.height(), r.data(), g.data(), b.data(), rgb.metadata());
-        }
-        throw new IllegalArgumentException("Unsupported image type");
+    public static ImageWrapper rotate(ImageWrapper image, double angle) {
+        return (ImageWrapper) MetadataSupport.applyMetadata(String.format(message("rotate.radians.format"), angle), () -> {
+            var img = image;
+            var imageMath = ImageMath.newInstance();
+            if (img instanceof FileBackedImage fileBackedImage) {
+                img = fileBackedImage.unwrapToMemory();
+            }
+            if (img instanceof ImageWrapper32 mono) {
+                var trn = imageMath.rotate(mono.asImage(), angle, -1, true);
+                return ImageWrapper32.fromImage(trn, mono.metadata());
+            } else if (img instanceof ColorizedImageWrapper colorized) {
+                var mono = colorized.mono();
+                var trn = imageMath.rotate(mono.asImage(), angle, -1, true);
+                return new ColorizedImageWrapper(ImageWrapper32.fromImage(trn), colorized.converter(), colorized.metadata());
+            } else if (img instanceof RGBImage rgb) {
+                var height = rgb.height();
+                var width = rgb.width();
+                var r = imageMath.rotate(new Image(width, height, rgb.r()), angle, -1, true);
+                var g = imageMath.rotate(new Image(width, height, rgb.g()), angle, -1, true);
+                var b = imageMath.rotate(new Image(width, height, rgb.b()), angle, -1, true);
+                return new RGBImage(r.width(), r.height(), r.data(), g.data(), b.data(), rgb.metadata());
+            }
+            throw new IllegalArgumentException("Unsupported image type");
+        });
     }
 }

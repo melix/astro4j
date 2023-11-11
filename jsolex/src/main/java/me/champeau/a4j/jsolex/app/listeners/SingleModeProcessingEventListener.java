@@ -86,7 +86,7 @@ import me.champeau.a4j.jsolex.processing.util.ForkJoinContext;
 import me.champeau.a4j.jsolex.processing.util.Histogram;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
-import me.champeau.a4j.jsolex.processing.util.MetadataRenderer;
+import me.champeau.a4j.jsolex.processing.util.MetadataSupport;
 import me.champeau.a4j.jsolex.processing.util.ProcessingException;
 import me.champeau.a4j.jsolex.processing.util.RGBImage;
 import me.champeau.a4j.jsolex.processing.util.SolarParameters;
@@ -382,6 +382,7 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
             }
         });
         doAddTab(categoryTab);
+        mainPane.getSelectionModel().select(categoryTab);
         return tabPane;
     }
 
@@ -415,7 +416,7 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
         view.setWrapText(true);
         view.setText(metadata.entrySet().stream()
             .sorted(Map.Entry.comparingByKey(new MetadataComparator()))
-            .map(e -> MetadataRenderer.render(e.getKey(), e.getValue()))
+            .map(e -> MetadataSupport.render(e.getKey(), e.getValue()))
             .filter(Optional::isPresent)
             .map(Optional::get)
             .collect(Collectors.joining("\n")));
