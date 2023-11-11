@@ -248,10 +248,15 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
             tab.getProperties().put(GeneratedImageKind.class, GeneratedImageKind.RECONSTRUCTION);
             imageView.setParentTab(tab);
             tabPane.getTabs().add(tab);
+            Runnable listener = () -> {
+                var ps = MetadataSupport.renderPixelShift(new PixelShift(pixelShift));
+                metadataTab.setContent(new Label(ps));
+            };
+            listener.run();
+            tab.getProperties().put(ON_SELECTION, listener);
             tab.selectedProperty().addListener((observable, oldValue, newValue) -> {
                 if (Boolean.TRUE.equals(newValue)) {
-                    var ps = MetadataSupport.renderPixelShift(new PixelShift(pixelShift));
-                    metadataTab.setContent(new Label(ps));
+                    listener.run();
                 }
             });
         });
@@ -347,6 +352,7 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
                 showHistogram(viewer.getStretchedImage());
                 showMetadata(imageWrapper.metadata());
             };
+            listener.run();
             tab.getProperties().put(ON_SELECTION, listener);
             tab.selectedProperty().addListener((observable, oldValue, newValue) -> {
                 if (Boolean.TRUE.equals(newValue)) {
@@ -383,6 +389,10 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
             if (Boolean.TRUE.equals(newValue) && (categoryTab.getContent() instanceof TabPane pane)) {
                 var model = pane.getSelectionModel();
                 var selected = model.getSelectedItem();
+                if (selected == null) {
+                    model.selectFirst();
+                    selected = model.getSelectedItem();
+                }
                 if (selected != null) {
                     var listener = (Runnable) selected.getProperties().get(ON_SELECTION);
                     if (listener != null) {
