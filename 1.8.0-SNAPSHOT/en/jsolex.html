@@ -450,6 +450,7 @@ body.book #toc,body.book #preamble,body.book h1.sect0,body.book .sect1>h2{page-b
 <ul class="sectlevel1">
 <li><a href="#_downloads">Downloads</a></li>
 <li><a href="#_processing_a_video_file">Processing a video file</a></li>
+<li><a href="#_image_enhancement">Image enhancement</a></li>
 <li><a href="#_observation_parameters">Observation parameters</a></li>
 <li><a href="#_other_parameters">Other parameters</a></li>
 <li><a href="#filename-templates">File naming patterns</a></li>
@@ -532,7 +533,7 @@ The following popup should open:</p>
 </div>
 <div class="imageblock">
 <div class="content">
-<img src="params-1-fr.jpg" alt="params 1 fr">
+<img src="params-1-en.jpg" alt="params 1 en">
 </div>
 </div>
 <div class="paragraph">
@@ -598,12 +599,49 @@ Enabling full resolution can lead in significantly larger images and very high m
 </tr>
 </table>
 </div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_image_enhancement">Image enhancement</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>This section lets you configure the transformations which will be applied to images in order to improve their aesthetic aspect.</p>
+</div>
+<div class="imageblock">
+<div class="content">
+<img src="params-2-en.jpg" alt="params 2 en">
+</div>
+</div>
 <div class="ulist">
 <ul>
 <li>
-<p>Sharpen images: when checked, the generated images will be gently sharpened to increase image details</p>
+<p>CLAHE parameters : allows configuring the CLAHE constrast improvement algorithm.
+It is possible to configure the size of the tiles used to compute histograms, the histogram resolution and the clipping factor.</p>
 </li>
 </ul>
+</div>
+<div class="paragraph">
+<p>Next come the banding correction parameters, which allow to correct transversal bands which can appear on images, for example because of dust on the slit.</p>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p>Banding correction width: this is the width of the bands which are used in the transversallium correction algorithm. Bands are used to compute the average brightness of pixels in the band, then lines are corrected according the band they belong to.</p>
+</li>
+<li>
+<p>Banding correction passes: the more passes you&#8217;ll apply, the more lines should be corrected, at the cost of lower constrast images</p>
+</li>
+</ul>
+</div>
+<div class="paragraph">
+<p>Another section lets you configure image deconvolution.
+By default, no deconvolution is applied, but you can choose the deconvolution algorithm and its parameters.</p>
+</div>
+<div class="paragraph">
+<p>For the Richardson-Lucy deconvolution, you can choose the size of the synthetic PSF, the sigma factor and the number of iterations.</p>
+</div>
+<div class="paragraph">
+<p>Finally, you can choose to apply a detail enhancement filter at the end of the processing by checking the "sharpen images" box.</p>
 </div>
 </div>
 </div>
@@ -616,7 +654,7 @@ As of now, we do <em>not</em> recommend to publish images produced using JSol&#8
 </div>
 <div class="imageblock">
 <div class="content">
-<img src="params-2-fr.jpg" alt="params 2 fr">
+<img src="params-3-en.jpg" alt="params 3 en">
 </div>
 </div>
 <div class="paragraph">
@@ -648,6 +686,12 @@ As of now, we do <em>not</em> recommend to publish images produced using JSol&#8
 <li>
 <p>Date : pre-filled with information from the SER file, expressed in the UTC timezone</p>
 </li>
+<li>
+<p>Binning : the binning of pixels when the video was recorded</p>
+</li>
+<li>
+<p>Pixel size : the size of the camera pixels in microns</p>
+</li>
 </ul>
 </div>
 </div>
@@ -657,7 +701,7 @@ As of now, we do <em>not</em> recommend to publish images produced using JSol&#8
 <div class="sectionbody">
 <div class="imageblock">
 <div class="content">
-<img src="params-3-fr.jpg" alt="params 3 fr">
+<img src="params-4-en.jpg" alt="params 4 en">
 </div>
 </div>
 <div class="ulist">
@@ -674,12 +718,6 @@ As of now, we do <em>not</em> recommend to publish images produced using JSol&#8
 <li>
 <p>Generate FITS files : in addition to PNG files, will also generate FITS files.</p>
 </li>
-<li>
-<p>Banding correction width: this is the width of the bands which are used in the transversallium correction algorithm. Bands are used to compute the average brightness of pixels in the band, then lines are corrected according the band they belong to.</p>
-</li>
-<li>
-<p>Banding correction passes: the more passes you&#8217;ll apply, the more lines should be corrected, at the cost of lower constrast images</p>
-</li>
 </ul>
 </div>
 </div>
@@ -693,7 +731,7 @@ If that naming convention doesn&#8217;t suit you, you can create your own naming
 </div>
 <div class="imageblock">
 <div class="content">
-<img src="params-4-fr.jpg" alt="params 4 fr">
+<img src="params-5-en.jpg" alt="params 5 en">
 </div>
 </div>
 <div class="paragraph">

@@ -450,6 +450,7 @@ body.book #toc,body.book #preamble,body.book h1.sect0,body.book .sect1>h2{page-b
 <ul class="sectlevel1">
 <li><a href="#_téléchargement">Téléchargement</a></li>
 <li><a href="#_traitement_dune_vidéo">Traitement d&#8217;une vidéo</a></li>
+<li><a href="#_paramètres_damélioration_de_limage">Paramètres d&#8217;amélioration de l&#8217;image</a></li>
 <li><a href="#_paramètres_dobservation">Paramètres d&#8217;observation</a></li>
 <li><a href="#_autres_paramètres_disponibles">Autres paramètres disponibles</a></li>
 <li><a href="#modele-noms-fichier">Modèles de noms de fichier</a></li>
@@ -597,12 +598,49 @@ Activer ce paramètre peut produire des images sensiblement plus grandes et entr
 </tr>
 </table>
 </div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_paramètres_damélioration_de_limage">Paramètres d&#8217;amélioration de l&#8217;image</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>Cette section permet de configurer les transformations qui seront appliqueés aux images de façon à améliorer leur aspect esthétique.</p>
+</div>
+<div class="imageblock">
+<div class="content">
+<img src="params-2-fr.jpg" alt="params 2 fr">
+</div>
+</div>
 <div class="ulist">
 <ul>
 <li>
-<p>Aiguiser les images : permet d&#8217;appliquer un filtre pour améliorer les détails de l&#8217;image après reconstitution</p>
+<p>Paramètres CLAHE : permet de configurer l&#8217;algorithme d&#8217;amélioration de contraste CLAHE.
+Il est possible de configurer la taille des tuiles utilisées pour calculer les histogrammes, la résolution de l&#8217;histogramme et le facteur de clipping.</p>
 </li>
 </ul>
+</div>
+<div class="paragraph">
+<p>Viennent ensuite les paramètres de correction de bandes, qui permettent de corriger les bandes transversales qui peuvent apparaître sur les images par exemple à cause de poussières sur la fente.</p>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p>Largeur de correction de bande : c&#8217;est la largeur des bandes qui sont utilisées pour l&#8217;algorithme de correction de transversallium. L&#8217;algorithme calcule la valeur moyenne des pixels dans ces bandes et corrige la luminosité d&#8217;une ligne en fonction de cette valeur.</p>
+</li>
+<li>
+<p>Nombre de passes de correction de bande : plus vous ferez de passes, plus il sera possible de corriger de gros défauts, au prix d&#8217;une image moins contrastée et/ou moins lumineuse</p>
+</li>
+</ul>
+</div>
+<div class="paragraph">
+<p>Une autre section permet de configurer la déconvolution des images.
+Par défaut, aucune déconvolution n&#8217;est appliquée, mais vous pouvez choisir l&#8217;agorithme de déconvolution et ses paramètres.</p>
+</div>
+<div class="paragraph">
+<p>Pour la déconvolution de Richardson-Lucy, vous pouvez choisir la taille du PSF synthétique, le facteur sigma et le nombre d&#8217;itérations.</p>
+</div>
+<div class="paragraph">
+<p>Enfin, vous pouvez choisir d&#8217;appliquer un filtre d&#8217;amélioration des détails à la fin du traitement en cochant la case "aiguiser les images".</p>
 </div>
 </div>
 </div>
@@ -611,11 +649,12 @@ Activer ce paramètre peut produire des images sensiblement plus grandes et entr
 <div class="sectionbody">
 <div class="paragraph">
 <p>Les paramètres d&#8217;observation sont utilisés lorsque vous enregistrez vos images au format FITS, pour remplir certaines métadonnées.
+Elles servent aussi à calculer le graphique de longueur d&#8217;ondes.
 A noter qu&#8217;à ce stade, nous ne recommandons pas d&#8217;envoyer les images générées par JSol&#8217;Ex sur la base de données BASSS2000, les champs de métadonnées entrés n&#8217;étant pas exactement les mêmes.</p>
 </div>
 <div class="imageblock">
 <div class="content">
-<img src="params-2-fr.jpg" alt="params 2 fr">
+<img src="params-3-fr.jpg" alt="params 3 fr">
 </div>
 </div>
 <div class="paragraph">
@@ -647,6 +686,12 @@ A noter qu&#8217;à ce stade, nous ne recommandons pas d&#8217;envoyer les image
 <li>
 <p>Date : pré-rempli avec les métadonnées du fichier SER, en zone UTC</p>
 </li>
+<li>
+<p>Binning : le binning appliqué à la caméra lors de l&#8217;acquisition</p>
+</li>
+<li>
+<p>Taille des pixels : la taille des pixels de la caméra, en microns</p>
+</li>
 </ul>
 </div>
 </div>
@@ -656,7 +701,7 @@ A noter qu&#8217;à ce stade, nous ne recommandons pas d&#8217;envoyer les image
 <div class="sectionbody">
 <div class="imageblock">
 <div class="content">
-<img src="params-3-fr.jpg" alt="params 3 fr">
+<img src="params-4-fr.jpg" alt="params 4 fr">
 </div>
 </div>
 <div class="ulist">
@@ -673,12 +718,6 @@ A noter qu&#8217;à ce stade, nous ne recommandons pas d&#8217;envoyer les image
 <li>
 <p>Générer des fichiers FITS : permet de générer des fichiers FITS, non destructifs, en plus des images PNG</p>
 </li>
-<li>
-<p>Largeur de correction de bande : c&#8217;est la largeur des bandes qui sont utilisées pour l&#8217;algorithme de correction de transversallium. L&#8217;algorithme calcule la valeur moyenne des pixels dans ces bandes et corrige la luminosité d&#8217;une ligne en fonction de cette valeur.</p>
-</li>
-<li>
-<p>Nombre de passes de correction de bande : plus vous ferez de passes, plus il sera possible de corriger de gros défauts, au prix d&#8217;une image moins contrastée et/ou moins lumineuse</p>
-</li>
 </ul>
 </div>
 </div>
@@ -692,7 +731,7 @@ Si ce modèle ne vous convient pas, vous pouvez créer vos propres modèles de n
 </div>
 <div class="imageblock">
 <div class="content">
-<img src="params-4-fr.jpg" alt="params 4 fr">
+<img src="params-5-fr.jpg" alt="params 5 fr">
 </div>
 </div>
 <div class="paragraph">
