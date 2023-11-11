@@ -77,7 +77,7 @@ public class Rotate extends AbstractFunctionImpl {
     private Object doRotate(List<Object> arguments, double angle) {
         var arg = arguments.get(0);
         if (arg instanceof List<?>) {
-            return expandToImageList(forkJoinContext, arguments, this::rotateLeft);
+            return expandToImageList(forkJoinContext, arguments, this::rotateRadians);
         }
         if (arg instanceof FileBackedImage fileBackedImage) {
             arg = fileBackedImage.unwrapToMemory();

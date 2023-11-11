@@ -82,7 +82,7 @@ public class GeometryCorrector extends AbstractTask<GeometryCorrector.Result> {
 
     @Override
     public Result doCall() throws Exception {
-        broadcaster.broadcast(ProgressEvent.of(0, "Correcting geometry"));
+        broadcaster.broadcast(ProgressEvent.of(0, message("correcting.geometry")));
         var theta = forcedTilt == null ? ellipse.rotationAngle() : forcedTilt;
         var m = Math.tan(-theta);
         var semiAxis = ellipse.semiAxis();
@@ -141,6 +141,7 @@ public class GeometryCorrector extends AbstractTask<GeometryCorrector.Result> {
         var metadata = new HashMap<>(getMetadata());
         metadata.put(Ellipse.class, circle);
         var corrected = ImageWrapper32.fromImage(rescaled, metadata);
+        TransformationHistory.recordTransform(corrected, message("geometry.correction"));
         var autocropMode = processParams.geometryParams().autocropMode();
         if (autocropMode != null) {
             var cropping = new Crop(forkJoinContext, MutableMap.of(Ellipse.class, ellipse));
@@ -163,9 +164,9 @@ public class GeometryCorrector extends AbstractTask<GeometryCorrector.Result> {
                 }
                 default -> corrected;
             };
+            TransformationHistory.recordTransform(corrected, message("autocrop"));
         }
-        broadcaster.broadcast(ProgressEvent.of(1, "Correcting geometry"));
-        TransformationHistory.recordTransform(corrected, "Geometry correction");
+        broadcaster.broadcast(ProgressEvent.of(1, message("correcting.geometry")));
         return new Result(corrected, corrected, ellipse, corrected.findMetadata(Ellipse.class).orElse(circle), blackPoint);
     }
 

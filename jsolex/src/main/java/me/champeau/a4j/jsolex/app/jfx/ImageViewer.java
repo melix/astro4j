@@ -191,9 +191,9 @@ public class ImageViewer {
         if (kind != GeneratedImageKind.IMAGE_MATH) {
             this.stretchingStrategy = this.stretchingStrategy.withNormalize(true);
         }
-        var line1 = new HBox(4);
+        var line1 = new HBox(2);
         line1.setAlignment(Pos.CENTER_LEFT);
-        var line2 = new HBox(4);
+        var line2 = new HBox(2);
         line2.setAlignment(Pos.CENTER_LEFT);
         configureContrastAdjustment(line1);
         var reset = new Button(message("reset"));
@@ -244,7 +244,10 @@ public class ImageViewer {
         nextButton.visibleProperty().bind(imageHistory.sizeProperty().greaterThan(1));
         line1.getChildren().addAll(reset, saveButton, prevButton, nextButton);
         line2.getChildren().addAll(correctAngleP, zoomLabel, zoomSlider, dimensions, coordinatesLabel);
-        stretchingParams.getChildren().addAll(line1, line2);
+        var titleLabel = new Label(title);
+        titleLabel.setStyle("-fx-font-weight: bold");
+        line1.getChildren().add(titleLabel);
+        stretchingParams.getChildren().addAll(titleLabel, line1, line2);
         stretchAndDisplay(true);
     }
 

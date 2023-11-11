@@ -23,50 +23,53 @@ import java.util.Set;
 
 /**
  * Stores information about the images to generate.
+ *
  * @param images the image kinds
  * @param pixelShifts the requested pixel shifts
  */
 public record RequestedImages(
-        Set<GeneratedImageKind> images,
-        List<Double> pixelShifts,
-        Set<Double> internalPixelShifts,
-        ImageMathParams mathImages
+    Set<GeneratedImageKind> images,
+    List<Double> pixelShifts,
+    Set<Double> internalPixelShifts,
+    ImageMathParams mathImages
 ) {
     public static final Set<GeneratedImageKind> FULL_MODE = EnumSet.of(
-            GeneratedImageKind.RECONSTRUCTION,
-            GeneratedImageKind.RAW_STRETCHED,
-            GeneratedImageKind.VIRTUAL_ECLIPSE,
-            GeneratedImageKind.COLORIZED,
-            GeneratedImageKind.MIXED,
-            GeneratedImageKind.NEGATIVE,
-            GeneratedImageKind.DOPPLER,
-            GeneratedImageKind.GEOMETRY_CORRECTED_PROCESSED,
-            GeneratedImageKind.CONTINUUM,
-            GeneratedImageKind.TECHNICAL_CARD
+        GeneratedImageKind.RECONSTRUCTION,
+        GeneratedImageKind.RAW,
+        GeneratedImageKind.VIRTUAL_ECLIPSE,
+        GeneratedImageKind.COLORIZED,
+        GeneratedImageKind.MIXED,
+        GeneratedImageKind.NEGATIVE,
+        GeneratedImageKind.DOPPLER,
+        GeneratedImageKind.GEOMETRY_CORRECTED,
+        GeneratedImageKind.GEOMETRY_CORRECTED_PROCESSED,
+        GeneratedImageKind.CONTINUUM,
+        GeneratedImageKind.TECHNICAL_CARD
     );
     public static final Set<GeneratedImageKind> FULL_MODE_WITH_DEBUG = EnumSet.of(
-            GeneratedImageKind.DEBUG,
-            GeneratedImageKind.RECONSTRUCTION,
-            GeneratedImageKind.RAW_STRETCHED,
-            GeneratedImageKind.VIRTUAL_ECLIPSE,
-            GeneratedImageKind.COLORIZED,
-            GeneratedImageKind.MIXED,
-            GeneratedImageKind.NEGATIVE,
-            GeneratedImageKind.DOPPLER,
-            GeneratedImageKind.GEOMETRY_CORRECTED_PROCESSED,
-            GeneratedImageKind.CONTINUUM,
-            GeneratedImageKind.TECHNICAL_CARD
+        GeneratedImageKind.DEBUG,
+        GeneratedImageKind.RAW,
+        GeneratedImageKind.RECONSTRUCTION,
+        GeneratedImageKind.VIRTUAL_ECLIPSE,
+        GeneratedImageKind.COLORIZED,
+        GeneratedImageKind.MIXED,
+        GeneratedImageKind.NEGATIVE,
+        GeneratedImageKind.DOPPLER,
+        GeneratedImageKind.GEOMETRY_CORRECTED,
+        GeneratedImageKind.GEOMETRY_CORRECTED_PROCESSED,
+        GeneratedImageKind.CONTINUUM,
+        GeneratedImageKind.TECHNICAL_CARD
     );
     public static final Set<GeneratedImageKind> QUICK_MODE = EnumSet.of(
-            GeneratedImageKind.RECONSTRUCTION,
-            GeneratedImageKind.RAW_STRETCHED,
-            GeneratedImageKind.GEOMETRY_CORRECTED_PROCESSED
+        GeneratedImageKind.RECONSTRUCTION,
+        GeneratedImageKind.RAW,
+        GeneratedImageKind.GEOMETRY_CORRECTED_PROCESSED
     );
     public static final Set<GeneratedImageKind> QUICK_MODE_WITH_DEBUG = EnumSet.of(
-            GeneratedImageKind.DEBUG,
-            GeneratedImageKind.RECONSTRUCTION,
-            GeneratedImageKind.RAW_STRETCHED,
-            GeneratedImageKind.GEOMETRY_CORRECTED_PROCESSED
+        GeneratedImageKind.DEBUG,
+        GeneratedImageKind.RAW,
+        GeneratedImageKind.RECONSTRUCTION,
+        GeneratedImageKind.GEOMETRY_CORRECTED_PROCESSED
     );
 
     public boolean isEnabled(GeneratedImageKind kind) {

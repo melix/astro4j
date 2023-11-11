@@ -15,8 +15,10 @@
  */
 package me.champeau.a4j.jsolex.app.listeners;
 
+import javafx.collections.ListChangeListener;
 import javafx.embed.swing.SwingFXUtils;
 import javafx.geometry.Pos;
+import javafx.geometry.Side;
 import javafx.scene.Node;
 import javafx.scene.SnapshotParameters;
 import javafx.scene.chart.BarChart;
@@ -77,13 +79,14 @@ import me.champeau.a4j.jsolex.processing.sun.SolexVideoProcessor;
 import me.champeau.a4j.jsolex.processing.sun.workflow.GeneratedImageKind;
 import me.champeau.a4j.jsolex.processing.sun.workflow.ImageEmitter;
 import me.champeau.a4j.jsolex.processing.sun.workflow.ImageStats;
+import me.champeau.a4j.jsolex.processing.sun.workflow.PixelShift;
 import me.champeau.a4j.jsolex.processing.util.ColorizedImageWrapper;
 import me.champeau.a4j.jsolex.processing.util.Constants;
 import me.champeau.a4j.jsolex.processing.util.ForkJoinContext;
 import me.champeau.a4j.jsolex.processing.util.Histogram;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
-import me.champeau.a4j.jsolex.processing.util.MetadataRenderer;
+import me.champeau.a4j.jsolex.processing.util.MetadataSupport;
 import me.champeau.a4j.jsolex.processing.util.ProcessingException;
 import me.champeau.a4j.jsolex.processing.util.RGBImage;
 import me.champeau.a4j.jsolex.processing.util.SolarParameters;
@@ -102,6 +105,7 @@ import java.nio.file.Path;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -124,6 +128,27 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
     private static final int DEFAULT_ORDER = 1;
     private static final int DEFAULT_DENSITY = 2400;
     private static final int DEFAULT_FOCAL_LEN = 125;
+    private static final String ON_SELECTION = "onSelectionListener";
+
+    private static final Comparator<Tab> COMPARE_BY_IMAGE_KIND = (o1, o2) -> {
+        var k1 = (GeneratedImageKind) o1.getProperties().get(GeneratedImageKind.class);
+        var k2 = (GeneratedImageKind) o2.getProperties().get(GeneratedImageKind.class);
+        if (k1 != null && k2 != null) {
+            return Comparator.comparingInt(GeneratedImageKind::ordinal).compare(k1, k2);
+        } else {
+            return -1;
+        }
+    };
+
+    private static final Comparator<Tab> COMPARE_BY_PIXEL_SHIFT = (o1, o2) -> {
+        var k1 = (PixelShift) o1.getProperties().get(PixelShift.class);
+        var k2 = (PixelShift) o2.getProperties().get(PixelShift.class);
+        if (k1 != null && k2 != null) {
+            return Comparator.comparingDouble(PixelShift::pixelShift).compare(k1, k2);
+        } else {
+            return -1;
+        }
+    };
 
     private final Map<SuggestionEvent.SuggestionKind, String> suggestions = Collections.synchronizedMap(new LinkedHashMap<>());
     private final Map<Double, ZoomableImageView> imageViews;
@@ -217,9 +242,11 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
             if (pixelShift != 0) {
                 suffix = " (" + pixelShift + ")";
             }
+            var tabPane = getOrCreateCategoryTab(GeneratedImageKind.RECONSTRUCTION);
             var tab = new Tab(message("image.reconstruction") + suffix, scrollPane);
+            tab.getProperties().put(GeneratedImageKind.class, GeneratedImageKind.RECONSTRUCTION);
             imageView.setParentTab(tab);
-            mainPane.getTabs().add(tab);
+            tabPane.getTabs().add(tab);
             tab.selectedProperty().addListener((observable, oldValue, newValue) -> {
                 if (Boolean.TRUE.equals(newValue)) {
                     metadataTab.setContent(null);
@@ -235,6 +262,7 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
         int y = payload.line();
         if (payload.display()) {
             var imageView = getOrCreateImageView(event);
+            imageView.resetZoom();
             WritableImage image = (WritableImage) imageView.getImage();
             double[] line = payload.data();
             byte[] rgb = new byte[3 * line.length];
@@ -248,7 +276,7 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
             var pixelformat = PixelFormat.getByteRgbInstance();
             onProgress(ProgressEvent.of((y + 1d) / height, message("reconstructing")));
             BatchOperations.submit(() -> {
-                if (event.getPayload().pixelShift() == 0) {
+                if (event.getPayload().pixelShift() == params.spectrumParams().pixelShift()) {
                     mainPane.getSelectionModel().select(imageView.getParentTab());
                 }
                 image.getPixelWriter().setPixels(0, y, line.length, DEFAULT_ORDER, pixelformat, rgb, 0, 3 * line.length);
@@ -267,7 +295,26 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
         BatchOperations.submit(() -> {
             var payload = event.getPayload();
             var title = payload.title();
-            var tab = new Tab(title);
+            var kind = payload.kind();
+            var tabPane = getOrCreateCategoryTab(kind);
+            var tab = new Tab();
+            var tabTitle = title;
+            var pixelShift = payload.image().findMetadata(PixelShift.class);
+            if (pixelShift.isPresent()) {
+                tab.getProperties().put(PixelShift.class, pixelShift.get());
+                double ps = pixelShift.get().pixelShift();
+                if (ps != 0 || kind == GeneratedImageKind.IMAGE_MATH) {
+                    if (Math.round(ps) == ps) {
+                        tabTitle = String.format("%dpx", Math.round(ps));
+                    } else {
+                        tabTitle = String.format("%.2fpx", ps);
+                    }
+                }
+            } else {
+                tab.getProperties().put(PixelShift.class, new PixelShift(Double.MAX_VALUE));
+            }
+            tab.getProperties().put(GeneratedImageKind.class, kind);
+            tab.setText(tabTitle);
             var viewer = newImageViewer();
             viewer.fitWidthProperty().bind(mainPane.widthProperty());
             viewer.setTab(tab);
@@ -275,7 +322,7 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
             viewer.setup(this,
                 title,
                 baseName,
-                payload.kind(),
+                kind,
                 imageWrapper,
                 payload.path().toFile(),
                 params,
@@ -287,18 +334,82 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
                 }
             });
             tab.setContent(viewer.getRoot());
-            mainPane.getTabs().add(tab);
+            tabPane.getTabs().add(tab);
+            tabPane.getTabs().sort(COMPARE_BY_PIXEL_SHIFT);
+            tabPane.getSelectionModel().select(tab);
             var imageViewer = popupViews.get(title);
             if (imageViewer != null) {
                 imageViewer.setImage(baseName, params, imageWrapper, payload.path());
             }
+            Runnable listener = () -> {
+                showHistogram(viewer.getStretchedImage());
+                showMetadata(imageWrapper.metadata());
+            };
+            tab.getProperties().put(ON_SELECTION, listener);
             tab.selectedProperty().addListener((observable, oldValue, newValue) -> {
                 if (Boolean.TRUE.equals(newValue)) {
-                    showHistogram(viewer.getStretchedImage());
-                    showMetadata(imageWrapper.metadata());
+                    listener.run();
                 }
             });
         });
+    }
+
+    private synchronized TabPane getOrCreateCategoryTab(GeneratedImageKind kind) {
+        if (kind == GeneratedImageKind.CONTINUUM) {
+            // special case to reuse the "geometry corrected" tab
+            kind = GeneratedImageKind.GEOMETRY_CORRECTED;
+        }
+        var finalKind = kind;
+        return mainPane.getTabs().stream()
+            .filter(t -> t.getProperties().get(GeneratedImageKind.class) == finalKind)
+            .findFirst()
+            .map(t -> {
+                mainPane.getSelectionModel().select(t);
+                return (TabPane) t.getContent();
+            })
+            .orElseGet(() -> createCategoryTab(finalKind));
+    }
+
+    private TabPane createCategoryTab(GeneratedImageKind kind) {
+        var categoryTab = new Tab(message("imagekind." + kind.name()));
+        var tabPane = new TabPane();
+        tabPane.setSide(Side.LEFT);
+        hideTabHeaderWhenSingleTab(tabPane);
+        categoryTab.getProperties().put(GeneratedImageKind.class, kind);
+        categoryTab.setContent(tabPane);
+        categoryTab.selectedProperty().addListener((observable, oldValue, newValue) -> {
+            if (Boolean.TRUE.equals(newValue) && (categoryTab.getContent() instanceof TabPane pane)) {
+                var model = pane.getSelectionModel();
+                var selected = model.getSelectedItem();
+                if (selected != null) {
+                    var listener = (Runnable) selected.getProperties().get(ON_SELECTION);
+                    if (listener != null) {
+                        listener.run();
+                    }
+                }
+            }
+        });
+        doAddTab(categoryTab);
+        mainPane.getSelectionModel().select(categoryTab);
+        return tabPane;
+    }
+
+    private static void hideTabHeaderWhenSingleTab(TabPane tabPane) {
+        tabPane.getTabs().addListener((ListChangeListener<? super Tab>) tab -> {
+            if (tabPane.getTabs().size() <= 1) {
+                tabPane.setTabMaxWidth(0);
+                tabPane.setTabMaxHeight(0);
+            } else {
+                tabPane.setTabMaxWidth(Double.MAX_VALUE);
+                tabPane.setTabMaxHeight(Double.MAX_VALUE);
+            }
+        });
+    }
+
+    private void doAddTab(Tab tab) {
+        var tabs = mainPane.getTabs();
+        tabs.add(tab);
+        tabs.sort(COMPARE_BY_IMAGE_KIND);
     }
 
     private void showMetadata(Map<Class<?>, Object> metadata) {
@@ -313,7 +424,7 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
         view.setWrapText(true);
         view.setText(metadata.entrySet().stream()
             .sorted(Map.Entry.comparingByKey(new MetadataComparator()))
-            .map(e -> MetadataRenderer.render(e.getKey(), e.getValue()))
+            .map(e -> MetadataSupport.render(e.getKey(), e.getValue()))
             .filter(Optional::isPresent)
             .map(Optional::get)
             .collect(Collectors.joining("\n")));
@@ -389,6 +500,7 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
         if (filePath.toFile().getName().endsWith(".mp4")) {
             BatchOperations.submit(() -> {
                 var tab = new Tab(event.getPayload().title());
+                tab.getProperties().put(GeneratedImageKind.class, GeneratedImageKind.IMAGE_MATH);
                 var media = new Media(filePath.toUri().toString());
                 var mediaPlayer = new MediaPlayer(media);
                 var viewer = new MediaView(mediaPlayer);
@@ -411,7 +523,7 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
                 var contentBox = new VBox(new ScrollPane(viewer), buttonBox);
                 contentBox.setAlignment(Pos.CENTER);
                 tab.setContent(contentBox);
-                mainPane.getTabs().add(tab);
+                doAddTab(tab);
                 mainPane.getSelectionModel().select(tab);
                 viewer.fitWidthProperty().bind(mainPane.widthProperty());
                 viewer.fitHeightProperty().bind(mainPane.heightProperty().subtract(buttonBox.heightProperty()));

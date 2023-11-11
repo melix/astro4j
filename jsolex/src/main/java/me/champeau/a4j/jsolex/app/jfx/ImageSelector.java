@@ -53,8 +53,6 @@ public class ImageSelector {
     @FXML
     private CheckBox raw;
     @FXML
-    private CheckBox stretched;
-    @FXML
     private CheckBox geometryCorrected;
     @FXML
     private CheckBox geometryCorrectedStretched;
@@ -131,9 +129,12 @@ public class ImageSelector {
             newPixelShifts.addAll(selectedPixelShifts);
         }
         for (GeneratedImageKind image : images) {
+            if (image==null) {
+                // can happen because of backwards compatibility
+                continue;
+            }
             switch (image) {
                 case RAW -> raw.setSelected(true);
-                case RAW_STRETCHED -> stretched.setSelected(true);
                 case GEOMETRY_CORRECTED -> geometryCorrected.setSelected(true);
                 case GEOMETRY_CORRECTED_PROCESSED -> geometryCorrectedStretched.setSelected(true);
                 case COLORIZED -> colorized.setSelected(true);
@@ -215,10 +216,6 @@ public class ImageSelector {
             images.add(GeneratedImageKind.RAW);
             makeDefaultShiftNonInternal();
         }
-        if (stretched.isSelected()) {
-            images.add(GeneratedImageKind.RAW_STRETCHED);
-            makeDefaultShiftNonInternal();
-        }
         if (technicalCard.isSelected()) {
             images.add(GeneratedImageKind.TECHNICAL_CARD);
             makeDefaultShiftNonInternal();
@@ -294,7 +291,6 @@ public class ImageSelector {
 
     private void selectAll(boolean selected) {
         raw.setSelected(selected);
-        stretched.setSelected(selected);
         geometryCorrected.setSelected(selected);
         geometryCorrectedStretched.setSelected(selected);
         colorized.setSelected(selected);

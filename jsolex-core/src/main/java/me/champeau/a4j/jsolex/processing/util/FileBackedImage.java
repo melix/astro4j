@@ -21,8 +21,11 @@ import java.lang.ref.Cleaner;
 import java.nio.channels.FileChannel;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Function;
 
 /**
@@ -31,6 +34,8 @@ import java.util.function.Function;
  */
 public final class FileBackedImage implements ImageWrapper {
     private static final Cleaner CLEANER = Cleaner.create();
+    private static final Map<Path, Integer> REF_COUNT = new HashMap<>();
+    private static final Lock LOCK = new ReentrantLock();
     private static final byte MONO = 0;
     private static final byte COLORIZED = 1;
     private static final byte RGB = 2;
@@ -47,6 +52,12 @@ public final class FileBackedImage implements ImageWrapper {
         this.backingFile = backingFile;
         this.metadata = metadata;
         this.keptInMemory = keptInMemory;
+        LOCK.lock();
+        try {
+            REF_COUNT.compute(backingFile, (k, v) -> v == null ? 1 : v + 1);
+        } finally {
+            LOCK.unlock();
+        }
         CLEANER.register(this, () -> clean(backingFile));
     }
 
@@ -155,10 +166,22 @@ public final class FileBackedImage implements ImageWrapper {
     }
 
     private static void clean(Path backingFile) {
+        LOCK.lock();
         try {
-            Files.delete(backingFile);
+            int refCount = REF_COUNT.compute(backingFile, (k, v) -> {
+                if (v == null) {
+                    return 0;
+                }
+                return v - 1;
+            });
+            if (refCount == 0) {
+                Files.delete(backingFile);
+                REF_COUNT.remove(backingFile);
+            }
         } catch (IOException e) {
             // ignore
+        } finally {
+            LOCK.unlock();
         }
     }
 }

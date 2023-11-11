@@ -51,6 +51,7 @@ import me.champeau.a4j.jsolex.processing.sun.workflow.NamingStrategyAwareImageEm
 import me.champeau.a4j.jsolex.processing.sun.workflow.NoOpImageEmitter;
 import me.champeau.a4j.jsolex.processing.sun.workflow.ProcessingWorkflow;
 import me.champeau.a4j.jsolex.processing.sun.workflow.RenamingImageEmitter;
+import me.champeau.a4j.jsolex.processing.sun.workflow.TransformationHistory;
 import me.champeau.a4j.jsolex.processing.sun.workflow.WorkflowResults;
 import me.champeau.a4j.jsolex.processing.util.Constants;
 import me.champeau.a4j.jsolex.processing.util.FileBackedImage;
@@ -242,6 +243,7 @@ public class SolexVideoProcessor implements Broadcaster {
                             var recon = new Image(width, newHeight, state.reconstructed());
                             var rotateLeft = ImageMath.newInstance().rotateLeft(recon);
                             rotated = ImageWrapper32.fromImage(rotateLeft, createMetadata(processParams));
+                            TransformationHistory.recordTransform(rotated, message("rotate.left"));
                             maybePerformFlips(rotated);
                             state.setImage(rotated);
                         });
@@ -410,6 +412,7 @@ public class SolexVideoProcessor implements Broadcaster {
                 }
             }
             System.arraycopy(flipped, 0, original, 0, original.length);
+            TransformationHistory.recordTransform(rotated, message("flip"));
         }
     }
 
@@ -511,7 +514,7 @@ public class SolexVideoProcessor implements Broadcaster {
             lastY = yi;
         }
         if (!internal) {
-            broadcast(new PartialReconstructionEvent(new ImageLine(pixelShift, offset / width, totalLines, line, processParams.extraParams().generateDebugImages() && processParams.requestedImages().isEnabled(GeneratedImageKind.RECONSTRUCTION))));
+            broadcast(new PartialReconstructionEvent(new ImageLine(pixelShift, offset / width, totalLines, line, processParams.extraParams().generateDebugImages() || processParams.requestedImages().isEnabled(GeneratedImageKind.RECONSTRUCTION))));
         }
     }
 
