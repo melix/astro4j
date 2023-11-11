@@ -133,13 +133,21 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
     private static final Comparator<Tab> COMPARE_BY_IMAGE_KIND = (o1, o2) -> {
         var k1 = (GeneratedImageKind) o1.getProperties().get(GeneratedImageKind.class);
         var k2 = (GeneratedImageKind) o2.getProperties().get(GeneratedImageKind.class);
-        return Comparator.comparingInt(GeneratedImageKind::ordinal).compare(k1, k2);
+        if (k1 != null && k2 != null) {
+            return Comparator.comparingInt(GeneratedImageKind::ordinal).compare(k1, k2);
+        } else {
+            return -1;
+        }
     };
 
     private static final Comparator<Tab> COMPARE_BY_PIXEL_SHIFT = (o1, o2) -> {
         var k1 = (PixelShift) o1.getProperties().get(PixelShift.class);
         var k2 = (PixelShift) o2.getProperties().get(PixelShift.class);
-        return Comparator.comparingDouble(PixelShift::pixelShift).compare(k1, k2);
+        if (k1 != null && k2 != null) {
+            return Comparator.comparingDouble(PixelShift::pixelShift).compare(k1, k2);
+        } else {
+            return -1;
+        }
     };
 
     private final Map<SuggestionEvent.SuggestionKind, String> suggestions = Collections.synchronizedMap(new LinkedHashMap<>());
