@@ -25,7 +25,7 @@ public class Deconvolution {
 
     public static final double DEFAULT_RADIUS = 2.5;
     public static final double DEFAULT_SIGMA = 2.5;
-    public static final double DEFAULT_ITERATIONS = 5;
+    public static final int DEFAULT_ITERATIONS = 5;
 
     private final ImageMath imageMath;
 
