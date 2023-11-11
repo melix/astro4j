@@ -62,7 +62,7 @@ public class MetadataSupport {
         return sb.toString();
     }
 
-    private static String renderPixelShift(PixelShift value) {
+    public static String renderPixelShift(PixelShift value) {
         var v = value.pixelShift();
         if (Math.round(v) == v) {
             return String.format(message("pixel.shift.integer.pattern"), Math.round(v));
