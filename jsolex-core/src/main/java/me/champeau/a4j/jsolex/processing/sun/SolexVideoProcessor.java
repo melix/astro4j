@@ -343,9 +343,17 @@ public class SolexVideoProcessor implements Broadcaster {
                         var result = scriptRunner.execute(scriptFile.toPath(), ImageMathScriptExecutor.SectionKind.SINGLE);
                         ImageMathScriptExecutor.render(result, emitter);
                         if (!result.invalidExpressions().isEmpty()) {
+                            var sb = new StringBuilder();
                             for (InvalidExpression expression : result.invalidExpressions()) {
                                 LOGGER.error("Found invalid expression {} ({}): {}", expression.label(), expression.expression(), expression.error());
+                                sb.append("Found invalid expression %s (%s): %s%n".formatted(expression.label(), expression.expression(), expression.error())).append("\n");
                             }
+                            broadcast(new NotificationEvent(new Notification(
+                                Notification.AlertType.ERROR,
+                                message("invalid.expressions"),
+                                message("invalid.expressions"),
+                                sb.toString()
+                            )));
                         }
                         broadcast(new ScriptExecutionResultEvent(result));
                     } catch (IOException e) {
