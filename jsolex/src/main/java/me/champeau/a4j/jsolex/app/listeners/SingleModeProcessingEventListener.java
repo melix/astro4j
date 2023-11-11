@@ -29,6 +29,7 @@ import javafx.scene.chart.XYChart;
 import javafx.scene.control.Alert;
 import javafx.scene.control.Button;
 import javafx.scene.control.ContextMenu;
+import javafx.scene.control.Label;
 import javafx.scene.control.MenuItem;
 import javafx.scene.control.ScrollPane;
 import javafx.scene.control.Tab;
@@ -249,7 +250,8 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
             tabPane.getTabs().add(tab);
             tab.selectedProperty().addListener((observable, oldValue, newValue) -> {
                 if (Boolean.TRUE.equals(newValue)) {
-                    metadataTab.setContent(null);
+                    var ps = MetadataSupport.renderPixelShift(new PixelShift(pixelShift));
+                    metadataTab.setContent(new Label(ps));
                 }
             });
         });
