@@ -27,6 +27,7 @@ import javafx.scene.control.ListView;
 import javafx.stage.FileChooser;
 import javafx.stage.Stage;
 import javafx.stage.WindowEvent;
+import me.champeau.a4j.jsolex.app.Configuration;
 import me.champeau.a4j.jsolex.app.JSolEx;
 import me.champeau.a4j.jsolex.app.jfx.ime.ImageMathTextArea;
 import me.champeau.a4j.jsolex.processing.params.ImageMathParams;
@@ -47,6 +48,8 @@ public class ImageMathEditor {
     private static final ButtonType BACK = new ButtonType(I18N.string(JSolEx.class, "imagemath-editor", "back"));
     public static final String MATH_EXTENSION = ".math";
     public static final FileChooser.ExtensionFilter MATH_SCRIPT_EXTENSION_FILTER = new FileChooser.ExtensionFilter("ImageMath Script (*.math)", "*" + MATH_EXTENSION);
+
+    private final Configuration configuration = new Configuration();
 
     @FXML
     private ListView<ImageMathEntry> scriptsToApply;
@@ -182,6 +185,7 @@ public class ImageMathEditor {
             scriptTextArea.setText(FilesUtils.readString(file.toPath()));
             saveButton.setDisable(true);
             hasPendingUpdates.set(false);
+            configuration.rememberDirectoryFor(file.toPath(), Configuration.DirectoryKind.IMAGE_MATH);
         } catch (IOException e) {
             throw new ProcessingException(e);
         }
@@ -245,6 +249,7 @@ public class ImageMathEditor {
     public void loadScript() {
         if (doesNotHaveStaleChanges()) {
             var fileChooser = new FileChooser();
+            configuration.findLastOpenDirectory(Configuration.DirectoryKind.IMAGE_MATH).ifPresent(dir -> fileChooser.setInitialDirectory(dir.toFile()));
             fileChooser.setTitle(I18N.string(JSolEx.class, "imagemath-editor", "load.script"));
             fileChooser.getExtensionFilters().add(MATH_SCRIPT_EXTENSION_FILTER);
             var file = fileChooser.showOpenDialog(stage);
@@ -317,6 +322,7 @@ public class ImageMathEditor {
                 scriptsToApply.getItems().add(entry);
                 targetEntry = entry;
             }
+            configuration.rememberDirectoryFor(targetFile.toPath(), Configuration.DirectoryKind.IMAGE_MATH);
         } else {
             targetEntry = scriptsToApply.getSelectionModel().getSelectedItem();
             targetFile = targetEntry.scriptFile();

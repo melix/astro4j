@@ -43,21 +43,35 @@ public class Configuration {
         prefs = Preferences.userRoot().node(this.getClass().getName());
         String recentFilesString = prefs.get(RECENT_FILES, "");
         this.recentFiles = Arrays.stream(recentFilesString.split(Pattern.quote(File.pathSeparator)))
-                .map(Path::of)
-                .filter(Files::exists)
-                .limit(10)
-                .collect(Collectors.toCollection(java.util.ArrayList::new));
+            .map(Path::of)
+            .filter(Files::exists)
+            .limit(10)
+            .collect(Collectors.toCollection(java.util.ArrayList::new));
     }
 
-    public void loaded(Path path) {
+    public void loadedSerFile(Path path) {
         recentFiles.remove(path);
         recentFiles.add(0, path);
         prefs.put(RECENT_FILES, recentFiles.stream().map(Path::toString).collect(joining(File.pathSeparator)));
         updateLastOpenDirectory(path.getParent());
     }
 
+    public void rememberDirectoryFor(Path path, DirectoryKind kind) {
+        if (kind == DirectoryKind.SER_FILE) {
+            loadedSerFile(path);
+        } else {
+            updateLastOpenDirectory(path.getParent(), kind);
+        }
+    }
+
     public void updateLastOpenDirectory(Path directory) {
-        prefs.put(LAST_DIRECTORY, directory.toString());
+        updateLastOpenDirectory(directory, DirectoryKind.SER_FILE);
+    }
+
+    public void updateLastOpenDirectory(Path directory, DirectoryKind kind) {
+        String name = directory.toString();
+        String key = kind.dirKey();
+        prefs.put(key, name);
     }
 
     public List<Path> getRecentFiles() {
@@ -65,7 +79,11 @@ public class Configuration {
     }
 
     public Optional<Path> findLastOpenDirectory() {
-        var dir = prefs.get(LAST_DIRECTORY, null);
+        return findLastOpenDirectory(DirectoryKind.SER_FILE);
+    }
+
+    public Optional<Path> findLastOpenDirectory(DirectoryKind kind) {
+        var dir = prefs.get(kind.dirKey(), null);
         if (dir != null) {
             var path = Path.of(dir);
             if (Files.exists(path)) {
@@ -77,8 +95,8 @@ public class Configuration {
 
     public IntPair getPreferredDimensions() {
         return new IntPair(
-                prefs.getInt(PREFERRED_WIDTH, 1024),
-                prefs.getInt(PREFERRED_HEIGHT, 768)
+            prefs.getInt(PREFERRED_WIDTH, 1024),
+            prefs.getInt(PREFERRED_HEIGHT, 768)
         );
     }
 
@@ -88,5 +106,23 @@ public class Configuration {
 
     public void setPreferredHeigth(int height) {
         prefs.put(PREFERRED_HEIGHT, String.valueOf(height));
+    }
+
+    public enum DirectoryKind {
+        SER_FILE(null),
+        IMAGE_MATH("image.math");
+
+        private final String dirName;
+
+        DirectoryKind(String dirName) {
+            this.dirName = dirName;
+        }
+
+        public String dirKey() {
+            if (dirName == null) {
+                return LAST_DIRECTORY;
+            }
+            return LAST_DIRECTORY + "." + dirName;
+        }
     }
 }
