@@ -458,6 +458,7 @@ public class JSolEx extends Application implements JSolExInterface {
         imageMathSave.setDisable(true);
         imageMathLoad.setOnAction(evt -> {
             var fileChooser = new FileChooser();
+            config.findLastOpenDirectory(Configuration.DirectoryKind.IMAGE_MATH).ifPresent(dir -> fileChooser.setInitialDirectory(dir.toFile()));
             fileChooser.getExtensionFilters().add(ImageMathEditor.MATH_SCRIPT_EXTENSION_FILTER);
             var file = fileChooser.showOpenDialog(rootStage);
             loadImageMathScriptFrom(file);
@@ -478,6 +479,7 @@ public class JSolEx extends Application implements JSolExInterface {
                 try {
                     FilesUtils.writeString(imageMathScript.getText(), file.toPath());
                     imageMathSave.setDisable(true);
+                    config.rememberDirectoryFor(file.toPath(), Configuration.DirectoryKind.IMAGE_MATH);
                 } catch (IOException e) {
                     // ignore
                 }
@@ -491,6 +493,7 @@ public class JSolEx extends Application implements JSolExInterface {
 
     private void loadImageMathScriptFrom(File file) {
         if (file != null) {
+            config.rememberDirectoryFor(file.toPath(), Configuration.DirectoryKind.IMAGE_MATH);
             var script = String.join(System.lineSeparator(), FilesUtils.readAllLines(file.toPath()));
             BatchOperations.submit(() -> {
                 imageMathScript.setText(script);
@@ -576,7 +579,7 @@ public class JSolEx extends Application implements JSolExInterface {
     @FXML
     private void showFrameDebugger() {
         selectSerFileAndThen(file -> {
-            config.loaded(file.toPath());
+            config.loadedSerFile(file.toPath());
             var fxmlLoader = I18N.fxmlLoader(getClass(), "frame-debugger");
             Object configWindow;
             try {
@@ -786,7 +789,7 @@ public class JSolEx extends Application implements JSolExInterface {
 
     private void doOpen(File selectedFile, boolean rememberProcessParams) {
         imageMathPane.setDisable(true);
-        config.loaded(selectedFile.toPath());
+        config.loadedSerFile(selectedFile.toPath());
         configureThreadExceptionHandler();
         BatchOperations.submit(this::refreshRecentItemsMenu);
         Optional<ProcessParams> processParams;
