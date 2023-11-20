@@ -619,11 +619,11 @@ public class JSolEx extends Application implements JSolExInterface {
                 true,
                 e -> {
                     stage.close();
-                    e.getConfiguration().ifPresent(scripts -> executeStandaloneScripts(
+                    e.getConfiguration().ifPresent(scripts -> ioExecutor.async(() -> executeStandaloneScripts(
                             params.withRequestedImages(
                                     params.requestedImages().withMathImages(scripts)
                             )
-                    ));
+                    )));
                 }
         );
     }
