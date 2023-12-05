@@ -9,6 +9,7 @@
 <?import javafx.scene.control.Label?>
 <?import javafx.scene.control.ScrollPane?>
 <?import javafx.scene.control.Slider?>
+<?import javafx.scene.control.TextField?>
 <?import javafx.scene.control.TitledPane?>
 <?import javafx.scene.layout.AnchorPane?>
 <?import javafx.scene.layout.BorderPane?>
@@ -52,6 +53,11 @@
                             <Slider fx:id="stackOverlap" blockIncrement="0.1" majorTickUnit="0.1" max="1.0" minorTickCount="1" showTickLabels="true" showTickMarks="true" value="0.3"/>
                             <CheckBox fx:id="stackForceRecomputeEllipse" mnemonicParsing="false" text="%force.recompute.ellipses"/>
                             <CheckBox fx:id="stackFixGeometry" mnemonicParsing="false" text="%fix.geometry"/>
+                            <Label text="%postprocessing.script"/>
+                            <HBox spacing="8">
+                                <TextField HBox.hgrow="ALWAYS" fx:id="stackPostProcessingScript" disable="true"/>
+                                <Button onAction="#chooseStackingPostProcessingScript" text="%choose"/>
+                            </HBox>
                             <HBox alignment="CENTER_RIGHT">
                                 <Button onAction="#resetStackingParams" text="%reset.to.defaults"/>
                             </HBox>
@@ -73,7 +79,13 @@
                             <Label text="%tile.size" fx:id="mosaicTileSizeLabel"/>
                             <Slider fx:id="mosaicTileSize" blockIncrement="8" majorTickUnit="64.0" max="256.0" min="16.0" minorTickCount="8" showTickLabels="true" showTickMarks="true" value="64.0"/>
                             <Label text="%tile.overlap" fx:id="mosaicTileOverlapLabel"/>
-                            <Slider fx:id="mosaicOverlap" snapToTicks="true" blockIncrement="0.1" majorTickUnit="0.1" max="1.0" minorTickCount="1" showTickLabels="true" showTickMarks="true" value="0.3"/>
+                            <Slider fx:id="mosaicOverlap" snapToTicks="true" blockIncrement="0.1" majorTickUnit="0.1" max="1.0" minorTickCount="1" showTickLabels="true" showTickMarks="true"
+                                    value="0.3"/>
+                            <Label text="%postprocessing.script"/>
+                            <HBox spacing="8">
+                                <TextField HBox.hgrow="ALWAYS" fx:id="mosaicPostProcessingScript" disable="true"/>
+                                <Button onAction="#chooseMosaicPostProcessingScript" text="%choose"/>
+                            </HBox>
                             <HBox alignment="CENTER_RIGHT">
                                 <Button onAction="#resetMosaicParams" text="%reset.to.defaults"/>
                             </HBox>

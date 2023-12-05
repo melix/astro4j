@@ -25,6 +25,7 @@ import javafx.scene.control.ChoiceBox;
 import javafx.scene.control.Label;
 import javafx.scene.control.ScrollPane;
 import javafx.scene.control.Slider;
+import javafx.scene.control.TextField;
 import javafx.scene.control.TitledPane;
 import javafx.scene.input.TransferMode;
 import javafx.scene.layout.FlowPane;
@@ -52,9 +53,11 @@ import java.io.File;
 import java.time.LocalDateTime;
 import java.util.EnumSet;
 import java.util.Map;
+import java.util.Optional;
 
 import static me.champeau.a4j.jsolex.app.JSolEx.createFakeHeader;
 import static me.champeau.a4j.jsolex.app.JSolEx.message;
+import static me.champeau.a4j.jsolex.app.jfx.ImageMathEditor.MATH_SCRIPT_EXTENSION_FILTER;
 
 public class StackingAndMosaicController {
     private static final Logger LOGGER = LoggerFactory.getLogger(StackingAndMosaicController.class);
@@ -92,6 +95,8 @@ public class StackingAndMosaicController {
     @FXML
     private Label stackTileOverlapLabel;
     @FXML
+    private TextField stackPostProcessingScript;
+    @FXML
     private Slider mosaicTileSize;
     @FXML
     private Slider mosaicOverlap;
@@ -101,6 +106,8 @@ public class StackingAndMosaicController {
     private Label mosaicTileOverlapLabel;
     @FXML
     private CheckBox createMosaic;
+    @FXML
+    private TextField mosaicPostProcessingScript;
 
     // File formats
     @FXML
@@ -111,6 +118,9 @@ public class StackingAndMosaicController {
     private CheckBox savePng;
     @FXML
     private CheckBox saveTif;
+
+    private File stackPostProcessingScriptFile;
+    private File mosaicPostProcessingScriptFile;
 
     public void setup(Stage stage, JSolExInterface owner, ProcessParams processParams, ForkJoinContext ioExecutor, ForkJoinContext cpuExecutor, Map<String, ImageViewer> popupViewers) {
         this.stage = stage;
@@ -204,6 +214,8 @@ public class StackingAndMosaicController {
         stackTileSize.setValue(Stacking.DEFAULT_TILE_SIZE);
         stackForceRecomputeEllipse.setSelected(false);
         stackFixGeometry.setSelected(false);
+        stackPostProcessingScriptFile = null;
+        stackPostProcessingScript.setText("");
     }
 
     public void resetMosaicParams() {
@@ -254,9 +266,11 @@ public class StackingAndMosaicController {
             (float) stackOverlap.getValue(),
             stackForceRecomputeEllipse.isSelected(),
             stackFixGeometry.isSelected(),
+            stackPostProcessingScriptFile,
             createMosaic.isSelected(),
             (int) mosaicTileSize.getValue(),
-            (float) mosaicOverlap.getValue()
+            (float) mosaicOverlap.getValue(),
+            mosaicPostProcessingScriptFile
         );
         cpuExecutor.async(() -> {
             long sd = System.nanoTime();
@@ -293,4 +307,27 @@ public class StackingAndMosaicController {
         );
     }
 
+    @FXML
+    private void chooseStackingPostProcessingScript() {
+        selectScript().ifPresent(file -> {
+            stackPostProcessingScriptFile = file;
+            stackPostProcessingScript.setText(file.getName());
+        });
+    }
+
+    @FXML
+    private void chooseMosaicPostProcessingScript() {
+        selectScript().ifPresent(file -> {
+            mosaicPostProcessingScriptFile = file;
+            mosaicPostProcessingScript.setText(file.getName());
+        });
+    }
+
+    private Optional<File> selectScript() {
+        var chooser = new FileChooser();
+        chooser.setTitle(I18N.string(JSolEx.class, "mosaic-params", "choose.postprocessing.script"));
+        chooser.getExtensionFilters().add(MATH_SCRIPT_EXTENSION_FILTER);
+        var file = chooser.showOpenDialog(stage);
+        return Optional.ofNullable(file);
+    }
 }
