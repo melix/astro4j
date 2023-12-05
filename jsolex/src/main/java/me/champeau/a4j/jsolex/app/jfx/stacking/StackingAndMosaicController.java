@@ -43,6 +43,7 @@ import me.champeau.a4j.jsolex.processing.params.FileNamingPatternsIO;
 import me.champeau.a4j.jsolex.processing.params.NamedPattern;
 import me.champeau.a4j.jsolex.processing.params.ProcessParams;
 import me.champeau.a4j.jsolex.processing.params.ProcessParamsIO;
+import me.champeau.a4j.jsolex.processing.params.StackingParamsIO;
 import me.champeau.a4j.jsolex.processing.sun.workflow.StackingWorkflow;
 import me.champeau.a4j.jsolex.processing.util.ForkJoinContext;
 import me.champeau.a4j.jsolex.processing.util.ImageFormat;
@@ -205,8 +206,22 @@ public class StackingAndMosaicController {
                 stackFixGeometry.setDisable(false);
             }
         });
-        resetStackingParams();
-        resetMosaicParams();
+        readDefaultsFromPreviousSession();
+    }
+
+    private void readDefaultsFromPreviousSession() {
+        var defaultParams = StackingParamsIO.loadDefaults();
+        stackTileSize.setValue(defaultParams.stackingTileSize());
+        stackOverlap.setValue(defaultParams.stackingOverlap());
+        stackForceRecomputeEllipse.setSelected(defaultParams.forceEllipseFit());
+        stackFixGeometry.setSelected(defaultParams.fixGeometry());
+        stackPostProcessingScriptFile = defaultParams.stackPostProcessingScriptFile();
+        stackPostProcessingScript.setText(stackPostProcessingScriptFile == null ? "" : stackPostProcessingScriptFile.getName());
+        createMosaic.setSelected(defaultParams.createMosaic());
+        mosaicTileSize.setValue(defaultParams.mosaicTileSize());
+        mosaicOverlap.setValue(defaultParams.mosaicOverlap());
+        mosaicPostProcessingScriptFile = defaultParams.mosaicPostProcessingScriptFile();
+        mosaicPostProcessingScript.setText(mosaicPostProcessingScriptFile == null ? "" : mosaicPostProcessingScriptFile.getName());
     }
 
     public void resetStackingParams() {
@@ -272,6 +287,7 @@ public class StackingAndMosaicController {
             (float) mosaicOverlap.getValue(),
             mosaicPostProcessingScriptFile
         );
+        StackingParamsIO.saveDefaults(params);
         cpuExecutor.async(() -> {
             long sd = System.nanoTime();
             try {
