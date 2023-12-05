@@ -49,6 +49,7 @@ import me.champeau.a4j.ser.Header;
 
 import java.io.File;
 import java.io.IOException;
+import java.io.StringWriter;
 import java.nio.charset.Charset;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -309,6 +310,13 @@ public class BatchModeEventListener implements ProcessingEventListener, ImageMat
             String message = invalidExpressions.stream()
                     .map(invalidExpression -> "Expression '" + invalidExpression.label() + "' (" + invalidExpression.expression() + ") : " + invalidExpression.error().getMessage())
                     .collect(Collectors.joining(System.lineSeparator()));
+            String details = invalidExpressions.stream()
+                    .map(invalidExpression -> {
+                        var sb = new StringWriter();
+                        invalidExpression.error().printStackTrace(new java.io.PrintWriter(sb));
+                        return sb.toString();
+                    })
+                    .collect(Collectors.joining("\n"));
             delegate.onNotification(new NotificationEvent(new Notification(
                     Notification.AlertType.ERROR,
                     JSolEx.message("error.processing.script"),

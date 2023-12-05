@@ -21,6 +21,8 @@ import me.champeau.a4j.math.tuples.DoublePair;
 import me.champeau.a4j.math.tuples.DoubleQuadruplet;
 import me.champeau.a4j.math.tuples.DoubleTriplet;
 
+import java.util.function.DoubleUnaryOperator;
+
 /**
  * A utility class for computing linear regressions.
  */
@@ -50,6 +52,36 @@ public abstract class LinearRegression {
         int n = series.length;
         double a = (n * sumXY - sumX * sumY) / (n * sumXX - sumX * sumX);
         double b = (sumY - a * sumX) / n;
+        return new DoublePair(a, b);
+    }
+
+    /**
+     * Computes the first order regression of a series of points with weights.
+     *
+     * @param series the series of points
+     * @param weights the weights associated to each point of the series
+     * @return the coefficients of the regression for the form y = a * x + b
+     */
+    public static DoublePair firstOrderRegression(Point2D[] series, double[] weights) {
+        double sumX = 0;
+        double sumY = 0;
+        double sumXX = 0;
+        double sumXY = 0;
+        double sumW = 0;
+        for (int i = 0; i < series.length; i++) {
+            double x = series[i].x();
+            double y = series[i].y();
+            double w = weights[i];
+            sumX += w * x;
+            sumY += w * y;
+            sumXX += w * x * x;
+            sumXY += w * x * y;
+            sumW += w;
+        }
+
+        double a = (sumW * sumXY - sumX * sumY) / (sumW * sumXX - sumX * sumX);
+        double b = (sumY - a * sumX) / sumW;
+
         return new DoublePair(a, b);
     }
 
@@ -141,5 +173,21 @@ public abstract class LinearRegression {
         return res;
     }
 
+    /**
+     * Returns a polynomial function from the given coefficients.
+     * The coefficients are ordered by power descending, i.e. the
+     * first coefficient is the coefficient of the highest power.
+     * @param coefficients the coefficients
+     * @return the polynomial function
+     */
+    static DoubleUnaryOperator asPolynomial(double[] coefficients) {
+        return x -> {
+            double result = 0;
+            for (int i = 0; i < coefficients.length; i++) {
+                result += coefficients[i] * Math.pow(x, coefficients.length - i - 1d);
+            }
+            return result;
+        };
+    }
 
 }

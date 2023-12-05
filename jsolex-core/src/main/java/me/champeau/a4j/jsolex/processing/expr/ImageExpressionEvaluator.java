@@ -15,6 +15,7 @@
  */
 package me.champeau.a4j.jsolex.processing.expr;
 
+import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
 import me.champeau.a4j.jsolex.processing.util.ForkJoinContext;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
 
@@ -23,8 +24,8 @@ import java.util.function.Function;
 public class ImageExpressionEvaluator extends AbstractImageExpressionEvaluator {
     private final Function<Double, ImageWrapper> images;
 
-    public ImageExpressionEvaluator(ForkJoinContext forkJoinContext, Function<Double, ImageWrapper> images) {
-        super(forkJoinContext);
+    public ImageExpressionEvaluator(ForkJoinContext forkJoinContext, Broadcaster broadcaster, Function<Double, ImageWrapper> images) {
+        super(forkJoinContext, broadcaster);
         this.images = images;
     }
 

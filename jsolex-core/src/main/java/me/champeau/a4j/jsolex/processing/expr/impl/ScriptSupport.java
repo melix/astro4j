@@ -126,7 +126,7 @@ public class ScriptSupport {
             var height = first.height();
             var length = first.data().length;
             if (images.stream().anyMatch(i -> i.data().length != length || i.width() != width || i.height() != height)) {
-                throw new IllegalArgumentException("All images must have the same dimensions");
+                throw new IllegalArgumentException(name + " function call failed: all images must have the same dimensions");
             }
             float[] result = new float[length];
             for (int i = 0; i < length; i++) {

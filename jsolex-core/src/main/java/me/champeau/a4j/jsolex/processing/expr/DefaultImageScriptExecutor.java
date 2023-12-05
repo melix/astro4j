@@ -17,6 +17,7 @@ package me.champeau.a4j.jsolex.processing.expr;
 
 import me.champeau.a4j.jsolex.expr.BuiltinFunction;
 import me.champeau.a4j.jsolex.expr.Expression;
+import me.champeau.a4j.jsolex.expr.ExpressionEvaluator;
 import me.champeau.a4j.jsolex.expr.FunctionCall;
 import me.champeau.a4j.jsolex.expr.Variable;
 import me.champeau.a4j.jsolex.processing.event.ProgressEvent;
@@ -92,7 +93,7 @@ public class DefaultImageScriptExecutor implements ImageMathScriptExecutor {
     @Override
     public ImageMathScriptResult execute(String script, SectionKind kind) {
         var index = executionCount.getAndIncrement();
-        var evaluator = new MemoizingExpressionEvaluator(forkJoinContext);
+        var evaluator = new MemoizingExpressionEvaluator(forkJoinContext, broadcaster);
         populateContext(evaluator);
         var outputs = prepareOutputExpressions(script, index, evaluator, kind);
         var producedImages = new HashMap<String, ImageWrapper>();
@@ -264,6 +265,7 @@ public class DefaultImageScriptExecutor implements ImageMathScriptExecutor {
 
     private void collectInternalShifts(AbstractImageExpressionEvaluator evaluator, LinkedHashMap<String, String> variables, LinkedHashMap<String, String> outputs) {
         isCollectingShifts = true;
+        var shiftCollectingEvaluator = new ShiftCollectingExpressionEvaluator(evaluator);
         try {
             // Collect internal shifts
             var variableNames = variables.keySet();
@@ -272,7 +274,7 @@ public class DefaultImageScriptExecutor implements ImageMathScriptExecutor {
             for (String variable : variableNames) {
                 broadcaster.broadcast(ProgressEvent.of(idx / size, "ImageScript evaluation " + variable));
                 try {
-                    evaluator.evaluate(variable);
+                    shiftCollectingEvaluator.evaluate(variable);
                 } catch (Exception ex) {
                     // ignore
                 }
@@ -300,11 +302,52 @@ public class DefaultImageScriptExecutor implements ImageMathScriptExecutor {
         evaluator.putInContext(Broadcaster.class, broadcaster);
     }
 
+    /**
+     * This evaluator is used to handle some function calls when we're collecting shifts,
+     * so that it avoids doing the actual computation.
+     */
+    private static class ShiftCollectingExpressionEvaluator extends ExpressionEvaluator {
+        private final AbstractImageExpressionEvaluator evaluator;
+
+        public ShiftCollectingExpressionEvaluator(AbstractImageExpressionEvaluator evaluator) {
+            this.evaluator = evaluator;
+        }
+
+        @Override
+        protected Object plus(Object left, Object right) {
+            return evaluator.plus(left, right);
+        }
+
+        @Override
+        protected Object minus(Object left, Object right) {
+            return evaluator.minus(left, right);
+        }
+
+        @Override
+        protected Object mul(Object left, Object right) {
+            return evaluator.mul(left, right);
+        }
+
+        @Override
+        protected Object div(Object left, Object right) {
+            return evaluator.mul(left, right);
+        }
+
+        @Override
+        protected Object functionCall(BuiltinFunction function, List<Object> arguments) {
+            return switch (function) {
+                case LOAD -> newDummyImage();
+                case LOAD_MANY -> List.of(newDummyImage(), newDummyImage());
+                default -> evaluator.functionCall(function, arguments);
+            };
+        }
+    }
+
     private class MemoizingExpressionEvaluator extends ShiftCollectingImageExpressionEvaluator {
         private final Map<String, Object> memoizeCache = new ConcurrentHashMap<>();
 
-        public MemoizingExpressionEvaluator(ForkJoinContext forkJoinContext) {
-            super(forkJoinContext, DefaultImageScriptExecutor.this.imagesByShift);
+        public MemoizingExpressionEvaluator(ForkJoinContext forkJoinContext, Broadcaster broadcaster) {
+            super(forkJoinContext, broadcaster, DefaultImageScriptExecutor.this.imagesByShift);
         }
 
         @Override

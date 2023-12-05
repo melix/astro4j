@@ -36,6 +36,7 @@ public enum BuiltinFunction {
     DRAW_SOLAR_PARAMS,
     ELLIPSE_FIT,
     FIX_BANDING,
+    FIX_GEOMETRY,
     IMG,
     INVERT,
     LINEAR_STRETCH,
@@ -44,6 +45,7 @@ public enum BuiltinFunction {
     LOAD_MANY,
     MAX,
     MIN,
+    MOSAIC,
     RADIUS_RESCALE,
     RANGE,
     REMOVE_BG,
@@ -57,6 +59,7 @@ public enum BuiltinFunction {
     ROTATE_RAD,
     SATURATE,
     SHARPEN,
+    STACK,
     WORKDIR(true);
 
     private final boolean hasSideEffect;

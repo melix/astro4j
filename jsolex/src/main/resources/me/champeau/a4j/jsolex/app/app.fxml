@@ -39,6 +39,7 @@
                 <MenuItem onAction="#showSpectralRayEditor" text="%spectralray.editor"/>
                 <MenuItem onAction="#showImageMathEditor" text="%imagemath.editor"/>
                 <MenuItem onAction="#showExposureCalculator" text="%exposure.calculator"/>
+                <MenuItem onAction="#showMosaicParams" text="%mosaic.stacking"/>
                 <SeparatorMenuItem/>
                 <MenuItem onAction="#showHelp" text="%help"/>
                 <MenuItem onAction="#about" text="%about"/>

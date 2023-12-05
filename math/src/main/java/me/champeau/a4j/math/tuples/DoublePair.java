@@ -15,6 +15,8 @@
  */
 package me.champeau.a4j.math.tuples;
 
+import java.util.function.DoubleUnaryOperator;
+
 /**
  * A double pair.
  *
@@ -25,5 +27,7 @@ public record DoublePair(
         double a,
         double b
 ) {
-
+    public DoubleUnaryOperator asPolynomial() {
+        return x -> a * x + b;
+    }
 }

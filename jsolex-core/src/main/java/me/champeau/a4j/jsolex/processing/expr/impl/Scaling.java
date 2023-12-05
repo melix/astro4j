@@ -35,9 +35,11 @@ import static me.champeau.a4j.jsolex.processing.expr.impl.ScriptSupport.expandTo
 public class Scaling extends AbstractFunctionImpl {
     private final ImageMath imageMath = ImageMath.newInstance();
     private final EllipseFit ellipseFit;
+    private final Crop crop;
 
-    public Scaling(ForkJoinContext forkJoinContext, Map<Class<?>, Object> context) {
+    public Scaling(ForkJoinContext forkJoinContext, Map<Class<?>, Object> context, Crop crop) {
         super(forkJoinContext, context);
+        this.crop = crop;
         ellipseFit = new EllipseFit(forkJoinContext, context);
     }
 
@@ -87,35 +89,48 @@ public class Scaling extends AbstractFunctionImpl {
         assertExpectedArgCount(arguments, "radius_rescale takes 1 arguments (image(s))", 1, 1);
         var arg = arguments.get(0);
         if (arg instanceof List<?> list) {
-            var fittings = new LinkedHashMap<ImageWrapper, Double>();
-            for (Object obj : list) {
-                if (obj instanceof ImageWrapper img) {
-                    var fit = img.findMetadata(Ellipse.class).orElseGet(() -> (Ellipse) ellipseFit.fit(List.of(img)));
-                    if (fit != null) {
-                        fittings.put(img, radiusOf(fit));
-                    }
-                }
+            if (list.isEmpty()) {
+                throw new IllegalArgumentException("radius_rescale requires a non-empty list of images");
             }
-            var maxRadius = fittings.values().stream().mapToDouble(Double::doubleValue).max();
-            if (maxRadius.isPresent()) {
-                var result = new ArrayList<ImageWrapper>();
-                var maxRadiusValue = maxRadius.getAsDouble();
-                for (Map.Entry<ImageWrapper, Double> entry : fittings.entrySet()) {
-                    var img = entry.getKey();
-                    var radius = entry.getValue();
-                    if (radius.equals(maxRadiusValue)) {
-                        result.add(img);
-                    } else {
-                        var scale = maxRadiusValue / radius;
-                        result.add(doRescale(img, (int) Math.round(img.width() * scale), (int) Math.round(img.height() * scale)));
-                    }
-                }
-                return result;
-            }
-            throw new IllegalArgumentException("Unable to determine max radius of images");
+            var filtered = list.stream()
+                .filter(ImageWrapper.class::isInstance)
+                .map(ImageWrapper.class::cast)
+                .toList();
+            return performRadiusRescale(filtered);
         } else {
             throw new IllegalArgumentException("radius_rescale requires a list of images");
         }
+    }
+
+    List<ImageWrapper> performRadiusRescale(List<? extends ImageWrapper> filtered) {
+        var fittings = new LinkedHashMap<ImageWrapper, Double>();
+        for (ImageWrapper img : filtered) {
+            var fit = img.findMetadata(Ellipse.class).orElseGet(() -> (Ellipse) ellipseFit.fit(List.of(img)));
+            if (fit != null) {
+                fittings.put(img, radiusOf(fit));
+            }
+        }
+        var targetRadius = fittings.values().stream().mapToDouble(Double::doubleValue).max();
+        if (targetRadius.isPresent()) {
+            List<ImageWrapper> result = new ArrayList<>();
+            var maxRadiusValue = targetRadius.getAsDouble();
+            for (Map.Entry<ImageWrapper, Double> entry : fittings.entrySet()) {
+                var img = entry.getKey();
+                var radius = entry.getValue();
+                if (radius.equals(maxRadiusValue)) {
+                    result.add(img);
+                } else {
+                    var scale = maxRadiusValue / radius;
+                    result.add(doRescale(img, (int) Math.round(img.width() * scale), (int) Math.round(img.height() * scale)));
+                }
+            }
+            var minWidth = result.stream().mapToInt(ImageWrapper::width).min().orElse(0);
+            var minHeight = result.stream().mapToInt(ImageWrapper::height).min().orElse(0);
+            //noinspection unchecked
+            result = (List<ImageWrapper>) crop.cropToRect(List.of(result, minWidth, minHeight));
+            return result;
+        }
+        throw new IllegalArgumentException("Unable to determine max radius of images");
     }
 
     // At this stage, we're assuming that the ellipse represents a circle
@@ -131,31 +146,31 @@ public class Scaling extends AbstractFunctionImpl {
         }
         if (img instanceof ImageWrapper32 mono) {
             return ImageWrapper32.fromImage(
-                    imageMath.rescale(mono.asImage(),
-                            width,
-                            height
-                    ),
-                    metadata);
+                imageMath.rescale(mono.asImage(),
+                    width,
+                    height
+                ),
+                metadata);
         } else if (img instanceof ColorizedImageWrapper colorized) {
             var mono = colorized.mono();
             return new ColorizedImageWrapper(
-                    ImageWrapper32.fromImage(
-                            imageMath.rescale(mono.asImage(),
-                                    width,
-                                    height
-                            ), metadata), colorized.converter(), metadata
+                ImageWrapper32.fromImage(
+                    imageMath.rescale(mono.asImage(),
+                        width,
+                        height
+                    ), metadata), colorized.converter(), metadata
             );
         } else if (img instanceof RGBImage rgb) {
             var r = new Image(rgb.width(), rgb.height(), rgb.r());
             var g = new Image(rgb.width(), rgb.height(), rgb.r());
             var b = new Image(rgb.width(), rgb.height(), rgb.r());
             return new RGBImage(
-                    width,
-                    height,
-                    imageMath.rescale(r, width, height).data(),
-                    imageMath.rescale(g, width, height).data(),
-                    imageMath.rescale(b, width, height).data(),
-                    metadata
+                width,
+                height,
+                imageMath.rescale(r, width, height).data(),
+                imageMath.rescale(g, width, height).data(),
+                imageMath.rescale(b, width, height).data(),
+                metadata
             );
         }
         return null;

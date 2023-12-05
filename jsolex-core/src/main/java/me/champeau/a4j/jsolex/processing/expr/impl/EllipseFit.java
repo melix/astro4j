@@ -23,6 +23,7 @@ import me.champeau.a4j.jsolex.processing.util.FileBackedImage;
 import me.champeau.a4j.jsolex.processing.util.ForkJoinContext;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 import me.champeau.a4j.jsolex.processing.util.ProcessingException;
+import me.champeau.a4j.math.regression.Ellipse;
 
 import java.util.List;
 import java.util.Map;
@@ -46,20 +47,26 @@ public class EllipseFit extends AbstractFunctionImpl {
             arg = fileBackedImage.unwrapToMemory();
         }
         if (arg instanceof ImageWrapper32 image) {
-            var task = new EllipseFittingTask(
-                    getFromContext(Broadcaster.class).orElse(Broadcaster.NO_OP),
-                    () -> image,
-                    getFromContext(ProcessParams.class).orElse(null),
-                    getFromContext(ImageEmitter.class).orElse(null)
-            );
-            EllipseFittingTask.Result result;
-            try {
-                result = task.call();
-            } catch (Exception e) {
-                throw ProcessingException.wrap(e);
-            }
-            return result.ellipse();
+            return performEllipseFitting(image);
         }
         throw new IllegalStateException("Ellipse fitting only works on mono images");
+    }
+
+    public ImageWrapper32 performEllipseFitting(ImageWrapper32 image) {
+        var task = new EllipseFittingTask(
+                getFromContext(Broadcaster.class).orElse(Broadcaster.NO_OP),
+                () -> image,
+                getFromContext(ProcessParams.class).orElse(null),
+                getFromContext(ImageEmitter.class).orElse(null)
+        );
+        EllipseFittingTask.Result result;
+        try {
+            result = task.call();
+        } catch (Exception e) {
+            throw ProcessingException.wrap(e);
+        }
+        var copy = image.copy();
+        copy.metadata().put(Ellipse.class, result.ellipse());
+        return copy;
     }
 }

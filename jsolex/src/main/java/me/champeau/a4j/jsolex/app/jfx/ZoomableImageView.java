@@ -154,6 +154,15 @@ public class ZoomableImageView extends HBox {
         applyZoom();
     }
 
+    public void alignWith(ZoomableImageView other) {
+        var otherImage = other.getImage();
+        if (otherImage.getWidth() == getImage().getWidth() && otherImage.getHeight() == getImage().getHeight()) {
+            setZoom(other.getZoom());
+            scrollPane.setHvalue(other.scrollPane.getHvalue());
+            scrollPane.setVvalue(other.scrollPane.getVvalue());
+        }
+    }
+
     public void setOnZoomChanged(Consumer<? super Double> consumer) {
         onZoomChanged = consumer;
     }
@@ -169,5 +178,9 @@ public class ZoomableImageView extends HBox {
             triggerOnZoomChanged();
             applyZoom();
         }
+    }
+
+    public double getZoom() {
+        return zoom;
     }
 }
