@@ -35,6 +35,7 @@ public class Configuration {
     private static final String PREFERRED_WIDTH = "preferred.width";
     private static final String PREFERRED_HEIGHT = "preferred.height";
     private static final String LAST_DIRECTORY = "last.directory";
+    public static final String CUSTOM_DIR = "custom.dir.";
 
     private final Preferences prefs;
     private final List<Path> recentFiles;
@@ -74,6 +75,12 @@ public class Configuration {
         prefs.put(key, name);
     }
 
+    public void updateLastOpenDirectory(Path directory, String customKey) {
+        String name = directory.toString();
+        String key = CUSTOM_DIR + customKey;
+        prefs.put(key, name);
+    }
+
     public List<Path> getRecentFiles() {
         return Collections.unmodifiableList(recentFiles);
     }
@@ -84,6 +91,17 @@ public class Configuration {
 
     public Optional<Path> findLastOpenDirectory(DirectoryKind kind) {
         var dir = prefs.get(kind.dirKey(), null);
+        if (dir != null) {
+            var path = Path.of(dir);
+            if (Files.exists(path)) {
+                return Optional.of(path);
+            }
+        }
+        return Optional.empty();
+    }
+
+    public Optional<Path> findLastOpenDirectory(String customKey) {
+        var dir = prefs.get(CUSTOM_DIR + customKey, null);
         if (dir != null) {
             var path = Path.of(dir);
             if (Files.exists(path)) {

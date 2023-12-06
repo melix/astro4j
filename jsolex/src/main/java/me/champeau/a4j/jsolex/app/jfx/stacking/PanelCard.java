@@ -104,7 +104,7 @@ class PanelCard extends Card {
                 .filter(File::isFile)
                 .filter(f -> {
                     var name = f.getName().toLowerCase(Locale.US);
-                    return name.endsWith(".jpg") || name.endsWith(".png") || name.endsWith(".jpeg") || name.endsWith(".fits");
+                    return JSolEx.IMAGE_FILE_EXTENSIONS.stream().anyMatch(ext -> name.endsWith("." + ext));
                 })
                 .filter(f -> !listView.getItems().contains(f))
                 .toList()

@@ -33,6 +33,15 @@ public record ImageWrapper32(
         Map<Class<?>, Object> metadata
 ) implements ImageWrapper {
 
+    /**
+     * Returns a new image whose dimensions are 0x0 with mutable metadata.
+     * This can typically be used in image math scripts, when no real image is available.
+     * @return a new empty image
+     */
+    public static ImageWrapper32 createEmpty() {
+        return new ImageWrapper32(0, 0, new float[0], MutableMap.of());
+    }
+
     public Image asImage() {
         return new Image(width, height, data);
     }

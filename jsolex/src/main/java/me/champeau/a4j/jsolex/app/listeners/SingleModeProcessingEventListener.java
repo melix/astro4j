@@ -52,6 +52,7 @@ import me.champeau.a4j.jsolex.app.jfx.ExplorerSupport;
 import me.champeau.a4j.jsolex.app.jfx.I18N;
 import me.champeau.a4j.jsolex.app.jfx.ImageViewer;
 import me.champeau.a4j.jsolex.app.jfx.ZoomableImageView;
+import me.champeau.a4j.jsolex.app.script.JSolExScriptExecutor;
 import me.champeau.a4j.jsolex.processing.event.AverageImageComputedEvent;
 import me.champeau.a4j.jsolex.processing.event.DebugEvent;
 import me.champeau.a4j.jsolex.processing.event.FileGeneratedEvent;
@@ -587,11 +588,12 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
         imageEmitter = payload.customImageEmitter();
         scriptExecutionContext = prepareExecutionContext(payload);
         shiftImages.putAll(payload.shiftImages());
-        imageScriptExecutor = new DefaultImageScriptExecutor(
+        imageScriptExecutor = new JSolExScriptExecutor(
             cpuContext,
             shiftImages::get,
-            Collections.unmodifiableMap(scriptExecutionContext),
-            this
+            new HashMap<>(scriptExecutionContext),
+            this,
+            null
         );
         ed = payload.timestamp();
         var duration = java.time.Duration.ofNanos(ed - sd);

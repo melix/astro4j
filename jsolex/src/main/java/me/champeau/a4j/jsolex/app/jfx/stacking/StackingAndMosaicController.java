@@ -63,8 +63,6 @@ import static me.champeau.a4j.jsolex.app.jfx.ImageMathEditor.MATH_SCRIPT_EXTENSI
 public class StackingAndMosaicController {
     private static final Logger LOGGER = LoggerFactory.getLogger(StackingAndMosaicController.class);
 
-    public static final FileChooser.ExtensionFilter IMAGE_FILES_EXTENSIONS = new FileChooser.ExtensionFilter("Image Files", "*.png", "*.jpg", "*.jpeg", "*.fits");
-
     private Stage stage;
     private JSolExInterface owner;
     private ForkJoinContext ioExecutor;

@@ -35,7 +35,6 @@ import me.champeau.a4j.jsolex.processing.util.Constants;
 import me.champeau.a4j.jsolex.processing.util.ForkJoinContext;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
-import me.champeau.a4j.jsolex.processing.util.MutableMap;
 import me.champeau.a4j.jsolex.processing.util.ProcessingException;
 import me.champeau.a4j.math.regression.Ellipse;
 
@@ -91,7 +90,7 @@ public class StackingWorkflow {
         Map<Class, Object> ctx = new HashMap<>(context);
         var evaluator = new DefaultImageScriptExecutor(
             forkJoinContext,
-            d -> new ImageWrapper32(0, 0, new float[0], MutableMap.of()),
+            d -> ImageWrapper32.createEmpty(),
             ctx,
             broadcaster
         );
