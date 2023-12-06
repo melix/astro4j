@@ -32,6 +32,7 @@ public record ImageWrapper32(
         float[] data,
         Map<Class<?>, Object> metadata
 ) implements ImageWrapper {
+
     public Image asImage() {
         return new Image(width, height, data);
     }

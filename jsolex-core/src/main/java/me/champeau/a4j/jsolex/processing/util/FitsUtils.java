@@ -55,6 +55,10 @@ public class FitsUtils {
     public static final String SOLAR_PARAMS_VALUE = "SoParams";
     public static final String TRANSFORMS_VALUE = "Transforms";
     public static final String PIXELSHIFT_VALUE = "PixelShift";
+    // INTI metadata
+    public static final String INTI_CENTER_X = "CENTER_X";
+    public static final String INTI_CENTER_Y = "CENTER_Y";
+    public static final String INTI_SOLAR_R = "SOLAR_R";
 
     private final ProcessParams params;
     private final File destination;
@@ -76,24 +80,42 @@ public class FitsUtils {
             int cols = 0;
             Map<Class<?>, Object> metadata = new HashMap<>();
             var hdus = fits.read();
+            boolean isJSolEx = false;
+            for (BasicHDU<?> basicHDU : hdus) {
+                if (basicHDU instanceof BinaryTableHDU binaryTableHdu) {
+                    isJSolEx = isJSolEx(binaryTableHdu);
+                    if (isJSolEx) {
+                        break;
+                    }
+                }
+            }
             for (BasicHDU<?> hdu : hdus) {
                 if (hdu instanceof ImageHDU imageHdu) {
                     var kernel = imageHdu.getKernel();
+                    int bzero = 0;
+                    if (imageHdu.getHeader().containsKey(Standard.BZERO)) {
+                        bzero = imageHdu.getHeader().getIntValue(Standard.BZERO);
+                        if (isJSolEx && bzero == 0) {
+                            // fix for older JSol'Ex files
+                            bzero = 32768;
+                        }
+                    }
                     if (kernel instanceof short[][] mono) {
                         rows = mono.length;
                         cols = rows == 0 ? 0 : mono[0].length;
-                        data = readChannel(mono, rows, cols);
+                        data = readChannel(mono, rows, cols, bzero);
                     } else if (kernel instanceof short[][][] channels) {
                         rgb = new float[3][];
                         for (int i = 0; i < channels.length; i++) {
                             short[][] channel = channels[i];
                             rows = channel.length;
                             cols = rows == 0 ? 0 : channel[0].length;
-                            rgb[i] = readChannel(channel, rows, cols);
+                            rgb[i] = readChannel(channel, rows, cols, bzero);
                         }
                     } else {
                         throw new UnsupportedOperationException("Unsupported FITS file format");
                     }
+                    readMetadata(imageHdu.getHeader(), metadata);
                 } else if (hdu instanceof BinaryTableHDU binaryTableHdu) {
                     readMetadata(binaryTableHdu, metadata);
                 }
@@ -111,15 +133,46 @@ public class FitsUtils {
         throw new UnsupportedOperationException("Unsupported FITS file format");
     }
 
-    private static float[] readChannel(short[][] mono, int rows, int cols) {
+    private static void readMetadata(Header header, Map<Class<?>, Object> metadata) {
+        // try to see if we can read some INTI metadata and convert it to JSol'Ex metadata
+        if (header.containsKey(INTI_CENTER_X) && header.containsKey(INTI_CENTER_Y) && header.containsKey(INTI_SOLAR_R)) {
+            // cool, we have an ellipse!
+            double centerX = header.getIntValue(INTI_CENTER_X);
+            double centerY = header.getIntValue(INTI_CENTER_Y);
+            double solarR = header.getIntValue(INTI_SOLAR_R);
+            // need to convert to Ellipse parameters
+            var ellipse = Ellipse.ofCartesian(new DoubleSextuplet(
+                    1,
+                    0,
+                    1,
+                    -2d * centerX,
+                    -2d * centerY,
+                    centerX * centerX + centerY * centerY - solarR * solarR
+            ));
+            metadata.put(Ellipse.class, ellipse);
+        }
+    }
+
+    private static float[] readChannel(short[][] mono, int rows, int cols, int bzero) {
         float[] data;
         data = new float[rows * cols];
         for (int y = 0; y < rows; y++) {
             for (int x = 0; x < cols; x++) {
-                data[x + y * cols] = mono[y][x] + 32768f;
+                data[x + y * cols] = mono[y][x] + bzero;
             }
         }
         return data;
+    }
+
+    private static boolean isJSolEx(BinaryTableHDU binaryTableHdu) {
+        var iterator = binaryTableHdu.getHeader().iterator();
+        while (iterator.hasNext()) {
+            var card = iterator.next();
+            if (JSOLEX_HEADER_KEY.equals(card.getKey())) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private static void readMetadata(BinaryTableHDU binaryTableHdu, Map<Class<?>, Object> metadata) throws FitsException {
@@ -313,7 +366,7 @@ public class FitsUtils {
             header.addValue("NAXIS3", 3, null);
         }
         header.addValue(Standard.BSCALE, 1);
-        header.addValue(Standard.BZERO, 0);
+        header.addValue(Standard.BZERO, 32768);
         header.addValue(Standard.OBJECT, "Sun");
         var obs = params.observationDetails();
         maybeAdd(header, Standard.OBSERVER, obs.observer());

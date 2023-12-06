@@ -27,30 +27,97 @@ import java.util.Arrays;
  * @param maxValue the maximum value in a bin
  */
 public record Histogram(
-        int[] values,
-        int pixelCount,
-        int maxValue
+    int[] values,
+    int pixelCount,
+    int maxValue
 ) {
     public static Histogram of(Image image, int bins) {
-        int[] histogram = new int[bins + 1];
-        int pixelCount = image.width() * image.height();
-        int maxValue = 0;
+        var builder = builder(bins);
         for (float d : image.data()) {
-            int i = Math.round(d * bins / Constants.MAX_PIXEL_VALUE);
-            maxValue = Math.max(i, maxValue);
-            histogram[i]++;
+            builder.record(d);
         }
-        return new Histogram(histogram, pixelCount, maxValue);
+        return builder.build();
+    }
+
+    public static Histogram of(float[] image, int bins) {
+        var builder = builder(bins);
+        for (float d : image) {
+            builder.record(d);
+        }
+        return builder.build();
     }
 
     /**
      * Returns the number of distinct levels count
      * in the image.
+     *
      * @return the number of bins which have a non-zero number of pixels
      */
     public int levelsCount() {
         return (int) Arrays.stream(values)
-                .filter(i -> i>0)
-                .count();
+            .filter(i -> i > 0)
+            .count();
+    }
+
+    public Histogram cumulative() {
+        int[] cumulative = new int[values.length];
+        int sum = 0;
+        for (int i = 0; i < values.length; i++) {
+            sum += values[i];
+            cumulative[i] = sum;
+        }
+        return new Histogram(cumulative, pixelCount, maxValue);
+    }
+
+    public Histogram derivative() {
+        int[] derivative = new int[values.length];
+        for (int i = 1; i < values.length; i++) {
+            derivative[i] = values[i] - values[i - 1];
+        }
+        return new Histogram(derivative, pixelCount, maxValue);
+    }
+
+    public static int medianOf(Histogram cumulativeHistogram) {
+        var limit = cumulativeHistogram.pixelCount() / 2;
+        for (int i = 0; i < cumulativeHistogram.values().length; i++) {
+            if (cumulativeHistogram.get(i) >= limit) {
+                return i;
+            }
+        }
+        return 0;
+    }
+
+    public int get(int index) {
+        return values[index];
+    }
+
+    public static Builder builder(int bins) {
+        return new Builder(bins);
+    }
+
+    public static class Builder {
+        private final int bins;
+        private final int[] buckets;
+
+        private int maxValue;
+        private int pixelCount;
+
+        public Builder(int bins) {
+            this.bins = bins;
+            this.buckets = new int[bins];
+        }
+
+        public void record(float pixel) {
+            pixelCount++;
+            int i = Math.min(bins - 1, Math.round(pixel * bins / Constants.MAX_PIXEL_VALUE));
+            buckets[i]++;
+            if (i > maxValue) {
+                maxValue = i;
+            }
+        }
+
+        public Histogram build() {
+            return new Histogram(buckets, pixelCount, maxValue);
+        }
     }
 }

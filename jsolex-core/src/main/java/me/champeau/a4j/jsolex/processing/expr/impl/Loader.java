@@ -68,12 +68,12 @@ public class Loader extends AbstractFunctionImpl {
         }
         if (arg instanceof String path) {
             var file = workingDirectory.resolve(path).toFile();
-            return doLoadImage(file);
+            return loadImage(file);
         }
         throw new IllegalArgumentException("Unsupported argument '" + arg + "' to load()");
     }
 
-    private static ImageWrapper doLoadImage(File file) {
+    public static ImageWrapper loadImage(File file) {
         if (file.getName().toLowerCase(Locale.US).endsWith(".fits")) {
             return FitsUtils.readFitsFile(file);
         }
@@ -133,7 +133,8 @@ public class Loader extends AbstractFunctionImpl {
                 return stream.map(Path::toFile)
                         .filter(p -> pattern.matcher(p.getName()).matches())
                         .filter(Loader::isImageFile)
-                        .map(Loader::doLoadImage)
+                        .parallel()
+                        .map(Loader::loadImage)
                         .toList();
             } catch (IOException e) {
                 LOGGER.error("Unable to load files", e);

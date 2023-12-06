@@ -15,6 +15,7 @@
  */
 package me.champeau.a4j.jsolex.processing.expr;
 
+import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
 import me.champeau.a4j.jsolex.processing.util.FileBackedImage;
 import me.champeau.a4j.jsolex.processing.util.ForkJoinContext;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
@@ -39,12 +40,12 @@ public class ShiftCollectingImageExpressionEvaluator extends ImageExpressionEval
         return (Double idx) -> map.computeIfAbsent(idx, unused -> new ImageWrapper32(0, 0, new float[0], MutableMap.of()));
     }
 
-    public ShiftCollectingImageExpressionEvaluator(ForkJoinContext forkJoinContext) {
-        this(forkJoinContext, zeroImages());
+    public ShiftCollectingImageExpressionEvaluator(ForkJoinContext forkJoinContext, Broadcaster broadcaster) {
+        this(forkJoinContext, broadcaster, zeroImages());
     }
 
-    public ShiftCollectingImageExpressionEvaluator(ForkJoinContext forkJoinContext, Function<Double, ImageWrapper> imageFactory) {
-        super(forkJoinContext, imageFactory);
+    public ShiftCollectingImageExpressionEvaluator(ForkJoinContext forkJoinContext, Broadcaster broadcaster, Function<Double, ImageWrapper> imageFactory) {
+        super(forkJoinContext, broadcaster, imageFactory);
     }
 
     protected ImageWrapper findImage(double shift) {

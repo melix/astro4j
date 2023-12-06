@@ -248,6 +248,8 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
             tab.getProperties().put(GeneratedImageKind.class, GeneratedImageKind.RECONSTRUCTION);
             imageView.setParentTab(tab);
             tabPane.getTabs().add(tab);
+            var selectionModel = tabPane.getSelectionModel();
+            selectionModel.select(tab);
             Runnable listener = () -> {
                 var ps = MetadataSupport.renderPixelShift(new PixelShift(pixelShift));
                 metadataTab.setContent(new Label(ps));
@@ -340,10 +342,12 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
                     showHistogram(viewer.getStretchedImage());
                 }
             });
+            tab.getProperties().put(ImageViewer.class, viewer);
             tab.setContent(viewer.getRoot());
             tabPane.getTabs().add(tab);
             tabPane.getTabs().sort(COMPARE_BY_PIXEL_SHIFT);
-            tabPane.getSelectionModel().select(tab);
+            var selectionModel = tabPane.getSelectionModel();
+            selectionModel.select(tab);
             var imageViewer = popupViews.get(title);
             if (imageViewer != null) {
                 imageViewer.setImage(baseName, params, imageWrapper, payload.path());

@@ -32,7 +32,8 @@ public enum GeneratedImageKind {
     DOPPLER,
     NEGATIVE,
     TECHNICAL_CARD,
-    IMAGE_MATH;
+    IMAGE_MATH,
+    COMPOSITION;
 
     public boolean shouldRotateImage() {
         return this == GeneratedImageKind.IMAGE_MATH

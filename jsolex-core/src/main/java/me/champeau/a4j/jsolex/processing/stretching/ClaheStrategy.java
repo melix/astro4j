@@ -149,8 +149,8 @@ public final class ClaheStrategy implements StretchingStrategy {
         }
     }
 
-    private static int centerOf(int tile, int tileSize) {
-        return tile * tileSize + (tileSize / 2);
+    private static float centerOf(int tile, int tileSize) {
+        return tile * tileSize + (tileSize / 2f);
     }
 
 
@@ -186,13 +186,11 @@ public final class ClaheStrategy implements StretchingStrategy {
         for (int i = 0; i < bins; i++) {
             values[i] += increment;
         }
-        if (remainder > 0) {
-            int s = bins / remainder;
-            for (int i = 0; i < bins; i += s) {
-                values[i]++;
-            }
+        for (int i = 0; i < remainder; i++) {
+            values[i]++;
         }
     }
+
 
     /**
      * Returns the cumulative histogram mapping function,
@@ -208,7 +206,7 @@ public final class ClaheStrategy implements StretchingStrategy {
         for (int i = 1; i < values.length; i++) {
             cumulative[i] = cumulative[i - 1] + values[i];
         }
-        double max = cumulative[cumulative.length - 1];
+        float max = cumulative[cumulative.length - 1];
         if (max == 0) {
             for (int i = 0; i < values.length; i++) {
                 cumulative[i] = 1.0f;
@@ -250,9 +248,9 @@ public final class ClaheStrategy implements StretchingStrategy {
     private float linearInterpolation(
             float v1, float v2,
             float x1, float x2,
-            float x
+            float a
     ) {
-        float slope = (x - x1) / (x2 - x1);
+        float slope = (a - x1) / (x2 - x1);
         return v1 + slope * (v2 - v1);
     }
 

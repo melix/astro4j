@@ -66,6 +66,7 @@ import me.champeau.a4j.jsolex.app.jfx.ProcessParamsController;
 import me.champeau.a4j.jsolex.app.jfx.SpectralLineDebugger;
 import me.champeau.a4j.jsolex.app.jfx.SpectralRayEditor;
 import me.champeau.a4j.jsolex.app.jfx.ime.ImageMathTextArea;
+import me.champeau.a4j.jsolex.app.jfx.stacking.StackingAndMosaicController;
 import me.champeau.a4j.jsolex.app.listeners.BatchModeEventListener;
 import me.champeau.a4j.jsolex.app.listeners.BatchProcessingContext;
 import me.champeau.a4j.jsolex.app.listeners.JSolExInterface;
@@ -123,6 +124,7 @@ import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
 import static java.nio.file.StandardWatchEventKinds.OVERFLOW;
+import static me.champeau.a4j.jsolex.app.jfx.FXUtils.newStage;
 import static me.champeau.a4j.jsolex.processing.util.LoggingSupport.logError;
 
 public class JSolEx extends Application implements JSolExInterface {
@@ -239,7 +241,11 @@ public class JSolEx extends Application implements JSolExInterface {
                 pause.playFromStart();
             });
             hideProgress();
-            stage.setTitle("JSol'Ex " + getVersion());
+            String version = getFullVersion();
+            if (version.endsWith("-SNAPSHOT")) {
+                version = getVersion() + " (dev)";
+            }
+            stage.setTitle("JSol'Ex " + version);
             stage.setScene(rootScene);
             addIcons(stage);
             stage.show();
@@ -588,7 +594,7 @@ public class JSolEx extends Application implements JSolExInterface {
                 throw new ProcessingException(e);
             }
             var controller = (SpectralLineDebugger) fxmlLoader.getController();
-            var stage = new Stage();
+            var stage = newStage();
             Scene scene = new Scene((Parent) configWindow);
             controller.open(file, null, scene, stage, ioExecutor);
             stage.setTitle(I18N.string(getClass(), "frame-debugger", "frame.debugger"));
@@ -601,19 +607,19 @@ public class JSolEx extends Application implements JSolExInterface {
     @FXML
     private void showFileNamePatternEditor() {
         var now = LocalDateTime.now();
-        var stage = new Stage();
+        var stage = newStage();
         NamingPatternEditor.openEditor(stage, createFakeHeader(now), e -> stage.close());
     }
 
     @FXML
     private void showSpectralRayEditor() {
-        var stage = new Stage();
+        var stage = newStage();
         SpectralRayEditor.openEditor(stage, e -> stage.close());
     }
 
     @FXML
     private void showImageMathEditor() {
-        var stage = new Stage();
+        var stage = newStage();
         var params = ProcessParams.loadDefaults();
         ImageMathEditor.create(
                 stage,
@@ -635,12 +641,29 @@ public class JSolEx extends Application implements JSolExInterface {
     private void showExposureCalculator() {
         var fxmlLoader = I18N.fxmlLoader(JSolEx.class, "exposure-calculator");
         try {
-            var stage = new Stage();
+            var stage = newStage();
             var node = (Parent) fxmlLoader.load();
             var controller = (ExposureCalculator) fxmlLoader.getController();
             controller.setup(stage);
             Scene scene = new Scene(node);
             stage.setTitle(I18N.string(JSolEx.class, "exposure-calculator", "frame.title"));
+            stage.setScene(scene);
+            stage.show();
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    @FXML
+    private void showMosaicParams() {
+        var fxmlLoader = I18N.fxmlLoader(JSolEx.class, "mosaic-params");
+        try {
+            var stage = newStage();
+            var node = (Parent) fxmlLoader.load();
+            var controller = (StackingAndMosaicController) fxmlLoader.getController();
+            controller.setup(stage, this, ProcessParams.loadDefaults(), ioExecutor, cpuExecutor, popupViewers);
+            Scene scene = new Scene(node);
+            stage.setTitle(I18N.string(JSolEx.class, "mosaic-params", "frame.title"));
             stage.setScene(scene);
             stage.show();
         } catch (IOException e) {
@@ -685,9 +708,15 @@ public class JSolEx extends Application implements JSolExInterface {
             ) {
                 @Override
                 public ImageMathScriptResult execute(String script, SectionKind kind) {
-                    var result = super.execute(script, kind);
-                    processResult(result);
-                    return result;
+                    long nanoTime = System.nanoTime();
+                    try {
+                        var result = super.execute(script, kind);
+                        processResult(result);
+                        return result;
+                    } finally {
+                        var dur = java.time.Duration.ofNanos(System.nanoTime() - nanoTime);
+                        LOGGER.info(message("script.completed.in"), dur.toSeconds(), dur.toMillisPart()/100);
+                    }
                 }
 
                 private void processResult(ImageMathScriptResult result) {
@@ -731,7 +760,7 @@ public class JSolEx extends Application implements JSolExInterface {
         });
     }
 
-    private static Header createFakeHeader(LocalDateTime now) {
+    public static Header createFakeHeader(LocalDateTime now) {
         return new Header(null, null, 0, new ImageMetadata(
                 null,
                 null,
@@ -1023,7 +1052,7 @@ public class JSolEx extends Application implements JSolExInterface {
     private ProcessParamsController createProcessParams(SerFileReader serFileReader, boolean batchMode) {
         var loader = I18N.fxmlLoader(getClass(), "process-params");
         try {
-            var dialog = new Stage();
+            var dialog = newStage();
             dialog.setTitle(I18N.string(getClass(), "process-params", "process.parameters"));
             var content = (Parent) loader.load();
             var controller = (ProcessParamsController) loader.getController();

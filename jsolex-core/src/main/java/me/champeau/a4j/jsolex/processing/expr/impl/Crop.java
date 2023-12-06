@@ -20,6 +20,7 @@ import me.champeau.a4j.jsolex.processing.sun.workflow.ImageStats;
 import me.champeau.a4j.jsolex.processing.util.ColorizedImageWrapper;
 import me.champeau.a4j.jsolex.processing.util.FileBackedImage;
 import me.champeau.a4j.jsolex.processing.util.ForkJoinContext;
+import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 import me.champeau.a4j.jsolex.processing.util.RGBImage;
 import me.champeau.a4j.math.image.Image;
@@ -152,9 +153,25 @@ public class Crop extends AbstractFunctionImpl {
     }
 
     public Object autocrop2(List<Object> arguments) {
-        assertExpectedArgCount(arguments, "autocrop2 takes 2, 3 or 4 arguments (image(s), factor, [rounding], [ellipse])", 2, 4);
+        assertExpectedArgCount(arguments, "autocrop2 takes 1 to 4 arguments (image(s), [factor], [rounding], [ellipse])", 1, 4);
+        if (arguments.size() == 1 && !(arguments.get(0) instanceof List)) {
+            throw new IllegalArgumentException("autocrop2 takes 2, 3 or 4 arguments (image(s), [factor], [rounding], [ellipse])");
+        }
         var arg = arguments.get(0);
-        if (arg instanceof List<?>) {
+        if (arg instanceof List<?> list) {
+            if (arguments.size() == 1) {
+                // collect all image dimensions and compute the rounding factor
+                var images = list.stream()
+                    .filter(ImageWrapper.class::isInstance)
+                    .map(ImageWrapper.class::cast)
+                    .toList();
+                var maxDimension = images.stream()
+                    .mapToInt(img -> Math.max(img.width(), img.height()))
+                    .max()
+                    .orElse(0);
+                maxDimension = (int) Math.ceil(maxDimension / 16d) * 16;
+                return expandToImageList(forkJoinContext, List.of(images, maxDimension, maxDimension), this::cropToRect);
+            }
             return expandToImageList(forkJoinContext, arguments, this::autocrop2);
         }
         var factor = doubleArg(arguments, 1);

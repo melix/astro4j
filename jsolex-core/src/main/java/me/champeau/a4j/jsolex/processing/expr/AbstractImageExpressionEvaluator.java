@@ -27,14 +27,18 @@ import me.champeau.a4j.jsolex.processing.expr.impl.Crop;
 import me.champeau.a4j.jsolex.processing.expr.impl.DiskFill;
 import me.champeau.a4j.jsolex.processing.expr.impl.EllipseFit;
 import me.champeau.a4j.jsolex.processing.expr.impl.FixBanding;
+import me.champeau.a4j.jsolex.processing.expr.impl.GeometryCorrection;
 import me.champeau.a4j.jsolex.processing.expr.impl.ImageDraw;
 import me.champeau.a4j.jsolex.processing.expr.impl.Loader;
+import me.champeau.a4j.jsolex.processing.expr.impl.MosaicComposition;
 import me.champeau.a4j.jsolex.processing.expr.impl.RGBCombination;
 import me.champeau.a4j.jsolex.processing.expr.impl.Rotate;
 import me.champeau.a4j.jsolex.processing.expr.impl.Saturation;
 import me.champeau.a4j.jsolex.processing.expr.impl.Scaling;
 import me.champeau.a4j.jsolex.processing.expr.impl.ScriptSupport;
+import me.champeau.a4j.jsolex.processing.expr.impl.Stacking;
 import me.champeau.a4j.jsolex.processing.expr.impl.Stretching;
+import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
 import me.champeau.a4j.jsolex.processing.util.FileBackedImage;
 import me.champeau.a4j.jsolex.processing.util.ForkJoinContext;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
@@ -72,14 +76,17 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
     private final DiskFill diskFill;
     private final EllipseFit ellipseFit;
     private final FixBanding fixBanding;
+    private final GeometryCorrection geometryCorrection;
     private final ImageDraw imageDraw;
     private final Loader loader;
+    private final MosaicComposition mosaicComposition;
     private final Rotate rotate;
     private final Saturation saturation;
     private final Scaling scaling;
     private final Stretching stretching;
+    private final Stacking stacking;
 
-    protected AbstractImageExpressionEvaluator(ForkJoinContext forkJoinContext) {
+    protected AbstractImageExpressionEvaluator(ForkJoinContext forkJoinContext, Broadcaster broadcaster) {
         this.forkJoinContext = forkJoinContext;
         this.adjustContrast = new AdjustContrast(forkJoinContext, context);
         this.animate = new Animate(forkJoinContext, context);
@@ -91,12 +98,15 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
         this.diskFill = new DiskFill(forkJoinContext, context);
         this.ellipseFit = new EllipseFit(forkJoinContext, context);
         this.fixBanding = new FixBanding(forkJoinContext, context);
+        this.geometryCorrection = new GeometryCorrection(forkJoinContext, context, ellipseFit);
         this.imageDraw = new ImageDraw(forkJoinContext, context);
         this.loader = new Loader(forkJoinContext, context);
         this.rotate = new Rotate(forkJoinContext, context);
         this.saturation = new Saturation(forkJoinContext, context);
-        this.scaling = new Scaling(forkJoinContext, context);
+        this.scaling = new Scaling(forkJoinContext, context, crop);
         this.stretching = new Stretching(forkJoinContext, context);
+        this.stacking = new Stacking(forkJoinContext, context, scaling, crop, broadcaster);
+        this.mosaicComposition = new MosaicComposition(forkJoinContext, context, broadcaster, stacking, ellipseFit, scaling);
     }
 
     public <T> void putInContext(Class<T> key, T value) {
@@ -112,6 +122,9 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
     protected Object plus(Object left, Object right) {
         if (left instanceof List<?> leftList && right instanceof List<?> rightList) {
             return Stream.concat(leftList.stream(), rightList.stream()).toList();
+        }
+        if (left instanceof CharSequence leftString && right instanceof CharSequence rightString) {
+            return leftString.toString() + rightString;
         }
         var leftImage = asImage(left);
         var rightImage = asImage(right);
@@ -172,6 +185,7 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
             case DRAW_SOLAR_PARAMS -> imageDraw.drawSolarParameters(arguments);
             case ELLIPSE_FIT -> ellipseFit.fit(arguments);
             case FIX_BANDING -> fixBanding.fixBanding(arguments);
+            case FIX_GEOMETRY -> geometryCorrection.fixGeometry(arguments);
             case IMG -> image(arguments);
             case INVERT -> ScriptSupport.inverse(forkJoinContext, arguments);
             case LINEAR_STRETCH -> stretching.linearStretch(arguments);
@@ -181,6 +195,7 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
             case MAX -> applyFunction("max", arguments, DoubleStream::max);
             case MEDIAN -> applyFunction("median", arguments, AbstractImageExpressionEvaluator::median);
             case MIN -> applyFunction("min", arguments, DoubleStream::min);
+            case MOSAIC -> mosaicComposition.mosaic(arguments);
             case RADIUS_RESCALE -> scaling.radiusRescale(arguments);
             case RANGE -> createRange(arguments);
             case REMOVE_BG -> bgRemoval.removeBackground(arguments);
@@ -194,6 +209,7 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
             case RGB -> RGBCombination.combine(arguments);
             case SATURATE -> saturation.saturate(arguments);
             case SHARPEN -> convolution.sharpen(arguments);
+            case STACK -> stacking.stack(arguments);
             case WORKDIR -> setWorkDir(arguments);
         };
     }

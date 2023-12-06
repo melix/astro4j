@@ -87,6 +87,15 @@ public interface ImageMath {
         return sum / max;
     }
 
+    default float averageOf(float[] data) {
+        float sum = 0;
+        int max = data.length;
+        for (float datum : data) {
+            sum += datum;
+        }
+        return sum / max;
+    }
+
     default void incrementalAverage(float[] current, float[] average, int n) {
         for (int j = 0; j < current.length; j++) {
             average[j] = average[j] + (current[j] - average[j]) / n;
@@ -417,5 +426,41 @@ public interface ImageMath {
             result[i] = firstData[i] * secondData[i];
         }
         return new Image(first.width(), first.height(), result);
+    }
+
+    /**
+     * Returns an estimate of the image sharpness. The closer to 0, the blurrier the image is.
+     *
+     * @param image the image to estimate
+     * @return the estimated sharpness
+     */
+    default double estimateSharpness(Image image) {
+        var laplacian = laplacian(image);
+        var data = laplacian.data();
+        var width = laplacian.width();
+        var height = laplacian.height();
+        double sumOfSquares = 0.0;
+        double count = 0;
+        for (int y = 0; y < height; y++) {
+            for (int x = 0; x < width; x++) {
+                var magnitude = data[x + y * width];
+                count++;
+                sumOfSquares += magnitude;
+            }
+        }
+        if (count == 0) {
+            return 0;
+        }
+        return Math.sqrt(sumOfSquares) / count;
+    }
+
+    default Image laplacian(Image image) {
+        var a = multiply(convolve(image, Kernel33.LAPLACIAN), 2 / 3f).data();
+        var b = multiply(convolve(image, Kernel33.LAPLACIAN_B), 1 / 3f).data();
+        var sum = new float[image.length()];
+        for (int i = 0; i < sum.length; i++) {
+            sum[i] = a[i] + b[i];
+        }
+        return new Image(image.width(), image.height(), sum);
     }
 }

@@ -218,8 +218,12 @@ public class ImageViewer {
                 displayImage = image;
             }
             if (displayImage instanceof ImageWrapper32 mono) {
-                var pixelValue = mono.data()[x.intValue() + y.intValue() * mono.width()];
-                extra = ", " + pixelValue;
+                var idx = x.intValue() + y.intValue() * mono.width();
+                if (idx < 0 || idx >= mono.data().length) {
+                    return;
+                }
+                var pixelValue = mono.data()[idx];
+                extra = ", " + String.format("%.0f", pixelValue);
             }
             coordinatesLabel.setText("(" + x.intValue() + ", " + y.intValue() + extra + ")");
         });
@@ -246,8 +250,22 @@ public class ImageViewer {
         line2.getChildren().addAll(correctAngleP, zoomLabel, zoomSlider, dimensions, coordinatesLabel);
         var titleLabel = new Label(title);
         titleLabel.setStyle("-fx-font-weight: bold");
-        line1.getChildren().add(titleLabel);
-        stretchingParams.getChildren().addAll(titleLabel, line1, line2);
+        var alignButton = new Button("⌖");
+        alignButton.setStyle("-fx-padding: 2; -fx-font-size: 18");
+        alignButton.setOnAction(evt -> {
+            var siblings = imageView.getParentTab().getTabPane().getTabs();
+            for (Tab tab : siblings) {
+                var viewer = (ImageViewer) tab.getProperties().get(ImageViewer.class);
+                if (viewer != this) {
+                    viewer.imageView.alignWith(imageView);
+                }
+            }
+        });
+        var titleBox = new HBox(alignButton, titleLabel);
+        titleBox.setSpacing(4);
+        titleBox.setAlignment(Pos.CENTER_LEFT);
+//        alignButton.disableProperty().bind(Bindings.size(imageView.getParentTab().getTabPane().getTabs()).lessThan(2));
+        stretchingParams.getChildren().addAll(titleBox, line1, line2);
         stretchAndDisplay(true);
     }
 

@@ -32,6 +32,7 @@ module me.champeau.a4j.jsolex {
     requires reactfx;
     exports me.champeau.a4j.jsolex.app to javafx.graphics;
     exports me.champeau.a4j.jsolex.app.jfx.ime to javafx.fxml, javafx.graphics;
+    opens me.champeau.a4j.jsolex.app.jfx.stacking to javafx.fxml, javafx.graphics;
     opens me.champeau.a4j.jsolex.app to javafx.fxml;
     opens me.champeau.a4j.jsolex.app.jfx to javafx.fxml;
 }

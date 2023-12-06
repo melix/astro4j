@@ -31,6 +31,8 @@ public record Kernel33(
     public static final Kernel33 SOBEL_RIGHT = new Kernel33(1, -1, 0, 1, -2, 0, 2, -1, 0, 1);
     public static final Kernel33 SOBEL_TOP = new Kernel33(1, 1, 2, 1, 0, 0, 0, -1, -2, -1);
     public static final Kernel33 SOBEL_BOTTOM = new Kernel33(1, -1, -2, -1, 0, 0, 0, 1, 2, 1);
+    public static final Kernel33 LAPLACIAN = new Kernel33(1, 0, 1, 0, 1, -4, 1, 0, 1, 0);
+    public static final Kernel33 LAPLACIAN_B = new Kernel33(1, 0.5f, 0, 0.5f, 0, -2, 0, 0.5f, 0, 0.5f);
 
     public int rows() {
         return 3;

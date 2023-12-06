@@ -17,13 +17,12 @@ package me.champeau.a4j.jsolex.processing.sun.align
 
 import me.champeau.a4j.jsolex.processing.sun.Broadcaster
 import me.champeau.a4j.jsolex.processing.sun.ImageUtils
+import me.champeau.a4j.jsolex.processing.util.ImageIOUtils
 import me.champeau.a4j.math.image.Image
 import me.champeau.a4j.math.image.ImageMath
 import spock.lang.PendingFeature
 import spock.lang.Specification
 import spock.lang.Subject
-
-import javax.imageio.ImageIO
 
 import static java.lang.Math.abs
 
@@ -31,8 +30,8 @@ class AlignerTest extends Specification {
     private static final double EPSILON = 0.015d
     private static final List<Float> ROTATION_ANGLES = (-3..3).collect { (float) (it * Math.PI / 4) }
 
-    private static final Image REFERENCE = loadImage("meudon-ref.png")
-    private static final Image STRETCHED = loadImage("candidate-stretched.png")
+    private static final Image REFERENCE = ImageIOUtils.loadImage("meudon-ref.png")
+    private static final Image STRETCHED = ImageIOUtils.loadImage("candidate-stretched.png")
     private static final ImageMath IMAGE_MATH = ImageMath.newInstance()
 
     @Subject
@@ -152,19 +151,6 @@ class AlignerTest extends Specification {
         diff = abs(Math.min(2 * Math.PI - diff, diff))
         println("Diff = $diff")
         assert diff < EPSILON
-    }
-
-    private static Image loadImage(String name) {
-        var img = ImageIO.read(AlignerTest.getResource(name))
-        var refW = img.width
-        var refH = img.height
-        var loaded = new float[refW * refH]
-        for (int x = 0; x < refW; x++) {
-            for (int y = 0; y < refH; y++) {
-                loaded[x + y * refW] = (img.getRGB(x, y) & 0xFF) << 8
-            }
-        }
-        new Image(refW, refH, loaded)
     }
 
     private boolean shouldFlip(Image image, boolean horizontal, boolean vertical) {

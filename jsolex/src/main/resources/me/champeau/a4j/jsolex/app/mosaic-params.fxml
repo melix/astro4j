@@ -1,0 +1,99 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.Accordion?>
+<?import javafx.scene.control.Button?>
+<?import javafx.scene.control.CheckBox?>
+<?import javafx.scene.control.ChoiceBox?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.control.ScrollPane?>
+<?import javafx.scene.control.Slider?>
+<?import javafx.scene.control.TextField?>
+<?import javafx.scene.control.TitledPane?>
+<?import javafx.scene.layout.AnchorPane?>
+<?import javafx.scene.layout.BorderPane?>
+<?import javafx.scene.layout.FlowPane?>
+<?import javafx.scene.layout.HBox?>
+<?import javafx.scene.layout.VBox?>
+<BorderPane fx:controller="me.champeau.a4j.jsolex.app.jfx.stacking.StackingAndMosaicController" maxHeight="-Infinity" maxWidth="-Infinity" minHeight="-Infinity" minWidth="-Infinity" prefHeight="600.0"
+            prefWidth="1024.0" xmlns="http://javafx.com/javafx/19" xmlns:fx="http://javafx.com/fxml/1">
+    <center>
+        <VBox prefHeight="200.0" prefWidth="100.0" BorderPane.alignment="CENTER" spacing="4">
+            <opaqueInsets>
+                <Insets bottom="4.0" left="4.0" right="4.0" top="4.0"/>
+            </opaqueInsets>
+            <BorderPane.margin>
+                <Insets bottom="4.0" left="4.0" right="4.0" top="4.0"/>
+            </BorderPane.margin>
+            <Label text="%panels" style="-fx-font-weight: bold"/>
+            <Label text="%panels.help.message" wrapText="true"/>
+            <Label fx:id="mosaicWarning" text="%mosaic.warning" wrapText="true" style="-fx-font-weight: bold; -fx-text-fill: red"/>
+            <ScrollPane fx:id="cardsScrollPane" VBox.vgrow="ALWAYS" fitToWidth="true">
+                <FlowPane fx:id="cardsPane"/>
+            </ScrollPane>
+        </VBox>
+    </center>
+    <opaqueInsets>
+        <Insets bottom="4.0" left="4.0" right="4.0" top="4.0"/>
+    </opaqueInsets>
+    <bottom>
+        <AnchorPane minHeight="40.0" prefHeight="40.0" prefWidth="600.0" BorderPane.alignment="CENTER">
+            <Button fx:id="proceedButton" onAction="#proceed" layoutX="624.0" layoutY="8.0" mnemonicParsing="false" text="%proceed.stacking"/>
+        </AnchorPane>
+    </bottom>
+    <right>
+        <VBox prefHeight="560.0" prefWidth="400.0" BorderPane.alignment="CENTER">
+            <Accordion fx:id="accordionParams">
+                <panes>
+                    <TitledPane animated="false" text="%stacking.parameters">
+                        <VBox prefHeight="836.0" prefWidth="398.0" spacing="8.0">
+                            <Label text="%tile.size" fx:id="stackTileSizeLabel"/>
+                            <Slider fx:id="stackTileSize" blockIncrement="8" majorTickUnit="64.0" max="256.0" min="16.0" minorTickCount="8" showTickLabels="true" showTickMarks="true" value="32.0"/>
+                            <Label fx:id="stackTileOverlapLabel" text="%tile.overlap"/>
+                            <Slider fx:id="stackOverlap" blockIncrement="0.1" majorTickUnit="0.1" max="1.0" minorTickCount="1" showTickLabels="true" showTickMarks="true" value="0.3"/>
+                            <CheckBox fx:id="stackForceRecomputeEllipse" mnemonicParsing="false" text="%force.recompute.ellipses"/>
+                            <CheckBox fx:id="stackFixGeometry" mnemonicParsing="false" text="%fix.geometry"/>
+                            <Label text="%postprocessing.script"/>
+                            <HBox spacing="8">
+                                <TextField HBox.hgrow="ALWAYS" fx:id="stackPostProcessingScript" disable="true"/>
+                                <Button onAction="#chooseStackingPostProcessingScript" text="%choose"/>
+                            </HBox>
+                            <HBox alignment="CENTER_RIGHT">
+                                <Button onAction="#resetStackingParams" text="%reset.to.defaults"/>
+                            </HBox>
+                        </VBox>
+                    </TitledPane>
+                    <TitledPane animated="false" text="%file.formats">
+                        <VBox spacing="8.0">
+                            <CheckBox fx:id="saveFits" mnemonicParsing="false" text="%generate.fits.files"/>
+                            <CheckBox fx:id="savePng" mnemonicParsing="false" text="%generate.png.files"/>
+                            <CheckBox fx:id="saveJpg" mnemonicParsing="false" text="%generate.jpg.files"/>
+                            <CheckBox fx:id="saveTif" mnemonicParsing="false" text="%generate.tif.files"/>
+                            <Label text="%naming.pattern"/>
+                            <ChoiceBox fx:id="namingPattern" prefHeight="24.0" prefWidth="331.0"/>
+                        </VBox>
+                    </TitledPane>
+                    <TitledPane animated="false" text="%mosaic.parameters" fx:id="mosaicParameters">
+                        <VBox prefHeight="836.0" prefWidth="398.0" spacing="8.0">
+                            <CheckBox fx:id="createMosaic" text="%create.mosaic"/>
+                            <Label text="%tile.size" fx:id="mosaicTileSizeLabel"/>
+                            <Slider fx:id="mosaicTileSize" blockIncrement="8" majorTickUnit="64.0" max="256.0" min="16.0" minorTickCount="8" showTickLabels="true" showTickMarks="true" value="64.0"/>
+                            <Label text="%tile.overlap" fx:id="mosaicTileOverlapLabel"/>
+                            <Slider fx:id="mosaicOverlap" snapToTicks="true" blockIncrement="0.1" majorTickUnit="0.1" max="1.0" minorTickCount="1" showTickLabels="true" showTickMarks="true"
+                                    value="0.3"/>
+                            <Label text="%postprocessing.script"/>
+                            <HBox spacing="8">
+                                <TextField HBox.hgrow="ALWAYS" fx:id="mosaicPostProcessingScript" disable="true"/>
+                                <Button onAction="#chooseMosaicPostProcessingScript" text="%choose"/>
+                            </HBox>
+                            <HBox alignment="CENTER_RIGHT">
+                                <Button onAction="#resetMosaicParams" text="%reset.to.defaults"/>
+                            </HBox>
+                        </VBox>
+                    </TitledPane>
+                </panes>
+            </Accordion>
+        </VBox>
+    </right>
+</BorderPane>

@@ -15,6 +15,7 @@
  */
 package me.champeau.a4j.jsolex.processing.sun.workflow;
 
+import me.champeau.a4j.jsolex.processing.util.Histogram;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 import me.champeau.a4j.math.regression.Ellipse;
 
@@ -58,5 +59,55 @@ public class AnalysisUtils {
             }
         }
         return avg;
+    }
+
+    public static float estimateSignalLevel(float[] data) {
+        return estimateSignalLevel(data, 32);
+    }
+
+    public static float estimateBackgroundLevel(float[] data) {
+        return estimateBackgroundLevel(data, 32);
+    }
+
+    public static float estimateBackgroundLevel(float[] data, int bins) {
+        var h = Histogram.of(data, bins);
+        var values = h.values();
+        float cur = values[0];
+        int idx = 0;
+        for (int i = 1; i < values.length; i++) {
+            idx++;
+            float previous = cur;
+            cur = values[i];
+            if (cur < 0.5 * previous) {
+                break;
+            }
+        }
+        return 0.8f * (65536f * idx / h.levelsCount());
+    }
+
+    public static float estimateSignalLevel(float[] data, int bins) {
+        var h = Histogram.of(data, bins);
+        var values = h.values();
+        float cur = values[0];
+        // First, identify the background level
+        int idx = 0;
+        for (int i = 1; i < values.length; i++) {
+            idx++;
+            float previous = cur;
+            cur = values[i];
+            if (cur < 0.5 * previous) {
+                break;
+            }
+        }
+        // Then find the actual signal
+        for (int i = idx; i < values.length; i++) {
+            idx++;
+            float previous = cur;
+            cur = values[i];
+            if (cur > 1.1 * previous) {
+                break;
+            }
+        }
+        return 0.8f * (65536f * idx / h.levelsCount());
     }
 }

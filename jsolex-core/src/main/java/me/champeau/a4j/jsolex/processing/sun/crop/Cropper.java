@@ -23,6 +23,8 @@ import org.slf4j.LoggerFactory;
 
 import java.util.Arrays;
 
+import static me.champeau.a4j.jsolex.processing.util.Constants.message;
+
 /**
  * An utility class which performs cropping of the sun disk to a square.
  */
@@ -53,7 +55,7 @@ public class Cropper {
                 square += closestMultiple;
             }
         }
-        LOGGER.info("Diameter {}", diameter);
+        LOGGER.info(message("diameter"), String.format("%.2f", diameter));
         var half = square / 2;
         var cropped = new float[square * square];
         Arrays.fill(cropped, blackPoint);
