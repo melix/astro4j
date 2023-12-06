@@ -780,6 +780,14 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
             min = Math.min(v, min);
             max = Math.max(v, max);
         }
+        if (min == Double.MAX_VALUE) {
+            min = 0;
+        }
+        if (max == Double.MIN_VALUE) {
+            max = height;
+        }
+        min = Math.max(0, min);
+        max = Math.min(height, max);
         double mid = (max + min) / 2.0;
         double range = (max - min) / 2.0;
         for (int y = (int) range; y < height - range; y++) {
