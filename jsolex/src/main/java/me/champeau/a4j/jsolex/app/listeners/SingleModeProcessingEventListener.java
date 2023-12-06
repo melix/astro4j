@@ -348,7 +348,7 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
             tabPane.getTabs().add(tab);
             tabPane.getTabs().sort(COMPARE_BY_PIXEL_SHIFT);
             var selectionModel = tabPane.getSelectionModel();
-            selectionModel.select(tab);
+            BatchOperations.submit(() -> selectionModel.select(tab));
             var imageViewer = popupViews.get(title);
             if (imageViewer != null) {
                 imageViewer.setImage(baseName, params, imageWrapper, payload.path());
