@@ -35,6 +35,7 @@ import java.nio.file.Path;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.regex.Pattern;
 
@@ -159,5 +160,46 @@ public class Loader extends AbstractFunctionImpl {
 
     public void setWorkingDirectory(Path workingDirectory) {
         this.workingDirectory = workingDirectory;
+    }
+
+    public Object chooseFile(List<Object> arguments) {
+        if (arguments.size() != 2) {
+            throw new IllegalArgumentException("choose_file takes 1 arguments (id, message)");
+        }
+        var id = stringArg(arguments, 0);
+        var message = stringArg(arguments, 1);
+        var chooser = (FileSelector) context.get(FileSelector.class);
+        if (chooser == null) {
+            chooser = new FileSelector() {
+                @Override
+                public Optional<File> chooseFile(String id, String title) {
+                    return Optional.empty();
+                }
+
+                @Override
+                public Optional<List<File>> chooseFiles(String id, String title) {
+                    return Optional.empty();
+                }
+            };
+        }
+        var file = chooser.chooseFile(id, message);
+        return file.map(Loader::loadImage).orElse(ImageWrapper32.createEmpty());
+    }
+
+    public Object chooseFiles(List<Object> arguments) {
+        if (arguments.size() != 2) {
+            throw new IllegalArgumentException("choose_files takes 1 arguments (id, message)");
+        }
+        var id = stringArg(arguments, 0);
+        var message = stringArg(arguments, 1);
+        var chooser = (FileSelector) context.get(FileSelector.class);
+        if (chooser == null) {
+            throw new IllegalStateException("No file selector registered");
+        }
+        var files = chooser.chooseFiles(id, message);
+        return files.<Object>map(fileList -> fileList
+            .stream()
+            .map(Loader::loadImage)
+            .toList()).orElse(List.of());
     }
 }

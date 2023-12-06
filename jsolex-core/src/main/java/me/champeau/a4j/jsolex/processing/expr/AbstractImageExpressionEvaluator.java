@@ -176,6 +176,8 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
             case AVG -> applyFunction("avg", arguments, DoubleStream::average);
             case BLUR -> convolution.blur(arguments);
             case CLAHE -> clahe.clahe(arguments);
+            case CHOOSE_FILE -> loader.chooseFile(arguments);
+            case CHOOSE_FILES -> loader.chooseFiles(arguments);
             case COLORIZE -> colorize.colorize(arguments);
             case CROP -> crop.crop(arguments);
             case CROP_RECT -> crop.cropToRect(arguments);

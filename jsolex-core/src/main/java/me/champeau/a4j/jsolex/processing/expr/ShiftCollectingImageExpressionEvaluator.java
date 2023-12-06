@@ -20,7 +20,6 @@ import me.champeau.a4j.jsolex.processing.util.FileBackedImage;
 import me.champeau.a4j.jsolex.processing.util.ForkJoinContext;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
-import me.champeau.a4j.jsolex.processing.util.MutableMap;
 
 import java.util.Collections;
 import java.util.HashMap;
@@ -37,7 +36,7 @@ public class ShiftCollectingImageExpressionEvaluator extends ImageExpressionEval
 
     public static Function<Double, ImageWrapper> zeroImages() {
         var map = new HashMap<Double, ImageWrapper>();
-        return (Double idx) -> map.computeIfAbsent(idx, unused -> new ImageWrapper32(0, 0, new float[0], MutableMap.of()));
+        return (Double idx) -> map.computeIfAbsent(idx, unused -> ImageWrapper32.createEmpty());
     }
 
     public ShiftCollectingImageExpressionEvaluator(ForkJoinContext forkJoinContext, Broadcaster broadcaster) {

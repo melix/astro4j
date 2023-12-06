@@ -83,6 +83,10 @@ class AbstractFunctionImpl {
         return getAsNumber(arguments, position).intValue();
     }
 
+    protected String stringArg(List<Object> arguments, int position) {
+        return getArgument(String.class, arguments, position).orElseThrow();
+    }
+
     protected Number getAsNumber(List<Object> arguments, int position) {
         if (position < arguments.size()) {
             var obj = arguments.get(position);

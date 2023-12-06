@@ -71,11 +71,11 @@ import me.champeau.a4j.jsolex.app.listeners.BatchModeEventListener;
 import me.champeau.a4j.jsolex.app.listeners.BatchProcessingContext;
 import me.champeau.a4j.jsolex.app.listeners.JSolExInterface;
 import me.champeau.a4j.jsolex.app.listeners.SingleModeProcessingEventListener;
+import me.champeau.a4j.jsolex.app.script.JSolExScriptExecutor;
 import me.champeau.a4j.jsolex.processing.event.FileGeneratedEvent;
 import me.champeau.a4j.jsolex.processing.event.GeneratedImage;
 import me.champeau.a4j.jsolex.processing.event.ImageGeneratedEvent;
 import me.champeau.a4j.jsolex.processing.event.ProcessingEventListener;
-import me.champeau.a4j.jsolex.processing.expr.DefaultImageScriptExecutor;
 import me.champeau.a4j.jsolex.processing.expr.ImageMathScriptExecutor;
 import me.champeau.a4j.jsolex.processing.expr.ImageMathScriptResult;
 import me.champeau.a4j.jsolex.processing.expr.InvalidExpression;
@@ -117,6 +117,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -133,6 +134,17 @@ public class JSolEx extends Application implements JSolExInterface {
     private static final FileChooser.ExtensionFilter LOG_FILE_EXTENSION_FILTER = new FileChooser.ExtensionFilter("Log files (*" + LOG_EXTENSION + ")", "*" + LOG_EXTENSION);
     private static final FileChooser.ExtensionFilter SER_FILES_EXTENSION_FILTER = new FileChooser.ExtensionFilter("SER files", "*.ser", "*.SER");
     private static final int FILE_WATCH_TIMEOUT = 2_500;
+
+    public static final Set<String> IMAGE_FILE_EXTENSIONS = Set.of(
+            "png",
+            "jpg",
+            "jpeg",
+            "tif",
+            "tiff",
+            "fits",
+            "fit"
+    );
+    public static final FileChooser.ExtensionFilter IMAGE_FILES_EXTENSIONS = new FileChooser.ExtensionFilter("Image Files", IMAGE_FILE_EXTENSIONS.stream().map(ext -> "*." + ext).toList());
 
     private ForkJoinParallelExecutor cpuExecutor;
     private ForkJoinParallelExecutor ioExecutor;
@@ -698,13 +710,14 @@ public class JSolEx extends Application implements JSolExInterface {
                     processingDate,
                     createFakeHeader(processingDate)
             );
-            var imageScriptExecutor = new DefaultImageScriptExecutor(
+            var imageScriptExecutor = new JSolExScriptExecutor(
                     cpuExecutor,
                     img -> {
                         throw new ProcessingException("img() is not available in standalone image math scripts. Use load or load_many to load images");
                     },
                     MutableMap.of(),
-                    listener
+                    listener,
+                    null
             ) {
                 @Override
                 public ImageMathScriptResult execute(String script, SectionKind kind) {

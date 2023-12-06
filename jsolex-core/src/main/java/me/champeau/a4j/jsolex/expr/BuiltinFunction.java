@@ -27,6 +27,8 @@ public enum BuiltinFunction {
     MEDIAN,
     BLUR,
     CLAHE,
+    CHOOSE_FILE,
+    CHOOSE_FILES,
     COLORIZE,
     CROP,
     CROP_RECT,

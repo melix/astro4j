@@ -19,6 +19,7 @@ import me.champeau.a4j.jsolex.app.JSolEx;
 import me.champeau.a4j.jsolex.app.jfx.BatchItem;
 import me.champeau.a4j.jsolex.app.jfx.BatchOperations;
 import me.champeau.a4j.jsolex.app.jfx.RotationCorrector;
+import me.champeau.a4j.jsolex.app.script.JSolExScriptExecutor;
 import me.champeau.a4j.jsolex.processing.event.FileGeneratedEvent;
 import me.champeau.a4j.jsolex.processing.event.GeneratedImage;
 import me.champeau.a4j.jsolex.processing.event.ImageGeneratedEvent;
@@ -164,12 +165,13 @@ public class BatchModeEventListener implements ProcessingEventListener, ImageMat
             return;
         }
         owner.getCpuExecutor().blocking(() -> {
-            batchScriptExecutor = new DefaultImageScriptExecutor(
+            batchScriptExecutor = new JSolExScriptExecutor(
                     owner.getCpuExecutor(),
                     idx -> {
                         throw new IllegalStateException("Cannot call img() in batch outputs. Use variables to store images instead");
                     },
-                    MutableMap.of()
+                    MutableMap.of(),
+                    null
             );
             for (Map.Entry<String, List<ImageWrapper>> entry : imagesByLabel.entrySet()) {
                 batchScriptExecutor.putVariable(entry.getKey(), entry.getValue());

@@ -24,6 +24,7 @@ import javafx.scene.control.TextField;
 import javafx.stage.Stage;
 import javafx.stage.WindowEvent;
 import me.champeau.a4j.jsolex.app.JSolEx;
+import me.champeau.a4j.jsolex.app.script.JSolExScriptExecutor;
 import me.champeau.a4j.jsolex.processing.expr.DefaultImageScriptExecutor;
 import me.champeau.a4j.jsolex.processing.expr.ImageMathScriptExecutor;
 import me.champeau.a4j.jsolex.processing.params.ImageMathParams;
@@ -316,10 +317,11 @@ public class ImageSelector {
 
     private DefaultImageScriptExecutor createScriptExecutor() {
         var images = new HashMap<Double, ImageWrapper32>();
-        return new DefaultImageScriptExecutor(
+        return new JSolExScriptExecutor(
                 forkJoinContext,
-                i -> images.computeIfAbsent(i, unused -> new ImageWrapper32(0, 0, new float[0], MutableMap.of())),
-                MutableMap.of()
+                i -> images.computeIfAbsent(i, unused -> ImageWrapper32.createEmpty()),
+                MutableMap.of(),
+                stage
         );
     }
 

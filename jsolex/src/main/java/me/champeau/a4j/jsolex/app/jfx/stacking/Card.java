@@ -51,7 +51,7 @@ abstract class Card extends BorderPane {
     protected List<File> selectFilesUsingFileChooser() {
         var fileChooser = new FileChooser();
         fileChooser.setTitle(I18N.string(JSolEx.class, "mosaic-params", "select.images"));
-        fileChooser.getExtensionFilters().addAll(StackingAndMosaicController.IMAGE_FILES_EXTENSIONS);
+        fileChooser.getExtensionFilters().addAll(JSolEx.IMAGE_FILES_EXTENSIONS);
         var files = fileChooser.showOpenMultipleDialog(stackingAndMosaicController.getStage());
         return files == null ? List.of() : files;
     }

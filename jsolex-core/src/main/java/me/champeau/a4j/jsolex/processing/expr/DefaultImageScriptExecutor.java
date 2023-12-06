@@ -28,7 +28,6 @@ import me.champeau.a4j.jsolex.processing.util.FileBackedImage;
 import me.champeau.a4j.jsolex.processing.util.ForkJoinContext;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
-import me.champeau.a4j.jsolex.processing.util.MutableMap;
 import me.champeau.a4j.jsolex.processing.util.SolarParameters;
 
 import java.nio.file.Path;
@@ -70,7 +69,7 @@ public class DefaultImageScriptExecutor implements ImageMathScriptExecutor {
                                       Map<Class, Object> context,
                                       Broadcaster broadcaster) {
         this.forkJoinContext = forkJoinContext;
-        this.imagesByShift = img -> isCollectingShifts ? newDummyImage() : imageSupplier.apply(img);
+        this.imagesByShift = img -> isCollectingShifts ? ImageWrapper32.createEmpty() : imageSupplier.apply(img);
         this.context = context;
         this.broadcaster = broadcaster;
     }
@@ -79,10 +78,6 @@ public class DefaultImageScriptExecutor implements ImageMathScriptExecutor {
                                       Function<Double, ImageWrapper> imagesByShift,
                                       Map<Class, Object> context) {
         this(forkJoinContext, imagesByShift, context, Broadcaster.NO_OP);
-    }
-
-    private static ImageWrapper32 newDummyImage() {
-        return new ImageWrapper32(0, 0, new float[0], MutableMap.of());
     }
 
     @Override
@@ -336,8 +331,8 @@ public class DefaultImageScriptExecutor implements ImageMathScriptExecutor {
         @Override
         protected Object functionCall(BuiltinFunction function, List<Object> arguments) {
             return switch (function) {
-                case LOAD -> newDummyImage();
-                case LOAD_MANY -> List.of(newDummyImage(), newDummyImage());
+                case LOAD -> ImageWrapper32.createEmpty();
+                case LOAD_MANY -> List.of(ImageWrapper32.createEmpty(), ImageWrapper32.createEmpty());
                 default -> evaluator.functionCall(function, arguments);
             };
         }
@@ -371,10 +366,10 @@ public class DefaultImageScriptExecutor implements ImageMathScriptExecutor {
         @Override
         protected Object doEvaluate(Expression expression) {
             if (isCollectingShifts && expression instanceof FunctionCall funCall) {
-                if (funCall.function() == BuiltinFunction.LOAD) {
-                    return newDummyImage();
+                if (funCall.function() == BuiltinFunction.LOAD || funCall.function() == BuiltinFunction.CHOOSE_FILE) {
+                    return ImageWrapper32.createEmpty();
                 }
-                if (funCall.function() == BuiltinFunction.LOAD_MANY) {
+                if (funCall.function() == BuiltinFunction.LOAD_MANY || funCall.function() == BuiltinFunction.CHOOSE_FILES) {
                     return List.of();
                 }
             }
