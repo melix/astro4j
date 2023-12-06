@@ -1082,6 +1082,12 @@ Si vous ne connaissez pas la valeur du point noir, vous pouvez utiliser la valeu
 <p><code>workdir</code> définit le dossier de travail par défaut. Il est notamment utilisé pour charger les images avec <code>load</code>. Par exemple: <code>workdir("/chemin/vers/dossier/images")</code>.</p>
 </li>
 <li>
+<p><code>choose_file</code> permet à l&#8217;utilisateur de choisir une image depuis le système de fichiers. Elle prend 2 paramètres : un identifiant et un message d&#8217;aide. L&#8217;identifiant est utilisé pour se souvenir du dernier dossier utilisé. Par exemple : <code>choose_file("myImage", "Choisissez une image")</code>. Le message ne peut pas être vide.</p>
+</li>
+<li>
+<p><code>choose_files</code> permet à l&#8217;utilisateur de choisir plusieurs images depuis le système de fichiers. Elle prend 2 paramètres : un identifiant et un message d&#8217;aide. L&#8217;identifiant est utilisé pour se souvenir du dernier dossier utilisé. Par exemple : <code>choose_files("myImage", "Choisissez plusieurs images")</code>. Le message ne peut pas être vide.</p>
+</li>
+<li>
 <p><code>rl_decon</code> applique l&#8217;algorithme de déconvolution de Richardson-Lucy à l&#8217;image. Cette fonction utilise un PSF synthétique. Au minimum, cette fonction accepte un paramètre : l&#8217;image. Par exemple : <code>rl_decon(img(0))</code>. 3 autres paramètres optionnels sont disponibles : le rayon du PSF en pixels, le facteur sigma et le nombre d&#8217;itérations. Par exemple: <code>rl_decon(img(0), 2.5, 2.5, 10)</code>.</p>
 </li>
 <li>

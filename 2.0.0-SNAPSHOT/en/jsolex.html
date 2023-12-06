@@ -1089,6 +1089,12 @@ If you don&#8217;t want to provide a custom black point value, you can use a pre
 <p><code>load_many</code> allows loading several images at once from a directory. For example: <code>load_many("/path/to/folder")</code>. An optional parameter lets you specify a regular expression to filter images: <code>load_many("/chemin/vers/dossier", ".*cropped.*")</code>.</p>
 </li>
 <li>
+<p><code>choose_file</code> lets the user select an image file. It will open a file chooser dialog with a help message that you provide. The function requires 2 arguments: an id and the message. The id is used to remember the last directory with was used when calling this function. For example: <code>choose_file("myImage", "Please select an image")</code>. The message cannot be empty.</p>
+</li>
+<li>
+<p><code>choose_files</code> lets the user select multiple image files. It will open a file chooser dialog with a help message that you provide. The function requires 2 arguments: an id and the message. The id is used to remember the last directory with was used when calling this function. For example: <code>choose_files("myImage", "Please select some images")</code>. The message cannot be empty.</p>
+</li>
+<li>
 <p><code>workdir</code> sets the default working directory, which is used whenever the <code>load</code> operation is done with relative paths. e.g <code>workdir("/path/to/session")</code></p>
 </li>
 <li>
