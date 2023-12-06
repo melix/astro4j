@@ -35,3 +35,19 @@
     -rtfx-underline-color: red;
     -rtfx-underline-wave-radius: 2;
 }
+
+.log_info {
+    -fx-fill: black;
+}
+
+.log_error {
+    -fx-fill: red;
+}
+
+.log_warning {
+    -fx-fill: orange;
+}
+
+.log_debug {
+    -fx-fill: blue;
+}

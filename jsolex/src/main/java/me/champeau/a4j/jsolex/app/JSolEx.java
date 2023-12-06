@@ -95,6 +95,7 @@ import me.champeau.a4j.math.VectorApiSupport;
 import me.champeau.a4j.ser.Header;
 import me.champeau.a4j.ser.ImageMetadata;
 import me.champeau.a4j.ser.SerFileReader;
+import org.fxmisc.richtext.StyleClassedTextArea;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -154,7 +155,7 @@ public class JSolEx extends Application implements JSolExInterface {
     Stage rootStage;
 
     @FXML
-    private TextArea console;
+    private StyleClassedTextArea console;
 
     @FXML
     private Menu recentFilesMenu;
@@ -860,7 +861,7 @@ public class JSolEx extends Application implements JSolExInterface {
 
     private void processFileWithParams(File selectedFile, Header firstHeader, ProcessParams params) {
         mainPane.getTabs().clear();
-        console.textProperty().set("");
+        console.clear();
         var interruptButton = addInterruptButton();
         var processingThread = new Thread(() -> cpuExecutor.blocking(() ->
                 processSingleFile(cpuExecutor, params, selectedFile, false, 0, selectedFile, firstHeader, () -> BatchOperations.submit(() -> workButtons.getChildren().remove(interruptButton)))
