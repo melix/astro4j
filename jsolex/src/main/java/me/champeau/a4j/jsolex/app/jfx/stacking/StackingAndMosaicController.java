@@ -109,6 +109,8 @@ public class StackingAndMosaicController {
     private CheckBox createMosaic;
     @FXML
     private TextField mosaicPostProcessingScript;
+    @FXML
+    private Label mosaicWarning;
 
     // File formats
     @FXML
@@ -145,6 +147,8 @@ public class StackingAndMosaicController {
             }
         });
         mosaicParameters.disableProperty().bind(Bindings.size(cardsPane.getChildren()).lessThan(3));
+        mosaicWarning.visibleProperty().bind(Bindings.size(cardsPane.getChildren()).greaterThan(2).and(createMosaic.selectedProperty()));
+        mosaicWarning.managedProperty().bind(mosaicWarning.visibleProperty());
         proceedButton.textProperty().bind(
             Bindings.size(cardsPane.getChildren()).map(size -> {
                 var key = "stacking";
