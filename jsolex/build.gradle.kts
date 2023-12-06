@@ -16,6 +16,10 @@ dependencies {
 
 jlink {
     addExtraDependencies("javafx")
+    mergedModule {
+        additive = true
+        uses("nom.tam.fits.compress.ICompressProvider")
+    }
 }
 
 application {
