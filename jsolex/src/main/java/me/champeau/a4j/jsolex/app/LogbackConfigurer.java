@@ -23,8 +23,8 @@ import ch.qos.logback.core.Appender;
 import ch.qos.logback.core.AppenderBase;
 import ch.qos.logback.core.FileAppender;
 import ch.qos.logback.core.layout.EchoLayout;
-import javafx.scene.control.TextArea;
 import me.champeau.a4j.jsolex.app.jfx.BatchOperations;
+import org.fxmisc.richtext.StyleClassedTextArea;
 import org.slf4j.LoggerFactory;
 
 import java.io.File;
@@ -48,14 +48,19 @@ class LogbackConfigurer {
         THREAD_NAME_TO_PID.clear();
     }
 
-    static void configureLogger(TextArea console) {
+    static void configureLogger(StyleClassedTextArea console) {
         Logger logbackLogger = findRootLogger();
         logbackLogger.setLevel(Level.INFO);
         logbackLogger.detachAndStopAllAppenders();
         AppenderBase<ILoggingEvent> appender = new AppenderBase<>() {
             @Override
             protected void append(ILoggingEvent eventObject) {
-                BatchOperations.submit(() -> console.appendText(eventObject.getFormattedMessage() + System.lineSeparator()));
+                BatchOperations.submit(() -> {
+                    var level = eventObject.getLevel();
+                    var message = eventObject.getFormattedMessage() + System.lineSeparator();
+                    console.append(message, "log_" + level.levelStr.toLowerCase());
+                    console.requestFollowCaret();
+                });
             }
         };
         logbackLogger.addAppender(appender);
