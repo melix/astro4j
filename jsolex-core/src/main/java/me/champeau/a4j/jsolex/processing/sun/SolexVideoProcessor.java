@@ -226,8 +226,15 @@ public class SolexVideoProcessor implements Broadcaster {
             if (maybePolynomial.isPresent()) {
                 var polynomial = maybePolynomial.get();
                 var avgImage = new Image(width, height, averageImage);
+                var leftBorder = Math.max(0, start);
+                var rightBorder = Math.min(end, width);
+                if (leftBorder >= rightBorder) {
+                    // unreliable detection which happens on some SER files
+                    leftBorder = 0;
+                    rightBorder = width;
+                }
                 broadcast(new AverageImageComputedEvent(
-                    new AverageImageComputedEvent.AverageImage(avgImage, polynomial, Math.max(0,start), Math.min(end, width), processParams.spectrumParams().ray(), processParams.observationDetails())
+                    new AverageImageComputedEvent.AverageImage(avgImage, polynomial, leftBorder, rightBorder, processParams.spectrumParams().ray(), processParams.observationDetails())
                 ));
                 ioForkJoinContext.blocking(() -> {
                     try (var reader = SerFileReader.of(serFile)) {
