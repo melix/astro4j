@@ -41,10 +41,12 @@ import me.champeau.a4j.math.regression.Ellipse;
 import java.io.File;
 import java.io.IOException;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+import static java.util.stream.Collectors.groupingBy;
 import static me.champeau.a4j.jsolex.processing.util.Constants.message;
 
 public class StackingWorkflow {
@@ -122,6 +124,8 @@ public class StackingWorkflow {
 
     private List<ImageWrapper32> performStacking(Parameters parameters, List<Panel> panels) {
         return panels.stream()
+            .map(Panel::asImages)
+            .filter(l -> !l.isEmpty())
             .map(p -> stackPanel(p, parameters))
             .toList();
     }
@@ -166,8 +170,8 @@ public class StackingWorkflow {
         }
     }
 
-    private ImageWrapper32 stackPanel(Panel panel, Parameters parameters) {
-        var images = panel.asImages()
+    private ImageWrapper32 stackPanel(List<ImageWrapper32> panel, Parameters parameters) {
+        var images = panel
             .stream()
             .parallel()
             .map(img -> {
@@ -204,10 +208,20 @@ public class StackingWorkflow {
         List<File> files
     ) {
         public List<ImageWrapper32> asImages() {
-            return files.stream()
+            var perKind = files.stream()
                 .parallel()
                 .map(Loader::loadImage)
-                .filter(ImageWrapper32.class::isInstance)
+                .collect(groupingBy(ImageWrapper::getClass));
+            var monoImages = perKind.get(ImageWrapper32.class);
+            var unexpectedKinds = new HashSet<>(perKind.keySet());
+            unexpectedKinds.remove(ImageWrapper32.class);
+            if (!unexpectedKinds.isEmpty()) {
+                throw new ProcessingException(message("error.mosaic.non.mono"));
+            }
+            if (monoImages == null) {
+                return List.of();
+            }
+            return monoImages.stream()
                 .map(ImageWrapper32.class::cast)
                 .toList();
         }
