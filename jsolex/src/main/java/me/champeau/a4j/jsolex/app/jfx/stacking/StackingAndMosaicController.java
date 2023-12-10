@@ -321,7 +321,9 @@ public class StackingAndMosaicController {
             imageFormats.add(ImageFormat.TIF);
         }
         return params.withExtraParams(
-            params.extraParams().withImageFormats(imageFormats)
+            params.extraParams()
+                .withImageFormats(imageFormats)
+                .withAutosave(true)
         );
     }
 
