@@ -24,6 +24,9 @@ import spock.lang.Specification
 
 class StackingTest extends Specification {
     private static final Image REFERENCE = ImageIOUtils.loadImage("meudon-ref.png")
+    private static final TOP = ImageIOUtils.loadImage("mosaic_top.png")
+    private static final MIDDLE = ImageIOUtils.loadImage("mosaic_middle.png")
+
     private static final int WIDTH = REFERENCE.width()
     private static final int HEIGHT = REFERENCE.height()
 
@@ -86,13 +89,12 @@ class StackingTest extends Specification {
     }
 
     def "finds correspondance between 2 images"() {
-        def top = ImageIOUtils.loadImage("mosaic_top.png")
-        def middle = ImageIOUtils.loadImage("mosaic_middle.png")
-        def width = top.width()
-        def height = top.height()
+
+        def width = TOP.width()
+        def height = TOP.height()
 
         when:
-        def best = Stacking.findBestMatch(top.data(), middle.data(), width, height, tileSize, refX, refY, (int) (2 * tileSize / 3))
+        def best = Stacking.findBestMatch(TOP.data(), MIDDLE.data(), width, height, tileSize, refX, refY, (int) (2 * tileSize / 3))
 
         then:
         best.present

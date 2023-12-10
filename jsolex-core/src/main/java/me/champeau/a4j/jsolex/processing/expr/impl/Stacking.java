@@ -39,7 +39,6 @@ public class Stacking extends AbstractFunctionImpl {
     private static final String STACKING_MESSAGE = message("stacking");
     public static final int DEFAULT_TILE_SIZE = 32;
     public static final float DEFAULT_OVERLAP_FACTOR = 0.3f;
-    public static final int LOCAL_SEARCH = 8;
 
     private final ImageMath imageMath = ImageMath.newInstance();
     private final Scaling scaling;
@@ -181,9 +180,9 @@ public class Stacking extends AbstractFunctionImpl {
                 // and is not based on any scientific paper. It's a heuristic which seems
                 // to work well in practice, with the idea that we want to give more weight
                 // to images which are similar to the reference image, and minimize the error
-                // due to truncation of the solar disk at edges.
+                // due to truncation of the solar disk at edges and artifacts at the borders.
                 var areaAvg = imageMath.areaAverage(integralImages.get(i), x, y, tileSize, tileSize);
-                var relativeDiff = Math.abs(refAvg - areaAvg) / Math.max(refAvg, areaAvg);
+                var relativeDiff = (refAvg - areaAvg) * (refAvg - areaAvg) / (Math.max(refAvg, areaAvg) * Math.max(refAvg, areaAvg));
                 var w = relativeDiff == 0 ? 1 : 1 - Math.pow(relativeDiff, -2);
                 weights[i] = w * w;
             }
@@ -306,29 +305,29 @@ public class Stacking extends AbstractFunctionImpl {
         // initialize search position with the heuristic values
         var curX = x;
         var curY = y;
-        var bestError = computeError(tileSize, width, height, x, y, referenceData, curX, curY, data);
+        var bestError = Double.MAX_VALUE;
         boolean update = true;
         // We memoize the errors for the points we've already computed
         var errors = new double[2 * maxLookupShift][2 * maxLookupShift];
         for (double[] error : errors) {
             Arrays.fill(error, -1);
         }
-        errors[maxLookupShift][maxLookupShift] = bestError;
+        int localSearch = 12;
         while (update) {
             // compute the errors for the points around the current position (if within bounds)
             var tests = new ArrayList<IntPair>();
-            for (int dy = -LOCAL_SEARCH; dy <= LOCAL_SEARCH; dy++) {
+            for (int dy = -localSearch; dy <= localSearch; dy++) {
                 var yy = curY + dy;
                 if (yy < minY || yy >= maxY) {
                     continue;
                 }
-                for (int dx = -LOCAL_SEARCH; dx <= LOCAL_SEARCH; dx++) {
+                for (int dx = -localSearch; dx <= localSearch; dx++) {
                     var xx = curX + dx;
                     if (xx < minX || xx >= maxX || errors[yy - y + maxLookupShift][xx - x + maxLookupShift] != -1) {
                         continue;
                     }
                     var dist = Math.sqrt(dx * dx + dy * dy);
-                    if (dist <= LOCAL_SEARCH) {
+                    if (dist <= localSearch) {
                         tests.add(new IntPair(xx, yy));
                     }
                 }
@@ -360,6 +359,7 @@ public class Stacking extends AbstractFunctionImpl {
                 curX = result.x();
                 curY = result.y();
                 bestError = result.error();
+                localSearch = Math.max(1, localSearch / 2);
             }
         }
         if (bestError == Double.MAX_VALUE) {
