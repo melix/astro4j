@@ -173,7 +173,6 @@ public class Stacking extends AbstractFunctionImpl {
     private double[] prepareTileWeights(List<ImageWrapper32> images, int tileSize, ImageWrapper32 referenceImage, double[] sharpness, List<Image> integralImages, int x, int y, Image referenceIntegral) {
         var weights = sharpness;
         if (referenceImage != null) {
-            weights = new double[images.size()];
             var refAvg = imageMath.areaAverage(referenceIntegral, x, y, tileSize, tileSize);
             for (int i = 0; i < images.size(); i++) {
                 // The computation of the weights here is based on empirical observations
@@ -312,7 +311,7 @@ public class Stacking extends AbstractFunctionImpl {
         for (double[] error : errors) {
             Arrays.fill(error, -1);
         }
-        int localSearch = 12;
+        int localSearch = Math.min(maxLookupShift, 12);
         while (update) {
             // compute the errors for the points around the current position (if within bounds)
             var tests = new ArrayList<IntPair>();
@@ -339,13 +338,10 @@ public class Stacking extends AbstractFunctionImpl {
                 .map(coords -> {
                     var xx = coords.a();
                     var yy = coords.b();
-                    var e = errors[yy - y + maxLookupShift][xx - x + maxLookupShift];
-                    if (e == -1) {
-                        e = computeError(tileSize, width, height, x, y, referenceData, xx, yy, data);
-                        errors[yy - y + maxLookupShift][xx - x + maxLookupShift] = e;
-                        if (e < curError) {
-                            return Optional.of(new IntermediateResult(e, xx, yy));
-                        }
+                    var e = computeError(tileSize, width, height, x, y, referenceData, xx, yy, data);
+                    errors[yy - y + maxLookupShift][xx - x + maxLookupShift] = e;
+                    if (e < curError) {
+                        return Optional.of(new IntermediateResult(e, xx, yy));
                     }
                     return Optional.<IntermediateResult>empty();
                 })
@@ -443,47 +439,30 @@ public class Stacking extends AbstractFunctionImpl {
                                int tileX, int tileY,
                                float[] data) {
         var error = 0d;
-        for (int dx = 0; dx < tileSize; dx++) {
+        int count = 0;
+        var minDx = Math.max(Math.max(0, -refX), Math.max(0, -tileX));
+        var minDy = Math.max(Math.max(0, -refY), Math.max(0, -tileY));
+        var maxDx = Math.min(width - refX - 1, width - tileX - 1);
+        var maxDy = Math.min(height - refY - 1, height - tileY - 1);
+        for (int dx = minDx; dx < Math.min(maxDx, tileSize); dx++) {
             var xx = refX + dx;
             var tileXX = tileX + dx;
-            if (xx < 0 || xx >= width || tileXX < 0 || tileXX >= width) {
-                continue;
+            for (int dy = minDy; dy < Math.min(maxDy, tileSize); dy++) {
+                var yy = refY + dy;
+                var tileYY = tileY + dy;
+                var ref = referenceData[yy * width + xx];
+                var img = data[tileYY * width + tileXX];
+                var e = (ref - img);
+                error += e * e;
+                count++;
             }
-            var e = computeColumnError(tileSize, width, height, xx, refY, referenceData, tileXX, tileY, data);
-            if (e == Double.MAX_VALUE) {
-                return Double.MAX_VALUE;
-            }
-            error += e;
-        }
-        return Math.sqrt(error);
-    }
-
-    private static double computeColumnError(
-        int tileSize,
-        int width, int height,
-        int refX, int refY,
-        float[] referenceData,
-        int tileX, int tileY,
-        float[] data) {
-        var error = 0d;
-        int count = 0;
-        for (int dy = 0; dy < tileSize; dy++) {
-            var yy = refY + dy;
-            var tileYY = tileY + dy;
-            if (yy < 0 || yy >= height || tileYY < 0 || tileYY >= height) {
-                continue;
-            }
-            var ref = referenceData[yy * width + refX];
-            var img = data[tileYY * width + tileX];
-            var e = (ref - img);
-            error += e * e;
-            count++;
         }
         if (count == 0) {
             return Double.MAX_VALUE;
         }
-        return error / count;
+        return Math.sqrt(error / count);
     }
+
 
     private static double weightedAverage(double[] values, double[] weights) {
         if (values.length == weights.length) {
