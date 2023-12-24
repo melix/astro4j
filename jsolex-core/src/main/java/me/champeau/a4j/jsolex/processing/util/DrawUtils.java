@@ -22,7 +22,7 @@ public class DrawUtils {
     private DrawUtils() {
     }
 
-    private static void drawRectangle(float[] image, int width, int height, int x, int y, int w, int h, float value) {
+    public static void drawRectangle(float[] image, int width, int height, int x, int y, int w, int h, float value) {
         for (int dy = 0; dy < h; dy++) {
             for (int dx = 0; dx < w; dx++) {
                 var idx = (y + dy) * width + (x + dx);
@@ -55,7 +55,7 @@ public class DrawUtils {
         }
     }
 
-    private static float[][] asTile(float[] data, int x, int y, int width, int tileSize) {
+    public static float[][] asTile(float[] data, int x, int y, int width, int tileSize) {
         float[][] result = new float[tileSize][tileSize];
         for (int dy = 0; dy < tileSize; dy++) {
             for (int dx = 0; dx < tileSize; dx++) {

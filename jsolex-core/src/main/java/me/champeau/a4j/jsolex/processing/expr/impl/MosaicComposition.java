@@ -44,20 +44,19 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.DoubleStream;
-import java.util.stream.IntStream;
 
 import static me.champeau.a4j.jsolex.processing.util.Constants.message;
 import static me.champeau.a4j.math.regression.LinearRegression.firstOrderRegression;
@@ -65,8 +64,6 @@ import static me.champeau.a4j.math.regression.LinearRegression.firstOrderRegress
 public class MosaicComposition extends AbstractFunctionImpl {
     private static final Logger LOGGER = LoggerFactory.getLogger(MosaicComposition.class);
     private static final String FINDING_MATCHES_MESSAGE = message("finding.matches");
-    private static final String ALIGNMENT_MESSAGE = message("aligning.images");
-    private static final double SQRT_OF_2 = Math.sqrt(2);
     private static final AtomicInteger DEBUG_COUNTER = new AtomicInteger();
     private static final String DEBUG_IMAGES = System.getProperty("jsolex.debug.images");
     public static final int DEFAULT_TILE_SIZE = 64;
@@ -116,10 +113,6 @@ public class MosaicComposition extends AbstractFunctionImpl {
             if (images.size() == 1) {
                 return images.get(0);
             }
-            images = scaling.performRadiusRescale(images)
-                .stream()
-                .map(ImageWrapper32.class::cast)
-                .toList();
             var tileSize = arguments.size() >= 2 ? intArg(arguments, 1) : DEFAULT_TILE_SIZE;
             if (tileSize < 16) {
                 throw new IllegalArgumentException("tile size must be at least 16");
@@ -140,7 +133,11 @@ public class MosaicComposition extends AbstractFunctionImpl {
     }
 
     ImageWrapper32 doMosaic(List<ImageWrapper32> images, int tileSize, float overlap) {
-        var adjustment = normalizeHistograms(images);
+        var rescaled = scaling.performRadiusRescale(images)
+            .stream()
+            .map(ImageWrapper32.class::cast)
+            .toList();
+        var adjustment = normalizeHistograms(rescaled);
         var mosaic = doMosaicNoHistogramTransform(tileSize, overlap, adjustment.corrected(), adjustment.background(), new HashMap<>(), new HashMap<>());
         return ellipseFit.performEllipseFitting(mosaic);
     }
@@ -177,151 +174,151 @@ public class MosaicComposition extends AbstractFunctionImpl {
                     DoubleStream::max
                 );
             }
-
-            var result = new float[width * height][2];
-            var reference = corrected.get(0);
-            var compare = corrected.get(1);
-            var referenceIntegral = integralImages.get(reference);
-            var feat = findInterestPoints(reference, compare, referenceIntegral, background, tileSize);
-            var referenceData = reference.data();
-            for (int pixelIndex = 0; pixelIndex < width * height; pixelIndex++) {
-                var c = referenceData[pixelIndex];
-                result[pixelIndex][0] = c;
-            }
-            broadcaster.broadcast(ProgressEvent.of(0, FINDING_MATCHES_MESSAGE));
-            var compareIntegral = integralImages.get(compare);
-            var matches = findBestMatches(reference, referenceIntegral, feat, compare, compareIntegral, tileSize, background);
-            broadcaster.broadcast(ProgressEvent.of(1.0, FINDING_MATCHES_MESSAGE));
-            var samples = matches.stream()
-                .parallel()
-                .map(this::createDistortionModelSample)
-                .sorted(Comparator.comparingDouble(DistorsionSample::score))
-                .toList();
-            var distorsionGridSize = Math.max(width / 64, 64);
-            var localGridSize = tileSize / 4;
-            var regressions = buildDistorsionGrid(width, height, distorsionGridSize, tileSize, samples);
-            var otherData = compare.data();
-            DistorsionModel model = null;
-            var maxDist = Math.sqrt(width * width + height * height);
-            var progress = 0d;
-            for (int y = 0; y < height; y++) {
-                broadcaster.broadcast(ProgressEvent.of(progress / (width * height), ALIGNMENT_MESSAGE));
-                for (int x = 0; x < width; x++) {
-                    progress++;
-                    if (model == null || (x % localGridSize == 0 && y % localGridSize == 0)) {
-                        model = computeLocalDistorsion(x, y, regressions, maxDist);
-                    }
-                    int newX = (int) model.modelForX().asPolynomial().applyAsDouble(x);
-                    int newY = (int) model.modelForY().asPolynomial().applyAsDouble(y);
-                    int idx = newY * width + newX;
-                    if (idx >= 0 && idx < result.length && otherData[idx] > background) {
-                        result[y * width + x][1] = otherData[idx];
+            int maxSteps = 2 * (height / tileSize);
+            int step = 0;
+            boolean[] mask = new boolean[width * height];
+            Map<Point2D, Optional<DistorsionSample>> cachedInterestPoints = new ConcurrentHashMap<>();
+            first = corrected.get(0);
+            var second = corrected.get(1);
+            while (true) {
+                step++;
+                var reference = corrected.get(0);
+                var compare = corrected.get(1);
+                var referenceIntegral = imageMath.integralImage(reference.asImage());
+                var compareIntegral = integralImages.get(compare);
+                var referenceData = reference.data();
+                var feat = findInterestPoints(reference, referenceIntegral, compareIntegral, background, tileSize);
+                var distorsionGridSize = Math.max(width / 64, 64);
+                var length = width * height;
+                var otherData = compare.data();
+                var assembledData = new float[length];
+                System.arraycopy(referenceData, 0, assembledData, 0, length);
+                for (int i = 0; i < assembledData.length; i++) {
+                    mask[i] |= assembledData[i] > 8 * background;
+                }
+                boolean updated = false;
+                Map<Point2D, List<Point2D>> localInterestPoints = new HashMap<>();
+                var offset = tileSize;
+                var dist = distorsionGridSize;
+                int window = tileSize / 2;
+                for (int y = 0; y < height; y += offset) {
+                    for (int x = 0; x < width; x += offset) {
+                        if (!isTileCompleted(tileSize, y, width, x, length, mask)) {
+                            var avg1 = imageMath.areaAverage(referenceIntegral, x - window, y - window, 2 * window, 2 * window);
+                            var avg2 = imageMath.areaAverage(compareIntegral, x - window, y - window, 2 * window, 2 * window);
+                            int px = tileSize * (x / tileSize);
+                            int py = tileSize * (y / tileSize);
+                            var localPoints = localInterestPoints.computeIfAbsent(new Point2D(px, py), p -> feat.stream()
+                                .parallel()
+                                .filter(f -> f.distanceTo(p) <= 2 * dist)
+                                .toList());
+                            if (avg1 == 0 && avg2 == 0) {
+                                assembleSingleTile(tileSize, x, y, x, y, width, length, assembledData, otherData, mask);
+                            } else if (avg2 >= avg1) {
+                                var point = new Point2D(x, y);
+                                var samples = findBestMatches(cachedInterestPoints, reference, referenceIntegral, localPoints, compare, compareIntegral, tileSize, step, x, y, dist);
+                                if (!samples.isEmpty()) {
+                                    var restrictedSamples = samples.stream()
+                                        .filter(s -> s.distanceTo(point) <= dist)
+                                        .toList();
+                                    var avgError = restrictedSamples.stream()
+                                        .mapToDouble(DistorsionSample::error)
+                                        .average()
+                                        .orElse(0);
+                                    restrictedSamples = restrictedSamples.stream()
+                                        .filter(s -> s.error() <= 1.5 * avgError)
+                                        .toList();
+                                    if (!restrictedSamples.isEmpty()) {
+                                        var model = buildDistorsionModel(restrictedSamples);
+                                        int newX = (int) Math.round(model.modelForX().asPolynomial().applyAsDouble(point.x()));
+                                        int newY = (int) Math.round(model.modelForY().asPolynomial().applyAsDouble(point.y()));
+                                        updated = assembleSingleTile(tileSize, x, y, newX, newY, width, length, assembledData, otherData, mask);
+                                    }
+                                }
+                            }
+                        }
                     }
                 }
+                var metadata = MutableMap.<Class<?>, Object>of();
+                for (var image : corrected) {
+                    metadata.putAll(image.metadata());
+                }
+                var assembled = new ImageWrapper32(width, height, assembledData, metadata);
+                corrected.set(0, assembled);
+                if (!updated || step == maxSteps) {
+                    corrected.remove(1);
+                    var mosaic = stacking.doStack(
+                        List.of(first, second),
+                        tileSize,
+                        overlap,
+                        assembled,
+                        0
+                    );
+                    corrected.set(0, mosaic);
+                    break;
+                }
             }
-            broadcaster.broadcast(ProgressEvent.of(1.0, ALIGNMENT_MESSAGE));
-
-            var metadata = MutableMap.<Class<?>, Object>of();
-            for (var image : corrected) {
-                metadata.putAll(image.metadata());
-            }
-
-            var finalImage = assembleImage(result, width, height, background);
-            var assembled = new ImageWrapper32(width, height, finalImage, metadata);
-            var mosaic = stacking.doStack(List.of(reference, compare), tileSize, overlap, assembled, 0);
-            // replace the first 2 images with the mosaic
-            corrected.set(0, mosaic);
-            corrected.remove(1);
         }
+
         return corrected.get(0);
     }
 
-    private static DistorsionModel computeLocalDistorsion(int x, int y, List<LocalModel> regressions, double maxDist) {
-        var point = new Point2D(x, y);
-        var weights = regressions.stream()
-            .mapToDouble(lm -> lm.distanceTo(point))
-            .map(d -> d / maxDist)
-            .map(d -> 1 / (1 + d))
-            .map(d -> d * d)
-            .toArray();
-        var totalWeight = Arrays.stream(weights)
-            .sum();
-        return regressions.stream()
-            .parallel()
-            .map(lm -> {
-                var modelForX = lm.model().modelForX();
-                var modelForY = lm.model().modelForY();
-                var weight = weights[regressions.indexOf(lm)] / totalWeight;
-                modelForX = new DoublePair(
-                    modelForX.a() * weight,
-                    modelForX.b() * weight
-                );
-                modelForY = new DoublePair(
-                    modelForY.a() * weight,
-                    modelForY.b() * weight
-                );
-                return new DistorsionModel(modelForX, modelForY);
-            })
-            .reduce((m1, m2) -> {
-                var modelForX = new DoublePair(
-                    m1.modelForX().a() + m2.modelForX().a(),
-                    m1.modelForX().b() + m2.modelForX().b()
-                );
-                var modelForY = new DoublePair(
-                    m1.modelForY().a() + m2.modelForY().a(),
-                    m1.modelForY().b() + m2.modelForY().b()
-                );
-                return new DistorsionModel(modelForX, modelForY);
-            })
-            .orElseThrow();
+    private static boolean assembleSingleTile(int tileSize, int x, int y, int newX, int newY, int width, int length, float[] assembledData, float[] otherData, boolean[] mask) {
+        var updated = false;
+        for (int dy = 0; dy < tileSize; dy++) {
+            for (int dx = 0; dx < tileSize; dx++) {
+                int idx = (newY + dy) * width + (newX + dx);
+                var origIdx = (y + dy) * width + (x + dx);
+                if (idx >= 0 && idx < length && origIdx >= 0 && origIdx < length) {
+                    var source = assembledData[origIdx];
+                    var other = otherData[idx];
+
+                    if (source < 0.5 * other) {
+                        assembledData[origIdx] = other;
+                        updated = true;
+                    } else if (source != other) {
+                        var w1 = source / (source + other);
+                        var w2 = other / (source + other);
+                        assembledData[origIdx] = (w1 * source + w2 * other) / (w1 + w2);
+                        updated = true;
+                    }
+                    mask[origIdx] = true;
+                }
+            }
+        }
+        return updated;
     }
 
-    private List<LocalModel> buildDistorsionGrid(int width, int height, int distorsionGridSize, int tileSize, List<DistorsionSample> samples) {
-        var progress = new AtomicInteger();
-        var total = (width / distorsionGridSize) * (height / distorsionGridSize);
-        try {
-            var maxDist = 2 * tileSize * SQRT_OF_2;
-            return IntStream.range(0, height + 1)
-                .filter(y -> y % distorsionGridSize == 0)
-                .mapToObj(y -> IntStream.range(0, width + 1)
-                    .filter(x -> x % distorsionGridSize == 0)
-                    .mapToObj(x -> new Point2D(x, y)))
-                .flatMap(Function.identity())
-                .parallel()
-                .map(p -> {
-                        try {
-                            var closestSamples = samples.stream()
-                                .filter(s -> s.distanceTo(p) < maxDist)
-                                .sorted(Comparator.comparingDouble(DistorsionSample::score))
-                                .toList();
-                            if (closestSamples.size() < 8) {
-                                return new LocalModel(p, DistorsionModel.UNDISTORTED);
-                            }
-                            var modelForX = buildModel(closestSamples, DistorsionSample::sampleForX);
-                            var modelForY = buildModel(closestSamples, DistorsionSample::sampleForY);
-                            var maxScore = closestSamples.get(closestSamples.size() - 1).score();
-                            var weights = closestSamples.stream()
-                                .mapToDouble(s -> (1 - (s.score() / maxScore)))
-                                .map(d -> d * d)
-                                .toArray();
-                            var regressionForX = firstOrderRegression(modelForX.toArray(new Point2D[0]), weights);
-                            var regressionForY = firstOrderRegression(modelForY.toArray(new Point2D[0]), weights);
-                            var model = new DistorsionModel(regressionForX, regressionForY);
-                            if (model.isValid()) {
-                                return new LocalModel(p, model);
-                            } else {
-                                return null;
-                            }
-                        } finally {
-                            progress.incrementAndGet();
-                            broadcaster.broadcast(ProgressEvent.of(progress.get() / (double) total, message("building.distorsion.model")));
-                        }
-                    }
-                )
-                .filter(Objects::nonNull)
-                .toList();
-        } finally {
-            broadcaster.broadcast(ProgressEvent.of(1.0, message("building.distorsion.model")));
+    private static boolean isTileCompleted(int tileSize, int y, int width, int x, int length, boolean[] mask) {
+        for (int dy = 0; dy < tileSize; dy++) {
+            for (int dx = 0; dx < tileSize; dx++) {
+                int idx = (y + dy) * width + (x + dx);
+                if (idx >= 0 && idx < length && !mask[idx]) {
+                    return false;
+                }
+            }
+        }
+        return true;
+    }
+
+    private DistorsionModel buildDistorsionModel(List<DistorsionSample> sortedSamples) {
+        if (sortedSamples.size() < 8) {
+            return DistorsionModel.NO_DISTORSION;
+        }
+        var modelForX = buildModel(sortedSamples, DistorsionSample::sampleForX);
+        var modelForY = buildModel(sortedSamples, DistorsionSample::sampleForY);
+        var maxScore = sortedSamples.get(sortedSamples.size() - 1).error();
+        var weights = sortedSamples.stream()
+            .mapToDouble(s -> (1 - (s.error() / maxScore)))
+            .map(d -> d * d)
+            .toArray();
+        var regressionForX = firstOrderRegression(modelForX.toArray(new Point2D[0]), weights);
+        var regressionForY = firstOrderRegression(modelForY.toArray(new Point2D[0]), weights);
+        var model = new DistorsionModel(regressionForX, regressionForY);
+        if (model.isValid()) {
+            return model;
+        } else {
+            return DistorsionModel.NO_DISTORSION;
         }
     }
 
@@ -393,103 +390,76 @@ public class MosaicComposition extends AbstractFunctionImpl {
         }
     }
 
-    private DistorsionSample createDistortionModelSample(Match match) {
-        var ip = match.first();
-        var oip = match.second();
-        return new DistorsionSample(
-            new Point2D(ip.a(), ip.b()),
-            new Point2D(oip.a(), oip.b()),
-            match.score()
-        );
-    }
-
-    private List<IntPair> findInterestPoints(ImageWrapper32 image, ImageWrapper32 compare, Image integralImage, float threshold, int tileSize) {
+    private List<Point2D> findInterestPoints(ImageWrapper32 image, Image integralImage, Image compareIntegral, float threshold, int tileSize) {
         var width = image.width();
         var height = image.height();
-        var result = new ArrayList<IntPair>();
+        var result = new ArrayList<Point2D>();
         int sampleInterval = Math.max(16, tileSize / 2);
         for (int y = 0; y < height; y += sampleInterval) {
             int i = 0;
             for (int x = 0; x < width; x += sampleInterval) {
                 var yoffset = (i++) % 2 == 0 ? 0 : sampleInterval / 2;
                 var yy = y + yoffset;
-                var avg = imageMath.areaAverage(integralImage, x, yy, tileSize, tileSize);
-                if (avg > threshold) {
-                    var valid = isValidSample(image, x, yy, tileSize, 2 * threshold)
-                                && isValidSample(compare, x, yy, tileSize, 2 * threshold);
-                    if (valid) {
-                        result.add(new IntPair(x, yy));
-                    }
+                var refAvg = imageMath.areaAverage(integralImage, x, y, sampleInterval, sampleInterval);
+                var cmpAvg = imageMath.areaAverage(compareIntegral, x, yy, sampleInterval, sampleInterval);
+                if (refAvg > threshold && cmpAvg > threshold && withinTolerance(refAvg, cmpAvg, .5)) {
+                    result.add(new Point2D(x, yy));
                 }
             }
         }
         return Collections.unmodifiableList(result);
     }
 
-    private static boolean isValidSample(ImageWrapper32 image, int x, int y, int tileSize, float threshold) {
-        var data = image.data();
-        var width = image.width();
-        var height = image.height();
-        double total = 0;
-        double aboveThreshold = 0;
-        for (int dy = -tileSize / 2; dy < tileSize / 2; dy++) {
-            var yy = y + dy;
-            if (yy < 0 || yy >= height) {
-                continue;
-            }
-            for (int dx = -tileSize / 2; dx < tileSize / 2; dx++) {
-                var xx = x + dx;
-                if (xx < 0 || xx >= width) {
-                    continue;
-                }
-                var idx = yy * width + xx;
-                total++;
-                var v = data[idx];
-                if (v <= 0) {
-                    return false;
-                }
-                if (v > threshold) {
-                    aboveThreshold++;
-                }
-            }
-        }
-        return total != 0 && (aboveThreshold / total > 0.8d);
-    }
-
-    private List<Match> findBestMatches(ImageWrapper32 reference, Image referenceIntegral, List<IntPair> referencePoints, ImageWrapper32 other, Image otherIntegral, int tileSize, float threshold) {
+    private List<DistorsionSample> findBestMatches(Map<Point2D, Optional<DistorsionSample>> cache,
+                                                   ImageWrapper32 reference,
+                                                   Image referenceIntegral,
+                                                   List<Point2D> referencePoints,
+                                                   ImageWrapper32 other,
+                                                   Image otherIntegral,
+                                                   int tileSize,
+                                                   int step,
+                                                   int refX,
+                                                   int refY,
+                                                   double maxDist) {
+        broadcaster.broadcast(ProgressEvent.of(0, FINDING_MATCHES_MESSAGE.formatted(step)));
         var width = reference.width();
         var height = reference.height();
         var referenceData = reference.data();
-        var maxLookupShift = 2 * tileSize / 3;
+        var maxLookupShift = tileSize / 2;
         var data = other.data();
-        var matches = new ArrayList<Match>();
-        for (int i = 0; i < referencePoints.size(); i++) {
-            var referencePoint = referencePoints.get(i);
-            try {
-                var x = referencePoint.a();
-                var y = referencePoint.b();
-                var bestMatch = Stacking.findBestMatch(referenceData, data, width, height, tileSize, x, y, maxLookupShift);
-                if (bestMatch.isPresent()) {
-                    var second = bestMatch.get();
-                    var sy = second.y();
-                    var sx = second.x();
-                    if (isValidSample(other, sx, sy, tileSize, threshold)) {
+        var maxDistSquared = maxDist * maxDist;
+        return referencePoints.stream()
+            .parallel()
+            .<DistorsionSample>mapMulti((referencePoint, consumer) -> {
+                int x = (int) referencePoint.x();
+                int y = (int) referencePoint.y();
+                var dx = x - refX;
+                var dy = y - refY;
+                if (dx * dx + dy * dy > maxDistSquared) {
+                    return;
+                }
+                var distorsionSample = cache.computeIfAbsent(referencePoint, p -> {
+                    var bestMatch = Stacking.findBestMatch(referenceData, data, width, height, tileSize / 2, x, y, maxLookupShift);
+                    if (bestMatch.isPresent()) {
+                        var second = bestMatch.get();
+                        var sy = second.y();
+                        var sx = second.x();
                         var referenceAvg = imageMath.areaAverage(referenceIntegral, x, y, tileSize, tileSize);
                         var otherAvg = imageMath.areaAverage(otherIntegral, sx, sy, tileSize, tileSize);
-                        if (withinTolerance(otherAvg, referenceAvg, 0.25)) {
-                            matches.add(new Match(
+                        if (withinTolerance(otherAvg, referenceAvg, 0.5)) {
+                            return Optional.of(new DistorsionSample(
                                 referencePoint,
-                                new IntPair(sx, sy),
+                                new Point2D(sx, sy),
                                 second.score()
                             ));
                         }
                     }
-                }
-            } finally {
-                broadcaster.broadcast(ProgressEvent.of((i + 1) / (double) referencePoints.size(), FINDING_MATCHES_MESSAGE));
-            }
-        }
-        return Collections.unmodifiableList(matches);
+                    return Optional.empty();
+                });
+                distorsionSample.ifPresent(consumer);
+            })
+            .sorted(Comparator.comparingDouble(DistorsionSample::error))
+            .toList();
     }
 
     /**
@@ -598,85 +568,52 @@ public class MosaicComposition extends AbstractFunctionImpl {
         return (float) (total / count);
     }
 
-    private static float[] assembleImage(float[][] stacks, int width, int height, float threshold) {
-        float[] result = new float[stacks.length];
-        var minValueNonZero = Float.MAX_VALUE;
-        for (int y = 0; y < height; y++) {
-            for (int x = 0; x < width; x++) {
-                var pixelIndex = y * width + x;
-                float[] stack = stacks[pixelIndex];
-                if (stack[0] >= threshold && stack[1] >= threshold) {
-                    if (withinTolerance(stack[0], stack[1], 0.5)) {
-                        result[pixelIndex] = stack[0];
-                    } else {
-                        result[pixelIndex] = Math.max(stack[0], stack[1]);
-                    }
-                } else if (stack[0] >= threshold) {
-                    result[pixelIndex] = stack[0];
-                } else if (stack[1] >= threshold) {
-                    result[pixelIndex] = stack[1];
-                } else {
-                    result[pixelIndex] = (stack[0] + stack[1]) / 2;
-                }
-                if (result[pixelIndex] > 0 && result[pixelIndex] < minValueNonZero) {
-                    minValueNonZero = result[pixelIndex];
-                }
-            }
-        }
-        // Avoid clamping by replacing 0 values with the minimum non-zero value
-        for (int pixelIndex = 0; pixelIndex < stacks.length; pixelIndex++) {
-            if (result[pixelIndex] == 0) {
-                result[pixelIndex] = minValueNonZero;
-            }
-        }
-        return result;
-    }
-
     private void maybeCreateMatchDebugImage(List<ImageWrapper32> corrected, int width, int height, List<DistorsionSample> candidates, int tileSize) {
         if (DEBUG_IMAGES == null) {
             return;
         }
-        int cpt = DEBUG_COUNTER.incrementAndGet();
-        int k = 0;
-        for (var candidate : candidates) {
-            var idx = k++;
-            forkJoinContext.async(() -> {
-                var bi = new BufferedImage(width * 2, height, BufferedImage.TYPE_INT_RGB);
-                var g = bi.createGraphics();
-                for (int i = 0; i < 2; i++) {
-                    var img = corrected.get(i).data();
-                    var offset = width * i;
-                    for (int y = 0; y < height; y++) {
-                        for (int x = 0; x < width; x++) {
-                            int grey = (int) img[y * width + x] >> 8;
-                            int rgb = grey << 16 | grey << 8 | grey;
-                            bi.setRGB(x + offset, y, rgb);
+        forkJoinContext.blocking(ctx -> {
+            int cpt = DEBUG_COUNTER.incrementAndGet();
+            int k = 0;
+            for (var candidate : candidates) {
+                var idx = k++;
+                ctx.async(() -> {
+                    var bi = new BufferedImage(width * 2, height, BufferedImage.TYPE_INT_RGB);
+                    var g = bi.createGraphics();
+                    for (int i = 0; i < 2; i++) {
+                        var img = corrected.get(i).data();
+                        var offset = width * i;
+                        for (int y = 0; y < height; y++) {
+                            for (int x = 0; x < width; x++) {
+                                int grey = (int) img[y * width + x] >> 8;
+                                int rgb = grey << 16 | grey << 8 | grey;
+                                bi.setRGB(x + offset, y, rgb);
+                            }
                         }
                     }
-                }
-                g.setColor(Color.WHITE);
-                g.setFont(g.getFont().deriveFont(60f));
-                g.drawString("Tile size %d".formatted(tileSize), (width / 2), 30);
-                int fx = (int) candidate.source().x();
-                int fy = (int) candidate.source().y();
-                int sx = (int) candidate.target().x();
-                int sy = (int) candidate.target().y();
-                g.drawLine(fx, fy, sx + width, sy);
-                g.setColor(Color.ORANGE);
-                g.drawRect(fx, fy, tileSize, tileSize);
-                g.drawRect(sx + width, sy, tileSize, tileSize);
-                g.setFont(g.getFont().deriveFont(30f));
-                g.drawString("(" + fx + "," + fy + ")", fx - 40, fy - 50);
-                g.drawString("(%d,%d score %.1f)".formatted(sx, sy, candidate.score()), sx + width - 40, sy - 50);
-                try {
-                    new File(DEBUG_IMAGES + "/" + cpt).mkdirs();
-                    ImageIO.write(bi, "png", new File(String.format(DEBUG_IMAGES + "/%d/%04d_match.png", cpt, idx)));
-                } catch (IOException e) {
-                    e.printStackTrace();
-                }
-            });
-        }
-
+                    g.setColor(Color.WHITE);
+                    g.setFont(g.getFont().deriveFont(60f));
+                    g.drawString("Tile size %d".formatted(tileSize), (width / 2), 30);
+                    int fx = (int) candidate.source().x();
+                    int fy = (int) candidate.source().y();
+                    int sx = (int) candidate.target().x();
+                    int sy = (int) candidate.target().y();
+                    g.drawLine(fx, fy, sx + width, sy);
+                    g.setColor(Color.ORANGE);
+                    g.drawRect(fx, fy, tileSize, tileSize);
+                    g.drawRect(sx + width, sy, tileSize, tileSize);
+                    g.setFont(g.getFont().deriveFont(30f));
+                    g.drawString("(" + fx + "," + fy + ")", fx - 40, fy - 50);
+                    g.drawString("(%d,%d score %.1f)".formatted(sx, sy, candidate.error()), sx + width - 40, sy - 50);
+                    try {
+                        new File(DEBUG_IMAGES + "/" + cpt).mkdirs();
+                        ImageIO.write(bi, "png", new File(String.format(DEBUG_IMAGES + "/%d/%04d_match.png", cpt, idx)));
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    }
+                });
+            }
+        });
         var tmp = new float[2 * width * height];
         for (int i = 0; i < 2; i++) {
             var img = corrected.get(i).data();
@@ -714,7 +651,7 @@ public class MosaicComposition extends AbstractFunctionImpl {
     private record DistorsionSample(
         Point2D source,
         Point2D target,
-        double score
+        double error
     ) {
 
         public Point2D sampleForX() {
@@ -749,7 +686,7 @@ public class MosaicComposition extends AbstractFunctionImpl {
         DoublePair modelForX,
         DoublePair modelForY
     ) {
-        public static DistorsionModel UNDISTORTED = new DistorsionModel(
+        public static DistorsionModel NO_DISTORSION = new DistorsionModel(
             new DoublePair(1, 0),
             new DoublePair(1, 0)
         );
@@ -765,12 +702,4 @@ public class MosaicComposition extends AbstractFunctionImpl {
         }
     }
 
-    private record LocalModel(
-        Point2D point,
-        DistorsionModel model
-    ) {
-        public double distanceTo(Point2D point) {
-            return this.point.distanceTo(point);
-        }
-    }
 }
