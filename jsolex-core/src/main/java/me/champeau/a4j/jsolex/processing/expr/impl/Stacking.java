@@ -32,6 +32,7 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.atomic.AtomicReference;
 
 import static me.champeau.a4j.jsolex.processing.util.Constants.message;
 
@@ -181,8 +182,9 @@ public class Stacking extends AbstractFunctionImpl {
                 // to images which are similar to the reference image, and minimize the error
                 // due to truncation of the solar disk at edges and artifacts at the borders.
                 var areaAvg = imageMath.areaAverage(integralImages.get(i), x, y, tileSize, tileSize);
-                var relativeDiff = (refAvg - areaAvg) * (refAvg - areaAvg) / (Math.max(refAvg, areaAvg) * Math.max(refAvg, areaAvg));
-                var w = relativeDiff == 0 ? 1 : 1 - Math.pow(relativeDiff, -2);
+                var div = Math.max(refAvg, areaAvg);
+                var relativeDiff = Math.abs(refAvg - areaAvg) / div;
+                var w = relativeDiff == 0 ? 1 : 1 - Math.sqrt(relativeDiff);
                 weights[i] = w * w;
             }
         }
@@ -332,30 +334,34 @@ public class Stacking extends AbstractFunctionImpl {
                 }
             }
 
-            double curError = bestError;
+            var curError = new AtomicReference<>(bestError);
             var best = tests.stream()
                 .parallel()
-                .map(coords -> {
+                .<IntermediateResult>mapMulti((coords, consumer) -> {
                     var xx = coords.a();
                     var yy = coords.b();
                     var e = computeError(tileSize, width, height, x, y, referenceData, xx, yy, data);
                     errors[yy - y + maxLookupShift][xx - x + maxLookupShift] = e;
-                    if (e < curError) {
-                        return Optional.of(new IntermediateResult(e, xx, yy));
+                    if (e < curError.get()) {
+                        // We don't care that another thread can change the value here
+                        // in between, since we're going to sort and take the best anyway
+                        curError.set(e);
+                        consumer.accept(new IntermediateResult(e, xx, yy));
                     }
-                    return Optional.<IntermediateResult>empty();
                 })
-                .filter(Optional::isPresent)
-                .map(Optional::get)
-                .sorted()
-                .findFirst();
+                .min(Comparator.comparing(IntermediateResult::error));
             update = best.isPresent();
             if (update) {
                 var result = best.get();
                 curX = result.x();
                 curY = result.y();
                 bestError = result.error();
-                localSearch = Math.max(1, localSearch / 2);
+                if (bestError == 0) {
+                    // Happy path: we found a perfect match, no need to continue
+                    break;
+                }
+                // reduce search window for subsequent iterations
+                localSearch = Math.min(maxLookupShift, 6);
             }
         }
         if (bestError == Double.MAX_VALUE) {
