@@ -69,7 +69,7 @@ public class Scaling extends AbstractFunctionImpl {
         assertExpectedArgCount(arguments, "rescale_abs takes 3 arguments (image(s), width, height)", 3, 3);
         var arg = arguments.get(0);
         if (arg instanceof List<?>) {
-            return expandToImageList(forkJoinContext, arguments, this::relativeRescale);
+            return expandToImageList(forkJoinContext, arguments, this::absoluteRescale);
         }
         int width = intArg(arguments, 1);
         int height = intArg(arguments, 2);
