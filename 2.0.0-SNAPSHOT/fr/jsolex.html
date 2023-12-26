@@ -479,6 +479,7 @@ body.book #toc,body.book #preamble,body.book h1.sect0,body.book .sect1>h2{page-b
 <li><a href="#_application_au_calcul_de_décalage_de_la_raie_hélium">Application au calcul de décalage de la raie hélium</a></li>
 </ul>
 </li>
+<li><a href="#stacking-and-mosaic">Empilement et création de mosaiques</a></li>
 <li><a href="#_calculatrice_dexposition_optimale">Calculatrice d&#8217;exposition optimale</a></li>
 <li><a href="#_remerciements">Remerciements</a></li>
 </ul>
@@ -1157,6 +1158,19 @@ Une variable spéciale nommée <code>angleP</code> contient la valeur calculée 
 </li>
 </ul>
 </div>
+<div class="paragraph">
+<p>Fonctions d&#8217;empilement et de création de mosaiques :</p>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p><code>stack</code> permet d&#8217;empiler des images. Elle prend entre 1 et 3 paramètres. Le premier est la liste des images à empiler, par exemple: <code>stack(load_many("*.fits"))</code>. Le 2ème paramètre est la taille des tuiles et le 3ème est le facteur de recouvrement (entre 0 et 1).</p>
+</li>
+<li>
+<p><code>mosaic</code> permet de créer une mosaïque d&#8217;images. Elle prend entre 1 et 3 paramètres. Le premier est la liste des images à empiler, par exemple: <code>mosaic(load_many("*.fits"))</code>. Le 2ème paramètre est la taille des tuiles et le 3ème est le facteur de recouvrement (entre 0 et 1).</p>
+</li>
+</ul>
+</div>
 </div>
 <div class="sect2">
 <h3 id="_scripts_imagemath">Scripts ImageMath</h3>
@@ -1557,6 +1571,100 @@ Vous pouvez ajouter autant de points que vous le souhaitez:</p>
 <p>Le 4ème nombre représente la distance moyenne calculée.
 <strong>Nous en déduisons que le décalage de pixels à appliquer est de -134</strong>.</p>
 </div>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="stacking-and-mosaic">Empilement et création de mosaiques</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>JSol&#8217;Ex dispose d&#8217;un outil permettant d&#8217;empiler des images et de créer des mosaïques.
+Les 2 outils sont très similaires, mais l&#8217;empilement est plus simple à utiliser.
+L&#8217;empilement consiste à prendre plusieurs images de la même région du soleil et à en faire une seule image, en alignant les détails et en moyennant les pixels.
+La mosaïque consiste à prendre plusieurs images de régions différentes du soleil et à les assembler pour former une image plus grande.</p>
+</div>
+<div class="paragraph">
+<p>Les 2 outils sont disponibles en passant par le menu "Outils" puis "Empilement et création de mosaïques".</p>
+</div>
+<div class="paragraph">
+<p>La fenêtre qui s&#8217;ouvre est la suivante:</p>
+</div>
+<div class="imageblock">
+<div class="content">
+<img src="stacking-1-fr.jpg" alt="stacking 1 fr">
+</div>
+</div>
+<div class="paragraph">
+<p>A gauche, vous pouvez créer des panneaux d&#8217;images à empiler.
+Si vous ne créez qu&#8217;un seul panneau, il s&#8217;agira d&#8217;un empilement simple.
+Si vous créer plusieurs panneaux, il s&#8217;agira d&#8217;une mosaïque.
+Un panneau contiendra une ou plusieurs images, qui seront empilées ensemble.
+Pour créer un panneau, vous pouvez, au choix:
+- cliquer sur le bouton "+" et sélectionner les images à empiler
+- faire un glisser-déposer d&#8217;une ou plusieurs images depuis votre explorateur de fichiers</p>
+</div>
+<div class="imageblock">
+<div class="content">
+<img src="stacking-2-fr.jpg" alt="stacking 2 fr">
+</div>
+</div>
+<div class="paragraph">
+<p>Dans l&#8217;image ci-dessus, nous avons créé 2 panneaux.
+Le premier contient 3 images qui seront empilées pour faire le panneau nord, et le second contient 2 images qui seront empilées pour faire le panneau sud.</p>
+</div>
+<div class="paragraph">
+<p>Les options d&#8217;empilement sont visibles à droite.
+Il n&#8217;est pas recommandé de les modifier, sauf si vous savez ce que vous faites.
+Les options sont les suivantes:
+- la taille des tuiles permet de découper l&#8217;image en tuiles pour l&#8217;empilement. Plus la taille est petite, plus l&#8217;empilement sera précis mais le calcul sera plus long et il ne sera pas possible de découvrir des décalages importants entre les images.
+- le chevauchement permet d&#8217;améliorer la qualité du résultat en faisant le même calcul avec une fenêtre glissante. Plus le chevauchement est grand, plus le résultat sera précis mais le calcul sera plus long.
+- Forcer le recalcul des ellipses permet de recalculer l&#8217;ellipse (ou le cercle) du disque solaire pour chaque image. Ceci est utile notamment si vous utilisez des images venant d&#8217;un autre logiciel ou que les ellipses ont été mal détectées.
+- Corriger la géométrie permet de rendre le disque solaire parfaitement circulaire, ce qui est généralement une bonne idée si les images que vous importez n&#8217;ont pas été corrigées.</p>
+</div>
+<div class="paragraph">
+<p>Le script de post-traitement vous permet de sélectionner un script <code>ImageMath</code> à appliquer à chaque image après empilement.</p>
+</div>
+<div class="admonitionblock note">
+<table>
+<tr>
+<td class="icon">
+<i class="fa icon-note" title="Note"></i>
+</td>
+<td class="content">
+Dans un script de post-traitement, l&#8217;image empilée est disponible sous le nom de <code>image</code>. Par exemple, vous pouvez créer un script qui appliquera une déconvolution en utilisant la formule <code>rl_decon(image)</code>.
+</td>
+</tr>
+</table>
+</div>
+<div class="paragraph">
+<p>Les autres options disponibles sont celles de sélection des formats de fichier.
+Si vous avez créé plusieurs panneaux, nous passons alors en mode mosaïque.
+Non seulement les images seront empilées dans chaque panneau, mais chaque image empilée sera ensuite assemblée pour former une mosaïque.</p>
+</div>
+<div class="admonitionblock warning">
+<table>
+<tr>
+<td class="icon">
+<i class="fa icon-warning" title="Warning"></i>
+</td>
+<td class="content">
+Il est recommandé de ne PAS utiliser d&#8217;images traitées (par exemple avec amélioration de contraste) pour la création de mosaïques. En effet, ces images sont plus difficiles à aligner. Il est donc recommandé d&#8217;utiliser les images <code>recon</code> (corrigée géométriquement) ou <code>raw</code> (brute).
+</td>
+</tr>
+</table>
+</div>
+<div class="imageblock">
+<div class="content">
+<img src="stacking-3-fr.jpg" alt="stacking 3 fr">
+</div>
+</div>
+<div class="paragraph">
+<p>Si vous souhaitez simplement empiler des images sans faire de mosaique, vous pouvez désactiver l&#8217;option "Créer la mosaïque".
+Dans le cas contraire, vous disposez de paramètres qu&#8217;il est possible de modifier, encore une fois, si vous savez ce que vous faites.
+Nous recommandons de ne pas changer la taille des tuiles et le chevauchement pour la mosaïque, sauf si vous obtenez des images déformées ou non reconstruites.</p>
+</div>
+<div class="paragraph">
+<p>Vous pouvez aussi choisir un script de post-traitement à appliquer après la création de la mosaïque.</p>
 </div>
 </div>
 </div>

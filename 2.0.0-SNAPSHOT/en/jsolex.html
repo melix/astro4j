@@ -479,6 +479,7 @@ body.book #toc,body.book #preamble,body.book h1.sect0,body.book .sect1>h2{page-b
 <li><a href="#_example_of_application_to_determine_the_helium_ray_pixel_shift">Example of application to determine the helium ray pixel shift</a></li>
 </ul>
 </li>
+<li><a href="#stacking-and-mosaic">Stacking and mosaic composition</a></li>
 <li><a href="#_optimal_exposure_calculator">Optimal exposure calculator</a></li>
 <li><a href="#_acknowledgements">Acknowledgements</a></li>
 </ul>
@@ -1167,6 +1168,19 @@ A special variable named <code>angleP</code> contains the computed solar P angle
 </li>
 </ul>
 </div>
+<div class="paragraph">
+<p>Stacking and mosaic functions:</p>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p><code>stack</code> allows stacking images together. It will align images and compute the median value of each pixel. It accepts 1 to 3 parameters. The first one is the list of images to stack, for example: <code>stack(load_many("*.fits"))</code>. The 2d parameter is the tile size and the 3rd one is the overlap factor (between 0 and 1).</p>
+</li>
+<li>
+<p><code>mosaic</code> allows stitching images together in order to create a mosaic. It accepts 1 to 3 parameters. The first one is the list of images to stack, for example: <code>mosaic(load_many("*.fits"))</code>. The 2d parameter is the tile size and the 3rd one is the overlap factor (between 0 and 1).</p>
+</li>
+</ul>
+</div>
 </div>
 <div class="sect2">
 <h3 id="_imagemath_scripts">ImageMath scripts</h3>
@@ -1560,6 +1574,97 @@ You can add as many sample points as you wish.</p>
 <p>The 4th number is the average of distances and should be a good value to use in your ImageMath scripts.
 <strong>In this example we deduce that the pixel shift is -134</strong>.</p>
 </div>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="stacking-and-mosaic">Stacking and mosaic composition</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>JSol&#8217;Ex provides a tool to stack images and create mosaics.
+The 2 tools are very similar, but stacking is easier to use.
+Stacking consists of taking several images of a similar region of the sun and making a single image by aligning the details and averaging the pixels.
+Mosaics are similar, but they are used to create a single image from several images of different regions of the sun.</p>
+</div>
+<div class="paragraph">
+<p>The 2 tools are available in the "Tools" menu, then "Stacking and mosaic composition".</p>
+</div>
+<div class="paragraph">
+<p>The following window will show up:</p>
+</div>
+<div class="imageblock">
+<div class="content">
+<img src="stacking-1-en.jpg" alt="stacking 1 en">
+</div>
+</div>
+<div class="paragraph">
+<p>On the left, you can create image panels to stack.
+If you create a single panel, it will be a simple stacking.
+If you create several panels, each panel will be stacked, then a mosaic will be composed.
+A single panel can contain several images, which will be stacked together.
+To add a panel, click on the "+" button and select the images to stack.
+Alternatively you can drag and drop one or several images from your file explorer.</p>
+</div>
+<div class="imageblock">
+<div class="content">
+<img src="stacking-2-en.jpg" alt="stacking 2 en">
+</div>
+</div>
+<div class="paragraph">
+<p>In the image above, we have created 2 panels.
+The first one contains 3 images which will be stacked to make the north panel, and the second one contains 2 images which will be stacked to make the south panel.</p>
+</div>
+<div class="paragraph">
+<p>Stacking parameters are visible on the right.
+It is not recommended to change them, unless you know what you&#8217;re doing.
+The following options are available:
+- the tile size allows to cut the image in tiles for stacking. The smaller the tile size, the more precise the stacking will be, but the longer it will take and the less likely it will be able to compensate for large shifts between images.
+- the overlap factor allows improving the quality of images by creating a sliding window between tiles. The higher the overlap factor, the more precise the stacking will be, but the longer it will take.
+- Forcing the computation of ellipses can be useful if the images you import come from another software or if the ellipses were badly detected. In that case, we will recompute them before stacking.
+- Geometry correction should be applied on images which weren&#8217;t corrected before (e.g raw images).</p>
+</div>
+<div class="paragraph">
+<p>The post-processing script is an <code>ImageMath</code> script that you can apply on each of the tiles after stacking.</p>
+</div>
+<div class="admonitionblock note">
+<table>
+<tr>
+<td class="icon">
+<i class="fa icon-note" title="Note"></i>
+</td>
+<td class="content">
+In a post-processing script, the stacked image is available as <code>image</code>. For example, you can create a script which will apply a deconvolution using the formula <code>rl_decon(image)</code>.
+</td>
+</tr>
+</table>
+</div>
+<div class="paragraph">
+<p>The other available options let you choose how files are saved.
+If you have created more than one panel, then the mosaic options become available.</p>
+</div>
+<div class="admonitionblock warning">
+<table>
+<tr>
+<td class="icon">
+<i class="fa icon-warning" title="Warning"></i>
+</td>
+<td class="content">
+For mosaic composition to work, it is recommended to use <code>raw</code> or <code>recon</code> images, not <code>stretched</code> ones. Indeed, stretched images are more difficult to align.
+</td>
+</tr>
+</table>
+</div>
+<div class="imageblock">
+<div class="content">
+<img src="stacking-3-en.jpg" alt="stacking 3 en">
+</div>
+</div>
+<div class="paragraph">
+<p>Should you only want to stack images without creating a mosaic, you can disable the "Create mosaic" option.
+In the other case, you can tweak some parameters, but it is strongly recommended not to change them unless the images you get after sticking are deformed or not reconstructed at all.</p>
+</div>
+<div class="paragraph">
+<p>Again, you can apply a post-processing script to the mosaic.</p>
 </div>
 </div>
 </div>
