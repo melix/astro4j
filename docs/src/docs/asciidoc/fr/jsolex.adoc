@@ -297,6 +297,11 @@ Fonctions décoratives
 - `draw_obs_details` affiche sur l'image les données d'observation. Par exemple: `draw_obs_details(img(0))`. Par défaut, positionné en haut à gauche. Il est possible de spéficier les coordonnées (x,y) où écrire : `draw_obs_details(img(0), 100, 100)`.
 - `draw_solar_params` affiche sur l'image les paramètres solaires. Par exemple: `draw_solar_params(img(0))`. Par défaut, positionné en haut à droite. Il est possible de spéficier les coordonnées (x,y) où écrire : `draw_solar_params(img(0), 500, 100)`.
 
+Fonctions d'empilement et de création de mosaiques :
+
+- `stack` permet d'empiler des images. Elle prend entre 1 et 3 paramètres. Le premier est la liste des images à empiler, par exemple: `stack(load_many("*.fits"))`. Le 2ème paramètre est la taille des tuiles et le 3ème est le facteur de recouvrement (entre 0 et 1).
+- `mosaic` permet de créer une mosaïque d'images. Elle prend entre 1 et 3 paramètres. Le premier est la liste des images à empiler, par exemple: `mosaic(load_many("*.fits"))`. Le 2ème paramètre est la taille des tuiles et le 3ème est le facteur de recouvrement (entre 0 et 1).
+
 === Scripts ImageMath
 
 Dans la section précédente, nous avons vu les "briques élémentaires" d'ImageMath, qui permettent de calculer des images.
@@ -513,6 +518,59 @@ image::spectral-debug-7-fr.jpg[]
 
 Le 4ème nombre représente la distance moyenne calculée.
 **Nous en déduisons que le décalage de pixels à appliquer est de -134**.
+
+[[stacking-and-mosaic]]
+== Empilement et création de mosaiques
+
+JSol'Ex dispose d'un outil permettant d'empiler des images et de créer des mosaïques.
+Les 2 outils sont très similaires, mais l'empilement est plus simple à utiliser.
+L'empilement consiste à prendre plusieurs images de la même région du soleil et à en faire une seule image, en alignant les détails et en moyennant les pixels.
+La mosaïque consiste à prendre plusieurs images de régions différentes du soleil et à les assembler pour former une image plus grande.
+
+Les 2 outils sont disponibles en passant par le menu "Outils" puis "Empilement et création de mosaïques".
+
+La fenêtre qui s'ouvre est la suivante:
+
+image::stacking-1-fr.jpg[]
+
+A gauche, vous pouvez créer des panneaux d'images à empiler.
+Si vous ne créez qu'un seul panneau, il s'agira d'un empilement simple.
+Si vous créer plusieurs panneaux, il s'agira d'une mosaïque.
+Un panneau contiendra une ou plusieurs images, qui seront empilées ensemble.
+Pour créer un panneau, vous pouvez, au choix:
+- cliquer sur le bouton "+" et sélectionner les images à empiler
+- faire un glisser-déposer d'une ou plusieurs images depuis votre explorateur de fichiers
+
+image::stacking-2-fr.jpg[]
+
+Dans l'image ci-dessus, nous avons créé 2 panneaux.
+Le premier contient 3 images qui seront empilées pour faire le panneau nord, et le second contient 2 images qui seront empilées pour faire le panneau sud.
+
+Les options d'empilement sont visibles à droite.
+Il n'est pas recommandé de les modifier, sauf si vous savez ce que vous faites.
+Les options sont les suivantes:
+- la taille des tuiles permet de découper l'image en tuiles pour l'empilement. Plus la taille est petite, plus l'empilement sera précis mais le calcul sera plus long et il ne sera pas possible de découvrir des décalages importants entre les images.
+- le chevauchement permet d'améliorer la qualité du résultat en faisant le même calcul avec une fenêtre glissante. Plus le chevauchement est grand, plus le résultat sera précis mais le calcul sera plus long.
+- Forcer le recalcul des ellipses permet de recalculer l'ellipse (ou le cercle) du disque solaire pour chaque image. Ceci est utile notamment si vous utilisez des images venant d'un autre logiciel ou que les ellipses ont été mal détectées.
+- Corriger la géométrie permet de rendre le disque solaire parfaitement circulaire, ce qui est généralement une bonne idée si les images que vous importez n'ont pas été corrigées.
+
+Le script de post-traitement vous permet de sélectionner un script `ImageMath` à appliquer à chaque image après empilement.
+
+NOTE: Dans un script de post-traitement, l'image empilée est disponible sous le nom de `image`. Par exemple, vous pouvez créer un script qui appliquera une déconvolution en utilisant la formule `rl_decon(image)`.
+
+Les autres options disponibles sont celles de sélection des formats de fichier.
+Si vous avez créé plusieurs panneaux, nous passons alors en mode mosaïque.
+Non seulement les images seront empilées dans chaque panneau, mais chaque image empilée sera ensuite assemblée pour former une mosaïque.
+
+WARNING: Il est recommandé de ne PAS utiliser d'images traitées (par exemple avec amélioration de contraste) pour la création de mosaïques. En effet, ces images sont plus difficiles à aligner. Il est donc recommandé d'utiliser les images `recon` (corrigée géométriquement) ou `raw` (brute).
+
+image::stacking-3-fr.jpg[]
+
+Si vous souhaitez simplement empiler des images sans faire de mosaique, vous pouvez désactiver l'option "Créer la mosaïque".
+Dans le cas contraire, vous disposez de paramètres qu'il est possible de modifier, encore une fois, si vous savez ce que vous faites.
+Nous recommandons de ne pas changer la taille des tuiles et le chevauchement pour la mosaïque, sauf si vous obtenez des images déformées ou non reconstruites.
+
+Vous pouvez aussi choisir un script de post-traitement à appliquer après la création de la mosaïque.
 
 == Calculatrice d'exposition optimale
 

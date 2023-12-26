@@ -19,7 +19,7 @@
 <BorderPane fx:controller="me.champeau.a4j.jsolex.app.jfx.stacking.StackingAndMosaicController" maxHeight="-Infinity" maxWidth="-Infinity" minHeight="-Infinity" minWidth="-Infinity" prefHeight="600.0"
             prefWidth="1024.0" xmlns="http://javafx.com/javafx/19" xmlns:fx="http://javafx.com/fxml/1">
     <center>
-        <VBox prefHeight="200.0" prefWidth="100.0" BorderPane.alignment="CENTER" spacing="4">
+        <VBox BorderPane.alignment="CENTER" spacing="4">
             <opaqueInsets>
                 <Insets bottom="4.0" left="4.0" right="4.0" top="4.0"/>
             </opaqueInsets>
