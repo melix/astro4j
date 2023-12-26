@@ -298,6 +298,11 @@ Decorative functions
 - `draw_obs_details` prints on the image the observation details. For example: `draw_obs_details(img(0))`. By default, placed in the top left corner. It's possible to set the (x,y) position explicitly: `draw_obs_details(img(0), 100, 100)`.
 - `draw_solar_params` prints on the image the detected solar parameters. For example: `draw_solar_params(img(0))`. By default, placed in the top right corner. It's possible to set the (x,y) position explicitly, for example: `draw_solar_params(img(0), 500, 100)`.
 
+Stacking and mosaic functions:
+
+- `stack` allows stacking images together. It will align images and compute the median value of each pixel. It accepts 1 to 3 parameters. The first one is the list of images to stack, for example: `stack(load_many("*.fits"))`. The 2d parameter is the tile size and the 3rd one is the overlap factor (between 0 and 1).
+- `mosaic` allows stitching images together in order to create a mosaic. It accepts 1 to 3 parameters. The first one is the list of images to stack, for example: `mosaic(load_many("*.fits"))`. The 2d parameter is the tile size and the 3rd one is the overlap factor (between 0 and 1).
+
 === ImageMath scripts
 
 In the previous section, we have seen the building blocks of ImageMath, which permit computation of new images.
@@ -511,6 +516,56 @@ image::spectral-debug-7-fr.jpg[]
 
 The 4th number is the average of distances and should be a good value to use in your ImageMath scripts.
 **In this example we deduce that the pixel shift is -134**.
+
+[[stacking-and-mosaic]]
+== Stacking and mosaic composition
+
+JSol'Ex provides a tool to stack images and create mosaics.
+The 2 tools are very similar, but stacking is easier to use.
+Stacking consists of taking several images of a similar region of the sun and making a single image by aligning the details and averaging the pixels.
+Mosaics are similar, but they are used to create a single image from several images of different regions of the sun.
+
+The 2 tools are available in the "Tools" menu, then "Stacking and mosaic composition".
+
+The following window will show up:
+
+image::stacking-1-en.jpg[]
+
+On the left, you can create image panels to stack.
+If you create a single panel, it will be a simple stacking.
+If you create several panels, each panel will be stacked, then a mosaic will be composed.
+A single panel can contain several images, which will be stacked together.
+To add a panel, click on the "+" button and select the images to stack.
+Alternatively you can drag and drop one or several images from your file explorer.
+
+image::stacking-2-en.jpg[]
+
+In the image above, we have created 2 panels.
+The first one contains 3 images which will be stacked to make the north panel, and the second one contains 2 images which will be stacked to make the south panel.
+
+Stacking parameters are visible on the right.
+It is not recommended to change them, unless you know what you're doing.
+The following options are available:
+- the tile size allows to cut the image in tiles for stacking. The smaller the tile size, the more precise the stacking will be, but the longer it will take and the less likely it will be able to compensate for large shifts between images.
+- the overlap factor allows improving the quality of images by creating a sliding window between tiles. The higher the overlap factor, the more precise the stacking will be, but the longer it will take.
+- Forcing the computation of ellipses can be useful if the images you import come from another software or if the ellipses were badly detected. In that case, we will recompute them before stacking.
+- Geometry correction should be applied on images which weren't corrected before (e.g raw images).
+
+The post-processing script is an `ImageMath` script that you can apply on each of the tiles after stacking.
+
+NOTE: In a post-processing script, the stacked image is available as `image`. For example, you can create a script which will apply a deconvolution using the formula `rl_decon(image)`.
+
+The other available options let you choose how files are saved.
+If you have created more than one panel, then the mosaic options become available.
+
+WARNING: For mosaic composition to work, it is recommended to use `raw` or `recon` images, not `stretched` ones. Indeed, stretched images are more difficult to align.
+
+image::stacking-3-en.jpg[]
+
+Should you only want to stack images without creating a mosaic, you can disable the "Create mosaic" option.
+In the other case, you can tweak some parameters, but it is strongly recommended not to change them unless the images you get after sticking are deformed or not reconstructed at all.
+
+Again, you can apply a post-processing script to the mosaic.
 
 == Optimal exposure calculator
 

@@ -239,6 +239,8 @@ public class StackingAndMosaicController {
         createMosaic.setSelected(true);
         mosaicOverlap.setValue(MosaicComposition.DEFAULT_OVERLAP_FACTOR);
         mosaicTileSize.setValue(MosaicComposition.DEFAULT_TILE_SIZE);
+        mosaicPostProcessingScriptFile = null;
+        mosaicPostProcessingScript.setText("");
     }
 
     public Stage getStage() {
