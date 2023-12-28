@@ -60,7 +60,7 @@
         </AnchorPane>
     </bottom>
     <left>
-        <BorderPane prefHeight="200.0" prefWidth="200.0" BorderPane.alignment="CENTER">
+        <BorderPane prefHeight="200.0" prefWidth="200.0" BorderPane.alignment="CENTER" fx:id="fileList">
             <center>
                 <VBox BorderPane.alignment="CENTER">
                     <BorderPane.margin>

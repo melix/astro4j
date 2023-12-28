@@ -174,6 +174,7 @@ public class Stacking extends AbstractFunctionImpl {
     private double[] prepareTileWeights(List<ImageWrapper32> images, int tileSize, ImageWrapper32 referenceImage, double[] sharpness, List<Image> integralImages, int x, int y, Image referenceIntegral) {
         var weights = sharpness;
         if (referenceImage != null) {
+            weights = new double[sharpness.length];
             var refAvg = imageMath.areaAverage(referenceIntegral, x, y, tileSize, tileSize);
             for (int i = 0; i < images.size(); i++) {
                 // The computation of the weights here is based on empirical observations
@@ -182,10 +183,12 @@ public class Stacking extends AbstractFunctionImpl {
                 // to images which are similar to the reference image, and minimize the error
                 // due to truncation of the solar disk at edges and artifacts at the borders.
                 var areaAvg = imageMath.areaAverage(integralImages.get(i), x, y, tileSize, tileSize);
-                var div = Math.max(refAvg, areaAvg);
-                var relativeDiff = Math.abs(refAvg - areaAvg) / div;
-                var w = relativeDiff == 0 ? 1 : 1 - Math.sqrt(relativeDiff);
-                weights[i] = w * w;
+                double diff = Math.abs(areaAvg - refAvg) / (refAvg + 1e-5);
+                double w = Math.exp(-8 * diff);
+                if (refAvg > 0 && areaAvg > refAvg) {
+                    w = 0.2 * w ;
+                }
+                weights[i] = w;
             }
         }
         return weights;

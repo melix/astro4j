@@ -15,6 +15,7 @@
  */
 package me.champeau.a4j.jsolex.app.listeners;
 
+import javafx.application.HostServices;
 import javafx.scene.control.Tab;
 import javafx.scene.control.TabPane;
 import me.champeau.a4j.jsolex.processing.expr.ImageMathScriptExecutor;
@@ -39,4 +40,6 @@ public interface JSolExInterface {
     void updateProgress(double progress, String text);
 
     void prepareForScriptExecution(ImageMathScriptExecutor executor, ProcessParams params);
+
+    HostServices getHostServices();
 }
