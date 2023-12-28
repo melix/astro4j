@@ -639,6 +639,8 @@ public class JSolEx extends Application implements JSolExInterface {
                 params.requestedImages().mathImages(),
                 getHostServices(),
                 true,
+                true,
+                e -> {},
                 e -> {
                     stage.close();
                     e.getConfiguration().ifPresent(scripts -> ioExecutor.async(() -> executeStandaloneScripts(

@@ -307,12 +307,16 @@ public class ImageSelector {
 
     @FXML
     public void openImageMath() {
-        ImageMathEditor.create(stage, imageMathParams, hostServices, batchMode, controller -> {
-            controller.getConfiguration().ifPresent(params -> {
+        ImageMathEditor.create(stage,
+            imageMathParams,
+            hostServices,
+            batchMode,
+            true,
+            controller -> {},
+            controller -> controller.getConfiguration().ifPresent(params -> {
                 updatePixelShiftsWithSelectedImages(findPixelShifts(params));
                 this.imageMathParams = params;
-            });
-        });
+            }));
     }
 
     private DefaultImageScriptExecutor createScriptExecutor() {

@@ -58,6 +58,7 @@
                             <HBox spacing="8">
                                 <TextField HBox.hgrow="ALWAYS" fx:id="stackPostProcessingScript" disable="true"/>
                                 <Button onAction="#chooseStackingPostProcessingScript" text="%choose"/>
+                                <Button onAction="#editStackingPostProcessingScript" text="%edit"/>
                             </HBox>
                             <HBox alignment="CENTER_RIGHT">
                                 <Button onAction="#resetStackingParams" text="%reset.to.defaults"/>
@@ -86,6 +87,7 @@
                             <HBox spacing="8">
                                 <TextField HBox.hgrow="ALWAYS" fx:id="mosaicPostProcessingScript" disable="true"/>
                                 <Button onAction="#chooseMosaicPostProcessingScript" text="%choose"/>
+                                <Button onAction="#editMosaicPostProcessingScript" text="%edit"/>
                             </HBox>
                             <HBox alignment="CENTER_RIGHT">
                                 <Button onAction="#resetMosaicParams" text="%reset.to.defaults"/>

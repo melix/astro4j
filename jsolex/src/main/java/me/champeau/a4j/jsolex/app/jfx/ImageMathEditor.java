@@ -24,6 +24,7 @@ import javafx.scene.control.Button;
 import javafx.scene.control.ButtonType;
 import javafx.scene.control.ChoiceBox;
 import javafx.scene.control.ListView;
+import javafx.scene.layout.BorderPane;
 import javafx.stage.FileChooser;
 import javafx.stage.Stage;
 import javafx.stage.WindowEvent;
@@ -52,6 +53,9 @@ public class ImageMathEditor {
     private final Configuration configuration = new Configuration();
 
     @FXML
+    public BorderPane fileList;
+
+    @FXML
     private ListView<ImageMathEntry> scriptsToApply;
 
     private ImageMathParams params;
@@ -74,12 +78,19 @@ public class ImageMathEditor {
                               ImageMathParams imageMathParams,
                               HostServices hostServices,
                               boolean batchMode,
+                              boolean multiFile,
+                              Consumer<? super ImageMathEditor> onCreate,
                               Consumer<? super ImageMathEditor> onClose) {
         var fxmlLoader = I18N.fxmlLoader(JSolEx.class, "imagemath-editor");
         try {
             var node = (Parent) fxmlLoader.load();
             var controller = (ImageMathEditor) fxmlLoader.getController();
             controller.setup(stage, imageMathParams, hostServices, batchMode);
+            if (!multiFile) {
+                controller.fileList.setManaged(false);
+                controller.fileList.setVisible(false);
+            }
+            onCreate.accept(controller);
             Scene scene = new Scene(node);
             scene.getStylesheets().add(JSolEx.class.getResource("syntax.css").toExternalForm());
             var currentScene = stage.getScene();
@@ -100,6 +111,10 @@ public class ImageMathEditor {
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
+    }
+
+    public void addKnownVariable(String variable) {
+        scriptTextArea.addKnownVariable(variable);
     }
 
     public void setup(Stage stage, ImageMathParams imageMathParams, HostServices hostServices, boolean batchMode) {

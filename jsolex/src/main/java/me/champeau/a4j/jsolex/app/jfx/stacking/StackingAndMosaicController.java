@@ -33,6 +33,7 @@ import javafx.stage.FileChooser;
 import javafx.stage.Stage;
 import me.champeau.a4j.jsolex.app.JSolEx;
 import me.champeau.a4j.jsolex.app.jfx.I18N;
+import me.champeau.a4j.jsolex.app.jfx.ImageMathEditor;
 import me.champeau.a4j.jsolex.app.jfx.ImageViewer;
 import me.champeau.a4j.jsolex.app.listeners.JSolExInterface;
 import me.champeau.a4j.jsolex.app.listeners.SingleModeProcessingEventListener;
@@ -40,6 +41,7 @@ import me.champeau.a4j.jsolex.processing.expr.impl.MosaicComposition;
 import me.champeau.a4j.jsolex.processing.expr.impl.Stacking;
 import me.champeau.a4j.jsolex.processing.file.FileNamingStrategy;
 import me.champeau.a4j.jsolex.processing.params.FileNamingPatternsIO;
+import me.champeau.a4j.jsolex.processing.params.ImageMathParams;
 import me.champeau.a4j.jsolex.processing.params.NamedPattern;
 import me.champeau.a4j.jsolex.processing.params.ProcessParams;
 import me.champeau.a4j.jsolex.processing.params.ProcessParamsIO;
@@ -53,6 +55,7 @@ import org.slf4j.LoggerFactory;
 import java.io.File;
 import java.time.LocalDateTime;
 import java.util.EnumSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
@@ -335,6 +338,46 @@ public class StackingAndMosaicController {
             stackPostProcessingScriptFile = file;
             stackPostProcessingScript.setText(file.getName());
         });
+    }
+
+    @FXML
+    private void editStackingPostProcessingScript() {
+        var files = stackPostProcessingScriptFile != null ? List.of(stackPostProcessingScriptFile) : List.<File>of();
+        ImageMathEditor.create(stage,
+            new ImageMathParams(files),
+            owner.getHostServices(),
+            false,
+            false,
+            editor -> editor.addKnownVariable("image"),
+            editor -> editor.getConfiguration().flatMap(c -> {
+                if (c.scriptFiles().isEmpty()) {
+                    return Optional.empty();
+                }
+                return Optional.of(c.scriptFiles().getLast());
+            }).ifPresent(file -> {
+                stackPostProcessingScriptFile = file;
+                stackPostProcessingScript.setText(file.getName());
+            }));
+    }
+
+    @FXML
+    private void editMosaicPostProcessingScript() {
+        var files = mosaicPostProcessingScriptFile != null ? List.of(mosaicPostProcessingScriptFile) : List.<File>of();
+        ImageMathEditor.create(stage,
+            new ImageMathParams(files),
+            owner.getHostServices(),
+            false,
+            false,
+            editor -> editor.addKnownVariable("image"),
+            editor -> editor.getConfiguration().flatMap(c -> {
+                if (c.scriptFiles().isEmpty()) {
+                    return Optional.empty();
+                }
+                return Optional.of(c.scriptFiles().getLast());
+            }).ifPresent(file -> {
+                mosaicPostProcessingScriptFile = file;
+                mosaicPostProcessingScript.setText(file.getName());
+            }));
     }
 
     @FXML

@@ -34,6 +34,7 @@ import org.fxmisc.richtext.model.StyleSpansBuilder;
 import java.time.Duration;
 import java.util.Collection;
 import java.util.Comparator;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
@@ -47,6 +48,7 @@ public class ImageMathTextArea extends BorderPane {
     private final ExecutorService executor = Executors.newSingleThreadExecutor();
     private final CodeArea codeArea = new CodeArea();
     private final ExpressionParser expressionParser;
+    private final Set<String> knownVariables = new HashSet<>();
 
     public ImageMathTextArea() {
         codeArea.prefWidthProperty().bind(widthProperty());
@@ -68,6 +70,10 @@ public class ImageMathTextArea extends BorderPane {
                 .subscribe(this::applyHighlighting);
         setCenter(codeArea);
         expressionParser = new ExpressionParser();
+    }
+
+    public void addKnownVariable(String variable) {
+        knownVariables.add(variable);
     }
 
     public void setText(String text) {
@@ -125,6 +131,7 @@ public class ImageMathTextArea extends BorderPane {
         knownVariables.add(DefaultImageScriptExecutor.B0_VAR);
         knownVariables.add(DefaultImageScriptExecutor.L0_VAR);
         knownVariables.add(DefaultImageScriptExecutor.CARROT_VAR);
+        knownVariables.addAll(this.knownVariables);
         var spansBuilder = new StyleSpansBuilder<Collection<String>>();
         for (var token : tokens) {
             int tokenLength = token.length();
