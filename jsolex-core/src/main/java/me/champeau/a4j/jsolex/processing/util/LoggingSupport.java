@@ -40,7 +40,7 @@ public class LoggingSupport {
         ex.printStackTrace(s);
         s.flush();
         String trace = out.toString();
-        LOGGER.error("Error while processing\n{}", trace);
+        LOGGER.error(message("error.while.processing"), ex.getMessage(), trace);
         return trace;
     }
 

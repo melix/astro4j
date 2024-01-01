@@ -32,6 +32,7 @@ import javafx.scene.layout.FlowPane;
 import javafx.stage.FileChooser;
 import javafx.stage.Stage;
 import me.champeau.a4j.jsolex.app.JSolEx;
+import me.champeau.a4j.jsolex.app.jfx.BatchOperations;
 import me.champeau.a4j.jsolex.app.jfx.I18N;
 import me.champeau.a4j.jsolex.app.jfx.ImageMathEditor;
 import me.champeau.a4j.jsolex.app.jfx.ImageViewer;
@@ -49,6 +50,7 @@ import me.champeau.a4j.jsolex.processing.params.StackingParamsIO;
 import me.champeau.a4j.jsolex.processing.sun.workflow.StackingWorkflow;
 import me.champeau.a4j.jsolex.processing.util.ForkJoinContext;
 import me.champeau.a4j.jsolex.processing.util.ImageFormat;
+import me.champeau.a4j.jsolex.processing.util.ProcessingException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

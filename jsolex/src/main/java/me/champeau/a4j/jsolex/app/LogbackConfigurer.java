@@ -24,6 +24,7 @@ import ch.qos.logback.core.AppenderBase;
 import ch.qos.logback.core.FileAppender;
 import ch.qos.logback.core.layout.EchoLayout;
 import me.champeau.a4j.jsolex.app.jfx.BatchOperations;
+import org.fxmisc.richtext.LineNumberFactory;
 import org.fxmisc.richtext.StyleClassedTextArea;
 import org.slf4j.LoggerFactory;
 
@@ -49,6 +50,12 @@ class LogbackConfigurer {
     }
 
     static void configureLogger(StyleClassedTextArea console) {
+        var numberFactory = LineNumberFactory.get(console, i -> "");
+        console.setParagraphGraphicFactory(node -> {
+            var line = numberFactory.apply(node);
+            line.setStyle("-fx-background-color: white");
+            return line;
+        });
         Logger logbackLogger = findRootLogger();
         logbackLogger.setLevel(Level.INFO);
         logbackLogger.detachAndStopAllAppenders();
@@ -58,7 +65,12 @@ class LogbackConfigurer {
                 BatchOperations.submit(() -> {
                     var level = eventObject.getLevel();
                     var message = eventObject.getFormattedMessage() + System.lineSeparator();
+                    int start = console.getLength();
                     console.append(message, "log_" + level.levelStr.toLowerCase());
+                    int end = console.getLength() - 1;
+                    if (level == Level.ERROR) {
+                        console.foldText(start, end);
+                    }
                     console.requestFollowCaret();
                 });
             }
