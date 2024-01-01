@@ -180,7 +180,7 @@ public abstract class LinearRegression {
      * @param coefficients the coefficients
      * @return the polynomial function
      */
-    static DoubleUnaryOperator asPolynomial(double[] coefficients) {
+    public static DoubleUnaryOperator asPolynomial(double[] coefficients) {
         return x -> {
             double result = 0;
             for (int i = 0; i < coefficients.length; i++) {

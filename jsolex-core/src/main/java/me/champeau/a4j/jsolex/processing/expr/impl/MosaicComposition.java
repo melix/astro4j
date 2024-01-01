@@ -18,6 +18,7 @@ package me.champeau.a4j.jsolex.processing.expr.impl;
 import me.champeau.a4j.jsolex.processing.event.GeneratedImage;
 import me.champeau.a4j.jsolex.processing.event.ImageGeneratedEvent;
 import me.champeau.a4j.jsolex.processing.event.ProgressEvent;
+import me.champeau.a4j.jsolex.processing.sun.BackgroundRemoval;
 import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
 import me.champeau.a4j.jsolex.processing.sun.workflow.AnalysisUtils;
 import me.champeau.a4j.jsolex.processing.sun.workflow.GeneratedImageKind;
@@ -25,6 +26,7 @@ import me.champeau.a4j.jsolex.processing.util.Constants;
 import me.champeau.a4j.jsolex.processing.util.DrawUtils;
 import me.champeau.a4j.jsolex.processing.util.FileBackedImage;
 import me.champeau.a4j.jsolex.processing.util.ForkJoinContext;
+import me.champeau.a4j.jsolex.processing.util.Histogram;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 import me.champeau.a4j.jsolex.processing.util.MutableMap;
@@ -32,6 +34,7 @@ import me.champeau.a4j.jsolex.processing.util.ProcessingException;
 import me.champeau.a4j.math.Point2D;
 import me.champeau.a4j.math.image.Image;
 import me.champeau.a4j.math.image.ImageMath;
+import me.champeau.a4j.math.regression.Ellipse;
 import me.champeau.a4j.math.tuples.DoublePair;
 import me.champeau.a4j.math.tuples.IntPair;
 import org.slf4j.Logger;
@@ -58,6 +61,7 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.DoubleStream;
 
+import static me.champeau.a4j.jsolex.processing.sun.workflow.AnalysisUtils.estimateSignalLevel;
 import static me.champeau.a4j.jsolex.processing.util.Constants.message;
 import static me.champeau.a4j.math.regression.LinearRegression.firstOrderRegression;
 
@@ -136,6 +140,7 @@ public class MosaicComposition extends AbstractFunctionImpl {
         var rescaled = scaling.performRadiusRescale(images)
             .stream()
             .map(ImageWrapper32.class::cast)
+            .map(BackgroundRemoval::removeZeroPixels)
             .toList();
         var adjustment = normalizeHistograms(rescaled);
         var mosaic = doMosaicNoHistogramTransform(tileSize, overlap, adjustment.corrected(), adjustment.background(), new HashMap<>(), new HashMap<>());
@@ -504,7 +509,7 @@ public class MosaicComposition extends AbstractFunctionImpl {
                 float[] avgs = new float[adjusted.size()];
                 for (int i = 0; i < adjusted.size(); i++) {
                     var img = adjusted.get(i);
-                    var signal = AnalysisUtils.estimateSignalLevel(img.data(), 64);
+                    var signal = estimateSignalLevel(img.data(), 64);
                     avgs[i] = averageOfPixelsAbove(img, signal);
                     maxAvg = Math.max(avgs[i], maxAvg);
                 }
@@ -566,6 +571,24 @@ public class MosaicComposition extends AbstractFunctionImpl {
             return 0;
         }
         return (float) (total / count);
+    }
+
+    private static Optional<Histogram> histogramOfPixelsWithinSolarDisk(ImageWrapper32 image) {
+        var o = image.metadata().get(Ellipse.class);
+        if (o instanceof Ellipse ellipse) {
+            var data = image.data();
+            var builder = Histogram.builder(256);
+            for (int y = 0; y < image.height(); y++) {
+                for (int x = 0; x < image.width(); x++) {
+                    if (ellipse.isWithin(x, y)) {
+                        var idx = y * image.width() + x;
+                        builder.record(data[idx]);
+                    }
+                }
+            }
+            return Optional.of(builder.build());
+        }
+        return Optional.empty();
     }
 
     private void maybeCreateMatchDebugImage(List<ImageWrapper32> corrected, int width, int height, List<DistorsionSample> candidates, int tileSize) {
