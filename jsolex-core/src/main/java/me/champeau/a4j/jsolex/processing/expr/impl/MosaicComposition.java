@@ -26,7 +26,6 @@ import me.champeau.a4j.jsolex.processing.util.Constants;
 import me.champeau.a4j.jsolex.processing.util.DrawUtils;
 import me.champeau.a4j.jsolex.processing.util.FileBackedImage;
 import me.champeau.a4j.jsolex.processing.util.ForkJoinContext;
-import me.champeau.a4j.jsolex.processing.util.Histogram;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 import me.champeau.a4j.jsolex.processing.util.MutableMap;
@@ -34,7 +33,6 @@ import me.champeau.a4j.jsolex.processing.util.ProcessingException;
 import me.champeau.a4j.math.Point2D;
 import me.champeau.a4j.math.image.Image;
 import me.champeau.a4j.math.image.ImageMath;
-import me.champeau.a4j.math.regression.Ellipse;
 import me.champeau.a4j.math.tuples.DoublePair;
 import me.champeau.a4j.math.tuples.IntPair;
 import org.slf4j.Logger;
@@ -140,7 +138,7 @@ public class MosaicComposition extends AbstractFunctionImpl {
         var rescaled = scaling.performRadiusRescale(images)
             .stream()
             .map(ImageWrapper32.class::cast)
-            .map(BackgroundRemoval::removeZeroPixels)
+            .map(BackgroundRemoval::neutralizeBackground)
             .toList();
         var adjustment = normalizeHistograms(rescaled);
         var mosaic = doMosaicNoHistogramTransform(tileSize, overlap, adjustment.corrected(), adjustment.background(), new HashMap<>(), new HashMap<>());
@@ -185,6 +183,8 @@ public class MosaicComposition extends AbstractFunctionImpl {
             Map<Point2D, Optional<DistorsionSample>> cachedInterestPoints = new ConcurrentHashMap<>();
             first = corrected.get(0);
             var second = corrected.get(1);
+            var threshold = background;
+            int noUpdateCount = 0;
             while (true) {
                 step++;
                 var reference = corrected.get(0);
@@ -192,15 +192,12 @@ public class MosaicComposition extends AbstractFunctionImpl {
                 var referenceIntegral = imageMath.integralImage(reference.asImage());
                 var compareIntegral = integralImages.get(compare);
                 var referenceData = reference.data();
-                var feat = findInterestPoints(reference, referenceIntegral, compareIntegral, background, tileSize);
+                var feat = findInterestPoints(reference, referenceIntegral, compareIntegral, threshold, tileSize);
                 var distorsionGridSize = Math.max(width / 64, 64);
                 var length = width * height;
                 var otherData = compare.data();
                 var assembledData = new float[length];
                 System.arraycopy(referenceData, 0, assembledData, 0, length);
-                for (int i = 0; i < assembledData.length; i++) {
-                    mask[i] |= assembledData[i] > 8 * background;
-                }
                 boolean updated = false;
                 Map<Point2D, List<Point2D>> localInterestPoints = new HashMap<>();
                 var offset = tileSize;
@@ -219,7 +216,7 @@ public class MosaicComposition extends AbstractFunctionImpl {
                                 .toList());
                             if (avg1 == 0 && avg2 == 0) {
                                 assembleSingleTile(tileSize, x, y, x, y, width, length, assembledData, otherData, mask);
-                            } else if (avg2 >= avg1) {
+                            } else {
                                 var point = new Point2D(x, y);
                                 var samples = findBestMatches(cachedInterestPoints, reference, referenceIntegral, localPoints, compare, compareIntegral, tileSize, step, x, y, dist);
                                 if (!samples.isEmpty()) {
@@ -250,7 +247,21 @@ public class MosaicComposition extends AbstractFunctionImpl {
                 }
                 var assembled = new ImageWrapper32(width, height, assembledData, metadata);
                 corrected.set(0, assembled);
-                if (!updated || step == maxSteps) {
+                boolean reassembled = true;
+                for (boolean v : mask) {
+                    if (!v) {
+                        reassembled = false;
+                        break;
+                    }
+                }
+                if (!updated) {
+                    noUpdateCount++;
+                } else {
+                    noUpdateCount = 0;
+                }
+                if (!reassembled && !updated && step < maxSteps && noUpdateCount < 4) {
+                    threshold = threshold / 4;
+                } else if (reassembled || !updated || step == maxSteps) {
                     corrected.remove(1);
                     var mosaic = stacking.doStack(
                         List.of(first, second),
@@ -277,7 +288,6 @@ public class MosaicComposition extends AbstractFunctionImpl {
                 if (idx >= 0 && idx < length && origIdx >= 0 && origIdx < length) {
                     var source = assembledData[origIdx];
                     var other = otherData[idx];
-
                     if (source < 0.5 * other) {
                         assembledData[origIdx] = other;
                         updated = true;
@@ -407,7 +417,7 @@ public class MosaicComposition extends AbstractFunctionImpl {
                 var yy = y + yoffset;
                 var refAvg = imageMath.areaAverage(integralImage, x, y, sampleInterval, sampleInterval);
                 var cmpAvg = imageMath.areaAverage(compareIntegral, x, yy, sampleInterval, sampleInterval);
-                if (refAvg > threshold && cmpAvg > threshold && withinTolerance(refAvg, cmpAvg, .5)) {
+                if (refAvg > threshold && cmpAvg > threshold) {
                     result.add(new Point2D(x, yy));
                 }
             }
@@ -571,24 +581,6 @@ public class MosaicComposition extends AbstractFunctionImpl {
             return 0;
         }
         return (float) (total / count);
-    }
-
-    private static Optional<Histogram> histogramOfPixelsWithinSolarDisk(ImageWrapper32 image) {
-        var o = image.metadata().get(Ellipse.class);
-        if (o instanceof Ellipse ellipse) {
-            var data = image.data();
-            var builder = Histogram.builder(256);
-            for (int y = 0; y < image.height(); y++) {
-                for (int x = 0; x < image.width(); x++) {
-                    if (ellipse.isWithin(x, y)) {
-                        var idx = y * image.width() + x;
-                        builder.record(data[idx]);
-                    }
-                }
-            }
-            return Optional.of(builder.build());
-        }
-        return Optional.empty();
     }
 
     private void maybeCreateMatchDebugImage(List<ImageWrapper32> corrected, int width, int height, List<DistorsionSample> candidates, int tileSize) {

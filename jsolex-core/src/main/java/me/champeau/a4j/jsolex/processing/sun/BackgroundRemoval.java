@@ -25,7 +25,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import static me.champeau.a4j.jsolex.processing.sun.ImageUtils.bilinearSmoothing;
-import static me.champeau.a4j.jsolex.processing.sun.workflow.AnalysisUtils.estimateSignalLevel;
+import static me.champeau.a4j.jsolex.processing.sun.workflow.AnalysisUtils.estimateBackgroundLevel;
 
 public class BackgroundRemoval {
     private static final Logger LOGGER = LoggerFactory.getLogger(BackgroundRemoval.class);
@@ -69,7 +69,7 @@ public class BackgroundRemoval {
     public static ImageWrapper32 neutralizeBackground(ImageWrapper32 image) {
         var copy = removeZeroPixels(image);
         var data = copy.data();
-        var background = 0.9 * estimateSignalLevel(copy.data(), 256);
+        var background = 0.8 * estimateBackgroundLevel(copy.data(), 64);
         LOGGER.debug("Background neutralization level: {}", background);
 
         // Find samples for 2d order regression
@@ -77,8 +77,8 @@ public class BackgroundRemoval {
         List<Double> values = new ArrayList<>();
         var height = image.height();
         var width = image.width();
-        for (int y = 0; y < height; y += 16) {
-            for (int x = 0; x < width; x += 16) {
+        for (int y = 0; y < height; y += 8) {
+            for (int x = 0; x < width; x += 8) {
                 var idx = y * width + x;
                 var value = data[idx];
                 if (value < background && value > 0) {
@@ -105,6 +105,14 @@ public class BackgroundRemoval {
                 data[idx] = (float) Math.max(0, value - estimated);
             }
         }
+        if (false) {
+            for (double[] sample : samples) {
+                var x = sample[0];
+                var y = sample[1];
+                var idx = (int) (y * width + x);
+                data[idx] = 65535;
+            }
+        }
         return copy;
     }
 
@@ -119,8 +127,8 @@ public class BackgroundRemoval {
         var copy = image.copy();
         var data = copy.data();
         var minValue = Float.MAX_VALUE;
-        for (float v : data) {
-            if (v > 0 && v < minValue) {
+        for (var v : data) {
+            if (v >= 1 && v < minValue) {
                 minValue = v;
             }
         }

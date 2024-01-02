@@ -66,7 +66,7 @@ public class AnalysisUtils {
     }
 
     public static float estimateBackgroundLevel(float[] data) {
-        return estimateBackgroundLevel(data, 32);
+        return estimateBackgroundLevel(data, 64);
     }
 
     public static float estimateBackgroundLevel(float[] data, int bins) {
@@ -75,14 +75,18 @@ public class AnalysisUtils {
         float cur = values[0];
         int idx = 0;
         for (int i = 1; i < values.length; i++) {
-            idx++;
+            idx = i + 1;
             float previous = cur;
             cur = values[i];
             if (cur < 0.5 * previous) {
                 break;
             }
         }
-        return 0.8f * (65536f * idx / h.levelsCount());
+        while (values[idx + 1] < cur) {
+            idx++;
+            cur = values[idx];
+        }
+        return (65535f * idx) / h.levelsCount();
     }
 
     public static float estimateSignalLevel(float[] data, int bins) {
