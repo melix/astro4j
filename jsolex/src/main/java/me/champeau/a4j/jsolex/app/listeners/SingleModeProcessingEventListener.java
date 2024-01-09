@@ -151,6 +151,17 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
             return -1;
         }
     };
+    // Ordered list to determine the default image to show
+    private static final List<GeneratedImageKind> DEFAULT_IMAGE_TO_SHOW = List.of(
+        GeneratedImageKind.IMAGE_MATH,
+        GeneratedImageKind.GEOMETRY_CORRECTED_PROCESSED,
+        GeneratedImageKind.GEOMETRY_CORRECTED,
+        GeneratedImageKind.RAW,
+        GeneratedImageKind.MIXED,
+        GeneratedImageKind.COLORIZED,
+        GeneratedImageKind.CONTINUUM,
+        GeneratedImageKind.TECHNICAL_CARD
+    );
 
     private final Map<SuggestionEvent.SuggestionKind, String> suggestions = Collections.synchronizedMap(new LinkedHashMap<>());
     private final Map<Double, ZoomableImageView> imageViews;
@@ -250,7 +261,9 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
             imageView.setParentTab(tab);
             tabPane.getTabs().add(tab);
             var selectionModel = tabPane.getSelectionModel();
-            selectionModel.select(tab);
+            if (pixelShift == params.spectrumParams().pixelShift() || selectionModel.isEmpty()) {
+                BatchOperations.submit(() -> selectionModel.select(tab));
+            }
             Runnable listener = () -> {
                 var ps = MetadataSupport.renderPixelShift(new PixelShift(pixelShift));
                 metadataTab.setContent(new Label(ps));
@@ -309,7 +322,8 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
             var tabPane = getOrCreateCategoryTab(kind);
             var tab = new Tab();
             var tabTitle = title;
-            var pixelShift = payload.image().findMetadata(PixelShift.class);
+            var image = payload.image();
+            var pixelShift = image.findMetadata(PixelShift.class);
             if (pixelShift.isPresent()) {
                 tab.getProperties().put(PixelShift.class, pixelShift.get());
                 double ps = pixelShift.get().pixelShift();
@@ -328,7 +342,7 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
             var viewer = newImageViewer();
             viewer.fitWidthProperty().bind(mainPane.widthProperty());
             viewer.setTab(tab);
-            var imageWrapper = payload.image();
+            var imageWrapper = image;
             viewer.setup(this,
                 title,
                 baseName,
@@ -348,7 +362,9 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
             tabPane.getTabs().add(tab);
             tabPane.getTabs().sort(COMPARE_BY_PIXEL_SHIFT);
             var selectionModel = tabPane.getSelectionModel();
-            BatchOperations.submit(() -> selectionModel.select(tab));
+            if (shouldSelectTab(kind, pixelShift)) {
+                BatchOperations.submit(() -> selectionModel.select(tab));
+            }
             var imageViewer = popupViews.get(title);
             if (imageViewer != null) {
                 imageViewer.setImage(baseName, params, imageWrapper, payload.path());
@@ -367,6 +383,24 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
         });
     }
 
+    private boolean shouldSelectTab(GeneratedImageKind kind, Optional<PixelShift> pixelShift) {
+        var kinds = params.requestedImages().images();
+        GeneratedImageKind preferredKind = null;
+        for (GeneratedImageKind imageKind : DEFAULT_IMAGE_TO_SHOW) {
+            if (kinds.contains(imageKind)) {
+                preferredKind = imageKind;
+                break;
+            }
+        }
+        if (preferredKind == null) {
+            preferredKind = kinds.stream().findFirst().orElse(null);
+        }
+        if (kind == preferredKind && (pixelShift.isEmpty() || pixelShift.get().pixelShift() == params.spectrumParams().pixelShift())) {
+            return true;
+        }
+        return false;
+    }
+
     private synchronized TabPane getOrCreateCategoryTab(GeneratedImageKind kind) {
         if (kind == GeneratedImageKind.CONTINUUM) {
             // special case to reuse the "geometry corrected" tab
@@ -377,7 +411,10 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
             .filter(t -> t.getProperties().get(GeneratedImageKind.class) == finalKind)
             .findFirst()
             .map(t -> {
-                mainPane.getSelectionModel().select(t);
+                var selectionModel = mainPane.getSelectionModel();
+                if (shouldSelectTab(finalKind, Optional.empty())) {
+                    selectionModel.select(t);
+                }
                 return (TabPane) t.getContent();
             })
             .orElseGet(() -> createCategoryTab(finalKind));
@@ -407,7 +444,10 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
             }
         });
         doAddTab(categoryTab);
-        mainPane.getSelectionModel().select(categoryTab);
+        var selectionModel = mainPane.getSelectionModel();
+        if (shouldSelectTab(kind, Optional.empty())) {
+            selectionModel.select(categoryTab);
+        }
         return tabPane;
     }
 
