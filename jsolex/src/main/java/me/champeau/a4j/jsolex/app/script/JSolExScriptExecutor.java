@@ -20,6 +20,7 @@ import javafx.stage.FileChooser;
 import javafx.stage.Stage;
 import me.champeau.a4j.jsolex.app.Configuration;
 import me.champeau.a4j.jsolex.app.JSolEx;
+import me.champeau.a4j.jsolex.app.jfx.BatchOperations;
 import me.champeau.a4j.jsolex.processing.expr.DefaultImageScriptExecutor;
 import me.champeau.a4j.jsolex.processing.expr.impl.FileSelector;
 import me.champeau.a4j.jsolex.processing.expr.impl.Loader;
@@ -31,9 +32,7 @@ import java.io.File;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
-import java.util.function.Supplier;
 
 /**
  * A script executor which exposes a JavaFX file chooser to the {@link Loader}.
@@ -77,7 +76,7 @@ public class JSolExScriptExecutor extends DefaultImageScriptExecutor {
         @Override
         public Optional<File> chooseFile(String id, String title) {
             var chooser = createFileChooser(id, title);
-            var file = blockingUntilResultAvailable(() -> chooser.showOpenDialog(stage));
+            var file = BatchOperations.blockingUntilResultAvailable(() -> chooser.showOpenDialog(stage));
             if (file != null) {
                 configuration.updateLastOpenDirectory(file.getParentFile().toPath(), id);
             }
@@ -95,29 +94,12 @@ public class JSolExScriptExecutor extends DefaultImageScriptExecutor {
         @Override
         public Optional<List<File>> chooseFiles(String id, String title) {
             var chooser = createFileChooser(id, title);
-            var files = blockingUntilResultAvailable(() -> chooser.showOpenMultipleDialog(stage));
+            var files = BatchOperations.blockingUntilResultAvailable(() -> chooser.showOpenMultipleDialog(stage));
             if (files != null && !files.isEmpty()) {
                 configuration.updateLastOpenDirectory(files.get(0).getParentFile().toPath(), id);
             }
             return Optional.ofNullable(files);
         }
 
-        private static <T> T blockingUntilResultAvailable(Supplier<T> supplier) {
-            var ref = new AtomicReference<T>();
-            var latch = new java.util.concurrent.CountDownLatch(1);
-            Platform.runLater(() -> {
-                try {
-                    ref.set(supplier.get());
-                } finally {
-                    latch.countDown();
-                }
-            });
-            try {
-                latch.await();
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-            }
-            return ref.get();
-        }
     }
 }

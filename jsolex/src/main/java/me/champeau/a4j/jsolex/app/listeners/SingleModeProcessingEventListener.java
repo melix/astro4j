@@ -15,11 +15,7 @@
  */
 package me.champeau.a4j.jsolex.app.listeners;
 
-import javafx.collections.ListChangeListener;
 import javafx.embed.swing.SwingFXUtils;
-import javafx.geometry.Pos;
-import javafx.geometry.Side;
-import javafx.scene.Node;
 import javafx.scene.SnapshotParameters;
 import javafx.scene.chart.BarChart;
 import javafx.scene.chart.CategoryAxis;
@@ -27,29 +23,18 @@ import javafx.scene.chart.LineChart;
 import javafx.scene.chart.NumberAxis;
 import javafx.scene.chart.XYChart;
 import javafx.scene.control.Alert;
-import javafx.scene.control.Button;
 import javafx.scene.control.ContextMenu;
-import javafx.scene.control.Label;
 import javafx.scene.control.MenuItem;
 import javafx.scene.control.ScrollPane;
 import javafx.scene.control.Tab;
-import javafx.scene.control.TabPane;
 import javafx.scene.control.TextArea;
 import javafx.scene.control.Tooltip;
-import javafx.scene.effect.ColorAdjust;
 import javafx.scene.image.PixelFormat;
 import javafx.scene.image.WritableImage;
-import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
-import javafx.scene.media.Media;
-import javafx.scene.media.MediaPlayer;
-import javafx.scene.media.MediaView;
 import javafx.scene.transform.Transform;
 import javafx.util.Duration;
-import me.champeau.a4j.jsolex.app.JSolEx;
 import me.champeau.a4j.jsolex.app.jfx.BatchOperations;
-import me.champeau.a4j.jsolex.app.jfx.ExplorerSupport;
-import me.champeau.a4j.jsolex.app.jfx.I18N;
 import me.champeau.a4j.jsolex.app.jfx.ImageViewer;
 import me.champeau.a4j.jsolex.app.jfx.ZoomableImageView;
 import me.champeau.a4j.jsolex.app.script.JSolExScriptExecutor;
@@ -107,7 +92,6 @@ import java.nio.file.Path;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.Comparator;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -121,6 +105,7 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import static me.champeau.a4j.jsolex.app.JSolEx.message;
+import static me.champeau.a4j.jsolex.app.jfx.BatchOperations.blockingUntilResultAvailable;
 
 public class SingleModeProcessingEventListener implements ProcessingEventListener, ImageMathScriptExecutor, Broadcaster {
     private static final Logger LOGGER = LoggerFactory.getLogger(SingleModeProcessingEventListener.class);
@@ -130,38 +115,6 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
     private static final int DEFAULT_ORDER = 1;
     private static final int DEFAULT_DENSITY = 2400;
     private static final int DEFAULT_FOCAL_LEN = 125;
-    private static final String ON_SELECTION = "onSelectionListener";
-
-    private static final Comparator<Tab> COMPARE_BY_IMAGE_KIND = (o1, o2) -> {
-        var k1 = (GeneratedImageKind) o1.getProperties().get(GeneratedImageKind.class);
-        var k2 = (GeneratedImageKind) o2.getProperties().get(GeneratedImageKind.class);
-        if (k1 != null && k2 != null) {
-            return Comparator.comparingInt(GeneratedImageKind::ordinal).compare(k1, k2);
-        } else {
-            return -1;
-        }
-    };
-
-    private static final Comparator<Tab> COMPARE_BY_PIXEL_SHIFT = (o1, o2) -> {
-        var k1 = (PixelShift) o1.getProperties().get(PixelShift.class);
-        var k2 = (PixelShift) o2.getProperties().get(PixelShift.class);
-        if (k1 != null && k2 != null) {
-            return Comparator.comparingDouble(PixelShift::pixelShift).compare(k1, k2);
-        } else {
-            return -1;
-        }
-    };
-    // Ordered list to determine the default image to show
-    private static final List<GeneratedImageKind> DEFAULT_IMAGE_TO_SHOW = List.of(
-        GeneratedImageKind.IMAGE_MATH,
-        GeneratedImageKind.GEOMETRY_CORRECTED_PROCESSED,
-        GeneratedImageKind.GEOMETRY_CORRECTED,
-        GeneratedImageKind.RAW,
-        GeneratedImageKind.MIXED,
-        GeneratedImageKind.COLORIZED,
-        GeneratedImageKind.CONTINUUM,
-        GeneratedImageKind.TECHNICAL_CARD
-    );
 
     private final Map<SuggestionEvent.SuggestionKind, String> suggestions = Collections.synchronizedMap(new LinkedHashMap<>());
     private final Map<Double, ZoomableImageView> imageViews;
@@ -171,8 +124,6 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
     private final ForkJoinContext cpuContext;
     private final ForkJoinContext ioContext;
     private final Path outputDirectory;
-    private final ProcessParams params;
-    private final TabPane mainPane;
     private final Map<String, ImageViewer> popupViews;
     private final AtomicInteger concurrentNotifications = new AtomicInteger();
     private final Tab profileTab;
@@ -180,6 +131,8 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
     private final Tab metadataTab;
     private final WeakHashMap<ImageWrapper, List<CachedHistogram>> cachedHistograms = new WeakHashMap<>();
     private final LocalDateTime processingDate;
+
+    private ProcessParams params;
     private Header header;
     private BarChart<String, Number> histogramChart;
     private Map<Class, Object> scriptExecutionContext;
@@ -207,7 +160,7 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
         this.ioContext = ioContext;
         this.outputDirectory = outputDirectory;
         this.params = params;
-        this.mainPane = owner.getMainPane();
+        //this.mainPane = owner.getMainPane();
         this.statsTab = owner.getStatsTab();
         this.profileTab = owner.getProfileTab();
         this.metadataTab = owner.getMetadataTab();
@@ -221,18 +174,6 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
         height = 0;
     }
 
-    private ImageViewer newImageViewer() {
-        var fxmlLoader = I18N.fxmlLoader(JSolEx.class, "imageview");
-        try {
-            var node = (Node) fxmlLoader.load();
-            var controller = (ImageViewer) fxmlLoader.getController();
-            controller.init(node, mainPane, owner.getCpuExecutor());
-            return controller;
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        }
-    }
-
     @Override
     public void onOutputImageDimensionsDetermined(OutputImageDimensionsDeterminedEvent event) {
         LOGGER.info(message("dimensions.determined"), event.getLabel(), event.getWidth(), event.getHeight());
@@ -241,41 +182,13 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
     }
 
     private ZoomableImageView createImageView(double pixelShift) {
-        var imageView = new ZoomableImageView();
-        imageView.prefWidthProperty().bind(mainPane.widthProperty());
+        var imageViewer = blockingUntilResultAvailable(() -> owner.getImagesViewer().addImage(this,
+            message("image.reconstruction"), baseName,
+            GeneratedImageKind.RECONSTRUCTION, null, null, params, popupViews, new PixelShift(pixelShift), owner.getCpuExecutor(), viewer -> {
+            }));
+        var imageView = imageViewer.getImageView();
         imageView.setImage(new WritableImage(width, height));
         imageView.resetZoom();
-        var colorAdjust = new ColorAdjust();
-        colorAdjust.brightnessProperty().setValue(0.2);
-        imageView.setEffect(colorAdjust);
-        var scrollPane = new ScrollPane();
-        scrollPane.setContent(imageView);
-        BatchOperations.submit(() -> {
-            String suffix = "";
-            if (pixelShift != 0) {
-                suffix = " (" + pixelShift + ")";
-            }
-            var tabPane = getOrCreateCategoryTab(GeneratedImageKind.RECONSTRUCTION);
-            var tab = new Tab(message("image.reconstruction") + suffix, scrollPane);
-            tab.getProperties().put(GeneratedImageKind.class, GeneratedImageKind.RECONSTRUCTION);
-            imageView.setParentTab(tab);
-            tabPane.getTabs().add(tab);
-            var selectionModel = tabPane.getSelectionModel();
-            if (pixelShift == params.spectrumParams().pixelShift() || selectionModel.isEmpty()) {
-                BatchOperations.submit(() -> selectionModel.select(tab));
-            }
-            Runnable listener = () -> {
-                var ps = MetadataSupport.renderPixelShift(new PixelShift(pixelShift));
-                metadataTab.setContent(new Label(ps));
-            };
-            listener.run();
-            tab.getProperties().put(ON_SELECTION, listener);
-            tab.selectedProperty().addListener((observable, oldValue, newValue) -> {
-                if (Boolean.TRUE.equals(newValue)) {
-                    listener.run();
-                }
-            });
-        });
         return imageView;
     }
 
@@ -299,9 +212,6 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
             var pixelformat = PixelFormat.getByteRgbInstance();
             onProgress(ProgressEvent.of((y + 1d) / height, message("reconstructing")));
             BatchOperations.submit(() -> {
-                if (event.getPayload().pixelShift() == params.spectrumParams().pixelShift()) {
-                    mainPane.getSelectionModel().select(imageView.getParentTab());
-                }
                 image.getPixelWriter().setPixels(0, y, line.length, DEFAULT_ORDER, pixelformat, rgb, 0, 3 * line.length);
             });
         } else {
@@ -319,154 +229,27 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
             var payload = event.getPayload();
             var title = payload.title();
             var kind = payload.kind();
-            var tabPane = getOrCreateCategoryTab(kind);
-            var tab = new Tab();
-            var tabTitle = title;
-            var image = payload.image();
-            var pixelShift = image.findMetadata(PixelShift.class);
-            if (pixelShift.isPresent()) {
-                tab.getProperties().put(PixelShift.class, pixelShift.get());
-                double ps = pixelShift.get().pixelShift();
-                if (ps != 0 || kind == GeneratedImageKind.IMAGE_MATH) {
-                    if (Math.round(ps) == ps) {
-                        tabTitle = String.format("%dpx", Math.round(ps));
-                    } else {
-                        tabTitle = String.format("%.2fpx", ps);
-                    }
-                }
-            } else {
-                tab.getProperties().put(PixelShift.class, new PixelShift(Double.MAX_VALUE));
-            }
-            tab.getProperties().put(GeneratedImageKind.class, kind);
-            tab.setText(tabTitle);
-            var viewer = newImageViewer();
-            viewer.fitWidthProperty().bind(mainPane.widthProperty());
-            viewer.setTab(tab);
-            var imageWrapper = image;
-            viewer.setup(this,
+            var imageWrapper = payload.image();
+            var pixelShift = imageWrapper.findMetadata(PixelShift.class);
+            owner.getImagesViewer().addImage(this,
                 title,
                 baseName,
                 kind,
                 imageWrapper,
                 payload.path().toFile(),
                 params,
-                popupViews
-            );
-            viewer.setOnDisplayUpdate(() -> {
-                if (tab.isSelected()) {
+                popupViews,
+                pixelShift.orElse(null),
+                owner.getCpuExecutor(),
+                viewer -> {
                     showHistogram(viewer.getStretchedImage());
-                }
-            });
-            tab.getProperties().put(ImageViewer.class, viewer);
-            tab.setContent(viewer.getRoot());
-            tabPane.getTabs().add(tab);
-            tabPane.getTabs().sort(COMPARE_BY_PIXEL_SHIFT);
-            var selectionModel = tabPane.getSelectionModel();
-            if (shouldSelectTab(kind, pixelShift)) {
-                BatchOperations.submit(() -> selectionModel.select(tab));
-            }
+                    showMetadata(imageWrapper.metadata());
+                });
             var imageViewer = popupViews.get(title);
             if (imageViewer != null) {
                 imageViewer.setImage(baseName, params, imageWrapper, payload.path());
             }
-            Runnable listener = () -> {
-                showHistogram(viewer.getStretchedImage());
-                showMetadata(imageWrapper.metadata());
-            };
-            listener.run();
-            tab.getProperties().put(ON_SELECTION, listener);
-            tab.selectedProperty().addListener((observable, oldValue, newValue) -> {
-                if (Boolean.TRUE.equals(newValue)) {
-                    listener.run();
-                }
-            });
         });
-    }
-
-    private boolean shouldSelectTab(GeneratedImageKind kind, Optional<PixelShift> pixelShift) {
-        var kinds = params.requestedImages().images();
-        GeneratedImageKind preferredKind = null;
-        for (GeneratedImageKind imageKind : DEFAULT_IMAGE_TO_SHOW) {
-            if (kinds.contains(imageKind)) {
-                preferredKind = imageKind;
-                break;
-            }
-        }
-        if (preferredKind == null) {
-            preferredKind = kinds.stream().findFirst().orElse(null);
-        }
-        if (kind == preferredKind && (pixelShift.isEmpty() || pixelShift.get().pixelShift() == params.spectrumParams().pixelShift())) {
-            return true;
-        }
-        return false;
-    }
-
-    private synchronized TabPane getOrCreateCategoryTab(GeneratedImageKind kind) {
-        if (kind == GeneratedImageKind.CONTINUUM) {
-            // special case to reuse the "geometry corrected" tab
-            kind = GeneratedImageKind.GEOMETRY_CORRECTED;
-        }
-        var finalKind = kind;
-        return mainPane.getTabs().stream()
-            .filter(t -> t.getProperties().get(GeneratedImageKind.class) == finalKind)
-            .findFirst()
-            .map(t -> {
-                var selectionModel = mainPane.getSelectionModel();
-                if (shouldSelectTab(finalKind, Optional.empty())) {
-                    selectionModel.select(t);
-                }
-                return (TabPane) t.getContent();
-            })
-            .orElseGet(() -> createCategoryTab(finalKind));
-    }
-
-    private TabPane createCategoryTab(GeneratedImageKind kind) {
-        var categoryTab = new Tab(message("imagekind." + kind.name()));
-        var tabPane = new TabPane();
-        tabPane.setSide(Side.LEFT);
-        hideTabHeaderWhenSingleTab(tabPane);
-        categoryTab.getProperties().put(GeneratedImageKind.class, kind);
-        categoryTab.setContent(tabPane);
-        categoryTab.selectedProperty().addListener((observable, oldValue, newValue) -> {
-            if (Boolean.TRUE.equals(newValue) && (categoryTab.getContent() instanceof TabPane pane)) {
-                var model = pane.getSelectionModel();
-                var selected = model.getSelectedItem();
-                if (selected == null) {
-                    model.selectFirst();
-                    selected = model.getSelectedItem();
-                }
-                if (selected != null) {
-                    var listener = (Runnable) selected.getProperties().get(ON_SELECTION);
-                    if (listener != null) {
-                        listener.run();
-                    }
-                }
-            }
-        });
-        doAddTab(categoryTab);
-        var selectionModel = mainPane.getSelectionModel();
-        if (shouldSelectTab(kind, Optional.empty())) {
-            selectionModel.select(categoryTab);
-        }
-        return tabPane;
-    }
-
-    private static void hideTabHeaderWhenSingleTab(TabPane tabPane) {
-        tabPane.getTabs().addListener((ListChangeListener<? super Tab>) tab -> {
-            if (tabPane.getTabs().size() <= 1) {
-                tabPane.setTabMaxWidth(0);
-                tabPane.setTabMaxHeight(0);
-            } else {
-                tabPane.setTabMaxWidth(Double.MAX_VALUE);
-                tabPane.setTabMaxHeight(Double.MAX_VALUE);
-            }
-        });
-    }
-
-    private void doAddTab(Tab tab) {
-        var tabs = mainPane.getTabs();
-        tabs.add(tab);
-        tabs.sort(COMPARE_BY_IMAGE_KIND);
     }
 
     private void showMetadata(Map<Class<?>, Object> metadata) {
@@ -555,36 +338,7 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
     public void onFileGenerated(FileGeneratedEvent event) {
         var filePath = event.getPayload().path();
         if (filePath.toFile().getName().endsWith(".mp4")) {
-            BatchOperations.submit(() -> {
-                var tab = new Tab(event.getPayload().title());
-                tab.getProperties().put(GeneratedImageKind.class, GeneratedImageKind.IMAGE_MATH);
-                var media = new Media(filePath.toUri().toString());
-                var mediaPlayer = new MediaPlayer(media);
-                var viewer = new MediaView(mediaPlayer);
-                tab.setContent(viewer);
-                // Create the buttons
-                var rewindButton = new Button("<<");
-                var playButton = new Button("Play");
-                var stopButton = new Button("Stop");
-                var openButton = new Button(message("open.in.files"));
-                openButton.setOnAction(e -> ExplorerSupport.openInExplorer(filePath));
-                mediaPlayer.setOnEndOfMedia(() -> mediaPlayer.seek(javafx.util.Duration.ZERO));
-                playButton.setOnAction(e -> mediaPlayer.play());
-                stopButton.setOnAction(e -> mediaPlayer.stop());
-                rewindButton.setOnAction(e -> {
-                    mediaPlayer.stop();
-                    mediaPlayer.seek(javafx.util.Duration.ZERO);
-                });
-                var buttonBox = new HBox(playButton, stopButton, rewindButton, openButton);
-                buttonBox.setSpacing(10);
-                var contentBox = new VBox(new ScrollPane(viewer), buttonBox);
-                contentBox.setAlignment(Pos.CENTER);
-                tab.setContent(contentBox);
-                doAddTab(tab);
-                mainPane.getSelectionModel().select(tab);
-                viewer.fitWidthProperty().bind(mainPane.widthProperty());
-                viewer.fitHeightProperty().bind(mainPane.heightProperty().subtract(buttonBox.heightProperty()));
-            });
+            BatchOperations.submit(() -> owner.getImagesViewer().addVideo(event.getPayload().title(), filePath));
         }
     }
 
@@ -881,6 +635,7 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
                                 BatchOperations.submitOneOfAKind("progress", () -> owner.updateProgress(e.getPayload().progress(), e.getPayload().task()));
                             }
                         });
+                        params = newParams;
                         solexVideoProcessor.process();
                     }));
                     menu.show(node, event.getScreenX(), event.getScreenY());

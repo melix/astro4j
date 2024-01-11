@@ -24,6 +24,7 @@ import javafx.beans.binding.Bindings;
 import javafx.beans.property.SimpleDoubleProperty;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.collections.FXCollections;
+import javafx.collections.ListChangeListener;
 import javafx.fxml.FXML;
 import javafx.scene.Node;
 import javafx.scene.Parent;
@@ -61,6 +62,7 @@ import me.champeau.a4j.jsolex.app.jfx.ExposureCalculator;
 import me.champeau.a4j.jsolex.app.jfx.I18N;
 import me.champeau.a4j.jsolex.app.jfx.ImageMathEditor;
 import me.champeau.a4j.jsolex.app.jfx.ImageViewer;
+import me.champeau.a4j.jsolex.app.jfx.MultipleImagesViewer;
 import me.champeau.a4j.jsolex.app.jfx.NamingPatternEditor;
 import me.champeau.a4j.jsolex.app.jfx.ProcessParamsController;
 import me.champeau.a4j.jsolex.app.jfx.SpectralLineDebugger;
@@ -137,13 +139,13 @@ public class JSolEx extends Application implements JSolExInterface {
     private static final int FILE_WATCH_TIMEOUT = 2_500;
 
     public static final Set<String> IMAGE_FILE_EXTENSIONS = Set.of(
-            "png",
-            "jpg",
-            "jpeg",
-            "tif",
-            "tiff",
-            "fits",
-            "fit"
+        "png",
+        "jpg",
+        "jpeg",
+        "tif",
+        "tiff",
+        "fits",
+        "fit"
     );
     public static final FileChooser.ExtensionFilter IMAGE_FILES_EXTENSIONS = new FileChooser.ExtensionFilter("Image Files", IMAGE_FILE_EXTENSIONS.stream().map(ext -> "*." + ext).toList());
 
@@ -200,6 +202,7 @@ public class JSolEx extends Application implements JSolExInterface {
 
     private final Map<String, ImageViewer> popupViewers = new HashMap<>();
 
+    private final MultipleImagesViewer multipleImagesViewer = new MultipleImagesViewer();
     private ProcessParams reusedProcessParams;
     private Path watchedDirectory;
     private WatchService watchService;
@@ -211,8 +214,8 @@ public class JSolEx extends Application implements JSolExInterface {
     }
 
     @Override
-    public TabPane getMainPane() {
-        return mainPane;
+    public MultipleImagesViewer getImagesViewer() {
+        return multipleImagesViewer;
     }
 
     @Override
@@ -244,6 +247,7 @@ public class JSolEx extends Application implements JSolExInterface {
             var preferredDimensions = config.getPreferredDimensions();
             Scene rootScene = new Scene(root, preferredDimensions.a(), preferredDimensions.b());
             rootScene.getStylesheets().add(JSolEx.class.getResource("syntax.css").toExternalForm());
+            rootScene.getStylesheets().add(JSolEx.class.getResource("components.css").toExternalForm());
             var pause = new PauseTransition(Duration.seconds(1));
             rootScene.widthProperty().addListener((observable, oldValue, newValue) -> {
                 pause.setOnFinished(e -> config.setPreferredWidth(newValue.intValue()));
@@ -261,6 +265,7 @@ public class JSolEx extends Application implements JSolExInterface {
             stage.setTitle("JSol'Ex " + version);
             stage.setScene(rootScene);
             addIcons(stage);
+            hideTabHeaderWhenSingleTab(mainPane);
             stage.show();
             refreshRecentItemsMenu();
             LogbackConfigurer.configureLogger(console);
@@ -282,7 +287,8 @@ public class JSolEx extends Application implements JSolExInterface {
             startWatcherThread();
             BatchOperations.submit(() -> UpdateChecker.findLatestRelease().ifPresent(this::maybeWarnAboutNewRelease));
             LOGGER.info("Java runtime version {}", System.getProperty("java.version"));
-            LOGGER.info("Vector API support is {} and {}", VectorApiSupport.isPresent() ? "available" : "missing", VectorApiSupport.isEnabled() ? "enabled (disable by setting " + VectorApiSupport.VECTOR_API_ENV_VAR + " environment variable to false)" : "disabled");
+            LOGGER.info("Vector API support is {} and {}", VectorApiSupport.isPresent() ? "available" : "missing",
+                VectorApiSupport.isEnabled() ? "enabled (disable by setting " + VectorApiSupport.VECTOR_API_ENV_VAR + " environment variable to false)" : "disabled");
         } catch (IOException exception) {
             throw new ProcessingException(exception);
         }
@@ -433,7 +439,7 @@ public class JSolEx extends Application implements JSolExInterface {
     private void addIcons(Stage stage) {
         for (int i = 16; i <= 512; i *= 2) {
             stage.getIcons().add(
-                    new Image(getClass().getResourceAsStream("icons/jsolex-" + i + "x" + i + ".png"))
+                new Image(getClass().getResourceAsStream("icons/jsolex-" + i + "x" + i + ".png"))
             );
         }
     }
@@ -469,7 +475,7 @@ public class JSolEx extends Application implements JSolExInterface {
             var text = imageMathScript.getText();
             cpuExecutor.async(() -> {
                 if (clearImagesCheckbox.isSelected()) {
-                    BatchOperations.submit(() -> mainPane.getTabs().clear());
+                    BatchOperations.submit(this::prepareTabs);
                 }
                 executor.execute(text, ImageMathScriptExecutor.SectionKind.SINGLE);
             });
@@ -635,20 +641,21 @@ public class JSolEx extends Application implements JSolExInterface {
         var stage = newStage();
         var params = ProcessParams.loadDefaults();
         ImageMathEditor.create(
-                stage,
-                params.requestedImages().mathImages(),
-                getHostServices(),
-                true,
-                true,
-                e -> {},
-                e -> {
-                    stage.close();
-                    e.getConfiguration().ifPresent(scripts -> ioExecutor.async(() -> executeStandaloneScripts(
-                            params.withRequestedImages(
-                                    params.requestedImages().withMathImages(scripts)
-                            )
-                    )));
-                }
+            stage,
+            params.requestedImages().mathImages(),
+            getHostServices(),
+            true,
+            true,
+            e -> {
+            },
+            e -> {
+                stage.close();
+                e.getConfiguration().ifPresent(scripts -> ioExecutor.async(() -> executeStandaloneScripts(
+                    params.withRequestedImages(
+                        params.requestedImages().withMathImages(scripts)
+                    )
+                )));
+            }
         );
     }
 
@@ -688,39 +695,39 @@ public class JSolEx extends Application implements JSolExInterface {
 
     private void executeStandaloneScripts(ProcessParams params) {
         var scriptFiles = params.requestedImages().mathImages()
-                .scriptFiles();
+            .scriptFiles();
         var scriptFile = scriptFiles
-                .stream()
-                .findFirst();
+            .stream()
+            .findFirst();
         scriptFile.ifPresent(script -> {
             var outputDirectory = script.getParentFile();
             var processingDate = LocalDateTime.now();
             var listener = new SingleModeProcessingEventListener(
-                    this,
-                    "",
-                    null,
-                    cpuExecutor,
-                    ioExecutor,
-                    outputDirectory.toPath(),
-                    params,
-                    processingDate,
-                    popupViewers
+                this,
+                "",
+                null,
+                cpuExecutor,
+                ioExecutor,
+                outputDirectory.toPath(),
+                params,
+                processingDate,
+                popupViewers
             );
             var namingStrategy = new FileNamingStrategy(
-                    params.extraParams().fileNamePattern(),
-                    params.extraParams().datetimeFormat(),
-                    params.extraParams().dateFormat(),
-                    processingDate,
-                    createFakeHeader(processingDate)
+                params.extraParams().fileNamePattern(),
+                params.extraParams().datetimeFormat(),
+                params.extraParams().dateFormat(),
+                processingDate,
+                createFakeHeader(processingDate)
             );
             var imageScriptExecutor = new JSolExScriptExecutor(
-                    cpuExecutor,
-                    img -> {
-                        throw new ProcessingException("img() is not available in standalone image math scripts. Use load or load_many to load images");
-                    },
-                    MutableMap.of(),
-                    listener,
-                    null
+                cpuExecutor,
+                img -> {
+                    throw new ProcessingException("img() is not available in standalone image math scripts. Use load or load_many to load images");
+                },
+                MutableMap.of(),
+                listener,
+                null
             ) {
                 @Override
                 public ImageMathScriptResult execute(String script, SectionKind kind) {
@@ -731,7 +738,7 @@ public class JSolEx extends Application implements JSolExInterface {
                         return result;
                     } finally {
                         var dur = java.time.Duration.ofNanos(System.nanoTime() - nanoTime);
-                        LOGGER.info(message("script.completed.in"), dur.toSeconds(), dur.toMillisPart()/100);
+                        LOGGER.info(message("script.completed.in"), dur.toSeconds(), dur.toMillisPart() / 100);
                     }
                 }
 
@@ -741,7 +748,7 @@ public class JSolEx extends Application implements JSolExInterface {
                             var name = namingStrategy.render(0, Constants.TYPE_PROCESSED, entry.getKey(), "standalone");
                             var outputFile = new File(outputDirectory, name);
                             listener.onImageGenerated(new ImageGeneratedEvent(
-                                    new GeneratedImage(GeneratedImageKind.IMAGE_MATH, entry.getKey(), outputFile.toPath(), entry.getValue())
+                                new GeneratedImage(GeneratedImageKind.IMAGE_MATH, entry.getKey(), outputFile.toPath(), entry.getValue())
                             ));
 
                         });
@@ -778,12 +785,12 @@ public class JSolEx extends Application implements JSolExInterface {
 
     public static Header createFakeHeader(LocalDateTime now) {
         return new Header(null, null, 0, new ImageMetadata(
-                null,
-                null,
-                null,
-                true,
-                now,
-                now.atZone(ZoneId.of("UTC"))
+            null,
+            null,
+            null,
+            true,
+            now,
+            now.atZone(ZoneId.of("UTC"))
         ));
     }
 
@@ -843,7 +850,7 @@ public class JSolEx extends Application implements JSolExInterface {
             header = reader.header();
             if (reusedProcessParams != null) {
                 processParams = Optional.of(reusedProcessParams.withObservationDetails(
-                        reusedProcessParams.observationDetails().withDate(header.metadata().utcDateTime())
+                    reusedProcessParams.observationDetails().withDate(header.metadata().utcDateTime())
                 ));
             } else {
                 var controller = createProcessParams(reader, false);
@@ -862,11 +869,11 @@ public class JSolEx extends Application implements JSolExInterface {
     }
 
     private void processFileWithParams(File selectedFile, Header firstHeader, ProcessParams params) {
-        mainPane.getTabs().clear();
+        prepareTabs();
         console.clear();
         var interruptButton = addInterruptButton();
         var processingThread = new Thread(() -> cpuExecutor.blocking(() ->
-                processSingleFile(cpuExecutor, params, selectedFile, false, 0, selectedFile, firstHeader, () -> BatchOperations.submit(() -> workButtons.getChildren().remove(interruptButton)))
+            processSingleFile(cpuExecutor, params, selectedFile, false, 0, selectedFile, firstHeader, () -> BatchOperations.submit(() -> workButtons.getChildren().remove(interruptButton)))
         ));
         interruptButton.setOnAction(e -> {
             cancelExecutors();
@@ -876,6 +883,23 @@ public class JSolEx extends Application implements JSolExInterface {
             processingThread.interrupt();
         });
         processingThread.start();
+    }
+
+    private void prepareTabs() {
+        mainPane.getTabs().clear();
+        mainPane.getTabs().add(new Tab(message("images"), multipleImagesViewer));
+        multipleImagesViewer.clear();
+    }
+
+    private static void hideTabHeaderWhenSingleTab(TabPane tabPane) {
+        tabPane.getTabs().addListener((ListChangeListener<? super Tab>) tab -> {
+            var styleClass = tabPane.getStyleClass();
+            if (tabPane.getTabs().size() <= 1) {
+                styleClass.add("no-tab-header");
+            } else {
+                styleClass.removeIf("no-tab-header"::equals);
+            }
+        });
     }
 
     private static void configureThreadExceptionHandler() {
@@ -888,7 +912,7 @@ public class JSolEx extends Application implements JSolExInterface {
         File initial = selectedFiles.get(0);
         config.updateLastOpenDirectory(initial.toPath().getParent());
         Optional<ProcessParams> processParams;
-        Header header = null;
+        Header header;
         try (var reader = SerFileReader.of(initial)) {
             var controller = createProcessParams(reader, true);
             processParams = controller.getProcessParams();
@@ -897,12 +921,12 @@ public class JSolEx extends Application implements JSolExInterface {
             throw ProcessingException.wrap(e);
         }
         var firstHeader = header;
-        processParams.ifPresent(params -> startProcess(firstHeader, params, selectedFiles));
+        processParams.ifPresent(params -> startBatchProcess(firstHeader, params, selectedFiles));
 
     }
 
-    private void startProcess(Header header, ProcessParams params, List<File> selectedFiles) {
-        mainPane.getTabs().clear();
+    private void startBatchProcess(Header header, ProcessParams params, List<File> selectedFiles) {
+        prepareTabs();
         LOGGER.info(message("batch.mode.info"));
         var tab = new Tab(message("batch.process"));
         var table = new TableView<BatchItem>();
@@ -910,12 +934,12 @@ public class JSolEx extends Application implements JSolExInterface {
         for (int i = 0; i < selectedFiles.size(); i++) {
             var selectedFile = selectedFiles.get(i);
             batchItems.add(new BatchItem(
-                    i,
-                    selectedFile,
-                    new SimpleDoubleProperty(0),
-                    FXCollections.synchronizedObservableList(FXCollections.observableArrayList()),
-                    new SimpleStringProperty(message("batch.pending")),
-                    new StringBuilder()
+                i,
+                selectedFile,
+                new SimpleDoubleProperty(0),
+                FXCollections.synchronizedObservableList(FXCollections.observableArrayList()),
+                new SimpleStringProperty(message("batch.pending")),
+                new StringBuilder()
             ));
         }
         table.getItems().addAll(batchItems);
@@ -941,7 +965,8 @@ public class JSolEx extends Application implements JSolExInterface {
         var columns = table.getColumns();
         columns.setAll(idColumn, fnColumn, progressColumn, images, statusColumn);
         tab.setContent(table);
-        mainPane.getTabs().add(tab);
+        mainPane.getTabs().addFirst(tab);
+        mainPane.getSelectionModel().select(0);
         var interruptButton = addInterruptButton();
         new Thread(() -> {
             configureThreadExceptionHandler();
@@ -1011,11 +1036,11 @@ public class JSolEx extends Application implements JSolExInterface {
                 var processingDate = context instanceof BatchProcessingContext batch ? batch.processingDate() : LocalDateTime.now();
                 ioIsolate.setOnTaskStart(t -> LogbackConfigurer.recordThreadOwner(t.getName(), sequenceNumber));
                 var namingStrategy = new FileNamingStrategy(
-                        params.extraParams().fileNamePattern(),
-                        params.extraParams().datetimeFormat(),
-                        params.extraParams().dateFormat(),
-                        processingDate,
-                        header
+                    params.extraParams().fileNamePattern(),
+                    params.extraParams().datetimeFormat(),
+                    params.extraParams().dateFormat(),
+                    processingDate,
+                    header
                 );
                 var outputDirectory = selectedFile.getParentFile();
                 var baseName = selectedFile.getName().substring(0, selectedFile.getName().lastIndexOf("."));
@@ -1029,13 +1054,13 @@ public class JSolEx extends Application implements JSolExInterface {
                 var appender = LogbackConfigurer.createContextualFileAppender(sequenceNumber, logFile);
                 LoggingSupport.LOGGER.info(message("output.dir.set"), outputDirectory);
                 var processor = new SolexVideoProcessor(selectedFile,
-                        outputDirectory.toPath(),
-                        sequenceNumber,
-                        params,
-                        cpuIsolate,
-                        ioIsolate,
-                        processingDate,
-                        batchMode
+                    outputDirectory.toPath(),
+                    sequenceNumber,
+                    params,
+                    cpuIsolate,
+                    ioIsolate,
+                    processingDate,
+                    batchMode
                 );
                 var listener = createListener(baseName, params, batchMode, sequenceNumber, context);
                 processor.addEventListener(listener);

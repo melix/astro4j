@@ -20,7 +20,6 @@ import javafx.beans.binding.BooleanBinding;
 import javafx.scene.control.ContextMenu;
 import javafx.scene.control.MenuItem;
 import javafx.scene.control.ScrollPane;
-import javafx.scene.control.Tab;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.scene.input.MouseButton;
@@ -42,8 +41,7 @@ public class ZoomableImageView extends HBox {
     private BiConsumer<? super Double, ? super Double> onCoordinatesListener;
     private Consumer<? super Double> onZoomChanged;
 
-    private Tab parentTab;
-    private double zoom = 1.0;
+    private double zoom = 0;
     private Path imagePath;
 
     public ZoomableImageView() {
@@ -70,7 +68,11 @@ public class ZoomableImageView extends HBox {
                 triggerOnZoomChanged();
             }
         });
-
+        widthProperty().addListener((observable, oldValue, newValue) -> {
+            if (newValue.doubleValue() > 0 && zoom == 0) {
+                resetZoom();
+            }
+        });
         ctxMenu = new ContextMenu();
         var showFile = new MenuItem(message("show.in.files"));
         allowFileOpen = Bindings.createBooleanBinding(() -> imagePath == null || !Files.exists(imagePath));
@@ -120,14 +122,6 @@ public class ZoomableImageView extends HBox {
         scrollPane.setPrefViewportHeight(boundsInLocal.getHeight());
     }
 
-    public Tab getParentTab() {
-        return parentTab;
-    }
-
-    public void setParentTab(Tab parentTab) {
-        this.parentTab = parentTab;
-    }
-
     public void setImagePath(Path imagePath) {
         this.imagePath = imagePath;
     }
@@ -172,8 +166,17 @@ public class ZoomableImageView extends HBox {
     }
 
     public void resetZoom() {
+        var image = imageView.getImage();
+        if (image == null) {
+            zoom = 0;
+            return;
+        }
         var oldZoom = zoom;
-        zoom = getWidth() / imageView.getImage().getWidth();
+        var width = getWidth();
+        if (width == 0) {
+            return;
+        }
+        zoom = width / image.getWidth();
         if (zoom != oldZoom) {
             triggerOnZoomChanged();
             applyZoom();

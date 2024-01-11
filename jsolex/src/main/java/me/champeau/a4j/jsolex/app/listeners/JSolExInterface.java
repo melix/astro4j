@@ -17,7 +17,7 @@ package me.champeau.a4j.jsolex.app.listeners;
 
 import javafx.application.HostServices;
 import javafx.scene.control.Tab;
-import javafx.scene.control.TabPane;
+import me.champeau.a4j.jsolex.app.jfx.MultipleImagesViewer;
 import me.champeau.a4j.jsolex.processing.expr.ImageMathScriptExecutor;
 import me.champeau.a4j.jsolex.processing.params.ProcessParams;
 import me.champeau.a4j.jsolex.processing.util.ForkJoinContext;
@@ -25,7 +25,7 @@ import me.champeau.a4j.jsolex.processing.util.ForkJoinContext;
 public interface JSolExInterface {
     ForkJoinContext getCpuExecutor();
 
-    TabPane getMainPane();
+    MultipleImagesViewer getImagesViewer();
 
     Tab getStatsTab();
 

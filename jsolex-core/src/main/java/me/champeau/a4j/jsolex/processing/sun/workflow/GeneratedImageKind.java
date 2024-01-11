@@ -20,20 +20,30 @@ package me.champeau.a4j.jsolex.processing.sun.workflow;
  * supports.
  */
 public enum GeneratedImageKind {
-    RECONSTRUCTION,
-    RAW,
-    DEBUG,
-    GEOMETRY_CORRECTED,
-    GEOMETRY_CORRECTED_PROCESSED,
-    VIRTUAL_ECLIPSE,
-    COLORIZED,
-    CONTINUUM,
-    MIXED,
-    DOPPLER,
-    NEGATIVE,
-    TECHNICAL_CARD,
-    IMAGE_MATH,
-    COMPOSITION;
+    RECONSTRUCTION(DisplayCategory.RECONSTRUCTION),
+    RAW(DisplayCategory.RAW),
+    DEBUG(DisplayCategory.DEBUG),
+    GEOMETRY_CORRECTED(DisplayCategory.PROCESSED),
+    GEOMETRY_CORRECTED_PROCESSED(DisplayCategory.PROCESSED),
+    VIRTUAL_ECLIPSE(DisplayCategory.MISC),
+    COLORIZED(DisplayCategory.COLORIZED),
+    CONTINUUM(DisplayCategory.PROCESSED),
+    MIXED(DisplayCategory.COLORIZED),
+    DOPPLER(DisplayCategory.COLORIZED),
+    NEGATIVE(DisplayCategory.COLORIZED),
+    TECHNICAL_CARD(DisplayCategory.MISC),
+    IMAGE_MATH(DisplayCategory.IMAGE_MATH),
+    COMPOSITION(DisplayCategory.PROCESSED);
+
+    private final DisplayCategory displayCategory;
+
+    GeneratedImageKind(DisplayCategory displayCategory) {
+        this.displayCategory = displayCategory;
+    }
+
+    public DisplayCategory displayCategory() {
+        return displayCategory;
+    }
 
     public boolean shouldRotateImage() {
         return this == GeneratedImageKind.IMAGE_MATH

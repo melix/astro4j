@@ -1,0 +1,33 @@
+.category-title {
+    -fx-font-size: 1.1em;
+    -fx-font-weight: bold;
+    -fx-padding: 0.5em 0 0.5em 0;
+    -fx-text-fill: #004d80;
+}
+
+.category-link {
+    -fx-font-size: 1.0em;
+    -fx-padding: 0.25em 0 0.25em 0.5em;
+    -fx-text-fill: #333333;
+    -fx-border-color: transparent;
+}
+
+.category-link-selected {
+    -fx-font-weight: bold;
+    -fx-underline: false;
+}
+
+.category-pane {
+    -fx-padding: 0 0 0 1em;
+}
+
+.category-shift {
+    -fx-font-size: 0.7em;
+    -fx-text-fill: #888888;
+    -fx-padding: 0 0.25em 0 0.25em;
+}
+
+.no-tab-header .tab-header-area {
+    visibility: hidden ;
+    -fx-padding: -24 0 0 0;
+}

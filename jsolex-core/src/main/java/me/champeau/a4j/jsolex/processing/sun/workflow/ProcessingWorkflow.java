@@ -39,7 +39,6 @@ import me.champeau.a4j.jsolex.processing.sun.tasks.ImageBandingCorrector;
 import me.champeau.a4j.jsolex.processing.util.Constants;
 import me.champeau.a4j.jsolex.processing.util.ForkJoinContext;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
-import me.champeau.a4j.jsolex.processing.util.MutableMap;
 import me.champeau.a4j.math.Point2D;
 import me.champeau.a4j.math.image.Deconvolution;
 import me.champeau.a4j.math.image.ImageMath;
@@ -350,7 +349,9 @@ public class ProcessingWorkflow {
                             for (int i = 0; i < 2; i++) {
                                 bilinearSmoothing(diskEllipse, width, height, data);
                             }
-                            var mixedImage = new ImageWrapper32(width, height, mix, MutableMap.of(Ellipse.class, diskEllipse));
+                            var metadata = new HashMap<>(geometryFixed.metadata());
+                            metadata.put(Ellipse.class, diskEllipse);
+                            var mixedImage = new ImageWrapper32(width, height, mix, metadata);
                             var colorCurve = processParams.spectrumParams().ray().getColorCurve();
                             if (colorCurve.isPresent()) {
                                 var curve = colorCurve.get();

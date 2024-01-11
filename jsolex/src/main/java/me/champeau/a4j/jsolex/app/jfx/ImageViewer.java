@@ -32,10 +32,9 @@ import javafx.scene.control.CheckBox;
 import javafx.scene.control.Label;
 import javafx.scene.control.MenuItem;
 import javafx.scene.control.Slider;
-import javafx.scene.control.Tab;
-import javafx.scene.control.TabPane;
 import javafx.scene.image.Image;
 import javafx.scene.layout.HBox;
+import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
 import javafx.stage.Stage;
 import javafx.util.Duration;
@@ -65,6 +64,7 @@ import java.nio.file.Path;
 import java.util.EnumSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import static me.champeau.a4j.jsolex.app.JSolEx.message;
 
@@ -89,17 +89,16 @@ public class ImageViewer {
 
     private CheckBox correctAngleP;
     private Button saveButton;
-    private TabPane tabPane;
     private ForkJoinContext forkJoinContext;
     private String title;
     private Runnable onDisplayUpdate;
 
     private final ListProperty<ImageState> imageHistory = new SimpleListProperty<>(FXCollections.observableArrayList());
     private final IntegerProperty currentImage = new SimpleIntegerProperty(0);
+    private Set<ImageViewer> siblings;
 
-    public void init(Node root, TabPane tabPane, ForkJoinContext cpuExecutor) {
+    public void init(Node root, ForkJoinContext cpuExecutor) {
         this.root = root;
-        this.tabPane = tabPane;
         this.forkJoinContext = cpuExecutor;
     }
 
@@ -114,45 +113,59 @@ public class ImageViewer {
                       ImageWrapper image,
                       File imageName,
                       ProcessParams params,
-                      Map<String, ImageViewer> popupViews) {
+                      Map<String, ImageViewer> popupViews,
+                      Set<ImageViewer> siblings) {
         this.broadcaster = broadcaster;
-        this.image = image instanceof FileBackedImage fbi ? fbi.unwrapToMemory() : image;
-        this.imageFile = new File(imageName.getParentFile(), baseName + "_" + imageName.getName() + imageDisplayExtension(params));
         this.processParams = params;
         this.kind = kind;
         this.title = title;
-        recordImage(baseName, image);
-        configureStretching();
-        if (params.extraParams().autosave()) {
-            saveImage(imageFile);
+        this.siblings = siblings;
+        if (image != null) {
+            this.image = image instanceof FileBackedImage fbi ? fbi.unwrapToMemory() : image;
+            this.imageFile = new File(imageName.getParentFile(), baseName + "_" + imageName.getName() + imageDisplayExtension(params));
+            recordImage(baseName, image);
+            configureStretching();
+            if (params.extraParams().autosave()) {
+                saveImage(imageFile);
+            }
+            if (!popupViews.containsKey(title)) {
+                var openInNewWindow = new MenuItem(message("open.new.window"));
+                openInNewWindow.setOnAction(e -> {
+                    try {
+                        var fxmlLoader = I18N.fxmlLoader(JSolEx.class, "imageview");
+                        var node = (Node) fxmlLoader.load();
+                        var controller = (ImageViewer) fxmlLoader.getController();
+                        controller.init(node, forkJoinContext);
+                        controller.setup(new ProcessingEventListener() {
+                        }, title, baseName, kind, image, imageFile, processParams, popupViews, siblings);
+                        var stage = new Stage();
+                        var scene = new Scene((Parent) node);
+                        controller.stage = stage;
+                        controller.saveButton.setVisible(false);
+                        controller.fitWidthProperty().bind(stage.widthProperty());
+                        controller.updateTitle();
+                        stage.setWidth(1024);
+                        stage.setHeight(768);
+                        stage.setScene(scene);
+                        stage.setOnCloseRequest(evt -> popupViews.remove(title));
+                        stage.show();
+                        popupViews.put(title, controller);
+                    } catch (IOException ex) {
+                        throw new ProcessingException(ex);
+                    }
+                });
+                imageView.getCtxMenu().getItems().add(openInNewWindow);
+            }
         }
-        if (!popupViews.containsKey(title)) {
-            var openInNewWindow = new MenuItem(message("open.new.window"));
-            openInNewWindow.setOnAction(e -> {
-                try {
-                    var fxmlLoader = I18N.fxmlLoader(JSolEx.class, "imageview");
-                    var node = (Node) fxmlLoader.load();
-                    var controller = (ImageViewer) fxmlLoader.getController();
-                    controller.init(node, null, forkJoinContext);
-                    controller.setup(new ProcessingEventListener() {
-                    }, title, baseName, kind, image, imageFile, processParams, popupViews);
-                    var stage = new Stage();
-                    var scene = new Scene((Parent) node);
-                    controller.stage = stage;
-                    controller.saveButton.setVisible(false);
-                    controller.fitWidthProperty().bind(stage.widthProperty());
-                    controller.updateTitle();
-                    stage.setWidth(1024);
-                    stage.setHeight(768);
-                    stage.setScene(scene);
-                    stage.setOnCloseRequest(evt -> popupViews.remove(title));
-                    stage.show();
-                    popupViews.put(title, controller);
-                } catch (IOException ex) {
-                    throw new ProcessingException(ex);
-                }
-            });
-            imageView.getCtxMenu().getItems().add(openInNewWindow);
+    }
+
+    public ZoomableImageView getImageView() {
+        return imageView;
+    }
+
+    public void maybeResetZoom() {
+        if (imageView.getZoom() == 0) {
+            imageView.resetZoom();
         }
     }
 
@@ -191,9 +204,9 @@ public class ImageViewer {
         if (kind != GeneratedImageKind.IMAGE_MATH) {
             this.stretchingStrategy = this.stretchingStrategy.withNormalize(true);
         }
-        var line1 = new HBox(2);
+        var line1 = new HBox(8);
         line1.setAlignment(Pos.CENTER_LEFT);
-        var line2 = new HBox(2);
+        var line2 = new HBox(8);
         line2.setAlignment(Pos.CENTER_LEFT);
         configureContrastAdjustment(line1);
         var reset = new Button(message("reset"));
@@ -253,9 +266,7 @@ public class ImageViewer {
         var alignButton = new Button("⌖");
         alignButton.setStyle("-fx-padding: 2; -fx-font-size: 18");
         alignButton.setOnAction(evt -> {
-            var siblings = imageView.getParentTab().getTabPane().getTabs();
-            for (Tab tab : siblings) {
-                var viewer = (ImageViewer) tab.getProperties().get(ImageViewer.class);
+            for (var viewer : siblings) {
                 if (viewer != this) {
                     viewer.imageView.alignWith(imageView);
                 }
@@ -264,8 +275,9 @@ public class ImageViewer {
         var titleBox = new HBox(alignButton, titleLabel);
         titleBox.setSpacing(4);
         titleBox.setAlignment(Pos.CENTER_LEFT);
-//        alignButton.disableProperty().bind(Bindings.size(imageView.getParentTab().getTabPane().getTabs()).lessThan(2));
         stretchingParams.getChildren().addAll(titleBox, line1, line2);
+        line1.getChildren().forEach(e -> HBox.setHgrow(e, Priority.ALWAYS));
+        line2.getChildren().stream().filter(e -> !(e instanceof Slider)).forEach(e -> HBox.setHgrow(e, Priority.ALWAYS));
         stretchAndDisplay(true);
     }
 
@@ -351,9 +363,6 @@ public class ImageViewer {
                 if (resetZoom) {
                     imageView.resetZoom();
                 }
-                if (tabPane != null) {
-                    tabPane.getSelectionModel().select(imageView.getParentTab());
-                }
                 tmpImage.delete();
                 saveButton.setDisable(false);
                 if (onDisplayUpdate != null) {
@@ -424,10 +433,6 @@ public class ImageViewer {
 
     public Node getRoot() {
         return root;
-    }
-
-    public void setTab(Tab tab) {
-        imageView.setParentTab(tab);
     }
 
     public synchronized void setImage(String baseName, ProcessParams params, ImageWrapper image, Path path) {

@@ -21,8 +21,10 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.ReentrantLock;
+import java.util.function.Supplier;
 
 public final class BatchOperations {
     private static final ReentrantLock LOCK = new ReentrantLock();
@@ -59,6 +61,24 @@ public final class BatchOperations {
         } finally {
             LOCK.unlock();
         }
+    }
+
+    public static <T> T blockingUntilResultAvailable(Supplier<T> supplier) {
+        var ref = new AtomicReference<T>();
+        var latch = new java.util.concurrent.CountDownLatch(1);
+        Platform.runLater(() -> {
+            try {
+                ref.set(supplier.get());
+            } finally {
+                latch.countDown();
+            }
+        });
+        try {
+            latch.await();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
+        return ref.get();
     }
 
     private static class FXOperationsThread extends Thread {
