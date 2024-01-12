@@ -306,7 +306,6 @@ public class BatchModeEventListener implements ProcessingEventListener, ImageMat
 
     private void processScriptErrors(ImageMathScriptResult result) {
         var invalidExpressions = result.invalidExpressions();
-        renderBatchOutputs(createNamingStrategy(), result);
         var errorCount = invalidExpressions.size();
         if (errorCount > 0) {
             String message = invalidExpressions.stream()
