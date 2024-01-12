@@ -475,7 +475,7 @@ public class JSolEx extends Application implements JSolExInterface {
             var text = imageMathScript.getText();
             cpuExecutor.async(() -> {
                 if (clearImagesCheckbox.isSelected()) {
-                    BatchOperations.submit(this::prepareTabs);
+                    BatchOperations.submit(this::newSession);
                 }
                 executor.execute(text, ImageMathScriptExecutor.SectionKind.SINGLE);
             });
@@ -650,6 +650,7 @@ public class JSolEx extends Application implements JSolExInterface {
             },
             e -> {
                 stage.close();
+                BatchOperations.submit(this::newSession);
                 e.getConfiguration().ifPresent(scripts -> ioExecutor.async(() -> executeStandaloneScripts(
                     params.withRequestedImages(
                         params.requestedImages().withMathImages(scripts)
@@ -760,6 +761,7 @@ public class JSolEx extends Application implements JSolExInterface {
                                 var fileName = entry.getValue().toFile().getName();
                                 var ext = fileName.substring(fileName.lastIndexOf("."));
                                 var targetPath = new File(outputDirectory, name + ext).toPath();
+                                Files.createDirectories(targetPath.getParent());
                                 Files.move(entry.getValue(), targetPath, StandardCopyOption.REPLACE_EXISTING);
                                 listener.onFileGenerated(FileGeneratedEvent.of(entry.getKey(), targetPath));
                             } catch (IOException e) {
@@ -869,7 +871,7 @@ public class JSolEx extends Application implements JSolExInterface {
     }
 
     private void processFileWithParams(File selectedFile, Header firstHeader, ProcessParams params) {
-        prepareTabs();
+        newSession();
         console.clear();
         var interruptButton = addInterruptButton();
         var processingThread = new Thread(() -> cpuExecutor.blocking(() ->
@@ -885,7 +887,7 @@ public class JSolEx extends Application implements JSolExInterface {
         processingThread.start();
     }
 
-    private void prepareTabs() {
+    public void newSession() {
         mainPane.getTabs().clear();
         mainPane.getTabs().add(new Tab(message("images"), multipleImagesViewer));
         multipleImagesViewer.clear();
@@ -926,7 +928,7 @@ public class JSolEx extends Application implements JSolExInterface {
     }
 
     private void startBatchProcess(Header header, ProcessParams params, List<File> selectedFiles) {
-        prepareTabs();
+        newSession();
         LOGGER.info(message("batch.mode.info"));
         var tab = new Tab(message("batch.process"));
         var table = new TableView<BatchItem>();

@@ -213,9 +213,13 @@ public class MultipleImagesViewer extends Pane {
         categoryPane.getProperties().put(DisplayCategory.class, category);
         List<CategoryPane> newCategories = new ArrayList<>(categories().toList());
         newCategories.add(categoryPane);
-        newCategories.sort(Comparator.comparingInt(t -> ((DisplayCategory) t.getProperties().get(DisplayCategory.class)).ordinal()));
+        newCategories.sort(Comparator.comparingInt(t -> categoryOf(t).ordinal()));
         categories.setAll(newCategories);
         return categoryPane;
+    }
+
+    private static DisplayCategory categoryOf(CategoryPane pane) {
+        return (DisplayCategory) pane.getProperties().get(DisplayCategory.class);
     }
 
 }

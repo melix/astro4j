@@ -42,4 +42,6 @@ public interface JSolExInterface {
     void prepareForScriptExecution(ImageMathScriptExecutor executor, ProcessParams params);
 
     HostServices getHostServices();
+
+    void newSession();
 }
