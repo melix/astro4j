@@ -150,7 +150,7 @@ public class GeometryCorrector extends AbstractTask<GeometryCorrector.Result> {
                 case RADIUS_1_2 -> (ImageWrapper32) cropping.autocrop2(List.of(corrected, 1.2));
                 case RADIUS_1_5 -> (ImageWrapper32) cropping.autocrop2(List.of(corrected, 1.5));
                 case SOURCE_WIDTH -> {
-                    var targetWidth = header.geometry().width();
+                    var targetWidth = header == null ? width : header.geometry().width();
                     var center = circle.center();
                     var halfWidth = targetWidth / 2d;
                     var cx = center.a();
