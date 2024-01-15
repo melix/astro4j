@@ -65,13 +65,15 @@ public record RequestedImages(
     public static final Set<GeneratedImageKind> QUICK_MODE = EnumSet.of(
         GeneratedImageKind.RECONSTRUCTION,
         GeneratedImageKind.RAW,
-        GeneratedImageKind.GEOMETRY_CORRECTED_PROCESSED
+        GeneratedImageKind.GEOMETRY_CORRECTED_PROCESSED,
+        GeneratedImageKind.COMPOSITION
     );
     public static final Set<GeneratedImageKind> QUICK_MODE_WITH_DEBUG = EnumSet.of(
         GeneratedImageKind.DEBUG,
         GeneratedImageKind.RAW,
         GeneratedImageKind.RECONSTRUCTION,
-        GeneratedImageKind.GEOMETRY_CORRECTED_PROCESSED
+        GeneratedImageKind.GEOMETRY_CORRECTED_PROCESSED,
+        GeneratedImageKind.COMPOSITION
     );
 
     public boolean isEnabled(GeneratedImageKind kind) {

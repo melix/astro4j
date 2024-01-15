@@ -45,6 +45,7 @@ import me.champeau.a4j.jsolex.processing.params.ImageMathParams;
 import me.champeau.a4j.jsolex.processing.params.NamedPattern;
 import me.champeau.a4j.jsolex.processing.params.ProcessParams;
 import me.champeau.a4j.jsolex.processing.params.ProcessParamsIO;
+import me.champeau.a4j.jsolex.processing.params.RequestedImages;
 import me.champeau.a4j.jsolex.processing.params.StackingParamsIO;
 import me.champeau.a4j.jsolex.processing.sun.workflow.StackingWorkflow;
 import me.champeau.a4j.jsolex.processing.util.ForkJoinContext;
@@ -330,6 +331,9 @@ public class StackingAndMosaicController {
             params.extraParams()
                 .withImageFormats(imageFormats)
                 .withAutosave(true)
+        ).withRequestedImages(
+            params.requestedImages()
+                .withImages(RequestedImages.QUICK_MODE)
         );
     }
 

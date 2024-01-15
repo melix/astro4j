@@ -55,6 +55,7 @@ import static me.champeau.a4j.jsolex.app.JSolEx.message;
 public class MultipleImagesViewer extends Pane {
     // Ordered list to determine the default image to show
     private static final List<GeneratedImageKind> DEFAULT_IMAGE_TO_SHOW = List.of(
+        GeneratedImageKind.COMPOSITION,
         GeneratedImageKind.IMAGE_MATH,
         GeneratedImageKind.GEOMETRY_CORRECTED_PROCESSED,
         GeneratedImageKind.GEOMETRY_CORRECTED,
