@@ -32,6 +32,7 @@ import javafx.scene.control.CheckBox;
 import javafx.scene.control.Label;
 import javafx.scene.control.MenuItem;
 import javafx.scene.control.Slider;
+import javafx.scene.control.Tooltip;
 import javafx.scene.image.Image;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
@@ -272,7 +273,8 @@ public class ImageViewer {
                 }
             }
         });
-        var titleBox = new HBox(alignButton, titleLabel);
+        alignButton.setTooltip(new Tooltip(message("align.images")));
+        var titleBox = new HBox(alignButton, titleLabel, new Label("(" + imageFile.getName() + ")"));
         titleBox.setSpacing(4);
         titleBox.setAlignment(Pos.CENTER_LEFT);
         stretchingParams.getChildren().addAll(titleBox, line1, line2);

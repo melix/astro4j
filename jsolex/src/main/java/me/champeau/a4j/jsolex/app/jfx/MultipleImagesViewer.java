@@ -105,16 +105,16 @@ public class MultipleImagesViewer extends Pane {
     }
 
     public ImageViewer addImage(ProcessingEventListener listener,
-                         String title,
-                         String baseName,
-                         GeneratedImageKind kind,
-                         ImageWrapper imageWrapper,
-                         File file,
-                         ProcessParams params,
-                         Map<String, ImageViewer> popupViews,
-                         PixelShift pixelShift,
-                         ForkJoinContext context,
-                         Consumer<? super ImageViewer> onShow) {
+                                String title,
+                                String baseName,
+                                GeneratedImageKind kind,
+                                ImageWrapper imageWrapper,
+                                File file,
+                                ProcessParams params,
+                                Map<String, ImageViewer> popupViews,
+                                PixelShift pixelShift,
+                                ForkJoinContext context,
+                                Consumer<? super ImageViewer> onShow) {
         var category = getOrCreateCategory(kind);
         var viewer = newImageViewer(context);
         viewer.setup(
@@ -133,13 +133,20 @@ public class MultipleImagesViewer extends Pane {
             borderPane.setCenter(viewer.getRoot());
             selected = link;
             onShow.accept(viewer);
-        });
+        }, this::onClose);
         if (selected == null) {
             category.selectFirst();
         } else if (shouldSelectAutomatically(params, kind, pixelShift)) {
             hyperlink.fire();
         }
         return viewer;
+    }
+
+    private void onClose(Hyperlink link) {
+        if (selected == link) {
+            borderPane.setCenter(null);
+            selected = null;
+        }
     }
 
     public MediaPlayer addVideo(String title,
@@ -171,7 +178,7 @@ public class MultipleImagesViewer extends Pane {
             categories().forEach(CategoryPane::clearSelection);
             borderPane.setCenter(contentBox);
             selected = link;
-        });
+        }, this::onClose);
         hyperlink.fire();
         return mediaPlayer;
     }
@@ -208,7 +215,7 @@ public class MultipleImagesViewer extends Pane {
     }
 
     private CategoryPane addCategory(DisplayCategory category) {
-        var categoryPane = new CategoryPane(message("displayCategory." + category.name()));
+        var categoryPane = new CategoryPane(message("displayCategory." + category.name()), categories::remove);
         categoryPane.setMinWidth(190);
         categoryPane.getProperties().put(DisplayCategory.class, category);
         List<CategoryPane> newCategories = new ArrayList<>(categories().toList());
