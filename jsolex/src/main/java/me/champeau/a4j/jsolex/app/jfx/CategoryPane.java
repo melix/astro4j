@@ -15,6 +15,8 @@
  */
 package me.champeau.a4j.jsolex.app.jfx;
 
+import javafx.collections.FXCollections;
+import javafx.collections.ObservableList;
 import javafx.geometry.Pos;
 import javafx.scene.control.Hyperlink;
 import javafx.scene.control.Label;
@@ -23,23 +25,26 @@ import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
 import me.champeau.a4j.jsolex.processing.sun.workflow.PixelShift;
 
-import java.util.ArrayList;
-import java.util.List;
 import java.util.function.Consumer;
+
+import static me.champeau.a4j.jsolex.app.JSolEx.message;
 
 public class CategoryPane extends VBox {
 
-    private final List<Hyperlink> links = new ArrayList<>();
-    private Hyperlink selected = null;
+    private final ObservableList<Hyperlink> links = FXCollections.observableArrayList();
 
-    public CategoryPane(String title) {
+    private Hyperlink selected = null;
+    private final Consumer<? super CategoryPane> whenEmpty;
+
+    public CategoryPane(String title, Consumer<? super CategoryPane> whenEmpty) {
+        this.whenEmpty = whenEmpty;
         Label titleLabel = new Label(title);
         titleLabel.getStyleClass().add("category-title");
         getChildren().add(titleLabel);
         getStyleClass().add("category-pane");
     }
 
-    Hyperlink addImage(String title, PixelShift pixelShift, Consumer<? super Hyperlink> onClick) {
+    Hyperlink addImage(String title, PixelShift pixelShift, Consumer<? super Hyperlink> onClick, Consumer<? super Hyperlink> onClose) {
         var box = new HBox();
         box.getProperties().put(PixelShift.class, pixelShift);
         box.setAlignment(Pos.CENTER_LEFT);
@@ -78,11 +83,33 @@ public class CategoryPane extends VBox {
             }
             insertPoint++;
         }
+        var close = createCloseLink(box, link, onClose);
+        box.getChildren().add(close);
         getChildren().add(insertPoint, box);
         return link;
     }
 
-    public Hyperlink addVideo(String title, Consumer<? super Hyperlink> onClick) {
+    private Hyperlink createCloseLink(HBox box, Hyperlink link, Consumer<? super Hyperlink> onClose) {
+        var close = new Hyperlink("x");
+        close.getStyleClass().add("category-close");
+        close.setAlignment(Pos.CENTER_RIGHT);
+        close.setOnAction(e -> {
+            getChildren().remove(box);
+            var idx = Math.max(0, links.indexOf(link) - 1);
+            links.remove(link);
+            onClose.accept(link);
+            if (links.isEmpty()) {
+                whenEmpty.accept(this);
+            }
+            if (selected == link && !links.isEmpty()) {
+                links.get(idx).fire();
+            }
+        });
+        close.setTooltip(new Tooltip(message("close.image")));
+        return close;
+    }
+
+    public Hyperlink addVideo(String title, Consumer<? super Hyperlink> onClick, Consumer<? super Hyperlink> onClose) {
         var link = new Hyperlink(title);
         link.setOnAction(e -> {
             if (selected == link) {
@@ -93,7 +120,11 @@ public class CategoryPane extends VBox {
         });
         link.getStyleClass().add("category-link");
         links.add(link);
-        getChildren().add(link);
+        var box = new HBox();
+        box.setAlignment(Pos.CENTER_LEFT);
+        var close = createCloseLink(box, link, onClose);
+        box.getChildren().addAll(link, close);
+        getChildren().add(box);
         return link;
     }
 
