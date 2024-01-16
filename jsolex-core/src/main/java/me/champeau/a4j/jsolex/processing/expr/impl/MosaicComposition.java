@@ -20,7 +20,6 @@ import me.champeau.a4j.jsolex.processing.event.ImageGeneratedEvent;
 import me.champeau.a4j.jsolex.processing.event.ProgressEvent;
 import me.champeau.a4j.jsolex.processing.sun.BackgroundRemoval;
 import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
-import me.champeau.a4j.jsolex.processing.sun.workflow.AnalysisUtils;
 import me.champeau.a4j.jsolex.processing.sun.workflow.GeneratedImageKind;
 import me.champeau.a4j.jsolex.processing.util.Constants;
 import me.champeau.a4j.jsolex.processing.util.DrawUtils;
@@ -59,7 +58,7 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.DoubleStream;
 
-import static me.champeau.a4j.jsolex.processing.sun.workflow.AnalysisUtils.estimateSignalLevel;
+import static me.champeau.a4j.jsolex.processing.sun.workflow.AnalysisUtils.estimateBackgroundLevel;
 import static me.champeau.a4j.jsolex.processing.util.Constants.message;
 import static me.champeau.a4j.math.regression.LinearRegression.firstOrderRegression;
 
@@ -166,8 +165,9 @@ public class MosaicComposition extends AbstractFunctionImpl {
             var first = corrected.iterator().next();
             var height = first.height();
             var width = first.width();
+            var distorsionGridSize = Math.max(width / 64, 64);
             LOGGER.debug("Threshold: {}", background);
-            computeMissingState(tileSize, corrected, background, imageToTilesOverbackground, integralImages);
+            computeMissingState(distorsionGridSize, corrected, background, imageToTilesOverbackground, integralImages);
             var tileOverlap = placeMostOverlappingImagesFirst(corrected, imageToTilesOverbackground, imageCount);
             if (tileOverlap != null && tileOverlap.overlappingTiles() == 0) {
                 LOGGER.warn("Cannot find overlapping tiles between images, falling back to addition");
@@ -177,7 +177,7 @@ public class MosaicComposition extends AbstractFunctionImpl {
                     DoubleStream::max
                 );
             }
-            int maxSteps = 2 * (height / tileSize);
+            int maxSteps = 2 * (height / distorsionGridSize);
             int step = 0;
             boolean[] mask = new boolean[width * height];
             Map<Point2D, Optional<DistorsionSample>> cachedInterestPoints = new ConcurrentHashMap<>();
@@ -192,33 +192,32 @@ public class MosaicComposition extends AbstractFunctionImpl {
                 var referenceIntegral = imageMath.integralImage(reference.asImage());
                 var compareIntegral = integralImages.get(compare);
                 var referenceData = reference.data();
-                var feat = findInterestPoints(reference, referenceIntegral, compareIntegral, threshold, tileSize);
-                var distorsionGridSize = Math.max(width / 64, 64);
+                var feat = findInterestPoints(reference, referenceIntegral, compareIntegral, threshold, distorsionGridSize);
                 var length = width * height;
                 var otherData = compare.data();
                 var assembledData = new float[length];
                 System.arraycopy(referenceData, 0, assembledData, 0, length);
                 boolean updated = false;
                 Map<Point2D, List<Point2D>> localInterestPoints = new HashMap<>();
-                var offset = tileSize;
+                var offset = distorsionGridSize;
                 var dist = distorsionGridSize;
-                int window = tileSize / 2;
+                int window = distorsionGridSize / 2;
                 for (int y = 0; y < height; y += offset) {
                     for (int x = 0; x < width; x += offset) {
                         if (!isTileCompleted(tileSize, y, width, x, length, mask)) {
                             var avg1 = imageMath.areaAverage(referenceIntegral, x - window, y - window, 2 * window, 2 * window);
                             var avg2 = imageMath.areaAverage(compareIntegral, x - window, y - window, 2 * window, 2 * window);
-                            int px = tileSize * (x / tileSize);
-                            int py = tileSize * (y / tileSize);
+                            int px = distorsionGridSize * (x / distorsionGridSize);
+                            int py = distorsionGridSize * (y / distorsionGridSize);
                             var localPoints = localInterestPoints.computeIfAbsent(new Point2D(px, py), p -> feat.stream()
                                 .parallel()
                                 .filter(f -> f.distanceTo(p) <= 2 * dist)
                                 .toList());
                             if (avg1 == 0 && avg2 == 0) {
-                                assembleSingleTile(tileSize, x, y, x, y, width, length, assembledData, otherData, mask);
+                                assembleSingleTile(distorsionGridSize, x, y, x, y, width, length, assembledData, otherData, mask);
                             } else {
                                 var point = new Point2D(x, y);
-                                var samples = findBestMatches(cachedInterestPoints, reference, referenceIntegral, localPoints, compare, compareIntegral, tileSize, step, x, y, dist);
+                                var samples = findBestMatches(cachedInterestPoints, reference, referenceIntegral, localPoints, compare, compareIntegral, distorsionGridSize, step, x, y, dist);
                                 if (!samples.isEmpty()) {
                                     var restrictedSamples = samples.stream()
                                         .filter(s -> s.distanceTo(point) <= dist)
@@ -234,7 +233,7 @@ public class MosaicComposition extends AbstractFunctionImpl {
                                         var model = buildDistorsionModel(restrictedSamples);
                                         int newX = (int) Math.round(model.modelForX().asPolynomial().applyAsDouble(point.x()));
                                         int newY = (int) Math.round(model.modelForY().asPolynomial().applyAsDouble(point.y()));
-                                        updated = assembleSingleTile(tileSize, x, y, newX, newY, width, length, assembledData, otherData, mask);
+                                        updated = assembleSingleTile(distorsionGridSize, x, y, newX, newY, width, length, assembledData, otherData, mask);
                                     }
                                 }
                             }
@@ -288,14 +287,9 @@ public class MosaicComposition extends AbstractFunctionImpl {
                 if (idx >= 0 && idx < length && origIdx >= 0 && origIdx < length) {
                     var source = assembledData[origIdx];
                     var other = otherData[idx];
+                    updated = true;
                     if (source < 0.5 * other) {
                         assembledData[origIdx] = other;
-                        updated = true;
-                    } else if (source != other) {
-                        var w1 = source / (source + other);
-                        var w2 = other / (source + other);
-                        assembledData[origIdx] = (w1 * source + w2 * other) / (w1 + w2);
-                        updated = true;
                     }
                     mask[origIdx] = true;
                 }
@@ -461,7 +455,7 @@ public class MosaicComposition extends AbstractFunctionImpl {
                         var sx = second.x();
                         var referenceAvg = imageMath.areaAverage(referenceIntegral, x, y, tileSize, tileSize);
                         var otherAvg = imageMath.areaAverage(otherIntegral, sx, sy, tileSize, tileSize);
-                        if (withinTolerance(otherAvg, referenceAvg, 0.5)) {
+                        if (withinTolerance(otherAvg, referenceAvg, 0.25)) {
                             return Optional.of(new DistorsionSample(
                                 referencePoint,
                                 new Point2D(sx, sy),
@@ -513,22 +507,23 @@ public class MosaicComposition extends AbstractFunctionImpl {
         broadcaster.broadcast(ProgressEvent.of(0, message("normalizing.histograms")));
         try {
             List<ImageWrapper32> adjusted = new ArrayList<>(images);
+            var nImages = adjusted.size();
             int trials = 8;
             while (--trials > 0) {
                 float maxAvg = 0f;
-                float[] avgs = new float[adjusted.size()];
-                for (int i = 0; i < adjusted.size(); i++) {
+                float[] avgs = new float[nImages];
+                for (int i = 0; i < nImages; i++) {
                     var img = adjusted.get(i);
-                    var signal = estimateSignalLevel(img.data(), 64);
+                    var signal = estimateBackgroundLevel(img.data(), 64);
                     avgs[i] = averageOfPixelsAbove(img, signal);
                     maxAvg = Math.max(avgs[i], maxAvg);
                 }
 
                 // Adjust each image based on the overall average signal level
-                for (int i = 0; i < adjusted.size(); i++) {
+                for (int i = 0; i < nImages; i++) {
                     var img = adjusted.get(i);
                     var v = avgs[i];
-                    if (!withinTolerance(v, maxAvg, 0.05)) {
+                    if (!withinTolerance(v, maxAvg, 0.01)) {
                         LOGGER.debug("Signal levels are not within tolerance, adjusting...");
                         adjusted.set(i, adjust(img, maxAvg, v));
                     }
@@ -537,7 +532,7 @@ public class MosaicComposition extends AbstractFunctionImpl {
 
             var backgrounds = adjusted.stream()
                 .parallel()
-                .map(img -> new ImageWithBackground(img, AnalysisUtils.estimateBackgroundLevel(img.data())))
+                .map(img -> new ImageWithBackground(img, estimateBackgroundLevel(img.data())))
                 .toList();
             adjusted = backgrounds.stream()
                 .sorted(Comparator.comparingInt(ImageWithBackground::pixelsAboveBackground).reversed())
@@ -572,7 +567,7 @@ public class MosaicComposition extends AbstractFunctionImpl {
         var count = 0;
         for (float datum : data) {
             // only count pixels which are above the threshold and not saturated
-            if (datum > threshold && datum < 60000) {
+            if (datum > threshold && datum < 65000) {
                 total += datum;
                 count++;
             }
@@ -580,8 +575,10 @@ public class MosaicComposition extends AbstractFunctionImpl {
         if (count == 0) {
             return 0;
         }
+
         return (float) (total / count);
     }
+
 
     private void maybeCreateMatchDebugImage(List<ImageWrapper32> corrected, int width, int height, List<DistorsionSample> candidates, int tileSize) {
         if (DEBUG_IMAGES == null) {

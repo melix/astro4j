@@ -185,9 +185,6 @@ public class Stacking extends AbstractFunctionImpl {
                 var areaAvg = imageMath.areaAverage(integralImages.get(i), x, y, tileSize, tileSize);
                 double diff = Math.abs(areaAvg - refAvg) / (refAvg + 1e-5);
                 double w = Math.exp(-8 * diff);
-                if (refAvg > 0 && areaAvg > refAvg) {
-                    w = 0.2 * w ;
-                }
                 weights[i] = w;
             }
         }
