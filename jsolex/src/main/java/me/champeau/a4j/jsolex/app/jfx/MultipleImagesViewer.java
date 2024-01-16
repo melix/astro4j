@@ -55,8 +55,8 @@ import static me.champeau.a4j.jsolex.app.JSolEx.message;
 public class MultipleImagesViewer extends Pane {
     // Ordered list to determine the default image to show
     private static final List<GeneratedImageKind> DEFAULT_IMAGE_TO_SHOW = List.of(
-        GeneratedImageKind.COMPOSITION,
         GeneratedImageKind.IMAGE_MATH,
+        GeneratedImageKind.COMPOSITION,
         GeneratedImageKind.GEOMETRY_CORRECTED_PROCESSED,
         GeneratedImageKind.GEOMETRY_CORRECTED,
         GeneratedImageKind.RAW,
@@ -70,6 +70,7 @@ public class MultipleImagesViewer extends Pane {
     private final ObservableList<Node> categories;
     private final BorderPane borderPane;
     private Hyperlink selected = null;
+    private GeneratedImageKind selectedKind = null;
 
     public MultipleImagesViewer() {
         getStyleClass().add("multiple-images-viewer");
@@ -90,6 +91,7 @@ public class MultipleImagesViewer extends Pane {
         borderPane.setCenter(null);
         imageViews.clear();
         selected = null;
+        selectedKind = null;
     }
 
     private ImageViewer newImageViewer(ForkJoinContext context) {
@@ -133,6 +135,7 @@ public class MultipleImagesViewer extends Pane {
             categories().forEach(CategoryPane::clearSelection);
             borderPane.setCenter(viewer.getRoot());
             selected = link;
+            selectedKind = kind;
             onShow.accept(viewer);
         }, this::onClose);
         if (selected == null) {
@@ -185,18 +188,18 @@ public class MultipleImagesViewer extends Pane {
     }
 
     private boolean shouldSelectAutomatically(ProcessParams params, GeneratedImageKind kind, PixelShift pixelShift) {
-        var kinds = params.requestedImages().images();
-        GeneratedImageKind preferredKind = null;
-        for (GeneratedImageKind imageKind : DEFAULT_IMAGE_TO_SHOW) {
-            if (kinds.contains(imageKind)) {
-                preferredKind = imageKind;
-                break;
-            }
+        var idx = DEFAULT_IMAGE_TO_SHOW.indexOf(kind);
+        if (idx == -1) {
+            return false;
         }
-        if (preferredKind == null) {
-            preferredKind = kinds.stream().findFirst().orElse(null);
+        if (selectedKind == null) {
+            return true;
         }
-        if (kind == preferredKind && (pixelShift == null || pixelShift.pixelShift() == params.spectrumParams().pixelShift())) {
+        var selectedIdx = DEFAULT_IMAGE_TO_SHOW.indexOf(selectedKind);
+        if (selectedIdx >= 0 && idx > selectedIdx) {
+            return false;
+        }
+        if (pixelShift == null || pixelShift.pixelShift() == params.spectrumParams().pixelShift()) {
             return true;
         }
         return false;
