@@ -82,7 +82,7 @@ public class AnalysisUtils {
                 break;
             }
         }
-        while (values[idx + 1] <= cur) {
+        while (idx + 1 < values.length && values[idx + 1] <= cur) {
             idx++;
             cur = values[idx];
         }

@@ -57,6 +57,11 @@ public final class ArcsinhStretchingStrategy implements StretchingStrategy {
             var pixel = Math.max(0, original - bp);
             double stretched = (pixel * asinh(original * stretch)) / (original * asinh);
             data[i] = (float) (stretched * max);
+            if (Float.valueOf(data[i]).isNaN()) {
+                data[i] = 0;
+            }
+            data[i] = Math.max(0, data[i]);
+            data[i] = Math.min(Constants.MAX_PIXEL_VALUE, data[i]);
         }
         LinearStrechingStrategy.DEFAULT.stretch(width, height, data);
     }
@@ -73,6 +78,11 @@ public final class ArcsinhStretchingStrategy implements StretchingStrategy {
                 var pixel = Math.max(0, original - bp);
                 double stretched = (pixel * asinh(original * stretch)) / (mean * asinh);
                 rgb[j][i] = (float) (stretched * max);
+                if (Float.valueOf(rgb[j][i]).isNaN()) {
+                    rgb[j][i] = 0;
+                }
+                rgb[j][i] = Math.max(0, rgb[j][i]);
+                rgb[j][i] = Math.min(Constants.MAX_PIXEL_VALUE, rgb[j][i]);
             }
         }
         LinearStrechingStrategy.DEFAULT.stretch(width, height, rgb);
