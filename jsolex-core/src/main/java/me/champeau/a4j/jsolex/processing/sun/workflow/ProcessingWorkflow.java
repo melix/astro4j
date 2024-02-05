@@ -351,6 +351,10 @@ public class ProcessingWorkflow {
                             }
                             var metadata = new HashMap<>(geometryFixed.metadata());
                             metadata.put(Ellipse.class, diskEllipse);
+                            for (int i = 0; i < mix.length; i++) {
+                                float d = mix[i];
+                                mix[i] = Math.max(0, Math.min(d, Constants.MAX_PIXEL_VALUE));
+                            }
                             var mixedImage = new ImageWrapper32(width, height, mix, metadata);
                             var colorCurve = processParams.spectrumParams().ray().getColorCurve();
                             if (colorCurve.isPresent()) {

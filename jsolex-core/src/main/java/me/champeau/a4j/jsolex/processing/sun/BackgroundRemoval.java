@@ -105,14 +105,6 @@ public class BackgroundRemoval {
                 data[idx] = (float) Math.max(0, value - estimated);
             }
         }
-        if (false) {
-            for (double[] sample : samples) {
-                var x = sample[0];
-                var y = sample[1];
-                var idx = (int) (y * width + x);
-                data[idx] = 65535;
-            }
-        }
         return copy;
     }
 
