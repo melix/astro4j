@@ -504,7 +504,7 @@ public class JSolEx extends Application implements JSolExInterface {
                     reusedProcessParams = null;
                     watchService.close();
                     if (interruptWatchButton != null) {
-                        workButtons.getChildren().remove(interruptWatchButton);
+                        BatchOperations.submit(() -> workButtons.getChildren().remove(interruptWatchButton));
                         interruptWatchButton = null;
                     }
                 }
@@ -521,10 +521,10 @@ public class JSolEx extends Application implements JSolExInterface {
                     } catch (IOException ex) {
                         // ignore
                     }
-                    workButtons.getChildren().remove(interruptWatchButton);
+                    BatchOperations.submit(() -> workButtons.getChildren().remove(interruptWatchButton));
                     LOGGER.info(message("stopped.watching"), watchedDirectory);
                 });
-                workButtons.getChildren().add(interruptWatchButton);
+                BatchOperations.submit(() -> workButtons.getChildren().add(interruptWatchButton));
             } catch (IOException e) {
                 LOGGER.error("Cannot create watch service", e);
             }
@@ -768,8 +768,10 @@ public class JSolEx extends Application implements JSolExInterface {
         var processingThread =
             new Thread(() -> processSingleFile(params, selectedFile, false, 0, selectedFile, firstHeader, () -> BatchOperations.submit(() -> workButtons.getChildren().remove(interruptButton))));
         interruptButton.setOnAction(e -> {
-            BatchOperations.submit(() -> updateProgress(0, message("interrupted")));
-            workButtons.getChildren().remove(interruptButton);
+            BatchOperations.submit(() -> {
+                updateProgress(0, message("interrupted"));
+                workButtons.getChildren().remove(interruptButton);
+            });
             processingThread.interrupt();
         });
         processingThread.start();
@@ -899,7 +901,7 @@ public class JSolEx extends Application implements JSolExInterface {
 
     private Button addInterruptButton() {
         var interruptButton = new Button(message("interrupt"));
-        workButtons.getChildren().add(interruptButton);
+        BatchOperations.submit(() -> workButtons.getChildren().add(interruptButton));
         return interruptButton;
     }
 
