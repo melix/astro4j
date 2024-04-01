@@ -38,27 +38,27 @@ public class RenamingImageEmitter implements ImageEmitter {
     }
 
     @Override
-    public Supplier<Void> newMonoImage(GeneratedImageKind kind, String title, String name, ImageWrapper32 image, Consumer<? super float[]> bufferConsumer) {
-        return delegate.newMonoImage(kind, titleRenamer.apply(title), fileRenamer.apply(name), image, bufferConsumer);
+    public void newMonoImage(GeneratedImageKind kind, String title, String name, ImageWrapper32 image, Consumer<? super float[]> bufferConsumer) {
+        delegate.newMonoImage(kind, titleRenamer.apply(title), fileRenamer.apply(name), image, bufferConsumer);
     }
 
     @Override
-    public Supplier<Void> newMonoImage(GeneratedImageKind kind, String title, String name, ImageWrapper32 image) {
-        return delegate.newMonoImage(kind, titleRenamer.apply(title), fileRenamer.apply(name), image);
+    public void newMonoImage(GeneratedImageKind kind, String title, String name, ImageWrapper32 image) {
+        delegate.newMonoImage(kind, titleRenamer.apply(title), fileRenamer.apply(name), image);
     }
 
     @Override
-    public Supplier<Void> newColorImage(GeneratedImageKind kind, String title, String name, ImageWrapper32 image, Function<float[], float[][]> rgbSupplier) {
-        return delegate.newColorImage(kind, titleRenamer.apply(title), fileRenamer.apply(name), image, rgbSupplier);
+    public void newColorImage(GeneratedImageKind kind, String title, String name, ImageWrapper32 image, Function<float[], float[][]> rgbSupplier) {
+        delegate.newColorImage(kind, titleRenamer.apply(title), fileRenamer.apply(name), image, rgbSupplier);
     }
 
     @Override
-    public Supplier<Void> newColorImage(GeneratedImageKind kind, String title, String name, int width, int height, Supplier<float[][]> rgbSupplier) {
-        return delegate.newColorImage(kind, titleRenamer.apply(title), fileRenamer.apply(name), width, height, rgbSupplier);
+    public void newColorImage(GeneratedImageKind kind, String title, String name, int width, int height, Supplier<float[][]> rgbSupplier) {
+        delegate.newColorImage(kind, titleRenamer.apply(title), fileRenamer.apply(name), width, height, rgbSupplier);
     }
 
     @Override
-    public Supplier<Void> newGenericFile(GeneratedImageKind kind, String title, String name, Path file) {
-        return delegate.newGenericFile(kind, titleRenamer.apply(title), fileRenamer.apply(name), file);
+    public void newGenericFile(GeneratedImageKind kind, String title, String name, Path file) {
+        delegate.newGenericFile(kind, titleRenamer.apply(title), fileRenamer.apply(name), file);
     }
 }

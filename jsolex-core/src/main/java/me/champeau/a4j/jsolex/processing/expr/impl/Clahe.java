@@ -23,8 +23,8 @@ import java.util.Map;
 
 public class Clahe extends AbstractFunctionImpl {
 
-    public Clahe(ForkJoinContext forkJoinContext, Map<Class<?>, Object> context) {
-        super(forkJoinContext, context);
+    public Clahe(Map<Class<?>, Object> context) {
+        super(context);
     }
 
     public Object clahe(List<Object> arguments) {
@@ -33,7 +33,7 @@ public class Clahe extends AbstractFunctionImpl {
         }
         if (arguments.size() == 2) {
             double clip = doubleArg(arguments, 1);
-            return ScriptSupport.monoToMonoImageTransformer(forkJoinContext, "clahe", 2, arguments, (width, height, data) -> new ClaheStrategy(ClaheStrategy.DEFAULT_TILE_SIZE, ClaheStrategy.DEFAULT_BINS, clip).stretch(width, height, data));
+            return ScriptSupport.monoToMonoImageTransformer("clahe", 2, arguments, (width, height, data) -> new ClaheStrategy(ClaheStrategy.DEFAULT_TILE_SIZE, ClaheStrategy.DEFAULT_BINS, clip).stretch(width, height, data));
 
         }
         int tileSize = intArg(arguments, 1);
@@ -42,6 +42,6 @@ public class Clahe extends AbstractFunctionImpl {
         if (tileSize * tileSize / (double) bins < 1.0) {
             throw new IllegalArgumentException("The number of bins is too high given the size of the tiles. Either reduce the bin count or increase the tile size");
         }
-        return ScriptSupport.monoToMonoImageTransformer(forkJoinContext, "clahe", 4, arguments, (width, height, data) -> new ClaheStrategy(tileSize, bins, clip).stretch(width, height, data));
+        return ScriptSupport.monoToMonoImageTransformer("clahe", 4, arguments, (width, height, data) -> new ClaheStrategy(tileSize, bins, clip).stretch(width, height, data));
     }
 }

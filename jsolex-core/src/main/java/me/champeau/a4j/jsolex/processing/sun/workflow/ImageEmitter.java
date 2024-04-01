@@ -23,13 +23,13 @@ import java.util.function.Function;
 import java.util.function.Supplier;
 
 public interface ImageEmitter {
-    Supplier<Void> newMonoImage(GeneratedImageKind kind, String title, String name, ImageWrapper32 image, Consumer<? super float[]> bufferConsumer);
+    void newMonoImage(GeneratedImageKind kind, String title, String name, ImageWrapper32 image, Consumer<? super float[]> bufferConsumer);
 
-    Supplier<Void> newMonoImage(GeneratedImageKind kind, String title, String name, ImageWrapper32 image);
+    void newMonoImage(GeneratedImageKind kind, String title, String name, ImageWrapper32 image);
 
-    Supplier<Void> newColorImage(GeneratedImageKind kind, String title, String name, ImageWrapper32 image, Function<float[], float[][]> rgbSupplier);
+    void newColorImage(GeneratedImageKind kind, String title, String name, ImageWrapper32 image, Function<float[], float[][]> rgbSupplier);
 
-    Supplier<Void> newColorImage(GeneratedImageKind kind, String title, String name, int width, int height, Supplier<float[][]> rgbSupplier);
+    void newColorImage(GeneratedImageKind kind, String title, String name, int width, int height, Supplier<float[][]> rgbSupplier);
 
-    Supplier<Void> newGenericFile(GeneratedImageKind kind, String title, String name, Path file);
+    void newGenericFile(GeneratedImageKind kind, String title, String name, Path file);
 }

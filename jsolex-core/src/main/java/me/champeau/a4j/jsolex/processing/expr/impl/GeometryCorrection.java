@@ -39,15 +39,15 @@ public class GeometryCorrection extends AbstractFunctionImpl {
     private static final Logger LOGGER = LoggerFactory.getLogger(GeometryCorrection.class);
     private final EllipseFit ellipseFit;
 
-    public GeometryCorrection(ForkJoinContext forkJoinContext, Map<Class<?>, Object> context, EllipseFit ellipseFit) {
-        super(forkJoinContext, context);
+    public GeometryCorrection(Map<Class<?>, Object> context, EllipseFit ellipseFit) {
+        super(context);
         this.ellipseFit = ellipseFit;
     }
 
     public Object fixGeometry(List<Object> arguments) {
         var arg = arguments.get(0);
         if (arg instanceof List<?>) {
-            return expandToImageList(forkJoinContext, arguments, this::fixGeometry);
+            return expandToImageList(arguments, this::fixGeometry);
         }
         if (arg instanceof FileBackedImage fbi) {
             arg = fbi.unwrapToMemory();
@@ -78,7 +78,6 @@ public class GeometryCorrection extends AbstractFunctionImpl {
             getFromContext(ProcessParams.class).orElse(ProcessParams.loadDefaults()),
             getFromContext(ImageEmitter.class).orElse(null),
             state,
-            forkJoinContext,
             null
         );
         try {

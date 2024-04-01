@@ -54,7 +54,6 @@ public class DefaultImageScriptExecutor implements ImageMathScriptExecutor {
     public static final String OUTPUTS_SECTION_NAME = "outputs";
     public static final String BATCH_SECTION_NAME = "batch";
 
-    private final ForkJoinContext forkJoinContext;
     private final Function<Double, ImageWrapper> imagesByShift;
     private final Map<Class, Object> context;
     private final AtomicInteger executionCount = new AtomicInteger(0);
@@ -64,20 +63,17 @@ public class DefaultImageScriptExecutor implements ImageMathScriptExecutor {
 
     private boolean isCollectingShifts = false;
 
-    public DefaultImageScriptExecutor(ForkJoinContext forkJoinContext,
-                                      Function<Double, ImageWrapper> imageSupplier,
+    public DefaultImageScriptExecutor(Function<Double, ImageWrapper> imageSupplier,
                                       Map<Class, Object> context,
                                       Broadcaster broadcaster) {
-        this.forkJoinContext = forkJoinContext;
         this.imagesByShift = img -> isCollectingShifts ? ImageWrapper32.createEmpty() : imageSupplier.apply(img);
         this.context = context;
         this.broadcaster = broadcaster;
     }
 
-    public DefaultImageScriptExecutor(ForkJoinContext forkJoinContext,
-                                      Function<Double, ImageWrapper> imagesByShift,
+    public DefaultImageScriptExecutor(Function<Double, ImageWrapper> imagesByShift,
                                       Map<Class, Object> context) {
-        this(forkJoinContext, imagesByShift, context, Broadcaster.NO_OP);
+        this(imagesByShift, context, Broadcaster.NO_OP);
     }
 
     @Override
@@ -88,7 +84,7 @@ public class DefaultImageScriptExecutor implements ImageMathScriptExecutor {
     @Override
     public ImageMathScriptResult execute(String script, SectionKind kind) {
         var index = executionCount.getAndIncrement();
-        var evaluator = new MemoizingExpressionEvaluator(forkJoinContext, broadcaster);
+        var evaluator = new MemoizingExpressionEvaluator(broadcaster);
         populateContext(evaluator);
         var outputs = prepareOutputExpressions(script, index, evaluator, kind);
         var producedImages = new HashMap<String, ImageWrapper>();
@@ -341,8 +337,8 @@ public class DefaultImageScriptExecutor implements ImageMathScriptExecutor {
     private class MemoizingExpressionEvaluator extends ShiftCollectingImageExpressionEvaluator {
         private final Map<String, Object> memoizeCache = new ConcurrentHashMap<>();
 
-        public MemoizingExpressionEvaluator(ForkJoinContext forkJoinContext, Broadcaster broadcaster) {
-            super(forkJoinContext, broadcaster, DefaultImageScriptExecutor.this.imagesByShift);
+        public MemoizingExpressionEvaluator(Broadcaster broadcaster) {
+            super(broadcaster, DefaultImageScriptExecutor.this.imagesByShift);
         }
 
         @Override

@@ -48,7 +48,7 @@ import me.champeau.a4j.jsolex.processing.params.ProcessParamsIO;
 import me.champeau.a4j.jsolex.processing.params.RequestedImages;
 import me.champeau.a4j.jsolex.processing.params.StackingParamsIO;
 import me.champeau.a4j.jsolex.processing.sun.workflow.StackingWorkflow;
-import me.champeau.a4j.jsolex.processing.util.ForkJoinContext;
+import me.champeau.a4j.jsolex.processing.util.BackgroundOperations;
 import me.champeau.a4j.jsolex.processing.util.ImageFormat;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -69,8 +69,6 @@ public class StackingAndMosaicController {
 
     private Stage stage;
     private JSolExInterface owner;
-    private ForkJoinContext ioExecutor;
-    private ForkJoinContext cpuExecutor;
     private Map<String, ImageViewer> popupViewers;
 
     @FXML
@@ -127,11 +125,9 @@ public class StackingAndMosaicController {
     private File stackPostProcessingScriptFile;
     private File mosaicPostProcessingScriptFile;
 
-    public void setup(Stage stage, JSolExInterface owner, ProcessParams processParams, ForkJoinContext ioExecutor, ForkJoinContext cpuExecutor, Map<String, ImageViewer> popupViewers) {
+    public void setup(Stage stage, JSolExInterface owner, ProcessParams processParams, Map<String, ImageViewer> popupViewers) {
         this.stage = stage;
         this.owner = owner;
-        this.ioExecutor = ioExecutor;
-        this.cpuExecutor = cpuExecutor;
         this.popupViewers = popupViewers;
         accordionParams.setExpandedPane(accordionParams.getPanes().get(0));
         var plusCard = new PlusCard(this);
@@ -271,8 +267,6 @@ public class StackingAndMosaicController {
             owner,
             "",
             null,
-            cpuExecutor,
-            ioExecutor,
             outputDirectory.toPath(),
             processParams,
             processingDate,
@@ -297,10 +291,10 @@ public class StackingAndMosaicController {
             mosaicPostProcessingScriptFile
         );
         StackingParamsIO.saveDefaults(params);
-        cpuExecutor.async(() -> {
+        BackgroundOperations.async(() -> {
             long sd = System.nanoTime();
             try {
-                var workflow = new StackingWorkflow(cpuExecutor, broadcaster, namingStrategy);
+                var workflow = new StackingWorkflow(broadcaster, namingStrategy);
                 workflow.execute(params, panels, outputDirectory);
             } finally {
                 long ed = System.nanoTime();

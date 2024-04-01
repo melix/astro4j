@@ -21,7 +21,6 @@ import me.champeau.a4j.jsolex.processing.stretching.RangeExpansionStrategy;
 import me.champeau.a4j.jsolex.processing.sun.ImageUtils;
 import me.champeau.a4j.jsolex.processing.sun.WorkflowState;
 import me.champeau.a4j.jsolex.processing.sun.tasks.GeometryCorrector;
-import me.champeau.a4j.jsolex.processing.util.ForkJoinContext;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 
 import java.util.List;
@@ -30,39 +29,35 @@ public class DopplerSupport {
     private final ProcessParams processParams;
     private final List<WorkflowState> states;
     private final ImageEmitter processedImagesEmitter;
-    private final ForkJoinContext executor;
 
-    public DopplerSupport(ProcessParams processParams, List<WorkflowState> states, ImageEmitter processedImagesEmitter, ForkJoinContext executor) {
+    public DopplerSupport(ProcessParams processParams, List<WorkflowState> states, ImageEmitter processedImagesEmitter) {
         this.processParams = processParams;
         this.states = states;
         this.processedImagesEmitter = processedImagesEmitter;
-        this.executor = executor;
     }
 
     public void produceDopplerImage() {
         if (!SpectralRay.H_ALPHA.equals(processParams.spectrumParams().ray())) {
             return;
         }
-        executor.async(() -> {
-            var dopplerShift = processParams.spectrumParams().dopplerShift();
-            double lookupShift = processParams.spectrumParams().switchRedBlueChannels() ? -dopplerShift : dopplerShift;
-            var first = states.stream().filter(s -> s.pixelShift() == lookupShift).findFirst();
-            var second = states.stream().filter(s -> s.pixelShift() == -lookupShift).findFirst();
-            first.ifPresent(s1 -> second.ifPresent(s2 -> {
-                s1.findResult(WorkflowResults.GEOMETRY_CORRECTION).ifPresent(i1 -> s2.findResult(WorkflowResults.GEOMETRY_CORRECTION).ifPresent(i2 -> {
-                    var grey1 = ((GeometryCorrector.Result) i1).corrected();
-                    var grey2 = ((GeometryCorrector.Result) i2).corrected();
-                    var width = grey1.width();
-                    var height = grey1.height();
-                    processedImagesEmitter.newColorImage(GeneratedImageKind.DOPPLER,
-                            "Doppler",
-                            "doppler",
-                            width,
-                            height,
-                            () -> DopplerSupport.toDopplerImage(width, height, grey1, grey2));
-                }));
+        var dopplerShift = processParams.spectrumParams().dopplerShift();
+        double lookupShift = processParams.spectrumParams().switchRedBlueChannels() ? -dopplerShift : dopplerShift;
+        var first = states.stream().filter(s -> s.pixelShift() == lookupShift).findFirst();
+        var second = states.stream().filter(s -> s.pixelShift() == -lookupShift).findFirst();
+        first.ifPresent(s1 -> second.ifPresent(s2 -> {
+            s1.findResult(WorkflowResults.GEOMETRY_CORRECTION).ifPresent(i1 -> s2.findResult(WorkflowResults.GEOMETRY_CORRECTION).ifPresent(i2 -> {
+                var grey1 = ((GeometryCorrector.Result) i1).corrected();
+                var grey2 = ((GeometryCorrector.Result) i2).corrected();
+                var width = grey1.width();
+                var height = grey1.height();
+                processedImagesEmitter.newColorImage(GeneratedImageKind.DOPPLER,
+                    "Doppler",
+                    "doppler",
+                    width,
+                    height,
+                    () -> DopplerSupport.toDopplerImage(width, height, grey1, grey2));
             }));
-        });
+        }));
     }
 
     static float[][] toDopplerImage(int width, int height, ImageWrapper32 grey1, ImageWrapper32 grey2) {

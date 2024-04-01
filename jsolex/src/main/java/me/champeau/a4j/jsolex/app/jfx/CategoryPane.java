@@ -25,12 +25,16 @@ import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
 import me.champeau.a4j.jsolex.processing.sun.workflow.PixelShift;
 
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 import java.util.function.Consumer;
 
 import static me.champeau.a4j.jsolex.app.JSolEx.message;
 
 public class CategoryPane extends VBox {
 
+    private final List<Hyperlink> safeLinks = Collections.synchronizedList(new ArrayList<>());
     private final ObservableList<Hyperlink> links = FXCollections.observableArrayList();
 
     private Hyperlink selected = null;
@@ -57,7 +61,7 @@ public class CategoryPane extends VBox {
             select(link);
         });
         link.getStyleClass().add("category-link");
-        links.add(link);
+        safeLinks.add(link);
         box.getChildren().add(link);
         var tooltip = title;
         if (pixelShift != null && pixelShift.pixelShift() != 0) {
@@ -86,6 +90,7 @@ public class CategoryPane extends VBox {
         var close = createCloseLink(box, link, onClose);
         box.getChildren().add(close);
         getChildren().add(insertPoint, box);
+        BatchOperations.submit(() -> links.setAll(safeLinks));
         return link;
     }
 

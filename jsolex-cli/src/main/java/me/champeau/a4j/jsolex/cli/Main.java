@@ -117,15 +117,13 @@ public class Main implements Runnable {
                 outputDir = new File(inputFile.getParentFile(), baseName + suffix);
             }
         }
-        try (var cpuExecutor = ForkJoinParallelExecutor.newExecutor(); var ioExecutor = ForkJoinParallelExecutor.newExecutor(1)) {
+        try (var ioExecutor = ForkJoinParallelExecutor.newExecutor(1)) {
             Files.createDirectories(outputDir.toPath());
             var processor = new SolexVideoProcessor(
                     inputFile,
                     outputDir.toPath(),
                     0,
                     processParams,
-                    cpuExecutor,
-                    ioExecutor,
                     LocalDateTime.now(),
                     false);
             processor.addEventListener(new LoggingListener(processParams));

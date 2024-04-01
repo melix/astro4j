@@ -47,27 +47,27 @@ public class NamingStrategyAwareImageEmitter implements ImageEmitter {
     }
 
     @Override
-    public Supplier<Void> newMonoImage(GeneratedImageKind kind, String title, String name, ImageWrapper32 image, Consumer<? super float[]> bufferConsumer) {
-        return delegate.newMonoImage(kind, title, rename(name), image, bufferConsumer);
+    public void newMonoImage(GeneratedImageKind kind, String title, String name, ImageWrapper32 image, Consumer<? super float[]> bufferConsumer) {
+        delegate.newMonoImage(kind, title, rename(name), image, bufferConsumer);
     }
 
     @Override
-    public Supplier<Void> newMonoImage(GeneratedImageKind kind, String title, String name, ImageWrapper32 image) {
-        return delegate.newMonoImage(kind, title, rename(name), image);
+    public void newMonoImage(GeneratedImageKind kind, String title, String name, ImageWrapper32 image) {
+        delegate.newMonoImage(kind, title, rename(name), image);
     }
 
     @Override
-    public Supplier<Void> newColorImage(GeneratedImageKind kind, String title, String name, ImageWrapper32 image, Function<float[], float[][]> rgbSupplier) {
-        return delegate.newColorImage(kind, title, rename(name), image, rgbSupplier);
+    public void newColorImage(GeneratedImageKind kind, String title, String name, ImageWrapper32 image, Function<float[], float[][]> rgbSupplier) {
+        delegate.newColorImage(kind, title, rename(name), image, rgbSupplier);
     }
 
     @Override
-    public Supplier<Void> newColorImage(GeneratedImageKind kind, String title, String name, int width, int height, Supplier<float[][]> rgbSupplier) {
-        return delegate.newColorImage(kind, title, rename(name), width, height, rgbSupplier);
+    public void newColorImage(GeneratedImageKind kind, String title, String name, int width, int height, Supplier<float[][]> rgbSupplier) {
+        delegate.newColorImage(kind, title, rename(name), width, height, rgbSupplier);
     }
 
     @Override
-    public Supplier<Void> newGenericFile(GeneratedImageKind kind, String title, String name, Path file) {
-        return delegate.newGenericFile(kind, title, rename(name), file);
+    public void newGenericFile(GeneratedImageKind kind, String title, String name, Path file) {
+        delegate.newGenericFile(kind, title, rename(name), file);
     }
 }

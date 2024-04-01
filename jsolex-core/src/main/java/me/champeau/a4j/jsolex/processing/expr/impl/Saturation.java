@@ -26,8 +26,8 @@ import java.util.Map;
 import static me.champeau.a4j.jsolex.processing.expr.impl.ScriptSupport.expandToImageList;
 
 public class Saturation extends AbstractFunctionImpl {
-    public Saturation(ForkJoinContext forkJoinContext, Map<Class<?>, Object> context) {
-        super(forkJoinContext, context);
+    public Saturation(Map<Class<?>, Object> context) {
+        super(context);
     }
 
     public Object saturate(List<Object> arguments) {
@@ -36,7 +36,7 @@ public class Saturation extends AbstractFunctionImpl {
         }
         var arg = arguments.get(0);
         if (arg instanceof List) {
-            return expandToImageList(forkJoinContext, arguments, this::saturate);
+            return expandToImageList(arguments, this::saturate);
         }
         var saturation = doubleArg(arguments, 1);
         var exponent = Math.pow(2, -saturation);

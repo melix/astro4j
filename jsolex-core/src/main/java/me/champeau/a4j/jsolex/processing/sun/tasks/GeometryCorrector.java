@@ -22,7 +22,6 @@ import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
 import me.champeau.a4j.jsolex.processing.sun.WorkflowState;
 import me.champeau.a4j.jsolex.processing.sun.workflow.ImageEmitter;
 import me.champeau.a4j.jsolex.processing.sun.workflow.TransformationHistory;
-import me.champeau.a4j.jsolex.processing.util.ForkJoinContext;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 import me.champeau.a4j.jsolex.processing.util.MutableMap;
 import me.champeau.a4j.math.Point2D;
@@ -52,7 +51,6 @@ public class GeometryCorrector extends AbstractTask<GeometryCorrector.Result> {
     private final ProcessParams processParams;
     private final ImageEmitter imageEmitter;
     private final WorkflowState state;
-    private final ForkJoinContext forkJoinContext;
     private final Header header;
 
     public GeometryCorrector(Broadcaster broadcaster,
@@ -65,7 +63,6 @@ public class GeometryCorrector extends AbstractTask<GeometryCorrector.Result> {
                              ProcessParams processParams,
                              ImageEmitter imageEmitter,
                              WorkflowState state,
-                             ForkJoinContext forkJoinContext,
                              Header header) {
         super(broadcaster, image);
         this.ellipse = ellipse;
@@ -76,7 +73,6 @@ public class GeometryCorrector extends AbstractTask<GeometryCorrector.Result> {
         this.processParams = processParams;
         this.imageEmitter = imageEmitter;
         this.state = state;
-        this.forkJoinContext = forkJoinContext;
         this.header = header;
     }
 
@@ -144,7 +140,7 @@ public class GeometryCorrector extends AbstractTask<GeometryCorrector.Result> {
         TransformationHistory.recordTransform(corrected, message("geometry.correction"));
         var autocropMode = processParams.geometryParams().autocropMode();
         if (autocropMode != null) {
-            var cropping = new Crop(forkJoinContext, MutableMap.of(Ellipse.class, ellipse));
+            var cropping = new Crop(MutableMap.of(Ellipse.class, ellipse));
             corrected = switch (autocropMode) {
                 case RADIUS_1_1 -> (ImageWrapper32) cropping.autocrop2(List.of(corrected, 1.1));
                 case RADIUS_1_2 -> (ImageWrapper32) cropping.autocrop2(List.of(corrected, 1.2));

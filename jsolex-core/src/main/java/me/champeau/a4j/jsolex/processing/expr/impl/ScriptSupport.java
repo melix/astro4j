@@ -19,7 +19,6 @@ import me.champeau.a4j.jsolex.processing.params.ProcessParams;
 import me.champeau.a4j.jsolex.processing.stretching.CutoffStretchingStrategy;
 import me.champeau.a4j.jsolex.processing.stretching.NegativeImageStrategy;
 import me.champeau.a4j.jsolex.processing.util.FileBackedImage;
-import me.champeau.a4j.jsolex.processing.util.ForkJoinContext;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 import me.champeau.a4j.jsolex.processing.util.SolarParameters;
 import me.champeau.a4j.jsolex.processing.util.SolarParametersUtils;
@@ -41,6 +40,7 @@ import java.util.OptionalDouble;
 import java.util.TreeMap;
 import java.util.function.Function;
 import java.util.stream.DoubleStream;
+import java.util.stream.IntStream;
 
 public class ScriptSupport {
     private static final Logger LOGGER = LoggerFactory.getLogger(ScriptSupport.class);
@@ -50,28 +50,31 @@ public class ScriptSupport {
     }
 
     @SuppressWarnings("unchecked")
-    public static List<Object> expandToImageList(ForkJoinContext forkJoinContext, List<Object> arguments, Function<List<Object>, Object> function) {
+    public static List<Object> expandToImageList(List<Object> arguments, Function<List<Object>, Object> function) {
         var listOfImages = (List) arguments.get(0);
         var params = arguments.subList(1, arguments.size());
         var collected = Collections.synchronizedMap(new TreeMap<>());
-        forkJoinContext.blocking(ctx -> {
-            int i = 0;
-            for (Object image : listOfImages) {
-                var idx = i++;
-                ctx.async(() -> {
-                    var allArgs = new ArrayList<>();
-                    allArgs.add(image);
-                    allArgs.addAll(params);
-                    var result = function.apply(allArgs);
-                    collected.put(idx, result);
-                });
-            }
-        });
+        var array = listOfImages.toArray(new Object[0]);
+        IntStream.range(0, array.length)
+            .mapToObj(i -> new Object() {
+                private final Object image = array[i];
+                private final int idx = i;
+            })
+            .parallel()
+            .forEach(o -> {
+                var idx = o.idx;
+                var image = o.image;
+                var allArgs = new ArrayList<>();
+                allArgs.add(image);
+                allArgs.addAll(params);
+                var result = function.apply(allArgs);
+                collected.put(idx, result);
+            });
         // iterate on keys to preserve order
         return collected.keySet().stream().map(collected::get).toList();
     }
 
-    public static Object monoToMonoImageTransformer(ForkJoinContext forkJoinContext, String name, int maxArgCount, List<Object> arguments, ImageConsumer consumer) {
+    public static Object monoToMonoImageTransformer(String name, int maxArgCount, List<Object> arguments, ImageConsumer consumer) {
         if (arguments.size() > maxArgCount) {
             throw new IllegalArgumentException("Invalid number of arguments on '" + name + "' call");
         }
@@ -84,13 +87,13 @@ public class ScriptSupport {
             consumer.accept(copy.width(), copy.height(), copy.data());
             return copy;
         } else if (arg instanceof List<?>) {
-            return expandToImageList(forkJoinContext, arguments, e -> monoToMonoImageTransformer(forkJoinContext, name, maxArgCount, e, consumer));
+            return expandToImageList(arguments, e -> monoToMonoImageTransformer(name, maxArgCount, e, consumer));
         }
         throw new IllegalArgumentException(name + "first argument must be a mono image or a list of images");
     }
 
-    public static Object inverse(ForkJoinContext forkJoinContext, List<Object> arguments) {
-        return monoToMonoImageTransformer(forkJoinContext, "invert", 1, arguments, NegativeImageStrategy.DEFAULT::stretch);
+    public static Object inverse(List<Object> arguments) {
+        return monoToMonoImageTransformer("invert", 1, arguments, NegativeImageStrategy.DEFAULT::stretch);
     }
 
     public static Object applyFunction(String name, List<Object> arguments, Function<DoubleStream, OptionalDouble> operator) {
@@ -111,16 +114,16 @@ public class ScriptSupport {
         var type = types.get(0);
         if (Number.class.isAssignableFrom(type)) {
             return operator.apply(arguments.stream()
-                            .map(Number.class::cast)
-                            .mapToDouble(Number::doubleValue))
-                    .orElse(0);
+                    .map(Number.class::cast)
+                    .mapToDouble(Number::doubleValue))
+                .orElse(0);
         }
         if (ImageWrapper32.class.isAssignableFrom(type) || FileBackedImage.class.isAssignableFrom(type)) {
             var images = arguments
-                    .stream()
-                    .map(i -> i instanceof FileBackedImage fbi ? fbi.unwrapToMemory() : i)
-                    .map(ImageWrapper32.class::cast)
-                    .toList();
+                .stream()
+                .map(i -> i instanceof FileBackedImage fbi ? fbi.unwrapToMemory() : i)
+                .map(ImageWrapper32.class::cast)
+                .toList();
             var first = images.get(0);
             var width = first.width();
             var height = first.height();
@@ -151,9 +154,9 @@ public class ScriptSupport {
                     double date = pp.observationDetails().date().toEpochSecond();
                     avgDate = (long) (avgDate + (date - avgDate) / (++cpt));
                     metadata.put(ProcessParams.class, pp.withObservationDetails(
-                            pp.observationDetails().withDate(
-                                    ZonedDateTime.ofInstant(Instant.ofEpochSecond(avgDate), ZoneId.of("UTC"))
-                            )
+                        pp.observationDetails().withDate(
+                            ZonedDateTime.ofInstant(Instant.ofEpochSecond(avgDate), ZoneId.of("UTC"))
+                        )
                     ));
                 }
             }
@@ -168,7 +171,7 @@ public class ScriptSupport {
             ProcessParams pp = (ProcessParams) metadata.get(ProcessParams.class);
             if (pp != null) {
                 var solarParams = SolarParametersUtils.computeSolarParams(
-                        pp.observationDetails().date().toLocalDateTime()
+                    pp.observationDetails().date().toLocalDateTime()
                 );
                 metadata.put(SolarParameters.class, solarParams);
             }

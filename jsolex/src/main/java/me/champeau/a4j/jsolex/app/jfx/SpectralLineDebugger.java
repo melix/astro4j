@@ -41,11 +41,10 @@ import me.champeau.a4j.jsolex.processing.stretching.ArcsinhStretchingStrategy;
 import me.champeau.a4j.jsolex.processing.sun.ImageUtils;
 import me.champeau.a4j.jsolex.processing.sun.MagnitudeBasedSunEdgeDetector;
 import me.champeau.a4j.jsolex.processing.sun.SpectrumFrameAnalyzer;
-import me.champeau.a4j.jsolex.processing.util.ForkJoinParallelExecutor;
+import me.champeau.a4j.jsolex.processing.util.BackgroundOperations;
 import me.champeau.a4j.jsolex.processing.util.ImageFormat;
 import me.champeau.a4j.jsolex.processing.util.SpectralLineFrameImageCreator;
 import me.champeau.a4j.math.Point2D;
-import me.champeau.a4j.math.tuples.DoubleQuadruplet;
 import me.champeau.a4j.ser.ColorMode;
 import me.champeau.a4j.ser.ImageGeometry;
 import me.champeau.a4j.ser.SerFileReader;
@@ -114,7 +113,7 @@ public class SpectralLineDebugger {
     private DoubleUnaryOperator lockedPolynomial;
     private SerFileReader reader;
 
-    public void open(File file, ColorMode colorMode, Scene scene, Stage stage, ForkJoinParallelExecutor executor) {
+    public void open(File file, ColorMode colorMode, Scene scene, Stage stage) {
         var toggleGroup = new ToggleGroup();
         average.setToggleGroup(toggleGroup);
         frames.setToggleGroup(toggleGroup);
@@ -142,7 +141,7 @@ public class SpectralLineDebugger {
             }
         });
         status.setDisable(true);
-        executor.async(() -> prepareView(file, colorMode, scene, stage, toggleGroup));
+        BackgroundOperations.asyncIo(() -> prepareView(file, colorMode, scene, stage, toggleGroup));
     }
 
     private void fireZoomChanged(Scene scene) {

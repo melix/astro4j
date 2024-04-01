@@ -15,7 +15,6 @@
  */
 package me.champeau.a4j.jsolex.processing.expr.impl;
 
-import me.champeau.a4j.jsolex.processing.util.ForkJoinContext;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
 import me.champeau.a4j.math.regression.Ellipse;
 
@@ -24,11 +23,9 @@ import java.util.Map;
 import java.util.Optional;
 
 class AbstractFunctionImpl {
-    protected final ForkJoinContext forkJoinContext;
     protected final Map<Class<?>, Object> context;
 
-    protected AbstractFunctionImpl(ForkJoinContext forkJoinContext, Map<Class<?>, Object> context) {
-        this.forkJoinContext = forkJoinContext;
+    protected AbstractFunctionImpl(Map<Class<?>, Object> context) {
         this.context = context;
     }
 

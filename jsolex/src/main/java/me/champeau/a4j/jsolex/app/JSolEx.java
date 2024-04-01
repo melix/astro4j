@@ -85,11 +85,9 @@ import me.champeau.a4j.jsolex.processing.file.FileNamingStrategy;
 import me.champeau.a4j.jsolex.processing.params.ProcessParams;
 import me.champeau.a4j.jsolex.processing.sun.SolexVideoProcessor;
 import me.champeau.a4j.jsolex.processing.sun.workflow.GeneratedImageKind;
+import me.champeau.a4j.jsolex.processing.util.BackgroundOperations;
 import me.champeau.a4j.jsolex.processing.util.Constants;
 import me.champeau.a4j.jsolex.processing.util.FilesUtils;
-import me.champeau.a4j.jsolex.processing.util.ForkJoinContext;
-import me.champeau.a4j.jsolex.processing.util.ForkJoinParallelExecutor;
-import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
 import me.champeau.a4j.jsolex.processing.util.LoggingSupport;
 import me.champeau.a4j.jsolex.processing.util.MutableMap;
 import me.champeau.a4j.jsolex.processing.util.ProcessingException;
@@ -138,19 +136,8 @@ public class JSolEx extends Application implements JSolExInterface {
     private static final FileChooser.ExtensionFilter SER_FILES_EXTENSION_FILTER = new FileChooser.ExtensionFilter("SER files", "*.ser", "*.SER");
     private static final int FILE_WATCH_TIMEOUT = 2_500;
 
-    public static final Set<String> IMAGE_FILE_EXTENSIONS = Set.of(
-        "png",
-        "jpg",
-        "jpeg",
-        "tif",
-        "tiff",
-        "fits",
-        "fit"
-    );
+    public static final Set<String> IMAGE_FILE_EXTENSIONS = Set.of("png", "jpg", "jpeg", "tif", "tiff", "fits", "fit");
     public static final FileChooser.ExtensionFilter IMAGE_FILES_EXTENSIONS = new FileChooser.ExtensionFilter("Image Files", IMAGE_FILE_EXTENSIONS.stream().map(ext -> "*." + ext).toList());
-
-    private ForkJoinParallelExecutor cpuExecutor;
-    private ForkJoinParallelExecutor ioExecutor;
 
     private final Configuration config = new Configuration();
 
@@ -200,18 +187,13 @@ public class JSolEx extends Application implements JSolExInterface {
     @FXML
     private Tab metadataTab;
 
-    private final Map<String, ImageViewer> popupViewers = new HashMap<>();
+    private final Map<String, ImageViewer> popupViewers = new ConcurrentHashMap<>();
 
     private final MultipleImagesViewer multipleImagesViewer = new MultipleImagesViewer();
     private ProcessParams reusedProcessParams;
     private Path watchedDirectory;
     private WatchService watchService;
     private Button interruptWatchButton;
-
-    @Override
-    public ForkJoinContext getCpuExecutor() {
-        return cpuExecutor;
-    }
 
     @Override
     public MultipleImagesViewer getImagesViewer() {
@@ -235,7 +217,6 @@ public class JSolEx extends Application implements JSolExInterface {
 
     @Override
     public void start(Stage stage) throws Exception {
-        prepareExecutors();
         this.rootStage = stage;
         var fxmlLoader = I18N.fxmlLoader(getClass(), "app");
         fxmlLoader.setController(this);
@@ -269,19 +250,7 @@ public class JSolEx extends Application implements JSolExInterface {
             stage.show();
             refreshRecentItemsMenu();
             LogbackConfigurer.configureLogger(console);
-            cpuExecutor.setUncaughtExceptionHandler((t, e) -> logError(e));
-            ioExecutor.setUncaughtExceptionHandler((t, e) -> logError(e));
             stage.setOnCloseRequest(e -> {
-                try {
-                    cpuExecutor.close();
-                } catch (Exception ex) {
-                    // ignore
-                }
-                try {
-                    ioExecutor.close();
-                } catch (Exception ex) {
-                    // ignore
-                }
                 System.exit(0);
             });
             startWatcherThread();
@@ -414,33 +383,9 @@ public class JSolEx extends Application implements JSolExInterface {
         timeline.play();
     }
 
-    private void cancelExecutors() {
-        if (cpuExecutor != null) {
-            try {
-                cpuExecutor.cancel();
-            } catch (Exception e) {
-                // ignore
-            }
-        }
-        if (ioExecutor != null) {
-            try {
-                ioExecutor.cancel();
-            } catch (Exception e) {
-                // ignore
-            }
-        }
-    }
-
-    private void prepareExecutors() {
-        cpuExecutor = ForkJoinParallelExecutor.newExecutor();
-        ioExecutor = ForkJoinParallelExecutor.newExecutor(1);
-    }
-
     private void addIcons(Stage stage) {
         for (int i = 16; i <= 512; i *= 2) {
-            stage.getIcons().add(
-                new Image(getClass().getResourceAsStream("icons/jsolex-" + i + "x" + i + ".png"))
-            );
+            stage.getIcons().add(new Image(getClass().getResourceAsStream("icons/jsolex-" + i + "x" + i + ".png")));
         }
     }
 
@@ -473,12 +418,10 @@ public class JSolEx extends Application implements JSolExInterface {
         imageMathPane.setDisable(false);
         imageMathRun.setOnAction(evt -> {
             var text = imageMathScript.getText();
-            cpuExecutor.async(() -> {
-                if (clearImagesCheckbox.isSelected()) {
-                    BatchOperations.submit(this::newSession);
-                }
-                executor.execute(text, ImageMathScriptExecutor.SectionKind.SINGLE);
-            });
+            if (clearImagesCheckbox.isSelected()) {
+                BatchOperations.submit(this::newSession);
+            }
+            executor.execute(text, ImageMathScriptExecutor.SectionKind.SINGLE);
         });
         imageMathSave.setDisable(true);
         imageMathLoad.setOnAction(evt -> {
@@ -561,7 +504,7 @@ public class JSolEx extends Application implements JSolExInterface {
                     reusedProcessParams = null;
                     watchService.close();
                     if (interruptWatchButton != null) {
-                        workButtons.getChildren().remove(interruptWatchButton);
+                        BatchOperations.submit(() -> workButtons.getChildren().remove(interruptWatchButton));
                         interruptWatchButton = null;
                     }
                 }
@@ -578,10 +521,10 @@ public class JSolEx extends Application implements JSolExInterface {
                     } catch (IOException ex) {
                         // ignore
                     }
-                    workButtons.getChildren().remove(interruptWatchButton);
+                    BatchOperations.submit(() -> workButtons.getChildren().remove(interruptWatchButton));
                     LOGGER.info(message("stopped.watching"), watchedDirectory);
                 });
-                workButtons.getChildren().add(interruptWatchButton);
+                BatchOperations.submit(() -> workButtons.getChildren().add(interruptWatchButton));
             } catch (IOException e) {
                 LOGGER.error("Cannot create watch service", e);
             }
@@ -615,7 +558,7 @@ public class JSolEx extends Application implements JSolExInterface {
             var controller = (SpectralLineDebugger) fxmlLoader.getController();
             var stage = newStage();
             Scene scene = new Scene((Parent) configWindow);
-            controller.open(file, null, scene, stage, ioExecutor);
+            controller.open(file, null, scene, stage);
             stage.setTitle(I18N.string(getClass(), "frame-debugger", "frame.debugger"));
             stage.setScene(scene);
             stage.showAndWait();
@@ -640,24 +583,12 @@ public class JSolEx extends Application implements JSolExInterface {
     private void showImageMathEditor() {
         var stage = newStage();
         var params = ProcessParams.loadDefaults();
-        ImageMathEditor.create(
-            stage,
-            params.requestedImages().mathImages(),
-            getHostServices(),
-            true,
-            true,
-            e -> {
-            },
-            e -> {
-                stage.close();
-                BatchOperations.submit(this::newSession);
-                e.getConfiguration().ifPresent(scripts -> ioExecutor.async(() -> executeStandaloneScripts(
-                    params.withRequestedImages(
-                        params.requestedImages().withMathImages(scripts)
-                    )
-                )));
-            }
-        );
+        ImageMathEditor.create(stage, params.requestedImages().mathImages(), getHostServices(), true, true, e -> {
+        }, e -> {
+            stage.close();
+            BatchOperations.submit(this::newSession);
+            e.getConfiguration().ifPresent(scripts -> BackgroundOperations.async(() -> executeStandaloneScripts(params.withRequestedImages(params.requestedImages().withMathImages(scripts)))));
+        });
     }
 
     @FXML
@@ -684,7 +615,7 @@ public class JSolEx extends Application implements JSolExInterface {
             var stage = newStage();
             var node = (Parent) fxmlLoader.load();
             var controller = (StackingAndMosaicController) fxmlLoader.getController();
-            controller.setup(stage, this, ProcessParams.loadDefaults(), ioExecutor, cpuExecutor, popupViewers);
+            controller.setup(stage, this, ProcessParams.loadDefaults(), popupViewers);
             Scene scene = new Scene(node);
             stage.setTitle(I18N.string(JSolEx.class, "mosaic-params", "frame.title"));
             stage.setScene(scene);
@@ -695,41 +626,16 @@ public class JSolEx extends Application implements JSolExInterface {
     }
 
     private void executeStandaloneScripts(ProcessParams params) {
-        var scriptFiles = params.requestedImages().mathImages()
-            .scriptFiles();
-        var scriptFile = scriptFiles
-            .stream()
-            .findFirst();
+        var scriptFiles = params.requestedImages().mathImages().scriptFiles();
+        var scriptFile = scriptFiles.stream().findFirst();
         scriptFile.ifPresent(script -> {
             var outputDirectory = script.getParentFile();
             var processingDate = LocalDateTime.now();
-            var listener = new SingleModeProcessingEventListener(
-                this,
-                "",
-                null,
-                cpuExecutor,
-                ioExecutor,
-                outputDirectory.toPath(),
-                params,
-                processingDate,
-                popupViewers
-            );
-            var namingStrategy = new FileNamingStrategy(
-                params.extraParams().fileNamePattern(),
-                params.extraParams().datetimeFormat(),
-                params.extraParams().dateFormat(),
-                processingDate,
-                createFakeHeader(processingDate)
-            );
-            var imageScriptExecutor = new JSolExScriptExecutor(
-                cpuExecutor,
-                img -> {
-                    throw new ProcessingException("img() is not available in standalone image math scripts. Use load or load_many to load images");
-                },
-                MutableMap.of(),
-                listener,
-                null
-            ) {
+            var listener = new SingleModeProcessingEventListener(this, "", null, outputDirectory.toPath(), params, processingDate, popupViewers);
+            var namingStrategy = new FileNamingStrategy(params.extraParams().fileNamePattern(), params.extraParams().datetimeFormat(), params.extraParams().dateFormat(), processingDate, createFakeHeader(processingDate));
+            var imageScriptExecutor = new JSolExScriptExecutor(img -> {
+                throw new ProcessingException("img() is not available in standalone image math scripts. Use load or load_many to load images");
+            }, MutableMap.of(), listener, null) {
                 @Override
                 public ImageMathScriptResult execute(String script, SectionKind kind) {
                     long nanoTime = System.nanoTime();
@@ -744,31 +650,25 @@ public class JSolEx extends Application implements JSolExInterface {
                 }
 
                 private void processResult(ImageMathScriptResult result) {
-                    for (Map.Entry<String, ImageWrapper> entry : result.imagesByLabel().entrySet()) {
-                        cpuExecutor.async(() -> {
-                            var name = namingStrategy.render(0, Constants.TYPE_PROCESSED, entry.getKey(), "standalone");
-                            var outputFile = new File(outputDirectory, name);
-                            listener.onImageGenerated(new ImageGeneratedEvent(
-                                new GeneratedImage(GeneratedImageKind.IMAGE_MATH, entry.getKey(), outputFile.toPath(), entry.getValue())
-                            ));
+                    result.imagesByLabel().entrySet().stream().parallel().forEach(entry -> {
+                        var name = namingStrategy.render(0, Constants.TYPE_PROCESSED, entry.getKey(), "standalone");
+                        var outputFile = new File(outputDirectory, name);
+                        listener.onImageGenerated(new ImageGeneratedEvent(new GeneratedImage(GeneratedImageKind.IMAGE_MATH, entry.getKey(), outputFile.toPath(), entry.getValue())));
 
-                        });
-                    }
-                    for (Map.Entry<String, Path> entry : result.filesByLabel().entrySet()) {
-                        cpuExecutor.async(() -> {
-                            var name = namingStrategy.render(0, Constants.TYPE_PROCESSED, entry.getKey(), "standalone");
-                            try {
-                                var fileName = entry.getValue().toFile().getName();
-                                var ext = fileName.substring(fileName.lastIndexOf("."));
-                                var targetPath = new File(outputDirectory, name + ext).toPath();
-                                Files.createDirectories(targetPath.getParent());
-                                Files.move(entry.getValue(), targetPath, StandardCopyOption.REPLACE_EXISTING);
-                                listener.onFileGenerated(FileGeneratedEvent.of(entry.getKey(), targetPath));
-                            } catch (IOException e) {
-                                throw new ProcessingException(e);
-                            }
-                        });
-                    }
+                    });
+                    result.filesByLabel().entrySet().stream().parallel().forEach(entry -> {
+                        var name = namingStrategy.render(0, Constants.TYPE_PROCESSED, entry.getKey(), "standalone");
+                        try {
+                            var fileName = entry.getValue().toFile().getName();
+                            var ext = fileName.substring(fileName.lastIndexOf("."));
+                            var targetPath = new File(outputDirectory, name + ext).toPath();
+                            Files.createDirectories(targetPath.getParent());
+                            Files.move(entry.getValue(), targetPath, StandardCopyOption.REPLACE_EXISTING);
+                            listener.onFileGenerated(FileGeneratedEvent.of(entry.getKey(), targetPath));
+                        } catch (IOException e) {
+                            throw new ProcessingException(e);
+                        }
+                    });
                     for (InvalidExpression expression : result.invalidExpressions()) {
                         LOGGER.error("Found invalid expression {} ({}): {}", expression.label(), expression.expression(), expression.error().getMessage());
                     }
@@ -786,14 +686,7 @@ public class JSolEx extends Application implements JSolExInterface {
     }
 
     public static Header createFakeHeader(LocalDateTime now) {
-        return new Header(null, null, 0, new ImageMetadata(
-            null,
-            null,
-            null,
-            true,
-            now,
-            now.atZone(ZoneId.of("UTC"))
-        ));
+        return new Header(null, null, 0, new ImageMetadata(null, null, null, true, now, now.atZone(ZoneId.of("UTC"))));
     }
 
     @FXML
@@ -851,9 +744,7 @@ public class JSolEx extends Application implements JSolExInterface {
         try (var reader = SerFileReader.of(selectedFile)) {
             header = reader.header();
             if (reusedProcessParams != null) {
-                processParams = Optional.of(reusedProcessParams.withObservationDetails(
-                    reusedProcessParams.observationDetails().withDate(header.metadata().utcDateTime())
-                ));
+                processParams = Optional.of(reusedProcessParams.withObservationDetails(reusedProcessParams.observationDetails().withDate(header.metadata().utcDateTime())));
             } else {
                 var controller = createProcessParams(reader, false);
                 processParams = controller.getProcessParams();
@@ -874,14 +765,13 @@ public class JSolEx extends Application implements JSolExInterface {
         newSession();
         console.clear();
         var interruptButton = addInterruptButton();
-        var processingThread = new Thread(() -> cpuExecutor.blocking(() ->
-            processSingleFile(cpuExecutor, params, selectedFile, false, 0, selectedFile, firstHeader, () -> BatchOperations.submit(() -> workButtons.getChildren().remove(interruptButton)))
-        ));
+        var processingThread =
+            new Thread(() -> processSingleFile(params, selectedFile, false, 0, selectedFile, firstHeader, () -> BatchOperations.submit(() -> workButtons.getChildren().remove(interruptButton))));
         interruptButton.setOnAction(e -> {
-            cancelExecutors();
-            prepareExecutors();
-            BatchOperations.submit(() -> updateProgress(0, message("interrupted")));
-            workButtons.getChildren().remove(interruptButton);
+            BatchOperations.submit(() -> {
+                updateProgress(0, message("interrupted"));
+                workButtons.getChildren().remove(interruptButton);
+            });
             processingThread.interrupt();
         });
         processingThread.start();
@@ -905,7 +795,7 @@ public class JSolEx extends Application implements JSolExInterface {
     }
 
     private static void configureThreadExceptionHandler() {
-        Thread.currentThread().setUncaughtExceptionHandler((t, e) -> logError(e));
+        Thread.setDefaultUncaughtExceptionHandler((t, e) -> logError(e));
     }
 
     private void doOpenMany(List<File> selectedFiles) {
@@ -935,14 +825,7 @@ public class JSolEx extends Application implements JSolExInterface {
         var batchItems = new ArrayList<BatchItem>(selectedFiles.size());
         for (int i = 0; i < selectedFiles.size(); i++) {
             var selectedFile = selectedFiles.get(i);
-            batchItems.add(new BatchItem(
-                i,
-                selectedFile,
-                new SimpleDoubleProperty(0),
-                FXCollections.synchronizedObservableList(FXCollections.observableArrayList()),
-                new SimpleStringProperty(message("batch.pending")),
-                new StringBuilder()
-            ));
+            batchItems.add(new BatchItem(i, selectedFile, new SimpleDoubleProperty(0), FXCollections.synchronizedObservableList(FXCollections.observableArrayList()), new SimpleStringProperty(message("batch.pending")), new StringBuilder()));
         }
         table.getItems().addAll(batchItems);
         var idColumn = new TableColumn<BatchItem, String>();
@@ -986,110 +869,82 @@ public class JSolEx extends Application implements JSolExInterface {
                 groups.add(current);
             }
             var batchContext = new BatchProcessingContext(batchItems, new AtomicInteger(), selectedFiles.get(0).getParentFile(), LocalDateTime.now(), new HashMap<>());
-            cpuExecutor.blocking(() -> {
-                var semaphore = new Semaphore(Math.max(1, Runtime.getRuntime().availableProcessors() / 4));
-                // We're using a separate task submission thread in order to not
-                // block the processing ones
-                var taskSubmissionThread = new Thread(() -> {
-                    int idx = 0;
-                    while (idx < selectedFiles.size() && !Thread.currentThread().isInterrupted()) {
-                        semaphore.acquireUninterruptibly();
-                        var selectedFile = selectedFiles.get(idx);
-                        processSingleFile(cpuExecutor, params, selectedFile, true, idx, batchContext, header, semaphore::release);
-                        idx++;
-                    }
-                });
-                interruptButton.setOnAction(e -> {
-                    interruptButton.setDisable(true);
-                    taskSubmissionThread.interrupt();
-                    cancelExecutors();
-                    prepareExecutors();
-                    updateProgress(0, message("batch.interrupted"));
-                });
-                taskSubmissionThread.start();
-                try {
-                    taskSubmissionThread.join();
-                } catch (InterruptedException e) {
-                    Thread.currentThread().interrupt();
-                } finally {
-                    BatchOperations.submit(() -> workButtons.getChildren().remove(interruptButton));
+            var semaphore = new Semaphore(Math.max(1, Runtime.getRuntime().availableProcessors() / 4));
+            // We're using a separate task submission thread in order to not
+            // block the processing ones
+            var taskSubmissionThread = new Thread(() -> {
+                int idx = 0;
+                while (idx < selectedFiles.size() && !Thread.currentThread().isInterrupted()) {
+                    semaphore.acquireUninterruptibly();
+                    var selectedFile = selectedFiles.get(idx);
+                    var fileIdx = idx;
+                    BackgroundOperations.async(() -> processSingleFile(params, selectedFile, true, fileIdx, batchContext, header, semaphore::release));
+                    idx++;
                 }
             });
+            interruptButton.setOnAction(e -> {
+                interruptButton.setDisable(true);
+                taskSubmissionThread.interrupt();
+                BackgroundOperations.interrupt();
+                updateProgress(0, message("batch.interrupted"));
+            });
+            taskSubmissionThread.start();
+            try {
+                taskSubmissionThread.join();
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            } finally {
+                BatchOperations.submit(() -> workButtons.getChildren().remove(interruptButton));
+            }
         }).start();
     }
 
     private Button addInterruptButton() {
         var interruptButton = new Button(message("interrupt"));
-        workButtons.getChildren().add(interruptButton);
+        BatchOperations.submit(() -> workButtons.getChildren().add(interruptButton));
         return interruptButton;
     }
 
-    private void processSingleFile(ForkJoinContext cpu,
-                                   ProcessParams params,
-                                   File selectedFile,
-                                   boolean batchMode,
-                                   int sequenceNumber,
-                                   Object context,
-                                   Header header,
-                                   Runnable onComplete) {
-        cpu.isolate(cpuIsolate -> {
-            cpuIsolate.setOnTaskStart(t -> LogbackConfigurer.recordThreadOwner(t.getName(), sequenceNumber));
-            ioExecutor.isolate(ioIsolate -> cpuIsolate.async(() -> {
-                var processingDate = context instanceof BatchProcessingContext batch ? batch.processingDate() : LocalDateTime.now();
-                ioIsolate.setOnTaskStart(t -> LogbackConfigurer.recordThreadOwner(t.getName(), sequenceNumber));
-                var namingStrategy = new FileNamingStrategy(
-                    params.extraParams().fileNamePattern(),
-                    params.extraParams().datetimeFormat(),
-                    params.extraParams().dateFormat(),
-                    processingDate,
-                    header
-                );
-                var outputDirectory = selectedFile.getParentFile();
-                var baseName = selectedFile.getName().substring(0, selectedFile.getName().lastIndexOf("."));
-                var logFileName = namingStrategy.render(sequenceNumber, "log", "log", baseName) + LOG_EXTENSION;
-                var logFile = new File(outputDirectory, logFileName);
-                // For the log file we cannot _fully_ use the pattern since some data is not yet available (the file header)
-                logFile = new File(logFile.getParentFile(), String.format("%04d_%s" + LOG_EXTENSION, sequenceNumber, baseName));
-                if (context instanceof BatchProcessingContext ctx) {
-                    ctx.items().get(sequenceNumber).generatedFiles().add(logFile);
-                }
-                var appender = LogbackConfigurer.createContextualFileAppender(sequenceNumber, logFile);
-                LoggingSupport.LOGGER.info(message("output.dir.set"), outputDirectory);
-                var processor = new SolexVideoProcessor(selectedFile,
-                    outputDirectory.toPath(),
-                    sequenceNumber,
-                    params,
-                    cpuIsolate,
-                    ioIsolate,
-                    processingDate,
-                    batchMode
-                );
-                var listener = createListener(baseName, params, batchMode, sequenceNumber, context);
-                processor.addEventListener(listener);
-                try {
-                    LOGGER.info("File {}", selectedFile.getName());
-                    processor.process();
-                } catch (Exception ex) {
-                    LoggingSupport.logError(ex);
-                } finally {
-                    onComplete.run();
-                    appender.stop();
-                    LogbackConfigurer.clearOwners();
-                }
-            }));
-        });
+    private void processSingleFile(ProcessParams params, File selectedFile, boolean batchMode, int sequenceNumber, Object context, Header header, Runnable onComplete) {
+        LogbackConfigurer.recordThreadOwner(Thread.currentThread().getName(), sequenceNumber);
+        var processingDate = context instanceof BatchProcessingContext batch ? batch.processingDate() : LocalDateTime.now();
+        var namingStrategy = new FileNamingStrategy(params.extraParams().fileNamePattern(), params.extraParams().datetimeFormat(), params.extraParams().dateFormat(), processingDate, header);
+        var outputDirectory = selectedFile.getParentFile();
+        var baseName = selectedFile.getName().substring(0, selectedFile.getName().lastIndexOf("."));
+        var logFileName = namingStrategy.render(sequenceNumber, "log", "log", baseName) + LOG_EXTENSION;
+        var logFile = new File(outputDirectory, logFileName);
+        // For the log file we cannot _fully_ use the pattern since some data is not yet available (the file header)
+        logFile = new File(logFile.getParentFile(), String.format("%04d_%s" + LOG_EXTENSION, sequenceNumber, baseName));
+        if (context instanceof BatchProcessingContext ctx) {
+            ctx.items().get(sequenceNumber).generatedFiles().add(logFile);
+        }
+        var appender = LogbackConfigurer.createContextualFileAppender(sequenceNumber, logFile);
+        LoggingSupport.LOGGER.info(message("output.dir.set"), outputDirectory);
+        var processor = new SolexVideoProcessor(selectedFile, outputDirectory.toPath(), sequenceNumber, params, processingDate, batchMode);
+        var listener = createListener(baseName, params, batchMode, sequenceNumber, context);
+        processor.addEventListener(listener);
+        try {
+            LOGGER.info("File {}", selectedFile.getName());
+            processor.process();
+        } catch (Exception ex) {
+            LoggingSupport.logError(ex);
+        } finally {
+            onComplete.run();
+            appender.stop();
+            LogbackConfigurer.clearOwners();
+        }
     }
 
     private ProcessingEventListener createListener(String baseName, ProcessParams params, boolean batchMode, int sequenceNumber, Object context) {
         if (batchMode) {
             var batchProcessingContext = (BatchProcessingContext) context;
             var outputDirectory = batchProcessingContext.outputDirectory();
-            var delegate = new SingleModeProcessingEventListener(this, baseName, null, cpuExecutor, ioExecutor, outputDirectory.toPath(), params, ((BatchProcessingContext) context).processingDate(), popupViewers);
+            var delegate = new SingleModeProcessingEventListener(this, baseName, null, outputDirectory.toPath(), params, ((BatchProcessingContext) context).processingDate(), popupViewers);
             return new BatchModeEventListener(this, delegate, sequenceNumber, batchProcessingContext, params);
         }
         var serFile = (File) context;
         var outputDirectory = serFile.getParentFile().toPath();
-        return new SingleModeProcessingEventListener(this, baseName, serFile, cpuExecutor, ioExecutor, outputDirectory, params, LocalDateTime.now(), popupViewers);
+        return new SingleModeProcessingEventListener(this, baseName, serFile, outputDirectory, params, LocalDateTime.now(), popupViewers);
     }
 
     private ProcessParamsController createProcessParams(SerFileReader serFileReader, boolean batchMode) {
@@ -1100,7 +955,7 @@ public class JSolEx extends Application implements JSolExInterface {
             var content = (Parent) loader.load();
             var controller = (ProcessParamsController) loader.getController();
             var scene = new Scene(content);
-            controller.setup(dialog, cpuExecutor, serFileReader.header(), batchMode, getHostServices());
+            controller.setup(dialog, serFileReader.header(), batchMode, getHostServices());
             dialog.setScene(scene);
             dialog.initOwner(rootStage);
             dialog.initModality(Modality.APPLICATION_MODAL);

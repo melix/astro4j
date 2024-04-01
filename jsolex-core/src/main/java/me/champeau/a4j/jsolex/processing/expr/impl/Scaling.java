@@ -17,7 +17,6 @@ package me.champeau.a4j.jsolex.processing.expr.impl;
 
 import me.champeau.a4j.jsolex.processing.util.ColorizedImageWrapper;
 import me.champeau.a4j.jsolex.processing.util.FileBackedImage;
-import me.champeau.a4j.jsolex.processing.util.ForkJoinContext;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 import me.champeau.a4j.jsolex.processing.util.RGBImage;
@@ -37,17 +36,17 @@ public class Scaling extends AbstractFunctionImpl {
     private final EllipseFit ellipseFit;
     private final Crop crop;
 
-    public Scaling(ForkJoinContext forkJoinContext, Map<Class<?>, Object> context, Crop crop) {
-        super(forkJoinContext, context);
+    public Scaling(Map<Class<?>, Object> context, Crop crop) {
+        super(context);
         this.crop = crop;
-        ellipseFit = new EllipseFit(forkJoinContext, context);
+        ellipseFit = new EllipseFit(context);
     }
 
     public Object relativeRescale(List<Object> arguments) {
         assertExpectedArgCount(arguments, "rescale_rel takes 3 arguments (image(s), scaleX, scaleY)", 3, 3);
         var arg = arguments.get(0);
         if (arg instanceof List<?>) {
-            return expandToImageList(forkJoinContext, arguments, this::relativeRescale);
+            return expandToImageList(arguments, this::relativeRescale);
         }
         double scaleX = doubleArg(arguments, 1);
         double scaleY = doubleArg(arguments, 2);
@@ -69,7 +68,7 @@ public class Scaling extends AbstractFunctionImpl {
         assertExpectedArgCount(arguments, "rescale_abs takes 3 arguments (image(s), width, height)", 3, 3);
         var arg = arguments.get(0);
         if (arg instanceof List<?>) {
-            return expandToImageList(forkJoinContext, arguments, this::absoluteRescale);
+            return expandToImageList(arguments, this::absoluteRescale);
         }
         int width = intArg(arguments, 1);
         int height = intArg(arguments, 2);

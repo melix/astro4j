@@ -20,11 +20,8 @@ import javafx.scene.control.Tab;
 import me.champeau.a4j.jsolex.app.jfx.MultipleImagesViewer;
 import me.champeau.a4j.jsolex.processing.expr.ImageMathScriptExecutor;
 import me.champeau.a4j.jsolex.processing.params.ProcessParams;
-import me.champeau.a4j.jsolex.processing.util.ForkJoinContext;
 
 public interface JSolExInterface {
-    ForkJoinContext getCpuExecutor();
-
     MultipleImagesViewer getImagesViewer();
 
     Tab getStatsTab();
