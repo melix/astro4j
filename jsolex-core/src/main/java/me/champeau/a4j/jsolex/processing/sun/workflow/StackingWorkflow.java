@@ -32,7 +32,6 @@ import me.champeau.a4j.jsolex.processing.expr.impl.Stacking;
 import me.champeau.a4j.jsolex.processing.file.FileNamingStrategy;
 import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
 import me.champeau.a4j.jsolex.processing.util.Constants;
-import me.champeau.a4j.jsolex.processing.util.ForkJoinContext;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 import me.champeau.a4j.jsolex.processing.util.ProcessingException;
@@ -50,7 +49,6 @@ import static java.util.stream.Collectors.groupingBy;
 import static me.champeau.a4j.jsolex.processing.util.Constants.message;
 
 public class StackingWorkflow {
-    private final ForkJoinContext forkJoinContext;
     private final Broadcaster broadcaster;
     private final FileNamingStrategy namingStrategy;
     private final Crop crop;
@@ -61,17 +59,16 @@ public class StackingWorkflow {
     private final MosaicComposition mosaicComposition;
     private final Map<Class<?>, Object> context;
 
-    public StackingWorkflow(ForkJoinContext forkJoinContext, Broadcaster broadcaster, FileNamingStrategy namingStrategy) {
-        this.forkJoinContext = forkJoinContext;
+    public StackingWorkflow(Broadcaster broadcaster, FileNamingStrategy namingStrategy) {
         this.broadcaster = broadcaster;
         this.namingStrategy = namingStrategy;
         this.context = Map.of(Broadcaster.class, broadcaster);
-        this.crop = new Crop(forkJoinContext, context);
-        this.ellipseFit = new EllipseFit(forkJoinContext, context);
-        this.geometryCorrector = new GeometryCorrection(forkJoinContext, context, ellipseFit);
-        this.scaling = new Scaling(forkJoinContext, context, crop);
-        this.stacking = new Stacking(forkJoinContext, context, scaling, crop, broadcaster);
-        this.mosaicComposition = new MosaicComposition(forkJoinContext, context, broadcaster, stacking, ellipseFit, scaling);
+        this.crop = new Crop(context);
+        this.ellipseFit = new EllipseFit(context);
+        this.geometryCorrector = new GeometryCorrection(context, ellipseFit);
+        this.scaling = new Scaling(context, crop);
+        this.stacking = new Stacking(context, scaling, crop, broadcaster);
+        this.mosaicComposition = new MosaicComposition(context, broadcaster, stacking, ellipseFit, scaling);
     }
 
     public void execute(Parameters parameters, List<Panel> panels, File outputDirectory) {
@@ -91,7 +88,6 @@ public class StackingWorkflow {
     private void executeScript(File scriptFile, File outputDirectory, Object images) {
         Map<Class, Object> ctx = new HashMap<>(context);
         var evaluator = new DefaultImageScriptExecutor(
-            forkJoinContext,
             d -> ImageWrapper32.createEmpty(),
             ctx,
             broadcaster

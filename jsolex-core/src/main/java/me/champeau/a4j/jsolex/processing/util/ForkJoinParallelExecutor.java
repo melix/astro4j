@@ -33,7 +33,8 @@ public class ForkJoinParallelExecutor implements AutoCloseable, ForkJoinContext 
     private final ExecutionContext executionContext;
 
     private ForkJoinParallelExecutor() {
-        this(Runtime.getRuntime().availableProcessors());
+//        this(Math.max(2, Runtime.getRuntime().availableProcessors()));
+        this(1);
     }
 
     private ForkJoinParallelExecutor(int maxParallel) {

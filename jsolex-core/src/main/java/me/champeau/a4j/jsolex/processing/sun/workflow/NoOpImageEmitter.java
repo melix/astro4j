@@ -26,30 +26,24 @@ import java.util.function.Supplier;
  * An image enitter which doesn't generate any image.
  */
 public class NoOpImageEmitter implements ImageEmitter {
-    private static final Supplier<Void> RESULT = () -> null;
 
     @Override
-    public Supplier<Void> newMonoImage(GeneratedImageKind kind, String title, String name, ImageWrapper32 image, Consumer<? super float[]> bufferConsumer) {
-        return RESULT;
+    public void newMonoImage(GeneratedImageKind kind, String title, String name, ImageWrapper32 image, Consumer<? super float[]> bufferConsumer) {
     }
 
     @Override
-    public Supplier<Void> newMonoImage(GeneratedImageKind kind, String title, String name, ImageWrapper32 image) {
-        return RESULT;
+    public void newMonoImage(GeneratedImageKind kind, String title, String name, ImageWrapper32 image) {
     }
 
     @Override
-    public Supplier<Void> newColorImage(GeneratedImageKind kind, String title, String name, ImageWrapper32 image, Function<float[], float[][]> rgbSupplier) {
-        return RESULT;
+    public void newColorImage(GeneratedImageKind kind, String title, String name, ImageWrapper32 image, Function<float[], float[][]> rgbSupplier) {
     }
 
     @Override
-    public Supplier<Void> newColorImage(GeneratedImageKind kind, String title, String name, int width, int height, Supplier<float[][]> rgbSupplier) {
-        return RESULT;
+    public void newColorImage(GeneratedImageKind kind, String title, String name, int width, int height, Supplier<float[][]> rgbSupplier) {
     }
 
     @Override
-    public Supplier<Void> newGenericFile(GeneratedImageKind kind, String title, String name, Path file) {
-        return RESULT;
+    public void newGenericFile(GeneratedImageKind kind, String title, String name, Path file) {
     }
 }

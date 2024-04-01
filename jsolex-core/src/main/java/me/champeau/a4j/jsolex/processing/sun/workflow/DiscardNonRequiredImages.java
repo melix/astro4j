@@ -27,7 +27,6 @@ import java.util.function.Supplier;
  * Filters generated images by step.
  */
 public class DiscardNonRequiredImages implements ImageEmitter {
-    private static final Supplier<Void> VOID = () -> null;
     private final ImageEmitter delegate;
     private final Set<GeneratedImageKind> allowed;
 
@@ -37,11 +36,11 @@ public class DiscardNonRequiredImages implements ImageEmitter {
     }
 
     @Override
-    public Supplier<Void> newMonoImage(GeneratedImageKind kind, String title, String name, ImageWrapper32 image, Consumer<? super float[]> bufferConsumer) {
+    public void newMonoImage(GeneratedImageKind kind, String title, String name, ImageWrapper32 image, Consumer<? super float[]> bufferConsumer) {
         if (discard(kind)) {
-            return VOID;
+            return;
         }
-        return delegate.newMonoImage(kind, title, name, image, bufferConsumer);
+        delegate.newMonoImage(kind, title, name, image, bufferConsumer);
     }
 
     private boolean discard(GeneratedImageKind kind) {
@@ -49,34 +48,34 @@ public class DiscardNonRequiredImages implements ImageEmitter {
     }
 
     @Override
-    public Supplier<Void> newMonoImage(GeneratedImageKind kind, String title, String name, ImageWrapper32 image) {
+    public void newMonoImage(GeneratedImageKind kind, String title, String name, ImageWrapper32 image) {
         if (discard(kind)) {
-            return VOID;
+            return;
         }
-        return delegate.newMonoImage(kind, title, name, image);
+        delegate.newMonoImage(kind, title, name, image);
     }
 
     @Override
-    public Supplier<Void> newColorImage(GeneratedImageKind kind, String title, String name, ImageWrapper32 image, Function<float[], float[][]> rgbSupplier) {
+    public void newColorImage(GeneratedImageKind kind, String title, String name, ImageWrapper32 image, Function<float[], float[][]> rgbSupplier) {
         if (discard(kind)) {
-            return VOID;
+            return;
         }
-        return delegate.newColorImage(kind, title, name, image, rgbSupplier);
+        delegate.newColorImage(kind, title, name, image, rgbSupplier);
     }
 
     @Override
-    public Supplier<Void> newColorImage(GeneratedImageKind kind, String title, String name, int width, int height, Supplier<float[][]> rgbSupplier) {
+    public void newColorImage(GeneratedImageKind kind, String title, String name, int width, int height, Supplier<float[][]> rgbSupplier) {
         if (discard(kind)) {
-            return VOID;
+            return;
         }
-        return delegate.newColorImage(kind, title, name, width, height, rgbSupplier);
+        delegate.newColorImage(kind, title, name, width, height, rgbSupplier);
     }
 
     @Override
-    public Supplier<Void> newGenericFile(GeneratedImageKind kind, String title, String name, Path file) {
+    public void newGenericFile(GeneratedImageKind kind, String title, String name, Path file) {
         if (discard(kind)) {
-            return VOID;
+            return;
         }
-        return delegate.newGenericFile(kind, title, name, file);
+        delegate.newGenericFile(kind, title, name, file);
     }
 }

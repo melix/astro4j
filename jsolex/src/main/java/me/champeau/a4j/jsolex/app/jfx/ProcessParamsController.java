@@ -55,7 +55,6 @@ import me.champeau.a4j.jsolex.processing.params.VideoParams;
 import me.champeau.a4j.jsolex.processing.stretching.ClaheStrategy;
 import me.champeau.a4j.jsolex.processing.sun.workflow.GeneratedImageKind;
 import me.champeau.a4j.jsolex.processing.util.Constants;
-import me.champeau.a4j.jsolex.processing.util.ForkJoinContext;
 import me.champeau.a4j.jsolex.processing.util.ImageFormat;
 import me.champeau.a4j.math.image.Deconvolution;
 import me.champeau.a4j.math.tuples.DoublePair;
@@ -173,13 +172,11 @@ public class ProcessParamsController {
     private Header serFileHeader;
     private ProcessParams initialProcessParams;
     private ProcessParams processParams;
-    private ForkJoinContext forkJoinContext;
 
-    public void setup(Stage stage, ForkJoinContext forkJoinContext, Header serFileHeader, boolean batchMode, HostServices hostServices) {
+    public void setup(Stage stage, Header serFileHeader, boolean batchMode, HostServices hostServices) {
         this.stage = stage;
         this.serFileHeader = serFileHeader;
         this.hostServices = hostServices;
-        this.forkJoinContext = forkJoinContext;
         this.initialProcessParams = ProcessParams.loadDefaults();
         this.batchMode = batchMode;
         accordion.setExpandedPane(accordion.getPanes().get(0));
@@ -395,7 +392,6 @@ public class ProcessParamsController {
             var controller = (ImageSelector) fxmlLoader.getController();
             controller.setup(
                 stage,
-                forkJoinContext,
                 initialProcessParams.requestedImages().images(),
                 generateDebugImages.isSelected(),
                 List.of(getPixelShiftAsDouble()),

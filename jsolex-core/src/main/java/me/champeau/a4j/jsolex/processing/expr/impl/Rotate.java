@@ -36,8 +36,8 @@ import static me.champeau.a4j.jsolex.processing.expr.impl.ScriptSupport.expandTo
 public class Rotate extends AbstractFunctionImpl {
     private final ImageMath imageMath = ImageMath.newInstance();
 
-    public Rotate(ForkJoinContext forkJoinContext, Map<Class<?>, Object> context) {
-        super(forkJoinContext, context);
+    public Rotate(Map<Class<?>, Object> context) {
+        super(context);
     }
 
     public Object rotateLeft(List<Object> arguments) {
@@ -77,7 +77,7 @@ public class Rotate extends AbstractFunctionImpl {
     private Object doRotate(List<Object> arguments, double angle) {
         var arg = arguments.get(0);
         if (arg instanceof List<?>) {
-            return expandToImageList(forkJoinContext, arguments, this::rotateRadians);
+            return expandToImageList(arguments, this::rotateRadians);
         }
         if (arg instanceof FileBackedImage fileBackedImage) {
             arg = fileBackedImage.unwrapToMemory();

@@ -31,8 +31,8 @@ import java.util.Map;
 import static me.champeau.a4j.jsolex.processing.expr.impl.ScriptSupport.expandToImageList;
 
 public class EllipseFit extends AbstractFunctionImpl {
-    public EllipseFit(ForkJoinContext forkJoinContext, Map<Class<?>, Object> context) {
-        super(forkJoinContext, context);
+    public EllipseFit(Map<Class<?>, Object> context) {
+        super(context);
     }
 
     public Object fit(List<Object> arguments) {
@@ -41,7 +41,7 @@ public class EllipseFit extends AbstractFunctionImpl {
         }
         var arg = arguments.get(0);
         if (arg instanceof List<?>) {
-            return expandToImageList(forkJoinContext, arguments, this::fit);
+            return expandToImageList(arguments, this::fit);
         }
         if (arg instanceof FileBackedImage fileBackedImage) {
             arg = fileBackedImage.unwrapToMemory();

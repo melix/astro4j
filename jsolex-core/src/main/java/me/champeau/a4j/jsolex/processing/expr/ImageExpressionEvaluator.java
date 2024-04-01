@@ -24,8 +24,8 @@ import java.util.function.Function;
 public class ImageExpressionEvaluator extends AbstractImageExpressionEvaluator {
     private final Function<Double, ImageWrapper> images;
 
-    public ImageExpressionEvaluator(ForkJoinContext forkJoinContext, Broadcaster broadcaster, Function<Double, ImageWrapper> images) {
-        super(forkJoinContext, broadcaster);
+    public ImageExpressionEvaluator(Broadcaster broadcaster, Function<Double, ImageWrapper> images) {
+        super(broadcaster);
         this.images = images;
     }
 

@@ -47,9 +47,9 @@ import me.champeau.a4j.jsolex.processing.params.RotationKind;
 import me.champeau.a4j.jsolex.processing.stretching.ContrastAdjustmentStrategy;
 import me.champeau.a4j.jsolex.processing.sun.ImageUtils;
 import me.champeau.a4j.jsolex.processing.sun.workflow.GeneratedImageKind;
+import me.champeau.a4j.jsolex.processing.util.BackgroundOperations;
 import me.champeau.a4j.jsolex.processing.util.ColorizedImageWrapper;
 import me.champeau.a4j.jsolex.processing.util.FileBackedImage;
-import me.champeau.a4j.jsolex.processing.util.ForkJoinContext;
 import me.champeau.a4j.jsolex.processing.util.ImageFormat;
 import me.champeau.a4j.jsolex.processing.util.ImageSaver;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
@@ -66,10 +66,13 @@ import java.util.EnumSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantLock;
 
 import static me.champeau.a4j.jsolex.app.JSolEx.message;
 
 public class ImageViewer {
+    private final Lock displayLock = new ReentrantLock();
     private Node root;
     private Stage stage;
     private ContrastAdjustmentStrategy stretchingStrategy = ContrastAdjustmentStrategy.DEFAULT.withNormalize(true);
@@ -90,7 +93,6 @@ public class ImageViewer {
 
     private CheckBox correctAngleP;
     private Button saveButton;
-    private ForkJoinContext forkJoinContext;
     private String title;
     private Runnable onDisplayUpdate;
 
@@ -98,9 +100,8 @@ public class ImageViewer {
     private final IntegerProperty currentImage = new SimpleIntegerProperty(0);
     private Set<ImageViewer> siblings;
 
-    public void init(Node root, ForkJoinContext cpuExecutor) {
+    public void init(Node root) {
         this.root = root;
-        this.forkJoinContext = cpuExecutor;
     }
 
     public DoubleProperty fitWidthProperty() {
@@ -125,38 +126,40 @@ public class ImageViewer {
             this.image = image instanceof FileBackedImage fbi ? fbi.unwrapToMemory() : image;
             this.imageFile = new File(imageName.getParentFile(), baseName + "_" + imageName.getName() + imageDisplayExtension(params));
             recordImage(baseName, image);
-            configureStretching();
-            if (params.extraParams().autosave()) {
-                saveImage(imageFile);
-            }
-            if (!popupViews.containsKey(title)) {
-                var openInNewWindow = new MenuItem(message("open.new.window"));
-                openInNewWindow.setOnAction(e -> {
-                    try {
-                        var fxmlLoader = I18N.fxmlLoader(JSolEx.class, "imageview");
-                        var node = (Node) fxmlLoader.load();
-                        var controller = (ImageViewer) fxmlLoader.getController();
-                        controller.init(node, forkJoinContext);
-                        controller.setup(new ProcessingEventListener() {
-                        }, title, baseName, kind, image, imageFile, processParams, popupViews, siblings);
-                        var stage = new Stage();
-                        var scene = new Scene((Parent) node);
-                        controller.stage = stage;
-                        controller.saveButton.setVisible(false);
-                        controller.fitWidthProperty().bind(stage.widthProperty());
-                        controller.updateTitle();
-                        stage.setWidth(1024);
-                        stage.setHeight(768);
-                        stage.setScene(scene);
-                        stage.setOnCloseRequest(evt -> popupViews.remove(title));
-                        stage.show();
-                        popupViews.put(title, controller);
-                    } catch (IOException ex) {
-                        throw new ProcessingException(ex);
-                    }
-                });
-                imageView.getCtxMenu().getItems().add(openInNewWindow);
-            }
+            BackgroundOperations.async(() -> {
+                configureStretching();
+                if (params.extraParams().autosave()) {
+                    saveImage(imageFile);
+                }
+                if (!popupViews.containsKey(title)) {
+                    var openInNewWindow = new MenuItem(message("open.new.window"));
+                    openInNewWindow.setOnAction(e -> {
+                        try {
+                            var fxmlLoader = I18N.fxmlLoader(JSolEx.class, "imageview");
+                            var node = (Node) fxmlLoader.load();
+                            var controller = (ImageViewer) fxmlLoader.getController();
+                            controller.init(node);
+                            controller.setup(new ProcessingEventListener() {
+                            }, title, baseName, kind, image, imageFile, processParams, popupViews, siblings);
+                            var stage = new Stage();
+                            var scene = new Scene((Parent) node);
+                            controller.stage = stage;
+                            controller.saveButton.setVisible(false);
+                            controller.fitWidthProperty().bind(stage.widthProperty());
+                            controller.updateTitle();
+                            stage.setWidth(1024);
+                            stage.setHeight(768);
+                            stage.setScene(scene);
+                            stage.setOnCloseRequest(evt -> popupViews.remove(title));
+                            stage.show();
+                            popupViews.put(title, controller);
+                        } catch (IOException ex) {
+                            throw new ProcessingException(ex);
+                        }
+                    });
+                    imageView.getCtxMenu().getItems().add(openInNewWindow);
+                }
+            });
         }
     }
 
@@ -188,15 +191,13 @@ public class ImageViewer {
     }
 
     private void saveImage(File target) {
-        forkJoinContext.async(() -> {
-            imageView.setImagePath(target.toPath());
-            var image = maybeRotate(this.image);
-            new ImageSaver(stretchingStrategy, processParams).save(image, target);
-            BatchOperations.submit(() -> {
-                imageView.setImage(new Image(imageFile.toURI().toString()));
-                saveButton.setDisable(true);
-                imageView.fileSaved();
-            });
+        imageView.setImagePath(target.toPath());
+        var image = maybeRotate(this.image);
+        new ImageSaver(stretchingStrategy, processParams).save(image, target);
+        BatchOperations.submit(() -> {
+            imageView.setImage(new Image(imageFile.toURI().toString()));
+            saveButton.setDisable(true);
+            imageView.fileSaved();
         });
     }
 
@@ -355,9 +356,10 @@ public class ImageViewer {
     }
 
     private void stretchAndDisplay(boolean resetZoom) {
-        forkJoinContext.async(() -> {
-            File tmpImage = createTmpFile();
-            Runnable updateDisplay = () -> {
+        File tmpImage = createTmpFile();
+        Runnable updateDisplay = () -> {
+            try {
+                displayLock.lock();
                 if (displayImage != null) {
                     dimensions.setText(displayImage.width() + "x" + displayImage.height());
                 }
@@ -370,38 +372,34 @@ public class ImageViewer {
                 if (onDisplayUpdate != null) {
                     onDisplayUpdate.run();
                 }
-            };
-            var imageFormats = EnumSet.of(ImageFormat.PNG);
-            // For some reason the image doesn't look as good when using PixelWriter
-            // so we write the image in a tmp file and load it from here.
-            displayImage = maybeRotate(this.image);
-            if (displayImage instanceof ImageWrapper32 mono) {
-                var stretched = stretch(mono.width(), mono.height(), mono.data());
-                stretchedImage = new ImageWrapper32(mono.width(), mono.height(), stretched, mono.metadata());
-                forkJoinContext.async(() -> {
-                    ImageUtils.writeMonoImage(mono.width(), mono.height(), stretched, tmpImage, imageFormats);
-                    BatchOperations.submit(updateDisplay);
-                });
-            } else if (displayImage instanceof ColorizedImageWrapper colorImage) {
-                var stretched = stretch(colorImage.width(), colorImage.height(), colorImage.mono().data());
-                stretchedImage = new ColorizedImageWrapper(new ImageWrapper32(colorImage.width(), colorImage.height(), stretched, colorImage.metadata()), colorImage.converter(), colorImage.metadata());
-                var rgb = colorImage.converter().apply(stretched);
-                var r = rgb[0];
-                var g = rgb[1];
-                var b = rgb[2];
-                forkJoinContext.async(() -> {
-                    ImageUtils.writeRgbImage(colorImage.width(), colorImage.height(), r, g, b, tmpImage, imageFormats);
-                    BatchOperations.submit(updateDisplay);
-                });
-            } else if (displayImage instanceof RGBImage rgb) {
-                var stretched = stretch(rgb.width(), rgb.height(), rgb.r(), rgb.g(), rgb.b());
-                stretchedImage = new RGBImage(rgb.width(), rgb.height(), stretched[0], stretched[1], stretched[2], rgb.metadata());
-                forkJoinContext.async(() -> {
-                    ImageUtils.writeRgbImage(rgb.width(), rgb.height(), stretched[0], stretched[1], stretched[2], tmpImage, imageFormats);
-                    BatchOperations.submit(updateDisplay);
-                });
+            } finally {
+                displayLock.unlock();
             }
-        });
+        };
+        var imageFormats = EnumSet.of(ImageFormat.PNG);
+        // For some reason the image doesn't look as good when using PixelWriter
+        // so we write the image in a tmp file and load it from here.
+        displayImage = maybeRotate(this.image);
+        if (displayImage instanceof ImageWrapper32 mono) {
+            var stretched = stretch(mono.width(), mono.height(), mono.data());
+            stretchedImage = new ImageWrapper32(mono.width(), mono.height(), stretched, mono.metadata());
+            ImageUtils.writeMonoImage(mono.width(), mono.height(), stretched, tmpImage, imageFormats);
+            BatchOperations.submit(updateDisplay);
+        } else if (displayImage instanceof ColorizedImageWrapper colorImage) {
+            var stretched = stretch(colorImage.width(), colorImage.height(), colorImage.mono().data());
+            stretchedImage = new ColorizedImageWrapper(new ImageWrapper32(colorImage.width(), colorImage.height(), stretched, colorImage.metadata()), colorImage.converter(), colorImage.metadata());
+            var rgb = colorImage.converter().apply(stretched);
+            var r = rgb[0];
+            var g = rgb[1];
+            var b = rgb[2];
+            ImageUtils.writeRgbImage(colorImage.width(), colorImage.height(), r, g, b, tmpImage, imageFormats);
+            BatchOperations.submit(updateDisplay);
+        } else if (displayImage instanceof RGBImage rgb) {
+            var stretched = stretch(rgb.width(), rgb.height(), rgb.r(), rgb.g(), rgb.b());
+            stretchedImage = new RGBImage(rgb.width(), rgb.height(), stretched[0], stretched[1], stretched[2], rgb.metadata());
+            ImageUtils.writeRgbImage(rgb.width(), rgb.height(), stretched[0], stretched[1], stretched[2], tmpImage, imageFormats);
+            BatchOperations.submit(updateDisplay);
+        }
     }
 
     private ImageWrapper maybeRotate(ImageWrapper image) {
@@ -467,10 +465,10 @@ public class ImageViewer {
     }
 
     private record ImageState(
-            ProcessParams processParams,
-            String baseName,
-            ImageWrapper image,
-            File imageFile
+        ProcessParams processParams,
+        String baseName,
+        ImageWrapper image,
+        File imageFile
     ) {
 
     }

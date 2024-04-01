@@ -53,8 +53,8 @@ public class Loader extends AbstractFunctionImpl {
             "fit"
     );
 
-    public Loader(ForkJoinContext forkJoinContext, Map<Class<?>, Object> context) {
-        super(forkJoinContext, context);
+    public Loader(Map<Class<?>, Object> context) {
+        super(context);
     }
 
     private Path workingDirectory = new File(".").getAbsoluteFile().toPath();
@@ -65,7 +65,7 @@ public class Loader extends AbstractFunctionImpl {
         }
         var arg = arguments.get(0);
         if (arg instanceof List<?>) {
-            return expandToImageList(forkJoinContext, arguments, this::load);
+            return expandToImageList(arguments, this::load);
         }
         if (arg instanceof String path) {
             var file = workingDirectory.resolve(path).toFile();

@@ -39,12 +39,12 @@ public class ShiftCollectingImageExpressionEvaluator extends ImageExpressionEval
         return (Double idx) -> map.computeIfAbsent(idx, unused -> ImageWrapper32.createEmpty());
     }
 
-    public ShiftCollectingImageExpressionEvaluator(ForkJoinContext forkJoinContext, Broadcaster broadcaster) {
-        this(forkJoinContext, broadcaster, zeroImages());
+    public ShiftCollectingImageExpressionEvaluator(Broadcaster broadcaster) {
+        this(broadcaster, zeroImages());
     }
 
-    public ShiftCollectingImageExpressionEvaluator(ForkJoinContext forkJoinContext, Broadcaster broadcaster, Function<Double, ImageWrapper> imageFactory) {
-        super(forkJoinContext, broadcaster, imageFactory);
+    public ShiftCollectingImageExpressionEvaluator(Broadcaster broadcaster, Function<Double, ImageWrapper> imageFactory) {
+        super(broadcaster, imageFactory);
     }
 
     protected ImageWrapper findImage(double shift) {
