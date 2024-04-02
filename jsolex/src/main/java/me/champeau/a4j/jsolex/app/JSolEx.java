@@ -421,7 +421,7 @@ public class JSolEx extends Application implements JSolExInterface {
             if (clearImagesCheckbox.isSelected()) {
                 BatchOperations.submit(this::newSession);
             }
-            executor.execute(text, ImageMathScriptExecutor.SectionKind.SINGLE);
+            BackgroundOperations.async(() -> executor.execute(text, ImageMathScriptExecutor.SectionKind.SINGLE));
         });
         imageMathSave.setDisable(true);
         imageMathLoad.setOnAction(evt -> {
