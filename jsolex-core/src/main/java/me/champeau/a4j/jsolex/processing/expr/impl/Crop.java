@@ -67,10 +67,10 @@ public class Crop extends AbstractFunctionImpl {
             var gi = cropMonoImage(left, top, width, height, new ImageWrapper32(rgb.width(), rgb.height(), rgb.g(), rgb.metadata()));
             var bi = cropMonoImage(left, top, width, height, new ImageWrapper32(rgb.width(), rgb.height(), rgb.b(), rgb.metadata()));
             return new RGBImage(width, height,
-                    ri.data(),
-                    gi.data(),
-                    bi.data(),
-                    ri.metadata()
+                ri.data(),
+                gi.data(),
+                bi.data(),
+                ri.metadata()
             );
         }
         throw new IllegalStateException("Unexpected image type " + img);
@@ -106,10 +106,10 @@ public class Crop extends AbstractFunctionImpl {
                 var gi = cropToRectMonoImage(width, height, new ImageWrapper32(rgb.width(), rgb.height(), rgb.g(), rgb.metadata()), sunDisk, blackPoint);
                 var bi = cropToRectMonoImage(width, height, new ImageWrapper32(rgb.width(), rgb.height(), rgb.b(), rgb.metadata()), sunDisk, blackPoint);
                 return new RGBImage(width, height,
-                        ri.data(),
-                        gi.data(),
-                        bi.data(),
-                        ri.metadata()
+                    ri.data(),
+                    gi.data(),
+                    bi.data(),
+                    ri.metadata()
                 );
             }
             throw new IllegalStateException("Unexpected image type " + img);
