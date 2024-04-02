@@ -21,7 +21,6 @@ import me.champeau.a4j.jsolex.processing.params.SpectralRayIO;
 import me.champeau.a4j.jsolex.processing.sun.ImageUtils;
 import me.champeau.a4j.jsolex.processing.util.ColorizedImageWrapper;
 import me.champeau.a4j.jsolex.processing.util.FileBackedImage;
-import me.champeau.a4j.jsolex.processing.util.ForkJoinContext;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 
 import java.util.List;
@@ -29,8 +28,8 @@ import java.util.Map;
 
 public class Colorize extends AbstractFunctionImpl {
 
-    public Colorize(ForkJoinContext forkJoinContext, Map<Class<?>, Object> context) {
-        super(forkJoinContext, context);
+    public Colorize(Map<Class<?>, Object> context) {
+        super(context);
     }
 
     public Object colorize(List<Object> arguments) {
@@ -39,7 +38,7 @@ public class Colorize extends AbstractFunctionImpl {
         }
         var arg = arguments.get(0);
         if (arg instanceof List<?>) {
-            return ScriptSupport.expandToImageList(forkJoinContext, arguments, this::colorize);
+            return ScriptSupport.expandToImageList(arguments, this::colorize);
         }
         if (arguments.size() == 7) {
             int rIn = intArg(arguments, 1);

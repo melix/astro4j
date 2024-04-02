@@ -40,7 +40,6 @@ import me.champeau.a4j.jsolex.processing.expr.impl.Stacking;
 import me.champeau.a4j.jsolex.processing.expr.impl.Stretching;
 import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
 import me.champeau.a4j.jsolex.processing.util.FileBackedImage;
-import me.champeau.a4j.jsolex.processing.util.ForkJoinContext;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 
@@ -62,7 +61,6 @@ import static me.champeau.a4j.jsolex.processing.expr.impl.ScriptSupport.applyFun
 
 public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluator {
 
-    private final ForkJoinContext forkJoinContext;
     private final Map<Class<?>, Object> context = new HashMap<>();
 
     // Function implementations
@@ -86,27 +84,26 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
     private final Stretching stretching;
     private final Stacking stacking;
 
-    protected AbstractImageExpressionEvaluator(ForkJoinContext forkJoinContext, Broadcaster broadcaster) {
-        this.forkJoinContext = forkJoinContext;
-        this.adjustContrast = new AdjustContrast(forkJoinContext, context);
-        this.animate = new Animate(forkJoinContext, context);
-        this.bgRemoval = new BackgroundRemoval(forkJoinContext, context);
-        this.clahe = new Clahe(forkJoinContext, context);
-        this.colorize = new Colorize(forkJoinContext, context);
-        this.convolution = new Convolution(forkJoinContext, context);
-        this.crop = new Crop(forkJoinContext, context);
-        this.diskFill = new DiskFill(forkJoinContext, context);
-        this.ellipseFit = new EllipseFit(forkJoinContext, context);
-        this.fixBanding = new FixBanding(forkJoinContext, context);
-        this.geometryCorrection = new GeometryCorrection(forkJoinContext, context, ellipseFit);
-        this.imageDraw = new ImageDraw(forkJoinContext, context);
-        this.loader = new Loader(forkJoinContext, context);
-        this.rotate = new Rotate(forkJoinContext, context);
-        this.saturation = new Saturation(forkJoinContext, context);
-        this.scaling = new Scaling(forkJoinContext, context, crop);
-        this.stretching = new Stretching(forkJoinContext, context);
-        this.stacking = new Stacking(forkJoinContext, context, scaling, crop, broadcaster);
-        this.mosaicComposition = new MosaicComposition(forkJoinContext, context, broadcaster, stacking, ellipseFit, scaling);
+    protected AbstractImageExpressionEvaluator(Broadcaster broadcaster) {
+        this.adjustContrast = new AdjustContrast(context);
+        this.animate = new Animate(context);
+        this.bgRemoval = new BackgroundRemoval(context);
+        this.clahe = new Clahe(context);
+        this.colorize = new Colorize(context);
+        this.convolution = new Convolution(context);
+        this.crop = new Crop(context);
+        this.diskFill = new DiskFill(context);
+        this.ellipseFit = new EllipseFit(context);
+        this.fixBanding = new FixBanding(context);
+        this.geometryCorrection = new GeometryCorrection(context, ellipseFit);
+        this.imageDraw = new ImageDraw(context);
+        this.loader = new Loader(context);
+        this.rotate = new Rotate(context);
+        this.saturation = new Saturation(context);
+        this.scaling = new Scaling(context, crop);
+        this.stretching = new Stretching(context);
+        this.stacking = new Stacking(context, scaling, crop, broadcaster);
+        this.mosaicComposition = new MosaicComposition(context, broadcaster, stacking, ellipseFit, scaling);
     }
 
     public <T> void putInContext(Class<T> key, T value) {
@@ -189,7 +186,7 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
             case FIX_BANDING -> fixBanding.fixBanding(arguments);
             case FIX_GEOMETRY -> geometryCorrection.fixGeometry(arguments);
             case IMG -> image(arguments);
-            case INVERT -> ScriptSupport.inverse(forkJoinContext, arguments);
+            case INVERT -> ScriptSupport.inverse(arguments);
             case LINEAR_STRETCH -> stretching.linearStretch(arguments);
             case LIST -> arguments;
             case LOAD -> loader.load(arguments);

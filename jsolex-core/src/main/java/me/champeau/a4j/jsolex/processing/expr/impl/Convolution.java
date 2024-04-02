@@ -35,8 +35,8 @@ public class Convolution extends AbstractFunctionImpl {
     private final ImageMath imageMath = ImageMath.newInstance();
     private final Deconvolution deconvolution = new Deconvolution(imageMath);
 
-    public Convolution(ForkJoinContext forkJoinContext, Map<Class<?>, Object> context) {
-        super(forkJoinContext, context);
+    public Convolution(Map<Class<?>, Object> context) {
+        super(context);
     }
 
     public Object sharpen(List<Object> arguments) {
@@ -53,7 +53,7 @@ public class Convolution extends AbstractFunctionImpl {
         }
         var arg = arguments.get(0);
         if (arg instanceof List<?>) {
-            return ScriptSupport.expandToImageList(forkJoinContext, arguments, this::sharpen);
+            return ScriptSupport.expandToImageList(arguments, this::sharpen);
         }
         if (arg instanceof ImageWrapper image) {
             return convolve(image, kernel);
@@ -82,7 +82,7 @@ public class Convolution extends AbstractFunctionImpl {
         assertExpectedArgCount(arguments, "rl_decon takes 1 to 4 arguments (image(s), [radius], [sigma], [iterations])", 1, 4);
         var arg = arguments.get(0);
         if (arg instanceof List<?>) {
-            return ScriptSupport.expandToImageList(forkJoinContext, arguments, this::richardsonLucy);
+            return ScriptSupport.expandToImageList(arguments, this::richardsonLucy);
         }
         if (arg instanceof ImageWrapper image) {
             if (image instanceof FileBackedImage fileBackedImage) {

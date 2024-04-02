@@ -21,6 +21,7 @@ import spock.lang.Subject
 import java.util.concurrent.Callable
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicInteger
+import java.util.function.Consumer
 
 abstract class AbstractForkJoinParallelExecutorTest extends Specification {
     @Subject
@@ -178,6 +179,24 @@ abstract class AbstractForkJoinParallelExecutorTest extends Specification {
                 }
                 true
             }
+        }
+
+        expect:
+        b.get()
+    }
+
+    def "can run an async call in a blocking one"() {
+        def b = new AtomicBoolean()
+        try (def executor = ForkJoinParallelExecutor.newExecutor()) {
+            executor.blocking({ e ->
+                // do not call .get()
+                e.async {
+                    Thread.sleep(200)
+                    b.set(true)
+                    123
+                }
+                true
+            } as Consumer)
         }
 
         expect:

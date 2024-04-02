@@ -19,7 +19,6 @@ import me.champeau.a4j.jsolex.processing.sun.crop.Cropper;
 import me.champeau.a4j.jsolex.processing.sun.workflow.ImageStats;
 import me.champeau.a4j.jsolex.processing.util.ColorizedImageWrapper;
 import me.champeau.a4j.jsolex.processing.util.FileBackedImage;
-import me.champeau.a4j.jsolex.processing.util.ForkJoinContext;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 import me.champeau.a4j.jsolex.processing.util.RGBImage;
@@ -34,8 +33,8 @@ import java.util.Optional;
 import static me.champeau.a4j.jsolex.processing.expr.impl.ScriptSupport.expandToImageList;
 
 public class Crop extends AbstractFunctionImpl {
-    public Crop(ForkJoinContext forkJoinContext, Map<Class<?>, Object> context) {
-        super(forkJoinContext, context);
+    public Crop(Map<Class<?>, Object> context) {
+        super(context);
     }
 
     public Object crop(List<Object> arguments) {
@@ -44,7 +43,7 @@ public class Crop extends AbstractFunctionImpl {
         }
         var arg = arguments.get(0);
         if (arg instanceof List<?>) {
-            return expandToImageList(forkJoinContext, arguments, this::crop);
+            return expandToImageList(arguments, this::crop);
         }
         var img = arguments.get(0);
         var left = intArg(arguments, 1);
@@ -68,10 +67,10 @@ public class Crop extends AbstractFunctionImpl {
             var gi = cropMonoImage(left, top, width, height, new ImageWrapper32(rgb.width(), rgb.height(), rgb.g(), rgb.metadata()));
             var bi = cropMonoImage(left, top, width, height, new ImageWrapper32(rgb.width(), rgb.height(), rgb.b(), rgb.metadata()));
             return new RGBImage(width, height,
-                    ri.data(),
-                    gi.data(),
-                    bi.data(),
-                    ri.metadata()
+                ri.data(),
+                gi.data(),
+                bi.data(),
+                ri.metadata()
             );
         }
         throw new IllegalStateException("Unexpected image type " + img);
@@ -81,7 +80,7 @@ public class Crop extends AbstractFunctionImpl {
         assertExpectedArgCount(arguments, "crop_rect takes 3 or 4 arguments (image(s), width, height, [ellipse])", 3, 4);
         var arg = arguments.get(0);
         if (arg instanceof List<?>) {
-            return expandToImageList(forkJoinContext, arguments, this::cropToRect);
+            return expandToImageList(arguments, this::cropToRect);
         }
         var img = arguments.get(0);
         var width = intArg(arguments, 1);
@@ -107,10 +106,10 @@ public class Crop extends AbstractFunctionImpl {
                 var gi = cropToRectMonoImage(width, height, new ImageWrapper32(rgb.width(), rgb.height(), rgb.g(), rgb.metadata()), sunDisk, blackPoint);
                 var bi = cropToRectMonoImage(width, height, new ImageWrapper32(rgb.width(), rgb.height(), rgb.b(), rgb.metadata()), sunDisk, blackPoint);
                 return new RGBImage(width, height,
-                        ri.data(),
-                        gi.data(),
-                        bi.data(),
-                        ri.metadata()
+                    ri.data(),
+                    gi.data(),
+                    bi.data(),
+                    ri.metadata()
                 );
             }
             throw new IllegalStateException("Unexpected image type " + img);
@@ -146,7 +145,7 @@ public class Crop extends AbstractFunctionImpl {
         assertExpectedArgCount(arguments, "autocrop takes 1 or 2 arguments (image(s), [ellipse])", 1, 2);
         var arg = arguments.get(0);
         if (arg instanceof List<?>) {
-            return expandToImageList(forkJoinContext, arguments, this::autocrop);
+            return expandToImageList(arguments, this::autocrop);
         }
         var ellipse = getEllipse(arguments, 1);
         return doAutocrop(arg, ellipse, null, null);
@@ -170,9 +169,9 @@ public class Crop extends AbstractFunctionImpl {
                     .max()
                     .orElse(0);
                 maxDimension = (int) Math.ceil(maxDimension / 16d) * 16;
-                return expandToImageList(forkJoinContext, List.of(images, maxDimension, maxDimension), this::cropToRect);
+                return expandToImageList(List.of(images, maxDimension, maxDimension), this::cropToRect);
             }
-            return expandToImageList(forkJoinContext, arguments, this::autocrop2);
+            return expandToImageList(arguments, this::autocrop2);
         }
         var factor = doubleArg(arguments, 1);
         int rounding = 16;

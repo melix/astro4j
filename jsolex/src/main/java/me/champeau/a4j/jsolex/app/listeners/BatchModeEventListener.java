@@ -53,7 +53,6 @@ import java.io.IOException;
 import java.io.StringWriter;
 import java.nio.charset.Charset;
 import java.nio.file.Files;
-import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -103,21 +102,20 @@ public class BatchModeEventListener implements ProcessingEventListener, ImageMat
         var image = payload.image();
         var kind = payload.kind();
         var target = payload.path().toFile();
-        owner.getCpuExecutor().async(() -> {
-            var img = image;
-            double correction =0;
-            if (!kind.shouldRotateImage()) {
-                correction = image.findMetadata(RotationKind.class).orElseGet(() -> processParams.geometryParams().rotation()).angle();
-                if (processParams.geometryParams().isAutocorrectAngleP()) {
-                    correction += SolarParametersUtils.computeSolarParams(processParams.observationDetails().date().toLocalDateTime()).p();
-                }
+
+        var img = image;
+        double correction = 0;
+        if (!kind.shouldRotateImage()) {
+            correction = image.findMetadata(RotationKind.class).orElseGet(() -> processParams.geometryParams().rotation()).angle();
+            if (processParams.geometryParams().isAutocorrectAngleP()) {
+                correction += SolarParametersUtils.computeSolarParams(processParams.observationDetails().date().toLocalDateTime()).p();
             }
-            if (correction != 0) {
-                img = RotationCorrector.rotate(img, correction);
-            }
-            new ImageSaver(RangeExpansionStrategy.DEFAULT, processParams).save(img, target);
-            item.generatedFiles().add(target);
-        });
+        }
+        if (correction != 0) {
+            img = RotationCorrector.rotate(img, correction);
+        }
+        new ImageSaver(RangeExpansionStrategy.DEFAULT, processParams).save(img, target);
+        item.generatedFiles().add(target);
     }
 
     @Override
@@ -164,28 +162,25 @@ public class BatchModeEventListener implements ProcessingEventListener, ImageMat
         if (scriptFiles.isEmpty()) {
             return;
         }
-        owner.getCpuExecutor().blocking(() -> {
-            batchScriptExecutor = new JSolExScriptExecutor(
-                    owner.getCpuExecutor(),
-                    idx -> {
-                        throw new IllegalStateException("Cannot call img() in batch outputs. Use variables to store images instead");
-                    },
-                    MutableMap.of(),
-                    null
-            );
-            for (Map.Entry<String, List<ImageWrapper>> entry : imagesByLabel.entrySet()) {
-                batchScriptExecutor.putVariable(entry.getKey(), entry.getValue());
+        batchScriptExecutor = new JSolExScriptExecutor(
+            idx -> {
+                throw new IllegalStateException("Cannot call img() in batch outputs. Use variables to store images instead");
+            },
+            MutableMap.of(),
+            null
+        );
+        for (Map.Entry<String, List<ImageWrapper>> entry : imagesByLabel.entrySet()) {
+            batchScriptExecutor.putVariable(entry.getKey(), entry.getValue());
+        }
+        var namingStrategy = createNamingStrategy();
+        boolean initial = true;
+        for (File scriptFile : scriptFiles) {
+            if (initial) {
+                owner.prepareForScriptExecution(this, processParams);
+                initial = false;
             }
-            var namingStrategy = createNamingStrategy();
-            boolean initial = true;
-            for (File scriptFile : scriptFiles) {
-                if (initial) {
-                    owner.prepareForScriptExecution(this, processParams);
-                    initial = false;
-                }
-                executeBatchScript(namingStrategy, scriptFile);
-            }
-        });
+            executeBatchScript(namingStrategy, scriptFile);
+        }
     }
 
 
@@ -208,30 +203,26 @@ public class BatchModeEventListener implements ProcessingEventListener, ImageMat
     }
 
     private void renderBatchOutputs(FileNamingStrategy namingStrategy, ImageMathScriptResult result) {
-        for (Map.Entry<String, ImageWrapper> entry : result.imagesByLabel().entrySet()) {
-            owner.getCpuExecutor().async(() -> {
-                var name = namingStrategy.render(0, Constants.TYPE_PROCESSED, entry.getKey(), "batch");
-                var outputFile = new File(outputDirectory, name);
-                delegate.onImageGenerated(new ImageGeneratedEvent(
-                        new GeneratedImage(GeneratedImageKind.IMAGE_MATH, entry.getKey(), outputFile.toPath(), entry.getValue())
-                ));
+        result.imagesByLabel().entrySet().stream().parallel().forEach(entry -> {
+            var name = namingStrategy.render(0, Constants.TYPE_PROCESSED, entry.getKey(), "batch");
+            var outputFile = new File(outputDirectory, name);
+            delegate.onImageGenerated(new ImageGeneratedEvent(
+                new GeneratedImage(GeneratedImageKind.IMAGE_MATH, entry.getKey(), outputFile.toPath(), entry.getValue())
+            ));
 
-            });
-        }
-        for (Map.Entry<String, Path> entry : result.filesByLabel().entrySet()) {
-            owner.getCpuExecutor().async(() -> {
-                var name = namingStrategy.render(0, Constants.TYPE_PROCESSED, entry.getKey(), "batch");
-                try {
-                    var fileName = entry.getValue().toFile().getName();
-                    var ext = fileName.substring(fileName.lastIndexOf("."));
-                    var targetPath = new File(outputDirectory, name + ext).toPath();
-                    Files.move(entry.getValue(), targetPath, StandardCopyOption.REPLACE_EXISTING);
-                    delegate.onFileGenerated(FileGeneratedEvent.of(entry.getKey(), targetPath));
-                } catch (IOException e) {
-                    throw new ProcessingException(e);
-                }
-            });
-        }
+        });
+        result.filesByLabel().entrySet().stream().parallel().forEach(entry -> {
+            var name = namingStrategy.render(0, Constants.TYPE_PROCESSED, entry.getKey(), "batch");
+            try {
+                var fileName = entry.getValue().toFile().getName();
+                var ext = fileName.substring(fileName.lastIndexOf("."));
+                var targetPath = new File(outputDirectory, name + ext).toPath();
+                Files.move(entry.getValue(), targetPath, StandardCopyOption.REPLACE_EXISTING);
+                delegate.onFileGenerated(FileGeneratedEvent.of(entry.getKey(), targetPath));
+            } catch (IOException e) {
+                throw new ProcessingException(e);
+            }
+        });
     }
 
     @Override
@@ -240,7 +231,7 @@ public class BatchModeEventListener implements ProcessingEventListener, ImageMat
             var images = e.getPayload().imagesByLabel();
             for (Map.Entry<String, ImageWrapper> entry : images.entrySet()) {
                 imagesByLabel.computeIfAbsent(entry.getKey(), unused -> new ArrayList<>())
-                        .add(entry.getValue());
+                    .add(entry.getValue());
             }
         }
     }
@@ -262,11 +253,11 @@ public class BatchModeEventListener implements ProcessingEventListener, ImageMat
 
     private FileNamingStrategy createNamingStrategy() {
         return new FileNamingStrategy(
-                processParams.extraParams().fileNamePattern(),
-                processParams.extraParams().datetimeFormat(),
-                processParams.extraParams().dateFormat(),
-                processingDate,
-                header
+            processParams.extraParams().fileNamePattern(),
+            processParams.extraParams().datetimeFormat(),
+            processParams.extraParams().dateFormat(),
+            processingDate,
+            header
         );
     }
 
@@ -287,10 +278,10 @@ public class BatchModeEventListener implements ProcessingEventListener, ImageMat
     public void onNotification(NotificationEvent e) {
         synchronized (item) {
             item.log()
-                    .append(e.type()).append(": ")
-                    .append(e.title()).append(" ")
-                    .append(e.header()).append(" ")
-                    .append(e.message()).append("\n");
+                .append(e.type()).append(": ")
+                .append(e.title()).append(" ")
+                .append(e.header()).append(" ")
+                .append(e.message()).append("\n");
         }
         if (e.type() == Notification.AlertType.ERROR) {
             item.status().set(JSolEx.message("batch.error"));
@@ -309,20 +300,20 @@ public class BatchModeEventListener implements ProcessingEventListener, ImageMat
         var errorCount = invalidExpressions.size();
         if (errorCount > 0) {
             String message = invalidExpressions.stream()
-                    .map(invalidExpression -> "Expression '" + invalidExpression.label() + "' (" + invalidExpression.expression() + ") : " + invalidExpression.error().getMessage())
-                    .collect(Collectors.joining(System.lineSeparator()));
+                .map(invalidExpression -> "Expression '" + invalidExpression.label() + "' (" + invalidExpression.expression() + ") : " + invalidExpression.error().getMessage())
+                .collect(Collectors.joining(System.lineSeparator()));
             String details = invalidExpressions.stream()
-                    .map(invalidExpression -> {
-                        var sb = new StringWriter();
-                        invalidExpression.error().printStackTrace(new java.io.PrintWriter(sb));
-                        return sb.toString();
-                    })
-                    .collect(Collectors.joining("\n"));
+                .map(invalidExpression -> {
+                    var sb = new StringWriter();
+                    invalidExpression.error().printStackTrace(new java.io.PrintWriter(sb));
+                    return sb.toString();
+                })
+                .collect(Collectors.joining("\n"));
             delegate.onNotification(new NotificationEvent(new Notification(
-                    Notification.AlertType.ERROR,
-                    JSolEx.message("error.processing.script"),
-                    JSolEx.message("script.errors." + (errorCount == 1 ? "single" : "many")),
-                    message
+                Notification.AlertType.ERROR,
+                JSolEx.message("error.processing.script"),
+                JSolEx.message("script.errors." + (errorCount == 1 ? "single" : "many")),
+                message
             )));
         }
     }

@@ -53,9 +53,9 @@ import me.champeau.a4j.jsolex.processing.sun.workflow.ProcessingWorkflow;
 import me.champeau.a4j.jsolex.processing.sun.workflow.RenamingImageEmitter;
 import me.champeau.a4j.jsolex.processing.sun.workflow.TransformationHistory;
 import me.champeau.a4j.jsolex.processing.sun.workflow.WorkflowResults;
+import me.champeau.a4j.jsolex.processing.util.BackgroundOperations;
 import me.champeau.a4j.jsolex.processing.util.Constants;
 import me.champeau.a4j.jsolex.processing.util.FileBackedImage;
-import me.champeau.a4j.jsolex.processing.util.ForkJoinContext;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 import me.champeau.a4j.jsolex.processing.util.MutableMap;
@@ -79,6 +79,7 @@ import java.nio.ByteBuffer;
 import java.nio.file.Path;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -89,10 +90,10 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
-import java.util.concurrent.Semaphore;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.DoubleUnaryOperator;
+import java.util.stream.IntStream;
 
 import static me.champeau.a4j.jsolex.processing.util.Constants.message;
 import static me.champeau.a4j.jsolex.processing.util.LoggingSupport.logError;
@@ -104,27 +105,16 @@ public class SolexVideoProcessor implements Broadcaster {
 
     private final File serFile;
     private final int sequenceNumber;
-    private final ForkJoinContext mainForkJoinContext;
-    private final ForkJoinContext ioForkJoinContext;
     private final LocalDateTime processingDate;
     private final boolean batchMode;
     private final Path outputDirectory;
     private ProcessParams processParams;
 
-    public SolexVideoProcessor(File serFile,
-                               Path outputDirectory,
-                               int sequenceNumber,
-                               ProcessParams processParametersProvider,
-                               ForkJoinContext mainForkJoinContext,
-                               ForkJoinContext ioForkJoinContext,
-                               LocalDateTime processingDate,
-                               boolean batchMode) {
+    public SolexVideoProcessor(File serFile, Path outputDirectory, int sequenceNumber, ProcessParams processParametersProvider, LocalDateTime processingDate, boolean batchMode) {
         this.serFile = serFile;
         this.outputDirectory = outputDirectory;
         this.sequenceNumber = sequenceNumber;
         this.processParams = processParametersProvider;
-        this.mainForkJoinContext = mainForkJoinContext;
-        this.ioForkJoinContext = ioForkJoinContext;
         this.processingDate = processingDate;
         this.batchMode = batchMode;
     }
@@ -134,8 +124,6 @@ public class SolexVideoProcessor implements Broadcaster {
     }
 
     public void process() {
-        mainForkJoinContext.setUncaughtExceptionHandler((t, e) -> broadcastError(e));
-        ioForkJoinContext.setUncaughtExceptionHandler((t, e) -> broadcastError(e));
         if (processParams.extraParams().autosave()) {
             File configFile = outputDirectory.resolve("config.json").toFile();
             processParams.saveTo(configFile);
@@ -146,7 +134,7 @@ public class SolexVideoProcessor implements Broadcaster {
         AtomicInteger frameCountRef = new AtomicInteger();
         AtomicReference<Header> headerRef = new AtomicReference<>();
         AtomicReference<Double> fpsRef = new AtomicReference<>();
-        ioForkJoinContext.blocking(() -> {
+        BackgroundOperations.exclusiveIO(() -> {
             try (SerFileReader reader = SerFileReader.of(serFile)) {
                 var header = reader.header();
                 broadcast(new VideoMetadataEvent(header));
@@ -184,11 +172,7 @@ public class SolexVideoProcessor implements Broadcaster {
 
     private void maybeUpdateProcessParams(Header header) {
         if (batchMode) {
-            processParams = processParams.withExtraParams(
-                    processParams.extraParams().withAutosave(true)
-            ).withObservationDetails(
-                    processParams.observationDetails().withDate(header.metadata().utcDateTime())
-            );
+            processParams = processParams.withExtraParams(processParams.extraParams().withAutosave(true)).withObservationDetails(processParams.observationDetails().withDate(header.metadata().utcDateTime()));
         }
     }
 
@@ -199,98 +183,84 @@ public class SolexVideoProcessor implements Broadcaster {
 
     private void generateImages(ImageConverter<float[]> converter, Header header, Double fps, File serFile, int start, int end, float[] averageImage) {
         List<WorkflowState> imageList = new ArrayList<>();
-        var imageNamingStrategy = new FileNamingStrategy(
-                processParams.extraParams().fileNamePattern(),
-                processParams.extraParams().datetimeFormat(),
-                processParams.extraParams().dateFormat(),
-                processingDate,
-                header
-        );
+        var imageNamingStrategy = new FileNamingStrategy(processParams.extraParams().fileNamePattern(), processParams.extraParams().datetimeFormat(), processParams.extraParams().dateFormat(), processingDate, header);
         var baseName = serFile.getName().substring(0, serFile.getName().lastIndexOf("."));
-        mainForkJoinContext.blocking(blocking -> {
-            var geometry = header.geometry();
-            int width = geometry.width();
-            int height = geometry.height();
-            int newHeight = end - start;
-            broadcast(OutputImageDimensionsDeterminedEvent.of(Constants.TYPE_RAW, width, newHeight));
-            createWorkflowStateSteps(imageList, width, newHeight);
-            var internalShifts = processParams.requestedImages().internalPixelShifts();
-            if (!internalShifts.isEmpty()) {
-                for (WorkflowState state : imageList) {
-                    if (internalShifts.contains(state.pixelShift())) {
-                        state.setInternal(true);
-                    }
+        var geometry = header.geometry();
+        int width = geometry.width();
+        int height = geometry.height();
+        int newHeight = end - start;
+        broadcast(OutputImageDimensionsDeterminedEvent.of(Constants.TYPE_RAW, width, newHeight));
+        createWorkflowStateSteps(imageList, width, newHeight);
+        var internalShifts = processParams.requestedImages().internalPixelShifts();
+        if (!internalShifts.isEmpty()) {
+            for (WorkflowState state : imageList) {
+                if (internalShifts.contains(state.pixelShift())) {
+                    state.setInternal(true);
                 }
             }
-            var maybePolynomial = findPolynomial(width, height, averageImage, imageNamingStrategy);
-            if (maybePolynomial.isPresent()) {
-                var polynomial = maybePolynomial.get();
-                var avgImage = new Image(width, height, averageImage);
-                var leftBorder = Math.max(0, start);
-                var rightBorder = Math.min(end, width);
-                if (leftBorder >= rightBorder) {
-                    // unreliable detection which happens on some SER files
-                    leftBorder = 0;
-                    rightBorder = width;
-                }
-                broadcast(new AverageImageComputedEvent(
-                    new AverageImageComputedEvent.AverageImage(avgImage, polynomial, leftBorder, rightBorder, processParams.spectrumParams().ray(), processParams.observationDetails())
-                ));
-                ioForkJoinContext.blocking(() -> {
-                    try (var reader = SerFileReader.of(serFile)) {
-                        performImageReconstruction(converter, reader, start, end, geometry, width, height, polynomial, imageList.toArray(new WorkflowState[0]));
-                    } catch (Exception e) {
-                        throw new ProcessingException(e);
-                    }
-                });
-                blocking.blocking(buildImagesContext -> {
-                    for (WorkflowState state : imageList) {
-                        buildImagesContext.async(() -> {
-                            ImageWrapper32 rotated;
-                            var recon = new Image(width, newHeight, state.reconstructed());
-                            var rotateLeft = ImageMath.newInstance().rotateLeft(recon);
-                            rotated = ImageWrapper32.fromImage(rotateLeft, createMetadata(processParams));
-                            TransformationHistory.recordTransform(rotated, message("rotate.left"));
-                            maybePerformFlips(rotated);
-                            state.setImage(rotated);
-                        });
-                    }
-                });
-                blocking.blocking(context -> {
-                    var fitting = performEllipseFitting(imageList, (broadcaster, executor1, kind, outputDirectory) -> {
-                        ImageEmitter emitter = new DefaultImageEmitter(broadcaster, context, outputDirectory.toFile());
-                        emitter = new NamingStrategyAwareImageEmitter(emitter,
-                                imageNamingStrategy,
-                                sequenceNumber,
-                                kind,
-                                baseName);
-                        return new DiscardNonRequiredImages(emitter, processParams.requestedImages().images());
-                    }, context);
-                    blocking.blocking(ctx -> {
-                        var semaphore = new Semaphore(Runtime.getRuntime().availableProcessors());
-                        for (int step = 0; step < imageList.size(); step++) {
-                            semaphore.acquireUninterruptibly();
-                            WorkflowState state = imageList.get(step);
-                            var imageEmitterFactory = new ProcessAwareImageEmitterFactory(state, imageNamingStrategy, baseName);
-                            state.recordResult(WorkflowResults.MAIN_ELLIPSE_FITTING, fitting);
-                            var workflow = new ProcessingWorkflow(this, outputDirectory, context, imageList, step, processParams, fps, imageEmitterFactory, header);
-                            ctx.async(() -> workflow.start(semaphore::release));
-                        }
-                    });
-                    if (processParams.requestedImages().isEnabled(GeneratedImageKind.DOPPLER)) {
-                        var imageEmitterFactory = new ProcessAwareImageEmitterFactory(imageList.get(0), imageNamingStrategy, baseName);
-                        var producer = new DopplerSupport(processParams, imageList, imageEmitterFactory.newEmitter(this, blocking, "processed", outputDirectory), blocking);
-                        blocking.async(producer::produceDopplerImage);
-                    }
-                    blocking.blocking(imageMathContext -> {
-                        var mathImages = processParams.requestedImages().mathImages();
-                        generateImageMaths(imageMathContext, imageNamingStrategy, baseName, imageList, mathImages);
-                    });
-                });
-            } else {
-                LOGGER.error(message("unable.find.spectral.line"));
+        }
+        var maybePolynomial = findPolynomial(width, height, averageImage, imageNamingStrategy);
+        if (maybePolynomial.isPresent()) {
+            var polynomial = maybePolynomial.get();
+            var avgImage = new Image(width, height, averageImage);
+            var leftBorder = Math.max(0, start);
+            var rightBorder = Math.min(end, width);
+            if (leftBorder >= rightBorder) {
+                // unreliable detection which happens on some SER files
+                leftBorder = 0;
+                rightBorder = width;
             }
-        });
+            broadcast(new AverageImageComputedEvent(new AverageImageComputedEvent.AverageImage(avgImage, polynomial, leftBorder, rightBorder, processParams.spectrumParams().ray(), processParams.observationDetails())));
+            BackgroundOperations.exclusiveIO(() -> {
+                try (var reader = SerFileReader.of(serFile)) {
+                    performImageReconstruction(converter, reader, start, end, geometry, width, height, polynomial, imageList.toArray(new WorkflowState[0]));
+                } catch (Exception e) {
+                    throw new ProcessingException(e);
+                }
+            });
+            imageList.stream().parallel().forEach(state -> {
+                ImageWrapper32 rotated;
+                var recon = new Image(width, newHeight, state.reconstructed());
+                var rotateLeft = ImageMath.newInstance().rotateLeft(recon);
+                rotated = ImageWrapper32.fromImage(rotateLeft, createMetadata(processParams));
+                TransformationHistory.recordTransform(rotated, message("rotate.left"));
+                maybePerformFlips(rotated);
+                state.setImage(rotated);
+            });
+            var fitting = performEllipseFitting(imageList, (broadcaster, kind, outputDirectory) -> {
+                ImageEmitter emitter = new DefaultImageEmitter(broadcaster, outputDirectory.toFile());
+                emitter = new NamingStrategyAwareImageEmitter(emitter, imageNamingStrategy, sequenceNumber, kind, baseName);
+                return new DiscardNonRequiredImages(emitter, processParams.requestedImages().images());
+            });
+            IntStream.range(0, imageList.size()).mapToObj(i -> new Object() {
+                private final WorkflowState state = imageList.get(i);
+                private final int step = i;
+            }).parallel().forEach(o -> {
+                var state = o.state;
+                var step = o.step;
+                var imageEmitterFactory = new ProcessAwareImageEmitterFactory(state, imageNamingStrategy, baseName);
+                state.recordResult(WorkflowResults.MAIN_ELLIPSE_FITTING, fitting);
+                var workflow = new ProcessingWorkflow(this, outputDirectory, imageList, step, processParams, fps, imageEmitterFactory, header);
+                workflow.start();
+            });
+            var runnables = new ArrayList<Runnable>();
+            if (processParams.requestedImages().isEnabled(GeneratedImageKind.DOPPLER)) {
+                runnables.add(() -> {
+                    var imageEmitterFactory = new ProcessAwareImageEmitterFactory(imageList.get(0), imageNamingStrategy, baseName);
+                    var producer = new DopplerSupport(processParams, imageList, imageEmitterFactory.newEmitter(this, "processed", outputDirectory));
+                    producer.produceDopplerImage();
+                });
+            }
+            runnables.add(() -> {
+                var mathImages = processParams.requestedImages().mathImages();
+                generateImageMaths(imageNamingStrategy, baseName, imageList, mathImages);
+            });
+            runnables.stream()
+                .parallel()
+                .forEach(Runnable::run);
+        } else {
+            LOGGER.error(message("unable.find.spectral.line"));
+        }
         Ellipse ellipse = null;
         ImageStats imageStats = null;
         var images = new HashMap<Double, ImageWrapper>();
@@ -308,7 +278,7 @@ public class SolexVideoProcessor implements Broadcaster {
         broadcast(ProcessingDoneEvent.of(System.nanoTime(), images, createCustomImageEmitter(imageNamingStrategy, baseName), ellipse, imageStats));
     }
 
-    private void generateImageMaths(ForkJoinContext blockingContext, FileNamingStrategy imageNamingStrategy, String baseName, List<WorkflowState> imageList, ImageMathParams mathImages) {
+    private void generateImageMaths(FileNamingStrategy imageNamingStrategy, String baseName, List<WorkflowState> imageList, ImageMathParams mathImages) {
         if (!mathImages.scriptFiles().isEmpty()) {
             var images = new HashMap<Double, ImageWrapper32>();
             Ellipse ellipse = null;
@@ -330,80 +300,58 @@ public class SolexVideoProcessor implements Broadcaster {
             }
             var emitter = createCustomImageEmitter(imageNamingStrategy, baseName);
             var circle = ellipse;
-            for (File scriptFile : mathImages.scriptFiles()) {
-                ImageStats finalImageStats = imageStats;
-                blockingContext.async(() -> {
-                    broadcast(ProgressEvent.of(0, "Running script " + scriptFile.getName()));
-                    var context = createMetadata(processParams);
-                    if (circle != null) {
-                        context.put(Ellipse.class, circle);
-                    }
-                    if (finalImageStats != null) {
-                        context.put(ImageStats.class, finalImageStats);
-                    }
-                    var scriptRunner = new DefaultImageScriptExecutor(
-                            mainForkJoinContext,
-                            images::get,
-                            Collections.unmodifiableMap(context),
-                            this);
-                    try {
-                        var result = scriptRunner.execute(scriptFile.toPath(), ImageMathScriptExecutor.SectionKind.SINGLE);
-                        ImageMathScriptExecutor.render(result, emitter);
-                        if (!result.invalidExpressions().isEmpty()) {
-                            var sb = new StringBuilder();
-                            for (InvalidExpression expression : result.invalidExpressions()) {
-                                LOGGER.error("Found invalid expression {} ({}): {}", expression.label(), expression.expression(), expression.error());
-                                sb.append("Found invalid expression %s (%s): %s%n".formatted(expression.label(), expression.expression(), expression.error())).append("\n");
-                            }
-                            broadcast(new NotificationEvent(new Notification(
-                                Notification.AlertType.ERROR,
-                                message("invalid.expressions"),
-                                message("invalid.expressions"),
-                                sb.toString()
-                            )));
+            ImageStats finalImageStats = imageStats;
+            mathImages.scriptFiles().stream().parallel().forEach(scriptFile -> {
+                broadcast(ProgressEvent.of(0, "Running script " + scriptFile.getName()));
+                var context = createMetadata(processParams);
+                if (circle != null) {
+                    context.put(Ellipse.class, circle);
+                }
+                if (finalImageStats != null) {
+                    context.put(ImageStats.class, finalImageStats);
+                }
+                var scriptRunner = new DefaultImageScriptExecutor(images::get, Collections.unmodifiableMap(context), this);
+                try {
+                    var result = scriptRunner.execute(scriptFile.toPath(), ImageMathScriptExecutor.SectionKind.SINGLE);
+                    ImageMathScriptExecutor.render(result, emitter);
+                    if (!result.invalidExpressions().isEmpty()) {
+                        var sb = new StringBuilder();
+                        for (InvalidExpression expression : result.invalidExpressions()) {
+                            LOGGER.error("Found invalid expression {} ({}): {}", expression.label(), expression.expression(), expression.error());
+                            sb.append("Found invalid expression %s (%s): %s%n".formatted(expression.label(), expression.expression(), expression.error())).append("\n");
                         }
-                        broadcast(new ScriptExecutionResultEvent(result));
-                    } catch (IOException e) {
-                        throw new ProcessingException(e);
-                    } finally {
-                        broadcast(ProgressEvent.of(1.0, "Running script " + scriptFile.getName()));
+                        broadcast(new NotificationEvent(new Notification(Notification.AlertType.ERROR, message("invalid.expressions"), message("invalid.expressions"), sb.toString())));
                     }
-                });
-            }
+                    broadcast(new ScriptExecutionResultEvent(result));
+                } catch (IOException e) {
+                    throw new ProcessingException(e);
+                } finally {
+                    broadcast(ProgressEvent.of(1.0, "Running script " + scriptFile.getName()));
+                }
+            });
         }
     }
 
     public static Map<Class<?>, Object> createMetadata(ProcessParams processParams) {
         Map<Class<?>, Object> context = new HashMap<>();
         context.put(ProcessParams.class, processParams);
-        context.put(SolarParameters.class, SolarParametersUtils.computeSolarParams(
-                processParams.observationDetails().date().toLocalDateTime()
-        ));
+        context.put(SolarParameters.class, SolarParametersUtils.computeSolarParams(processParams.observationDetails().date().toLocalDateTime()));
         return context;
     }
 
     private ImageEmitter createCustomImageEmitter(FileNamingStrategy imageNamingStrategy, String baseName) {
-        return new NamingStrategyAwareImageEmitter(new DefaultImageEmitter(this, mainForkJoinContext, outputDirectory.toFile()),
-                imageNamingStrategy,
-                sequenceNumber,
-                Constants.TYPE_CUSTOM,
-                baseName);
+        return new NamingStrategyAwareImageEmitter(new DefaultImageEmitter(this, outputDirectory.toFile()), imageNamingStrategy, sequenceNumber, Constants.TYPE_CUSTOM, baseName);
     }
 
-    private EllipseFittingTask.Result performEllipseFitting(List<WorkflowState> imageList, ImageEmitterFactory imageEmitterFactory, ForkJoinContext executor) {
-        var selected = imageList.stream()
-                .sorted(Comparator.comparing(WorkflowState::pixelShift))
-                .map(state -> {
-                    var ellipseFittingTask = new EllipseFittingTask(this, state::image, processParams, imageEmitterFactory.newEmitter(this, executor, Constants.TYPE_DEBUG, outputDirectory));
-                    try {
-                        return Optional.of(ellipseFittingTask.call());
-                    } catch (Exception e) {
-                        return Optional.<EllipseFittingTask.Result>empty();
-                    }
-                })
-                .filter(Optional::isPresent)
-                .map(Optional::get)
-                .findFirst();
+    private EllipseFittingTask.Result performEllipseFitting(List<WorkflowState> imageList, ImageEmitterFactory imageEmitterFactory) {
+        var selected = imageList.stream().sorted(Comparator.comparing(WorkflowState::pixelShift)).map(state -> {
+            var ellipseFittingTask = new EllipseFittingTask(this, state::image, processParams, imageEmitterFactory.newEmitter(this, Constants.TYPE_DEBUG, outputDirectory));
+            try {
+                return Optional.of(ellipseFittingTask.call());
+            } catch (Exception e) {
+                return Optional.<EllipseFittingTask.Result>empty();
+            }
+        }).filter(Optional::isPresent).map(Optional::get).findFirst();
         if (selected.isEmpty()) {
             LOGGER.error("Unable to perform ellipse regression");
             return null;
@@ -432,11 +380,7 @@ public class SolexVideoProcessor implements Broadcaster {
     }
 
     private void createWorkflowStateSteps(List<WorkflowState> imageList, int width, int newHeight) {
-        var list = processParams.requestedImages()
-                .pixelShifts()
-                .stream()
-                .map(i -> WorkflowState.prepare(width, newHeight, i))
-                .toList();
+        var list = processParams.requestedImages().pixelShifts().stream().map(i -> WorkflowState.prepare(width, newHeight, i)).toList();
         var detectionShift = processParams.spectrumParams().pixelShift() - 6;
         if (list.stream().noneMatch(s -> s.pixelShift() == detectionShift)) {
             // add an internal state used for edge detection only
@@ -450,34 +394,24 @@ public class SolexVideoProcessor implements Broadcaster {
 
     private void performImageReconstruction(ImageConverter<float[]> converter, SerFileReader reader, int start, int end, ImageGeometry geometry, int width, int height, DoubleUnaryOperator polynomial, WorkflowState... images) {
         LOGGER.info(message("starting.reconstruction"));
-        var semaphore = new Semaphore(Runtime.getRuntime().availableProcessors());
-        mainForkJoinContext.blocking(executor -> {
-            reader.seekFrame(start);
-            LOGGER.info(message("distortion.polynomial"), polynomial);
-            reader.seekFrame(start);
-            int totalLines = end - start;
-            for (int i = start, j = 0; i < end; i++, j += width) {
-                var currentFrame = reader.currentFrame().data().array();
-                byte[] copy = new byte[currentFrame.length];
-                System.arraycopy(currentFrame, 0, copy, 0, currentFrame.length);
-                reader.nextFrame();
-                int offset = j;
-                for (WorkflowState state : images) {
-                    int index = i;
-                    semaphore.acquireUninterruptibly();
-                    executor.async(() -> {
-                        try {
-                            var original = converter.createBuffer(geometry);
-                            // The converter makes sure we only have a single channel
-                            converter.convert(index, ByteBuffer.wrap(copy), geometry, original);
-                            processSingleFrame(state.isInternal(), width, height, state.reconstructed(), offset, original, polynomial, state.pixelShift(), totalLines);
-                        } finally {
-                            semaphore.release();
-                        }
-                    });
-                }
-            }
-        });
+        reader.seekFrame(start);
+        LOGGER.info(message("distortion.polynomial"), polynomial);
+        reader.seekFrame(start);
+        int totalLines = end - start;
+        for (int i = start, j = 0; i < end; i++, j += width) {
+            var currentFrame = reader.currentFrame().data().array();
+            byte[] copy = new byte[currentFrame.length];
+            System.arraycopy(currentFrame, 0, copy, 0, currentFrame.length);
+            reader.nextFrame();
+            int offset = j;
+            int index = i;
+            Arrays.stream(images).parallel().forEach(state -> {
+                var original = converter.createBuffer(geometry);
+                // The converter makes sure we only have a single channel
+                converter.convert(index, ByteBuffer.wrap(copy), geometry, original);
+                processSingleFrame(state.isInternal(), width, height, state.reconstructed(), offset, original, polynomial, state.pixelShift(), totalLines);
+            });
+        }
         LOGGER.info(message("processing.done.generate.images"));
     }
 
@@ -486,13 +420,9 @@ public class SolexVideoProcessor implements Broadcaster {
         analyzer.analyze(averageImage);
         var result = analyzer.findDistortionPolynomial();
         if (processParams.extraParams().generateDebugImages()) {
-            var emitter = new DiscardNonRequiredImages(new NamingStrategyAwareImageEmitter(
-                    new DefaultImageEmitter(this, mainForkJoinContext, outputDirectory.toFile()),
-                    imageNamingStrategy,
-                    0,
-                    Constants.TYPE_DEBUG,
-                    serFile.getName().substring(0, serFile.getName().lastIndexOf("."))),
-                    processParams.requestedImages().images());
+            var emitter = new DiscardNonRequiredImages(
+                new NamingStrategyAwareImageEmitter(new DefaultImageEmitter(this, outputDirectory.toFile()), imageNamingStrategy, 0, Constants.TYPE_DEBUG, serFile.getName().substring(0, serFile.getName().lastIndexOf("."))),
+                processParams.requestedImages().images());
             emitter.newColorImage(GeneratedImageKind.DEBUG, message("average"), "average", width, height, () -> {
                 var rgb = new SpectralLineFrameImageCreator(analyzer, averageImage, width, height).generateDebugImage();
                 return new float[][]{rgb.r(), rgb.g(), rgb.b()};
@@ -578,37 +508,28 @@ public class SolexVideoProcessor implements Broadcaster {
         }
 
         @Override
-        public ImageEmitter newEmitter(Broadcaster broadcaster, ForkJoinContext executor, String kind, Path outputDirectory) {
+        public ImageEmitter newEmitter(Broadcaster broadcaster, String kind, Path outputDirectory) {
             if (state.isInternal()) {
                 return new NoOpImageEmitter();
             }
-            ImageEmitter emitter = new DefaultImageEmitter(broadcaster, executor, outputDirectory.toFile());
+            ImageEmitter emitter = new DefaultImageEmitter(broadcaster, outputDirectory.toFile());
             var shift = state.pixelShift();
             if ("doppler".equals(kind)) {
-                emitter = new NamingStrategyAwareImageEmitter(emitter,
-                        imageNamingStrategy,
-                        sequenceNumber,
-                        kind,
-                        baseName);
+                emitter = new NamingStrategyAwareImageEmitter(emitter, imageNamingStrategy, sequenceNumber, kind, baseName);
             } else {
-                emitter = new NamingStrategyAwareImageEmitter(
-                        new RenamingImageEmitter(emitter, name -> {
-                            if (name.toLowerCase(Locale.US).contains("doppler")) {
-                                return name;
-                            }
-                            var suffix = shift == processParams.spectrumParams().pixelShift() ? "" : " (" + (shift == Constants.CONTINUUM_SHIFT ? "continuum" : shift) + ")";
-                            return name + suffix;
-                        }, name -> {
-                            if (name.toLowerCase(Locale.US).contains("doppler")) {
-                                return name;
-                            }
-                            var suffix = "_" + String.format(Locale.US, "%.2f", shift).replace('.', '_');
-                            return name + suffix;
-                        }),
-                        imageNamingStrategy,
-                        sequenceNumber,
-                        kind,
-                        baseName);
+                emitter = new NamingStrategyAwareImageEmitter(new RenamingImageEmitter(emitter, name -> {
+                    if (name.toLowerCase(Locale.US).contains("doppler")) {
+                        return name;
+                    }
+                    var suffix = shift == processParams.spectrumParams().pixelShift() ? "" : " (" + (shift == Constants.CONTINUUM_SHIFT ? "continuum" : shift) + ")";
+                    return name + suffix;
+                }, name -> {
+                    if (name.toLowerCase(Locale.US).contains("doppler")) {
+                        return name;
+                    }
+                    var suffix = "_" + String.format(Locale.US, "%.2f", shift).replace('.', '_');
+                    return name + suffix;
+                }), imageNamingStrategy, sequenceNumber, kind, baseName);
             }
             return new DiscardNonRequiredImages(emitter, processParams.requestedImages().images());
         }

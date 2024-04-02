@@ -24,7 +24,6 @@ import me.champeau.a4j.jsolex.processing.sun.workflow.GeneratedImageKind;
 import me.champeau.a4j.jsolex.processing.util.Constants;
 import me.champeau.a4j.jsolex.processing.util.DrawUtils;
 import me.champeau.a4j.jsolex.processing.util.FileBackedImage;
-import me.champeau.a4j.jsolex.processing.util.ForkJoinContext;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 import me.champeau.a4j.jsolex.processing.util.MutableMap;
@@ -57,6 +56,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.DoubleStream;
+import java.util.stream.IntStream;
 
 import static me.champeau.a4j.jsolex.processing.sun.workflow.AnalysisUtils.estimateBackgroundLevel;
 import static me.champeau.a4j.jsolex.processing.util.Constants.message;
@@ -76,13 +76,8 @@ public class MosaicComposition extends AbstractFunctionImpl {
     private final EllipseFit ellipseFit;
     private final Scaling scaling;
 
-    public MosaicComposition(ForkJoinContext forkJoinContext,
-                             Map<Class<?>, Object> context,
-                             Broadcaster broadcaster,
-                             Stacking stacking,
-                             EllipseFit ellipseFit,
-                             Scaling scaling) {
-        super(forkJoinContext, context);
+    public MosaicComposition(Map<Class<?>, Object> context, Broadcaster broadcaster, Stacking stacking, EllipseFit ellipseFit, Scaling scaling) {
+        super(context);
         this.broadcaster = broadcaster;
         this.stacking = stacking;
         this.ellipseFit = ellipseFit;
@@ -97,17 +92,12 @@ public class MosaicComposition extends AbstractFunctionImpl {
         assertExpectedArgCount(arguments, "mosaic takes 1, 2, or 3 arguments (image(s), [tile size], [overlap])", 1, 3);
         var arg = arguments.get(0);
         if (arg instanceof List<?> list) {
-            var images = list.stream()
-                .filter(ImageWrapper.class::isInstance)
-                .map(img -> {
-                    if (img instanceof FileBackedImage fbi) {
-                        return fbi.unwrapToMemory();
-                    }
-                    return img;
-                })
-                .filter(ImageWrapper32.class::isInstance)
-                .map(ImageWrapper32.class::cast)
-                .toList();
+            var images = list.stream().filter(ImageWrapper.class::isInstance).map(img -> {
+                if (img instanceof FileBackedImage fbi) {
+                    return fbi.unwrapToMemory();
+                }
+                return img;
+            }).filter(ImageWrapper32.class::isInstance).map(ImageWrapper32.class::cast).toList();
             if (images.isEmpty()) {
                 return List.of();
             }
@@ -134,11 +124,8 @@ public class MosaicComposition extends AbstractFunctionImpl {
     }
 
     ImageWrapper32 doMosaic(List<ImageWrapper32> images, int tileSize, float overlap) {
-        var rescaled = scaling.performRadiusRescale(images)
-            .stream()
-            .map(ImageWrapper32.class::cast)
-            .map(BackgroundRemoval::neutralizeBackground)
-            .toList();
+        var backgroundNeutralized = images.stream().map(BackgroundRemoval::neutralizeBackground).toList();
+        var rescaled = scaling.performRadiusRescale(backgroundNeutralized).stream().map(ImageWrapper32.class::cast).toList();
         var adjustment = normalizeHistograms(rescaled);
         var mosaic = doMosaicNoHistogramTransform(tileSize, overlap, adjustment.corrected(), adjustment.background(), new HashMap<>(), new HashMap<>());
         return ellipseFit.performEllipseFitting(mosaic);
@@ -171,11 +158,7 @@ public class MosaicComposition extends AbstractFunctionImpl {
             var tileOverlap = placeMostOverlappingImagesFirst(corrected, imageToTilesOverbackground, imageCount);
             if (tileOverlap != null && tileOverlap.overlappingTiles() == 0) {
                 LOGGER.warn("Cannot find overlapping tiles between images, falling back to addition");
-                return (ImageWrapper32) ScriptSupport.applyFunction(
-                    "max",
-                    List.of(corrected),
-                    DoubleStream::max
-                );
+                return (ImageWrapper32) ScriptSupport.applyFunction("max", List.of(corrected), DoubleStream::max);
             }
             int maxSteps = 2 * (height / distorsionGridSize);
             int step = 0;
@@ -209,26 +192,16 @@ public class MosaicComposition extends AbstractFunctionImpl {
                             var avg2 = imageMath.areaAverage(compareIntegral, x - window, y - window, 2 * window, 2 * window);
                             int px = distorsionGridSize * (x / distorsionGridSize);
                             int py = distorsionGridSize * (y / distorsionGridSize);
-                            var localPoints = localInterestPoints.computeIfAbsent(new Point2D(px, py), p -> feat.stream()
-                                .parallel()
-                                .filter(f -> f.distanceTo(p) <= 2 * dist)
-                                .toList());
+                            var localPoints = localInterestPoints.computeIfAbsent(new Point2D(px, py), p -> feat.stream().parallel().filter(f -> f.distanceTo(p) <= 2 * dist).toList());
                             if (avg1 == 0 && avg2 == 0) {
                                 assembleSingleTile(distorsionGridSize, x, y, x, y, width, length, assembledData, otherData, mask);
                             } else {
                                 var point = new Point2D(x, y);
                                 var samples = findBestMatches(cachedInterestPoints, reference, referenceIntegral, localPoints, compare, compareIntegral, distorsionGridSize, step, x, y, dist);
                                 if (!samples.isEmpty()) {
-                                    var restrictedSamples = samples.stream()
-                                        .filter(s -> s.distanceTo(point) <= dist)
-                                        .toList();
-                                    var avgError = restrictedSamples.stream()
-                                        .mapToDouble(DistorsionSample::error)
-                                        .average()
-                                        .orElse(0);
-                                    restrictedSamples = restrictedSamples.stream()
-                                        .filter(s -> s.error() <= 1.5 * avgError)
-                                        .toList();
+                                    var restrictedSamples = samples.stream().filter(s -> s.distanceTo(point) <= dist).toList();
+                                    var avgError = restrictedSamples.stream().mapToDouble(DistorsionSample::error).average().orElse(0);
+                                    restrictedSamples = restrictedSamples.stream().filter(s -> s.error() <= 1.5 * avgError).toList();
                                     if (!restrictedSamples.isEmpty()) {
                                         var model = buildDistorsionModel(restrictedSamples);
                                         int newX = (int) Math.round(model.modelForX().asPolynomial().applyAsDouble(point.x()));
@@ -262,13 +235,7 @@ public class MosaicComposition extends AbstractFunctionImpl {
                     threshold = threshold / 4;
                 } else if (reassembled || !updated || step == maxSteps) {
                     corrected.remove(1);
-                    var mosaic = stacking.doStack(
-                        List.of(first, second),
-                        tileSize,
-                        overlap,
-                        assembled,
-                        0
-                    );
+                    var mosaic = stacking.doStack(List.of(first, second), tileSize, overlap, assembled, 0);
                     corrected.set(0, mosaic);
                     break;
                 }
@@ -317,10 +284,7 @@ public class MosaicComposition extends AbstractFunctionImpl {
         var modelForX = buildModel(sortedSamples, DistorsionSample::sampleForX);
         var modelForY = buildModel(sortedSamples, DistorsionSample::sampleForY);
         var maxScore = sortedSamples.get(sortedSamples.size() - 1).error();
-        var weights = sortedSamples.stream()
-            .mapToDouble(s -> (1 - (s.error() / maxScore)))
-            .map(d -> d * d)
-            .toArray();
+        var weights = sortedSamples.stream().mapToDouble(s -> (1 - (s.error() / maxScore))).map(d -> d * d).toArray();
         var regressionForX = firstOrderRegression(modelForX.toArray(new Point2D[0]), weights);
         var regressionForY = firstOrderRegression(modelForY.toArray(new Point2D[0]), weights);
         var model = new DistorsionModel(regressionForX, regressionForY);
@@ -332,9 +296,7 @@ public class MosaicComposition extends AbstractFunctionImpl {
     }
 
     private static List<Point2D> buildModel(List<DistorsionSample> samples, Function<DistorsionSample, Point2D> extractor) {
-        return samples.stream()
-            .map(extractor)
-            .toList();
+        return samples.stream().map(extractor).toList();
     }
 
     private static TileOverlap placeMostOverlappingImagesFirst(List<ImageWrapper32> corrected, Map<ImageWrapper32, Set<Integer>> imageToTilesOverbackground, int imageCount) {
@@ -375,25 +337,17 @@ public class MosaicComposition extends AbstractFunctionImpl {
         var totalOperations = 2 * corrected.size();
         try {
             // add missing images to integral images map
-            corrected.stream()
-                .parallel()
-                .peek(img -> broadcaster.broadcast(ProgressEvent.of(count.getAndIncrement() / (double) totalOperations, message("computing.integral.images"))))
-                .filter(img -> !integralImages.containsKey(img))
+            corrected.stream().parallel().peek(img -> broadcaster.broadcast(ProgressEvent.of(count.getAndIncrement() / (double) totalOperations, message("computing.integral.images")))).filter(img -> !integralImages.containsKey(img))
                 .map(img -> new Object() {
                     final ImageWrapper32 image = img;
                     final Image integral = imageMath.integralImage(img.asImage());
-                })
-                .forEachOrdered(o -> integralImages.put(o.image, o.integral));
+                }).forEachOrdered(o -> integralImages.put(o.image, o.integral));
             // add tiles over background to map
-            corrected.stream()
-                .parallel()
-                .peek(img -> broadcaster.broadcast(ProgressEvent.of(count.getAndIncrement() / (double) totalOperations, message("computing.integral.images"))))
-                .filter(img -> !imageToTilesOverbackground.containsKey(img))
+            corrected.stream().parallel().peek(img -> broadcaster.broadcast(ProgressEvent.of(count.getAndIncrement() / (double) totalOperations, message("computing.integral.images")))).filter(img -> !imageToTilesOverbackground.containsKey(img))
                 .map(img -> new Object() {
                     final ImageWrapper32 image = img;
                     final Set<Integer> tiles = computeTilesOverBackground(img, integralImages.get(img), background, tileSize);
-                })
-                .forEachOrdered(o -> imageToTilesOverbackground.put(o.image, o.tiles));
+                }).forEachOrdered(o -> imageToTilesOverbackground.put(o.image, o.tiles));
         } finally {
             broadcaster.broadcast(ProgressEvent.of(1.0, message("computing.integral.images")));
         }
@@ -419,17 +373,8 @@ public class MosaicComposition extends AbstractFunctionImpl {
         return Collections.unmodifiableList(result);
     }
 
-    private List<DistorsionSample> findBestMatches(Map<Point2D, Optional<DistorsionSample>> cache,
-                                                   ImageWrapper32 reference,
-                                                   Image referenceIntegral,
-                                                   List<Point2D> referencePoints,
-                                                   ImageWrapper32 other,
-                                                   Image otherIntegral,
-                                                   int tileSize,
-                                                   int step,
-                                                   int refX,
-                                                   int refY,
-                                                   double maxDist) {
+    private List<DistorsionSample> findBestMatches(Map<Point2D, Optional<DistorsionSample>> cache, ImageWrapper32 reference, Image referenceIntegral, List<Point2D> referencePoints, ImageWrapper32 other, Image otherIntegral, int tileSize, int step,
+                                                   int refX, int refY, double maxDist) {
         broadcaster.broadcast(ProgressEvent.of(0, FINDING_MATCHES_MESSAGE.formatted(step)));
         var width = reference.width();
         var height = reference.height();
@@ -437,38 +382,30 @@ public class MosaicComposition extends AbstractFunctionImpl {
         var maxLookupShift = tileSize / 2;
         var data = other.data();
         var maxDistSquared = maxDist * maxDist;
-        return referencePoints.stream()
-            .parallel()
-            .<DistorsionSample>mapMulti((referencePoint, consumer) -> {
-                int x = (int) referencePoint.x();
-                int y = (int) referencePoint.y();
-                var dx = x - refX;
-                var dy = y - refY;
-                if (dx * dx + dy * dy > maxDistSquared) {
-                    return;
-                }
-                var distorsionSample = cache.computeIfAbsent(referencePoint, p -> {
-                    var bestMatch = Stacking.findBestMatch(referenceData, data, width, height, tileSize / 2, x, y, maxLookupShift);
-                    if (bestMatch.isPresent()) {
-                        var second = bestMatch.get();
-                        var sy = second.y();
-                        var sx = second.x();
-                        var referenceAvg = imageMath.areaAverage(referenceIntegral, x, y, tileSize, tileSize);
-                        var otherAvg = imageMath.areaAverage(otherIntegral, sx, sy, tileSize, tileSize);
-                        if (withinTolerance(otherAvg, referenceAvg, 0.25)) {
-                            return Optional.of(new DistorsionSample(
-                                referencePoint,
-                                new Point2D(sx, sy),
-                                second.score()
-                            ));
-                        }
+        return referencePoints.stream().parallel().<DistorsionSample>mapMulti((referencePoint, consumer) -> {
+            int x = (int) referencePoint.x();
+            int y = (int) referencePoint.y();
+            var dx = x - refX;
+            var dy = y - refY;
+            if (dx * dx + dy * dy > maxDistSquared) {
+                return;
+            }
+            var distorsionSample = cache.computeIfAbsent(referencePoint, p -> {
+                var bestMatch = Stacking.findBestMatch(referenceData, data, width, height, tileSize / 2, x, y, maxLookupShift);
+                if (bestMatch.isPresent()) {
+                    var second = bestMatch.get();
+                    var sy = second.y();
+                    var sx = second.x();
+                    var referenceAvg = imageMath.areaAverage(referenceIntegral, x, y, tileSize, tileSize);
+                    var otherAvg = imageMath.areaAverage(otherIntegral, sx, sy, tileSize, tileSize);
+                    if (withinTolerance(otherAvg, referenceAvg, 0.25)) {
+                        return Optional.of(new DistorsionSample(referencePoint, new Point2D(sx, sy), second.score()));
                     }
-                    return Optional.empty();
-                });
-                distorsionSample.ifPresent(consumer);
-            })
-            .sorted(Comparator.comparingDouble(DistorsionSample::error))
-            .toList();
+                }
+                return Optional.empty();
+            });
+            distorsionSample.ifPresent(consumer);
+        }).sorted(Comparator.comparingDouble(DistorsionSample::error)).toList();
     }
 
     /**
@@ -530,18 +467,9 @@ public class MosaicComposition extends AbstractFunctionImpl {
                 }
             }
 
-            var backgrounds = adjusted.stream()
-                .parallel()
-                .map(img -> new ImageWithBackground(img, estimateBackgroundLevel(img.data())))
-                .toList();
-            adjusted = backgrounds.stream()
-                .sorted(Comparator.comparingInt(ImageWithBackground::pixelsAboveBackground).reversed())
-                .map(ImageWithBackground::image)
-                .collect(Collectors.toCollection(ArrayList::new));
-            var averageBackground = backgrounds.stream()
-                .mapToDouble(ImageWithBackground::background)
-                .average()
-                .orElse(0);
+            var backgrounds = adjusted.stream().parallel().map(img -> new ImageWithBackground(img, estimateBackgroundLevel(img.data()))).toList();
+            adjusted = backgrounds.stream().sorted(Comparator.comparingInt(ImageWithBackground::pixelsAboveBackground).reversed()).map(ImageWithBackground::image).collect(Collectors.toCollection(ArrayList::new));
+            var averageBackground = backgrounds.stream().mapToDouble(ImageWithBackground::background).average().orElse(0);
             var background = (float) (0.8 * averageBackground);
             return new HistogramNormalization(adjusted, background);
         } finally {
@@ -584,46 +512,47 @@ public class MosaicComposition extends AbstractFunctionImpl {
         if (DEBUG_IMAGES == null) {
             return;
         }
-        forkJoinContext.blocking(ctx -> {
-            int cpt = DEBUG_COUNTER.incrementAndGet();
-            int k = 0;
-            for (var candidate : candidates) {
-                var idx = k++;
-                ctx.async(() -> {
-                    var bi = new BufferedImage(width * 2, height, BufferedImage.TYPE_INT_RGB);
-                    var g = bi.createGraphics();
-                    for (int i = 0; i < 2; i++) {
-                        var img = corrected.get(i).data();
-                        var offset = width * i;
-                        for (int y = 0; y < height; y++) {
-                            for (int x = 0; x < width; x++) {
-                                int grey = (int) img[y * width + x] >> 8;
-                                int rgb = grey << 16 | grey << 8 | grey;
-                                bi.setRGB(x + offset, y, rgb);
-                            }
-                        }
+        int cpt = DEBUG_COUNTER.incrementAndGet();
+        IntStream.range(0, candidates.size()).mapToObj(i -> new Object() {
+            private final DistorsionSample candidate = candidates.get(i);
+            private final int idx = i;
+        })
+            .parallel()
+            .forEach(o -> {
+            var candidate = o.candidate;
+            var idx = o.idx;
+            var bi = new BufferedImage(width * 2, height, BufferedImage.TYPE_INT_RGB);
+            var g = bi.createGraphics();
+            for (int i = 0; i < 2; i++) {
+                var img = corrected.get(i).data();
+                var offset = width * i;
+                for (int y = 0; y < height; y++) {
+                    for (int x = 0; x < width; x++) {
+                        int grey = (int) img[y * width + x] >> 8;
+                        int rgb = grey << 16 | grey << 8 | grey;
+                        bi.setRGB(x + offset, y, rgb);
                     }
-                    g.setColor(Color.WHITE);
-                    g.setFont(g.getFont().deriveFont(60f));
-                    g.drawString("Tile size %d".formatted(tileSize), (width / 2), 30);
-                    int fx = (int) candidate.source().x();
-                    int fy = (int) candidate.source().y();
-                    int sx = (int) candidate.target().x();
-                    int sy = (int) candidate.target().y();
-                    g.drawLine(fx, fy, sx + width, sy);
-                    g.setColor(Color.ORANGE);
-                    g.drawRect(fx, fy, tileSize, tileSize);
-                    g.drawRect(sx + width, sy, tileSize, tileSize);
-                    g.setFont(g.getFont().deriveFont(30f));
-                    g.drawString("(" + fx + "," + fy + ")", fx - 40, fy - 50);
-                    g.drawString("(%d,%d score %.1f)".formatted(sx, sy, candidate.error()), sx + width - 40, sy - 50);
-                    try {
-                        new File(DEBUG_IMAGES + "/" + cpt).mkdirs();
-                        ImageIO.write(bi, "png", new File(String.format(DEBUG_IMAGES + "/%d/%04d_match.png", cpt, idx)));
-                    } catch (IOException e) {
-                        e.printStackTrace();
-                    }
-                });
+                }
+            }
+            g.setColor(Color.WHITE);
+            g.setFont(g.getFont().deriveFont(60f));
+            g.drawString("Tile size %d".formatted(tileSize), (width / 2), 30);
+            int fx = (int) candidate.source().x();
+            int fy = (int) candidate.source().y();
+            int sx = (int) candidate.target().x();
+            int sy = (int) candidate.target().y();
+            g.drawLine(fx, fy, sx + width, sy);
+            g.setColor(Color.ORANGE);
+            g.drawRect(fx, fy, tileSize, tileSize);
+            g.drawRect(sx + width, sy, tileSize, tileSize);
+            g.setFont(g.getFont().deriveFont(30f));
+            g.drawString("(" + fx + "," + fy + ")", fx - 40, fy - 50);
+            g.drawString("(%d,%d score %.1f)".formatted(sx, sy, candidate.error()), sx + width - 40, sy - 50);
+            try {
+                new File(DEBUG_IMAGES + "/" + cpt).mkdirs();
+                ImageIO.write(bi, "png", new File(String.format(DEBUG_IMAGES + "/%d/%04d_match.png", cpt, idx)));
+            } catch (IOException e) {
+                e.printStackTrace();
             }
         });
         var tmp = new float[2 * width * height];
@@ -644,27 +573,14 @@ public class MosaicComposition extends AbstractFunctionImpl {
             DrawUtils.drawLine(tmp, 2 * width, height, fx, fy, sx + width, sy, 1);
         }
         broadcaster.broadcast(new ImageGeneratedEvent(
-            new GeneratedImage(
-                GeneratedImageKind.IMAGE_MATH,
-                "match" + System.currentTimeMillis(),
-                Path.of(DEBUG_IMAGES + "/match-" + System.currentTimeMillis() + ".png"),
-                new ImageWrapper32(width * 2, height, tmp, MutableMap.of())
-            )
-        ));
+            new GeneratedImage(GeneratedImageKind.IMAGE_MATH, "match" + System.currentTimeMillis(), Path.of(DEBUG_IMAGES + "/match-" + System.currentTimeMillis() + ".png"), new ImageWrapper32(width * 2, height, tmp, MutableMap.of()))));
     }
 
-    private record HistogramNormalization(
-        List<ImageWrapper32> corrected,
-        float background
-    ) {
+    private record HistogramNormalization(List<ImageWrapper32> corrected, float background) {
 
     }
 
-    private record DistorsionSample(
-        Point2D source,
-        Point2D target,
-        double error
-    ) {
+    private record DistorsionSample(Point2D source, Point2D target, double error) {
 
         public Point2D sampleForX() {
             return new Point2D(source.x(), target.x());
@@ -679,29 +595,15 @@ public class MosaicComposition extends AbstractFunctionImpl {
         }
     }
 
-    private record Match(
-        IntPair first,
-        IntPair second,
-        double score
-    ) {
+    private record Match(IntPair first, IntPair second, double score) {
 
     }
 
-    private record TileOverlap(
-        int image1,
-        int image2,
-        int overlappingTiles
-    ) {
+    private record TileOverlap(int image1, int image2, int overlappingTiles) {
     }
 
-    private record DistorsionModel(
-        DoublePair modelForX,
-        DoublePair modelForY
-    ) {
-        public static DistorsionModel NO_DISTORSION = new DistorsionModel(
-            new DoublePair(1, 0),
-            new DoublePair(1, 0)
-        );
+    private record DistorsionModel(DoublePair modelForX, DoublePair modelForY) {
+        public static DistorsionModel NO_DISTORSION = new DistorsionModel(new DoublePair(1, 0), new DoublePair(1, 0));
 
         public boolean isValid() {
             if (Double.isNaN(modelForX.a()) || Double.isNaN(modelForX.b())) {

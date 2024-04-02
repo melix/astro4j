@@ -25,7 +25,6 @@ import me.champeau.a4j.jsolex.processing.expr.DefaultImageScriptExecutor;
 import me.champeau.a4j.jsolex.processing.expr.impl.FileSelector;
 import me.champeau.a4j.jsolex.processing.expr.impl.Loader;
 import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
-import me.champeau.a4j.jsolex.processing.util.ForkJoinContext;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
 
 import java.io.File;
@@ -38,20 +37,18 @@ import java.util.function.Function;
  * A script executor which exposes a JavaFX file chooser to the {@link Loader}.
  */
 public class JSolExScriptExecutor extends DefaultImageScriptExecutor {
-    public JSolExScriptExecutor(ForkJoinContext forkJoinContext,
-                                Function<Double, ImageWrapper> imageSupplier,
+    public JSolExScriptExecutor(Function<Double, ImageWrapper> imageSupplier,
                                 Map<Class, Object> context,
                                 Broadcaster broadcaster,
                                 Stage stage) {
-        super(forkJoinContext, imageSupplier, context, broadcaster);
+        super(imageSupplier, context, broadcaster);
         prepareContext(context, stage);
     }
 
-    public JSolExScriptExecutor(ForkJoinContext forkJoinContext,
-                                Function<Double, ImageWrapper> imagesByShift,
+    public JSolExScriptExecutor(Function<Double, ImageWrapper> imagesByShift,
                                 Map<Class, Object> context,
                                 Stage stage) {
-        super(forkJoinContext, imagesByShift, context);
+        super(imagesByShift, context);
         prepareContext(context, stage);
     }
 

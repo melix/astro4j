@@ -15,8 +15,7 @@
  */
 package me.champeau.a4j.jsolex.processing.expr
 
-import me.champeau.a4j.jsolex.processing.util.ForkJoinContext
-import me.champeau.a4j.jsolex.processing.util.ForkJoinParallelExecutor
+
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32
 import me.champeau.a4j.math.regression.Ellipse
 import me.champeau.a4j.math.tuples.DoubleSextuplet
@@ -28,18 +27,11 @@ class ImageExpressionEvaluatorTest extends Specification {
     @Subject
     ImageExpressionEvaluator evaluator
 
-    ForkJoinContext forkJoinContext = ForkJoinParallelExecutor.newExecutor()
-
     private Map<Integer, ImageWrapper32> images = [:].withDefault { new ImageWrapper32(0, 0, new float[0], [:]) }
-
-
-    def cleanup() {
-        forkJoinContext.close()
-    }
 
     def "can collect image shifts from expression"() {
         given:
-        evaluator = new ShiftCollectingImageExpressionEvaluator(forkJoinContext, images::get)
+        evaluator = new ShiftCollectingImageExpressionEvaluator(images::get)
 
         when:
         evaluator.evaluate("img(0)")
@@ -102,7 +94,7 @@ class ImageExpressionEvaluatorTest extends Specification {
 
     def "can apply #function on a list of images"() {
         given:
-        evaluator = new ShiftCollectingImageExpressionEvaluator(forkJoinContext, images::get)
+        evaluator = new ShiftCollectingImageExpressionEvaluator(images::get)
         evaluator.putInContext(Ellipse, DUMMY_ELLIPSE)
 
         when:

@@ -29,15 +29,15 @@ import java.util.Map;
 import static me.champeau.a4j.jsolex.processing.expr.impl.ScriptSupport.expandToImageList;
 
 public class DiskFill extends AbstractFunctionImpl {
-    public DiskFill(ForkJoinContext forkJoinContext, Map<Class<?>, Object> context) {
-        super(forkJoinContext, context);
+    public DiskFill(Map<Class<?>, Object> context) {
+        super(context);
     }
 
     public Object fill(List<Object> arguments) {
         assertExpectedArgCount(arguments, "disk_fill takes 1, 2 or 3 arguments (image(s), [fillColor], [ellipse])", 1, 3);
         var arg = arguments.get(0);
         if (arg instanceof List<?>) {
-            return expandToImageList(forkJoinContext, arguments, this::fill);
+            return expandToImageList(arguments, this::fill);
         }
         var img = arguments.get(0);
         var ellipse = getEllipse(arguments, 2);

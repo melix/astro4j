@@ -16,14 +16,13 @@
 package me.champeau.a4j.jsolex.processing.expr.impl;
 
 import me.champeau.a4j.jsolex.processing.stretching.ContrastAdjustmentStrategy;
-import me.champeau.a4j.jsolex.processing.util.ForkJoinContext;
 
 import java.util.List;
 import java.util.Map;
 
 public class AdjustContrast extends AbstractFunctionImpl {
-    public AdjustContrast(ForkJoinContext forkJoinContext, Map<Class<?>, Object> context) {
-        super(forkJoinContext, context);
+    public AdjustContrast(Map<Class<?>, Object> context) {
+        super(context);
     }
 
     public Object adjustContrast(List<Object> arguments) {
@@ -38,6 +37,6 @@ public class AdjustContrast extends AbstractFunctionImpl {
         if (max < 0 || max > 255) {
             throw new IllegalArgumentException("adjust_contrast max must be between 0 and 255");
         }
-        return ScriptSupport.monoToMonoImageTransformer(forkJoinContext, "adjust_contrast", 3, arguments, (width, height, data) -> new ContrastAdjustmentStrategy(min << 8, max << 8).stretch(width, height, data));
+        return ScriptSupport.monoToMonoImageTransformer( "adjust_contrast", 3, arguments, (width, height, data) -> new ContrastAdjustmentStrategy(min << 8, max << 8).stretch(width, height, data));
     }
 }

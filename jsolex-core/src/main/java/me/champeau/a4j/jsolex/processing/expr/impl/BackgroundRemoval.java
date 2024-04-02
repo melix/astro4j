@@ -17,7 +17,6 @@ package me.champeau.a4j.jsolex.processing.expr.impl;
 
 import me.champeau.a4j.jsolex.processing.sun.workflow.AnalysisUtils;
 import me.champeau.a4j.jsolex.processing.util.FileBackedImage;
-import me.champeau.a4j.jsolex.processing.util.ForkJoinContext;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 import me.champeau.a4j.math.regression.Ellipse;
 
@@ -28,15 +27,15 @@ import java.util.Optional;
 import static me.champeau.a4j.jsolex.processing.expr.impl.ScriptSupport.expandToImageList;
 
 public class BackgroundRemoval extends AbstractFunctionImpl {
-    public BackgroundRemoval(ForkJoinContext forkJoinContext, Map<Class<?>, Object> context) {
-        super(forkJoinContext, context);
+    public BackgroundRemoval(Map<Class<?>, Object> context) {
+        super(context);
     }
 
     public Object removeBackground(List<Object> arguments) {
         assertExpectedArgCount(arguments, "remove_bg takes 1, 2 or 3 arguments (image(s), [tolerance], [fitting])", 1, 2);
         var arg = arguments.get(0);
         if (arg instanceof List<?>) {
-            return expandToImageList(forkJoinContext, arguments, this::removeBackground);
+            return expandToImageList(arguments, this::removeBackground);
         }
         Optional<Ellipse> ellipse = getEllipse(arguments, 2);
         if (ellipse.isEmpty()) {
@@ -55,7 +54,7 @@ public class BackgroundRemoval extends AbstractFunctionImpl {
             arg = fileBackedImage.unwrapToMemory();
         }
         if (arg instanceof ImageWrapper32 ref) {
-            return ScriptSupport.monoToMonoImageTransformer(forkJoinContext, "remove_bg", 2, arguments, (width, height, data) -> {
+            return ScriptSupport.monoToMonoImageTransformer("remove_bg", 2, arguments, (width, height, data) -> {
                 var e = ellipse.get();
                 var background = AnalysisUtils.estimateBackground(ref, e);
                 me.champeau.a4j.jsolex.processing.sun.BackgroundRemoval.removeBackground(width, height, data, tolerance, background, e);

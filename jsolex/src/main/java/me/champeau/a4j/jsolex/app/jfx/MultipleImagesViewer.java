@@ -35,13 +35,13 @@ import me.champeau.a4j.jsolex.processing.params.ProcessParams;
 import me.champeau.a4j.jsolex.processing.sun.workflow.DisplayCategory;
 import me.champeau.a4j.jsolex.processing.sun.workflow.GeneratedImageKind;
 import me.champeau.a4j.jsolex.processing.sun.workflow.PixelShift;
-import me.champeau.a4j.jsolex.processing.util.ForkJoinContext;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
 
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
@@ -66,7 +66,8 @@ public class MultipleImagesViewer extends Pane {
         GeneratedImageKind.TECHNICAL_CARD
     );
 
-    private final Set<ImageViewer> imageViews = new HashSet<>();
+    private final Set<ImageViewer> imageViews = Collections.synchronizedSet(new HashSet<>());
+    private final List<CategoryPane> safeCategories = Collections.synchronizedList(new ArrayList<>());
     private final ObservableList<Node> categories;
     private final BorderPane borderPane;
     private Hyperlink selected = null;
@@ -87,19 +88,22 @@ public class MultipleImagesViewer extends Pane {
     }
 
     public void clear() {
-        categories.clear();
-        borderPane.setCenter(null);
-        imageViews.clear();
+        BatchOperations.submit(() -> {
+            safeCategories.clear();
+            categories.clear();
+            borderPane.setCenter(null);
+            imageViews.clear();
+        });
         selected = null;
         selectedKind = null;
     }
 
-    private ImageViewer newImageViewer(ForkJoinContext context) {
+    private ImageViewer newImageViewer() {
         var fxmlLoader = I18N.fxmlLoader(JSolEx.class, "imageview");
         try {
             var node = (Node) fxmlLoader.load();
             var controller = (ImageViewer) fxmlLoader.getController();
-            controller.init(node, context);
+            controller.init(node);
             imageViews.add(controller);
             return controller;
         } catch (IOException e) {
@@ -116,10 +120,9 @@ public class MultipleImagesViewer extends Pane {
                                 ProcessParams params,
                                 Map<String, ImageViewer> popupViews,
                                 PixelShift pixelShift,
-                                ForkJoinContext context,
                                 Consumer<? super ImageViewer> onShow) {
         var category = getOrCreateCategory(kind);
-        var viewer = newImageViewer(context);
+        var viewer = newImageViewer();
         viewer.setup(
             listener,
             title,
@@ -133,7 +136,7 @@ public class MultipleImagesViewer extends Pane {
         );
         var hyperlink = category.addImage(title, pixelShift, link -> {
             categories().forEach(CategoryPane::clearSelection);
-            borderPane.setCenter(viewer.getRoot());
+            BatchOperations.submit(() -> borderPane.setCenter(viewer.getRoot()));
             selected = link;
             selectedKind = kind;
             onShow.accept(viewer);
@@ -214,7 +217,7 @@ public class MultipleImagesViewer extends Pane {
     }
 
     private Stream<CategoryPane> categories() {
-        return categories.stream()
+        return safeCategories.stream()
             .map(CategoryPane.class::cast);
     }
 
@@ -222,10 +225,9 @@ public class MultipleImagesViewer extends Pane {
         var categoryPane = new CategoryPane(message("displayCategory." + category.name()), categories::remove);
         categoryPane.setMinWidth(190);
         categoryPane.getProperties().put(DisplayCategory.class, category);
-        List<CategoryPane> newCategories = new ArrayList<>(categories().toList());
-        newCategories.add(categoryPane);
-        newCategories.sort(Comparator.comparingInt(t -> categoryOf(t).ordinal()));
-        categories.setAll(newCategories);
+        safeCategories.add(categoryPane);
+        safeCategories.sort(Comparator.comparingInt(t -> categoryOf(t).ordinal()));
+        BatchOperations.submit(() -> categories.setAll(safeCategories));
         return categoryPane;
     }
 

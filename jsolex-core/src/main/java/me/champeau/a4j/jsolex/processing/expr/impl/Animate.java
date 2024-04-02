@@ -18,7 +18,6 @@ package me.champeau.a4j.jsolex.processing.expr.impl;
 import me.champeau.a4j.jsolex.processing.expr.FileOutput;
 import me.champeau.a4j.jsolex.processing.util.ColorizedImageWrapper;
 import me.champeau.a4j.jsolex.processing.util.FileBackedImage;
-import me.champeau.a4j.jsolex.processing.util.ForkJoinContext;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 import me.champeau.a4j.jsolex.processing.util.ProcessingException;
@@ -42,8 +41,8 @@ import static me.champeau.a4j.ser.EightBitConversionSupport.to8BitImage;
 public class Animate extends AbstractFunctionImpl {
     private static final int DEFAULT_DELAY = 250;
 
-    public Animate(ForkJoinContext forkJoinContext, Map<Class<?>, Object> context) {
-        super(forkJoinContext, context);
+    public Animate(Map<Class<?>, Object> context) {
+        super(context);
     }
 
     public Object createAnimation(List<Object> arguments) {

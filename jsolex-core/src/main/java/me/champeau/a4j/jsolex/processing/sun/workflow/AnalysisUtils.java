@@ -86,7 +86,7 @@ public class AnalysisUtils {
             idx++;
             cur = values[idx];
         }
-        return (65535f * idx) / h.levelsCount();
+        return (65535f * idx) / bins;
     }
 
     public static float estimateSignalLevel(float[] data, int bins) {

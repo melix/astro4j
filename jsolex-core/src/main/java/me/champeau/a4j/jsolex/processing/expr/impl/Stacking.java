@@ -46,8 +46,8 @@ public class Stacking extends AbstractFunctionImpl {
     private final Crop crop;
     private final Broadcaster broadcaster;
 
-    public Stacking(ForkJoinContext forkJoinContext, Map<Class<?>, Object> context, Scaling scaling, Crop crop, Broadcaster broadcaster) {
-        super(forkJoinContext, context);
+    public Stacking(Map<Class<?>, Object> context, Scaling scaling, Crop crop, Broadcaster broadcaster) {
+        super(context);
         this.scaling = scaling;
         this.crop = crop;
         this.broadcaster = broadcaster;

@@ -16,6 +16,7 @@
 package me.champeau.a4j.jsolex.app.jfx;
 
 import javafx.application.Platform;
+import me.champeau.a4j.jsolex.processing.util.BackgroundOperations;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -104,6 +105,7 @@ public final class BatchOperations {
                     }
                 });
             }
+            BackgroundOperations.close();
         }
     }
 }

@@ -69,7 +69,6 @@ import me.champeau.a4j.jsolex.processing.sun.workflow.ImageStats;
 import me.champeau.a4j.jsolex.processing.sun.workflow.PixelShift;
 import me.champeau.a4j.jsolex.processing.util.ColorizedImageWrapper;
 import me.champeau.a4j.jsolex.processing.util.Constants;
-import me.champeau.a4j.jsolex.processing.util.ForkJoinContext;
 import me.champeau.a4j.jsolex.processing.util.Histogram;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
@@ -121,8 +120,6 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
     private final JSolExInterface owner;
     private final String baseName;
     private final File serFile;
-    private final ForkJoinContext cpuContext;
-    private final ForkJoinContext ioContext;
     private final Path outputDirectory;
     private final Map<String, ImageViewer> popupViews;
     private final AtomicInteger concurrentNotifications = new AtomicInteger();
@@ -147,8 +144,6 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
     public SingleModeProcessingEventListener(JSolExInterface owner,
                                              String baseName,
                                              File serFile,
-                                             ForkJoinContext cpuContext,
-                                             ForkJoinContext ioContext,
                                              Path outputDirectory,
                                              ProcessParams params,
                                              LocalDateTime processingDate,
@@ -156,11 +151,8 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
         this.owner = owner;
         this.baseName = baseName;
         this.serFile = serFile;
-        this.cpuContext = cpuContext;
-        this.ioContext = ioContext;
         this.outputDirectory = outputDirectory;
         this.params = params;
-        //this.mainPane = owner.getMainPane();
         this.statsTab = owner.getStatsTab();
         this.profileTab = owner.getProfileTab();
         this.metadataTab = owner.getMetadataTab();
@@ -184,7 +176,7 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
     private ZoomableImageView createImageView(double pixelShift) {
         var imageViewer = blockingUntilResultAvailable(() -> owner.getImagesViewer().addImage(this,
             message("image.reconstruction"), baseName,
-            GeneratedImageKind.RECONSTRUCTION, null, null, params, popupViews, new PixelShift(pixelShift), owner.getCpuExecutor(), viewer -> {
+            GeneratedImageKind.RECONSTRUCTION, null, null, params, popupViews, new PixelShift(pixelShift), viewer -> {
             }));
         var imageView = imageViewer.getImageView();
         imageView.setImage(new WritableImage(width, height));
@@ -240,7 +232,6 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
                 params,
                 popupViews,
                 pixelShift.orElse(null),
-                owner.getCpuExecutor(),
                 viewer -> {
                     showHistogram(viewer.getStretchedImage());
                     showMetadata(imageWrapper.metadata());
@@ -383,7 +374,6 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
         scriptExecutionContext = prepareExecutionContext(payload);
         shiftImages.putAll(payload.shiftImages());
         imageScriptExecutor = new JSolExScriptExecutor(
-            cpuContext,
             shiftImages::get,
             new HashMap<>(scriptExecutionContext),
             this,
@@ -481,7 +471,7 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
                 missingShifts,
                 ImageMathParams.NONE)
         ).withExtraParams(params.extraParams().withAutosave(false));
-        var solexVideoProcessor = new SolexVideoProcessor(serFile, outputDirectory, 0, tmpParams, cpuContext, ioContext, LocalDateTime.now(), false);
+        var solexVideoProcessor = new SolexVideoProcessor(serFile, outputDirectory, 0, tmpParams, LocalDateTime.now(), false);
         solexVideoProcessor.addEventListener(new ProcessingEventListener() {
             @Override
             public void onProcessingDone(ProcessingDoneEvent e) {
@@ -498,7 +488,6 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
 
     private Set<Double> determineShiftsRequiredInScript(String script) {
         var collectingExecutor = new DefaultImageScriptExecutor(
-            cpuContext,
             ShiftCollectingImageExpressionEvaluator.zeroImages(),
             scriptExecutionContext
         );
@@ -622,7 +611,7 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
                         ).withRequestedImages(
                             params.requestedImages().withPixelShifts(List.of(pixelShift))
                         );
-                        var solexVideoProcessor = new SolexVideoProcessor(serFile, outputDirectory, 0, newParams, cpuContext, ioContext, LocalDateTime.now(), false);
+                        var solexVideoProcessor = new SolexVideoProcessor(serFile, outputDirectory, 0, newParams, LocalDateTime.now(), false);
                         solexVideoProcessor.addEventListener(this);
                         solexVideoProcessor.addEventListener(new ProcessingEventListener() {
                             @Override
