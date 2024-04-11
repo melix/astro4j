@@ -143,6 +143,7 @@ public class MultipleImagesViewer extends Pane {
         }, this::onClose);
         if (selected == null) {
             category.selectFirst();
+            hyperlink.fire();
         } else if (shouldSelectAutomatically(params, kind, pixelShift)) {
             hyperlink.fire();
         }
