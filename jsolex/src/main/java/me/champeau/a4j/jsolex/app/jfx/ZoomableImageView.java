@@ -122,7 +122,7 @@ public class ZoomableImageView extends HBox {
         scrollPane.setPrefViewportHeight(boundsInLocal.getHeight());
     }
 
-    public void setImagePath(Path imagePath) {
+    public void setImagePathForOpeningInExplorer(Path imagePath) {
         this.imagePath = imagePath;
     }
 

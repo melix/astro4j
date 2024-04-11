@@ -20,6 +20,8 @@ import me.champeau.a4j.jsolex.processing.stretching.StretchingStrategy;
 import me.champeau.a4j.jsolex.processing.sun.ImageUtils;
 
 import java.io.File;
+import java.util.List;
+import java.util.stream.Stream;
 
 /**
  * An utility responsible for saving images after
@@ -35,16 +37,19 @@ public class ImageSaver {
     }
 
 
-    public void save(ImageWrapper image, File target) {
+    public List<File> save(ImageWrapper image, File target) {
         var imageFormats = processParams.extraParams().imageFormats();
+        var files = List.<File>of();
         if (image instanceof FileBackedImage fbi) {
             image = fbi.unwrapToMemory();
         }
         if (image instanceof ImageWrapper32 mono) {
             float[] stretched = stretch(mono.width(), mono.height(), mono.data());
-            ImageUtils.writeMonoImage(image.width(), image.height(), stretched, target, imageFormats);
+            files = ImageUtils.writeMonoImage(image.width(), image.height(), stretched, target, imageFormats);
             if (imageFormats.contains(ImageFormat.FITS)) {
-                FitsUtils.writeFitsFile(new ImageWrapper32(image.width(), image.height(), stretched, mono.metadata()), toFits(target), processParams);
+                var fits = toFits(target);
+                files = Stream.concat(files.stream(), Stream.of(fits)).toList();
+                FitsUtils.writeFitsFile(new ImageWrapper32(image.width(), image.height(), stretched, mono.metadata()), fits, processParams);
             }
         } else if (image instanceof ColorizedImageWrapper colorImage) {
             float[] stretched = stretch(colorImage.width(), colorImage.height(), colorImage.mono().data());
@@ -52,20 +57,25 @@ public class ImageSaver {
             var r = colorized[0];
             var g = colorized[1];
             var b = colorized[2];
-            ImageUtils.writeRgbImage(colorImage.width(), colorImage.height(), r, g, b, target, imageFormats);
+            files = ImageUtils.writeRgbImage(colorImage.width(), colorImage.height(), r, g, b, target, imageFormats);
             if (imageFormats.contains(ImageFormat.FITS)) {
-                FitsUtils.writeFitsFile(new RGBImage(image.width(), image.height(), r, g, b, colorImage.metadata()), toFits(target), processParams);
+                var fits = toFits(target);
+                files = Stream.concat(files.stream(), Stream.of(fits)).toList();
+                FitsUtils.writeFitsFile(new RGBImage(image.width(), image.height(), r, g, b, colorImage.metadata()), fits, processParams);
             }
         } else if (image instanceof RGBImage rgb) {
             var stretched = stretch(rgb.width(), rgb.height(), rgb.r(), rgb.g(), rgb.b());
             var r = stretched[0];
             var g = stretched[1];
             var b = stretched[2];
-            ImageUtils.writeRgbImage(rgb.width(), rgb.height(), r, g, b, target, imageFormats);
+            files = ImageUtils.writeRgbImage(rgb.width(), rgb.height(), r, g, b, target, imageFormats);
             if (imageFormats.contains(ImageFormat.FITS)) {
-                FitsUtils.writeFitsFile(new RGBImage(image.width(), image.height(), r, g, b, rgb.metadata()), toFits(target), processParams);
+                var fits = toFits(target);
+                files = Stream.concat(files.stream(), Stream.of(fits)).toList();
+                FitsUtils.writeFitsFile(new RGBImage(image.width(), image.height(), r, g, b, rgb.metadata()), fits, processParams);
             }
         }
+        return files;
     }
 
     private float[] stretch(int width, int height, float[] data) {
