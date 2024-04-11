@@ -330,7 +330,7 @@ public class JSolEx extends Application implements JSolExInterface {
     private void maybeWarnAboutNewRelease(UpdateChecker.ReleaseInfo release) {
         var currentVersion = toVersionLong(getVersion());
         var latestRelease = toVersionLong(release.version());
-        if (true || latestRelease > currentVersion) {
+        if (latestRelease > currentVersion) {
             BatchOperations.submit(() -> {
                 var alert = new Alert(Alert.AlertType.INFORMATION);
                 alert.setTitle(message("new.release.available"));
