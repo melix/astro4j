@@ -250,11 +250,9 @@ public class JSolEx extends Application implements JSolExInterface {
             stage.show();
             refreshRecentItemsMenu();
             LogbackConfigurer.configureLogger(console);
-            stage.setOnCloseRequest(e -> {
-                System.exit(0);
-            });
+            stage.setOnCloseRequest(e -> System.exit(0));
             startWatcherThread();
-            BatchOperations.submit(() -> UpdateChecker.findLatestRelease().ifPresent(this::maybeWarnAboutNewRelease));
+            Thread.startVirtualThread(() -> UpdateChecker.findLatestRelease().ifPresent(this::maybeWarnAboutNewRelease));
             LOGGER.info("Java runtime version {}", System.getProperty("java.version"));
             LOGGER.info("Vector API support is {} and {}", VectorApiSupport.isPresent() ? "available" : "missing",
                 VectorApiSupport.isEnabled() ? "enabled (disable by setting " + VectorApiSupport.VECTOR_API_ENV_VAR + " environment variable to false)" : "disabled");
@@ -332,25 +330,27 @@ public class JSolEx extends Application implements JSolExInterface {
     private void maybeWarnAboutNewRelease(UpdateChecker.ReleaseInfo release) {
         var currentVersion = toVersionLong(getVersion());
         var latestRelease = toVersionLong(release.version());
-        if (latestRelease > currentVersion) {
-            var alert = new Alert(Alert.AlertType.INFORMATION);
-            alert.setTitle(message("new.release.available"));
-            alert.setHeaderText("JSol'Ex " + release.version() + " " + message("has.been.released"));
-            var textArea = new TextArea();
-            textArea.setEditable(false);
-            var scroll = new ScrollPane(textArea);
-            textArea.setText(release.notes());
-            scroll.fitToHeightProperty().set(true);
-            scroll.fitToWidthProperty().set(true);
-            alert.getDialogPane().setExpandableContent(scroll);
-            alert.getButtonTypes().clear();
-            var download = new ButtonType(message("download"));
-            alert.getButtonTypes().add(download);
-            alert.getButtonTypes().add(ButtonType.CLOSE);
-            alert.showAndWait().ifPresent(button -> {
-                if (button == download) {
-                    getHostServices().showDocument("https://github.com/melix/astro4j");
-                }
+        if (true || latestRelease > currentVersion) {
+            BatchOperations.submit(() -> {
+                var alert = new Alert(Alert.AlertType.INFORMATION);
+                alert.setTitle(message("new.release.available"));
+                alert.setHeaderText("JSol'Ex " + release.version() + " " + message("has.been.released"));
+                var textArea = new TextArea();
+                textArea.setEditable(false);
+                var scroll = new ScrollPane(textArea);
+                textArea.setText(release.notes());
+                scroll.fitToHeightProperty().set(true);
+                scroll.fitToWidthProperty().set(true);
+                alert.getDialogPane().setExpandableContent(scroll);
+                alert.getButtonTypes().clear();
+                var download = new ButtonType(message("download"));
+                alert.getButtonTypes().add(download);
+                alert.getButtonTypes().add(ButtonType.CLOSE);
+                alert.showAndWait().ifPresent(button -> {
+                    if (button == download) {
+                        getHostServices().showDocument("https://github.com/melix/astro4j");
+                    }
+                });
             });
         }
     }
