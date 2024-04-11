@@ -129,7 +129,7 @@ public class ImageViewer {
             BackgroundOperations.async(() -> {
                 configureStretching();
                 if (params.extraParams().autosave()) {
-                    saveImage(imageFile);
+                    saveImage();
                 }
                 if (!popupViews.containsKey(title)) {
                     var openInNewWindow = new MenuItem(message("open.new.window"));
@@ -190,12 +190,13 @@ public class ImageViewer {
         }
     }
 
-    private void saveImage(File target) {
-        imageView.setImagePath(target.toPath());
+    private void saveImage() {
         var image = maybeRotate(this.image);
-        new ImageSaver(stretchingStrategy, processParams).save(image, target);
+        var files = new ImageSaver(stretchingStrategy, processParams).save(image, imageFile);
+        files.stream()
+            .findFirst()
+            .ifPresent(file -> imageView.setImagePathForOpeningInExplorer(file.toPath()));
         BatchOperations.submit(() -> {
-            imageView.setImage(new Image(imageFile.toURI().toString()));
             saveButton.setDisable(true);
             imageView.fileSaved();
         });
@@ -218,7 +219,7 @@ public class ImageViewer {
             stretchAndDisplay();
         });
         saveButton = new Button(message("save"));
-        saveButton.setOnAction(e -> saveImage(imageFile));
+        saveButton.setOnAction(e -> saveImage());
         dimensions = new Label();
         var zoomLabel = new Label("Zoom");
         var zoomSlider = new Slider(0.1, 5, 0.1);
@@ -355,36 +356,41 @@ public class ImageViewer {
         stretchAndDisplay(false);
     }
 
+    private void updateDisplay(List<File> candidateImages, boolean resetZoom) {
+        candidateImages.stream()
+            .findFirst()
+            .ifPresent(tmpImage -> {
+                try {
+                    displayLock.lock();
+                    if (displayImage != null) {
+                        dimensions.setText(displayImage.width() + "x" + displayImage.height());
+                    }
+                    imageView.setImage(new Image(tmpImage.toURI().toString()));
+                    if (resetZoom) {
+                        imageView.resetZoom();
+                    }
+                    saveButton.setDisable(false);
+                    if (onDisplayUpdate != null) {
+                        onDisplayUpdate.run();
+                    }
+                    tmpImage.delete();
+                } finally {
+                    displayLock.unlock();
+                }
+            });
+    }
+
     private void stretchAndDisplay(boolean resetZoom) {
-        File tmpImage = createTmpFile();
-        Runnable updateDisplay = () -> {
-            try {
-                displayLock.lock();
-                if (displayImage != null) {
-                    dimensions.setText(displayImage.width() + "x" + displayImage.height());
-                }
-                imageView.setImage(new Image(tmpImage.toURI().toString()));
-                if (resetZoom) {
-                    imageView.resetZoom();
-                }
-                tmpImage.delete();
-                saveButton.setDisable(false);
-                if (onDisplayUpdate != null) {
-                    onDisplayUpdate.run();
-                }
-            } finally {
-                displayLock.unlock();
-            }
-        };
         var imageFormats = EnumSet.of(ImageFormat.PNG);
         // For some reason the image doesn't look as good when using PixelWriter
         // so we write the image in a tmp file and load it from here.
         displayImage = maybeRotate(this.image);
+        var tmpImage = createTmpFile();
         if (displayImage instanceof ImageWrapper32 mono) {
             var stretched = stretch(mono.width(), mono.height(), mono.data());
             stretchedImage = new ImageWrapper32(mono.width(), mono.height(), stretched, mono.metadata());
-            ImageUtils.writeMonoImage(mono.width(), mono.height(), stretched, tmpImage, imageFormats);
-            BatchOperations.submit(updateDisplay);
+            var savedImages = ImageUtils.writeMonoImage(mono.width(), mono.height(), stretched, tmpImage, imageFormats);
+            BatchOperations.submit(() -> updateDisplay(savedImages, resetZoom));
         } else if (displayImage instanceof ColorizedImageWrapper colorImage) {
             var stretched = stretch(colorImage.width(), colorImage.height(), colorImage.mono().data());
             stretchedImage = new ColorizedImageWrapper(new ImageWrapper32(colorImage.width(), colorImage.height(), stretched, colorImage.metadata()), colorImage.converter(), colorImage.metadata());
@@ -392,13 +398,13 @@ public class ImageViewer {
             var r = rgb[0];
             var g = rgb[1];
             var b = rgb[2];
-            ImageUtils.writeRgbImage(colorImage.width(), colorImage.height(), r, g, b, tmpImage, imageFormats);
-            BatchOperations.submit(updateDisplay);
+            var savedImages = ImageUtils.writeRgbImage(colorImage.width(), colorImage.height(), r, g, b, tmpImage, imageFormats);
+            BatchOperations.submit(() -> updateDisplay(savedImages, resetZoom));
         } else if (displayImage instanceof RGBImage rgb) {
             var stretched = stretch(rgb.width(), rgb.height(), rgb.r(), rgb.g(), rgb.b());
             stretchedImage = new RGBImage(rgb.width(), rgb.height(), stretched[0], stretched[1], stretched[2], rgb.metadata());
-            ImageUtils.writeRgbImage(rgb.width(), rgb.height(), stretched[0], stretched[1], stretched[2], tmpImage, imageFormats);
-            BatchOperations.submit(updateDisplay);
+            var savedImages = ImageUtils.writeRgbImage(rgb.width(), rgb.height(), stretched[0], stretched[1], stretched[2], tmpImage, imageFormats);
+            BatchOperations.submit(() -> updateDisplay(savedImages, resetZoom));
         }
     }
 
@@ -439,7 +445,7 @@ public class ImageViewer {
         this.processParams = params;
         this.image = image instanceof FileBackedImage fbi ? fbi.unwrapToMemory() : image;
         this.imageFile = new File(path.toFile().getParentFile(), baseName + "_" + path.getFileName() + imageDisplayExtension(processParams));
-        this.imageView.setImagePath(path);
+        this.imageView.setImagePathForOpeningInExplorer(path);
         recordImage(baseName, image);
         currentImage.set(imageHistory.size() - 1);
         showImage();

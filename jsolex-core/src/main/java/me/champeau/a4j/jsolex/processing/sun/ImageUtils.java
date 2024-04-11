@@ -35,6 +35,8 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.util.Arrays;
+import java.util.List;
+import java.util.Objects;
 import java.util.Set;
 
 import static me.champeau.a4j.ser.bayer.BayerMatrixSupport.GREEN;
@@ -48,36 +50,46 @@ public class ImageUtils {
 
     }
 
-    public static void writeMonoImage(
-            int width,
-            int height,
-            float[] data,
-            File outputFile,
-            Set<ImageFormat> imageFormats) {
+    public static List<File> writeMonoImage(
+        int width,
+        int height,
+        float[] data,
+        File outputFile,
+        Set<ImageFormat> imageFormats) {
         var image = new BufferedImage(width, height, BufferedImage.TYPE_USHORT_GRAY);
         short[] converted = ((DataBufferUShort) image.getRaster().getDataBuffer()).getData();
         for (int i = 0; i < converted.length; i++) {
             converted[i] = (short) Math.round(data[i]);
         }
-        writeAllFormats(outputFile, imageFormats, image);
+        return writeAllFormats(outputFile, imageFormats, image);
     }
 
-    private static void writeAllFormats(File outputFile, Set<ImageFormat> imageFormats, BufferedImage image) {
+    private static List<File> writeAllFormats(File outputFile, Set<ImageFormat> imageFormats, BufferedImage image) {
         try {
             createDirectoryFor(outputFile);
             var baseName = baseNameOf(outputFile);
-            for (ImageFormat format : imageFormats) {
-                if (format.equals(ImageFormat.FITS)) {
-                    continue;
-                }
-                var output = new File(outputFile.getParentFile(), baseName + format.extension());
-                var formatName = format.name().toLowerCase();
-                if (isJpegFormat(formatName) && is16BitGreyscale(image)) {
-                    image = convertToRGB(image);
-                }
-                ImageIO.write(image, formatName, output);
-                LOGGER.debug("Wrote {}", output);
-            }
+            return imageFormats.stream()
+                .parallel()
+                .map(format -> {
+                    if (format.equals(ImageFormat.FITS)) {
+                        return null;
+                    }
+                    var output = new File(outputFile.getParentFile(), baseName + format.extension());
+                    var formatName = format.name().toLowerCase();
+                    var img = image;
+                    if (isJpegFormat(formatName) && is16BitGreyscale(img)) {
+                        img = convertToRGB(img);
+                    }
+                    try {
+                        ImageIO.write(img, formatName, output);
+                        LOGGER.debug("Wrote {}", output);
+                    } catch (IOException ex) {
+                        throw new ProcessingException(ex);
+                    }
+                    return output;
+                })
+                .filter(Objects::nonNull)
+                .toList();
         } catch (IOException e) {
             throw new ProcessingException(e);
         }
@@ -129,14 +141,14 @@ public class ImageUtils {
         Files.createDirectories(path);
     }
 
-    public static void writeRgbImage(
-            int width,
-            int height,
-            float[] r,
-            float[] g,
-            float[] b,
-            File outputFile,
-            Set<ImageFormat> imageFormats
+    public static List<File> writeRgbImage(
+        int width,
+        int height,
+        float[] r,
+        float[] g,
+        float[] b,
+        File outputFile,
+        Set<ImageFormat> imageFormats
     ) {
         var image = new BufferedImage(width, height, BufferedImage.TYPE_INT_RGB);
         for (int x = 0; x < width; x++) {
@@ -150,18 +162,18 @@ public class ImageUtils {
                 image.setRGB(x, y, rv << 16 | gv << 8 | bv);
             }
         }
-        writeAllFormats(outputFile, imageFormats, image);
+        return writeAllFormats(outputFile, imageFormats, image);
     }
 
     public static ImageConverter<float[]> createImageConverter(ColorMode colorMode) {
         return new FloatPrecisionImageConverter(
-                new ChannelExtractingConverter(
-                        new DemosaicingRGBImageConverter(
-                                new BilinearDemosaicingStrategy(),
-                                colorMode
-                        ),
-                        GREEN
-                )
+            new ChannelExtractingConverter(
+                new DemosaicingRGBImageConverter(
+                    new BilinearDemosaicingStrategy(),
+                    colorMode
+                ),
+                GREEN
+            )
         );
     }
 
