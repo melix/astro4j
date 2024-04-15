@@ -39,12 +39,12 @@ import org.slf4j.LoggerFactory;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Comparator;
+import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.function.Supplier;
 
-import static me.champeau.a4j.jsolex.processing.sun.workflow.AnalysisUtils.estimateSignalLevel;
 import static me.champeau.a4j.jsolex.processing.util.Constants.message;
 import static me.champeau.a4j.jsolex.processing.util.DebugImageHelper.plot;
 
@@ -97,7 +97,7 @@ public class EllipseFittingTask extends AbstractTask<EllipseFittingTask.Result> 
         var data = workingImage.data();
         // Normalize to the 0-65535 range
         RangeExpansionStrategy.DEFAULT.stretch(width, height, data);
-        filterIrrelevantPixels(data);
+        filterIrrelevantPixels(data, statsOf(data));
         var magnitude = imageMath.convolve(workingImage, Kernel33.EDGE_DETECTION);
         magnitude = imageMath.convolve(magnitude, Kernel33.GAUSSIAN_BLUR);
         var magnitudes = magnitude.data();
@@ -120,11 +120,16 @@ public class EllipseFittingTask extends AbstractTask<EllipseFittingTask.Result> 
         return result;
     }
 
-    private void filterIrrelevantPixels(float[] data) {
-        var minEstimate = estimateSignalLevel(data);
-        new CutoffStretchingStrategy(minEstimate, minEstimate, 0, minEstimate).stretch(width, height, data);
+    private void filterIrrelevantPixels(float[] data, Stats stats) {
+        double dx = 0;
+        for (float d : data) {
+            if (d > stats.avg) {
+                dx++;
+            }
+        }
+        dx = dx / data.length;
+        new CutoffStretchingStrategy((float) (stats.avg - dx * dx * stats.stddev), stats.avg, 0, stats.avg).stretch(width, height, data);
     }
-
 
     /**
      * Performs filtering of samples by computing their distance to the
@@ -282,6 +287,32 @@ public class EllipseFittingTask extends AbstractTask<EllipseFittingTask.Result> 
             }
         }
         return max;
+    }
+
+    private static Stats statsOf(float[] array) {
+        float min = Float.MAX_VALUE;
+        float max = Float.MIN_VALUE;
+        float sum = 0.0f;
+        var distinctValues = new HashSet<Float>();
+
+        int n = array.length;
+        for (float v : array) {
+            sum += v;
+            min = Math.min(min, v);
+            max = Math.max(max, v);
+            distinctValues.add(v);
+        }
+        float average = sum / n;
+        float stddev = 0;
+        for (float v : array) {
+            stddev += (v - average) * (v - average);
+        }
+        stddev = (float) Math.sqrt(stddev / (n - 1));
+        return new Stats(average, stddev, min, max, distinctValues.size());
+    }
+
+    private record Stats(float avg, float stddev, float min, float max, int distinctValues) {
+
     }
 
     public record Result(
