@@ -1,6 +1,6 @@
 [versions]
 slf4j-api = "2.0.12"
-logback = "1.5.3"
+logback = "1.5.6"
 commons-math = "3.6.1"
 fits = "1.19.1"
 gson = "2.10.1"
