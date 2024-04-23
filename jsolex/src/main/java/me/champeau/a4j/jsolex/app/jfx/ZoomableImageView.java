@@ -171,17 +171,26 @@ public class ZoomableImageView extends HBox {
             zoom = 0;
             return;
         }
-        var oldZoom = zoom;
+
         var width = getWidth();
-        if (width == 0) {
+        var height = getHeight();
+
+        if (width == 0 || height == 0) {
             return;
         }
-        zoom = width / image.getWidth();
-        if (zoom != oldZoom) {
+
+        var widthZoom = width / image.getWidth();
+        var heightZoom = height / image.getHeight();
+
+        var newZoom = Math.min(widthZoom, heightZoom);
+
+        if (newZoom != zoom) {
+            zoom = newZoom;
             triggerOnZoomChanged();
             applyZoom();
         }
     }
+
 
     public double getZoom() {
         return zoom;
