@@ -27,7 +27,9 @@ import java.util.ArrayList;
 import java.util.List;
 
 public final class AutohistogramStrategy implements StretchingStrategy {
+    public static final double DEFAULT_GAMMA = 1.5;
     public static final int HISTOGRAM_BINS = 256;
+
     private final double gamma;
 
     public AutohistogramStrategy(double gamma) {

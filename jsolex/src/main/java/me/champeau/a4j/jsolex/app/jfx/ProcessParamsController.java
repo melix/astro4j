@@ -28,15 +28,18 @@ import javafx.scene.control.ChoiceBox;
 import javafx.scene.control.Slider;
 import javafx.scene.control.TextField;
 import javafx.scene.control.TextFormatter;
+import javafx.scene.layout.GridPane;
 import javafx.scene.layout.Pane;
 import javafx.stage.Stage;
 import javafx.util.StringConverter;
 import javafx.util.converter.DoubleStringConverter;
 import javafx.util.converter.IntegerStringConverter;
 import me.champeau.a4j.jsolex.app.JSolEx;
+import me.champeau.a4j.jsolex.processing.params.AutoStretchParams;
 import me.champeau.a4j.jsolex.processing.params.AutocropMode;
 import me.champeau.a4j.jsolex.processing.params.BandingCorrectionParams;
 import me.champeau.a4j.jsolex.processing.params.ClaheParams;
+import me.champeau.a4j.jsolex.processing.params.ContrastEnhancement;
 import me.champeau.a4j.jsolex.processing.params.DeconvolutionMode;
 import me.champeau.a4j.jsolex.processing.params.ExtraParams;
 import me.champeau.a4j.jsolex.processing.params.FileNamingPatternsIO;
@@ -85,11 +88,15 @@ public class ProcessParamsController {
     @FXML
     private CheckBox autoSave;
     @FXML
+    private GridPane autostretchParamsPane;
+    @FXML
     private Slider bandingCorrectionPasses;
     @FXML
     private Slider bandingCorrectionWidth;
     @FXML
     private TextField camera;
+    @FXML
+    private GridPane claheParamsPane;
     @FXML
     private ChoiceBox<Integer> claheTileSize;
     @FXML
@@ -97,9 +104,15 @@ public class ProcessParamsController {
     @FXML
     private TextField claheClipping;
     @FXML
+    private ChoiceBox<ContrastEnhancement> contrastEnhancementTechnique;
+    @FXML
+    private TextField autostretchGamma;
+    @FXML
     private Slider dopplerShifting;
     @FXML
     private TextField email;
+    @FXML
+    private GridPane enhancementsPane;
     @FXML
     private TextField focalLength;
     @FXML
@@ -323,6 +336,33 @@ public class ProcessParamsController {
             }
 
         }
+        contrastEnhancementTechnique.getItems().addAll(ContrastEnhancement.values());
+        contrastEnhancementTechnique.getSelectionModel().select(initialProcessParams.contrastEnhancement());
+        contrastEnhancementTechnique.setConverter(new StringConverter<>() {
+            @Override
+            public String toString(ContrastEnhancement technique) {
+                return message("contrast.enhancement." + technique.name());
+            }
+
+            @Override
+            public ContrastEnhancement fromString(String string) {
+                return ContrastEnhancement.valueOf(string);
+            }
+        });
+        autostretchGamma.setTextFormatter(new TextFormatter<>(new DoubleStringConverter() {
+            @Override
+            public Double fromString(String value) {
+                var v = super.fromString(value);
+                if (v != null && v < 1.1) {
+                    return 1.1d;
+                }
+                return v;
+            }
+
+        }));
+        autostretchGamma.setText(String.valueOf(initialProcessParams.autoStretchParams().gamma()));
+        claheParamsPane.disableProperty().bind(contrastEnhancementTechnique.getSelectionModel().selectedItemProperty().isNotEqualTo(ContrastEnhancement.CLAHE));
+        autostretchParamsPane.disableProperty().bind(contrastEnhancementTechnique.getSelectionModel().selectedItemProperty().isNotEqualTo(ContrastEnhancement.AUTOSTRETCH));
         if (batchMode) {
             autoSave.setSelected(true);
             autoSave.setDisable(true);
@@ -500,7 +540,11 @@ public class ProcessParamsController {
                 claheTileSize.getValue(),
                 claheBins.getValue(),
                 Double.parseDouble(claheClipping.getText())
-            )
+            ),
+            new AutoStretchParams(
+                Double.parseDouble(autostretchGamma.getText())
+            ),
+            contrastEnhancementTechnique.getValue()
         );
         ProcessParams.saveDefaults(processParams);
         stage.close();

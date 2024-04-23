@@ -21,11 +21,14 @@ import me.champeau.a4j.jsolex.processing.event.SuggestionEvent;
 import me.champeau.a4j.jsolex.processing.expr.impl.Crop;
 import me.champeau.a4j.jsolex.processing.expr.impl.ImageDraw;
 import me.champeau.a4j.jsolex.processing.expr.impl.Rotate;
+import me.champeau.a4j.jsolex.processing.params.AutoStretchParams;
 import me.champeau.a4j.jsolex.processing.params.ClaheParams;
+import me.champeau.a4j.jsolex.processing.params.ContrastEnhancement;
 import me.champeau.a4j.jsolex.processing.params.DeconvolutionMode;
 import me.champeau.a4j.jsolex.processing.params.ProcessParams;
 import me.champeau.a4j.jsolex.processing.params.RotationKind;
 import me.champeau.a4j.jsolex.processing.stretching.ArcsinhStretchingStrategy;
+import me.champeau.a4j.jsolex.processing.stretching.AutohistogramStrategy;
 import me.champeau.a4j.jsolex.processing.stretching.ClaheStrategy;
 import me.champeau.a4j.jsolex.processing.stretching.NegativeImageStrategy;
 import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
@@ -53,6 +56,7 @@ import java.text.MessageFormat;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.function.Supplier;
 
 import static me.champeau.a4j.jsolex.processing.sun.ImageUtils.bilinearSmoothing;
@@ -170,7 +174,7 @@ public class ProcessingWorkflow {
         }
         broadcaster.broadcast(OutputImageDimensionsDeterminedEvent.of(message("geometry.corrected"), geometryFixed.width(), geometryFixed.height()));
         var runnables = new ArrayList<Runnable>();
-        runnables.add(() -> produceStretchedImage(enhanced, processParams.claheParams()));
+        runnables.add(() -> produceStretchedImage(enhanced, processParams.claheParams(), processParams.autoStretchParams(), processParams.contrastEnhancement()));
         if (isMainShift() && shouldProduce(GeneratedImageKind.NEGATIVE)) {
             runnables.add(() -> produceNegativeImage(enhanced));
         }
@@ -264,13 +268,21 @@ public class ProcessingWorkflow {
         return new ImageBandingCorrector(broadcaster, imageSupplier(WorkflowResults.ROTATED), ellipse, processParams.bandingCorrectionParams()).get();
     }
 
-    private void produceStretchedImage(ImageWrapper32 geometryFixed, ClaheParams claheParams) {
-        var clahe = geometryFixed.copy();
-        ClaheStrategy.of(claheParams).stretch(clahe);
-        TransformationHistory.recordTransform(clahe, "CLAHE (tile size: " + claheParams.tileSize() + ", clip limit: " + claheParams.clipping() + ", bins: " + claheParams.bins() + ")");
-        processedImagesEmitter.newMonoImage(GeneratedImageKind.GEOMETRY_CORRECTED_PROCESSED, message("processed"), "clahe", clahe);
+    private void produceStretchedImage(ImageWrapper32 geometryFixed, ClaheParams claheParams, AutoStretchParams autoStretchParams, ContrastEnhancement contrastEnhancement) {
+        var stretched = geometryFixed.copy();
+        switch (contrastEnhancement) {
+            case AUTOSTRETCH -> {
+                new AutohistogramStrategy(autoStretchParams.gamma()).stretch(stretched);
+                TransformationHistory.recordTransform(stretched, "AutoStretch (gamma: " + autoStretchParams.gamma() + ")");
+            }
+            case CLAHE -> {
+                ClaheStrategy.of(claheParams).stretch(stretched);
+                TransformationHistory.recordTransform(stretched, "CLAHE (tile size: " + claheParams.tileSize() + ", clip limit: " + claheParams.clipping() + ", bins: " + claheParams.bins() + ")");
+            }
+        }
+        processedImagesEmitter.newMonoImage(GeneratedImageKind.GEOMETRY_CORRECTED_PROCESSED, message("processed"), contrastEnhancement.name().toLowerCase(Locale.US), stretched);
         if (shouldProduce(GeneratedImageKind.TECHNICAL_CARD) && isMainShift()) {
-            produceTechnicalCard(clahe);
+            produceTechnicalCard(stretched);
         }
     }
 
