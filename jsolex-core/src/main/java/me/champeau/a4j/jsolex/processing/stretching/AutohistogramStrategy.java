@@ -48,51 +48,65 @@ public final class AutohistogramStrategy implements StretchingStrategy {
     public void stretch(ImageWrapper32 image) {
         var disk = image.copy();
         new GammaStrategy(gamma).stretch(disk);
-        var data = disk.data();
+        var diskData = disk.data();
         var ellipse = image.findMetadata(Ellipse.class);
         if (ellipse.isPresent()) {
             var e = ellipse.get();
             // we have an ellipse, so we'll perform another stretch, then combine pixels from both images
             var protus = image.copy();
             protus = BackgroundRemoval.neutralizeBackground(protus);
-            new GammaStrategy(.75).stretch(protus);
+            new GammaStrategy(.7).stretch(protus);
             var height = image.height();
             var width = image.width();
-            float[] mask = new float[data.length];
+            var mask = createMask(diskData, height, width, e);
+            var protusData = protus.data();
             for (int y = 0; y < height; y++) {
                 for (int x = 0; x < width; x++) {
                     var idx = y * width + x;
-                    if (!e.isWithin(x, y)) {
-                        mask[idx] = 1;
+                    var weight = Math.pow(mask[idx], gamma);
+                    if (diskData[idx] == 0) {
+                        weight = 1;
+                    } else if (protusData[idx] == 0) {
+                        weight = 0;
                     }
+                    diskData[idx] = (float) ((1 - weight) * disk.data()[idx] + weight * protusData[idx]);
                 }
             }
-            var imageMath = ImageMath.newInstance();
-            var tmp = new Image(width, height, mask);
-            tmp = imageMath.rescale(tmp, width / 16, height / 16);
-            tmp = imageMath.convolve(tmp, BlurKernel.of(4));
-            mask = imageMath.rescale(tmp, width, height).data();
-            for (int y = 0; y < height; y++) {
-                for (int x = 0; x < width; x++) {
-                    var idx = y * width + x;
-                    var weight = Math.pow(mask[idx], 2 * gamma);
-                    data[idx] = (float) ((1 - weight) * disk.data()[idx] + weight * protus.data()[idx]);
-                }
-            }
-            System.arraycopy(disk.data(), 0, image.data(), 0, data.length);
+            System.arraycopy(disk.data(), 0, image.data(), 0, diskData.length);
         } else {
-            System.arraycopy(disk.data(), 0, image.data(), 0, data.length);
+            System.arraycopy(disk.data(), 0, image.data(), 0, diskData.length);
         }
-        data = image.data();
-        var lohi = findLoHi(data);
+        diskData = image.data();
+        var lohi = findLoHi(diskData);
         new DynamicCutoffStrategy(.5, lohi.hi()).stretch(image);
         var clahe = image.copy();
         new ClaheStrategy(8, 64, 1.0).stretch(clahe);
         // combine CLAHE with image
         var claheData = clahe.data();
-        for (int i = 0; i < data.length; i++) {
-            data[i] = (float) (0.75 * data[i] + 0.25 * claheData[i]);
+        for (int i = 0; i < diskData.length; i++) {
+            diskData[i] = (float) (0.75 * diskData[i] + 0.25 * claheData[i]);
         }
+    }
+
+    private static float[] createMask(float[] diskData, int height, int width, Ellipse e) {
+        float[] mask = new float[diskData.length];
+        for (int y = 0; y < height; y++) {
+            for (int x = 0; x < width; x++) {
+                var idx = y * width + x;
+                if (!e.isWithin(x, y)) {
+                    mask[idx] = 1;
+                }
+            }
+        }
+        var imageMath = ImageMath.newInstance();
+        var tmp = new Image(width, height, mask);
+        tmp = imageMath.rescale(tmp, width / 16, height / 16);
+        tmp = imageMath.convolve(tmp, BlurKernel.of(8));
+        mask = imageMath.rescale(tmp, width, height).data();
+        for (int i = 0; i < mask.length; i++) {
+            mask[i] = (float) Math.pow(mask[i], 2);
+        }
+        return mask;
     }
 
     private static LoHi findLoHi(float[] image) {
