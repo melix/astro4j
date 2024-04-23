@@ -15,7 +15,9 @@
  */
 package me.champeau.a4j.jsolex.processing.expr.impl;
 
+import me.champeau.a4j.jsolex.processing.stretching.AutohistogramStrategy;
 import me.champeau.a4j.jsolex.processing.stretching.ContrastAdjustmentStrategy;
+import me.champeau.a4j.jsolex.processing.stretching.GammaStrategy;
 
 import java.util.List;
 import java.util.Map;
@@ -37,6 +39,28 @@ public class AdjustContrast extends AbstractFunctionImpl {
         if (max < 0 || max > 255) {
             throw new IllegalArgumentException("adjust_contrast max must be between 0 and 255");
         }
-        return ScriptSupport.monoToMonoImageTransformer( "adjust_contrast", 3, arguments, (width, height, data) -> new ContrastAdjustmentStrategy(min << 8, max << 8).stretch(width, height, data));
+        return ScriptSupport.monoToMonoImageTransformer( "adjust_contrast", 3, arguments, image -> new ContrastAdjustmentStrategy(min << 8, max << 8).stretch(image));
+    }
+
+    public Object adjustGamma(List<Object> arguments) {
+        if (arguments.size() != 2) {
+            throw new IllegalArgumentException("adjust_gamma takes 2 arguments (image(s), gamma)");
+        }
+        double gamma = doubleArg(arguments, 1);
+        if (gamma <= 0) {
+            throw new IllegalArgumentException("gamma must be positive");
+        }
+        return ScriptSupport.monoToMonoImageTransformer( "adjust_gamma", 3, arguments, image -> new GammaStrategy(gamma).stretch(image));
+    }
+
+    public Object autoContrast(List<Object> arguments) {
+        if (arguments.size() != 2) {
+            throw new IllegalArgumentException("auto_contrast takes 2 arguments (image(s), gamma)");
+        }
+        double gamma = doubleArg(arguments, 1);
+        if (gamma <= 1) {
+            throw new IllegalArgumentException("gamma must be greater than 1");
+        }
+        return ScriptSupport.monoToMonoImageTransformer( "auto_contrast", 3, arguments, image -> new AutohistogramStrategy(gamma).stretch(image));
     }
 }

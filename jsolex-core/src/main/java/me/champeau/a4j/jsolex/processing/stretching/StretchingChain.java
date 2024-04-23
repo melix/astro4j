@@ -17,18 +17,24 @@ package me.champeau.a4j.jsolex.processing.stretching;
 
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 
-public final class NegativeImageStrategy implements StretchingStrategy {
-    public static final NegativeImageStrategy DEFAULT = new NegativeImageStrategy();
+import java.util.Arrays;
+import java.util.List;
 
-    private NegativeImageStrategy() {
+public final class StretchingChain implements StretchingStrategy {
+    private final List<StretchingStrategy> strategies;
 
+    public StretchingChain(List<StretchingStrategy> strategies) {
+        this.strategies = strategies;
+    }
+
+    public StretchingChain(StretchingStrategy... strategies) {
+        this(Arrays.asList(strategies));
     }
 
     @Override
     public void stretch(ImageWrapper32 image) {
-        var data = image.data();
-        for (int i = 0; i < data.length; i++) {
-            data[i] = 65535 - data[i];
+        for (StretchingStrategy strategy : strategies) {
+            strategy.stretch(image);
         }
     }
 

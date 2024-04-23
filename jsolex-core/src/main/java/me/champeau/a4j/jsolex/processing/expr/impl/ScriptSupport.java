@@ -84,7 +84,7 @@ public class ScriptSupport {
         }
         if (arg instanceof ImageWrapper32 image) {
             var copy = image.copy();
-            consumer.accept(copy.width(), copy.height(), copy.data());
+            consumer.accept(copy);
             return copy;
         } else if (arg instanceof List<?>) {
             return expandToImageList(arguments, e -> monoToMonoImageTransformer(name, maxArgCount, e, consumer));
@@ -136,8 +136,8 @@ public class ScriptSupport {
                 var idx = i;
                 result[i] = (float) operator.apply(images.stream().mapToDouble(img -> img.data()[idx])).orElse(0);
             }
-            CutoffStretchingStrategy.DEFAULT.stretch(width, height, result);
             Map<Class<?>, Object> metadata = new HashMap<>();
+            CutoffStretchingStrategy.DEFAULT.stretch(new ImageWrapper32(width, height, result, metadata));
             List<Point2D> ellipseSamplePoints = new ArrayList<>();
             long avgDate = 0;
             int cpt = 0;
@@ -182,6 +182,6 @@ public class ScriptSupport {
 
     @FunctionalInterface
     public interface ImageConsumer {
-        void accept(int width, int height, float[] data);
+        void accept(ImageWrapper32 image);
     }
 }

@@ -16,28 +16,55 @@
 package me.champeau.a4j.jsolex.processing.stretching;
 
 import me.champeau.a4j.jsolex.processing.sun.ImageUtils;
+import me.champeau.a4j.jsolex.processing.util.ColorizedImageWrapper;
+import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
+import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
+import me.champeau.a4j.jsolex.processing.util.RGBImage;
 
 public sealed interface StretchingStrategy permits
-        ArcsinhStretchingStrategy,
-        CutoffStretchingStrategy,
-        LinearStrechingStrategy,
-        NegativeImageStrategy,
-        RangeExpansionStrategy,
-        ClaheStrategy,
-        ContrastAdjustmentStrategy {
-    void stretch(int width, int height, float[] data);
+    ArcsinhStretchingStrategy,
+    CutoffStretchingStrategy,
+    LinearStrechingStrategy,
+    NegativeImageStrategy,
+    RangeExpansionStrategy,
+    ClaheStrategy,
+    GammaStrategy,
+    AutohistogramStrategy,
+    ContrastAdjustmentStrategy,
+    DynamicCutoffStrategy,
+    StretchingChain {
 
-    default void stretch(int width, int height, float[][] rgb) {
+    default void stretch(ImageWrapper image) {
+        switch (image) {
+            case ImageWrapper32 mono -> stretch(mono);
+            case ColorizedImageWrapper colorized -> stretch(colorized.mono());
+            case RGBImage rgb -> stretch(rgb);
+            case null, default -> throw new IllegalArgumentException("Unsupported image type: " + image.getClass());
+        }
+    }
+
+    void stretch(ImageWrapper32 image);
+
+    default void stretch(RGBImage image) {
+        var r = image.r();
+        var g = image.g();
+        var b = image.b();
+        var rgb = new float[][]{r, g, b};
         float[][] hsl = ImageUtils.fromRGBtoHSL(rgb);
         var lightness = hsl[2];
         float[] rescaledL = new float[lightness.length];
         for (int i = 0; i < lightness.length; i++) {
             rescaledL[i] = lightness[i] * 65535f;
         }
-        stretch(width, height, rescaledL);
+        stretch(new ImageWrapper32(image.width(), image.height(), rescaledL, image.metadata()));
         for (int i = 0; i < rescaledL.length; i++) {
             lightness[i] = rescaledL[i] / 65535f;
         }
         ImageUtils.fromHSLtoRGB(hsl, rgb);
+
+        stretch(new ImageWrapper32(image.width(), image.height(), r, image.metadata()));
+        stretch(new ImageWrapper32(image.width(), image.height(), g, image.metadata()));
+        stretch(new ImageWrapper32(image.width(), image.height(), b, image.metadata()));
     }
+
 }

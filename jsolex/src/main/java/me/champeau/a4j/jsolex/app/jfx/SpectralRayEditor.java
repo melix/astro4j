@@ -277,8 +277,9 @@ public class SpectralRayEditor {
             for (int i = 0; i < data.length; i++) {
                 data[i] = rgb[i] & 0xFF;
             }
-            LinearStrechingStrategy.DEFAULT.stretch(width, height, data);
-            return new ImageWrapper32(width, height, data, MutableMap.of());
+            var result = new ImageWrapper32(width, height, data, MutableMap.of());
+            LinearStrechingStrategy.DEFAULT.stretch(result);
+            return result;
         }
 
         private static InputStream getMonoImageStream() {

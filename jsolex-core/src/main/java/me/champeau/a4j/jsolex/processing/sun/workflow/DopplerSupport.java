@@ -22,6 +22,8 @@ import me.champeau.a4j.jsolex.processing.sun.ImageUtils;
 import me.champeau.a4j.jsolex.processing.sun.WorkflowState;
 import me.champeau.a4j.jsolex.processing.sun.tasks.GeometryCorrector;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
+import me.champeau.a4j.jsolex.processing.util.MutableMap;
+import me.champeau.a4j.jsolex.processing.util.RGBImage;
 
 import java.util.List;
 
@@ -83,7 +85,10 @@ public class DopplerSupport {
             saturation[i] = (float) sat;
         }
         ImageUtils.fromHSLtoRGB(hsl, rgb);
-        RangeExpansionStrategy.DEFAULT.stretch(width, height, rgb);
+        var metadata = MutableMap.<Class<?>, Object>of();
+        metadata.putAll(grey1.metadata());
+        metadata.putAll(grey2.metadata());
+        RangeExpansionStrategy.DEFAULT.stretch(new RGBImage(width, height, r, g, b, metadata));
         return rgb;
     }
 }

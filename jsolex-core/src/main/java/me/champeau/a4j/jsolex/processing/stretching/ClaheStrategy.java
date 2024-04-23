@@ -17,6 +17,7 @@ package me.champeau.a4j.jsolex.processing.stretching;
 
 import me.champeau.a4j.jsolex.processing.params.ClaheParams;
 import me.champeau.a4j.jsolex.processing.util.Histogram;
+import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 
 public final class ClaheStrategy implements StretchingStrategy {
     public static final int DEFAULT_TILE_SIZE = 16;
@@ -45,13 +46,13 @@ public final class ClaheStrategy implements StretchingStrategy {
     /**
      * Stretches an image using the CLAHE strategy.
      *
-     * @param width the width of the image
-     * @param height the height of the image
-     * @param data grayscale image, where each pixel must be in the 0-65535 range.
      */
     @Override
-    public void stretch(int width, int height, float[] data) {
-        RangeExpansionStrategy.DEFAULT.stretch(width, height, data);
+    public void stretch(ImageWrapper32 image) {
+        RangeExpansionStrategy.DEFAULT.stretch(image);
+        var width = image.width();
+        var height = image.height();
+        var data = image.data();
         int xTilesCount = (int) Math.ceil(width / (double) tileSize);
         int yTilesCount = (int) Math.ceil(height / (double) tileSize);
         var cdf = new CumulativeDistributionFunction[yTilesCount][xTilesCount];

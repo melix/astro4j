@@ -43,6 +43,8 @@ import me.champeau.a4j.jsolex.processing.sun.MagnitudeBasedSunEdgeDetector;
 import me.champeau.a4j.jsolex.processing.sun.SpectrumFrameAnalyzer;
 import me.champeau.a4j.jsolex.processing.util.BackgroundOperations;
 import me.champeau.a4j.jsolex.processing.util.ImageFormat;
+import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
+import me.champeau.a4j.jsolex.processing.util.MutableMap;
 import me.champeau.a4j.jsolex.processing.util.SpectralLineFrameImageCreator;
 import me.champeau.a4j.math.Point2D;
 import me.champeau.a4j.ser.ColorMode;
@@ -279,7 +281,7 @@ public class SpectralLineDebugger {
         });
         var boostValue = contrastBoost.getValue();
         if (boostValue > 0) {
-            new ArcsinhStretchingStrategy(0f, (float) boostValue, boostValue).stretch(width, height, buffer);
+            new ArcsinhStretchingStrategy(0f, (float) boostValue, boostValue).stretch(new ImageWrapper32(width, height, buffer, MutableMap.of()));
         }
         var creator = new SpectralLineFrameImageCreator(analyzer, buffer, width, height);
         var rgb = creator.generateDebugImage(lockedPolynomial);

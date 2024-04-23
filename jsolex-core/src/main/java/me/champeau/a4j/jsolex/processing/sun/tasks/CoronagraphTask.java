@@ -44,7 +44,7 @@ public class CoronagraphTask extends AbstractTask<ImageWrapper32> {
             workImage = BackgroundRemoval.neutralizeBackground(workImage);
         }
         buffer = workImage.data();
-        new ArcsinhStretchingStrategy(0, 50, 50).stretch(width, height, buffer);
+        new ArcsinhStretchingStrategy(0, 50, 50).stretch(workImage);
         workImage = new ImageWrapper32(width, height, buffer, workImage.metadata());
         return workImage;
     }

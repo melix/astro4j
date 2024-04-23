@@ -166,8 +166,10 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
     protected Object functionCall(BuiltinFunction function, List<Object> arguments) {
         return switch (function) {
             case ADJUST_CONTRAST -> adjustContrast.adjustContrast(arguments);
+            case ADJUST_GAMMA -> adjustContrast.adjustGamma(arguments);
             case ANIM -> animate.createAnimation(arguments);
             case ASINH_STRETCH -> stretching.asinhStretch(arguments);
+            case AUTO_CONTRAST -> adjustContrast.autoContrast(arguments);
             case AUTOCROP -> crop.autocrop(arguments);
             case AUTOCROP2 -> crop.autocrop2(arguments);
             case AVG -> applyFunction("avg", arguments, DoubleStream::average);

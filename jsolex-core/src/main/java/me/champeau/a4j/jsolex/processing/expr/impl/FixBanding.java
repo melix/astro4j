@@ -30,7 +30,10 @@ public class FixBanding extends AbstractFunctionImpl {
         var ellipse = getEllipse(arguments, 3);
         int bandSize = intArg(arguments, 1);
         int passes = intArg(arguments, 2);
-        return ScriptSupport.monoToMonoImageTransformer( "fix_banding", 3, arguments, (width, height, data) -> {
+        return ScriptSupport.monoToMonoImageTransformer( "fix_banding", 3, arguments, image -> {
+            var width = image.width();
+            var height = image.height();
+            var data = image.data();
             for (int i = 0; i < passes; i++) {
                 BandingReduction.reduceBanding(width, height, data, bandSize, ellipse.orElse(null));
             }

@@ -92,13 +92,14 @@ public class EllipseFittingTask extends AbstractTask<EllipseFittingTask.Result> 
         var analyzingDiskGeometryMsg = message("analyzing.disk.geometry");
         broadcaster.broadcast(ProgressEvent.of(0, analyzingDiskGeometryMsg));
         var imageMath = ImageMath.newInstance();
-        var workingImage = image.copy();
-        workingImage = imageMath.convolve(workingImage, BLUR_8);
-        var data = workingImage.data();
+        var tmp = image.copy();
+        workImage = ImageWrapper32.fromImage(tmp);
+        tmp = imageMath.convolve(tmp, BLUR_8);
+        workImage = ImageWrapper32.fromImage(tmp);
         // Normalize to the 0-65535 range
-        RangeExpansionStrategy.DEFAULT.stretch(width, height, data);
-        filterIrrelevantPixels(data, statsOf(data));
-        var magnitude = imageMath.convolve(workingImage, Kernel33.EDGE_DETECTION);
+        RangeExpansionStrategy.DEFAULT.stretch(workImage);
+        filterIrrelevantPixels(workImage, statsOf(workImage.data()));
+        var magnitude = imageMath.convolve(tmp, Kernel33.EDGE_DETECTION);
         magnitude = imageMath.convolve(magnitude, Kernel33.GAUSSIAN_BLUR);
         var magnitudes = magnitude.data();
         var samples = findSamplesUsingDynamicSensitivity(magnitudes);
@@ -120,7 +121,8 @@ public class EllipseFittingTask extends AbstractTask<EllipseFittingTask.Result> 
         return result;
     }
 
-    private void filterIrrelevantPixels(float[] data, Stats stats) {
+    private void filterIrrelevantPixels(ImageWrapper32 image, Stats stats) {
+        var data = image.data();
         double dx = 0;
         for (float d : data) {
             if (d > stats.avg) {
@@ -128,7 +130,7 @@ public class EllipseFittingTask extends AbstractTask<EllipseFittingTask.Result> 
             }
         }
         dx = dx / data.length;
-        new CutoffStretchingStrategy((float) (stats.avg - dx * dx * stats.stddev), stats.avg, 0, stats.avg).stretch(width, height, data);
+        new CutoffStretchingStrategy((float) (stats.avg - dx * dx * stats.stddev), stats.avg, 0, stats.avg).stretch(image);
     }
 
     /**

@@ -16,6 +16,7 @@
 package me.champeau.a4j.jsolex.processing.stretching;
 
 import me.champeau.a4j.jsolex.processing.util.Constants;
+import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 
 public final class CutoffStretchingStrategy implements StretchingStrategy {
     public static final CutoffStretchingStrategy DEFAULT = new CutoffStretchingStrategy(0, Constants.MAX_PIXEL_VALUE);
@@ -52,7 +53,8 @@ public final class CutoffStretchingStrategy implements StretchingStrategy {
     }
 
     @Override
-    public void stretch(int width, int height, float[] data) {
+    public void stretch(ImageWrapper32 image) {
+        var data = image.data();
         for (int i = 0; i < data.length; i++) {
             if (data[i] < min) {
                 data[i] = zeroFill;
@@ -62,10 +64,4 @@ public final class CutoffStretchingStrategy implements StretchingStrategy {
         }
     }
 
-    @Override
-    public void stretch(int width, int height, float[][] rgb) {
-        stretch(width, height, rgb[0]);
-        stretch(width, height, rgb[1]);
-        stretch(width, height, rgb[2]);
-    }
 }

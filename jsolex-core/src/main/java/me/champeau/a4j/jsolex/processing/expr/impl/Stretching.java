@@ -18,7 +18,6 @@ package me.champeau.a4j.jsolex.processing.expr.impl;
 import me.champeau.a4j.jsolex.processing.stretching.ArcsinhStretchingStrategy;
 import me.champeau.a4j.jsolex.processing.stretching.LinearStrechingStrategy;
 import me.champeau.a4j.jsolex.processing.util.Constants;
-import me.champeau.a4j.jsolex.processing.util.ForkJoinContext;
 
 import java.util.List;
 import java.util.Map;
@@ -35,7 +34,7 @@ public class Stretching extends AbstractFunctionImpl {
         }
         float blackpoint = floatArg(arguments, 1);
         float stretch = floatArg(arguments, 2);
-        return ScriptSupport.monoToMonoImageTransformer( "asinh_stretch", 3, arguments, (width, height, data) -> new ArcsinhStretchingStrategy(blackpoint, stretch, stretch).stretch(width, height, data));
+        return ScriptSupport.monoToMonoImageTransformer( "asinh_stretch", 3, arguments, image -> new ArcsinhStretchingStrategy(blackpoint, stretch, stretch).stretch(image));
     }
 
     public Object linearStretch(List<Object> arguments) {
@@ -51,6 +50,6 @@ public class Stretching extends AbstractFunctionImpl {
             hi = Constants.MAX_PIXEL_VALUE;
             lo = 0;
         }
-        return ScriptSupport.monoToMonoImageTransformer("linear_stretch", 3, arguments, (width, height, data) -> new LinearStrechingStrategy(lo, hi).stretch(width, height, data));
+        return ScriptSupport.monoToMonoImageTransformer("linear_stretch", 3, arguments, image -> new LinearStrechingStrategy(lo, hi).stretch(image));
     }
 }
