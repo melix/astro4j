@@ -27,8 +27,10 @@ import java.util.ArrayList;
 import java.util.List;
 
 public final class AutohistogramStrategy implements StretchingStrategy {
+    private static final int HISTOGRAM_BINS = 256;
+    private static final GammaStrategy PROTUS_STRATEGY = new GammaStrategy(.7);
+
     public static final double DEFAULT_GAMMA = 1.5;
-    public static final int HISTOGRAM_BINS = 256;
 
     private final double gamma;
 
@@ -53,22 +55,15 @@ public final class AutohistogramStrategy implements StretchingStrategy {
         if (ellipse.isPresent()) {
             var e = ellipse.get();
             // we have an ellipse, so we'll perform another stretch, then combine pixels from both images
-            var protus = image.copy();
-            protus = BackgroundRemoval.neutralizeBackground(protus);
-            new GammaStrategy(.7).stretch(protus);
             var height = image.height();
             var width = image.width();
-            var mask = createMask(diskData, height, width, e);
+            var mask = createMask(height, width, e);
+            var protus = prepareProtusImage(image);
             var protusData = protus.data();
             for (int y = 0; y < height; y++) {
                 for (int x = 0; x < width; x++) {
                     var idx = y * width + x;
                     var weight = Math.pow(mask[idx], gamma);
-                    if (diskData[idx] == 0) {
-                        weight = 1;
-                    } else if (protusData[idx] == 0) {
-                        weight = 0;
-                    }
                     diskData[idx] = (float) ((1 - weight) * disk.data()[idx] + weight * protusData[idx]);
                 }
             }
@@ -78,7 +73,7 @@ public final class AutohistogramStrategy implements StretchingStrategy {
         }
         diskData = image.data();
         var lohi = findLoHi(diskData);
-        new DynamicCutoffStrategy(.5, lohi.hi()).stretch(image);
+        new DynamicStretchStrategy(lohi.hi(), .5).stretch(image);
         var clahe = image.copy();
         new ClaheStrategy(8, 64, 1.0).stretch(clahe);
         // combine CLAHE with image
@@ -88,13 +83,68 @@ public final class AutohistogramStrategy implements StretchingStrategy {
         }
     }
 
-    private static float[] createMask(float[] diskData, int height, int width, Ellipse e) {
-        float[] mask = new float[diskData.length];
+    private static ImageWrapper32 prepareProtusImage(ImageWrapper32 image) {
+        var protus = image.copy();
+        var data = protus.data();
+        trimLeft(data);
+        protus = BackgroundRemoval.neutralizeBackground(protus);
+        PROTUS_STRATEGY.stretch(protus);
+        // Truncate the histogram on the left to protect shadows
+        var histo = Histogram.of(data, 256);
+        for (int i = 0; i < 32; i++) {
+            if (histo.get(i) == 0) {
+                for (int j = i + 1; j < 32; j++) {
+                    if (histo.get(j) == 0) {
+                        i++;
+                    }
+                }
+                truncateLeft(data, 256f * i);
+                break;
+            }
+        }
+        return protus;
+    }
+
+    private static void trimLeft(float[] data) {
+        float minNonZero = Float.MAX_VALUE;
+        for (float v : data) {
+            if (v > 0) {
+                minNonZero = Math.min(v, minNonZero);
+            }
+        }
+        // normalize so that the minimum is non-zero (which can happen because of artifacts or resizing, ...)
+        truncateLeft(data, minNonZero);
+    }
+
+    private static void truncateLeft(float[] data, float minNonZero) {
+        for (int i = 0; i < data.length; i++) {
+            data[i] = Math.max(0, data[i] - minNonZero);
+        }
+    }
+
+    private static float[] createMask(int height, int width, Ellipse e) {
+        float[] mask = new float[width * height];
+        var cx = e.center().a();
+        var cy = e.center().b();
+        double min = Double.MAX_VALUE;
         for (int y = 0; y < height; y++) {
             for (int x = 0; x < width; x++) {
                 var idx = y * width + x;
                 if (!e.isWithin(x, y)) {
-                    mask[idx] = 1;
+                    var distance = Math.sqrt((x - cx) * (x - cx) + (y - cy) * (y - cy));
+                    mask[idx] = (float) distance;
+                    min = Math.min(min, distance);
+                }
+            }
+        }
+        for (int i = 0; i < mask.length; i++) {
+            var v = mask[i];
+            if (v > 0) {
+                double d = (v - min) / min;
+                if (d < 0.2) {
+                    mask[i] = 1;
+                } else {
+                    mask[i] = 0;
                 }
             }
         }
@@ -104,7 +154,8 @@ public final class AutohistogramStrategy implements StretchingStrategy {
         tmp = imageMath.convolve(tmp, BlurKernel.of(8));
         mask = imageMath.rescale(tmp, width, height).data();
         for (int i = 0; i < mask.length; i++) {
-            mask[i] = (float) Math.pow(mask[i], 2);
+            var v = mask[i];
+            mask[i] = (float) Math.pow(v, 2);
         }
         return mask;
     }
@@ -161,8 +212,6 @@ public final class AutohistogramStrategy implements StretchingStrategy {
                 peaks.add(new Peak(i, value));
             }
         }
-        var median = medianOf(peaks);
-        //peaks.removeIf(p -> p.value < median);
         double peakValue = 0;
         int idx = -1;
         for (int i = peaks.size() - 1; i >= 0; i--) {
@@ -179,24 +228,6 @@ public final class AutohistogramStrategy implements StretchingStrategy {
             peakValue = Math.max(peakValue, v);
         }
         return idx == -1 ? peaks.getFirst().index() : idx;
-    }
-
-    private static double averageOf(List<Peak> peaks) {
-        return peaks.
-            stream()
-            .mapToDouble(Peak::value)
-            .average()
-            .orElse(0);
-    }
-
-    private static double medianOf(List<Peak> peaks) {
-        return peaks.
-            stream()
-            .mapToDouble(Peak::value)
-            .sorted()
-            .skip(peaks.size() / 2)
-            .findFirst()
-            .orElse(0);
     }
 
     record Peak(int index, double value) {

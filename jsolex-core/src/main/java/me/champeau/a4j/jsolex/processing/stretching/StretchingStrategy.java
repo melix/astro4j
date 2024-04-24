@@ -31,7 +31,7 @@ public sealed interface StretchingStrategy permits
     GammaStrategy,
     AutohistogramStrategy,
     ContrastAdjustmentStrategy,
-    DynamicCutoffStrategy,
+    DynamicStretchStrategy,
     StretchingChain {
 
     default void stretch(ImageWrapper image) {
