@@ -46,4 +46,5 @@ public class FloatPrecisionImageConverter implements ImageConverter<float[]> {
             outputData[i] = intermediateBuffer[i] & 0xFFFF;
         }
     }
+
 }

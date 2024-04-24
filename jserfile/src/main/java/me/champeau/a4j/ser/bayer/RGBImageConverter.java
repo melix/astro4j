@@ -35,26 +35,28 @@ public class RGBImageConverter implements ImageConverter<short[]>, BayerMatrixSu
 
     @Override
     public void convert(int frameId, ByteBuffer frameData, ImageGeometry geometry, short[] outputData) {
+        var isBayer = geometry.colorMode().isBayer();
         int width = geometry.width();
         int height = geometry.height();
         int bytesPerPixel = geometry.getBytesPerPixel();
+        int bitsToDiscard = geometry.pixelDepthPerPlane() - 8;
         int k = 0;
         for (int y = 0; y < height; y++) {
             for (int x = 0; x < width; x++) {
-                short value = readColor(frameData, geometry, bytesPerPixel);
-                if (geometry.colorMode() == ColorMode.MONO || geometry.colorMode().isBayer()) {
+                short value = readColor(frameData, geometry, bytesPerPixel, bitsToDiscard);
+                if (geometry.colorMode() == ColorMode.MONO || isBayer) {
                     outputData[k + RED] = value;
                     outputData[k + GREEN] = value;
                     outputData[k + BLUE] = value;
                 } else if (geometry.colorMode() == ColorMode.BGR) {
-                    short g = readColor(frameData, geometry, bytesPerPixel);
-                    short r = readColor(frameData, geometry, bytesPerPixel);
+                    short g = readColor(frameData, geometry, bytesPerPixel, bitsToDiscard);
+                    short r = readColor(frameData, geometry, bytesPerPixel, bitsToDiscard);
                     outputData[k + RED] = r;
                     outputData[k + GREEN] = g;
                     outputData[k + BLUE] = value;
                 } else if (geometry.colorMode() == ColorMode.RGB) {
-                    short g = readColor(frameData, geometry, bytesPerPixel);
-                    short b = readColor(frameData, geometry, bytesPerPixel);
+                    short g = readColor(frameData, geometry, bytesPerPixel, bitsToDiscard);
+                    short b = readColor(frameData, geometry, bytesPerPixel, bitsToDiscard);
                     outputData[k + RED] = value;
                     outputData[k + GREEN] = g;
                     outputData[k + BLUE] = b;
@@ -64,9 +66,8 @@ public class RGBImageConverter implements ImageConverter<short[]>, BayerMatrixSu
         }
     }
 
-    private static short readColor(ByteBuffer frameData, ImageGeometry geometry, int bytesPerPixel) {
+    private static short readColor(ByteBuffer frameData, ImageGeometry geometry, int bytesPerPixel, int bitsToDiscard) {
         short next;
-        int bitsToDiscard = geometry.pixelDepthPerPlane() - 8;
         if (bytesPerPixel == 1) {
             // Data of between 1 and 8 bits should be stored aligned with the most significant bit
             int v = frameData.get() >> bitsToDiscard;
