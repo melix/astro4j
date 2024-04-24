@@ -16,6 +16,7 @@
 package me.champeau.a4j.jsolex.processing.stretching;
 
 import me.champeau.a4j.jsolex.processing.util.Constants;
+import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 
 import java.util.Optional;
 
@@ -39,7 +40,8 @@ public final class LinearStrechingStrategy implements StretchingStrategy {
     }
 
     @Override
-    public void stretch(int width, int height, float[] data) {
+    public void stretch(ImageWrapper32 image) {
+        var data = image.data();
         double min = min(data).orElse((double) lo);
         double max = max(data).orElse((double) lo);
         double range = max - min;

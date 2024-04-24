@@ -15,6 +15,8 @@
  */
 package me.champeau.a4j.jsolex.processing.stretching;
 
+import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
+
 public final class RangeExpansionStrategy implements StretchingStrategy {
     private static final int MAX_VALUE = 65535;
 
@@ -25,7 +27,8 @@ public final class RangeExpansionStrategy implements StretchingStrategy {
     }
 
     @Override
-    public void stretch(int width, int height, float[] data) {
+    public void stretch(ImageWrapper32 image) {
+        var data = image.data();
         double max = Double.MIN_VALUE;
         for (float v : data) {
             if (v > max) {

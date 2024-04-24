@@ -17,6 +17,7 @@ package me.champeau.a4j.jsolex.processing.params;
 
 import com.google.gson.Gson;
 import me.champeau.a4j.jsolex.processing.file.FileNamingStrategy;
+import me.champeau.a4j.jsolex.processing.stretching.AutohistogramStrategy;
 import me.champeau.a4j.jsolex.processing.stretching.ClaheStrategy;
 import me.champeau.a4j.jsolex.processing.util.FilesUtils;
 import me.champeau.a4j.jsolex.processing.util.ImageFormat;
@@ -89,7 +90,9 @@ public abstract class ProcessParamsIO {
             new GeometryParams(null, null, false, false, false, false, true, RotationKind.NONE, AutocropMode.OFF, DeconvolutionMode.NONE, null),
             new BandingCorrectionParams(24, 3),
             new RequestedImages(RequestedImages.FULL_MODE, List.of(0d), Set.of(), ImageMathParams.NONE),
-            createDefaultClaheParams()
+            createDefaultClaheParams(),
+            createDefaultAutoStretchParams(),
+            ContrastEnhancement.AUTOSTRETCH
         );
     }
 
@@ -121,7 +124,9 @@ public abstract class ProcessParamsIO {
                     params.geometryParams(),
                     params.bandingCorrectionParams(),
                     params.requestedImages(),
-                    params.claheParams()
+                    params.claheParams(),
+                    params.autoStretchParams(),
+                    params.contrastEnhancement()
                 );
             }
             if (params.geometryParams() == null) {
@@ -144,7 +149,9 @@ public abstract class ProcessParamsIO {
                         null),
                     params.bandingCorrectionParams(),
                     params.requestedImages(),
-                    params.claheParams()
+                    params.claheParams(),
+                    params.autoStretchParams(),
+                    params.contrastEnhancement()
                 );
             }
             if (params.bandingCorrectionParams() == null) {
@@ -159,7 +166,9 @@ public abstract class ProcessParamsIO {
                         3
                     ),
                     params.requestedImages(),
-                    params.claheParams()
+                    params.claheParams(),
+                    params.autoStretchParams(),
+                    params.contrastEnhancement()
                 );
             }
             if (params.requestedImages() == null) {
@@ -171,7 +180,9 @@ public abstract class ProcessParamsIO {
                     params.geometryParams(),
                     params.bandingCorrectionParams(),
                     new RequestedImages(RequestedImages.FULL_MODE, List.of(0d), Set.of(), ImageMathParams.NONE),
-                    params.claheParams()
+                    params.claheParams(),
+                    params.autoStretchParams(),
+                    params.contrastEnhancement()
                 );
             }
             if (params.extraParams() == null) {
@@ -193,6 +204,12 @@ public abstract class ProcessParamsIO {
             if (params.claheParams() == null) {
                 params = params.withClaheParams(createDefaultClaheParams());
             }
+            if (params.autoStretchParams() == null) {
+                params = params.withAutoStretchParams(createDefaultAutoStretchParams());
+            }
+            if (params.contrastEnhancement() == null) {
+                params = params.withContrastEnhancement(ContrastEnhancement.AUTOSTRETCH);
+            }
             return params;
         }
         return null;
@@ -200,6 +217,10 @@ public abstract class ProcessParamsIO {
 
     private static ClaheParams createDefaultClaheParams() {
         return new ClaheParams(ClaheStrategy.DEFAULT_TILE_SIZE, ClaheStrategy.DEFAULT_BINS, ClaheStrategy.DEFAULT_CLIP);
+    }
+
+    private static AutoStretchParams createDefaultAutoStretchParams() {
+        return new AutoStretchParams(AutohistogramStrategy.DEFAULT_GAMMA);
     }
 
     public static String serializeToJson(ProcessParams params) {

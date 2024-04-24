@@ -19,8 +19,10 @@ import java.util.Locale;
 
 public enum BuiltinFunction {
     ADJUST_CONTRAST,
+    ADJUST_GAMMA,
     ANIM,
     ASINH_STRETCH,
+    AUTO_CONTRAST,
     AUTOCROP,
     AUTOCROP2,
     AVG,

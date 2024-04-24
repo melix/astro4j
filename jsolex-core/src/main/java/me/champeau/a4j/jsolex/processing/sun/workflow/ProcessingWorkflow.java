@@ -21,11 +21,14 @@ import me.champeau.a4j.jsolex.processing.event.SuggestionEvent;
 import me.champeau.a4j.jsolex.processing.expr.impl.Crop;
 import me.champeau.a4j.jsolex.processing.expr.impl.ImageDraw;
 import me.champeau.a4j.jsolex.processing.expr.impl.Rotate;
+import me.champeau.a4j.jsolex.processing.params.AutoStretchParams;
 import me.champeau.a4j.jsolex.processing.params.ClaheParams;
+import me.champeau.a4j.jsolex.processing.params.ContrastEnhancement;
 import me.champeau.a4j.jsolex.processing.params.DeconvolutionMode;
 import me.champeau.a4j.jsolex.processing.params.ProcessParams;
 import me.champeau.a4j.jsolex.processing.params.RotationKind;
 import me.champeau.a4j.jsolex.processing.stretching.ArcsinhStretchingStrategy;
+import me.champeau.a4j.jsolex.processing.stretching.AutohistogramStrategy;
 import me.champeau.a4j.jsolex.processing.stretching.ClaheStrategy;
 import me.champeau.a4j.jsolex.processing.stretching.NegativeImageStrategy;
 import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
@@ -38,6 +41,7 @@ import me.champeau.a4j.jsolex.processing.sun.tasks.GeometryCorrector;
 import me.champeau.a4j.jsolex.processing.sun.tasks.ImageBandingCorrector;
 import me.champeau.a4j.jsolex.processing.util.Constants;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
+import me.champeau.a4j.jsolex.processing.util.MutableMap;
 import me.champeau.a4j.math.Point2D;
 import me.champeau.a4j.math.image.Deconvolution;
 import me.champeau.a4j.math.image.ImageMath;
@@ -52,6 +56,7 @@ import java.text.MessageFormat;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.function.Supplier;
 
 import static me.champeau.a4j.jsolex.processing.sun.ImageUtils.bilinearSmoothing;
@@ -109,7 +114,7 @@ public class ProcessingWorkflow {
         } else {
             var clahe = reconstructed.copy();
             var claheParams = processParams.claheParams();
-            ClaheStrategy.of(claheParams).stretch(clahe.width(), clahe.height(), clahe.data());
+            ClaheStrategy.of(claheParams).stretch(clahe);
             TransformationHistory.recordTransform(clahe, "CLAHE (tile size: " + claheParams.tileSize() + ", clip limit: " + claheParams.clipping() + ", bins: " + claheParams.bins() + ")");
             processedImagesEmitter.newMonoImage(GeneratedImageKind.GEOMETRY_CORRECTED_PROCESSED, message("processed"), "clahe", clahe);
         }
@@ -169,7 +174,7 @@ public class ProcessingWorkflow {
         }
         broadcaster.broadcast(OutputImageDimensionsDeterminedEvent.of(message("geometry.corrected"), geometryFixed.width(), geometryFixed.height()));
         var runnables = new ArrayList<Runnable>();
-        runnables.add(() -> produceStretchedImage(enhanced, processParams.claheParams()));
+        runnables.add(() -> produceStretchedImage(enhanced, processParams.claheParams(), processParams.autoStretchParams(), processParams.contrastEnhancement()));
         if (isMainShift() && shouldProduce(GeneratedImageKind.NEGATIVE)) {
             runnables.add(() -> produceNegativeImage(enhanced));
         }
@@ -249,7 +254,7 @@ public class ProcessingWorkflow {
     private void produceColorizedImage(float blackPoint, ImageWrapper32 corrected, ProcessParams params) {
         params.spectrumParams().ray().getColorCurve().ifPresent(curve ->
             processedImagesEmitter.newColorImage(GeneratedImageKind.COLORIZED, MessageFormat.format(message("colorized"), curve.ray()), "colorized", corrected, mono -> {
-                createStretchingForColorization(blackPoint).stretch(corrected.width(), corrected.height(), mono);
+                createStretchingForColorization(blackPoint).stretch(new ImageWrapper32(corrected.width(), corrected.height(), mono, MutableMap.of()));
                 return ImageUtils.convertToRGB(curve, mono);
             })
         );
@@ -263,13 +268,21 @@ public class ProcessingWorkflow {
         return new ImageBandingCorrector(broadcaster, imageSupplier(WorkflowResults.ROTATED), ellipse, processParams.bandingCorrectionParams()).get();
     }
 
-    private void produceStretchedImage(ImageWrapper32 geometryFixed, ClaheParams claheParams) {
-        var clahe = geometryFixed.copy();
-        ClaheStrategy.of(claheParams).stretch(clahe.width(), clahe.height(), clahe.data());
-        TransformationHistory.recordTransform(clahe, "CLAHE (tile size: " + claheParams.tileSize() + ", clip limit: " + claheParams.clipping() + ", bins: " + claheParams.bins() + ")");
-        processedImagesEmitter.newMonoImage(GeneratedImageKind.GEOMETRY_CORRECTED_PROCESSED, message("processed"), "clahe", clahe);
+    private void produceStretchedImage(ImageWrapper32 geometryFixed, ClaheParams claheParams, AutoStretchParams autoStretchParams, ContrastEnhancement contrastEnhancement) {
+        var stretched = geometryFixed.copy();
+        switch (contrastEnhancement) {
+            case AUTOSTRETCH -> {
+                new AutohistogramStrategy(autoStretchParams.gamma()).stretch(stretched);
+                TransformationHistory.recordTransform(stretched, "AutoStretch (gamma: " + autoStretchParams.gamma() + ")");
+            }
+            case CLAHE -> {
+                ClaheStrategy.of(claheParams).stretch(stretched);
+                TransformationHistory.recordTransform(stretched, "CLAHE (tile size: " + claheParams.tileSize() + ", clip limit: " + claheParams.clipping() + ", bins: " + claheParams.bins() + ")");
+            }
+        }
+        processedImagesEmitter.newMonoImage(GeneratedImageKind.GEOMETRY_CORRECTED_PROCESSED, message("processed"), contrastEnhancement.name().toLowerCase(Locale.US), stretched);
         if (shouldProduce(GeneratedImageKind.TECHNICAL_CARD) && isMainShift()) {
-            produceTechnicalCard(clahe);
+            produceTechnicalCard(stretched);
         }
     }
 
@@ -299,8 +312,8 @@ public class ProcessingWorkflow {
 
     private void produceNegativeImage(ImageWrapper32 geometryFixed) {
         var negated = geometryFixed.copy();
-        new ClaheStrategy(128, 512, .8f).stretch(geometryFixed.width(), geometryFixed.height(), negated.data());
-        NegativeImageStrategy.DEFAULT.stretch(geometryFixed.width(), geometryFixed.height(), negated.data());
+        new ClaheStrategy(128, 512, .8f).stretch(negated);
+        NegativeImageStrategy.DEFAULT.stretch(negated);
         TransformationHistory.recordTransform(negated, "Negative");
         processedImagesEmitter.newMonoImage(GeneratedImageKind.NEGATIVE, message("negative"), "negative", negated);
     }
@@ -317,8 +330,9 @@ public class ProcessingWorkflow {
                     var data = geometryFixed.data();
                     var copy = new float[data.length];
                     System.arraycopy(data, 0, copy, 0, data.length);
-                    createStretchingForColorization(blackPoint).stretch(geometryFixed.width(), geometryFixed.height(), copy);
-                    ClaheStrategy.of(processParams.claheParams()).stretch(geometryFixed.width(), geometryFixed.height(), copy);
+                    var work = new ImageWrapper32(geometryFixed.width(), geometryFixed.height(), copy, geometryFixed.metadata());
+                    createStretchingForColorization(blackPoint).stretch(work);
+                    ClaheStrategy.of(processParams.claheParams()).stretch(work);
                     var width = geometryFixed.width();
                     var height = geometryFixed.height();
                     float[] mix = new float[data.length];

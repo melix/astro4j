@@ -15,20 +15,33 @@
  */
 package me.champeau.a4j.jsolex.processing.stretching;
 
+import me.champeau.a4j.jsolex.processing.util.Constants;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 
-public final class NegativeImageStrategy implements StretchingStrategy {
-    public static final NegativeImageStrategy DEFAULT = new NegativeImageStrategy();
+public final class GammaStrategy implements StretchingStrategy {
+    private final double gamma;
 
-    private NegativeImageStrategy() {
-
+    public GammaStrategy(double gamma) {
+        this.gamma = gamma;
     }
 
+    /**
+     * Stretches an image using the gamma correction
+     *
+     * @param image grayscale image, where each pixel must be in the 0-65535 range.
+     */
     @Override
     public void stretch(ImageWrapper32 image) {
         var data = image.data();
+        float max = 1e-7f;
+        for (float v : data) {
+            max = Math.max(v, max);
+        }
         for (int i = 0; i < data.length; i++) {
-            data[i] = 65535 - data[i];
+            var v = data[i];
+            float normalized = v / max;
+            float corrected = (float) Math.pow(normalized, gamma);
+            data[i] = corrected * Constants.MAX_PIXEL_VALUE;
         }
     }
 

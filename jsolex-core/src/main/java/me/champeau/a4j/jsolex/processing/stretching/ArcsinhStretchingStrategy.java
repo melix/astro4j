@@ -16,6 +16,8 @@
 package me.champeau.a4j.jsolex.processing.stretching;
 
 import me.champeau.a4j.jsolex.processing.util.Constants;
+import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
+import me.champeau.a4j.jsolex.processing.util.RGBImage;
 
 import static org.apache.commons.math3.util.FastMath.asinh;
 
@@ -49,7 +51,8 @@ public final class ArcsinhStretchingStrategy implements StretchingStrategy {
     }
 
     @Override
-    public void stretch(int width, int height, float[] data) {
+    public void stretch(ImageWrapper32 image) {
+        var data = image.data();
         double max = Constants.MAX_PIXEL_VALUE;
         var bp = blackPoint / max;
         for (int i = 0; i < data.length; i++) {
@@ -63,11 +66,16 @@ public final class ArcsinhStretchingStrategy implements StretchingStrategy {
             data[i] = Math.max(0, data[i]);
             data[i] = Math.min(Constants.MAX_PIXEL_VALUE, data[i]);
         }
-        LinearStrechingStrategy.DEFAULT.stretch(width, height, data);
+        LinearStrechingStrategy.DEFAULT.stretch(image);
     }
 
     @Override
-    public void stretch(int width, int height, float[][] rgb) {
+    public void stretch(RGBImage image) {
+        var rgb = new float[][]{
+            image.r(),
+            image.g(),
+            image.b()
+        };
         double max = Constants.MAX_PIXEL_VALUE;
         var bp = blackPoint / max;
         int length = rgb[0].length;
@@ -85,7 +93,7 @@ public final class ArcsinhStretchingStrategy implements StretchingStrategy {
                 rgb[j][i] = Math.min(Constants.MAX_PIXEL_VALUE, rgb[j][i]);
             }
         }
-        LinearStrechingStrategy.DEFAULT.stretch(width, height, rgb);
+        LinearStrechingStrategy.DEFAULT.stretch(image);
     }
 
 }

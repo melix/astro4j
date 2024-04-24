@@ -323,30 +323,12 @@ public class ImageViewer {
         container.getChildren().addAll(List.of(loLabel, loSlider, loValueLabel, hiLabel, hiSlider, hiValueLabel));
     }
 
-    private float[] stretch(int width, int height, float[] data) {
+    private ImageWrapper stretch(ImageWrapper image) {
         broadcaster.onProgress(ProgressEvent.of(0, message("stretching") + " " + imageFile.getName()));
         try {
-            float[] streched = new float[data.length];
-            System.arraycopy(data, 0, streched, 0, data.length);
-            stretchingStrategy.stretch(width, height, streched);
-            return streched;
-        } finally {
-            broadcaster.onProgress(ProgressEvent.of(1, message("stretching") + " " + imageFile.getName()));
-        }
-    }
-
-    private float[][] stretch(int width, int height, float[] r, float[] g, float[] b) {
-        broadcaster.onProgress(ProgressEvent.of(0, message("stretching") + " " + imageFile.getName()));
-        try {
-            float[] rr = new float[r.length];
-            float[] gg = new float[g.length];
-            float[] bb = new float[b.length];
-            System.arraycopy(r, 0, rr, 0, r.length);
-            System.arraycopy(g, 0, gg, 0, g.length);
-            System.arraycopy(b, 0, bb, 0, b.length);
-            var rgb = new float[][]{rr, gg, bb};
-            stretchingStrategy.stretch(width, height, rgb);
-            return rgb;
+            var copy = image.copy();
+            stretchingStrategy.stretch(copy);
+            return copy;
         } finally {
             broadcaster.onProgress(ProgressEvent.of(1, message("stretching") + " " + imageFile.getName()));
         }
@@ -387,23 +369,22 @@ public class ImageViewer {
         displayImage = maybeRotate(this.image);
         var tmpImage = createTmpFile();
         if (displayImage instanceof ImageWrapper32 mono) {
-            var stretched = stretch(mono.width(), mono.height(), mono.data());
-            stretchedImage = new ImageWrapper32(mono.width(), mono.height(), stretched, mono.metadata());
-            var savedImages = ImageUtils.writeMonoImage(mono.width(), mono.height(), stretched, tmpImage, imageFormats);
+            stretchedImage = stretch(mono);
+            var savedImages = ImageUtils.writeMonoImage(mono.width(), mono.height(), ((ImageWrapper32)stretchedImage).data(), tmpImage, imageFormats);
             BatchOperations.submit(() -> updateDisplay(savedImages, resetZoom));
         } else if (displayImage instanceof ColorizedImageWrapper colorImage) {
-            var stretched = stretch(colorImage.width(), colorImage.height(), colorImage.mono().data());
-            stretchedImage = new ColorizedImageWrapper(new ImageWrapper32(colorImage.width(), colorImage.height(), stretched, colorImage.metadata()), colorImage.converter(), colorImage.metadata());
-            var rgb = colorImage.converter().apply(stretched);
+            stretchedImage = stretch(colorImage);
+            var stretched = (ColorizedImageWrapper) stretchedImage;
+            var rgb = colorImage.converter().apply(stretched.mono().data());
             var r = rgb[0];
             var g = rgb[1];
             var b = rgb[2];
             var savedImages = ImageUtils.writeRgbImage(colorImage.width(), colorImage.height(), r, g, b, tmpImage, imageFormats);
             BatchOperations.submit(() -> updateDisplay(savedImages, resetZoom));
         } else if (displayImage instanceof RGBImage rgb) {
-            var stretched = stretch(rgb.width(), rgb.height(), rgb.r(), rgb.g(), rgb.b());
-            stretchedImage = new RGBImage(rgb.width(), rgb.height(), stretched[0], stretched[1], stretched[2], rgb.metadata());
-            var savedImages = ImageUtils.writeRgbImage(rgb.width(), rgb.height(), stretched[0], stretched[1], stretched[2], tmpImage, imageFormats);
+            stretchedImage = stretch(rgb);
+            var stretched = (RGBImage) stretchedImage;
+            var savedImages = ImageUtils.writeRgbImage(rgb.width(), rgb.height(), stretched.r(), stretched.g(), stretched.b(), tmpImage, imageFormats);
             BatchOperations.submit(() -> updateDisplay(savedImages, resetZoom));
         }
     }

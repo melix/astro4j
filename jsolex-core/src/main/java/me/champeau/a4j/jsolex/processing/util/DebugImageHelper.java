@@ -38,17 +38,15 @@ public class DebugImageHelper {
                                              Ellipse ellipse,
                                              Point2D... interestPoints) {
         if (processParams.extraParams().generateDebugImages()) {
-            var newData = new float[bandingFixed.data().length];
-            var original = bandingFixed.data();
-            System.arraycopy(original, 0, newData, 0, newData.length);
-            RangeExpansionStrategy.DEFAULT.stretch(bandingFixed.width(), bandingFixed.height(), newData);
+            var copy = bandingFixed.copy();
+            RangeExpansionStrategy.DEFAULT.stretch(copy);
             var width = bandingFixed.width();
             var height = bandingFixed.height();
-            drawEllipse(width, height, ellipse, newData);
+            drawEllipse(width, height, ellipse, copy.data());
             for (Point2D point : interestPoints) {
-                plot(point, width, height, newData, 12);
+                plot(point, width, height, copy.data(), 12);
             }
-            produceOverlayImage(processedImagesEmitter, width, height, newData, original);
+            produceOverlayImage(processedImagesEmitter, width, height, copy.data(), bandingFixed.data());
         }
     }
 

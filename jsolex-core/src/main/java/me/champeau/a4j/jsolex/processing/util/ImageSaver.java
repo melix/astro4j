@@ -44,16 +44,16 @@ public class ImageSaver {
             image = fbi.unwrapToMemory();
         }
         if (image instanceof ImageWrapper32 mono) {
-            float[] stretched = stretch(mono.width(), mono.height(), mono.data());
-            files = ImageUtils.writeMonoImage(image.width(), image.height(), stretched, target, imageFormats);
+            var stretched = stretch(mono);
+            files = ImageUtils.writeMonoImage(image.width(), image.height(), stretched.data(), target, imageFormats);
             if (imageFormats.contains(ImageFormat.FITS)) {
                 var fits = toFits(target);
                 files = Stream.concat(files.stream(), Stream.of(fits)).toList();
-                FitsUtils.writeFitsFile(new ImageWrapper32(image.width(), image.height(), stretched, mono.metadata()), fits, processParams);
+                FitsUtils.writeFitsFile(stretched, fits, processParams);
             }
         } else if (image instanceof ColorizedImageWrapper colorImage) {
-            float[] stretched = stretch(colorImage.width(), colorImage.height(), colorImage.mono().data());
-            var colorized = colorImage.converter().apply(stretched);
+            var stretched = stretch(colorImage);
+            var colorized = colorImage.converter().apply(stretched.mono().data());
             var r = colorized[0];
             var g = colorized[1];
             var b = colorized[2];
@@ -64,10 +64,10 @@ public class ImageSaver {
                 FitsUtils.writeFitsFile(new RGBImage(image.width(), image.height(), r, g, b, colorImage.metadata()), fits, processParams);
             }
         } else if (image instanceof RGBImage rgb) {
-            var stretched = stretch(rgb.width(), rgb.height(), rgb.r(), rgb.g(), rgb.b());
-            var r = stretched[0];
-            var g = stretched[1];
-            var b = stretched[2];
+            var stretched = stretch(rgb);
+            var r = stretched.r();
+            var g = stretched.g();
+            var b = stretched.b();
             files = ImageUtils.writeRgbImage(rgb.width(), rgb.height(), r, g, b, target, imageFormats);
             if (imageFormats.contains(ImageFormat.FITS)) {
                 var fits = toFits(target);
@@ -78,23 +78,22 @@ public class ImageSaver {
         return files;
     }
 
-    private float[] stretch(int width, int height, float[] data) {
-        float[] streched = new float[data.length];
-        System.arraycopy(data, 0, streched, 0, data.length);
-        stretchingStrategy.stretch(width, height, streched);
-        return streched;
+    private ImageWrapper32 stretch(ImageWrapper32 image) {
+        var copy = image.copy();
+        stretchingStrategy.stretch(copy);
+        return copy;
     }
 
-    private float[][] stretch(int width, int height, float[] r, float[] g, float[] b) {
-        float[] rr = new float[r.length];
-        float[] gg = new float[g.length];
-        float[] bb = new float[b.length];
-        System.arraycopy(r, 0, rr, 0, r.length);
-        System.arraycopy(g, 0, gg, 0, g.length);
-        System.arraycopy(b, 0, bb, 0, b.length);
-        var rgb = new float[][]{rr, gg, bb};
-        stretchingStrategy.stretch(width, height, rgb);
-        return rgb;
+    private ColorizedImageWrapper stretch(ColorizedImageWrapper image) {
+        var copy = image.copy();
+        stretchingStrategy.stretch(copy);
+        return copy;
+    }
+
+    private RGBImage stretch(RGBImage image) {
+        var copy = image.copy();
+        stretchingStrategy.stretch(copy);
+        return copy;
     }
 
     private File toFits(File target) {

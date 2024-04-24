@@ -16,6 +16,7 @@
 package me.champeau.a4j.jsolex.processing.stretching;
 
 import me.champeau.a4j.jsolex.processing.util.Constants;
+import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 
 public final class ContrastAdjustmentStrategy implements StretchingStrategy {
     public static final ContrastAdjustmentStrategy DEFAULT = new ContrastAdjustmentStrategy(0, .95f*Constants.MAX_PIXEL_VALUE);
@@ -51,7 +52,8 @@ public final class ContrastAdjustmentStrategy implements StretchingStrategy {
     }
 
     @Override
-    public void stretch(int width, int height, float[] data) {
+    public void stretch(ImageWrapper32 image) {
+        var data = image.data();
         for (int i = 0; i < data.length; i++) {
             if (data[i] < min) {
                 data[i] = 0;
@@ -60,7 +62,7 @@ public final class ContrastAdjustmentStrategy implements StretchingStrategy {
             }
         }
         if (normalize) {
-            LinearStrechingStrategy.DEFAULT.stretch(width, height, data);
+            LinearStrechingStrategy.DEFAULT.stretch(image);
         }
     }
 

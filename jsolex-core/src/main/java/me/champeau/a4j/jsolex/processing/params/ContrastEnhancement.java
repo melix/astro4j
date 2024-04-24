@@ -13,23 +13,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package me.champeau.a4j.jsolex.processing.stretching;
+package me.champeau.a4j.jsolex.processing.params;
 
-import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
-
-public final class NegativeImageStrategy implements StretchingStrategy {
-    public static final NegativeImageStrategy DEFAULT = new NegativeImageStrategy();
-
-    private NegativeImageStrategy() {
-
-    }
-
-    @Override
-    public void stretch(ImageWrapper32 image) {
-        var data = image.data();
-        for (int i = 0; i < data.length; i++) {
-            data[i] = 65535 - data[i];
-        }
-    }
-
+/**
+ * The supported contrast enhancement methods.
+ */
+public enum ContrastEnhancement {
+    CLAHE,
+    AUTOSTRETCH
 }

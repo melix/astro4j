@@ -19,14 +19,16 @@ import java.io.File;
 import java.util.Optional;
 
 public record ProcessParams(
-        SpectrumParams spectrumParams,
-        ObservationDetails observationDetails,
-        ExtraParams extraParams,
-        VideoParams videoParams,
-        GeometryParams geometryParams,
-        BandingCorrectionParams bandingCorrectionParams,
-        RequestedImages requestedImages,
-        ClaheParams claheParams
+    SpectrumParams spectrumParams,
+    ObservationDetails observationDetails,
+    ExtraParams extraParams,
+    VideoParams videoParams,
+    GeometryParams geometryParams,
+    BandingCorrectionParams bandingCorrectionParams,
+    RequestedImages requestedImages,
+    ClaheParams claheParams,
+    AutoStretchParams autoStretchParams,
+    ContrastEnhancement contrastEnhancement
 ) {
     public static ProcessParams loadDefaults() {
         return ProcessParamsIO.loadDefaults();
@@ -46,129 +48,177 @@ public record ProcessParams(
 
     public ProcessParams withGeometry(double tilt, double xyRatio) {
         return new ProcessParams(
-                spectrumParams,
-                observationDetails,
-                extraParams,
-                videoParams,
-                new GeometryParams(tilt,
-                    xyRatio,
-                    geometryParams().isHorizontalMirror(),
-                    geometryParams().isVerticalMirror(),
-                    geometryParams().isSharpen(),
-                    geometryParams().isDisallowDownsampling(),
-                    geometryParams().isAutocorrectAngleP(),
-                    geometryParams().rotation(),
-                    geometryParams().autocropMode(),
-                    geometryParams().deconvolutionMode(),
-                    geometryParams().richardsonLucyDeconvolutionParams().orElse(null)
-                ),
-                bandingCorrectionParams,
-                requestedImages,
-                claheParams
+            spectrumParams,
+            observationDetails,
+            extraParams,
+            videoParams,
+            new GeometryParams(tilt,
+                xyRatio,
+                geometryParams().isHorizontalMirror(),
+                geometryParams().isVerticalMirror(),
+                geometryParams().isSharpen(),
+                geometryParams().isDisallowDownsampling(),
+                geometryParams().isAutocorrectAngleP(),
+                geometryParams().rotation(),
+                geometryParams().autocropMode(),
+                geometryParams().deconvolutionMode(),
+                geometryParams().richardsonLucyDeconvolutionParams().orElse(null)
+            ),
+            bandingCorrectionParams,
+            requestedImages,
+            claheParams,
+            autoStretchParams,
+            contrastEnhancement
         );
     }
 
     public ProcessParams withSpectrumParams(SpectrumParams spectrumParams) {
         return new ProcessParams(
-                spectrumParams,
-                observationDetails,
-                extraParams,
-                videoParams,
-                geometryParams,
-                bandingCorrectionParams,
-                requestedImages,
-                claheParams
+            spectrumParams,
+            observationDetails,
+            extraParams,
+            videoParams,
+            geometryParams,
+            bandingCorrectionParams,
+            requestedImages,
+            claheParams,
+            autoStretchParams,
+            contrastEnhancement
         );
     }
 
     public ProcessParams withObservationDetails(ObservationDetails observationDetails) {
         return new ProcessParams(
-                spectrumParams,
-                observationDetails,
-                extraParams,
-                videoParams,
-                geometryParams,
-                bandingCorrectionParams,
-                requestedImages,
-                claheParams
+            spectrumParams,
+            observationDetails,
+            extraParams,
+            videoParams,
+            geometryParams,
+            bandingCorrectionParams,
+            requestedImages,
+            claheParams,
+            autoStretchParams,
+            contrastEnhancement
         );
     }
 
     public ProcessParams withExtraParams(ExtraParams debugParams) {
         return new ProcessParams(
-                spectrumParams,
-                observationDetails,
-                debugParams,
-                videoParams,
-                geometryParams,
-                bandingCorrectionParams,
-                requestedImages,
-                claheParams
+            spectrumParams,
+            observationDetails,
+            debugParams,
+            videoParams,
+            geometryParams,
+            bandingCorrectionParams,
+            requestedImages,
+            claheParams,
+            autoStretchParams,
+            contrastEnhancement
         );
     }
 
     public ProcessParams withVideoParams(VideoParams videoParams) {
         return new ProcessParams(
-                spectrumParams,
-                observationDetails,
-                extraParams,
-                videoParams,
-                geometryParams,
-                bandingCorrectionParams,
-                requestedImages,
-                claheParams
+            spectrumParams,
+            observationDetails,
+            extraParams,
+            videoParams,
+            geometryParams,
+            bandingCorrectionParams,
+            requestedImages,
+            claheParams,
+            autoStretchParams,
+            contrastEnhancement
         );
     }
 
     public ProcessParams withGeometryParams(GeometryParams geometryParams) {
         return new ProcessParams(
-                spectrumParams,
-                observationDetails,
-                extraParams,
-                videoParams,
-                geometryParams,
-                bandingCorrectionParams,
-                requestedImages,
-                claheParams
+            spectrumParams,
+            observationDetails,
+            extraParams,
+            videoParams,
+            geometryParams,
+            bandingCorrectionParams,
+            requestedImages,
+            claheParams,
+            autoStretchParams,
+            contrastEnhancement
         );
     }
 
     public ProcessParams withBandingCorrectionParams(BandingCorrectionParams bandingCorrectionParams) {
         return new ProcessParams(
-                spectrumParams,
-                observationDetails,
-                extraParams,
-                videoParams,
-                geometryParams,
-                bandingCorrectionParams,
-                requestedImages,
-                claheParams
+            spectrumParams,
+            observationDetails,
+            extraParams,
+            videoParams,
+            geometryParams,
+            bandingCorrectionParams,
+            requestedImages,
+            claheParams,
+            autoStretchParams,
+            contrastEnhancement
         );
     }
 
     public ProcessParams withRequestedImages(RequestedImages requestedImages) {
         return new ProcessParams(
-                spectrumParams,
-                observationDetails,
-                extraParams,
-                videoParams,
-                geometryParams,
-                bandingCorrectionParams,
-                requestedImages,
-                claheParams
+            spectrumParams,
+            observationDetails,
+            extraParams,
+            videoParams,
+            geometryParams,
+            bandingCorrectionParams,
+            requestedImages,
+            claheParams,
+            autoStretchParams,
+            contrastEnhancement
         );
     }
 
     public ProcessParams withClaheParams(ClaheParams claheParams) {
         return new ProcessParams(
-                spectrumParams,
-                observationDetails,
-                extraParams,
-                videoParams,
-                geometryParams,
-                bandingCorrectionParams,
-                requestedImages,
-                claheParams
+            spectrumParams,
+            observationDetails,
+            extraParams,
+            videoParams,
+            geometryParams,
+            bandingCorrectionParams,
+            requestedImages,
+            claheParams,
+            autoStretchParams,
+            contrastEnhancement
+        );
+    }
+
+    public ProcessParams withAutoStretchParams(AutoStretchParams autoStretchParams) {
+        return new ProcessParams(
+            spectrumParams,
+            observationDetails,
+            extraParams,
+            videoParams,
+            geometryParams,
+            bandingCorrectionParams,
+            requestedImages,
+            claheParams,
+            autoStretchParams,
+            contrastEnhancement
+        );
+    }
+
+    public ProcessParams withContrastEnhancement(ContrastEnhancement contrastEnhancement) {
+        return new ProcessParams(
+            spectrumParams,
+            observationDetails,
+            extraParams,
+            videoParams,
+            geometryParams,
+            bandingCorrectionParams,
+            requestedImages,
+            claheParams,
+            autoStretchParams,
+            contrastEnhancement
         );
     }
 }
