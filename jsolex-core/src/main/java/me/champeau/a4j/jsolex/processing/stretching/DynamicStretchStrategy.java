@@ -72,7 +72,12 @@ public final class DynamicStretchStrategy implements StretchingStrategy {
                 break;
             }
         }
-        return idx * 256;
+        // the width is an estimate of how wide the gaussian is.
+        // the larger it is, the more likely we are going to make
+        // an over correction, so we adjust the target index based
+        // on it
+        var width = 1 + (Math.abs(idx - source) / (double) source);
+        return (int) Math.min(MAX_PIXEL_VALUE, width * width * idx * 256);
     }
 
 }

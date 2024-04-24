@@ -20,8 +20,8 @@ import me.champeau.a4j.jsolex.processing.util.Histogram;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 
 public final class ClaheStrategy implements StretchingStrategy {
-    public static final int DEFAULT_TILE_SIZE = 16;
-    public static final int DEFAULT_BINS = 256;
+    public static final int DEFAULT_TILE_SIZE = 8;
+    public static final int DEFAULT_BINS = 64;
     public static final double DEFAULT_CLIP = 1.0d;
     private static final int MAX_PIXEL_VALUE = 65535;
 

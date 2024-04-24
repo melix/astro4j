@@ -33,6 +33,7 @@ public final class AutohistogramStrategy implements StretchingStrategy {
     public static final double DEFAULT_GAMMA = 1.5;
 
     private final double gamma;
+    private final ImageMath imageMath = ImageMath.newInstance();
 
     public AutohistogramStrategy(double gamma) {
         if (gamma < 1) {
@@ -73,7 +74,7 @@ public final class AutohistogramStrategy implements StretchingStrategy {
         }
         diskData = image.data();
         var lohi = findLoHi(diskData);
-        new DynamicStretchStrategy(lohi.hi(), .5).stretch(image);
+        new DynamicStretchStrategy(lohi.hi(), .6).stretch(image);
         var clahe = image.copy();
         new ClaheStrategy(8, 64, 1.0).stretch(clahe);
         // combine CLAHE with image
@@ -122,7 +123,7 @@ public final class AutohistogramStrategy implements StretchingStrategy {
         }
     }
 
-    private static float[] createMask(int height, int width, Ellipse e) {
+    private float[] createMask(int height, int width, Ellipse e) {
         float[] mask = new float[width * height];
         var cx = e.center().a();
         var cy = e.center().b();
@@ -148,7 +149,6 @@ public final class AutohistogramStrategy implements StretchingStrategy {
                 }
             }
         }
-        var imageMath = ImageMath.newInstance();
         var tmp = new Image(width, height, mask);
         tmp = imageMath.rescale(tmp, width / 16, height / 16);
         tmp = imageMath.convolve(tmp, BlurKernel.of(8));
@@ -207,7 +207,7 @@ public final class AutohistogramStrategy implements StretchingStrategy {
                 if (first) {
                     // Skip the first peak, which is usually the background
                     first = false;
-                    continue;
+                    //continue;
                 }
                 peaks.add(new Peak(i, value));
             }

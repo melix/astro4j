@@ -109,7 +109,7 @@ public record Histogram(
 
         public void record(float pixel) {
             pixelCount++;
-            int i = Math.min(bins - 1, Math.round(pixel * bins / Constants.MAX_PIXEL_VALUE));
+            int i = Math.max(0, Math.min(bins - 1, Math.round(pixel * bins / Constants.MAX_PIXEL_VALUE)));
             buckets[i]++;
             if (i > maxValue) {
                 maxValue = i;
