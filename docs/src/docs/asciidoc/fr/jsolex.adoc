@@ -251,6 +251,8 @@ Ou encore: `0.8*img(5) + 0.2*avg(range(0;10))`
 
 Les autres fonctions disponibles sont:
 
+- `adjust_gamma` permet d'appliquer une correction gamma à une image. Cette fonction accepte 2 paramètres : l'image et le facteur de correction gamma. Par exemple, `adjust_gamma(img(0), 2.2)`. Un gamma < 1 éclaircit l'image, un gamma > 1 la fonce.
+- `auto_constrast` est une fonction d'amélioration du contraste crée spécifiquement pour les images Sol'Ex. Elle combine plusieurs techniques pour améliorer l'image. Cette fonction prend 2 arguments : l'image et un facteur de correction. Le facteur doit être supérieur à 1 et plus il est élevé, plus la correction sera forte. Par exemple : `auto_contrast(img(0), 1.5)`.
 - `invert`, qui permet d'obtenir le négatif d'une image
 - `invert`, generates a color inverted image
 - `clahe` applique une https://en.wikipedia.org/wiki/Adaptive_histogram_equalization#Contrast_Limited_AHE[transformation d'histogramme adaptative (CLAHE)] sur votre image. Cette fonctiona accepte soit 2, soit 4 arguments. Dans la version courte, elle prend l'image et un facteur de clipping. Par exemple: `clahe(img(0); 1.5)`. Dans sa version longue, elle accepte 2 paramètres supplémentaires: la taille des tuiles utilisées pour calculer les histogrammes et la résolution de l'histogramme. Plus la résolution est élevée, plus la dynamique est élevée, mais plus vous devrez utiliser des tuiles petites. Par exemple: `clahe(img(0); 128; 256; 1.2)`.

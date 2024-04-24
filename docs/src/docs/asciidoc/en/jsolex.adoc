@@ -252,6 +252,8 @@ Another example: `0.8*img(5) + 0.2*avg(range(0;10))`
 
 Other functions are available:
 
+- `adjust_gamma` applies a gamma correction to an image. It accepts 2 arguments: the image and the gamma value. For example: `adjust_gamma(img(0), 2.2)`. A gamma value < 1 will lighten the image, while a value > 1 will darken it.
+- `auto_constrast` is a contrast enhancement function which is designed specifically for Sol'Ex images. It combines several techniques to enhance the contrast of the image. It accepts 2 arguments: the image and an enhancement factor. For example: `auto_contrast(img(0), 1.5)`. The enhancement factor is a value starting from 1. The higher the value, the stronger the contrast enhancement.
 - `invert`, generates a color inverted image
 - `clahe` performs https://en.wikipedia.org/wiki/Adaptive_histogram_equalization#Contrast_Limited_AHE[Contrast Limited Adaptative Histogram Equalization] on your image. It supports either 2 or 4 parameters. In the first form, it takes the image to equalize and clip factor, for example: `clahe(img(0); 1.5)`. In the long form, it takes 2 additional parameters which are the tile size (used to compute histograms) and the number of bins (the lower, the smaller the dynamic range). e.g `clahe(img(0); 128; 256; 1.2)`
 - `adjust_contrast` applies simple contrast adujstment by clipping values under the minimal value or above the maximal value. e.g `adjust_contrast(img(0), 10, 210)`. The range is must be between 0 and 255.
