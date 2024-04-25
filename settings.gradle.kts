@@ -3,7 +3,7 @@ pluginManagement {
 }
 
 plugins {
-    id("io.micronaut.platform.catalog") version "4.3.5"
+    id("io.micronaut.platform.catalog") version "4.3.6"
 }
 
 rootProject.name = "astro4j-parent"
