@@ -28,7 +28,7 @@ import java.util.List;
 
 public final class AutohistogramStrategy implements StretchingStrategy {
     private static final int HISTOGRAM_BINS = 256;
-    private static final GammaStrategy PROTUS_STRATEGY = new GammaStrategy(.7);
+    private static final GammaStrategy PROTUS_STRATEGY = new GammaStrategy(.6);
 
     public static final double DEFAULT_GAMMA = 1.5;
 
@@ -74,7 +74,7 @@ public final class AutohistogramStrategy implements StretchingStrategy {
         }
         diskData = image.data();
         var lohi = findLoHi(diskData);
-        new DynamicStretchStrategy(lohi.hi(), .6).stretch(image);
+        new DynamicStretchStrategy(lohi.hi(), .65).stretch(image);
         var clahe = image.copy();
         new ClaheStrategy(8, 64, 1.0).stretch(clahe);
         // combine CLAHE with image
@@ -162,7 +162,7 @@ public final class AutohistogramStrategy implements StretchingStrategy {
 
     private static LoHi findLoHi(float[] image) {
         var histo = Histogram.of(image, HISTOGRAM_BINS);
-        var values = performSmoothing(histo.values());
+        var values = StretchingUtils.performSmoothing(histo.values());
         int peakIndex = findRightmostPeak(values);
         float lo = 0;
         float hi = 0;
@@ -182,18 +182,6 @@ public final class AutohistogramStrategy implements StretchingStrategy {
             }
         }
         return new LoHi(lo, hi);
-    }
-
-    private static double[] performSmoothing(int[] values) {
-        double[] result = new double[values.length];
-        double max = 0;
-        result[0] = (2 * values[0] + values[1]) / 3d;
-        for (int i = 1; i < values.length - 1; i++) {
-            result[i] = (values[i - 1] + 2 * values[i] + values[i + 1]) / 4d;
-            max = Math.max(max, result[i]);
-        }
-        result[values.length - 1] = (2 * values[values.length - 1] + values[values.length - 2]) / 3d;
-        return result;
     }
 
     public static int findRightmostPeak(double[] values) {

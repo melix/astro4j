@@ -17,11 +17,17 @@ package me.champeau.a4j.jsolex.processing.stretching;
 
 import me.champeau.a4j.jsolex.processing.util.Histogram;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
+import org.apache.commons.math3.fitting.GaussianCurveFitter;
+import org.apache.commons.math3.fitting.WeightedObservedPoint;
+
+import java.util.ArrayList;
 
 import static me.champeau.a4j.jsolex.processing.util.Constants.MAX_PIXEL_VALUE;
 
 public final class DynamicStretchStrategy implements StretchingStrategy {
     private static final double EXPONENT = 1.1d;
+    private static final int FIT_RANGE = 16;
+
     private final double target;
     private final int source;
 
@@ -35,9 +41,14 @@ public final class DynamicStretchStrategy implements StretchingStrategy {
 
     @Override
     public void stretch(ImageWrapper32 image) {
-        double a = findLinearGrowthEnd(image);
+        double a = findLinearGrowthLimit(image);
         double scaling = target / Math.pow(a, EXPONENT);
-        var k = MAX_PIXEL_VALUE / (a * (target - MAX_PIXEL_VALUE));
+        // if a is low, it means that the histogram is very compressed on the left side
+        // and there's a risk of saturating too many bright pixels, so we apply a simple
+        // correction factor to reduce this risk. It seeems to work pretty well in
+        // practice!
+        var correction = Math.min(1, 0.5 + a / 65535d);
+        var k = correction * MAX_PIXEL_VALUE / (a * (target - MAX_PIXEL_VALUE));
         var d = (a * (MAX_PIXEL_VALUE - target) * Math.log((MAX_PIXEL_VALUE - target) / target)) / MAX_PIXEL_VALUE;
 
         var data = image.data();
@@ -51,33 +62,19 @@ public final class DynamicStretchStrategy implements StretchingStrategy {
         }
     }
 
-    private int findLinearGrowthEnd(ImageWrapper32 image) {
+    private int findLinearGrowthLimit(ImageWrapper32 image) {
         var histogram = Histogram.of(image.data(), 256);
-        var target = histogram.get(source);
-        int idx = source;
-        for (int i = idx + 1; i < 255; i++) {
-            var v = histogram.get(i);
-            if (v >= target) {
-                idx = i;
-            }
+        var values = histogram.values();
+        var observations = new ArrayList<WeightedObservedPoint>(2 * FIT_RANGE + 1);
+        for (int i = Math.max(0, source - FIT_RANGE); i < Math.min(255, source + FIT_RANGE); i++) {
+            observations.add(new WeightedObservedPoint(1.0, i, values[i]));
         }
-        // find peak
-        target = histogram.get(idx);
-        for (int i = idx - 1; i >= 0; i--) {
-            var v = histogram.get(i);
-            if (v > target) {
-                target = v;
-                idx = i;
-            } else {
-                break;
-            }
-        }
-        // the width is an estimate of how wide the gaussian is.
-        // the larger it is, the more likely we are going to make
-        // an over correction, so we adjust the target index based
-        // on it
-        var width = 1 + (Math.abs(idx - source) / (double) source);
-        return (int) Math.min(MAX_PIXEL_VALUE, width * width * idx * 256);
+        var fit = GaussianCurveFitter.create().fit(observations);
+        var mean = fit[1];
+        var stdDev = fit[2];
+        int zeroCrossingIndex = (int) (mean + 3 * stdDev);
+        // Use max in case the estimate is completely off
+        return Math.min(255, Math.max(source, zeroCrossingIndex)) * 256;
     }
 
 }
