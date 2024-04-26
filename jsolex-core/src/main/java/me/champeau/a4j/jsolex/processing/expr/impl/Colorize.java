@@ -18,6 +18,7 @@ package me.champeau.a4j.jsolex.processing.expr.impl;
 import me.champeau.a4j.jsolex.processing.color.ColorCurve;
 import me.champeau.a4j.jsolex.processing.params.SpectralRay;
 import me.champeau.a4j.jsolex.processing.params.SpectralRayIO;
+import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
 import me.champeau.a4j.jsolex.processing.sun.ImageUtils;
 import me.champeau.a4j.jsolex.processing.util.ColorizedImageWrapper;
 import me.champeau.a4j.jsolex.processing.util.FileBackedImage;
@@ -28,8 +29,8 @@ import java.util.Map;
 
 public class Colorize extends AbstractFunctionImpl {
 
-    public Colorize(Map<Class<?>, Object> context) {
-        super(context);
+    public Colorize(Map<Class<?>, Object> context, Broadcaster broadcaster) {
+        super(context, broadcaster);
     }
 
     public Object colorize(List<Object> arguments) {
@@ -38,7 +39,7 @@ public class Colorize extends AbstractFunctionImpl {
         }
         var arg = arguments.get(0);
         if (arg instanceof List<?>) {
-            return ScriptSupport.expandToImageList(arguments, this::colorize);
+            return expandToImageList("colorize", arguments, this::colorize);
         }
         if (arguments.size() == 7) {
             int rIn = intArg(arguments, 1);

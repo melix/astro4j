@@ -63,10 +63,10 @@ public class StackingWorkflow {
         this.broadcaster = broadcaster;
         this.namingStrategy = namingStrategy;
         this.context = Map.of(Broadcaster.class, broadcaster);
-        this.crop = new Crop(context);
-        this.ellipseFit = new EllipseFit(context);
-        this.geometryCorrector = new GeometryCorrection(context, ellipseFit);
-        this.scaling = new Scaling(context, crop);
+        this.crop = new Crop(context, broadcaster);
+        this.ellipseFit = new EllipseFit(context, broadcaster);
+        this.geometryCorrector = new GeometryCorrection(context, broadcaster, ellipseFit);
+        this.scaling = new Scaling(context, broadcaster, crop);
         this.stacking = new Stacking(context, scaling, crop, broadcaster);
         this.mosaicComposition = new MosaicComposition(context, broadcaster, stacking, ellipseFit, scaling);
     }

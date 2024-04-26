@@ -15,6 +15,7 @@
  */
 package me.champeau.a4j.jsolex.processing.expr.impl;
 
+import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
 import me.champeau.a4j.jsolex.processing.util.ColorizedImageWrapper;
 import me.champeau.a4j.jsolex.processing.util.FileBackedImage;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
@@ -29,24 +30,22 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
-import static me.champeau.a4j.jsolex.processing.expr.impl.ScriptSupport.expandToImageList;
-
 public class Scaling extends AbstractFunctionImpl {
     private final ImageMath imageMath = ImageMath.newInstance();
     private final EllipseFit ellipseFit;
     private final Crop crop;
 
-    public Scaling(Map<Class<?>, Object> context, Crop crop) {
-        super(context);
+    public Scaling(Map<Class<?>, Object> context, Broadcaster broadcaster, Crop crop) {
+        super(context, broadcaster);
         this.crop = crop;
-        ellipseFit = new EllipseFit(context);
+        ellipseFit = new EllipseFit(context, broadcaster);
     }
 
     public Object relativeRescale(List<Object> arguments) {
         assertExpectedArgCount(arguments, "rescale_rel takes 3 arguments (image(s), scaleX, scaleY)", 3, 3);
         var arg = arguments.get(0);
         if (arg instanceof List<?>) {
-            return expandToImageList(arguments, this::relativeRescale);
+            return expandToImageList("rescale_rel", arguments, this::relativeRescale);
         }
         double scaleX = doubleArg(arguments, 1);
         double scaleY = doubleArg(arguments, 2);
@@ -68,7 +67,7 @@ public class Scaling extends AbstractFunctionImpl {
         assertExpectedArgCount(arguments, "rescale_abs takes 3 arguments (image(s), width, height)", 3, 3);
         var arg = arguments.get(0);
         if (arg instanceof List<?>) {
-            return expandToImageList(arguments, this::absoluteRescale);
+            return expandToImageList("rescale_abs", arguments, this::absoluteRescale);
         }
         int width = intArg(arguments, 1);
         int height = intArg(arguments, 2);

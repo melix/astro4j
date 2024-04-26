@@ -20,7 +20,6 @@ import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
 import me.champeau.a4j.jsolex.processing.sun.tasks.EllipseFittingTask;
 import me.champeau.a4j.jsolex.processing.sun.workflow.ImageEmitter;
 import me.champeau.a4j.jsolex.processing.util.FileBackedImage;
-import me.champeau.a4j.jsolex.processing.util.ForkJoinContext;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 import me.champeau.a4j.jsolex.processing.util.ProcessingException;
 import me.champeau.a4j.math.regression.Ellipse;
@@ -28,11 +27,9 @@ import me.champeau.a4j.math.regression.Ellipse;
 import java.util.List;
 import java.util.Map;
 
-import static me.champeau.a4j.jsolex.processing.expr.impl.ScriptSupport.expandToImageList;
-
 public class EllipseFit extends AbstractFunctionImpl {
-    public EllipseFit(Map<Class<?>, Object> context) {
-        super(context);
+    public EllipseFit(Map<Class<?>, Object> context, Broadcaster broadcaster) {
+        super(context, broadcaster);
     }
 
     public Object fit(List<Object> arguments) {
@@ -41,7 +38,7 @@ public class EllipseFit extends AbstractFunctionImpl {
         }
         var arg = arguments.get(0);
         if (arg instanceof List<?>) {
-            return expandToImageList(arguments, this::fit);
+            return expandToImageList("ellipse_fit", arguments, this::fit);
         }
         if (arg instanceof FileBackedImage fileBackedImage) {
             arg = fileBackedImage.unwrapToMemory();

@@ -17,6 +17,7 @@ package me.champeau.a4j.jsolex.processing.expr.impl;
 
 import me.champeau.a4j.jsolex.processing.stretching.ArcsinhStretchingStrategy;
 import me.champeau.a4j.jsolex.processing.stretching.LinearStrechingStrategy;
+import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
 import me.champeau.a4j.jsolex.processing.util.Constants;
 
 import java.util.List;
@@ -24,8 +25,8 @@ import java.util.Map;
 
 public class Stretching extends AbstractFunctionImpl {
 
-    public Stretching(Map<Class<?>, Object> context) {
-        super(context);
+    public Stretching(Map<Class<?>, Object> context, Broadcaster broadcaster) {
+        super(context, broadcaster);
     }
 
     public Object asinhStretch(List<Object> arguments) {
@@ -34,7 +35,7 @@ public class Stretching extends AbstractFunctionImpl {
         }
         float blackpoint = floatArg(arguments, 1);
         float stretch = floatArg(arguments, 2);
-        return ScriptSupport.monoToMonoImageTransformer( "asinh_stretch", 3, arguments, image -> new ArcsinhStretchingStrategy(blackpoint, stretch, stretch).stretch(image));
+        return monoToMonoImageTransformer( "asinh_stretch", 3, arguments, image -> new ArcsinhStretchingStrategy(blackpoint, stretch, stretch).stretch(image));
     }
 
     public Object linearStretch(List<Object> arguments) {
@@ -50,6 +51,6 @@ public class Stretching extends AbstractFunctionImpl {
             hi = Constants.MAX_PIXEL_VALUE;
             lo = 0;
         }
-        return ScriptSupport.monoToMonoImageTransformer("linear_stretch", 3, arguments, image -> new LinearStrechingStrategy(lo, hi).stretch(image));
+        return monoToMonoImageTransformer("linear_stretch", 3, arguments, image -> new LinearStrechingStrategy(lo, hi).stretch(image));
     }
 }

@@ -77,7 +77,7 @@ public class MosaicComposition extends AbstractFunctionImpl {
     private final Scaling scaling;
 
     public MosaicComposition(Map<Class<?>, Object> context, Broadcaster broadcaster, Stacking stacking, EllipseFit ellipseFit, Scaling scaling) {
-        super(context);
+        super(context, broadcaster);
         this.broadcaster = broadcaster;
         this.stacking = stacking;
         this.ellipseFit = ellipseFit;
@@ -158,7 +158,7 @@ public class MosaicComposition extends AbstractFunctionImpl {
             var tileOverlap = placeMostOverlappingImagesFirst(corrected, imageToTilesOverbackground, imageCount);
             if (tileOverlap != null && tileOverlap.overlappingTiles() == 0) {
                 LOGGER.warn("Cannot find overlapping tiles between images, falling back to addition");
-                return (ImageWrapper32) ScriptSupport.applyFunction("max", List.of(corrected), DoubleStream::max);
+                return (ImageWrapper32) new SimpleFunctionCall(Map.of(), broadcaster).applyFunction("max", List.of(corrected), DoubleStream::max);
             }
             int maxSteps = 2 * (height / distorsionGridSize);
             int step = 0;

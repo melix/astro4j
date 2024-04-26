@@ -29,13 +29,14 @@ import me.champeau.a4j.jsolex.processing.expr.impl.EllipseFit;
 import me.champeau.a4j.jsolex.processing.expr.impl.FixBanding;
 import me.champeau.a4j.jsolex.processing.expr.impl.GeometryCorrection;
 import me.champeau.a4j.jsolex.processing.expr.impl.ImageDraw;
+import me.champeau.a4j.jsolex.processing.expr.impl.Inverse;
 import me.champeau.a4j.jsolex.processing.expr.impl.Loader;
 import me.champeau.a4j.jsolex.processing.expr.impl.MosaicComposition;
 import me.champeau.a4j.jsolex.processing.expr.impl.RGBCombination;
 import me.champeau.a4j.jsolex.processing.expr.impl.Rotate;
 import me.champeau.a4j.jsolex.processing.expr.impl.Saturation;
 import me.champeau.a4j.jsolex.processing.expr.impl.Scaling;
-import me.champeau.a4j.jsolex.processing.expr.impl.ScriptSupport;
+import me.champeau.a4j.jsolex.processing.expr.impl.SimpleFunctionCall;
 import me.champeau.a4j.jsolex.processing.expr.impl.Stacking;
 import me.champeau.a4j.jsolex.processing.expr.impl.Stretching;
 import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
@@ -57,8 +58,6 @@ import java.util.function.DoubleBinaryOperator;
 import java.util.stream.DoubleStream;
 import java.util.stream.Stream;
 
-import static me.champeau.a4j.jsolex.processing.expr.impl.ScriptSupport.applyFunction;
-
 public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluator {
 
     private final Map<Class<?>, Object> context = new HashMap<>();
@@ -76,32 +75,36 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
     private final FixBanding fixBanding;
     private final GeometryCorrection geometryCorrection;
     private final ImageDraw imageDraw;
+    private final Inverse inverse;
     private final Loader loader;
     private final MosaicComposition mosaicComposition;
     private final Rotate rotate;
     private final Saturation saturation;
     private final Scaling scaling;
+    private final SimpleFunctionCall simpleFunctionCall;
     private final Stretching stretching;
     private final Stacking stacking;
 
     protected AbstractImageExpressionEvaluator(Broadcaster broadcaster) {
-        this.adjustContrast = new AdjustContrast(context);
-        this.animate = new Animate(context);
-        this.bgRemoval = new BackgroundRemoval(context);
-        this.clahe = new Clahe(context);
-        this.colorize = new Colorize(context);
-        this.convolution = new Convolution(context);
-        this.crop = new Crop(context);
-        this.diskFill = new DiskFill(context);
-        this.ellipseFit = new EllipseFit(context);
-        this.fixBanding = new FixBanding(context);
-        this.geometryCorrection = new GeometryCorrection(context, ellipseFit);
-        this.imageDraw = new ImageDraw(context);
-        this.loader = new Loader(context);
-        this.rotate = new Rotate(context);
-        this.saturation = new Saturation(context);
-        this.scaling = new Scaling(context, crop);
-        this.stretching = new Stretching(context);
+        this.adjustContrast = new AdjustContrast(context, broadcaster);
+        this.animate = new Animate(context, broadcaster);
+        this.bgRemoval = new BackgroundRemoval(context, broadcaster);
+        this.clahe = new Clahe(context, broadcaster);
+        this.colorize = new Colorize(context, broadcaster);
+        this.convolution = new Convolution(context, broadcaster);
+        this.crop = new Crop(context, broadcaster);
+        this.diskFill = new DiskFill(context, broadcaster);
+        this.ellipseFit = new EllipseFit(context, broadcaster);
+        this.fixBanding = new FixBanding(context, broadcaster);
+        this.geometryCorrection = new GeometryCorrection(context, broadcaster, ellipseFit);
+        this.imageDraw = new ImageDraw(context, broadcaster);
+        this.inverse = new Inverse(context, broadcaster);
+        this.loader = new Loader(context, broadcaster);
+        this.rotate = new Rotate(context, broadcaster);
+        this.saturation = new Saturation(context, broadcaster);
+        this.scaling = new Scaling(context, broadcaster, crop);
+        this.simpleFunctionCall = new SimpleFunctionCall(context, broadcaster);
+        this.stretching = new Stretching(context, broadcaster);
         this.stacking = new Stacking(context, scaling, crop, broadcaster);
         this.mosaicComposition = new MosaicComposition(context, broadcaster, stacking, ellipseFit, scaling);
     }
@@ -172,7 +175,7 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
             case AUTO_CONTRAST -> adjustContrast.autoContrast(arguments);
             case AUTOCROP -> crop.autocrop(arguments);
             case AUTOCROP2 -> crop.autocrop2(arguments);
-            case AVG -> applyFunction("avg", arguments, DoubleStream::average);
+            case AVG -> simpleFunctionCall.applyFunction("avg", arguments, DoubleStream::average);
             case BLUR -> convolution.blur(arguments);
             case CLAHE -> clahe.clahe(arguments);
             case CHOOSE_FILE -> loader.chooseFile(arguments);
@@ -188,14 +191,14 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
             case FIX_BANDING -> fixBanding.fixBanding(arguments);
             case FIX_GEOMETRY -> geometryCorrection.fixGeometry(arguments);
             case IMG -> image(arguments);
-            case INVERT -> ScriptSupport.inverse(arguments);
+            case INVERT -> inverse.invert(arguments);
             case LINEAR_STRETCH -> stretching.linearStretch(arguments);
             case LIST -> arguments;
             case LOAD -> loader.load(arguments);
             case LOAD_MANY -> loader.loadMany(arguments);
-            case MAX -> applyFunction("max", arguments, DoubleStream::max);
-            case MEDIAN -> applyFunction("median", arguments, AbstractImageExpressionEvaluator::median);
-            case MIN -> applyFunction("min", arguments, DoubleStream::min);
+            case MAX -> simpleFunctionCall.applyFunction("max", arguments, DoubleStream::max);
+            case MEDIAN -> simpleFunctionCall.applyFunction("median", arguments, AbstractImageExpressionEvaluator::median);
+            case MIN -> simpleFunctionCall.applyFunction("min", arguments, DoubleStream::min);
             case MOSAIC -> mosaicComposition.mosaic(arguments);
             case RADIUS_RESCALE -> scaling.radiusRescale(arguments);
             case RANGE -> createRange(arguments);

@@ -15,7 +15,9 @@
  */
 package me.champeau.a4j.jsolex.processing.expr.impl;
 
+import me.champeau.a4j.jsolex.processing.event.ProgressEvent;
 import me.champeau.a4j.jsolex.processing.expr.FileOutput;
+import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
 import me.champeau.a4j.jsolex.processing.util.ColorizedImageWrapper;
 import me.champeau.a4j.jsolex.processing.util.FileBackedImage;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
@@ -41,8 +43,8 @@ import static me.champeau.a4j.ser.EightBitConversionSupport.to8BitImage;
 public class Animate extends AbstractFunctionImpl {
     private static final int DEFAULT_DELAY = 250;
 
-    public Animate(Map<Class<?>, Object> context) {
-        super(context);
+    public Animate(Map<Class<?>, Object> context, Broadcaster broadcaster) {
+        super(context, broadcaster);
     }
 
     public Object createAnimation(List<Object> arguments) {
@@ -59,7 +61,9 @@ public class Animate extends AbstractFunctionImpl {
             var encoder = SequenceEncoder.createWithFps(NIOUtils.writableChannel(tempFile.toFile()),
                     new Rational((int) (1000 / delay), 1));
             var frames = (List) arguments.get(0);
+            double progress = 0;
             for (Object argument : frames) {
+                broadcaster.broadcast(ProgressEvent.of(progress/frames.size(), "Encoding frame " + (int) progress + "/" + frames.size()));
                 if (argument instanceof FileBackedImage fileBackedImage) {
                     argument = fileBackedImage.unwrapToMemory();
                 }
@@ -70,8 +74,10 @@ public class Animate extends AbstractFunctionImpl {
                 } else if (argument instanceof RGBImage rgb) {
                     addColorFrame(encoder, rgb);
                 }
+                progress++;
             }
             encoder.finish();
+            broadcaster.broadcast(ProgressEvent.of(1, "Encoding finished"));
             return new FileOutput(tempFile);
         } catch (IOException e) {
             throw new ProcessingException(e);

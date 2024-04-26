@@ -15,8 +15,8 @@
  */
 package me.champeau.a4j.jsolex.processing.expr.impl;
 
+import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
 import me.champeau.a4j.jsolex.processing.util.FitsUtils;
-import me.champeau.a4j.jsolex.processing.util.ForkJoinContext;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 import me.champeau.a4j.jsolex.processing.util.MutableMap;
@@ -39,8 +39,6 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.regex.Pattern;
 
-import static me.champeau.a4j.jsolex.processing.expr.impl.ScriptSupport.expandToImageList;
-
 public class Loader extends AbstractFunctionImpl {
     private static final Logger LOGGER = LoggerFactory.getLogger(Loader.class);
     private static final Set<String> RECOGNIZED_IMAGE_FORMATS = Set.of(
@@ -53,8 +51,8 @@ public class Loader extends AbstractFunctionImpl {
             "fit"
     );
 
-    public Loader(Map<Class<?>, Object> context) {
-        super(context);
+    public Loader(Map<Class<?>, Object> context, Broadcaster broadcaster) {
+        super(context, broadcaster);
     }
 
     private Path workingDirectory = new File(".").getAbsoluteFile().toPath();
@@ -65,7 +63,7 @@ public class Loader extends AbstractFunctionImpl {
         }
         var arg = arguments.get(0);
         if (arg instanceof List<?>) {
-            return expandToImageList(arguments, this::load);
+            return expandToImageList("load", arguments, this::load);
         }
         if (arg instanceof String path) {
             var file = workingDirectory.resolve(path).toFile();

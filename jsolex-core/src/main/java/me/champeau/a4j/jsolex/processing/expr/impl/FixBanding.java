@@ -16,13 +16,14 @@
 package me.champeau.a4j.jsolex.processing.expr.impl;
 
 import me.champeau.a4j.jsolex.processing.sun.BandingReduction;
+import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
 
 import java.util.List;
 import java.util.Map;
 
 public class FixBanding extends AbstractFunctionImpl {
-    public FixBanding(Map<Class<?>, Object> context) {
-        super(context);
+    public FixBanding(Map<Class<?>, Object> context, Broadcaster broadcaster) {
+        super(context, broadcaster);
     }
 
     public Object fixBanding(List<Object> arguments) {
@@ -30,7 +31,7 @@ public class FixBanding extends AbstractFunctionImpl {
         var ellipse = getEllipse(arguments, 3);
         int bandSize = intArg(arguments, 1);
         int passes = intArg(arguments, 2);
-        return ScriptSupport.monoToMonoImageTransformer( "fix_banding", 3, arguments, image -> {
+        return monoToMonoImageTransformer( "fix_banding", 3, arguments, image -> {
             var width = image.width();
             var height = image.height();
             var data = image.data();

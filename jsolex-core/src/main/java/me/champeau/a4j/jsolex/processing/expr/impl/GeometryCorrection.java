@@ -22,7 +22,6 @@ import me.champeau.a4j.jsolex.processing.sun.tasks.GeometryCorrector;
 import me.champeau.a4j.jsolex.processing.sun.workflow.ImageEmitter;
 import me.champeau.a4j.jsolex.processing.sun.workflow.WorkflowResults;
 import me.champeau.a4j.jsolex.processing.util.FileBackedImage;
-import me.champeau.a4j.jsolex.processing.util.ForkJoinContext;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 import me.champeau.a4j.jsolex.processing.util.ProcessingException;
 import me.champeau.a4j.math.regression.Ellipse;
@@ -32,22 +31,21 @@ import org.slf4j.LoggerFactory;
 import java.util.List;
 import java.util.Map;
 
-import static me.champeau.a4j.jsolex.processing.expr.impl.ScriptSupport.expandToImageList;
 import static me.champeau.a4j.jsolex.processing.util.Constants.message;
 
 public class GeometryCorrection extends AbstractFunctionImpl {
     private static final Logger LOGGER = LoggerFactory.getLogger(GeometryCorrection.class);
     private final EllipseFit ellipseFit;
 
-    public GeometryCorrection(Map<Class<?>, Object> context, EllipseFit ellipseFit) {
-        super(context);
+    public GeometryCorrection(Map<Class<?>, Object> context, Broadcaster broadcaster, EllipseFit ellipseFit) {
+        super(context, broadcaster);
         this.ellipseFit = ellipseFit;
     }
 
     public Object fixGeometry(List<Object> arguments) {
         var arg = arguments.get(0);
         if (arg instanceof List<?>) {
-            return expandToImageList(arguments, this::fixGeometry);
+            return expandToImageList("fix_geometry", arguments, this::fixGeometry);
         }
         if (arg instanceof FileBackedImage fbi) {
             arg = fbi.unwrapToMemory();
