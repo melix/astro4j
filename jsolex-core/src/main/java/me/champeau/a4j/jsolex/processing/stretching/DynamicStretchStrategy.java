@@ -71,7 +71,7 @@ public final class DynamicStretchStrategy implements StretchingStrategy {
         }
         try {
             var fit = GaussianCurveFitter.create()
-                .withMaxIterations(64)
+                .withMaxIterations(1024)
                 .fit(observations);
             var mean = fit[1];
             var stdDev = fit[2];
@@ -80,7 +80,7 @@ public final class DynamicStretchStrategy implements StretchingStrategy {
             return Math.min(255, Math.max(source, zeroCrossingIndex)) * 256;
         } catch (Exception e) {
             // in case fitting fails
-            return (int) (Math.min(255, source * 1.5) * 256);
+            return (int) (Math.min(255, target/256) * 256);
         }
     }
 

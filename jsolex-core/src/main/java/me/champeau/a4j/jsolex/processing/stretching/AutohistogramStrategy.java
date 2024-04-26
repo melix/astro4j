@@ -186,17 +186,12 @@ public final class AutohistogramStrategy implements StretchingStrategy {
 
     public static int findRightmostPeak(double[] values) {
         List<Peak> peaks = new ArrayList<>();
-        boolean first = true;
-        for (int i = 0; i < values.length - 1; i++) {
-            double previous = i == 0 ? 0 : values[i - 1];
+        // we intentionally ignore the 8 first bins, assuming they are not relevant
+        for (int i = 8; i < values.length - 1; i++) {
+            double previous = values[i - 1];
             double value = values[i];
             double next = values[i + 1];
             if (value > previous && value > next) {
-                if (first) {
-                    // Skip the first peak, which is usually the background
-                    first = false;
-                    //continue;
-                }
                 peaks.add(new Peak(i, value));
             }
         }
