@@ -90,6 +90,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.DoubleUnaryOperator;
@@ -398,19 +399,23 @@ public class SolexVideoProcessor implements Broadcaster {
         LOGGER.info(message("distortion.polynomial"), polynomial);
         reader.seekFrame(start);
         int totalLines = end - start;
-        for (int i = start, j = 0; i < end; i++, j += width) {
-            var currentFrame = reader.currentFrame().data().array();
-            byte[] copy = new byte[currentFrame.length];
-            System.arraycopy(currentFrame, 0, copy, 0, currentFrame.length);
-            reader.nextFrame();
-            int offset = j;
-            int index = i;
-            Arrays.stream(images).parallel().forEach(state -> {
+        try (var executor = Executors.newFixedThreadPool(Math.min(32, 8 * Runtime.getRuntime().availableProcessors()))) {
+            for (int i = start, j = 0; i < end; i++, j += width) {
+                var currentFrame = reader.currentFrame().data().array();
+                byte[] copy = new byte[currentFrame.length];
+                System.arraycopy(currentFrame, 0, copy, 0, currentFrame.length);
+                reader.nextFrame();
                 var original = converter.createBuffer(geometry);
-                // The converter makes sure we only have a single channel
-                converter.convert(index, ByteBuffer.wrap(copy), geometry, original);
-                processSingleFrame(state.isInternal(), width, height, state.reconstructed(), offset, original, polynomial, state.pixelShift(), totalLines);
-            });
+                int offset = j;
+                int frameId = i;
+                executor.submit(() -> {
+                    // The converter makes sure we only have a single channel
+                    converter.convert(frameId, ByteBuffer.wrap(copy), geometry, original);
+                    Arrays.stream(images).parallel().forEach(state ->
+                        processSingleFrame(state.isInternal(), width, height, state.reconstructed(), offset, original, polynomial, state.pixelShift(), totalLines)
+                    );
+                });
+            }
         }
         LOGGER.info(message("processing.done.generate.images"));
     }
