@@ -69,12 +69,19 @@ public final class DynamicStretchStrategy implements StretchingStrategy {
         for (int i = Math.max(0, source - FIT_RANGE); i < Math.min(255, source + FIT_RANGE); i++) {
             observations.add(new WeightedObservedPoint(1.0, i, values[i]));
         }
-        var fit = GaussianCurveFitter.create().fit(observations);
-        var mean = fit[1];
-        var stdDev = fit[2];
-        int zeroCrossingIndex = (int) (mean + 3 * stdDev);
-        // Use max in case the estimate is completely off
-        return Math.min(255, Math.max(source, zeroCrossingIndex)) * 256;
+        try {
+            var fit = GaussianCurveFitter.create()
+                .withMaxIterations(64)
+                .fit(observations);
+            var mean = fit[1];
+            var stdDev = fit[2];
+            int zeroCrossingIndex = (int) (mean + 3 * stdDev);
+            // Use max in case the estimate is completely off
+            return Math.min(255, Math.max(source, zeroCrossingIndex)) * 256;
+        } catch (Exception e) {
+            // in case fitting fails
+            return (int) (Math.min(255, source * 1.5) * 256);
+        }
     }
 
 }

@@ -19,6 +19,7 @@ import me.champeau.a4j.jsolex.processing.params.ProcessParams;
 import me.champeau.a4j.jsolex.processing.stretching.CutoffStretchingStrategy;
 import me.champeau.a4j.jsolex.processing.stretching.NegativeImageStrategy;
 import me.champeau.a4j.jsolex.processing.util.FileBackedImage;
+import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 import me.champeau.a4j.jsolex.processing.util.SolarParameters;
 import me.champeau.a4j.jsolex.processing.util.SolarParametersUtils;
@@ -32,12 +33,11 @@ import java.time.Instant;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.util.ArrayList;
-import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.OptionalDouble;
-import java.util.TreeMap;
 import java.util.function.Function;
 import java.util.stream.DoubleStream;
 import java.util.stream.IntStream;
@@ -51,27 +51,31 @@ public class ScriptSupport {
 
     @SuppressWarnings("unchecked")
     public static List<Object> expandToImageList(List<Object> arguments, Function<List<Object>, Object> function) {
+        record IndexedObject(Object image, int idx) {
+        }
         var listOfImages = (List) arguments.get(0);
         var params = arguments.subList(1, arguments.size());
-        var collected = Collections.synchronizedMap(new TreeMap<>());
         var array = listOfImages.toArray(new Object[0]);
-        IntStream.range(0, array.length)
-            .mapToObj(i -> new Object() {
-                private final Object image = array[i];
-                private final int idx = i;
-            })
+        var itemsToProcess = IntStream.range(0, array.length)
+            .mapToObj(i -> new IndexedObject(array[i], i) )
+            .toList();
+        var processed = itemsToProcess.stream()
             .parallel()
-            .forEach(o -> {
+            .map(o -> {
                 var idx = o.idx;
                 var image = o.image;
                 var allArgs = new ArrayList<>();
                 allArgs.add(image);
                 allArgs.addAll(params);
                 var result = function.apply(allArgs);
-                collected.put(idx, result);
-            });
+                if (result instanceof ImageWrapper img && !(result instanceof FileBackedImage)) {
+                    // save memory!
+                    result = FileBackedImage.wrap(img);
+                }
+                return new IndexedObject(result, idx);
+            }).toList();
         // iterate on keys to preserve order
-        return collected.keySet().stream().map(collected::get).toList();
+        return processed.stream().sorted(Comparator.comparingInt(IndexedObject::idx)).map(IndexedObject::image).toList();
     }
 
     public static Object monoToMonoImageTransformer(String name, int maxArgCount, List<Object> arguments, ImageConsumer consumer) {
