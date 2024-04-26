@@ -15,6 +15,7 @@
  */
 package me.champeau.a4j.jsolex.processing.expr.impl;
 
+import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
 import me.champeau.a4j.jsolex.processing.sun.crop.Cropper;
 import me.champeau.a4j.jsolex.processing.sun.workflow.ImageStats;
 import me.champeau.a4j.jsolex.processing.util.ColorizedImageWrapper;
@@ -30,11 +31,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
-import static me.champeau.a4j.jsolex.processing.expr.impl.ScriptSupport.expandToImageList;
 
 public class Crop extends AbstractFunctionImpl {
-    public Crop(Map<Class<?>, Object> context) {
-        super(context);
+    public Crop(Map<Class<?>, Object> context, Broadcaster broadcaster) {
+        super(context, broadcaster);
     }
 
     public Object crop(List<Object> arguments) {
@@ -43,7 +43,7 @@ public class Crop extends AbstractFunctionImpl {
         }
         var arg = arguments.get(0);
         if (arg instanceof List<?>) {
-            return expandToImageList(arguments, this::crop);
+            return expandToImageList("crop", arguments, this::crop);
         }
         var img = arguments.get(0);
         var left = intArg(arguments, 1);
@@ -80,7 +80,7 @@ public class Crop extends AbstractFunctionImpl {
         assertExpectedArgCount(arguments, "crop_rect takes 3 or 4 arguments (image(s), width, height, [ellipse])", 3, 4);
         var arg = arguments.get(0);
         if (arg instanceof List<?>) {
-            return expandToImageList(arguments, this::cropToRect);
+            return expandToImageList("crop_rect", arguments, this::cropToRect);
         }
         var img = arguments.get(0);
         var width = intArg(arguments, 1);
@@ -145,7 +145,7 @@ public class Crop extends AbstractFunctionImpl {
         assertExpectedArgCount(arguments, "autocrop takes 1 or 2 arguments (image(s), [ellipse])", 1, 2);
         var arg = arguments.get(0);
         if (arg instanceof List<?>) {
-            return expandToImageList(arguments, this::autocrop);
+            return expandToImageList("autocrop", arguments, this::autocrop);
         }
         var ellipse = getEllipse(arguments, 1);
         return doAutocrop(arg, ellipse, null, null);
@@ -169,9 +169,9 @@ public class Crop extends AbstractFunctionImpl {
                     .max()
                     .orElse(0);
                 maxDimension = (int) Math.ceil(maxDimension / 16d) * 16;
-                return expandToImageList(List.of(images, maxDimension, maxDimension), this::cropToRect);
+                return expandToImageList("autocrop2", List.of(images, maxDimension, maxDimension), this::cropToRect);
             }
-            return expandToImageList(arguments, this::autocrop2);
+            return expandToImageList("autocrop2", arguments, this::autocrop2);
         }
         var factor = doubleArg(arguments, 1);
         int rounding = 16;

@@ -15,10 +15,10 @@
  */
 package me.champeau.a4j.jsolex.processing.expr.impl;
 
+import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
 import me.champeau.a4j.jsolex.processing.sun.ImageUtils;
 import me.champeau.a4j.jsolex.processing.util.ColorizedImageWrapper;
 import me.champeau.a4j.jsolex.processing.util.FileBackedImage;
-import me.champeau.a4j.jsolex.processing.util.ForkJoinContext;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 import me.champeau.a4j.jsolex.processing.util.RGBImage;
@@ -35,8 +35,8 @@ public class Convolution extends AbstractFunctionImpl {
     private final ImageMath imageMath = ImageMath.newInstance();
     private final Deconvolution deconvolution = new Deconvolution(imageMath);
 
-    public Convolution(Map<Class<?>, Object> context) {
-        super(context);
+    public Convolution(Map<Class<?>, Object> context, Broadcaster broadcaster) {
+        super(context, broadcaster);
     }
 
     public Object sharpen(List<Object> arguments) {
@@ -53,7 +53,7 @@ public class Convolution extends AbstractFunctionImpl {
         }
         var arg = arguments.get(0);
         if (arg instanceof List<?>) {
-            return ScriptSupport.expandToImageList(arguments, this::sharpen);
+            return expandToImageList(functionName, arguments, this::sharpen);
         }
         if (arg instanceof ImageWrapper image) {
             return convolve(image, kernel);
@@ -82,7 +82,7 @@ public class Convolution extends AbstractFunctionImpl {
         assertExpectedArgCount(arguments, "rl_decon takes 1 to 4 arguments (image(s), [radius], [sigma], [iterations])", 1, 4);
         var arg = arguments.get(0);
         if (arg instanceof List<?>) {
-            return ScriptSupport.expandToImageList(arguments, this::richardsonLucy);
+            return expandToImageList("rl_decon", arguments, this::richardsonLucy);
         }
         if (arg instanceof ImageWrapper image) {
             if (image instanceof FileBackedImage fileBackedImage) {

@@ -15,19 +15,17 @@
  */
 package me.champeau.a4j.jsolex.processing.expr.impl;
 
+import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
 import me.champeau.a4j.jsolex.processing.sun.ImageUtils;
 import me.champeau.a4j.jsolex.processing.util.ColorizedImageWrapper;
-import me.champeau.a4j.jsolex.processing.util.ForkJoinContext;
 import me.champeau.a4j.jsolex.processing.util.RGBImage;
 
 import java.util.List;
 import java.util.Map;
 
-import static me.champeau.a4j.jsolex.processing.expr.impl.ScriptSupport.expandToImageList;
-
 public class Saturation extends AbstractFunctionImpl {
-    public Saturation(Map<Class<?>, Object> context) {
-        super(context);
+    public Saturation(Map<Class<?>, Object> context, Broadcaster broadcaster) {
+        super(context, broadcaster);
     }
 
     public Object saturate(List<Object> arguments) {
@@ -36,7 +34,7 @@ public class Saturation extends AbstractFunctionImpl {
         }
         var arg = arguments.get(0);
         if (arg instanceof List) {
-            return expandToImageList(arguments, this::saturate);
+            return expandToImageList("saturate", arguments, this::saturate);
         }
         var saturation = doubleArg(arguments, 1);
         var exponent = Math.pow(2, -saturation);

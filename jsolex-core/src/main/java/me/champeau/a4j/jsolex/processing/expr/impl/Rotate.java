@@ -15,10 +15,10 @@
  */
 package me.champeau.a4j.jsolex.processing.expr.impl;
 
+import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
 import me.champeau.a4j.jsolex.processing.sun.workflow.ImageStats;
 import me.champeau.a4j.jsolex.processing.util.ColorizedImageWrapper;
 import me.champeau.a4j.jsolex.processing.util.FileBackedImage;
-import me.champeau.a4j.jsolex.processing.util.ForkJoinContext;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 import me.champeau.a4j.jsolex.processing.util.RGBImage;
@@ -31,35 +31,33 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
-import static me.champeau.a4j.jsolex.processing.expr.impl.ScriptSupport.expandToImageList;
-
 public class Rotate extends AbstractFunctionImpl {
     private final ImageMath imageMath = ImageMath.newInstance();
 
-    public Rotate(Map<Class<?>, Object> context) {
-        super(context);
+    public Rotate(Map<Class<?>, Object> context, Broadcaster broadcaster) {
+        super(context, broadcaster);
     }
 
     public Object rotateLeft(List<Object> arguments) {
         assertExpectedArgCount(arguments, "rotate_left takes 1 arguments (image(s))", 1, 1);
-        return doRotate(arguments, -Math.PI / 2);
+        return doRotate("rotate_left", arguments, -Math.PI / 2);
     }
 
     public Object rotateRight(List<Object> arguments) {
         assertExpectedArgCount(arguments, "rotate_right takes 1 arguments (image(s))", 1, 1);
-        return doRotate(arguments, Math.PI / 2);
+        return doRotate("rotate_right", arguments, Math.PI / 2);
     }
 
     public Object rotateDegrees(List<Object> arguments) {
         assertExpectedArgCount(arguments, "rotate_deg takes 2 to 4 arguments (image(s), angle, [blackPoint], [resize])", 1, 4);
         var angle = Math.toRadians(doubleArg(arguments, 1));
-        return doRotate(arguments, angle);
+        return doRotate("rotate_deg", arguments, angle);
     }
 
     public Object rotateRadians(List<Object> arguments) {
         assertExpectedArgCount(arguments, "rotate_rad takes 2 to 4 arguments (image(s), angle, [blackPoint], [resize])", 1, 4);
         var angle = doubleArg(arguments, 1);
-        return doRotate(arguments, angle);
+        return doRotate("rotate_rad", arguments, angle);
     }
 
     private Image arbitraryRotation(List<Object> arguments, Image image, double angle) {
@@ -74,10 +72,10 @@ public class Rotate extends AbstractFunctionImpl {
         return imageMath.rotate(image, angle, blackpoint, resize);
     }
 
-    private Object doRotate(List<Object> arguments, double angle) {
+    private Object doRotate(String functionName, List<Object> arguments, double angle) {
         var arg = arguments.get(0);
         if (arg instanceof List<?>) {
-            return expandToImageList(arguments, this::rotateRadians);
+            return expandToImageList(functionName, arguments, this::rotateRadians);
         }
         if (arg instanceof FileBackedImage fileBackedImage) {
             arg = fileBackedImage.unwrapToMemory();

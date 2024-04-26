@@ -15,10 +15,10 @@
  */
 package me.champeau.a4j.jsolex.processing.expr.impl;
 
+import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
 import me.champeau.a4j.jsolex.processing.sun.workflow.ImageStats;
 import me.champeau.a4j.jsolex.processing.util.ColorizedImageWrapper;
 import me.champeau.a4j.jsolex.processing.util.FileBackedImage;
-import me.champeau.a4j.jsolex.processing.util.ForkJoinContext;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 import me.champeau.a4j.jsolex.processing.util.RGBImage;
 import me.champeau.a4j.math.regression.Ellipse;
@@ -26,18 +26,16 @@ import me.champeau.a4j.math.regression.Ellipse;
 import java.util.List;
 import java.util.Map;
 
-import static me.champeau.a4j.jsolex.processing.expr.impl.ScriptSupport.expandToImageList;
-
 public class DiskFill extends AbstractFunctionImpl {
-    public DiskFill(Map<Class<?>, Object> context) {
-        super(context);
+    public DiskFill(Map<Class<?>, Object> context, Broadcaster broadcaster) {
+        super(context, broadcaster);
     }
 
     public Object fill(List<Object> arguments) {
         assertExpectedArgCount(arguments, "disk_fill takes 1, 2 or 3 arguments (image(s), [fillColor], [ellipse])", 1, 3);
         var arg = arguments.get(0);
         if (arg instanceof List<?>) {
-            return expandToImageList(arguments, this::fill);
+            return expandToImageList("disk_fill", arguments, this::fill);
         }
         var img = arguments.get(0);
         var ellipse = getEllipse(arguments, 2);

@@ -399,7 +399,7 @@ public class SolexVideoProcessor implements Broadcaster {
         LOGGER.info(message("distortion.polynomial"), polynomial);
         reader.seekFrame(start);
         int totalLines = end - start;
-        try (var executor = Executors.newFixedThreadPool(Math.min(32, 8 * Runtime.getRuntime().availableProcessors()))) {
+        try (var executor = Executors.newFixedThreadPool(16)) {
             for (int i = start, j = 0; i < end; i++, j += width) {
                 var currentFrame = reader.currentFrame().data().array();
                 byte[] copy = new byte[currentFrame.length];

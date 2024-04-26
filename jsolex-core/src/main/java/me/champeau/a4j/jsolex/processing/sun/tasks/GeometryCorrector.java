@@ -140,7 +140,7 @@ public class GeometryCorrector extends AbstractTask<GeometryCorrector.Result> {
         TransformationHistory.recordTransform(corrected, message("geometry.correction"));
         var autocropMode = processParams.geometryParams().autocropMode();
         if (autocropMode != null) {
-            var cropping = new Crop(MutableMap.of(Ellipse.class, ellipse));
+            var cropping = new Crop(MutableMap.of(Ellipse.class, ellipse), broadcaster);
             corrected = switch (autocropMode) {
                 case RADIUS_1_1 -> (ImageWrapper32) cropping.autocrop2(List.of(corrected, 1.1));
                 case RADIUS_1_2 -> (ImageWrapper32) cropping.autocrop2(List.of(corrected, 1.2));

@@ -17,9 +17,8 @@ package me.champeau.a4j.jsolex.processing.expr.impl;
 
 import me.champeau.a4j.jsolex.processing.params.ProcessParams;
 import me.champeau.a4j.jsolex.processing.stretching.CutoffStretchingStrategy;
-import me.champeau.a4j.jsolex.processing.stretching.NegativeImageStrategy;
+import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
 import me.champeau.a4j.jsolex.processing.util.FileBackedImage;
-import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 import me.champeau.a4j.jsolex.processing.util.SolarParameters;
 import me.champeau.a4j.jsolex.processing.util.SolarParametersUtils;
@@ -33,74 +32,21 @@ import java.time.Instant;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.OptionalDouble;
 import java.util.function.Function;
 import java.util.stream.DoubleStream;
-import java.util.stream.IntStream;
 
-public class ScriptSupport {
-    private static final Logger LOGGER = LoggerFactory.getLogger(ScriptSupport.class);
+public class SimpleFunctionCall extends AbstractFunctionImpl {
+    private static final Logger LOGGER = LoggerFactory.getLogger(SimpleFunctionCall.class);
 
-    private ScriptSupport() {
-
+    public SimpleFunctionCall(Map<Class<?>, Object> context, Broadcaster broadcaster) {
+        super(context, broadcaster);
     }
 
-    @SuppressWarnings("unchecked")
-    public static List<Object> expandToImageList(List<Object> arguments, Function<List<Object>, Object> function) {
-        record IndexedObject(Object image, int idx) {
-        }
-        var listOfImages = (List) arguments.get(0);
-        var params = arguments.subList(1, arguments.size());
-        var array = listOfImages.toArray(new Object[0]);
-        var itemsToProcess = IntStream.range(0, array.length)
-            .mapToObj(i -> new IndexedObject(array[i], i) )
-            .toList();
-        var processed = itemsToProcess.stream()
-            .parallel()
-            .map(o -> {
-                var idx = o.idx;
-                var image = o.image;
-                var allArgs = new ArrayList<>();
-                allArgs.add(image);
-                allArgs.addAll(params);
-                var result = function.apply(allArgs);
-                if (result instanceof ImageWrapper img && !(result instanceof FileBackedImage)) {
-                    // save memory!
-                    result = FileBackedImage.wrap(img);
-                }
-                return new IndexedObject(result, idx);
-            }).toList();
-        // iterate on keys to preserve order
-        return processed.stream().sorted(Comparator.comparingInt(IndexedObject::idx)).map(IndexedObject::image).toList();
-    }
-
-    public static Object monoToMonoImageTransformer(String name, int maxArgCount, List<Object> arguments, ImageConsumer consumer) {
-        if (arguments.size() > maxArgCount) {
-            throw new IllegalArgumentException("Invalid number of arguments on '" + name + "' call");
-        }
-        var arg = arguments.get(0);
-        if (arg instanceof FileBackedImage fileBackedImage) {
-            arg = fileBackedImage.unwrapToMemory();
-        }
-        if (arg instanceof ImageWrapper32 image) {
-            var copy = image.copy();
-            consumer.accept(copy);
-            return copy;
-        } else if (arg instanceof List<?>) {
-            return expandToImageList(arguments, e -> monoToMonoImageTransformer(name, maxArgCount, e, consumer));
-        }
-        throw new IllegalArgumentException(name + "first argument must be a mono image or a list of images");
-    }
-
-    public static Object inverse(List<Object> arguments) {
-        return monoToMonoImageTransformer("invert", 1, arguments, NegativeImageStrategy.DEFAULT::stretch);
-    }
-
-    public static Object applyFunction(String name, List<Object> arguments, Function<DoubleStream, OptionalDouble> operator) {
+    public Object applyFunction(String name, List<Object> arguments, Function<DoubleStream, OptionalDouble> operator) {
         if (arguments.size() == 1) {
             if (arguments.get(0) instanceof List<?> list) {
                 // unwrap
@@ -182,10 +128,5 @@ public class ScriptSupport {
             return new ImageWrapper32(width, height, result, metadata);
         }
         throw new IllegalArgumentException("Unexpected argument type '" + type + "'");
-    }
-
-    @FunctionalInterface
-    public interface ImageConsumer {
-        void accept(ImageWrapper32 image);
     }
 }

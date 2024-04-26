@@ -18,13 +18,14 @@ package me.champeau.a4j.jsolex.processing.expr.impl;
 import me.champeau.a4j.jsolex.processing.stretching.AutohistogramStrategy;
 import me.champeau.a4j.jsolex.processing.stretching.ContrastAdjustmentStrategy;
 import me.champeau.a4j.jsolex.processing.stretching.GammaStrategy;
+import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
 
 import java.util.List;
 import java.util.Map;
 
 public class AdjustContrast extends AbstractFunctionImpl {
-    public AdjustContrast(Map<Class<?>, Object> context) {
-        super(context);
+    public AdjustContrast(Map<Class<?>, Object> context, Broadcaster broadcaster) {
+        super(context, broadcaster);
     }
 
     public Object adjustContrast(List<Object> arguments) {
@@ -39,7 +40,7 @@ public class AdjustContrast extends AbstractFunctionImpl {
         if (max < 0 || max > 255) {
             throw new IllegalArgumentException("adjust_contrast max must be between 0 and 255");
         }
-        return ScriptSupport.monoToMonoImageTransformer( "adjust_contrast", 3, arguments, image -> new ContrastAdjustmentStrategy(min << 8, max << 8).stretch(image));
+        return monoToMonoImageTransformer( "adjust_contrast", 3, arguments, image -> new ContrastAdjustmentStrategy(min << 8, max << 8).stretch(image));
     }
 
     public Object adjustGamma(List<Object> arguments) {
@@ -50,7 +51,7 @@ public class AdjustContrast extends AbstractFunctionImpl {
         if (gamma <= 0) {
             throw new IllegalArgumentException("gamma must be positive");
         }
-        return ScriptSupport.monoToMonoImageTransformer( "adjust_gamma", 3, arguments, image -> new GammaStrategy(gamma).stretch(image));
+        return monoToMonoImageTransformer( "adjust_gamma", 3, arguments, image -> new GammaStrategy(gamma).stretch(image));
     }
 
     public Object autoContrast(List<Object> arguments) {
@@ -61,6 +62,6 @@ public class AdjustContrast extends AbstractFunctionImpl {
         if (gamma <= 1) {
             throw new IllegalArgumentException("gamma must be greater than 1");
         }
-        return ScriptSupport.monoToMonoImageTransformer( "auto_contrast", 3, arguments, image -> new AutohistogramStrategy(gamma).stretch(image));
+        return monoToMonoImageTransformer( "auto_contrast", 3, arguments, image -> new AutohistogramStrategy(gamma).stretch(image));
     }
 }

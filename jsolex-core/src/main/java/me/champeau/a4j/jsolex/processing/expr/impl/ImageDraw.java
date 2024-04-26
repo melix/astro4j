@@ -16,17 +16,20 @@
 package me.champeau.a4j.jsolex.processing.expr.impl;
 
 import me.champeau.a4j.jsolex.processing.params.ProcessParams;
+import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
 import me.champeau.a4j.jsolex.processing.util.ColorizedImageWrapper;
 import me.champeau.a4j.jsolex.processing.util.Constants;
 import me.champeau.a4j.jsolex.processing.util.FileBackedImage;
-import me.champeau.a4j.jsolex.processing.util.ForkJoinContext;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 import me.champeau.a4j.jsolex.processing.util.RGBImage;
 import me.champeau.a4j.jsolex.processing.util.SolarParameters;
 import me.champeau.a4j.math.regression.Ellipse;
 
-import java.awt.*;
+import java.awt.Color;
+import java.awt.Font;
+import java.awt.Graphics2D;
+import java.awt.RenderingHints;
 import java.awt.geom.AffineTransform;
 import java.awt.image.BufferedImage;
 import java.awt.image.DataBufferUShort;
@@ -41,14 +44,13 @@ import static java.lang.Math.cos;
 import static java.lang.Math.round;
 import static java.lang.Math.sin;
 import static java.lang.Math.toRadians;
-import static me.champeau.a4j.jsolex.processing.expr.impl.ScriptSupport.expandToImageList;
 
 public class ImageDraw extends AbstractFunctionImpl {
 
     private static final int DIVISIONS = 18;
 
-    public ImageDraw(Map<Class<?>, Object> context) {
-        super(context);
+    public ImageDraw(Map<Class<?>, Object> context, Broadcaster broadcaster) {
+        super(context, broadcaster);
     }
 
     private static StringBuilder appendLine(String element, StringBuilder sb) {
@@ -77,7 +79,7 @@ public class ImageDraw extends AbstractFunctionImpl {
         assertExpectedArgCount(arguments, "draw_obs_details takes 1, 2, or 3 (image(s), [x], [y])", 1, 3);
         var arg = arguments.get(0);
         if (arg instanceof List<?>) {
-            return expandToImageList(arguments, this::drawGlobe);
+            return expandToImageList("draw_obs_details", arguments, this::drawGlobe);
         }
         var x = getArgument(Number.class, arguments, 1).map(Number::intValue).orElse(50);
         var y = getArgument(Number.class, arguments, 2).map(Number::intValue).orElse(50);
@@ -123,7 +125,7 @@ public class ImageDraw extends AbstractFunctionImpl {
         assertExpectedArgCount(arguments, "draw_solar_params takes 1, 2, or 3 (image(s), [x], [y])", 1, 3);
         var arg = arguments.get(0);
         if (arg instanceof List<?>) {
-            return expandToImageList(arguments, this::drawGlobe);
+            return expandToImageList("draw_solar_params", arguments, this::drawGlobe);
         }
         if (arg instanceof ImageWrapper img) {
             var x = getArgument(Number.class, arguments, 1).map(Number::intValue).orElse(-1);
@@ -179,7 +181,7 @@ public class ImageDraw extends AbstractFunctionImpl {
         assertExpectedArgCount(arguments, "draw_globe takes 1, 2, 3 or 4 arguments (image(s), [angleP], [b0], [ellipse])", 1, 4);
         var arg = arguments.get(0);
         if (arg instanceof List<?>) {
-            return expandToImageList(arguments, this::drawGlobe);
+            return expandToImageList("draw_solar_params", arguments, this::drawGlobe);
         }
         var img = arguments.get(0);
         if (img instanceof ImageWrapper image) {

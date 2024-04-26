@@ -18,7 +18,6 @@ package me.champeau.a4j.jsolex.processing.expr.impl;
 import me.champeau.a4j.jsolex.processing.event.ProgressEvent;
 import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
 import me.champeau.a4j.jsolex.processing.util.FileBackedImage;
-import me.champeau.a4j.jsolex.processing.util.ForkJoinContext;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 import me.champeau.a4j.jsolex.processing.util.MutableMap;
@@ -47,7 +46,7 @@ public class Stacking extends AbstractFunctionImpl {
     private final Broadcaster broadcaster;
 
     public Stacking(Map<Class<?>, Object> context, Scaling scaling, Crop crop, Broadcaster broadcaster) {
-        super(context);
+        super(context, broadcaster);
         this.scaling = scaling;
         this.crop = crop;
         this.broadcaster = broadcaster;

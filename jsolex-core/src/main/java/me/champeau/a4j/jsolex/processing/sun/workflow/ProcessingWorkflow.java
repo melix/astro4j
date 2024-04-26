@@ -289,9 +289,9 @@ public class ProcessingWorkflow {
     private void produceTechnicalCard(ImageWrapper32 clahe) {
         var details = clahe.copy();
         var context = SolexVideoProcessor.createMetadata(processParams);
-        var rotate = new Rotate(context);
-        var crop = new Crop(context);
-        var draw = new ImageDraw(context);
+        var rotate = new Rotate(context, broadcaster);
+        var crop = new Crop(context, broadcaster);
+        var draw = new ImageDraw(context, broadcaster);
         var rotation = processParams.geometryParams().rotation();
         if (rotation.angle() != 0) {
             details = switch (rotation) {
