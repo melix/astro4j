@@ -403,14 +403,13 @@ public class SolexVideoProcessor implements Broadcaster {
             byte[] copy = new byte[currentFrame.length];
             System.arraycopy(currentFrame, 0, copy, 0, currentFrame.length);
             reader.nextFrame();
+            var original = converter.createBuffer(geometry);
+            // The converter makes sure we only have a single channel
+            converter.convert(i, ByteBuffer.wrap(copy), geometry, original);
             int offset = j;
-            int index = i;
-            Arrays.stream(images).parallel().forEach(state -> {
-                var original = converter.createBuffer(geometry);
-                // The converter makes sure we only have a single channel
-                converter.convert(index, ByteBuffer.wrap(copy), geometry, original);
-                processSingleFrame(state.isInternal(), width, height, state.reconstructed(), offset, original, polynomial, state.pixelShift(), totalLines);
-            });
+            Arrays.stream(images).parallel().forEach(state ->
+                processSingleFrame(state.isInternal(), width, height, state.reconstructed(), offset, original, polynomial, state.pixelShift(), totalLines)
+            );
         }
         LOGGER.info(message("processing.done.generate.images"));
     }
