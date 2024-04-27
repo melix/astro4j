@@ -26,6 +26,7 @@ import me.champeau.a4j.jsolex.processing.util.RGBImage;
 import me.champeau.a4j.jsolex.processing.util.SolarParameters;
 import me.champeau.a4j.math.regression.Ellipse;
 
+import java.awt.BasicStroke;
 import java.awt.Color;
 import java.awt.Font;
 import java.awt.Graphics2D;
@@ -34,11 +35,13 @@ import java.awt.geom.AffineTransform;
 import java.awt.image.BufferedImage;
 import java.awt.image.DataBufferUShort;
 import java.time.format.DateTimeFormatter;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.function.BiConsumer;
+import java.util.regex.Pattern;
 
 import static java.lang.Math.cos;
 import static java.lang.Math.round;
@@ -46,7 +49,7 @@ import static java.lang.Math.sin;
 import static java.lang.Math.toRadians;
 
 public class ImageDraw extends AbstractFunctionImpl {
-
+    private static final Pattern HEXA_COLOR = Pattern.compile("[0-9a-fA-F]{6}");
     private static final int DIVISIONS = 18;
 
     public ImageDraw(Map<Class<?>, Object> context, Broadcaster broadcaster) {
@@ -120,6 +123,157 @@ public class ImageDraw extends AbstractFunctionImpl {
         }
         throw new IllegalArgumentException("Unexpected image type: " + arg);
     }
+
+    public Object drawText(List<Object> arguments) {
+        assertExpectedArgCount(arguments, "draw_text takes 4 to 6 arguments (image(s), x, y, text, [font size], [color])", 4, 6);
+        var arg = arguments.get(0);
+        if (arg instanceof List<?>) {
+            return expandToImageList("draw_text", arguments, this::drawText);
+        }
+        var x = getArgument(Number.class, arguments, 1).map(Number::intValue).orElseThrow();
+        var y = getArgument(Number.class, arguments, 2).map(Number::intValue).orElseThrow();
+        var text = getArgument(String.class, arguments, 3).orElseThrow();
+        var fontSize = getArgument(Number.class, arguments, 4).map(Number::intValue).orElse(-1);
+        var color = getArgument(String.class, arguments, 5).orElse(null);
+        if (arg instanceof ImageWrapper img) {
+            return drawText(img, text, x, y, color, fontSize);
+        } else {
+            throw new IllegalArgumentException("Unexpected image type: " + arg);
+        }
+    }
+
+    private Object drawText(ImageWrapper img, String text, int x, int y, String color, int fontSize) {
+        if (img instanceof FileBackedImage fileBacked) {
+            return drawText(fileBacked.unwrapToMemory(), text, x, y, color, fontSize);
+        }
+        if (color != null && img instanceof ImageWrapper32 mono) {
+            // first convert to RGB
+            var rgb = new RGBImage(mono.width(), mono.height(), mono.data(), mono.data(), mono.data(), new HashMap<>(mono.metadata()));
+            return drawText(rgb, text, x, y, color, fontSize);
+        }
+        return drawOnImage(img, (g, image) -> {
+            if (fontSize == -1) {
+                img.findMetadata(Ellipse.class).ifPresentOrElse(ellipse -> {
+                    var semiAxis = ellipse.semiAxis();
+                    var radius = (semiAxis.a() + semiAxis.b()) / 2;
+                    autoScaleFont(g, 1.2d, radius);
+                }, () -> autoScaleFont(g, 1.2d, image.width() / 2d));
+            } else {
+                g.setFont(g.getFont().deriveFont((float) fontSize));
+            }
+            configureColor(color, g);
+            var message = text;
+            if (text.startsWith("*") && text.endsWith("*")) {
+                message = text.substring(1, text.length() - 1);
+                g.setFont(g.getFont().deriveFont(Font.BOLD));
+            } else if (text.startsWith("_") && text.endsWith("_")) {
+                message = text.substring(1, text.length() - 1);
+                g.setFont(g.getFont().deriveFont(Font.ITALIC));
+            }
+            g.drawString(message, x, y);
+        });
+    }
+
+    private static void configureColor(String color, Graphics2D g) {
+        if (color != null) {
+            if (HEXA_COLOR.matcher(color).matches()) {
+                int resultRed = Integer.valueOf(color.substring(0, 2), 16);
+                int resultGreen = Integer.valueOf(color.substring(2, 4), 16);
+                int resultBlue = Integer.valueOf(color.substring(4, 6), 16);
+                g.setColor(new Color(resultRed, resultGreen, resultBlue));
+            } else {
+                g.setColor(Color.getColor(color));
+            }
+        }
+    }
+
+    public Object drawArrow(List<Object> arguments) {
+        assertExpectedArgCount(arguments, "draw_arrow takes 5 to 7 arguments (image(s), x1, y1, x2, y2, [thickness], [color])", 5, 7);
+        var arg = arguments.get(0);
+        if (arg instanceof List<?>) {
+            return expandToImageList("draw_arrow", arguments, this::drawText);
+        }
+        var x1 = getArgument(Number.class, arguments, 1).map(Number::intValue).orElseThrow();
+        var y1 = getArgument(Number.class, arguments, 2).map(Number::intValue).orElseThrow();
+        var x2 = getArgument(Number.class, arguments, 3).map(Number::intValue).orElseThrow();
+        var y2 = getArgument(Number.class, arguments, 4).map(Number::intValue).orElseThrow();
+        var thickness = getArgument(Number.class, arguments, 5).map(Number::intValue).orElse(1);
+        var color = getArgument(String.class, arguments, 6).orElse(null);
+        if (arg instanceof ImageWrapper img) {
+            return drawArrow(img, x1, y1, x2, y2, color, thickness);
+        } else {
+            throw new IllegalArgumentException("Unexpected image type: " + arg);
+        }
+    }
+
+    private Object drawArrow(ImageWrapper img, int x1, int y1, int x2, int y2, String color, int thickness) {
+        if (img instanceof FileBackedImage fileBacked) {
+            return drawArrow(fileBacked.unwrapToMemory(), x1, y1, x2, y2, color, thickness);
+        }
+        if (color != null && img instanceof ImageWrapper32 mono) {
+            // first convert to RGB
+            var rgb = new RGBImage(mono.width(), mono.height(), mono.data(), mono.data(), mono.data(), new HashMap<>(mono.metadata()));
+            return drawArrow(rgb, x1, y1, x2, y2, color, thickness);
+        }
+        return drawOnImage(img, (g, image) -> {
+            if (thickness >= 1) {
+                g.setStroke(new BasicStroke(thickness));
+            }
+            configureColor(color, g);
+            int arrowSize = Math.max(10, thickness * 3);
+            // adjust line end to avoid arrowhead being clipped
+            var xx2 = x2 - arrowSize * Math.cos(Math.atan2(y2 - y1, x2 - x1));
+            var yy2 = y2 - arrowSize * Math.sin(Math.atan2(y2 - y1, x2 - x1));
+            g.drawLine(x1, y1, (int) xx2, (int) yy2);
+
+            // draw line with arrowhead filled
+            double angle = Math.atan2(y2 - y1, x2 - x1);
+
+            var x3 = x2 - (int) (arrowSize * Math.cos(angle - Math.PI / 6));
+            var y3 = y2 - (int) (arrowSize * Math.sin(angle - Math.PI / 6));
+            var x4 = x2 - (int) (arrowSize * Math.cos(angle + Math.PI / 6));
+            var y4 = y2 - (int) (arrowSize * Math.sin(angle + Math.PI / 6));
+
+            // Create and fill the arrow head
+            g.fillPolygon(new int[]{x2, x3, x4}, new int[]{y2, y3, y4}, 3);
+
+        });
+    }
+
+    private Object drawCircle(ImageWrapper img, int centerX, int centerY, int radius, int thickness, String color) {
+        if (img instanceof FileBackedImage fileBacked) {
+            return drawCircle(fileBacked.unwrapToMemory(), centerX, centerY, radius, thickness, color);
+        }
+        if (color != null && img instanceof ImageWrapper32 mono) {
+            // first convert to RGB
+            var rgb = new RGBImage(mono.width(), mono.height(), mono.data(), mono.data(), mono.data(), new HashMap<>(mono.metadata()));
+            return drawCircle(rgb, centerX, centerY, radius, thickness, color);
+        }
+        return drawOnImage(img, (g, image) -> {
+            g.setStroke(new BasicStroke(thickness));
+            configureColor(color, g);
+            g.drawOval(centerX - radius, centerY - radius, 2 * radius, 2 * radius);
+        });
+    }
+
+    public Object drawCircle(List<Object> arguments) {
+        assertExpectedArgCount(arguments, "draw_circle takes 4 to 6 arguments (image(s), cx, cy, radius, [color], [thickness])", 4, 6);
+        var arg = arguments.get(0);
+        if (arg instanceof List<?>) {
+            return expandToImageList("draw_circle", arguments, this::drawText);
+        }
+        var cx = getArgument(Number.class, arguments, 1).map(Number::intValue).orElseThrow();
+        var cy = getArgument(Number.class, arguments, 2).map(Number::intValue).orElseThrow();
+        var radius = getArgument(Number.class, arguments, 3).map(Number::intValue).orElseThrow();
+        var thickness = getArgument(Number.class, arguments, 4).map(Number::intValue).orElse(1);
+        var color = getArgument(String.class, arguments, 5).orElse(null);
+        if (arg instanceof ImageWrapper img) {
+            return drawCircle(img, cx, cy, radius, thickness, color);
+        } else {
+            throw new IllegalArgumentException("Unexpected image type: " + arg);
+        }
+    }
+
 
     public Object drawSolarParameters(List<Object> arguments) {
         assertExpectedArgCount(arguments, "draw_solar_params takes 1, 2, or 3 (image(s), [x], [y])", 1, 3);
@@ -239,10 +393,7 @@ public class ImageDraw extends AbstractFunctionImpl {
             for (int i = -180; i <= 180; i += geodesisInc) {
                 var angle = toRadians(i);
                 for (double theta = 0; theta < 360; theta += resolution) {
-                    var lines = List.of(
-                            ofSpherical(angle, theta, radius).rotateX(-b0).rotateZ(-angleP),
-                            ofSpherical(theta, angle, radius).rotateX(-b0).rotateZ(-angleP)
-                    );
+                    var lines = List.of(ofSpherical(angle, theta, radius).rotateX(-b0).rotateZ(-angleP), ofSpherical(theta, angle, radius).rotateX(-b0).rotateZ(-angleP));
                     for (int j = 0; j < lines.size(); j++) {
                         Coordinates c = lines.get(j);
                         if (c.z > 0) {
@@ -355,18 +506,11 @@ public class ImageDraw extends AbstractFunctionImpl {
     }
 
     private static Coordinates ofSpherical(double ascension, double declination, double radius) {
-        return new Coordinates(
-                sin(ascension) * sin(declination) * radius,
-                cos(declination) * radius,
-                cos(ascension) * sin(declination) * radius
-        );
+        return new Coordinates(sin(ascension) * sin(declination) * radius, cos(declination) * radius, cos(ascension) * sin(declination) * radius);
     }
 
     private static double[] rotate(double a, double b, double angle) {
-        return new double[]{
-                cos(angle) * a - sin(angle) * b,
-                sin(angle) * a + cos(angle) * b
-        };
+        return new double[]{cos(angle) * a - sin(angle) * b, sin(angle) * a + cos(angle) * b};
     }
 
     private record Coordinates(double x, double y, double z) {
