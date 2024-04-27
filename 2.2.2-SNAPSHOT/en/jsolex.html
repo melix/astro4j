@@ -1173,6 +1173,15 @@ A special variable named <code>angleP</code> contains the computed solar P angle
 <li>
 <p><code>draw_solar_params</code> prints on the image the detected solar parameters. For example: <code>draw_solar_params(img(0))</code>. By default, placed in the top right corner. It&#8217;s possible to set the (x,y) position explicitly, for example: <code>draw_solar_params(img(0), 500, 100)</code>.</p>
 </li>
+<li>
+<p><code>draw_text</code> draws a text on the image. It takes 3 mandatory arguments: the image, the position where to print the text, the text to draw. For example: <code>draw_text(img(0), "Hello World", 100, 100)</code>. It also accepts 2 optional parameters: the font size and the color. For example: <code>draw_text(img(0), "Hello World", 100, 100, 24, "ff0000")</code>. The color is a 6-digit hexadecimal value. NOTE: if you specify a color, then the image will be automatically converted to RGB. If the text is surrounded with <code>*</code> then it will be printed in bold (e.g <code>draw_text(img(0), "\*Hello World*", 100, 100)</code>). If the text is surrounded with <code>_</code> then it will be printed in italic (e.g <code>draw_text(img(0), "\_Hello World_", 100, 100)</code>).</p>
+</li>
+<li>
+<p><code>draw_arrow</code> draws an arrow on the image. It takes 5 mandatory arguments: the image, the start and end points of the arrow. For example: <code>draw_arrow(img(0), 100, 100, 200, 200)</code>. It also accepts 2 optional parameters : the thickness of the arrow and the color. For example: <code>draw_arrow(img(0), 100, 100, 200, 200, 2, "ff0000")</code>. The color is a 6-digit hexadecimal value. NOTE: if you specify a color, then the image will be automatically converted to RGB.</p>
+</li>
+<li>
+<p><code>draw_circle</code> draws a circle on the image. It takes 4 mandatory arguments: the image, the center of the circle and the radius. For example: <code>draw_circle(img(0), 100, 100, 50)</code>. It also accepts 2 optional parameters : the thickness of the circle and the color. For example: <code>draw_circle(img(0), 100, 100, 50, 2, "ff0000")</code>. The color is a 6-digit hexadecimal value. NOTE: if you specify a color, then the image will be automatically converted to RGB.</p>
+</li>
 </ul>
 </div>
 <div class="paragraph">
