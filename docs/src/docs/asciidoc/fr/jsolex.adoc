@@ -1,6 +1,7 @@
 = JSol'Ex
 Cédric Champeau
 :icons: font
+:docinfo: shared
 
 JSol'Ex est un traitement d'images solaires produites par l'intermédiaire du http://www.astrosurf.com/solex/[Sol'Ex de Christian Buil].
 Il permet de traiter les fichiers SER capturés avec cet instrument pour produire des images du disque solaire, de manière similaire à http://valerie.desnoux.free.fr/inti/[INTI de Valérie Desnoux].
@@ -9,6 +10,10 @@ S'il est principalement conçu pour traiter les images produites par Sol'Ex, il 
 JSol'Ex est un logiciel libre sous licence Apache 2, écrit en Java et fourni à titre gratuit sans aucune garantie.
 
 == Téléchargement
+
+link:https://jsolex.s3.eu-west-3.amazonaws.com/jsolex-windows-latest/{prefixName}-{version}.msi[icon:windows[] Télécharger JSol'Ex (Windows), role="badge"]
+link:https://jsolex.s3.eu-west-3.amazonaws.com/jsolex-ubuntu-latest/{prefixName}_{version}_amd64.deb[icon:linux[] Télécharger JSol'Ex (Linux), role="badge"]
+link:https://jsolex.s3.eu-west-3.amazonaws.com/jsolex-macos-latest/{prefixName}-{version}.pkg[icon:apple[] Télécharger JSol'Ex (Mac), role="badge"]
 
 JSol'Ex peut être téléchargé sur https://github.com/melix/astro4j/releases[cette page].
 Des installateurs sont disponibles pour Linux, Windows et MacOS.

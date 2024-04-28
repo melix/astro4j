@@ -4,6 +4,16 @@ plugins {
 
 tasks {
     asciidoctor {
+        val downloadVersion = if (version.toString().contains("-SNAPSHOT")) {
+            version.toString().substringBefore("-SNAPSHOT")
+        } else {
+            version.toString()
+        }
+        val prefixName = if (version.toString().contains("-SNAPSHOT")) {
+            "jsolex-devel"
+        } else {
+            "jsolex"
+        }
         attributes(mapOf(
             "reproducible" to "",
             "nofooter" to "",
@@ -12,6 +22,8 @@ tasks {
             "source-highlighter" to "highlight.js",
             "highlightjs-theme" to "equilibrium-light",
             "highlightjsdir" to "highlight",
+            "version" to downloadVersion,
+            "prefixName" to prefixName
         ))
         resources(delegateClosureOf<CopySpec> {
             from("src/docs/asciidoc") {
