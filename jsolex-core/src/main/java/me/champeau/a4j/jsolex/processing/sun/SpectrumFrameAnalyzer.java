@@ -25,11 +25,13 @@ import java.util.List;
 import java.util.Optional;
 import java.util.function.DoubleUnaryOperator;
 
+import static me.champeau.a4j.jsolex.processing.sun.workflow.AnalysisUtils.estimateBackgroundLevel;
+
 public class SpectrumFrameAnalyzer {
     public static final int MAX_DEVIATION = 10;
     private final int width;
     private final int height;
-    private final double sunDetectionThreshold;
+    private final Double sunDetectionThreshold;
     private final List<Point2D> samplePoints;
 
     private Integer leftBorder;
@@ -41,7 +43,7 @@ public class SpectrumFrameAnalyzer {
 
     public SpectrumFrameAnalyzer(int width,
                                  int height,
-                                 double sunDetectionThreshold) {
+                                 Double sunDetectionThreshold) {
         this.width = width;
         this.height = height;
         this.samplePoints = new ArrayList<>(width);
@@ -50,6 +52,7 @@ public class SpectrumFrameAnalyzer {
 
     public void analyze(float[] data) {
         reset();
+        var threshold = sunDetectionThreshold != null ? sunDetectionThreshold : estimateBackgroundLevel(data);
         for (int x = 0; x < width; x++) {
             double lineAvg = 0;
             for (int y = 0; y < height; y++) {
@@ -63,7 +66,7 @@ public class SpectrumFrameAnalyzer {
                     max = value;
                 }
             }
-            if (lineAvg > sunDetectionThreshold) {
+            if (lineAvg > threshold) {
                 if (leftBorder == null) {
                     leftBorder = x;
                 }
