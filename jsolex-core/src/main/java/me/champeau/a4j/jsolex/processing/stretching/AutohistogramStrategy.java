@@ -15,31 +15,41 @@
  */
 package me.champeau.a4j.jsolex.processing.stretching;
 
+import me.champeau.a4j.jsolex.processing.event.GeneratedImage;
+import me.champeau.a4j.jsolex.processing.event.ImageGeneratedEvent;
 import me.champeau.a4j.jsolex.processing.sun.BackgroundRemoval;
+import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
+import me.champeau.a4j.jsolex.processing.sun.workflow.GeneratedImageKind;
 import me.champeau.a4j.jsolex.processing.util.Histogram;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
-import me.champeau.a4j.math.image.BlurKernel;
-import me.champeau.a4j.math.image.Image;
-import me.champeau.a4j.math.image.ImageMath;
 import me.champeau.a4j.math.regression.Ellipse;
 
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+
+import static me.champeau.a4j.jsolex.processing.util.Constants.MAX_PIXEL_VALUE;
 
 public final class AutohistogramStrategy implements StretchingStrategy {
     private static final int HISTOGRAM_BINS = 256;
-    private static final GammaStrategy PROTUS_STRATEGY = new GammaStrategy(.6);
+    private static final GammaStrategy PROTUS_STRATEGY = new GammaStrategy(.5);
 
     public static final double DEFAULT_GAMMA = 1.5;
 
     private final double gamma;
-    private final ImageMath imageMath = ImageMath.newInstance();
+
+    private Broadcaster broadcaster;
 
     public AutohistogramStrategy(double gamma) {
         if (gamma < 1) {
             throw new IllegalArgumentException("Gamma must be greater than 1");
         }
         this.gamma = gamma;
+    }
+
+    public void setBroadcaster(Broadcaster broadcaster) {
+        this.broadcaster = broadcaster;
     }
 
     /**
@@ -64,8 +74,8 @@ public final class AutohistogramStrategy implements StretchingStrategy {
             for (int y = 0; y < height; y++) {
                 for (int x = 0; x < width; x++) {
                     var idx = y * width + x;
-                    var weight = Math.pow(mask[idx], gamma);
-                    diskData[idx] = (float) ((1 - weight) * disk.data()[idx] + weight * protusData[idx]);
+                    var weight = mask[idx];
+                    diskData[idx] = ((1 - weight) * disk.data()[idx] + weight * protusData[idx]);
                 }
             }
             System.arraycopy(disk.data(), 0, image.data(), 0, diskData.length);
@@ -123,39 +133,37 @@ public final class AutohistogramStrategy implements StretchingStrategy {
         }
     }
 
+    // computes the distance to the circle center, relative to the radius. A negative value
+    // means that the point is inside the circle, a positive value means that the point is outside
+    // the circle. The distance is normalized so that it is 0 at the circle border, and 1 at the
+    // circle center.
+    private static double normalizedDistanceToCenter(double x, double y, double cx, double cy, double radius) {
+        double distance = Math.sqrt((x - cx) * (x - cx) + (y - cy) * (y - cy));
+        return (distance - radius) / radius;
+    }
+
     private float[] createMask(int height, int width, Ellipse e) {
         float[] mask = new float[width * height];
         var cx = e.center().a();
         var cy = e.center().b();
-        double min = Double.MAX_VALUE;
+        var semiAxis = e.semiAxis();
+        var radius = (semiAxis.a() + semiAxis.b()) / 2;
         for (int y = 0; y < height; y++) {
             for (int x = 0; x < width; x++) {
                 var idx = y * width + x;
-                if (!e.isWithin(x, y)) {
-                    var distance = Math.sqrt((x - cx) * (x - cx) + (y - cy) * (y - cy));
-                    mask[idx] = (float) distance;
-                    min = Math.min(min, distance);
-                }
+                var distance = normalizedDistanceToCenter(x, y, cx, cy, radius);
+                var v = 0.5 * (distance < 0.005 ? Math.pow(Math.exp(distance - 0.01), 24) : 1 - distance);
+                mask[idx] = (float) (v * v);
             }
         }
-        for (int i = 0; i < mask.length; i++) {
-            var v = mask[i];
-            if (v > 0) {
-                double d = (v - min) / min;
-                if (d < 0.2) {
-                    mask[i] = 1;
-                } else {
-                    mask[i] = 0;
-                }
+
+        if (broadcaster != null) {
+            var t = new float[width * height];
+            System.arraycopy(mask, 0, t, 0, mask.length);
+            for (int i = 0; i < t.length; i++) {
+                t[i] = t[i] * MAX_PIXEL_VALUE;
             }
-        }
-        var tmp = new Image(width, height, mask);
-        tmp = imageMath.rescale(tmp, width / 16, height / 16);
-        tmp = imageMath.convolve(tmp, BlurKernel.of(8));
-        mask = imageMath.rescale(tmp, width, height).data();
-        for (int i = 0; i < mask.length; i++) {
-            var v = mask[i];
-            mask[i] = (float) Math.pow(v, 2);
+            broadcaster.broadcast(new ImageGeneratedEvent(new GeneratedImage(GeneratedImageKind.IMAGE_MATH, "Mask", Path.of("/tmp/mask.png"), new ImageWrapper32(width, height, t, Map.of()))));
         }
         return mask;
     }
