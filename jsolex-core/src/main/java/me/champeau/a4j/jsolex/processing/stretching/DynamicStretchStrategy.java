@@ -70,18 +70,31 @@ public final class DynamicStretchStrategy implements StretchingStrategy {
             observations.add(new WeightedObservedPoint(1.0, i, values[i]));
         }
         try {
-            var fit = GaussianCurveFitter.create()
-                .withMaxIterations(1024)
-                .fit(observations);
-            var mean = fit[1];
-            var stdDev = fit[2];
-            int zeroCrossingIndex = (int) (mean + 3 * stdDev);
-            // Use max in case the estimate is completely off
-            return Math.min(255, Math.max(source, zeroCrossingIndex)) * 256;
+            return gaussianEstimate(observations);
         } catch (Exception e) {
-            // in case fitting fails
-            return (int) (Math.min(255, target/256) * 256);
+            // in case fitting fails, perform a 2d iteration by using values from the histogram, without
+            // considering the target value, and removing the first bucket
+            observations = new ArrayList<>();
+            for (int i = 1; i < 256; i++) {
+                observations.add(new WeightedObservedPoint(1.0, i, values[i]));
+            }
+            try {
+                return (int) Math.clamp(3f * gaussianEstimate(observations) / 2f, 0, MAX_PIXEL_VALUE);
+            } catch (Exception e2) {
+                return (int) (Math.min(255, target/256) * 256);
+            }
         }
+    }
+
+    private int gaussianEstimate(ArrayList<WeightedObservedPoint> observations) {
+        var fit = GaussianCurveFitter.create()
+            .withMaxIterations(1024)
+            .fit(observations);
+        var mean = fit[1];
+        var stdDev = fit[2];
+        int zeroCrossingIndex = (int) (mean + 3 * stdDev);
+        // Use max in case the estimate is completely off
+        return Math.min(255, Math.max(source, zeroCrossingIndex)) * 256;
     }
 
 }
