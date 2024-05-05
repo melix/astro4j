@@ -191,7 +191,7 @@ public class SpectralLineDebugger {
                         redraw();
                     }
                 });
-                sunDetectionThreshold.textProperty().set("5000d");
+                sunDetectionThreshold.textProperty().set("");
                 frameSlider.setMin(0);
                 frameSlider.setMax(header.frameCount());
                 frameSlider.setValue(current);
@@ -263,7 +263,7 @@ public class SpectralLineDebugger {
         }
         int width = geometry.width();
         int height = geometry.height();
-        var sunThreshold = Double.parseDouble(sunDetectionThreshold.textProperty().getValue());
+        Double sunThreshold = sunDetectionThreshold.textProperty().getValue().isEmpty() ? null : Double.parseDouble(sunDetectionThreshold.textProperty().getValue());
         var analyzer = new SpectrumFrameAnalyzer(
                 width,
                 height,

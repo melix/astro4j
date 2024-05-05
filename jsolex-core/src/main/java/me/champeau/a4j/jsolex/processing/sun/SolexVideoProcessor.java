@@ -163,11 +163,10 @@ public class SolexVideoProcessor implements Broadcaster {
             var averageImage = detector.getAverageImage();
             detector.ifEdgesDetected((start, end) -> {
                 LOGGER.info(message("sun.edges.detected"), start, end);
-                generateImages(converter, header, fpsRef.get(), serFile, Math.max(0, start - 40), Math.min(end + 40, frameCountRef.get()) - 1, averageImage);
             }, () -> {
                 LOGGER.info(message("sun.edges.detected.full"));
-                generateImages(converter, header, fpsRef.get(), serFile, 0, frameCountRef.get() - 1, averageImage);
             });
+            generateImages(converter, header, fpsRef.get(), serFile, 0, frameCountRef.get() - 1, averageImage);
         }
     }
 
@@ -421,7 +420,7 @@ public class SolexVideoProcessor implements Broadcaster {
     }
 
     private Optional<DoubleUnaryOperator> findPolynomial(int width, int height, float[] averageImage, FileNamingStrategy imageNamingStrategy) {
-        SpectrumFrameAnalyzer analyzer = new SpectrumFrameAnalyzer(width, height, 5000d);
+        SpectrumFrameAnalyzer analyzer = new SpectrumFrameAnalyzer(width, height, null);
         analyzer.analyze(averageImage);
         var result = analyzer.findDistortionPolynomial();
         if (processParams.extraParams().generateDebugImages()) {
