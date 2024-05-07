@@ -16,6 +16,7 @@
 package me.champeau.a4j.jsolex.app.listeners;
 
 import javafx.embed.swing.SwingFXUtils;
+import javafx.scene.Scene;
 import javafx.scene.SnapshotParameters;
 import javafx.scene.chart.BarChart;
 import javafx.scene.chart.CategoryAxis;
@@ -31,8 +32,11 @@ import javafx.scene.control.TextArea;
 import javafx.scene.control.Tooltip;
 import javafx.scene.image.PixelFormat;
 import javafx.scene.image.WritableImage;
+import javafx.scene.layout.BorderPane;
+import javafx.scene.layout.Region;
 import javafx.scene.layout.VBox;
 import javafx.scene.transform.Transform;
+import javafx.stage.Stage;
 import javafx.util.Duration;
 import me.champeau.a4j.jsolex.app.jfx.BatchOperations;
 import me.champeau.a4j.jsolex.app.jfx.ImageViewer;
@@ -61,6 +65,7 @@ import me.champeau.a4j.jsolex.processing.file.FileNamingStrategy;
 import me.champeau.a4j.jsolex.processing.params.ImageMathParams;
 import me.champeau.a4j.jsolex.processing.params.ProcessParams;
 import me.champeau.a4j.jsolex.processing.params.RequestedImages;
+import me.champeau.a4j.jsolex.processing.spectrum.ReferenceIntensities;
 import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
 import me.champeau.a4j.jsolex.processing.sun.SolexVideoProcessor;
 import me.champeau.a4j.jsolex.processing.sun.workflow.GeneratedImageKind;
@@ -94,12 +99,14 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.TreeSet;
 import java.util.WeakHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -140,6 +147,8 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
     private final Map<Double, ImageWrapper> shiftImages;
     private int width;
     private int height;
+
+    private Supplier<LineChart<?,?>> profileGraphFactory;
 
     public SingleModeProcessingEventListener(JSolExInterface owner,
                                              String baseName,
@@ -539,100 +548,129 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
 
     @Override
     public void onAverageImageComputed(AverageImageComputedEvent e) {
-        var xAxis = new CategoryAxis();
-        var yAxis = new NumberAxis();
-        xAxis.setLabel(message("wavelength"));
-        yAxis.setLabel(message("intensity"));
-        var lineChart = new LineChart<>(xAxis, yAxis);
-        var series = new XYChart.Series<String, Number>();
-        var image = e.getPayload().image();
-        var width = image.width();
-        var height = image.height();
-        var start = e.getPayload().leftBorder();
-        var end = e.getPayload().rightBorder();
-        var data = image.data();
-        var polynomial = e.getPayload().polynomial();
-        var wavelength = e.getPayload().spectralRay().wavelength();
-        var binning = e.getPayload().observationDetails().binning();
-        var pixelSize = e.getPayload().observationDetails().pixelSize();
-        lineChart.getData().add(series);
-        registerSaveChartAction("profile", lineChart);
-        series.setName(formatLegend(wavelength, binning, pixelSize));
-        double min = Double.MAX_VALUE;
-        double max = Double.MIN_VALUE;
-        for (int x = start; x < end; x++) {
-            var v = polynomial.applyAsDouble(x);
-            min = Math.min(v, min);
-            max = Math.max(v, max);
-        }
-        if (min == Double.MAX_VALUE) {
-            min = 0;
-        }
-        if (max == Double.MIN_VALUE) {
-            max = height;
-        }
-        min = Math.max(0, min);
-        max = Math.min(height, max);
-        double mid = (max + min) / 2.0;
-        double range = (max - min) / 2.0;
-        for (int y = (int) range; y < height - range; y++) {
-            double cpt = 0;
-            double val = 0;
+        profileGraphFactory = () -> {
+            var xAxis = new CategoryAxis();
+            var yAxis = new NumberAxis();
+            xAxis.setLabel(message("wavelength"));
+            yAxis.setLabel(message("intensity"));
+            var lineChart = new LineChart<>(xAxis, yAxis);
+            var series = new XYChart.Series<String, Number>();
+            var image = e.getPayload().image();
+            var width = image.width();
+            var height = image.height();
+            var start = e.getPayload().leftBorder();
+            var end = e.getPayload().rightBorder();
+            var data = image.data();
+            var polynomial = e.getPayload().polynomial();
+            var lambda0 = e.getPayload().spectralRay().wavelength();
+            var binning = e.getPayload().observationDetails().binning();
+            var pixelSize = e.getPayload().observationDetails().pixelSize();
+            var canDrawReference = binning != null && pixelSize != null && lambda0 > 0 && pixelSize > 0 && binning > 0;
+            registerSaveChartAction("profile", lineChart);
+            series.setName(formatLegend(lambda0, binning, pixelSize));
+            double dispersion = canDrawReference ? computeSpectralDispersion(DEFAULT_ORDER, DEFAULT_DENSITY, lambda0, pixelSize * binning, DEFAULT_FOCAL_LEN) : 0;
+            double min = Double.MAX_VALUE;
+            double max = Double.MIN_VALUE;
             for (int x = start; x < end; x++) {
                 var v = polynomial.applyAsDouble(x);
-                var shift = v - mid;
-                int ny = (int) Math.round(y + shift);
-                if (ny >= 0 && ny < height) {
-                    val += data[width * ny + x];
-                    cpt++;
+                min = Math.min(v, min);
+                max = Math.max(v, max);
+            }
+            if (min == Double.MAX_VALUE) {
+                min = 0;
+            }
+            if (max == Double.MIN_VALUE) {
+                max = height;
+            }
+            min = Math.max(0, min);
+            max = Math.min(height, max);
+            double mid = (max + min) / 2.0;
+            double range = (max - min) / 2.0;
+            var dataPoints = new ArrayList<DataPoint>();
+            for (int y = (int) range; y < height - range; y++) {
+                double cpt = 0;
+                double val = 0;
+                for (int x = start; x < end; x++) {
+                    var v = polynomial.applyAsDouble(x);
+                    var shift = v - mid;
+                    int ny = (int) Math.round(y + shift);
+                    if (ny >= 0 && ny < height) {
+                        val += data[width * ny + x];
+                        cpt++;
+                    }
+                }
+                if (cpt > 0) {
+                    var pixelShift = y - mid;
+                    var wl = canDrawReference ? computeWavelength(pixelShift, lambda0, dispersion) : 0;
+                    dataPoints.add(new DataPoint(wl, pixelShift, val / cpt));
                 }
             }
-            if (cpt > 0) {
-                var label = formatWavelength(y, mid, wavelength, binning, pixelSize);
-                var d = new XYChart.Data<String, Number>(label, val / cpt);
-                var pixelShift = y - mid;
-                var tooltipText = new StringBuilder();
-                tooltipText.append(label).append(" ");
-                tooltipText.append(String.format("(pixel shift: %.2f)", pixelShift)).append("\n");
-                tooltipText.append(message("click.to.reprocess"));
-                var tooltip = new Tooltip(tooltipText.toString());
-                series.getData().add(d);
-                var node = d.getNode();
-                tooltip.setShowDelay(Duration.ZERO);
-                tooltip.setHideDelay(Duration.ZERO);
-                Tooltip.install(node, tooltip);
-                node.setOnMouseClicked(event -> {
-                    var menu = new ContextMenu();
-                    var process = new MenuItem(message("reprocess"));
-                    menu.getItems().add(process);
-                    process.setOnAction(evt -> Thread.startVirtualThread(() -> {
-                        var newParams = params.withSpectrumParams(
-                            params.spectrumParams().withPixelShift(pixelShift)
-                        ).withRequestedImages(
-                            params.requestedImages().withPixelShifts(List.of(pixelShift))
-                        );
-                        var solexVideoProcessor = new SolexVideoProcessor(serFile, outputDirectory, 0, newParams, LocalDateTime.now(), false);
-                        solexVideoProcessor.addEventListener(this);
-                        solexVideoProcessor.addEventListener(new ProcessingEventListener() {
-                            @Override
-                            public void onProcessingDone(ProcessingDoneEvent e) {
-                                shiftImages.putAll(e.getPayload().shiftImages());
-                            }
-
-                            @Override
-                            public void onProgress(ProgressEvent e) {
-                                BatchOperations.submitOneOfAKind("progress", () -> owner.updateProgress(e.getPayload().progress(), e.getPayload().task()));
-                            }
-                        });
-                        params = newParams;
-                        solexVideoProcessor.process();
-                    }));
-                    menu.show(node, event.getScreenX(), event.getScreenY());
-                });
+            lineChart.getData().add(series);
+            if (canDrawReference) {
+                double maxVal = dataPoints.stream().mapToDouble(DataPoint::intensity).max().orElse(0);
+                var referenceSeries = new XYChart.Series<String, Number>();
+                referenceSeries.setName(message("reference.intensity"));
+                lineChart.getData().add(referenceSeries);
+                var referenceDataPoints = new ArrayList<DataPoint>();
+                for (DataPoint dataPoint : dataPoints) {
+                    referenceDataPoints.add(new DataPoint(dataPoint.wavelen(), dataPoint.pixelShift(), ReferenceIntensities.intensityAt(dataPoint.wavelen())));
+                }
+                var maxRef = referenceDataPoints.stream().mapToDouble(DataPoint::intensity).max().orElse(0);
+                for (var dataPoint : referenceDataPoints) {
+                    var normalizedDataPoint = new DataPoint(dataPoint.wavelen(), dataPoint.pixelShift(), dataPoint.intensity() * maxVal / maxRef);
+                    addDataPointToSeries(normalizedDataPoint, referenceSeries);
+                }
             }
-        }
-        BatchOperations.submit(() -> profileTab.setContent(lineChart));
+            for (var dataPoint : dataPoints) {
+                addDataPointToSeries(dataPoint, series);
+            }
+            return lineChart;
+        };
+        BatchOperations.submit(() -> profileTab.setContent(profileGraphFactory.get()));
 
+    }
+
+    private void addDataPointToSeries(DataPoint dataPoint, XYChart.Series<String, Number> series) {
+        var label = formatWavelength(dataPoint.pixelShift, dataPoint.wavelen);
+        var d = new XYChart.Data<String, Number>(label, dataPoint.intensity);
+        var tooltipText = new StringBuilder();
+        tooltipText.append(label).append(" ");
+        tooltipText.append(String.format("(pixel shift: %.2f)", dataPoint.pixelShift)).append("\n");
+        tooltipText.append(message("click.to.reprocess"));
+        var tooltip = new Tooltip(tooltipText.toString());
+        series.getData().add(d);
+        var node = d.getNode();
+        tooltip.setShowDelay(Duration.ZERO);
+        tooltip.setHideDelay(Duration.ZERO);
+        Tooltip.install(node, tooltip);
+        node.setOnMouseClicked(event -> {
+            var menu = new ContextMenu();
+            var process = new MenuItem(message("reprocess"));
+            menu.getItems().add(process);
+            process.setOnAction(evt -> Thread.startVirtualThread(() -> {
+                var newParams = params.withSpectrumParams(
+                    params.spectrumParams().withPixelShift(dataPoint.pixelShift)
+                ).withRequestedImages(
+                    params.requestedImages().withPixelShifts(List.of(dataPoint.pixelShift))
+                );
+                var solexVideoProcessor = new SolexVideoProcessor(serFile, outputDirectory, 0, newParams, LocalDateTime.now(), false);
+                solexVideoProcessor.addEventListener(this);
+                solexVideoProcessor.addEventListener(new ProcessingEventListener() {
+                    @Override
+                    public void onProcessingDone(ProcessingDoneEvent e) {
+                        shiftImages.putAll(e.getPayload().shiftImages());
+                    }
+
+                    @Override
+                    public void onProgress(ProgressEvent e) {
+                        BatchOperations.submitOneOfAKind("progress", () -> owner.updateProgress(e.getPayload().progress(), e.getPayload().task()));
+                    }
+                });
+                params = newParams;
+                solexVideoProcessor.process();
+            }));
+            menu.show(node, event.getScreenX(), event.getScreenY());
+        });
     }
 
     private void registerSaveChartAction(String name, XYChart<?, ?> chart) {
@@ -651,7 +689,18 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
                 LOGGER.info(message("chart.saved"), outputFile);
                 var alert = new Alert(Alert.AlertType.INFORMATION);
                 alert.setTitle(message("chart.saved.title"));
-                alert.setHeaderText(message("chart.saved").replace("{}", outputFile.toString()));
+                var textArea = new TextArea("Chart saved to: " + outputFile);
+                textArea.setEditable(false);
+                textArea.setWrapText(true);
+                textArea.setMaxHeight(Region.USE_PREF_SIZE);
+                textArea.setStyle("-fx-background-color: transparent; -fx-background-insets: 0; -fx-padding: 0;");
+
+                textArea.setPrefRowCount(1);
+                textArea.setMaxWidth(Double.MAX_VALUE);
+                textArea.setFocusTraversable(false);
+
+                alert.getDialogPane().setContent(textArea);
+                alert.setHeaderText(null);
                 alert.showAndWait();
             } catch (IOException ex) {
                 throw new ProcessingException(ex);
@@ -659,19 +708,31 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
         });
         menu.getItems().add(saveToFile);
         chart.setOnContextMenuRequested(menuEvent -> menu.show(chart, menuEvent.getScreenX(), menuEvent.getScreenY()));
+        var openInNewWindow = new MenuItem(message("open.in.new.window"));
+        openInNewWindow.setOnAction(evt -> BatchOperations.submit(() -> {
+            var newWindow = new Stage();
+            newWindow.setTitle(message(message("profile")));
+
+            var pane = new BorderPane();
+            pane.setCenter(profileGraphFactory.get());
+
+            var scene = new Scene(pane, 800, 600);
+            newWindow.setScene(scene);
+            newWindow.show();
+        }));
+
+        menu.getItems().add(openInNewWindow);
     }
 
-    private static String formatWavelength(double pixelShift, double mid, Double lambda0, Integer binning, Double pixelSize) {
-        if (binning != null && pixelSize != null && lambda0 != null) {
-            double lambda = lambda0;
-            double pixSize = pixelSize;
-            if (lambda > 0 && pixSize > 0) {
-                double disp = 10 * computeSpectralDispersion(DEFAULT_ORDER, DEFAULT_DENSITY, lambda, pixelSize * binning, DEFAULT_FOCAL_LEN);
-                double wavelen = 10 * (lambda + (pixelShift - mid) * disp);
-                return String.format("%.1f", wavelen);
-            }
+    private static String formatWavelength(double pixelShift, double wavelength) {
+        if (wavelength > 0) {
+                return String.format(Locale.US, "%.2f", wavelength);
         }
-        return String.format("%.2f", pixelShift - mid);
+        return String.format(Locale.US, "%.2f", pixelShift);
+    }
+
+    private static double computeWavelength(double pixelShift, double lambda, double dispersion) {
+        return 10 * (lambda + pixelShift * dispersion);
     }
 
     private static String formatLegend(Double lambda0, Integer binning, Double pixelSize) {
@@ -728,4 +789,6 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
     private record CachedHistogram(Histogram histogram, String color) {
     }
 
+    private record DataPoint(double wavelen, double pixelShift, double intensity) {
+    }
 }
