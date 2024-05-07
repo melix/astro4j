@@ -27,10 +27,11 @@ dependencies {
 
 tasks.withType<KotlinJvmCompile>().configureEach {
     compilerOptions {
-        jvmTarget.set(JvmTarget.JVM_17)
+        jvmTarget.set(JvmTarget.JVM_21)
     }
 }
 
 tasks.withType<JavaCompile>().configureEach {
-    targetCompatibility = "17"
+    sourceCompatibility = "21"
+    targetCompatibility = "21"
 }

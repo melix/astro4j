@@ -1,3 +1,5 @@
+import me.champeau.astro4j.SpectrumFileConverter
+
 plugins {
     id("me.champeau.astro4j.library")
 }
@@ -36,5 +38,18 @@ tasks.withType<Javadoc>().configureEach {
     doFirst {
         options.setModulePath(classpath.files.toList())
         classpath = files()
+    }
+}
+
+val converter = tasks.register<SpectrumFileConverter>("convertSpectrumFile") {
+    inputFile = file("src/bass2000/atlasvi.dat")
+    outputFile = layout.buildDirectory.file("atlas/atlasvi.txt")
+}
+
+sourceSets {
+    main {
+        resources {
+            srcDir(converter.map { it.outputFile.get().asFile.parentFile })
+        }
     }
 }
