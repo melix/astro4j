@@ -18,17 +18,17 @@ If you want some context about why I started developing this, you can read my [a
 The following binaries are provided as a convenience and built from sources using GitHub Actions.
 They are provided as-is, without any warranty.
 
-- Latest release is version 2.2.2 ([documentation](https://melix.github.io/astro4j/2.2.2))
-  - [JSol'Ex 2.2.2 (Linux, deb, AMD64)](https://jsolex.s3.eu-west-3.amazonaws.com/jsolex-ubuntu-latest/jsolex_2.2.2_amd64.deb)
-  - [JSol'Ex 2.2.2 (Windows)](https://jsolex.s3.eu-west-3.amazonaws.com/jsolex-windows-latest/jsolex-2.2.2.msi)
-  - [JSol'Ex 2.2.2 (MacOS)](https://jsolex.s3.eu-west-3.amazonaws.com/jsolex-macos-latest/jsolex-2.2.2.pkg)
-  - [JSol'Ex (Tarball)](https://jsolex.s3.eu-west-3.amazonaws.com/jsolex-macos-latest/jsolex-2.2.2.tar.gz)
-  - [JSol'Ex (Zip)](https://jsolex.s3.eu-west-3.amazonaws.com/jsolex-macos-latest/jsolex-2.2.2.zip)
-  - [Ser Player 2.2.2 (Linux, deb, AMD64)](https://jsolex.s3.eu-west-3.amazonaws.com/ser-player-ubuntu-latest/ser-player_2.2.2_amd64.deb)
-  - [Ser Player 2.2.2 (Windows)](https://jsolex.s3.eu-west-3.amazonaws.com/ser-player-windows-latest/ser-player-2.2.2.msi)
-  - [Ser Player 2.2.2 (MacOS)](https://jsolex.s3.eu-west-3.amazonaws.com/ser-player-macos-latest/ser-player-2.2.2.pkg)
-  - [Ser Player (Tarball)](https://jsolex.s3.eu-west-3.amazonaws.com/ser-player-macos-latest/ser-player-2.2.2.tar.gz)
-  - [Ser Player (Zip)](https://jsolex.s3.eu-west-3.amazonaws.com/ser-player-macos-latest/ser-player-2.2.2.zip)
+- Latest release is version 2.2.3 ([documentation](https://melix.github.io/astro4j/2.2.3))
+  - [JSol'Ex 2.2.3 (Linux, deb, AMD64)](https://jsolex.s3.eu-west-3.amazonaws.com/jsolex-ubuntu-latest/jsolex_2.2.3_amd64.deb)
+  - [JSol'Ex 2.2.3 (Windows)](https://jsolex.s3.eu-west-3.amazonaws.com/jsolex-windows-latest/jsolex-2.2.3.msi)
+  - [JSol'Ex 2.2.3 (MacOS)](https://jsolex.s3.eu-west-3.amazonaws.com/jsolex-macos-latest/jsolex-2.2.3.pkg)
+  - [JSol'Ex (Tarball)](https://jsolex.s3.eu-west-3.amazonaws.com/jsolex-macos-latest/jsolex-2.2.3.tar.gz)
+  - [JSol'Ex (Zip)](https://jsolex.s3.eu-west-3.amazonaws.com/jsolex-macos-latest/jsolex-2.2.3.zip)
+  - [Ser Player 2.2.3 (Linux, deb, AMD64)](https://jsolex.s3.eu-west-3.amazonaws.com/ser-player-ubuntu-latest/ser-player_2.2.3_amd64.deb)
+  - [Ser Player 2.2.3 (Windows)](https://jsolex.s3.eu-west-3.amazonaws.com/ser-player-windows-latest/ser-player-2.2.3.msi)
+  - [Ser Player 2.2.3 (MacOS)](https://jsolex.s3.eu-west-3.amazonaws.com/ser-player-macos-latest/ser-player-2.2.3.pkg)
+  - [Ser Player (Tarball)](https://jsolex.s3.eu-west-3.amazonaws.com/ser-player-macos-latest/ser-player-2.2.3.tar.gz)
+  - [Ser Player (Zip)](https://jsolex.s3.eu-west-3.amazonaws.com/ser-player-macos-latest/ser-player-2.2.3.zip)
 
 You can also install the _development_ version of JSol'Ex as it can contain numerous bugfixes and improvements over the release versions.
 

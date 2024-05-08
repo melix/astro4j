@@ -130,6 +130,9 @@ public class StackingWorkflow {
         var cropped = crop.autocrop2(List.of(stackedImages));
         if (cropped instanceof List<?> list) {
             var croppedImages = list.stream()
+                .filter(ImageWrapper.class::isInstance)
+                .map(ImageWrapper.class::cast)
+                .map(ImageWrapper::unwrapToMemory)
                 .filter(ImageWrapper32.class::isInstance)
                 .map(ImageWrapper32.class::cast)
                 .toList();
