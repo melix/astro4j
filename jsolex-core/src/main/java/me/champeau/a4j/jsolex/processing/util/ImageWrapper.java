@@ -32,4 +32,11 @@ public sealed interface ImageWrapper permits ImageWrapper32, ColorizedImageWrapp
     }
 
     ImageWrapper copy();
+
+    default ImageWrapper unwrapToMemory() {
+        if (this instanceof FileBackedImage fbi) {
+            return fbi.unwrapToMemory();
+        }
+        return this;
+    }
 }

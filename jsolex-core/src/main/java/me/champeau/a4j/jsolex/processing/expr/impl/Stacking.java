@@ -99,14 +99,9 @@ public class Stacking extends AbstractFunctionImpl {
     }
 
     ImageWrapper32 doStack(List<ImageWrapper32> images, int tileSize, float overlap, ImageWrapper32 referenceImage, float threshold) {
-        var widths = images.stream().mapToInt(ImageWrapper32::width).distinct().toArray();
-        var heights = images.stream().mapToInt(ImageWrapper32::height).distinct().toArray();
-        if (widths.length > 1 || heights.length > 1 || widths[0] != heights[0]) {
-            // perform cropping
-            images = (List<ImageWrapper32>) crop.autocrop2(List.of(images));
-        }
-        images = (List<ImageWrapper32>) scaling.radiusRescale(List.of(images));
-
+        var widths = images.stream().mapToInt(ImageWrapper::width).distinct().toArray();
+        var heights = images.stream().mapToInt(ImageWrapper::height).distinct().toArray();
+        images = prepareForStacking(images, widths, heights);;
         // the reference image is the first image
         // We perform stacking by doing the following:
         // for each image to stack, we split the image into tiles of size tileSize
@@ -153,6 +148,25 @@ public class Stacking extends AbstractFunctionImpl {
         }
         var finalImage = assembleImage(result);
         return new ImageWrapper32(width, height, finalImage, metadata);
+    }
+
+    private List<ImageWrapper32> prepareForStacking(List<ImageWrapper32> images, int[] widths, int[] heights) {
+        List<ImageWrapper> images2 = images.stream().map(ImageWrapper.class::cast).toList();
+        if (widths.length > 1 || heights.length > 1 || widths[0] != heights[0]) {
+            // perform cropping
+            images2 = (List<ImageWrapper>) crop.autocrop2(List.of(images2));
+        }
+        images2 = (List<ImageWrapper>) scaling.radiusRescale(List.of(images2));
+        return images2.stream()
+            .map(img -> {
+                if (img instanceof FileBackedImage fbi) {
+                    return fbi.unwrapToMemory();
+                } else if (img instanceof ImageWrapper32 img32) {
+                    return img32;
+                }
+                throw new IllegalStateException("Unexpected image type: " + img.getClass());
+            })
+            .map(ImageWrapper32.class::cast).toList();
     }
 
     /**

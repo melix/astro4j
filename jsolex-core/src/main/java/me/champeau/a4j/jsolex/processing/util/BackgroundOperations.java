@@ -23,6 +23,8 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.locks.ReentrantLock;
 
+import static me.champeau.a4j.jsolex.processing.util.LoggingSupport.logError;
+
 public final class BackgroundOperations {
 
     private static final ExecutorService ASYNC = Executors.newCachedThreadPool();
@@ -54,17 +56,27 @@ public final class BackgroundOperations {
     }
 
     public static void async(Runnable action) {
-        TASKS.add(ASYNC.submit(action));
+        TASKS.add(ASYNC.submit(wrap(action)));
+    }
+
+    private static Runnable wrap(Runnable action) {
+        return () -> {
+            try {
+                action.run();
+            } catch (Throwable e) {
+                logError(e);
+            }
+        };
     }
 
     public static void asyncIo(Runnable action) {
-        TASKS.add(IO_ASYNC.submit(action));
+        TASKS.add(IO_ASYNC.submit(wrap(action)));
     }
 
     public static void exclusiveIO(Runnable action) {
         try {
             EXCLUSIVE_IO_LOCK.lock();
-            Future<?> future = EXCLUSIVE_IO.submit(action);
+            Future<?> future = EXCLUSIVE_IO.submit(wrap(action));
             TASKS.add(future);
             try {
                 future.get();
