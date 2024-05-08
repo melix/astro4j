@@ -252,12 +252,30 @@ public class ProcessingWorkflow {
     }
 
     private void produceColorizedImage(float blackPoint, ImageWrapper32 corrected, ProcessParams params) {
-        params.spectrumParams().ray().getColorCurve().ifPresent(curve ->
-            processedImagesEmitter.newColorImage(GeneratedImageKind.COLORIZED, MessageFormat.format(message("colorized"), curve.ray()), "colorized", corrected, mono -> {
-                createStretchingForColorization(blackPoint).stretch(new ImageWrapper32(corrected.width(), corrected.height(), mono, MutableMap.of()));
-                return ImageUtils.convertToRGB(curve, mono);
-            })
-        );
+        var ray = params.spectrumParams().ray();
+        ray.getColorCurve().ifPresentOrElse(curve ->
+                processedImagesEmitter.newColorImage(GeneratedImageKind.COLORIZED, MessageFormat.format(message("colorized"), curve.ray()), "colorized", corrected, mono -> {
+                    createStretchingForColorization(blackPoint).stretch(new ImageWrapper32(corrected.width(), corrected.height(), mono, MutableMap.of()));
+                    return ImageUtils.convertToRGB(curve, mono);
+                })
+            , () -> {
+                if (ray.wavelength() > 0) {
+                    processedImagesEmitter.newColorImage(GeneratedImageKind.COLORIZED, MessageFormat.format(message("colorized"), ray.label()), "colorized", corrected, mono -> {
+                        createStretchingForColorization(blackPoint).stretch(new ImageWrapper32(corrected.width(), corrected.height(), mono, MutableMap.of()));
+                        var rgbColor = ray.toRGB();
+                        var r = new float[mono.length];
+                        var g = new float[mono.length];
+                        var b = new float[mono.length];
+                        for (int i = 0; i < mono.length; i++) {
+                            var gray = mono[i];
+                            r[i] = gray * rgbColor[0] / 255f;
+                            g[i] = gray * rgbColor[1] / 255f;
+                            b[i] = gray * rgbColor[2] / 255f;
+                        }
+                        return new float[][]{r, g, b};
+                    });
+                }
+            });
     }
 
     private static ArcsinhStretchingStrategy createStretchingForColorization(float blackPoint) {
@@ -364,10 +382,26 @@ public class ProcessingWorkflow {
                         mix[i] = Math.max(0, Math.min(d, Constants.MAX_PIXEL_VALUE));
                     }
                     var mixedImage = new ImageWrapper32(width, height, mix, metadata);
-                    var colorCurve = processParams.spectrumParams().ray().getColorCurve();
+                    var ray = processParams.spectrumParams().ray();
+                    var colorCurve = ray.getColorCurve();
                     if (colorCurve.isPresent()) {
                         var curve = colorCurve.get();
                         processedImagesEmitter.newColorImage(GeneratedImageKind.MIXED, message("mix"), "mix", mixedImage, mono -> ImageUtils.convertToRGB(curve, mono));
+                    } else if (ray.wavelength() > 0) {
+                        processedImagesEmitter.newColorImage(GeneratedImageKind.COLORIZED, message("mix"), "mix", mixedImage, mono -> {
+                            var rgbColor = ray.toRGB();
+                            var length = mono.length;
+                            var r = new float[length];
+                            var g = new float[length];
+                            var b = new float[length];
+                            for (int i = 0; i < length; i++) {
+                                var gray = mono[i];
+                                r[i] = gray * rgbColor[0] / 255f;
+                                g[i] = gray * rgbColor[1] / 255f;
+                                b[i] = gray * rgbColor[2] / 255f;
+                            }
+                            return new float[][]{r, g, b};
+                        });
                     } else {
                         processedImagesEmitter.newMonoImage(GeneratedImageKind.MIXED, message("mix"), "mix", mixedImage);
                     }

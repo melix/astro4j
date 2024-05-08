@@ -42,6 +42,7 @@ import me.champeau.a4j.jsolex.app.jfx.BatchOperations;
 import me.champeau.a4j.jsolex.app.jfx.ImageViewer;
 import me.champeau.a4j.jsolex.app.jfx.ZoomableImageView;
 import me.champeau.a4j.jsolex.app.script.JSolExScriptExecutor;
+import me.champeau.a4j.jsolex.processing.spectrum.SpectrumAnalyzer;
 import me.champeau.a4j.jsolex.processing.event.AverageImageComputedEvent;
 import me.champeau.a4j.jsolex.processing.event.DebugEvent;
 import me.champeau.a4j.jsolex.processing.event.FileGeneratedEvent;
@@ -117,10 +118,6 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
     private static final Logger LOGGER = LoggerFactory.getLogger(SingleModeProcessingEventListener.class);
     private static final String[] RGB_COLORS = {"red", "green", "blue"};
     private static final int BINS = 256;
-    private static final double TOTAL_ANGLE = Math.toRadians(34);
-    private static final int DEFAULT_ORDER = 1;
-    private static final int DEFAULT_DENSITY = 2400;
-    private static final int DEFAULT_FOCAL_LEN = 125;
 
     private final Map<SuggestionEvent.SuggestionKind, String> suggestions = Collections.synchronizedMap(new LinkedHashMap<>());
     private final Map<Double, ZoomableImageView> imageViews;
@@ -148,7 +145,7 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
     private int width;
     private int height;
 
-    private Supplier<LineChart<?,?>> profileGraphFactory;
+    private Supplier<LineChart<?, ?>> profileGraphFactory;
 
     public SingleModeProcessingEventListener(JSolExInterface owner,
                                              String baseName,
@@ -207,13 +204,13 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
                 int v = (int) Math.round(line[x]);
                 byte c = (byte) (v >> 8);
                 rgb[3 * x] = c;
-                rgb[3 * x + DEFAULT_ORDER] = c;
+                rgb[3 * x + SpectrumAnalyzer.DEFAULT_ORDER] = c;
                 rgb[3 * x + 2] = c;
             }
             var pixelformat = PixelFormat.getByteRgbInstance();
             onProgress(ProgressEvent.of((y + 1d) / height, message("reconstructing")));
             BatchOperations.submit(() -> {
-                image.getPixelWriter().setPixels(0, y, line.length, DEFAULT_ORDER, pixelformat, rgb, 0, 3 * line.length);
+                image.getPixelWriter().setPixels(0, y, line.length, SpectrumAnalyzer.DEFAULT_ORDER, pixelformat, rgb, 0, 3 * line.length);
             });
         } else {
             onProgress(ProgressEvent.of((y + 1d) / height, message("reconstructing")));
@@ -426,7 +423,7 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
     @Override
     public void onProgress(ProgressEvent e) {
         BatchOperations.submitOneOfAKind("progress", () -> {
-            if (e.getPayload().progress() == DEFAULT_ORDER) {
+            if (e.getPayload().progress() == SpectrumAnalyzer.DEFAULT_ORDER) {
                 owner.hideProgress();
             } else {
                 owner.showProgress();
@@ -464,7 +461,7 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
             onNotification(new NotificationEvent(new Notification(
                 Notification.AlertType.ERROR,
                 message("error.processing.script"),
-                message("script.errors." + (errorCount == DEFAULT_ORDER ? "single" : "many")),
+                message("script.errors." + (errorCount == SpectrumAnalyzer.DEFAULT_ORDER ? "single" : "many")),
                 message
             )));
         }
@@ -568,7 +565,7 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
             var canDrawReference = binning != null && pixelSize != null && lambda0 > 0 && pixelSize > 0 && binning > 0;
             registerSaveChartAction("profile", lineChart);
             series.setName(formatLegend(lambda0, binning, pixelSize));
-            double dispersion = canDrawReference ? computeSpectralDispersion(DEFAULT_ORDER, DEFAULT_DENSITY, lambda0, pixelSize * binning, DEFAULT_FOCAL_LEN) : 0;
+            double dispersion = canDrawReference ? SpectrumAnalyzer.computeSpectralDispersion(lambda0, pixelSize * binning) : 0;
             double min = Double.MAX_VALUE;
             double max = Double.MIN_VALUE;
             for (int x = start; x < end; x++) {
@@ -726,7 +723,7 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
 
     private static String formatWavelength(double pixelShift, double wavelength) {
         if (wavelength > 0) {
-                return String.format(Locale.US, "%.2f", wavelength);
+            return String.format(Locale.US, "%.2f", wavelength);
         }
         return String.format(Locale.US, "%.2f", pixelShift);
     }
@@ -740,50 +737,11 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
             double lambda = lambda0;
             double pixSize = pixelSize;
             if (lambda > 0 && pixSize > 0) {
-                double disp = 10 * computeSpectralDispersion(DEFAULT_ORDER, DEFAULT_DENSITY, lambda, pixelSize * binning, DEFAULT_FOCAL_LEN);
+                double disp = 10 * SpectrumAnalyzer.computeSpectralDispersion(lambda, pixelSize * binning);
                 return String.format(message("intensity.legend"), pixelSize, binning, disp);
             }
         }
         return message("intensity");
-    }
-
-    /**
-     * Computes the beta angle
-     *
-     * @param order the grating order
-     * @param density the grating density, in lines/mm
-     * @param lambda0 the wavelength in nanometers
-     * @return the beta angle (in radians)
-     */
-    private static double computeAngleBeta(int order, int density, double lambda0) {
-        return computeAlphaAngle(order, density, lambda0) - TOTAL_ANGLE;
-    }
-
-    /**
-     * Computes the alpha angle
-     *
-     * @param order the grating order
-     * @param density the grating density, in lines/mm
-     * @param lambda0 the wavelength in nanometers
-     * @return the alpha angle (in radians)
-     */
-    private static double computeAlphaAngle(int order, int density, double lambda0) {
-        return Math.asin(order * density * lambda0 / (2_000_000 * Math.cos(TOTAL_ANGLE / 2))) + TOTAL_ANGLE / 2;
-    }
-
-    /**
-     * Returns the spectral dispersion, in nanometers/pixel
-     *
-     * @param order the grating order
-     * @param density the grating density, in lines/mm
-     * @param lambda0 the wavelength in nanometers
-     * @param pixelSize the pixel size, in micrometers
-     * @param focalLength the lens focal length in mm
-     * @return the spectral dispersion, in nanometers/pixel
-     */
-    private static double computeSpectralDispersion(int order, int density, double lambda0, double pixelSize, double focalLength) {
-        var beta = computeAngleBeta(order, density, lambda0);
-        return 1000 * pixelSize * Math.cos(beta) / density / focalLength;
     }
 
     private record CachedHistogram(Histogram histogram, String color) {

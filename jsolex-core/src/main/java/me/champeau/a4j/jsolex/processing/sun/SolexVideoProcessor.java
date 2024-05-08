@@ -38,6 +38,8 @@ import me.champeau.a4j.jsolex.processing.expr.InvalidExpression;
 import me.champeau.a4j.jsolex.processing.file.FileNamingStrategy;
 import me.champeau.a4j.jsolex.processing.params.ImageMathParams;
 import me.champeau.a4j.jsolex.processing.params.ProcessParams;
+import me.champeau.a4j.jsolex.processing.params.SpectralRay;
+import me.champeau.a4j.jsolex.processing.spectrum.SpectrumAnalyzer;
 import me.champeau.a4j.jsolex.processing.sun.tasks.EllipseFittingTask;
 import me.champeau.a4j.jsolex.processing.sun.tasks.GeometryCorrector;
 import me.champeau.a4j.jsolex.processing.sun.workflow.DefaultImageEmitter;
@@ -94,6 +96,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.DoubleUnaryOperator;
+import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 import static me.champeau.a4j.jsolex.processing.util.Constants.message;
@@ -209,6 +212,27 @@ public class SolexVideoProcessor implements Broadcaster {
                 // unreliable detection which happens on some SER files
                 leftBorder = 0;
                 rightBorder = width;
+            }
+            var pixelSize = processParams.observationDetails().pixelSize();
+            if (processParams.spectrumParams().ray().equals(SpectralRay.AUTO) && pixelSize != null) {
+                var candidates = new ArrayList<SpectrumAnalyzer.QueryDetails>();
+                for (var line : SpectralRay.predefined()) {
+                    if (line.wavelength() > 0) {
+                        candidates.add(new SpectrumAnalyzer.QueryDetails(line, pixelSize, 1));
+                        candidates.add(new SpectrumAnalyzer.QueryDetails(line, pixelSize, 2));
+                    }
+                }
+                int finalLeftBorder = leftBorder;
+                int finalRightBorder = rightBorder;
+                var map = candidates
+                    .stream()
+                    .collect(Collectors.toMap(d -> d, details -> SpectrumAnalyzer.computeDataPoints(details, polynomial, finalLeftBorder, finalRightBorder, width, height, averageImage)));
+                var bestMatch = SpectrumAnalyzer.findBestMatch(map);
+                LOGGER.info(String.format(Locale.US, message("auto.detected.spectral.line"), bestMatch.line(), bestMatch.binning(), bestMatch.pixelSize()));
+                var spectrumParams = processParams.spectrumParams();
+                processParams = processParams.withSpectrumParams(spectrumParams.withRay(bestMatch.line()));
+                var obsDetails = processParams.observationDetails();
+                processParams = processParams.withObservationDetails(obsDetails.withBinning(bestMatch.binning()));
             }
             broadcast(new AverageImageComputedEvent(new AverageImageComputedEvent.AverageImage(avgImage, polynomial, leftBorder, rightBorder, processParams.spectrumParams().ray(), processParams.observationDetails())));
             BackgroundOperations.exclusiveIO(() -> {

@@ -103,6 +103,7 @@ public class SpectralRayEditor {
             throw new RuntimeException(e);
         }
     }
+
     private static double toDoubleValue(String text) {
         if (text == null || text.isEmpty()) {
             return 0;
@@ -162,9 +163,9 @@ public class SpectralRayEditor {
                 var bInValue = bIn.valueProperty().intValue();
                 var bOutValue = bOut.valueProperty().intValue();
                 var newRay = new SpectralRay(
-                        newLabel,
-                        hasColor ? new ColorCurve(newLabel, rInValue, rOutValue, gInValue, gOutValue, bInValue, bOutValue) : null,
-                        newWavelen
+                    newLabel,
+                    hasColor ? new ColorCurve(newLabel, rInValue, rOutValue, gInValue, gOutValue, bInValue, bOutValue) : null,
+                    newWavelen
                 );
                 updateEditableInOut(hasColor);
                 items.set(selectionModel.getSelectedIndex(), newRay);
@@ -197,11 +198,26 @@ public class SpectralRayEditor {
 
     private void updateSunDiskPreview(SpectralRay newRay) {
         var curve = newRay.colorCurve();
-        if (curve == null) {
-            sunPreview.setImage(new Image(SunDiskColorPreview.getMonoImageStream()));
-            return;
-        }
-        var colorImage = new ColorizedImageWrapper(MONO_SUN_IMAGE, mono -> ImageUtils.convertToRGB(curve, mono), MutableMap.of());
+        var colorImage = new ColorizedImageWrapper(MONO_SUN_IMAGE, mono -> {
+            if (curve != null) {
+                return ImageUtils.convertToRGB(curve, mono);
+            } else {
+                var rgbColor = newRay.toRGB();
+                if (rgbColor[0] == 0 && rgbColor[1] == 0 && rgbColor[2] == 0) {
+                    return new float[][]{mono, mono, mono};
+                }
+                var r = new float[mono.length];
+                var g = new float[mono.length];
+                var b = new float[mono.length];
+                for (int i = 0; i < mono.length; i++) {
+                    var gray = mono[i];
+                    r[i] = gray * rgbColor[0] / 255f;
+                    g[i] = gray * rgbColor[1] / 255f;
+                    b[i] = gray * rgbColor[2] / 255f;
+                }
+                return new float[][]{r, g, b};
+            }
+        }, MutableMap.of());
         var colorized = colorImage.converter().apply(MONO_SUN_IMAGE.data());
         var r = colorized[0];
         var g = colorized[1];
@@ -254,9 +270,9 @@ public class SpectralRayEditor {
     @FXML
     public void addNewItem() {
         var spectralRay = new SpectralRay(
-                "<new> " + elements.getItems().size(),
-                null,
-                0
+            "<new> " + elements.getItems().size(),
+            null,
+            0
         );
         elements.getItems().add(spectralRay);
         elements.getSelectionModel().select(spectralRay);
