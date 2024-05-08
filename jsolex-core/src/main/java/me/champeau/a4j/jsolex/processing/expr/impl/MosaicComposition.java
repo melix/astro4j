@@ -125,7 +125,10 @@ public class MosaicComposition extends AbstractFunctionImpl {
 
     ImageWrapper32 doMosaic(List<ImageWrapper32> images, int tileSize, float overlap) {
         var backgroundNeutralized = images.stream().map(BackgroundRemoval::neutralizeBackground).toList();
-        var rescaled = scaling.performRadiusRescale(backgroundNeutralized).stream().map(ImageWrapper32.class::cast).toList();
+        var rescaled = scaling.performRadiusRescale(backgroundNeutralized)
+            .stream()
+            .map(ImageWrapper::unwrapToMemory)
+            .map(ImageWrapper32.class::cast).toList();
         var adjustment = normalizeHistograms(rescaled);
         var mosaic = doMosaicNoHistogramTransform(tileSize, overlap, adjustment.corrected(), adjustment.background(), new HashMap<>(), new HashMap<>());
         return ellipseFit.performEllipseFitting(mosaic);
