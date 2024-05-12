@@ -217,6 +217,7 @@ public class BatchModeEventListener implements ProcessingEventListener, ImageMat
                 var fileName = entry.getValue().toFile().getName();
                 var ext = fileName.substring(fileName.lastIndexOf("."));
                 var targetPath = new File(outputDirectory, name + ext).toPath();
+                Files.createDirectories(targetPath.getParent());
                 Files.move(entry.getValue(), targetPath, StandardCopyOption.REPLACE_EXISTING);
                 delegate.onFileGenerated(FileGeneratedEvent.of(entry.getKey(), targetPath));
             } catch (IOException e) {
@@ -292,6 +293,7 @@ public class BatchModeEventListener implements ProcessingEventListener, ImageMat
     public ImageMathScriptResult execute(String script, SectionKind kind) {
         var result = batchScriptExecutor.execute(script, SectionKind.BATCH);
         processScriptErrors(result);
+        renderBatchOutputs(createNamingStrategy(), result);
         return result;
     }
 
