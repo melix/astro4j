@@ -51,6 +51,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.OptionalDouble;
@@ -126,11 +127,27 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
         if (left instanceof CharSequence leftString && right instanceof CharSequence rightString) {
             return leftString.toString() + rightString;
         }
+        if (left instanceof CharSequence leftString) {
+            return leftString.toString() + format(right);
+        }
+        if (right instanceof CharSequence rightString) {
+            return String.valueOf(left) + format(rightString);
+        }
         var leftImage = asImage(left);
         var rightImage = asImage(right);
         var leftScalar = asScalar(left);
         var rightScalar = asScalar(right);
         return apply(leftImage, rightImage, leftScalar, rightScalar, Double::sum);
+    }
+
+    private static String format(Object o) {
+        if (o instanceof Double d) {
+            return String.format(Locale.US, "%.2f", d);
+        }
+        if (o instanceof Float f) {
+            return String.format(Locale.US, "%.2f", f);
+        }
+        return o.toString();
     }
 
     @Override
