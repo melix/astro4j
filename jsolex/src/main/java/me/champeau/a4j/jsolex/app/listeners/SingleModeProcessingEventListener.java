@@ -42,7 +42,6 @@ import me.champeau.a4j.jsolex.app.jfx.BatchOperations;
 import me.champeau.a4j.jsolex.app.jfx.ImageViewer;
 import me.champeau.a4j.jsolex.app.jfx.ZoomableImageView;
 import me.champeau.a4j.jsolex.app.script.JSolExScriptExecutor;
-import me.champeau.a4j.jsolex.processing.spectrum.SpectrumAnalyzer;
 import me.champeau.a4j.jsolex.processing.event.AverageImageComputedEvent;
 import me.champeau.a4j.jsolex.processing.event.DebugEvent;
 import me.champeau.a4j.jsolex.processing.event.FileGeneratedEvent;
@@ -66,7 +65,7 @@ import me.champeau.a4j.jsolex.processing.file.FileNamingStrategy;
 import me.champeau.a4j.jsolex.processing.params.ImageMathParams;
 import me.champeau.a4j.jsolex.processing.params.ProcessParams;
 import me.champeau.a4j.jsolex.processing.params.RequestedImages;
-import me.champeau.a4j.jsolex.processing.spectrum.ReferenceIntensities;
+import me.champeau.a4j.jsolex.processing.spectrum.SpectrumAnalyzer;
 import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
 import me.champeau.a4j.jsolex.processing.sun.SolexVideoProcessor;
 import me.champeau.a4j.jsolex.processing.sun.workflow.GeneratedImageKind;
@@ -583,7 +582,7 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
             max = Math.min(height, max);
             double mid = (max + min) / 2.0;
             double range = (max - min) / 2.0;
-            var dataPoints = new ArrayList<DataPoint>();
+            var dataPoints = new ArrayList<SpectrumAnalyzer.DataPoint>();
             for (int y = (int) range; y < height - range; y++) {
                 double cpt = 0;
                 double val = 0;
@@ -599,26 +598,20 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
                 if (cpt > 0) {
                     var pixelShift = y - mid;
                     var wl = canDrawReference ? computeWavelength(pixelShift, lambda0, dispersion) : 0;
-                    dataPoints.add(new DataPoint(wl, pixelShift, val / cpt));
+                    dataPoints.add(new SpectrumAnalyzer.DataPoint(wl, pixelShift, val / cpt));
                 }
             }
             lineChart.getData().add(series);
             if (canDrawReference) {
-                double maxVal = dataPoints.stream().mapToDouble(DataPoint::intensity).max().orElse(0);
                 var referenceSeries = new XYChart.Series<String, Number>();
                 referenceSeries.setName(message("reference.intensity"));
                 lineChart.getData().add(referenceSeries);
-                var referenceDataPoints = new ArrayList<DataPoint>();
-                for (DataPoint dataPoint : dataPoints) {
-                    referenceDataPoints.add(new DataPoint(dataPoint.wavelen(), dataPoint.pixelShift(), ReferenceIntensities.intensityAt(dataPoint.wavelen())));
-                }
-                var maxRef = referenceDataPoints.stream().mapToDouble(DataPoint::intensity).max().orElse(0);
+                var referenceDataPoints = normalizeDatapoints(SpectrumAnalyzer.findReferenceDatapoints(dataPoints));
                 for (var dataPoint : referenceDataPoints) {
-                    var normalizedDataPoint = new DataPoint(dataPoint.wavelen(), dataPoint.pixelShift(), dataPoint.intensity() * maxVal / maxRef);
-                    addDataPointToSeries(normalizedDataPoint, referenceSeries);
+                    addDataPointToSeries(dataPoint, referenceSeries);
                 }
             }
-            for (var dataPoint : dataPoints) {
+            for (var dataPoint : normalizeDatapoints(dataPoints)) {
                 addDataPointToSeries(dataPoint, series);
             }
             return lineChart;
@@ -627,12 +620,12 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
 
     }
 
-    private void addDataPointToSeries(DataPoint dataPoint, XYChart.Series<String, Number> series) {
-        var label = formatWavelength(dataPoint.pixelShift, dataPoint.wavelen);
-        var d = new XYChart.Data<String, Number>(label, dataPoint.intensity);
+    private void addDataPointToSeries(SpectrumAnalyzer.DataPoint dataPoint, XYChart.Series<String, Number> series) {
+        var label = formatWavelength(dataPoint.pixelShift(), dataPoint.wavelen());
+        var d = new XYChart.Data<String, Number>(label, dataPoint.intensity());
         var tooltipText = new StringBuilder();
         tooltipText.append(label).append(" ");
-        tooltipText.append(String.format("(pixel shift: %.2f)", dataPoint.pixelShift)).append("\n");
+        tooltipText.append(String.format("(pixel shift: %.2f)", dataPoint.pixelShift())).append("\n");
         tooltipText.append(message("click.to.reprocess"));
         var tooltip = new Tooltip(tooltipText.toString());
         series.getData().add(d);
@@ -646,9 +639,9 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
             menu.getItems().add(process);
             process.setOnAction(evt -> Thread.startVirtualThread(() -> {
                 var newParams = params.withSpectrumParams(
-                    params.spectrumParams().withPixelShift(dataPoint.pixelShift)
+                    params.spectrumParams().withPixelShift(dataPoint.pixelShift())
                 ).withRequestedImages(
-                    params.requestedImages().withPixelShifts(List.of(dataPoint.pixelShift))
+                    params.requestedImages().withPixelShifts(List.of(dataPoint.pixelShift()))
                 );
                 var solexVideoProcessor = new SolexVideoProcessor(serFile, outputDirectory, 0, newParams, LocalDateTime.now(), false);
                 solexVideoProcessor.addEventListener(this);
@@ -744,9 +737,14 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
         return message("intensity");
     }
 
+    private static List<SpectrumAnalyzer.DataPoint> normalizeDatapoints(List<SpectrumAnalyzer.DataPoint> dataPoints) {
+        var maxRef = dataPoints.stream().mapToDouble(SpectrumAnalyzer.DataPoint::intensity).max().orElse(0);
+        return dataPoints.stream()
+            .map(dataPoint -> new SpectrumAnalyzer.DataPoint(dataPoint.wavelen(), dataPoint.pixelShift(), 100 * dataPoint.intensity() / maxRef))
+            .toList();
+    }
+
     private record CachedHistogram(Histogram histogram, String color) {
     }
 
-    private record DataPoint(double wavelen, double pixelShift, double intensity) {
-    }
 }
