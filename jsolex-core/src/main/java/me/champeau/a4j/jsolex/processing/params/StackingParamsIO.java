@@ -27,6 +27,7 @@ import me.champeau.a4j.jsolex.processing.expr.impl.MosaicComposition;
 import me.champeau.a4j.jsolex.processing.expr.impl.Stacking;
 import me.champeau.a4j.jsolex.processing.sun.workflow.StackingWorkflow;
 import me.champeau.a4j.jsolex.processing.util.FilesUtils;
+import me.champeau.a4j.jsolex.processing.util.VersionUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -35,7 +36,6 @@ import java.io.IOException;
 import java.lang.reflect.Type;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 
 public class StackingParamsIO {
     private static final Logger LOGGER = LoggerFactory.getLogger(StackingParamsIO.class);
@@ -45,7 +45,7 @@ public class StackingParamsIO {
     }
 
     private static Path resolveDefaultsFile() {
-        var jsolexDir = Paths.get(System.getProperty("user.home"), ".jsolex");
+        var jsolexDir = VersionUtil.getJsolexDir();
         try {
             Files.createDirectories(jsolexDir);
         } catch (IOException e) {

@@ -19,6 +19,7 @@ import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
 import me.champeau.a4j.jsolex.processing.file.FileNamingStrategy;
 import me.champeau.a4j.jsolex.processing.util.FilesUtils;
+import me.champeau.a4j.jsolex.processing.util.VersionUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -26,7 +27,6 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.List;
 
 public abstract class FileNamingPatternsIO {
@@ -37,7 +37,7 @@ public abstract class FileNamingPatternsIO {
     }
 
     private static Path resolveDefaultsFile() {
-        var jsolexDir = Paths.get(System.getProperty("user.home"), ".jsolex");
+        var jsolexDir = VersionUtil.getJsolexDir();
         try {
             Files.createDirectories(jsolexDir);
         } catch (IOException e) {

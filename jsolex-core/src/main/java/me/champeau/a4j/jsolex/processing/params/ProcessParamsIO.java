@@ -21,6 +21,7 @@ import me.champeau.a4j.jsolex.processing.stretching.AutohistogramStrategy;
 import me.champeau.a4j.jsolex.processing.stretching.ClaheStrategy;
 import me.champeau.a4j.jsolex.processing.util.FilesUtils;
 import me.champeau.a4j.jsolex.processing.util.ImageFormat;
+import me.champeau.a4j.jsolex.processing.util.VersionUtil;
 import me.champeau.a4j.ser.ColorMode;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -30,7 +31,6 @@ import java.io.IOException;
 import java.io.Reader;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
@@ -46,7 +46,7 @@ public abstract class ProcessParamsIO {
     }
 
     private static Path resolveDefaultsFile() {
-        var jsolexDir = Paths.get(System.getProperty("user.home"), ".jsolex");
+        var jsolexDir = VersionUtil.getJsolexDir();
         try {
             Files.createDirectories(jsolexDir);
         } catch (IOException e) {
@@ -72,7 +72,7 @@ public abstract class ProcessParamsIO {
         }
         LOGGER.info("No config file found at {}. Using default parameters", defaultsFile);
         return new ProcessParams(
-            new SpectrumParams(SpectralRay.H_ALPHA, 0, 3, false),
+            new SpectrumParams(SpectralRay.AUTO, 0, 3, false),
             new ObservationDetails(
                 null,
                 null,
