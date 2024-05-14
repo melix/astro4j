@@ -190,9 +190,9 @@ public class SpectrumAnalyzer {
                 double refMaxValue = referenceDataPoints.stream().mapToDouble(DataPoint::intensity).max().orElse(1);
                 double refRatio = refMinValue / refMaxValue;
                 var normalizedMinValue = refMinValue * maxValue / refMaxValue;
-                double weight = Math.sqrt(1d - (refRatio > ratio ? ratio / refRatio : refRatio / ratio));
+                double weight = 3*Math.sqrt(1d - (refRatio > ratio ? ratio / refRatio : refRatio / ratio));
                 weight += 1d - Math.sqrt(normalizedMinValue > minValue ? minValue / normalizedMinValue : normalizedMinValue / minValue);
-                weight /= 2;
+                weight /= 4;
                 double distance = 0;
                 for (int i = 0; i < dataPoints.size(); i++) {
                     var dp = dataPoints.get(i);

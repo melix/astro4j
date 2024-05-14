@@ -68,6 +68,9 @@ public class Colorize extends AbstractFunctionImpl {
                     var curve = ray.colorCurve();
                     if (curve != null) {
                         return new ColorizedImageWrapper(mono, data -> doColorize(data, curve), mono.metadata());
+                    } else if (ray.wavelength() != 0) {
+                        var rgb = ray.toRGB();
+                        return new ColorizedImageWrapper(mono, data -> doColorize(data, rgb), mono.metadata());
                     }
                 }
             }
@@ -80,5 +83,19 @@ public class Colorize extends AbstractFunctionImpl {
         float[] copy = new float[data.length];
         System.arraycopy(data, 0, copy, 0, copy.length);
         return ImageUtils.convertToRGB(curve, copy);
+    }
+
+    private static float[][] doColorize(float[] mono, int[] rgb) {
+        var length = mono.length;
+        var r = new float[length];
+        var g = new float[length];
+        var b = new float[length];
+        for (int i = 0; i < length; i++) {
+            var gray = mono[i];
+            r[i] = gray * rgb[0] / 255f;
+            g[i] = gray * rgb[1] / 255f;
+            b[i] = gray * rgb[2] / 255f;
+        }
+        return new float[][]{r, g, b};
     }
 }
