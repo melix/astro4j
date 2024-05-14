@@ -37,7 +37,7 @@ jobs:
           git config --global user.email 'melix@users.noreply.github.com'
       - uses: actions/setup-java@v1
         with:
-          java-version: 17
+          java-version: 21
       - uses: gradle/gradle-build-action@v2
         with:
           arguments: :docs:gitPublishPush
