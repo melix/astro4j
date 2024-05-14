@@ -16,12 +16,11 @@
 package me.champeau.a4j.jsolex.processing.spectrum;
 
 import me.champeau.a4j.jsolex.processing.params.SpectralRay;
-import org.apache.commons.math3.fitting.GaussianCurveFitter;
-import org.apache.commons.math3.fitting.WeightedObservedPoint;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
@@ -163,66 +162,53 @@ public class SpectrumAnalyzer {
         return dataPoints;
     }
 
-    /**
-     * Given a map of measurements, finds the list of datapoints which best match the reference data points.
-     */
     public static QueryDetails findBestMatch(Map<QueryDetails, List<DataPoint>> measurements) {
+        record PartialSolution(QueryDetails query, double d1, double d2) {
+        }
         record Solution(QueryDetails query, double distance) {
         }
+
         QueryDetails best = null;
-        // the stddev of all measurements is going to be the same, so we only need to compute it once
 
         if (!measurements.isEmpty()) {
-            var firstEntry = measurements.values().stream().findFirst().get();
-            var stdDev = gaussianFit(firstEntry)[2];
-            best = measurements.entrySet().stream().parallel().map(entry -> {
+            var partialSolutions = measurements.entrySet().stream().parallel().map(entry -> {
                 var query = entry.getKey();
                 var dataPoints = entry.getValue();
                 var referenceDataPoints = findReferenceDatapointsNoNormalization(dataPoints);
 
-                // Calculate min and max values for data points
-                double minValue = dataPoints.stream().mapToDouble(DataPoint::intensity).min().orElse(0);
-                double maxValue = dataPoints.stream().mapToDouble(DataPoint::intensity).max().orElse(1);
-                double ratio = minValue / maxValue;
+                var intensities = dataPoints.stream().mapToDouble(DataPoint::intensity).toArray();
+                var refIntensities = referenceDataPoints.stream().mapToDouble(DataPoint::intensity).toArray();
+                var variation = variationCoef(intensities);
+                var refVariation = variationCoef(refIntensities);
 
-                // Calculate min and max values for reference data points
-                double refMinValue = referenceDataPoints.stream().mapToDouble(DataPoint::intensity).min().orElse(0);
-                double refMaxValue = referenceDataPoints.stream().mapToDouble(DataPoint::intensity).max().orElse(1);
-                double refRatio = refMinValue / refMaxValue;
-                var normalizedMinValue = refMinValue * maxValue / refMaxValue;
-                double weight = 3*Math.sqrt(1d - (refRatio > ratio ? ratio / refRatio : refRatio / ratio));
-                weight += 1d - Math.sqrt(normalizedMinValue > minValue ? minValue / normalizedMinValue : normalizedMinValue / minValue);
-                weight /= 4;
-                double distance = 0;
-                for (int i = 0; i < dataPoints.size(); i++) {
-                    var dp = dataPoints.get(i);
-                    var ref = referenceDataPoints.get(i);
-                    var normalizedIntensity = (dp.intensity() - minValue) / (maxValue - minValue);
-                    var normalizedRefIntensity = (ref.intensity() - refMinValue) / (refMaxValue - refMinValue);
-                    var diff = normalizedIntensity - normalizedRefIntensity;
-                    distance += diff * diff;
-                }
-                if (stdDev > 0) {
-                    // estimate gaussian around line center
-                    var referenceFit = gaussianFit(referenceDataPoints);
-                    // adjust weight according to the std deviation of the gaussian
-                    double refStdDev = referenceFit[2];
-                    if (refStdDev > 0) {
-                        weight += (1d - Math.sqrt(stdDev > refStdDev ? refStdDev / stdDev : stdDev / refStdDev));
-                    }
-                }
-                distance = weight * Math.sqrt(distance);
-                LOGGER.debug("Line {} binning {} has distance {}", query.line(), query.binning(), distance);
-                return new Solution(query, distance);
-            }).min(Comparator.comparingDouble(s -> s.distance)).map(s -> s.query).orElse(null);
+                double d1 = calculateAreaBetweenCurves(zScoreNormalize(intensities), zScoreNormalize(refIntensities));
+                double d2 = Math.abs(1/variation - 1/refVariation);
+
+                return new PartialSolution(query, d1, d2);
+            }).toList();
+            // normalize scores to 0-1
+            var maxDist1 = partialSolutions.stream().mapToDouble(PartialSolution::d1).max().orElse(0);
+            var maxDist2 = partialSolutions.stream().mapToDouble(PartialSolution::d2).max().orElse(0);
+            best = partialSolutions.stream().map(solution -> {
+                // Normalize distances to [0, 1]
+                double normalizedDist1 = (solution.d1() / maxDist1);
+                double normalizedDist2 = (solution.d2() / maxDist2);
+
+                // Combine normalized distances using weighted sum
+                double combinedDistance = 0.7 * normalizedDist1 + 0.3 * normalizedDist2;
+
+                LOGGER.info("Line {} binning {} has distance {}", solution.query().line(), solution.query().binning(), combinedDistance);
+                return new Solution(solution.query(), combinedDistance);
+            }).min(Comparator.comparingDouble(Solution::distance)).map(Solution::query).orElse(null);
         }
+
         if (best == null) {
-            // not a good solution, so we'll assume h-alpha or the closest to h-alpha
+            // Not a good solution, so we'll assume H-alpha or the closest to H-alpha
             double min = Double.MAX_VALUE;
             var ha = SpectralRay.H_ALPHA.wavelength();
             for (var entry : measurements.entrySet()) {
                 var query = entry.getKey();
-                var diff = Math.abs(query.line.wavelength() - ha);
+                var diff = Math.abs(query.line().wavelength() - ha);
                 if (diff < min) {
                     min = diff;
                     best = query;
@@ -232,31 +218,31 @@ public class SpectrumAnalyzer {
         return best;
     }
 
-    private static double[] gaussianFit(List<DataPoint> datapoints) {
-        var observations = new ArrayList<WeightedObservedPoint>();
-        // find datapoint with minimal intensity
-        var min = datapoints.stream().min(Comparator.comparingDouble(DataPoint::intensity)).orElse(null);
-        if (min == null) {
-            return new double[]{-1, -1, -1};
+    private static double variationCoef(double[] values) {
+        double mean = 0;
+        for (double value : values) {
+            mean += value;
         }
-        var i = datapoints.indexOf(min);
-        var intensity = min.intensity();
-        observations.add(new WeightedObservedPoint(1, min.wavelen(), intensity));
-        for (int j = i + 1; j < Math.min(i+11, datapoints.size()); j++) {
-            var dp = datapoints.get(j);
-            observations.add(new WeightedObservedPoint(1, dp.wavelen(), dp.intensity()));
+        mean /= values.length;
+        double stddev = 0;
+        for (double value : values) {
+            stddev += (value - mean) * (value - mean);
         }
-        for (int j = i - 1; j >= Math.max(i-11, 0); j--) {
-            var dp = datapoints.get(j);
-            observations.add(new WeightedObservedPoint(1, dp.wavelen(), dp.intensity()));
+        return Math.sqrt(stddev / values.length) / (1e-6 + mean);
+    }
+
+    private static double[] zScoreNormalize(double[] values) {
+        double mean = Arrays.stream(values).average().orElse(0);
+        double stddev = Math.sqrt(Arrays.stream(values).map(i -> (i - mean) * (i - mean)).average().orElse(0));
+        return Arrays.stream(values).map(i -> (i - mean) / stddev).toArray();
+    }
+
+    private static double calculateAreaBetweenCurves(double[] normalizedIntensities, double[] normalizedRefIntensities) {
+        double area = 0;
+        for (int i = 0; i < normalizedIntensities.length; i++) {
+            area += Math.abs(normalizedIntensities[i] - normalizedRefIntensities[i]);
         }
-        try {
-            var fitter = GaussianCurveFitter.create().withMaxIterations(131072);
-            var fit = fitter.fit(observations);
-            return fit;
-        } catch (Exception e) {
-            return new double[]{0, 0, 500};
-        }
+        return area;
     }
 
     private static double computeWavelength(double pixelShift, double lambda, double dispersion) {

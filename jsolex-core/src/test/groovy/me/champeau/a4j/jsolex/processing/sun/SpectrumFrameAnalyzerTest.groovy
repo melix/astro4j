@@ -15,11 +15,16 @@
  */
 package me.champeau.a4j.jsolex.processing.sun
 
-
+import me.champeau.a4j.jsolex.processing.params.SpectralRay
+import me.champeau.a4j.jsolex.processing.spectrum.SpectrumAnalyzer
+import me.champeau.a4j.jsolex.processing.util.FitsUtils
+import me.champeau.a4j.jsolex.processing.util.ImageWrapper32
 import spock.lang.Specification
 import spock.lang.TempDir
+import spock.lang.Unroll
 
 import javax.imageio.ImageIO
+import java.util.stream.Collectors
 
 class SpectrumFrameAnalyzerTest extends Specification {
 
@@ -71,5 +76,67 @@ class SpectrumFrameAnalyzerTest extends Specification {
         }
         ImageIO.write(image, "png", new File(tempDir, "corrected.png"))
         1
+    }
+
+    @Unroll
+    def "identifies spectral lines (#file.name = #expectedLine)"() {
+        given:
+        def image = FitsUtils.readFitsFile(file)
+        def width = image.width()
+        def height = image.height()
+        def data = ((ImageWrapper32)image).data()
+        def analyzer = new SpectrumFrameAnalyzer(width, height, null)
+        analyzer.analyze(data)
+        def polynomial = analyzer.findDistortionPolynomial().get()
+        int leftBorder = analyzer.leftSunBorder().orElse(0)
+        int rightBorder = analyzer.rightSunBorder().orElse(width - 1)
+        var candidates = new ArrayList<SpectrumAnalyzer.QueryDetails>();
+        for (var line : SpectralRay.predefined()) {
+            if (line.wavelength() > 0) {
+                candidates.add(new SpectrumAnalyzer.QueryDetails(line, 2.4, 1))
+                candidates.add(new SpectrumAnalyzer.QueryDetails(line, 2.4, 2))
+            }
+        }
+        var map = candidates
+                .stream()
+                .collect(Collectors.toMap(d -> d, details -> SpectrumAnalyzer.computeDataPoints(details, polynomial, leftBorder, rightBorder, width, height, data)));
+
+        when:
+        var bestMatch = SpectrumAnalyzer.findBestMatch(map)
+
+        then:
+        bestMatch.line().label() == expectedLine
+
+        where:
+        entry << averageImagesToLine(new File(SpectrumFrameAnalyzerTest.getResource("/average").toURI())).entrySet()
+        file = entry.key
+        expectedLine = entry.value
+    }
+
+    private static Map<File, String> averageImagesToLine(File baseDir) {
+        var result = [:]
+        baseDir.listFiles().each { d ->
+            if (d.directory) {
+                String name = directoryToLineName(d.name)
+                d.listFiles().each { f ->
+                    if (f.name.endsWith(".fits")) {
+                        result[f] = name
+                    }
+                }
+            }
+        }
+        result
+    }
+
+    private static String directoryToLineName(String name) {
+        return switch (name) {
+            case "Ha" -> "H-alpha"
+            case "Hb" -> "H-beta"
+            case "Mag" -> "Magnesium (b1)"
+            case "caK" -> "Calcium (K)"
+            case "caH" -> "Calcium (H)"
+            case "Helium" -> "Helium (D3)"
+            default -> name
+        }
     }
 }
