@@ -19,7 +19,7 @@ import javafx.application.HostServices;
 
 import java.util.Locale;
 
-import static me.champeau.a4j.jsolex.app.JSolEx.getFullVersion;
+import static me.champeau.a4j.jsolex.processing.util.VersionUtil.getFullVersion;
 
 public class DocsHelper {
     private DocsHelper() {

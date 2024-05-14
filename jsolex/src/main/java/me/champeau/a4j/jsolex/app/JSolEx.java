@@ -91,6 +91,7 @@ import me.champeau.a4j.jsolex.processing.util.FilesUtils;
 import me.champeau.a4j.jsolex.processing.util.LoggingSupport;
 import me.champeau.a4j.jsolex.processing.util.MutableMap;
 import me.champeau.a4j.jsolex.processing.util.ProcessingException;
+import me.champeau.a4j.jsolex.processing.util.VersionUtil;
 import me.champeau.a4j.math.VectorApiSupport;
 import me.champeau.a4j.ser.Header;
 import me.champeau.a4j.ser.ImageMetadata;
@@ -239,9 +240,9 @@ public class JSolEx extends Application implements JSolExInterface {
                 pause.playFromStart();
             });
             hideProgress();
-            String version = getFullVersion();
+            String version = VersionUtil.getFullVersion();
             if (version.endsWith("-SNAPSHOT")) {
-                version = getVersion() + " (dev)";
+                version = VersionUtil.getVersion() + " (dev)";
             }
             stage.setTitle("JSol'Ex " + version);
             stage.setScene(rootScene);
@@ -328,7 +329,7 @@ public class JSolEx extends Application implements JSolExInterface {
     }
 
     private void maybeWarnAboutNewRelease(UpdateChecker.ReleaseInfo release) {
-        var currentVersion = toVersionLong(getVersion());
+        var currentVersion = toVersionLong(VersionUtil.getVersion());
         var latestRelease = toVersionLong(release.version());
         if (latestRelease > currentVersion) {
             BatchOperations.submit(() -> {
@@ -694,7 +695,7 @@ public class JSolEx extends Application implements JSolExInterface {
         var alert = new Alert(Alert.AlertType.INFORMATION);
         alert.setResizable(true);
         alert.getDialogPane().setPrefSize(700, 400);
-        String version = getVersion();
+        String version = VersionUtil.getVersion();
         alert.setTitle(I18N.string(getClass(), "about", "about.title"));
         alert.setHeaderText(I18N.string(getClass(), "about", "about.header") + ". Version " + version);
         alert.setContentText(I18N.string(getClass(), "about", "about.message"));
@@ -714,24 +715,6 @@ public class JSolEx extends Application implements JSolExInterface {
     @FXML
     private void showHelp() {
         DocsHelper.openHelp(getHostServices(), null);
-    }
-
-    public static String getVersion() {
-        String version = getFullVersion();
-        if (version.contains("-SNAPSHOT")) {
-            version = version.substring(0, version.indexOf("-SNAPSHOT"));
-        }
-        return version;
-    }
-
-    public static String getFullVersion() {
-        String version = "";
-        try {
-            version = new String(JSolEx.class.getResourceAsStream("/version.txt").readAllBytes(), "utf-8").trim();
-        } catch (IOException e) {
-            version = "unknown";
-        }
-        return version;
     }
 
     private void doOpen(File selectedFile, boolean rememberProcessParams) {
