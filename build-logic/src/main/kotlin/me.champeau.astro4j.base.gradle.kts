@@ -42,6 +42,7 @@ tasks.rat {
     excludes.add("**/*.gradle.kts")
     excludes.add("build/**")
     excludes.add("**/*.css")
+    excludes.add("**/*.fits")
     excludes.add("**/*.fxml")
     excludes.add("**/*.xml")
     excludes.add("**/*.md")
