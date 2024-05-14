@@ -113,6 +113,7 @@ public class SolexVideoProcessor implements Broadcaster {
     private final boolean batchMode;
     private final Path outputDirectory;
     private ProcessParams processParams;
+    private boolean binningIsReliable;
 
     public SolexVideoProcessor(File serFile, Path outputDirectory, int sequenceNumber, ProcessParams processParametersProvider, LocalDateTime processingDate, boolean batchMode) {
         this.serFile = serFile;
@@ -128,6 +129,9 @@ public class SolexVideoProcessor implements Broadcaster {
     }
 
     public void process() {
+        if (tryReadMetadata()) {
+            binningIsReliable = true;
+        }
         if (processParams.extraParams().autosave()) {
             File configFile = outputDirectory.resolve("config.json").toFile();
             processParams.saveTo(configFile);
@@ -171,6 +175,19 @@ public class SolexVideoProcessor implements Broadcaster {
             });
             generateImages(converter, header, fpsRef.get(), serFile, 0, frameCountRef.get() - 1, averageImage);
         }
+    }
+
+    private boolean tryReadMetadata() {
+        var md = CaptureSoftwareMetadataHelper.readSharpcapMetadata(serFile)
+            .or(() -> CaptureSoftwareMetadataHelper.readFireCaptureMetadata(serFile));
+        if (md.isPresent()) {
+            var obsDetails = processParams.observationDetails();
+            obsDetails = obsDetails.withCamera(md.get().camera());
+            obsDetails = obsDetails.withBinning(md.get().binning());
+            processParams = processParams.withObservationDetails(obsDetails);
+            return true;
+        }
+        return false;
     }
 
     private void maybeUpdateProcessParams(Header header) {
@@ -218,8 +235,12 @@ public class SolexVideoProcessor implements Broadcaster {
                 var candidates = new ArrayList<SpectrumAnalyzer.QueryDetails>();
                 for (var line : SpectralRay.predefined()) {
                     if (line.wavelength() > 0) {
-                        candidates.add(new SpectrumAnalyzer.QueryDetails(line, pixelSize, 1));
-                        candidates.add(new SpectrumAnalyzer.QueryDetails(line, pixelSize, 2));
+                        if (binningIsReliable) {
+                            candidates.add(new SpectrumAnalyzer.QueryDetails(line, pixelSize, processParams.observationDetails().binning()));
+                        } else {
+                            candidates.add(new SpectrumAnalyzer.QueryDetails(line, pixelSize, 1));
+                            candidates.add(new SpectrumAnalyzer.QueryDetails(line, pixelSize, 2));
+                        }
                     }
                 }
                 int finalLeftBorder = leftBorder;

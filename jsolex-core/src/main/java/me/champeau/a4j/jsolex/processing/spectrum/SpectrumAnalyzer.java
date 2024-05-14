@@ -163,7 +163,7 @@ public class SpectrumAnalyzer {
     }
 
     public static QueryDetails findBestMatch(Map<QueryDetails, List<DataPoint>> measurements) {
-        record PartialSolution(QueryDetails query, double d1, double d2) {
+        record PartialSolution(QueryDetails query, double... distances) {
         }
         record Solution(QueryDetails query, double distance) {
         }
@@ -182,23 +182,25 @@ public class SpectrumAnalyzer {
                 var refVariation = variationCoef(refIntensities);
 
                 double d1 = calculateAreaBetweenCurves(zScoreNormalize(intensities), zScoreNormalize(refIntensities));
-                double d2 = Math.abs(1/variation - 1/refVariation);
-
+                double d2 = Math.abs(1 / variation - 1 / refVariation);
                 return new PartialSolution(query, d1, d2);
             }).toList();
             // normalize scores to 0-1
-            var maxDist1 = partialSolutions.stream().mapToDouble(PartialSolution::d1).max().orElse(0);
-            var maxDist2 = partialSolutions.stream().mapToDouble(PartialSolution::d2).max().orElse(0);
-            best = partialSolutions.stream().map(solution -> {
-                // Normalize distances to [0, 1]
-                double normalizedDist1 = (solution.d1() / maxDist1);
-                double normalizedDist2 = (solution.d2() / maxDist2);
-
+            var maxDists = partialSolutions.stream().map(PartialSolution::distances).map(Arrays::stream).mapToDouble(stream -> stream.max().orElse(0)).toArray();
+            var weights = new double[]{0.7, 0.3};
+            best = partialSolutions.stream().map(partialSolution -> {
+                double[] normalizedDists = new double[partialSolution.distances.length];
+                for (int j = 0; j < normalizedDists.length; j++) {
+                    normalizedDists[j] = partialSolution.distances[j] / maxDists[j];
+                }
                 // Combine normalized distances using weighted sum
-                double combinedDistance = 0.7 * normalizedDist1 + 0.3 * normalizedDist2;
+                double combinedDistance = 0;
+                for (int j = 0; j < normalizedDists.length; j++) {
+                    combinedDistance += normalizedDists[j] * weights[j];
+                }
 
-                LOGGER.info("Line {} binning {} has distance {}", solution.query().line(), solution.query().binning(), combinedDistance);
-                return new Solution(solution.query(), combinedDistance);
+                LOGGER.info("Line {} binning {} has distance {}", partialSolution.query().line(), partialSolution.query().binning(), combinedDistance);
+                return new Solution(partialSolution.query(), combinedDistance);
             }).min(Comparator.comparingDouble(Solution::distance)).map(Solution::query).orElse(null);
         }
 
@@ -240,7 +242,9 @@ public class SpectrumAnalyzer {
     private static double calculateAreaBetweenCurves(double[] normalizedIntensities, double[] normalizedRefIntensities) {
         double area = 0;
         for (int i = 0; i < normalizedIntensities.length; i++) {
-            area += Math.abs(normalizedIntensities[i] - normalizedRefIntensities[i]);
+            var v1 = normalizedIntensities[i];
+            var v2 = normalizedRefIntensities[i];
+            area += Math.abs(v1 - v2);
         }
         return area;
     }
