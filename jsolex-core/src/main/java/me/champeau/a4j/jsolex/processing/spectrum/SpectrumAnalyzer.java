@@ -199,7 +199,7 @@ public class SpectrumAnalyzer {
                     combinedDistance += normalizedDists[j] * weights[j];
                 }
 
-                LOGGER.info("Line {} binning {} has distance {}", partialSolution.query().line(), partialSolution.query().binning(), combinedDistance);
+                LOGGER.debug("Line {} binning {} has distance {}", partialSolution.query().line(), partialSolution.query().binning(), combinedDistance);
                 return new Solution(partialSolution.query(), combinedDistance);
             }).min(Comparator.comparingDouble(Solution::distance)).map(Solution::query).orElse(null);
         }
