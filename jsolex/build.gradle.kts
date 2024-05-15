@@ -12,6 +12,7 @@ dependencies {
     implementation(libs.richtextfx) {
         exclude(group = "org.openjfx")
     }
+    implementation(libs.commonmark)
 }
 
 jlink {

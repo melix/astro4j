@@ -30,6 +30,8 @@ module me.champeau.a4j.jsolex {
     requires com.google.gson;
     requires jdk.crypto.ec;
     requires reactfx;
+    requires org.commonmark;
+    requires org.fxmisc.flowless;
     exports me.champeau.a4j.jsolex.app to javafx.graphics;
     exports me.champeau.a4j.jsolex.app.jfx.ime to javafx.fxml, javafx.graphics;
     opens me.champeau.a4j.jsolex.app.jfx.stacking to javafx.fxml, javafx.graphics;
