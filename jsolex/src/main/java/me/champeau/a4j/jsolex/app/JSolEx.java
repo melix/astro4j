@@ -25,6 +25,7 @@ import javafx.beans.property.SimpleDoubleProperty;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.collections.FXCollections;
 import javafx.collections.ListChangeListener;
+import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
 import javafx.scene.Node;
 import javafx.scene.Parent;
@@ -65,6 +66,7 @@ import me.champeau.a4j.jsolex.app.jfx.ImageViewer;
 import me.champeau.a4j.jsolex.app.jfx.MultipleImagesViewer;
 import me.champeau.a4j.jsolex.app.jfx.NamingPatternEditor;
 import me.champeau.a4j.jsolex.app.jfx.ProcessParamsController;
+import me.champeau.a4j.jsolex.app.jfx.SimpleMarkdownViewer;
 import me.champeau.a4j.jsolex.app.jfx.SpectralLineDebugger;
 import me.champeau.a4j.jsolex.app.jfx.SpectralRayEditor;
 import me.champeau.a4j.jsolex.app.jfx.ime.ImageMathTextArea;
@@ -83,6 +85,7 @@ import me.champeau.a4j.jsolex.processing.expr.ImageMathScriptResult;
 import me.champeau.a4j.jsolex.processing.expr.InvalidExpression;
 import me.champeau.a4j.jsolex.processing.file.FileNamingStrategy;
 import me.champeau.a4j.jsolex.processing.params.ProcessParams;
+import me.champeau.a4j.jsolex.processing.sun.CaptureSoftwareMetadataHelper;
 import me.champeau.a4j.jsolex.processing.sun.SolexVideoProcessor;
 import me.champeau.a4j.jsolex.processing.sun.workflow.GeneratedImageKind;
 import me.champeau.a4j.jsolex.processing.util.BackgroundOperations;
@@ -102,6 +105,7 @@ import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.io.IOException;
+import java.io.InputStream;
 import java.nio.file.FileSystems;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -119,6 +123,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Scanner;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Semaphore;
@@ -257,8 +262,36 @@ public class JSolEx extends Application implements JSolExInterface {
             LOGGER.info("Java runtime version {}", System.getProperty("java.version"));
             LOGGER.info("Vector API support is {} and {}", VectorApiSupport.isPresent() ? "available" : "missing",
                 VectorApiSupport.isEnabled() ? "enabled (disable by setting " + VectorApiSupport.VECTOR_API_ENV_VAR + " environment variable to false)" : "disabled");
+            maybeShowWelcomeMessage(rootScene);
         } catch (IOException exception) {
             throw new ProcessingException(exception);
+        }
+    }
+
+    private void maybeShowWelcomeMessage(Scene current) throws IOException {
+        var markerFile = VersionUtil.getJsolexDir().resolve("welcome.txt");
+        if (!Files.exists(markerFile) || !Files.readString(markerFile).equals(VersionUtil.getVersion())) {
+            showWelcomeMessage(current, () -> {
+                try {
+                    Files.writeString(markerFile, VersionUtil.getVersion());
+                } catch (IOException e) {
+                    // ignore
+                }
+            });
+        }
+    }
+
+    private void showWelcomeMessage(Scene current, Runnable onDismiss) {
+        var webview = new SimpleMarkdownViewer(message("welcome"));
+        var country = Locale.getDefault().getCountry();
+        InputStream resource = getClass().getResourceAsStream("/whats-new_"+ country + ".md");
+        if (resource == null) {
+            resource = getClass().getResourceAsStream("/whats-new.md");
+        }
+        if (resource != null) {
+            var message = new Scanner(resource, "UTF-8").useDelimiter("\\A").next();
+            message = message.replace("{{version}}", VersionUtil.getVersion());
+            webview.render(current, message, onDismiss);
         }
     }
 
@@ -729,7 +762,7 @@ public class JSolEx extends Application implements JSolExInterface {
             if (reusedProcessParams != null) {
                 processParams = Optional.of(reusedProcessParams.withObservationDetails(reusedProcessParams.observationDetails().withDate(header.metadata().utcDateTime())));
             } else {
-                var controller = createProcessParams(reader, false);
+                var controller = createProcessParams(selectedFile, reader, false);
                 processParams = controller.getProcessParams();
             }
         } catch (Exception e) {
@@ -789,7 +822,7 @@ public class JSolEx extends Application implements JSolExInterface {
         Optional<ProcessParams> processParams;
         Header header;
         try (var reader = SerFileReader.of(initial)) {
-            var controller = createProcessParams(reader, true);
+            var controller = createProcessParams(initial, reader, true);
             processParams = controller.getProcessParams();
             header = reader.header();
         } catch (Exception e) {
@@ -930,7 +963,7 @@ public class JSolEx extends Application implements JSolExInterface {
         return new SingleModeProcessingEventListener(this, baseName, serFile, outputDirectory, params, LocalDateTime.now(), popupViewers);
     }
 
-    private ProcessParamsController createProcessParams(SerFileReader serFileReader, boolean batchMode) {
+    private ProcessParamsController createProcessParams(File serFile, SerFileReader serFileReader, boolean batchMode) {
         var loader = I18N.fxmlLoader(getClass(), "process-params");
         try {
             var dialog = newStage();
@@ -938,7 +971,10 @@ public class JSolEx extends Application implements JSolExInterface {
             var content = (Parent) loader.load();
             var controller = (ProcessParamsController) loader.getController();
             var scene = new Scene(content);
-            controller.setup(dialog, serFileReader.header(), batchMode, getHostServices());
+            var md = CaptureSoftwareMetadataHelper.readSharpcapMetadata(serFile)
+                .or(() -> CaptureSoftwareMetadataHelper.readFireCaptureMetadata(serFile))
+                .orElse(null);
+            controller.setup(dialog, serFileReader.header(), md, batchMode, getHostServices());
             dialog.setScene(scene);
             dialog.initOwner(rootStage);
             dialog.initModality(Modality.APPLICATION_MODAL);

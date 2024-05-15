@@ -56,6 +56,7 @@ import me.champeau.a4j.jsolex.processing.params.SpectralRayIO;
 import me.champeau.a4j.jsolex.processing.params.SpectrumParams;
 import me.champeau.a4j.jsolex.processing.params.VideoParams;
 import me.champeau.a4j.jsolex.processing.stretching.ClaheStrategy;
+import me.champeau.a4j.jsolex.processing.sun.CaptureSoftwareMetadataHelper;
 import me.champeau.a4j.jsolex.processing.sun.workflow.GeneratedImageKind;
 import me.champeau.a4j.jsolex.processing.util.Constants;
 import me.champeau.a4j.jsolex.processing.util.ImageFormat;
@@ -186,7 +187,7 @@ public class ProcessParamsController {
     private ProcessParams initialProcessParams;
     private ProcessParams processParams;
 
-    public void setup(Stage stage, Header serFileHeader, boolean batchMode, HostServices hostServices) {
+    public void setup(Stage stage, Header serFileHeader, CaptureSoftwareMetadataHelper.CaptureMetadata md, boolean batchMode, HostServices hostServices) {
         this.stage = stage;
         this.serFileHeader = serFileHeader;
         this.hostServices = hostServices;
@@ -400,6 +401,10 @@ public class ProcessParamsController {
             configureRichardsonLucyDefaults();
         }
         sharpen.setSelected(initialProcessParams.geometryParams().isSharpen());
+        if (md != null) {
+            camera.setText(md.camera());
+            binning.setValue(md.binning());
+        }
     }
 
     private void configureRichardsonLucyDefaults() {

@@ -1,6 +1,7 @@
 [versions]
 slf4j-api = "2.0.13"
 logback = "1.5.6"
+commonmark = "0.22.0"
 commons-math = "3.6.1"
 fits = "1.19.1"
 gson = "2.10.1"
@@ -11,6 +12,7 @@ jcodec="0.2.5"
 [libraries]
 slf4j-api = { module = "org.slf4j:slf4j-api", version.ref = "slf4j-api" }
 logback = { module = "ch.qos.logback:logback-classic", version.ref = "logback" }
+commonmark = { module = "org.commonmark:commonmark", version.ref = "commonmark"}
 commons-math = { module = "org.apache.commons:commons-math3", version.ref = "commons-math" }
 fits = { module = "gov.nasa.gsfc.heasarc:nom-tam-fits", version.ref = "fits" }
 gson = { module = "com.google.code.gson:gson", version.ref = "gson" }
