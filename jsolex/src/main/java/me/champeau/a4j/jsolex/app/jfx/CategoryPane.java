@@ -22,6 +22,8 @@ import javafx.scene.control.Hyperlink;
 import javafx.scene.control.Label;
 import javafx.scene.control.Tooltip;
 import javafx.scene.layout.HBox;
+import javafx.scene.layout.Priority;
+import javafx.scene.layout.Region;
 import javafx.scene.layout.VBox;
 import me.champeau.a4j.jsolex.processing.sun.workflow.PixelShift;
 
@@ -87,6 +89,9 @@ public class CategoryPane extends VBox {
             }
             insertPoint++;
         }
+        var spacer = new Region();
+        HBox.setHgrow(spacer, Priority.ALWAYS);
+        box.getChildren().add(spacer);
         var close = createCloseLink(box, link, onClose);
         box.getChildren().add(close);
         getChildren().add(insertPoint, box);
