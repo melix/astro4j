@@ -57,6 +57,7 @@ import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 import me.champeau.a4j.jsolex.processing.util.ProcessingException;
 import me.champeau.a4j.jsolex.processing.util.RGBImage;
 import me.champeau.a4j.jsolex.processing.util.SolarParametersUtils;
+import me.champeau.a4j.math.regression.Ellipse;
 
 import java.io.File;
 import java.io.IOException;
@@ -262,8 +263,13 @@ public class ImageViewer {
         });
         nextButton.disableProperty().bind(currentImage.isEqualTo(imageHistory.sizeProperty().subtract(1)));
         nextButton.visibleProperty().bind(imageHistory.sizeProperty().greaterThan(1));
+        var fitButton = new Button("fit");
+        fitButton.setOnAction(evt -> imageView.resetZoom());
+        var fitToCenter = new Button("→fit←");
+        fitToCenter.visibleProperty().bind(imageView.canFitToCenterProperty());
+        fitToCenter.setOnAction(evt -> imageView.fitToCenter());
         line1.getChildren().addAll(reset, saveButton, prevButton, nextButton);
-        line2.getChildren().addAll(correctAngleP, zoomLabel, zoomSlider, dimensions, coordinatesLabel);
+        line2.getChildren().addAll(correctAngleP, zoomLabel, zoomSlider, fitButton, fitToCenter, dimensions, coordinatesLabel);
         var titleLabel = new Label(title);
         titleLabel.setStyle("-fx-font-weight: bold");
         var alignButton = new Button("⌖");
@@ -348,6 +354,7 @@ public class ImageViewer {
                         dimensions.setText(displayImage.width() + "x" + displayImage.height());
                     }
                     imageView.setImage(new Image(tmpImage.toURI().toString()));
+                    imageView.setSolarDisk(image != null ? image.findMetadata(Ellipse.class).orElse(null) : null);
                     if (resetZoom) {
                         imageView.resetZoom();
                     }
@@ -440,6 +447,7 @@ public class ImageViewer {
         BatchOperations.submit(() -> {
             updateTitle();
             imageView.setImage(new Image(imageFile.toURI().toString()));
+            imageView.setSolarDisk(image.findMetadata(Ellipse.class).orElse(null));
             saveButton.setDisable(true);
             stretchAndDisplay();
         });

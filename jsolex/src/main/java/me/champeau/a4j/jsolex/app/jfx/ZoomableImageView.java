@@ -17,6 +17,7 @@ package me.champeau.a4j.jsolex.app.jfx;
 
 import javafx.beans.binding.Bindings;
 import javafx.beans.binding.BooleanBinding;
+import javafx.beans.value.ObservableValue;
 import javafx.scene.control.ContextMenu;
 import javafx.scene.control.MenuItem;
 import javafx.scene.control.ScrollPane;
@@ -25,6 +26,7 @@ import javafx.scene.image.ImageView;
 import javafx.scene.input.MouseButton;
 import javafx.scene.input.ScrollEvent;
 import javafx.scene.layout.HBox;
+import me.champeau.a4j.math.regression.Ellipse;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -38,8 +40,15 @@ public class ZoomableImageView extends HBox {
     private final ImageView imageView;
     private final ContextMenu ctxMenu;
     private final BooleanBinding allowFileOpen;
+    private final BooleanBinding canFitToCenter = new BooleanBinding() {
+        @Override
+        protected boolean computeValue() {
+            return canFitToCenter();
+        }
+    };
     private BiConsumer<? super Double, ? super Double> onCoordinatesListener;
     private Consumer<? super Double> onZoomChanged;
+    private Ellipse solardisk;
 
     private double zoom = 0;
     private Path imagePath;
@@ -69,6 +78,11 @@ public class ZoomableImageView extends HBox {
             }
         });
         widthProperty().addListener((observable, oldValue, newValue) -> {
+            if (newValue.doubleValue() > 0 && zoom == 0) {
+                resetZoom();
+            }
+        });
+        heightProperty().addListener((observable, oldValue, newValue) -> {
             if (newValue.doubleValue() > 0 && zoom == 0) {
                 resetZoom();
             }
@@ -129,6 +143,11 @@ public class ZoomableImageView extends HBox {
     public void setImage(Image image) {
         imageView.setImage(image);
         imageView.setPreserveRatio(true);
+    }
+
+    public void setSolarDisk(Ellipse ellipse) {
+        this.solardisk = ellipse;
+        this.canFitToCenter.invalidate();
     }
 
     public void fileSaved() {
@@ -194,5 +213,43 @@ public class ZoomableImageView extends HBox {
 
     public double getZoom() {
         return zoom;
+    }
+
+    public void fitToCenter() {
+        if (!canFitToCenter()) {
+            return;
+        }
+
+        var image = imageView.getImage();
+        var center = solardisk.center();
+        var diameter = solardisk.semiAxis().a() + solardisk.semiAxis().b();
+        var width = getWidth();
+        var height = getHeight();
+
+        // Calculate zoom level to ensure the solar disk takes 80% of the window width or height, whichever is smaller
+        var zoom = Math.min(width / diameter * 0.8, height / diameter * 0.8);
+        setZoom(zoom);
+
+        // Calculate the coordinates to center the sun in the viewport
+        var viewportWidth = width / zoom;
+        var viewportHeight = height / zoom;
+        var x = center.a() - viewportWidth / 2;
+        var y = center.b() - viewportHeight / 2;
+
+        // Set the scroll values to center the sun
+        scrollPane.setHvalue(x / (image.getWidth() - viewportWidth));
+        scrollPane.setVvalue(y / (image.getHeight() - viewportHeight));
+    }
+
+    public boolean canFitToCenter() {
+        var image = imageView.getImage();
+        if (solardisk == null || image == null) {
+            return false;
+        }
+        return true;
+    }
+
+    public ObservableValue<Boolean> canFitToCenterProperty() {
+        return canFitToCenter;
     }
 }
