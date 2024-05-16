@@ -268,8 +268,11 @@ public class ImageViewer {
         var fitToCenter = new Button("→fit←");
         fitToCenter.visibleProperty().bind(imageView.canFitToCenterProperty());
         fitToCenter.setOnAction(evt -> imageView.fitToCenter());
+        var oneToOneFit = new Button("1:1");
+        oneToOneFit.visibleProperty().bind(imageView.canFitToCenterProperty());
+        oneToOneFit.setOnAction(evt -> imageView.oneToOneZoomAndCenter());
         line1.getChildren().addAll(reset, saveButton, prevButton, nextButton);
-        line2.getChildren().addAll(correctAngleP, zoomLabel, zoomSlider, fitButton, fitToCenter, dimensions, coordinatesLabel);
+        line2.getChildren().addAll(correctAngleP, zoomLabel, zoomSlider, fitButton, fitToCenter, oneToOneFit, dimensions, coordinatesLabel);
         var titleLabel = new Label(title);
         titleLabel.setStyle("-fx-font-weight: bold");
         var alignButton = new Button("⌖");
