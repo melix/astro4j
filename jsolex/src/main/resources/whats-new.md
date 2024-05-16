@@ -33,6 +33,7 @@ However, you can replace the automatic color with a manual curve if the result d
 
 - Added new image fitting buttons for zooming and centering images
 - Improved colorization algorithm
+- Improved edge detection, in particular for calcium line
 
 ### Reset Available Lines
 

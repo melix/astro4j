@@ -34,6 +34,7 @@ Vous pouvez cependant remplacer la couleur automatique par une courbe manuelle s
 
 - Ajout de nouveaux boutons de zoom et centrage automatique
 - Amélioration de l'agorithme de colorisation
+- Amélioration de la détection de contours en particulier sur les images calcium
 
 ### Réinitialiser les raies disponibles
 
