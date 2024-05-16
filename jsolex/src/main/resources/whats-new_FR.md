@@ -10,6 +10,9 @@ Voici les nouveautés de cette version :
 
 JSol'Ex propose maintenant la détection automatique de la raie étudiée, ainsi que du binning.
 Afin que la détection se fasse correctement, il est important que vous **entriez correctement la taille des pixels de votre caméra** dans la section "détails d'observation".
+It's worth noting that detection will work better with a larger cropping window and will probably fail if the spectrum is too saturated.
+La détection fonctionnera mieux si vous utilisez une fenêtre de cropping assez large et qu'elle est susceptible de confondre des raies spectrales si le spectre est trop saturé.
+
 Enfin, si le mode "automatique" n'apparaît pas dans la liste des raies disponibles, c'est que vous aviez ajouté ou modifié des raies dans l'éditeur, auquel cas il vous faudra [procéder à une réinitialisation](#réinitialiser-les-raies-disponibles) pour que le mode "automatique" apparaisse.
 Lorsqu'une raie est sélectionnée, l'onglet profil affiche désormais le profil mesuré, mais comparé à un profil de référence.
 
@@ -27,6 +30,11 @@ Désormais, la colorisation automatique estimera la couleur automatiquement.
 Vous pouvez cependant remplacer la couleur automatique par une courbe manuelle si le résultat ne vous convient pas.
 
 ## Divers
+### Correctifs et améliorations mineures
+
+- Ajout de nouveaux boutons de zoom et centrage automatique
+- Amélioration de l'agorithme de colorisation
+
 ### Réinitialiser les raies disponibles
 
 JSol'Ex vous propose d'ajouter manuellement des raies à la liste prédéfinie, ou de personaliser les courbes de colorisation.

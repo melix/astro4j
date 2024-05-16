@@ -18,11 +18,15 @@ package me.champeau.a4j.jsolex.processing.expr.impl;
 import me.champeau.a4j.jsolex.processing.color.ColorCurve;
 import me.champeau.a4j.jsolex.processing.params.SpectralRay;
 import me.champeau.a4j.jsolex.processing.params.SpectralRayIO;
+import me.champeau.a4j.jsolex.processing.stretching.GammaStrategy;
+import me.champeau.a4j.jsolex.processing.stretching.LinearStrechingStrategy;
 import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
 import me.champeau.a4j.jsolex.processing.sun.ImageUtils;
 import me.champeau.a4j.jsolex.processing.util.ColorizedImageWrapper;
+import me.champeau.a4j.jsolex.processing.util.Constants;
 import me.champeau.a4j.jsolex.processing.util.FileBackedImage;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
+import me.champeau.a4j.jsolex.processing.util.RGBImage;
 
 import java.util.List;
 import java.util.Map;
@@ -70,7 +74,7 @@ public class Colorize extends AbstractFunctionImpl {
                         return new ColorizedImageWrapper(mono, data -> doColorize(data, curve), mono.metadata());
                     } else if (ray.wavelength() != 0) {
                         var rgb = ray.toRGB();
-                        return new ColorizedImageWrapper(mono, data -> doColorize(data, rgb), mono.metadata());
+                        return new ColorizedImageWrapper(mono, data -> doColorize(mono.width(), mono.height(), data, rgb), mono.metadata());
                     }
                 }
             }
@@ -85,17 +89,28 @@ public class Colorize extends AbstractFunctionImpl {
         return ImageUtils.convertToRGB(curve, copy);
     }
 
-    private static float[][] doColorize(float[] mono, int[] rgb) {
+    public static float[][] doColorize(int width, int height, float[] mono, int[] rgb) {
         var length = mono.length;
+        var copy = new float[mono.length];
+        System.arraycopy(mono, 0, copy, 0, copy.length);
+        new GammaStrategy(1.2).stretch(new ImageWrapper32(width, height, copy, Map.of()));
         var r = new float[length];
         var g = new float[length];
         var b = new float[length];
         for (int i = 0; i < length; i++) {
-            var gray = mono[i];
+            var gray = copy[i];
             r[i] = gray * rgb[0] / 255f;
             g[i] = gray * rgb[1] / 255f;
             b[i] = gray * rgb[2] / 255f;
         }
+        var rgbImage = new RGBImage(
+            width, height,
+            r, g, b,
+            Map.of()
+        );
+        new LinearStrechingStrategy(0, 0.9f * Constants.MAX_PIXEL_VALUE).stretch(
+            rgbImage
+        );
         return new float[][]{r, g, b};
     }
 }

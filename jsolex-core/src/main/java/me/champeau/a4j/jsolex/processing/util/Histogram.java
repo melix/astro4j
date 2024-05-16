@@ -95,6 +95,26 @@ public record Histogram(
         return new Builder(bins);
     }
 
+    public int lastPercentile(double ratio) {
+        int limit = (int) (pixelCount * ratio);
+        for (int i = values.length - 1; i >= 0; i--) {
+            if (values[i] >= limit) {
+                return i;
+            }
+        }
+        return 0;
+    }
+
+    public int percentile(double ratio) {
+        int limit = (int) (pixelCount * ratio);
+        for (int i = 0; i < values.length; i++) {
+            if (values[i] >= limit) {
+                return i;
+            }
+        }
+        return 0;
+    }
+
     public static class Builder {
         private final int bins;
         private final int[] buckets;
