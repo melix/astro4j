@@ -10,6 +10,8 @@ Here are the new features in this version:
 
 JSol'Ex now offers automatic detection of the studied line, as well as camera binning.
 To ensure correct detection, it is important to **enter the pixel size of your camera** correctly in the "observation details" section.
+It's worth noting that detection will work better with a larger cropping window and will probably fail if the spectrum is too saturated.
+
 Finally, if the "automatic" mode does not appear in the list of available lines, it means you have added or modified lines in the editor, in which case you will need to [reset the available lines](#reset-available-lines) for the "automatic" mode to appear.
 When a line is selected, the profile tab now displays the measured profile compared to a reference profile.
 
@@ -27,6 +29,11 @@ Now, automatic coloring will estimate the color automatically.
 However, you can replace the automatic color with a manual curve if the result does not satisfy you.
 
 ## Miscellaneous
+### Minor fixes and improvements
+
+- Added new image fitting buttons for zooming and centering images
+- Improved colorization algorithm
+
 ### Reset Available Lines
 
 JSol'Ex allows you to manually add lines to the predefined list or customize coloring curves.

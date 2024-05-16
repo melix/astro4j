@@ -18,6 +18,7 @@ package me.champeau.a4j.jsolex.processing.sun.workflow;
 import me.champeau.a4j.jsolex.processing.event.OutputImageDimensionsDeterminedEvent;
 import me.champeau.a4j.jsolex.processing.event.ProgressEvent;
 import me.champeau.a4j.jsolex.processing.event.SuggestionEvent;
+import me.champeau.a4j.jsolex.processing.expr.impl.Colorize;
 import me.champeau.a4j.jsolex.processing.expr.impl.Crop;
 import me.champeau.a4j.jsolex.processing.expr.impl.ImageDraw;
 import me.champeau.a4j.jsolex.processing.expr.impl.Rotate;
@@ -31,6 +32,7 @@ import me.champeau.a4j.jsolex.processing.stretching.ArcsinhStretchingStrategy;
 import me.champeau.a4j.jsolex.processing.stretching.AutohistogramStrategy;
 import me.champeau.a4j.jsolex.processing.stretching.ClaheStrategy;
 import me.champeau.a4j.jsolex.processing.stretching.NegativeImageStrategy;
+import me.champeau.a4j.jsolex.processing.stretching.StretchingStrategy;
 import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
 import me.champeau.a4j.jsolex.processing.sun.ImageUtils;
 import me.champeau.a4j.jsolex.processing.sun.SolexVideoProcessor;
@@ -173,16 +175,20 @@ public class ProcessingWorkflow {
             return;
         }
         broadcaster.broadcast(OutputImageDimensionsDeterminedEvent.of(message("geometry.corrected"), geometryFixed.width(), geometryFixed.height()));
+        var stretched = produceStretchedImage(enhanced, processParams.claheParams(), processParams.autoStretchParams(), processParams.contrastEnhancement());
+        processedImagesEmitter.newMonoImage(GeneratedImageKind.GEOMETRY_CORRECTED_PROCESSED, message("processed"), processParams.contrastEnhancement().name().toLowerCase(Locale.US), stretched);
         var runnables = new ArrayList<Runnable>();
-        runnables.add(() -> produceStretchedImage(enhanced, processParams.claheParams(), processParams.autoStretchParams(), processParams.contrastEnhancement()));
         if (isMainShift() && shouldProduce(GeneratedImageKind.NEGATIVE)) {
             runnables.add(() -> produceNegativeImage(enhanced));
         }
         if (isMainShift() && shouldProduce(GeneratedImageKind.COLORIZED)) {
-            runnables.add(() -> produceColorizedImage(blackPoint, enhanced, processParams));
+            runnables.add(() -> produceColorizedImage(blackPoint, stretched, processParams));
         }
         if (isMainShift()) {
             runnables.add(() -> produceCoronagraph(blackPoint, enhanced));
+        }
+        if (isMainShift() && shouldProduce(GeneratedImageKind.TECHNICAL_CARD)) {
+            produceTechnicalCard(stretched);
         }
         runnables.stream()
             .parallel()
@@ -255,38 +261,28 @@ public class ProcessingWorkflow {
         var ray = params.spectrumParams().ray();
         ray.getColorCurve().ifPresentOrElse(curve ->
                 processedImagesEmitter.newColorImage(GeneratedImageKind.COLORIZED, MessageFormat.format(message("colorized"), curve.ray()), "colorized", corrected, mono -> {
-                    createStretchingForColorization(blackPoint).stretch(new ImageWrapper32(corrected.width(), corrected.height(), mono, MutableMap.of()));
+                    createStretchingForColorization(blackPoint, mono).stretch(new ImageWrapper32(corrected.width(), corrected.height(), mono, MutableMap.of()));
                     return ImageUtils.convertToRGB(curve, mono);
                 })
             , () -> {
                 if (ray.wavelength() > 0) {
                     processedImagesEmitter.newColorImage(GeneratedImageKind.COLORIZED, MessageFormat.format(message("colorized"), ray.label()), "colorized", corrected, mono -> {
-                        createStretchingForColorization(blackPoint).stretch(new ImageWrapper32(corrected.width(), corrected.height(), mono, MutableMap.of()));
-                        var rgbColor = ray.toRGB();
-                        var r = new float[mono.length];
-                        var g = new float[mono.length];
-                        var b = new float[mono.length];
-                        for (int i = 0; i < mono.length; i++) {
-                            var gray = mono[i];
-                            r[i] = gray * rgbColor[0] / 255f;
-                            g[i] = gray * rgbColor[1] / 255f;
-                            b[i] = gray * rgbColor[2] / 255f;
-                        }
-                        return new float[][]{r, g, b};
+                        var rgb = ray.toRGB();
+                        return Colorize.doColorize(corrected.width(), corrected.height(), mono, rgb);
                     });
                 }
             });
     }
 
-    private static ArcsinhStretchingStrategy createStretchingForColorization(float blackPoint) {
-        return new ArcsinhStretchingStrategy(blackPoint, 10, 10);
+    private static StretchingStrategy createStretchingForColorization(float blackPoint, float[] mono) {
+        return new ArcsinhStretchingStrategy(blackPoint, 2, 2);
     }
 
     private ImageWrapper32 performBandingCorrection(Ellipse ellipse) {
         return new ImageBandingCorrector(broadcaster, imageSupplier(WorkflowResults.ROTATED), ellipse, processParams.bandingCorrectionParams()).get();
     }
 
-    private void produceStretchedImage(ImageWrapper32 geometryFixed, ClaheParams claheParams, AutoStretchParams autoStretchParams, ContrastEnhancement contrastEnhancement) {
+    private ImageWrapper32 produceStretchedImage(ImageWrapper32 geometryFixed, ClaheParams claheParams, AutoStretchParams autoStretchParams, ContrastEnhancement contrastEnhancement) {
         var stretched = geometryFixed.copy();
         switch (contrastEnhancement) {
             case AUTOSTRETCH -> {
@@ -302,10 +298,7 @@ public class ProcessingWorkflow {
                 TransformationHistory.recordTransform(stretched, "CLAHE (tile size: " + claheParams.tileSize() + ", clip limit: " + claheParams.clipping() + ", bins: " + claheParams.bins() + ")");
             }
         }
-        processedImagesEmitter.newMonoImage(GeneratedImageKind.GEOMETRY_CORRECTED_PROCESSED, message("processed"), contrastEnhancement.name().toLowerCase(Locale.US), stretched);
-        if (shouldProduce(GeneratedImageKind.TECHNICAL_CARD) && isMainShift()) {
-            produceTechnicalCard(stretched);
-        }
+        return stretched;
     }
 
     private void produceTechnicalCard(ImageWrapper32 clahe) {
@@ -353,8 +346,9 @@ public class ProcessingWorkflow {
                     var copy = new float[data.length];
                     System.arraycopy(data, 0, copy, 0, data.length);
                     var work = new ImageWrapper32(geometryFixed.width(), geometryFixed.height(), copy, geometryFixed.metadata());
-                    createStretchingForColorization(blackPoint).stretch(work);
-                    ClaheStrategy.of(processParams.claheParams()).stretch(work);
+                    var stretched = produceStretchedImage(work, processParams.claheParams(), processParams.autoStretchParams(), processParams.contrastEnhancement());
+                    new ArcsinhStretchingStrategy(blackPoint, 2, 2).stretch(stretched);
+                    System.arraycopy(stretched.data(), 0, copy, 0, copy.length);
                     var width = geometryFixed.width();
                     var height = geometryFixed.height();
                     float[] mix = new float[data.length];
@@ -390,17 +384,7 @@ public class ProcessingWorkflow {
                     } else if (ray.wavelength() > 0) {
                         processedImagesEmitter.newColorImage(GeneratedImageKind.COLORIZED, message("mix"), "mix", mixedImage, mono -> {
                             var rgbColor = ray.toRGB();
-                            var length = mono.length;
-                            var r = new float[length];
-                            var g = new float[length];
-                            var b = new float[length];
-                            for (int i = 0; i < length; i++) {
-                                var gray = mono[i];
-                                r[i] = gray * rgbColor[0] / 255f;
-                                g[i] = gray * rgbColor[1] / 255f;
-                                b[i] = gray * rgbColor[2] / 255f;
-                            }
-                            return new float[][]{r, g, b};
+                            return Colorize.doColorize(width, height, mono, rgbColor);
                         });
                     } else {
                         processedImagesEmitter.newMonoImage(GeneratedImageKind.MIXED, message("mix"), "mix", mixedImage);

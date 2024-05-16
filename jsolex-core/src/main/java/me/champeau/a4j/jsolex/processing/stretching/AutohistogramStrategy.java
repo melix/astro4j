@@ -63,11 +63,13 @@ public final class AutohistogramStrategy implements StretchingStrategy {
         new GammaStrategy(gamma).stretch(disk);
         var diskData = disk.data();
         var ellipse = image.findMetadata(Ellipse.class);
+        var width = 0;
+        var height = 0;
         if (ellipse.isPresent()) {
             var e = ellipse.get();
             // we have an ellipse, so we'll perform another stretch, then combine pixels from both images
-            var height = image.height();
-            var width = image.width();
+            height = image.height();
+            width = image.width();
             var mask = createMask(height, width, e);
             var protus = prepareProtusImage(image);
             var protusData = protus.data();
