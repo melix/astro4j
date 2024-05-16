@@ -122,15 +122,7 @@ public class EllipseFittingTask extends AbstractTask<EllipseFittingTask.Result> 
     }
 
     private void filterIrrelevantPixels(ImageWrapper32 image, Stats stats) {
-        var data = image.data();
-        double dx = 0;
-        for (float d : data) {
-            if (d > stats.avg) {
-                dx++;
-            }
-        }
-        dx = dx / data.length;
-        new CutoffStretchingStrategy((float) (stats.avg - dx * dx * stats.stddev), stats.avg, 0, stats.avg).stretch(image);
+        new CutoffStretchingStrategy(stats.avg, stats.avg, 0, stats.avg).stretch(image);
     }
 
     /**

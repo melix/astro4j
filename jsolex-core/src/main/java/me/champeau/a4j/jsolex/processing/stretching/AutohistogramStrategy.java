@@ -36,6 +36,7 @@ public final class AutohistogramStrategy implements StretchingStrategy {
     private static final GammaStrategy PROTUS_STRATEGY = new GammaStrategy(.5);
 
     public static final double DEFAULT_GAMMA = 1.5;
+    public static final double TARGET_PEAK = 0.65;
 
     private final double gamma;
 
@@ -86,7 +87,7 @@ public final class AutohistogramStrategy implements StretchingStrategy {
         }
         diskData = image.data();
         var lohi = findLoHi(diskData);
-        new DynamicStretchStrategy(lohi.hi(), .65).stretch(image);
+        new DynamicStretchStrategy(lohi.hi(), TARGET_PEAK).stretch(image);
         var clahe = image.copy();
         new ClaheStrategy(8, 64, 1.0).stretch(clahe);
         // combine CLAHE with image
@@ -175,7 +176,7 @@ public final class AutohistogramStrategy implements StretchingStrategy {
         var values = StretchingUtils.performSmoothing(histo.values());
         int peakIndex = findRightmostPeak(values);
         float lo = 0;
-        float hi = 0;
+        float hi = peakIndex * HISTOGRAM_BINS;
         double val = values[peakIndex];
         double cutoff = val / 2;
         for (int i = peakIndex + 1; i < HISTOGRAM_BINS; i++) {
@@ -205,22 +206,10 @@ public final class AutohistogramStrategy implements StretchingStrategy {
                 peaks.add(new Peak(i, value));
             }
         }
-        double peakValue = 0;
-        int idx = -1;
-        for (int i = peaks.size() - 1; i >= 0; i--) {
-            var p = peaks.get(i);
-            var v = p.value();
-            if (v > peakValue) {
-                idx = p.index();
-                if (peakValue != 0 && v > 100 * peakValue) {
-                    break;
-                }
-            } else if (idx >= 0 && v < 0.25 * peakValue) {
-                break;
-            }
-            peakValue = Math.max(peakValue, v);
-        }
-        return idx == -1 ? peaks.getFirst().index() : idx;
+        // remove peaks which are too low
+        var avgPeakValue = peaks.stream().mapToDouble(Peak::value).average().orElse(0);
+        peaks.removeIf(p -> p.value < 0.25 * avgPeakValue);
+        return peaks.getLast().index();
     }
 
     record Peak(int index, double value) {
