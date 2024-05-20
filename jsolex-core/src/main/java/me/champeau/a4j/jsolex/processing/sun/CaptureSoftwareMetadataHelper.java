@@ -44,7 +44,7 @@ public class CaptureSoftwareMetadataHelper {
                 }
                 var binning = 1;
                 for (var line : lines) {
-                    if (line.startsWith("Binning")) {
+                    if (line.startsWith("Binning=")) {
                         binning = Integer.parseInt(line.substring(line.indexOf('=') + 1).trim());
                         break;
                     }
@@ -68,10 +68,10 @@ public class CaptureSoftwareMetadataHelper {
                     String camera = null;
                     Integer binning = null;
                     for (var line : lines) {
-                        if (line.startsWith("Binning")) {
+                        if (line.startsWith("Binning=")) {
                             var tmp = line.substring(line.indexOf('=') + 1);
                             binning = Integer.parseInt(tmp.substring(0, tmp.indexOf("x")).trim());
-                        } else if (line.startsWith("Camera")) {
+                        } else if (line.startsWith("Camera=")) {
                             camera = line.substring(line.indexOf('=') + 1).trim();
                         }
                         if (camera != null && binning != null) {
