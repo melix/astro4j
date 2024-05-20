@@ -15,6 +15,7 @@
  */
 package me.champeau.a4j.jsolex.processing.sun;
 
+import me.champeau.a4j.jsolex.processing.util.Constants;
 import me.champeau.a4j.math.image.Image;
 import me.champeau.a4j.math.image.ImageMath;
 import me.champeau.a4j.math.regression.Ellipse;
@@ -44,6 +45,10 @@ public class BandingReduction {
         }
         if (ellipse != null) {
             bilinearSmoothing(ellipse, width, height, data);
+        }
+        for (int i = 0; i < data.length; i++) {
+            float v = data[i];
+            data[i] = Math.min(v, Constants.MAX_PIXEL_VALUE);
         }
     }
 

@@ -19,6 +19,7 @@ import me.champeau.a4j.jsolex.processing.event.GeneratedImage;
 import me.champeau.a4j.jsolex.processing.event.ImageGeneratedEvent;
 import me.champeau.a4j.jsolex.processing.sun.BackgroundRemoval;
 import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
+import me.champeau.a4j.jsolex.processing.sun.workflow.AnalysisUtils;
 import me.champeau.a4j.jsolex.processing.sun.workflow.GeneratedImageKind;
 import me.champeau.a4j.jsolex.processing.util.Histogram;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
@@ -34,6 +35,7 @@ import static me.champeau.a4j.jsolex.processing.util.Constants.MAX_PIXEL_VALUE;
 public final class AutohistogramStrategy implements StretchingStrategy {
     private static final int HISTOGRAM_BINS = 256;
     private static final GammaStrategy PROTUS_STRATEGY = new GammaStrategy(.5);
+    private static final int FULL_RESOLUTION_BINS = 65536;
 
     public static final double DEFAULT_GAMMA = 1.5;
     public static final double TARGET_PEAK = 0.65;
@@ -68,9 +70,39 @@ public final class AutohistogramStrategy implements StretchingStrategy {
         var height = 0;
         if (ellipse.isPresent()) {
             var e = ellipse.get();
-            // we have an ellipse, so we'll perform another stretch, then combine pixels from both images
             height = image.height();
             width = image.width();
+            // the initial strech is to adjust the global brightness by estimating the brightness of
+            // the disk itself
+            var avg = 0d;
+            var area = 0d;
+            var background = AnalysisUtils.estimateBlackPoint(disk, e) * 1.2f;
+            for (int y = 0; y < height; y++) {
+                for (int x = 0; x < width; x++) {
+                    var v = diskData[y * width + x];
+                    if (e.isWithin(x, y) && v > background) {
+                        avg += v;
+                        area++;
+                    }
+                }
+            }
+            avg /= area;
+            // compute stdev
+            var stdev = 0d;
+            for (int y = 0; y < height; y++) {
+                for (int x = 0; x < width; x++) {
+                    var v = diskData[y * width + x];
+                    if (e.isWithin(x, y) && v > background) {
+                        stdev += (v - avg) * (v - avg);
+                    }
+                }
+            }
+            stdev = Math.sqrt(stdev / area);
+            var limit = 1.2 * (avg + 6 * stdev);
+            if (limit < MAX_PIXEL_VALUE) {
+                new ContrastAdjustmentStrategy(0, (float) limit).withNormalize(true).stretch(disk);
+            }
+
             var mask = createMask(height, width, e);
             var protus = prepareProtusImage(image);
             var protusData = protus.data();
@@ -197,7 +229,7 @@ public final class AutohistogramStrategy implements StretchingStrategy {
 
     public static int findRightmostPeak(double[] values) {
         List<Peak> peaks = new ArrayList<>();
-        // we intentionally ignore the 8 first bins, assuming they are not relevant
+        // we intentionally ignore the 4 first bins, assuming they are not relevant
         for (int i = 8; i < values.length - 1; i++) {
             double previous = values[i - 1];
             double value = values[i];
@@ -209,6 +241,9 @@ public final class AutohistogramStrategy implements StretchingStrategy {
         // remove peaks which are too low
         var avgPeakValue = peaks.stream().mapToDouble(Peak::value).average().orElse(0);
         peaks.removeIf(p -> p.value < 0.25 * avgPeakValue);
+        if (peaks.isEmpty()) {
+            return 0;
+        }
         return peaks.getLast().index();
     }
 
