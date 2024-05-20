@@ -89,7 +89,7 @@ public class SerFileReader implements AutoCloseable {
     }
 
     private ByteBuffer findBuffer() {
-        return imageBuffers[currentFrame/maxFramesPerBuffer];
+        return imageBuffers[currentFrame / maxFramesPerBuffer];
     }
 
     private void positionBuffers() {
@@ -117,7 +117,7 @@ public class SerFileReader implements AutoCloseable {
         RandomAccessFile raf = new RandomAccessFile(file, "r");
         FileChannel channel = raf.getChannel();
         var headerBuffer = channel
-                .map(FileChannel.MapMode.READ_ONLY, 0, Math.min(65536, channel.size()));
+            .map(FileChannel.MapMode.READ_ONLY, 0, Math.min(65536, channel.size()));
         readAsciiString(headerBuffer, 14);
         headerBuffer.order(ByteOrder.LITTLE_ENDIAN);
         Header header = readHeader(headerBuffer);
@@ -142,11 +142,84 @@ public class SerFileReader implements AutoCloseable {
             header = new Header(header.camera(), header.geometry(), header.frameCount(), header.metadata().withoutTimestamps());
         }
         ByteBuffer timestampsBuffer = hasTimestamps ? channel.map(FileChannel.MapMode.READ_ONLY, headerLength + dataLength, 8L * header.frameCount()).order(ByteOrder.LITTLE_ENDIAN) : null;
-        return new SerFileReader(raf, imageBuffers, (int) maxFramesInBuffer, timestampsBuffer, header);
+        var tmpReader = new SerFileReader(raf, imageBuffers, (int) maxFramesInBuffer, timestampsBuffer, header);
+        return fixReader(tmpReader);
+    }
+
+    /**
+     * It appears that some software lie about the true pixel depth of the images,
+     * which means we cannot rely on the pixel depth provided in the header.
+     * This will select a few frames in the middle of the video and determine the
+     * true pixel depth by looking at the maximum pixel value.
+     *
+     * @param tmpReader the reader to fix
+     * @return a fixed reader
+     */
+    private static SerFileReader fixReader(SerFileReader tmpReader) {
+        var frameCount = tmpReader.header.frameCount();
+        var geometry = tmpReader.header.geometry();
+        var width = geometry.width();
+        var height = geometry.height();
+        var min = Math.max(0, frameCount / 2 - 5);
+        var max = Math.min(frameCount, frameCount / 2 + 5);
+        int bytesPerPixel = geometry.getBytesPerPixel();
+        if (bytesPerPixel > 1) {
+            int numPlanes = geometry.colorMode().getNumberOfPlanes();
+            int bitsToDiscard = 16 - geometry.pixelDepthPerPlane();
+            int maxPixel = 0;
+            int minPixel = Integer.MAX_VALUE;
+            for (int i = min; i < max; i++) {
+                tmpReader.seekFrame(i);
+                var data = tmpReader.currentFrame().data();
+                for (int j = 0; j < width * height * numPlanes; j++) {
+                    int pixelValue = readColor(data, bytesPerPixel, bitsToDiscard);
+                    maxPixel = Math.max(maxPixel, pixelValue);
+                    minPixel = Math.min(minPixel, pixelValue);
+                }
+            }
+
+            int pixelDepth = 8;
+            for (int x = 15; x >= 8; x--) {
+                if (maxPixel >= (1 << x)) {
+                    pixelDepth = x + 1;
+                    break;
+                }
+            }
+            var newGeometry = new ImageGeometry(geometry.colorMode(), geometry.width(), geometry.height(), pixelDepth, geometry.imageEndian());
+            return new SerFileReader(tmpReader.accessFile, tmpReader.imageBuffers, tmpReader.maxFramesPerBuffer, tmpReader.timestampsBuffer,
+                new Header(tmpReader.header.camera(), newGeometry, tmpReader.header.frameCount(), tmpReader.header.metadata()));
+        }
+        return tmpReader;
+    }
+
+    private static int readColor(ByteBuffer frameData, int bytesPerPixel, int bitsToDiscard) {
+        int next;
+        if (bytesPerPixel == 1) {
+            // Data of between 1 and 8 bits should be stored aligned with the most significant bit
+            int v = frameData.get() >> bitsToDiscard;
+            next = (v & 0xFF) << 8;
+        } else {
+            next = (frameData.getShort() << 8 << bitsToDiscard) & 0xFFFF;
+        }
+        return next;
     }
 
     public Optional<Double> estimateFps() {
         Optional<Double> value = Optional.empty();
+        if (header.metadata().telescope().contains("fps=")) {
+            var i = header.metadata().telescope().indexOf("fps=");
+            // last index is either the end of the string or the first letter after the fps value
+            var end = i + 4;
+            while (end < header.metadata().telescope().length() && !Character.isLetter(header.metadata().telescope().charAt(end))) {
+                end++;
+            }
+            String fps = header.metadata().telescope().substring(i + 4, end);
+            try {
+                return Optional.of(Double.parseDouble(fps));
+            } catch (NumberFormatException e) {
+                // ignore
+            }
+        }
         if (header.metadata().hasTimestamps()) {
             seekLast();
             ZonedDateTime lastFrameTimestamp = currentFrame().timestamp().orElseThrow();
@@ -176,17 +249,17 @@ public class SerFileReader implements AutoCloseable {
         LocalDateTime localDate = TimestampConverter.of(buffer.getLong()).orElse(null);
         ZonedDateTime utcDate = TimestampConverter.of(buffer.getLong()).map(e -> e.atZone(UTC)).orElseThrow(() -> new IllegalStateException("Unable to read UTC timestamp"));
         return new Header(
-                camera,
-                new ImageGeometry(colorMode.get(), imageWidth, imageHeight, pixelDepthPerPlane, imageByteOrder),
-                frameCount,
-                new ImageMetadata(
-                        observer,
-                        instrument,
-                        telescope,
-                        localDate != null,
-                        localDate,
-                        utcDate
-                )
+            camera,
+            new ImageGeometry(colorMode.get(), imageWidth, imageHeight, pixelDepthPerPlane, imageByteOrder),
+            frameCount,
+            new ImageMetadata(
+                observer,
+                instrument,
+                telescope,
+                localDate != null,
+                localDate,
+                utcDate
+            )
         );
     }
 
