@@ -3,6 +3,7 @@
 Here are the new features in this version:
 
 - [Automatic Spectral Line Detection](#automatic-detection-of-the-studied-line)
+- [Automatic redshift/speed measurements](#automatic-speed-measurements-redshift)
 - [Automatic Coloring Based on Wavelength](#automatic-coloring-based-on-wavelength)
 - [Reading Sharpcap and Firecapture Metadata](#reading-sharpcap-and-firecapture-metadata)
 
@@ -14,6 +15,13 @@ It's worth noting that detection will work better with a larger cropping window 
 
 Finally, if the "automatic" mode does not appear in the list of available lines, it means you have added or modified lines in the editor, in which case you will need to [reset the available lines](#reset-available-lines) for the "automatic" mode to appear.
 When a line is selected, the profile tab now displays the measured profile compared to a reference profile.
+
+## Automatic speed measurements (redshift)
+
+If the studied line is hydrogen alpha, JSol'Ex will automatically analyze frames to detect Doppler shifts.
+It will automatically calculate the speed associated to the shift and display it into the log window.
+In addition, it will generate an image which shows where the highest speeds have been detected.
+If you enable debug images, it will also extract images from the SER file were the speedy events were detected so that you can double check if the measurements are correct.
 
 ## Reading Sharpcap and Firecapture Metadata
 

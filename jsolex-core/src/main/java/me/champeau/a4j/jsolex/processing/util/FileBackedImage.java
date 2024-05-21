@@ -125,7 +125,7 @@ public final class FileBackedImage implements ImageWrapper {
                     // Colorized image
                     float[] data = new float[size];
                     byteBuffer.asFloatBuffer().get(data);
-                    yield new ColorizedImageWrapper(new ImageWrapper32(width, height, data, metadata), (Function<float[], float[][]>) keptInMemory, metadata);
+                    yield new ColorizedImageWrapper(new ImageWrapper32(width, height, data, metadata), (Function<ImageWrapper32, float[][]>) keptInMemory, metadata);
                 }
                 case RGB -> {
                     // RGB image

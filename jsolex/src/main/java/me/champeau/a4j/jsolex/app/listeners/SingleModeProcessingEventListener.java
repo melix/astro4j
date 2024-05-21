@@ -275,7 +275,7 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
                     new Image(mono.width(), mono.height(), mono.data()), BINS
                 ), "grey"));
             } else if (imageWrapper instanceof ColorizedImageWrapper colorized) {
-                var rgb = colorized.converter().apply(colorized.mono().data());
+                var rgb = colorized.converter().apply(colorized.mono());
                 List<CachedHistogram> result = new ArrayList<>(rgb.length);
                 for (int i = 0; i < rgb.length; i++) {
                     float[] channel = rgb[i];

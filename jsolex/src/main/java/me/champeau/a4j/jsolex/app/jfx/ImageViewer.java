@@ -385,7 +385,9 @@ public class ImageViewer {
         } else if (displayImage instanceof ColorizedImageWrapper colorImage) {
             stretchedImage = stretch(colorImage);
             var stretched = (ColorizedImageWrapper) stretchedImage;
-            var rgb = colorImage.converter().apply(stretched.mono().data());
+            var copy = stretched.mono().copy();
+            copy.metadata().putAll(stretched.metadata());
+            var rgb = colorImage.converter().apply(copy);
             var r = rgb[0];
             var g = rgb[1];
             var b = rgb[2];

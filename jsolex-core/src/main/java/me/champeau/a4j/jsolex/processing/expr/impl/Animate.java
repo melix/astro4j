@@ -125,7 +125,7 @@ public class Animate extends AbstractFunctionImpl {
         if (height % 2 == 1) {
             height--;
         }
-        var origRGB = image.converter().apply(image.mono().data());
+        var origRGB = image.converter().apply(image.mono());
         var colorChannelsStream = Arrays.stream(origRGB);
         addColorFrame(encoder, image, colorChannelsStream, width, height);
     }

@@ -20,6 +20,8 @@ import me.champeau.a4j.jsolex.processing.expr.impl.Crop;
 import me.champeau.a4j.jsolex.processing.params.ProcessParams;
 import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
 import me.champeau.a4j.jsolex.processing.sun.WorkflowState;
+import me.champeau.a4j.jsolex.processing.sun.detection.RedshiftArea;
+import me.champeau.a4j.jsolex.processing.sun.detection.Redshifts;
 import me.champeau.a4j.jsolex.processing.sun.workflow.ImageEmitter;
 import me.champeau.a4j.jsolex.processing.sun.workflow.TransformationHistory;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
@@ -136,6 +138,22 @@ public class GeometryCorrector extends AbstractTask<GeometryCorrector.Result> {
         var circle = computeCorrectedCircle(shear, shift, sx, finalSy);
         var metadata = new HashMap<>(getMetadata());
         metadata.put(Ellipse.class, circle);
+        Redshifts redshifts = (Redshifts) metadata.get(Redshifts.class);
+        if (redshifts != null) {
+            // correct redshifts
+            redshifts = new Redshifts(redshifts.redshifts().stream()
+                .map(r -> {
+                    var x1 = r.x1() + shift - r.y1() * shear;
+                    var y1 = r.y1();
+                    var x2 = r.x2() + shift - r.y2() * shear;
+                    var y2 = r.y2();
+                    var maxX = r.maxX() + shift - r.maxY() * shear;
+                    var maxY = r.maxY();
+                    return new RedshiftArea(r.pixelShift(), r.relPixelShift(), r.kmPerSec(), (int) (x1 * sx), (int) (y1 * finalSy), (int) (x2 *sx), (int) (y2 * finalSy), (int) (maxX * sx), (int) (maxY * finalSy));
+                })
+                .toList());
+            metadata.put(Redshifts.class, redshifts);
+        }
         var corrected = ImageWrapper32.fromImage(rescaled, metadata);
         TransformationHistory.recordTransform(corrected, message("geometry.correction"));
         var autocropMode = processParams.geometryParams().autocropMode();
@@ -151,7 +169,7 @@ public class GeometryCorrector extends AbstractTask<GeometryCorrector.Result> {
                     var halfWidth = targetWidth / 2d;
                     var cx = center.a();
                     var cy = center.b();
-                    if (cx - halfWidth >= 0 && (cy - halfWidth >= 0) && (cx + halfWidth <= targetWidth) && (cy+halfWidth<=targetWidth)) {
+                    if (cx - halfWidth >= 0 && (cy - halfWidth >= 0) && (cx + halfWidth <= targetWidth) && (cy + halfWidth <= targetWidth)) {
                         yield (ImageWrapper32) cropping.cropToRect(List.of(corrected, targetWidth, targetWidth, circle));
                     } else {
                         LOGGER.warn(message("destructive.cannot.crop"));
@@ -179,13 +197,13 @@ public class GeometryCorrector extends AbstractTask<GeometryCorrector.Result> {
      */
     private Ellipse computeCorrectedCircle(double shear, double shift, double sx, double sy) {
         var newSamples = IntStream.range(0, 32)
-                .mapToDouble(i -> i * Math.PI / 16)
-                .mapToObj(ellipse::toCartesian)
-                .map(p -> {
-                    var newX = (p.x() - shift + p.y() * shear);
-                    return new Point2D(newX * sx, p.y() * sy);
-                })
-                .toList();
+            .mapToDouble(i -> i * Math.PI / 16)
+            .mapToObj(ellipse::toCartesian)
+            .map(p -> {
+                var newX = (p.x() - shift + p.y() * shear);
+                return new Point2D(newX * sx, p.y() * sy);
+            })
+            .toList();
         Ellipse correctedEllipse = null;
         try {
             correctedEllipse = new EllipseRegression(newSamples).solve();
@@ -196,11 +214,11 @@ public class GeometryCorrector extends AbstractTask<GeometryCorrector.Result> {
     }
 
     public record Result(
-            ImageWrapper32 corrected,
-            ImageWrapper32 enhanced,
-            Ellipse originalEllipse,
-            Ellipse correctedCircle,
-            float blackpoint
+        ImageWrapper32 corrected,
+        ImageWrapper32 enhanced,
+        Ellipse originalEllipse,
+        Ellipse correctedCircle,
+        float blackpoint
     ) {
         public Result withEnhanced(ImageWrapper32 enhanced) {
             return new Result(corrected, enhanced, originalEllipse, correctedCircle, blackpoint);

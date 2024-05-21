@@ -18,6 +18,7 @@ package me.champeau.a4j.jsolex.processing.sun;
 import me.champeau.a4j.jsolex.processing.event.AverageImageComputedEvent;
 import me.champeau.a4j.jsolex.processing.event.DebugEvent;
 import me.champeau.a4j.jsolex.processing.event.FileGeneratedEvent;
+import me.champeau.a4j.jsolex.processing.event.GeneratedImage;
 import me.champeau.a4j.jsolex.processing.event.ImageGeneratedEvent;
 import me.champeau.a4j.jsolex.processing.event.ImageLine;
 import me.champeau.a4j.jsolex.processing.event.Notification;
@@ -40,6 +41,9 @@ import me.champeau.a4j.jsolex.processing.params.ImageMathParams;
 import me.champeau.a4j.jsolex.processing.params.ProcessParams;
 import me.champeau.a4j.jsolex.processing.params.SpectralRay;
 import me.champeau.a4j.jsolex.processing.spectrum.SpectrumAnalyzer;
+import me.champeau.a4j.jsolex.processing.sun.detection.PhenomenaDetector;
+import me.champeau.a4j.jsolex.processing.sun.detection.RedshiftArea;
+import me.champeau.a4j.jsolex.processing.sun.detection.Redshifts;
 import me.champeau.a4j.jsolex.processing.sun.tasks.EllipseFittingTask;
 import me.champeau.a4j.jsolex.processing.sun.tasks.GeometryCorrector;
 import me.champeau.a4j.jsolex.processing.sun.workflow.DefaultImageEmitter;
@@ -99,6 +103,7 @@ import java.util.function.DoubleUnaryOperator;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
+import static me.champeau.a4j.jsolex.processing.util.Constants.MAX_PIXEL_VALUE;
 import static me.champeau.a4j.jsolex.processing.util.Constants.message;
 import static me.champeau.a4j.jsolex.processing.util.LoggingSupport.logError;
 
@@ -256,9 +261,12 @@ public class SolexVideoProcessor implements Broadcaster {
                 processParams = processParams.withObservationDetails(obsDetails.withBinning(bestMatch.binning()));
             }
             broadcast(new AverageImageComputedEvent(new AverageImageComputedEvent.AverageImage(avgImage, polynomial, leftBorder, rightBorder, processParams.spectrumParams().ray(), processParams.observationDetails())));
+            var redshifts = new AtomicReference<Redshifts>();
             BackgroundOperations.exclusiveIO(() -> {
                 try (var reader = SerFileReader.of(serFile)) {
-                    performImageReconstruction(converter, reader, start, end, geometry, width, height, polynomial, imageList.toArray(new WorkflowState[0]));
+                    var outputs = performImageReconstruction(converter, reader, start, end, geometry, width, height, polynomial, imageList.toArray(new WorkflowState[0]));
+                    maybeProduceRedshiftDetectionDebugImages(outputs.redshifts, width, height, reader, converter, geometry, polynomial, imageNamingStrategy, baseName);
+                    redshifts.set(new Redshifts(outputs.redshifts));
                 } catch (Exception e) {
                     throw new ProcessingException(e);
                 }
@@ -267,7 +275,9 @@ public class SolexVideoProcessor implements Broadcaster {
                 ImageWrapper32 rotated;
                 var recon = new Image(width, newHeight, state.reconstructed());
                 var rotateLeft = ImageMath.newInstance().rotateLeft(recon);
-                rotated = ImageWrapper32.fromImage(rotateLeft, createMetadata(processParams));
+                var metadata = new HashMap<>(createMetadata(processParams));
+                metadata.put(Redshifts.class, redshifts.get());
+                rotated = ImageWrapper32.fromImage(rotateLeft, metadata);
                 TransformationHistory.recordTransform(rotated, message("rotate.left"));
                 maybePerformFlips(rotated);
                 state.setImage(rotated);
@@ -323,6 +333,63 @@ public class SolexVideoProcessor implements Broadcaster {
         broadcast(ProcessingDoneEvent.of(System.nanoTime(), images, createCustomImageEmitter(imageNamingStrategy, baseName), ellipse, imageStats));
     }
 
+    private void maybeProduceRedshiftDetectionDebugImages(List<RedshiftArea> redshifts,
+                                                          int width,
+                                                          int height,
+                                                          SerFileReader reader,
+                                                          ImageConverter<float[]> converter,
+                                                          ImageGeometry geometry,
+                                                          DoubleUnaryOperator polynomial,
+                                                          FileNamingStrategy fileNamingStrategy,
+                                                          String baseName) {
+        if (!redshifts.isEmpty()) {
+            var analyzer = new SpectrumFrameAnalyzer(
+                width,
+                height,
+                null
+            );
+            int i = 0;
+            for (var redshift : redshifts) {
+                var speed = redshift.kmPerSec();
+                if (processParams.requestedImages().isEnabled(GeneratedImageKind.DEBUG)) {
+                    var buffer = converter.createBuffer(geometry);
+                    reader.seekFrame(redshift.maxX());
+                    converter.convert(redshift.maxX(), reader.currentFrame().data(), geometry, buffer);
+                    var creator = new SpectralLineFrameImageCreator(analyzer, buffer, width, height);
+                    var image = creator.generateSpectrumImage(polynomial, rgb -> {
+                        var offset = rgb.offset();
+                        var w = rgb.width();
+                        var h = rgb.height();
+                        for (int x = redshift.y1(); x <= redshift.y2(); x++) {
+                            for (int y = 0; y < h; y++) {
+                                var pos = offset + y * w + x;
+                                rgb.r()[pos] = MAX_PIXEL_VALUE;
+                                rgb.g()[pos] = 0;
+                                rgb.b()[pos] = 0;
+                            }
+                            var y = rgb.polynomial().applyAsDouble(x) + redshift.relPixelShift();
+                            var pos = (int) y * w + x;
+                            rgb.r()[pos] = MAX_PIXEL_VALUE;
+                            rgb.g()[pos] = 0;
+                            rgb.b()[pos] = 0;
+                        }
+                    });
+                    var targetFile = outputDirectory.resolve(fileNamingStrategy.render(sequenceNumber, Constants.TYPE_DEBUG, "redshift", baseName + "_" + i));
+                    broadcast(new ImageGeneratedEvent(
+                        new GeneratedImage(
+                            GeneratedImageKind.DEBUG,
+                            "Redshift %d (%.2f km/s)".formatted(i, speed),
+                            targetFile,
+                            image
+                        )
+                    ));
+                    i++;
+                }
+                LOGGER.info(message("found.speed"), String.format("%.2f km/s", speed), redshift.x1(), redshift.y1(), redshift.x2(), redshift.y2(), redshift.relPixelShift());
+            }
+        }
+    }
+
     private void generateImageMaths(FileNamingStrategy imageNamingStrategy, String baseName, List<WorkflowState> imageList, ImageMathParams mathImages) {
         if (!mathImages.scriptFiles().isEmpty()) {
             var images = new HashMap<Double, ImageWrapper32>();
@@ -362,7 +429,7 @@ public class SolexVideoProcessor implements Broadcaster {
                     if (!result.invalidExpressions().isEmpty()) {
                         var sb = new StringBuilder();
                         for (InvalidExpression expression : result.invalidExpressions()) {
-                            LOGGER.error("Found invalid expression {} ({}): {}", expression.label(), expression.expression(), expression.error());
+                            LOGGER.error("Found invalid expression {} ({}): {}", expression.label(), expression.expression(), expression.error().getMessage());
                             sb.append("Found invalid expression %s (%s): %s%n".formatted(expression.label(), expression.expression(), expression.error())).append("\n");
                         }
                         broadcast(new NotificationEvent(new Notification(Notification.AlertType.ERROR, message("invalid.expressions"), message("invalid.expressions"), sb.toString())));
@@ -419,6 +486,34 @@ public class SolexVideoProcessor implements Broadcaster {
                     flipped[nx + width * ny] = original[x + y * width];
                 }
             }
+            rotated.findMetadata(Redshifts.class).ifPresent(redshifts -> {
+                var rotatedRedshifts = redshifts.redshifts().stream()
+                    .map(area -> {
+                            var x1 = area.x1();
+                            var x2 = area.x2();
+                            var y1 = area.y1();
+                            var y2 = area.y2();
+                            var maxX = area.maxX();
+                            var maxY = area.maxY();
+                            var pixelShift = area.pixelShift();
+                            var relPixelShift = area.relPixelShift();
+                            var kmPerSec = area.kmPerSec();
+                            if (hflip) {
+                                x1 = width - x1 - 1;
+                                x2 = width - x2 - 1;
+                                maxX = width - maxX - 1;
+                            }
+                            if (vflip) {
+                                y1 = height - y1 - 1;
+                                y2 = height - y2 - 1;
+                                maxY = height - maxY - 1;
+                            }
+                            return new RedshiftArea(pixelShift, relPixelShift, kmPerSec, x1, y1, x2, y2, maxX, maxY);
+                        }
+                    ).toList();
+                redshifts = new Redshifts(rotatedRedshifts);
+                rotated.metadata().put(Redshifts.class, redshifts);
+            });
             System.arraycopy(flipped, 0, original, 0, original.length);
             TransformationHistory.recordTransform(rotated, message("flip"));
         }
@@ -437,12 +532,15 @@ public class SolexVideoProcessor implements Broadcaster {
         imageList.addAll(list);
     }
 
-    private void performImageReconstruction(ImageConverter<float[]> converter, SerFileReader reader, int start, int end, ImageGeometry geometry, int width, int height, DoubleUnaryOperator polynomial, WorkflowState... images) {
+    private ReconstructionOutputs performImageReconstruction(ImageConverter<float[]> converter, SerFileReader reader, int start, int end, ImageGeometry geometry, int width, int height, DoubleUnaryOperator polynomial, WorkflowState... images) {
         LOGGER.info(message("starting.reconstruction"));
         reader.seekFrame(start);
         LOGGER.info(message("distortion.polynomial"), polynomial);
         reader.seekFrame(start);
         int totalLines = end - start;
+        var lambda0 = processParams.spectrumParams().ray().wavelength();
+        var dispersion = SpectrumAnalyzer.computeSpectralDispersion(lambda0, processParams.observationDetails().pixelSize() * processParams.observationDetails().binning());
+        var phenomenaDetector = new PhenomenaDetector(dispersion, lambda0, width, totalLines);
         try (var executor = Executors.newFixedThreadPool(16)) {
             for (int i = start, j = 0; i < end; i++, j += width) {
                 var currentFrame = reader.currentFrame().data().array();
@@ -455,13 +553,18 @@ public class SolexVideoProcessor implements Broadcaster {
                 executor.submit(() -> {
                     // The converter makes sure we only have a single channel
                     converter.convert(frameId, ByteBuffer.wrap(copy), geometry, original);
-                    Arrays.stream(images).parallel().forEach(state ->
-                        processSingleFrame(state.isInternal(), width, height, state.reconstructed(), offset, original, polynomial, state.pixelShift(), totalLines)
+                    Arrays.stream(images).parallel().forEach(state -> {
+                        processSingleFrame(state.isInternal(), width, height, state.reconstructed(), offset, original, polynomial, state.pixelShift(), totalLines);
+                            if (state.pixelShift() == 0 && processParams.spectrumParams().ray() == SpectralRay.H_ALPHA && processParams.requestedImages().isEnabled(GeneratedImageKind.REDSHIFT)) {
+                                phenomenaDetector.performDetection(frameId, width, height, original, polynomial, dispersion);
+                            }
+                        }
                     );
                 });
             }
         }
         LOGGER.info(message("processing.done.generate.images"));
+        return new ReconstructionOutputs(phenomenaDetector.getMaxRedshiftAreas(5));
     }
 
     private Optional<DoubleUnaryOperator> findPolynomial(int width, int height, float[] averageImage, FileNamingStrategy imageNamingStrategy) {
@@ -472,7 +575,7 @@ public class SolexVideoProcessor implements Broadcaster {
             var emitter = new DiscardNonRequiredImages(
                 new NamingStrategyAwareImageEmitter(new DefaultImageEmitter(this, outputDirectory.toFile()), imageNamingStrategy, 0, Constants.TYPE_DEBUG, serFile.getName().substring(0, serFile.getName().lastIndexOf("."))),
                 processParams.requestedImages().images());
-            emitter.newColorImage(GeneratedImageKind.DEBUG, message("average"), "average", width, height, () -> {
+            emitter.newColorImage(GeneratedImageKind.DEBUG, message("average"), "average", width, height, MutableMap.of(), () -> {
                 var rgb = new SpectralLineFrameImageCreator(analyzer, averageImage, width, height).generateDebugImage();
                 return new float[][]{rgb.r(), rgb.g(), rgb.b()};
             });
@@ -582,5 +685,11 @@ public class SolexVideoProcessor implements Broadcaster {
             }
             return new DiscardNonRequiredImages(emitter, processParams.requestedImages().images());
         }
+    }
+
+    private record ReconstructionOutputs(
+        List<RedshiftArea> redshifts
+    ) {
+
     }
 }

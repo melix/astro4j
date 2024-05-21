@@ -25,6 +25,7 @@ import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 import me.champeau.a4j.jsolex.processing.util.MutableMap;
 import me.champeau.a4j.jsolex.processing.util.RGBImage;
 
+import java.util.HashMap;
 import java.util.List;
 
 public class DopplerSupport {
@@ -52,11 +53,14 @@ public class DopplerSupport {
                 var grey2 = ((GeometryCorrector.Result) i2).corrected();
                 var width = grey1.width();
                 var height = grey1.height();
+                var metadata = new HashMap<>(grey1.metadata());
+                metadata.putAll(grey2.metadata());
                 processedImagesEmitter.newColorImage(GeneratedImageKind.DOPPLER,
                     "Doppler",
                     "doppler",
                     width,
                     height,
+                    metadata,
                     () -> DopplerSupport.toDopplerImage(width, height, grey1, grey2));
             }));
         }));

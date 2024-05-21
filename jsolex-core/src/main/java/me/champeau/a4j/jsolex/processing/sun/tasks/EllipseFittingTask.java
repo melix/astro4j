@@ -39,6 +39,7 @@ import org.slf4j.LoggerFactory;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -122,7 +123,8 @@ public class EllipseFittingTask extends AbstractTask<EllipseFittingTask.Result> 
     }
 
     private void filterIrrelevantPixels(ImageWrapper32 image, Stats stats) {
-        new CutoffStretchingStrategy(stats.avg, stats.avg, 0, stats.avg).stretch(image);
+        var max = 0.75f * stats.avg;
+        new CutoffStretchingStrategy(0, max, 0, max).stretch(image);
     }
 
     /**
@@ -131,7 +133,7 @@ public class EllipseFittingTask extends AbstractTask<EllipseFittingTask.Result> 
      *
      * @param samples the samples to be filtered
      */
-    private static void filterOutliersByDistanceToEllipse(Collection<Point2D> samples) {
+    private static void filterOutliersByDistanceToEllipse(Collection<Point2D> samples, double factor) {
         Ellipse initialEllipse;
         try {
             initialEllipse = new EllipseRegression(samples.stream().toList()).solve();
@@ -152,7 +154,21 @@ public class EllipseFittingTask extends AbstractTask<EllipseFittingTask.Result> 
             })
             .average()
             .orElse(10);
-        var threshold = 3 * avgDistanceToEllipse;
+        var stddev = samples.stream()
+            .filter(p -> initialEllipse.findY(p.x()).isPresent() || initialEllipse.findX(p.y()).isPresent())
+            .mapToDouble(p -> {
+                var maybeY = initialEllipse.findY(p.x());
+                if (maybeY.isEmpty()) {
+                    var doublePair = initialEllipse.findX(p.y()).get();
+                    return Math.min(Math.abs(p.x() - doublePair.a()), Math.abs(p.x() - doublePair.b()));
+                }
+                var doublePair = maybeY.get();
+                return Math.min(Math.abs(p.y() - doublePair.a()), Math.abs(p.y() - doublePair.b()));
+            })
+            .map(d -> (d - avgDistanceToEllipse) * (d - avgDistanceToEllipse))
+            .sum();
+        stddev = (float) Math.sqrt(stddev / samples.size());
+        var threshold = factor * stddev + avgDistanceToEllipse;
         samples.removeIf(p -> {
             var maybeY = initialEllipse.findY(p.x());
             if (maybeY.isEmpty()) {
@@ -172,7 +188,7 @@ public class EllipseFittingTask extends AbstractTask<EllipseFittingTask.Result> 
 
     private List<Point2D> findSamplesUsingDynamicSensitivity(float[] magnitudes) {
         Set<Point2D> samples = new LinkedHashSet<>();
-        double sensitivity = 0.00d;
+        double sensitivity = 0.10d;
         var maxMagnitude = maxOf(magnitudes);
         var minX = 0;
         var minY = 0;
@@ -188,12 +204,12 @@ public class EllipseFittingTask extends AbstractTask<EllipseFittingTask.Result> 
             if (samples.size() > 2) {
                 // remove the top-most, bottom-most, left-most and right-most samples, because they can be outliers in truncated disks
                 var sortedByX = samples.stream().sorted(Comparator.comparing(Point2D::x)).toList();
-                var finalMinX = (int) sortedByX.get(0).x();
+                var finalMinX = (int) sortedByX.getFirst().x();
                 var finalMaxX = (int) sortedByX.get(samples.size() - 1).x();
                 samples.removeIf(p -> Math.abs(p.x() - finalMinX) < EDGE_FILTER || Math.abs(p.x() - finalMaxX) < EDGE_FILTER);
                 if (samples.size() > 2) {
                     var sortedByY = samples.stream().sorted(Comparator.comparing(Point2D::y)).toList();
-                    var finalMinY = (int) sortedByY.get(0).y();
+                    var finalMinY = (int) sortedByY.getFirst().y();
                     var finalMaxY = (int) sortedByY.get(samples.size() - 1).y();
                     samples.removeIf(p -> Math.abs(p.y() - finalMinY) < EDGE_FILTER || Math.abs(p.y() - finalMaxY) < EDGE_FILTER);
                     if (first) {
@@ -208,9 +224,36 @@ public class EllipseFittingTask extends AbstractTask<EllipseFittingTask.Result> 
                     sensitivity = 0; // start over
                 }
             }
-            filterOutliersByDistanceToEllipse(samples);
+            int size = 0;
+            var factor = 4d;
+            int iterations = 0;
+            while (samples.size() != size && factor > .5) {
+                iterations++;
+                size = samples.size();
+                filterOutliersByDistanceToEllipse(samples, factor);
+                filterOutliersByMinDistanceBetweenSamples(samples);
+                factor = factor * 0.8;
+            }
+            LOGGER.info("Stopped after {} iterations", iterations);
         }
         return new ArrayList<>(samples.stream().toList());
+    }
+
+    private static void filterOutliersByMinDistanceBetweenSamples(Set<Point2D> samples) {
+        var minDistanceToSamples = new HashMap<Point2D, Double>();
+        samples.forEach(p -> {
+            var x = p.x();
+            var y = p.y();
+            var avg = samples.stream().mapToDouble(p2 -> {
+                var x2 = p2.x();
+                var y2 = p2.y();
+                return Math.sqrt((x - x2) * (x - x2) + (y - y2) * (y - y2));
+            }).filter(d -> d > 0).min().orElse(0);
+            minDistanceToSamples.put(p, avg);
+        });
+        var avg = minDistanceToSamples.values().stream().mapToDouble(d -> d).average().orElse(0);
+        var threshold = 2 * avg;
+        samples.removeIf(p -> minDistanceToSamples.get(p) > threshold);
     }
 
     private void scan(Set<Point2D> samples, double minLimit, int width, int height, float[] magnitudes, boolean scanInYDirection, int minX, int maxX, int minY, int maxY) {
@@ -257,11 +300,12 @@ public class EllipseFittingTask extends AbstractTask<EllipseFittingTask.Result> 
         if (debugImagesEmitter != null) {
             debugImagesEmitter.newColorImage(GeneratedImageKind.DEBUG, message("edge.detection"), "edge-detection", image, debugImage -> {
                 float[][] rgb = new float[3][];
-                float[] overlay = new float[debugImage.length];
-                System.arraycopy(debugImage, 0, overlay, 0, overlay.length);
+                var mono = debugImage.data();
+                float[] overlay = new float[mono.length];
+                System.arraycopy(mono, 0, overlay, 0, overlay.length);
                 rgb[0] = overlay;
-                rgb[1] = debugImage;
-                rgb[2] = debugImage;
+                rgb[1] = mono;
+                rgb[2] = mono;
                 var samples = result.samples();
                 for (Point2D sample : samples) {
                     var x = sample.x();

@@ -142,7 +142,7 @@ public class ImageDraw extends AbstractFunctionImpl {
         }
     }
 
-    private Object drawText(ImageWrapper img, String text, int x, int y, String color, int fontSize) {
+    public Object drawText(ImageWrapper img, String text, int x, int y, String color, int fontSize) {
         if (img instanceof FileBackedImage fileBacked) {
             return drawText(fileBacked.unwrapToMemory(), text, x, y, color, fontSize);
         }
@@ -240,7 +240,7 @@ public class ImageDraw extends AbstractFunctionImpl {
         });
     }
 
-    private Object drawCircle(ImageWrapper img, int centerX, int centerY, int radius, int thickness, String color) {
+    public Object drawCircle(ImageWrapper img, int centerX, int centerY, int radius, int thickness, String color) {
         if (img instanceof FileBackedImage fileBacked) {
             return drawCircle(fileBacked.unwrapToMemory(), centerX, centerY, radius, thickness, color);
         }
@@ -260,7 +260,7 @@ public class ImageDraw extends AbstractFunctionImpl {
         assertExpectedArgCount(arguments, "draw_circle takes 4 to 6 arguments (image(s), cx, cy, radius, [color], [thickness])", 4, 6);
         var arg = arguments.get(0);
         if (arg instanceof List<?>) {
-            return expandToImageList("draw_circle", arguments, this::drawText);
+            return expandToImageList("draw_circle", arguments, this::drawCircle);
         }
         var cx = getArgument(Number.class, arguments, 1).map(Number::intValue).orElseThrow();
         var cy = getArgument(Number.class, arguments, 2).map(Number::intValue).orElseThrow();
@@ -272,6 +272,41 @@ public class ImageDraw extends AbstractFunctionImpl {
         } else {
             throw new IllegalArgumentException("Unexpected image type: " + arg);
         }
+    }
+
+    public Object drawRectangle(List<Object> arguments) {
+        assertExpectedArgCount(arguments, "draw_rect takes 5 to 7 arguments (image(s), x1, y1, width, height, [thickness], [color])", 5, 7);
+        var arg = arguments.get(0);
+        if (arg instanceof List<?>) {
+            return expandToImageList("draw_rect", arguments, this::drawRectangle);
+        }
+        var x1 = getArgument(Number.class, arguments, 1).map(Number::intValue).orElseThrow();
+        var y1 = getArgument(Number.class, arguments, 2).map(Number::intValue).orElseThrow();
+        var width = getArgument(Number.class, arguments, 3).map(Number::intValue).orElseThrow();
+        var height = getArgument(Number.class, arguments, 4).map(Number::intValue).orElseThrow();
+        var thickness = getArgument(Number.class, arguments, 5).map(Number::intValue).orElse(1);
+        var color = getArgument(String.class, arguments, 6).orElse(null);
+        if (arg instanceof ImageWrapper img) {
+            return drawRectangle(img, x1, y1, width, height, color, thickness);
+        } else {
+            throw new IllegalArgumentException("Unexpected image type: " + arg);
+        }
+    }
+
+    public Object drawRectangle(ImageWrapper img, int x1, int y1, int width, int height, String color, int thickness) {
+        if (img instanceof FileBackedImage fileBacked) {
+            return drawRectangle(fileBacked.unwrapToMemory(), x1, y1, width, height, color, thickness);
+        }
+        if (color != null && img instanceof ImageWrapper32 mono) {
+            // first convert to RGB
+            var rgb = new RGBImage(mono.width(), mono.height(), mono.data(), mono.data(), mono.data(), new HashMap<>(mono.metadata()));
+            return drawRectangle(rgb, x1, y1, width, height, color, thickness);
+        }
+        return drawOnImage(img, (g, image) -> {
+            g.setStroke(new BasicStroke(thickness));
+            configureColor(color, g);
+            g.drawRect(x1, y1, width, height);
+        });
     }
 
 
@@ -466,7 +501,7 @@ public class ImageDraw extends AbstractFunctionImpl {
                 converted[i] = (short) round(data[i]);
             }
         } else if (wrapper instanceof ColorizedImageWrapper colorized) {
-            var data = colorized.mono().data();
+            var data = colorized.mono();
             var rgb = colorized.converter().apply(data);
             var r = rgb[0];
             var g = rgb[1];

@@ -16,6 +16,8 @@
 package me.champeau.a4j.jsolex.processing.expr.impl;
 
 import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
+import me.champeau.a4j.jsolex.processing.sun.detection.RedshiftArea;
+import me.champeau.a4j.jsolex.processing.sun.detection.Redshifts;
 import me.champeau.a4j.jsolex.processing.util.ColorizedImageWrapper;
 import me.champeau.a4j.jsolex.processing.util.FileBackedImage;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
@@ -181,6 +183,13 @@ public class Scaling extends AbstractFunctionImpl {
             double sy = image.height() / height;
             var rescaled = ellipse.rescale(sx, sy);
             metadata.put(Ellipse.class, rescaled);
+        });
+        image.findMetadata(Redshifts.class).ifPresent(redshifts -> {
+            double sx = image.width() / width;
+            double sy = image.height() / height;
+            metadata.put(Redshifts.class, new Redshifts(redshifts.redshifts().stream()
+                .map(rs -> new RedshiftArea(rs.pixelShift(), rs.relPixelShift(), rs.kmPerSec(), (int) (rs.x1() / sx), (int) (rs.y1() / sy), (int) (rs.x2() / sx), (int) (rs.y2() / sy), (int) (rs.maxX() / sx), (int) (rs.maxY() / sy)))
+                .toList()));
         });
         return metadata;
     }

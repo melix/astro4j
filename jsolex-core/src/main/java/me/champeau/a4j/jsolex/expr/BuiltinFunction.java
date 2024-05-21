@@ -37,6 +37,7 @@ public enum BuiltinFunction {
     DISK_FILL,
     DRAW_ARROW,
     DRAW_CIRCLE,
+    DRAW_RECT,
     DRAW_GLOBE,
     DRAW_OBS_DETAILS,
     DRAW_SOLAR_PARAMS,

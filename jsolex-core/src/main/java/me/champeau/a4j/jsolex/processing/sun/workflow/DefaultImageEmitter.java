@@ -21,7 +21,6 @@ import me.champeau.a4j.jsolex.processing.sun.tasks.WriteColorizedImageTask;
 import me.champeau.a4j.jsolex.processing.sun.tasks.WriteMonoImageTask;
 import me.champeau.a4j.jsolex.processing.sun.tasks.WriteRGBImageTask;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
-import me.champeau.a4j.jsolex.processing.util.MutableMap;
 import me.champeau.a4j.jsolex.processing.util.ProcessingException;
 
 import java.io.File;
@@ -29,6 +28,8 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
@@ -91,7 +92,7 @@ public class DefaultImageEmitter implements ImageEmitter {
     }
 
     @Override
-    public void newColorImage(GeneratedImageKind kind, String title, String name, ImageWrapper32 image, Function<float[], float[][]> rgbSupplier) {
+    public void newColorImage(GeneratedImageKind kind, String title, String name, ImageWrapper32 image, Function<ImageWrapper32, float[][]> rgbSupplier) {
         prepareOutput(name);
         storeMetadata(kind, title, name, image);
         new WriteColorizedImageTask(broadcaster,
@@ -104,11 +105,11 @@ public class DefaultImageEmitter implements ImageEmitter {
     }
 
     @Override
-    public void newColorImage(GeneratedImageKind kind, String title, String name, int width, int height, Supplier<float[][]> rgbSupplier) {
+    public void newColorImage(GeneratedImageKind kind, String title, String name, int width, int height, Map<Class<?>, Object> metadata, Supplier<float[][]> rgbSupplier) {
         prepareOutput(name);
         new WriteRGBImageTask(broadcaster,
             () -> {
-                var image = new ImageWrapper32(width, height, new float[0], MutableMap.of());
+                var image = new ImageWrapper32(width, height, new float[0], new HashMap<>(metadata));
                 storeMetadata(kind, title, name, image);
                 return image;
             },
