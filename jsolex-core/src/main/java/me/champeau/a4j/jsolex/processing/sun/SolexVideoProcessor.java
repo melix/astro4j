@@ -447,7 +447,7 @@ public class SolexVideoProcessor implements Broadcaster {
                         var h = rgb.height();
                         for (int x = redshift.y1(); x <= redshift.y2(); x++) {
                             for (int y = 0; y < h; y++) {
-                                var pos = offset + y * w + x;
+                                var pos = offset + y * w + (width - x - 1);
                                 rgb.r()[pos] = MAX_PIXEL_VALUE;
                                 rgb.g()[pos] = 0;
                                 rgb.b()[pos] = 0;
