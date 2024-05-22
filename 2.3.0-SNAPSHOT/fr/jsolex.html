@@ -490,8 +490,10 @@ body.book #toc,body.book #preamble,body.book h1.sect0,body.book .sect1>h2{page-b
 <li><a href="#_scripts_indépendants">Scripts indépendants</a></li>
 </ul>
 </li>
-<li><a href="#_mesures_avec_le_débogueur_de_spectre">Mesures avec le débogueur de spectre</a>
+<li><a href="#_mesures">Mesures</a>
 <ul class="sectlevel2">
+<li><a href="#_mesures_de_décalage_vers_le_rouge">Mesures de décalage vers le rouge</a></li>
+<li><a href="#_mesures_avec_le_débogueur_de_spectre">Mesures avec le débogueur de spectre</a></li>
 <li><a href="#_application_au_calcul_de_décalage_de_la_raie_hélium">Application au calcul de décalage de la raie hélium</a></li>
 </ul>
 </li>
@@ -1184,13 +1186,16 @@ Une variable spéciale nommée <code>angleP</code> contient la valeur calculée 
 <p><code>draw_solar_params</code> affiche sur l&#8217;image les paramètres solaires. Par exemple: <code>draw_solar_params(img(0))</code>. Par défaut, positionné en haut à droite. Il est possible de spéficier les coordonnées (x,y) où écrire : <code>draw_solar_params(img(0), 500, 100)</code>.</p>
 </li>
 <li>
-<p><code>draw_text</code> imprime du texte sur l&#8217;image. Cette fonction prend 3 arguments obligatoires : l&#8217;image, la position où imprimer le texte, le texte à écrire. Par exemple : <code>draw_text(img(0), "Hello World", 100, 100)</code>. Elle accepte également 2 paramètres optionnels : la taille de la police et la couleur. Par exemple : <code>draw_text(img(0), "Hello World", 100, 100, 24, "ff0000")</code>. La couleur est une valeur hexadécimale RGB. NOTE : si vous spécifiez une couleur, alors l&#8217;image sera automatiquement convertie en RGB. Si le texte est entouré de <code>*</code> alors il sera imprimé en gras. Par exemple, <code>draw_text(img(0), "\*Hello World\*", 100, 100)</code>. Si le texte est entouré de <code>_</code> alors il sera imprimé en italique. Par exemple, <code>draw_text(img(0), "\_Hello World\_", 100, 100)</code>.</p>
+<p><code>draw_text</code> imprime du texte sur l&#8217;image. Cette fonction prend 3 arguments obligatoires : l&#8217;image, la position où imprimer le texte, le texte à écrire. Par exemple : <code>draw_text(img(0), 100, 100, "Hello World")</code>. Elle accepte également 2 paramètres optionnels : la taille de la police et la couleur. Par exemple : <code>draw_text(img(0), 100, 100, "Hello World", 24, "ff0000")</code>. La couleur est une valeur hexadécimale RGB. NOTE : si vous spécifiez une couleur, alors l&#8217;image sera automatiquement convertie en RGB. Si le texte est entouré de <code>*</code> alors il sera imprimé en gras. Par exemple, <code>draw_text(img(0), 100, 100, "\*Hello World\*")</code>. Si le texte est entouré de <code>_</code> alors il sera imprimé en italique. Par exemple, <code>draw_text(img(0), 100, 100, "\_Hello World\_")</code>.</p>
 </li>
 <li>
 <p><code>draw_arrow</code> dessine une flèche sur l&#8217;image. Cette fonction prend 5 arguments obligatoires : l&#8217;image, les points de départ et d&#8217;arrivée de la flèche. Par exemple : <code>draw_arrow(img(0), 100, 100, 200, 200)</code>. Elle accepte également 2 paramètres optionnels : l&#8217;épaisseur de la flèche et la couleur. Par exemple : <code>draw_arrow(img(0), 100, 100, 200, 200, 2, "ff0000")</code>. La couleur est une valeur hexadécimale RGB. NOTE : si vous spécifiez une couleur, alors l&#8217;image sera automatiquement convertie en RGB.</p>
 </li>
 <li>
 <p><code>draw_circle</code> dessine un cercle sur l&#8217;image. Cette fonction prend 4 arguments obligatoires : l&#8217;image, le centre du cercle et le rayon. Par exemple : <code>draw_circle(img(0), 100, 100, 50)</code>. Elle accepte également 2 paramètres optionnels : l&#8217;épaisseur du cercle et la couleur. Par exemple : <code>draw_circle(img(0), 100, 100, 50, 2, "ff0000")</code>. La couleur est une valeur hexadécimale RGB. NOTE : si vous spécifiez une couleur, alors l&#8217;image sera automatiquement convertie en RGB.</p>
+</li>
+<li>
+<p><code>draw_rect</code> dessine un rectangle sur l&#8217;image. Cette fonction prend 5 arguments obligatoires : l&#8217;image, les coordonnées du coin supérieur gauche, la largeur et la hauteur. Par exemple : <code>draw_rect(img(0), 100, 100, 200, 200)</code>. Elle accepte également 2 paramètres optionnels : l&#8217;épaisseur du rectangle et la couleur. Par exemple : <code>draw_rect(img(0), 100, 100, 200, 200, 2, "ff0000")</code>. La couleur est une valeur hexadécimale RGB. NOTE : si vous spécifiez une couleur, alors l&#8217;image sera automatiquement convertie en RGB.</p>
 </li>
 </ul>
 </div>
@@ -1480,8 +1485,60 @@ Si vous utilisez ce mode, il est important de charger des images enregistrées a
 </div>
 </div>
 <div class="sect1">
-<h2 id="_mesures_avec_le_débogueur_de_spectre">Mesures avec le débogueur de spectre</h2>
+<h2 id="_mesures">Mesures</h2>
 <div class="sectionbody">
+<div class="sect2">
+<h3 id="_mesures_de_décalage_vers_le_rouge">Mesures de décalage vers le rouge</h3>
+<div class="paragraph">
+<p>Si vous traitez une image H-alpha, JSol&#8217;Ex peut automatiquement rechercher dans l&#8217;image des régions où le <em>redshift</em> (décalage vers le rouge ou vers le bleu) est particulièrement fort.</p>
+</div>
+<div class="paragraph">
+<p>Pour se faire, vous devez soit sélectionner le mode "complet" lors du traitement, soit cocher la case "Mesures de décalage vers le rouge" dans la sélection personnalisée des images.</p>
+</div>
+<div class="paragraph">
+<p>Les mesures ne seront valides <strong>que</strong> si la taille des pixels renseignée est correcte <strong>et</strong> que vous utilisez un Sol&#8217;Ex (d&#8217;autres spectrohéliographes ont des focales différentes).</p>
+</div>
+<div class="paragraph">
+<p>Lors du traitement, une image supplémentaire sera générée avec les régions entourées en rouge et la vitesse associée.</p>
+</div>
+<div class="paragraph">
+<p>De plus, si vous sélectionnez les images de débug, les parties du spectre ayant permis de trouver ces régions seront affichées.</p>
+</div>
+<div class="paragraph">
+<p>Enfin, une fois la détection effectuée, il vous est possible de générer 2 nouveaux types de rendus, en vous rendant sur l&#8217;onglet "Redshift":</p>
+</div>
+<div class="imageblock">
+<div class="content">
+<img src="redshift-tab.jpg" alt="redshift tab">
+</div>
+</div>
+<div class="paragraph">
+<p>La taille correspond à la taille minimale de la région à capturer, en pixels.
+Une petite région sera centrée autour du filament détecté, mais pourra être assez pixelisée selon les cas.
+La marge permet de choisir combien, en décalage de pixels, prendre de marge par rapport à ce qu&#8217;a détecté JSol&#8217;Ex.
+Par exemple, JSol&#8217;Ex peut trouver un décalage maximum de 20 pixels, mais vous pouvez souhaiter ajouter 2 ou 4 pixels de marge pour une animation et bien voir apparaître le filament.</p>
+</div>
+<div class="paragraph">
+<p>Enfin, sélectionnez le type de rendu :</p>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p>Animation : génère une vidéo dont chaque image est décalée de 0.25 pixels</p>
+</li>
+<li>
+<p>Panneau : génère une seule image, un panneau où chaque case correspond à un décalage de pixels différent</p>
+</li>
+</ul>
+</div>
+<div class="imageblock">
+<div class="content">
+<img src="pixel-shift-panel.jpg" alt="Example of panel">
+</div>
+</div>
+</div>
+<div class="sect2">
+<h3 id="_mesures_avec_le_débogueur_de_spectre">Mesures avec le débogueur de spectre</h3>
 <div class="paragraph">
 <p>JSol&#8217;Ex propose un outil permettant de visualiser la détection des lignes spectrales sur une vidéo.
 Cet outil peut être utilisé pour trouver, par exemple, le décalage de pixels à appliquer pour trouver la raie hélium.</p>
@@ -1521,6 +1578,7 @@ Sous la ligne violette s&#8217;affiche une image <em>corrigée en fonction du po
 <p>le slider "contraste" permet d&#8217;augmenter le contraste et la luminosité de l&#8217;image (transformation arcsin hyperbolique)</p>
 </li>
 </ul>
+</div>
 </div>
 <div class="sect2">
 <h3 id="_application_au_calcul_de_décalage_de_la_raie_hélium">Application au calcul de décalage de la raie hélium</h3>
