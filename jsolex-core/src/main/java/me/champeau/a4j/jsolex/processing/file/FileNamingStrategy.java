@@ -38,6 +38,7 @@ public class FileNamingStrategy {
             new NamedPattern(message("template.default"), DEFAULT_TEMPLATE, DEFAULT_DATETIME_FORMAT, DEFAULT_DATE_FORMAT),
             new NamedPattern(message("template.same.directory"), SAME_DIRECTORY, DEFAULT_DATETIME_FORMAT, DEFAULT_DATE_FORMAT)
     );
+    private static final Pattern CATEGORY_PATTERN = Pattern.compile("^(.*?)(?:-\\d+)?$");
 
     private final String pattern;
     private final String dateTimeFormat;
@@ -67,6 +68,13 @@ public class FileNamingStrategy {
                 case BASENAME -> serFileBasename;
                 case KIND -> imageKind;
                 case LABEL -> imageLabel;
+                case CATEGORY -> {
+                    var m = CATEGORY_PATTERN.matcher(imageLabel);
+                    if (m.find()) {
+                        yield m.group(1);
+                    }
+                    yield imageLabel;
+                }
                 case CURRENT_DATETIME -> processingDate.atZone(ZoneId.of("UTC")).format(DateTimeFormatter.ofPattern(dateTimeFormat)).replace(':','-');
                 case CURRENT_DATE -> processingDate.atZone(ZoneId.of("UTC")).format(DateTimeFormatter.ofPattern(dateFormat));
                 case VIDEO_DATE -> serHeader.metadata().utcDateTime().format(DateTimeFormatter.ofPattern(dateFormat));

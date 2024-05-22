@@ -23,6 +23,8 @@ Si la raie étudiée est l'hydrogène alpha, JSol'Ex analysera automatiquement l
 Le logiciel calculera automatiquement la vitesse associée au décalage et l'affichera dans la fenêtre de log.
 De plus, il générera une image qui montre où les vitesses les plus élevées ont été détectées.
 Si vous activez les images de débogage, il extraira également des images du fichier SER où les événements de vitesse maximale ont été détectés afin que vous puissiez vérifier si les mesures sont correctes.
+Enfin, une fois le traitement terminé, un nouvel onglet nommé "Redshit" sera activé.
+Si vous cliquez dessus, il vous permettra de générer des animations ou des panneaux d'images des régions où les vitesses ont été détectées !
 
 ## Lecture des métadonnées Sharpcap et Firecapture
 

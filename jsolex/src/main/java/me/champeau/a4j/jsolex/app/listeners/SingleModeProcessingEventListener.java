@@ -334,7 +334,7 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
     public void onFileGenerated(FileGeneratedEvent event) {
         var filePath = event.getPayload().path();
         if (filePath.toFile().getName().endsWith(".mp4")) {
-            BatchOperations.submit(() -> owner.getImagesViewer().addVideo(event.getPayload().title(), filePath));
+            BatchOperations.submit(() -> owner.getImagesViewer().addVideo(event.getPayload().kind(), event.getPayload().title(), filePath));
         }
     }
 
@@ -370,6 +370,7 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
     public void onProcessingStart(ProcessingStartEvent e) {
         var payload = e.getPayload();
         sd = payload.timestamp();
+        owner.getRedshiftTab().setDisable(true);
     }
 
     @Override
@@ -403,6 +404,24 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
             owner.updateProgress(1.0, finishedString);
             System.gc();
         });
+        var redshifts = payload.redshifts();
+        var polynomial = payload.polynomial();
+        var averageImage = payload.averageImage();
+        var processParams = payload.processParams();
+        owner.prepareForRedshiftImages(new RedshiftImagesProcessor(
+            shiftImages,
+            processParams,
+            serFile,
+            outputDirectory,
+            owner,
+            width,
+            height,
+            this,
+            imageEmitter,
+            redshifts,
+            polynomial,
+            averageImage
+        ));
     }
 
     private Map<Class, Object> prepareExecutionContext(ProcessingDoneEvent.Outcome payload) {

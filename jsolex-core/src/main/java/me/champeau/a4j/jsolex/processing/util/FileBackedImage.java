@@ -18,6 +18,7 @@ package me.champeau.a4j.jsolex.processing.util;
 import java.io.IOException;
 import java.io.RandomAccessFile;
 import java.lang.ref.Cleaner;
+import java.lang.ref.SoftReference;
 import java.nio.channels.FileChannel;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -45,13 +46,15 @@ public final class FileBackedImage implements ImageWrapper {
     private final Path backingFile;
     private final Map<Class<?>, Object> metadata;
     private final Object keptInMemory;
+    private final SoftReference<ImageWrapper> unwrapped;
 
-    private FileBackedImage(int width, int height, Path backingFile, Map<Class<?>, Object> metadata, Object keptInMemory) {
+    private FileBackedImage(int width, int height, Path backingFile, Map<Class<?>, Object> metadata, Object keptInMemory, ImageWrapper source) {
         this.width = width;
         this.height = height;
         this.backingFile = backingFile;
         this.metadata = metadata;
         this.keptInMemory = keptInMemory;
+        this.unwrapped = new SoftReference<>(source.unwrapToMemory());
         LOCK.lock();
         try {
             REF_COUNT.compute(backingFile, (k, v) -> v == null ? 1 : v + 1);
@@ -68,7 +71,9 @@ public final class FileBackedImage implements ImageWrapper {
         var width = wrapper.width();
         var height = wrapper.height();
         try {
-            var backingFile = Files.createTempFile("jsolex", ".img");
+            var tempDir = Path.of(System.getProperty("java.io.tmpdir")).resolve("jsolex");
+            Files.createDirectories(tempDir);
+            var backingFile = Files.createTempFile(tempDir, "jsolex", ".img");
             backingFile.toFile().deleteOnExit();
             try (var raf = new RandomAccessFile(backingFile.toFile(), "rw")) {
                 var channel = raf.getChannel();
@@ -78,7 +83,7 @@ public final class FileBackedImage implements ImageWrapper {
                     byteBuffer.put(MONO);
                     byteBuffer.putInt(data.length);
                     byteBuffer.asFloatBuffer().put(data);
-                    return new FileBackedImage(width, height, backingFile, mono.metadata(), null);
+                    return new FileBackedImage(width, height, backingFile, mono.metadata(), null, wrapper);
                 }
                 if (wrapper instanceof ColorizedImageWrapper colorized) {
                     var data = colorized.mono().data();
@@ -86,7 +91,7 @@ public final class FileBackedImage implements ImageWrapper {
                     byteBuffer.put(COLORIZED);
                     byteBuffer.putInt(data.length);
                     byteBuffer.asFloatBuffer().put(data);
-                    return new FileBackedImage(width, height, backingFile, colorized.metadata(), colorized.converter());
+                    return new FileBackedImage(width, height, backingFile, colorized.metadata(), colorized.converter(), wrapper);
                 }
                 if (wrapper instanceof RGBImage rgb) {
                     var r = rgb.r();
@@ -99,7 +104,7 @@ public final class FileBackedImage implements ImageWrapper {
                     floatBuffer.put(r);
                     floatBuffer.put(g);
                     floatBuffer.put(b);
-                    return new FileBackedImage(width, height, backingFile, rgb.metadata(), null);
+                    return new FileBackedImage(width, height, backingFile, rgb.metadata(), null, wrapper);
                 }
                 throw new ProcessingException("Unexpected image type " + wrapper);
             }
@@ -109,6 +114,10 @@ public final class FileBackedImage implements ImageWrapper {
     }
 
     public ImageWrapper unwrapToMemory() {
+        var cached = unwrapped.get();
+        if (cached != null) {
+            return cached;
+        }
         try (var raf = new RandomAccessFile(backingFile.toFile(), "r")) {
             var channel = raf.getChannel();
             var byteBuffer = channel.map(FileChannel.MapMode.READ_ONLY, 0, channel.size());
@@ -162,7 +171,7 @@ public final class FileBackedImage implements ImageWrapper {
 
     @Override
     public ImageWrapper copy() {
-        return new FileBackedImage(width, height, backingFile, new LinkedHashMap<>(metadata), keptInMemory);
+        return new FileBackedImage(width, height, backingFile, new LinkedHashMap<>(metadata), keptInMemory, this);
     }
 
     private static void clean(Path backingFile) {

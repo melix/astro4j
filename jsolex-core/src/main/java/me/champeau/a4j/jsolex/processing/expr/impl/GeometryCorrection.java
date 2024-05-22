@@ -79,7 +79,7 @@ public class GeometryCorrection extends AbstractFunctionImpl {
             null
         );
         try {
-            return task.get().corrected();
+            return (ImageWrapper32) task.get().corrected().unwrapToMemory();
         } catch (Exception e) {
             throw new ProcessingException(e);
         }

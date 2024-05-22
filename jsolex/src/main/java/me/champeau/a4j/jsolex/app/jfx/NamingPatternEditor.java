@@ -137,14 +137,16 @@ public class NamingPatternEditor {
 
     private void updateExampleText(Header header) {
         var namingStrategy = new FileNamingStrategy(pattern.getText(), datetimeFormat.getText(), dateFormat.getText(), LocalDateTime.now(), header);
-        example.setText(namingStrategy.render(24, Constants.TYPE_PROCESSED, "disk", "video_sun"));
+        example.setText(namingStrategy.render(24, Constants.TYPE_PROCESSED, "disk-1", "video_sun"));
     }
 
     private void prepareTokens() {
         var tokenList = tokens.getChildren();
         tokenList.add(new Label(I18N.string(JSolEx.class, "naming-patterns", "available.tokens")));
         for (Token e : Token.values()) {
-            tokenList.add(new Label(e.token() + " - " + I18N.string(JSolEx.class, "naming-patterns", "token_" + e.name())));
+            var tokenLabel = new Label(e.token() + " - " + I18N.string(JSolEx.class, "naming-patterns", "token_" + e.name()));
+            tokenLabel.setWrapText(true);
+            tokenList.add(tokenLabel);
         }
     }
 

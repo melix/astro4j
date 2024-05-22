@@ -46,4 +46,8 @@ public record RedshiftArea(
     public int height() {
         return y2 - y1;
     }
+
+    public double size() {
+        return Math.max(width(), height());
+    }
 }

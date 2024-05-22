@@ -244,8 +244,8 @@ public class FitsUtils {
                             binaryTable.getNumber(i, 8).intValue()
                         );
                         values.add(redshift);
-                        metadata.put(Redshifts.class, new Redshifts(values));
                     }
+                    metadata.put(Redshifts.class, new Redshifts(values));
                 }
             }
         }

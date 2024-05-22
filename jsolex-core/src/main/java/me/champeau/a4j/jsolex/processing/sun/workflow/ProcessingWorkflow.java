@@ -137,9 +137,9 @@ public class ProcessingWorkflow {
     }
 
     private Supplier<ImageWrapper32> imageSupplier(WorkflowResults step) {
-        return () -> state.findResult(step).map(r -> {
+        return () -> (ImageWrapper32) state.findResult(step).map(r -> {
             if (r instanceof GeometryCorrector.Result geo) {
-                return geo.corrected();
+                return geo.corrected().unwrapToMemory();
             }
             if (r instanceof ImageWrapper32 img) {
                 return img;
@@ -168,7 +168,7 @@ public class ProcessingWorkflow {
         Double ratio = geometryParams.xyRatio().isPresent() ? geometryParams.xyRatio().getAsDouble() : null;
         var g = new GeometryCorrector(broadcaster, imageSupplier(WorkflowResults.BANDING_CORRECTION), ellipse, forcedTilt, fps, ratio, blackPoint, processParams, debugImagesEmitter, state, header).get();
         var kind = GeneratedImageKind.GEOMETRY_CORRECTED;
-        var geometryFixed = g.corrected();
+        var geometryFixed = (ImageWrapper32) g.corrected().unwrapToMemory();
         if (state.pixelShift() == Constants.CONTINUUM_SHIFT) {
             kind = GeneratedImageKind.CONTINUUM;
         }
@@ -176,7 +176,7 @@ public class ProcessingWorkflow {
             processedImagesEmitter.newMonoImage(kind, message("disk"), "disk", geometryFixed);
         }
         g = performEnhancements(g);
-        var enhanced = g.enhanced();
+        var enhanced = (ImageWrapper32) g.enhanced().unwrapToMemory();
         state.recordResult(WorkflowResults.GEOMETRY_CORRECTION, g);
         if (state.isInternal()) {
             return;
@@ -264,7 +264,7 @@ public class ProcessingWorkflow {
     }
 
     private GeometryCorrector.Result performEnhancements(GeometryCorrector.Result g) {
-        var corrected = g.corrected();
+        var corrected = (ImageWrapper32) g.corrected().unwrapToMemory();
         var image = corrected.asImage();
         List<String> enhancements = new ArrayList<>();
         if (processParams.geometryParams().deconvolutionMode() == DeconvolutionMode.RICHARDSON_LUCY) {

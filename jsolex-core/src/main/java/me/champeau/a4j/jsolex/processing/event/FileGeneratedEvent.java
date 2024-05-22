@@ -15,6 +15,8 @@
  */
 package me.champeau.a4j.jsolex.processing.event;
 
+import me.champeau.a4j.jsolex.processing.sun.workflow.GeneratedImageKind;
+
 import java.nio.file.Path;
 
 public final class FileGeneratedEvent extends ProcessingEvent<FileGeneratedEvent.GeneratedFile> {
@@ -23,11 +25,11 @@ public final class FileGeneratedEvent extends ProcessingEvent<FileGeneratedEvent
         super(path);
     }
 
-    public static FileGeneratedEvent of(String title, Path path) {
-        return new FileGeneratedEvent(new GeneratedFile(title, path));
+    public static FileGeneratedEvent of(GeneratedImageKind kind, String title, Path path) {
+        return new FileGeneratedEvent(new GeneratedFile(kind, title, path));
     }
 
-    public record GeneratedFile(String title, Path path) {
+    public record GeneratedFile(GeneratedImageKind kind, String title, Path path) {
 
     }
 }

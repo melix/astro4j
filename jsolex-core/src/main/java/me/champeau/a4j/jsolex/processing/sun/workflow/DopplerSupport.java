@@ -49,8 +49,8 @@ public class DopplerSupport {
         var second = states.stream().filter(s -> s.pixelShift() == -lookupShift).findFirst();
         first.ifPresent(s1 -> second.ifPresent(s2 -> {
             s1.findResult(WorkflowResults.GEOMETRY_CORRECTION).ifPresent(i1 -> s2.findResult(WorkflowResults.GEOMETRY_CORRECTION).ifPresent(i2 -> {
-                var grey1 = ((GeometryCorrector.Result) i1).corrected();
-                var grey2 = ((GeometryCorrector.Result) i2).corrected();
+                var grey1 = (ImageWrapper32) ((GeometryCorrector.Result) i1).corrected().unwrapToMemory();
+                var grey2 = (ImageWrapper32) ((GeometryCorrector.Result) i2).corrected().unwrapToMemory();
                 var width = grey1.width();
                 var height = grey1.height();
                 var metadata = new HashMap<>(grey1.metadata());

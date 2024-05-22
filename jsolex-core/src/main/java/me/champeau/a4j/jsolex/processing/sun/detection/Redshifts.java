@@ -20,4 +20,9 @@ import java.util.List;
 public record Redshifts(
     List<RedshiftArea> redshifts
 ) {
+    public Redshifts {
+        if (redshifts == null) {
+            throw new NullPointerException("Redshifts cannot be null");
+        }
+    }
 }

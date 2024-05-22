@@ -157,9 +157,9 @@ public class MultipleImagesViewer extends Pane {
         }
     }
 
-    public MediaPlayer addVideo(String title,
+    public MediaPlayer addVideo(GeneratedImageKind kind, String title,
                                 Path filePath) {
-        var category = getOrCreateCategory(GeneratedImageKind.IMAGE_MATH);
+        var category = getOrCreateCategory(kind);
         var media = new Media(filePath.toUri().toString());
         var mediaPlayer = new MediaPlayer(media);
         var viewer = new MediaView(mediaPlayer);

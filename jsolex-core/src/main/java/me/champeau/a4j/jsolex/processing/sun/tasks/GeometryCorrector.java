@@ -24,6 +24,8 @@ import me.champeau.a4j.jsolex.processing.sun.detection.RedshiftArea;
 import me.champeau.a4j.jsolex.processing.sun.detection.Redshifts;
 import me.champeau.a4j.jsolex.processing.sun.workflow.ImageEmitter;
 import me.champeau.a4j.jsolex.processing.sun.workflow.TransformationHistory;
+import me.champeau.a4j.jsolex.processing.util.FileBackedImage;
+import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 import me.champeau.a4j.jsolex.processing.util.MutableMap;
 import me.champeau.a4j.math.Point2D;
@@ -122,7 +124,9 @@ public class GeometryCorrector extends AbstractTask<GeometryCorrector.Result> {
         }
         double sx;
         double sy = Math.abs((a * b * Math.sqrt((a * a * m * m + b * b) / (a * a * sin * sin + b * b * cos * cos)) / (b * b * cos - a * a * m * sin)));
-        LOGGER.info(message("detected.xy.ratio"), String.format("%.2f", sy));
+        if (xyRatio == null) {
+            LOGGER.info(message("detected.xy.ratio"), String.format("%.2f", sy));
+        }
         if (xyRatio != null) {
             sy = xyRatio;
         }
@@ -181,7 +185,8 @@ public class GeometryCorrector extends AbstractTask<GeometryCorrector.Result> {
             TransformationHistory.recordTransform(corrected, message("autocrop"));
         }
         broadcaster.broadcast(ProgressEvent.of(1, message("correcting.geometry")));
-        return new Result(corrected, corrected, ellipse, corrected.findMetadata(Ellipse.class).orElse(circle), blackPoint);
+        var wrapped = FileBackedImage.wrap(corrected);
+        return new Result(wrapped, wrapped, ellipse, corrected.findMetadata(Ellipse.class).orElse(circle), blackPoint);
     }
 
     /**
@@ -214,14 +219,14 @@ public class GeometryCorrector extends AbstractTask<GeometryCorrector.Result> {
     }
 
     public record Result(
-        ImageWrapper32 corrected,
-        ImageWrapper32 enhanced,
+        ImageWrapper corrected,
+        ImageWrapper enhanced,
         Ellipse originalEllipse,
         Ellipse correctedCircle,
         float blackpoint
     ) {
         public Result withEnhanced(ImageWrapper32 enhanced) {
-            return new Result(corrected, enhanced, originalEllipse, correctedCircle, blackpoint);
+            return new Result(FileBackedImage.wrap(corrected), FileBackedImage.wrap(enhanced), originalEllipse, correctedCircle, blackpoint);
         }
     }
 }

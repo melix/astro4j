@@ -82,10 +82,10 @@ import org.slf4j.LoggerFactory;
 import java.io.File;
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -97,6 +97,7 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.Executors;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.DoubleUnaryOperator;
@@ -119,6 +120,9 @@ public class SolexVideoProcessor implements Broadcaster {
     private final Path outputDirectory;
     private ProcessParams processParams;
     private boolean binningIsReliable;
+    private Redshifts redshifts;
+    private DoubleUnaryOperator polynomial;
+    private float[] averageImage;
 
     public SolexVideoProcessor(File serFile, Path outputDirectory, int sequenceNumber, ProcessParams processParametersProvider, LocalDateTime processingDate, boolean batchMode) {
         this.serFile = serFile;
@@ -127,6 +131,22 @@ public class SolexVideoProcessor implements Broadcaster {
         this.processParams = processParametersProvider;
         this.processingDate = processingDate;
         this.batchMode = batchMode;
+    }
+
+    public void setAverageImage(float[] averageImage) {
+        this.averageImage = averageImage;
+    }
+
+    public void setPolynomial(DoubleUnaryOperator polynomial) {
+        this.polynomial = polynomial;
+    }
+
+    public Redshifts getRedshifts() {
+        return redshifts;
+    }
+
+    public void setRedshifts(Redshifts redshifts) {
+        this.redshifts = redshifts;
     }
 
     public void addEventListener(ProcessingEventListener listener) {
@@ -162,7 +182,9 @@ public class SolexVideoProcessor implements Broadcaster {
                 LOGGER.info(message("solar.parameters"), SolarParametersUtils.computeSolarParams(dateTime));
                 LOGGER.info(message("computing.average.image.limb.detect"));
                 // We use the IO executor to make sure we only read as single SER file at a time
-                detector.detectEdges(reader);
+                if (averageImage == null) {
+                    detector.detectEdges(reader);
+                }
                 frameCountRef.set(frameCount);
                 headerRef.set(header);
                 fpsRef.set(reader.estimateFps().orElse(null));
@@ -172,13 +194,15 @@ public class SolexVideoProcessor implements Broadcaster {
         });
         var header = headerRef.get();
         if (header != null) {
-            var averageImage = detector.getAverageImage();
-            detector.ifEdgesDetected((start, end) -> {
-                LOGGER.info(message("sun.edges.detected"), start, end);
-            }, () -> {
-                LOGGER.info(message("sun.edges.detected.full"));
-            });
-            generateImages(converter, header, fpsRef.get(), serFile, 0, frameCountRef.get() - 1, averageImage);
+            if (averageImage == null) {
+                averageImage = detector.getAverageImage();
+                detector.ifEdgesDetected((start, end) -> {
+                    LOGGER.info(message("sun.edges.detected"), start, end);
+                }, () -> {
+                    LOGGER.info(message("sun.edges.detected.full"));
+                });
+            }
+            generateImages(converter, header, fpsRef.get(), serFile, 0, frameCountRef.get() - 1);
         }
     }
 
@@ -206,7 +230,7 @@ public class SolexVideoProcessor implements Broadcaster {
         broadcast(new NotificationEvent(new Notification(Notification.AlertType.ERROR, message("unexpected.error"), message("error.during.processing"), trace)));
     }
 
-    private void generateImages(ImageConverter<float[]> converter, Header header, Double fps, File serFile, int start, int end, float[] averageImage) {
+    private void generateImages(ImageConverter<float[]> converter, Header header, Double fps, File serFile, int start, int end) {
         List<WorkflowState> imageList = new ArrayList<>();
         var imageNamingStrategy = new FileNamingStrategy(processParams.extraParams().fileNamePattern(), processParams.extraParams().datetimeFormat(), processParams.extraParams().dateFormat(), processingDate, header);
         var baseName = serFile.getName().substring(0, serFile.getName().lastIndexOf("."));
@@ -224,7 +248,12 @@ public class SolexVideoProcessor implements Broadcaster {
                 }
             }
         }
-        var maybePolynomial = findPolynomial(width, height, averageImage, imageNamingStrategy);
+        long imageSizeInBytes = width * newHeight * 4L * 3;
+        long maxMemory = Runtime.getRuntime().maxMemory();
+        int batchSize = (int) (Math.ceil(maxMemory / (1.5d * imageSizeInBytes)));
+        checkAvailableDiskSpace(imageList, imageSizeInBytes);
+
+        var maybePolynomial = Optional.ofNullable(polynomial).or(() -> findPolynomial(width, height, averageImage, imageNamingStrategy));
         if (maybePolynomial.isPresent()) {
             var polynomial = maybePolynomial.get();
             var avgImage = new Image(width, height, averageImage);
@@ -261,22 +290,34 @@ public class SolexVideoProcessor implements Broadcaster {
                 processParams = processParams.withObservationDetails(obsDetails.withBinning(bestMatch.binning()));
             }
             broadcast(new AverageImageComputedEvent(new AverageImageComputedEvent.AverageImage(avgImage, polynomial, leftBorder, rightBorder, processParams.spectrumParams().ray(), processParams.observationDetails())));
-            var redshifts = new AtomicReference<Redshifts>();
+            LOGGER.info(message("starting.reconstruction"));
+            LOGGER.info(message("distortion.polynomial"), polynomial);
             BackgroundOperations.exclusiveIO(() -> {
-                try (var reader = SerFileReader.of(serFile)) {
-                    var outputs = performImageReconstruction(converter, reader, start, end, geometry, width, height, polynomial, imageList.toArray(new WorkflowState[0]));
-                    maybeProduceRedshiftDetectionDebugImages(outputs.redshifts, width, height, reader, converter, geometry, polynomial, imageNamingStrategy, baseName);
-                    redshifts.set(new Redshifts(outputs.redshifts));
-                } catch (Exception e) {
-                    throw new ProcessingException(e);
+                List<List<WorkflowState>> batches = batches(imageList, batchSize);
+                if (batches.size() > 1) {
+                    LOGGER.info(message("reconstruction.batches"), batches.size(), batchSize);
+                }
+                for (var batch : batches) {
+                    try (var reader = SerFileReader.of(serFile)) {
+                        var outputs = performImageReconstruction(converter, reader, start, end, geometry, width, height, polynomial, batch.toArray(new WorkflowState[0]));
+                        maybeProduceRedshiftDetectionDebugImages(outputs.redshifts, width, height, reader, converter, geometry, polynomial, imageNamingStrategy, baseName);
+                        if (redshifts == null && outputs.redshifts != null) {
+                            redshifts = new Redshifts(outputs.redshifts);
+                        }
+                    } catch (Exception e) {
+                        throw new ProcessingException(e);
+                    }
                 }
             });
+            LOGGER.info(message("processing.done.generate.images"));
             imageList.stream().parallel().forEach(state -> {
                 ImageWrapper32 rotated;
-                var recon = new Image(width, newHeight, state.reconstructed());
+                var recon = state.reconstructed().asImage();
                 var rotateLeft = ImageMath.newInstance().rotateLeft(recon);
                 var metadata = new HashMap<>(createMetadata(processParams));
-                metadata.put(Redshifts.class, redshifts.get());
+                if (redshifts != null) {
+                    metadata.put(Redshifts.class, redshifts);
+                }
                 rotated = ImageWrapper32.fromImage(rotateLeft, metadata);
                 TransformationHistory.recordTransform(rotated, message("rotate.left"));
                 maybePerformFlips(rotated);
@@ -327,10 +368,54 @@ public class SolexVideoProcessor implements Broadcaster {
                 imageStats = new ImageStats(geo.blackpoint());
             } else {
                 Map<Class<?>, Object> metadata = ellipse != null ? MutableMap.of(Ellipse.class, ellipse) : MutableMap.of();
-                images.put(workflowState.pixelShift(), FileBackedImage.wrap(new ImageWrapper32(workflowState.width(), workflowState.height(), workflowState.reconstructed(), metadata)));
+                images.put(workflowState.pixelShift(), new ImageWrapper32(workflowState.width(), workflowState.height(), workflowState.reconstructed().data(), metadata).wrap());
             }
         }
-        broadcast(ProcessingDoneEvent.of(System.nanoTime(), images, createCustomImageEmitter(imageNamingStrategy, baseName), ellipse, imageStats));
+        broadcast(ProcessingDoneEvent.of(System.nanoTime(),
+            images,
+            createCustomImageEmitter(imageNamingStrategy, baseName),
+            ellipse,
+            imageStats,
+            redshifts == null ? Collections.emptyList() : redshifts.redshifts(),
+            polynomial,
+            averageImage,
+            processParams
+        ));
+    }
+
+    private static void checkAvailableDiskSpace(List<WorkflowState> imageList, long imageSizeInBytes) {
+        var requiredDiskSpaceBytes = (imageList.size() * 1.5 * imageSizeInBytes);
+        var requiredDiskSpace = requiredDiskSpaceBytes / 1024 / 1024;
+        String unit = "MB";
+        if (requiredDiskSpace > 1024) {
+            unit = "GB";
+            requiredDiskSpace /= 1024;
+        }
+        LOGGER.info(message("processing.disk.requirements"), String.format("%.2f", requiredDiskSpace), unit);
+        try {
+            var path = Path.of(System.getProperty("java.io.tmpdir"));
+            var freespace = Files.getFileStore(path)
+                .getUsableSpace();
+            if (freespace < requiredDiskSpace) {
+                throw new ProcessingException(String.format(message("not.enough.disk.space"), path, String.format("%.2f", requiredDiskSpace), unit));
+            }
+        } catch (IOException ex) {
+            // ignore
+        }
+    }
+
+    public static <T> List<List<T>> batches(List<T> source, int length) {
+        if (length <= 0) {
+            return List.of(source);
+        }
+        int size = source.size();
+        if (size == 0) {
+            return List.of();
+        }
+        int fullChunks = (size - 1) / length;
+        return IntStream.range(0, fullChunks + 1)
+            .mapToObj(n -> source.subList(n * length, n == fullChunks ? size : (n + 1) * length))
+            .toList();
     }
 
     private void maybeProduceRedshiftDetectionDebugImages(List<RedshiftArea> redshifts,
@@ -342,7 +427,7 @@ public class SolexVideoProcessor implements Broadcaster {
                                                           DoubleUnaryOperator polynomial,
                                                           FileNamingStrategy fileNamingStrategy,
                                                           String baseName) {
-        if (!redshifts.isEmpty()) {
+        if (redshifts != null && !redshifts.isEmpty()) {
             var analyzer = new SpectrumFrameAnalyzer(
                 width,
                 height,
@@ -392,7 +477,7 @@ public class SolexVideoProcessor implements Broadcaster {
 
     private void generateImageMaths(FileNamingStrategy imageNamingStrategy, String baseName, List<WorkflowState> imageList, ImageMathParams mathImages) {
         if (!mathImages.scriptFiles().isEmpty()) {
-            var images = new HashMap<Double, ImageWrapper32>();
+            var images = new HashMap<Double, ImageWrapper>();
             Ellipse ellipse = null;
             ImageStats imageStats = null;
             for (WorkflowState workflowState : imageList) {
@@ -407,7 +492,7 @@ public class SolexVideoProcessor implements Broadcaster {
                     }
                 } else {
                     Map<Class<?>, Object> metadata = ellipse != null ? MutableMap.of(Ellipse.class, ellipse) : MutableMap.of();
-                    images.put(workflowState.pixelShift(), new ImageWrapper32(workflowState.width(), workflowState.height(), workflowState.reconstructed(), metadata));
+                    images.put(workflowState.pixelShift(), new ImageWrapper32(workflowState.width(), workflowState.height(), workflowState.reconstructed().data(), metadata).wrap());
                 }
             }
             var emitter = createCustomImageEmitter(imageNamingStrategy, baseName);
@@ -533,15 +618,14 @@ public class SolexVideoProcessor implements Broadcaster {
     }
 
     private ReconstructionOutputs performImageReconstruction(ImageConverter<float[]> converter, SerFileReader reader, int start, int end, ImageGeometry geometry, int width, int height, DoubleUnaryOperator polynomial, WorkflowState... images) {
-        LOGGER.info(message("starting.reconstruction"));
-        reader.seekFrame(start);
-        LOGGER.info(message("distortion.polynomial"), polynomial);
         reader.seekFrame(start);
         int totalLines = end - start;
         var lambda0 = processParams.spectrumParams().ray().wavelength();
         var dispersion = SpectrumAnalyzer.computeSpectralDispersion(lambda0, processParams.observationDetails().pixelSize() * processParams.observationDetails().binning());
         var phenomenaDetector = new PhenomenaDetector(dispersion, lambda0, width, totalLines);
+        AtomicBoolean hasRedshifts = new AtomicBoolean();
         try (var executor = Executors.newFixedThreadPool(16)) {
+            var reconstructedImages = new float[images.length][];
             for (int i = start, j = 0; i < end; i++, j += width) {
                 var currentFrame = reader.currentFrame().data().array();
                 byte[] copy = new byte[currentFrame.length];
@@ -553,18 +637,28 @@ public class SolexVideoProcessor implements Broadcaster {
                 executor.submit(() -> {
                     // The converter makes sure we only have a single channel
                     converter.convert(frameId, ByteBuffer.wrap(copy), geometry, original);
-                    Arrays.stream(images).parallel().forEach(state -> {
-                        processSingleFrame(state.isInternal(), width, height, state.reconstructed(), offset, original, polynomial, state.pixelShift(), totalLines);
+                    IntStream.range(0, images.length).parallel().forEach(idx -> {
+                            var state = images[idx];
+                            var buffer = reconstructedImages[idx];
+                            if (buffer == null) {
+                                buffer = new float[width * totalLines];
+                                reconstructedImages[idx] = buffer;
+                            }
+                            processSingleFrame(state.isInternal(), width, height, buffer, offset, original, polynomial, state.pixelShift(), totalLines);
                             if (state.pixelShift() == 0 && processParams.spectrumParams().ray() == SpectralRay.H_ALPHA && processParams.requestedImages().isEnabled(GeneratedImageKind.REDSHIFT)) {
                                 phenomenaDetector.performDetection(frameId, width, height, original, polynomial, dispersion);
+                                hasRedshifts.set(true);
                             }
                         }
                     );
                 });
             }
+            for (int i = 0; i < images.length; i++) {
+                var state = images[i];
+                state.recordResult(WorkflowResults.RECONSTRUCTED, new ImageWrapper32(width, totalLines, reconstructedImages[i], MutableMap.of()));
+            }
         }
-        LOGGER.info(message("processing.done.generate.images"));
-        return new ReconstructionOutputs(phenomenaDetector.getMaxRedshiftAreas(5));
+        return new ReconstructionOutputs(hasRedshifts.get() ? phenomenaDetector.getMaxRedshiftAreas(5) : null);
     }
 
     private Optional<DoubleUnaryOperator> findPolynomial(int width, int height, float[] averageImage, FileNamingStrategy imageNamingStrategy) {

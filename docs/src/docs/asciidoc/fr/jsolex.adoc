@@ -468,7 +468,37 @@ La principale différence dans ce mode est que les images doivent être chargée
 
 IMPORTANT: Si vous utilisez ce mode, il est important de charger des images enregistrées au format FITS. En effet, ces images contiennent des métadonnées telles que les ellipses détectées, les paramètres de traitement, etc. qui permettent de faire les mêmes traitements avec des images enregistrées sur disque que ceux obtenus dans une session de traitement classique.
 
-== Mesures avec le débogueur de spectre
+== Mesures
+
+=== Mesures de décalage vers le rouge
+
+Si vous traitez une image H-alpha, JSol'Ex peut automatiquement rechercher dans l'image des régions où le _redshift_ (décalage vers le rouge ou vers le bleu) est particulièrement fort.
+
+Pour se faire, vous devez soit sélectionner le mode "complet" lors du traitement, soit cocher la case "Mesures de décalage vers le rouge" dans la sélection personnalisée des images.
+
+Les mesures ne seront valides **que** si la taille des pixels renseignée est correcte **et** que vous utilisez un Sol'Ex (d'autres spectrohéliographes ont des focales différentes).
+
+Lors du traitement, une image supplémentaire sera générée avec les régions entourées en rouge et la vitesse associée.
+
+De plus, si vous sélectionnez les images de débug, les parties du spectre ayant permis de trouver ces régions seront affichées.
+
+Enfin, une fois la détection effectuée, il vous est possible de générer 2 nouveaux types de rendus, en vous rendant sur l'onglet "Redshift":
+
+image::redshift-tab.jpg[]
+
+La taille correspond à la taille minimale de la région à capturer, en pixels.
+Une petite région sera centrée autour du filament détecté, mais pourra être assez pixelisée selon les cas.
+La marge permet de choisir combien, en décalage de pixels, prendre de marge par rapport à ce qu'a détecté JSol'Ex.
+Par exemple, JSol'Ex peut trouver un décalage maximum de 20 pixels, mais vous pouvez souhaiter ajouter 2 ou 4 pixels de marge pour une animation et bien voir apparaître le filament.
+
+Enfin, sélectionnez le type de rendu :
+
+- Animation : génère une vidéo dont chaque image est décalée de 0.25 pixels
+- Panneau : génère une seule image, un panneau où chaque case correspond à un décalage de pixels différent
+
+image::pixel-shift-panel.jpg["Example of panel"]
+
+=== Mesures avec le débogueur de spectre
 
 JSol'Ex propose un outil permettant de visualiser la détection des lignes spectrales sur une vidéo.
 Cet outil peut être utilisé pour trouver, par exemple, le décalage de pixels à appliquer pour trouver la raie hélium.

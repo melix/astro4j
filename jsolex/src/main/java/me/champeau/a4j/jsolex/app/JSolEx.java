@@ -25,7 +25,6 @@ import javafx.beans.property.SimpleDoubleProperty;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.collections.FXCollections;
 import javafx.collections.ListChangeListener;
-import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
 import javafx.scene.Node;
 import javafx.scene.Parent;
@@ -34,6 +33,7 @@ import javafx.scene.control.Alert;
 import javafx.scene.control.Button;
 import javafx.scene.control.ButtonType;
 import javafx.scene.control.CheckBox;
+import javafx.scene.control.ChoiceBox;
 import javafx.scene.control.Hyperlink;
 import javafx.scene.control.Label;
 import javafx.scene.control.Menu;
@@ -46,6 +46,8 @@ import javafx.scene.control.TableCell;
 import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableView;
 import javafx.scene.control.TextArea;
+import javafx.scene.control.TextField;
+import javafx.scene.control.TextFormatter;
 import javafx.scene.image.Image;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
@@ -55,6 +57,8 @@ import javafx.stage.Modality;
 import javafx.stage.Stage;
 import javafx.util.Callback;
 import javafx.util.Duration;
+import javafx.util.StringConverter;
+import javafx.util.converter.IntegerStringConverter;
 import me.champeau.a4j.jsolex.app.jfx.BatchItem;
 import me.champeau.a4j.jsolex.app.jfx.BatchOperations;
 import me.champeau.a4j.jsolex.app.jfx.DocsHelper;
@@ -74,6 +78,7 @@ import me.champeau.a4j.jsolex.app.jfx.stacking.StackingAndMosaicController;
 import me.champeau.a4j.jsolex.app.listeners.BatchModeEventListener;
 import me.champeau.a4j.jsolex.app.listeners.BatchProcessingContext;
 import me.champeau.a4j.jsolex.app.listeners.JSolExInterface;
+import me.champeau.a4j.jsolex.app.listeners.RedshiftImagesProcessor;
 import me.champeau.a4j.jsolex.app.listeners.SingleModeProcessingEventListener;
 import me.champeau.a4j.jsolex.app.script.JSolExScriptExecutor;
 import me.champeau.a4j.jsolex.processing.event.FileGeneratedEvent;
@@ -87,6 +92,7 @@ import me.champeau.a4j.jsolex.processing.file.FileNamingStrategy;
 import me.champeau.a4j.jsolex.processing.params.ProcessParams;
 import me.champeau.a4j.jsolex.processing.sun.CaptureSoftwareMetadataHelper;
 import me.champeau.a4j.jsolex.processing.sun.SolexVideoProcessor;
+import me.champeau.a4j.jsolex.processing.sun.detection.RedshiftArea;
 import me.champeau.a4j.jsolex.processing.sun.workflow.GeneratedImageKind;
 import me.champeau.a4j.jsolex.processing.util.BackgroundOperations;
 import me.champeau.a4j.jsolex.processing.util.Constants;
@@ -185,6 +191,12 @@ public class JSolEx extends Application implements JSolExInterface {
     private Label memoryLabel;
 
     @FXML
+    private TabPane rightTabs;
+
+    @FXML
+    private Tab logsTab;
+
+    @FXML
     private Tab statsTab;
 
     @FXML
@@ -192,6 +204,21 @@ public class JSolEx extends Application implements JSolExInterface {
 
     @FXML
     private Tab metadataTab;
+
+    @FXML
+    private Tab redshiftTab;
+
+    @FXML
+    private ChoiceBox<Integer> redshiftBoxSize;
+
+    @FXML
+    private ChoiceBox<RedshiftImagesProcessor.RedshiftCreatorKind> redshiftCreatorKind;
+
+    @FXML
+    private Button generateRedshiftImages;
+
+    @FXML
+    private TextField pixelShiftMargin;
 
     private final Map<String, ImageViewer> popupViewers = new ConcurrentHashMap<>();
 
@@ -219,6 +246,11 @@ public class JSolEx extends Application implements JSolExInterface {
     @Override
     public Tab getMetadataTab() {
         return metadataTab;
+    }
+
+    @Override
+    public Tab getRedshiftTab() {
+        return redshiftTab;
     }
 
     @Override
@@ -253,6 +285,7 @@ public class JSolEx extends Application implements JSolExInterface {
             stage.setScene(rootScene);
             addIcons(stage);
             hideTabHeaderWhenSingleTab(mainPane);
+            configureRedshiftControls();
             stage.show();
             refreshRecentItemsMenu();
             LogbackConfigurer.configureLogger(console);
@@ -266,6 +299,50 @@ public class JSolEx extends Application implements JSolExInterface {
         } catch (IOException exception) {
             throw new ProcessingException(exception);
         }
+    }
+
+    private void configureRedshiftControls() {
+        redshiftBoxSize.setConverter(new StringConverter<>() {
+            @Override
+            public String toString(Integer size) {
+                if (size == null) {
+                    return "";
+                }
+                return size + "x" + size;
+            }
+
+            @Override
+            public Integer fromString(String string) {
+                if (string == null || string.isBlank()) {
+                    return 0;
+                }
+                return Integer.parseInt(string.substring(0, string.indexOf('x')));
+            }
+        });
+        redshiftCreatorKind.setItems(FXCollections.observableArrayList(RedshiftImagesProcessor.RedshiftCreatorKind.values()));
+        redshiftCreatorKind.setConverter(new StringConverter<>() {
+            @Override
+            public String toString(RedshiftImagesProcessor.RedshiftCreatorKind kind) {
+                return kind == null ? "" : message("redshift.creator.kind." + kind);
+            }
+
+            @Override
+            public RedshiftImagesProcessor.RedshiftCreatorKind fromString(String string) {
+                return RedshiftImagesProcessor.RedshiftCreatorKind.valueOf(string);
+            }
+        });
+        pixelShiftMargin.setTextFormatter(new TextFormatter<>(new IntegerStringConverter() {
+            @Override
+            public Integer fromString(String value) {
+                var asInt = super.fromString(value);
+                if (asInt < 0) {
+                    return 0;
+                }
+                return asInt;
+            }
+        }));
+        pixelShiftMargin.setText("2");
+        BatchOperations.submit(() -> redshiftCreatorKind.getSelectionModel().select(RedshiftImagesProcessor.RedshiftCreatorKind.ANIMATION));
     }
 
     private void maybeShowWelcomeMessage(Scene current) throws IOException {
@@ -284,7 +361,7 @@ public class JSolEx extends Application implements JSolExInterface {
     private void showWelcomeMessage(Scene current, Runnable onDismiss) {
         var webview = new SimpleMarkdownViewer(message("welcome"));
         var country = Locale.getDefault().getCountry();
-        InputStream resource = getClass().getResourceAsStream("/whats-new_"+ country + ".md");
+        InputStream resource = getClass().getResourceAsStream("/whats-new_" + country + ".md");
         if (resource == null) {
             resource = getClass().getResourceAsStream("/whats-new.md");
         }
@@ -698,7 +775,7 @@ public class JSolEx extends Application implements JSolExInterface {
                             var targetPath = new File(outputDirectory, name + ext).toPath();
                             Files.createDirectories(targetPath.getParent());
                             Files.move(entry.getValue(), targetPath, StandardCopyOption.REPLACE_EXISTING);
-                            listener.onFileGenerated(FileGeneratedEvent.of(entry.getKey(), targetPath));
+                            listener.onFileGenerated(FileGeneratedEvent.of(GeneratedImageKind.IMAGE_MATH, entry.getKey(), targetPath));
                         } catch (IOException e) {
                             throw new ProcessingException(e);
                         }
@@ -797,6 +874,45 @@ public class JSolEx extends Application implements JSolExInterface {
         mainPane.getTabs().clear();
         mainPane.getTabs().add(new Tab(message("images"), multipleImagesViewer));
         multipleImagesViewer.clear();
+    }
+
+    @Override
+    public void prepareForRedshiftImages(RedshiftImagesProcessor processor) {
+        var redshifts = processor.getRedshifts();
+        redshiftTab.setDisable(redshifts.isEmpty());
+        var maxSize = redshifts.stream()
+            .mapToDouble(RedshiftArea::size)
+            .max()
+            .orElse(0);
+        var power = highestPowerOfTwoGreaterOrEqualTo(processor.getSunRadius().map(r -> r / 10d).orElse(maxSize));
+        int boxSize = (int) Math.pow(2, power);
+        int bSize = boxSize;
+        for (int i = 0; i < 4; i++) {
+            redshiftBoxSize.getItems().add(bSize);
+            bSize += boxSize;
+        }
+        var margin = Integer.valueOf(pixelShiftMargin.getText());
+        BatchOperations.submit(() -> {
+            generateRedshiftImages.setOnAction(e -> {
+                var kind = redshiftCreatorKind.getValue();
+                var size = redshiftBoxSize.getValue();
+                if (kind != null && size != null) {
+                    BackgroundOperations.async(() -> {
+                        BatchOperations.submit(() -> rightTabs.getSelectionModel().select(logsTab));
+                        processor.produceImages(kind, size, margin);
+                    });
+                }
+            });
+            redshiftBoxSize.getSelectionModel().select((Integer) boxSize);
+        });
+    }
+
+    private static int highestPowerOfTwoGreaterOrEqualTo(double n) {
+        var power = 0;
+        while (Math.pow(2, power) < n) {
+            power++;
+        }
+        return power;
     }
 
     private static void hideTabHeaderWhenSingleTab(TabPane tabPane) {

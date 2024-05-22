@@ -21,7 +21,9 @@ When a line is selected, the profile tab now displays the measured profile compa
 If the studied line is hydrogen alpha, JSol'Ex will automatically analyze frames to detect Doppler shifts.
 It will automatically calculate the speed associated to the shift and display it into the log window.
 In addition, it will generate an image which shows where the highest speeds have been detected.
-If you enable debug images, it will also extract images from the SER file were the speedy events were detected so that you can double check if the measurements are correct.
+If you enable debug images, it will also extract images from the SER file were the speedy events were detected so that you can doublecheck if the measurements are correct.
+Last but not least, once processing is done, a new tab will activate: the "Redshift" tab.
+If you click on it, you will have the option to generate either an animation or an image panel of each region where speedy events were detected!
 
 ## Reading Sharpcap and Firecapture Metadata
 

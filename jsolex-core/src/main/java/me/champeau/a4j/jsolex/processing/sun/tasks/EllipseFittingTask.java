@@ -234,7 +234,7 @@ public class EllipseFittingTask extends AbstractTask<EllipseFittingTask.Result> 
                 filterOutliersByMinDistanceBetweenSamples(samples);
                 factor = factor * 0.8;
             }
-            LOGGER.info("Stopped after {} iterations", iterations);
+            LOGGER.debug("Stopped after {} iterations", iterations);
         }
         return new ArrayList<>(samples.stream().toList());
     }

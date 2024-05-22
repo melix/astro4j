@@ -467,7 +467,36 @@ In this mode, you must use either the `load` or the `load_many` function to load
 
 IMPORTANT: If you use this mode, it is important to load images saved in previous sessions with the FITS format. These files include metadata such as the detected ellipse (solar disk), process parameters, etc. which will permit applying the same functions as you do in a standard processing session.
 
-== Measurements thanks to the spectrum debugger
+== Measurements
+=== Redshift Measurements
+
+If you process an H-alpha image, JSol'Ex can automatically search within the image for regions where the _redshift_ (red or blue shift) is particularly strong.
+
+To do this, you must either select the "complete" mode during processing or check the "Redshift Measurements" box in the custom image selection.
+
+The measurements will be valid **only** if the specified pixel size is correct **and** you are using a Sol'Ex (other spectroheliographs have different focal lengths).
+
+During processing, an additional image will be generated with the regions outlined in red and the associated speed.
+
+Additionally, if you select the debug images, the parts of the spectrum that allowed finding these regions will be displayed.
+
+Finally, once the detection is complete, you can generate 2 new types of renderings by going to the "Redshift" tab:
+
+image::redshift-tab.jpg[]
+
+The size corresponds to the minimum size of the region to capture, in pixels.
+A small region will be centered around the detected filament, but it may be quite pixelated in some cases.
+The margin allows you to choose how many pixels to offset from what JSol'Ex detected.
+For example, JSol'Ex might find a maximum shift of 20 pixels, but you may wish to add 2 or 4 pixels of margin for an animation to clearly see the filament appear.
+
+Finally, select the type of rendering:
+
+- Animation: generates a video where each frame is shifted by 0.25 pixels
+- Panel: generates a single image, a panel where each cell corresponds to a different pixel shift
+
+image::pixel-shift-panel.jpg["Example of panel"]
+
+=== Measurements thanks to the spectrum debugger
 
 JSol'Ex provides a tool which will let you see what the detected spectral line is for a particular video.
 This tool chan be used, for example, to efficiently determine the pixel shift to apply when processing an Helium video.

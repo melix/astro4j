@@ -132,6 +132,6 @@ public class DefaultImageEmitter implements ImageEmitter {
         } catch (IOException e) {
             throw new ProcessingException(e);
         }
-        broadcaster.broadcast(FileGeneratedEvent.of(title, targetFile));
+        broadcaster.broadcast(FileGeneratedEvent.of(kind, title, targetFile));
     }
 }

@@ -15,24 +15,46 @@
  */
 package me.champeau.a4j.jsolex.processing.event;
 
+import me.champeau.a4j.jsolex.processing.params.ProcessParams;
+import me.champeau.a4j.jsolex.processing.sun.detection.RedshiftArea;
 import me.champeau.a4j.jsolex.processing.sun.workflow.ImageEmitter;
 import me.champeau.a4j.jsolex.processing.sun.workflow.ImageStats;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
 import me.champeau.a4j.math.regression.Ellipse;
 
 import java.util.Collections;
+import java.util.List;
 import java.util.Map;
+import java.util.function.DoubleUnaryOperator;
 
 public final class ProcessingDoneEvent extends ProcessingEvent<ProcessingDoneEvent.Outcome> {
     public ProcessingDoneEvent(ProcessingDoneEvent.Outcome payload) {
         super(payload);
     }
 
-    public record Outcome(long timestamp, Map<Double, ImageWrapper> shiftImages, ImageEmitter customImageEmitter, Ellipse ellipse, ImageStats imageStats) {
+    public record Outcome(
+        long timestamp,
+        Map<Double, ImageWrapper> shiftImages,
+        ImageEmitter customImageEmitter,
+        Ellipse ellipse,
+        ImageStats imageStats,
+        List<RedshiftArea> redshifts,
+        DoubleUnaryOperator polynomial,
+        float[] averageImage,
+        ProcessParams processParams
+    ) {
 
     }
 
-    public static ProcessingDoneEvent of(long timestamp, Map<Double, ImageWrapper> images, ImageEmitter customImageEmitter, Ellipse ellipse, ImageStats imageStats) {
-        return new ProcessingDoneEvent(new Outcome(timestamp, Collections.unmodifiableMap(images), customImageEmitter, ellipse, imageStats));
+    public static ProcessingDoneEvent of(long timestamp,
+                                         Map<Double, ImageWrapper> images,
+                                         ImageEmitter customImageEmitter,
+                                         Ellipse ellipse,
+                                         ImageStats imageStats,
+                                         List<RedshiftArea> redshifts,
+                                         DoubleUnaryOperator polynomial,
+                                         float[] averageImage,
+                                         ProcessParams processParams) {
+        return new ProcessingDoneEvent(new Outcome(timestamp, Collections.unmodifiableMap(images), customImageEmitter, ellipse, imageStats, redshifts, polynomial, averageImage, processParams));
     }
 }

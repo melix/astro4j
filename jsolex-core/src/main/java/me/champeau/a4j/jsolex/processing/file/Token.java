@@ -23,7 +23,9 @@ public enum Token {
     CURRENT_DATE,
     VIDEO_DATE,
     VIDEO_DATETIME,
-    SEQUENCE_NUMBER;
+    SEQUENCE_NUMBER,
+    CATEGORY;
+
 
     public String token() {
         return "%" + name() + "%";

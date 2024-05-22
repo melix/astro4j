@@ -28,6 +28,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.DoubleUnaryOperator;
 
 public class PhenomenaDetector {
+    private static final double SPEED_OF_LIGHT = 299792.458d;
     private final Map<Integer, List<Redshift>> redshiftsPerFrame = new ConcurrentHashMap<>();
 
     private final double dispersion;
@@ -43,7 +44,11 @@ public class PhenomenaDetector {
     }
 
     public double speedOf(int shift) {
-        return 299792.458d * shift * dispersion / lambda0;
+        return speedOf(shift, dispersion, lambda0);
+    }
+
+    public static double speedOf(double shift, double dispersion, double lambda0) {
+        return SPEED_OF_LIGHT * shift * dispersion / lambda0;
     }
 
     public Map<Integer, List<Redshift>> getRedshifts() {
