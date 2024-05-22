@@ -26,7 +26,7 @@ import java.util.function.Function;
  */
 public record ColorizedImageWrapper(
         ImageWrapper32 mono,
-        Function<float[], float[][]> converter,
+        Function<ImageWrapper32, float[][]> converter,
         Map<Class<?>, Object> metadata
 ) implements ImageWrapper {
     @Override

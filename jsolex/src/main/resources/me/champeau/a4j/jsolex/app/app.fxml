@@ -4,6 +4,7 @@
 <?import javafx.scene.control.Button?>
 <?import javafx.scene.control.ButtonBar?>
 <?import javafx.scene.control.CheckBox?>
+<?import javafx.scene.control.ChoiceBox?>
 <?import javafx.scene.control.Label?>
 <?import javafx.scene.control.Menu?>
 <?import javafx.scene.control.MenuBar?>
@@ -16,14 +17,14 @@
 <?import javafx.scene.control.TitledPane?>
 <?import javafx.scene.layout.AnchorPane?>
 <?import javafx.scene.layout.BorderPane?>
+<?import javafx.scene.layout.GridPane?>
 <?import javafx.scene.layout.HBox?>
-<?import javafx.scene.layout.Pane?>
 <?import javafx.scene.layout.StackPane?>
 <?import javafx.scene.layout.VBox?>
 <?import me.champeau.a4j.jsolex.app.jfx.ime.ImageMathTextArea?>
-<?import me.champeau.a4j.jsolex.app.jfx.MultipleImagesViewer?>
 <?import org.fxmisc.flowless.VirtualizedScrollPane?>
 <?import org.fxmisc.richtext.StyleClassedTextArea?>
+<?import javafx.scene.control.TextField?>
 <BorderPane xmlns="http://javafx.com/javafx/19" xmlns:fx="http://javafx.com/fxml/1">
     <top>
         <MenuBar>
@@ -53,8 +54,8 @@
             <TabPane fx:id="mainPane" prefWidth="400.0"/>
             <SplitPane dividerPositions="0.5" orientation="VERTICAL">
                 <items>
-                    <TabPane side="right">
-                        <Tab text="%logs">
+                    <TabPane side="right" tabClosingPolicy="UNAVAILABLE" fx:id="rightTabs">
+                        <Tab text="%logs" fx:id="logsTab">
                             <VBox>
                                 <ButtonBar>
                                     <padding>
@@ -85,6 +86,39 @@
 
                         <Tab fx:id="profileTab" text="%profile">
 
+                        </Tab>
+                        <Tab fx:id="redshiftTab" text="%redshifts" disable="true">
+                            <BorderPane>
+                                <padding>
+                                    <Insets bottom="4.0" left="4.0" right="4.0" top="4.0"/>
+                                </padding>
+                                <top>
+                                    <VBox alignment="CENTER">
+                                        <Label text="%redshifts.description" style="-fx-font-weight: bold;"/>
+                                    </VBox>
+                                </top>
+                                <center>
+                                    <GridPane alignment="BASELINE_LEFT" hgap="10" vgap="10">
+                                        <padding>
+                                            <Insets bottom="4.0" left="4.0" right="4.0" top="4.0"/>
+                                        </padding>
+                                        <Label text="%redshifts.help" GridPane.rowIndex="0" GridPane.columnIndex="0" wrapText="true" GridPane.columnSpan="2"/>
+
+                                        <Label text="%box.size" GridPane.columnIndex="0" GridPane.rowIndex="1" prefWidth="200"/>
+                                        <ChoiceBox fx:id="redshiftBoxSize" GridPane.columnIndex="1" GridPane.rowIndex="1" prefWidth="200"/>
+
+                                        <Label text="%pixel.shift.margin" GridPane.columnIndex="0" GridPane.rowIndex="2" prefWidth="200"/>
+                                        <TextField fx:id="pixelShiftMargin" GridPane.columnIndex="1" GridPane.rowIndex="2" maxWidth="50" prefWidth="50"/>
+
+                                        <Label text="%redshift.creator.kind" GridPane.columnIndex="0" GridPane.rowIndex="3" prefWidth="200"/>
+                                        <ChoiceBox fx:id="redshiftCreatorKind" GridPane.columnIndex="1" GridPane.rowIndex="3" prefWidth="200"/>
+
+                                        <VBox alignment="CENTER" GridPane.rowIndex="4" GridPane.columnIndex="0" GridPane.columnSpan="2">
+                                            <Button fx:id="generateRedshiftImages" text="%generate"/>
+                                        </VBox>
+                                    </GridPane>
+                                </center>
+                            </BorderPane>
                         </Tab>
                     </TabPane>
                     <VBox fx:id="imageMathPane">

@@ -53,7 +53,7 @@ public class ImageSaver {
             }
         } else if (image instanceof ColorizedImageWrapper colorImage) {
             var stretched = stretch(colorImage);
-            var colorized = colorImage.converter().apply(stretched.mono().data());
+            var colorized = colorImage.converter().apply(stretched.mono());
             var r = colorized[0];
             var g = colorized[1];
             var b = colorized[2];

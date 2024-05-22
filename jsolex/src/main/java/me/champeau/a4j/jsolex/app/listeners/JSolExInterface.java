@@ -30,6 +30,8 @@ public interface JSolExInterface {
 
     Tab getMetadataTab();
 
+    Tab getRedshiftTab();
+
     void showProgress();
 
     void hideProgress();
@@ -41,4 +43,6 @@ public interface JSolExInterface {
     HostServices getHostServices();
 
     void newSession();
+
+    void prepareForRedshiftImages(RedshiftImagesProcessor processor);
 }

@@ -15,6 +15,7 @@
  */
 package me.champeau.a4j.jsolex.app.jfx;
 
+import me.champeau.a4j.jsolex.processing.expr.impl.Rotate;
 import me.champeau.a4j.jsolex.processing.util.ColorizedImageWrapper;
 import me.champeau.a4j.jsolex.processing.util.FileBackedImage;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
@@ -40,18 +41,18 @@ public class RotationCorrector {
             }
             if (img instanceof ImageWrapper32 mono) {
                 var trn = imageMath.rotate(mono.asImage(), angle, -1, true);
-                return ImageWrapper32.fromImage(trn, mono.metadata());
+                return ImageWrapper32.fromImage(trn, Rotate.fixMetadata(mono, angle, trn.width(), trn.height()));
             } else if (img instanceof ColorizedImageWrapper colorized) {
                 var mono = colorized.mono();
                 var trn = imageMath.rotate(mono.asImage(), angle, -1, true);
-                return new ColorizedImageWrapper(ImageWrapper32.fromImage(trn), colorized.converter(), colorized.metadata());
+                return new ColorizedImageWrapper(ImageWrapper32.fromImage(trn), colorized.converter(), Rotate.fixMetadata(colorized, angle, trn.width(), trn.height()));
             } else if (img instanceof RGBImage rgb) {
                 var height = rgb.height();
                 var width = rgb.width();
                 var r = imageMath.rotate(new Image(width, height, rgb.r()), angle, -1, true);
                 var g = imageMath.rotate(new Image(width, height, rgb.g()), angle, -1, true);
                 var b = imageMath.rotate(new Image(width, height, rgb.b()), angle, -1, true);
-                return new RGBImage(r.width(), r.height(), r.data(), g.data(), b.data(), rgb.metadata());
+                return new RGBImage(r.width(), r.height(), r.data(), g.data(), b.data(), Rotate.fixMetadata(rgb, angle, r.width(), r.height()));
             }
             throw new IllegalArgumentException("Unsupported image type");
         });

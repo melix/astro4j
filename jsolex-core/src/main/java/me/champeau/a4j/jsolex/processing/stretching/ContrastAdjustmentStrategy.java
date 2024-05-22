@@ -17,6 +17,7 @@ package me.champeau.a4j.jsolex.processing.stretching;
 
 import me.champeau.a4j.jsolex.processing.util.Constants;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
+import me.champeau.a4j.jsolex.processing.util.RGBImage;
 
 public final class ContrastAdjustmentStrategy implements StretchingStrategy {
     public static final ContrastAdjustmentStrategy DEFAULT = new ContrastAdjustmentStrategy(0, .95f*Constants.MAX_PIXEL_VALUE);
@@ -54,6 +55,13 @@ public final class ContrastAdjustmentStrategy implements StretchingStrategy {
     @Override
     public void stretch(ImageWrapper32 image) {
         var data = image.data();
+        truncate(data);
+        if (normalize) {
+            LinearStrechingStrategy.DEFAULT.stretch(image);
+        }
+    }
+
+    private void truncate(float[] data) {
         for (int i = 0; i < data.length; i++) {
             if (data[i] < min) {
                 data[i] = 0;
@@ -61,9 +69,15 @@ public final class ContrastAdjustmentStrategy implements StretchingStrategy {
                 data[i] = max;
             }
         }
+    }
+
+    @Override
+    public void stretch(RGBImage image) {
+       truncate(image.r());
+       truncate(image.g());
+       truncate(image.b());
         if (normalize) {
             LinearStrechingStrategy.DEFAULT.stretch(image);
         }
     }
-
 }

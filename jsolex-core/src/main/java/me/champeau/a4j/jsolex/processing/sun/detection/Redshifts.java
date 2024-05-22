@@ -13,21 +13,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package me.champeau.a4j.jsolex.processing.file;
+package me.champeau.a4j.jsolex.processing.sun.detection;
 
-public enum Token {
-    BASENAME,
-    KIND,
-    LABEL,
-    CURRENT_DATETIME,
-    CURRENT_DATE,
-    VIDEO_DATE,
-    VIDEO_DATETIME,
-    SEQUENCE_NUMBER,
-    CATEGORY;
+import java.util.List;
 
-
-    public String token() {
-        return "%" + name() + "%";
+public record Redshifts(
+    List<RedshiftArea> redshifts
+) {
+    public Redshifts {
+        if (redshifts == null) {
+            throw new NullPointerException("Redshifts cannot be null");
+        }
     }
 }

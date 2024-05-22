@@ -33,7 +33,8 @@ public enum GeneratedImageKind {
     NEGATIVE(DisplayCategory.COLORIZED),
     TECHNICAL_CARD(DisplayCategory.MISC),
     IMAGE_MATH(DisplayCategory.IMAGE_MATH),
-    COMPOSITION(DisplayCategory.PROCESSED);
+    COMPOSITION(DisplayCategory.PROCESSED),
+    REDSHIFT(DisplayCategory.MISC);
 
     private final DisplayCategory displayCategory;
 

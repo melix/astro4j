@@ -198,10 +198,11 @@ public class SpectralRayEditor {
 
     private void updateSunDiskPreview(SpectralRay newRay) {
         var curve = newRay.colorCurve();
-        var colorImage = new ColorizedImageWrapper(MONO_SUN_IMAGE, mono -> {
+        var colorImage = new ColorizedImageWrapper(MONO_SUN_IMAGE, monoImage -> {
             if (curve != null) {
-                return ImageUtils.convertToRGB(curve, mono);
+                return ImageUtils.convertToRGB(curve, monoImage.data());
             } else {
+                var mono = monoImage.data();
                 var rgbColor = newRay.toRGB();
                 if (rgbColor[0] == 0 && rgbColor[1] == 0 && rgbColor[2] == 0) {
                     return new float[][]{mono, mono, mono};
@@ -218,7 +219,7 @@ public class SpectralRayEditor {
                 return new float[][]{r, g, b};
             }
         }, MutableMap.of());
-        var colorized = colorImage.converter().apply(MONO_SUN_IMAGE.data());
+        var colorized = colorImage.converter().apply(MONO_SUN_IMAGE);
         var r = colorized[0];
         var g = colorized[1];
         var b = colorized[2];

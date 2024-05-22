@@ -16,6 +16,8 @@
 package me.champeau.a4j.jsolex.processing.expr.impl;
 
 import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
+import me.champeau.a4j.jsolex.processing.sun.detection.RedshiftArea;
+import me.champeau.a4j.jsolex.processing.sun.detection.Redshifts;
 import me.champeau.a4j.jsolex.processing.sun.workflow.ImageStats;
 import me.champeau.a4j.jsolex.processing.util.ColorizedImageWrapper;
 import me.champeau.a4j.jsolex.processing.util.FileBackedImage;
@@ -62,13 +64,13 @@ public class Rotate extends AbstractFunctionImpl {
 
     private Image arbitraryRotation(List<Object> arguments, Image image, double angle) {
         var blackpoint = getArgument(Number.class, arguments, 2)
-                .map(Number::floatValue)
-                .or(() -> getFromContext(ImageStats.class).map(ImageStats::blackpoint))
-                .orElse(0f);
+            .map(Number::floatValue)
+            .or(() -> getFromContext(ImageStats.class).map(ImageStats::blackpoint))
+            .orElse(0f);
         var resize = getArgument(Number.class, arguments, 3)
-                .map(Number::intValue)
-                .map(i -> i == 1)
-                .orElse(false);
+            .map(Number::intValue)
+            .map(i -> i == 1)
+            .orElse(false);
         return imageMath.rotate(image, angle, blackpoint, resize);
     }
 
@@ -100,18 +102,47 @@ public class Rotate extends AbstractFunctionImpl {
         throw new IllegalArgumentException("Unsupported image type");
     }
 
-    private static Map<Class<?>, Object> fixMetadata(ImageWrapper wrapper, double angle, int newWidth, int newHeight) {
+    public static Map<Class<?>, Object> fixMetadata(ImageWrapper wrapper, double angle, int newWidth, int newHeight) {
         var metadata = new LinkedHashMap<>(wrapper.metadata());
+        var origWidth = wrapper.width();
+        var origHeight = wrapper.height();
         wrapper.findMetadata(Ellipse.class).ifPresent(ellipse -> {
-            var sx = wrapper.width() / 2;
-            var sy = wrapper.height() / 2;
+            var sx = origWidth / 2;
+            var sy = origHeight / 2;
             var rotated = ellipse.rotate(-angle, new Point2D(sx, sy));
-            sx = (newWidth - wrapper.width()) / 2;
-            sy = (newHeight - wrapper.height()) / 2;
+            sx = (newWidth - origWidth) / 2;
+            sy = (newHeight - origHeight) / 2;
             if (sx != 0 || sy != 0) {
                 rotated = rotated.translate(sx, sy);
             }
             metadata.put(Ellipse.class, rotated);
+        });
+        wrapper.findMetadata(Redshifts.class).ifPresent(redshifts -> {
+            var rotated = redshifts.redshifts().stream()
+                .map(rs -> {
+                    var x1 = rs.x1();
+                    var y1 = rs.y1();
+                    var x2 = rs.x2();
+                    var y2 = rs.y2();
+                    var maxX = rs.maxX();
+                    var maxY = rs.maxY();
+                    var cx = origWidth / 2;
+                    var cy = origHeight / 2;
+                    var sx = cx + (newWidth - origWidth) / 2;
+                    var sy = cy + (newHeight - origHeight) / 2;
+                    // apply rotation and scale to each coordinate
+                    var cosAlpha = Math.cos(angle);
+                    var sinAlpha = Math.sin(angle);
+                    var x1p = (int) (sx + Math.round((x1 - cx) * cosAlpha - (y1 - cy) * sinAlpha));
+                    var y1p = (int) (sy + Math.round((x1 - cx) * sinAlpha + (y1 - cy) * cosAlpha));
+                    var x2p = (int) (sx + Math.round((x2 - cx) * cosAlpha - (y2 - cy) * sinAlpha));
+                    var y2p = (int) (sy + Math.round((x2 - cx) * sinAlpha + (y2 - cy) * cosAlpha));
+                    var maxXP = (int) (sx + Math.round((maxX - cx) * cosAlpha - (maxY - cy) * sinAlpha));
+                    var maxYP = (int) (sy + Math.round((maxX - cx) * sinAlpha + (maxY - cy) * cosAlpha));
+                    return new RedshiftArea(rs.pixelShift(), rs.relPixelShift(), rs.kmPerSec(), x1p, y1p, x2p, y2p, maxXP, maxYP);
+                })
+                .toList();
+            metadata.put(Redshifts.class, new Redshifts(rotated));
         });
         return metadata;
     }

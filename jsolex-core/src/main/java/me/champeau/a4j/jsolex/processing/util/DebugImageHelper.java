@@ -22,6 +22,8 @@ import me.champeau.a4j.jsolex.processing.sun.workflow.ImageEmitter;
 import me.champeau.a4j.math.Point2D;
 import me.champeau.a4j.math.regression.Ellipse;
 
+import java.util.Map;
+
 import static me.champeau.a4j.jsolex.processing.util.Constants.message;
 
 /**
@@ -46,12 +48,12 @@ public class DebugImageHelper {
             for (Point2D point : interestPoints) {
                 plot(point, width, height, copy.data(), 12);
             }
-            produceOverlayImage(processedImagesEmitter, width, height, copy.data(), bandingFixed.data());
+            produceOverlayImage(processedImagesEmitter, width, height, copy.data(), bandingFixed.data(), bandingFixed.metadata());
         }
     }
 
-    private static void produceOverlayImage(ImageEmitter processedImagesEmitter, int width, int height, float[] newData, float[] original) {
-        processedImagesEmitter.newColorImage(GeneratedImageKind.DEBUG, message("tilt.detection"), "tilt", width, height, () -> {
+    private static void produceOverlayImage(ImageEmitter processedImagesEmitter, int width, int height, float[] newData, float[] original, Map<Class<?>, Object> metadata) {
+        processedImagesEmitter.newColorImage(GeneratedImageKind.DEBUG, message("tilt.detection"), "tilt", width, height, metadata, () -> {
             float[][] rgb = new float[3][];
             rgb[0] = newData;
             rgb[1] = original;

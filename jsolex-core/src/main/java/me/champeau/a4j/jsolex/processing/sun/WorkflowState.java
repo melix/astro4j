@@ -26,6 +26,8 @@ import java.util.Optional;
 public final class WorkflowState {
     private final double pixelShift;
     private final EnumMap<WorkflowResults, Object> outcomes = new EnumMap<>(WorkflowResults.class);
+    private final int width;
+    private final int height;
     private boolean internal;
 
     public WorkflowState(
@@ -33,8 +35,9 @@ public final class WorkflowState {
             int height,
             double pixelShift
     ) {
+        this.width = width;
+        this.height = height;
         this.pixelShift = pixelShift;
-        this.recordResult(WorkflowResults.RECONSTRUCTED, new float[width * height]);
     }
 
     public boolean isInternal() {
@@ -82,7 +85,7 @@ public final class WorkflowState {
     }
 
     public void setImage(ImageWrapper32 image) {
-        recordResult(WorkflowResults.ROTATED, image);
+        recordResult(WorkflowResults.ROTATED, image.wrap());
         discardResult(WorkflowResults.RECONSTRUCTED);
     }
 
@@ -90,7 +93,7 @@ public final class WorkflowState {
         return findResult(WorkflowResults.ROTATED).map(ImageWrapper32.class::cast).orElse(null);
     }
 
-    public float[] reconstructed() {
-        return findResult(WorkflowResults.RECONSTRUCTED).map(float[].class::cast).orElse(new float[0]);
+    public ImageWrapper32 reconstructed() {
+        return this.<ImageWrapper32>findResult(WorkflowResults.RECONSTRUCTED).orElseThrow();
     }
 }

@@ -17,6 +17,8 @@ package me.champeau.a4j.jsolex.processing.expr.impl;
 
 import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
 import me.champeau.a4j.jsolex.processing.sun.crop.Cropper;
+import me.champeau.a4j.jsolex.processing.sun.detection.RedshiftArea;
+import me.champeau.a4j.jsolex.processing.sun.detection.Redshifts;
 import me.champeau.a4j.jsolex.processing.sun.workflow.ImageStats;
 import me.champeau.a4j.jsolex.processing.util.ColorizedImageWrapper;
 import me.champeau.a4j.jsolex.processing.util.FileBackedImage;
@@ -25,6 +27,7 @@ import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 import me.champeau.a4j.jsolex.processing.util.RGBImage;
 import me.champeau.a4j.math.image.Image;
 import me.champeau.a4j.math.regression.Ellipse;
+import me.champeau.a4j.math.tuples.DoublePair;
 
 import java.util.HashMap;
 import java.util.List;
@@ -129,15 +132,13 @@ public class Crop extends AbstractFunctionImpl {
         for (int y = 0; y < height; y++) {
             System.arraycopy(mono.data(), left + (y + top) * mono.width(), cropped, y * width, width);
         }
-        var metadata = new HashMap<>(mono.metadata());
-        mono.findMetadata(Ellipse.class).ifPresent(ellipse -> metadata.put(Ellipse.class, ellipse.translate(-left, -top)));
+        var metadata = fixMetadata(mono, new Cropper.CropResult(new Image(width, height, cropped), new DoublePair(left, top)));
         return new ImageWrapper32(width, height, cropped, metadata);
     }
 
     private static ImageWrapper32 cropToRectMonoImage(int width, int height, ImageWrapper32 mono, Ellipse sunDisk, float blackPoint) {
         var cropResult = Cropper.cropToRectangle(mono.asImage(), sunDisk, blackPoint, width, height);
-        var metadata = new HashMap<>(mono.metadata());
-        metadata.put(Ellipse.class, sunDisk.translate(-cropResult.centerShift().a(), -cropResult.centerShift().b()));
+        var metadata = fixMetadata(mono, cropResult);
         return ImageWrapper32.fromImage(cropResult.cropped(), metadata);
     }
 
@@ -195,19 +196,16 @@ public class Crop extends AbstractFunctionImpl {
             if (arg instanceof ImageWrapper32 mono) {
                 var image = mono.asImage();
                 var cropResult = Cropper.cropToSquare(image, circle, blackpoint, diameterFactor, rounding);
-                var metadata = new HashMap<>(mono.metadata());
-                metadata.put(Ellipse.class, circle.translate(-cropResult.centerShift().a(), -cropResult.centerShift().b()));
+                var metadata = fixMetadata(mono, cropResult);
                 return ImageWrapper32.fromImage(cropResult.cropped(), metadata);
             } else if (arg instanceof ColorizedImageWrapper wrapper) {
                 var mono = wrapper.mono();
                 var cropResult = Cropper.cropToSquare(mono.asImage(), circle, blackpoint, diameterFactor, rounding);
-                var metadata = new HashMap<>(mono.metadata());
-                metadata.put(Ellipse.class, circle.translate(-cropResult.centerShift().a(), -cropResult.centerShift().b()));
+                var metadata = fixMetadata(mono, cropResult);
                 return new ColorizedImageWrapper(ImageWrapper32.fromImage(cropResult.cropped()), wrapper.converter(), metadata);
             } else if (arg instanceof RGBImage rgb) {
                 var cropResult = Cropper.cropToSquare(new Image(rgb.width(), rgb.height(), rgb.r()), circle, blackpoint, diameterFactor, rounding);
-                var metadata = new HashMap<>(rgb.metadata());
-                metadata.put(Ellipse.class, circle.translate(-cropResult.centerShift().a(), -cropResult.centerShift().b()));
+                var metadata = fixMetadata(rgb, cropResult);
                 var r = cropResult.cropped();
                 var g = Cropper.cropToSquare(new Image(rgb.width(), rgb.height(), rgb.g()), circle, blackpoint, diameterFactor, rounding).cropped();
                 var b = Cropper.cropToSquare(new Image(rgb.width(), rgb.height(), rgb.b()), circle, blackpoint, diameterFactor, rounding).cropped();
@@ -217,5 +215,30 @@ public class Crop extends AbstractFunctionImpl {
         } else {
             return arg;
         }
+    }
+
+    private static HashMap<Class<?>, Object> fixMetadata(ImageWrapper img, Cropper.CropResult cropResult) {
+        var metadata = new HashMap<>(img.metadata());
+        var left = cropResult.centerShift().a();
+        var top = cropResult.centerShift().b();
+        img.findMetadata(Ellipse.class).ifPresent(circle -> metadata.put(Ellipse.class, circle.translate(-left, -top)));
+        img.findMetadata(Redshifts.class).ifPresent(redshifts -> {
+            metadata.put(Redshifts.class, new Redshifts(
+                redshifts.redshifts().stream()
+                    .map(rs -> new RedshiftArea(
+                        rs.pixelShift(),
+                        rs.relPixelShift(),
+                        rs.kmPerSec(),
+                        (int) (rs.x1() - left),
+                        (int) (rs.y1() - top),
+                        (int) (rs.x2() - left),
+                        (int) (rs.y2() - top),
+                        (int) (rs.maxX() - left),
+                        (int) (rs.maxY() - top)
+                    ))
+                    .toList()
+            ));
+        });
+        return metadata;
     }
 }

@@ -58,7 +58,7 @@ public class Colorize extends AbstractFunctionImpl {
             if (arg instanceof ImageWrapper32 mono) {
                 return new ColorizedImageWrapper(mono, data -> {
                     var curve = new ColorCurve("adhoc", rIn, rOut, gIn, gOut, bIn, bOut);
-                    return doColorize(data, curve);
+                    return doColorize(data.data(), curve);
                 }, mono.metadata());
             }
         } else {
@@ -71,10 +71,10 @@ public class Colorize extends AbstractFunctionImpl {
                 if (ray.label().equalsIgnoreCase(profile) && (arg instanceof ImageWrapper32 mono)) {
                     var curve = ray.colorCurve();
                     if (curve != null) {
-                        return new ColorizedImageWrapper(mono, data -> doColorize(data, curve), mono.metadata());
+                        return new ColorizedImageWrapper(mono, data -> doColorize(data.data(), curve), mono.metadata());
                     } else if (ray.wavelength() != 0) {
                         var rgb = ray.toRGB();
-                        return new ColorizedImageWrapper(mono, data -> doColorize(mono.width(), mono.height(), data, rgb), mono.metadata());
+                        return new ColorizedImageWrapper(mono, data -> doColorize(mono.width(), mono.height(), data.data(), rgb), mono.metadata());
                     }
                 }
             }

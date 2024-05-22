@@ -19,8 +19,8 @@ import me.champeau.a4j.jsolex.processing.sun.DistortionCorrection;
 import me.champeau.a4j.jsolex.processing.sun.SpectrumFrameAnalyzer;
 import me.champeau.a4j.math.Point2D;
 
-import java.util.List;
 import java.util.Optional;
+import java.util.function.Consumer;
 import java.util.function.DoubleUnaryOperator;
 
 import static me.champeau.a4j.jsolex.processing.util.Constants.MAX_PIXEL_VALUE;
@@ -52,7 +52,7 @@ public class SpectralLineFrameImageCreator {
         } else {
             corrected = new float[size];
         }
-        List<Point2D> samples = analyzer.getSamplePoints();
+        var samples = analyzer.getSamplePoints();
         // We create RGB images for debugging, which contain the original image at top
         // and the corrected one at the bottom
         int spacing = 10 * width;
@@ -115,5 +115,47 @@ public class SpectralLineFrameImageCreator {
             bb[(int) (offset + x + y * width)] = 0;
         }
         return new RGBImage(width, 2 * height + 10, rr, gg, bb, MutableMap.of());
+    }
+
+    public RGBImage generateSpectrumImage(DoubleUnaryOperator forcedPolynomial,
+                                          Consumer<? super DebugImage> debugImageConsumer) {
+        int size = width * height;
+        Optional<DoubleUnaryOperator> polynomial = Optional.ofNullable(forcedPolynomial).or(analyzer::findDistortionPolynomial);
+        // We create RGB images for debugging, which contain the original image at top
+        // and the corrected one at the bottom
+        int spacing = 10 * width;
+        int offset = size + spacing;
+        float[] rr = new float[2 * size + spacing];
+        float[] gg = new float[2 * size + spacing];
+        float[] bb = new float[2 * size + spacing];
+        System.arraycopy(original, 0, rr, 0, size);
+        System.arraycopy(original, 0, gg, 0, size);
+        System.arraycopy(original, 0, bb, 0, size);
+        polynomial.ifPresent(poly -> {
+            // Draw a line on the top graph corresponding to the detected curvature
+            for (int x = 0; x < width; x++) {
+                int y = (int) Math.round(poly.applyAsDouble(x));
+                int idx = x + y * width;
+                if (idx < 0 || idx >= size) {
+                    continue;
+                }
+                rr[idx] = MAX_PIXEL_VALUE;
+                gg[idx] = 0;
+                bb[idx] = 0;
+            }
+            debugImageConsumer.accept(new DebugImage(rr, gg, bb, offset, width, height, poly));
+        });
+        return new RGBImage(width, 2 * height + 10, rr, gg, bb, MutableMap.of());
+    }
+
+    public record DebugImage(
+        float[] r,
+        float[] g,
+        float[] b,
+        int offset,
+        int width,
+        int height,
+        DoubleUnaryOperator polynomial) {
+
     }
 }

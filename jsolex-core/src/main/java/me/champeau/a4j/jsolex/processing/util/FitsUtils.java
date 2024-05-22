@@ -17,6 +17,8 @@ package me.champeau.a4j.jsolex.processing.util;
 
 import me.champeau.a4j.jsolex.processing.params.ProcessParams;
 import me.champeau.a4j.jsolex.processing.params.ProcessParamsIO;
+import me.champeau.a4j.jsolex.processing.sun.detection.RedshiftArea;
+import me.champeau.a4j.jsolex.processing.sun.detection.Redshifts;
 import me.champeau.a4j.jsolex.processing.sun.workflow.PixelShift;
 import me.champeau.a4j.jsolex.processing.sun.workflow.TransformationHistory;
 import me.champeau.a4j.math.regression.Ellipse;
@@ -42,6 +44,7 @@ import java.io.StringReader;
 import java.nio.charset.StandardCharsets;
 import java.text.Normalizer;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
@@ -55,6 +58,8 @@ public class FitsUtils {
     public static final String SOLAR_PARAMS_VALUE = "SoParams";
     public static final String TRANSFORMS_VALUE = "Transforms";
     public static final String PIXELSHIFT_VALUE = "PixelShift";
+    public static final String REDSHIFTS_VALUE = "Redshifts";
+
     // INTI metadata
     public static final String INTI_CENTER_X = "CENTER_X";
     public static final String INTI_CENTER_Y = "CENTER_Y";
@@ -142,12 +147,12 @@ public class FitsUtils {
             double solarR = header.getIntValue(INTI_SOLAR_R);
             // need to convert to Ellipse parameters
             var ellipse = Ellipse.ofCartesian(new DoubleSextuplet(
-                    1,
-                    0,
-                    1,
-                    -2d * centerX,
-                    -2d * centerY,
-                    centerX * centerX + centerY * centerY - solarR * solarR
+                1,
+                0,
+                1,
+                -2d * centerX,
+                -2d * centerY,
+                centerX * centerX + centerY * centerY - solarR * solarR
             ));
             metadata.put(Ellipse.class, ellipse);
         }
@@ -187,12 +192,12 @@ public class FitsUtils {
                         cart[i] = binaryTable.getDouble(0, i);
                     }
                     metadata.put(Ellipse.class, Ellipse.ofCartesian(new DoubleSextuplet(
-                            cart[0],
-                            cart[1],
-                            cart[2],
-                            cart[3],
-                            cart[4],
-                            cart[5]
+                        cart[0],
+                        cart[1],
+                        cart[2],
+                        cart[3],
+                        cart[4],
+                        cart[5]
                     )));
                 } else if (PROCESS_PARAMS_VALUE.equals(card.getValue())) {
                     var bytes = (byte[]) binaryTableHdu.getData().get(0, 0);
@@ -202,11 +207,11 @@ public class FitsUtils {
                 } else if (SOLAR_PARAMS_VALUE.equals(card.getValue())) {
                     var binaryTable = binaryTableHdu.getData();
                     var sp = new SolarParameters(
-                          binaryTable.getNumber(0,0).intValue(),
-                          binaryTable.getDouble(0, 1),
-                          binaryTable.getDouble(0, 2),
-                          binaryTable.getDouble(0, 3),
-                          binaryTable.getDouble(0, 4)
+                        binaryTable.getNumber(0, 0).intValue(),
+                        binaryTable.getDouble(0, 1),
+                        binaryTable.getDouble(0, 2),
+                        binaryTable.getDouble(0, 3),
+                        binaryTable.getDouble(0, 4)
                     );
                     metadata.put(SolarParameters.class, sp);
                 } else if (TRANSFORMS_VALUE.equals(card.getValue())) {
@@ -222,6 +227,25 @@ public class FitsUtils {
                     var binaryTable = binaryTableHdu.getData();
                     var pixelShift = new PixelShift(binaryTable.getDouble(0, 0));
                     metadata.put(PixelShift.class, pixelShift);
+                } else if (REDSHIFTS_VALUE.equals(card.getValue())) {
+                    var binaryTable = binaryTableHdu.getData();
+                    int cpt = binaryTable.getNRows();
+                    var values = new ArrayList<RedshiftArea>();
+                    for (int i = 0; i < cpt; i++) {
+                        var redshift = new RedshiftArea(
+                            binaryTable.getNumber(i, 0).intValue(),
+                            binaryTable.getNumber(i, 1).intValue(),
+                            binaryTable.getNumber(i, 2).doubleValue(),
+                            binaryTable.getNumber(i, 3).intValue(),
+                            binaryTable.getNumber(i, 4).intValue(),
+                            binaryTable.getNumber(i, 5).intValue(),
+                            binaryTable.getNumber(i, 6).intValue(),
+                            binaryTable.getNumber(i, 7).intValue(),
+                            binaryTable.getNumber(i, 8).intValue()
+                        );
+                        values.add(redshift);
+                    }
+                    metadata.put(Redshifts.class, new Redshifts(values));
                 }
             }
         }
@@ -254,7 +278,7 @@ public class FitsUtils {
     }
 
     private void writeColorized(ColorizedImageWrapper colorized) {
-        var rgb = colorized.converter().apply(colorized.mono().data());
+        var rgb = colorized.converter().apply(colorized.mono());
         writeRGB(new RGBImage(colorized.width(), colorized.height(), rgb[0], rgb[1], rgb[2], colorized.metadata()));
     }
 
@@ -278,7 +302,32 @@ public class FitsUtils {
             writeSolarParams(image, fits);
             writeTransformationHistory(image, fits);
             writePixelShift(image, fits);
+            writeRedshifts(image, fits);
         }
+    }
+
+    private static void writeRedshifts(ImageWrapper image, Fits fits) {
+        image.findMetadata(Redshifts.class).ifPresent(redshifts -> {
+            var table = new BinaryTable();
+            redshifts.redshifts().forEach(redshift -> table.addRow(new Object[]{
+                redshift.pixelShift(),
+                redshift.relPixelShift(),
+                redshift.kmPerSec(),
+                redshift.x1(),
+                redshift.y1(),
+                redshift.x2(),
+                redshift.y2(),
+                redshift.maxX(),
+                redshift.maxY()
+            }));
+            var binaryTableHDU = BinaryTableHDU.wrap(table);
+            binaryTableHDU.getHeader().addValue(JSOLEX_HEADER_KEY, REDSHIFTS_VALUE, "Measured redshifts");
+            try {
+                fits.addHDU(binaryTableHDU);
+            } catch (FitsException e) {
+                throw new RuntimeException(e);
+            }
+        });
     }
 
     private static void writePixelShift(ImageWrapper image, Fits fits) throws FitsException {
@@ -286,7 +335,7 @@ public class FitsUtils {
         if (metadata.isPresent()) {
             var pixelShift = metadata.get();
             var table = new BinaryTable();
-            table.addRow(new Object[] { pixelShift.pixelShift()});
+            table.addRow(new Object[]{pixelShift.pixelShift()});
             var binaryTableHDU = BinaryTableHDU.wrap(table);
             binaryTableHDU.getHeader().addValue(JSOLEX_HEADER_KEY, PIXELSHIFT_VALUE, "Pixel shift");
             fits.addHDU(binaryTableHDU);
@@ -312,12 +361,12 @@ public class FitsUtils {
             var table = new BinaryTable();
             var cart = ellipse.getCartesianCoefficients();
             table.addRow(new Double[]{
-                    cart.a(),
-                    cart.b(),
-                    cart.c(),
-                    cart.d(),
-                    cart.e(),
-                    cart.f()
+                cart.a(),
+                cart.b(),
+                cart.c(),
+                cart.d(),
+                cart.e(),
+                cart.f()
             });
             var binaryTableHDU = BinaryTableHDU.wrap(table);
             binaryTableHDU.getHeader().addValue(JSOLEX_HEADER_KEY, ELLIPSE_VALUE, "Ellipse parameters");
@@ -331,11 +380,11 @@ public class FitsUtils {
             var sp = metadata.get();
             var table = new BinaryTable();
             table.addRow(new Object[]{
-                    sp.carringtonRotation(),
-                    sp.b0(),
-                    sp.l0(),
-                    sp.p(),
-                    sp.apparentSize()
+                sp.carringtonRotation(),
+                sp.b0(),
+                sp.l0(),
+                sp.p(),
+                sp.apparentSize()
             });
             var binaryTableHDU = BinaryTableHDU.wrap(table);
             binaryTableHDU.getHeader().addValue(JSOLEX_HEADER_KEY, SOLAR_PARAMS_VALUE, "Solar parameters");
@@ -349,7 +398,7 @@ public class FitsUtils {
             var processParams = metadata.get();
             var json = ProcessParamsIO.serializeToJson(processParams);
             var table = new BinaryTable();
-            table.addRow(new Object[] { json.getBytes(StandardCharsets.UTF_8) });
+            table.addRow(new Object[]{json.getBytes(StandardCharsets.UTF_8)});
             var binaryTableHDU = BinaryTableHDU.wrap(table);
             binaryTableHDU.getHeader().addValue(JSOLEX_HEADER_KEY, PROCESS_PARAMS_VALUE, "Process parameters");
             fits.addHDU(binaryTableHDU);
@@ -373,7 +422,7 @@ public class FitsUtils {
         maybeAdd(header, Standard.INSTRUME, obs.instrument());
         maybeAdd(header, CAMERA, obs.camera());
         header.addValue(Standard.DATE_OBS, obs.date().format(
-                DateTimeFormatter.ISO_DATE_TIME
+            DateTimeFormatter.ISO_DATE_TIME
         ));
         var email = obs.email();
         if (notEmpty(email)) {

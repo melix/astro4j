@@ -30,9 +30,12 @@ import org.jcodec.common.io.NIOUtils;
 import org.jcodec.common.model.ColorSpace;
 import org.jcodec.common.model.Picture;
 import org.jcodec.common.model.Rational;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
@@ -41,6 +44,8 @@ import java.util.stream.Stream;
 import static me.champeau.a4j.ser.EightBitConversionSupport.to8BitImage;
 
 public class Animate extends AbstractFunctionImpl {
+    private static final Logger LOGGER = LoggerFactory.getLogger(Animate.class);
+
     private static final int DEFAULT_DELAY = 250;
 
     public Animate(Map<Class<?>, Object> context, Broadcaster broadcaster) {
@@ -51,16 +56,25 @@ public class Animate extends AbstractFunctionImpl {
         if (arguments.size() > 2) {
             throw new IllegalArgumentException("anim takes 1 or 2 arguments (images, delay)");
         }
-        var images = arguments.get(0);
-        if (!(images instanceof List)) {
+        var images = arguments.getFirst();
+        if (!(images instanceof List<?> listOfImages)) {
             throw new IllegalArgumentException("anim must use a list of images as first argument");
+        }
+        if (listOfImages.isEmpty()) {
+            throw new IllegalArgumentException("anim must use a non-empty list of images as first argument");
+        }
+        if (listOfImages.getFirst() instanceof List) {
+            return expandToImageList("anim", arguments, this::createAnimation);
         }
         var delay = arguments.size() == 1 ? DEFAULT_DELAY : doubleArg(arguments, 1);
         try {
             var tempFile = Files.createTempFile("video_jsolex", ".mp4");
+            var frames = (List) arguments.get(0);
+            if (FfmegEncoder.isAvailable()) {
+                encodeWithFfmpeg(frames, tempFile, (int) delay);
+            }
             var encoder = SequenceEncoder.createWithFps(NIOUtils.writableChannel(tempFile.toFile()),
                     new Rational((int) (1000 / delay), 1));
-            var frames = (List) arguments.get(0);
             double progress = 0;
             for (Object argument : frames) {
                 broadcaster.broadcast(ProgressEvent.of(progress/frames.size(), "Encoding frame " + (int) progress + "/" + frames.size()));
@@ -81,6 +95,15 @@ public class Animate extends AbstractFunctionImpl {
             return new FileOutput(tempFile);
         } catch (IOException e) {
             throw new ProcessingException(e);
+        }
+    }
+
+    private static void encodeWithFfmpeg(List frames, Path tempFile, int delay) {
+        try {
+            FfmegEncoder.encode(frames, tempFile.toFile(), delay);
+        } catch (IOException e) {
+            // fallback to jcodec
+            LOGGER.info("Failed to encode video with ffmpeg, falling back to jcodec", e);
         }
     }
 
@@ -125,7 +148,7 @@ public class Animate extends AbstractFunctionImpl {
         if (height % 2 == 1) {
             height--;
         }
-        var origRGB = image.converter().apply(image.mono().data());
+        var origRGB = image.converter().apply(image.mono());
         var colorChannelsStream = Arrays.stream(origRGB);
         addColorFrame(encoder, image, colorChannelsStream, width, height);
     }

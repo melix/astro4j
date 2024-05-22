@@ -108,7 +108,7 @@ public class SimpleMarkdownViewer {
             if (linkPositions.containsKey(offset)) {
                 var link = linkPositions.get(offset);
                 if (link.startsWith("#")) {
-                    var anchor = link.substring(1).toLowerCase().replace(" ", "-");
+                    var anchor = buildAnchor(link.substring(1));
                     if (anchorPositions.containsKey(anchor)) {
                         int position = anchorPositions.get(anchor);
                         int paragraph = styledTextArea.offsetToPosition(position, TwoDimensional.Bias.Forward).getMajor();
@@ -118,6 +118,10 @@ public class SimpleMarkdownViewer {
                 }
             }
         });
+    }
+
+    private static String buildAnchor(String text) {
+        return text.toLowerCase().replace(" ", "-").replaceAll("[()]", "");
     }
 
     private void applyStyles(Node document, StyleClassedTextArea styledTextArea, Map<String, Integer> anchorPositions, Map<Integer, String> linkPositions) {
@@ -136,7 +140,7 @@ public class SimpleMarkdownViewer {
                 styleRanges.add(new StyleRange(start, end - 1, "heading-" + heading.getLevel()));
 
                 // Store the position of the anchor
-                String anchor = text.toLowerCase().replace(" ", "-");
+                String anchor = buildAnchor(text);
                 anchorPositions.put(anchor, currentOffset);
                 currentOffset = markdownText.length();
 

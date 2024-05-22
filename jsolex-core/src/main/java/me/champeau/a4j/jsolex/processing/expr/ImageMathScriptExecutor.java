@@ -50,7 +50,8 @@ public interface ImageMathScriptExecutor {
                         label,
                         colorized.width(),
                         colorized.height(),
-                        () -> colorized.converter().apply(colorized.mono().data())
+                        colorized.metadata(),
+                        () -> colorized.converter().apply(colorized.mono())
                 );
             } else if (image instanceof RGBImage rgb) {
                 emitter.newColorImage(
@@ -59,6 +60,7 @@ public interface ImageMathScriptExecutor {
                         label,
                         rgb.width(),
                         rgb.height(),
+                        rgb.metadata(),
                         () -> new float[][]{rgb.r(), rgb.g(), rgb.b()}
                 );
             }

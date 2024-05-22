@@ -31,12 +31,15 @@ import me.champeau.a4j.jsolex.processing.params.RotationKind;
 import me.champeau.a4j.jsolex.processing.stretching.ArcsinhStretchingStrategy;
 import me.champeau.a4j.jsolex.processing.stretching.AutohistogramStrategy;
 import me.champeau.a4j.jsolex.processing.stretching.ClaheStrategy;
+import me.champeau.a4j.jsolex.processing.stretching.LinearStrechingStrategy;
 import me.champeau.a4j.jsolex.processing.stretching.NegativeImageStrategy;
 import me.champeau.a4j.jsolex.processing.stretching.StretchingStrategy;
 import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
 import me.champeau.a4j.jsolex.processing.sun.ImageUtils;
 import me.champeau.a4j.jsolex.processing.sun.SolexVideoProcessor;
 import me.champeau.a4j.jsolex.processing.sun.WorkflowState;
+import me.champeau.a4j.jsolex.processing.sun.detection.RedshiftArea;
+import me.champeau.a4j.jsolex.processing.sun.detection.Redshifts;
 import me.champeau.a4j.jsolex.processing.sun.tasks.CoronagraphTask;
 import me.champeau.a4j.jsolex.processing.sun.tasks.EllipseFittingTask;
 import me.champeau.a4j.jsolex.processing.sun.tasks.GeometryCorrector;
@@ -44,6 +47,7 @@ import me.champeau.a4j.jsolex.processing.sun.tasks.ImageBandingCorrector;
 import me.champeau.a4j.jsolex.processing.util.Constants;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 import me.champeau.a4j.jsolex.processing.util.MutableMap;
+import me.champeau.a4j.jsolex.processing.util.RGBImage;
 import me.champeau.a4j.math.Point2D;
 import me.champeau.a4j.math.image.Deconvolution;
 import me.champeau.a4j.math.image.ImageMath;
@@ -53,12 +57,15 @@ import me.champeau.a4j.ser.Header;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.awt.BasicStroke;
+import java.awt.Color;
 import java.nio.file.Path;
 import java.text.MessageFormat;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.function.Supplier;
 
 import static me.champeau.a4j.jsolex.processing.sun.ImageUtils.bilinearSmoothing;
@@ -130,9 +137,9 @@ public class ProcessingWorkflow {
     }
 
     private Supplier<ImageWrapper32> imageSupplier(WorkflowResults step) {
-        return () -> state.findResult(step).map(r -> {
+        return () -> (ImageWrapper32) state.findResult(step).map(r -> {
             if (r instanceof GeometryCorrector.Result geo) {
-                return geo.corrected();
+                return geo.corrected().unwrapToMemory();
             }
             if (r instanceof ImageWrapper32 img) {
                 return img;
@@ -161,7 +168,7 @@ public class ProcessingWorkflow {
         Double ratio = geometryParams.xyRatio().isPresent() ? geometryParams.xyRatio().getAsDouble() : null;
         var g = new GeometryCorrector(broadcaster, imageSupplier(WorkflowResults.BANDING_CORRECTION), ellipse, forcedTilt, fps, ratio, blackPoint, processParams, debugImagesEmitter, state, header).get();
         var kind = GeneratedImageKind.GEOMETRY_CORRECTED;
-        var geometryFixed = g.corrected();
+        var geometryFixed = (ImageWrapper32) g.corrected().unwrapToMemory();
         if (state.pixelShift() == Constants.CONTINUUM_SHIFT) {
             kind = GeneratedImageKind.CONTINUUM;
         }
@@ -169,7 +176,7 @@ public class ProcessingWorkflow {
             processedImagesEmitter.newMonoImage(kind, message("disk"), "disk", geometryFixed);
         }
         g = performEnhancements(g);
-        var enhanced = g.enhanced();
+        var enhanced = (ImageWrapper32) g.enhanced().unwrapToMemory();
         state.recordResult(WorkflowResults.GEOMETRY_CORRECTION, g);
         if (state.isInternal()) {
             return;
@@ -190,9 +197,66 @@ public class ProcessingWorkflow {
         if (isMainShift() && shouldProduce(GeneratedImageKind.TECHNICAL_CARD)) {
             produceTechnicalCard(stretched);
         }
+        if (processParams.spectrumParams().pixelShift() == 0 && isMainShift() && shouldProduce(GeneratedImageKind.REDSHIFT)) {
+            geometryFixed.findMetadata(Redshifts.class).ifPresent(redshifts -> {
+                if (!redshifts.redshifts().isEmpty()) {
+                    runnables.add(() -> produceRedshiftsImage(geometryFixed));
+                }
+            });
+        }
         runnables.stream()
             .parallel()
             .forEach(Runnable::run);
+    }
+
+    private void produceRedshiftsImage(ImageWrapper32 geometryFixed) {
+        processedImagesEmitter.newColorImage(GeneratedImageKind.REDSHIFT,
+            message("redshift"),
+            "redshift",
+            geometryFixed,
+            mono -> {
+                LinearStrechingStrategy.DEFAULT.stretch(mono);
+                var data = mono.data();
+                var r = new float[data.length];
+                System.arraycopy(data, 0, r, 0, data.length);
+                var g = new float[data.length];
+                System.arraycopy(data, 0, g, 0, data.length);
+                var b = new float[data.length];
+                System.arraycopy(data, 0, b, 0, data.length);
+                var copy = new RGBImage(
+                    mono.width(),
+                    mono.height(),
+                    r,
+                    g,
+                    b,
+                    new HashMap<>(geometryFixed.metadata())
+                );
+                var draw = new ImageDraw(Map.of(), broadcaster);
+                var redshifts = mono.findMetadata(Redshifts.class).get().redshifts();
+                RGBImage rgb = (RGBImage) draw.drawOnImage(copy, (gr, img) -> {
+                    for (RedshiftArea redshift : redshifts) {
+                        var x1 = redshift.x1();
+                        var y1 = redshift.y1();
+                        var x2 = redshift.x2();
+                        var y2 = redshift.y2();
+                        if (Math.max(x2-x1, y2-y1) < 32) {
+                            // rescale rectangle for improved visibility
+                            var dx = 4 * (1 + x2 - x1);
+                            var dy = 4 * (1 + y2 - y1);
+                            x1 -= dx;
+                            x2 += dx;
+                            y1 -= dy;
+                            y2 += dy;
+                        }
+                        gr.setStroke(new BasicStroke(2));
+                        gr.setColor(Color.RED);
+                        gr.setFont(gr.getFont().deriveFont(24f));
+                        gr.drawString(String.format("%.2f km/s", redshift.kmPerSec()), x2 + 4, y2);
+                        gr.drawRect(x1, y1, x2 - x1 + 1, y2 - y1 + 1);
+                    }
+                });
+                return new float[][]{rgb.r(), rgb.g(), rgb.b()};
+            });
     }
 
     private boolean isMainShift() {
@@ -200,7 +264,7 @@ public class ProcessingWorkflow {
     }
 
     private GeometryCorrector.Result performEnhancements(GeometryCorrector.Result g) {
-        var corrected = g.corrected();
+        var corrected = (ImageWrapper32) g.corrected().unwrapToMemory();
         var image = corrected.asImage();
         List<String> enhancements = new ArrayList<>();
         if (processParams.geometryParams().deconvolutionMode() == DeconvolutionMode.RICHARDSON_LUCY) {
@@ -260,13 +324,15 @@ public class ProcessingWorkflow {
     private void produceColorizedImage(float blackPoint, ImageWrapper32 corrected, ProcessParams params) {
         var ray = params.spectrumParams().ray();
         ray.getColorCurve().ifPresentOrElse(curve ->
-                processedImagesEmitter.newColorImage(GeneratedImageKind.COLORIZED, MessageFormat.format(message("colorized"), curve.ray()), "colorized", corrected, mono -> {
+                processedImagesEmitter.newColorImage(GeneratedImageKind.COLORIZED, MessageFormat.format(message("colorized"), curve.ray()), "colorized", corrected, monoImage -> {
+                    var mono = monoImage.data();
                     createStretchingForColorization(blackPoint, mono).stretch(new ImageWrapper32(corrected.width(), corrected.height(), mono, MutableMap.of()));
                     return ImageUtils.convertToRGB(curve, mono);
                 })
             , () -> {
                 if (ray.wavelength() > 0) {
-                    processedImagesEmitter.newColorImage(GeneratedImageKind.COLORIZED, MessageFormat.format(message("colorized"), ray.label()), "colorized", corrected, mono -> {
+                    processedImagesEmitter.newColorImage(GeneratedImageKind.COLORIZED, MessageFormat.format(message("colorized"), ray.label()), "colorized", corrected, monoImage -> {
+                        var mono = monoImage.data();
                         var rgb = ray.toRGB();
                         return Colorize.doColorize(corrected.width(), corrected.height(), mono, rgb);
                     });
@@ -380,11 +446,11 @@ public class ProcessingWorkflow {
                     var colorCurve = ray.getColorCurve();
                     if (colorCurve.isPresent()) {
                         var curve = colorCurve.get();
-                        processedImagesEmitter.newColorImage(GeneratedImageKind.MIXED, message("mix"), "mix", mixedImage, mono -> ImageUtils.convertToRGB(curve, mono));
+                        processedImagesEmitter.newColorImage(GeneratedImageKind.MIXED, message("mix"), "mix", mixedImage, monoImage -> ImageUtils.convertToRGB(curve, monoImage.data()));
                     } else if (ray.wavelength() > 0) {
-                        processedImagesEmitter.newColorImage(GeneratedImageKind.COLORIZED, message("mix"), "mix", mixedImage, mono -> {
+                        processedImagesEmitter.newColorImage(GeneratedImageKind.COLORIZED, message("mix"), "mix", mixedImage, monoImage -> {
                             var rgbColor = ray.toRGB();
-                            return Colorize.doColorize(width, height, mono, rgbColor);
+                            return Colorize.doColorize(width, height, monoImage.data(), rgbColor);
                         });
                     } else {
                         processedImagesEmitter.newMonoImage(GeneratedImageKind.MIXED, message("mix"), "mix", mixedImage);

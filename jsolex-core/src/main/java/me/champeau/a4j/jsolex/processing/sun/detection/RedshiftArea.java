@@ -13,23 +13,41 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package me.champeau.a4j.jsolex.processing.event;
+package me.champeau.a4j.jsolex.processing.sun.detection;
 
-import me.champeau.a4j.jsolex.processing.sun.workflow.GeneratedImageKind;
-
-import java.nio.file.Path;
-
-public final class FileGeneratedEvent extends ProcessingEvent<FileGeneratedEvent.GeneratedFile> {
-
-    private FileGeneratedEvent(GeneratedFile path) {
-        super(path);
+public record RedshiftArea(
+    int pixelShift,
+    int relPixelShift,
+    double kmPerSec,
+    int x1,
+    int y1,
+    int x2,
+    int y2,
+    int maxX,
+    int maxY
+) {
+    public RedshiftArea {
+        if (x1 > x2) {
+            var tmp = x1;
+            x1 = x2;
+            x2 = tmp;
+        }
+        if (y1 > y2) {
+            var tmp = y1;
+            y1 = y2;
+            y2 = tmp;
+        }
     }
 
-    public static FileGeneratedEvent of(GeneratedImageKind kind, String title, Path path) {
-        return new FileGeneratedEvent(new GeneratedFile(kind, title, path));
+    public int width() {
+        return x2 - x1;
     }
 
-    public record GeneratedFile(GeneratedImageKind kind, String title, Path path) {
+    public int height() {
+        return y2 - y1;
+    }
 
+    public double size() {
+        return Math.max(width(), height());
     }
 }

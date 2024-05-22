@@ -39,4 +39,8 @@ public sealed interface ImageWrapper permits ImageWrapper32, ColorizedImageWrapp
         }
         return this;
     }
+
+    default ImageWrapper wrap() {
+        return FileBackedImage.wrap(this);
+    }
 }

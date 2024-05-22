@@ -16,12 +16,14 @@
 package me.champeau.a4j.jsolex.processing.util;
 
 import me.champeau.a4j.jsolex.processing.params.ProcessParams;
+import me.champeau.a4j.jsolex.processing.sun.detection.Redshifts;
 import me.champeau.a4j.jsolex.processing.sun.workflow.GeneratedImageMetadata;
 import me.champeau.a4j.jsolex.processing.sun.workflow.PixelShift;
 import me.champeau.a4j.jsolex.processing.sun.workflow.TransformationHistory;
 import me.champeau.a4j.math.regression.Ellipse;
 
 import java.util.List;
+import java.util.Locale;
 import java.util.Optional;
 import java.util.function.Supplier;
 
@@ -42,6 +44,7 @@ public class MetadataSupport {
             case ProcessParams unused -> null;
             case TransformationHistory history -> renderTransformationHistory(history);
             case GeneratedImageMetadata generatedImage -> renderGeneratedImageMetadata(generatedImage);
+            case Redshifts redshifts -> renderRedshifts(redshifts);
             default -> renderToString(clazz, value);
         });
     }
@@ -68,6 +71,19 @@ public class MetadataSupport {
             return String.format(message("pixel.shift.integer.pattern"), Math.round(v));
         }
         return String.format(message("pixel.shift.real.pattern"), v);
+    }
+
+    public static String renderRedshifts(Redshifts redshifts) {
+        var sb = new StringBuilder();
+        sb.append(message("redshifts.measurements")).append("\n");
+        redshifts.redshifts().forEach(rs -> {
+            sb.append("  - ");
+            sb.append(String.format(Locale.US, "%.2f km/s", rs.kmPerSec()));
+            sb.append(" (pixel shift = ").append(rs.relPixelShift()).append(")");
+            sb.append(" ").append(message("at.coord")).append(" ").append(rs.maxX()).append("x").append(rs.maxY());
+            sb.append("\n");
+        });
+        return sb.toString();
     }
 
     private static String renderToString(Class<?> clazz, Object value) {

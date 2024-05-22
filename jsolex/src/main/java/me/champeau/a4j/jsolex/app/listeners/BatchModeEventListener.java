@@ -219,7 +219,7 @@ public class BatchModeEventListener implements ProcessingEventListener, ImageMat
                 var targetPath = new File(outputDirectory, name + ext).toPath();
                 Files.createDirectories(targetPath.getParent());
                 Files.move(entry.getValue(), targetPath, StandardCopyOption.REPLACE_EXISTING);
-                delegate.onFileGenerated(FileGeneratedEvent.of(entry.getKey(), targetPath));
+                delegate.onFileGenerated(FileGeneratedEvent.of(GeneratedImageKind.IMAGE_MATH, entry.getKey(), targetPath));
             } catch (IOException e) {
                 throw new ProcessingException(e);
             }

@@ -75,6 +75,8 @@ public class ImageSelector {
     @FXML
     private CheckBox technicalCard;
     @FXML
+    private CheckBox redshift;
+    @FXML
     private TextField pixelShifts;
     @FXML
     private Button openImageMathButton;
@@ -142,6 +144,7 @@ public class ImageSelector {
                 case CONTINUUM -> continuum.setSelected(true);
                 case RECONSTRUCTION -> reconstruction.setSelected(true);
                 case TECHNICAL_CARD -> technicalCard.setSelected(true);
+                case REDSHIFT -> redshift.setSelected(true);
             }
         }
         this.debug.setSelected(debug);
@@ -260,6 +263,10 @@ public class ImageSelector {
         if (debug.isSelected()) {
             images.add(GeneratedImageKind.DEBUG);
         }
+        if (redshift.isSelected()) {
+            images.add(GeneratedImageKind.REDSHIFT);
+            makeDefaultShiftNonInternal();
+        }
         var pixelShifts = readPixelShifts();
         requestedImages = new RequestedImages(
                 images,
@@ -299,6 +306,7 @@ public class ImageSelector {
         reconstruction.setSelected(selected);
         technicalCard.setSelected(selected);
         debug.setSelected(selected);
+        redshift.setSelected(selected);
     }
 
     @FXML
