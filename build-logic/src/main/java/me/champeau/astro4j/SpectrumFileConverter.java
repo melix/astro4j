@@ -28,6 +28,7 @@ import java.io.IOException;
 import java.io.PrintWriter;
 import java.nio.file.Files;
 import java.util.ArrayList;
+import java.util.Locale;
 
 /**
  * Converts the BASS2000 spectral line database file to a format
@@ -72,7 +73,7 @@ public abstract class SpectrumFileConverter extends DefaultTask {
                         intensities.add(value);
                         if (intensities.size() == 50) {
                             var avg = (int) intensities.stream().mapToInt(Integer::intValue).average().orElse(0);
-                            writer.println(String.format("%.2f %d", wavelength, avg));
+                            writer.println(String.format(Locale.US, "%.2f %d", wavelength, avg));
                             intensities.clear();
                             wavelength += (wlIncrement * 50);
                         }
@@ -80,7 +81,7 @@ public abstract class SpectrumFileConverter extends DefaultTask {
                     if (!intensities.isEmpty()) {
                         var avg = (int) intensities.stream().mapToInt(Integer::intValue).average().orElse(0);
                         wavelength += (wlIncrement * intensities.size());
-                        writer.println(String.format("%.2f %d", wavelength, avg));
+                        writer.println(String.format(Locale.US, "%.2f %d", wavelength, avg));
                     }
                 }
             }

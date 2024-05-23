@@ -284,13 +284,15 @@ public class ImageViewer {
                 }
             }
         });
-        alignButton.setTooltip(new Tooltip(message("align.images")));
-        var titleBox = new HBox(alignButton, titleLabel, new Label("(" + imageFile.getName() + ")"));
-        titleBox.setSpacing(4);
-        titleBox.setAlignment(Pos.CENTER_LEFT);
-        stretchingParams.getChildren().addAll(titleBox, line1, line2);
-        line1.getChildren().forEach(e -> HBox.setHgrow(e, Priority.ALWAYS));
-        line2.getChildren().stream().filter(e -> !(e instanceof Slider)).forEach(e -> HBox.setHgrow(e, Priority.ALWAYS));
+        BatchOperations.submit(() -> {
+            alignButton.setTooltip(new Tooltip(message("align.images")));
+            var titleBox = new HBox(alignButton, titleLabel, new Label("(" + imageFile.getName() + ")"));
+            titleBox.setSpacing(4);
+            titleBox.setAlignment(Pos.CENTER_LEFT);
+            stretchingParams.getChildren().addAll(titleBox, line1, line2);
+            line1.getChildren().forEach(e -> HBox.setHgrow(e, Priority.ALWAYS));
+            line2.getChildren().stream().filter(e -> !(e instanceof Slider)).forEach(e -> HBox.setHgrow(e, Priority.ALWAYS));
+        });
         stretchAndDisplay(true);
     }
 
@@ -380,7 +382,7 @@ public class ImageViewer {
         var tmpImage = createTmpFile();
         if (displayImage instanceof ImageWrapper32 mono) {
             stretchedImage = stretch(mono);
-            var savedImages = ImageUtils.writeMonoImage(mono.width(), mono.height(), ((ImageWrapper32)stretchedImage).data(), tmpImage, imageFormats);
+            var savedImages = ImageUtils.writeMonoImage(mono.width(), mono.height(), ((ImageWrapper32) stretchedImage).data(), tmpImage, imageFormats);
             BatchOperations.submit(() -> updateDisplay(savedImages, resetZoom));
         } else if (displayImage instanceof ColorizedImageWrapper colorImage) {
             stretchedImage = stretch(colorImage);
