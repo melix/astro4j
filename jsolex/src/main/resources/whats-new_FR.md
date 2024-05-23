@@ -7,6 +7,12 @@ Voici les nouveautés de cette version :
 - [Colorisation automatique basée sur la longueur d'onde](#colorisaton-automatique-basée-sur-la-longueur-d-onde)
 - [Lecture des métadonnées Sharpcap et Firecapture](#lecture-des-métadonnées-sharpcap-et-firecapture)
 
+## Bugfixes depuis la 2.3.0
+
+- Correction de la marge de pixel shift non prise en compte dans certain cas
+- Correction de la lecture des métadonnées Sharpcap qui pouvait rendre impossible la lecture d'un SER
+- Correction d'une erreur de format si l'application était compilée sous Windows
+
 ## Détection automatique de la raie étudiée
 
 JSol'Ex propose maintenant la détection automatique de la raie étudiée, ainsi que du binning.

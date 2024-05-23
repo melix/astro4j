@@ -7,6 +7,12 @@ Here are the new features in this version:
 - [Automatic Coloring Based on Wavelength](#automatic-coloring-based-on-wavelength)
 - [Reading Sharpcap and Firecapture Metadata](#reading-sharpcap-and-firecapture-metadata)
 
+## Bugfixes since 2.3.0
+
+- Fixed pixel shift margin not taken into account in some cases
+- Fixed Sharpcap metadata parsing that could make reading a SER impossible
+- Fixed a formatting error if the application was compiled under Windows
+
 ## Automatic Detection of the Studied Line
 
 JSol'Ex now offers automatic detection of the studied line, as well as camera binning.
