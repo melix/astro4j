@@ -879,20 +879,20 @@ public class JSolEx extends Application implements JSolExInterface {
     @Override
     public void prepareForRedshiftImages(RedshiftImagesProcessor processor) {
         var redshifts = processor.getRedshifts();
-        redshiftTab.setDisable(redshifts.isEmpty());
         var maxSize = redshifts.stream()
             .mapToDouble(RedshiftArea::size)
             .max()
             .orElse(0);
         var power = highestPowerOfTwoGreaterOrEqualTo(processor.getSunRadius().map(r -> r / 10d).orElse(maxSize));
         int boxSize = (int) Math.pow(2, power);
-        redshiftBoxSize.getItems().clear();
-        int bSize = boxSize;
-        for (int i = 0; i < 4; i++) {
-            redshiftBoxSize.getItems().add(bSize);
-            bSize += boxSize;
-        }
         BatchOperations.submit(() -> {
+            redshiftTab.setDisable(redshifts.isEmpty());
+            redshiftBoxSize.getItems().clear();
+            int bSize = boxSize;
+            for (int i = 0; i < 4; i++) {
+                redshiftBoxSize.getItems().add(bSize);
+                bSize += boxSize;
+            }
             generateRedshiftImages.setOnAction(e -> {
                 var kind = redshiftCreatorKind.getValue();
                 var size = redshiftBoxSize.getValue();

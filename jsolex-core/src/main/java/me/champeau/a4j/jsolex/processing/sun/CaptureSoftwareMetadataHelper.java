@@ -19,7 +19,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.File;
-import java.io.IOException;
 import java.nio.file.Files;
 import java.util.Optional;
 
@@ -45,17 +44,27 @@ public class CaptureSoftwareMetadataHelper {
                 var binning = 1;
                 for (var line : lines) {
                     if (line.startsWith("Binning=")) {
-                        binning = Integer.parseInt(line.substring(line.indexOf('=') + 1).trim());
+                        binning = parseBinning(line);
                         break;
                     }
                 }
                 LOGGER.info(message("found.metadata"), "Sharpcap", camera, binning);
                 return Optional.of(new CaptureMetadata(camera, binning));
-            } catch (IOException e) {
+            } catch (Exception e) {
                 return Optional.empty();
             }
         }
         return Optional.empty();
+    }
+
+    private static int parseBinning(String line) {
+        int binning;
+        var value = line.substring(line.indexOf('=') + 1);
+        if (value.contains("x")) {
+            value = value.substring(0, value.indexOf("x"));
+        }
+        binning = Integer.parseInt(value.trim());
+        return binning;
     }
 
     public static Optional<CaptureMetadata> readFireCaptureMetadata(File serFile) {
@@ -70,7 +79,7 @@ public class CaptureSoftwareMetadataHelper {
                     for (var line : lines) {
                         if (line.startsWith("Binning=")) {
                             var tmp = line.substring(line.indexOf('=') + 1);
-                            binning = Integer.parseInt(tmp.substring(0, tmp.indexOf("x")).trim());
+                            binning = parseBinning(tmp);
                         } else if (line.startsWith("Camera=")) {
                             camera = line.substring(line.indexOf('=') + 1).trim();
                         }
@@ -80,7 +89,7 @@ public class CaptureSoftwareMetadataHelper {
                         }
                     }
                 }
-            } catch (IOException e) {
+            } catch (Exception e) {
                 return Optional.empty();
             }
         }
