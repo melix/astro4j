@@ -645,7 +645,7 @@ public class SolexVideoProcessor implements Broadcaster {
                                 reconstructedImages[idx] = buffer;
                             }
                             processSingleFrame(state.isInternal(), width, height, buffer, offset, original, polynomial, state.pixelShift(), totalLines);
-                            if (state.pixelShift() == 0 && processParams.spectrumParams().ray() == SpectralRay.H_ALPHA && processParams.requestedImages().isEnabled(GeneratedImageKind.REDSHIFT)) {
+                            if (state.pixelShift() == 0 && processParams.spectrumParams().ray().label().equalsIgnoreCase(SpectralRay.H_ALPHA.label()) && processParams.requestedImages().isEnabled(GeneratedImageKind.REDSHIFT)) {
                                 phenomenaDetector.performDetection(frameId, width, height, original, polynomial, dispersion);
                                 hasRedshifts.set(true);
                             }
