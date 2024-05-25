@@ -40,6 +40,7 @@ import javafx.scene.layout.VBox;
 import javafx.stage.Stage;
 import javafx.util.Duration;
 import me.champeau.a4j.jsolex.app.JSolEx;
+import me.champeau.a4j.jsolex.processing.event.GenericMessage;
 import me.champeau.a4j.jsolex.processing.event.ProcessingEventListener;
 import me.champeau.a4j.jsolex.processing.event.ProgressEvent;
 import me.champeau.a4j.jsolex.processing.params.ProcessParams;
@@ -66,6 +67,7 @@ import java.nio.file.Path;
 import java.util.EnumSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
@@ -96,7 +98,7 @@ public class ImageViewer {
     private Button saveButton;
     private String title;
     private Runnable onDisplayUpdate;
-    private double rotation;
+    private int rotation;
     private boolean vflip;
 
     private final ListProperty<ImageState> imageHistory = new SimpleListProperty<>(FXCollections.observableArrayList());
@@ -249,7 +251,13 @@ public class ImageViewer {
         zoomSlider.valueProperty().addListener((obj, oldValue, newValue) -> imageView.setZoom(newValue.doubleValue()));
         correctAngleP = new CheckBox(message("correct.p.angle"));
         correctAngleP.setSelected(processParams.geometryParams().isAutocorrectAngleP());
-        correctAngleP.selectedProperty().addListener((obj, oldValue, newValue) -> stretchAndDisplay());
+        var applyNextTime = new Button("✔");
+        correctAngleP.selectedProperty().addListener((obj, oldValue, newValue) -> {
+            stretchAndDisplay();
+            if (!Objects.equals(oldValue, newValue)) {
+                applyNextTime.setDisable(false);
+            }
+        });
         correctAngleP.setDisable(kind.cannotPerformManualRotation());
         var prevButton = new Button(message("prev.image"));
         prevButton.disableProperty().bind(currentImage.isEqualTo(0));
@@ -276,14 +284,17 @@ public class ImageViewer {
         var leftRotate = new Button("↶");
         leftRotate.setTooltip(new Tooltip(message("rotate.left")));
         leftRotate.setOnAction(evt -> {
-            rotation = (rotation - Math.PI / 2) % (2 * Math.PI);
+            rotation = (rotation - 1) % 4;
+            applyNextTime.setDisable(false);
             stretchAndDisplay();
         });
         leftRotate.visibleProperty().set(!kind.cannotPerformManualRotation());
         var rightRotate = new Button("↷");
         rightRotate.setTooltip(new Tooltip(message("rotate.right")));
         rightRotate.setOnAction(evt -> {
-            rotation = (rotation + Math.PI / 2) % (2 * Math.PI);
+            rotation = (rotation + 1) % 4;
+            applyNextTime.setDisable(false);
+
             stretchAndDisplay();
         });
         rightRotate.visibleProperty().set(!kind.cannotPerformManualRotation());
@@ -292,11 +303,18 @@ public class ImageViewer {
         verticalMirror.setOnAction(evt -> {
             vflip = !vflip;
             rotation = -rotation;
+            applyNextTime.setDisable(false);
             stretchAndDisplay();
         });
         verticalMirror.visibleProperty().set(!kind.cannotPerformManualRotation());
+        applyNextTime.setOnAction(evt -> {
+            broadcaster.onGenericMessage(GenericMessage.of(new ApplyUserRotation(rotation, correctAngleP.isSelected(), vflip)));
+            applyNextTime.setDisable(true);
+        });
+        applyNextTime.setTooltip(new Tooltip(message("apply.next.time")));
+        applyNextTime.setDisable(true);
         line1.getChildren().addAll(reset, saveButton, prevButton, nextButton);
-        line2.getChildren().addAll(correctAngleP, zoomLabel, zoomSlider, fitButton, fitToCenter, oneToOneFit, leftRotate, rightRotate, verticalMirror, dimensions, coordinatesLabel);
+        line2.getChildren().addAll(correctAngleP, zoomLabel, zoomSlider, fitButton, fitToCenter, oneToOneFit, leftRotate, rightRotate, verticalMirror, applyNextTime, dimensions, coordinatesLabel);
         var titleLabel = new Label(title);
         titleLabel.setStyle("-fx-font-weight: bold");
         var alignButton = new Button("⌖");
@@ -438,7 +456,7 @@ public class ImageViewer {
             if (correctAngleP.isSelected()) {
                 correction += SolarParametersUtils.computeSolarParams(processParams.observationDetails().date().toLocalDateTime()).p();
             }
-            correction += rotation;
+            correction += (Math.PI * rotation / 2d);
         }
         if (correction != 0) {
             image = image.copy();

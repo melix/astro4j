@@ -17,6 +17,7 @@ package me.champeau.a4j.jsolex.app.listeners;
 
 import javafx.application.HostServices;
 import javafx.scene.control.Tab;
+import me.champeau.a4j.jsolex.app.jfx.ApplyUserRotation;
 import me.champeau.a4j.jsolex.app.jfx.MultipleImagesViewer;
 import me.champeau.a4j.jsolex.processing.expr.ImageMathScriptExecutor;
 import me.champeau.a4j.jsolex.processing.params.ProcessParams;
@@ -45,4 +46,8 @@ public interface JSolExInterface {
     void newSession();
 
     void prepareForRedshiftImages(RedshiftImagesProcessor processor);
+
+    void prepareForGongImageDownload(ProcessParams processParams);
+
+    void applyUserRotation(ApplyUserRotation params);
 }

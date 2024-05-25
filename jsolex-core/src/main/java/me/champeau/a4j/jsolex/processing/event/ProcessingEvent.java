@@ -26,7 +26,7 @@ public abstract sealed class ProcessingEvent<T> permits
         ProcessingDoneEvent,
         SuggestionEvent,
         ProgressEvent,
-        DebugEvent,
+    GenericMessage,
         VideoMetadataEvent,
         ScriptExecutionResultEvent {
     private final T payload;

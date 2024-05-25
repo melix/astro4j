@@ -16,7 +16,7 @@
 package me.champeau.a4j.jsolex.processing.sun;
 
 import me.champeau.a4j.jsolex.processing.event.AverageImageComputedEvent;
-import me.champeau.a4j.jsolex.processing.event.DebugEvent;
+import me.champeau.a4j.jsolex.processing.event.GenericMessage;
 import me.champeau.a4j.jsolex.processing.event.FileGeneratedEvent;
 import me.champeau.a4j.jsolex.processing.event.GeneratedImage;
 import me.champeau.a4j.jsolex.processing.event.ImageGeneratedEvent;
@@ -736,8 +736,8 @@ public class SolexVideoProcessor implements Broadcaster {
                 listener.onProcessingDone(e);
             } else if (event instanceof ProgressEvent e) {
                 listener.onProgress(e);
-            } else if (event instanceof DebugEvent<?> e) {
-                listener.onDebug(e);
+            } else if (event instanceof GenericMessage<?> e) {
+                listener.onGenericMessage(e);
             } else if (event instanceof VideoMetadataEvent e) {
                 listener.onVideoMetadataAvailable(e);
             } else if (event instanceof ScriptExecutionResultEvent e) {
