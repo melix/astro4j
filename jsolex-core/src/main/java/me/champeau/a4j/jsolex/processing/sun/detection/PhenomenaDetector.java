@@ -267,4 +267,7 @@ public class PhenomenaDetector {
     }
 
 
+    public boolean isEmpty() {
+        return redshiftsPerFrame.isEmpty();
+    }
 }

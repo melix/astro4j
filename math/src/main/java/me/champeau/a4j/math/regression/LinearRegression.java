@@ -167,8 +167,10 @@ public abstract class LinearRegression {
         var mmT = mm.transpose();
         double[][] result = mmT.mul(mm).inverse().mul(mmT).mul(DoubleMatrix.of(yy)).asArray();
         double[] res = new double[k + 1];
-        for (int i = 0; i <= k; i++) {
-            res[k - i] = result[i][0];
+        if (result.length == k + 1) {
+            for (int i = 0; i <= k; i++) {
+                res[k - i] = result[i][0];
+            }
         }
         return res;
     }
