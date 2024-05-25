@@ -45,6 +45,7 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.function.Supplier;
+import java.util.stream.Collectors;
 
 import static me.champeau.a4j.jsolex.processing.util.Constants.message;
 import static me.champeau.a4j.jsolex.processing.util.DebugImageHelper.plot;
@@ -99,7 +100,8 @@ public class EllipseFittingTask extends AbstractTask<EllipseFittingTask.Result> 
         workImage = ImageWrapper32.fromImage(tmp);
         // Normalize to the 0-65535 range
         RangeExpansionStrategy.DEFAULT.stretch(workImage);
-        filterIrrelevantPixels(workImage, statsOf(workImage.data()));
+        var stats = statsOf(workImage.data());
+        filterIrrelevantPixels(workImage, stats);
         var magnitude = imageMath.convolve(tmp, Kernel33.EDGE_DETECTION);
         magnitude = imageMath.convolve(magnitude, Kernel33.GAUSSIAN_BLUR);
         var magnitudes = magnitude.data();
@@ -225,9 +227,10 @@ public class EllipseFittingTask extends AbstractTask<EllipseFittingTask.Result> 
                 }
             }
             int size = 0;
-            var factor = 4d;
+            var factor = 3d;
             int iterations = 0;
-            while (samples.size() != size && factor > .5) {
+            filterOutliersByDetectingLines(samples);
+            while (samples.size() != size && factor > 1) {
                 iterations++;
                 size = samples.size();
                 filterOutliersByDistanceToEllipse(samples, factor);
@@ -239,7 +242,26 @@ public class EllipseFittingTask extends AbstractTask<EllipseFittingTask.Result> 
         return new ArrayList<>(samples.stream().toList());
     }
 
-    private static void filterOutliersByMinDistanceBetweenSamples(Set<Point2D> samples) {
+    private void filterOutliersByDetectingLines(Set<Point2D> samples) {
+        var byX = samples.stream()
+            .collect(Collectors.groupingBy(p -> (int) p.x()));
+        var byY = samples.stream()
+            .collect(Collectors.groupingBy(p -> (int) p.y()));
+        // remove samples when they are too many of them in a single column or row, because it usually means we have
+        // detected a line instead of a disk
+        byX.forEach((x, points) -> {
+            if (points.size() > 16) {
+                points.forEach(samples::remove);
+            }
+        });
+        byY.forEach((y, points) -> {
+            if (points.size() > 16) {
+                points.forEach(samples::remove);
+            }
+        });
+    }
+
+    private static void filterOutliersByMinDistanceBetweenSamples(Collection<Point2D> samples) {
         var minDistanceToSamples = new HashMap<Point2D, Double>();
         samples.forEach(p -> {
             var x = p.x();
@@ -256,7 +278,7 @@ public class EllipseFittingTask extends AbstractTask<EllipseFittingTask.Result> 
         samples.removeIf(p -> minDistanceToSamples.get(p) > threshold);
     }
 
-    private void scan(Set<Point2D> samples, double minLimit, int width, int height, float[] magnitudes, boolean scanInYDirection, int minX, int maxX, int minY, int maxY) {
+    private void scan(Collection<Point2D> samples, double minLimit, int width, int height, float[] magnitudes, boolean scanInYDirection, int minX, int maxX, int minY, int maxY) {
         for (int i = scanInYDirection ? minY : minX; i < (scanInYDirection ? maxY : maxX); i++) {
             int min = -1;
             int max = -1;
@@ -282,9 +304,6 @@ public class EllipseFittingTask extends AbstractTask<EllipseFittingTask.Result> 
             if (max >= 0) {
                 var candidate = scanInYDirection ? new Point2D(max, i) : new Point2D(i, max);
                 samples.add(candidate);
-            }
-            if (min >= 0 || max >= 0) {
-                i += EDGE_FILTER;
             }
         }
     }

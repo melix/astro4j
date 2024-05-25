@@ -12,7 +12,7 @@ javafx {
 }
 
 val os = System.getProperty("os.name").lowercase(Locale.ENGLISH)
-val jvmMemorySettings = listOf("-XX:MaxRAMPercentage=80", "-XX:+UseParallelGC", "-XX:MaxGCPauseMillis=250", "-XX:GCTimeRatio=49")
+val jvmMemorySettings = listOf("-XX:MaxRAMPercentage=80", "-XX:+UseParallelGC")
 
 application {
     applicationDefaultJvmArgs = jvmMemorySettings + listOf("--enable-preview")

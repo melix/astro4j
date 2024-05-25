@@ -96,6 +96,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -619,8 +620,9 @@ public class SolexVideoProcessor implements Broadcaster {
         var dispersion = SpectrumAnalyzer.computeSpectralDispersion(lambda0, processParams.observationDetails().pixelSize() * processParams.observationDetails().binning());
         var phenomenaDetector = new PhenomenaDetector(dispersion, lambda0, width, totalLines);
         AtomicBoolean hasRedshifts = new AtomicBoolean();
+        var latch = new CountDownLatch(end - start);
         try (var executor = Executors.newFixedThreadPool(16)) {
-            var reconstructedImages = new float[images.length][];
+            var reconstructedImages = new float[images.length][width * totalLines];
             for (int i = start, j = 0; i < end; i++, j += width) {
                 var currentFrame = reader.currentFrame().data().array();
                 byte[] copy = new byte[currentFrame.length];
@@ -630,34 +632,40 @@ public class SolexVideoProcessor implements Broadcaster {
                 int offset = j;
                 int frameId = i;
                 executor.submit(() -> {
-                    // The converter makes sure we only have a single channel
-                    converter.convert(frameId, ByteBuffer.wrap(copy), geometry, original);
-                    IntStream.range(0, images.length).parallel().forEach(idx -> {
+                    try {
+                        // The converter makes sure we only have a single channel
+                        converter.convert(frameId, ByteBuffer.wrap(copy), geometry, original);
+                        IntStream.range(0, images.length).forEach(idx -> {
                             var state = images[idx];
                             var buffer = reconstructedImages[idx];
-                            if (buffer == null) {
-                                buffer = new float[width * totalLines];
-                                reconstructedImages[idx] = buffer;
-                            }
                             processSingleFrame(state.isInternal(), width, height, buffer, offset, original, polynomial, state.pixelShift(), totalLines);
                             if (state.pixelShift() == 0 && processParams.spectrumParams().ray().label().equalsIgnoreCase(SpectralRay.H_ALPHA.label()) && processParams.requestedImages().isEnabled(GeneratedImageKind.REDSHIFT)) {
                                 phenomenaDetector.performDetection(frameId, width, height, original, polynomial, dispersion);
                                 hasRedshifts.set(true);
                             }
-                        }
-                    );
+                        });
+                    } finally {
+                        latch.countDown();
+                    }
                 });
+            }
+
+            latch.await(); // Ensure all tasks have completed
+            if (hasRedshifts.get() && phenomenaDetector.isEmpty()) {
+                LOGGER.warn(message("no.redshifts.detected"));
             }
             for (int i = 0; i < images.length; i++) {
                 var state = images[i];
                 state.recordResult(WorkflowResults.RECONSTRUCTED, new ImageWrapper32(width, totalLines, reconstructedImages[i], MutableMap.of()));
             }
-            if (hasRedshifts.get() && phenomenaDetector.isEmpty()) {
-                LOGGER.warn(message("no.redshifts.detected"));
-            }
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new RuntimeException(e);
         }
+
         return new ReconstructionOutputs(hasRedshifts.get() ? phenomenaDetector.getMaxRedshiftAreas(5) : null);
     }
+
 
     private Optional<DoubleUnaryOperator> findPolynomial(int width, int height, float[] averageImage, FileNamingStrategy imageNamingStrategy) {
         SpectrumFrameAnalyzer analyzer = new SpectrumFrameAnalyzer(width, height, null);

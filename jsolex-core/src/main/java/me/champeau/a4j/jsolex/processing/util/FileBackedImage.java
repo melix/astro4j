@@ -18,7 +18,7 @@ package me.champeau.a4j.jsolex.processing.util;
 import java.io.IOException;
 import java.io.RandomAccessFile;
 import java.lang.ref.Cleaner;
-import java.lang.ref.SoftReference;
+import java.lang.ref.WeakReference;
 import java.nio.channels.FileChannel;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -46,7 +46,7 @@ public final class FileBackedImage implements ImageWrapper {
     private final Path backingFile;
     private final Map<Class<?>, Object> metadata;
     private final Object keptInMemory;
-    private final SoftReference<ImageWrapper> unwrapped;
+    private final WeakReference<ImageWrapper> unwrapped;
 
     private FileBackedImage(int width, int height, Path backingFile, Map<Class<?>, Object> metadata, Object keptInMemory, ImageWrapper source) {
         this.width = width;
@@ -54,7 +54,7 @@ public final class FileBackedImage implements ImageWrapper {
         this.backingFile = backingFile;
         this.metadata = metadata;
         this.keptInMemory = keptInMemory;
-        this.unwrapped = new SoftReference<>(source.unwrapToMemory());
+        this.unwrapped = new WeakReference<>(source.unwrapToMemory());
         LOCK.lock();
         try {
             REF_COUNT.compute(backingFile, (k, v) -> v == null ? 1 : v + 1);
