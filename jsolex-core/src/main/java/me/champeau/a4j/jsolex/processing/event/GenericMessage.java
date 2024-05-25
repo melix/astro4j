@@ -16,11 +16,15 @@
 package me.champeau.a4j.jsolex.processing.event;
 
 /**
- * An arbitrary event which should only be used for debugging purposes.
+ * An arbitrary event which should only be used for internal communication.
  * @param <T> the payload type
  */
-public final class DebugEvent<T> extends ProcessingEvent<T> {
-    public DebugEvent(T payload) {
+public final class GenericMessage<T> extends ProcessingEvent<T> {
+    public GenericMessage(T payload) {
         super(payload);
+    }
+
+    public static <T> GenericMessage<T> of(T payload) {
+        return new GenericMessage<>(payload);
     }
 }

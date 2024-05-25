@@ -26,6 +26,8 @@ import javafx.beans.property.SimpleStringProperty;
 import javafx.collections.FXCollections;
 import javafx.collections.ListChangeListener;
 import javafx.fxml.FXML;
+import javafx.geometry.Insets;
+import javafx.geometry.Pos;
 import javafx.scene.Node;
 import javafx.scene.Parent;
 import javafx.scene.Scene;
@@ -49,6 +51,7 @@ import javafx.scene.control.TextArea;
 import javafx.scene.control.TextField;
 import javafx.scene.control.TextFormatter;
 import javafx.scene.image.Image;
+import javafx.scene.image.ImageView;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
 import javafx.stage.DirectoryChooser;
@@ -59,6 +62,7 @@ import javafx.util.Callback;
 import javafx.util.Duration;
 import javafx.util.StringConverter;
 import javafx.util.converter.IntegerStringConverter;
+import me.champeau.a4j.jsolex.app.jfx.ApplyUserRotation;
 import me.champeau.a4j.jsolex.app.jfx.BatchItem;
 import me.champeau.a4j.jsolex.app.jfx.BatchOperations;
 import me.champeau.a4j.jsolex.app.jfx.DocsHelper;
@@ -90,6 +94,8 @@ import me.champeau.a4j.jsolex.processing.expr.ImageMathScriptResult;
 import me.champeau.a4j.jsolex.processing.expr.InvalidExpression;
 import me.champeau.a4j.jsolex.processing.file.FileNamingStrategy;
 import me.champeau.a4j.jsolex.processing.params.ProcessParams;
+import me.champeau.a4j.jsolex.processing.params.ProcessParamsIO;
+import me.champeau.a4j.jsolex.processing.params.RotationKind;
 import me.champeau.a4j.jsolex.processing.sun.CaptureSoftwareMetadataHelper;
 import me.champeau.a4j.jsolex.processing.sun.SolexVideoProcessor;
 import me.champeau.a4j.jsolex.processing.sun.detection.RedshiftArea;
@@ -209,6 +215,9 @@ public class JSolEx extends Application implements JSolExInterface {
     private Tab redshiftTab;
 
     @FXML
+    private Tab referenceImageTab;
+
+    @FXML
     private ChoiceBox<Integer> redshiftBoxSize;
 
     @FXML
@@ -224,6 +233,7 @@ public class JSolEx extends Application implements JSolExInterface {
 
     private final MultipleImagesViewer multipleImagesViewer = new MultipleImagesViewer();
     private ProcessParams reusedProcessParams;
+    private ProcessParams lastExecutionProcessParams;
     private Path watchedDirectory;
     private WatchService watchService;
     private Button interruptWatchButton;
@@ -908,6 +918,108 @@ public class JSolEx extends Application implements JSolExInterface {
         });
     }
 
+    @Override
+    public void prepareForGongImageDownload(ProcessParams processParams) {
+        var vbox = new VBox();
+        vbox.setAlignment(Pos.CENTER);
+        vbox.setOpaqueInsets(new Insets(4));
+        vbox.setSpacing(4);
+        var button = new Button(message("download.gong.image"));
+        var imageView = new ImageView();
+        var date = new Label();
+        button.setOnAction(e -> {
+            button.setText(message("downloading.gong.image"));
+            button.setDisable(true);
+            BackgroundOperations.async(() -> {
+                var optionalURL = GONG.fetchGongImage(processParams.observationDetails().date());
+                BatchOperations.submit(() -> {
+                    date.setText(message("file.date") + " " + processParams.observationDetails().date().format(GONG.FORMATTER));
+                    optionalURL.ifPresentOrElse(
+                        url -> {
+                            imageView.setImage(new Image(url.toExternalForm()));
+                            vbox.getChildren().remove(button);
+                        },
+                        () -> {
+                            date.setText(message("no.image.available"));
+                            button.setDisable(false);
+                        });
+                });
+            });
+        });
+        BatchOperations.submit(() -> {
+            vbox.getChildren().addAll(button, date, imageView);
+            var scrollPane = new ScrollPane(vbox);
+            scrollPane.setFitToWidth(true);
+            scrollPane.setFitToHeight(true);
+            referenceImageTab.setContent(scrollPane);
+        });
+    }
+
+    @Override
+    public void applyUserRotation(ApplyUserRotation userParams) {
+        if (lastExecutionProcessParams != null) {
+            // Correct parameters according to the parameters that the user has explicitly applied
+            var newGeoparams = lastExecutionProcessParams.geometryParams().withAutocorrectAngleP(userParams.correctAngleP());
+            var hasHorizontalFlip = newGeoparams.isHorizontalMirror();
+            var hasVerticalFlip = newGeoparams.isVerticalMirror();
+
+            // Reverse user's vertical flip (apply another vertical flip if user applied one)
+            if (userParams.verticalFlip()) {
+                hasVerticalFlip = !hasVerticalFlip;
+            }
+
+            // Reverse user's rotation (convert to number of 90-degree left rotations)
+            int reversedRotation = -userParams.rotation(); // Reverse direction of rotation
+            int totalLeftRotations = 0;
+
+            // Normalize rotation to be between 0 and 3 left rotations
+            if (reversedRotation < 0) {
+                totalLeftRotations = (4 - ((-reversedRotation) % 4)) % 4; // Convert right to left
+            } else {
+                totalLeftRotations = (reversedRotation % 4); // Already left rotations
+            }
+
+            // Adjust initial rotation kind
+            RotationKind initialRotation = newGeoparams.rotation();
+            switch (initialRotation) {
+                case LEFT:
+                    totalLeftRotations = (totalLeftRotations + 1) % 4;
+                    break;
+                case RIGHT:
+                    totalLeftRotations = (totalLeftRotations + 3) % 4;
+                    break;
+                default:
+                    break;
+            }
+
+            // Determine the final rotation kind
+            RotationKind finalRotation;
+            switch (totalLeftRotations) {
+                case 1:
+                    finalRotation = RotationKind.LEFT;
+                    break;
+                case 2:
+                    finalRotation = RotationKind.NONE; // 180 degrees should be NONE and toggle both flips
+                    hasHorizontalFlip = !hasHorizontalFlip;
+                    hasVerticalFlip = !hasVerticalFlip;
+                    break;
+                case 3:
+                    finalRotation = RotationKind.RIGHT;
+                    break;
+                default:
+                    finalRotation = RotationKind.NONE;
+                    break;
+            }
+
+            // Update newGeoparams with the computed transformations
+            newGeoparams = newGeoparams.withHorizontalMirror(hasHorizontalFlip)
+                .withVerticalMirror(hasVerticalFlip)
+                .withRotation(finalRotation);
+            ProcessParamsIO.saveDefaults(lastExecutionProcessParams.withGeometryParams(newGeoparams));
+        }
+    }
+
+
     private static int highestPowerOfTwoGreaterOrEqualTo(double n) {
         var power = 0;
         while (Math.pow(2, power) < n) {
@@ -1039,6 +1151,7 @@ public class JSolEx extends Application implements JSolExInterface {
     }
 
     private void processSingleFile(ProcessParams params, File selectedFile, boolean batchMode, int sequenceNumber, Object context, Header header, Runnable onComplete) {
+        lastExecutionProcessParams = params;
         LogbackConfigurer.recordThreadOwner(Thread.currentThread().getName(), sequenceNumber);
         var processingDate = context instanceof BatchProcessingContext batch ? batch.processingDate() : LocalDateTime.now();
         var namingStrategy = new FileNamingStrategy(params.extraParams().fileNamePattern(), params.extraParams().datetimeFormat(), params.extraParams().dateFormat(), processingDate, header);

@@ -52,7 +52,7 @@ public interface ProcessingEventListener {
 
     }
 
-    default void onDebug(DebugEvent<?> e) {
+    default void onGenericMessage(GenericMessage<?> e) {
 
     }
 

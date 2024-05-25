@@ -38,12 +38,13 @@ import javafx.scene.layout.VBox;
 import javafx.scene.transform.Transform;
 import javafx.stage.Stage;
 import javafx.util.Duration;
+import me.champeau.a4j.jsolex.app.jfx.ApplyUserRotation;
 import me.champeau.a4j.jsolex.app.jfx.BatchOperations;
 import me.champeau.a4j.jsolex.app.jfx.ImageViewer;
 import me.champeau.a4j.jsolex.app.jfx.ZoomableImageView;
 import me.champeau.a4j.jsolex.app.script.JSolExScriptExecutor;
 import me.champeau.a4j.jsolex.processing.event.AverageImageComputedEvent;
-import me.champeau.a4j.jsolex.processing.event.DebugEvent;
+import me.champeau.a4j.jsolex.processing.event.GenericMessage;
 import me.champeau.a4j.jsolex.processing.event.FileGeneratedEvent;
 import me.champeau.a4j.jsolex.processing.event.ImageGeneratedEvent;
 import me.champeau.a4j.jsolex.processing.event.Notification;
@@ -422,6 +423,7 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
             polynomial,
             averageImage
         ));
+        owner.prepareForGongImageDownload(processParams);
     }
 
     private Map<Class, Object> prepareExecutionContext(ProcessingDoneEvent.Outcome payload) {
@@ -456,8 +458,10 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
     }
 
     @Override
-    public void onDebug(DebugEvent<?> e) {
-
+    public void onGenericMessage(GenericMessage<?> e) {
+        if (e.getPayload() instanceof ApplyUserRotation params) {
+            owner.applyUserRotation(params);
+        }
     }
 
     @Override
@@ -542,8 +546,8 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
             onProcessingDone(e);
         } else if (event instanceof ProgressEvent e) {
             onProgress(e);
-        } else if (event instanceof DebugEvent<?> e) {
-            onDebug(e);
+        } else if (event instanceof GenericMessage<?> e) {
+            onGenericMessage(e);
         } else if (event instanceof VideoMetadataEvent e) {
             onVideoMetadataAvailable(e);
         } else if (event instanceof AverageImageComputedEvent e) {
