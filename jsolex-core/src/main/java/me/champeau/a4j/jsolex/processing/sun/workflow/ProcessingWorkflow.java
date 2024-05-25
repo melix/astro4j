@@ -200,7 +200,7 @@ public class ProcessingWorkflow {
         if (processParams.spectrumParams().pixelShift() == 0 && isMainShift() && shouldProduce(GeneratedImageKind.REDSHIFT)) {
             geometryFixed.findMetadata(Redshifts.class).ifPresent(redshifts -> {
                 if (!redshifts.redshifts().isEmpty()) {
-                    runnables.add(() -> produceRedshiftsImage(geometryFixed));
+                    runnables.add(() -> produceRedshiftsImage(geometryFixed, redshifts.redshifts()));
                 }
             });
         }
@@ -209,7 +209,7 @@ public class ProcessingWorkflow {
             .forEach(Runnable::run);
     }
 
-    private void produceRedshiftsImage(ImageWrapper32 geometryFixed) {
+    private void produceRedshiftsImage(ImageWrapper32 geometryFixed, List<RedshiftArea> redshifts) {
         processedImagesEmitter.newColorImage(GeneratedImageKind.REDSHIFT,
             message("redshift"),
             "redshift",
@@ -232,7 +232,6 @@ public class ProcessingWorkflow {
                     new HashMap<>(geometryFixed.metadata())
                 );
                 var draw = new ImageDraw(Map.of(), broadcaster);
-                var redshifts = mono.findMetadata(Redshifts.class).get().redshifts();
                 RGBImage rgb = (RGBImage) draw.drawOnImage(copy, (gr, img) -> {
                     for (RedshiftArea redshift : redshifts) {
                         var x1 = redshift.x1();
