@@ -196,11 +196,6 @@ public class SolexVideoProcessor implements Broadcaster {
         if (header != null) {
             if (averageImage == null) {
                 averageImage = detector.getAverageImage();
-                detector.ifEdgesDetected((start, end) -> {
-                    LOGGER.info(message("sun.edges.detected"), start, end);
-                }, () -> {
-                    LOGGER.info(message("sun.edges.detected.full"));
-                });
             }
             generateImages(converter, header, fpsRef.get(), serFile, 0, frameCountRef.get() - 1);
         }
@@ -656,6 +651,9 @@ public class SolexVideoProcessor implements Broadcaster {
             for (int i = 0; i < images.length; i++) {
                 var state = images[i];
                 state.recordResult(WorkflowResults.RECONSTRUCTED, new ImageWrapper32(width, totalLines, reconstructedImages[i], MutableMap.of()));
+            }
+            if (hasRedshifts.get() && phenomenaDetector.isEmpty()) {
+                LOGGER.warn(message("no.redshifts.detected"));
             }
         }
         return new ReconstructionOutputs(hasRedshifts.get() ? phenomenaDetector.getMaxRedshiftAreas(5) : null);

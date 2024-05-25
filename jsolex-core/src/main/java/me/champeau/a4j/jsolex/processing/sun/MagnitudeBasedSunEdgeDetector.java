@@ -58,13 +58,25 @@ public class MagnitudeBasedSunEdgeDetector implements SunEdgeDetector {
     public void detectEdges(SerFileReader reader) {
         int frameCount = reader.header().frameCount();
         ImageGeometry geometry = reader.header().geometry();
-        var magnitudes = new float[frameCount];
         var limbDetectionMessage = message("computing.average.image.limb.detect");
         var imageMath = ImageMath.newInstance();
         averageImage = new float[geometry.width() * geometry.height()];
         var counter = new AtomicInteger(0);
+        // we start with sampling frames to find the one with the maximum intensity
+        var sampling = Math.max(10, frameCount / 100);
+        var maxMean = 0f;
+        broadcaster.broadcast(ProgressEvent.of(0 / (double) frameCount, limbDetectionMessage));
+        for (int i = 0; i < frameCount; i += sampling) {
+            reader.seekFrame(i);
+            var middle = imageConverter.createBuffer(geometry);
+            imageConverter.convert(i, reader.currentFrame().data(), geometry, middle);
+            maxMean = Math.max(imageMath.averageOf(middle), maxMean);
+        }
+        // We're going to ignore frames which are too dark
+        var threshold = 0.1f * maxMean;
         try (var cpuExecutor = ParallelExecutor.newExecutor(1)) {
             try (var ioExecutor = ParallelExecutor.newExecutor(4 * Runtime.getRuntime().availableProcessors())) {
+                reader.seekFrame(0);
                 for (int i = 0; i < frameCount; i++) {
                     int frameId = i;
                     broadcaster.broadcast(ProgressEvent.of(frameId / (double) frameCount, limbDetectionMessage));
@@ -77,30 +89,18 @@ public class MagnitudeBasedSunEdgeDetector implements SunEdgeDetector {
                     ioExecutor.submit(() -> {
                         var buffer = imageConverter.createBuffer(geometry);
                         imageConverter.convert(frameId, ByteBuffer.wrap(copy), geometry, buffer);
-                        magnitudes[frameId] = MagnitudeDetectorSupport.minMax(buffer).b();
-                        cpuExecutor.submit(() -> {
-                            // we don't need to synchronize here since averaging is executed on a single thread
-                            imageMath.incrementalAverage(buffer, averageImage, counter.incrementAndGet());
-                        });
+                        var frameAvg = imageMath.averageOf(buffer);
+                        if (frameAvg > threshold) {
+                            cpuExecutor.submit(() -> {
+                                // we don't need to synchronize here since averaging is executed on a single thread
+                                imageMath.incrementalAverage(buffer, averageImage, counter.incrementAndGet());
+                            });
+                        }
                     });
                 }
             }
         } catch (Exception ex) {
             throw ProcessingException.wrap(ex);
-        }
-        var edges = MagnitudeDetectorSupport.findEdges(magnitudes, 50d);
-        if (edges.a() >= 0) {
-            startEdge = edges.a();
-        }
-        if (edges.b() >= 0) {
-            endEdge = edges.b();
-        }
-        if (startEdge != null && endEdge != null) {
-            // adjust average image value
-            float r = (endEdge - startEdge) / (float) frameCount;
-            for (int i = 0; i < averageImage.length; i++) {
-                averageImage[i] /= r;
-            }
         }
     }
 

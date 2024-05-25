@@ -90,7 +90,8 @@ public class SpectrumFrameAnalyzer {
     private int findYAtMinimalValue(float[] data, int x) {
         int minY = 0;
         double min = Double.MAX_VALUE;
-        for (int y = 0; y < height; y++) {
+        var margin = Math.min(height, 4);
+        for (int y = margin; y < height - margin; y++) {
             double value = data[y * width + x];
             if (value < min) {
                 minY = y;
