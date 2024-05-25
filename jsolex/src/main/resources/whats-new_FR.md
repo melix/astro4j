@@ -7,8 +7,16 @@ Voici les nouveautés de cette version :
 - [Colorisation automatique basée sur la longueur d'onde](#colorisaton-automatique-basée-sur-la-longueur-d-onde)
 - [Lecture des métadonnées Sharpcap et Firecapture](#lecture-des-métadonnées-sharpcap-et-firecapture)
 
-## Bugfixes depuis la 2.3.0
+## Bugfixes et améliorations depuis la 2.3.0
 
+- Ajout du téléchargement d'une image de référence depuis GONG
+- Ajout de boutons pour faire des rotations et inversions ainsi que la possibilité de l'appliquer aux prochains traitements
+- Correction du décalage en longueur d'onde incorrect dans les panneaux de vitesse
+- Correction de la détection du polynôme de distorsion dans certains cas particuliers
+- Correction d'une erreur de traitement parallèle qui pouvait rendre les résultats non reproductibles
+- Ajout de nouveaux boutons de zoom et centrage automatique
+- Amélioration de l'agorithme de colorisation
+- Amélioration de la détection de contours en particulier sur les images calcium
 - Correction de la marge de pixel shift non prise en compte dans certain cas
 - Correction de la lecture des métadonnées Sharpcap qui pouvait rendre impossible la lecture d'un SER
 - Correction d'une erreur de format si l'application était compilée sous Windows
@@ -48,6 +56,11 @@ Vous pouvez cependant remplacer la couleur automatique par une courbe manuelle s
 ## Divers
 ### Correctifs et améliorations mineures
 
+- Ajout du téléchargement d'une image de référence depuis GONG
+- Ajout de boutons pour faire des rotations et inversions ainsi que la possibilité de l'appliquer aux prochains traitements
+- Correction du décalage en longueur d'onde incorrect dans les panneaux de vitesse
+- Correction de la détection du polynôme de distorsion dans certains cas particuliers
+- Correction d'une erreur de traitement parallèle qui pouvait rendre les résultats non reproductibles
 - Ajout de nouveaux boutons de zoom et centrage automatique
 - Amélioration de l'agorithme de colorisation
 - Amélioration de la détection de contours en particulier sur les images calcium

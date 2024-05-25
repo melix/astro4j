@@ -7,8 +7,13 @@ Here are the new features in this version:
 - [Automatic Coloring Based on Wavelength](#automatic-coloring-based-on-wavelength)
 - [Reading Sharpcap and Firecapture Metadata](#reading-sharpcap-and-firecapture-metadata)
 
-## Bugfixes since 2.3.0
+## Bugfixes and improvements since 2.3.0
 
+- Added ability to download a reference image from GONG
+- Added rotation/mirror flip buttons and ability to apply the changes for the next process
+- Fixed incorrect wavelength shift in Angrstroms when generating panel
+- Improved polynomial detection in some edge cases
+- Fixed a race condition when reconstructing images which could lead to unreproducible results
 - Fixed pixel shift margin not taken into account in some cases
 - Fixed Sharpcap metadata parsing that could make reading a SER impossible
 - Fixed a formatting error if the application was compiled under Windows

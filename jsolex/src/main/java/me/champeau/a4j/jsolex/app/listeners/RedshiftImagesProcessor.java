@@ -243,7 +243,8 @@ public class RedshiftImagesProcessor {
                     var col = i % cols;
                     var offset = row * finalSnapHeight * panelWidth + col * finalSnapWidth;
                     var pixelShift = snap.findMetadata(PixelShift.class).map(PixelShift::pixelShift).orElse(0d);
-                    var legend = String.format(Locale.US, "%.2fÅ (%.2f km/s)", 10 * pixelShift * dispersion, PhenomenaDetector.speedOf(pixelShift, dispersion, lambda0));
+                    var angstroms = 10 * pixelShift * dispersion;
+                    var legend = String.format(Locale.US, "%.2fÅ (%.2f km/s)", angstroms, Math.abs(PhenomenaDetector.speedOf(pixelShift, dispersion, lambda0)));
                     // draw legend on a dummy image
                     var legendImage = createLegendImage(finalSnapWidth, finalSnapHeight, legend);
                     var legendOverlay = legendImage.getData();
