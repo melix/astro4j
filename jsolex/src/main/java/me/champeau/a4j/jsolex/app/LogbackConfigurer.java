@@ -99,7 +99,7 @@ class LogbackConfigurer {
             contextBasedAppender.setEncoder(encoder);
             contextBasedAppender.start();
         } catch (Exception ex) {
-            System.out.println("ex = " + ex);
+            // ignore
         }
         return contextBasedAppender;
     }
