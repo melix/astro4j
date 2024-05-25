@@ -18,7 +18,7 @@ package me.champeau.a4j.jsolex.app.listeners;
 import me.champeau.a4j.jsolex.app.JSolEx;
 import me.champeau.a4j.jsolex.app.jfx.BatchItem;
 import me.champeau.a4j.jsolex.app.jfx.BatchOperations;
-import me.champeau.a4j.jsolex.app.jfx.RotationCorrector;
+import me.champeau.a4j.jsolex.app.jfx.Corrector;
 import me.champeau.a4j.jsolex.app.script.JSolExScriptExecutor;
 import me.champeau.a4j.jsolex.processing.event.FileGeneratedEvent;
 import me.champeau.a4j.jsolex.processing.event.GeneratedImage;
@@ -105,14 +105,14 @@ public class BatchModeEventListener implements ProcessingEventListener, ImageMat
 
         var img = image;
         double correction = 0;
-        if (!kind.shouldRotateImage()) {
+        if (!kind.cannotPerformManualRotation()) {
             correction = image.findMetadata(RotationKind.class).orElseGet(() -> processParams.geometryParams().rotation()).angle();
             if (processParams.geometryParams().isAutocorrectAngleP()) {
                 correction += SolarParametersUtils.computeSolarParams(processParams.observationDetails().date().toLocalDateTime()).p();
             }
         }
         if (correction != 0) {
-            img = RotationCorrector.rotate(img, correction);
+            img = Corrector.rotate(img, correction);
         }
         new ImageSaver(RangeExpansionStrategy.DEFAULT, processParams).save(img, target);
         item.generatedFiles().add(target);

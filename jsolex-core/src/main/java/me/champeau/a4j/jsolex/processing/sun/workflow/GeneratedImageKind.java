@@ -46,7 +46,7 @@ public enum GeneratedImageKind {
         return displayCategory;
     }
 
-    public boolean shouldRotateImage() {
+    public boolean cannotPerformManualRotation() {
         return this == GeneratedImageKind.IMAGE_MATH
                || this == GeneratedImageKind.DEBUG
                || this == GeneratedImageKind.TECHNICAL_CARD;

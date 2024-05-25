@@ -27,8 +27,8 @@ import me.champeau.a4j.math.image.ImageMath;
 
 import static me.champeau.a4j.jsolex.processing.util.Constants.message;
 
-public class RotationCorrector {
-    private RotationCorrector() {
+public class Corrector {
+    private Corrector() {
 
     }
 
@@ -56,5 +56,49 @@ public class RotationCorrector {
             }
             throw new IllegalArgumentException("Unsupported image type");
         });
+    }
+
+    public static ImageWrapper verticalFlip(ImageWrapper image) {
+        return (ImageWrapper) MetadataSupport.applyMetadata(message("flip.vertical"), () -> {
+            var img = image;
+            if (img instanceof FileBackedImage fileBackedImage) {
+                img = fileBackedImage.unwrapToMemory();
+            }
+            if (img instanceof ImageWrapper32 mono) {
+                var copy = mono.copy();
+                verticalFlip(copy.data(), copy.width(), copy.height());
+                return copy;
+            } else if (img instanceof ColorizedImageWrapper colorized) {
+                var copy = colorized.mono();
+                verticalFlip(copy.data(), copy.width(), copy.height());
+                return new ColorizedImageWrapper(copy, colorized.converter(), colorized.metadata());
+            } else if (img instanceof RGBImage rgb) {
+                var r = copy(rgb.r());
+                var g = copy(rgb.r());
+                var b = copy(rgb.r());
+                verticalFlip(r, rgb.width(), rgb.height());
+                verticalFlip(g, rgb.width(), rgb.height());
+                verticalFlip(b, rgb.width(), rgb.height());
+                return new RGBImage(rgb.width(), rgb.height(), r, g, b, rgb.metadata());
+            }
+            throw new IllegalArgumentException("Unsupported image type");
+        });
+    }
+
+    private static float[] copy(float[] data) {
+        var copy = new float[data.length];
+        System.arraycopy(data, 0, copy, 0, data.length);
+        return copy;
+    }
+
+    private static void verticalFlip(float[] data, int width, int height) {
+        var tmp = new float[width];
+        for (int y = 0; y < height / 2; y++) {
+            int y1 = y * width;
+            int y2 = (height - y - 1) * width;
+            System.arraycopy(data, y1, tmp, 0, width);
+            System.arraycopy(data, y2, data, y1, width);
+            System.arraycopy(tmp, 0, data, y2, width);
+        }
     }
 }

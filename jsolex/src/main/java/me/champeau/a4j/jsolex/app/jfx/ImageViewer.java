@@ -96,6 +96,8 @@ public class ImageViewer {
     private Button saveButton;
     private String title;
     private Runnable onDisplayUpdate;
+    private double rotation;
+    private boolean vflip;
 
     private final ListProperty<ImageState> imageHistory = new SimpleListProperty<>(FXCollections.observableArrayList());
     private final IntegerProperty currentImage = new SimpleIntegerProperty(0);
@@ -192,7 +194,7 @@ public class ImageViewer {
     }
 
     private void saveImage() {
-        var image = maybeRotate(this.image);
+        var image = applyTransformations(this.image);
         var files = new ImageSaver(stretchingStrategy, processParams).save(image, imageFile);
         files.stream()
             .findFirst()
@@ -248,7 +250,7 @@ public class ImageViewer {
         correctAngleP = new CheckBox(message("correct.p.angle"));
         correctAngleP.setSelected(processParams.geometryParams().isAutocorrectAngleP());
         correctAngleP.selectedProperty().addListener((obj, oldValue, newValue) -> stretchAndDisplay());
-        correctAngleP.setDisable(kind.shouldRotateImage());
+        correctAngleP.setDisable(kind.cannotPerformManualRotation());
         var prevButton = new Button(message("prev.image"));
         prevButton.disableProperty().bind(currentImage.isEqualTo(0));
         prevButton.visibleProperty().bind(imageHistory.sizeProperty().greaterThan(1));
@@ -271,8 +273,30 @@ public class ImageViewer {
         var oneToOneFit = new Button("1:1");
         oneToOneFit.visibleProperty().bind(imageView.canFitToCenterProperty());
         oneToOneFit.setOnAction(evt -> imageView.oneToOneZoomAndCenter());
+        var leftRotate = new Button("↶");
+        leftRotate.setTooltip(new Tooltip(message("rotate.left")));
+        leftRotate.setOnAction(evt -> {
+            rotation = (rotation - Math.PI / 2) % (2 * Math.PI);
+            stretchAndDisplay();
+        });
+        leftRotate.visibleProperty().set(!kind.cannotPerformManualRotation());
+        var rightRotate = new Button("↷");
+        rightRotate.setTooltip(new Tooltip(message("rotate.right")));
+        rightRotate.setOnAction(evt -> {
+            rotation = (rotation + Math.PI / 2) % (2 * Math.PI);
+            stretchAndDisplay();
+        });
+        rightRotate.visibleProperty().set(!kind.cannotPerformManualRotation());
+        var verticalMirror = new Button("⇅");
+        verticalMirror.setTooltip(new Tooltip(message("vertical.flip")));
+        verticalMirror.setOnAction(evt -> {
+            vflip = !vflip;
+            rotation = -rotation;
+            stretchAndDisplay();
+        });
+        verticalMirror.visibleProperty().set(!kind.cannotPerformManualRotation());
         line1.getChildren().addAll(reset, saveButton, prevButton, nextButton);
-        line2.getChildren().addAll(correctAngleP, zoomLabel, zoomSlider, fitButton, fitToCenter, oneToOneFit, dimensions, coordinatesLabel);
+        line2.getChildren().addAll(correctAngleP, zoomLabel, zoomSlider, fitButton, fitToCenter, oneToOneFit, leftRotate, rightRotate, verticalMirror, dimensions, coordinatesLabel);
         var titleLabel = new Label(title);
         titleLabel.setStyle("-fx-font-weight: bold");
         var alignButton = new Button("⌖");
@@ -378,7 +402,7 @@ public class ImageViewer {
         var imageFormats = EnumSet.of(ImageFormat.PNG);
         // For some reason the image doesn't look as good when using PixelWriter
         // so we write the image in a tmp file and load it from here.
-        displayImage = maybeRotate(this.image);
+        displayImage = applyTransformations(this.image);
         var tmpImage = createTmpFile();
         if (displayImage instanceof ImageWrapper32 mono) {
             stretchedImage = stretch(mono);
@@ -403,17 +427,22 @@ public class ImageViewer {
         }
     }
 
-    private ImageWrapper maybeRotate(ImageWrapper image) {
+    private ImageWrapper applyTransformations(ImageWrapper image) {
         double correction = 0;
-        if (!kind.shouldRotateImage()) {
+        if (!kind.cannotPerformManualRotation() && vflip) {
+                image = Corrector.verticalFlip(image);
+            }
+
+        if (!kind.cannotPerformManualRotation()) {
             correction = image.findMetadata(RotationKind.class).orElseGet(() -> processParams.geometryParams().rotation()).angle();
             if (correctAngleP.isSelected()) {
                 correction += SolarParametersUtils.computeSolarParams(processParams.observationDetails().date().toLocalDateTime()).p();
             }
+            correction += rotation;
         }
         if (correction != 0) {
             image = image.copy();
-            return RotationCorrector.rotate(image, correction);
+            image = Corrector.rotate(image, correction);
         }
         return image;
     }
