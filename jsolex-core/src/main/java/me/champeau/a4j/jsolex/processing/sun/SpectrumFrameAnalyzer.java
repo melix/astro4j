@@ -90,7 +90,7 @@ public class SpectrumFrameAnalyzer {
     private int findYAtMinimalValue(float[] data, int x) {
         int minY = 0;
         double min = Double.MAX_VALUE;
-        var margin = Math.min(height, 4);
+        var margin = Math.min(height, 1);
         for (int y = margin; y < height - margin; y++) {
             double value = data[y * width + x];
             if (value < min) {
@@ -131,6 +131,12 @@ public class SpectrumFrameAnalyzer {
                 samplePoints.add(new Point2D(x, y));
             }
         }
+        // compute average y value and stddev
+        var avgY = samplePoints.stream().mapToDouble(Point2D::y).average().orElse(0);
+        var stddev = Math.sqrt(samplePoints.stream().mapToDouble(p -> Math.pow(p.y() - avgY, 2)).sum() / samplePoints.size());
+        // remove samples which are 2*sigma away from the average
+        samplePoints.removeIf(p -> Math.abs(p.y() - avgY) > 2 * stddev);
+
         if (samplePoints.size() > 2) {
             var polynomial = LinearRegression.thirdOrderRegression(samplePoints.toArray(new Point2D[0])).asPolynomial();
             // In the 2d pass we consider all points but only keep those which are close enough to the first polynomial
