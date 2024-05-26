@@ -447,7 +447,7 @@ public class ProcessingWorkflow {
                         var curve = colorCurve.get();
                         processedImagesEmitter.newColorImage(GeneratedImageKind.MIXED, message("mix"), "mix", mixedImage, monoImage -> ImageUtils.convertToRGB(curve, monoImage.data()));
                     } else if (ray.wavelength() > 0) {
-                        processedImagesEmitter.newColorImage(GeneratedImageKind.COLORIZED, message("mix"), "mix", mixedImage, monoImage -> {
+                        processedImagesEmitter.newColorImage(GeneratedImageKind.MIXED, message("mix"), "mix", mixedImage, monoImage -> {
                             var rgbColor = ray.toRGB();
                             return Colorize.doColorize(width, height, monoImage.data(), rgbColor);
                         });

@@ -144,7 +144,70 @@ public record SpectralRay(String label, ColorCurve colorCurve, double wavelength
         rgb[1] = g == 0.0 ? 0 : (int) Math.round(255 * Math.pow(g * factor, 0.7));
         rgb[2] = b == 0.0 ? 0 : (int) Math.round(255 * Math.pow(b * factor, 0.7));
 
-        return rgb;
+        return improveEsthetics(rgb);
+    }
+
+    private static int[] improveEsthetics(int[] rgb) {
+        float[] hsl = rgbToHsl(rgb[0], rgb[1], rgb[2]);
+        hsl[1] *= 0.8;
+        hsl[2] += (1.0f - hsl[2]) * 0.45;
+
+        return hslToRgb(hsl[0], hsl[1], hsl[2]);
+    }
+
+    private static float[] rgbToHsl(int r, int g, int b) {
+        float rf = r / 255.0f;
+        float gf = g / 255.0f;
+        float bf = b / 255.0f;
+        float max = Math.max(rf, Math.max(gf, bf));
+        float min = Math.min(rf, Math.min(gf, bf));
+        float h, s, l = (max + min) / 2.0f;
+
+        if (max == min) {
+            h = s = 0.0f;
+        } else {
+            float d = max - min;
+            s = l > 0.5f ? d / (2.0f - max - min) : d / (max + min);
+            if (max == rf) {
+                h = (gf - bf) / d + (gf < bf ? 6.0f : 0.0f);
+            } else if (max == gf) {
+                h = (bf - rf) / d + 2.0f;
+            } else {
+                h = (rf - gf) / d + 4.0f;
+            }
+            h /= 6.0f;
+        }
+
+        return new float[]{h, s, l};
+    }
+
+    private static int[] hslToRgb(float h, float s, float l) {
+        float r, g, b;
+
+        if (s == 0.0f) {
+            r = g = b = l;
+        } else {
+            float q = l < 0.5f ? l * (1.0f + s) : l + s - l * s;
+            float p = 2.0f * l - q;
+            r = hueToRgb(p, q, h + 1.0f / 3.0f);
+            g = hueToRgb(p, q, h);
+            b = hueToRgb(p, q, h - 1.0f / 3.0f);
+        }
+
+        return new int[]{
+            (int) (r * 255),
+            (int) (g * 255),
+            (int) (b * 255)
+        };
+    }
+
+    private static float hueToRgb(float p, float q, float t) {
+        if (t < 0.0f) t += 1.0f;
+        if (t > 1.0f) t -= 1.0f;
+        if (t < 1.0f / 6.0f) return p + (q - p) * 6.0f * t;
+        if (t < 1.0f / 2.0f) return q;
+        if (t < 2.0f / 3.0f) return p + (q - p) * (2.0f / 3.0f - t) * 6.0f;
+        return p;
     }
 
     public static List<SpectralRay> predefined() {
