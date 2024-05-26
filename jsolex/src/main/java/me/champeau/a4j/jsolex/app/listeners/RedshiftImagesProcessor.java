@@ -115,7 +115,7 @@ public class RedshiftImagesProcessor {
         return redshifts;
     }
 
-    public void produceImages(RedshiftCreatorKind kind, int boxSize, int margin) {
+    public void produceImages(RedshiftCreatorKind kind, int boxSize, int margin, boolean useFullRangePanels) {
         var requiredShifts = createRange(margin, redshifts.stream().mapToInt(RedshiftArea::pixelShift).max().orElse(0));
         var missingShifts = requiredShifts.stream().filter(d -> !shiftImages.containsKey(d)).toList();
         if (!missingShifts.isEmpty()) {
@@ -130,7 +130,7 @@ public class RedshiftImagesProcessor {
         for (int i = 0; i < adjustedRedshifts.size(); i++) {
             var redshift = adjustedRedshifts.get(i);
             broadcaster.broadcast(ProgressEvent.of(progress / redshifts.size(), "Producing images for redshift " + redshift));
-            produceImagesForRedshift(i, redshift, kind, boxSize, margin);
+            produceImagesForRedshift(i, redshift, kind, boxSize, margin, useFullRangePanels);
             progress++;
         }
         broadcaster.broadcast(ProgressEvent.of(1, "Producing redshift animations and panels done"));
@@ -149,7 +149,7 @@ public class RedshiftImagesProcessor {
         return requiredShifts;
     }
 
-    private void produceImagesForRedshift(int id, RedshiftArea redshift, RedshiftCreatorKind kind, int boxSize, int margin) {
+    private void produceImagesForRedshift(int id, RedshiftArea redshift, RedshiftCreatorKind kind, int boxSize, int margin, boolean useFullRangePanels) {
         var x1 = redshift.x1();
         var x2 = redshift.x2();
         var y1 = redshift.y1();
@@ -175,7 +175,7 @@ public class RedshiftImagesProcessor {
             generateAnim(id, redshift, animate, cropped);
         }
         if (kind == RedshiftCreatorKind.PANEL || kind == RedshiftCreatorKind.ALL) {
-            generatePanel(id, redshift, (List<ImageWrapper>) cropped, snapWidth, crop, snapHeight);
+            generatePanel(id, redshift, (List<ImageWrapper>) cropped, snapWidth, crop, snapHeight, useFullRangePanels);
         }
     }
 
@@ -188,7 +188,7 @@ public class RedshiftImagesProcessor {
             anim.file());
     }
 
-    private void generatePanel(int id, RedshiftArea redshift, List<ImageWrapper> cropped, int snapWidth, Crop crop, int snapHeight) {
+    private void generatePanel(int id, RedshiftArea redshift, List<ImageWrapper> cropped, int snapWidth, Crop crop, int snapHeight, boolean useFullRangePanels) {
         var snapshots = cropped;
         if (snapWidth <= 128) {
             // this is a bit small to display the text, so we're going to scale by a factor of 2
@@ -201,18 +201,20 @@ public class RedshiftImagesProcessor {
         // but for a panel we don't need such a resolution, we're only going to
         // keep round pixel shifts
         var snapshotsToDisplay = IntStream.range(0, snapshots.size()).filter(i -> i % 4 == 0).mapToObj(snapshots::get).collect(Collectors.toList());
-        // then we're only going to keep the snapshots which pixel shift has the same sign as the red/blueshift
-        var sign = Math.signum(redshift.relPixelShift());
-        snapshotsToDisplay.removeIf(s -> {
-            var shift = s.findMetadata(PixelShift.class);
-            if (shift.isPresent()) {
-                var signum = Math.signum(shift.get().pixelShift());
-                return signum != 0 && signum != sign;
+        if (!useFullRangePanels) {
+            // then we're only going to keep the snapshots which pixel shift has the same sign as the red/blueshift
+            var sign = Math.signum(redshift.relPixelShift());
+            snapshotsToDisplay.removeIf(s -> {
+                var shift = s.findMetadata(PixelShift.class);
+                if (shift.isPresent()) {
+                    var signum = Math.signum(shift.get().pixelShift());
+                    return signum != 0 && signum != sign;
+                }
+                return true;
+            });
+            if (sign == -1) {
+                Collections.reverse(snapshotsToDisplay);
             }
-            return true;
-        });
-        if (sign == -1) {
-            Collections.reverse(snapshotsToDisplay);
         }
         int cols = (int) Math.ceil(Math.sqrt(snapshotsToDisplay.size()));
         int rows = (int) Math.ceil((double) snapshotsToDisplay.size() / cols);

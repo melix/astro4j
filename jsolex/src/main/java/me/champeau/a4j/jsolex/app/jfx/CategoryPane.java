@@ -132,8 +132,10 @@ public class CategoryPane extends VBox {
         links.add(link);
         var box = new HBox();
         box.setAlignment(Pos.CENTER_LEFT);
+        var spacer = new Region();
+        HBox.setHgrow(spacer, Priority.ALWAYS);
         var close = createCloseLink(box, link, onClose);
-        box.getChildren().addAll(link, close);
+        box.getChildren().addAll(link, spacer, close);
         getChildren().add(box);
         return link;
     }

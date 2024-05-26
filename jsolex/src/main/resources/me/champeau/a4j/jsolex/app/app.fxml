@@ -14,7 +14,9 @@
 <?import javafx.scene.control.SplitPane?>
 <?import javafx.scene.control.Tab?>
 <?import javafx.scene.control.TabPane?>
+<?import javafx.scene.control.TextField?>
 <?import javafx.scene.control.TitledPane?>
+<?import javafx.scene.control.Tooltip?>
 <?import javafx.scene.layout.AnchorPane?>
 <?import javafx.scene.layout.BorderPane?>
 <?import javafx.scene.layout.GridPane?>
@@ -24,7 +26,6 @@
 <?import me.champeau.a4j.jsolex.app.jfx.ime.ImageMathTextArea?>
 <?import org.fxmisc.flowless.VirtualizedScrollPane?>
 <?import org.fxmisc.richtext.StyleClassedTextArea?>
-<?import javafx.scene.control.TextField?>
 <BorderPane xmlns="http://javafx.com/javafx/19" xmlns:fx="http://javafx.com/fxml/1">
     <top>
         <MenuBar>
@@ -116,7 +117,18 @@
                                         <Label text="%redshift.creator.kind" GridPane.columnIndex="0" GridPane.rowIndex="3" prefWidth="200"/>
                                         <ChoiceBox fx:id="redshiftCreatorKind" GridPane.columnIndex="1" GridPane.rowIndex="3" prefWidth="200"/>
 
-                                        <VBox alignment="CENTER" GridPane.rowIndex="4" GridPane.columnIndex="0" GridPane.columnSpan="2">
+                                        <Label fx:id="fullRangePanelsLabel" text="%full.range.panels" GridPane.columnIndex="0" GridPane.rowIndex="4" prefWidth="300">
+                                            <tooltip>
+                                                <Tooltip text="%full.range.panels.tooltip"/>
+                                            </tooltip>
+                                        </Label>
+                                        <CheckBox fx:id="fullRangePanels" GridPane.columnIndex="1" GridPane.rowIndex="4" prefWidth="100">
+                                            <tooltip>
+                                                <Tooltip text="%full.range.panels.tooltip"/>
+                                            </tooltip>
+                                        </CheckBox>
+
+                                        <VBox alignment="CENTER" GridPane.rowIndex="5" GridPane.columnIndex="0" GridPane.columnSpan="2">
                                             <Button fx:id="generateRedshiftImages" text="%generate"/>
                                         </VBox>
                                     </GridPane>

@@ -224,7 +224,10 @@ public class MultipleImagesViewer extends Pane {
     }
 
     private CategoryPane addCategory(DisplayCategory category) {
-        var categoryPane = new CategoryPane(message("displayCategory." + category.name()), categories::remove);
+        var categoryPane = new CategoryPane(message("displayCategory." + category.name()), e ->{
+            categories.remove(e);
+            safeCategories.remove(e);
+        });
         categoryPane.setMinWidth(190);
         categoryPane.getProperties().put(DisplayCategory.class, category);
         safeCategories.add(categoryPane);
