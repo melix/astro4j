@@ -229,6 +229,11 @@ public class JSolEx extends Application implements JSolExInterface {
     @FXML
     private TextField pixelShiftMargin;
 
+    @FXML
+    private CheckBox fullRangePanels;
+    @FXML
+    private Label fullRangePanelsLabel;
+
     private final Map<String, ImageViewer> popupViewers = new ConcurrentHashMap<>();
 
     private final MultipleImagesViewer multipleImagesViewer = new MultipleImagesViewer();
@@ -897,6 +902,8 @@ public class JSolEx extends Application implements JSolExInterface {
         int boxSize = (int) Math.pow(2, power);
         BatchOperations.submit(() -> {
             redshiftTab.setDisable(redshifts.isEmpty());
+            fullRangePanels.disableProperty().bind(redshiftCreatorKind.valueProperty().isEqualTo(RedshiftImagesProcessor.RedshiftCreatorKind.ANIMATION));
+            fullRangePanelsLabel.disableProperty().bind(redshiftCreatorKind.valueProperty().isEqualTo(RedshiftImagesProcessor.RedshiftCreatorKind.ANIMATION));
             redshiftBoxSize.getItems().clear();
             int bSize = boxSize;
             for (int i = 0; i < 4; i++) {
@@ -907,10 +914,11 @@ public class JSolEx extends Application implements JSolExInterface {
                 var kind = redshiftCreatorKind.getValue();
                 var size = redshiftBoxSize.getValue();
                 var margin = Integer.valueOf(pixelShiftMargin.getText());
+                var useFullRangePanels = fullRangePanels.isSelected();
                 if (kind != null && size != null) {
                     BackgroundOperations.async(() -> {
                         BatchOperations.submit(() -> rightTabs.getSelectionModel().select(logsTab));
-                        processor.produceImages(kind, size, margin);
+                        processor.produceImages(kind, size, margin, useFullRangePanels);
                     });
                 }
             });
