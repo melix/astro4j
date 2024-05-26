@@ -140,6 +140,7 @@ public class MultipleImagesViewer extends Pane {
             selected = link;
             selectedKind = kind;
             onShow.accept(viewer);
+            viewer.display();
         }, this::onClose);
         if (selected == null) {
             category.selectFirst();
