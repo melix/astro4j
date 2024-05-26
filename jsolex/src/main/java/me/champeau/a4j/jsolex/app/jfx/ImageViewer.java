@@ -100,6 +100,7 @@ public class ImageViewer {
     private Runnable onDisplayUpdate;
     private int rotation;
     private boolean vflip;
+    private boolean firstShow = true;
 
     private final ListProperty<ImageState> imageHistory = new SimpleListProperty<>(FXCollections.observableArrayList());
     private final IntegerProperty currentImage = new SimpleIntegerProperty(0);
@@ -158,6 +159,7 @@ public class ImageViewer {
                             stage.setOnCloseRequest(evt -> popupViews.remove(title));
                             stage.show();
                             popupViews.put(title, controller);
+                            controller.display();
                         } catch (IOException ex) {
                             throw new ProcessingException(ex);
                         }
@@ -335,7 +337,6 @@ public class ImageViewer {
             line1.getChildren().forEach(e -> HBox.setHgrow(e, Priority.ALWAYS));
             line2.getChildren().stream().filter(e -> !(e instanceof Slider)).forEach(e -> HBox.setHgrow(e, Priority.ALWAYS));
         });
-        stretchAndDisplay(true);
     }
 
     private static float linValueOf(double sliderValue) {
@@ -384,6 +385,13 @@ public class ImageViewer {
             return copy;
         } finally {
             broadcaster.onProgress(ProgressEvent.of(1, message("stretching") + " " + imageFile.getName()));
+        }
+    }
+
+    void display() {
+        if (image != null && firstShow) {
+            BackgroundOperations.async(() -> stretchAndDisplay(true));
+            firstShow = false;
         }
     }
 
