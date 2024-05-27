@@ -34,7 +34,6 @@ import static me.champeau.a4j.jsolex.processing.util.Constants.MAX_PIXEL_VALUE;
 
 public final class AutohistogramStrategy implements StretchingStrategy {
     private static final int HISTOGRAM_BINS = 256;
-    private static final GammaStrategy PROTUS_STRATEGY = new GammaStrategy(.5);
     private static final int FULL_RESOLUTION_BINS = 65536;
 
     public static final double DEFAULT_GAMMA = 1.5;
@@ -104,7 +103,7 @@ public final class AutohistogramStrategy implements StretchingStrategy {
             }
 
             var mask = createMask(height, width, e);
-            var protus = prepareProtusImage(image);
+            var protus = prepareProtusImage(image, e);
             var protusData = protus.data();
             for (int y = 0; y < height; y++) {
                 for (int x = 0; x < width; x++) {
@@ -129,12 +128,16 @@ public final class AutohistogramStrategy implements StretchingStrategy {
         }
     }
 
-    private static ImageWrapper32 prepareProtusImage(ImageWrapper32 image) {
+    private static ImageWrapper32 prepareProtusImage(ImageWrapper32 image, Ellipse ellipse) {
         var protus = image.copy();
         var data = protus.data();
         trimLeft(data);
         protus = BackgroundRemoval.neutralizeBackground(protus);
-        PROTUS_STRATEGY.stretch(protus);
+        var blackPoint = AnalysisUtils.estimateBlackPoint(protus, ellipse);
+        new StretchingChain(
+            new GammaStrategy(0.5),
+            new ArcsinhStretchingStrategy((float) blackPoint, 5, 5)
+        ).stretch(protus);
         // Truncate the histogram on the left to protect shadows
         var histo = Histogram.of(data, 256);
         for (int i = 0; i < 32; i++) {

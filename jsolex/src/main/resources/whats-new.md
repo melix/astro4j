@@ -9,6 +9,8 @@ Here are the new features in this version:
 
 ## Bugfixes and improvements since 2.3.0
 
+- Added ability to use full range in redshift panels
+- Improved rendering of colored images
 - Added ability to download a reference image from GONG
 - Added rotation/mirror flip buttons and ability to apply the changes for the next process
 - Fixed incorrect wavelength shift in Angrstroms when generating panel

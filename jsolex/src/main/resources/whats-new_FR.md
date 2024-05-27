@@ -9,6 +9,8 @@ Voici les nouveautés de cette version :
 
 ## Bugfixes et améliorations depuis la 2.3.0
 
+- Ajout de la possibilité d'utiliser l'intervalle complet pour les panneaux de décalage vers le rouge
+- Amélioration du rendu des images colorisées
 - Ajout du téléchargement d'une image de référence depuis GONG
 - Ajout de boutons pour faire des rotations et inversions ainsi que la possibilité de l'appliquer aux prochains traitements
 - Correction du décalage en longueur d'onde incorrect dans les panneaux de vitesse
