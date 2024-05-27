@@ -36,6 +36,7 @@ import me.champeau.a4j.jsolex.processing.expr.DefaultImageScriptExecutor;
 import me.champeau.a4j.jsolex.processing.expr.ImageMathScriptExecutor;
 import me.champeau.a4j.jsolex.processing.expr.ImageMathScriptResult;
 import me.champeau.a4j.jsolex.processing.file.FileNamingStrategy;
+import me.champeau.a4j.jsolex.processing.params.AutocropMode;
 import me.champeau.a4j.jsolex.processing.params.ProcessParams;
 import me.champeau.a4j.jsolex.processing.params.RotationKind;
 import me.champeau.a4j.jsolex.processing.stretching.RangeExpansionStrategy;
@@ -112,7 +113,7 @@ public class BatchModeEventListener implements ProcessingEventListener, ImageMat
             }
         }
         if (correction != 0) {
-            img = Corrector.rotate(img, correction);
+            img = Corrector.rotate(img, correction, processParams.geometryParams().autocropMode() == AutocropMode.OFF);
         }
         new ImageSaver(RangeExpansionStrategy.DEFAULT, processParams).save(img, target);
         item.generatedFiles().add(target);
