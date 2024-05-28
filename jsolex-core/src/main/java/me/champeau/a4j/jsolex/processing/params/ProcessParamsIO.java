@@ -57,6 +57,7 @@ public abstract class ProcessParamsIO {
 
     private static Gson newGson() {
         var builder = new Gson().newBuilder();
+        builder.registerTypeAdapter(ObservationDetails.class, new ObservationDetailsSerializer());
         builder.registerTypeAdapter(SpectralRay.class, new SpectralRaySerializer());
         builder.registerTypeAdapter(ZonedDateTime.class, new ZonedDateTimeSerializer());
         builder.registerTypeAdapter(GeometryParams.class, new GeometryParamsSerializer());
@@ -76,7 +77,7 @@ public abstract class ProcessParamsIO {
             new ObservationDetails(
                 null,
                 null,
-                "Sol'Ex",
+                SpectroHeliograph.SOLEX,
                 null,
                 null,
                 null,

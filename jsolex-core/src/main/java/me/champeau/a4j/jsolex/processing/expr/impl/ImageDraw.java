@@ -106,7 +106,7 @@ public class ImageDraw extends AbstractFunctionImpl {
                     if (ray.wavelength() > 0) {
                         rayDetails = " (" + String.format(Locale.US, "%.2fÅ", 10 * ray.wavelength()) + ")";
                     }
-                    appendLine(details.instrument() + " - " + ray + rayDetails, sb);
+                    appendLine(details.instrument().label() + " - " + ray + rayDetails, sb);
                     appendLine(details.telescope(), sb);
                     if (details.focalLength() != null) {
                         appendLine("Focal length " + details.focalLength() + "mm", sb);

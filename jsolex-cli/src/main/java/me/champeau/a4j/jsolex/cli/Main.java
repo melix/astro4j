@@ -24,6 +24,7 @@ import me.champeau.a4j.jsolex.processing.params.GeometryParams;
 import me.champeau.a4j.jsolex.processing.params.ObservationDetails;
 import me.champeau.a4j.jsolex.processing.params.ProcessParams;
 import me.champeau.a4j.jsolex.processing.params.SpectralRay;
+import me.champeau.a4j.jsolex.processing.params.SpectroHeliograph;
 import me.champeau.a4j.jsolex.processing.params.SpectrumParams;
 import me.champeau.a4j.jsolex.processing.sun.SolexVideoProcessor;
 import me.champeau.a4j.jsolex.processing.util.ForkJoinParallelExecutor;
@@ -220,10 +221,10 @@ public class Main implements Runnable {
                 result = result.withEmail(email);
             }
             if (instrument != null) {
-                result = result.withInstrument(instrument);
+                result = result.withInstrument(SpectroHeliograph.SOLEX.withLabel(instrument));
             }
             if (telescope != null) {
-                result = result.withInstrument(telescope);
+                result = result.withTelescope(telescope);
             }
             if (focalLength != null) {
                 result = result.withFocalLength(focalLength);

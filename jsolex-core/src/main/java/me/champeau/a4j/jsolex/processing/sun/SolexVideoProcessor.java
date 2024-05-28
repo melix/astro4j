@@ -16,9 +16,9 @@
 package me.champeau.a4j.jsolex.processing.sun;
 
 import me.champeau.a4j.jsolex.processing.event.AverageImageComputedEvent;
-import me.champeau.a4j.jsolex.processing.event.GenericMessage;
 import me.champeau.a4j.jsolex.processing.event.FileGeneratedEvent;
 import me.champeau.a4j.jsolex.processing.event.GeneratedImage;
+import me.champeau.a4j.jsolex.processing.event.GenericMessage;
 import me.champeau.a4j.jsolex.processing.event.ImageGeneratedEvent;
 import me.champeau.a4j.jsolex.processing.event.ImageLine;
 import me.champeau.a4j.jsolex.processing.event.Notification;
@@ -262,14 +262,15 @@ public class SolexVideoProcessor implements Broadcaster {
             }
             var pixelSize = processParams.observationDetails().pixelSize();
             if (processParams.spectrumParams().ray().equals(SpectralRay.AUTO) && pixelSize != null) {
+                var instrument = processParams.observationDetails().instrument();
                 var candidates = new ArrayList<SpectrumAnalyzer.QueryDetails>();
                 for (var line : SpectralRay.predefined()) {
                     if (line.wavelength() > 0) {
                         if (binningIsReliable) {
-                            candidates.add(new SpectrumAnalyzer.QueryDetails(line, pixelSize, processParams.observationDetails().binning()));
+                            candidates.add(new SpectrumAnalyzer.QueryDetails(line, pixelSize, processParams.observationDetails().binning(), instrument));
                         } else {
-                            candidates.add(new SpectrumAnalyzer.QueryDetails(line, pixelSize, 1));
-                            candidates.add(new SpectrumAnalyzer.QueryDetails(line, pixelSize, 2));
+                            candidates.add(new SpectrumAnalyzer.QueryDetails(line, pixelSize, 1, instrument));
+                            candidates.add(new SpectrumAnalyzer.QueryDetails(line, pixelSize, 2, instrument));
                         }
                     }
                 }
@@ -617,7 +618,13 @@ public class SolexVideoProcessor implements Broadcaster {
         reader.seekFrame(start);
         int totalLines = end - start;
         var lambda0 = processParams.spectrumParams().ray().wavelength();
-        var dispersion = SpectrumAnalyzer.computeSpectralDispersion(lambda0, processParams.observationDetails().pixelSize() * processParams.observationDetails().binning());
+        var observationDetails = processParams.observationDetails();
+        var instrument = observationDetails.instrument();
+        var dispersion = SpectrumAnalyzer.computeSpectralDispersion(
+            instrument,
+            lambda0,
+            observationDetails.pixelSize() * observationDetails.binning()
+        );
         var phenomenaDetector = new PhenomenaDetector(dispersion, lambda0, width, totalLines);
         AtomicBoolean hasRedshifts = new AtomicBoolean();
         var latch = new CountDownLatch(end - start);

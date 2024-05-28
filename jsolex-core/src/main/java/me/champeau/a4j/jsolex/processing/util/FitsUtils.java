@@ -419,7 +419,7 @@ public class FitsUtils {
         header.addValue(Standard.OBJECT, "Sun");
         var obs = params.observationDetails();
         maybeAdd(header, Standard.OBSERVER, obs.observer());
-        maybeAdd(header, Standard.INSTRUME, obs.instrument());
+        maybeAdd(header, Standard.INSTRUME, obs.instrument().label());
         maybeAdd(header, CAMERA, obs.camera());
         header.addValue(Standard.DATE_OBS, obs.date().format(
             DateTimeFormatter.ISO_DATE_TIME
