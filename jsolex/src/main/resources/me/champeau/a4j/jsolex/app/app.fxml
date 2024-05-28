@@ -44,7 +44,12 @@
                 <MenuItem onAction="#showImageMathEditor" text="%imagemath.editor"/>
                 <MenuItem onAction="#showExposureCalculator" text="%exposure.calculator"/>
                 <MenuItem onAction="#showMosaicParams" text="%mosaic.stacking"/>
-                <SeparatorMenuItem/>
+            </Menu>
+            <Menu text="%hardware">
+                <MenuItem onAction="#showSHGEditor" text="%shg.editor"/>
+                <MenuItem onAction="#showSetupEditor" text="%setup.editor"/>
+            </Menu>
+            <Menu text="%help">
                 <MenuItem onAction="#showHelp" text="%help"/>
                 <MenuItem onAction="#about" text="%about"/>
             </Menu>

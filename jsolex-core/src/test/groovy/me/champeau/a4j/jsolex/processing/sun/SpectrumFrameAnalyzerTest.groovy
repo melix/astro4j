@@ -26,6 +26,8 @@ import spock.lang.Unroll
 import javax.imageio.ImageIO
 import java.util.stream.Collectors
 
+import static me.champeau.a4j.jsolex.processing.params.SpectroHeliograph.SOLEX
+
 class SpectrumFrameAnalyzerTest extends Specification {
 
     @TempDir
@@ -93,8 +95,8 @@ class SpectrumFrameAnalyzerTest extends Specification {
         var candidates = new ArrayList<SpectrumAnalyzer.QueryDetails>();
         for (var line : SpectralRay.predefined()) {
             if (line.wavelength() > 0) {
-                candidates.add(new SpectrumAnalyzer.QueryDetails(line, 2.4, 1))
-                candidates.add(new SpectrumAnalyzer.QueryDetails(line, 2.4, 2))
+                candidates.add(new SpectrumAnalyzer.QueryDetails(line, 2.4, 1, SOLEX))
+                candidates.add(new SpectrumAnalyzer.QueryDetails(line, 2.4, 2, SOLEX))
             }
         }
         var map = candidates

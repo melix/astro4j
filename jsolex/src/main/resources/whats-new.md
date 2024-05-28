@@ -9,6 +9,7 @@ Here are the new features in this version:
 
 ## Bugfixes and improvements since 2.3.0
 
+- Ability to create multiple equipments (spectroheliographs or telescopes)
 - Added ability to use full range in redshift panels
 - Improved rendering of colored images
 - Added ability to download a reference image from GONG

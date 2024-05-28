@@ -22,7 +22,7 @@ import java.time.ZonedDateTime;
 public record ObservationDetails(
         String observer,
         String email,
-        String instrument,
+        SpectroHeliograph instrument,
         String telescope,
         Integer focalLength,
         Integer aperture,
@@ -40,7 +40,7 @@ public record ObservationDetails(
         return new ObservationDetails(observer, email, instrument, telescope, focalLength, aperture, coordinates, date, camera, binning, pixelSize);
     }
 
-    public ObservationDetails withInstrument(String instrument) {
+    public ObservationDetails withInstrument(SpectroHeliograph instrument) {
         return new ObservationDetails(observer, email, instrument, telescope, focalLength, aperture, coordinates, date, camera, binning, pixelSize);
     }
 

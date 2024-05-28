@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.Button?>
+<?import javafx.scene.control.ButtonBar?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.control.ListView?>
+<?import javafx.scene.control.TextField?>
+<?import javafx.scene.layout.AnchorPane?>
+<?import javafx.scene.layout.BorderPane?>
+<?import javafx.scene.layout.ColumnConstraints?>
+<?import javafx.scene.layout.GridPane?>
+<?import javafx.scene.layout.RowConstraints?>
+
+<BorderPane maxHeight="-Infinity" maxWidth="-Infinity" minHeight="-Infinity" minWidth="-Infinity" prefHeight="420.0" prefWidth="748.0" xmlns="http://javafx.com/javafx/19" xmlns:fx="http://javafx.com/fxml/1" fx:controller="me.champeau.a4j.jsolex.app.jfx.SpectroHeliographEditor">
+    <center>
+        <GridPane vgap="4.0" BorderPane.alignment="CENTER">
+            <columnConstraints>
+                <ColumnConstraints hgrow="SOMETIMES" maxWidth="269.0" minWidth="10.0" prefWidth="258.0" />
+                <ColumnConstraints hgrow="SOMETIMES" maxWidth="379.0" minWidth="10.0" prefWidth="266.0" />
+            </columnConstraints>
+            <rowConstraints>
+                <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="NEVER" />
+                <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="NEVER" />
+                <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="NEVER" />
+                <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="NEVER" />
+                <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="NEVER" />
+            </rowConstraints>
+            <children>
+                <Label text="%label" />
+                <TextField fx:id="label" GridPane.columnIndex="1" />
+                <Label text="%focal.length" GridPane.rowIndex="1" />
+                <TextField fx:id="focalLength" GridPane.columnIndex="1" GridPane.rowIndex="1" />
+                <Label text="%total.angle" GridPane.rowIndex="2" />
+                <TextField fx:id="totalAngle" GridPane.columnIndex="1" GridPane.rowIndex="2" />
+                <Label text="%density" GridPane.rowIndex="3" />
+                <TextField fx:id="density" GridPane.columnIndex="1" GridPane.rowIndex="3" />
+                <Label text="%order" GridPane.rowIndex="4" />
+                <TextField fx:id="order" GridPane.columnIndex="1" GridPane.rowIndex="4" />
+            </children>
+            <padding>
+                <Insets bottom="8.0" left="8.0" right="8.0" top="8.0" />
+            </padding>
+        </GridPane>
+    </center>
+    <bottom>
+        <AnchorPane prefHeight="37.0" prefWidth="600.0" BorderPane.alignment="CENTER">
+            <children>
+                <Button layoutX="641.0" layoutY="7.0" mnemonicParsing="false" onAction="#close" text="%ok" />
+                <Button layoutX="559.0" layoutY="7.0" mnemonicParsing="false" onAction="#cancel" text="%cancel" />
+            </children>
+        </AnchorPane>
+    </bottom>
+    <left>
+        <BorderPane prefHeight="200.0" prefWidth="200.0" BorderPane.alignment="CENTER">
+            <center>
+                <ListView fx:id="elements" prefHeight="200.0" prefWidth="200.0" BorderPane.alignment="CENTER">
+                    <BorderPane.margin>
+                        <Insets left="4.0" top="4.0" />
+                    </BorderPane.margin>
+                </ListView>
+            </center>
+            <bottom>
+                <ButtonBar prefHeight="40.0" prefWidth="200.0">
+                    <buttons>
+                        <Button mnemonicParsing="false" onAction="#removeSelectedItem" text="-" />
+                        <Button mnemonicParsing="false" onAction="#addNewItem" text="+" />
+                    </buttons>
+                    <BorderPane.margin>
+                        <Insets right="8.0" />
+                    </BorderPane.margin>
+                </ButtonBar>
+            </bottom>
+        </BorderPane>
+    </left>
+</BorderPane>

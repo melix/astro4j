@@ -53,6 +53,8 @@ import me.champeau.a4j.jsolex.processing.params.RichardsonLucyDeconvolutionParam
 import me.champeau.a4j.jsolex.processing.params.RotationKind;
 import me.champeau.a4j.jsolex.processing.params.SpectralRay;
 import me.champeau.a4j.jsolex.processing.params.SpectralRayIO;
+import me.champeau.a4j.jsolex.processing.params.SpectroHeliograph;
+import me.champeau.a4j.jsolex.processing.params.SpectroHeliographsIO;
 import me.champeau.a4j.jsolex.processing.params.SpectrumParams;
 import me.champeau.a4j.jsolex.processing.params.VideoParams;
 import me.champeau.a4j.jsolex.processing.stretching.ClaheStrategy;
@@ -74,6 +76,7 @@ import java.util.Optional;
 import java.util.Set;
 
 import static me.champeau.a4j.jsolex.app.JSolEx.message;
+import static me.champeau.a4j.jsolex.app.jfx.SetupEditor.nullable;
 
 public class ProcessParamsController {
     private boolean batchMode;
@@ -133,7 +136,7 @@ public class ProcessParamsController {
     @FXML
     private CheckBox horizontalMirror;
     @FXML
-    private TextField instrument;
+    private ChoiceBox<SpectroHeliograph> instrument;
     @FXML
     private TextField latitude;
     @FXML
@@ -205,7 +208,10 @@ public class ProcessParamsController {
         }
         observerName.textProperty().setValue(initialProcessParams.observationDetails().observer());
         email.textProperty().setValue(initialProcessParams.observationDetails().email());
-        instrument.textProperty().setValue(initialProcessParams.observationDetails().instrument());
+        var instruments = SpectroHeliographsIO.loadDefaults();
+        instrument.getItems().addAll(instruments);
+        instruments.stream().filter(i -> initialProcessParams.observationDetails().instrument().label().equals(i.label())).findFirst()
+            .ifPresentOrElse(instrument.getSelectionModel()::select, () -> instrument.getSelectionModel().selectFirst());
         telescope.textProperty().setValue(initialProcessParams.observationDetails().telescope());
         camera.textProperty().setValue(initialProcessParams.observationDetails().camera());
         generateDebugImages.setSelected(initialProcessParams.extraParams().generateDebugImages());
@@ -405,12 +411,52 @@ public class ProcessParamsController {
             camera.setText(md.camera());
             binning.setValue(md.binning());
         }
+        instrument.setConverter(new StringConverter<>() {
+            @Override
+            public String toString(SpectroHeliograph instrument) {
+                return instrument == null ? null : instrument.label();
+            }
+
+            @Override
+            public SpectroHeliograph fromString(String string) {
+                return instruments.stream().filter(i -> i.label().equals(string)).findFirst().orElse(SpectroHeliograph.SOLEX);
+            }
+        });
     }
 
     private void configureRichardsonLucyDefaults() {
         rlRadius.setText(String.valueOf(Deconvolution.DEFAULT_RADIUS));
         rlSigma.setText(String.valueOf(Deconvolution.DEFAULT_SIGMA));
         rlIterations.setText(String.valueOf(Deconvolution.DEFAULT_ITERATIONS));
+    }
+
+    @FXML
+    public void openInstrumentEditor() {
+        SpectroHeliographEditor.openEditor(stage, editor ->
+            BatchOperations.submit(() ->
+                editor.getSelected().ifPresent(s -> {
+                    instrument.getItems().setAll(editor.getItems());
+                    instrument.getSelectionModel().select(s);
+                })
+            )
+        );
+    }
+
+    @FXML
+    public void openSetupEditor() {
+        SetupEditor.openEditor(stage, editor ->
+            BatchOperations.submit(() ->
+                editor.getSelected().ifPresent(s -> {
+                    telescope.setText(nullable(s.telescope(), String::valueOf));
+                    focalLength.setText(nullable(s.focalLength(), String::valueOf));
+                    aperture.setText(nullable(s.aperture(), String::valueOf));
+                    latitude.setText(nullable(s.latitude(), String::valueOf));
+                    longitude.setText(nullable(s.longitude(), String::valueOf));
+                    camera.setText(nullable(s.camera(), String::valueOf));
+                    pixelSize.setText(nullable(s.pixelSize(), String::valueOf));
+                })
+            )
+        );
     }
 
     @FXML
@@ -508,7 +554,7 @@ public class ProcessParamsController {
             new ObservationDetails(
                 observerName.getText(),
                 email.getText(),
-                instrument.getText(),
+                instrument.getSelectionModel().getSelectedItem(),
                 telescope.getText(),
                 focalLength.isEmpty() ? null : Integer.parseInt(focalLength),
                 aperture.isEmpty() ? null : Integer.parseInt(aperture),

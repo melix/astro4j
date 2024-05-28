@@ -221,7 +221,8 @@ public class RedshiftImagesProcessor {
         int panelWidth = cols * snapWidth;
         int panelHeight = rows * snapHeight;
         var lambda0 = params.spectrumParams().ray().wavelength();
-        var dispersion = SpectrumAnalyzer.computeSpectralDispersion(lambda0, params.observationDetails().pixelSize() * params.observationDetails().binning());
+        var instrument = params.observationDetails().instrument();
+        var dispersion = SpectrumAnalyzer.computeSpectralDispersion(instrument, lambda0, params.observationDetails().pixelSize() * params.observationDetails().binning());
         int finalSnapHeight = snapHeight;
         int finalSnapWidth = snapWidth;
         imageEmitter.newColorImage(

@@ -74,9 +74,11 @@ import me.champeau.a4j.jsolex.app.jfx.ImageViewer;
 import me.champeau.a4j.jsolex.app.jfx.MultipleImagesViewer;
 import me.champeau.a4j.jsolex.app.jfx.NamingPatternEditor;
 import me.champeau.a4j.jsolex.app.jfx.ProcessParamsController;
+import me.champeau.a4j.jsolex.app.jfx.SetupEditor;
 import me.champeau.a4j.jsolex.app.jfx.SimpleMarkdownViewer;
 import me.champeau.a4j.jsolex.app.jfx.SpectralLineDebugger;
 import me.champeau.a4j.jsolex.app.jfx.SpectralRayEditor;
+import me.champeau.a4j.jsolex.app.jfx.SpectroHeliographEditor;
 import me.champeau.a4j.jsolex.app.jfx.ime.ImageMathTextArea;
 import me.champeau.a4j.jsolex.app.jfx.stacking.StackingAndMosaicController;
 import me.champeau.a4j.jsolex.app.listeners.BatchModeEventListener;
@@ -703,6 +705,18 @@ public class JSolEx extends Application implements JSolExInterface {
     private void showSpectralRayEditor() {
         var stage = newStage();
         SpectralRayEditor.openEditor(stage, e -> stage.close());
+    }
+
+    @FXML
+    private void showSHGEditor() {
+        var stage = newStage();
+        SpectroHeliographEditor.openEditor(stage, e -> stage.close());
+    }
+
+    @FXML
+    private void showSetupEditor() {
+        var stage = newStage();
+        SetupEditor.openEditor(stage, e -> stage.close());
     }
 
     @FXML

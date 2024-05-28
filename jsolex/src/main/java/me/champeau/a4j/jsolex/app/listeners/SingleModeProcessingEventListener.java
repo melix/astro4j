@@ -66,6 +66,7 @@ import me.champeau.a4j.jsolex.processing.file.FileNamingStrategy;
 import me.champeau.a4j.jsolex.processing.params.ImageMathParams;
 import me.champeau.a4j.jsolex.processing.params.ProcessParams;
 import me.champeau.a4j.jsolex.processing.params.RequestedImages;
+import me.champeau.a4j.jsolex.processing.params.SpectroHeliograph;
 import me.champeau.a4j.jsolex.processing.spectrum.SpectrumAnalyzer;
 import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
 import me.champeau.a4j.jsolex.processing.sun.SolexVideoProcessor;
@@ -586,8 +587,8 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
             var pixelSize = e.getPayload().observationDetails().pixelSize();
             var canDrawReference = binning != null && pixelSize != null && lambda0 > 0 && pixelSize > 0 && binning > 0;
             registerSaveChartAction("profile", lineChart);
-            series.setName(formatLegend(lambda0, binning, pixelSize));
-            double dispersion = canDrawReference ? SpectrumAnalyzer.computeSpectralDispersion(lambda0, pixelSize * binning) : 0;
+            series.setName(formatLegend(params.observationDetails().instrument(), lambda0, binning, pixelSize));
+            double dispersion = canDrawReference ? SpectrumAnalyzer.computeSpectralDispersion(params.observationDetails().instrument(), lambda0, pixelSize * binning) : 0;
             double min = Double.MAX_VALUE;
             double max = Double.MIN_VALUE;
             for (int x = start; x < end; x++) {
@@ -748,12 +749,12 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
         return 10 * (lambda + pixelShift * dispersion);
     }
 
-    private static String formatLegend(Double lambda0, Integer binning, Double pixelSize) {
+    private static String formatLegend(SpectroHeliograph instrument, Double lambda0, Integer binning, Double pixelSize) {
         if (binning != null && pixelSize != null && lambda0 != null) {
             double lambda = lambda0;
             double pixSize = pixelSize;
             if (lambda > 0 && pixSize > 0) {
-                double disp = 10 * SpectrumAnalyzer.computeSpectralDispersion(lambda, pixelSize * binning);
+                double disp = 10 * SpectrumAnalyzer.computeSpectralDispersion(instrument, lambda, pixelSize * binning);
                 return String.format(message("intensity.legend"), pixelSize, binning, disp);
             }
         }

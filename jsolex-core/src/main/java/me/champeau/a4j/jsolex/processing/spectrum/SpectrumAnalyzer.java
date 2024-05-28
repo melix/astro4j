@@ -16,6 +16,7 @@
 package me.champeau.a4j.jsolex.processing.spectrum;
 
 import me.champeau.a4j.jsolex.processing.params.SpectralRay;
+import me.champeau.a4j.jsolex.processing.params.SpectroHeliograph;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -29,10 +30,7 @@ import java.util.function.DoubleUnaryOperator;
 public class SpectrumAnalyzer {
     private static final Logger LOGGER = LoggerFactory.getLogger(SpectrumAnalyzer.class);
 
-    private static final double TOTAL_ANGLE = Math.toRadians(34);
     public static final int DEFAULT_ORDER = 1;
-    public static final int DEFAULT_DENSITY = 2400;
-    public static final int DEFAULT_FOCAL_LEN = 125;
 
     /**
      * Computes the beta angle
@@ -40,10 +38,11 @@ public class SpectrumAnalyzer {
      * @param order the grating order
      * @param density the grating density, in lines/mm
      * @param lambda0 the wavelength in nanometers
+     * @param totalAngle the total angle of the instrument
      * @return the beta angle (in radians)
      */
-    private static double computeAngleBeta(int order, int density, double lambda0) {
-        return computeAlphaAngle(order, density, lambda0) - TOTAL_ANGLE;
+    private static double computeAngleBeta(int order, int density, double lambda0, double totalAngle) {
+        return computeAlphaAngle(order, density, lambda0, totalAngle) - totalAngle;
     }
 
     /**
@@ -52,37 +51,26 @@ public class SpectrumAnalyzer {
      * @param order the grating order
      * @param density the grating density, in lines/mm
      * @param lambda0 the wavelength in nanometers
+     * @param totalAngle the total angle of the instrument
      * @return the alpha angle (in radians)
      */
-    private static double computeAlphaAngle(int order, int density, double lambda0) {
-        return Math.asin(order * density * lambda0 / (2_000_000 * Math.cos(TOTAL_ANGLE / 2))) + TOTAL_ANGLE / 2;
+    private static double computeAlphaAngle(int order, int density, double lambda0, double totalAngle) {
+        return Math.asin(order * density * lambda0 / (2_000_000 * Math.cos(totalAngle / 2))) + totalAngle / 2;
     }
 
     /**
      * Returns the spectral dispersion, in nanometers/pixel
      *
-     * @param order the grating order
-     * @param density the grating density, in lines/mm
-     * @param lambda0 the wavelength in nanometers
-     * @param pixelSize the pixel size, in micrometers
-     * @param focalLength the lens focal length in mm
-     * @return the spectral dispersion, in nanometers/pixel
-     */
-    public static double computeSpectralDispersion(int order, int density, double lambda0, double pixelSize, double focalLength) {
-        var beta = computeAngleBeta(order, density, lambda0);
-        return 1000 * pixelSize * Math.cos(beta) / density / focalLength;
-    }
-
-    /**
-     * Returns the spectral dispersion, in nanometers/pixel, using the default
-     * Sol'Ex parameters.
-     *
+     * @param instrument the SHG for which to compute the dispersion
      * @param lambda0 the wavelength in nanometers
      * @param pixelSize the pixel size, in micrometers
      * @return the spectral dispersion, in nanometers/pixel
      */
-    public static double computeSpectralDispersion(double lambda0, double pixelSize) {
-        return computeSpectralDispersion(DEFAULT_ORDER, DEFAULT_DENSITY, lambda0, pixelSize, DEFAULT_FOCAL_LEN);
+    public static double computeSpectralDispersion(SpectroHeliograph instrument,
+                                                   double lambda0,
+                                                   double pixelSize) {
+        var beta = computeAngleBeta(instrument.order(), instrument.density(), lambda0, instrument.totalAngleRadians());
+        return 1000 * pixelSize * Math.cos(beta) / instrument.density() / instrument.focalLength();
     }
 
     /**
@@ -118,11 +106,18 @@ public class SpectrumAnalyzer {
      * @param data the image data
      * @return the data points
      */
-    public static List<DataPoint> computeDataPoints(QueryDetails details, DoubleUnaryOperator polynomial, int start, int end, int width, int height, float[] data) {
+    public static List<DataPoint> computeDataPoints(QueryDetails details,
+                                                    DoubleUnaryOperator polynomial,
+                                                    int start,
+                                                    int end,
+                                                    int width,
+                                                    int height,
+                                                    float[] data) {
         var lambda0 = details.line().wavelength();
         var pixelSize = details.pixelSize();
         var binning = details.binning();
-        double dispersion = computeSpectralDispersion(lambda0, pixelSize * binning);
+        var instrument = details.instrument();
+        double dispersion = computeSpectralDispersion(instrument, lambda0, pixelSize * binning);
         var dataPoints = new ArrayList<DataPoint>();
         double min = Double.MAX_VALUE;
         double max = Double.MIN_VALUE;
@@ -253,7 +248,7 @@ public class SpectrumAnalyzer {
         return 10 * (lambda + pixelShift * dispersion);
     }
 
-    public record QueryDetails(SpectralRay line, double pixelSize, int binning) {
+    public record QueryDetails(SpectralRay line, double pixelSize, int binning, SpectroHeliograph instrument) {
     }
 
     public record DataPoint(double wavelen, double pixelShift, double intensity) {

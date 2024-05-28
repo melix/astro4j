@@ -9,6 +9,7 @@ Voici les nouveautés de cette version :
 
 ## Bugfixes et améliorations depuis la 2.3.0
 
+- Possibilité de créer plusieurs équipements (spectrohéliographes ou télescopes)
 - Ajout de la possibilité d'utiliser l'intervalle complet pour les panneaux de décalage vers le rouge
 - Amélioration du rendu des images colorisées
 - Ajout du téléchargement d'une image de référence depuis GONG
