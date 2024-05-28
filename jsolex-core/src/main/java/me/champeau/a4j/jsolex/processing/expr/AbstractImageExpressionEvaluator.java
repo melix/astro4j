@@ -31,6 +31,7 @@ import me.champeau.a4j.jsolex.processing.expr.impl.GeometryCorrection;
 import me.champeau.a4j.jsolex.processing.expr.impl.ImageDraw;
 import me.champeau.a4j.jsolex.processing.expr.impl.Inverse;
 import me.champeau.a4j.jsolex.processing.expr.impl.Loader;
+import me.champeau.a4j.jsolex.processing.expr.impl.MathFunctions;
 import me.champeau.a4j.jsolex.processing.expr.impl.MosaicComposition;
 import me.champeau.a4j.jsolex.processing.expr.impl.RGBCombination;
 import me.champeau.a4j.jsolex.processing.expr.impl.Rotate;
@@ -78,6 +79,7 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
     private final ImageDraw imageDraw;
     private final Inverse inverse;
     private final Loader loader;
+    private final MathFunctions math;
     private final MosaicComposition mosaicComposition;
     private final Rotate rotate;
     private final Saturation saturation;
@@ -101,6 +103,7 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
         this.imageDraw = new ImageDraw(context, broadcaster);
         this.inverse = new Inverse(context, broadcaster);
         this.loader = new Loader(context, broadcaster);
+        this.math = new MathFunctions(context, broadcaster);
         this.rotate = new Rotate(context, broadcaster);
         this.saturation = new Saturation(context, broadcaster);
         this.scaling = new Scaling(context, broadcaster, crop);
@@ -209,6 +212,7 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
             case DRAW_SOLAR_PARAMS -> imageDraw.drawSolarParameters(arguments);
             case DRAW_TEXT -> imageDraw.drawText(arguments);
             case ELLIPSE_FIT -> ellipseFit.fit(arguments);
+            case EXP -> math.exp(arguments);
             case FIX_BANDING -> fixBanding.fixBanding(arguments);
             case FIX_GEOMETRY -> geometryCorrection.fixGeometry(arguments);
             case IMG -> image(arguments);
@@ -217,10 +221,12 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
             case LIST -> arguments;
             case LOAD -> loader.load(arguments);
             case LOAD_MANY -> loader.loadMany(arguments);
+            case LOG -> math.log(arguments);
             case MAX -> simpleFunctionCall.applyFunction("max", arguments, DoubleStream::max);
             case MEDIAN -> simpleFunctionCall.applyFunction("median", arguments, AbstractImageExpressionEvaluator::median);
             case MIN -> simpleFunctionCall.applyFunction("min", arguments, DoubleStream::min);
             case MOSAIC -> mosaicComposition.mosaic(arguments);
+            case POW -> math.pow(arguments);
             case RADIUS_RESCALE -> scaling.radiusRescale(arguments);
             case RANGE -> createRange(arguments);
             case REMOVE_BG -> bgRemoval.removeBackground(arguments);
