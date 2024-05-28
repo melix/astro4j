@@ -310,6 +310,15 @@ public class ImageViewer {
             stretchAndDisplay();
         });
         verticalMirror.visibleProperty().set(!kind.cannotPerformManualRotation());
+        var horizontalMirror = new Button("⇄");
+        horizontalMirror.setTooltip(new Tooltip(message("horizontal.flip")));
+        horizontalMirror.setOnAction(evt -> {
+            rotation = (rotation + 2) % 4;
+            applyNextTime.setDisable(false);
+            verticalMirror.fire();
+            stretchAndDisplay();
+        });
+        horizontalMirror.visibleProperty().set(!kind.cannotPerformManualRotation());
         applyNextTime.setOnAction(evt -> {
             broadcaster.onGenericMessage(GenericMessage.of(new ApplyUserRotation(rotation, correctAngleP.isSelected(), vflip)));
             applyNextTime.setDisable(true);
@@ -317,7 +326,7 @@ public class ImageViewer {
         applyNextTime.setTooltip(new Tooltip(message("apply.next.time")));
         applyNextTime.setDisable(true);
         line1.getChildren().addAll(reset, saveButton, prevButton, nextButton);
-        line2.getChildren().addAll(correctAngleP, zoomLabel, zoomSlider, fitButton, fitToCenter, oneToOneFit, leftRotate, rightRotate, verticalMirror, applyNextTime, dimensions, coordinatesLabel);
+        line2.getChildren().addAll(correctAngleP, zoomLabel, zoomSlider, fitButton, fitToCenter, oneToOneFit, leftRotate, rightRotate, verticalMirror, horizontalMirror, applyNextTime, dimensions, coordinatesLabel);
         var titleLabel = new Label(title);
         titleLabel.setStyle("-fx-font-weight: bold");
         var alignButton = new Button("⌖");
