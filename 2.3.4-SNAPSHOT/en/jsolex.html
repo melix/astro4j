@@ -1029,6 +1029,15 @@ Click on "Ok" to start processing, you will now have the 21 required images gene
 <li>
 <p><code>range</code> generates images in a certain range of pixel shifts. It accepts either 2 or 3 arguments. The first 2 are the lower and higher pixel shifts (included). The 3rd, optional one is a step value. For example, using <code>range(-5;5;5)</code> will only generate 3 images at pixel shifts -5, 0 and 5.</p>
 </li>
+<li>
+<p><code>pow</code> computes the power of an image. For example: <code>pow(img(0), 2)</code> will square the image.</p>
+</li>
+<li>
+<p><code>log</code> computes the logarithm of an image. For example: <code>log(img(0), 2)</code> will compute the base 2 logarithm of the image.</p>
+</li>
+<li>
+<p><code>exp</code> computes the exponential of an image. For example: <code>exp(img(0))</code> .</p>
+</li>
 </ul>
 </div>
 <div class="paragraph">
@@ -1178,6 +1187,12 @@ A special variable named <code>angleP</code> contains the computed solar P angle
 </li>
 <li>
 <p><code>rotate_rad</code> performs an arbitrary rotation, in degrees. It accepts between 2 and 4 parameters: the image and the rotation angle are mandatory. For example: <code>rotate_rad(img(0), 0.25)</code>. You can then specify the fill value for the pixels which didn&#8217;t belong to the original image:  <code>rotate_rad(img(0), 0.25, 800)</code> and last, if you add <code>1</code> as the last argument, the image will be rescaled so that all pixels from the original image are found in the rotated version.</p>
+</li>
+<li>
+<p><code>vflip</code> flips the image vertically. For example: <code>vflip(img(0))</code>.</p>
+</li>
+<li>
+<p><code>hflip</code> flips the image horizontally. For example: <code>hflip(img(0))</code>.</p>
 </li>
 </ul>
 </div>

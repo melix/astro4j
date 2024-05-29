@@ -1019,6 +1019,15 @@ Le script apparaît désormais dans la liste de gauche, il sera appliqué lors d
 <li>
 <p><code>range</code> permet de générer une suite d&#8217;images à des pixels décalés. Cette fonction prend au minimum 2 arguments, la valeur basse (inclue) et la valeur haute (inclue). Par exemple, <code>range(-5,5)</code> produira 11 images. Il est possible de générer une image tous les X pixels, en ajoutant un 3ème argument, le pas. Par exemple, <code>range(-5,5,5)</code> ne générera plus que 3 images, à -5, 0 et 5 pixels.</p>
 </li>
+<li>
+<p><code>pow</code> permet de calculer une puissance d&#8217;une image. Par exemple, <code>pow(img(0), 2)</code> calcule le carré de l&#8217;image.</p>
+</li>
+<li>
+<p><code>log</code> permet de calculer le logarithme d&#8217;une image. Par exemple, <code>log(img(0), 2)</code> calcule le logarithme en base 2.</p>
+</li>
+<li>
+<p><code>exp</code> permet de calculer l&#8217;exponentielle d&#8217;une image. Par exemple, <code>exp(img(0))</code>.</p>
+</li>
 </ul>
 </div>
 <div class="paragraph">
@@ -1168,6 +1177,12 @@ Une variable spéciale nommée <code>angleP</code> contient la valeur calculée 
 </li>
 <li>
 <p><code>rotate_rad</code> effectue une rotation d&#8217;un angle arbitraire en radians. Elle accepte entre 2 et 4 paramètres: l&#8217;image, l&#8217;angle de rotation sont obligatoires. Par exemple <code>rotate_rad(img(0), .2)</code>. Vous pouvez ensuite spécifier la valeur du fond à utiliser pour remplir les portions manquantes:  <code>rotate_rad(img(0), .2, 800)</code> et enfin si vous ajoutez <code>1</code> en dernier paramètre l&#8217;image sera redimensionnée au maximum pour que tous les pixels de l&#8217;image d&#8217;origine apparaissent dans l&#8217;image tournée.</p>
+</li>
+<li>
+<p><code>vflip</code> permet de retourner l&#8217;image verticalement. Par exemple, <code>vflip(img(0))</code>.</p>
+</li>
+<li>
+<p><code>hflip</code> permet de retourner l&#8217;image horizontalement. Par exemple, <code>hflip(img(0))</code>.</p>
 </li>
 </ul>
 </div>
