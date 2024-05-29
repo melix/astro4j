@@ -46,6 +46,7 @@ public enum BuiltinFunction {
     EXP,
     FIX_BANDING,
     FIX_GEOMETRY,
+    HFLIP,
     IMG,
     INVERT,
     LINEAR_STRETCH,
@@ -71,6 +72,7 @@ public enum BuiltinFunction {
     SATURATE,
     SHARPEN,
     STACK,
+    VFLIP,
     WORKDIR(true);
 
     private final boolean hasSideEffect;

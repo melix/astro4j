@@ -247,6 +247,9 @@ Fonctions "unitaires":
 - `max` permet de calculer la valeur maximale d'images, par exemple `max(img(-3), img(3))`. Le maximum est calculé pixel par pixel.
 - `min` permet de calculer la valeur minimale d'images, par exemple `min(img(-3), img(3))`. Le minimum est calculé pixel par pixel.
 - `range` permet de générer une suite d'images à des pixels décalés. Cette fonction prend au minimum 2 arguments, la valeur basse (inclue) et la valeur haute (inclue). Par exemple, `range(-5,5)` produira 11 images. Il est possible de générer une image tous les X pixels, en ajoutant un 3ème argument, le pas. Par exemple, `range(-5,5,5)` ne générera plus que 3 images, à -5, 0 et 5 pixels.
+- `pow` permet de calculer une puissance d'une image. Par exemple, `pow(img(0), 2)` calcule le carré de l'image.
+- `log` permet de calculer le logarithme d'une image. Par exemple, `log(img(0), 2)` calcule le logarithme en base 2.
+- `exp` permet de calculer l'exponentielle d'une image. Par exemple, `exp(img(0))`.
 
 Il est possible de faire des calculs sur les images, par exemple:
 
@@ -297,6 +300,8 @@ TIP: Une variable spéciale nommée `angleP` contient la valeur calculée pour l
 - `rotate_right` effectue une rotation vers la droite de l'image. Par exemple, `rotate_right(img(0))`.
 - `rotate_deg` effectue une rotation d'un angle arbitraire en degrés. Elle accepte entre 2 et 4 paramètres: l'image, l'angle de rotation sont obligatoires. Par exemple `rotate_deg(img(0), 45)`. Vous pouvez ensuite spécifier la valeur du fond à utiliser pour remplir les portions manquantes:  `rotate_deg(img(0), 45, 800)` et enfin si vous ajoutez `1` en dernier paramètre l'image sera redimensionnée au maximum pour que tous les pixels de l'image d'origine apparaissent dans l'image tournée.
 - `rotate_rad` effectue une rotation d'un angle arbitraire en radians. Elle accepte entre 2 et 4 paramètres: l'image, l'angle de rotation sont obligatoires. Par exemple `rotate_rad(img(0), .2)`. Vous pouvez ensuite spécifier la valeur du fond à utiliser pour remplir les portions manquantes:  `rotate_rad(img(0), .2, 800)` et enfin si vous ajoutez `1` en dernier paramètre l'image sera redimensionnée au maximum pour que tous les pixels de l'image d'origine apparaissent dans l'image tournée.
+- `vflip` permet de retourner l'image verticalement. Par exemple, `vflip(img(0))`.
+- `hflip` permet de retourner l'image horizontalement. Par exemple, `hflip(img(0))`.
 
 Fonctions décoratives
 

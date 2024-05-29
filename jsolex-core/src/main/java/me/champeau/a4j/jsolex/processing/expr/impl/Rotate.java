@@ -62,6 +62,30 @@ public class Rotate extends AbstractFunctionImpl {
         return doRotate("rotate_rad", arguments, angle);
     }
 
+    public Object hflip(List<Object> arguments) {
+        assertExpectedArgCount(arguments, "hflip takes 1 arguments (image(s))", 1, 1);
+        return applyUnary(arguments, "hflip", (width, height, data) -> {
+            var result = new float[width * height];
+            for (var y = 0; y < height; y++) {
+                for (var x = 0; x < width; x++) {
+                    result[y * width + x] = data[y * width + width - x - 1];
+                }
+            }
+            System.arraycopy(result, 0, data, 0, result.length);
+        });
+    }
+
+    public Object vflip(List<Object> arguments) {
+        assertExpectedArgCount(arguments, "vflip takes 1 arguments (image(s))", 1, 1);
+        return applyUnary(arguments, "vflip", (width, height, data) -> {
+            var result = new float[width * height];
+            for (var y = 0; y < height; y++) {
+                System.arraycopy(data, (height - y - 1) * width, result, y * width, width);
+            }
+            System.arraycopy(result, 0, data, 0, result.length);
+        });
+    }
+
     private Image arbitraryRotation(List<Object> arguments, Image image, double angle) {
         var blackpoint = getArgument(Number.class, arguments, 2)
             .map(Number::floatValue)

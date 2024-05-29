@@ -248,6 +248,9 @@ Base functions:
 - `max` computes the maximum of multiple images, for example `max(img(-3), img(3))`. Maximum is per pixel.
 - `min` computes the minimum of multiple images, for example `min(img(-3), img(3))`. Minimum is per pixel.
 - `range` generates images in a certain range of pixel shifts. It accepts either 2 or 3 arguments. The first 2 are the lower and higher pixel shifts (included). The 3rd, optional one is a step value. For example, using `range(-5;5;5)` will only generate 3 images at pixel shifts -5, 0 and 5.
+- `pow` computes the power of an image. For example: `pow(img(0), 2)` will square the image.
+- `log` computes the logarithm of an image. For example: `log(img(0), 2)` will compute the base 2 logarithm of the image.
+- `exp` computes the exponential of an image. For example: `exp(img(0))` .
 
 You can also perform calculus with images, for example:
 
@@ -298,6 +301,8 @@ TIP: A special variable named `angleP` contains the computed solar P angle, from
 - `rotate_right` performs a rotation of the image to the right. For example `rotate_right(img(0))`.
 - `rotate_deg` performs an arbitrary rotation, in degrees. It accepts between 2 and 4 parameters: the image and the rotation angle are mandatory. For example: `rotate_deg(img(0), 45)`. You can then specify the fill value for the pixels which didn't belong to the original image:  `rotate_deg(img(0), 45, 800)` and last, if you add `1` as the last argument, the image will be rescaled so that all pixels from the original image are found in the rotated version.
 - `rotate_rad` performs an arbitrary rotation, in degrees. It accepts between 2 and 4 parameters: the image and the rotation angle are mandatory. For example: `rotate_rad(img(0), 0.25)`. You can then specify the fill value for the pixels which didn't belong to the original image:  `rotate_rad(img(0), 0.25, 800)` and last, if you add `1` as the last argument, the image will be rescaled so that all pixels from the original image are found in the rotated version.
+- `vflip` flips the image vertically. For example: `vflip(img(0))`.
+- `hflip` flips the image horizontally. For example: `hflip(img(0))`.
 
 Decorative functions
 

@@ -215,6 +215,7 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
             case EXP -> math.exp(arguments);
             case FIX_BANDING -> fixBanding.fixBanding(arguments);
             case FIX_GEOMETRY -> geometryCorrection.fixGeometry(arguments);
+            case HFLIP -> rotate.hflip(arguments);
             case IMG -> image(arguments);
             case INVERT -> inverse.invert(arguments);
             case LINEAR_STRETCH -> stretching.linearStretch(arguments);
@@ -241,6 +242,7 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
             case SATURATE -> saturation.saturate(arguments);
             case SHARPEN -> convolution.sharpen(arguments);
             case STACK -> stacking.stack(arguments);
+            case VFLIP -> rotate.vflip(arguments);
             case WORKDIR -> setWorkDir(arguments);
         };
     }
