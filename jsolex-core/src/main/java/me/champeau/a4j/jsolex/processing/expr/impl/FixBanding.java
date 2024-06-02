@@ -41,8 +41,9 @@ public class FixBanding extends AbstractFunctionImpl {
                 for (int i = 0; i < passes; i++) {
                     BandingReduction.reduceBanding(width, height, data, bandSize, ellipse.orElse(null));
                 }
+            } else {
+                throw new ProcessingException("fix_banding can only be applied to mono images");
             }
-            throw new ProcessingException("fix_banding can only be applied to mono images");
         });
     }
 

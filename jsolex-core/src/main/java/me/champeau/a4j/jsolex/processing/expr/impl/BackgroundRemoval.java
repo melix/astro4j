@@ -19,7 +19,6 @@ import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
 import me.champeau.a4j.jsolex.processing.sun.workflow.AnalysisUtils;
 import me.champeau.a4j.jsolex.processing.util.FileBackedImage;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
-import me.champeau.a4j.jsolex.processing.util.ProcessingException;
 import me.champeau.a4j.math.regression.Ellipse;
 
 import java.util.List;
@@ -62,8 +61,9 @@ public class BackgroundRemoval extends AbstractFunctionImpl {
                     var height = image.height();
                     var data = image.data();
                     me.champeau.a4j.jsolex.processing.sun.BackgroundRemoval.removeBackground(width, height, data, tolerance, background, e);
+                } else {
+                    throw new IllegalArgumentException("remove_bg only supports mono images");
                 }
-                throw new ProcessingException("remove_bg can only be applied to mono images");
             });
         }
         throw new IllegalArgumentException("remove_bg only supports mono images");
