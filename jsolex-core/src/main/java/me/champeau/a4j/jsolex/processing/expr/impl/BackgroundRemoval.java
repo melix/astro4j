@@ -19,6 +19,7 @@ import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
 import me.champeau.a4j.jsolex.processing.sun.workflow.AnalysisUtils;
 import me.champeau.a4j.jsolex.processing.util.FileBackedImage;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
+import me.champeau.a4j.jsolex.processing.util.ProcessingException;
 import me.champeau.a4j.math.regression.Ellipse;
 
 import java.util.List;
@@ -53,13 +54,16 @@ public class BackgroundRemoval extends AbstractFunctionImpl {
             arg = fileBackedImage.unwrapToMemory();
         }
         if (arg instanceof ImageWrapper32 ref) {
-            return monoToMonoImageTransformer("remove_bg", 2, arguments, image -> {
-                var e = ellipse.get();
-                var background = AnalysisUtils.estimateBackground(ref, e);
-                var width = image.width();
-                var height = image.height();
-                var data = image.data();
-                me.champeau.a4j.jsolex.processing.sun.BackgroundRemoval.removeBackground(width, height, data, tolerance, background, e);
+            return monoToMonoImageTransformer("remove_bg", 2, arguments, src -> {
+                if (src instanceof ImageWrapper32 image) {
+                    var e = ellipse.get();
+                    var background = AnalysisUtils.estimateBackground(ref, e);
+                    var width = image.width();
+                    var height = image.height();
+                    var data = image.data();
+                    me.champeau.a4j.jsolex.processing.sun.BackgroundRemoval.removeBackground(width, height, data, tolerance, background, e);
+                }
+                throw new ProcessingException("remove_bg can only be applied to mono images");
             });
         }
         throw new IllegalArgumentException("remove_bg only supports mono images");
