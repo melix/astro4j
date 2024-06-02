@@ -40,10 +40,16 @@ import me.champeau.a4j.jsolex.processing.expr.impl.Scaling;
 import me.champeau.a4j.jsolex.processing.expr.impl.SimpleFunctionCall;
 import me.champeau.a4j.jsolex.processing.expr.impl.Stacking;
 import me.champeau.a4j.jsolex.processing.expr.impl.Stretching;
+import me.champeau.a4j.jsolex.processing.params.ProcessParams;
+import me.champeau.a4j.jsolex.processing.params.SpectralRayIO;
+import me.champeau.a4j.jsolex.processing.spectrum.SpectrumAnalyzer;
 import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
+import me.champeau.a4j.jsolex.processing.sun.workflow.PixelShift;
+import me.champeau.a4j.jsolex.processing.sun.workflow.PixelShiftRange;
 import me.champeau.a4j.jsolex.processing.util.FileBackedImage;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
+import me.champeau.a4j.math.image.ImageMath;
 
 import java.nio.file.Paths;
 import java.util.ArrayList;
@@ -63,7 +69,7 @@ import java.util.stream.Stream;
 public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluator {
 
     private final Map<Class<?>, Object> context = new HashMap<>();
-
+    private final ImageMath imageMath = ImageMath.newInstance();
     // Function implementations
     private final AdjustContrast adjustContrast;
     private final Animate animate;
@@ -123,7 +129,7 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
     }
 
     @Override
-    protected Object plus(Object left, Object right) {
+    public Object plus(Object left, Object right) {
         if (left instanceof List<?> leftList && right instanceof List<?> rightList) {
             return Stream.concat(leftList.stream(), rightList.stream()).toList();
         }
@@ -154,7 +160,7 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
     }
 
     @Override
-    protected Object minus(Object left, Object right) {
+    public Object minus(Object left, Object right) {
         if (left instanceof List<?> leftList && right instanceof List<?> rightList) {
             var copy = new ArrayList<>(leftList);
             copy.removeAll(rightList);
@@ -168,7 +174,7 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
     }
 
     @Override
-    protected Object mul(Object left, Object right) {
+    public Object mul(Object left, Object right) {
         var leftImage = asImage(left);
         var rightImage = asImage(right);
         var leftScalar = asScalar(left);
@@ -177,7 +183,7 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
     }
 
     @Override
-    protected Object div(Object left, Object right) {
+    public Object div(Object left, Object right) {
         var leftImage = asImage(left);
         var rightImage = asImage(right);
         var leftScalar = asScalar(left);
@@ -186,7 +192,7 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
     }
 
     @Override
-    protected Object functionCall(BuiltinFunction function, List<Object> arguments) {
+    public Object functionCall(BuiltinFunction function, List<Object> arguments) {
         return switch (function) {
             case ADJUST_CONTRAST -> adjustContrast.adjustContrast(arguments);
             case ADJUST_GAMMA -> adjustContrast.adjustGamma(arguments);
@@ -201,6 +207,7 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
             case CHOOSE_FILE -> loader.chooseFile(arguments);
             case CHOOSE_FILES -> loader.chooseFiles(arguments);
             case COLORIZE -> colorize.colorize(arguments);
+            case CONTINUUM -> createContinuumImage();
             case CROP -> crop.crop(arguments);
             case CROP_RECT -> crop.cropToRect(arguments);
             case DISK_FILL -> diskFill.fill(arguments);
@@ -241,10 +248,89 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
             case RGB -> RGBCombination.combine(arguments);
             case SATURATE -> saturation.saturate(arguments);
             case SHARPEN -> convolution.sharpen(arguments);
+            case FIND_SHIFT -> pixelShiftFor(arguments);
             case STACK -> stacking.stack(arguments);
             case VFLIP -> rotate.vflip(arguments);
             case WORKDIR -> setWorkDir(arguments);
         };
+    }
+
+    public ImageWrapper32 createContinuumImage() {
+        record ImageWithAverage(ImageWrapper image, double average) {
+        }
+        var fullRange = (PixelShiftRange) context.get(PixelShiftRange.class);
+        List<ImageWrapper> samples;
+        if (fullRange != null) {
+            samples = createRange(List.of(fullRange.minPixelShift(), fullRange.maxPixelShift(), fullRange.step()));
+        } else {
+            samples = createRange(List.of(-15, 15, 3));
+        }
+        // remove the samples which are too close to the studied line
+        int samplesSize = samples.size();
+        if (samplesSize > 0) {
+            var list = samples.stream()
+                .filter(image -> {
+                    var metadata = image.findMetadata(PixelShift.class);
+                    if (metadata.isPresent()) {
+                        var pixelShift = metadata.get().pixelShift();
+                        if (Math.abs(pixelShift) < 8) {
+                            return false;
+                        }
+                    }
+                    return true;
+                })
+                .map(img -> {
+                    var data = ((ImageWrapper32) img.unwrapToMemory()).data();
+                    var avg = imageMath.averageOf(data);
+                    return new ImageWithAverage(img, avg);
+                })
+                .toList();
+            // compute average of the averages
+            var average = list.stream().mapToDouble(ImageWithAverage::average).average().orElse(0);
+            // keep only the images which are above the average
+            samples = list.stream()
+                .filter(img -> img.average() > average)
+                .map(ImageWithAverage::image)
+                .toList();
+        }
+        return (ImageWrapper32) functionCall(BuiltinFunction.MEDIAN, List.of(samples));
+    }
+
+    public Object pixelShiftFor(List<Object> arguments) {
+        if (arguments.size() != 1) {
+            throw new IllegalArgumentException("shift() call must have a single argument (wavelength in angstroms or spectral ray)");
+        }
+        double targetWaveLength = 0;
+        if (arguments.getFirst() instanceof String rayName) {
+            var first = SpectralRayIO.loadDefaults()
+                .stream()
+                .filter(ray -> ray.label().equalsIgnoreCase(rayName))
+                .findFirst();
+            if (first.isPresent()) {
+                targetWaveLength = 10 * first.get().wavelength();
+            }
+        } else {
+            targetWaveLength = asScalar(arguments.get(0)).doubleValue();
+        }
+        ProcessParams params = (ProcessParams) context.get(ProcessParams.class);
+        return computePixelShift(params, targetWaveLength);
+    }
+
+    protected double computePixelShift(ProcessParams params, double targetWaveLength) {
+        if (params == null) {
+            return 0;
+        }
+        var pixelSize = params.observationDetails().pixelSize();
+        var binning = params.observationDetails().binning();
+        if (pixelSize == null) {
+            pixelSize = 2.4;
+        }
+        if (binning == null) {
+            binning = 1;
+        }
+        var lambda0 = params.spectrumParams().ray().wavelength();
+        var instrument = params.observationDetails().instrument();
+        return SpectrumAnalyzer.computePixelShift(pixelSize, binning, lambda0 * 10, targetWaveLength, instrument);
     }
 
     private static OptionalDouble median(DoubleStream doubleStream) {

@@ -165,8 +165,8 @@ public class SpectralRayEditor {
                 var newRay = new SpectralRay(
                     newLabel,
                     hasColor ? new ColorCurve(newLabel, rInValue, rOutValue, gInValue, gOutValue, bInValue, bOutValue) : null,
-                    newWavelen
-                );
+                    newWavelen,
+                    false);
                 updateEditableInOut(hasColor);
                 items.set(selectionModel.getSelectedIndex(), newRay);
                 updating.set(false);
@@ -273,8 +273,8 @@ public class SpectralRayEditor {
         var spectralRay = new SpectralRay(
             "<new> " + elements.getItems().size(),
             null,
-            0
-        );
+            0,
+            false);
         elements.getItems().add(spectralRay);
         elements.getSelectionModel().select(spectralRay);
     }

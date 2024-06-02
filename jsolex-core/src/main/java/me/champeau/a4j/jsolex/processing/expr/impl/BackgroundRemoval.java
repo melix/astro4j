@@ -53,13 +53,17 @@ public class BackgroundRemoval extends AbstractFunctionImpl {
             arg = fileBackedImage.unwrapToMemory();
         }
         if (arg instanceof ImageWrapper32 ref) {
-            return monoToMonoImageTransformer("remove_bg", 2, arguments, image -> {
-                var e = ellipse.get();
-                var background = AnalysisUtils.estimateBackground(ref, e);
-                var width = image.width();
-                var height = image.height();
-                var data = image.data();
-                me.champeau.a4j.jsolex.processing.sun.BackgroundRemoval.removeBackground(width, height, data, tolerance, background, e);
+            return monoToMonoImageTransformer("remove_bg", 2, arguments, src -> {
+                if (src instanceof ImageWrapper32 image) {
+                    var e = ellipse.get();
+                    var background = AnalysisUtils.estimateBackground(ref, e);
+                    var width = image.width();
+                    var height = image.height();
+                    var data = image.data();
+                    me.champeau.a4j.jsolex.processing.sun.BackgroundRemoval.removeBackground(width, height, data, tolerance, background, e);
+                } else {
+                    throw new IllegalArgumentException("remove_bg only supports mono images");
+                }
             });
         }
         throw new IllegalArgumentException("remove_bg only supports mono images");

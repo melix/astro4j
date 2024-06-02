@@ -179,6 +179,9 @@ public class SerFileReader implements AutoCloseable {
             }
 
             int pixelDepth = (int) Math.ceil(Math.log(maxPixel) / Math.log(2));
+            if (pixelDepth < 1) {
+                return tmpReader;
+            }
             var newGeometry = new ImageGeometry(geometry.colorMode(), geometry.width(), geometry.height(), pixelDepth, geometry.imageEndian());
             return new SerFileReader(tmpReader.accessFile, tmpReader.imageBuffers, tmpReader.maxFramesPerBuffer, tmpReader.timestampsBuffer,
                 new Header(tmpReader.header.camera(), newGeometry, tmpReader.header.frameCount(), tmpReader.header.metadata()));

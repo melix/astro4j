@@ -36,7 +36,7 @@ public class DefaultImageStatsComputer implements ImageStatsComputer {
         int[] histogram = new int[65536];
         int[] cumulativeHistogram = new int[65536];
         double min = Double.MAX_VALUE;
-        double max = Double.MIN_VALUE;
+        double max = -Double.MAX_VALUE;
         double mean = 0;
         for (int j = 0; j < imageData.length; j += nbOfChannels) {
             double value = imageData[j + channel];

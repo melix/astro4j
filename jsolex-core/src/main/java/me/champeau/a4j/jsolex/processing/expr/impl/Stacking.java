@@ -115,7 +115,7 @@ public class Stacking extends AbstractFunctionImpl {
         var width = first.width();
         var sharpness = normalizedSharpnessOf(images, width, height);
         ImageWrapper32 reference = null;
-        var referenceSharpness = Double.MIN_VALUE;
+        var referenceSharpness = -Double.MAX_VALUE;
         for (int i = 0; i < sharpness.length; i++) {
             double v = sharpness[i];
             if (v > referenceSharpness) {

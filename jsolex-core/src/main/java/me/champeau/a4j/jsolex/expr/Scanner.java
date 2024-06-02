@@ -83,6 +83,16 @@ public class Scanner {
             }
         }
 
+        // fixup list so that if we have FUNCTION, LEFT_PARENTHESIS, RIGHT_PARENTHESIS, we insert a comma
+        for (int i = 0; i < tokens.size() - 2; i++) {
+            var token = tokens.get(i);
+            var nextToken = tokens.get(i + 1);
+            var nextNextToken = tokens.get(i + 2);
+            if (token.type() == TokenType.FUNCTION && nextToken.type() == TokenType.LEFT_PARENTHESIS && nextNextToken.type() == TokenType.RIGHT_PARENTHESIS) {
+                tokens.add(i + 2, new Token(TokenType.LITERAL, null, nextToken.start(), nextToken.end()));
+            }
+        }
+
         return tokens;
     }
 

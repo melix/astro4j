@@ -25,7 +25,6 @@ import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
 import me.champeau.a4j.jsolex.processing.sun.workflow.ImageStats;
 import me.champeau.a4j.jsolex.processing.sun.workflow.TransformationHistory;
 import me.champeau.a4j.jsolex.processing.util.FileBackedImage;
-import me.champeau.a4j.jsolex.processing.util.ForkJoinContext;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 import me.champeau.a4j.jsolex.processing.util.SolarParameters;
@@ -89,7 +88,7 @@ public class DefaultImageScriptExecutor implements ImageMathScriptExecutor {
         var outputs = prepareOutputExpressions(script, index, evaluator, kind);
         var producedImages = new HashMap<String, ImageWrapper>();
         var producedFiles = new HashMap<String, Path>();
-        return outputs == null ? new ImageMathScriptResult(producedImages, producedFiles, List.of(), Set.of(), Set.of()) : executeScript(evaluator, outputs, producedImages, producedFiles);
+        return outputs == null ? new ImageMathScriptResult(producedImages, producedFiles, List.of(), Set.of(), Set.of(), Set.of(), false) : executeScript(evaluator, outputs, producedImages, producedFiles);
     }
 
     private ImageMathScriptResult executeScript(MemoizingExpressionEvaluator evaluator,
@@ -161,7 +160,7 @@ public class DefaultImageScriptExecutor implements ImageMathScriptExecutor {
         broadcaster.broadcast(ProgressEvent.of(1.0, "ImageScript evaluation"));
         var expressionShifts = new TreeSet<>(evaluator.getShifts());
         expressionShifts.removeAll(variableShifts);
-        return new ImageMathScriptResult(producedImages, producedFiles, invalidExpressions, Collections.unmodifiableSet(variableShifts), Collections.unmodifiableSet(expressionShifts));
+        return new ImageMathScriptResult(producedImages, producedFiles, invalidExpressions, Collections.unmodifiableSet(variableShifts), Collections.unmodifiableSet(expressionShifts), evaluator.getAutoWavelenghts(), evaluator.usesAutoContinuum());
     }
 
     private static boolean isOutputSection(String currentSection) {

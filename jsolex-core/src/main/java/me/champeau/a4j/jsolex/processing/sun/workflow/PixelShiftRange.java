@@ -13,26 +13,21 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package me.champeau.a4j.jsolex.processing.event;
+package me.champeau.a4j.jsolex.processing.sun.workflow;
 
-import me.champeau.a4j.jsolex.processing.params.ProcessParams;
-import me.champeau.a4j.math.image.Image;
-
-import java.util.function.DoubleUnaryOperator;
-
-public final class AverageImageComputedEvent extends ProcessingEvent<AverageImageComputedEvent.AverageImage> {
-
-    public AverageImageComputedEvent(AverageImage image) {
-        super(image);
-    }
-
-    public record AverageImage(
-        Image image,
-        DoubleUnaryOperator polynomial,
-        int leftBorder,
-        int rightBorder,
-        ProcessParams adjustedParams
-    ) {
-
-    }
+/**
+ * Stores information about the maximum range of pixel shifts
+ * which can be used given the detected polynomial and frame
+ * dimensions. The shift is expressed in pixels relative to
+ * the middle of the detected spectral line.
+ *
+ * @param minPixelShift the min pixel shift
+ * @param maxPixelShift the max pixel shift
+ * @param step the step to use when sampling in the range
+ */
+public record PixelShiftRange(
+    double minPixelShift,
+    double maxPixelShift,
+    double step
+) {
 }

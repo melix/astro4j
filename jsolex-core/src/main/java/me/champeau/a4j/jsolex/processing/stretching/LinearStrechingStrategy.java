@@ -75,7 +75,7 @@ public final class LinearStrechingStrategy implements StretchingStrategy {
         if (array.length == 0) {
             return Optional.empty();
         }
-        double max = Double.MIN_VALUE;
+        double max = -Double.MAX_VALUE;
         for (float v : array) {
             if (v > max) {
                 max = v;

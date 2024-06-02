@@ -19,6 +19,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.Properties;
 
 public class VersionUtil {
 
@@ -64,6 +65,29 @@ public class VersionUtil {
             }
         }
         return path;
+    }
+
+    public static Properties readSchemaVersions() {
+        var schemas = getJsolexDir().resolve("schemas.txt");
+        if (!Files.exists(schemas)) {
+            writeSchemaVersions(new Properties());
+        }
+        var props = new Properties();
+        try (var reader = Files.newBufferedReader(schemas)) {
+            props.load(reader);
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+        return props;
+    }
+
+    public static void writeSchemaVersions(Properties props) {
+        var schemas = getJsolexDir().resolve("schemas.txt");
+        try (var writer = Files.newBufferedWriter(schemas)) {
+            props.store(writer, "Schema versions for jsolex");
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
     }
 
     private static class Holder {

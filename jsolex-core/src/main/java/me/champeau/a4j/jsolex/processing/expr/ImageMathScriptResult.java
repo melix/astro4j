@@ -27,5 +27,7 @@ public record ImageMathScriptResult(
         Map<String, Path> filesByLabel,
         List<InvalidExpression> invalidExpressions,
         Set<Double> internalShifts,
-        Set<Double> outputShifts) {
+        Set<Double> outputShifts,
+        Set<Double> requestedWavelenghts,
+        boolean autoContinuum) {
 }

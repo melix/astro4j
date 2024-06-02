@@ -94,7 +94,7 @@ class SpectrumFrameAnalyzerTest extends Specification {
         int rightBorder = analyzer.rightSunBorder().orElse(width - 1)
         var candidates = new ArrayList<SpectrumAnalyzer.QueryDetails>();
         for (var line : SpectralRay.predefined()) {
-            if (line.wavelength() > 0) {
+            if (line.wavelength() > 0 && !line.emission()) {
                 candidates.add(new SpectrumAnalyzer.QueryDetails(line, 2.4, 1, SOLEX))
                 candidates.add(new SpectrumAnalyzer.QueryDetails(line, 2.4, 2, SOLEX))
             }
@@ -137,7 +137,8 @@ class SpectrumFrameAnalyzerTest extends Specification {
             case "Mag" -> "Magnesium (b1)"
             case "caK" -> "Calcium (K)"
             case "caH" -> "Calcium (H)"
-            case "Helium" -> "Helium (D3)"
+            case "Iron_Fe1" -> "Iron (Fe I)"
+            case "Sodium (D2)" -> "Sodium (D2)"
             default -> name
         }
     }

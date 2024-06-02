@@ -157,19 +157,15 @@ class AbstractFunctionImpl {
         if (arguments.size() > maxArgCount) {
             throw new IllegalArgumentException("Invalid number of arguments on '" + name + "' call");
         }
-        var arg = arguments.get(0);
-        if (arg instanceof FileBackedImage fileBackedImage) {
-            arg = fileBackedImage.unwrapToMemory();
-        }
-        if (arg instanceof ImageWrapper32 image) {
-            var copy = image.copy();
+        var arg = arguments.getFirst();
+        if (arg instanceof List<?>) {
+            return expandToImageList(name, arguments, e -> monoToMonoImageTransformer(name, maxArgCount, e, consumer));
+        } else if (arg instanceof ImageWrapper image) {
+            var copy = image.unwrapToMemory().copy();
             consumer.accept(copy);
             return copy;
-        } else if (arg instanceof List<?>) {
-            return expandToImageList(name, arguments, e -> monoToMonoImageTransformer(name, maxArgCount, e, consumer));
         }
         throw new IllegalArgumentException(name + "first argument must be a mono image or a list of images");
-
     }
 
     protected Object applyUnary(List<Object> arguments, String name, DoubleUnaryOperator function) {
@@ -256,7 +252,7 @@ class AbstractFunctionImpl {
 
     @FunctionalInterface
     public interface ImageConsumer {
-        void accept(ImageWrapper32 image);
+        void accept(ImageWrapper image);
     }
 
     @FunctionalInterface
