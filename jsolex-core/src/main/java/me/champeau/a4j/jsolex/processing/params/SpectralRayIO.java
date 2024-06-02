@@ -26,10 +26,14 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 
 public abstract class SpectralRayIO {
     private static final Logger LOGGER = LoggerFactory.getLogger(SpectralRayIO.class);
+    private static final String SCHEMA_KEY = "spectral-ray";
+    private static final int SCHEMA_VERSION = 1;
 
     private SpectralRayIO() {
 
@@ -54,10 +58,43 @@ public abstract class SpectralRayIO {
         var defaultsFile = resolveDefaultsFile();
         List<SpectralRay> rays = readFrom(defaultsFile);
         if (rays != null) {
-            return rays;
+            return upgradeSchema(rays);
         }
         LOGGER.info("No config file found at {}. Using default rays", defaultsFile);
         return SpectralRay.predefined();
+    }
+
+    private static List<SpectralRay> upgradeSchema(List<SpectralRay> rays) {
+        var schemas = VersionUtil.readSchemaVersions();
+        Object version = schemas.get(SCHEMA_KEY);
+        if (version instanceof String str) {
+            version = Integer.parseInt(str);
+        }
+        if (version == null || (int) version < SCHEMA_VERSION) {
+            LOGGER.info("Updating spectral rays file using latest data");
+            List<SpectralRay> newRays = new ArrayList<>();
+            for (SpectralRay ray : SpectralRay.predefined()) {
+                var found = rays.stream().filter(r -> r.equals(ray)).findFirst();
+                if (found.isPresent()) {
+                    var current = found.get();
+                    if (current.label().equals(SpectralRay.HELIUM_D3.label())) {
+                        current = new SpectralRay(current.label(), SpectralRay.HELIUM_D3.colorCurve(), SpectralRay.HELIUM_D3.wavelength(), true);
+                    }
+                    if (!current.label().equals(SpectralRay.H_ALPHA.label())) {
+                        current = new SpectralRay(current.label(), ray.colorCurve(), current.wavelength(), current.emission());
+                    }
+                    newRays.add(current);
+                } else {
+                    newRays.add(ray);
+                }
+            }
+            schemas.put(SCHEMA_KEY, String.valueOf(SCHEMA_VERSION));
+            VersionUtil.writeSchemaVersions(schemas);
+            newRays = newRays.stream().sorted(Comparator.comparingDouble(SpectralRay::wavelength)).toList();
+            saveDefaults(newRays);
+            return newRays;
+        }
+        return rays;
     }
 
     @SuppressWarnings("unchecked")

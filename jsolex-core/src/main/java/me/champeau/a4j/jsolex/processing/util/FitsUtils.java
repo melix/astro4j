@@ -17,6 +17,7 @@ package me.champeau.a4j.jsolex.processing.util;
 
 import me.champeau.a4j.jsolex.processing.params.ProcessParams;
 import me.champeau.a4j.jsolex.processing.params.ProcessParamsIO;
+import me.champeau.a4j.jsolex.processing.spectrum.SpectrumAnalyzer;
 import me.champeau.a4j.jsolex.processing.sun.detection.RedshiftArea;
 import me.champeau.a4j.jsolex.processing.sun.detection.Redshifts;
 import me.champeau.a4j.jsolex.processing.sun.workflow.PixelShift;
@@ -443,7 +444,16 @@ public class FitsUtils {
             header.addValue(InstrumentDescription.APERTURE, String.valueOf(aperture));
         }
         var wavelength = params.spectrumParams().ray().wavelength();
+        var obsParams = params.observationDetails();
+        // alter the wavelength according to the pixel shift
         if (wavelength != 0) {
+            var pixelShift = image.findMetadata(PixelShift.class).map(PixelShift::pixelShift);
+            var pixelSize = obsParams.pixelSize();
+            var binning = obsParams.binning();
+            if (pixelShift.isPresent() && pixelSize != null && pixelSize>0 && binning != null && binning > 0) {
+                var dispersion = SpectrumAnalyzer.computeSpectralDispersion(obsParams.instrument(), wavelength, pixelSize * binning);
+                wavelength += pixelShift.get() * dispersion;
+            }
             header.addValue("WAVELNTH", wavelength, "Wavelength (nm)");
         }
     }

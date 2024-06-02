@@ -265,7 +265,7 @@ public class SolexVideoProcessor implements Broadcaster {
                 rightBorder = width;
             }
             var pixelSize = processParams.observationDetails().pixelSize();
-            if (processParams.spectrumParams().ray().equals(SpectralRay.AUTO) && pixelSize != null) {
+            if (processParams.spectrumParams().ray().equals(SpectralRay.AUTO) && pixelSize != null && pixelSize>0) {
                 var instrument = processParams.observationDetails().instrument();
                 var candidates = new ArrayList<SpectrumAnalyzer.QueryDetails>();
                 for (var line : SpectralRay.predefined()) {
@@ -294,7 +294,7 @@ public class SolexVideoProcessor implements Broadcaster {
             var canGenerateHeliumD3Images = isSodiumOrFe1() && heliumLineVisible(pixelShiftRange, heliumLineShift) && processParams.requestedImages().isEnabled(GeneratedImageKind.GEOMETRY_CORRECTED_PROCESSED);
             addPixelShiftsForRequestedByWavelength(width, newHeight, imageList);
             addPixelShiftsForAutoContinnum(canGenerateHeliumD3Images, width, newHeight, imageList, heliumLineShift);
-            broadcast(new AverageImageComputedEvent(new AverageImageComputedEvent.AverageImage(avgImage, polynomial, leftBorder, rightBorder, processParams.spectrumParams().ray(), processParams.observationDetails())));
+            broadcast(new AverageImageComputedEvent(new AverageImageComputedEvent.AverageImage(avgImage, polynomial, leftBorder, rightBorder, processParams)));
             LOGGER.info(message("starting.reconstruction"));
             LOGGER.info(message("distortion.polynomial"), polynomial);
             BackgroundOperations.exclusiveIO(() -> {

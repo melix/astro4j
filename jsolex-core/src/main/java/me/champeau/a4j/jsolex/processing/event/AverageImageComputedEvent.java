@@ -15,8 +15,7 @@
  */
 package me.champeau.a4j.jsolex.processing.event;
 
-import me.champeau.a4j.jsolex.processing.params.ObservationDetails;
-import me.champeau.a4j.jsolex.processing.params.SpectralRay;
+import me.champeau.a4j.jsolex.processing.params.ProcessParams;
 import me.champeau.a4j.math.image.Image;
 
 import java.util.function.DoubleUnaryOperator;
@@ -32,8 +31,7 @@ public final class AverageImageComputedEvent extends ProcessingEvent<AverageImag
         DoubleUnaryOperator polynomial,
         int leftBorder,
         int rightBorder,
-        SpectralRay spectralRay,
-        ObservationDetails observationDetails
+        ProcessParams adjustedParams
     ) {
 
     }

@@ -136,6 +136,7 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
     private final LocalDateTime processingDate;
 
     private ProcessParams params;
+    private ProcessParams adjustedParams;
     private Header header;
     private BarChart<String, Number> histogramChart;
     private Map<Class, Object> scriptExecutionContext;
@@ -237,7 +238,7 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
                 kind,
                 imageWrapper,
                 payload.path().toFile(),
-                params,
+                adjustedParams != null ? adjustedParams : params,
                 popupViews,
                 pixelShift.orElse(null),
                 viewer -> {
@@ -572,6 +573,7 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
 
     @Override
     public void onAverageImageComputed(AverageImageComputedEvent e) {
+        adjustedParams = e.getPayload().adjustedParams();
         profileGraphFactory = () -> {
             var xAxis = new CategoryAxis();
             var yAxis = new NumberAxis();
@@ -586,9 +588,10 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
             var end = e.getPayload().rightBorder();
             var data = image.data();
             var polynomial = e.getPayload().polynomial();
-            var lambda0 = e.getPayload().spectralRay().wavelength();
-            var binning = e.getPayload().observationDetails().binning();
-            var pixelSize = e.getPayload().observationDetails().pixelSize();
+            var params = e.getPayload().adjustedParams();
+            var lambda0 = params.spectrumParams().ray().wavelength();
+            var binning = params.observationDetails().binning();
+            var pixelSize = params.observationDetails().pixelSize();
             var canDrawReference = binning != null && pixelSize != null && lambda0 > 0 && pixelSize > 0 && binning > 0;
             registerSaveChartAction("profile", lineChart);
             series.setName(formatLegend(params.observationDetails().instrument(), lambda0, binning, pixelSize));

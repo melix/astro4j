@@ -2,70 +2,30 @@
 
 Here are the new features in this version:
 
-- [Automatic Spectral Line Detection](#automatic-detection-of-the-studied-line)
-- [Automatic redshift/speed measurements](#automatic-speed-measurements-redshift)
-- [Automatic Coloring Based on Wavelength](#automatic-coloring-based-on-wavelength)
-- [Reading Sharpcap and Firecapture Metadata](#reading-sharpcap-and-firecapture-metadata)
+- [Automatic Helium D3 processing](#automatic-detection-of-the-studied-line)
+- [Equipment management](#equipment-management)
+- [Other spectroheliograghs support](#other-spectroheliographs-support)
 
-## Bugfixes and improvements since 2.3.0
+## Automatic Helium D3 processing
 
-- Ability to create multiple equipments (spectroheliographs or telescopes)
-- Added ability to use full range in redshift panels
-- Improved rendering of colored images
-- Added ability to download a reference image from GONG
-- Added rotation/mirror flip buttons and ability to apply the changes for the next process
-- Fixed incorrect wavelength shift in Angrstroms when generating panel
-- Improved polynomial detection in some edge cases
-- Fixed a race condition when reconstructing images which could lead to unreproducible results
-- Fixed pixel shift margin not taken into account in some cases
-- Fixed Sharpcap metadata parsing that could make reading a SER impossible
-- Fixed a formatting error if the application was compiled under Windows
+Before this release, processing a helium D3 line required manual intervention: in particular, you needed to analyze the SER file using the spectrum debugger to determine the pixel shift between a reference line (usually the Sodium D2 line or the Iron Fe 1 line) and the helium D3 line.
 
-## Automatic Detection of the Studied Line
+Starting from this release, JSol'Ex can automatically generate Helium line images without any manual intervention, in a single click!
 
-JSol'Ex now offers automatic detection of the studied line, as well as camera binning.
-To ensure correct detection, it is important to **enter the pixel size of your camera** correctly in the "observation details" section.
-It's worth noting that detection will work better with a larger cropping window and will probably fail if the spectrum is too saturated.
+In order to do this, the reference line must either be properly detected (when using the "Autodetect" mode), or you can manually set the reference line in the "Process parameters" window.
 
-Finally, if the "automatic" mode does not appear in the list of available lines, it means you have added or modified lines in the editor, in which case you will need to [reset the available lines](#reset-available-lines) for the "automatic" mode to appear.
-When a line is selected, the profile tab now displays the measured profile compared to a reference profile.
+It's worth noting that the binning and pixel size of your camera must be properly set in the "Observation details" section for the computation of the pixel shift to be accurrate.
 
-## Automatic speed measurements (redshift)
+The new images will be automatically generated as soon as you select the "Geometry corrected (processed)" images or "Colorized" images in the image selection tab (this is automatic in quick mode and full mode respectively).
 
-If the studied line is hydrogen alpha, JSol'Ex will automatically analyze frames to detect Doppler shifts.
-It will automatically calculate the speed associated to the shift and display it into the log window.
-In addition, it will generate an image which shows where the highest speeds have been detected.
-If you enable debug images, it will also extract images from the SER file were the speedy events were detected so that you can doublecheck if the measurements are correct.
-Last but not least, once processing is done, a new tab will activate: the "Redshift" tab.
-If you click on it, you will have the option to generate either an animation or an image panel of each region where speedy events were detected!
+Should the generated Helium image be incorrect, you can still manually generate Helium line images using [ImageMath scripts](https://melix.github.io/astro4j/latest/en/jsolex.html#_imagemath_scripts).
 
-## Reading Sharpcap and Firecapture Metadata
+## Equipment management
 
-If a Sharpcap or Firecapture metadata file is found next to the SER file, it will be read, allowing JSol'Ex to automatically populate the "Camera" and "Binning" fields.
-Note that the pixel size of the camera **must** be entered manually in the "observation details" section.
-Sharpcap files will be detected if they have the same name as the SER file but with the extension `.CameraSettings.txt`.
-Firecapture files will be detected if they have the same name as the SER file but with the extension `.txt`.
+In previous releases, if you had multiple equipments (e.g different telescopes, different configurations with and without a focal reducer, etc.), you had to manually change the equipment settings each time you wanted to switch between them.
+Starting from JSol'Ex 2.4, a new "Equipment" menu has been added, which lets you declare multiple equipments and switch between them easily.
 
-## Automatic Coloring Based on Wavelength
+## Other spectroheliographs support
 
-In previous versions, automatic coloring was only available if you defined a coloring curve.
-Now, automatic coloring will estimate the color automatically.
-However, you can replace the automatic color with a manual curve if the result does not satisfy you.
-
-## Miscellaneous
-### Minor fixes and improvements
-
-- Added new image fitting buttons for zooming and centering images
-- Improved colorization algorithm
-- Improved edge detection, in particular for calcium line
-
-### Reset Available Lines
-
-JSol'Ex allows you to manually add lines to the predefined list or customize coloring curves.
-If you have made such modifications in the past, the "automatic" mode will not be available by default.
-You have two options to add it. In both cases, open the spectral line editor through the "Tools" menu and then:
-
-- Manually add an entry named `Autodetect` with a wavelength of 0 nm to the list of available lines.
-- Or click on "reset to default"
-
-The latter option is the simplest, as it will restore the predefined lines and the "automatic" mode, while also allowing you to benefit from the new lines added in this version.
+JSol'Ex has always been capable of processing other SER files than these produced by the Sol'Ex instrument, but the computation of the profile wavelengths wasn't accurrate for these.
+In this release, we have added support for declaring new spectroheliographs, with their own grating, focal length, etc.

@@ -318,6 +318,13 @@ Stacking and mosaic functions:
 - `stack` allows stacking images together. It will align images and compute the median value of each pixel. It accepts 1 to 3 parameters. The first one is the list of images to stack, for example: `stack(load_many("*.fits"))`. The 2d parameter is the tile size and the 3rd one is the overlap factor (between 0 and 1).
 - `mosaic` allows stitching images together in order to create a mosaic. It accepts 1 to 3 parameters. The first one is the list of images to stack, for example: `mosaic(load_many("*.fits"))`. The 2d parameter is the tile size and the 3rd one is the overlap factor (between 0 and 1).
 
+- `continuum` est une fonction sans paramètre qui détermine automatiquement une image de type "continuum" qui peut par exemple être soustraite d'une autre image. Cette fonction diffère de l'image continuum classique au sens où il ne s'agit pas d'une image unique calculée à la différence de pixels fixe de 15 pixels, mais d'une image calculée à partir de la médiane d'un ensemble d'images. Utilisation: `continuum()`.
+
+Analysis functions:
+
+- `find_shift` allows to compute a pixel shift from the detected ray. It accepts a single parameter, the name of the ray to search for, for example, `find_shift("Helium (D3)"), or the wavelength in Angström, for example `find_shift(5875.62)`. This function returns a number, the pixel shift.
+- `continuum` is a function without parameters which automatically determines a "continuum" image which can for example be subtracted from another image. This function differs from the classic continuum image in the sense that it is not a single image calculated from a fixed pixel difference of 15 pixels, but an image calculated from the median of a set of images. Usage: `continuum()`.
+
 === ImageMath scripts
 
 In the previous section, we have seen the building blocks of ImageMath, which permit computation of new images.
@@ -331,30 +338,27 @@ Producing such images is quite cumbersome but can be simplified to the extreme w
 [source]
 ----
 [params]
-# Pixel shift of the helium ray
-HeliumShift = -85
-# Hi and lo values of the continuum (pixel shifts)
-ContinuumLo=-80
-ContinuumHi=-70
-# Continuum substration coefficient
-ContinuumCoef=0.95
-# Arcsinh image strech
-Stretch=10
-# Banding width
+# The shifting between the helium line and the detected line (in pixels)
+Line=5875.62
+HeliumShift=find_shift(Line)
+# Banding correction width and number of iterations
 BandWidth=25
-# Banding correction iterations
-BandIterations=10
+BandIterations=20
+# Contrast adjustment
+Gamma=1.5
+# Autocrop factor (of diameter)
+AutoCropFactor=1.1
 
-## Tmp variables
+## Temporary variables
 [tmp]
-continuum = max(range(ContinuumLo,ContinuumHi))
-helium_raw = autocrop(img(HeliumShift) - ContinuumCoef*continuum)
+helium_raw = img(HeliumShift) - continuum()
+helium_fixed = fix_banding(helium_raw;BandWidth;BandIterations)
+cropped = autocrop2(auto_contrast(helium_fixed;Gamma);AutoCropFactor)
 
-## Now the output images!
+## Let's produce the images now!
 [outputs]
-helium = asinh_stretch(helium_raw, blackPoint, Stretch)
-helium_fixed = asinh_stretch(fix_banding(helium_raw;BandWidth;BandIterations),blackPoint, Stretch)
-helium_color = colorize(helium_fixed, "Helium (D3)")
+helium_mono = cropped
+helium_color = colorize(helium_mono, Line)
 ----
 
 Our script consists of 3 different sections: `[params]`, `[tmp]` and `[outputs]`.
@@ -362,7 +366,7 @@ The only mandatory section is the `[outputs]` one: it defines which images we wa
 The name of all other sections is arbitrary, you can create as many sections as you want.
 
 Here, we defined a `[params]` section which highlights which parameters we want users to be able to tweak for their needs.
-This is where we find the value of our helium ray pixel shift (`-85`).
+This is where we find the value of our helium ray pixel shift (`HeliumShift=find_line(Line)`) which is computed from the `Line=5875.62` variable declaration.
 
 NOTE: A variable can only contain ASCII characters, digits (except for the 1st character) or the `_` character. For example, `myVariable`, `MyVariable` or `MyVariable0` all all valid identifiers. `hélium` is invalid (because of the accent).
 
@@ -370,16 +374,16 @@ Variables can be used in other variables or function calls.
 
 IMPORTANT: Variables are case sensitive. `myVariable` et `MyVariable` are 2 distinct variables!
 
-Our 2d section, `[tmp]`, defines intermediate images we want to work with, but for which we don't care about seeing the result.
-Here we have 2 intermediate images: one of the continuum, which uses a max of the continuum range, and a "raw" helium image which is the reconstructed image, substracted with the continuum one.
+Our 2d section, `[tmp]`, defines intermediate images we want to work with, but for which we don't care about seeing the result:
+
+- `helium_raw` is the Helium ray image, shifted from the detected ray and from which we have subtracted the continuum image.
+- `helium_fixed` is the `helium_raw` image to which we have applied the banding correction algorithm.
+- `cropped` is the `helium_fixed` image to which we have applied an autocrop and a contrast adjustment.
 
 Last but not least, the `[outputs]` section declares the images we want to generate:
 
-`helium = asinh_stretch(helium_raw, blackPoint, Stretch)` will create an image with the `helium` label, which is simply a stretched version of our raw helium image.
-
-The expression `helium_fixed = asinh_stretch(fix_banding(helium_raw;BandWidth;BandIterations),blackPoint, Stretch)` does something similar, but actually performs a banding correction in addition.
-
-Last, `helium_color = colorize(fix_banding(helium_raw;BandWidth;BandIterations), "Helium (D3)")` generates a colorized version of the image.
+- `helium_mono` is the `cropped` image as is, in black and white.
+- `helium_color` is the `helium_mono` image to which we have applied a colorization.
 
 NOTE: Comments can be added either with the `#` or `//` prefix.
 

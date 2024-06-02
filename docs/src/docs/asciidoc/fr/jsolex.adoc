@@ -318,6 +318,11 @@ Fonctions d'empilement et de création de mosaiques :
 - `stack` permet d'empiler des images. Elle prend entre 1 et 3 paramètres. Le premier est la liste des images à empiler, par exemple: `stack(load_many("*.fits"))`. Le 2ème paramètre est la taille des tuiles et le 3ème est le facteur de recouvrement (entre 0 et 1).
 - `mosaic` permet de créer une mosaïque d'images. Elle prend entre 1 et 3 paramètres. Le premier est la liste des images à empiler, par exemple: `mosaic(load_many("*.fits"))`. Le 2ème paramètre est la taille des tuiles et le 3ème est le facteur de recouvrement (entre 0 et 1).
 
+Fonctions d'analyse :
+
+- `find_shift` permet de calculer un décalage en pixels par rapport à la raie détectée. Elle accepte un seul paramètre, le nom de la raie recherchée, par exemple, `find_shift("Helium (D3)"), ou bien la longueur d'onde en Angström, par exemple `find_shift(5875.62)`. Cette fonction retourne un nombre, le décalage en pixels.
+- `continuum` est une fonction sans paramètre qui détermine automatiquement une image de type "continuum" qui peut par exemple être soustraite d'une autre image. Cette fonction diffère de l'image continuum classique au sens où il ne s'agit pas d'une image unique calculée à la différence de pixels fixe de 15 pixels, mais d'une image calculée à partir de la médiane d'un ensemble d'images. Utilisation : `continuum()`.
+
 === Scripts ImageMath
 
 Dans la section précédente, nous avons vu les "briques élémentaires" d'ImageMath, qui permettent de calculer des images.
@@ -328,30 +333,27 @@ A titre d'exemple, voici un script qui permet de traiter une image dans la raie 
 [source]
 ----
 [params]
-# Entrer la valeur du décalage de raie
-RaieHelium = -85
-# Limites hautes et basses pour le continuum
-ContinuumLo=-80
-ContinuumHi=-70
-# Coefficient d'application du continuum
-ContinuumCoef=0.95
-# Stretch de l'image
-Stretch=10
-# Largeur de correction de bande
+# The shifting between the helium line and the detected line (in pixels)
+Line=5875.62
+HeliumShift=find_shift(Line)
+# Banding correction width and number of iterations
 BandWidth=25
-# Iterations de correction de bande
-BandIterations=10
+BandIterations=20
+# Contrast adjustment
+Gamma=1.5
+# Autocrop factor (of diameter)
+AutoCropFactor=1.1
 
-## Variables temporaires
+## Temporary variables
 [tmp]
-continuum = max(range(ContinuumLo,ContinuumHi))
-helium_raw = autocrop(img(RaieHelium) - ContinuumCoef*continuum)
+helium_raw = img(HeliumShift) - continuum()
+helium_fixed = fix_banding(helium_raw;BandWidth;BandIterations)
+cropped = autocrop2(auto_contrast(helium_fixed;Gamma);AutoCropFactor)
 
-## Maintenant les images !
+## Let's produce the images now!
 [outputs]
-helium = asinh_stretch(helium_raw, blackPoint, Stretch)
-helium_fixed = asinh_stretch(fix_banding(helium_raw;BandWidth;BandIterations),blackPoint, Stretch)
-helium_color = colorize(helium_fixed, "Helium (D3)")
+helium_mono = cropped
+helium_color = colorize(helium_mono, Line)
 ----
 
 Notre script est décomposé en 3 sections: `[params]`, `[tmp]` et `[outputs]`.
@@ -359,7 +361,8 @@ La seule section obligatoire est `[outputs]`: elle permet de définir quelles im
 Le nom des autres sections est arbitraire, vous pouvez en définir autant que vous le souhaitez.
 
 Ici, nous avons une section `[params]` qui permet de mettre en évidence les _paramètres de notre script_, autrement dit ce que l'utilisateur peut configurer.
-On y trouve des variables, déclarées par un nom (ex `RaieHelium`) et une valeur `-85`.
+On y trouve des variables, déclarées par un nom (ex `Line`) et une valeur `5875.62`.
+La deuxième variable, `HeliumShift`, est calculée à partir de la fonction `find_shift`, qui prend en paramètre la variable `Line` (et permet de déterminer le décalage en pixels de la ligne par rapport à celle détectée).
 
 NOTE: Une variable doit ne peut contenir que des caractères ascii, des numéros (hors premier caractère) ou le caractère _. Par exemple, `maVariable`, `MaVariable0` et `maVariable_0` sont tous valides, mais `hélium` ne l'est pas.
 
@@ -368,15 +371,16 @@ Ces variables peuvent être réutilisés dans d'autres variables ou des appels d
 IMPORTANT: Les variables sont sensibles à la casse. `maVariable` et `MaVariable` sont 2 variables distinctes !
 
 Ainsi, notre 2ème section, `[tmp]`, définit des images qui nous servent d'intermédiaire de calculs, mais pour lesquelles nous ne sommes pas intéressés par le résultat.
-Ici, nous calculons 2 images temporaires, une du continuum, qui est calculée en prenant la valeur maximale des images d'un intervalle dans le continuum, et une image "raw" de l'helium qui correspond à l'image de la raie Hélium à laquelle on soustrait l'image du continuum, pondérée par un coefficient définit dans notre section `[params]`.
+Ici, nous calculons 3 images temporaires :
 
-Au final, la section `[outputs]` déclare les images qui nous intéressent:
+- `helium_raw` est l'image de la raie Hélium, décalée par rapport à la raie détectée et à laquelle on a soustrait l'image continuum.
+- `helium_fixed` est l'image `helium_raw` à laquelle on a appliqué l'algorithme de correction de transversalliums.
+- `cropped` est l'image `helium_fixed` à laquelle on a appliqué un rognage automatique et un ajustement de contraste.
 
-`helium = asinh_stretch(helium_raw, blackPoint, Stretch)` permet de générer une image avec le label `helium` (partie gauche de l'égalité) et dont le calcul est simplement la transformation hyperbolique.
+Au final, la section `[outputs]` déclare les images qui nous intéressent :
 
-La formule `helium_fixed = asinh_stretch(fix_banding(helium_raw;BandWidth;BandIterations),blackPoint, Stretch)` fait la même chose, mais applique en plus l'algorithme de correction de bandes.
-
-Enfin, `helium_color = colorize(fix_banding(helium_raw;BandWidth;BandIterations), "Helium (D3)")` permet d'obtenir une version colorisée.
+- `helium_mono` est l'image `cropped` telle quelle, en noir et blanc.
+- `helium_color = colorize(fix_banding(helium_raw;BandWidth;BandIterations), "Helium (D3)")` permet d'obtenir une version colorisée.
 
 NOTE: Vous pouvez mettre des commentaires sur une ligne commençant par `#` ou `//`
 
