@@ -18,6 +18,7 @@ package me.champeau.a4j.jsolex.processing.expr.impl;
 import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
 import me.champeau.a4j.jsolex.processing.sun.ImageUtils;
 import me.champeau.a4j.jsolex.processing.util.ColorizedImageWrapper;
+import me.champeau.a4j.jsolex.processing.util.FileBackedImage;
 import me.champeau.a4j.jsolex.processing.util.RGBImage;
 
 import java.util.List;
@@ -38,6 +39,9 @@ public class Saturation extends AbstractFunctionImpl {
         }
         var saturation = doubleArg(arguments, 1);
         var exponent = Math.pow(2, -saturation);
+        if (arg instanceof FileBackedImage fileBackedImage) {
+            arg = fileBackedImage.unwrapToMemory();
+        }
         if (arg instanceof ColorizedImageWrapper colorized) {
             return new ColorizedImageWrapper(colorized.mono(), mono -> {
                 var rgb = colorized.converter().apply(mono);
