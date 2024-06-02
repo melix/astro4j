@@ -74,6 +74,7 @@ import me.champeau.a4j.jsolex.processing.sun.workflow.GeneratedImageKind;
 import me.champeau.a4j.jsolex.processing.sun.workflow.ImageEmitter;
 import me.champeau.a4j.jsolex.processing.sun.workflow.ImageStats;
 import me.champeau.a4j.jsolex.processing.sun.workflow.PixelShift;
+import me.champeau.a4j.jsolex.processing.sun.workflow.PixelShiftRange;
 import me.champeau.a4j.jsolex.processing.util.ColorizedImageWrapper;
 import me.champeau.a4j.jsolex.processing.util.Constants;
 import me.champeau.a4j.jsolex.processing.util.Histogram;
@@ -436,8 +437,9 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
             context.put(ImageStats.class, payload.imageStats());
         }
         context.put(SolarParameters.class, SolarParametersUtils.computeSolarParams(params.observationDetails().date().toLocalDateTime()));
-        context.put(ProcessParams.class, params);
+        context.put(ProcessParams.class, payload.processParams());
         context.put(ImageEmitter.class, payload.customImageEmitter());
+        context.put(PixelShiftRange.class, payload.pixelShiftRange());
         return context;
     }
 
@@ -498,7 +500,9 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
             new RequestedImages(Set.of(GeneratedImageKind.GEOMETRY_CORRECTED),
                 Stream.concat(params.requestedImages().pixelShifts().stream(), missingShifts.stream()).toList(),
                 missingShifts,
-                ImageMathParams.NONE)
+                Set.of(),
+                ImageMathParams.NONE,
+                false)
         ).withExtraParams(params.extraParams().withAutosave(false));
         var solexVideoProcessor = new SolexVideoProcessor(serFile, outputDirectory, 0, tmpParams, LocalDateTime.now(), false);
         solexVideoProcessor.addEventListener(new ProcessingEventListener() {
@@ -590,7 +594,7 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
             series.setName(formatLegend(params.observationDetails().instrument(), lambda0, binning, pixelSize));
             double dispersion = canDrawReference ? SpectrumAnalyzer.computeSpectralDispersion(params.observationDetails().instrument(), lambda0, pixelSize * binning) : 0;
             double min = Double.MAX_VALUE;
-            double max = Double.MIN_VALUE;
+            double max = -Double.MAX_VALUE;
             for (int x = start; x < end; x++) {
                 var v = polynomial.applyAsDouble(x);
                 min = Math.min(v, min);
@@ -599,7 +603,7 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
             if (min == Double.MAX_VALUE) {
                 min = 0;
             }
-            if (max == Double.MIN_VALUE) {
+            if (max == -Double.MAX_VALUE) {
                 max = height;
             }
             min = Math.max(0, min);
@@ -641,7 +645,6 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
             return lineChart;
         };
         BatchOperations.submit(() -> profileTab.setContent(profileGraphFactory.get()));
-
     }
 
     private void addDataPointToSeries(SpectrumAnalyzer.DataPoint dataPoint, XYChart.Series<String, Number> series) {

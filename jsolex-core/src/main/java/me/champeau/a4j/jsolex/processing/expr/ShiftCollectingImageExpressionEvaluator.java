@@ -15,14 +15,16 @@
  */
 package me.champeau.a4j.jsolex.processing.expr;
 
+import me.champeau.a4j.jsolex.expr.BuiltinFunction;
+import me.champeau.a4j.jsolex.processing.params.ProcessParams;
 import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
 import me.champeau.a4j.jsolex.processing.util.FileBackedImage;
-import me.champeau.a4j.jsolex.processing.util.ForkJoinContext;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeSet;
@@ -32,7 +34,9 @@ import java.util.function.Function;
 public class ShiftCollectingImageExpressionEvaluator extends ImageExpressionEvaluator {
 
     private final Set<Double> shifts = new TreeSet<>();
+    private final Set<Double> autoWavelenghts = new TreeSet<>();
     private final Map<Double, ImageWrapper> cache = new ConcurrentHashMap<>();
+    private boolean autoContinuum = false;
 
     public static Function<Double, ImageWrapper> zeroImages() {
         var map = new HashMap<Double, ImageWrapper>();
@@ -47,6 +51,20 @@ public class ShiftCollectingImageExpressionEvaluator extends ImageExpressionEval
         super(broadcaster, imageFactory);
     }
 
+    @Override
+    protected double computePixelShift(ProcessParams params, double targetWaveLength) {
+        autoWavelenghts.add(targetWaveLength);
+        return super.computePixelShift(params, targetWaveLength);
+    }
+
+    @Override
+    public Object functionCall(BuiltinFunction function, List<Object> arguments) {
+        if (function == BuiltinFunction.CONTINUUM) {
+            autoContinuum = true;
+        }
+        return super.functionCall(function, arguments);
+    }
+
     protected ImageWrapper findImage(double shift) {
         shifts.add(shift);
         return cache.computeIfAbsent(shift, s -> FileBackedImage.wrap(super.findImage(s)));
@@ -56,8 +74,18 @@ public class ShiftCollectingImageExpressionEvaluator extends ImageExpressionEval
         return Collections.unmodifiableSet(shifts);
     }
 
+    public Set<Double> getAutoWavelenghts() {
+        return Collections.unmodifiableSet(autoWavelenghts);
+    }
+
+    public boolean usesAutoContinuum() {
+        return autoContinuum;
+    }
+
     public void clearShifts() {
         shifts.clear();
+        autoWavelenghts.clear();
+        autoContinuum = false;
     }
 
     public void clearCache() {

@@ -29,7 +29,7 @@ public final class RangeExpansionStrategy implements StretchingStrategy {
     @Override
     public void stretch(ImageWrapper32 image) {
         var data = image.data();
-        double max = Double.MIN_VALUE;
+        double max = -Double.MAX_VALUE;
         for (float v : data) {
             if (v > max) {
                 max = v;

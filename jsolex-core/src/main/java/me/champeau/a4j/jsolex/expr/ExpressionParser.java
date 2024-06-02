@@ -98,12 +98,13 @@ public class ExpressionParser {
                     int argCount = ((Number)((Literal) queue.pop()).value()).intValue();
                     List<Token> funTokens = new ArrayList<>(argCount + 1);
                     funTokens.add(token);
-                    var argList = new ArrayList<Expression>();
+                    List<Expression> argList = new ArrayList<>();
                     for (int i=0; i<argCount; i++) {
                         var arg = queue.pop();
                         argList.add(0, arg);
                         funTokens.addAll(arg.tokens());
                     }
+                    argList = argList.stream().filter(e -> !(e instanceof Literal l && l.value() == null)).toList();
                     var fun = new FunctionCall(BuiltinFunction.of(token.value()), argList, Collections.unmodifiableList(funTokens));
                     queue.push(fun);
                 }
@@ -142,14 +143,20 @@ public class ExpressionParser {
                 }
             }
         }
-        if (queue.size() != 1) {
+        if (queue.size() > 1) {
             throw new IllegalStateException("Unexpected expression result : " + queue);
+        }
+        if (queue.isEmpty()) {
+            return null;
         }
         return queue.pop();
     }
 
     private static Literal toLiteral(Token token) {
         var value = token.value();
+        if (value == null) {
+            return new Literal(null, List.of(token));
+        }
         if (value.startsWith("\"") && value.endsWith("\"")) {
             return new Literal(value.substring(1, value.length() - 1), List.of(token));
         }

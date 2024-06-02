@@ -28,20 +28,21 @@ import java.util.stream.Stream;
  * defines a color curve to perform automatic coloring of images.
  * See https://en.wikipedia.org/wiki/Fraunhofer_lines for wavelenths
  */
-public record SpectralRay(String label, ColorCurve colorCurve, double wavelength) {
-    public static final SpectralRay AUTO = new SpectralRay("Autodetect", null, 0);
-    public static final SpectralRay CALCIUM_K = new SpectralRay("Calcium (K)", null, 393.366);
-    public static final SpectralRay CALCIUM_H = new SpectralRay("Calcium (H)", null, 396.847);
-    public static final SpectralRay CA_IRON_G = new SpectralRay("Calcium+Iron+CH (G)", null, 430.782);
-    public static final SpectralRay H_BETA = new SpectralRay("H-beta", null, 486.134);
-    public static final SpectralRay MAGNESIUM_b1 = new SpectralRay("Magnesium (b1)", null, 518.362);
-    public static final SpectralRay IRON_E2 = new SpectralRay("Iron (E2)", null, 527.039);
-    public static final SpectralRay MERCURY_e = new SpectralRay("Mercury (e)", null, 546.073);
-    public static final SpectralRay HELIUM_D3 = new SpectralRay("Helium (D3)", null, 587.562);
-    public static final SpectralRay SODIUM_D2 = new SpectralRay("Sodium (D2)", null, 588.995);
-    public static final SpectralRay SODIUM_D1 = new SpectralRay("Sodium (D1)", null, 589.592);
-    public static final SpectralRay H_ALPHA = new SpectralRay("H-alpha", KnownCurves.H_ALPHA, 656.281d);
-    public static final SpectralRay OTHER = new SpectralRay("Other", null, 0);
+public record SpectralRay(String label, ColorCurve colorCurve, double wavelength, boolean emission) {
+    public static final SpectralRay AUTO = new SpectralRay("Autodetect", null, 0, false);
+    public static final SpectralRay CALCIUM_K = new SpectralRay("Calcium (K)", null, 393.366, false);
+    public static final SpectralRay CALCIUM_H = new SpectralRay("Calcium (H)", null, 396.847, false);
+    public static final SpectralRay CA_IRON_G = new SpectralRay("Calcium+Iron+CH (G)", null, 430.782, false);
+    public static final SpectralRay H_BETA = new SpectralRay("H-beta", null, 486.134, false);
+    public static final SpectralRay MAGNESIUM_b1 = new SpectralRay("Magnesium (b1)", null, 518.362, false);
+    public static final SpectralRay IRON_E2 = new SpectralRay("Iron (E2)", null, 527.039, false);
+    public static final SpectralRay MERCURY_e = new SpectralRay("Mercury (e)", null, 546.073, false);
+    public static final SpectralRay HELIUM_D3 = new SpectralRay("Helium (D3)", null, 587.562, true);
+    public static final SpectralRay IRON_FE1 = new SpectralRay("Iron (Fe I)", null, 588.38166, false);
+    public static final SpectralRay SODIUM_D2 = new SpectralRay("Sodium (D2)", null, 588.995, false);
+    public static final SpectralRay SODIUM_D1 = new SpectralRay("Sodium (D1)", null, 589.592, false);
+    public static final SpectralRay H_ALPHA = new SpectralRay("H-alpha", KnownCurves.H_ALPHA, 656.281d, false);
+    public static final SpectralRay OTHER = new SpectralRay("Other", null, 0, false);
 
     private static final List<SpectralRay> PREDEFINED = Stream.concat(Stream.concat(Stream.of(AUTO), Stream.of(
         CALCIUM_K,
@@ -50,6 +51,7 @@ public record SpectralRay(String label, ColorCurve colorCurve, double wavelength
         H_BETA,
         IRON_E2,
         H_ALPHA,
+        IRON_FE1,
         SODIUM_D1,
         SODIUM_D2,
         MERCURY_e,
@@ -149,7 +151,7 @@ public record SpectralRay(String label, ColorCurve colorCurve, double wavelength
 
     private static int[] improveEsthetics(int[] rgb) {
         float[] hsl = rgbToHsl(rgb[0], rgb[1], rgb[2]);
-        hsl[1] *= 0.8;
+        hsl[1] *= 0.85;
         hsl[2] += (1.0f - hsl[2]) * 0.45;
 
         return hslToRgb(hsl[0], hsl[1], hsl[2]);

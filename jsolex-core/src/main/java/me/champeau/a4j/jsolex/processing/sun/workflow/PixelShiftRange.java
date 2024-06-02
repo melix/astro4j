@@ -13,21 +13,21 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package me.champeau.a4j.jsolex.processing.expr;
+package me.champeau.a4j.jsolex.processing.sun.workflow;
 
-import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
-
-import java.nio.file.Path;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-
-public record ImageMathScriptResult(
-        Map<String, ImageWrapper> imagesByLabel,
-        Map<String, Path> filesByLabel,
-        List<InvalidExpression> invalidExpressions,
-        Set<Double> internalShifts,
-        Set<Double> outputShifts,
-        Set<Double> requestedWavelenghts,
-        boolean autoContinuum) {
+/**
+ * Stores information about the maximum range of pixel shifts
+ * which can be used given the detected polynomial and frame
+ * dimensions. The shift is expressed in pixels relative to
+ * the middle of the detected spectral line.
+ *
+ * @param minPixelShift the min pixel shift
+ * @param maxPixelShift the max pixel shift
+ * @param step the step to use when sampling in the range
+ */
+public record PixelShiftRange(
+    double minPixelShift,
+    double maxPixelShift,
+    double step
+) {
 }

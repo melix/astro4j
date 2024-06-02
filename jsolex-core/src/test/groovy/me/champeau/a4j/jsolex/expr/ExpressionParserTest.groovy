@@ -19,6 +19,7 @@ import spock.lang.Specification
 import spock.lang.Subject
 
 import static me.champeau.a4j.jsolex.expr.BuiltinFunction.AVG
+import static me.champeau.a4j.jsolex.expr.BuiltinFunction.CONTINUUM
 import static me.champeau.a4j.jsolex.expr.BuiltinFunction.MIN
 
 class ExpressionParserTest extends Specification {
@@ -100,13 +101,14 @@ class ExpressionParserTest extends Specification {
         expr.toString() == expected
 
         where:
-        expression                                | function | expected
-        'avg(1,2,3)'                              | AVG      | 'AVG(1.0,2.0,3.0)'
-        'min(avg(1,2), x)'                        | MIN      | 'MIN(AVG(1.0,2.0),VAR(x))'
-        'min(avg(a,b), max(x))'                   | MIN      | 'MIN(AVG(VAR(a),VAR(b)),MAX(VAR(x)))'
-        'min(avg(a,b), max(x, y))'                | MIN      | 'MIN(AVG(VAR(a),VAR(b)),MAX(VAR(x),VAR(y)))'
-        'min(1,2,3,4, max(5,6))'                  | MIN      | 'MIN(1.0,2.0,3.0,4.0,MAX(5.0,6.0))'
-        'avg(min(max(1, avg(2,3,y*y), 4), 5), 6)' | AVG      | 'AVG(MIN(MAX(1.0,AVG(2.0,3.0,VAR(y)*VAR(y)),4.0),5.0),6.0)'
+        expression                                | function  | expected
+        'avg(1,2,3)'                              | AVG       | 'AVG(1.0,2.0,3.0)'
+        'min(avg(1,2), x)'                        | MIN       | 'MIN(AVG(1.0,2.0),VAR(x))'
+        'min(avg(a,b), max(x))'                   | MIN       | 'MIN(AVG(VAR(a),VAR(b)),MAX(VAR(x)))'
+        'min(avg(a,b), max(x, y))'                | MIN       | 'MIN(AVG(VAR(a),VAR(b)),MAX(VAR(x),VAR(y)))'
+        'min(1,2,3,4, max(5,6))'                  | MIN       | 'MIN(1.0,2.0,3.0,4.0,MAX(5.0,6.0))'
+        'avg(min(max(1, avg(2,3,y*y), 4), 5), 6)' | AVG       | 'AVG(MIN(MAX(1.0,AVG(2.0,3.0,VAR(y)*VAR(y)),4.0),5.0),6.0)'
+        'continuum()'                             | CONTINUUM | 'CONTINUUM()'
     }
 
     def "parses complex expression"() {
@@ -117,19 +119,22 @@ class ExpressionParserTest extends Specification {
         expr.toString() == expected
 
         where:
-        expression                         | expected
-        '-a'                               | '(0.0-VAR(a))'
-        'a-2'                              | '(VAR(a)-2.0)'
-        '(a+b)/2'                          | '(VAR(a)+VAR(b))/2.0'
-        '-1*((a-b)/2)'                     | '-1.0*(VAR(a)-VAR(b))/2.0'
-        '-1*((a-b)/avg(a,b))'              | '-1.0*(VAR(a)-VAR(b))/AVG(VAR(a),VAR(b))'
-        'max(img(a),img(b))'               | 'MAX(IMG(VAR(a)),IMG(VAR(b)))'
-        '1-2'                              | '(1.0-2.0)'
-        'a-(2)'                            | '(VAR(a)-2.0)'
-        'img(shift) - coef*max(continuum)' | '(IMG(VAR(shift))-VAR(coef)*MAX(VAR(continuum)))'
-        'range(-100;-70;10)'               | 'RANGE(-100.0,-70.0,10.0)'
-        '0.5*(-a)'                         | '0.5*(0.0-VAR(a))'
-        '.5*(-a)'                          | '0.5*(0.0-VAR(a))'
-        '.5*(-(a+b))'                      | '0.5*(0.0-(VAR(a)+VAR(b)))'
+        expression                           | expected
+        '()'                                 | "null"
+        'continuum()'                        | 'CONTINUUM()'
+        '-a'                                 | '(0.0-VAR(a))'
+        'a-2'                                | '(VAR(a)-2.0)'
+        '(a+b)/2'                            | '(VAR(a)+VAR(b))/2.0'
+        '-1*((a-b)/2)'                       | '-1.0*(VAR(a)-VAR(b))/2.0'
+        '-1*((a-b)/avg(a,b))'                | '-1.0*(VAR(a)-VAR(b))/AVG(VAR(a),VAR(b))'
+        'max(img(a),img(b))'                 | 'MAX(IMG(VAR(a)),IMG(VAR(b)))'
+        '1-2'                                | '(1.0-2.0)'
+        'a-(2)'                              | '(VAR(a)-2.0)'
+        'img(shift) - coef*max(continuum())' | '(IMG(VAR(shift))-VAR(coef)*MAX(CONTINUUM()))'
+        'range(-100;-70;10)'                 | 'RANGE(-100.0,-70.0,10.0)'
+        '0.5*(-a)'                           | '0.5*(0.0-VAR(a))'
+        '.5*(-a)'                            | '0.5*(0.0-VAR(a))'
+        '.5*(-(a+b))'                        | '0.5*(0.0-(VAR(a)+VAR(b)))'
+        'img(HeliumShift) - continuum()'     | '(IMG(VAR(HeliumShift))-CONTINUUM())'
     }
 }

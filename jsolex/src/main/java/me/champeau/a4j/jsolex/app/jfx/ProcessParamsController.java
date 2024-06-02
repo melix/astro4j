@@ -471,7 +471,9 @@ public class ProcessParamsController {
             generateDebugImages.isSelected() ? RequestedImages.FULL_MODE_WITH_DEBUG : RequestedImages.FULL_MODE,
             List.of(getPixelShiftAsDouble(), dopplerShift, -dopplerShift, Constants.CONTINUUM_SHIFT),
             Set.of(-dopplerShift, dopplerShift),
-            ImageMathParams.NONE
+            Set.of(),
+            ImageMathParams.NONE,
+            false
         ));
     }
 
@@ -630,7 +632,9 @@ public class ProcessParamsController {
             generateDebugImages.isSelected() ? RequestedImages.QUICK_MODE_WITH_DEBUG : RequestedImages.QUICK_MODE,
             List.of(getPixelShiftAsDouble()),
             Set.of(),
-            ImageMathParams.NONE
+            Set.of(),
+            ImageMathParams.NONE,
+            false
         ));
     }
 

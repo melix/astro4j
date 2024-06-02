@@ -45,7 +45,7 @@
                 <MenuItem onAction="#showExposureCalculator" text="%exposure.calculator"/>
                 <MenuItem onAction="#showMosaicParams" text="%mosaic.stacking"/>
             </Menu>
-            <Menu text="%hardware">
+            <Menu text="%equipment">
                 <MenuItem onAction="#showSHGEditor" text="%shg.editor"/>
                 <MenuItem onAction="#showSetupEditor" text="%setup.editor"/>
             </Menu>

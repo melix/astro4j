@@ -48,8 +48,8 @@ class SpectralRaySerializer implements JsonSerializer<SpectralRay>, JsonDeserial
             return new SpectralRay(
                     obj.get("label").getAsString(),
                     curve,
-                    obj.get("wavelength").getAsDouble()
-            );
+                    obj.get("wavelength").getAsDouble(),
+                false);
         }
         throw new IllegalAccessError("Unexpected JSON type " + json.getClass());
     }

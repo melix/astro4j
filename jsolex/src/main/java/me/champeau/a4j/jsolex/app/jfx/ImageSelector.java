@@ -37,8 +37,10 @@ import me.champeau.a4j.jsolex.processing.util.ProcessingException;
 
 import java.io.File;
 import java.io.IOException;
+import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.List;
@@ -89,6 +91,12 @@ public class ImageSelector {
     private RequestedImages requestedImages;
     private ImageMathParams imageMathParams;
     private Set<Double> internalPixelShifts;
+    private Set<Double> requestesWaveLengths;
+    private boolean autoContinuum;
+
+    // cache
+    private ImageMathParams cachedImageMathParams;
+    private List<Double> cachedShifts;
 
     public void setup(Stage stage,
                       Set<GeneratedImageKind> images,
@@ -128,7 +136,7 @@ public class ImageSelector {
             newPixelShifts.addAll(selectedPixelShifts);
         }
         for (GeneratedImageKind image : images) {
-            if (image==null) {
+            if (image == null) {
                 // can happen because of backwards compatibility
                 continue;
             }
@@ -186,9 +194,9 @@ public class ImageSelector {
 
     private List<Double> readPixelShifts() {
         return Arrays.stream(pixelShifts.getText().split("\s*;\s*"))
-                .filter(s -> !s.isEmpty())
-                .map(Double::parseDouble)
-                .toList();
+            .filter(s -> !s.isEmpty())
+            .map(Double::parseDouble)
+            .toList();
     }
 
 
@@ -269,10 +277,12 @@ public class ImageSelector {
         }
         var pixelShifts = readPixelShifts();
         requestedImages = new RequestedImages(
-                images,
-                pixelShifts,
-                mode.getSelectionModel().getSelectedItem() == PixelShiftMode.SIMPLE || internalPixelShifts == null ? Set.of() : internalPixelShifts,
-                mode.getSelectionModel().getSelectedItem() == PixelShiftMode.IMAGEMATH ? imageMathParams : ImageMathParams.NONE
+            images,
+            pixelShifts,
+            mode.getSelectionModel().getSelectedItem() == PixelShiftMode.SIMPLE || internalPixelShifts == null ? Set.of() : internalPixelShifts,
+            requestesWaveLengths == null ? Set.of() : Collections.unmodifiableSet(requestesWaveLengths),
+            mode.getSelectionModel().getSelectedItem() == PixelShiftMode.IMAGEMATH ? imageMathParams : ImageMathParams.NONE,
+            autoContinuum
         );
         requestClose();
     }
@@ -316,7 +326,8 @@ public class ImageSelector {
             hostServices,
             batchMode,
             true,
-            controller -> {},
+            controller -> {
+            },
             controller -> controller.getConfiguration().ifPresent(params -> {
                 updatePixelShiftsWithSelectedImages(findPixelShifts(params));
                 this.imageMathParams = params;
@@ -326,27 +337,39 @@ public class ImageSelector {
     private DefaultImageScriptExecutor createScriptExecutor() {
         var images = new HashMap<Double, ImageWrapper32>();
         return new JSolExScriptExecutor(
-                i -> images.computeIfAbsent(i, unused -> ImageWrapper32.createEmpty()),
-                MutableMap.of(),
-                stage
+            i -> images.computeIfAbsent(i, unused -> ImageWrapper32.createEmpty()),
+            MutableMap.of(),
+            stage
         );
     }
 
     private List<Double> findPixelShifts(ImageMathParams params) {
+        if (cachedImageMathParams == params) {
+            return cachedShifts;
+        }
         var executor = createScriptExecutor();
         var allShifts = new TreeSet<Double>();
         internalPixelShifts = new TreeSet<>();
+        requestesWaveLengths = new TreeSet<>();
+        autoContinuum = false;
         for (File file : params.scriptFiles()) {
-            try {
-                var result = executor.execute(file.toPath(), ImageMathScriptExecutor.SectionKind.SINGLE);
-                allShifts.addAll(result.internalShifts());
-                internalPixelShifts.addAll(result.internalShifts());
-                allShifts.addAll(result.outputShifts());
-            } catch (IOException e) {
-                throw new ProcessingException(e);
+            if (Files.exists(file.toPath())) {
+                try {
+                    var result = executor.execute(file.toPath(), ImageMathScriptExecutor.SectionKind.SINGLE);
+                    allShifts.addAll(result.internalShifts());
+                    internalPixelShifts.addAll(result.internalShifts());
+                    allShifts.addAll(result.outputShifts());
+                    requestesWaveLengths.addAll(result.requestedWavelenghts());
+                    autoContinuum |= result.autoContinuum();
+                } catch (IOException e) {
+                    throw new ProcessingException(e);
+                }
             }
         }
-        return allShifts.stream().toList();
+        var list = allShifts.stream().toList();
+        cachedShifts = list;
+        cachedImageMathParams = imageMathParams;
+        return list;
     }
 
     private enum PixelShiftMode {

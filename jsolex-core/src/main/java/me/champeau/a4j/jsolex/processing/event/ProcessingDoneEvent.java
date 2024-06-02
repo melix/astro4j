@@ -19,6 +19,7 @@ import me.champeau.a4j.jsolex.processing.params.ProcessParams;
 import me.champeau.a4j.jsolex.processing.sun.detection.RedshiftArea;
 import me.champeau.a4j.jsolex.processing.sun.workflow.ImageEmitter;
 import me.champeau.a4j.jsolex.processing.sun.workflow.ImageStats;
+import me.champeau.a4j.jsolex.processing.sun.workflow.PixelShiftRange;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
 import me.champeau.a4j.math.regression.Ellipse;
 
@@ -41,8 +42,8 @@ public final class ProcessingDoneEvent extends ProcessingEvent<ProcessingDoneEve
         List<RedshiftArea> redshifts,
         DoubleUnaryOperator polynomial,
         float[] averageImage,
-        ProcessParams processParams
-    ) {
+        ProcessParams processParams,
+        PixelShiftRange pixelShiftRange) {
 
     }
 
@@ -54,7 +55,8 @@ public final class ProcessingDoneEvent extends ProcessingEvent<ProcessingDoneEve
                                          List<RedshiftArea> redshifts,
                                          DoubleUnaryOperator polynomial,
                                          float[] averageImage,
-                                         ProcessParams processParams) {
-        return new ProcessingDoneEvent(new Outcome(timestamp, Collections.unmodifiableMap(images), customImageEmitter, ellipse, imageStats, redshifts, polynomial, averageImage, processParams));
+                                         ProcessParams processParams,
+                                         PixelShiftRange pixelShiftRange) {
+        return new ProcessingDoneEvent(new Outcome(timestamp, Collections.unmodifiableMap(images), customImageEmitter, ellipse, imageStats, redshifts, polynomial, averageImage, processParams, pixelShiftRange));
     }
 }

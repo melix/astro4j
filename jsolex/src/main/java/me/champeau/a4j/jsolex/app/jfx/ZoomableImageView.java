@@ -30,6 +30,8 @@ import me.champeau.a4j.math.regression.Ellipse;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 
@@ -46,6 +48,7 @@ public class ZoomableImageView extends HBox {
             return canFitToCenter();
         }
     };
+    private final List<Runnable> pendingOperations = new ArrayList<>();
     private BiConsumer<? super Double, ? super Double> onCoordinatesListener;
     private Consumer<? super Double> onZoomChanged;
     private Ellipse solardisk;
@@ -169,7 +172,12 @@ public class ZoomableImageView extends HBox {
 
     public void alignWith(ZoomableImageView other) {
         var otherImage = other.getImage();
-        if (otherImage.getWidth() == getImage().getWidth() && otherImage.getHeight() == getImage().getHeight()) {
+        var img = getImage();
+        if (img == null) {
+            pendingOperations.add(() -> alignWith(other));
+            return;
+        }
+        if (otherImage.getWidth() == img.getWidth() && otherImage.getHeight() == getImage().getHeight()) {
             setZoom(other.getZoom());
             scrollPane.setHvalue(other.scrollPane.getHvalue());
             scrollPane.setVvalue(other.scrollPane.getVvalue());
@@ -208,6 +216,10 @@ public class ZoomableImageView extends HBox {
             triggerOnZoomChanged();
             applyZoom();
         }
+        for (var pendingOperation : pendingOperations) {
+            pendingOperation.run();
+        }
+        pendingOperations.clear();
     }
 
 

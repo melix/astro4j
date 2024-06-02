@@ -31,7 +31,9 @@ public record RequestedImages(
     Set<GeneratedImageKind> images,
     List<Double> pixelShifts,
     Set<Double> internalPixelShifts,
-    ImageMathParams mathImages
+    Set<Double> requestedWaveLengths,
+    ImageMathParams mathImages,
+    boolean autoContinuum
 ) {
     public static final Set<GeneratedImageKind> FULL_MODE = EnumSet.of(
         GeneratedImageKind.RECONSTRUCTION,
@@ -83,18 +85,26 @@ public record RequestedImages(
     }
 
     public RequestedImages withMathImages(ImageMathParams mathImages) {
-        return new RequestedImages(images, pixelShifts, internalPixelShifts, mathImages);
+        return new RequestedImages(images, pixelShifts, internalPixelShifts, requestedWaveLengths, mathImages, autoContinuum);
     }
 
     public RequestedImages withImages(Set<GeneratedImageKind> images) {
-        return new RequestedImages(images, pixelShifts, internalPixelShifts, mathImages);
+        return new RequestedImages(images, pixelShifts, internalPixelShifts, requestedWaveLengths, mathImages, autoContinuum);
     }
 
     public RequestedImages withPixelShifts(List<Double> pixelShifts) {
-        return new RequestedImages(images, pixelShifts, internalPixelShifts, mathImages);
+        return new RequestedImages(images, pixelShifts, internalPixelShifts, requestedWaveLengths, mathImages, autoContinuum);
     }
 
     public RequestedImages withInternalPixelShifts(Set<Double> internalPixelShifts) {
-        return new RequestedImages(images, pixelShifts, internalPixelShifts, mathImages);
+        return new RequestedImages(images, pixelShifts, internalPixelShifts, requestedWaveLengths, mathImages, autoContinuum);
+    }
+
+    public RequestedImages withRequestedWaveLengths(Set<Double> requestedWaveLengths) {
+        return new RequestedImages(images, pixelShifts, internalPixelShifts, requestedWaveLengths, mathImages, autoContinuum);
+    }
+
+    public RequestedImages withAutoContinuum(boolean autoContinuum) {
+        return new RequestedImages(images, pixelShifts, internalPixelShifts, requestedWaveLengths, mathImages, autoContinuum);
     }
 }

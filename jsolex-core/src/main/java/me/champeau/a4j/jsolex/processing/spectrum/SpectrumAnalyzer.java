@@ -120,7 +120,7 @@ public class SpectrumAnalyzer {
         double dispersion = computeSpectralDispersion(instrument, lambda0, pixelSize * binning);
         var dataPoints = new ArrayList<DataPoint>();
         double min = Double.MAX_VALUE;
-        double max = Double.MIN_VALUE;
+        double max = -Double.MAX_VALUE;
         for (int x = start; x < end; x++) {
             var v = polynomial.applyAsDouble(x);
             min = Math.min(v, min);
@@ -129,7 +129,7 @@ public class SpectrumAnalyzer {
         if (min == Double.MAX_VALUE) {
             min = 0;
         }
-        if (max == Double.MIN_VALUE) {
+        if (max == -Double.MAX_VALUE) {
             max = height;
         }
         min = Math.max(0, min);
@@ -213,6 +213,32 @@ public class SpectrumAnalyzer {
             }
         }
         return best;
+    }
+
+    /**
+     * Computes the pixel shift required to align the spectrum with the target wavelength
+     *
+     * @param pixelSize pixel size in microns
+     * @param binning the binning
+     * @param lambda0Angstroms the reference wavelength in angstroms
+     * @param targetWaveLengthAngstroms the target wavelength in angstroms
+     * @return the pixel shift
+     */
+    public static double computePixelShift(double pixelSize,
+                                           int binning,
+                                           double lambda0Angstroms,
+                                           double targetWaveLengthAngstroms,
+                                           SpectroHeliograph instrument) {
+        var dispersionAngstromsPerPixel = 10 * SpectrumAnalyzer.computeSpectralDispersion(
+            instrument,
+            lambda0Angstroms / 10,
+            pixelSize * binning
+        );
+        // dispersion is angstroms per pixel so now we can compute the shift in pixels
+        var pixelShift = (targetWaveLengthAngstroms - lambda0Angstroms) / dispersionAngstromsPerPixel;
+        // round pixel shift to 1/10th of a pixel
+        pixelShift = Math.round(pixelShift * 10) / 10.0;
+        return pixelShift;
     }
 
     private static double variationCoef(double[] values) {

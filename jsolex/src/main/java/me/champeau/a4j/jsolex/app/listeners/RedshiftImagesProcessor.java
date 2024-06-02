@@ -294,7 +294,9 @@ public class RedshiftImagesProcessor {
             new RequestedImages(Set.of(GeneratedImageKind.GEOMETRY_CORRECTED),
                 Stream.concat(params.requestedImages().pixelShifts().stream(), missingShifts.stream()).toList(),
                 missingShifts,
-                ImageMathParams.NONE)
+                Set.of(),
+                ImageMathParams.NONE,
+                false)
         ).withExtraParams(params.extraParams().withAutosave(false));
         var solexVideoProcessor = new SolexVideoProcessor(serFile, outputDirectory, 0, tmpParams, LocalDateTime.now(), false);
         solexVideoProcessor.setRedshifts(new Redshifts(redshifts));

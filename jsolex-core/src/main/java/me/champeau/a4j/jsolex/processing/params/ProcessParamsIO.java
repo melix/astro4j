@@ -90,7 +90,7 @@ public abstract class ProcessParamsIO {
             new VideoParams(ColorMode.MONO),
             new GeometryParams(null, null, false, false, false, false, true, RotationKind.NONE, AutocropMode.OFF, DeconvolutionMode.NONE, null),
             new BandingCorrectionParams(24, 3),
-            new RequestedImages(RequestedImages.FULL_MODE, List.of(0d), Set.of(), ImageMathParams.NONE),
+            new RequestedImages(RequestedImages.FULL_MODE, List.of(0d), Set.of(), Set.of(), ImageMathParams.NONE, false),
             createDefaultClaheParams(),
             createDefaultAutoStretchParams(),
             ContrastEnhancement.AUTOSTRETCH
@@ -180,7 +180,7 @@ public abstract class ProcessParamsIO {
                     params.videoParams(),
                     params.geometryParams(),
                     params.bandingCorrectionParams(),
-                    new RequestedImages(RequestedImages.FULL_MODE, List.of(0d), Set.of(), ImageMathParams.NONE),
+                    new RequestedImages(RequestedImages.FULL_MODE, List.of(0d), Set.of(), Set.of(), ImageMathParams.NONE, false),
                     params.claheParams(),
                     params.autoStretchParams(),
                     params.contrastEnhancement()

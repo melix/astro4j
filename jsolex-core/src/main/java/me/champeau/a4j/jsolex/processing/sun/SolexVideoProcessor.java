@@ -50,11 +50,13 @@ import me.champeau.a4j.jsolex.processing.sun.workflow.DefaultImageEmitter;
 import me.champeau.a4j.jsolex.processing.sun.workflow.DiscardNonRequiredImages;
 import me.champeau.a4j.jsolex.processing.sun.workflow.DopplerSupport;
 import me.champeau.a4j.jsolex.processing.sun.workflow.GeneratedImageKind;
+import me.champeau.a4j.jsolex.processing.sun.workflow.HeliumLineProcessor;
 import me.champeau.a4j.jsolex.processing.sun.workflow.ImageEmitter;
 import me.champeau.a4j.jsolex.processing.sun.workflow.ImageEmitterFactory;
 import me.champeau.a4j.jsolex.processing.sun.workflow.ImageStats;
 import me.champeau.a4j.jsolex.processing.sun.workflow.NamingStrategyAwareImageEmitter;
 import me.champeau.a4j.jsolex.processing.sun.workflow.NoOpImageEmitter;
+import me.champeau.a4j.jsolex.processing.sun.workflow.PixelShiftRange;
 import me.champeau.a4j.jsolex.processing.sun.workflow.ProcessingWorkflow;
 import me.champeau.a4j.jsolex.processing.sun.workflow.RenamingImageEmitter;
 import me.champeau.a4j.jsolex.processing.sun.workflow.TransformationHistory;
@@ -124,6 +126,7 @@ public class SolexVideoProcessor implements Broadcaster {
     private Redshifts redshifts;
     private DoubleUnaryOperator polynomial;
     private float[] averageImage;
+    private PixelShiftRange pixelShiftRange;
 
     public SolexVideoProcessor(File serFile, Path outputDirectory, int sequenceNumber, ProcessParams processParametersProvider, LocalDateTime processingDate, boolean batchMode) {
         this.serFile = serFile;
@@ -252,6 +255,7 @@ public class SolexVideoProcessor implements Broadcaster {
         var maybePolynomial = Optional.ofNullable(polynomial).or(() -> findPolynomial(width, height, averageImage, imageNamingStrategy));
         if (maybePolynomial.isPresent()) {
             var polynomial = maybePolynomial.get();
+            pixelShiftRange = computePixelShiftRange(start, end, height, polynomial);
             var avgImage = new Image(width, height, averageImage);
             var leftBorder = Math.max(0, start);
             var rightBorder = Math.min(end, width);
@@ -265,7 +269,7 @@ public class SolexVideoProcessor implements Broadcaster {
                 var instrument = processParams.observationDetails().instrument();
                 var candidates = new ArrayList<SpectrumAnalyzer.QueryDetails>();
                 for (var line : SpectralRay.predefined()) {
-                    if (line.wavelength() > 0) {
+                    if (line.wavelength() > 0 && !line.emission()) {
                         if (binningIsReliable) {
                             candidates.add(new SpectrumAnalyzer.QueryDetails(line, pixelSize, processParams.observationDetails().binning(), instrument));
                         } else {
@@ -286,6 +290,10 @@ public class SolexVideoProcessor implements Broadcaster {
                 var obsDetails = processParams.observationDetails();
                 processParams = processParams.withObservationDetails(obsDetails.withBinning(bestMatch.binning()));
             }
+            var heliumLineShift = computeHeliumLineShift();
+            var canGenerateHeliumD3Images = isSodiumOrFe1() && heliumLineVisible(pixelShiftRange, heliumLineShift) && processParams.requestedImages().isEnabled(GeneratedImageKind.GEOMETRY_CORRECTED_PROCESSED);
+            addPixelShiftsForRequestedByWavelength(width, newHeight, imageList);
+            addPixelShiftsForAutoContinnum(canGenerateHeliumD3Images, width, newHeight, imageList, heliumLineShift);
             broadcast(new AverageImageComputedEvent(new AverageImageComputedEvent.AverageImage(avgImage, polynomial, leftBorder, rightBorder, processParams.spectrumParams().ray(), processParams.observationDetails())));
             LOGGER.info(message("starting.reconstruction"));
             LOGGER.info(message("distortion.polynomial"), polynomial);
@@ -340,8 +348,15 @@ public class SolexVideoProcessor implements Broadcaster {
             if (processParams.requestedImages().isEnabled(GeneratedImageKind.DOPPLER)) {
                 runnables.add(() -> {
                     var imageEmitterFactory = new ProcessAwareImageEmitterFactory(imageList.get(0), imageNamingStrategy, baseName);
-                    var producer = new DopplerSupport(processParams, imageList, imageEmitterFactory.newEmitter(this, "processed", outputDirectory));
+                    var producer = new DopplerSupport(processParams, imageList, imageEmitterFactory.newEmitter(this, Constants.TYPE_PROCESSED, outputDirectory));
                     producer.produceDopplerImage();
+                });
+            }
+            if (canGenerateHeliumD3Images) {
+                runnables.add(() -> {
+                    var imageEmitterFactory = new ProcessAwareImageEmitterFactory(imageList.getFirst(), imageNamingStrategy, baseName);
+                    var heliumLineProcessor = new HeliumLineProcessor(processParams, pixelShiftRange, imageList, heliumLineShift, imageEmitterFactory.newEmitter(this, Constants.TYPE_PROCESSED, outputDirectory), this);
+                    heliumLineProcessor.process();
                 });
             }
             runnables.add(() -> {
@@ -376,8 +391,83 @@ public class SolexVideoProcessor implements Broadcaster {
             redshifts == null ? Collections.emptyList() : redshifts.redshifts(),
             polynomial,
             averageImage,
-            processParams
+            processParams,
+            pixelShiftRange
         ));
+    }
+
+    private boolean heliumLineVisible(PixelShiftRange pixelShiftRange, Double heliumLineShift) {
+        if (heliumLineShift == null) {
+            return false;
+        }
+        return heliumLineShift >= pixelShiftRange.minPixelShift() && heliumLineShift <= pixelShiftRange.maxPixelShift();
+    }
+
+    private Double computeHeliumLineShift() {
+        var pixelSize = processParams.observationDetails().pixelSize();
+        var binning = processParams.observationDetails().binning();
+        if (pixelSize == null || binning == null) {
+            return null;
+        }
+        var pixelShift = SpectrumAnalyzer.computePixelShift(
+            pixelSize,
+            binning,
+            10 * processParams.spectrumParams().ray().wavelength(),
+            10 * SpectralRay.HELIUM_D3.wavelength(),
+            processParams.observationDetails().instrument()
+        );
+        return pixelShift;
+    }
+
+    private boolean isSodiumOrFe1() {
+        var observedLine = processParams.spectrumParams().ray().label();
+        return observedLine.equals(SpectralRay.SODIUM_D2.label()) || observedLine.equals(SpectralRay.IRON_FE1.label());
+    }
+
+    private void addPixelShiftsForRequestedByWavelength(int width, int newHeight, List<WorkflowState> imageList) {
+        if (!processParams.requestedImages().requestedWaveLengths().isEmpty()) {
+            var finalPS = processParams.observationDetails().pixelSize() == null ? 2.4 : processParams.observationDetails().pixelSize();
+            var binning = processParams.observationDetails().binning() == null ? 1 : processParams.observationDetails().binning();
+            var lambda0 = 10 * processParams.spectrumParams().ray().wavelength();
+            var instrument = processParams.observationDetails().instrument();
+            var implicitPixelShifts = processParams.requestedImages().requestedWaveLengths().stream()
+                .mapToDouble(wavelength -> SpectrumAnalyzer.computePixelShift(finalPS, binning, lambda0, wavelength, instrument))
+                .boxed()
+                .toList();
+            var explicit = processParams.requestedImages().pixelShifts();
+            var internal = processParams.requestedImages().internalPixelShifts();
+            for (Double implicitPixelShift : implicitPixelShifts) {
+                if (!explicit.contains(implicitPixelShift) && !internal.contains(implicitPixelShift)) {
+                    var state = new WorkflowState(width, newHeight, implicitPixelShift);
+                    state.setInternal(true);
+                    imageList.add(state);
+                }
+            }
+        }
+    }
+
+    private void addPixelShiftsForAutoContinnum(boolean canGenerateHeliumD3Images, int width, int newHeight, List<WorkflowState> imageList, Double heliumLineShift) {
+        if (canGenerateHeliumD3Images || processParams.requestedImages().autoContinuum()) {
+            var explicit = processParams.requestedImages().pixelShifts();
+            var internal = processParams.requestedImages().internalPixelShifts();
+            var min = pixelShiftRange.minPixelShift();
+            var max = pixelShiftRange.maxPixelShift();
+            var step = pixelShiftRange.step();
+            for (var s = min; s <= max; s += step) {
+                if (!explicit.contains(s) && !internal.contains(s)) {
+                    var state = new WorkflowState(width, newHeight, s);
+                    state.setInternal(true);
+                    imageList.add(state);
+                }
+            }
+            if (canGenerateHeliumD3Images && heliumLineShift != null) {
+                if (imageList.stream().map(WorkflowState::pixelShift).noneMatch(heliumLineShift::equals)) {
+                    var state = new WorkflowState(width, newHeight, heliumLineShift);
+                    state.setInternal(true);
+                    imageList.add(state);
+                }
+            }
+        }
     }
 
     private static void checkAvailableDiskSpace(List<WorkflowState> imageList, long imageSizeInBytes) {
@@ -472,7 +562,10 @@ public class SolexVideoProcessor implements Broadcaster {
         }
     }
 
-    private void generateImageMaths(FileNamingStrategy imageNamingStrategy, String baseName, List<WorkflowState> imageList, ImageMathParams mathImages) {
+    private void generateImageMaths(FileNamingStrategy imageNamingStrategy,
+                                    String baseName,
+                                    List<WorkflowState> imageList,
+                                    ImageMathParams mathImages) {
         if (!mathImages.scriptFiles().isEmpty()) {
             var images = new HashMap<Double, ImageWrapper>();
             Ellipse ellipse = null;
@@ -504,6 +597,7 @@ public class SolexVideoProcessor implements Broadcaster {
                 if (finalImageStats != null) {
                     context.put(ImageStats.class, finalImageStats);
                 }
+                context.put(PixelShiftRange.class, pixelShiftRange);
                 var scriptRunner = new DefaultImageScriptExecutor(images::get, Collections.unmodifiableMap(context), this);
                 try {
                     var result = scriptRunner.execute(scriptFile.toPath(), ImageMathScriptExecutor.SectionKind.SINGLE);
@@ -524,6 +618,49 @@ public class SolexVideoProcessor implements Broadcaster {
                 }
             });
         }
+    }
+
+    private static PixelShiftRange computePixelShiftRange(int start, int end, int height, DoubleUnaryOperator polynomial) {
+        // determine the min and max pixel shifts
+        double min = Double.MAX_VALUE;
+        double max = -Double.MAX_VALUE;
+        for (int x = start; x < end; x++) {
+            var v = polynomial.applyAsDouble(x);
+            min = Math.min(v, min);
+            max = Math.max(v, max);
+        }
+        if (min == Double.MAX_VALUE) {
+            min = 0;
+        }
+        if (max == -Double.MAX_VALUE) {
+            max = height;
+        }
+        min = Math.max(0, min);
+        max = Math.min(height, max);
+        double mid = (max + min) / 2.0;
+        double range = (max - min) / 2.0;
+        var maxPixelShift = -Double.MAX_VALUE;
+        var minPixelShift = Double.MAX_VALUE;
+        for (int y = (int) range; y < height - range; y++) {
+            double cpt = 0;
+            for (int x = start; x < end; x++) {
+                var v = polynomial.applyAsDouble(x);
+                var shift = v - mid;
+                int ny = (int) Math.round(y + shift);
+                if (ny >= 0 && ny < height) {
+                    cpt++;
+                }
+            }
+            if (cpt > 0) {
+                var pixelShift = y - mid;
+                minPixelShift = Math.min(minPixelShift, pixelShift);
+                maxPixelShift = Math.max(maxPixelShift, pixelShift);
+            }
+        }
+        // round to a 1/10th
+        minPixelShift = Math.floor(minPixelShift / 10) * 10;
+        maxPixelShift = Math.ceil(maxPixelShift / 10) * 10;
+        return new PixelShiftRange(minPixelShift, maxPixelShift, (maxPixelShift - minPixelShift) / 10);
     }
 
     public static Map<Class<?>, Object> createMetadata(ProcessParams processParams) {
