@@ -20,6 +20,7 @@ import me.champeau.a4j.jsolex.app.jfx.BatchItem;
 import me.champeau.a4j.jsolex.app.jfx.BatchOperations;
 import me.champeau.a4j.jsolex.app.jfx.Corrector;
 import me.champeau.a4j.jsolex.app.script.JSolExScriptExecutor;
+import me.champeau.a4j.jsolex.processing.event.AverageImageComputedEvent;
 import me.champeau.a4j.jsolex.processing.event.FileGeneratedEvent;
 import me.champeau.a4j.jsolex.processing.event.GeneratedImage;
 import me.champeau.a4j.jsolex.processing.event.ImageGeneratedEvent;
@@ -79,6 +80,7 @@ public class BatchModeEventListener implements ProcessingEventListener, ImageMat
 
     private Header header;
     private final Map<String, List<ImageWrapper>> imagesByLabel;
+    private ProcessParams adjustedParams;
 
     public BatchModeEventListener(JSolExInterface owner,
                                   SingleModeProcessingEventListener delegate,
@@ -98,24 +100,29 @@ public class BatchModeEventListener implements ProcessingEventListener, ImageMat
     }
 
     @Override
+    public void onAverageImageComputed(AverageImageComputedEvent e) {
+        this.adjustedParams = e.getPayload().adjustedParams();
+    }
+
+    @Override
     public void onImageGenerated(ImageGeneratedEvent event) {
         var payload = event.getPayload();
         var image = payload.image();
         var kind = payload.kind();
         var target = payload.path().toFile();
-
+        var params = adjustedParams != null ? adjustedParams : processParams;
         var img = image;
         double correction = 0;
         if (!kind.cannotPerformManualRotation()) {
-            correction = image.findMetadata(RotationKind.class).orElseGet(() -> processParams.geometryParams().rotation()).angle();
-            if (processParams.geometryParams().isAutocorrectAngleP()) {
-                correction += SolarParametersUtils.computeSolarParams(processParams.observationDetails().date().toLocalDateTime()).p();
+            correction = image.findMetadata(RotationKind.class).orElseGet(() -> params.geometryParams().rotation()).angle();
+            if (params.geometryParams().isAutocorrectAngleP()) {
+                correction += SolarParametersUtils.computeSolarParams(params.observationDetails().date().toLocalDateTime()).p();
             }
         }
         if (correction != 0) {
-            img = Corrector.rotate(img, correction, processParams.geometryParams().autocropMode() == AutocropMode.OFF);
+            img = Corrector.rotate(img, correction, params.geometryParams().autocropMode() == AutocropMode.OFF);
         }
-        new ImageSaver(RangeExpansionStrategy.DEFAULT, processParams).save(img, target);
+        new ImageSaver(RangeExpansionStrategy.DEFAULT, params).save(img, target);
         item.generatedFiles().add(target);
     }
 
