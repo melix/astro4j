@@ -323,6 +323,11 @@ Fonctions d'analyse :
 - `find_shift` permet de calculer un décalage en pixels par rapport à la raie détectée. Elle accepte un seul paramètre, le nom de la raie recherchée, par exemple, `find_shift("Helium (D3)"), ou bien la longueur d'onde en Angström, par exemple `find_shift(5875.62)`. Cette fonction retourne un nombre, le décalage en pixels.
 - `continuum` est une fonction sans paramètre qui détermine automatiquement une image de type "continuum" qui peut par exemple être soustraite d'une autre image. Cette fonction diffère de l'image continuum classique au sens où il ne s'agit pas d'une image unique calculée à la différence de pixels fixe de 15 pixels, mais d'une image calculée à partir de la médiane d'un ensemble d'images. Utilisation : `continuum()`.
 
+Fonctions diverses :
+
+- `sort` permet de trier une liste d'images. Elle accepte une liste d'images en premier argument et un critère de tri en second argument. Par exemple : `sort(images, "date")`. Le critère par défaut est `shift` pour le décalage en pixels.
+- `video_datetime` retourne la date et l'heure formatée d'une image. Elle accepte un ou deux paramètres : l'image et un format optionnel. Par exemple : `video_datetime(img(0))` ou `video_datetime(img(0), "yyyy-MM-dd HH:mm:ss")`
+
 === Scripts ImageMath
 
 Dans la section précédente, nous avons vu les "briques élémentaires" d'ImageMath, qui permettent de calculer des images.
