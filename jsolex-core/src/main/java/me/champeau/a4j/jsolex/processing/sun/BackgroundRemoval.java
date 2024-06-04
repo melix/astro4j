@@ -26,6 +26,7 @@ import java.util.List;
 
 import static me.champeau.a4j.jsolex.processing.sun.ImageUtils.bilinearSmoothing;
 import static me.champeau.a4j.jsolex.processing.sun.workflow.AnalysisUtils.estimateBackgroundLevel;
+import static me.champeau.a4j.jsolex.processing.util.Constants.message;
 
 public class BackgroundRemoval {
     private static final Logger LOGGER = LoggerFactory.getLogger(BackgroundRemoval.class);
@@ -77,33 +78,46 @@ public class BackgroundRemoval {
         List<Double> values = new ArrayList<>();
         var height = image.height();
         var width = image.width();
-        for (int y = 0; y < height; y += 8) {
-            for (int x = 0; x < width; x += 8) {
-                var idx = y * width + x;
-                var value = data[idx];
-                if (value < background && value > 0) {
-                    // Include x^2, y^2, and xy terms
-                    samples.add(new double[]{x, y, x * x, y * y, x * y});
-                    values.add((double) value);
+        var iterations = 10;
+        while (samples.size() < 16 && iterations-- > 0) {
+            for (int y = 0; y < height; y += 8) {
+                for (int x = 0; x < width; x += 8) {
+                    var idx = y * width + x;
+                    var value = data[idx];
+                    if (value < background && value > 0) {
+                        // Include x^2, y^2, and xy terms
+                        samples.add(new double[]{x, y, x * x, y * y, x * y});
+                        values.add((double) value);
+                    }
                 }
             }
+            background = 1.2 * background;
+        }
+
+        if (samples.size() < 16) {
+            LOGGER.warn(message("cannot.perform.bg.neutralization"));
+            return copy;
         }
 
         // Perform 2nd order fitting
-        var regression = new OLSMultipleLinearRegression();
-        regression.newSampleData(values.stream().mapToDouble(Double::doubleValue).toArray(), samples.toArray(new double[0][]));
-        double[] coefficients = regression.estimateRegressionParameters();
+        try {
+            var regression = new OLSMultipleLinearRegression();
+            regression.newSampleData(values.stream().mapToDouble(Double::doubleValue).toArray(), samples.toArray(new double[0][]));
+            double[] coefficients = regression.estimateRegressionParameters();
 
-        // Remove background using the regression model
-        for (int y = 0; y < height; y++) {
-            for (int x = 0; x < width; x++) {
-                var idx = y * width + x;
-                var value = data[idx];
-                var estimated = coefficients[0] + coefficients[1] * x + coefficients[2] * y
-                                + coefficients[3] * x * x + coefficients[4] * y * y
-                                + coefficients[5] * x * y;
-                data[idx] = (float) Math.max(0, value - estimated);
+            // Remove background using the regression model
+            for (int y = 0; y < height; y++) {
+                for (int x = 0; x < width; x++) {
+                    var idx = y * width + x;
+                    var value = data[idx];
+                    var estimated = coefficients[0] + coefficients[1] * x + coefficients[2] * y
+                                    + coefficients[3] * x * x + coefficients[4] * y * y
+                                    + coefficients[5] * x * y;
+                    data[idx] = (float) Math.max(0, value - estimated);
+                }
             }
+        } catch (Exception ex) {
+            LOGGER.warn(message("cannot.perform.bg.neutralization"));
         }
         return copy;
     }
