@@ -10,6 +10,7 @@ Here are the new features in this version:
 ## Changes since 2.4.0
 
 - Added `SORT` and `VIDEO_DATETIME` ImageMath functions
+- Fixed background neutralization bug on some videos
 
 ## Automatic Helium D3 processing
 

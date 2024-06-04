@@ -10,6 +10,7 @@ Voici les nouvelles fonctionnalités de cette version :
 ## Changements depuis la 2.4.0
 
 - Ajout des fonctions ImageMath `SORT` et `VIDEO_DATETIME`
+- Correction d'un bug de neutralisation du fond de ciel sur certaines vidéos
 
 ## Traitement automatique de l'hélium D3
 
