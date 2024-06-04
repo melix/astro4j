@@ -74,7 +74,9 @@ public enum BuiltinFunction {
     SATURATE,
     SHARPEN,
     STACK,
+    SORT,
     VFLIP,
+    VIDEO_DATETIME,
     WORKDIR(true);
 
     private final boolean hasSideEffect;

@@ -40,6 +40,7 @@ import me.champeau.a4j.jsolex.processing.expr.impl.Scaling;
 import me.champeau.a4j.jsolex.processing.expr.impl.SimpleFunctionCall;
 import me.champeau.a4j.jsolex.processing.expr.impl.Stacking;
 import me.champeau.a4j.jsolex.processing.expr.impl.Stretching;
+import me.champeau.a4j.jsolex.processing.expr.impl.Utilities;
 import me.champeau.a4j.jsolex.processing.params.ProcessParams;
 import me.champeau.a4j.jsolex.processing.params.SpectralRayIO;
 import me.champeau.a4j.jsolex.processing.spectrum.SpectrumAnalyzer;
@@ -93,6 +94,7 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
     private final SimpleFunctionCall simpleFunctionCall;
     private final Stretching stretching;
     private final Stacking stacking;
+    private final Utilities utilities;
 
     protected AbstractImageExpressionEvaluator(Broadcaster broadcaster) {
         this.adjustContrast = new AdjustContrast(context, broadcaster);
@@ -117,6 +119,7 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
         this.stretching = new Stretching(context, broadcaster);
         this.stacking = new Stacking(context, scaling, crop, broadcaster);
         this.mosaicComposition = new MosaicComposition(context, broadcaster, stacking, ellipseFit, scaling);
+        this.utilities = new Utilities(context, broadcaster);
     }
 
     public <T> void putInContext(Class<T> key, T value) {
@@ -250,7 +253,9 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
             case SHARPEN -> convolution.sharpen(arguments);
             case FIND_SHIFT -> pixelShiftFor(arguments);
             case STACK -> stacking.stack(arguments);
+            case SORT -> utilities.sort(arguments);
             case VFLIP -> rotate.vflip(arguments);
+            case VIDEO_DATETIME -> utilities.videoDateTime(arguments);
             case WORKDIR -> setWorkDir(arguments);
         };
     }

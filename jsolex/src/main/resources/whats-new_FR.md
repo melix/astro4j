@@ -2,9 +2,14 @@
 
 Voici les nouvelles fonctionnalités de cette version :
 
+- [Changements depuis la 2.4.0](#changements-depuis-la-2.4.0)
 - [Traitement automatique de l'hélium D3](#traitement-automatique-de-lhélium-d3)
 - [Gestion du matériel](#gestion-du-matériel)
 - [Support d'autres spectrohéliographes](#support-d'autres-spectrohéliographes)
+
+## Changements depuis la 2.4.0
+
+- Ajout des fonctions ImageMath `SORT` et `VIDEO_DATETIME`
 
 ## Traitement automatique de l'hélium D3
 

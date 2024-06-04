@@ -2,9 +2,14 @@
 
 Here are the new features in this version:
 
+- [Changes since 2.4.0](#changes-since-2.4.0)
 - [Automatic Helium D3 processing](#automatic-detection-of-the-studied-line)
 - [Equipment management](#equipment-management)
 - [Other spectroheliograghs support](#other-spectroheliographs-support)
+
+## Changes since 2.4.0
+
+- Added `SORT` and `VIDEO_DATETIME` ImageMath functions
 
 ## Automatic Helium D3 processing
 
