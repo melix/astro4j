@@ -30,7 +30,6 @@ import me.champeau.a4j.jsolex.processing.expr.ImageMathScriptExecutor;
 import me.champeau.a4j.jsolex.processing.params.ImageMathParams;
 import me.champeau.a4j.jsolex.processing.params.RequestedImages;
 import me.champeau.a4j.jsolex.processing.sun.workflow.GeneratedImageKind;
-import me.champeau.a4j.jsolex.processing.util.Constants;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 import me.champeau.a4j.jsolex.processing.util.MutableMap;
 import me.champeau.a4j.jsolex.processing.util.ProcessingException;
@@ -88,6 +87,7 @@ public class ImageSelector {
     private Stage stage;
 
     private double dopplerShift;
+    private double continuumShift;
     private RequestedImages requestedImages;
     private ImageMathParams imageMathParams;
     private Set<Double> internalPixelShifts;
@@ -103,12 +103,14 @@ public class ImageSelector {
                       boolean debug,
                       List<Double> selectedPixelShifts,
                       double dopplerShift,
+                      double continuumShift,
                       ImageMathParams imageMathParams,
                       HostServices hostServices,
                       boolean batchMode) {
         this.stage = stage;
         this.hostServices = hostServices;
         this.dopplerShift = dopplerShift;
+        this.continuumShift = continuumShift;
         this.imageMathParams = imageMathParams;
         this.batchMode = batchMode;
         this.mode.getItems().add(PixelShiftMode.SIMPLE);
@@ -158,7 +160,7 @@ public class ImageSelector {
         this.debug.setSelected(debug);
         updatePixelShiftsWithSelectedImages(newPixelShifts);
         doppler.selectedProperty().addListener((observable, oldValue, newValue) -> adjustPixelShifts(newValue, -dopplerShift, dopplerShift));
-        continuum.selectedProperty().addListener((observable, oldValue, newValue) -> adjustPixelShifts(newValue, Constants.CONTINUUM_SHIFT));
+        continuum.selectedProperty().addListener((observable, oldValue, newValue) -> adjustPixelShifts(newValue, continuumShift));
     }
 
     private void updatePixelShiftsWithSelectedImages(List<Double> newPixelShifts) {
@@ -167,7 +169,7 @@ public class ImageSelector {
             result.add(0d);
         }
         if (continuum.isSelected()) {
-            result.add(Constants.CONTINUUM_SHIFT);
+            result.add(continuumShift);
         }
         if (doppler.isSelected()) {
             result.add(-dopplerShift);
@@ -262,7 +264,7 @@ public class ImageSelector {
         if (continuum.isSelected()) {
             images.add(GeneratedImageKind.CONTINUUM);
             if (internalPixelShifts != null) {
-                internalPixelShifts.remove(Constants.CONTINUUM_SHIFT);
+                internalPixelShifts.remove(continuumShift);
             }
         }
         if (reconstruction.isSelected()) {

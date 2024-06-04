@@ -25,7 +25,7 @@ public class Constants {
     public static final String TYPE_DEBUG = "debug";
     public static final String TYPE_CUSTOM = "custom";
     public static final String TYPE_PROCESSED = "processed";
-    public static final double CONTINUUM_SHIFT = 15;
+    public static final double DEFAULT_CONTINUUM_SHIFT = 15;
 
     private static final ResourceBundle BUNDLE;
 

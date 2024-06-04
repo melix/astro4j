@@ -917,7 +917,8 @@ public class SolexVideoProcessor implements Broadcaster {
                     if (name.toLowerCase(Locale.US).contains("doppler")) {
                         return name;
                     }
-                    var suffix = shift == processParams.spectrumParams().pixelShift() ? "" : " (" + (shift == Constants.CONTINUUM_SHIFT ? "continuum" : shift) + ")";
+                    var spectrumParams = processParams.spectrumParams();
+                    var suffix = shift == spectrumParams.pixelShift() ? "" : " (" + (shift == spectrumParams.continuumShift() ? "continuum" : shift) + ")";
                     return name + suffix;
                 }, name -> {
                     if (name.toLowerCase(Locale.US).contains("doppler")) {

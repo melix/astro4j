@@ -169,7 +169,7 @@ public class ProcessingWorkflow {
         var g = new GeometryCorrector(broadcaster, imageSupplier(WorkflowResults.BANDING_CORRECTION), ellipse, forcedTilt, fps, ratio, blackPoint, processParams, debugImagesEmitter, state, header).get();
         var kind = GeneratedImageKind.GEOMETRY_CORRECTED;
         var geometryFixed = (ImageWrapper32) g.corrected().unwrapToMemory();
-        if (state.pixelShift() == Constants.CONTINUUM_SHIFT) {
+        if (state.pixelShift() == processParams.spectrumParams().continuumShift()) {
             kind = GeneratedImageKind.CONTINUUM;
         }
         if (!state.isInternal()) {

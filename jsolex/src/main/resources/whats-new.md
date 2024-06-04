@@ -11,6 +11,7 @@ Here are the new features in this version:
 
 - Added `SORT` and `VIDEO_DATETIME` ImageMath functions
 - Fixed background neutralization bug on some videos
+- Made "continuum shift" configurable
 
 ## Automatic Helium D3 processing
 
