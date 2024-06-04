@@ -1247,6 +1247,19 @@ Stacking and mosaic functions:</p>
 </li>
 </ul>
 </div>
+<div class="paragraph">
+<p>Miscellaneous functions:</p>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p><code>sort</code> sorts a list of images. It accepts a list of images as the first argument and a sort criteria as the second one. For example: <code>sort(images, "date")</code>. The default criteria is <code>shift</code> for the pixel shift. It is possible to reverse the order by using <code>desc</code>, for example <code>sort(images, "date desc")</code>.</p>
+</li>
+<li>
+<p><code>video_datetime</code> returns the formatted datetime of an image. It accepts one or two parameters: the image and an optional format. For example: <code>video_datetime(img(0))</code> or <code>video_datetime(img(0), "yyyy-MM-dd HH:mm:ss")</code></p>
+</li>
+</ul>
+</div>
 </div>
 <div class="sect2">
 <h3 id="_imagemath_scripts">ImageMath scripts</h3>
