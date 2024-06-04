@@ -12,7 +12,8 @@ Here are the new features in this version:
 - Added `SORT` and `VIDEO_DATETIME` ImageMath functions
 - Fixed background neutralization bug on some videos
 - Made "continuum shift" configurable
-
+- Added a button to reset process parameters in watch mode
+- 
 ## Automatic Helium D3 processing
 
 Before this release, processing a helium D3 line required manual intervention: in particular, you needed to analyze the SER file using the spectrum debugger to determine the pixel shift between a reference line (usually the Sodium D2 line or the Iron Fe 1 line) and the helium D3 line.

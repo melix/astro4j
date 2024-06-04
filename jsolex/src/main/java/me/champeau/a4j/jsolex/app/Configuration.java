@@ -53,7 +53,7 @@ public class Configuration {
     public void loadedSerFile(Path path) {
         recentFiles.remove(path);
         recentFiles.add(0, path);
-        prefs.put(RECENT_FILES, recentFiles.stream().map(Path::toString).collect(joining(File.pathSeparator)));
+        prefs.put(RECENT_FILES, recentFiles.stream().map(Path::toString).limit(10).collect(joining(File.pathSeparator)));
         updateLastOpenDirectory(path.getParent());
     }
 
