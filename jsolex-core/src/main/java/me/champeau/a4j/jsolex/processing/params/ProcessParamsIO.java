@@ -19,6 +19,7 @@ import com.google.gson.Gson;
 import me.champeau.a4j.jsolex.processing.file.FileNamingStrategy;
 import me.champeau.a4j.jsolex.processing.stretching.AutohistogramStrategy;
 import me.champeau.a4j.jsolex.processing.stretching.ClaheStrategy;
+import me.champeau.a4j.jsolex.processing.util.Constants;
 import me.champeau.a4j.jsolex.processing.util.FilesUtils;
 import me.champeau.a4j.jsolex.processing.util.ImageFormat;
 import me.champeau.a4j.jsolex.processing.util.VersionUtil;
@@ -73,7 +74,7 @@ public abstract class ProcessParamsIO {
         }
         LOGGER.info("No config file found at {}. Using default parameters", defaultsFile);
         return new ProcessParams(
-            new SpectrumParams(SpectralRay.AUTO, 0, 3, false),
+            new SpectrumParams(SpectralRay.AUTO, 0, 3, Constants.DEFAULT_CONTINUUM_SHIFT, false),
             new ObservationDetails(
                 null,
                 null,

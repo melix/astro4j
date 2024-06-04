@@ -112,7 +112,9 @@ public class ProcessParamsController {
     @FXML
     private TextField autostretchGamma;
     @FXML
-    private Slider dopplerShifting;
+    private TextField dopplerShifting;
+    @FXML
+    private TextField continuumShifting;
     @FXML
     private TextField email;
     @FXML
@@ -240,8 +242,12 @@ public class ProcessParamsController {
             longitude.setText(Double.toString(coordinates.b()));
         }
         pixelShifting.setTextFormatter(new TextFormatter<>(new DoubleStringConverter()));
+        continuumShifting.setTextFormatter(new TextFormatter<>(new DoubleStringConverter()));
+        dopplerShifting.setTextFormatter(new TextFormatter<>(new DoubleStringConverter()));
         pixelShifting.textProperty().set(String.valueOf(initialProcessParams.spectrumParams().pixelShift()));
-        dopplerShifting.valueProperty().set(initialProcessParams.spectrumParams().dopplerShift());
+        dopplerShifting.textProperty().set(String.valueOf(initialProcessParams.spectrumParams().dopplerShift()));
+        var continuumShift = initialProcessParams.spectrumParams().continuumShift();
+        continuumShifting.textProperty().set(String.valueOf(continuumShift == 0 ? Constants.DEFAULT_CONTINUUM_SHIFT: continuumShift));
         switchRedBlueChannels.setSelected(initialProcessParams.spectrumParams().switchRedBlueChannels());
         assumeMonoVideo.setSelected(initialProcessParams.videoParams().colorMode() == ColorMode.MONO);
         forceTilt.setSelected(false);
@@ -466,10 +472,11 @@ public class ProcessParamsController {
 
     @FXML
     public void process() {
-        double dopplerShift = dopplerShifting.getValue();
+        double dopplerShift = Double.parseDouble(dopplerShifting.getText());
+        double continuumShift = Double.parseDouble(continuumShifting.getText());
         doProcess(new RequestedImages(
             generateDebugImages.isSelected() ? RequestedImages.FULL_MODE_WITH_DEBUG : RequestedImages.FULL_MODE,
-            List.of(getPixelShiftAsDouble(), dopplerShift, -dopplerShift, Constants.CONTINUUM_SHIFT),
+            List.of(getPixelShiftAsDouble(), dopplerShift, -dopplerShift, continuumShift),
             Set.of(-dopplerShift, dopplerShift),
             Set.of(),
             ImageMathParams.NONE,
@@ -488,7 +495,8 @@ public class ProcessParamsController {
                 initialProcessParams.requestedImages().images(),
                 generateDebugImages.isSelected(),
                 List.of(getPixelShiftAsDouble()),
-                dopplerShifting.getValue(),
+                Double.parseDouble(dopplerShifting.getText()),
+                Double.parseDouble(continuumShifting.getText()),
                 initialProcessParams.requestedImages().mathImages(),
                 hostServices,
                 batchMode
@@ -552,7 +560,7 @@ public class ProcessParamsController {
         }
         var namingStrategy = namingPattern.getSelectionModel().getSelectedItem();
         processParams = new ProcessParams(
-            new SpectrumParams(wavelength.getValue(), getPixelShiftAsDouble(), (int) Math.round(dopplerShifting.getValue()), switchRedBlueChannels.isSelected()),
+            new SpectrumParams(wavelength.getValue(), getPixelShiftAsDouble(), Double.parseDouble(dopplerShifting.getText()), Double.parseDouble(continuumShifting.getText()), switchRedBlueChannels.isSelected()),
             new ObservationDetails(
                 observerName.getText(),
                 email.getText(),
@@ -645,7 +653,8 @@ public class ProcessParamsController {
     @FXML
     public void resetRayParams() {
         pixelShifting.setText("0");
-        dopplerShifting.setValue(3);
+        dopplerShifting.setText("3.0");
+        continuumShifting.setText(String.valueOf(Constants.DEFAULT_CONTINUUM_SHIFT));
         verticalMirror.setSelected(false);
         horizontalMirror.setSelected(false);
         rotation.getSelectionModel().select(RotationKind.NONE);

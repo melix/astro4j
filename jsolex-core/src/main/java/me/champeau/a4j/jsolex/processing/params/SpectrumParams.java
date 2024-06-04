@@ -19,21 +19,22 @@ public record SpectrumParams(
         SpectralRay ray,
         double pixelShift,
         double dopplerShift,
+        double continuumShift,
         boolean switchRedBlueChannels
 ) {
     public SpectrumParams withRay(SpectralRay ray) {
-        return new SpectrumParams(ray, pixelShift, dopplerShift, switchRedBlueChannels);
+        return new SpectrumParams(ray, pixelShift, dopplerShift, continuumShift, switchRedBlueChannels);
     }
 
     public SpectrumParams withPixelShift(double pixelShift) {
-        return new SpectrumParams(ray, pixelShift, dopplerShift, switchRedBlueChannels);
+        return new SpectrumParams(ray, pixelShift, dopplerShift, continuumShift, switchRedBlueChannels);
     }
 
     public SpectrumParams withDopplerShift(double dopplerShift) {
-        return new SpectrumParams(ray, pixelShift, dopplerShift, switchRedBlueChannels);
+        return new SpectrumParams(ray, pixelShift, dopplerShift, continuumShift, switchRedBlueChannels);
     }
 
     public SpectrumParams withSwitchRedBlueChannels(boolean switchRedBlueChannels) {
-        return new SpectrumParams(ray, pixelShift, dopplerShift, switchRedBlueChannels);
+        return new SpectrumParams(ray, pixelShift, dopplerShift, continuumShift, switchRedBlueChannels);
     }
 }

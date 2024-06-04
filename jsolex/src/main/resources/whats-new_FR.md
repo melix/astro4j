@@ -11,6 +11,7 @@ Voici les nouvelles fonctionnalités de cette version :
 
 - Ajout des fonctions ImageMath `SORT` et `VIDEO_DATETIME`
 - Correction d'un bug de neutralisation du fond de ciel sur certaines vidéos
+- Le décalage du continuum est maintenant configurable
 
 ## Traitement automatique de l'hélium D3
 
