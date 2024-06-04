@@ -21,6 +21,7 @@ import javafx.animation.PauseTransition;
 import javafx.animation.Timeline;
 import javafx.application.Application;
 import javafx.beans.binding.Bindings;
+import javafx.beans.binding.BooleanBinding;
 import javafx.beans.property.SimpleDoubleProperty;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.collections.FXCollections;
@@ -244,6 +245,8 @@ public class JSolEx extends Application implements JSolExInterface {
     private Path watchedDirectory;
     private WatchService watchService;
     private Button interruptWatchButton;
+    private Button interruptClearParamsButton;
+    private final BooleanBinding reusedProcessParamsBinding = Bindings.createBooleanBinding(() -> reusedProcessParams == null);
 
     @Override
     public MultipleImagesViewer getImagesViewer() {
@@ -630,6 +633,7 @@ public class JSolEx extends Application implements JSolExInterface {
                 var watcher = FileSystems.getDefault().newWatchService();
                 if (watchService != null) {
                     reusedProcessParams = null;
+                    reusedProcessParamsBinding.invalidate();
                     watchService.close();
                     if (interruptWatchButton != null) {
                         BatchOperations.submit(() -> workButtons.getChildren().remove(interruptWatchButton));
@@ -643,20 +647,37 @@ public class JSolEx extends Application implements JSolExInterface {
                 interruptWatchButton.setOnAction(e -> {
                     try {
                         reusedProcessParams = null;
+                        reusedProcessParamsBinding.invalidate();
                         key.cancel();
                         watchService.close();
                         watchService = null;
                     } catch (IOException ex) {
                         // ignore
                     }
-                    BatchOperations.submit(() -> workButtons.getChildren().remove(interruptWatchButton));
+                    BatchOperations.submit(() -> {
+                        workButtons.getChildren().remove(interruptWatchButton);
+                        workButtons.getChildren().remove(interruptClearParamsButton);
+                    });
                     LOGGER.info(message("stopped.watching"), watchedDirectory);
                 });
+                interruptClearParamsButton = addInterruptClearParamsButton();
+
                 BatchOperations.submit(() -> workButtons.getChildren().add(interruptWatchButton));
             } catch (IOException e) {
                 LOGGER.error("Cannot create watch service", e);
             }
         }
+    }
+
+    private Button addInterruptClearParamsButton() {
+        var interruptClearParamsButton = new Button(message("interrupt.new.params"));
+        interruptClearParamsButton.setOnAction(e -> {
+            reusedProcessParams = null;
+            reusedProcessParamsBinding.invalidate();
+        });
+        interruptClearParamsButton.disableProperty().bind(reusedProcessParamsBinding);
+        BatchOperations.submit(() -> workButtons.getChildren().add(interruptClearParamsButton));
+        return interruptClearParamsButton;
     }
 
     private void selectSerFileAndThen(Consumer<? super File> consumer) {
@@ -878,6 +899,7 @@ public class JSolEx extends Application implements JSolExInterface {
         processParams.ifPresent(params -> {
             if (rememberProcessParams) {
                 reusedProcessParams = params;
+                reusedProcessParamsBinding.invalidate();
             }
             processFileWithParams(selectedFile, firstHeader, params);
         });
