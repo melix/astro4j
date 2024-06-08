@@ -47,7 +47,6 @@ import me.champeau.a4j.jsolex.processing.sun.tasks.ImageBandingCorrector;
 import me.champeau.a4j.jsolex.processing.util.Constants;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 import me.champeau.a4j.jsolex.processing.util.MutableMap;
-import me.champeau.a4j.jsolex.processing.util.RGBImage;
 import me.champeau.a4j.math.Point2D;
 import me.champeau.a4j.math.image.Deconvolution;
 import me.champeau.a4j.math.image.ImageMath;
@@ -65,7 +64,6 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
-import java.util.Map;
 import java.util.function.Supplier;
 
 import static me.champeau.a4j.jsolex.processing.sun.ImageUtils.bilinearSmoothing;
@@ -223,38 +221,29 @@ public class ProcessingWorkflow {
                 System.arraycopy(data, 0, g, 0, data.length);
                 var b = new float[data.length];
                 System.arraycopy(data, 0, b, 0, data.length);
-                var copy = new RGBImage(
-                    mono.width(),
-                    mono.height(),
-                    r,
-                    g,
-                    b,
-                    new HashMap<>(geometryFixed.metadata())
-                );
-                var draw = new ImageDraw(Map.of(), broadcaster);
-                RGBImage rgb = (RGBImage) draw.drawOnImage(copy, (gr, img) -> {
-                    for (RedshiftArea redshift : redshifts) {
-                        var x1 = redshift.x1();
-                        var y1 = redshift.y1();
-                        var x2 = redshift.x2();
-                        var y2 = redshift.y2();
-                        if (Math.max(x2-x1, y2-y1) < 32) {
-                            // rescale rectangle for improved visibility
-                            var dx = 4 * (1 + x2 - x1);
-                            var dy = 4 * (1 + y2 - y1);
-                            x1 -= dx;
-                            x2 += dx;
-                            y1 -= dy;
-                            y2 += dy;
-                        }
-                        gr.setStroke(new BasicStroke(2));
-                        gr.setColor(Color.RED);
-                        gr.setFont(gr.getFont().deriveFont(24f));
-                        gr.drawString(String.format("%.2f km/s", redshift.kmPerSec()), x2 + 4, y2);
-                        gr.drawRect(x1, y1, x2 - x1 + 1, y2 - y1 + 1);
+                return new float[][]{r, g, b};
+            }, (gr, img) -> {
+                for (var redshift : redshifts) {
+                    var x1 = redshift.x1();
+                    var y1 = redshift.y1();
+                    var x2 = redshift.x2();
+                    var y2 = redshift.y2();
+                    if (Math.abs(x2 - x1) < 32) {
+                        // grow the area to the minimum size
+                        x1 = redshift.maxX() - 16;
+                        x2 = redshift.maxX() + 16;
                     }
-                });
-                return new float[][]{rgb.r(), rgb.g(), rgb.b()};
+                    if (Math.abs(y2 - y1) < 32) {
+                        // grow the area to the minimum size
+                        y1 = redshift.maxY() - 16;
+                        y2 = redshift.maxY() + 16;
+                    }
+                    gr.setStroke(new BasicStroke(2));
+                    gr.setColor(Color.RED);
+                    gr.setFont(gr.getFont().deriveFont(24f));
+                    gr.drawString(String.format("%s (%.2f km/s)", redshift.id(), redshift.kmPerSec()), x2 + 8, y2);
+                    gr.drawRect(x1, y1, x2 - x1 + 1, y2 - y1 + 1);
+                }
             });
     }
 

@@ -226,6 +226,7 @@ public class Crop extends AbstractFunctionImpl {
             metadata.put(Redshifts.class, new Redshifts(
                 redshifts.redshifts().stream()
                     .map(rs -> new RedshiftArea(
+                        rs.id(),
                         rs.pixelShift(),
                         rs.relPixelShift(),
                         rs.kmPerSec(),

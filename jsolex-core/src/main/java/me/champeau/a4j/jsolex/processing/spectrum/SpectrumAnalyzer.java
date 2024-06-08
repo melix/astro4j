@@ -62,15 +62,15 @@ public class SpectrumAnalyzer {
      * Returns the spectral dispersion, in nanometers/pixel
      *
      * @param instrument the SHG for which to compute the dispersion
-     * @param lambda0 the wavelength in nanometers
-     * @param pixelSize the pixel size, in micrometers
+     * @param lambda0NanoMeters the wavelength in nanometers
+     * @param pixelSizeMicrons the pixel size, in micrometers
      * @return the spectral dispersion, in nanometers/pixel
      */
-    public static double computeSpectralDispersion(SpectroHeliograph instrument,
-                                                   double lambda0,
-                                                   double pixelSize) {
-        var beta = computeAngleBeta(instrument.order(), instrument.density(), lambda0, instrument.totalAngleRadians());
-        return 1000 * pixelSize * Math.cos(beta) / instrument.density() / instrument.focalLength();
+    public static double computeSpectralDispersionNanosPerPixel(SpectroHeliograph instrument,
+                                                                double lambda0NanoMeters,
+                                                                double pixelSizeMicrons) {
+        var beta = computeAngleBeta(instrument.order(), instrument.density(), lambda0NanoMeters, instrument.totalAngleRadians());
+        return 1000 * pixelSizeMicrons * Math.cos(beta) / instrument.density() / instrument.focalLength();
     }
 
     /**
@@ -117,7 +117,7 @@ public class SpectrumAnalyzer {
         var pixelSize = details.pixelSize();
         var binning = details.binning();
         var instrument = details.instrument();
-        double dispersion = computeSpectralDispersion(instrument, lambda0, pixelSize * binning);
+        double dispersion = computeSpectralDispersionNanosPerPixel(instrument, lambda0, pixelSize * binning);
         var dataPoints = new ArrayList<DataPoint>();
         double min = Double.MAX_VALUE;
         double max = -Double.MAX_VALUE;
@@ -229,7 +229,7 @@ public class SpectrumAnalyzer {
                                            double lambda0Angstroms,
                                            double targetWaveLengthAngstroms,
                                            SpectroHeliograph instrument) {
-        var dispersionAngstromsPerPixel = 10 * SpectrumAnalyzer.computeSpectralDispersion(
+        var dispersionAngstromsPerPixel = 10 * SpectrumAnalyzer.computeSpectralDispersionNanosPerPixel(
             instrument,
             lambda0Angstroms / 10,
             pixelSize * binning

@@ -70,8 +70,6 @@ public class RedshiftImagesProcessor {
     private final File serFile;
     private final Path outputDirectory;
     private final JSolExInterface owner;
-    private final int width;
-    private final int height;
     private final Broadcaster broadcaster;
     private final ImageEmitter imageEmitter;
     private final List<RedshiftArea> redshifts;
@@ -83,8 +81,6 @@ public class RedshiftImagesProcessor {
                                    File serFile,
                                    Path outputDirectory,
                                    JSolExInterface owner,
-                                   int width,
-                                   int height,
                                    Broadcaster broadcaster,
                                    ImageEmitter imageEmitter,
                                    List<RedshiftArea> redshifts,
@@ -95,8 +91,6 @@ public class RedshiftImagesProcessor {
         this.serFile = serFile;
         this.outputDirectory = outputDirectory;
         this.owner = owner;
-        this.width = width;
-        this.height = height;
         this.broadcaster = broadcaster;
         this.imageEmitter = imageEmitter;
         this.redshifts = redshifts;
@@ -126,11 +120,11 @@ public class RedshiftImagesProcessor {
         var adjustedRedshifts = shiftImages.get(0d)
             .findMetadata(Redshifts.class)
             .map(Redshifts::redshifts)
+            .map(List::reversed)
             .orElse(List.of());
-        for (int i = 0; i < adjustedRedshifts.size(); i++) {
-            var redshift = adjustedRedshifts.get(i);
+        for (var redshift : adjustedRedshifts) {
             broadcaster.broadcast(ProgressEvent.of(progress / redshifts.size(), "Producing images for redshift " + redshift));
-            produceImagesForRedshift(i, redshift, kind, boxSize, margin, useFullRangePanels);
+            produceImagesForRedshift(redshift, kind, boxSize, margin, useFullRangePanels);
             progress++;
         }
         broadcaster.broadcast(ProgressEvent.of(1, "Producing redshift animations and panels done"));
@@ -149,53 +143,44 @@ public class RedshiftImagesProcessor {
         return requiredShifts;
     }
 
-    private void produceImagesForRedshift(int id, RedshiftArea redshift, RedshiftCreatorKind kind, int boxSize, int margin, boolean useFullRangePanels) {
-        var x1 = redshift.x1();
-        var x2 = redshift.x2();
-        var y1 = redshift.y1();
-        var y2 = redshift.y2();
-        var centerX = (x1 + x2) / 2;
-        var centerY = (y1 + y2) / 2;
+    private void produceImagesForRedshift(RedshiftArea redshift, RedshiftCreatorKind kind, int boxSize, int margin, boolean useFullRangePanels) {
+        var centerX = redshift.maxX();
+        var centerY = redshift.maxY();
         // grow x1/x2/y1/y2 so that the area is centered and fits the box size
         var dx = boxSize / 2;
         var dy = boxSize / 2;
-        x1 = Math.max(0, centerX - dx);
-        x2 = Math.min(width, centerX + dx);
-        y1 = Math.max(0, centerY - dy);
-        y2 = Math.min(height, centerY + dy);
+        var x1 = Math.max(0, centerX - dx);
+        var y1 = Math.max(0, centerY - dy);
         var crop = new Crop(Map.of(), broadcaster);
         var contrast = new AdjustContrast(Map.of(), broadcaster);
         var animate = new Animate(Map.of(), broadcaster);
         var initialImages = createRange(margin, redshift.pixelShift()).stream().map(shiftImages::get).toList();
         var constrastAdjusted = contrast.autoContrast(List.of(initialImages, params.autoStretchParams().gamma()));
-        var snapWidth = x2 - x1;
-        var snapHeight = y2 - y1;
-        var cropped = crop.crop(List.of(constrastAdjusted, x1, y1, snapWidth, snapHeight));
+        var cropped = crop.crop(List.of(constrastAdjusted, x1, y1, boxSize, boxSize));
         if (kind == RedshiftCreatorKind.ANIMATION || kind == RedshiftCreatorKind.ALL) {
-            generateAnim(id, redshift, animate, cropped);
+            generateAnim(redshift, animate, cropped);
         }
         if (kind == RedshiftCreatorKind.PANEL || kind == RedshiftCreatorKind.ALL) {
-            generatePanel(id, redshift, (List<ImageWrapper>) cropped, snapWidth, crop, snapHeight, useFullRangePanels);
+            generatePanel(redshift, (List<ImageWrapper>) cropped, boxSize, crop, useFullRangePanels);
         }
     }
 
-    private void generateAnim(int id, RedshiftArea redshift, Animate animate, Object cropped) {
+    private void generateAnim(RedshiftArea redshift, Animate animate, Object cropped) {
         var anim = (FileOutput) animate.createAnimation(List.of(cropped, 25));
         imageEmitter.newGenericFile(
             GeneratedImageKind.REDSHIFT,
-            String.format("Redshift %.2f km/s", redshift.kmPerSec()),
-            "redshift-" + id,
+            String.format("Panel %s (%.2f km/s)", redshift.id(), redshift.kmPerSec()),
+            "redshift-" + redshift.id(),
             anim.file());
     }
 
-    private void generatePanel(int id, RedshiftArea redshift, List<ImageWrapper> cropped, int snapWidth, Crop crop, int snapHeight, boolean useFullRangePanels) {
+    private void generatePanel(RedshiftArea redshift, List<ImageWrapper> cropped, int boxSize, Crop crop, boolean useFullRangePanels) {
         var snapshots = cropped;
-        if (snapWidth <= 128) {
+        if (boxSize <= 128) {
             // this is a bit small to display the text, so we're going to scale by a factor of 2
             var scaling = new Scaling(Map.of(), broadcaster, crop);
             snapshots = (List<ImageWrapper>) scaling.relativeRescale(List.of(snapshots, 2, 2));
-            snapWidth *= 2;
-            snapHeight *= 2;
+            boxSize *= 2;
         }
         // snaphots are at pixel shifts n, n+0.25, n+0.5, n+0.75
         // but for a panel we don't need such a resolution, we're only going to
@@ -218,17 +203,17 @@ public class RedshiftImagesProcessor {
         }
         int cols = (int) Math.ceil(Math.sqrt(snapshotsToDisplay.size()));
         int rows = (int) Math.ceil((double) snapshotsToDisplay.size() / cols);
-        int panelWidth = cols * snapWidth;
-        int panelHeight = rows * snapHeight;
+        int panelWidth = cols * boxSize;
+        int panelHeight = rows * boxSize;
         var lambda0 = params.spectrumParams().ray().wavelength();
         var instrument = params.observationDetails().instrument();
-        var dispersion = SpectrumAnalyzer.computeSpectralDispersion(instrument, lambda0, params.observationDetails().pixelSize() * params.observationDetails().binning());
-        int finalSnapHeight = snapHeight;
-        int finalSnapWidth = snapWidth;
+        var dispersion = SpectrumAnalyzer.computeSpectralDispersionNanosPerPixel(instrument, lambda0, params.observationDetails().pixelSize() * params.observationDetails().binning());
+        int finalSnapHeight = boxSize;
+        int finalSnapWidth = boxSize;
         imageEmitter.newColorImage(
             GeneratedImageKind.REDSHIFT,
-            String.format("Panel %.2f km/s", redshift.kmPerSec()),
-            "redshift-" + id,
+            String.format("Panel %s (%.2f km/s)", redshift.id(), redshift.kmPerSec()),
+            "redshift-" + redshift.id(),
             panelWidth,
             panelHeight,
             Map.of(),

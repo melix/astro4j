@@ -163,7 +163,7 @@ public class Rotate extends AbstractFunctionImpl {
                     var y2p = (int) (sy + Math.round((x2 - cx) * sinAlpha + (y2 - cy) * cosAlpha));
                     var maxXP = (int) (sx + Math.round((maxX - cx) * cosAlpha - (maxY - cy) * sinAlpha));
                     var maxYP = (int) (sy + Math.round((maxX - cx) * sinAlpha + (maxY - cy) * cosAlpha));
-                    return new RedshiftArea(rs.pixelShift(), rs.relPixelShift(), rs.kmPerSec(), x1p, y1p, x2p, y2p, maxXP, maxYP);
+                    return new RedshiftArea(rs.id(), rs.pixelShift(), rs.relPixelShift(), rs.kmPerSec(), x1p, y1p, x2p, y2p, maxXP, maxYP);
                 })
                 .toList();
             metadata.put(Redshifts.class, new Redshifts(rotated));

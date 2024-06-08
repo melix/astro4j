@@ -113,6 +113,14 @@ public class MagnitudeBasedSunEdgeDetector implements SunEdgeDetector {
         }
     }
 
+    public Integer getLeftEdge() {
+        return startEdge;
+    }
+
+    public Integer getRightEdge() {
+        return endEdge;
+    }
+
     @Override
     public Optional<ChannelStats[]> getFrameStats() {
         return Optional.empty();

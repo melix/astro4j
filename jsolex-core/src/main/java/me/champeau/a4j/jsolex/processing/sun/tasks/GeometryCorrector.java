@@ -153,7 +153,7 @@ public class GeometryCorrector extends AbstractTask<GeometryCorrector.Result> {
                     var y2 = r.y2();
                     var maxX = r.maxX() + shift - r.maxY() * shear;
                     var maxY = r.maxY();
-                    return new RedshiftArea(r.pixelShift(), r.relPixelShift(), r.kmPerSec(), (int) (x1 * sx), (int) (y1 * finalSy), (int) (x2 *sx), (int) (y2 * finalSy), (int) (maxX * sx), (int) (maxY * finalSy));
+                    return new RedshiftArea(r.id(), r.pixelShift(), r.relPixelShift(), r.kmPerSec(), (int) (x1 * sx), (int) (y1 * finalSy), (int) (x2 *sx), (int) (y2 * finalSy), (int) (maxX * sx), (int) (maxY * finalSy));
                 })
                 .toList());
             metadata.put(Redshifts.class, redshifts);

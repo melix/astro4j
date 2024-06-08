@@ -22,26 +22,16 @@ import me.champeau.a4j.jsolex.processing.util.RGBImage;
 public final class ContrastAdjustmentStrategy implements StretchingStrategy {
     public static final ContrastAdjustmentStrategy DEFAULT = new ContrastAdjustmentStrategy(0, .95f*Constants.MAX_PIXEL_VALUE);
 
-    private final boolean normalize;
     private final float min;
     private final float max;
 
     public ContrastAdjustmentStrategy(float min, float max) {
-        this(min, max, false);
-    }
-
-    private ContrastAdjustmentStrategy(float min, float max, boolean normalize) {
         this.min = min;
         this.max = max;
-        this.normalize = normalize;
     }
 
     public ContrastAdjustmentStrategy withRange(float min, float max) {
-        return new ContrastAdjustmentStrategy(min, max, normalize);
-    }
-
-    public ContrastAdjustmentStrategy withNormalize(boolean normalize) {
-        return new ContrastAdjustmentStrategy(min, max, normalize);
+        return new ContrastAdjustmentStrategy(min, max);
     }
 
     public float getMin() {
@@ -56,9 +46,6 @@ public final class ContrastAdjustmentStrategy implements StretchingStrategy {
     public void stretch(ImageWrapper32 image) {
         var data = image.data();
         truncate(data);
-        if (normalize) {
-            LinearStrechingStrategy.DEFAULT.stretch(image);
-        }
     }
 
     private void truncate(float[] data) {
@@ -76,8 +63,5 @@ public final class ContrastAdjustmentStrategy implements StretchingStrategy {
        truncate(image.r());
        truncate(image.g());
        truncate(image.b());
-        if (normalize) {
-            LinearStrechingStrategy.DEFAULT.stretch(image);
-        }
     }
 }

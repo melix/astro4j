@@ -15,10 +15,13 @@
  */
 package me.champeau.a4j.jsolex.processing.sun.workflow;
 
+import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 
+import java.awt.Graphics2D;
 import java.nio.file.Path;
 import java.util.Map;
+import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
@@ -51,6 +54,11 @@ public class RenamingImageEmitter implements ImageEmitter {
     @Override
     public void newColorImage(GeneratedImageKind kind, String title, String name, ImageWrapper32 image, Function<ImageWrapper32, float[][]> rgbSupplier) {
         delegate.newColorImage(kind, titleRenamer.apply(title), fileRenamer.apply(name), image, rgbSupplier);
+    }
+
+    @Override
+    public void newColorImage(GeneratedImageKind kind, String title, String name, ImageWrapper32 image, Function<ImageWrapper32, float[][]> rgbSupplier, BiConsumer<Graphics2D, ? super ImageWrapper> painter) {
+        delegate.newColorImage(kind, titleRenamer.apply(title), fileRenamer.apply(name), image, rgbSupplier, painter);
     }
 
     @Override

@@ -79,7 +79,7 @@ public class ImageViewer {
     private final Lock displayLock = new ReentrantLock();
     private Node root;
     private Stage stage;
-    private ContrastAdjustmentStrategy stretchingStrategy = ContrastAdjustmentStrategy.DEFAULT.withNormalize(true);
+    private ContrastAdjustmentStrategy stretchingStrategy = ContrastAdjustmentStrategy.DEFAULT;
     private ImageWrapper image;
     private ImageWrapper displayImage;
     private ImageWrapper stretchedImage;
@@ -212,9 +212,6 @@ public class ImageViewer {
 
     private void configureStretching() {
         this.stretchingStrategy = ContrastAdjustmentStrategy.DEFAULT;
-        if (kind != GeneratedImageKind.IMAGE_MATH) {
-            this.stretchingStrategy = this.stretchingStrategy.withNormalize(true);
-        }
         var line1 = new HBox(8);
         line1.setAlignment(Pos.CENTER_LEFT);
         var line2 = new HBox(8);

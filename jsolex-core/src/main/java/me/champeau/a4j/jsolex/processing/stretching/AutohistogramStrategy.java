@@ -99,7 +99,7 @@ public final class AutohistogramStrategy implements StretchingStrategy {
             stdev = Math.sqrt(stdev / area);
             var limit = 1.2 * (avg + 6 * stdev);
             if (limit < MAX_PIXEL_VALUE) {
-                new ContrastAdjustmentStrategy(0, (float) limit).withNormalize(true).stretch(disk);
+                new ContrastAdjustmentStrategy(0, (float) limit).stretch(disk);
             }
 
             var mask = createMask(height, width, e);

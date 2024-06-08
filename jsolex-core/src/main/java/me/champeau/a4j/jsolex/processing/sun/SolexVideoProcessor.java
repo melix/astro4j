@@ -36,6 +36,7 @@ import me.champeau.a4j.jsolex.processing.event.VideoMetadataEvent;
 import me.champeau.a4j.jsolex.processing.expr.DefaultImageScriptExecutor;
 import me.champeau.a4j.jsolex.processing.expr.ImageMathScriptExecutor;
 import me.champeau.a4j.jsolex.processing.expr.InvalidExpression;
+import me.champeau.a4j.jsolex.processing.expr.impl.ImageDraw;
 import me.champeau.a4j.jsolex.processing.file.FileNamingStrategy;
 import me.champeau.a4j.jsolex.processing.params.ImageMathParams;
 import me.champeau.a4j.jsolex.processing.params.ProcessParams;
@@ -68,6 +69,7 @@ import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 import me.champeau.a4j.jsolex.processing.util.MutableMap;
 import me.champeau.a4j.jsolex.processing.util.ProcessingException;
+import me.champeau.a4j.jsolex.processing.util.RGBImage;
 import me.champeau.a4j.jsolex.processing.util.SolarParameters;
 import me.champeau.a4j.jsolex.processing.util.SolarParametersUtils;
 import me.champeau.a4j.jsolex.processing.util.SpectralLineFrameImageCreator;
@@ -265,7 +267,7 @@ public class SolexVideoProcessor implements Broadcaster {
                 rightBorder = width;
             }
             var pixelSize = processParams.observationDetails().pixelSize();
-            if (processParams.spectrumParams().ray().equals(SpectralRay.AUTO) && pixelSize != null && pixelSize>0) {
+            if (processParams.spectrumParams().ray().equals(SpectralRay.AUTO) && pixelSize != null && pixelSize > 0) {
                 var instrument = processParams.observationDetails().instrument();
                 var candidates = new ArrayList<SpectrumAnalyzer.QueryDetails>();
                 for (var line : SpectralRay.predefined()) {
@@ -514,49 +516,61 @@ public class SolexVideoProcessor implements Broadcaster {
                                                           DoubleUnaryOperator polynomial,
                                                           FileNamingStrategy fileNamingStrategy,
                                                           String baseName) {
-        if (redshifts != null && !redshifts.isEmpty()) {
+        if (redshifts != null && !redshifts.isEmpty() && processParams.requestedImages().isEnabled(GeneratedImageKind.DEBUG)) {
             var analyzer = new SpectrumFrameAnalyzer(
                 width,
                 height,
                 null
             );
-            int i = 0;
-            for (var redshift : redshifts) {
+            var reversed = redshifts.reversed();
+            for (var redshift : reversed) {
                 var speed = redshift.kmPerSec();
-                if (processParams.requestedImages().isEnabled(GeneratedImageKind.DEBUG)) {
                     var buffer = converter.createBuffer(geometry);
-                    reader.seekFrame(redshift.maxX());
-                    converter.convert(redshift.maxX(), reader.currentFrame().data(), geometry, buffer);
+                var frameNb = redshift.maxX();
+                reader.seekFrame(frameNb);
+                    converter.convert(frameNb, reader.currentFrame().data(), geometry, buffer);
                     var creator = new SpectralLineFrameImageCreator(analyzer, buffer, width, height);
                     var image = creator.generateSpectrumImage(polynomial, rgb -> {
                         var offset = rgb.offset();
                         var w = rgb.width();
                         var h = rgb.height();
                         for (int x = redshift.y1(); x <= redshift.y2(); x++) {
+                            var correctedX = width - x - 1;
                             for (int y = 0; y < h; y++) {
-                                var pos = offset + y * w + (width - x - 1);
+                                var pos = offset + y * w + correctedX;
                                 rgb.r()[pos] = MAX_PIXEL_VALUE;
                                 rgb.g()[pos] = 0;
                                 rgb.b()[pos] = 0;
                             }
-                            var y = rgb.polynomial().applyAsDouble(x) + redshift.relPixelShift();
-                            var pos = (int) y * w + x;
+                            var y = ((int) Math.round(rgb.polynomial().applyAsDouble(correctedX))) + redshift.relPixelShift();
+                            var pos = y * w + correctedX;
+                            if (pos < 0 || pos >= rgb.r().length) {
+                                continue;
+                            }
                             rgb.r()[pos] = MAX_PIXEL_VALUE;
                             rgb.g()[pos] = 0;
                             rgb.b()[pos] = 0;
                         }
+                        var draw = new ImageDraw(Map.of(), Broadcaster.NO_OP);
+                        var copy = new RGBImage(w, 2*h, rgb.r(), rgb.g(), rgb.b(), Map.of());
+                        RGBImage color = (RGBImage) draw.drawOnImage(copy, (g, img) -> {
+                            g.setColor(java.awt.Color.GREEN);
+                            g.setFont(g.getFont().deriveFont(16f));
+                            g.drawString("Frame " + frameNb + " shift " + redshift.relPixelShift(), 16, img.height() - 16);
+                        });
+                        System.arraycopy(color.r(), 0, rgb.r(), 0, color.r().length);
+                        System.arraycopy(color.g(), 0, rgb.g(), 0, color.g().length);
+                        System.arraycopy(color.b(), 0, rgb.b(), 0, color.b().length);
                     });
-                    var targetFile = outputDirectory.resolve(fileNamingStrategy.render(sequenceNumber, Constants.TYPE_DEBUG, "redshift", baseName + "_" + i));
+                    var targetFile = outputDirectory.resolve(fileNamingStrategy.render(sequenceNumber, Constants.TYPE_DEBUG, "redshift", baseName + "_" + redshift.id()));
                     broadcast(new ImageGeneratedEvent(
                         new GeneratedImage(
                             GeneratedImageKind.DEBUG,
-                            "Redshift %d (%.2f km/s)".formatted(i, speed),
+                            "Redshift %s (%.2f km/s)".formatted(redshift.id(), speed),
                             targetFile,
                             image
                         )
                     ));
-                    i++;
-                }
                 LOGGER.info(message("found.speed"), String.format("%.2f km/s", speed), redshift.x1(), redshift.y1(), redshift.x2(), redshift.y2(), redshift.relPixelShift());
             }
         }
@@ -727,7 +741,7 @@ public class SolexVideoProcessor implements Broadcaster {
                                 y2 = height - y2 - 1;
                                 maxY = height - maxY - 1;
                             }
-                            return new RedshiftArea(pixelShift, relPixelShift, kmPerSec, x1, y1, x2, y2, maxX, maxY);
+                            return new RedshiftArea(area.id(), pixelShift, relPixelShift, kmPerSec, x1, y1, x2, y2, maxX, maxY);
                         }
                     ).toList();
                 redshifts = new Redshifts(rotatedRedshifts);
@@ -757,12 +771,12 @@ public class SolexVideoProcessor implements Broadcaster {
         var lambda0 = processParams.spectrumParams().ray().wavelength();
         var observationDetails = processParams.observationDetails();
         var instrument = observationDetails.instrument();
-        var dispersion = SpectrumAnalyzer.computeSpectralDispersion(
+        var dispersion = SpectrumAnalyzer.computeSpectralDispersionNanosPerPixel(
             instrument,
             lambda0,
             observationDetails.pixelSize() * observationDetails.binning()
         );
-        var phenomenaDetector = new PhenomenaDetector(dispersion, lambda0, width, totalLines);
+        var phenomenaDetector = new PhenomenaDetector(dispersion, lambda0, width);
         AtomicBoolean hasRedshifts = new AtomicBoolean();
         var latch = new CountDownLatch(end - start);
         try (var executor = Executors.newFixedThreadPool(16)) {
@@ -784,7 +798,7 @@ public class SolexVideoProcessor implements Broadcaster {
                             var buffer = reconstructedImages[idx];
                             processSingleFrame(state.isInternal(), width, height, buffer, offset, original, polynomial, state.pixelShift(), totalLines);
                             if (state.pixelShift() == 0 && processParams.spectrumParams().ray().label().equalsIgnoreCase(SpectralRay.H_ALPHA.label()) && processParams.requestedImages().isEnabled(GeneratedImageKind.REDSHIFT)) {
-                                phenomenaDetector.performDetection(frameId, width, height, original, polynomial, dispersion);
+                                phenomenaDetector.performDetection(frameId, width, height, original, polynomial);
                                 hasRedshifts.set(true);
                             }
                         });

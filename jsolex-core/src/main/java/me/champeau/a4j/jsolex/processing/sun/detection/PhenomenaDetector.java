@@ -16,6 +16,7 @@
 package me.champeau.a4j.jsolex.processing.sun.detection;
 
 import me.champeau.a4j.jsolex.processing.sun.SpectrumFrameAnalyzer;
+import me.champeau.a4j.math.tuples.DoublePair;
 import me.champeau.a4j.math.tuples.IntPair;
 
 import java.util.ArrayList;
@@ -25,7 +26,9 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.Consumer;
 import java.util.function.DoubleUnaryOperator;
+import java.util.stream.Stream;
 
 public class PhenomenaDetector {
     private static final double SPEED_OF_LIGHT = 299792.458d;
@@ -33,14 +36,17 @@ public class PhenomenaDetector {
 
     private final double dispersion;
     private final double lambda0;
-    private final int reconstructedHeight;
     private final int reconstructedWidth;
+    private Consumer<DoublePair> detectionListener;
 
-    public PhenomenaDetector(double dispersion, double lambda0, int reconstructedWidth, int reconstructedHeight) {
+    public PhenomenaDetector(double dispersion, double lambda0, int reconstructedWidth) {
         this.dispersion = dispersion;
         this.lambda0 = lambda0;
         this.reconstructedWidth = reconstructedWidth;
-        this.reconstructedHeight = reconstructedHeight;
+    }
+
+    public void setDetectionListener(Consumer<DoublePair> detectionListener) {
+        this.detectionListener = detectionListener;
     }
 
     public double speedOf(int shift) {
@@ -55,7 +61,7 @@ public class PhenomenaDetector {
         return redshiftsPerFrame;
     }
 
-    public void performDetection(int frameId, int width, int height, float[] original, DoubleUnaryOperator polynomial, double dispersion) {
+    public void performDetection(int frameId, int width, int height, float[] original, DoubleUnaryOperator polynomial) {
         // Ellerman bomb detection consists in looking for a sharp increase in intensity
         // around the h-alpha line. The center of the h-alpha line is untouched, but around
         // the wings, a sharp increase in intensity is expected, but it will not cover the
@@ -67,54 +73,49 @@ public class PhenomenaDetector {
         int wingShiftInPixels = (int) Math.floor(0.5d / (10d * dispersion));
         var leftBorder = bordersAnalysis.leftSunBorder();
         var rightBorder = bordersAnalysis.rightSunBorder();
+        var avgOfColumnAverages = 0d;
         if (leftBorder.isPresent() && rightBorder.isPresent()) {
             int leftLimit = leftBorder.get();
             int rightLimit = rightBorder.get();
-            var avgColumnValue = 0d;
+            var range = rightLimit - leftLimit;
+            leftLimit += (int) (range / 40d);
+            rightLimit -= (int) (range / 40d);
+            var avgCenterLine = 0d;
+            var avgCenterCount = 0;
+            var avgWings = 0d;
+            var avgWingsCount = 0;
+            var columnsAverages = new double[width];
             for (int x = leftLimit; x < rightLimit; x++) {
-                avgColumnValue += columnAverage(x, width, height, original);
+                var columnAvg = columnAverage(x, width, height, original);
+                columnsAverages[x] = columnAvg;
+                avgOfColumnAverages += columnAvg;
+                var y = (int) Math.round(polynomial.applyAsDouble(x));
+                double v = original[x + y * width];
+                avgCenterLine += v;
+                avgCenterCount++;
+                if (y - wingShiftInPixels >= 0) {
+                    v = original[x + (y - wingShiftInPixels) * width];
+                    avgWings += v;
+                    avgWingsCount++;
+                }
+                if (y + wingShiftInPixels < height) {
+                    v = original[x + (y + wingShiftInPixels) * width];
+                    avgWings += v;
+                    avgWingsCount++;
+                }
             }
-            avgColumnValue /= (rightLimit - leftLimit);
+            avgOfColumnAverages /= range;
+            avgCenterLine /= avgCenterCount;
+            avgWings /= avgWingsCount;
             var stddev = stddev(original, width, height, leftLimit, rightLimit);
             // perform per column analysis
             var collector = new ArrayList<Redshift>();
             for (int x = leftLimit; x < rightLimit; x++) {
-                analyzeColumn(frameId, x, width, height, original, polynomial, wingShiftInPixels, collector, avgColumnValue, stddev);
+                analyzeColumn(frameId, x, width, height, original, polynomial, wingShiftInPixels, collector, avgCenterLine, avgWings, stddev, avgOfColumnAverages, columnsAverages);
             }
+
             if (!collector.isEmpty()) {
-                // We're only going to keep results for which there are at least 3 consecutive pixels
-                // in order to reduce the noise. The one we'll keep is the one with the highest redshift.
-                var consecutive = new ArrayList<Redshift>();
-                var result = new ArrayList<Redshift>();
-                var previous = collector.getFirst();
-                consecutive.add(previous);
-                collector.sort(Comparator.comparingInt(r -> r.position().b()));
-                for (int i = 1; i < collector.size(); i++) {
-                    var current = collector.get(i);
-                    if (current.position().b() == previous.position().b() + 1) {
-                        consecutive.add(current);
-                    } else {
-                        if (consecutive.size() >= 3) {
-                            consecutive.sort(Comparator.comparingInt(Redshift::pixelShift).reversed());
-                            var first = consecutive.getFirst();
-                            result.add(new Redshift(first.pixelShift(), first.relMaxShift(), speedOf(first.pixelShift()), new IntPair(first.position().a() + 1, first.position().b())));
-                        }
-                        consecutive.clear();
-                        consecutive.add(current);
-                    }
-                    previous = current;
-                }
-
-                // Final check for the last consecutive sequence
-                if (consecutive.size() >= 3) {
-                    consecutive.sort(Comparator.comparingInt(Redshift::pixelShift).reversed());
-                    var first = consecutive.getFirst();
-                    result.add(new Redshift(first.pixelShift(), first.relMaxShift(), speedOf(first.pixelShift()), new IntPair(first.position().a() + 1, first.position().b())));
-                }
-
-                if (!result.isEmpty()) {
-                    redshiftsPerFrame.put(frameId, Collections.unmodifiableList(result));
-                }
+                redshiftsPerFrame.put(frameId, Collections.unmodifiableList(collector));
             }
 
         }
@@ -153,7 +154,19 @@ public class PhenomenaDetector {
         return tmp / height;
     }
 
-    private void analyzeColumn(int frameId, int x, int width, int height, float[] original, DoubleUnaryOperator polynomial, int wingShiftInPixels, List<Redshift> collector, double avgColumnValue, double stddev) {
+    private void analyzeColumn(int frameId,
+                               int x,
+                               int width,
+                               int height,
+                               float[] original,
+                               DoubleUnaryOperator polynomial,
+                               int wingShiftInPixels,
+                               List<Redshift> collector,
+                               double avgLineValue,
+                               double avgWingValue,
+                               double stddev,
+                               double avgOfcolumnAverages,
+                               double[] columnsAverages) {
         // The polynomial is used to find the original pixel position which is in the middle of the h-alpha line
         double yd = polynomial.applyAsDouble(x);
         int yi = (int) yd;
@@ -161,38 +174,80 @@ public class PhenomenaDetector {
             return;
         }
         var colStdDev = stddev(original, width, height, x, x + 1);
-        if (colStdDev < 0.8 * stddev) {
-            // reduce risks of detecting sunspots
+        var columnAverage = columnsAverages[x];
+        if (columnAverage < 0.9 * avgOfcolumnAverages) {
             return;
         }
-
-        int start = yi - wingShiftInPixels;
-        int end = yi + wingShiftInPixels;
-
-        var middle = original[x + width * yi];
+        var middleValue = original[x + width * yi];
+        if (middleValue > 1.5 * avgLineValue) {
+            // reduce risks of detecting flares
+            return;
+        }
+        var colMax = 0d;
+        for (int y = 0; y < height; y++) {
+            var v = original[x + width * y];
+            if (v > colMax) {
+                colMax = v;
+            }
+        }
 
         // now we're going to compute the maximum redshift
         int maxShift = 0;
         int relMaxShift = 0;
-        int y = end;
-        while (y < height && original[x + width * y] <= 1.2 * colStdDev + middle) {
-            if (y - yi > maxShift) {
-                maxShift = y - yi;
+        int y = yi + wingShiftInPixels + 1;
+        double prev = -1;
+        int minY = 0;
+        int maxY = 0;
+        while (y < height) {
+            var v = original[x + width * y];
+            var shift = y - yi;
+            var threshold = avgLineValue + 2 * colStdDev;
+            if (v >= threshold || (prev > 0 && v > 1.2 * prev)) {
+                break;
+            }
+            if (shift > maxShift) {
+                maxShift = shift;
                 relMaxShift = maxShift;
             }
+            prev = v;
             y++;
+            maxY = y;
         }
-        y = start;
-        while (y >= 0 && original[x + width * y] <= 1.2 * colStdDev + middle) {
-            if (yi - y > maxShift) {
-                maxShift = yi - y;
-                relMaxShift = -maxShift;
+        y = yi - wingShiftInPixels - 1;
+        prev = -1;
+        int maxShiftDown = 0;
+        int relMaxShiftDown = 0;
+        while (y >= 0) {
+            var v = original[x + width * y];
+            var shift = yi - y;
+            var threshold = avgLineValue + 2 * colStdDev;
+            if (v >= threshold || (prev > 0 && v > 1.2 * prev)) {
+                break;
             }
+            if (shift > maxShiftDown) {
+                maxShiftDown = shift;
+                relMaxShiftDown = -shift;
+            }
+            prev = v;
             y--;
+            minY = y;
+        }
+        if (maxShiftDown > maxShift) {
+            maxShift = maxShiftDown;
+            relMaxShift = relMaxShiftDown;
+        }
+        if (maxY == height) {
+            return;
+        }
+        if (minY == 0) {
+            return;
         }
         if (maxShift >= 2 * wingShiftInPixels) {
             // the coordinates in the final image are reversed (x <-> y) because of a 90° rotation
             // and flipped vertically
+            if (detectionListener != null) {
+                detectionListener.accept(new DoublePair(x, relMaxShift));
+            }
             var redshift = new Redshift(maxShift, relMaxShift, speedOf(maxShift), new IntPair(frameId, reconstructedWidth - x - 1));
             collector.add(redshift);
         }
@@ -200,11 +255,32 @@ public class PhenomenaDetector {
     }
 
     public List<RedshiftArea> getMaxRedshiftAreas(int limit) {
-        return computeAreas()
+        var anonynous = computeAreas()
             .stream()
-            .sorted(Comparator.comparingInt(RedshiftArea::pixelShift).reversed())
-            .limit(limit)
+            .sorted(
+                Comparator.comparingInt(RedshiftArea::pixelShift).reversed().thenComparing(
+                    Comparator.comparingInt(RedshiftArea::area)
+                )
+            ).limit(limit)
             .toList();
+        var withId = new ArrayList<RedshiftArea>(limit);
+        // provide an id to areas, starting from A to Z. If there's more than 26 areas, we'll use a numbered suffix, e.g A2
+        char letter = 'A';
+        int i = 0;
+        int j = 0;
+        for (var area : anonynous) {
+            if (i == 26) {
+                letter = 'A';
+                j++;
+                i = 0;
+            }
+            var id = j == 0 ? String.valueOf(letter) : letter + String.valueOf(j);
+            var areaWithId = new RedshiftArea(id, area.pixelShift(), area.relPixelShift(), area.kmPerSec(), area.x1(), area.y1(), area.x2(), area.y2(), area.maxX(), area.maxY());
+            withId.add(areaWithId);
+            i++;
+            letter++;
+        }
+        return withId;
     }
 
     /**
@@ -215,23 +291,19 @@ public class PhenomenaDetector {
      * @param distance the distance
      * @return true if the areas are less than distance apart
      */
-    private static boolean withinRange(RedshiftArea area1, RedshiftArea area2, int distance) {
+    private static boolean withinRange(Cluster area1, Cluster area2, int distance) {
         int dx = Math.max(0, Math.max(area1.x1() - area2.x2(), area2.x1() - area1.x2()));
         int dy = Math.max(0, Math.max(area1.y1() - area2.y2(), area2.y1() - area1.y2()));
         double actualDistance = Math.sqrt(dx * dx + dy * dy);
         return actualDistance < distance;
     }
 
-    private RedshiftArea mergeAreas(RedshiftArea a1, RedshiftArea a2) {
+    private Cluster mergeAreas(Cluster a1, Cluster a2) {
         int newX1 = Math.min(a1.x1(), a2.x1());
         int newY1 = Math.min(a1.y1(), a2.y1());
         int newX2 = Math.max(a1.x2(), a2.x2());
         int newY2 = Math.max(a1.y2(), a2.y2());
-        var max = Math.max(a1.pixelShift(), a2.pixelShift());
-        var relMax = a1.pixelShift() > a2.pixelShift() ? a1.relPixelShift() : a2.relPixelShift();
-        int maxX = a1.pixelShift() > a2.pixelShift() ? a1.maxX() : a2.maxX();
-        int maxY = a1.pixelShift() > a2.pixelShift() ? a1.maxY() : a2.maxY();
-        return new RedshiftArea(max, relMax, speedOf(max), newX1, newY1, newX2, newY2, maxX, maxY);
+        return new Cluster(newX1, newY1, newX2, newY2, a1.pixelShift(), Stream.of(a1.areas, a2.areas).flatMap(List::stream).toList());
     }
 
     private List<RedshiftArea> computeAreas() {
@@ -242,9 +314,9 @@ public class PhenomenaDetector {
             .map(Redshift::toArea)
             .toList();
         var deleted = new BitSet(allRedshifts.size());
-        var result = new ArrayList<RedshiftArea>();
+        var clusters = new ArrayList<Cluster>();
         for (int i = 0; i < allRedshifts.size(); i++) {
-            var current = allRedshifts.get(i);
+            var current = new Cluster(allRedshifts.get(i));
             if (deleted.get(i)) {
                 continue;
             }
@@ -252,16 +324,41 @@ public class PhenomenaDetector {
                 if (deleted.get(j)) {
                     continue;
                 }
-                var next = allRedshifts.get(j);
-                if (withinRange(next, current, 64)) {
+                var next = new Cluster(allRedshifts.get(j));
+                if (withinRange(next, current, 32)) {
                     deleted.set(j);
                     if (next.pixelShift() == current.pixelShift()) {
-                        var merged = mergeAreas(current, next);
-                        current = merged;
+                        current = mergeAreas(current, next);
+                    } else if (next.pixelShift() > current.pixelShift()) {
+                        current = next;
                     }
                 }
             }
-            result.add(current);
+            clusters.add(current);
+        }
+        // compute result by reducing clusters, the maxX/maxY positions are going to be the average of all areas centers
+        var result = new ArrayList<RedshiftArea>(clusters.size());
+        for (var cluster : clusters) {
+            var areas = cluster.areas();
+            var x1 = cluster.x1();
+            var y1 = cluster.y1();
+            var x2 = cluster.x2();
+            var y2 = cluster.y2();
+            var maxX = 0;
+            var maxY = 0;
+            for (var area : areas) {
+                x1 = Math.min(x1, area.x1());
+                y1 = Math.min(y1, area.y1());
+                x2 = Math.max(x2, area.x2());
+                y2 = Math.max(y2, area.y2());
+                maxX += area.maxX();
+                maxY += area.maxY();
+            }
+            maxX /= areas.size();
+            maxY /= areas.size();
+            var first = cluster.areas().getFirst();
+            var redshiftArea = new RedshiftArea(null, cluster.pixelShift(), first.relPixelShift(), first.kmPerSec(), x1, y1, x2, y2, maxX, maxY);
+            result.add(redshiftArea);
         }
         return result;
     }
@@ -269,5 +366,12 @@ public class PhenomenaDetector {
 
     public boolean isEmpty() {
         return redshiftsPerFrame.isEmpty();
+    }
+
+    private record Cluster(int x1, int y1, int x2, int y2, int pixelShift, List<RedshiftArea> areas) {
+
+        public Cluster(RedshiftArea redshiftArea) {
+            this(redshiftArea.x1(), redshiftArea.y1(), redshiftArea.x2(), redshiftArea.y2(), redshiftArea.pixelShift(), List.of(redshiftArea));
+        }
     }
 }

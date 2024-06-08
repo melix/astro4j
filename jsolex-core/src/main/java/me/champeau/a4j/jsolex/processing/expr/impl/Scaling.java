@@ -188,7 +188,7 @@ public class Scaling extends AbstractFunctionImpl {
             double sx = image.width() / width;
             double sy = image.height() / height;
             metadata.put(Redshifts.class, new Redshifts(redshifts.redshifts().stream()
-                .map(rs -> new RedshiftArea(rs.pixelShift(), rs.relPixelShift(), rs.kmPerSec(), (int) (rs.x1() / sx), (int) (rs.y1() / sy), (int) (rs.x2() / sx), (int) (rs.y2() / sy), (int) (rs.maxX() / sx), (int) (rs.maxY() / sy)))
+                .map(rs -> new RedshiftArea(rs.id(), rs.pixelShift(), rs.relPixelShift(), rs.kmPerSec(), (int) (rs.x1() / sx), (int) (rs.y1() / sy), (int) (rs.x2() / sx), (int) (rs.y2() / sy), (int) (rs.maxX() / sx), (int) (rs.maxY() / sy)))
                 .toList()));
         });
         return metadata;
