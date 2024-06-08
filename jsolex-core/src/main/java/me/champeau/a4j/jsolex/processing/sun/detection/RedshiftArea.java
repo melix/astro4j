@@ -16,6 +16,7 @@
 package me.champeau.a4j.jsolex.processing.sun.detection;
 
 public record RedshiftArea(
+    String id,
     int pixelShift,
     int relPixelShift,
     double kmPerSec,
@@ -49,5 +50,9 @@ public record RedshiftArea(
 
     public double size() {
         return Math.max(width(), height());
+    }
+
+    public int area() {
+        return width() * height();
     }
 }

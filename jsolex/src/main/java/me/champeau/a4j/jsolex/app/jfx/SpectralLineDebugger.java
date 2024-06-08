@@ -27,6 +27,7 @@ import javafx.scene.control.ProgressBar;
 import javafx.scene.control.RadioButton;
 import javafx.scene.control.Slider;
 import javafx.scene.control.TextField;
+import javafx.scene.control.TextFormatter;
 import javafx.scene.control.ToggleGroup;
 import javafx.scene.image.Image;
 import javafx.scene.layout.HBox;
@@ -35,13 +36,20 @@ import javafx.scene.paint.Color;
 import javafx.stage.Screen;
 import javafx.stage.Stage;
 import javafx.util.Duration;
+import javafx.util.converter.IntegerStringConverter;
 import me.champeau.a4j.jsolex.app.JSolEx;
 import me.champeau.a4j.jsolex.processing.event.ProgressEvent;
+import me.champeau.a4j.jsolex.processing.params.ProcessParams;
+import me.champeau.a4j.jsolex.processing.params.ProcessParamsIO;
+import me.champeau.a4j.jsolex.processing.params.SpectralRay;
+import me.champeau.a4j.jsolex.processing.spectrum.SpectrumAnalyzer;
 import me.champeau.a4j.jsolex.processing.stretching.ArcsinhStretchingStrategy;
 import me.champeau.a4j.jsolex.processing.sun.ImageUtils;
 import me.champeau.a4j.jsolex.processing.sun.MagnitudeBasedSunEdgeDetector;
 import me.champeau.a4j.jsolex.processing.sun.SpectrumFrameAnalyzer;
+import me.champeau.a4j.jsolex.processing.sun.detection.PhenomenaDetector;
 import me.champeau.a4j.jsolex.processing.util.BackgroundOperations;
+import me.champeau.a4j.jsolex.processing.util.Constants;
 import me.champeau.a4j.jsolex.processing.util.ImageFormat;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 import me.champeau.a4j.jsolex.processing.util.MutableMap;
@@ -58,8 +66,10 @@ import java.util.ArrayList;
 import java.util.EnumSet;
 import java.util.List;
 import java.util.Locale;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.function.DoubleUnaryOperator;
+import java.util.stream.Collectors;
 
 import static me.champeau.a4j.jsolex.processing.sun.ImageUtils.createImageConverter;
 
@@ -73,7 +83,7 @@ public class SpectralLineDebugger {
     private Slider frameSlider;
 
     @FXML
-    private Label frameId;
+    private TextField frameId;
 
     @FXML
     private TextField sunDetectionThreshold;
@@ -114,6 +124,8 @@ public class SpectralLineDebugger {
     private DoubleUnaryOperator polynomial;
     private DoubleUnaryOperator lockedPolynomial;
     private SerFileReader reader;
+    private SpectrumAnalyzer.QueryDetails spectralRayDetectionResult;
+    private ProcessParams processParams;
 
     public void open(File file, ColorMode colorMode, Scene scene, Stage stage) {
         var toggleGroup = new ToggleGroup();
@@ -191,21 +203,41 @@ public class SpectralLineDebugger {
                         redraw();
                     }
                 });
-                sunDetectionThreshold.textProperty().set("");
-                frameSlider.setMin(0);
-                frameSlider.setMax(header.frameCount());
-                frameSlider.setValue(current);
-                frameId.textProperty().bind(frameSlider.valueProperty().asString("Frame %.0f"));
                 var pause = new PauseTransition(Duration.millis(50));
                 ChangeListener listener = (observable, oldValue, newValue) -> {
-                    int frameId = frameSlider.valueProperty().intValue();
+                    int newId = newValue instanceof Number ? ((Number) newValue).intValue() : frameSlider.valueProperty().intValue();
+                    frameId.setText(newId + "");
                     pause.setOnFinished(e ->
-                            processFrame(converter, reader, geometry, frameId, imageFile, null, scene)
+                        processFrame(converter, reader, geometry, newId, imageFile, null, scene)
                     );
                     pause.playFromStart();
                 };
                 frameSlider.valueProperty().addListener(listener);
+                frameId.textProperty().addListener((observable, oldValue, newValue) -> {
+                    if (!newValue.trim().isEmpty() && !Objects.equals(oldValue, newValue)) {
+                        frameSlider.setValue(Integer.parseInt(newValue));
+                    }
+                });
+                frameId.setTextFormatter(new TextFormatter<>(new IntegerStringConverter() {
+                    @Override
+                    public Integer fromString(String value) {
+                        var id = super.fromString(value);
+                        if (id != null) {
+                            if (id < 0) {
+                                return 0;
+                            }
+                            if (id > header.frameCount()) {
+                                return header.frameCount();
+                            }
+                        }
+                        return id;
+                    }
+                }));
                 contrastBoost.valueProperty().addListener(listener);
+                sunDetectionThreshold.textProperty().set("");
+                frameSlider.setMin(0);
+                frameSlider.setMax(header.frameCount());
+                frameSlider.setValue(current);
                 sunDetectionThreshold.textProperty().addListener((observable, oldValue, newValue) -> {
                     if (!newValue.trim().isEmpty()) {
                         processFrame(converter, reader, geometry, frameSlider.valueProperty().intValue(), imageFile, toggleGroup.getSelectedToggle() == average ? averageImage : null, scene);
@@ -215,9 +247,10 @@ public class SpectralLineDebugger {
                     processFrame(converter, reader, geometry, current, imageFile, newValue == average ? averageImage : null, scene);
                 });
                 toggleGroup.selectToggle(average);
+                lockPolynomialCheckbox.setSelected(true);
             });
         } catch (
-                Exception e) {
+            Exception e) {
             throw new RuntimeException(e);
         }
     }
@@ -265,12 +298,32 @@ public class SpectralLineDebugger {
         int height = geometry.height();
         Double sunThreshold = sunDetectionThreshold.textProperty().getValue().isEmpty() ? null : Double.parseDouble(sunDetectionThreshold.textProperty().getValue());
         var analyzer = new SpectrumFrameAnalyzer(
-                width,
-                height,
-                sunThreshold
+            width,
+            height,
+            sunThreshold
         );
         analyzer.analyze(buffer);
-        analyzer.findDistortionPolynomial().ifPresent(p -> this.polynomial = p);
+        processParams = ProcessParamsIO.loadDefaults();
+        var instrument = processParams.observationDetails().instrument();
+        analyzer.findDistortionPolynomial().ifPresent(p -> {
+            this.polynomial = p;
+            if (spectralRayDetectionResult == null) {
+                var pixelSize = processParams.observationDetails().pixelSize();
+                var candidates = new ArrayList<SpectrumAnalyzer.QueryDetails>();
+                for (var line : SpectralRay.predefined()) {
+                    if (line.wavelength() > 0 && !line.emission()) {
+                        candidates.add(new SpectrumAnalyzer.QueryDetails(line, pixelSize, 1, instrument));
+                        candidates.add(new SpectrumAnalyzer.QueryDetails(line, pixelSize, 2, instrument));
+                    }
+                }
+                int leftBorder = analyzer.leftSunBorder().orElse(0);
+                int rightBorder = analyzer.rightSunBorder().orElse(width);
+                var map = candidates
+                    .stream()
+                    .collect(Collectors.toMap(d -> d, details -> SpectrumAnalyzer.computeDataPoints(details, polynomial, leftBorder, rightBorder, width, height, buffer)));
+                spectralRayDetectionResult = SpectrumAnalyzer.findBestMatch(map);
+            }
+        });
         var detectedPolynomial = analyzer.findDistortionPolynomial().orElse(null);
         lockPolynomialCheckbox.selectedProperty().addListener((obj, oldValue, newValue) -> {
             if (Boolean.TRUE.equals(newValue) && detectedPolynomial != null) {
@@ -285,6 +338,20 @@ public class SpectralLineDebugger {
         }
         var creator = new SpectralLineFrameImageCreator(analyzer, buffer, width, height);
         var rgb = creator.generateDebugImage(lockedPolynomial);
+        if (spectralRayDetectionResult != null && spectralRayDetectionResult.line().equals(SpectralRay.H_ALPHA)) {
+            var line = spectralRayDetectionResult.line();
+            var dispersion = SpectrumAnalyzer.computeSpectralDispersionNanosPerPixel(instrument, line.wavelength(), spectralRayDetectionResult.pixelSize() * spectralRayDetectionResult.binning());
+            var detector = new PhenomenaDetector(dispersion, line.wavelength(), 0);
+            detector.setDetectionListener(rs -> {
+                var x = rs.a();
+                var y = ((int) Math.round(polynomial.applyAsDouble(x))) + rs.b();
+                var pos = (int) (y * width + x);
+                rgb.r()[pos] = 0;
+                rgb.g()[pos] = Constants.MAX_PIXEL_VALUE;
+                rgb.b()[pos] = Constants.MAX_PIXEL_VALUE;
+            });
+            detector.performDetection(frameId, width, height, buffer, polynomial);
+        }
         ImageUtils.writeRgbImage(rgb.width(), rgb.height(), rgb.r(), rgb.g(), rgb.b(), imageFile, EnumSet.of(ImageFormat.PNG));
         image = new Image(imageFile.toURI().toString());
         canvas.setWidth(image.getWidth());
@@ -298,7 +365,7 @@ public class SpectralLineDebugger {
             double dist = computeDistanceToSpectralLine(detectedPolynomial, x, y);
             if (evt.isControlDown()) {
                 sampleDistances.add(dist);
-                samplePoints.add(new Point2D(x,y));
+                samplePoints.add(new Point2D(x, y));
                 double avgDist = computeAverageDistanceToSpectralLineFromSamples();
                 info.setText(localized("average.distance.spectral.line") + " " + Math.round(avgDist));
                 redraw();
@@ -326,12 +393,12 @@ public class SpectralLineDebugger {
             info.setText(localized("distance.spectral.line") + " " + Math.round(dist));
             double avgDist = computeAverageDistanceToSpectralLineFromSamples();
             sb.append("(x=").append(format(x)).append(",y=")
-                    .append(format(y)).append(",")
-                    .append(localized("distance.spectral.line.short")).append("=")
-                    .append(format(dist))
-                    .append(",")
-                    .append(localized("distance.spectral.line.avg.short")).append("=")
-                    .append(format(avgDist)).append(")");
+                .append(format(y)).append(",")
+                .append(localized("distance.spectral.line.short")).append("=")
+                .append(format(dist))
+                .append(",")
+                .append(localized("distance.spectral.line.avg.short")).append("=")
+                .append(format(avgDist)).append(")");
             if (p1 != null) {
                 redraw();
                 var cur = p2 != null ? p2 : new Point2D(x, y);
@@ -347,8 +414,8 @@ public class SpectralLineDebugger {
 
     private double computeDistanceToSpectralLine(DoubleUnaryOperator detectedPolynomial, double x, double y) {
         var poly = Optional.ofNullable(lockedPolynomial)
-                .or(() -> Optional.ofNullable(detectedPolynomial))
-                .orElse(UNDEFINED_POLY);
+            .or(() -> Optional.ofNullable(detectedPolynomial))
+            .orElse(UNDEFINED_POLY);
         var yy = poly.applyAsDouble(x);
         return y - yy;
     }

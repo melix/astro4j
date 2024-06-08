@@ -708,7 +708,7 @@ public class JSolEx extends Application implements JSolExInterface {
             var stage = newStage();
             Scene scene = new Scene((Parent) configWindow);
             controller.open(file, null, scene, stage);
-            stage.setTitle(I18N.string(getClass(), "frame-debugger", "frame.debugger"));
+            stage.setTitle(I18N.string(getClass(), "frame-debugger", "frame.debugger") + " (" + file.getName() + ")");
             stage.setScene(scene);
             stage.showAndWait();
         });

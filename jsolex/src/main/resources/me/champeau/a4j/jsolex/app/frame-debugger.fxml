@@ -36,7 +36,7 @@
                     <Button mnemonicParsing="false" onAction="#fastRewind" text="&lt;&lt;"/>
                     <Button mnemonicParsing="false" onAction="#rewind" text="&lt;"/>
                     <Slider fx:id="frameSlider" prefHeight="16.0" prefWidth="258.0"/>
-                    <Label fx:id="frameId"/>
+                    <Label text="Frame "/> <TextField fx:id="frameId" maxWidth="64"/>
                     <Button mnemonicParsing="false" onAction="#forward" text="&gt;"/>
                     <Button mnemonicParsing="false" onAction="#fastForward" text="&gt;&gt;"/>
                 </HBox>

@@ -418,8 +418,6 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
             serFile,
             outputDirectory,
             owner,
-            width,
-            height,
             this,
             imageEmitter,
             redshifts,
@@ -595,7 +593,7 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
             var canDrawReference = binning != null && pixelSize != null && lambda0 > 0 && pixelSize > 0 && binning > 0;
             registerSaveChartAction("profile", lineChart);
             series.setName(formatLegend(params.observationDetails().instrument(), lambda0, binning, pixelSize));
-            double dispersion = canDrawReference ? SpectrumAnalyzer.computeSpectralDispersion(params.observationDetails().instrument(), lambda0, pixelSize * binning) : 0;
+            double dispersion = canDrawReference ? SpectrumAnalyzer.computeSpectralDispersionNanosPerPixel(params.observationDetails().instrument(), lambda0, pixelSize * binning) : 0;
             double min = Double.MAX_VALUE;
             double max = -Double.MAX_VALUE;
             for (int x = start; x < end; x++) {
@@ -760,7 +758,7 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
             double lambda = lambda0;
             double pixSize = pixelSize;
             if (lambda > 0 && pixSize > 0) {
-                double disp = 10 * SpectrumAnalyzer.computeSpectralDispersion(instrument, lambda, pixelSize * binning);
+                double disp = 10 * SpectrumAnalyzer.computeSpectralDispersionNanosPerPixel(instrument, lambda, pixelSize * binning);
                 return String.format(message("intensity.legend"), pixelSize, binning, disp);
             }
         }

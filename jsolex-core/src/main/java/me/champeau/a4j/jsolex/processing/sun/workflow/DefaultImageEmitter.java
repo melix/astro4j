@@ -16,13 +16,17 @@
 package me.champeau.a4j.jsolex.processing.sun.workflow;
 
 import me.champeau.a4j.jsolex.processing.event.FileGeneratedEvent;
+import me.champeau.a4j.jsolex.processing.expr.impl.ImageDraw;
 import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
 import me.champeau.a4j.jsolex.processing.sun.tasks.WriteColorizedImageTask;
 import me.champeau.a4j.jsolex.processing.sun.tasks.WriteMonoImageTask;
 import me.champeau.a4j.jsolex.processing.sun.tasks.WriteRGBImageTask;
+import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 import me.champeau.a4j.jsolex.processing.util.ProcessingException;
+import me.champeau.a4j.jsolex.processing.util.RGBImage;
 
+import java.awt.Graphics2D;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -30,6 +34,7 @@ import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
@@ -102,6 +107,27 @@ public class DefaultImageEmitter implements ImageEmitter {
             name,
             kind,
             rgbSupplier).get();
+    }
+
+    @Override
+    public void newColorImage(GeneratedImageKind kind, String title, String name, ImageWrapper32 image, Function<ImageWrapper32, float[][]> rgbSupplier, BiConsumer<Graphics2D, ? super ImageWrapper> painter) {
+        newColorImage(kind, title, name, image, img -> {
+            var rgb = rgbSupplier.apply(img);
+            var r = rgb[0];
+            var g = rgb[1];
+            var b = rgb[2];
+            var copy = new RGBImage(
+                img.width(),
+                img.height(),
+                r,
+                g,
+                b,
+                new HashMap<>(image.metadata())
+            );
+            var draw = new ImageDraw(Map.of(), broadcaster);
+            RGBImage color = (RGBImage) draw.drawOnImage(copy, painter);
+            return new float[][]{color.r(), color.g(), color.b()};
+        });
     }
 
     @Override

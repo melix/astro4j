@@ -27,6 +27,6 @@ record Redshift(int pixelShift, int relMaxShift, double kmPerSec, IntPair positi
     }
 
     public RedshiftArea toArea() {
-        return new RedshiftArea(pixelShift, relMaxShift, kmPerSec, position.a(), position.b(), position.a(), position.b(), position.a(), position.b());
+        return new RedshiftArea(null, pixelShift, relMaxShift, kmPerSec, position.a(), position.b(), position.a(), position.b(), position.a(), position.b());
     }
 }

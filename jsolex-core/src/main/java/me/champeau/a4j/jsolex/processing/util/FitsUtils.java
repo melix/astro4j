@@ -234,6 +234,7 @@ public class FitsUtils {
                     var values = new ArrayList<RedshiftArea>();
                     for (int i = 0; i < cpt; i++) {
                         var redshift = new RedshiftArea(
+                            binaryTable.getSize() == 10 ? binaryTable.getString(i, 9) : null,
                             binaryTable.getNumber(i, 0).intValue(),
                             binaryTable.getNumber(i, 1).intValue(),
                             binaryTable.getNumber(i, 2).doubleValue(),
@@ -319,7 +320,8 @@ public class FitsUtils {
                 redshift.x2(),
                 redshift.y2(),
                 redshift.maxX(),
-                redshift.maxY()
+                redshift.maxY(),
+                redshift.id()
             }));
             var binaryTableHDU = BinaryTableHDU.wrap(table);
             binaryTableHDU.getHeader().addValue(JSOLEX_HEADER_KEY, REDSHIFTS_VALUE, "Measured redshifts");
@@ -451,7 +453,7 @@ public class FitsUtils {
             var pixelSize = obsParams.pixelSize();
             var binning = obsParams.binning();
             if (pixelShift.isPresent() && pixelSize != null && pixelSize>0 && binning != null && binning > 0) {
-                var dispersion = SpectrumAnalyzer.computeSpectralDispersion(obsParams.instrument(), wavelength, pixelSize * binning);
+                var dispersion = SpectrumAnalyzer.computeSpectralDispersionNanosPerPixel(obsParams.instrument(), wavelength, pixelSize * binning);
                 wavelength += pixelShift.get() * dispersion;
             }
             header.addValue("WAVELNTH", wavelength, "Wavelength (nm)");
