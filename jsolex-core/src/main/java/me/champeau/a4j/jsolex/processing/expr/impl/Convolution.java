@@ -53,7 +53,7 @@ public class Convolution extends AbstractFunctionImpl {
         }
         var arg = arguments.get(0);
         if (arg instanceof List<?>) {
-            return expandToImageList(functionName, arguments, this::sharpen);
+            return expandToImageList(functionName, arguments, a -> applyConvolution(List.of(a), kernel, functionName));
         }
         if (arg instanceof ImageWrapper image) {
             return convolve(image, kernel);
