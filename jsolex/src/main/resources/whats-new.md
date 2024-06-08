@@ -9,6 +9,8 @@ Here are the new features in this version:
 
 ## Changes since 2.4.0
 
+- Fixed detected speeds not being placed correctly on images/animations when tilt angle is not 0
+- Improved accuracy of speed detection
 - Added `SORT` and `VIDEO_DATETIME` ImageMath functions
 - Fixed background neutralization bug on some videos
 - Made "continuum shift" configurable
