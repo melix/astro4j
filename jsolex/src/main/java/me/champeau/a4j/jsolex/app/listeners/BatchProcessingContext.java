@@ -17,6 +17,7 @@ package me.champeau.a4j.jsolex.app.listeners;
 
 import me.champeau.a4j.jsolex.app.jfx.BatchItem;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
+import me.champeau.a4j.ser.Header;
 
 import java.io.File;
 import java.time.LocalDateTime;
@@ -26,12 +27,13 @@ import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 public record BatchProcessingContext(
-        List<BatchItem> items,
-        Set<Integer> progress,
-        Set<Integer> errors,
-        AtomicBoolean batchFinished,
-        File outputDirectory,
-        LocalDateTime processingDate,
-        Map<String, List<ImageWrapper>> imagesByLabel
+    List<BatchItem> items,
+    Set<Integer> progress,
+    Set<Integer> errors,
+    AtomicBoolean batchFinished,
+    File outputDirectory,
+    LocalDateTime processingDate,
+    Map<String, List<ImageWrapper>> imagesByLabel,
+    Header referenceHeader
 ) {
 }

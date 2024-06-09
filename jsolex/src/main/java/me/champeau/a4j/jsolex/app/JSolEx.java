@@ -1091,16 +1091,18 @@ public class JSolEx extends Application implements JSolExInterface {
     private void doOpenMany(List<File> selectedFiles) {
         imageMathPane.setDisable(true);
         configureThreadExceptionHandler();
-        File initial = selectedFiles.get(0);
-        config.updateLastOpenDirectory(initial.toPath().getParent());
-        Optional<ProcessParams> processParams;
-        Header header;
-        try (var reader = SerFileReader.of(initial)) {
-            var controller = createProcessParams(initial, reader, true);
-            processParams = controller.getProcessParams();
-            header = reader.header();
-        } catch (Exception e) {
-            throw ProcessingException.wrap(e);
+        Optional<ProcessParams> processParams = Optional.empty();
+        Header header = null;
+        for (var selectedFile : selectedFiles) {
+            try (var reader = SerFileReader.of(selectedFile)) {
+                var controller = createProcessParams(selectedFile, reader, true);
+                processParams = controller.getProcessParams();
+                header = reader.header();
+                config.updateLastOpenDirectory(selectedFile.toPath().getParent());
+                break;
+            } catch (Exception e) {
+                throw ProcessingException.wrap(e);
+            }
         }
         var firstHeader = header;
         processParams.ifPresent(params -> startBatchProcess(firstHeader, params, selectedFiles));
@@ -1158,7 +1160,7 @@ public class JSolEx extends Application implements JSolExInterface {
             if (!current.isEmpty()) {
                 groups.add(current);
             }
-            var batchContext = new BatchProcessingContext(batchItems, Collections.synchronizedSet(new HashSet<>()), Collections.synchronizedSet(new HashSet<>()), new AtomicBoolean(), selectedFiles.get(0).getParentFile(), LocalDateTime.now(), new HashMap<>());
+            var batchContext = new BatchProcessingContext(batchItems, Collections.synchronizedSet(new HashSet<>()), Collections.synchronizedSet(new HashSet<>()), new AtomicBoolean(), selectedFiles.get(0).getParentFile(), LocalDateTime.now(), new HashMap<>(), header);
             var semaphore = new Semaphore(Math.max(1, Runtime.getRuntime().availableProcessors() / 4));
             // We're using a separate task submission thread in order to not
             // block the processing ones

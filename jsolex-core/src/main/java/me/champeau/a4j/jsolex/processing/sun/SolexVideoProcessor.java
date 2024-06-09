@@ -102,6 +102,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executors;
+import java.util.concurrent.Semaphore;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
@@ -115,6 +116,8 @@ import static me.champeau.a4j.jsolex.processing.util.LoggingSupport.logError;
 
 public class SolexVideoProcessor implements Broadcaster {
     private static final Logger LOGGER = LoggerFactory.getLogger(SolexVideoProcessor.class);
+    public static final int MAX_PARALLEL_READS = 16;
+    public static final int MAX_INMEMORY_BUFFERS = 64;
 
     private final Set<ProcessingEventListener> progressEventListeners = new HashSet<>();
 
@@ -525,7 +528,7 @@ public class SolexVideoProcessor implements Broadcaster {
             var reversed = redshifts.reversed();
             for (var redshift : reversed) {
                 var speed = redshift.kmPerSec();
-                    var buffer = converter.createBuffer(geometry);
+                var buffer = converter.createBuffer(geometry);
                 var frameNb = redshift.maxX();
                 reader.seekFrame(frameNb);
                     converter.convert(frameNb, reader.currentFrame().data(), geometry, buffer);
@@ -779,9 +782,11 @@ public class SolexVideoProcessor implements Broadcaster {
         var phenomenaDetector = new PhenomenaDetector(dispersion, lambda0, width);
         AtomicBoolean hasRedshifts = new AtomicBoolean();
         var latch = new CountDownLatch(end - start);
-        try (var executor = Executors.newFixedThreadPool(16)) {
+        var semaphore = new Semaphore(MAX_INMEMORY_BUFFERS);
+        try (var executor = Executors.newFixedThreadPool(MAX_PARALLEL_READS)) {
             var reconstructedImages = new float[images.length][width * totalLines];
             for (int i = start, j = 0; i < end; i++, j += width) {
+                semaphore.acquire();
                 var currentFrame = reader.currentFrame().data().array();
                 byte[] copy = new byte[currentFrame.length];
                 System.arraycopy(currentFrame, 0, copy, 0, currentFrame.length);
@@ -803,6 +808,7 @@ public class SolexVideoProcessor implements Broadcaster {
                             }
                         });
                     } finally {
+                        semaphore.release();
                         latch.countDown();
                     }
                 });
