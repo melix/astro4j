@@ -124,8 +124,15 @@ public class BatchModeEventListener implements ProcessingEventListener, ImageMat
         if (correction != 0) {
             img = Corrector.rotate(img, correction, params.geometryParams().autocropMode() == AutocropMode.OFF);
         }
-        new ImageSaver(RangeExpansionStrategy.DEFAULT, params).save(img, target);
-        item.generatedFiles().add(target);
+        var saved = new ImageSaver(RangeExpansionStrategy.DEFAULT, params).save(img, target);
+        for (var file : saved) {
+            item.generatedFiles().add(file);
+        }
+    }
+
+    @Override
+    public void onFileGenerated(FileGeneratedEvent event) {
+        item.generatedFiles().add(event.getPayload().path().toFile());
     }
 
     @Override
