@@ -39,6 +39,7 @@ import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
 
 import java.io.File;
 import java.io.IOException;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -158,10 +159,11 @@ public class MultipleImagesViewer extends Pane {
         }
     }
 
-    public MediaPlayer addVideo(GeneratedImageKind kind, String title,
+    public MediaPlayer addVideo(GeneratedImageKind kind,
+                                String title,
                                 Path filePath) {
         var category = getOrCreateCategory(kind);
-        var media = new Media(filePath.toUri().toString());
+        var media = createMedia(filePath);
         var mediaPlayer = new MediaPlayer(media);
         var viewer = new MediaView(mediaPlayer);
         // Create the buttons
@@ -190,6 +192,24 @@ public class MultipleImagesViewer extends Pane {
         }, this::onClose);
         hyperlink.fire();
         return mediaPlayer;
+    }
+
+    private static Media createMedia(Path filePath) {
+        if (System.getProperty("os.name").toLowerCase().contains("windows")) {
+            // Under Windows we'll have to copy the file, otherwise if the user tries to overwrite it
+            // for example because of re-running a script which writes the file in the same location,
+            // file writing will fail because the media player has locked the file
+            try {
+                var tempDir = Path.of(System.getProperty("java.io.tmpdir")).resolve("jsolex");
+                Files.createDirectories(tempDir);
+                var tempFile = Files.createTempFile(tempDir, "jsolex", ".mp4");
+                Files.copy(filePath, tempFile, java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+                return new Media(tempFile.toUri().toString());
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
+        }
+        return new Media(filePath.toUri().toString());
     }
 
     private boolean shouldSelectAutomatically(ProcessParams params, GeneratedImageKind kind, PixelShift pixelShift) {
