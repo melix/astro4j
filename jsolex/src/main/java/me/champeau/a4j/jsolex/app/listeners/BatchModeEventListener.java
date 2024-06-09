@@ -15,8 +15,8 @@
  */
 package me.champeau.a4j.jsolex.app.listeners;
 
-import javafx.scene.control.Alert;
 import javafx.scene.control.ButtonType;
+import me.champeau.a4j.jsolex.app.AlertFactory;
 import me.champeau.a4j.jsolex.app.jfx.BatchItem;
 import me.champeau.a4j.jsolex.app.jfx.BatchOperations;
 import me.champeau.a4j.jsolex.app.jfx.Corrector;
@@ -63,7 +63,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 
 import static me.champeau.a4j.jsolex.app.JSolEx.message;
@@ -75,7 +74,7 @@ public class BatchModeEventListener implements ProcessingEventListener, ImageMat
     private final SingleModeProcessingEventListener delegate;
     private final ProcessParams processParams;
     private final BatchItem item;
-    private final AtomicInteger completed;
+    private final Set<Integer> completed;
     private final AtomicBoolean batchFinished;
     private final Set<Integer> errors;
     private final double totalItems;
@@ -172,13 +171,16 @@ public class BatchModeEventListener implements ProcessingEventListener, ImageMat
             return;
         }
         item.status().set(message("batch.ok"));
-        if (completed.get() == totalItems && batchFinished.compareAndSet(false, true)) {
-            var success = completed.get() - errors.size();
+        maybeExecuteEndOfBatch();
+    }
+
+    private void maybeExecuteEndOfBatch() {
+        if (completed.size() == totalItems && batchFinished.compareAndSet(false, true)) {
+            var success = completed.size() - errors.size();
             if (success > 0 && !errors.isEmpty() && hasBatchScriptExpressions()) {
                 BatchOperations.submit(() -> {
-                    var alert = new Alert(Alert.AlertType.WARNING);
+                    var alert = AlertFactory.warning(message("incomplete.batch.message"));
                     alert.setTitle(message("incomplete.batch"));
-                    alert.setContentText(message("incomplete.batch.message"));
                     alert.getButtonTypes().clear();
                     alert.getButtonTypes().addAll(ButtonType.CANCEL, ButtonType.YES);
                     alert.showAndWait().ifPresent(response -> {
@@ -191,9 +193,8 @@ public class BatchModeEventListener implements ProcessingEventListener, ImageMat
                 });
             } else if (!errors.isEmpty()) {
                 BatchOperations.submit(() -> {
-                    var alert = new Alert(Alert.AlertType.WARNING);
+                    var alert = AlertFactory.warning(message("incomplete.batch.error"));
                     alert.setTitle(message("incomplete.batch"));
-                    alert.setContentText(message("incomplete.batch.error"));
                     alert.showAndWait();
                     BatchOperations.submit(() -> owner.updateProgress(1, String.format(message("batch.finished"))));
                 });
@@ -228,6 +229,7 @@ public class BatchModeEventListener implements ProcessingEventListener, ImageMat
                     throw new IllegalStateException("Cannot call img() in batch outputs. Use variables to store images instead");
                 },
                 MutableMap.of(),
+                delegate,
                 null
             );
             for (Map.Entry<String, List<ImageWrapper>> entry : imagesByLabel.entrySet()) {
@@ -327,10 +329,13 @@ public class BatchModeEventListener implements ProcessingEventListener, ImageMat
     }
 
     private void updateProgressStatus(boolean increment) {
-        var done = increment ? completed.incrementAndGet() : completed.get();
+        if (increment) {
+            completed.add(sequenceNumber);
+        }
+        var done = completed.size();
         BatchOperations.submitOneOfAKind("progress", () -> {
             var prog = done / totalItems;
-            if (completed.get() == (int) totalItems) {
+            if (completed.size() == (int) totalItems) {
                 owner.showProgress();
             } else {
                 owner.showProgress();
@@ -350,8 +355,9 @@ public class BatchModeEventListener implements ProcessingEventListener, ImageMat
         }
         if (e.type() == Notification.AlertType.ERROR) {
             item.status().set(message("batch.error"));
-            completed.incrementAndGet();
             errors.add(sequenceNumber);
+            updateProgressStatus(true);
+            maybeExecuteEndOfBatch();
         }
     }
 

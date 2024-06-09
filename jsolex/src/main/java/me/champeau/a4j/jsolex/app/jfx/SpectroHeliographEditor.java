@@ -19,7 +19,6 @@ import javafx.beans.value.ChangeListener;
 import javafx.fxml.FXML;
 import javafx.scene.Parent;
 import javafx.scene.Scene;
-import javafx.scene.control.Alert;
 import javafx.scene.control.ListCell;
 import javafx.scene.control.ListView;
 import javafx.scene.control.TextField;
@@ -30,6 +29,7 @@ import javafx.stage.WindowEvent;
 import javafx.util.Callback;
 import javafx.util.converter.DoubleStringConverter;
 import javafx.util.converter.IntegerStringConverter;
+import me.champeau.a4j.jsolex.app.AlertFactory;
 import me.champeau.a4j.jsolex.app.JSolEx;
 import me.champeau.a4j.jsolex.processing.params.SpectroHeliograph;
 import me.champeau.a4j.jsolex.processing.params.SpectroHeliographsIO;
@@ -175,7 +175,7 @@ public class SpectroHeliographEditor {
                 var other = items.get(j);
                 if (item.label().equals(other.label())) {
                     // show alert
-                    new Alert(Alert.AlertType.ERROR,
+                    AlertFactory.error(
                         String.format(I18N.string(JSolEx.class, "shg-editor", "duplicate.label"), item.label())
                     ).showAndWait();
                     return;
@@ -183,7 +183,7 @@ public class SpectroHeliographEditor {
             }
         }
         if (items.isEmpty()) {
-            new Alert(Alert.AlertType.ERROR,
+            AlertFactory.error(
                 String.format(I18N.string(JSolEx.class, "shg-editor", "empty.items"))
             ).showAndWait();
             return;

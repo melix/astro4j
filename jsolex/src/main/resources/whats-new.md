@@ -9,6 +9,8 @@ Here are the new features in this version:
 
 ## Changes since 2.4.0
 
+- Fixed links to open generated files in batch mode
+- Fixed an error when a script tries to overwrite an animation under Windows
 - Added ability to continue processing a batch script even if some files are in error
 - Fixed detected speeds not being placed correctly on images/animations when tilt angle is not 0
 - Improved accuracy of speed detection

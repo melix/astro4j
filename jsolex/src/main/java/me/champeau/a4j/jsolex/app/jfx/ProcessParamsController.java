@@ -21,7 +21,6 @@ import javafx.fxml.FXML;
 import javafx.scene.Parent;
 import javafx.scene.Scene;
 import javafx.scene.control.Accordion;
-import javafx.scene.control.Alert;
 import javafx.scene.control.ButtonType;
 import javafx.scene.control.CheckBox;
 import javafx.scene.control.ChoiceBox;
@@ -34,6 +33,7 @@ import javafx.stage.Stage;
 import javafx.util.StringConverter;
 import javafx.util.converter.DoubleStringConverter;
 import javafx.util.converter.IntegerStringConverter;
+import me.champeau.a4j.jsolex.app.AlertFactory;
 import me.champeau.a4j.jsolex.app.JSolEx;
 import me.champeau.a4j.jsolex.processing.params.AutoStretchParams;
 import me.champeau.a4j.jsolex.processing.params.AutocropMode;
@@ -270,9 +270,8 @@ public class ProcessParamsController {
         autocorrectAngleP.setSelected(initialProcessParams.geometryParams().isAutocorrectAngleP());
         disallowDownsampling.setOnAction(e -> {
             if (disallowDownsampling.isSelected()) {
-                var alert = new Alert(Alert.AlertType.CONFIRMATION);
+                var alert = AlertFactory.confirmation(message("disallow.downsampling.header"));
                 alert.setTitle(message("disallow.downsampling.confirm.title"));
-                alert.setHeaderText(message("disallow.downsampling.header"));
                 alert.setContentText(message("disallow.downsampling.content"));
                 alert.showAndWait().ifPresent(buttonType -> {
                     if (buttonType == ButtonType.CANCEL) {

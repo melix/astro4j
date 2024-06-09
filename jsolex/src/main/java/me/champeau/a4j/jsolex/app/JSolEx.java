@@ -32,7 +32,6 @@ import javafx.geometry.Pos;
 import javafx.scene.Node;
 import javafx.scene.Parent;
 import javafx.scene.Scene;
-import javafx.scene.control.Alert;
 import javafx.scene.control.Button;
 import javafx.scene.control.ButtonType;
 import javafx.scene.control.CheckBox;
@@ -145,7 +144,6 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
@@ -466,7 +464,7 @@ public class JSolEx extends Application implements JSolExInterface {
         var latestRelease = toVersionLong(release.version());
         if (latestRelease > currentVersion) {
             BatchOperations.submit(() -> {
-                var alert = new Alert(Alert.AlertType.INFORMATION);
+                var alert = AlertFactory.info();
                 alert.setTitle(message("new.release.available"));
                 alert.setHeaderText("JSol'Ex " + release.version() + " " + message("has.been.released"));
                 var textArea = new TextArea();
@@ -855,7 +853,7 @@ public class JSolEx extends Application implements JSolExInterface {
 
     @FXML
     private void about() {
-        var alert = new Alert(Alert.AlertType.INFORMATION);
+        var alert =AlertFactory.info();
         alert.setResizable(true);
         alert.getDialogPane().setPrefSize(700, 400);
         String version = VersionUtil.getVersion();
@@ -1160,7 +1158,7 @@ public class JSolEx extends Application implements JSolExInterface {
             if (!current.isEmpty()) {
                 groups.add(current);
             }
-            var batchContext = new BatchProcessingContext(batchItems, new AtomicInteger(), Collections.synchronizedSet(new HashSet<>()), new AtomicBoolean(), selectedFiles.get(0).getParentFile(), LocalDateTime.now(), new HashMap<>());
+            var batchContext = new BatchProcessingContext(batchItems, Collections.synchronizedSet(new HashSet<>()), Collections.synchronizedSet(new HashSet<>()), new AtomicBoolean(), selectedFiles.get(0).getParentFile(), LocalDateTime.now(), new HashMap<>());
             var semaphore = new Semaphore(Math.max(1, Runtime.getRuntime().availableProcessors() / 4));
             // We're using a separate task submission thread in order to not
             // block the processing ones
