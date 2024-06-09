@@ -15,7 +15,8 @@
  */
 package me.champeau.a4j.jsolex.app.listeners;
 
-import me.champeau.a4j.jsolex.app.JSolEx;
+import javafx.scene.control.Alert;
+import javafx.scene.control.ButtonType;
 import me.champeau.a4j.jsolex.app.jfx.BatchItem;
 import me.champeau.a4j.jsolex.app.jfx.BatchOperations;
 import me.champeau.a4j.jsolex.app.jfx.Corrector;
@@ -63,6 +64,7 @@ import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 
+import static me.champeau.a4j.jsolex.app.JSolEx.message;
 import static me.champeau.a4j.jsolex.processing.util.LoggingSupport.LOGGER;
 
 public class BatchModeEventListener implements ProcessingEventListener, ImageMathScriptExecutor {
@@ -134,7 +136,7 @@ public class BatchModeEventListener implements ProcessingEventListener, ImageMat
 
     @Override
     public void onOutputImageDimensionsDetermined(OutputImageDimensionsDeterminedEvent event) {
-        LOGGER.info(JSolEx.message("dimensions.determined"), event.getLabel(), event.getWidth(), event.getHeight());
+        LOGGER.info(message("dimensions.determined"), event.getLabel(), event.getWidth(), event.getHeight());
         item.reconstructionProgress().setValue(1.0);
     }
 
@@ -145,7 +147,7 @@ public class BatchModeEventListener implements ProcessingEventListener, ImageMat
 
     @Override
     public void onProcessingStart(ProcessingStartEvent e) {
-        item.status().set(JSolEx.message("batch.started"));
+        item.status().set(message("batch.started"));
         updateProgressStatus(false);
     }
 
@@ -153,16 +155,52 @@ public class BatchModeEventListener implements ProcessingEventListener, ImageMat
     public void onProcessingDone(ProcessingDoneEvent e) {
         updateProgressStatus(true);
         maybeWriteLogs();
-        if (item.status().get().equals(JSolEx.message("batch.error"))) {
+        if (item.status().get().equals(message("batch.error"))) {
             return;
         }
-        item.status().set(JSolEx.message("batch.ok"));
+        item.status().set(message("batch.ok"));
         if (completed.get() == totalItems) {
             executeBatchScriptExpressions();
             BatchOperations.submit(() -> {
-                owner.updateProgress(1.0, String.format(JSolEx.message("batch.finished")));
+                owner.updateProgress(1.0, String.format(message("batch.finished")));
             });
+        } else {
+            if (completed.get() > 0 && hasBatchScriptExpressions()) {
+                BatchOperations.submit(() -> {
+                    var alert = new Alert(Alert.AlertType.WARNING);
+                    alert.setTitle(message("incomplete.batch"));
+                    alert.setContentText(message("incomplete.batch.message"));
+                    alert.getButtonTypes().clear();
+                    alert.getButtonTypes().addAll(ButtonType.CANCEL, ButtonType.YES);
+                    alert.showAndWait().ifPresent(response -> {
+                        if (response == ButtonType.YES) {
+                            executeBatchScriptExpressions();
+                        }
+                    });
+                });
+            } else {
+                BatchOperations.submit(() -> {
+                    var alert = new Alert(Alert.AlertType.WARNING);
+                    alert.setTitle(message("incomplete.batch"));
+                    alert.setContentText(message("incomplete.batch.error"));
+                    alert.showAndWait();
+                });
+            }
         }
+    }
+
+    private boolean hasBatchScriptExpressions() {
+        var scriptFiles = processParams.requestedImages().mathImages().scriptFiles();
+        if (scriptFiles.isEmpty()) {
+            return false;
+        }
+        return scriptFiles.stream().anyMatch(file -> {
+            try {
+                return Files.readString(file.toPath()).contains("[[batch]]");
+            } catch (IOException e) {
+                return false;
+            }
+        });
     }
 
     private void executeBatchScriptExpressions() {
@@ -194,7 +232,7 @@ public class BatchModeEventListener implements ProcessingEventListener, ImageMat
 
     private void executeBatchScript(FileNamingStrategy namingStrategy, File scriptFile) {
         BatchOperations.submit(() -> {
-            owner.updateProgress(0, String.format(JSolEx.message("executing.script"), scriptFile));
+            owner.updateProgress(0, String.format(message("executing.script"), scriptFile));
         });
         ImageMathScriptResult result;
         try {
@@ -206,7 +244,7 @@ public class BatchModeEventListener implements ProcessingEventListener, ImageMat
             processScriptErrors(result);
             renderBatchOutputs(namingStrategy, result);
         } finally {
-            BatchOperations.submit(() -> owner.updateProgress(1, String.format(JSolEx.message("executing.script"), scriptFile)));
+            BatchOperations.submit(() -> owner.updateProgress(1, String.format(message("executing.script"), scriptFile)));
         }
     }
 
@@ -278,7 +316,7 @@ public class BatchModeEventListener implements ProcessingEventListener, ImageMat
                 owner.showProgress();
             } else {
                 owner.showProgress();
-                owner.updateProgress(prog, String.format(JSolEx.message("batch.progress"), done, (int) totalItems));
+                owner.updateProgress(prog, String.format(message("batch.progress"), done, (int) totalItems));
             }
         });
     }
@@ -293,7 +331,7 @@ public class BatchModeEventListener implements ProcessingEventListener, ImageMat
                 .append(e.message()).append("\n");
         }
         if (e.type() == Notification.AlertType.ERROR) {
-            item.status().set(JSolEx.message("batch.error"));
+            item.status().set(message("batch.error"));
         }
     }
 
@@ -321,8 +359,8 @@ public class BatchModeEventListener implements ProcessingEventListener, ImageMat
                 .collect(Collectors.joining("\n"));
             delegate.onNotification(new NotificationEvent(new Notification(
                 Notification.AlertType.ERROR,
-                JSolEx.message("error.processing.script"),
-                JSolEx.message("script.errors." + (errorCount == 1 ? "single" : "many")),
+                message("error.processing.script"),
+                message("script.errors." + (errorCount == 1 ? "single" : "many")),
                 message
             )));
         }

@@ -9,6 +9,7 @@ Voici les nouvelles fonctionnalités de cette version :
 
 ## Changements depuis la 2.4.0
 
+- Ajout de la possibilité de continuer le traitement d'un script en mode batch même si certains fichiers sont en erreur
 - Correction de la position incorrecte des vitesses détectées sur les images/animations lorsque l'angle de tilt n'est pas de 0
 - Amélioration de la précision de la détection de la vitesse
 - Ajout des fonctions ImageMath `SORT` et `VIDEO_DATETIME`
