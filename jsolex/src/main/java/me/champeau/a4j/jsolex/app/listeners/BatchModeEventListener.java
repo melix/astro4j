@@ -61,6 +61,8 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 
@@ -74,6 +76,8 @@ public class BatchModeEventListener implements ProcessingEventListener, ImageMat
     private final ProcessParams processParams;
     private final BatchItem item;
     private final AtomicInteger completed;
+    private final AtomicBoolean batchFinished;
+    private final Set<Integer> errors;
     private final double totalItems;
     private final File outputDirectory;
     private final LocalDateTime processingDate;
@@ -93,6 +97,8 @@ public class BatchModeEventListener implements ProcessingEventListener, ImageMat
         this.delegate = delegate;
         this.processParams = processParams;
         this.completed = context.progress();
+        this.errors = context.errors();
+        this.batchFinished = context.batchFinished();
         this.outputDirectory = context.outputDirectory();
         this.processingDate = context.processingDate();
         this.imagesByLabel = context.imagesByLabel();
@@ -166,13 +172,9 @@ public class BatchModeEventListener implements ProcessingEventListener, ImageMat
             return;
         }
         item.status().set(message("batch.ok"));
-        if (completed.get() == totalItems) {
-            executeBatchScriptExpressions();
-            BatchOperations.submit(() -> {
-                owner.updateProgress(1.0, String.format(message("batch.finished")));
-            });
-        } else {
-            if (completed.get() > 0 && hasBatchScriptExpressions()) {
+        if (completed.get() == totalItems && batchFinished.compareAndSet(false, true)) {
+            var success = completed.get() - errors.size();
+            if (success > 0 && !errors.isEmpty() && hasBatchScriptExpressions()) {
                 BatchOperations.submit(() -> {
                     var alert = new Alert(Alert.AlertType.WARNING);
                     alert.setTitle(message("incomplete.batch"));
@@ -182,16 +184,21 @@ public class BatchModeEventListener implements ProcessingEventListener, ImageMat
                     alert.showAndWait().ifPresent(response -> {
                         if (response == ButtonType.YES) {
                             executeBatchScriptExpressions();
+                        } else {
+                            BatchOperations.submit(() -> owner.updateProgress(1, String.format(message("batch.finished"))));
                         }
                     });
                 });
-            } else {
+            } else if (!errors.isEmpty()) {
                 BatchOperations.submit(() -> {
                     var alert = new Alert(Alert.AlertType.WARNING);
                     alert.setTitle(message("incomplete.batch"));
                     alert.setContentText(message("incomplete.batch.error"));
                     alert.showAndWait();
+                    BatchOperations.submit(() -> owner.updateProgress(1, String.format(message("batch.finished"))));
                 });
+            } else {
+                executeBatchScriptExpressions();
             }
         }
     }
@@ -211,28 +218,32 @@ public class BatchModeEventListener implements ProcessingEventListener, ImageMat
     }
 
     private void executeBatchScriptExpressions() {
-        var scriptFiles = processParams.requestedImages().mathImages().scriptFiles();
-        if (scriptFiles.isEmpty()) {
-            return;
-        }
-        batchScriptExecutor = new JSolExScriptExecutor(
-            idx -> {
-                throw new IllegalStateException("Cannot call img() in batch outputs. Use variables to store images instead");
-            },
-            MutableMap.of(),
-            null
-        );
-        for (Map.Entry<String, List<ImageWrapper>> entry : imagesByLabel.entrySet()) {
-            batchScriptExecutor.putVariable(entry.getKey(), entry.getValue());
-        }
-        var namingStrategy = createNamingStrategy();
-        boolean initial = true;
-        for (File scriptFile : scriptFiles) {
-            if (initial) {
-                owner.prepareForScriptExecution(this, processParams);
-                initial = false;
+        try {
+            var scriptFiles = processParams.requestedImages().mathImages().scriptFiles();
+            if (scriptFiles.isEmpty()) {
+                return;
             }
-            executeBatchScript(namingStrategy, scriptFile);
+            batchScriptExecutor = new JSolExScriptExecutor(
+                idx -> {
+                    throw new IllegalStateException("Cannot call img() in batch outputs. Use variables to store images instead");
+                },
+                MutableMap.of(),
+                null
+            );
+            for (Map.Entry<String, List<ImageWrapper>> entry : imagesByLabel.entrySet()) {
+                batchScriptExecutor.putVariable(entry.getKey(), entry.getValue());
+            }
+            var namingStrategy = createNamingStrategy();
+            boolean initial = true;
+            for (File scriptFile : scriptFiles) {
+                if (initial) {
+                    owner.prepareForScriptExecution(this, processParams);
+                    initial = false;
+                }
+                executeBatchScript(namingStrategy, scriptFile);
+            }
+        } finally {
+            BatchOperations.submit(() -> owner.updateProgress(1, String.format(message("batch.finished"))));
         }
     }
 
@@ -339,6 +350,8 @@ public class BatchModeEventListener implements ProcessingEventListener, ImageMat
         }
         if (e.type() == Notification.AlertType.ERROR) {
             item.status().set(message("batch.error"));
+            completed.incrementAndGet();
+            errors.add(sequenceNumber);
         }
     }
 
