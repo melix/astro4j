@@ -19,7 +19,6 @@ import javafx.application.HostServices;
 import javafx.fxml.FXML;
 import javafx.scene.Parent;
 import javafx.scene.Scene;
-import javafx.scene.control.Alert;
 import javafx.scene.control.Button;
 import javafx.scene.control.ButtonType;
 import javafx.scene.control.ChoiceBox;
@@ -28,6 +27,7 @@ import javafx.scene.layout.BorderPane;
 import javafx.stage.FileChooser;
 import javafx.stage.Stage;
 import javafx.stage.WindowEvent;
+import me.champeau.a4j.jsolex.app.AlertFactory;
 import me.champeau.a4j.jsolex.app.Configuration;
 import me.champeau.a4j.jsolex.app.JSolEx;
 import me.champeau.a4j.jsolex.app.jfx.ime.ImageMathTextArea;
@@ -299,9 +299,8 @@ public class ImageMathEditor {
 
     public boolean doesNotHaveStaleChanges() {
         if (hasPendingUpdates.get()) {
-            var alert = new Alert(Alert.AlertType.CONFIRMATION);
+            var alert = AlertFactory.confirmation(I18N.string(JSolEx.class, "imagemath-editor", "unsaved.changes.description"));
             alert.setTitle(I18N.string(JSolEx.class, "imagemath-editor", "unsaved.changes"));
-            alert.setHeaderText(I18N.string(JSolEx.class, "imagemath-editor", "unsaved.changes.description"));
             alert.getButtonTypes().clear();
             alert.getButtonTypes().addAll(
                     BACK,

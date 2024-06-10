@@ -38,6 +38,7 @@ import javafx.scene.layout.VBox;
 import javafx.scene.transform.Transform;
 import javafx.stage.Stage;
 import javafx.util.Duration;
+import me.champeau.a4j.jsolex.app.AlertFactory;
 import me.champeau.a4j.jsolex.app.jfx.ApplyUserRotation;
 import me.champeau.a4j.jsolex.app.jfx.BatchOperations;
 import me.champeau.a4j.jsolex.app.jfx.ImageViewer;
@@ -705,7 +706,7 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
                 Files.createDirectories(outputFile.getParent());
                 ImageIO.write(bufferedImage, "png", outputFile.toFile());
                 LOGGER.info(message("chart.saved"), outputFile);
-                var alert = new Alert(Alert.AlertType.INFORMATION);
+                var alert = AlertFactory.info();
                 alert.setTitle(message("chart.saved.title"));
                 var textArea = new TextArea("Chart saved to: " + outputFile);
                 textArea.setEditable(false);

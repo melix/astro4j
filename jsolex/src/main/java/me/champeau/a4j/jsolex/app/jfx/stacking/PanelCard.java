@@ -17,7 +17,6 @@ package me.champeau.a4j.jsolex.app.jfx.stacking;
 
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
-import javafx.scene.control.Alert;
 import javafx.scene.control.ButtonType;
 import javafx.scene.control.Label;
 import javafx.scene.control.ListCell;
@@ -25,6 +24,7 @@ import javafx.scene.control.ListView;
 import javafx.scene.input.DragEvent;
 import javafx.scene.input.TransferMode;
 import javafx.scene.layout.StackPane;
+import me.champeau.a4j.jsolex.app.AlertFactory;
 import me.champeau.a4j.jsolex.app.JSolEx;
 import me.champeau.a4j.jsolex.app.jfx.I18N;
 
@@ -73,9 +73,8 @@ class PanelCard extends Card {
         StackPane.setMargin(deleteLabel, new Insets(24, 8, 0, 0));
         stackPane.setAlignment(Pos.TOP_RIGHT);
         deleteLabel.setOnMouseClicked(event -> {
-            var alert = new Alert(Alert.AlertType.CONFIRMATION);
+            var alert = AlertFactory.confirmation(I18N.string(JSolEx.class, "mosaic-params", "delete.panel.header"));
             alert.setTitle(I18N.string(JSolEx.class, "mosaic-params", "delete.panel.title"));
-            alert.setHeaderText(I18N.string(JSolEx.class, "mosaic-params", "delete.panel.header"));
             alert.showAndWait().ifPresent(buttonType -> {
                 if (buttonType == ButtonType.OK) {
                     stackingAndMosaicController.getCardsPane().getChildren().remove(this);

@@ -24,11 +24,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicInteger;
 
 public record BatchProcessingContext(
         List<BatchItem> items,
-        AtomicInteger progress,
+        Set<Integer> progress,
         Set<Integer> errors,
         AtomicBoolean batchFinished,
         File outputDirectory,
