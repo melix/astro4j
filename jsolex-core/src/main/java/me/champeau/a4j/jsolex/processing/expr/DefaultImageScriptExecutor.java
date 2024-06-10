@@ -44,6 +44,9 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Function;
 
+import static me.champeau.a4j.jsolex.processing.util.Constants.message;
+import static me.champeau.a4j.jsolex.processing.util.LoggingSupport.LOGGER;
+
 public class DefaultImageScriptExecutor implements ImageMathScriptExecutor {
     public static final String BLACK_POINT_VAR = "blackPoint";
     public static final String ANGLE_P_VAR = "angleP";
@@ -82,13 +85,19 @@ public class DefaultImageScriptExecutor implements ImageMathScriptExecutor {
 
     @Override
     public ImageMathScriptResult execute(String script, SectionKind kind) {
-        var index = executionCount.getAndIncrement();
-        var evaluator = new MemoizingExpressionEvaluator(broadcaster);
-        populateContext(evaluator);
-        var outputs = prepareOutputExpressions(script, index, evaluator, kind);
-        var producedImages = new HashMap<String, ImageWrapper>();
-        var producedFiles = new HashMap<String, Path>();
-        return outputs == null ? new ImageMathScriptResult(producedImages, producedFiles, List.of(), Set.of(), Set.of(), Set.of(), false) : executeScript(evaluator, outputs, producedImages, producedFiles);
+        long nanoTime = System.nanoTime();
+        try {
+            var index = executionCount.getAndIncrement();
+            var evaluator = new MemoizingExpressionEvaluator(broadcaster);
+            populateContext(evaluator);
+            var outputs = prepareOutputExpressions(script, index, evaluator, kind);
+            var producedImages = new HashMap<String, ImageWrapper>();
+            var producedFiles = new HashMap<String, Path>();
+            return outputs == null ? new ImageMathScriptResult(producedImages, producedFiles, List.of(), Set.of(), Set.of(), Set.of(), false) : executeScript(evaluator, outputs, producedImages, producedFiles);
+        } finally {
+            var dur = java.time.Duration.ofNanos(System.nanoTime() - nanoTime);
+            LOGGER.info(message("script.completed.in"), dur.toSeconds(), dur.toMillisPart() / 100);
+        }
     }
 
     private ImageMathScriptResult executeScript(MemoizingExpressionEvaluator evaluator,
@@ -245,9 +254,9 @@ public class DefaultImageScriptExecutor implements ImageMathScriptExecutor {
                     allInvalidExpressions.addAll(batch.invalidExpressions());
                 }
                 yield new PreparedScript(
-                        allOutputs,
-                        variables,
-                        allInvalidExpressions
+                    allOutputs,
+                    variables,
+                    allInvalidExpressions
                 );
             }
         };
@@ -396,10 +405,10 @@ public class DefaultImageScriptExecutor implements ImageMathScriptExecutor {
                 } else if (result instanceof List<?> list) {
                     if (list.stream().allMatch(ImageWrapper.class::isInstance)) {
                         result = list.stream()
-                                .map(ImageWrapper.class::cast)
-                                .map(image -> TransformationHistory.recordTransform(image, "ImageMath: " + expression))
-                                .map(FileBackedImage::wrap)
-                                .toList();
+                            .map(ImageWrapper.class::cast)
+                            .map(image -> TransformationHistory.recordTransform(image, "ImageMath: " + expression))
+                            .map(FileBackedImage::wrap)
+                            .toList();
                     }
                 }
                 memoizeCache.put(exprAsString, result);

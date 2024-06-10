@@ -800,15 +800,9 @@ public class JSolEx extends Application implements JSolExInterface {
             }, MutableMap.of(), listener, null) {
                 @Override
                 public ImageMathScriptResult execute(String script, SectionKind kind) {
-                    long nanoTime = System.nanoTime();
-                    try {
-                        var result = super.execute(script, kind);
-                        processResult(result);
-                        return result;
-                    } finally {
-                        var dur = java.time.Duration.ofNanos(System.nanoTime() - nanoTime);
-                        LOGGER.info(message("script.completed.in"), dur.toSeconds(), dur.toMillisPart() / 100);
-                    }
+                    var result = super.execute(script, kind);
+                    processResult(result);
+                    return result;
                 }
 
                 private void processResult(ImageMathScriptResult result) {
@@ -853,7 +847,7 @@ public class JSolEx extends Application implements JSolExInterface {
 
     @FXML
     private void about() {
-        var alert =AlertFactory.info();
+        var alert = AlertFactory.info();
         alert.setResizable(true);
         alert.getDialogPane().setPrefSize(700, 400);
         String version = VersionUtil.getVersion();
@@ -1160,7 +1154,9 @@ public class JSolEx extends Application implements JSolExInterface {
             if (!current.isEmpty()) {
                 groups.add(current);
             }
-            var batchContext = new BatchProcessingContext(batchItems, Collections.synchronizedSet(new HashSet<>()), Collections.synchronizedSet(new HashSet<>()), new AtomicBoolean(), selectedFiles.get(0).getParentFile(), LocalDateTime.now(), new HashMap<>(), header);
+            var batchContext =
+                new BatchProcessingContext(batchItems, Collections.synchronizedSet(new HashSet<>()), Collections.synchronizedSet(new HashSet<>()), new AtomicBoolean(), selectedFiles.get(0).getParentFile(), LocalDateTime.now(), new HashMap<>(),
+                    header);
             var semaphore = new Semaphore(Math.max(1, Runtime.getRuntime().availableProcessors() / 4));
             // We're using a separate task submission thread in order to not
             // block the processing ones
