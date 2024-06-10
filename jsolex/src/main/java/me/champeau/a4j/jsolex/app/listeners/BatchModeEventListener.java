@@ -80,6 +80,9 @@ public class BatchModeEventListener implements ProcessingEventListener, ImageMat
     private final double totalItems;
     private final File outputDirectory;
     private final LocalDateTime processingDate;
+
+    private final Header referenceHeader;
+
     private final int sequenceNumber;
     private DefaultImageScriptExecutor batchScriptExecutor;
 
@@ -101,6 +104,7 @@ public class BatchModeEventListener implements ProcessingEventListener, ImageMat
         this.outputDirectory = context.outputDirectory();
         this.processingDate = context.processingDate();
         this.imagesByLabel = context.imagesByLabel();
+        this.referenceHeader = context.referenceHeader();
         this.item = context.items().stream().filter(batchItem -> batchItem.id() == sequenceNumber).findFirst().get();
         this.totalItems = context.items().size();
         this.sequenceNumber = sequenceNumber;
@@ -154,7 +158,10 @@ public class BatchModeEventListener implements ProcessingEventListener, ImageMat
 
     @Override
     public void onVideoMetadataAvailable(VideoMetadataEvent event) {
-        this.header = event.getPayload();
+        var payload = event.getPayload();
+        if (payload != null) {
+            this.header = payload;
+        }
     }
 
     @Override
@@ -324,7 +331,7 @@ public class BatchModeEventListener implements ProcessingEventListener, ImageMat
             processParams.extraParams().datetimeFormat(),
             processParams.extraParams().dateFormat(),
             processingDate,
-            header
+            header != null ? header : referenceHeader
         );
     }
 
