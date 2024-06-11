@@ -15,20 +15,15 @@
  */
 package me.champeau.a4j.jsolex.processing.stretching;
 
-import me.champeau.a4j.jsolex.processing.event.GeneratedImage;
-import me.champeau.a4j.jsolex.processing.event.ImageGeneratedEvent;
 import me.champeau.a4j.jsolex.processing.sun.BackgroundRemoval;
 import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
 import me.champeau.a4j.jsolex.processing.sun.workflow.AnalysisUtils;
-import me.champeau.a4j.jsolex.processing.sun.workflow.GeneratedImageKind;
 import me.champeau.a4j.jsolex.processing.util.Histogram;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 import me.champeau.a4j.math.regression.Ellipse;
 
-import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 
 import static me.champeau.a4j.jsolex.processing.util.Constants.MAX_PIXEL_VALUE;
 
@@ -195,14 +190,14 @@ public final class AutohistogramStrategy implements StretchingStrategy {
             }
         }
 
-        if (broadcaster != null) {
-            var t = new float[width * height];
-            System.arraycopy(mask, 0, t, 0, mask.length);
-            for (int i = 0; i < t.length; i++) {
-                t[i] = t[i] * MAX_PIXEL_VALUE;
-            }
-            broadcaster.broadcast(new ImageGeneratedEvent(new GeneratedImage(GeneratedImageKind.IMAGE_MATH, "Mask", Path.of("/tmp/mask.png"), new ImageWrapper32(width, height, t, Map.of()))));
-        }
+//        if (broadcaster != null) {
+//            var t = new float[width * height];
+//            System.arraycopy(mask, 0, t, 0, mask.length);
+//            for (int i = 0; i < t.length; i++) {
+//                t[i] = t[i] * MAX_PIXEL_VALUE;
+//            }
+//            broadcaster.broadcast(new ImageGeneratedEvent(new GeneratedImage(GeneratedImageKind.IMAGE_MATH, "Mask", Path.of("/tmp/mask.png"), new ImageWrapper32(width, height, t, Map.of()))));
+//        }
         return mask;
     }
 
