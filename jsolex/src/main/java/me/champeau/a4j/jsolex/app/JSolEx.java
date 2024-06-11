@@ -26,6 +26,7 @@ import javafx.beans.property.SimpleDoubleProperty;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.collections.FXCollections;
 import javafx.collections.ListChangeListener;
+import javafx.embed.swing.SwingFXUtils;
 import javafx.fxml.FXML;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
@@ -36,6 +37,7 @@ import javafx.scene.control.Button;
 import javafx.scene.control.ButtonType;
 import javafx.scene.control.CheckBox;
 import javafx.scene.control.ChoiceBox;
+import javafx.scene.control.ContextMenu;
 import javafx.scene.control.Hyperlink;
 import javafx.scene.control.Label;
 import javafx.scene.control.Menu;
@@ -117,6 +119,7 @@ import org.fxmisc.richtext.StyleClassedTextArea;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.imageio.ImageIO;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
@@ -976,6 +979,31 @@ public class JSolEx extends Application implements JSolExInterface {
                     optionalURL.ifPresentOrElse(
                         url -> {
                             imageView.setImage(new Image(url.toExternalForm()));
+                            // add context menu to image
+                            var contextMenu = new ContextMenu();
+                            var save = new MenuItem(message("save.gong.image"));
+                            save.setOnAction(ev -> {
+                                var fileChooser = new FileChooser();
+                                fileChooser.getExtensionFilters().add(IMAGE_FILES_EXTENSIONS);
+                                var file = fileChooser.showSaveDialog(rootStage);
+                                if (file != null) {
+                                    BackgroundOperations.async(() -> {
+                                        var image = imageView.getImage();
+                                        try {
+                                            var outputFile = file;
+                                            var extIndex = outputFile.getName().lastIndexOf(".");
+                                            if (extIndex == -1) {
+                                                outputFile = new File(file.getParent(), file.getName() + ".png");
+                                            }
+                                            ImageIO.write(SwingFXUtils.fromFXImage(image, null), outputFile.getName().substring(outputFile.getName().lastIndexOf(".") + 1), outputFile);
+                                        } catch (IOException ex) {
+                                            LOGGER.error("Cannot save image", e);
+                                        }
+                                    });
+                                }
+                            });
+                            contextMenu.getItems().add(save);
+                            imageView.setOnContextMenuRequested(ev -> contextMenu.show(imageView, ev.getScreenX(), ev.getScreenY()));
                             vbox.getChildren().remove(button);
                         },
                         () -> {
