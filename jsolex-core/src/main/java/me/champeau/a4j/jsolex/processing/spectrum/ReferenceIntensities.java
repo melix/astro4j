@@ -58,26 +58,32 @@ public class ReferenceIntensities {
             return 0;
         }
 
-        // Calculate exact index position and floor it to find the lower bound
-        var exactIndex = (wavelength - minWavelength) * 10;
-        var lowerIndex = (int) exactIndex;
-        var upperIndex = lowerIndex + 1;
+        // Calculate the exact index position
+        var exactIndex = (wavelength - minWavelength) * 100;
 
-        if (lowerIndex < 0 || lowerIndex >= intensities.length) {
-            return 0;
+        // Find the indices for interpolation
+        var lowerIndex = (int) Math.floor(exactIndex);
+        var upperIndex = (int) Math.ceil(exactIndex);
+
+        if (lowerIndex < 0) {
+            return intensities[0];
         }
 
         if (upperIndex >= intensities.length) {
+            return intensities[intensities.length - 1];
+        }
+
+        if (lowerIndex == upperIndex) {
             return intensities[lowerIndex];
         }
 
+        // Interpolation
         var lowerIntensity = intensities[lowerIndex];
         var upperIntensity = intensities[upperIndex];
         var interpolation = lowerIntensity + (upperIntensity - lowerIntensity) * (exactIndex - lowerIndex);
 
         return (short) interpolation;
     }
-
 
     public static double intensityAt(double wavelength) {
         return INSTANCE.intensity(wavelength);

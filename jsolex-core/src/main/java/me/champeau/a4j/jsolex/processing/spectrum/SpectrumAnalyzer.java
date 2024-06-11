@@ -136,22 +136,29 @@ public class SpectrumAnalyzer {
         max = Math.min(height, max);
         double mid = (max + min) / 2.0;
         double range = (max - min) / 2.0;
-        for (int y = (int) range; y < height - range; y++) {
+        for (double y = range; y < height - range; y += 1) {
             double cpt = 0;
             double val = 0;
             for (int x = start; x < end; x++) {
                 var v = polynomial.applyAsDouble(x);
                 var shift = v - mid;
-                int ny = (int) Math.round(y + shift);
-                if (ny >= 0 && ny < height) {
-                    val += data[width * ny + x];
+                var exactNy = y + shift;
+                int lowerNy = (int) Math.floor(exactNy);
+                int upperNy = (int) Math.ceil(exactNy);
+
+                if (lowerNy >= 0 && upperNy < height) {
+                    var lowerValue = data[width * lowerNy + x];
+                    var upperValue = data[width * upperNy + x];
+                    var interpolatedValue = lowerValue + (upperValue - lowerValue) * (exactNy - lowerNy);
+
+                    val += interpolatedValue;
                     cpt++;
                 }
             }
             if (cpt > 0) {
                 var pixelShift = y - mid;
                 var wl = computeWavelength(pixelShift, lambda0, dispersion);
-                dataPoints.add(new DataPoint(wl, pixelShift, val / cpt));
+                dataPoints.add(new SpectrumAnalyzer.DataPoint(wl, pixelShift, val / cpt));
             }
         }
         return dataPoints;
