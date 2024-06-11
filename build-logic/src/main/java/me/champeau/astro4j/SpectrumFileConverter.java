@@ -27,7 +27,6 @@ import org.gradle.api.tasks.TaskAction;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.nio.file.Files;
-import java.util.ArrayList;
 import java.util.Locale;
 
 /**
@@ -66,22 +65,16 @@ public abstract class SpectrumFileConverter extends DefaultTask {
                     // intensity is a list of 500 measurements grouped by 4 digits
                     // e.g 12345678901234567890... -> 1234 5678 9012 3456 7890 ...
                     var wlIncrement = 2 / 1000.0;
-                    wavelength += 25 * wlIncrement;
-                    var intensities = new ArrayList<Integer>();
+                    int previous = 0;
                     for (int i = 0; i < intensity.length(); i += 4) {
                         var value = Integer.parseInt(intensity.substring(i, i + 4));
-                        intensities.add(value);
-                        if (intensities.size() == 50) {
-                            var avg = (int) intensities.stream().mapToInt(Integer::intValue).average().orElse(0);
-                            writer.println(String.format(Locale.US, "%.2f %d", wavelength, avg));
-                            intensities.clear();
-                            wavelength += (wlIncrement * 50);
+                        var out = String.format(Locale.US, "%.2f %d", wavelength, value);
+                        var key = (int) (wavelength * 100);
+                        if (key != previous) {
+                            previous = key;
+                            writer.println(out);
                         }
-                    }
-                    if (!intensities.isEmpty()) {
-                        var avg = (int) intensities.stream().mapToInt(Integer::intValue).average().orElse(0);
-                        wavelength += (wlIncrement * intensities.size());
-                        writer.println(String.format(Locale.US, "%.2f %d", wavelength, avg));
+                        wavelength += wlIncrement;
                     }
                 }
             }

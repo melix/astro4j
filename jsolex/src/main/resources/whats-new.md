@@ -9,6 +9,8 @@ Here are the new features in this version:
 
 ## Changes since 2.4.0
 
+- Improved resolution of reference spectral lines (1/100th of Angstrom)
+- Added ability to save GONG image by right-clicking on the image
 - Fixed excessive memory consumption during image reconstruction
 - Fixed links to open generated files in batch mode
 - Fixed an error when a script tries to overwrite an animation under Windows

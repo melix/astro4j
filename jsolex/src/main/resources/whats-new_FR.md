@@ -9,6 +9,8 @@ Voici les nouvelles fonctionnalités de cette version :
 
 ## Changements depuis la 2.4.0
 
+- Amélioration de la résolution des lignes spectrales de référence (1/100e d'Angström)
+- Ajout de la possibilité de sauvegarder l'image GONG en faisant un clic droit sur l'image
 - Correction d'une consommation excessive de mémoire pendant la reconstruction
 - Correction des liens d'ouverture des fichiers générés en mode batch
 - Correction d'une erreur lorsqu'un script essaie d'enregistrer une animation par dessus une autre sous Windows
