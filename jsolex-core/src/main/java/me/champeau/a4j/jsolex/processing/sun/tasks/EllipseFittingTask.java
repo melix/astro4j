@@ -20,6 +20,7 @@ import me.champeau.a4j.jsolex.processing.event.NotificationEvent;
 import me.champeau.a4j.jsolex.processing.event.ProgressEvent;
 import me.champeau.a4j.jsolex.processing.params.ProcessParams;
 import me.champeau.a4j.jsolex.processing.stretching.LinearStrechingStrategy;
+import me.champeau.a4j.jsolex.processing.sun.BackgroundRemoval;
 import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
 import me.champeau.a4j.jsolex.processing.sun.workflow.GeneratedImageKind;
 import me.champeau.a4j.jsolex.processing.sun.workflow.ImageEmitter;
@@ -103,9 +104,14 @@ public class EllipseFittingTask extends AbstractTask<EllipseFittingTask.Result> 
         }
         tmp = imageMath.convolve(tmp, BLUR_8);
         workImage = ImageWrapper32.fromImage(tmp);
+        // Perform background neutralization to reduce impact of reflections,
+        // particularly visible close to UV. We perform multiple iterations
+        // because some gradients are particularly difficult to remove
+        for (int i = 0; i < 8; i++) {
+            workImage = BackgroundRemoval.neutralizeBackground(workImage);
+        }
         LinearStrechingStrategy.DEFAULT.stretch(workImage);
-        var magnitude = tmp;
-        var magnitudes = magnitude.data();
+        var magnitudes = workImage.data();
         var samples = findSamplesUsingDynamicSensitivity(magnitudes);
         var fittingEllipseMessage = message("fitting.ellipse");
         broadcaster.broadcast(ProgressEvent.of(0, fittingEllipseMessage));
@@ -120,7 +126,7 @@ public class EllipseFittingTask extends AbstractTask<EllipseFittingTask.Result> 
         broadcaster.broadcast(ProgressEvent.of(1, fittingEllipseMessage));
         var result = new Result(ellipse, samples);
         if (processParams != null && processParams.extraParams().generateDebugImages()) {
-            produceEdgeDetectionImage(result, ImageWrapper32.fromImage(magnitude));
+            produceEdgeDetectionImage(result, workImage);
         }
         return result;
     }
@@ -188,7 +194,7 @@ public class EllipseFittingTask extends AbstractTask<EllipseFittingTask.Result> 
         Set<Point2D> samples = new LinkedHashSet<>();
         var stats = statsOf(magnitudes);
         var maxMagnitude = stats.max();
-        double sensitivity = 0.95 * (stats.min() + stats.stddev()) / Constants.MAX_PIXEL_VALUE;
+        double sensitivity = 0.5 * (stats.min() + stats.stddev()) / Constants.MAX_PIXEL_VALUE;
         var minX = 0;
         var minY = 0;
         var maxX = width;
@@ -211,17 +217,24 @@ public class EllipseFittingTask extends AbstractTask<EllipseFittingTask.Result> 
         var sY = 8 + Math.sqrt(byY.size() / 2d);
         // remove samples when they are too many of them in a single column or row, because it usually means we have
         // detected a line instead of a disk
+        var removedX = new HashSet<Integer>();
+        var removedY = new HashSet<Integer>();
         byX.forEach((x, points) -> {
             if (points.size() > sX) {
-                points.forEach(samples::remove);
+                for (int i = x - 2; i < x + 2; i++) {
+                    removedX.add(i);
+                }
             }
         });
         byY.forEach((y, points) -> {
             if (points.size() > sY) {
-                points.forEach(samples::remove);
+                for (int i = y - 2; i < y + 2; i++) {
+                    removedY.add(i);
+                }
             }
         });
-        if (samples.size() < MINIMUM_SAMPLES && restore.size() > 2*MINIMUM_SAMPLES) {
+        samples.removeIf(p -> removedX.contains((int) p.x()) || removedY.contains((int) p.y()));
+        if (samples.size() < MINIMUM_SAMPLES && restore.size() > 2 * MINIMUM_SAMPLES) {
             // special case for very "flat" disks
             var size = restore.size();
             if (size > 512) {
