@@ -15,18 +15,25 @@
  */
 package me.champeau.a4j.jsolex.processing.sun.workflow;
 
+import me.champeau.a4j.jsolex.processing.expr.impl.DiskFill;
 import me.champeau.a4j.jsolex.processing.params.ProcessParams;
 import me.champeau.a4j.jsolex.processing.params.SpectralRay;
+import me.champeau.a4j.jsolex.processing.stretching.ArcsinhStretchingStrategy;
+import me.champeau.a4j.jsolex.processing.stretching.LinearStrechingStrategy;
 import me.champeau.a4j.jsolex.processing.stretching.RangeExpansionStrategy;
+import me.champeau.a4j.jsolex.processing.sun.BackgroundRemoval;
 import me.champeau.a4j.jsolex.processing.sun.ImageUtils;
 import me.champeau.a4j.jsolex.processing.sun.WorkflowState;
 import me.champeau.a4j.jsolex.processing.sun.tasks.GeometryCorrector;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 import me.champeau.a4j.jsolex.processing.util.MutableMap;
 import me.champeau.a4j.jsolex.processing.util.RGBImage;
+import me.champeau.a4j.math.regression.Ellipse;
 
 import java.util.HashMap;
 import java.util.List;
+
+import static me.champeau.a4j.jsolex.processing.util.Constants.message;
 
 public class DopplerSupport {
     private final ProcessParams processParams;
@@ -62,8 +69,40 @@ public class DopplerSupport {
                     height,
                     metadata,
                     () -> DopplerSupport.toDopplerImage(width, height, grey1, grey2));
+                if (processParams.requestedImages().isEnabled(GeneratedImageKind.DOPPLER_ECLIPSE)) {
+                    produceDopplerEclipseImage(grey1, grey2, width, height);
+                }
             }));
         }));
+    }
+
+    private void produceDopplerEclipseImage(ImageWrapper32 grey1, ImageWrapper32 grey2, int width, int height) {
+        var grey1Eclipse = grey1.copy();
+        var grey2Eclipse = grey2.copy();
+        grey1Eclipse.findMetadata(Ellipse.class).ifPresent(eclipse1 -> {
+            var g1 = BackgroundRemoval.neutralizeBackground(grey1Eclipse);
+            grey2Eclipse.findMetadata(Ellipse.class).ifPresent(eclipse2 -> {
+                var g2 = BackgroundRemoval.neutralizeBackground(grey2Eclipse);
+                DiskFill.doFill(eclipse1, g1.data(), width, 0);
+                DiskFill.doFill(eclipse2, g2.data(), width, 0);
+                var stretch = new ArcsinhStretchingStrategy(0, 50, 50);
+                stretch.stretch(g1);
+                stretch.stretch(g2);
+                var metadata = new HashMap<>(grey1.metadata());
+                metadata.putAll(grey2.metadata());
+                processedImagesEmitter.newColorImage(GeneratedImageKind.DOPPLER_ECLIPSE,
+                    message("doppler.eclipse"),
+                    "doppler-eclipse",
+                    width,
+                    height,
+                    metadata,
+                    () -> {
+                        var dopplerImage = DopplerSupport.toDopplerImage(width, height, g1, g2);
+                        LinearStrechingStrategy.DEFAULT.stretch(new RGBImage(width, height, dopplerImage[0], dopplerImage[1], dopplerImage[2], metadata));
+                        return dopplerImage;
+                    });
+            });
+        });
     }
 
     static float[][] toDopplerImage(int width, int height, ImageWrapper32 grey1, ImageWrapper32 grey2) {

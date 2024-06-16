@@ -26,6 +26,7 @@ public enum GeneratedImageKind {
     GEOMETRY_CORRECTED(DisplayCategory.PROCESSED),
     GEOMETRY_CORRECTED_PROCESSED(DisplayCategory.PROCESSED),
     VIRTUAL_ECLIPSE(DisplayCategory.MISC),
+    DOPPLER_ECLIPSE(DisplayCategory.MISC),
     COLORIZED(DisplayCategory.COLORIZED),
     CONTINUUM(DisplayCategory.PROCESSED),
     MIXED(DisplayCategory.COLORIZED),

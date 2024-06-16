@@ -69,7 +69,7 @@ public class DiskFill extends AbstractFunctionImpl {
         throw new IllegalArgumentException("Ellipse fitting not found, cannot perform fill");
     }
 
-    private static void doFill(Ellipse ellipse, float[] image, int width, float color) {
+    public static void doFill(Ellipse ellipse, float[] image, int width, float color) {
         int height = image.length / width;
         for (int x = 0; x < width; x++) {
             for (int y = 0; y < height; y++) {
