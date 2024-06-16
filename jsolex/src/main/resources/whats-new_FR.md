@@ -9,6 +9,7 @@ Voici les nouvelles fonctionnalités de cette version :
 
 ## Changements depuis la 2.4.0
 
+- Ajout d'une image "Eclipse en mode Doppler"
 - Amélioration de la résolution des lignes spectrales de référence (1/100e d'Angström)
 - Ajout de la possibilité de sauvegarder l'image GONG en faisant un clic droit sur l'image
 - Amélioration de la reconnaissance de contours

@@ -62,6 +62,8 @@ public class ImageSelector {
     @FXML
     private CheckBox virtualEclipse;
     @FXML
+    private CheckBox dopplerEclipse;
+    @FXML
     private CheckBox negative;
     @FXML
     private CheckBox mixed;
@@ -148,6 +150,7 @@ public class ImageSelector {
                 case GEOMETRY_CORRECTED_PROCESSED -> geometryCorrectedStretched.setSelected(true);
                 case COLORIZED -> colorized.setSelected(true);
                 case VIRTUAL_ECLIPSE -> virtualEclipse.setSelected(true);
+                case DOPPLER_ECLIPSE -> dopplerEclipse.setSelected(true);
                 case NEGATIVE -> negative.setSelected(true);
                 case MIXED -> mixed.setSelected(true);
                 case DOPPLER -> doppler.setSelected(true);
@@ -171,7 +174,7 @@ public class ImageSelector {
         if (continuum.isSelected()) {
             result.add(continuumShift);
         }
-        if (doppler.isSelected()) {
+        if (doppler.isSelected() || dopplerEclipse.isSelected()) {
             result.add(-dopplerShift);
             result.add(dopplerShift);
         }
@@ -261,6 +264,13 @@ public class ImageSelector {
                 internalPixelShifts.remove(dopplerShift);
             }
         }
+        if (dopplerEclipse.isSelected()) {
+            images.add(GeneratedImageKind.DOPPLER_ECLIPSE);
+            if (internalPixelShifts != null) {
+                internalPixelShifts.remove(-dopplerShift);
+                internalPixelShifts.remove(dopplerShift);
+            }
+        }
         if (continuum.isSelected()) {
             images.add(GeneratedImageKind.CONTINUUM);
             if (internalPixelShifts != null) {
@@ -314,6 +324,7 @@ public class ImageSelector {
         negative.setSelected(selected);
         mixed.setSelected(selected);
         doppler.setSelected(selected);
+        dopplerEclipse.setSelected(selected);
         continuum.setSelected(selected);
         reconstruction.setSelected(selected);
         technicalCard.setSelected(selected);

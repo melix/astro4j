@@ -56,6 +56,7 @@
                         <CheckBox fx:id="geometryCorrectedStretched" mnemonicParsing="false" text="%geometry.corrected.stretched" />
                         <CheckBox fx:id="colorized" mnemonicParsing="false" text="%colorized" />
                         <CheckBox fx:id="virtualEclipse" mnemonicParsing="false" text="%eclipse" />
+                        <CheckBox fx:id="dopplerEclipse" mnemonicParsing="false" text="%doppler.eclipse" />
                         <CheckBox fx:id="negative" mnemonicParsing="false" text="%negative.image" />
                         <CheckBox fx:id="mixed" mnemonicParsing="false" text="%mixed.image" />
                         <CheckBox fx:id="doppler" mnemonicParsing="false" text="%doppler.image" />

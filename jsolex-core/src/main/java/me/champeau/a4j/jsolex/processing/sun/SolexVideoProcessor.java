@@ -350,7 +350,7 @@ public class SolexVideoProcessor implements Broadcaster {
                 workflow.start();
             });
             var runnables = new ArrayList<Runnable>();
-            if (processParams.requestedImages().isEnabled(GeneratedImageKind.DOPPLER)) {
+            if (processParams.requestedImages().isEnabled(GeneratedImageKind.DOPPLER) || processParams.requestedImages().isEnabled(GeneratedImageKind.DOPPLER_ECLIPSE)) {
                 runnables.add(() -> {
                     var imageEmitterFactory = new ProcessAwareImageEmitterFactory(imageList.get(0), imageNamingStrategy, baseName);
                     var producer = new DopplerSupport(processParams, imageList, imageEmitterFactory.newEmitter(this, Constants.TYPE_PROCESSED, outputDirectory));
