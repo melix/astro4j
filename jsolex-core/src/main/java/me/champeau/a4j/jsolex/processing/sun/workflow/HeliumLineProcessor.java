@@ -87,7 +87,8 @@ public class HeliumLineProcessor {
                 .orElse(SpectralRay.HELIUM_D3)
                 .label();
             if (evaluator.functionCall(BuiltinFunction.COLORIZE, List.of(image, profile)) instanceof ColorizedImageWrapper colorized) {
-                imageEmitter.newColorImage(GeneratedImageKind.COLORIZED, MessageFormat.format(message("colorized"), profile), "helium", image.width(), image.height(), new HashMap<>(image.metadata()), () -> colorized.converter().apply(image));
+                // name -1 is so that we don't overwrite the mono image and put both images into the same category
+                imageEmitter.newColorImage(GeneratedImageKind.COLORIZED, MessageFormat.format(message("colorized"), profile), "helium-1", image.width(), image.height(), new HashMap<>(image.metadata()), () -> colorized.converter().apply(image));
             }
         }
     }
