@@ -9,7 +9,9 @@ Voici les nouvelles fonctionnalités de cette version :
 
 ## Changements depuis la 2.4.0
 
+- L'autostretch ignorera désormais la correction gamma si l'image est trop sombre
 - Ajout d'une image "Eclipse en mode Doppler"
+- Correction de l'image Hélium mono écrasée par sa version couleur
 - Amélioration de la résolution des lignes spectrales de référence (1/100e d'Angström)
 - Ajout de la possibilité de sauvegarder l'image GONG en faisant un clic droit sur l'image
 - Amélioration de la reconnaissance de contours

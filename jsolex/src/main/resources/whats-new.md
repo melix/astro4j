@@ -9,7 +9,9 @@ Here are the new features in this version:
 
 ## Changes since 2.4.0
 
+- Autostretch will now ignore gamma correction if image is too dark
 - Added "Doppler Eclipse" image
+- Fixed mono Helium image being overwritten by its colorized version
 - Improved resolution of reference spectral lines (1/100th of Angstrom)
 - Added ability to save GONG image by right-clicking on the image
 - Improved edge detection for improved images
