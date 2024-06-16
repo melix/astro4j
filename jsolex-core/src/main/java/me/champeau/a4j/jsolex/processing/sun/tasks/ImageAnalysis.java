@@ -16,6 +16,7 @@
 package me.champeau.a4j.jsolex.processing.sun.tasks;
 
 import me.champeau.a4j.jsolex.processing.util.Histogram;
+import me.champeau.a4j.math.regression.Ellipse;
 
 import java.util.HashSet;
 
@@ -44,6 +45,36 @@ public record ImageAnalysis(float avg, float stddev, float min, float max, int d
             max = Math.max(max, v);
             distinctValues.add(v);
             builder.record(v);
+        }
+        float average = sum / n;
+        float stddev = 0;
+        for (float v : array) {
+            stddev += (v - average) * (v - average);
+        }
+        stddev = (float) Math.sqrt(stddev / (n - 1));
+        return new ImageAnalysis(average, stddev, min, max, distinctValues.size(), builder.build());
+    }
+
+    public static ImageAnalysis masked(float[] array, int width, int height, Ellipse e) {
+        float min = Float.MAX_VALUE;
+        float max = Float.MIN_VALUE;
+        float sum = 0.0f;
+        var builder = Histogram.builder(65536);
+        var distinctValues = new HashSet<Float>();
+
+        int n = 0;
+        for (int y = 0; y < height; y++) {
+            for (int x = 0; x < width; x++) {
+                if (e.isWithin(x, y)) {
+                    n++;
+                    var v = array[y * width + x];
+                    sum += v;
+                    min = Math.min(min, v);
+                    max = Math.max(max, v);
+                    distinctValues.add(v);
+                    builder.record(v);
+                }
+            }
         }
         float average = sum / n;
         float stddev = 0;
