@@ -9,6 +9,7 @@ Voici les nouvelles fonctionnalités de cette version :
 
 ## Changements depuis la 2.4.0
 
+- Correction d'un bug qui empêchait d'entrer des coordonnées de longitude ou latitude négatives
 - L'autostretch ignorera désormais la correction gamma si l'image est trop sombre
 - Ajout d'une image "Eclipse en mode Doppler"
 - Correction de l'image Hélium mono écrasée par sa version couleur

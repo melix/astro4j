@@ -162,18 +162,22 @@ public class SetupEditor {
                 var newLongitude = longitude.getText();
                 var selectedIndex = selectionModel.getSelectedIndex();
                 if (selectedIndex != -1) {
-                    var e = new Setup(
-                        newLabel,
-                        newTelescope,
-                        nullable(newFocalLength, Integer::valueOf),
-                        nullable(newAperture, Integer::valueOf),
-                        newCamera,
-                        nullable(newPixelSize, Double::valueOf),
-                        nullable(newLatitude, Double::valueOf),
-                        nullable(newLongitude, Double::valueOf)
-                    );
-                    items.set(selectedIndex, e);
-                    elements.getSelectionModel().select(e);
+                    try {
+                        var e = new Setup(
+                            newLabel,
+                            newTelescope,
+                            nullable(newFocalLength, Integer::valueOf),
+                            nullable(newAperture, Integer::valueOf),
+                            newCamera,
+                            nullable(newPixelSize, SetupEditor::safeParseDouble),
+                            nullable(newLatitude, SetupEditor::safeParseDouble),
+                            nullable(newLongitude, SetupEditor::safeParseDouble)
+                        );
+                        items.set(selectedIndex, e);
+                        elements.getSelectionModel().select(e);
+                    } catch (Exception ex) {
+                        // ignore
+                    }
                 }
                 updating.set(false);
             }
@@ -184,6 +188,17 @@ public class SetupEditor {
             fireDisableStatus(true);
         } else {
             elements.getSelectionModel().select(0);
+        }
+    }
+
+    private static Double safeParseDouble(String str) {
+        if (str == null || str.isEmpty()) {
+            return null;
+        }
+        try {
+            return Double.parseDouble(str);
+        } catch (NumberFormatException ex) {
+            return null;
         }
     }
 
