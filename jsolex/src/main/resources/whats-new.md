@@ -9,6 +9,7 @@ Here are the new features in this version:
 
 ## Changes since 2.4.0
 
+- Fixed ringing artifacts in autostretched image
 - Fixed a bug preventing negative longitude or latitude coordinates
 - Autostretch will now ignore gamma correction if image is too dark
 - Added "Doppler Eclipse" image
