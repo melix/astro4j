@@ -65,6 +65,22 @@ public class BackgroundRemoval {
      * modeling it using a 2nd order regression.
      *
      * @param image the image to process
+     * @param iterations the number of iterations
+     * @return the image with background neutralized
+     */
+    public static ImageWrapper32 neutralizeBackground(ImageWrapper32 image, int iterations) {
+        ImageWrapper32 img = image;
+        for (int i = 0; i < iterations; i++) {
+            img = neutralizeBackground(img);
+        }
+        return img;
+    }
+
+    /**
+     * Neutralizes background by estimating the background level and
+     * modeling it using a 2nd order regression.
+     *
+     * @param image the image to process
      * @return the image with background neutralized
      */
     public static ImageWrapper32 neutralizeBackground(ImageWrapper32 image) {
