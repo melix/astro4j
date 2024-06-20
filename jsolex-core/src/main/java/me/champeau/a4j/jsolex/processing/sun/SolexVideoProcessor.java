@@ -134,7 +134,12 @@ public class SolexVideoProcessor implements Broadcaster {
     private float[] averageImage;
     private PixelShiftRange pixelShiftRange;
 
-    public SolexVideoProcessor(File serFile, Path outputDirectory, int sequenceNumber, ProcessParams processParametersProvider, LocalDateTime processingDate, boolean batchMode) {
+    public SolexVideoProcessor(File serFile,
+                               Path outputDirectory,
+                               int sequenceNumber,
+                               ProcessParams processParametersProvider,
+                               LocalDateTime processingDate,
+                               boolean batchMode) {
         this.serFile = serFile;
         this.outputDirectory = outputDirectory;
         this.sequenceNumber = sequenceNumber;
@@ -216,7 +221,9 @@ public class SolexVideoProcessor implements Broadcaster {
             .or(() -> CaptureSoftwareMetadataHelper.readFireCaptureMetadata(serFile));
         if (md.isPresent()) {
             var obsDetails = processParams.observationDetails();
-            obsDetails = obsDetails.withCamera(md.get().camera());
+            if (!obsDetails.forceCamera()) {
+                obsDetails = obsDetails.withCamera(md.get().camera());
+            }
             obsDetails = obsDetails.withBinning(md.get().binning());
             processParams = processParams.withObservationDetails(obsDetails);
             return true;

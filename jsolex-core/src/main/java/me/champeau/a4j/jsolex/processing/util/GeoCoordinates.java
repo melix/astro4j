@@ -13,22 +13,21 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package me.champeau.a4j.jsolex.processing.params;
+package me.champeau.a4j.jsolex.processing.util;
 
-public record Setup(
-    String label,
-    String telescope,
-    Integer focalLength,
-    Integer aperture,
-    String camera,
-    Double pixelSize,
-    Double latitude,
-    Double longitude,
-    boolean forceCamera,
-    boolean showCoordinatesInDetails
-) {
-    @Override
+import static me.champeau.a4j.jsolex.processing.util.CoordinatesHelper.toDegreesArcMinutesSeconds;
+
+public record GeoCoordinates(double latitude, double longitude) {
+
+    public String sexagesimalLat() {
+        return toDegreesArcMinutesSeconds(latitude).latitude();
+    }
+
+    public String sexagesimalLong() {
+        return toDegreesArcMinutesSeconds(longitude).longitude();
+    }
+
     public String toString() {
-        return label;
+        return String.format("%s\n%s", sexagesimalLat(), sexagesimalLong());
     }
 }

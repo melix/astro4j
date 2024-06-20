@@ -19,5 +19,6 @@ Pour que les annotations soient précises, assurez-vous que :
 
 ## Corrections de bugs et améliorations
 
+- Ajout de la possibilité d'afficher les coordonnées GPS dans les détails de l'observation
 - Correction des artefacts de sonnerie dans l'image autostretchée
 - Correction d'un bug empêchant les coordonnées de longitude ou de latitude négatives

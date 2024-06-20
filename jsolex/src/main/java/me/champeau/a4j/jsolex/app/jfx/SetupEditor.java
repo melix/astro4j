@@ -19,6 +19,8 @@ import javafx.beans.value.ChangeListener;
 import javafx.fxml.FXML;
 import javafx.scene.Parent;
 import javafx.scene.Scene;
+import javafx.scene.control.CheckBox;
+import javafx.scene.control.Control;
 import javafx.scene.control.ListView;
 import javafx.scene.control.TextField;
 import javafx.scene.control.TextFormatter;
@@ -46,6 +48,10 @@ public class SetupEditor {
     @FXML
     public ListView<Setup> elements;
     @FXML
+    public CheckBox forceCamera;
+    @FXML
+    public CheckBox showInDetails;
+    @FXML
     private TextField label;
     @FXML
     private TextField telescope;
@@ -62,7 +68,7 @@ public class SetupEditor {
     @FXML
     private TextField longitude;
 
-    private List<TextInputControl> formFields;
+    private List<Control> formFields;
 
     private Stage stage;
     private Setup selected;
@@ -109,7 +115,9 @@ public class SetupEditor {
             camera,
             pixelSize,
             latitude,
-            longitude
+            longitude,
+            showInDetails,
+            forceCamera
         );
         label.setTextFormatter(new TextFormatter<>(new StringConverter<String>() {
             @Override
@@ -147,6 +155,8 @@ public class SetupEditor {
                 pixelSize.setText(nullable(item.pixelSize(), String::valueOf));
                 latitude.setText(nullable(item.latitude(), String::valueOf));
                 longitude.setText(nullable(item.longitude(), String::valueOf));
+                forceCamera.setSelected(item.forceCamera());
+                showInDetails.setSelected(item.showCoordinatesInDetails());
                 updating.set(false);
             }
         });
@@ -160,6 +170,8 @@ public class SetupEditor {
                 var newPixelSize = pixelSize.getText();
                 var newLatitude = latitude.getText();
                 var newLongitude = longitude.getText();
+                var newForceCamera = forceCamera.isSelected();
+                var newShowInDetails = showInDetails.isSelected();
                 var selectedIndex = selectionModel.getSelectedIndex();
                 if (selectedIndex != -1) {
                     try {
@@ -171,7 +183,9 @@ public class SetupEditor {
                             newCamera,
                             nullable(newPixelSize, SetupEditor::safeParseDouble),
                             nullable(newLatitude, SetupEditor::safeParseDouble),
-                            nullable(newLongitude, SetupEditor::safeParseDouble)
+                            nullable(newLongitude, SetupEditor::safeParseDouble),
+                            newForceCamera,
+                            newShowInDetails
                         );
                         items.set(selectedIndex, e);
                         elements.getSelectionModel().select(e);
@@ -182,7 +196,13 @@ public class SetupEditor {
                 updating.set(false);
             }
         };
-        formFields.forEach(e -> e.textProperty().addListener(updateValueListener));
+        formFields.forEach(e -> {
+            if (e instanceof TextInputControl text) {
+                text.textProperty().addListener(updateValueListener);
+            } else if (e instanceof CheckBox cb) {
+                cb.selectedProperty().addListener(updateValueListener);
+            }
+        });
         items.addAll(SetupsIO.loadDefaults());
         if (items.isEmpty()) {
             fireDisableStatus(true);
@@ -258,7 +278,13 @@ public class SetupEditor {
         var idx = elements.getSelectionModel().getSelectedIndex();
         elements.getItems().remove(idx);
         if (elements.getItems().isEmpty()) {
-            formFields.forEach(TextInputControl::clear);
+            formFields.forEach(e -> {
+                if (e instanceof TextInputControl text) {
+                    text.clear();
+                } else if (e instanceof CheckBox cb) {
+                    cb.setSelected(false);
+                }
+            });
             fireDisableStatus(true);
         } else {
             elements.getSelectionModel().select(Math.min(idx, elements.getItems().size() - 1));
@@ -283,7 +309,9 @@ public class SetupEditor {
                 selected.camera(),
                 selected.pixelSize(),
                 selected.latitude(),
-                selected.longitude()
+                selected.longitude(),
+                selected.forceCamera(),
+                selected.showCoordinatesInDetails()
             );
         } else {
             newElement = new Setup(
@@ -294,7 +322,9 @@ public class SetupEditor {
                 null,
                 null,
                 null,
-                null
+                null,
+                false,
+                false
             );
         }
         elements.getItems().add(newElement);

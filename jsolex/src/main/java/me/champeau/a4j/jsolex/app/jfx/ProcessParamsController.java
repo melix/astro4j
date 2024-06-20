@@ -191,6 +191,8 @@ public class ProcessParamsController {
     private Header serFileHeader;
     private ProcessParams initialProcessParams;
     private ProcessParams processParams;
+    private boolean forceCamera;
+    private boolean showCoordinatesInDetails;
 
     public void setup(Stage stage, Header serFileHeader, CaptureSoftwareMetadataHelper.CaptureMetadata md, boolean batchMode, HostServices hostServices) {
         this.stage = stage;
@@ -380,6 +382,8 @@ public class ProcessParamsController {
             autoSave.setDisable(true);
             observationDate.setDisable(true);
         }
+        forceCamera = initialProcessParams.observationDetails().forceCamera();
+        showCoordinatesInDetails = initialProcessParams.observationDetails().showCoordinatesInDetails();
         var bin = initialProcessParams.observationDetails().binning();
         binning.setValue(Objects.requireNonNullElse(bin, 1));
         var pSize = initialProcessParams.observationDetails().pixelSize();
@@ -459,6 +463,8 @@ public class ProcessParamsController {
                     longitude.setText(nullable(s.longitude(), String::valueOf));
                     camera.setText(nullable(s.camera(), String::valueOf));
                     pixelSize.setText(nullable(s.pixelSize(), String::valueOf));
+                    forceCamera = s.forceCamera();
+                    showCoordinatesInDetails = s.showCoordinatesInDetails();
                 })
             )
         );
@@ -571,7 +577,9 @@ public class ProcessParamsController {
                 ZonedDateTime.parse(observationDate.getText()),
                 camera.getText(),
                 binning.getValue(),
-                getPixelSizeAsDouble()
+                getPixelSizeAsDouble(),
+                forceCamera,
+                showCoordinatesInDetails
             ),
             new ExtraParams(generateDebugImages.isSelected() || debugImagesRequested, autoSave.isSelected(), imageFormats, namingStrategy.pattern(), namingStrategy.datetimeFormat(), namingStrategy.dateFormat()),
             new VideoParams(assumeMonoVideo.isSelected() ? ColorMode.MONO : null),

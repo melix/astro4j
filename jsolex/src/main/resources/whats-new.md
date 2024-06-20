@@ -20,5 +20,6 @@ In order for the annotations to be accurate, make sure that:
 
 ## Bugfixes and improvements
 
+- Added the ability to display GPS coordinates in observation details
 - Fixed ringing artifacts in autostretched image
 - Fixed a bug preventing negative longitude or latitude coordinates
