@@ -3,6 +3,7 @@
 <?import javafx.geometry.Insets?>
 <?import javafx.scene.control.Button?>
 <?import javafx.scene.control.ButtonBar?>
+<?import javafx.scene.control.CheckBox?>
 <?import javafx.scene.control.Label?>
 <?import javafx.scene.control.ListView?>
 <?import javafx.scene.control.TextField?>
@@ -12,61 +13,64 @@
 <?import javafx.scene.layout.GridPane?>
 <?import javafx.scene.layout.RowConstraints?>
 
-<BorderPane maxHeight="-Infinity" maxWidth="-Infinity" minHeight="-Infinity" minWidth="-Infinity" prefHeight="420.0" prefWidth="748.0" xmlns="http://javafx.com/javafx/19"
-            xmlns:fx="http://javafx.com/fxml/1" fx:controller="me.champeau.a4j.jsolex.app.jfx.SetupEditor">
+<BorderPane maxHeight="-Infinity" maxWidth="-Infinity" minHeight="-Infinity" minWidth="-Infinity" prefHeight="420.0" prefWidth="748.0" xmlns="http://javafx.com/javafx/19" xmlns:fx="http://javafx.com/fxml/1" fx:controller="me.champeau.a4j.jsolex.app.jfx.SetupEditor">
     <center>
         <GridPane vgap="4.0" BorderPane.alignment="CENTER">
             <columnConstraints>
-                <ColumnConstraints hgrow="SOMETIMES" maxWidth="269.0" minWidth="10.0" prefWidth="212.0"/>
-                <ColumnConstraints hgrow="SOMETIMES" maxWidth="379.0" minWidth="10.0" prefWidth="312.0"/>
+                <ColumnConstraints hgrow="SOMETIMES" maxWidth="269.0" minWidth="10.0" prefWidth="170.0" />
+                <ColumnConstraints hgrow="SOMETIMES" maxWidth="379.0" minWidth="10.0" prefWidth="354.0" />
             </columnConstraints>
             <rowConstraints>
-                <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="NEVER"/>
-                <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="NEVER"/>
-                <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="NEVER"/>
-                <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="NEVER"/>
-                <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="NEVER"/>
-                <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="NEVER"/>
-                <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="NEVER"/>
-                <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="NEVER"/>
+                <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="NEVER" />
+                <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="NEVER" />
+                <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="NEVER" />
+                <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="NEVER" />
+                <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="NEVER" />
+            <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="NEVER" />
+                <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="NEVER" />
+                <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="NEVER" />
+                <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="NEVER" />
+            <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="NEVER" />
             </rowConstraints>
             <children>
-                <Label text="%label"/>
-                <TextField fx:id="label" GridPane.columnIndex="1"/>
+                <Label text="%label" />
+                <TextField fx:id="label" GridPane.columnIndex="1" />
 
-                <Label text="%telescope" GridPane.rowIndex="1"/>
-                <TextField fx:id="telescope" GridPane.columnIndex="1" GridPane.rowIndex="1"/>
+                <Label text="%telescope" GridPane.rowIndex="1" />
+                <TextField fx:id="telescope" GridPane.columnIndex="1" GridPane.rowIndex="1" />
 
 
-                <Label text="%focal.length" GridPane.rowIndex="2"/>
-                <TextField fx:id="focalLength" GridPane.columnIndex="1" GridPane.rowIndex="2"/>
+                <Label text="%focal.length" GridPane.rowIndex="2" />
+                <TextField fx:id="focalLength" GridPane.columnIndex="1" GridPane.rowIndex="2" />
 
-                <Label text="%aperture" GridPane.rowIndex="3"/>
-                <TextField fx:id="aperture" GridPane.columnIndex="1" GridPane.rowIndex="3"/>
+                <Label text="%aperture" GridPane.rowIndex="3" />
+                <TextField fx:id="aperture" GridPane.columnIndex="1" GridPane.rowIndex="3" />
 
-                <Label text="%camera" GridPane.rowIndex="4"/>
-                <TextField fx:id="camera" GridPane.columnIndex="1" GridPane.rowIndex="4"/>
+                <Label text="%camera" GridPane.rowIndex="4" />
+                <TextField fx:id="camera" GridPane.columnIndex="1" GridPane.rowIndex="4" />
 
-                <Label text="%pixel.size" GridPane.rowIndex="5"/>
-                <TextField fx:id="pixelSize" GridPane.columnIndex="1" GridPane.rowIndex="5"/>
+                <Label text="%pixel.size" GridPane.rowIndex="6" />
+                <TextField fx:id="pixelSize" GridPane.columnIndex="1" GridPane.rowIndex="6" />
 
-                <Label text="%latitude" GridPane.rowIndex="6"/>
-                <TextField fx:id="latitude" GridPane.columnIndex="1" GridPane.rowIndex="6"/>
+                <Label text="%latitude" GridPane.rowIndex="7" />
+                <TextField fx:id="latitude" GridPane.columnIndex="1" GridPane.rowIndex="7" />
 
-                <Label text="%longitude" GridPane.rowIndex="7"/>
-                <TextField fx:id="longitude" GridPane.columnIndex="1" GridPane.rowIndex="7"/>
+                <Label text="%longitude" GridPane.rowIndex="8" />
+                <TextField fx:id="longitude" GridPane.columnIndex="1" GridPane.rowIndex="8" />
+            <CheckBox fx:id="forceCamera" mnemonicParsing="false" text="%force.camera" GridPane.columnIndex="1" GridPane.rowIndex="5" />
+            <CheckBox fx:id="showInDetails" mnemonicParsing="false" text="%show.in.details" GridPane.columnSpan="2" GridPane.rowIndex="9" />
             </children>
 
             <padding>
-                <Insets bottom="8.0" left="8.0" right="8.0" top="8.0"/>
+                <Insets bottom="8.0" left="8.0" right="8.0" top="8.0" />
             </padding>
         </GridPane>
     </center>
     <bottom>
         <AnchorPane prefHeight="37.0" prefWidth="600.0" BorderPane.alignment="CENTER">
             <children>
-                <Button layoutX="641.0" layoutY="7.0" mnemonicParsing="false" onAction="#close" text="%ok"/>
-                <Button layoutX="559.0" layoutY="7.0" mnemonicParsing="false" onAction="#cancel" text="%cancel"/>
+                <Button layoutX="641.0" layoutY="7.0" mnemonicParsing="false" onAction="#close" text="%ok" />
+                <Button layoutX="559.0" layoutY="7.0" mnemonicParsing="false" onAction="#cancel" text="%cancel" />
             </children>
         </AnchorPane>
     </bottom>
@@ -75,18 +79,18 @@
             <center>
                 <ListView fx:id="elements" prefHeight="200.0" prefWidth="200.0" BorderPane.alignment="CENTER">
                     <BorderPane.margin>
-                        <Insets left="4.0" top="4.0"/>
+                        <Insets left="4.0" top="4.0" />
                     </BorderPane.margin>
                 </ListView>
             </center>
             <bottom>
                 <ButtonBar prefHeight="40.0" prefWidth="200.0">
                     <buttons>
-                        <Button mnemonicParsing="false" onAction="#removeSelectedItem" text="-"/>
-                        <Button mnemonicParsing="false" onAction="#addNewItem" text="+"/>
+                        <Button mnemonicParsing="false" onAction="#removeSelectedItem" text="-" />
+                        <Button mnemonicParsing="false" onAction="#addNewItem" text="+" />
                     </buttons>
                     <BorderPane.margin>
-                        <Insets right="8.0"/>
+                        <Insets right="8.0" />
                     </BorderPane.margin>
                 </ButtonBar>
             </bottom>

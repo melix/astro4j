@@ -30,51 +30,60 @@ public record ObservationDetails(
         ZonedDateTime date,
         String camera,
         Integer binning,
-        Double pixelSize
+        Double pixelSize,
+        boolean forceCamera,
+        boolean showCoordinatesInDetails
 ) {
     public ObservationDetails withObserver(String observer) {
-        return new ObservationDetails(observer, email, instrument, telescope, focalLength, aperture, coordinates, date, camera, binning, pixelSize);
+        return new ObservationDetails(observer, email, instrument, telescope, focalLength, aperture, coordinates, date, camera, binning, pixelSize, forceCamera, showCoordinatesInDetails);
     }
 
     public ObservationDetails withEmail(String email) {
-        return new ObservationDetails(observer, email, instrument, telescope, focalLength, aperture, coordinates, date, camera, binning, pixelSize);
+        return new ObservationDetails(observer, email, instrument, telescope, focalLength, aperture, coordinates, date, camera, binning, pixelSize, forceCamera, showCoordinatesInDetails);
     }
 
     public ObservationDetails withInstrument(SpectroHeliograph instrument) {
-        return new ObservationDetails(observer, email, instrument, telescope, focalLength, aperture, coordinates, date, camera, binning, pixelSize);
+        return new ObservationDetails(observer, email, instrument, telescope, focalLength, aperture, coordinates, date, camera, binning, pixelSize, forceCamera, showCoordinatesInDetails);
     }
 
     public ObservationDetails withTelescope(String telescope) {
-        return new ObservationDetails(observer, email, instrument, telescope, focalLength, aperture, coordinates, date, camera, binning, pixelSize);
+        return new ObservationDetails(observer, email, instrument, telescope, focalLength, aperture, coordinates, date, camera, binning, pixelSize, forceCamera, showCoordinatesInDetails);
     }
 
     public ObservationDetails withFocalLength(Integer focalLength) {
-        return new ObservationDetails(observer, email, instrument, telescope, focalLength, aperture, coordinates, date, camera, binning, pixelSize);
+        return new ObservationDetails(observer, email, instrument, telescope, focalLength, aperture, coordinates, date, camera, binning, pixelSize, forceCamera, showCoordinatesInDetails);
     }
 
     public ObservationDetails withAperture(Integer aperture) {
-        return new ObservationDetails(observer, email, instrument, telescope, focalLength, aperture, coordinates, date, camera, binning, pixelSize);
+        return new ObservationDetails(observer, email, instrument, telescope, focalLength, aperture, coordinates, date, camera, binning, pixelSize, forceCamera, showCoordinatesInDetails);
     }
 
     public ObservationDetails withCoordinates(DoublePair coordinates) {
-        return new ObservationDetails(observer, email, instrument, telescope, focalLength, aperture, coordinates, date, camera, binning, pixelSize);
+        return new ObservationDetails(observer, email, instrument, telescope, focalLength, aperture, coordinates, date, camera, binning, pixelSize, forceCamera, showCoordinatesInDetails);
     }
 
     public ObservationDetails withDate(ZonedDateTime date) {
-        return new ObservationDetails(observer, email, instrument, telescope, focalLength, aperture, coordinates, date, camera, binning, pixelSize);
+        return new ObservationDetails(observer, email, instrument, telescope, focalLength, aperture, coordinates, date, camera, binning, pixelSize, forceCamera, showCoordinatesInDetails);
     }
 
     public ObservationDetails withCamera(String camera) {
-        return new ObservationDetails(observer, email, instrument, telescope, focalLength, aperture, coordinates, date, camera, binning, pixelSize);
+        return new ObservationDetails(observer, email, instrument, telescope, focalLength, aperture, coordinates, date, camera, binning, pixelSize, forceCamera, showCoordinatesInDetails);
     }
 
     public ObservationDetails withBinning(int binning) {
-        return new ObservationDetails(observer, email, instrument, telescope, focalLength, aperture, coordinates, date, camera, binning, pixelSize);
+        return new ObservationDetails(observer, email, instrument, telescope, focalLength, aperture, coordinates, date, camera, binning, pixelSize, forceCamera, showCoordinatesInDetails);
     }
 
     public ObservationDetails withPixelSize(double pixelSize) {
-        return new ObservationDetails(observer, email, instrument, telescope, focalLength, aperture, coordinates, date, camera, binning, pixelSize);
+        return new ObservationDetails(observer, email, instrument, telescope, focalLength, aperture, coordinates, date, camera, binning, pixelSize, forceCamera, showCoordinatesInDetails);
     }
 
+    public ObservationDetails withShowCoordinatesInDetails(boolean show) {
+        return new ObservationDetails(observer, email, instrument, telescope, focalLength, aperture, coordinates, date, camera, binning, pixelSize, forceCamera, show);
+    }
+
+    public ObservationDetails withForceCamera(boolean forceCamera) {
+        return new ObservationDetails(observer, email, instrument, telescope, focalLength, aperture, coordinates, date, camera, binning, pixelSize, forceCamera, showCoordinatesInDetails);
+    }
 
 }

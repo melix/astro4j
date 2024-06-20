@@ -20,6 +20,7 @@ import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
 import me.champeau.a4j.jsolex.processing.util.ColorizedImageWrapper;
 import me.champeau.a4j.jsolex.processing.util.Constants;
 import me.champeau.a4j.jsolex.processing.util.FileBackedImage;
+import me.champeau.a4j.jsolex.processing.util.GeoCoordinates;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 import me.champeau.a4j.jsolex.processing.util.RGBImage;
@@ -115,6 +116,10 @@ public class ImageDraw extends AbstractFunctionImpl {
                         appendLine("Aperture " + details.aperture() + "mm", sb);
                     }
                     appendLine(details.camera(), sb);
+                    if (details.showCoordinatesInDetails() && details.coordinates() != null) {
+                        var geoCoordinates = new GeoCoordinates(details.coordinates().a(), details.coordinates().b());
+                        appendLine(geoCoordinates.toString(), sb);
+                    }
                     writeMultiline(g, sb, x, y);
                 });
             } else {

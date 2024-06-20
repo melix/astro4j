@@ -39,6 +39,11 @@ class ObservationDetailsSerializer implements JsonSerializer<ObservationDetails>
         return element == null ? null : element.getAsInt();
     }
 
+    private static boolean getNullableBoolean(JsonObject obj, String key) {
+        var element = obj.get(key);
+        return element != null && element.getAsBoolean();
+    }
+
     private static Double getNullableDouble(JsonObject obj, String key) {
         var element = obj.get(key);
         return element == null ? null : element.getAsDouble();
@@ -56,6 +61,8 @@ class ObservationDetailsSerializer implements JsonSerializer<ObservationDetails>
             var pixelSize = getNullableDouble(obj, "pixelSize");
             var date = (ZonedDateTime) context.deserialize(obj.get("date"), ZonedDateTime.class);
             var focalLength = getNullableInt(obj, "focalLength");
+            var forceCamera = getNullableBoolean(obj, "forceCamera");
+            var showCoordinatesInDetails = getNullableBoolean(obj, "showCoordinatesInDetails");
             SpectroHeliograph instrument;
             if (obj.get("instrument") instanceof JsonObject) {
                 instrument = context.deserialize(obj.get("instrument"), SpectroHeliograph.class);
@@ -68,7 +75,7 @@ class ObservationDetailsSerializer implements JsonSerializer<ObservationDetails>
                     .orElse(SpectroHeliograph.SOLEX);
             }
             var coordinates = (DoublePair) context.deserialize(obj.get("coordinates"), DoublePair.class);
-            return new ObservationDetails(observer, email, instrument, telescope, focalLength, aperture, coordinates, date, camera, binning, pixelSize);
+            return new ObservationDetails(observer, email, instrument, telescope, focalLength, aperture, coordinates, date, camera, binning, pixelSize, forceCamera, showCoordinatesInDetails);
         }
         throw new IllegalAccessError("Unexpected JSON type " + json.getClass());
     }
@@ -87,6 +94,8 @@ class ObservationDetailsSerializer implements JsonSerializer<ObservationDetails>
         obj.add("date", context.serialize(src.date()));
         obj.add("instrument", context.serialize(src.instrument()));
         obj.add("coordinates", context.serialize(src.coordinates()));
+        obj.add("forceCamera", context.serialize(src.forceCamera()));
+        obj.add("showCoordinatesInDetails", context.serialize(src.showCoordinatesInDetails()));
         return obj;
     }
 }

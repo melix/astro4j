@@ -13,22 +13,17 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package me.champeau.a4j.jsolex.processing.params;
+package me.champeau.a4j.jsolex.processing.util;
 
-public record Setup(
-    String label,
-    String telescope,
-    Integer focalLength,
-    Integer aperture,
-    String camera,
-    Double pixelSize,
-    Double latitude,
-    Double longitude,
-    boolean forceCamera,
-    boolean showCoordinatesInDetails
-) {
+import java.util.Locale;
+
+public record HoursMinutesSeconds(int hours, int minutes, double seconds) {
+    public double toDegrees() {
+        return hours * 15 + minutes * 0.25 + seconds * 0.004166666666666667;
+    }
+
     @Override
     public String toString() {
-        return label;
+        return String.format(Locale.US, "%02dh%02dm%.2fs", hours, minutes, seconds);
     }
 }
