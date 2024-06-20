@@ -273,13 +273,13 @@ public class ImageViewer {
         });
         nextButton.disableProperty().bind(currentImage.isEqualTo(imageHistory.sizeProperty().subtract(1)));
         nextButton.visibleProperty().bind(imageHistory.sizeProperty().greaterThan(1));
-        var fitButton = new Button("fit");
-        fitButton.setOnAction(evt -> imageView.resetZoom());
+        var fitButton = new Button("←fit→");
+        fitButton.setOnAction(evt -> imageView.resetZoom(true));
         var fitToCenter = new Button("→fit←");
-        fitToCenter.visibleProperty().bind(imageView.canFitToCenterProperty());
+        fitToCenter.disableProperty().bind(imageView.canFitToCenterProperty().map(e -> !e));
         fitToCenter.setOnAction(evt -> imageView.fitToCenter());
         var oneToOneFit = new Button("1:1");
-        oneToOneFit.visibleProperty().bind(imageView.canFitToCenterProperty());
+        oneToOneFit.disableProperty().bind(imageView.canFitToCenterProperty().map(e -> !e));
         oneToOneFit.setOnAction(evt -> imageView.oneToOneZoomAndCenter());
         var leftRotate = new Button("↶");
         leftRotate.setTooltip(new Tooltip(message("rotate.left")));
@@ -288,7 +288,7 @@ public class ImageViewer {
             applyNextTime.setDisable(false);
             stretchAndDisplay();
         });
-        leftRotate.visibleProperty().set(!kind.cannotPerformManualRotation());
+        leftRotate.disableProperty().set(kind.cannotPerformManualRotation());
         var rightRotate = new Button("↷");
         rightRotate.setTooltip(new Tooltip(message("rotate.right")));
         rightRotate.setOnAction(evt -> {
@@ -297,7 +297,7 @@ public class ImageViewer {
 
             stretchAndDisplay();
         });
-        rightRotate.visibleProperty().set(!kind.cannotPerformManualRotation());
+        rightRotate.disableProperty().set(kind.cannotPerformManualRotation());
         var verticalMirror = new Button("⇅");
         verticalMirror.setTooltip(new Tooltip(message("vertical.flip")));
         verticalMirror.setOnAction(evt -> {
@@ -306,7 +306,7 @@ public class ImageViewer {
             applyNextTime.setDisable(false);
             stretchAndDisplay();
         });
-        verticalMirror.visibleProperty().set(!kind.cannotPerformManualRotation());
+        verticalMirror.disableProperty().set(kind.cannotPerformManualRotation());
         var horizontalMirror = new Button("⇄");
         horizontalMirror.setTooltip(new Tooltip(message("horizontal.flip")));
         horizontalMirror.setOnAction(evt -> {
@@ -315,7 +315,7 @@ public class ImageViewer {
             verticalMirror.fire();
             stretchAndDisplay();
         });
-        horizontalMirror.visibleProperty().set(!kind.cannotPerformManualRotation());
+        horizontalMirror.disableProperty().set(kind.cannotPerformManualRotation());
         applyNextTime.setOnAction(evt -> {
             broadcaster.onGenericMessage(GenericMessage.of(new ApplyUserRotation(rotation, correctAngleP.isSelected(), vflip)));
             applyNextTime.setDisable(true);
@@ -463,8 +463,8 @@ public class ImageViewer {
     private ImageWrapper applyTransformations(ImageWrapper image) {
         double correction = 0;
         if (!kind.cannotPerformManualRotation() && vflip) {
-                image = Corrector.verticalFlip(image);
-            }
+            image = Corrector.verticalFlip(image);
+        }
 
         if (!kind.cannotPerformManualRotation()) {
             correction = image.findMetadata(RotationKind.class).orElseGet(() -> processParams.geometryParams().rotation()).angle();

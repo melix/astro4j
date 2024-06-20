@@ -35,6 +35,7 @@ public enum GeneratedImageKind {
     TECHNICAL_CARD(DisplayCategory.MISC),
     IMAGE_MATH(DisplayCategory.IMAGE_MATH),
     COMPOSITION(DisplayCategory.PROCESSED),
+    CROPPED(DisplayCategory.MISC),
     REDSHIFT(DisplayCategory.MISC);
 
     private final DisplayCategory displayCategory;
@@ -51,6 +52,7 @@ public enum GeneratedImageKind {
         return this == GeneratedImageKind.IMAGE_MATH
                || this == GeneratedImageKind.DEBUG
                || this == GeneratedImageKind.TECHNICAL_CARD
+               || this == GeneratedImageKind.CROPPED
                || this == GeneratedImageKind.REDSHIFT;
     }
 }

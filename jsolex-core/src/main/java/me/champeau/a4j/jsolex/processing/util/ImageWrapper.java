@@ -17,6 +17,7 @@ package me.champeau.a4j.jsolex.processing.util;
 
 import java.util.Map;
 import java.util.Optional;
+import java.util.function.Function;
 
 public sealed interface ImageWrapper permits ImageWrapper32, ColorizedImageWrapper, RGBImage, FileBackedImage {
     int width();
@@ -29,6 +30,10 @@ public sealed interface ImageWrapper permits ImageWrapper32, ColorizedImageWrapp
             return (Optional<T>) Optional.of(metadata.get(clazz));
         }
         return Optional.empty();
+    }
+
+    default <T> void transformMetadata(Class<T> clazz, Function<T, T> transformer) {
+        findMetadata(clazz).ifPresent(value -> metadata().put(clazz, transformer.apply(value)));
     }
 
     ImageWrapper copy();

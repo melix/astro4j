@@ -23,6 +23,7 @@ import me.champeau.a4j.jsolex.processing.expr.FileOutput;
 import me.champeau.a4j.jsolex.processing.expr.impl.AdjustContrast;
 import me.champeau.a4j.jsolex.processing.expr.impl.Animate;
 import me.champeau.a4j.jsolex.processing.expr.impl.Crop;
+import me.champeau.a4j.jsolex.processing.expr.impl.ImageDraw;
 import me.champeau.a4j.jsolex.processing.expr.impl.Scaling;
 import me.champeau.a4j.jsolex.processing.params.ImageMathParams;
 import me.champeau.a4j.jsolex.processing.params.ProcessParams;
@@ -48,6 +49,7 @@ import java.awt.image.BufferedImage;
 import java.io.File;
 import java.nio.file.Path;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -143,6 +145,14 @@ public class RedshiftImagesProcessor {
         return requiredShifts;
     }
 
+    private LinkedHashSet<Double> createMinMaxRange(double minShift, double maxShift, double increment) {
+        var requiredShifts = new LinkedHashSet<Double>();
+        for (double i = minShift; i <= maxShift; i+=increment) {
+            requiredShifts.add(i);
+        }
+        return requiredShifts;
+    }
+
     private void produceImagesForRedshift(RedshiftArea redshift, RedshiftCreatorKind kind, int boxSize, int margin, boolean useFullRangePanels) {
         var centerX = redshift.maxX();
         var centerY = redshift.maxY();
@@ -151,10 +161,11 @@ public class RedshiftImagesProcessor {
         var dy = boxSize / 2;
         var x1 = Math.max(0, centerX - dx);
         var y1 = Math.max(0, centerY - dy);
+        var range = createRange(margin, redshift.pixelShift());
         var crop = new Crop(Map.of(), broadcaster);
         var contrast = new AdjustContrast(Map.of(), broadcaster);
         var animate = new Animate(Map.of(), broadcaster);
-        var initialImages = createRange(margin, redshift.pixelShift()).stream().map(shiftImages::get).toList();
+        var initialImages = range.stream().map(shiftImages::get).toList();
         var constrastAdjusted = contrast.autoContrast(List.of(initialImages, params.autoStretchParams().gamma()));
         var cropped = crop.crop(List.of(constrastAdjusted, x1, y1, boxSize, boxSize));
         if (kind == RedshiftCreatorKind.ANIMATION || kind == RedshiftCreatorKind.ALL) {
@@ -163,6 +174,96 @@ public class RedshiftImagesProcessor {
         if (kind == RedshiftCreatorKind.PANEL || kind == RedshiftCreatorKind.ALL) {
             generatePanel(redshift, (List<ImageWrapper>) cropped, boxSize, crop, useFullRangePanels);
         }
+    }
+
+    public String toAngstroms(double shift) {
+        var lambda0 = params.spectrumParams().ray().wavelength();
+        var instrument = params.observationDetails().instrument();
+        var dispersion = SpectrumAnalyzer.computeSpectralDispersionNanosPerPixel(instrument, lambda0, params.observationDetails().pixelSize() * params.observationDetails().binning());
+        var angstroms = 10 * shift * dispersion;
+        return String.format(Locale.US, "%.2fÅ", angstroms);
+    }
+
+    public void generateStandaloneAnimation(int x, int y, int width, int height, double minShift, double maxShift, String title, String name, boolean annotate, int delay) {
+        var crop = new Crop(Map.of(), broadcaster);
+        var contrast = new AdjustContrast(Map.of(), broadcaster);
+        var animate = new Animate(Map.of(), broadcaster);
+        var range = createMinMaxRange(minShift, maxShift, .25);
+        var missingShifts = range.stream().filter(d -> !shiftImages.containsKey(d)).toList();
+        if (!missingShifts.isEmpty()) {
+            restartProcessForMissingShifts(new LinkedHashSet<>(missingShifts));
+        }
+        var initialImages = range.stream().map(shiftImages::get).toList();
+        var constrastAdjusted = contrast.autoContrast(List.of(initialImages, params.autoStretchParams().gamma()));
+        var cropped = crop.crop(List.of(constrastAdjusted, x, y, width, height));
+        List<ImageWrapper> frames;
+        if (annotate && cropped instanceof List list) {
+            frames = new ArrayList<>();
+            var lambda0 = params.spectrumParams().ray().wavelength();
+            var instrument = params.observationDetails().instrument();
+            var dispersion = SpectrumAnalyzer.computeSpectralDispersionNanosPerPixel(instrument, lambda0, params.observationDetails().pixelSize() * params.observationDetails().binning());
+            var draw = new ImageDraw(Map.of(), broadcaster);
+            int finalWidth;
+            int finalHeight;
+            if (width < 128) {
+                // rescale so that drawing text is readable
+                var scaling = new Scaling(Map.of(), broadcaster, crop);
+                var scale = 128d / width;
+                list = (List) scaling.relativeRescale(List.of(list, scale, scale));
+                finalWidth = 128;
+                finalHeight = (int) (height * scale);
+            } else {
+                finalWidth = width;
+                finalHeight = height;
+            }
+            var fontSize = finalWidth / 16f;
+            for (Object o : list) {
+                var frame = (ImageWrapper) o;
+                var pixelShift = frame.findMetadata(PixelShift.class).map(PixelShift::pixelShift).orElse(0d);
+                var angstroms = 10 * pixelShift * dispersion;
+                var legend = String.format(Locale.US, "%.2fÅ (%.2f km/s)", angstroms, Math.abs(PhenomenaDetector.speedOf(pixelShift, dispersion, lambda0)));
+                var rendered = draw.drawText(frame, "*" + legend + "*", (int) fontSize, (int) (finalHeight - 2 * fontSize / 3), "ffff00", (int) fontSize);
+                frames.add((ImageWrapper) rendered);
+            }
+        } else {
+            frames = (List<ImageWrapper>) cropped;
+        }
+        var anim = (FileOutput) animate.createAnimation(List.of(frames, delay));
+        imageEmitter.newGenericFile(
+            GeneratedImageKind.CROPPED,
+            title,
+            name,
+            anim.file());
+    }
+
+    public void generateStandalonePanel(int x, int y, int width, int height, double minShift, double maxShift, String title, String name) {
+        var crop = new Crop(Map.of(), broadcaster);
+        var contrast = new AdjustContrast(Map.of(), broadcaster);
+        var range = createMinMaxRange(minShift, maxShift, 1);
+        var missingShifts = range.stream().filter(d -> !shiftImages.containsKey(d)).toList();
+        if (!missingShifts.isEmpty()) {
+            restartProcessForMissingShifts(new LinkedHashSet<>(missingShifts));
+        }
+        var initialImages = range.stream().map(shiftImages::get).toList();
+        var constrastAdjusted = contrast.autoContrast(List.of(initialImages, params.autoStretchParams().gamma()));
+        var cropped = crop.crop(List.of(constrastAdjusted, x, y, width, height));
+        int finalWidth;
+        int finalHeight;
+        List<ImageWrapper> frames;
+        if (width < 128) {
+            // rescale so that drawing text is readable
+            var scaling = new Scaling(Map.of(), broadcaster, crop);
+            var scale = 128d / width;
+            frames = (List<ImageWrapper>) scaling.relativeRescale(List.of(cropped, scale, scale));
+            finalWidth = 128;
+            finalHeight = (int) (height * scale);
+        } else {
+            frames = (List<ImageWrapper>) cropped;
+            finalWidth = width;
+            finalHeight = height;
+        }
+
+        createSinglePanel(frames, finalWidth, finalHeight, title, name);
     }
 
     private void generateAnim(RedshiftArea redshift, Animate animate, Object cropped) {
@@ -201,19 +302,25 @@ public class RedshiftImagesProcessor {
                 Collections.reverse(snapshotsToDisplay);
             }
         }
+        var title = String.format("Panel %s (%.2f km/s)", redshift.id(), redshift.kmPerSec());
+        var name = "redshift-" + redshift.id();
+        var width = boxSize;
+        var height = boxSize;
+        createSinglePanel(snapshotsToDisplay, width, height, title, name);
+    }
+
+    private void createSinglePanel(List<ImageWrapper> snapshotsToDisplay, int width, int height, String title, String name) {
         int cols = (int) Math.ceil(Math.sqrt(snapshotsToDisplay.size()));
         int rows = (int) Math.ceil((double) snapshotsToDisplay.size() / cols);
-        int panelWidth = cols * boxSize;
-        int panelHeight = rows * boxSize;
+        int panelWidth = cols * width;
+        int panelHeight = rows * height;
         var lambda0 = params.spectrumParams().ray().wavelength();
         var instrument = params.observationDetails().instrument();
         var dispersion = SpectrumAnalyzer.computeSpectralDispersionNanosPerPixel(instrument, lambda0, params.observationDetails().pixelSize() * params.observationDetails().binning());
-        int finalSnapHeight = boxSize;
-        int finalSnapWidth = boxSize;
         imageEmitter.newColorImage(
             GeneratedImageKind.REDSHIFT,
-            String.format("Panel %s (%.2f km/s)", redshift.id(), redshift.kmPerSec()),
-            "redshift-" + redshift.id(),
+            title,
+            name,
             panelWidth,
             panelHeight,
             Map.of(),
@@ -229,17 +336,17 @@ public class RedshiftImagesProcessor {
                     var data = mono.data();
                     var row = i / cols;
                     var col = i % cols;
-                    var offset = row * finalSnapHeight * panelWidth + col * finalSnapWidth;
+                    var offset = row * height * panelWidth + col * width;
                     var pixelShift = snap.findMetadata(PixelShift.class).map(PixelShift::pixelShift).orElse(0d);
                     var angstroms = 10 * pixelShift * dispersion;
                     var legend = String.format(Locale.US, "%.2fÅ (%.2f km/s)", angstroms, Math.abs(PhenomenaDetector.speedOf(pixelShift, dispersion, lambda0)));
                     // draw legend on a dummy image
-                    var legendImage = createLegendImage(finalSnapWidth, finalSnapHeight, legend);
+                    var legendImage = createLegendImage(width, height, legend);
                     var legendOverlay = legendImage.getData();
                     var legendPixel = new int[1];
-                    for (int y = 0; y < finalSnapHeight; y++) {
-                        for (int x = 0; x < finalSnapWidth; x++) {
-                            var idx = y * finalSnapWidth + x;
+                    for (int y = 0; y < height; y++) {
+                        for (int x = 0; x < width; x++) {
+                            var idx = y * width + x;
                             var panelIdx = offset + y * panelWidth + x;
                             var gray = data[idx];
                             legendOverlay.getPixel(x, y, legendPixel);

@@ -16,6 +16,7 @@
 package me.champeau.a4j.jsolex.app.jfx;
 
 import me.champeau.a4j.jsolex.processing.expr.impl.Rotate;
+import me.champeau.a4j.jsolex.processing.sun.workflow.ReferenceCoords;
 import me.champeau.a4j.jsolex.processing.util.ColorizedImageWrapper;
 import me.champeau.a4j.jsolex.processing.util.FileBackedImage;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
@@ -33,7 +34,7 @@ public class Corrector {
     }
 
     public static ImageWrapper rotate(ImageWrapper image, double angle, boolean resize) {
-        return (ImageWrapper) MetadataSupport.applyMetadata(String.format(message("rotate.radians.format"), angle), () -> {
+        var result = (ImageWrapper) MetadataSupport.applyMetadata(String.format(message("rotate.radians.format"), angle), () -> {
             var img = image;
             var imageMath = ImageMath.newInstance();
             if (img instanceof FileBackedImage fileBackedImage) {
@@ -56,10 +57,12 @@ public class Corrector {
             }
             throw new IllegalArgumentException("Unsupported image type");
         });
+        result.transformMetadata(ReferenceCoords.class, coords -> coords.addRotation(angle));
+        return result;
     }
 
     public static ImageWrapper verticalFlip(ImageWrapper image) {
-        return (ImageWrapper) MetadataSupport.applyMetadata(message("flip.vertical"), () -> {
+        var result = (ImageWrapper) MetadataSupport.applyMetadata(message("flip.vertical"), () -> {
             var img = image;
             if (img instanceof FileBackedImage fileBackedImage) {
                 img = fileBackedImage.unwrapToMemory();
@@ -83,6 +86,8 @@ public class Corrector {
             }
             throw new IllegalArgumentException("Unsupported image type");
         });
+        result.transformMetadata(ReferenceCoords.class, coords -> coords.addVFlip(result.height()));
+        return result;
     }
 
     private static float[] copy(float[] data) {

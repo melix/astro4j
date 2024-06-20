@@ -20,6 +20,7 @@ import me.champeau.a4j.jsolex.processing.sun.crop.Cropper;
 import me.champeau.a4j.jsolex.processing.sun.detection.RedshiftArea;
 import me.champeau.a4j.jsolex.processing.sun.detection.Redshifts;
 import me.champeau.a4j.jsolex.processing.sun.workflow.ImageStats;
+import me.champeau.a4j.jsolex.processing.sun.workflow.ReferenceCoords;
 import me.champeau.a4j.jsolex.processing.util.ColorizedImageWrapper;
 import me.champeau.a4j.jsolex.processing.util.FileBackedImage;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
@@ -240,6 +241,7 @@ public class Crop extends AbstractFunctionImpl {
                     .toList()
             ));
         });
+        img.findMetadata(ReferenceCoords.class).ifPresent(coords -> metadata.put(ReferenceCoords.class, coords.addOffsetX(left).addOffsetY(top)));
         return metadata;
     }
 }

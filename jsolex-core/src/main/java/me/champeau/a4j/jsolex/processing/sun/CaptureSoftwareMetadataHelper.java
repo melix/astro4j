@@ -32,7 +32,7 @@ public class CaptureSoftwareMetadataHelper {
     }
 
     public static Optional<CaptureMetadata> readSharpcapMetadata(File serFile) {
-        var baseName = serFile.getName().substring(0, serFile.getName().lastIndexOf("."));
+        var baseName = computeSerFileBasename(serFile);
         File sharpcapFile = new File(serFile.getParentFile(), baseName + ".CameraSettings.txt");
         if (sharpcapFile.exists()) {
             try {
@@ -57,6 +57,10 @@ public class CaptureSoftwareMetadataHelper {
         return Optional.empty();
     }
 
+    public static String computeSerFileBasename(File serFile) {
+        return serFile.getName().substring(0, serFile.getName().lastIndexOf("."));
+    }
+
     private static int parseBinning(String line) {
         int binning;
         var value = line.substring(line.indexOf('=') + 1);
@@ -68,7 +72,7 @@ public class CaptureSoftwareMetadataHelper {
     }
 
     public static Optional<CaptureMetadata> readFireCaptureMetadata(File serFile) {
-        var baseName = serFile.getName().substring(0, serFile.getName().lastIndexOf("."));
+        var baseName = computeSerFileBasename(serFile);
         File filecaptureFile = new File(serFile.getParentFile(), baseName + ".txt");
         if (filecaptureFile.exists()) {
             try {

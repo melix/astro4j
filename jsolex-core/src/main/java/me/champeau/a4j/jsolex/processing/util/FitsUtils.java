@@ -21,6 +21,7 @@ import me.champeau.a4j.jsolex.processing.spectrum.SpectrumAnalyzer;
 import me.champeau.a4j.jsolex.processing.sun.detection.RedshiftArea;
 import me.champeau.a4j.jsolex.processing.sun.detection.Redshifts;
 import me.champeau.a4j.jsolex.processing.sun.workflow.PixelShift;
+import me.champeau.a4j.jsolex.processing.sun.workflow.ReferenceCoords;
 import me.champeau.a4j.jsolex.processing.sun.workflow.TransformationHistory;
 import me.champeau.a4j.math.regression.Ellipse;
 import me.champeau.a4j.math.tuples.DoubleSextuplet;
@@ -46,6 +47,7 @@ import java.nio.charset.StandardCharsets;
 import java.text.Normalizer;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
@@ -60,6 +62,7 @@ public class FitsUtils {
     public static final String TRANSFORMS_VALUE = "Transforms";
     public static final String PIXELSHIFT_VALUE = "PixelShift";
     public static final String REDSHIFTS_VALUE = "Redshifts";
+    public static final String REFCOORDS_VALUE = "RefCoords";
 
     // INTI metadata
     public static final String INTI_CENTER_X = "CENTER_X";
@@ -228,6 +231,16 @@ public class FitsUtils {
                     var binaryTable = binaryTableHdu.getData();
                     var pixelShift = new PixelShift(binaryTable.getDouble(0, 0));
                     metadata.put(PixelShift.class, pixelShift);
+                } else if (REFCOORDS_VALUE.equals(card.getValue())) {
+                    var binaryTable = binaryTableHdu.getData();
+                    int cpt = binaryTable.getNRows();
+                    var values = new ArrayList<ReferenceCoords.Operation>();
+                    for (int i = 0; i < cpt; i++) {
+                        var kind = binaryTable.getString(i, 0);
+                        var value = binaryTable.getDouble(i, 1);
+                        values.add(new ReferenceCoords.Operation(ReferenceCoords.OperationKind.valueOf(kind), value));
+                    }
+                    metadata.put(ReferenceCoords.class, new ReferenceCoords(Collections.unmodifiableList(values)));
                 } else if (REDSHIFTS_VALUE.equals(card.getValue())) {
                     var binaryTable = binaryTableHdu.getData();
                     int cpt = binaryTable.getNRows();
@@ -304,6 +317,7 @@ public class FitsUtils {
             writeSolarParams(image, fits);
             writeTransformationHistory(image, fits);
             writePixelShift(image, fits);
+            writeRefCoords(image, fits);
             writeRedshifts(image, fits);
         }
     }
@@ -341,6 +355,18 @@ public class FitsUtils {
             table.addRow(new Object[]{pixelShift.pixelShift()});
             var binaryTableHDU = BinaryTableHDU.wrap(table);
             binaryTableHDU.getHeader().addValue(JSOLEX_HEADER_KEY, PIXELSHIFT_VALUE, "Pixel shift");
+            fits.addHDU(binaryTableHDU);
+        }
+    }
+
+    private static void writeRefCoords(ImageWrapper image, Fits fits) throws FitsException {
+        var metadata = image.findMetadata(ReferenceCoords.class);
+        if (metadata.isPresent()) {
+            var referenceCoords = metadata.get();
+            var table = new BinaryTable();
+            referenceCoords.operations().forEach(op -> table.addRow(new Object[] { op.kind().name(), op.value() }));
+            var binaryTableHDU = BinaryTableHDU.wrap(table);
+            binaryTableHDU.getHeader().addValue(JSOLEX_HEADER_KEY, REFCOORDS_VALUE, "Reference coordinate transforms");
             fits.addHDU(binaryTableHDU);
         }
     }
@@ -452,7 +478,7 @@ public class FitsUtils {
             var pixelShift = image.findMetadata(PixelShift.class).map(PixelShift::pixelShift);
             var pixelSize = obsParams.pixelSize();
             var binning = obsParams.binning();
-            if (pixelShift.isPresent() && pixelSize != null && pixelSize>0 && binning != null && binning > 0) {
+            if (pixelShift.isPresent() && pixelSize != null && pixelSize > 0 && binning != null && binning > 0) {
                 var dispersion = SpectrumAnalyzer.computeSpectralDispersionNanosPerPixel(obsParams.instrument(), wavelength, pixelSize * binning);
                 wavelength += pixelShift.get() * dispersion;
             }

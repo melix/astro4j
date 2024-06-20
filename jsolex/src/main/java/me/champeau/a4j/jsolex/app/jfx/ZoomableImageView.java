@@ -15,17 +15,27 @@
  */
 package me.champeau.a4j.jsolex.app.jfx;
 
+import javafx.animation.PauseTransition;
 import javafx.beans.binding.Bindings;
 import javafx.beans.binding.BooleanBinding;
+import javafx.beans.property.BooleanProperty;
+import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.value.ObservableValue;
 import javafx.scene.control.ContextMenu;
+import javafx.scene.control.Label;
 import javafx.scene.control.MenuItem;
 import javafx.scene.control.ScrollPane;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
+import javafx.scene.input.KeyCode;
 import javafx.scene.input.MouseButton;
+import javafx.scene.input.MouseEvent;
 import javafx.scene.input.ScrollEvent;
 import javafx.scene.layout.HBox;
+import javafx.scene.layout.Pane;
+import javafx.scene.paint.Color;
+import javafx.scene.shape.Rectangle;
+import javafx.util.Duration;
 import me.champeau.a4j.math.regression.Ellipse;
 
 import java.nio.file.Files;
@@ -38,6 +48,7 @@ import java.util.function.Consumer;
 import static me.champeau.a4j.jsolex.app.JSolEx.message;
 
 public class ZoomableImageView extends HBox {
+    private final PauseTransition pause = new PauseTransition(Duration.millis(250));
     private final ScrollPane scrollPane;
     private final ImageView imageView;
     private final ContextMenu ctxMenu;
@@ -56,6 +67,14 @@ public class ZoomableImageView extends HBox {
     private double zoom = 0;
     private Path imagePath;
 
+    // Fields for rectangle selection
+    private double startX;
+    private double startY;
+    private final Rectangle selectionRectangle;
+    private final Label selectionLabel;
+    private final BooleanProperty isSelectingRectangle = new SimpleBooleanProperty();
+    private RectangleSelectionListener rectangleSelectionListener;
+
     public ZoomableImageView() {
         super();
         this.scrollPane = new ScrollPane();
@@ -65,11 +84,6 @@ public class ZoomableImageView extends HBox {
         scrollPane.setContent(imageView);
 
         imageView.setOnScroll(this::handleScroll);
-        imageView.setOnMouseMoved(evt -> {
-            if (onCoordinatesListener != null) {
-                onCoordinatesListener.accept(evt.getX() / zoom, evt.getY() / zoom);
-            }
-        });
         imageView.setOnMouseClicked(evt -> {
             if (evt.getButton().equals(MouseButton.PRIMARY) && evt.getClickCount() == 2) {
                 if (zoom == 1.0) {
@@ -82,12 +96,12 @@ public class ZoomableImageView extends HBox {
         });
         widthProperty().addListener((observable, oldValue, newValue) -> {
             if (newValue.doubleValue() > 0 && zoom == 0) {
-                resetZoom();
+                fitToCenter();
             }
         });
         heightProperty().addListener((observable, oldValue, newValue) -> {
             if (newValue.doubleValue() > 0 && zoom == 0) {
-                resetZoom();
+                fitToCenter();
             }
         });
         ctxMenu = new ContextMenu();
@@ -99,11 +113,148 @@ public class ZoomableImageView extends HBox {
 
         setOnContextMenuRequested(e -> ctxMenu.show(ZoomableImageView.this, e.getScreenX(), e.getScreenY()));
 
+        // Add selection rectangle
+        selectionRectangle = new Rectangle();
+        selectionRectangle.setFill(Color.rgb(255, 0, 0, 0.3));
+        selectionRectangle.setStroke(Color.RED);
+        selectionLabel = new Label();
+        selectionLabel.setTextFill(Color.RED);
+        disableSelection();
+
+        var pane = new Pane(imageView, selectionRectangle, selectionLabel);
+        scrollPane.setContent(pane);
+        scrollPane.pannableProperty().bind(isSelectingRectangle.not());
+        scrollPane.addEventFilter(ScrollEvent.ANY, event -> {
+            if (isSelectingRectangle.get()) {
+                event.consume();
+            }
+        });
+        addSelectionHandlers();
+
         getChildren().add(scrollPane);
+        setOnKeyPressed(e -> {
+            if (e.getCode() == KeyCode.ESCAPE && isSelectingRectangle.get()) {
+                e.consume();
+                disableSelection();
+            }
+        });
+        setOnKeyReleased(e -> {
+            if (isSelectingRectangle.get() && e.getCode() == KeyCode.CONTROL) {
+                handleSelectionFinished(getWidth() / 2, getHeight() / 2);
+            }
+        });
+    }
+
+    private void disableSelection() {
+        isSelectingRectangle.set(false);
+        selectionRectangle.setVisible(false);
+        selectionLabel.setVisible(false);
+    }
+
+    private void addSelectionHandlers() {
+        imageView.setOnMousePressed(this::handleMousePressed);
+        imageView.setOnMouseMoved(this::handleMouseMoved);
+        imageView.setOnMouseDragged(this::handleMouseMoved);
+        imageView.setOnMouseReleased(this::handleMouseReleased);
+        selectionRectangle.setOnMouseReleased(this::handleMouseReleased);
+        imageView.addEventFilter(MouseEvent.MOUSE_RELEASED, event -> {
+            if (isSelectingRectangle.get() && event.isControlDown()) {
+                event.consume();
+            }
+        });
+    }
+
+    private void handleMousePressed(MouseEvent event) {
+        if (rectangleSelectionListener != null && event.getButton() == MouseButton.PRIMARY && event.isControlDown()) {
+            isSelectingRectangle.set(true);
+            startX = event.getX();
+            startY = event.getY();
+            selectionRectangle.setX(startX);
+            selectionRectangle.setY(startY);
+            selectionRectangle.setWidth(0);
+            selectionRectangle.setHeight(0);
+            selectionRectangle.setVisible(true);
+        }
+    }
+
+    private void handleMouseMoved(MouseEvent event) {
+        if (event.isControlDown() && isSelectingRectangle.get()) {
+            double endX = event.getX();
+            double endY = event.getY();
+            selectionRectangle.setX(Math.min(startX, endX));
+            selectionRectangle.setY(Math.min(startY, endY));
+            selectionRectangle.setWidth(Math.abs(endX - startX));
+            selectionRectangle.setHeight(Math.abs(endY - startY));
+            var selectionWidth = (int) Math.round(selectionRectangle.getWidth() / zoom);
+            var selectionHeight = (int) Math.round(selectionRectangle.getHeight() / zoom);
+            selectionLabel.setText(selectionWidth + "x" + selectionHeight);
+            selectionLabel.setLayoutX(selectionRectangle.getX() + selectionRectangle.getWidth() / 2);
+            selectionLabel.setLayoutY(selectionRectangle.getY() + selectionRectangle.getHeight() / 2);
+            selectionLabel.setVisible(true);
+        }
+        if (onCoordinatesListener != null) {
+            onCoordinatesListener.accept(event.getX() / zoom, event.getY() / zoom);
+        }
+    }
+
+    private void handleMouseReleased(MouseEvent event) {
+        if (event.getButton() == MouseButton.PRIMARY && isSelectingRectangle.get()) {
+            handleSelectionFinished(event.getScreenX(), event.getScreenY());
+        }
+    }
+
+    private void handleSelectionFinished(double x, double y) {
+        pause.setOnFinished(unused -> {
+            if (selectionRectangle.getWidth() > 0 && selectionRectangle.getHeight() > 0) {
+                showSelectionMenu(x, y);
+            }
+        });
+        pause.playFromStart();
+    }
+
+    private void showSelectionMenu(double screenX, double screenY) {
+        var selectionMenu = new ContextMenu();
+        selectionMenu.setOnHidden(e -> disableSelection());
+        var items = selectionMenu.getItems();
+        var image = imageView.getImage();
+        var selectionX = (int) Math.max(0, Math.round(selectionRectangle.getX() / zoom));
+        var selectionY = (int) Math.max(0, Math.round(selectionRectangle.getY() / zoom));
+        var selectionWidth = (int) Math.min(image.getWidth() - selectionX, Math.round(selectionRectangle.getWidth() / zoom));
+        var selectionHeight = (int) Math.min(image.getHeight() - selectionY, Math.round(selectionRectangle.getHeight() / zoom));
+        if (selectionWidth < 0) {
+            selectionX += selectionWidth;
+            selectionWidth = -selectionWidth;
+        }
+        if (selectionHeight < 0) {
+            selectionY += selectionHeight;
+            selectionHeight = -selectionHeight;
+        }
+        int finalSelectionY = selectionY;
+        int finalSelectionX = selectionX;
+        int finalSelectionWidth = selectionWidth;
+        int finalSelectionHeight = selectionHeight;
+        if (rectangleSelectionListener.supports(RectangleSelectionListener.ActionKind.CREATE_ANIM_OR_PANEL)) {
+            var action1 = new MenuItem(message("create.animation.panel"));
+            action1.setOnAction(e -> rectangleSelectionListener.onSelectRegion(RectangleSelectionListener.ActionKind.CREATE_ANIM_OR_PANEL, finalSelectionX, finalSelectionY, finalSelectionWidth, finalSelectionHeight));
+            items.add(action1);
+        }
+        if (rectangleSelectionListener.supports(RectangleSelectionListener.ActionKind.CROP)) {
+            var action2 = new MenuItem(message("crop"));
+            action2.setOnAction(e -> rectangleSelectionListener.onSelectRegion(RectangleSelectionListener.ActionKind.CROP, finalSelectionX, finalSelectionY, finalSelectionWidth, finalSelectionHeight));
+            items.add(action2);
+        }
+        if (rectangleSelectionListener.supports(RectangleSelectionListener.ActionKind.IMAGEMATH_CROP)) {
+            var action3 = new MenuItem(message("imagemath.crop"));
+            action3.setOnAction(e -> rectangleSelectionListener.onSelectRegion(RectangleSelectionListener.ActionKind.IMAGEMATH_CROP, finalSelectionX, finalSelectionY, finalSelectionWidth, finalSelectionHeight));
+            items.add(action3);
+        }
+        var action4 = new MenuItem(message("cancel"));
+        items.add(action4);
+        selectionMenu.show(ZoomableImageView.this, screenX, screenY);
     }
 
     private void handleScroll(ScrollEvent event) {
-        if (event.isControlDown()) {
+        if (event.isControlDown() && !isSelectingRectangle.get()) {
             double deltaY = event.getDeltaY();
             if (deltaY != 0) {
                 double zoomFactor = 1.05;
@@ -137,6 +288,10 @@ public class ZoomableImageView extends HBox {
         var boundsInLocal = imageView.getBoundsInLocal();
         scrollPane.setPrefViewportWidth(boundsInLocal.getWidth());
         scrollPane.setPrefViewportHeight(boundsInLocal.getHeight());
+    }
+
+    public void setRectangleSelectionListener(RectangleSelectionListener rectangleSelectionListener) {
+        this.rectangleSelectionListener = rectangleSelectionListener;
     }
 
     public void setImagePathForOpeningInExplorer(Path imagePath) {
@@ -193,6 +348,10 @@ public class ZoomableImageView extends HBox {
     }
 
     public void resetZoom() {
+        resetZoom(false);
+    }
+
+    public void resetZoom(boolean useMax) {
         var image = imageView.getImage();
         if (image == null) {
             zoom = 0;
@@ -209,7 +368,7 @@ public class ZoomableImageView extends HBox {
         var widthZoom = width / image.getWidth();
         var heightZoom = height / image.getHeight();
 
-        var newZoom = Math.min(widthZoom, heightZoom);
+        var newZoom = useMax ? Math.max(widthZoom, heightZoom) : Math.min(widthZoom, heightZoom);
 
         if (newZoom != zoom) {
             zoom = newZoom;
@@ -222,13 +381,13 @@ public class ZoomableImageView extends HBox {
         pendingOperations.clear();
     }
 
-
     public double getZoom() {
         return zoom;
     }
 
     public void fitToCenter() {
         if (!canFitToCenter()) {
+            resetZoom(true);
             return;
         }
 

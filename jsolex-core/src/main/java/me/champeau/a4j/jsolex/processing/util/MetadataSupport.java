@@ -19,6 +19,7 @@ import me.champeau.a4j.jsolex.processing.params.ProcessParams;
 import me.champeau.a4j.jsolex.processing.sun.detection.Redshifts;
 import me.champeau.a4j.jsolex.processing.sun.workflow.GeneratedImageMetadata;
 import me.champeau.a4j.jsolex.processing.sun.workflow.PixelShift;
+import me.champeau.a4j.jsolex.processing.sun.workflow.ReferenceCoords;
 import me.champeau.a4j.jsolex.processing.sun.workflow.TransformationHistory;
 import me.champeau.a4j.math.regression.Ellipse;
 
@@ -45,6 +46,7 @@ public class MetadataSupport {
             case TransformationHistory history -> renderTransformationHistory(history);
             case GeneratedImageMetadata generatedImage -> renderGeneratedImageMetadata(generatedImage);
             case Redshifts redshifts -> renderRedshifts(redshifts);
+            case ReferenceCoords coords -> renderReferenceCoords(coords);
             default -> renderToString(clazz, value);
         });
     }
@@ -82,6 +84,17 @@ public class MetadataSupport {
             sb.append(" (pixel shift = ").append(rs.relPixelShift()).append(")");
             sb.append(" ").append(message("at.coord")).append(" ").append(rs.maxX()).append("x").append(rs.maxY());
             sb.append("\n");
+        });
+        return sb.toString();
+    }
+
+    public static String renderReferenceCoords(ReferenceCoords coords) {
+        var sb = new StringBuilder(message("reference.coords"));
+        coords.operations().forEach(op -> {
+            sb.append(op.kind());
+            sb.append("[");
+            sb.append(op.value());
+            sb.append("] ");
         });
         return sb.toString();
     }
