@@ -16,6 +16,7 @@
 package me.champeau.a4j.jsolex.app.listeners;
 
 import javafx.embed.swing.SwingFXUtils;
+import javafx.scene.Parent;
 import javafx.scene.Scene;
 import javafx.scene.SnapshotParameters;
 import javafx.scene.chart.BarChart;
@@ -39,14 +40,19 @@ import javafx.scene.transform.Transform;
 import javafx.stage.Stage;
 import javafx.util.Duration;
 import me.champeau.a4j.jsolex.app.AlertFactory;
+import me.champeau.a4j.jsolex.app.JSolEx;
 import me.champeau.a4j.jsolex.app.jfx.ApplyUserRotation;
 import me.champeau.a4j.jsolex.app.jfx.BatchOperations;
+import me.champeau.a4j.jsolex.app.jfx.CustomAnimationCreator;
+import me.champeau.a4j.jsolex.app.jfx.I18N;
 import me.champeau.a4j.jsolex.app.jfx.ImageViewer;
+import me.champeau.a4j.jsolex.app.jfx.RectangleSelectionListener;
 import me.champeau.a4j.jsolex.app.jfx.ZoomableImageView;
 import me.champeau.a4j.jsolex.app.script.JSolExScriptExecutor;
 import me.champeau.a4j.jsolex.processing.event.AverageImageComputedEvent;
-import me.champeau.a4j.jsolex.processing.event.GenericMessage;
 import me.champeau.a4j.jsolex.processing.event.FileGeneratedEvent;
+import me.champeau.a4j.jsolex.processing.event.GeneratedImage;
+import me.champeau.a4j.jsolex.processing.event.GenericMessage;
 import me.champeau.a4j.jsolex.processing.event.ImageGeneratedEvent;
 import me.champeau.a4j.jsolex.processing.event.Notification;
 import me.champeau.a4j.jsolex.processing.event.NotificationEvent;
@@ -63,6 +69,7 @@ import me.champeau.a4j.jsolex.processing.expr.DefaultImageScriptExecutor;
 import me.champeau.a4j.jsolex.processing.expr.ImageMathScriptExecutor;
 import me.champeau.a4j.jsolex.processing.expr.ImageMathScriptResult;
 import me.champeau.a4j.jsolex.processing.expr.ShiftCollectingImageExpressionEvaluator;
+import me.champeau.a4j.jsolex.processing.expr.impl.Crop;
 import me.champeau.a4j.jsolex.processing.file.FileNamingStrategy;
 import me.champeau.a4j.jsolex.processing.params.ImageMathParams;
 import me.champeau.a4j.jsolex.processing.params.ProcessParams;
@@ -76,6 +83,8 @@ import me.champeau.a4j.jsolex.processing.sun.workflow.ImageEmitter;
 import me.champeau.a4j.jsolex.processing.sun.workflow.ImageStats;
 import me.champeau.a4j.jsolex.processing.sun.workflow.PixelShift;
 import me.champeau.a4j.jsolex.processing.sun.workflow.PixelShiftRange;
+import me.champeau.a4j.jsolex.processing.sun.workflow.ReferenceCoords;
+import me.champeau.a4j.jsolex.processing.util.BackgroundOperations;
 import me.champeau.a4j.jsolex.processing.util.ColorizedImageWrapper;
 import me.champeau.a4j.jsolex.processing.util.Constants;
 import me.champeau.a4j.jsolex.processing.util.Histogram;
@@ -86,6 +95,7 @@ import me.champeau.a4j.jsolex.processing.util.ProcessingException;
 import me.champeau.a4j.jsolex.processing.util.RGBImage;
 import me.champeau.a4j.jsolex.processing.util.SolarParameters;
 import me.champeau.a4j.jsolex.processing.util.SolarParametersUtils;
+import me.champeau.a4j.math.Point2D;
 import me.champeau.a4j.math.image.Image;
 import me.champeau.a4j.math.regression.Ellipse;
 import me.champeau.a4j.ser.Header;
@@ -110,12 +120,14 @@ import java.util.Set;
 import java.util.TreeSet;
 import java.util.WeakHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.DoubleUnaryOperator;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import static me.champeau.a4j.jsolex.app.JSolEx.message;
 import static me.champeau.a4j.jsolex.app.jfx.BatchOperations.blockingUntilResultAvailable;
+import static me.champeau.a4j.jsolex.processing.sun.CaptureSoftwareMetadataHelper.computeSerFileBasename;
 
 public class SingleModeProcessingEventListener implements ProcessingEventListener, ImageMathScriptExecutor, Broadcaster {
     private static final Logger LOGGER = LoggerFactory.getLogger(SingleModeProcessingEventListener.class);
@@ -135,11 +147,13 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
     private final Tab metadataTab;
     private final WeakHashMap<ImageWrapper, List<CachedHistogram>> cachedHistograms = new WeakHashMap<>();
     private final LocalDateTime processingDate;
+    private float[] averageImage;
 
     private ProcessParams params;
     private ProcessParams adjustedParams;
     private Header header;
     private BarChart<String, Number> histogramChart;
+    private DoubleUnaryOperator polynomial;
     private Map<Class, Object> scriptExecutionContext;
     private ImageEmitter imageEmitter;
     private ImageMathScriptExecutor imageScriptExecutor;
@@ -148,6 +162,9 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
     private final Map<Double, ImageWrapper> shiftImages;
     private int width;
     private int height;
+
+    private final AtomicInteger cropCount = new AtomicInteger();
+    private final AtomicInteger animCount = new AtomicInteger();
 
     private Supplier<LineChart<?, ?>> profileGraphFactory;
 
@@ -230,13 +247,13 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
         BatchOperations.submit(() -> {
             var payload = event.getPayload();
             var title = payload.title();
-            var kind = payload.kind();
+            var generatedImageKind = payload.kind();
             var imageWrapper = payload.image();
             var pixelShift = imageWrapper.findMetadata(PixelShift.class);
-            owner.getImagesViewer().addImage(this,
+            var addedImageViewer = owner.getImagesViewer().addImage(this,
                 title,
                 baseName,
-                kind,
+                generatedImageKind,
                 imageWrapper,
                 payload.path().toFile(),
                 adjustedParams != null ? adjustedParams : params,
@@ -246,6 +263,89 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
                     showHistogram(viewer.getStretchedImage());
                     showMetadata(imageWrapper.metadata());
                 });
+            addedImageViewer.getImageView().setRectangleSelectionListener(new RectangleSelectionListener() {
+                @Override
+                public boolean supports(ActionKind kind) {
+                    if (adjustedParams == null) {
+                        return false;
+                    }
+                    if (generatedImageKind == GeneratedImageKind.TECHNICAL_CARD) {
+                        return kind != ActionKind.CREATE_ANIM_OR_PANEL;
+                    }
+                    return true;
+                }
+
+                @Override
+                public void onSelectRegion(ActionKind kind, int x, int y, int width, int height) {
+                    BackgroundOperations.async(() -> {
+                        var stretchedImage = addedImageViewer.getStretchedImage();
+                        stretchedImage.findMetadata(ReferenceCoords.class).ifPresent(coord -> {
+                            var cx = x + width / 2d;
+                            var cy = y + height / 2d;
+                            var orig = coord.determineOriginalCoordinates(new Point2D(cx, cy), new Point2D(stretchedImage.width() / 2d, stretchedImage.height() / 2d), ReferenceCoords.GEO_CORRECTION);
+                            int xx = Math.max(0, (int) orig.x() - width / 2);
+                            int yy = Math.max(0, (int) orig.y() - height / 2);
+                            if (kind == ActionKind.IMAGEMATH_CROP) {
+                                LOGGER.info("Script:\n\ncropped=crop(img(0); {}, {}, {}, {})\n\n", xx, yy, width, height);
+                            } else if (kind == ActionKind.CROP) {
+                                performCropping(stretchedImage, x, y, width, height);
+                            } else if (kind == ActionKind.CREATE_ANIM_OR_PANEL) {
+                                createAnimationOrPanel(xx, yy, width, height);
+                            }
+                        });
+                    });
+                }
+
+                private void createAnimationOrPanel(int x, int y, int width, int height) {
+                    var redshiftProcessor = new RedshiftImagesProcessor(
+                        shiftImages,
+                        adjustedParams,
+                        serFile,
+                        outputDirectory,
+                        owner,
+                        SingleModeProcessingEventListener.this,
+                        imageEmitter,
+                        List.of(),
+                        polynomial,
+                        averageImage
+                    );
+                    BatchOperations.submit(() -> {
+                        var fxmlLoader = I18N.fxmlLoader(JSolEx.class, "custom-anim-panel");
+                        Parent node;
+                        try {
+                            node = fxmlLoader.load();
+                        } catch (IOException e) {
+                            throw new ProcessingException(e);
+                        }
+                        var controller = fxmlLoader.<CustomAnimationCreator>getController();
+                        var stage = new Stage();
+                        stage.setScene(new Scene(node));
+                        controller.setup(stage, adjustedParams, imageWrapper.findMetadata(PixelShiftRange.class).orElse(new PixelShiftRange(-15, 15, .25)), x, y, width, height, redshiftProcessor, animCount.getAndIncrement());
+                        stage.setTitle(I18N.string(JSolEx.class, "custom-anim-panel", "frame.title"));
+                        stage.showAndWait();
+                    });
+                }
+
+                private void performCropping(ImageWrapper stretchedImage, int x, int y, int width, int height) {
+                    BackgroundOperations.async(() -> {
+                        var crop = new Crop(Map.of(), SingleModeProcessingEventListener.this);
+                        var cropped = crop.crop(List.of(stretchedImage, x, y, width, height));
+                        if (cropped instanceof ImageWrapper croppedImage) {
+                            var id = cropCount.getAndIncrement();
+                            var imageName = "cropped-" + id;
+                            var title = String.format(message("cropped.image"), id);
+                            broadcast(new ImageGeneratedEvent(
+                                new GeneratedImage(
+                                    GeneratedImageKind.CROPPED,
+                                    title,
+                                    outputDirectory.resolve(createNamingStrategy().render(0, Constants.TYPE_CUSTOM, imageName, computeSerFileBasename(serFile))),
+                                    croppedImage
+                                )
+                            ));
+                        }
+                    });
+                }
+            });
             var imageViewer = popupViews.get(title);
             if (imageViewer != null) {
                 imageViewer.setImage(baseName, params, imageWrapper, payload.path());
@@ -572,7 +672,10 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
 
     @Override
     public void onAverageImageComputed(AverageImageComputedEvent e) {
-        adjustedParams = e.getPayload().adjustedParams();
+        var payload = e.getPayload();
+        adjustedParams = payload.adjustedParams();
+        polynomial = payload.polynomial();
+        averageImage = payload.image().data();
         profileGraphFactory = () -> {
             var xAxis = new CategoryAxis();
             var yAxis = new NumberAxis();
@@ -580,14 +683,14 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
             yAxis.setLabel(message("intensity"));
             var lineChart = new LineChart<>(xAxis, yAxis);
             var series = new XYChart.Series<String, Number>();
-            var image = e.getPayload().image();
+            var image = payload.image();
             var width = image.width();
             var height = image.height();
-            var start = e.getPayload().leftBorder();
-            var end = e.getPayload().rightBorder();
+            var start = payload.leftBorder();
+            var end = payload.rightBorder();
             var data = image.data();
-            var polynomial = e.getPayload().polynomial();
-            var params = e.getPayload().adjustedParams();
+            var polynomial = payload.polynomial();
+            var params = payload.adjustedParams();
             var lambda0 = params.spectrumParams().ray().wavelength();
             var binning = params.observationDetails().binning();
             var pixelSize = params.observationDetails().pixelSize();

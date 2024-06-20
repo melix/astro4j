@@ -19,6 +19,7 @@ import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
 import me.champeau.a4j.jsolex.processing.sun.detection.RedshiftArea;
 import me.champeau.a4j.jsolex.processing.sun.detection.Redshifts;
 import me.champeau.a4j.jsolex.processing.sun.workflow.ImageStats;
+import me.champeau.a4j.jsolex.processing.sun.workflow.ReferenceCoords;
 import me.champeau.a4j.jsolex.processing.util.ColorizedImageWrapper;
 import me.champeau.a4j.jsolex.processing.util.FileBackedImage;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
@@ -168,6 +169,7 @@ public class Rotate extends AbstractFunctionImpl {
                 .toList();
             metadata.put(Redshifts.class, new Redshifts(rotated));
         });
+        wrapper.findMetadata(ReferenceCoords.class).ifPresent(coords -> coords.addRotation(angle));
         return metadata;
     }
 }

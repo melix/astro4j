@@ -23,6 +23,7 @@ import me.champeau.a4j.jsolex.processing.sun.WorkflowState;
 import me.champeau.a4j.jsolex.processing.sun.detection.RedshiftArea;
 import me.champeau.a4j.jsolex.processing.sun.detection.Redshifts;
 import me.champeau.a4j.jsolex.processing.sun.workflow.ImageEmitter;
+import me.champeau.a4j.jsolex.processing.sun.workflow.ReferenceCoords;
 import me.champeau.a4j.jsolex.processing.sun.workflow.TransformationHistory;
 import me.champeau.a4j.jsolex.processing.util.FileBackedImage;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
@@ -182,6 +183,7 @@ public class GeometryCorrector extends AbstractTask<GeometryCorrector.Result> {
                 }
                 default -> corrected;
             };
+            corrected.transformMetadata(ReferenceCoords.class, ReferenceCoords::geoCorrectionMarker);
             TransformationHistory.recordTransform(corrected, message("autocrop"));
         }
         broadcaster.broadcast(ProgressEvent.of(1, message("correcting.geometry")));
