@@ -19,6 +19,7 @@ import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
 import me.champeau.a4j.jsolex.processing.sun.crop.Cropper;
 import me.champeau.a4j.jsolex.processing.sun.detection.RedshiftArea;
 import me.champeau.a4j.jsolex.processing.sun.detection.Redshifts;
+import me.champeau.a4j.jsolex.processing.sun.tasks.ImageAnalysis;
 import me.champeau.a4j.jsolex.processing.sun.workflow.ImageStats;
 import me.champeau.a4j.jsolex.processing.sun.workflow.ReferenceCoords;
 import me.champeau.a4j.jsolex.processing.util.ColorizedImageWrapper;
@@ -188,7 +189,13 @@ public class Crop extends AbstractFunctionImpl {
     }
 
     private Object doAutocrop(Object arg, Optional<Ellipse> ellipse, Double diameterFactor, Integer rounding) {
-        var blackpoint = getFromContext(ImageStats.class).map(ImageStats::blackpoint).orElse(0f);
+        Object finalArg = arg;
+        var blackpoint = getFromContext(ImageStats.class).map(ImageStats::blackpoint).orElseGet(() -> {
+            if (finalArg instanceof ImageWrapper wrapper && wrapper.unwrapToMemory() instanceof ImageWrapper32 mono) {
+                return ImageAnalysis.of(mono.data()).min();
+            }
+            return 0f;
+        });
         if (ellipse.isPresent()) {
             var circle = ellipse.get();
             if (arg instanceof FileBackedImage fileBackedImage) {

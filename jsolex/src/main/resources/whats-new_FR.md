@@ -5,6 +5,10 @@ Voici les nouvelles fonctionnalités de cette version :
 - [Animations personnalisées et recadrage](#animations-personnalisees-et-recadrage)
 - [Corrections de bugs et améliorations](#corrections-de-bugs-et-ameliorations)
 
+## Modifications dans 2.5.1
+
+- Correction de la stratégie d'autostretch produisant des images lumineuses lorsque le fichier SER original a un offset trop grand
+
 ## Animations personnalisées et recadrage
 
 Il est désormais possible de recadrer une image manuellement ou de créer des animations d'une région d'un disque solaire, ou un panneau de décalages vers le rouge, en sélectionnant une région d'intérêt.

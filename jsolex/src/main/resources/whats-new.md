@@ -5,6 +5,10 @@ Here are the new features in this version:
 - [Custom animations and cropping](#custom-animations-and-cropping)
 - [Bugfixes and improvements](#bugfixes-and-improvements)
 
+## Changes in 2.5.1
+
+- Fixed autostretch strategy producing bright images when the original SER file has a large offset
+
 ## Custom animations and cropping
 
 It is now possible to crop and image to a manual selection or create animations of a region of a solar disk, or a panel of redshifts, by manually selecting a region of interest.
