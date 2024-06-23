@@ -62,6 +62,12 @@ public final class AutohistogramStrategy implements StretchingStrategy {
     public void stretch(ImageWrapper32 image) {
         var disk = image.copy();
         var diskData = disk.data();
+        // Neutralize offset
+        var stats = ImageAnalysis.of(diskData);
+        var min = stats.min();
+        for (int j = 0; j < diskData.length; j++) {
+            diskData[j] -= min;
+        }
         var ellipse = image.findMetadata(Ellipse.class);
         var height = image.height();
         var width = image.width();
@@ -71,7 +77,7 @@ public final class AutohistogramStrategy implements StretchingStrategy {
             diskData = disk.data();
             // the initial strech is to adjust the global brightness by estimating the brightness of
             // the disk itself
-            var stats = ImageAnalysis.masked(diskData, width, height, e);
+            stats = ImageAnalysis.masked(diskData, width, height, e);
             var cx = e.center().a();
             var cy = e.center().b();
             var semiAxis = e.semiAxis();
