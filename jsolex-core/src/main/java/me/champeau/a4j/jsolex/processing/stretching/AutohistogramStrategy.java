@@ -35,6 +35,7 @@ public final class AutohistogramStrategy implements StretchingStrategy {
     private static final double TARGET_PEAK = 0.65;
     private static final double LIMB_MARGIN = 1.1;
     private static final double REDUCED_AMPLIFICATION_LIMIT = 1.3;
+    private static final int TARGET_PEAK_REDUCTION_THRESHOLD = 8000;
 
     public static final double DEFAULT_GAMMA = 1.5;
 
