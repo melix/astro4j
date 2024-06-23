@@ -20,7 +20,7 @@ import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 import me.champeau.a4j.jsolex.processing.util.RGBImage;
 
 public final class ContrastAdjustmentStrategy implements StretchingStrategy {
-    public static final ContrastAdjustmentStrategy DEFAULT = new ContrastAdjustmentStrategy(0, .95f*Constants.MAX_PIXEL_VALUE);
+    public static final ContrastAdjustmentStrategy DEFAULT = new ContrastAdjustmentStrategy(0, Constants.MAX_PIXEL_VALUE);
 
     private final float min;
     private final float max;

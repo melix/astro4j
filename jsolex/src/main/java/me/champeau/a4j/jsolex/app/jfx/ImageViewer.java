@@ -47,6 +47,8 @@ import me.champeau.a4j.jsolex.processing.params.AutocropMode;
 import me.champeau.a4j.jsolex.processing.params.ProcessParams;
 import me.champeau.a4j.jsolex.processing.params.RotationKind;
 import me.champeau.a4j.jsolex.processing.stretching.ContrastAdjustmentStrategy;
+import me.champeau.a4j.jsolex.processing.stretching.LinearStrechingStrategy;
+import me.champeau.a4j.jsolex.processing.stretching.StretchingChain;
 import me.champeau.a4j.jsolex.processing.sun.ImageUtils;
 import me.champeau.a4j.jsolex.processing.sun.workflow.GeneratedImageKind;
 import me.champeau.a4j.jsolex.processing.util.BackgroundOperations;
@@ -388,7 +390,7 @@ public class ImageViewer {
         broadcaster.onProgress(ProgressEvent.of(0, message("stretching") + " " + imageFile.getName()));
         try {
             var copy = image.copy();
-            stretchingStrategy.stretch(copy);
+            new StretchingChain(stretchingStrategy, LinearStrechingStrategy.DEFAULT).stretch(copy);
             return copy;
         } finally {
             broadcaster.onProgress(ProgressEvent.of(1, message("stretching") + " " + imageFile.getName()));

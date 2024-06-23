@@ -8,6 +8,7 @@ Here are the new features in this version:
 ## Changes in 2.5.1
 
 - Fixed autostretch strategy producing bright images when the original SER file has a large offset
+- Fixed contrast adjustment not stretching to the full range
 
 ## Custom animations and cropping
 

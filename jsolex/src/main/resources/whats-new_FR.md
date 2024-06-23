@@ -8,6 +8,7 @@ Voici les nouvelles fonctionnalités de cette version :
 ## Modifications dans 2.5.1
 
 - Correction de la stratégie d'autostretch produisant des images lumineuses lorsque le fichier SER original a un offset trop grand
+- Correction de l'ajustement du contraste ne s'étendant pas sur toute la plage disponible
 
 ## Animations personnalisées et recadrage
 
