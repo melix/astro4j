@@ -25,5 +25,6 @@ public enum DisplayCategory {
     PROCESSED,
     COLORIZED,
     IMAGE_MATH,
-    MISC;
+    MISC,
+    REDSHIFT;
 }

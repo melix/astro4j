@@ -7,6 +7,7 @@ Here are the new features in this version:
 
 ## Changes in 2.5.1
 
+- Use separate display category for redshifts and promote redshift debug images to this category
 - Display of FPS in the optimal exposure calculator
 - Fixed autostretch strategy producing bright images when the original SER file has a large offset
 - Fixed contrast adjustment not stretching to the full range

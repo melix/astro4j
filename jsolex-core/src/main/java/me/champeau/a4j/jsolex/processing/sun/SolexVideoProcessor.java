@@ -318,7 +318,7 @@ public class SolexVideoProcessor implements Broadcaster {
                 for (var batch : batches) {
                     try (var reader = SerFileReader.of(serFile)) {
                         var outputs = performImageReconstruction(converter, reader, start, end, geometry, width, height, polynomial, batch.toArray(new WorkflowState[0]));
-                        maybeProduceRedshiftDetectionDebugImages(outputs.redshifts, width, height, reader, converter, geometry, polynomial, imageNamingStrategy, baseName);
+                        maybeProduceRedshiftDetectionImages(outputs.redshifts, width, height, reader, converter, geometry, polynomial, imageNamingStrategy, baseName);
                         if (redshifts == null && outputs.redshifts != null) {
                             redshifts = new Redshifts(outputs.redshifts);
                         }
@@ -518,16 +518,16 @@ public class SolexVideoProcessor implements Broadcaster {
             .toList();
     }
 
-    private void maybeProduceRedshiftDetectionDebugImages(List<RedshiftArea> redshifts,
-                                                          int width,
-                                                          int height,
-                                                          SerFileReader reader,
-                                                          ImageConverter<float[]> converter,
-                                                          ImageGeometry geometry,
-                                                          DoubleUnaryOperator polynomial,
-                                                          FileNamingStrategy fileNamingStrategy,
-                                                          String baseName) {
-        if (redshifts != null && !redshifts.isEmpty() && processParams.requestedImages().isEnabled(GeneratedImageKind.DEBUG)) {
+    private void maybeProduceRedshiftDetectionImages(List<RedshiftArea> redshifts,
+                                                     int width,
+                                                     int height,
+                                                     SerFileReader reader,
+                                                     ImageConverter<float[]> converter,
+                                                     ImageGeometry geometry,
+                                                     DoubleUnaryOperator polynomial,
+                                                     FileNamingStrategy fileNamingStrategy,
+                                                     String baseName) {
+        if (redshifts != null && !redshifts.isEmpty() && processParams.requestedImages().isEnabled(GeneratedImageKind.REDSHIFT)) {
             var analyzer = new SpectrumFrameAnalyzer(
                 width,
                 height,
@@ -573,10 +573,10 @@ public class SolexVideoProcessor implements Broadcaster {
                         System.arraycopy(color.g(), 0, rgb.g(), 0, color.g().length);
                         System.arraycopy(color.b(), 0, rgb.b(), 0, color.b().length);
                     });
-                    var targetFile = outputDirectory.resolve(fileNamingStrategy.render(sequenceNumber, Constants.TYPE_DEBUG, "redshift", baseName + "_" + redshift.id()));
+                    var targetFile = outputDirectory.resolve(fileNamingStrategy.render(sequenceNumber, Constants.TYPE_PROCESSED, "redshift", baseName + "_" + redshift.id()));
                     broadcast(new ImageGeneratedEvent(
                         new GeneratedImage(
-                            GeneratedImageKind.DEBUG,
+                            GeneratedImageKind.REDSHIFT,
                             "Redshift %s (%.2f km/s)".formatted(redshift.id(), speed),
                             targetFile,
                             image
