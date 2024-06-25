@@ -233,7 +233,11 @@ public class SpectralLineDebugger {
                         return id;
                     }
                 }));
-                contrastBoost.valueProperty().addListener(listener);
+                contrastBoost.valueProperty().addListener((observable, oldValue, newValue) -> {
+                    int frameId = frameSlider.valueProperty().intValue();
+                    pause.setOnFinished(e -> processFrame(converter, reader, geometry, frameId, imageFile, null, scene));
+                    pause.playFromStart();
+                });
                 sunDetectionThreshold.textProperty().set("");
                 frameSlider.setMin(0);
                 frameSlider.setMax(header.frameCount());
