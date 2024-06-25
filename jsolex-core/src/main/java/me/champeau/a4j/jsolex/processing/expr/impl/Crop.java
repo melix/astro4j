@@ -65,8 +65,18 @@ public class Crop extends AbstractFunctionImpl {
             return cropMonoImage(left, top, width, height, mono);
         } else if (img instanceof ColorizedImageWrapper colorized) {
             var mono = colorized.mono();
-            var cropped = cropMonoImage(left, top, width, height, mono);
-            return new ColorizedImageWrapper(cropped, colorized.converter(), cropped.metadata());
+            var converter = colorized.converter();
+            var rgb = converter.apply(mono);
+            var md = new HashMap<>(colorized.metadata());
+            var ri = cropMonoImage(left, top, width, height, new ImageWrapper32(colorized.width(), colorized.width(), rgb[0], md));
+            var gi = cropMonoImage(left, top, width, height, new ImageWrapper32(colorized.width(), colorized.height(), rgb[1], md));
+            var bi = cropMonoImage(left, top, width, height, new ImageWrapper32(colorized.width(), colorized.height(), rgb[2], md));
+            return new RGBImage(width, height,
+                ri.data(),
+                gi.data(),
+                bi.data(),
+                ri.metadata()
+            );
         } else if (img instanceof RGBImage rgb) {
             var ri = cropMonoImage(left, top, width, height, new ImageWrapper32(rgb.width(), rgb.height(), rgb.r(), rgb.metadata()));
             var gi = cropMonoImage(left, top, width, height, new ImageWrapper32(rgb.width(), rgb.height(), rgb.g(), rgb.metadata()));
