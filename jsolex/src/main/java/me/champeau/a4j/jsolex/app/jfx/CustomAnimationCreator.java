@@ -86,8 +86,8 @@ public class CustomAnimationCreator {
         }
         minPixelShift = -minAbsShift;
         maxPixelShift = minAbsShift;
-        minShift.setTextFormatter(createShiftFormatter(minPixelShift, maxPixelShift));
-        maxShift.setTextFormatter(createShiftFormatter(minPixelShift, maxPixelShift));
+        minShift.setTextFormatter(createShiftFormatter(range.minPixelShift(), range.maxPixelShift()));
+        maxShift.setTextFormatter(createShiftFormatter(range.minPixelShift(), range.maxPixelShift()));
         minShift.setText(Double.toString(minPixelShift));
         maxShift.setText(Double.toString(maxPixelShift));
         annotateAnim.disableProperty().bind(generateAnim.selectedProperty().not());
