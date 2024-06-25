@@ -7,6 +7,7 @@ Voici les nouvelles fonctionnalités de cette version :
 
 ## Modifications dans 2.5.1
 
+- Ajout d'une catégorie d'affichage séparée pour les décalages vers le rouge et promotion des images de débogage des décalages vers le rouge à cette catégorie
 - Affichage du nombre de FPS dans la calculatrice d'exposition optimale
 - Correction de la stratégie d'autostretch produisant des images lumineuses lorsque le fichier SER original a un offset trop grand
 - Correction de l'ajustement du contraste ne s'étendant pas sur toute la plage disponible

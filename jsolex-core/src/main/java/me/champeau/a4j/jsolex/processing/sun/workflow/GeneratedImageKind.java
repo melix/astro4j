@@ -36,7 +36,7 @@ public enum GeneratedImageKind {
     IMAGE_MATH(DisplayCategory.IMAGE_MATH),
     COMPOSITION(DisplayCategory.PROCESSED),
     CROPPED(DisplayCategory.MISC),
-    REDSHIFT(DisplayCategory.MISC);
+    REDSHIFT(DisplayCategory.REDSHIFT);
 
     private final DisplayCategory displayCategory;
 
