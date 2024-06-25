@@ -36,6 +36,8 @@ public class ExposureCalculator {
     private TextField declination;
     @FXML
     private TextField exposure;
+    @FXML
+    private TextField fps;
 
     private Stage stage;
 
@@ -71,7 +73,8 @@ public class ExposureCalculator {
             double v = Double.parseDouble(scanSpeed.getText());
             double delta = Double.parseDouble(declination.getText());
             double expo = 1000 * ((8.79 * p * bin) / (f * v * Math.cos(Math.toRadians(delta))));
-            exposure.setText(String.format("%.2f", expo));
+            fps.setText(String.format("%.2f fps", 1 / (expo / 1000)));
+            exposure.setText(String.format("%.2f ms", expo));
         };
     }
 
