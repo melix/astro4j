@@ -266,6 +266,9 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
             addedImageViewer.getImageView().setRectangleSelectionListener(new RectangleSelectionListener() {
                 @Override
                 public boolean supports(ActionKind kind) {
+                    if (kind.isCrop()) {
+                        return true;
+                    }
                     if (adjustedParams == null) {
                         return false;
                     }
@@ -334,11 +337,14 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
                             var id = cropCount.getAndIncrement();
                             var imageName = "cropped-" + id;
                             var title = String.format(message("cropped.image"), id);
+                            var path = adjustedParams != null
+                                ? outputDirectory.resolve(createNamingStrategy().render(0, Constants.TYPE_CUSTOM, imageName, computeSerFileBasename(serFile)))
+                                : event.getPayload().path().getParent().resolve("cropped-" + id);
                             broadcast(new ImageGeneratedEvent(
                                 new GeneratedImage(
                                     GeneratedImageKind.CROPPED,
                                     title,
-                                    outputDirectory.resolve(createNamingStrategy().render(0, Constants.TYPE_CUSTOM, imageName, computeSerFileBasename(serFile))),
+                                    path,
                                     croppedImage
                                 )
                             ));
