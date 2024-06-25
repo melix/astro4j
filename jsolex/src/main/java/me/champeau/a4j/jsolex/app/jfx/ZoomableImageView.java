@@ -74,6 +74,7 @@ public class ZoomableImageView extends HBox {
     private final Label selectionLabel;
     private final BooleanProperty isSelectingRectangle = new SimpleBooleanProperty();
     private RectangleSelectionListener rectangleSelectionListener;
+    private ContextMenu rectangleSelectionMenu;
 
     public ZoomableImageView() {
         super();
@@ -213,9 +214,12 @@ public class ZoomableImageView extends HBox {
     }
 
     private void showSelectionMenu(double screenX, double screenY) {
-        var selectionMenu = new ContextMenu();
-        selectionMenu.setOnHidden(e -> disableSelection());
-        var items = selectionMenu.getItems();
+        if (rectangleSelectionMenu != null && rectangleSelectionMenu.isShowing()) {
+            rectangleSelectionMenu.hide();
+        }
+        rectangleSelectionMenu = new ContextMenu();
+        rectangleSelectionMenu.setOnHidden(e -> disableSelection());
+        var items = rectangleSelectionMenu.getItems();
         var image = imageView.getImage();
         var selectionX = (int) Math.max(0, Math.round(selectionRectangle.getX() / zoom));
         var selectionY = (int) Math.max(0, Math.round(selectionRectangle.getY() / zoom));
@@ -250,7 +254,7 @@ public class ZoomableImageView extends HBox {
         }
         var action4 = new MenuItem(message("cancel"));
         items.add(action4);
-        selectionMenu.show(ZoomableImageView.this, screenX, screenY);
+        rectangleSelectionMenu.show(ZoomableImageView.this, screenX, screenY);
     }
 
     private void handleScroll(ScrollEvent event) {

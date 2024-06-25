@@ -9,6 +9,7 @@ Voici les nouvelles fonctionnalités de cette version :
 
 - Correction de la stratégie d'autostretch produisant des images lumineuses lorsque le fichier SER original a un offset trop grand
 - Correction de l'ajustement du contraste ne s'étendant pas sur toute la plage disponible
+- Correction du décalage de pixel min/max dans les animations personnalisées limité au minimum des deux
 
 ## Animations personnalisées et recadrage
 
