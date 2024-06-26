@@ -15,6 +15,7 @@
  */
 package me.champeau.a4j.jsolex.processing.stretching;
 
+import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 
 import java.util.Arrays;
@@ -29,6 +30,13 @@ public final class StretchingChain implements StretchingStrategy {
 
     public StretchingChain(StretchingStrategy... strategies) {
         this(Arrays.asList(strategies));
+    }
+
+    @Override
+    public void stretch(ImageWrapper image) {
+        for (StretchingStrategy strategy : strategies) {
+            strategy.stretch(image);
+        }
     }
 
     @Override
