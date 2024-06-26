@@ -15,6 +15,7 @@
  */
 package me.champeau.a4j.jsolex.processing.util;
 
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.function.Function;
@@ -41,5 +42,10 @@ public record ColorizedImageWrapper(
 
     public ColorizedImageWrapper copy() {
         return new ColorizedImageWrapper(mono.copy(), converter, new LinkedHashMap<>(metadata));
+    }
+
+    public RGBImage asRGB() {
+        var rgb = converter.apply(mono);
+        return new RGBImage(mono.width(), mono.height(), rgb[0], rgb[1], rgb[2], new HashMap<>(mono.metadata()));
     }
 }

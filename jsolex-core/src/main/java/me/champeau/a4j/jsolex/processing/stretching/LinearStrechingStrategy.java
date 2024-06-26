@@ -17,8 +17,7 @@ package me.champeau.a4j.jsolex.processing.stretching;
 
 import me.champeau.a4j.jsolex.processing.util.Constants;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
-
-import java.util.Optional;
+import me.champeau.a4j.jsolex.processing.util.RGBImage;
 
 public final class LinearStrechingStrategy implements StretchingStrategy {
     public static final LinearStrechingStrategy DEFAULT = new LinearStrechingStrategy(0, Constants.MAX_PIXEL_VALUE);
@@ -42,13 +41,29 @@ public final class LinearStrechingStrategy implements StretchingStrategy {
     @Override
     public void stretch(ImageWrapper32 image) {
         var data = image.data();
-        double min = min(data).orElse((double) lo);
-        double max = max(data).orElse((double) lo);
+        double min = min(data);
+        double max = max(data);
         double range = max - min;
         if (range == 0) {
             return;
         }
         rescale(data, range, min);
+    }
+
+    @Override
+    public void stretch(RGBImage image) {
+        var r = image.r();
+        var g = image.g();
+        var b = image.b();
+        double min = Math.min(Math.min(min(r), min(g)), min(b));
+        double max = Math.max(Math.max(max(r), max(g)), max(b));
+        double range = max - min;
+        if (range == 0) {
+            return;
+        }
+        rescale(r, range, min);
+        rescale(g, range, min);
+        rescale(b, range, min);
     }
 
     private void rescale(float[] data, double range, double min) {
@@ -58,9 +73,9 @@ public final class LinearStrechingStrategy implements StretchingStrategy {
         }
     }
 
-    private static Optional<Double> min(float[] array) {
+    private double min(float[] array) {
         if (array.length == 0) {
-            return Optional.empty();
+            return lo;
         }
         double min = Double.MAX_VALUE;
         for (float v : array) {
@@ -68,12 +83,12 @@ public final class LinearStrechingStrategy implements StretchingStrategy {
                 min = v;
             }
         }
-        return Optional.of(min);
+        return min;
     }
 
-    private static Optional<Double> max(float[] array) {
+    private double max(float[] array) {
         if (array.length == 0) {
-            return Optional.empty();
+            return hi;
         }
         double max = -Double.MAX_VALUE;
         for (float v : array) {
@@ -81,6 +96,6 @@ public final class LinearStrechingStrategy implements StretchingStrategy {
                 max = v;
             }
         }
-        return Optional.of(max);
+        return max;
     }
 }
