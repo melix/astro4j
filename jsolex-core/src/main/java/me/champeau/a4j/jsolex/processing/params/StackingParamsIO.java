@@ -37,6 +37,8 @@ import java.lang.reflect.Type;
 import java.nio.file.Files;
 import java.nio.file.Path;
 
+import static me.champeau.a4j.jsolex.processing.util.Constants.message;
+
 public class StackingParamsIO {
     private static final Logger LOGGER = LoggerFactory.getLogger(StackingParamsIO.class);
 
@@ -66,7 +68,7 @@ public class StackingParamsIO {
         if (params != null) {
             return params;
         }
-        LOGGER.info("No config file found at {}. Using default stacking params", defaultsFile);
+        LOGGER.debug(message("no.config.file.found"), defaultsFile, "stacking params");
         return predefined();
     }
 

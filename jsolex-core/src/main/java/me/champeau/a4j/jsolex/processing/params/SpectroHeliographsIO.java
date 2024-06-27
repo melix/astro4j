@@ -28,6 +28,8 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
 
+import static me.champeau.a4j.jsolex.processing.util.Constants.message;
+
 public class SpectroHeliographsIO {
     private static final Logger LOGGER = LoggerFactory.getLogger(SpectroHeliographsIO.class);
 
@@ -56,7 +58,7 @@ public class SpectroHeliographsIO {
         if (patterns != null) {
             return patterns;
         }
-        LOGGER.info("No config file found at {}. Using default SHG", defaultsFile);
+        LOGGER.debug(message("no.config.file.found"), defaultsFile, "SHG");
         return SpectroHeliographsIO.predefined();
     }
 

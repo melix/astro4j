@@ -39,6 +39,8 @@ import java.util.EnumSet;
 import java.util.List;
 import java.util.Set;
 
+import static me.champeau.a4j.jsolex.processing.util.Constants.message;
+
 public abstract class ProcessParamsIO {
     private static final Logger LOGGER = LoggerFactory.getLogger(ProcessParamsIO.class);
 
@@ -72,7 +74,7 @@ public abstract class ProcessParamsIO {
         if (params != null) {
             return params;
         }
-        LOGGER.info("No config file found at {}. Using default parameters", defaultsFile);
+        LOGGER.debug(message("no.config.file.found"), defaultsFile, "process params");
         return new ProcessParams(
             new SpectrumParams(SpectralRay.AUTO, 0, 3, Constants.DEFAULT_CONTINUUM_SHIFT, false),
             new ObservationDetails(

@@ -29,6 +29,8 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
 
+import static me.champeau.a4j.jsolex.processing.util.Constants.message;
+
 public abstract class FileNamingPatternsIO {
     private static final Logger LOGGER = LoggerFactory.getLogger(FileNamingPatternsIO.class);
 
@@ -57,7 +59,7 @@ public abstract class FileNamingPatternsIO {
         if (patterns != null) {
             return patterns;
         }
-        LOGGER.info("No config file found at {}. Using default patterns", defaultsFile);
+        LOGGER.debug(message("no.config.file.found"), defaultsFile, "patterns");
         return FileNamingPatternsIO.predefined();
     }
 
