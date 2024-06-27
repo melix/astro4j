@@ -19,16 +19,43 @@ public record SpectroHeliograph(
     String label,
     double totalAngleDegrees,
     int focalLength,
+    int collimatorFocalLength,
     int density,
-    int order
+    int order,
+    double slitWidthMicrons,
+    double slitHeightMillimeters
 ) {
-    public static final SpectroHeliograph SOLEX = new SpectroHeliograph("Sol'Ex", 34, 125, 2400, 1);
+    public static final SpectroHeliograph SOLEX = new SpectroHeliograph("Sol'Ex", 34, 125, 80, 2400, 1, 10, 4.5);
 
     public double totalAngleRadians() {
         return Math.toRadians(totalAngleDegrees);
     }
 
     public SpectroHeliograph withLabel(String label) {
-        return new SpectroHeliograph(label, totalAngleDegrees, focalLength, density, order);
+        return new SpectroHeliograph(label, totalAngleDegrees, focalLength, collimatorFocalLength, density, order, slitWidthMicrons, slitHeightMillimeters);
+    }
+
+    public SpectroHeliograph withCollimatorFocalLength(int collimatorFocalLength) {
+        return new SpectroHeliograph(label, totalAngleDegrees, focalLength, collimatorFocalLength, density, order, slitWidthMicrons, slitHeightMillimeters);
+    }
+
+    public SpectroHeliograph withDensity(int density) {
+        return new SpectroHeliograph(label, totalAngleDegrees, focalLength, collimatorFocalLength, density, order, slitWidthMicrons, slitHeightMillimeters);
+    }
+
+    public SpectroHeliograph withOrder(int order) {
+        return new SpectroHeliograph(label, totalAngleDegrees, focalLength, collimatorFocalLength, density, order, slitWidthMicrons, slitHeightMillimeters);
+    }
+
+    public SpectroHeliograph withSlitWidthMicrons(double slitWidthMicrons) {
+        return new SpectroHeliograph(label, totalAngleDegrees, focalLength, collimatorFocalLength, density, order, slitWidthMicrons, slitHeightMillimeters);
+    }
+
+    public SpectroHeliograph withSlitHeightMillimeters(double slideHeightMillimeters) {
+        return new SpectroHeliograph(label, totalAngleDegrees, focalLength, collimatorFocalLength, density, order, slitWidthMicrons, slideHeightMillimeters);
+    }
+
+    public SpectroHeliograph withCameraFocalLength(int focalLength) {
+        return new SpectroHeliograph(label, totalAngleDegrees, focalLength, collimatorFocalLength, density, order, slitWidthMicrons, slitHeightMillimeters);
     }
 }

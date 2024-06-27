@@ -647,3 +647,4 @@ Le logiciel calculera alors l'exposition optimale en fonction de ces paramètres
 - Valérie Desnoux pour son travail remarquable sur INTI
 - Jean-François Pittet pour ses rapports de bugs, ses vidéos de test et ses formules de correction géométrique
 - Sylvain Weiller pour son beta-testing intensif, ses retours précieux et ses idées de traitement
+- Ken M. Harrison pour l'amélioration des calculs d'exposition optimale

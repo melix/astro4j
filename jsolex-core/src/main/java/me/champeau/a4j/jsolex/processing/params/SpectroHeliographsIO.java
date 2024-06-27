@@ -72,7 +72,20 @@ public class SpectroHeliographsIO {
         if (Files.exists(configFile)) {
             try (var reader = FilesUtils.newTextReader(configFile)) {
                 var object = gson.fromJson(reader, TypeToken.getParameterized(List.class, SpectroHeliograph.class));
-                return (List<SpectroHeliograph>) object;
+                return ((List<SpectroHeliograph>) object).stream()
+                    .map(shg -> {
+                        if (shg.collimatorFocalLength() == 0) {
+                            shg = shg.withCollimatorFocalLength(SpectroHeliograph.SOLEX.collimatorFocalLength());
+                        }
+                        if (shg.slitWidthMicrons() == 0) {
+                            shg = shg.withSlitWidthMicrons(SpectroHeliograph.SOLEX.slitWidthMicrons());
+                        }
+                        if (shg.slitHeightMillimeters() == 0) {
+                            shg = shg.withSlitHeightMillimeters(SpectroHeliograph.SOLEX.slitHeightMillimeters());
+                        }
+                        return shg;
+                    })
+                    .toList();
             } catch (IOException e) {
                 // fallback to default params
             }

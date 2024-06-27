@@ -5,6 +5,13 @@ Voici les nouvelles fonctionnalités de cette version :
 - [Animations personnalisées et recadrage](#animations-personnalisees-et-recadrage)
 - [Corrections de bugs et améliorations](#corrections-de-bugs-et-ameliorations)
 
+## Modifications dans 2.5.2
+
+- Amélioration du calculateur de temps d'exposition
+- Ajout de champs supplémentaires à l'éditeur de spectrohéliographes personnalisés
+- Correction de la lecture des métadonnées de Firecapture
+- Réduction de l'utilisation mémoire lors de l'analyse d'images
+- 
 ## Modifications dans 2.5.1
 
 - Ajout d'une catégorie d'affichage séparée pour les décalages vers le rouge et promotion des images de débogage des décalages vers le rouge à cette catégorie

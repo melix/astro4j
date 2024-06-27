@@ -27,6 +27,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.function.DoubleUnaryOperator;
 
+import static java.lang.Math.cos;
+
 public class SpectrumAnalyzer {
     private static final Logger LOGGER = LoggerFactory.getLogger(SpectrumAnalyzer.class);
 
@@ -55,7 +57,7 @@ public class SpectrumAnalyzer {
      * @return the alpha angle (in radians)
      */
     private static double computeAlphaAngle(int order, int density, double lambda0, double totalAngle) {
-        return Math.asin(order * density * lambda0 / (2_000_000 * Math.cos(totalAngle / 2))) + totalAngle / 2;
+        return Math.asin(order * density * lambda0 / (2_000_000 * cos(totalAngle / 2))) + totalAngle / 2;
     }
 
     /**
@@ -70,7 +72,7 @@ public class SpectrumAnalyzer {
                                                                 double lambda0NanoMeters,
                                                                 double pixelSizeMicrons) {
         var beta = computeAngleBeta(instrument.order(), instrument.density(), lambda0NanoMeters, instrument.totalAngleRadians());
-        return 1000 * pixelSizeMicrons * Math.cos(beta) / instrument.density() / instrument.focalLength();
+        return 1000 * pixelSizeMicrons * cos(beta) / instrument.density() / instrument.focalLength();
     }
 
     /**

@@ -22,6 +22,7 @@ import java.nio.file.Paths;
 import java.util.Properties;
 
 public class VersionUtil {
+    private static Path TEMPORARY_HOME;
 
     private VersionUtil() {
     }
@@ -39,8 +40,8 @@ public class VersionUtil {
     }
 
     public static Path getJsolexDir() {
-        var path = Paths.get(System.getProperty("user.home"), ".jsolex" + (isSnapshot() ? "-devel" : ""));
-        if (isSnapshot() && !Files.exists(path)) {
+        var path = findHomeDir();
+        if (isSnapshot() && !Files.exists(path) && System.getProperty("tmp.home") == null) {
             var origFile = Paths.get(System.getProperty("user.home"), ".jsolex");
             if (Files.exists(origFile)) {
                 // copy the original directory to the new one
@@ -63,6 +64,24 @@ public class VersionUtil {
                     throw new RuntimeException(e);
                 }
             }
+        }
+        return path;
+    }
+
+    private static Path findHomeDir() {
+        Path path;
+        if (System.getProperty("tmp.home") != null) {
+            try {
+                if (TEMPORARY_HOME == null) {
+                    TEMPORARY_HOME = Files.createTempDirectory("jsolex");
+                }
+                path = TEMPORARY_HOME;
+            } catch (IOException e) {
+                // ignore, this is for debugging only
+                path = Path.of(System.getProperty("user.home"), ".jsolex" + (isSnapshot() ? "-devel" : ""));
+            }
+        } else {
+            path = Paths.get(System.getProperty("user.home"), ".jsolex" + (isSnapshot() ? "-devel" : ""));
         }
         return path;
     }

@@ -2,18 +2,26 @@
 
 <?import javafx.geometry.Insets?>
 <?import javafx.scene.control.Button?>
+<?import javafx.scene.control.ChoiceBox?>
+<?import javafx.scene.control.DatePicker?>
 <?import javafx.scene.control.Label?>
+<?import javafx.scene.control.RadioButton?>
 <?import javafx.scene.control.TextField?>
 <?import javafx.scene.layout.ColumnConstraints?>
 <?import javafx.scene.layout.GridPane?>
+<?import javafx.scene.layout.HBox?>
 <?import javafx.scene.layout.RowConstraints?>
 
-<GridPane maxHeight="-Infinity" maxWidth="-Infinity" minHeight="-Infinity" minWidth="-Infinity" prefHeight="243.0" prefWidth="600.0" xmlns="http://javafx.com/javafx/19" xmlns:fx="http://javafx.com/fxml/1" fx:controller="me.champeau.a4j.jsolex.app.jfx.ExposureCalculator">
+<GridPane hgap="8.0" maxHeight="-Infinity" maxWidth="-Infinity" minHeight="-Infinity" minWidth="-Infinity" prefHeight="355.0" prefWidth="711.0" vgap="8.0" xmlns="http://javafx.com/javafx/19" xmlns:fx="http://javafx.com/fxml/1" fx:controller="me.champeau.a4j.jsolex.app.jfx.ExposureCalculator">
     <columnConstraints>
-        <ColumnConstraints hgrow="SOMETIMES" minWidth="10.0" prefWidth="100.0" />
-        <ColumnConstraints hgrow="SOMETIMES" minWidth="10.0" prefWidth="100.0" />
+        <ColumnConstraints hgrow="SOMETIMES" maxWidth="266.0" minWidth="10.0" prefWidth="266.0" />
+        <ColumnConstraints hgrow="SOMETIMES" maxWidth="222.0" minWidth="10.0" prefWidth="158.0" />
+      <ColumnConstraints hgrow="SOMETIMES" maxWidth="170.0" minWidth="10.0" prefWidth="117.0" />
+      <ColumnConstraints hgrow="SOMETIMES" maxWidth="128.0" minWidth="10.0" prefWidth="106.0" />
     </columnConstraints>
     <rowConstraints>
+      <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="SOMETIMES" />
+      <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="SOMETIMES" />
         <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="SOMETIMES" />
       <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="SOMETIMES" />
         <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="SOMETIMES" />
@@ -22,24 +30,46 @@
       <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="SOMETIMES" />
       <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="SOMETIMES" />
         <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="SOMETIMES" />
+      <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="SOMETIMES" />
         <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="SOMETIMES" />
     </rowConstraints>
     <children>
-        <Label text="%pixel.size" />
-        <Label text="%binning" GridPane.rowIndex="1" />
-        <Label text="%focal.length" GridPane.rowIndex="2" />
-        <Label text="%scan.speed" GridPane.rowIndex="3" />
-        <Label text="%sun.declination" GridPane.rowIndex="4" />
-        <Label text="%optimal.exposure" GridPane.rowIndex="7" />
-        <TextField fx:id="pixelSize" GridPane.columnIndex="1" />
-        <TextField fx:id="binning" GridPane.columnIndex="1" GridPane.rowIndex="1" />
-        <TextField fx:id="focalLength" GridPane.columnIndex="1" GridPane.rowIndex="2" />
-        <TextField fx:id="scanSpeed" GridPane.columnIndex="1" GridPane.rowIndex="3" />
-        <TextField fx:id="declination" GridPane.columnIndex="1" GridPane.rowIndex="4" />
-        <TextField fx:id="exposure" disable="true" editable="false" GridPane.columnIndex="1" GridPane.rowIndex="7" />
-        <Button mnemonicParsing="false" onAction="#close" text="Ok" GridPane.columnIndex="1" GridPane.halignment="CENTER" GridPane.rowIndex="8" />
-      <Label text="%recommended.fps" GridPane.rowIndex="6" />
-      <TextField fx:id="fps" disable="true" editable="false" GridPane.columnIndex="1" GridPane.rowIndex="6" />
+        <Label text="%pixel.size" GridPane.rowIndex="2" />
+        <Label text="%binning" GridPane.columnIndex="2" GridPane.halignment="RIGHT" GridPane.rowIndex="2" />
+        <Label text="%focal.length" GridPane.rowIndex="4" />
+        <Label text="%scan.speed" GridPane.rowIndex="5" />
+        <Label text="%date" GridPane.rowIndex="6" />
+        <Label text="%optimal.exposure" GridPane.columnSpan="2" GridPane.halignment="RIGHT" GridPane.rowIndex="9" />
+        <TextField fx:id="pixelSize" GridPane.columnIndex="1" GridPane.rowIndex="2" />
+        <TextField fx:id="binning" GridPane.columnIndex="3" GridPane.rowIndex="2" />
+        <TextField fx:id="focalLength" GridPane.columnIndex="1" GridPane.rowIndex="4" />
+        <TextField fx:id="scanSpeed" GridPane.columnIndex="1" GridPane.rowIndex="5" />
+        <DatePicker fx:id="date" GridPane.columnIndex="1" GridPane.rowIndex="6" />
+        <TextField fx:id="exposure" disable="true" editable="false" GridPane.columnIndex="2" GridPane.rowIndex="9" />
+        <Button mnemonicParsing="false" onAction="#close" text="Ok" GridPane.columnSpan="4" GridPane.halignment="CENTER" GridPane.rowIndex="11" />
+      <Label text="%recommended.fps" GridPane.columnSpan="2" GridPane.halignment="RIGHT" GridPane.rowIndex="8" />
+      <TextField fx:id="fps" disable="true" editable="false" GridPane.columnIndex="2" GridPane.rowIndex="8" />
+      <Label text="%setup" />
+      <Label text="%shg" GridPane.rowIndex="1" />
+      <HBox spacing="16.0" GridPane.columnIndex="1" GridPane.columnSpan="3">
+         <children>
+            <ChoiceBox fx:id="setup" prefHeight="24.0" prefWidth="290.0" />
+            <Button mnemonicParsing="false" onAction="#chooseSetup" text="..." />
+         </children>
+      </HBox>
+      <HBox spacing="16.0" GridPane.columnIndex="1" GridPane.columnSpan="3" GridPane.rowIndex="1">
+         <children>
+            <ChoiceBox fx:id="instrument" prefHeight="24.0" prefWidth="290.0" />
+            <Button mnemonicParsing="false" onAction="#chooseInstrument" text="..." />
+         </children>
+      </HBox>
+      <Label text="%scan.direction" GridPane.columnIndex="2" GridPane.halignment="RIGHT" GridPane.rowIndex="5" />
+      <HBox alignment="CENTER" spacing="16.0" GridPane.columnIndex="3" GridPane.rowIndex="5">
+         <children>
+            <RadioButton fx:id="ra" mnemonicParsing="false" text="RA" />
+            <RadioButton fx:id="dec" mnemonicParsing="false" text="DEC" />
+         </children>
+      </HBox>
     </children>
     <padding>
         <Insets bottom="8.0" left="8.0" right="8.0" top="8.0" />
