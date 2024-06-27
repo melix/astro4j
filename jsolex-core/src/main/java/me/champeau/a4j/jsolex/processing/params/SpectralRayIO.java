@@ -60,7 +60,7 @@ public abstract class SpectralRayIO {
         if (rays != null) {
             return upgradeSchema(rays);
         }
-        LOGGER.info("No config file found at {}. Using default rays", defaultsFile);
+        LOGGER.debug("No config file found at {}. Using default rays", defaultsFile);
         return SpectralRay.predefined();
     }
 
