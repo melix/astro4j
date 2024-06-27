@@ -19,7 +19,11 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.File;
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
+import java.util.List;
+import java.util.Locale;
 import java.util.Optional;
 
 import static me.champeau.a4j.jsolex.processing.util.Constants.message;
@@ -36,7 +40,7 @@ public class CaptureSoftwareMetadataHelper {
         File sharpcapFile = new File(serFile.getParentFile(), baseName + ".CameraSettings.txt");
         if (sharpcapFile.exists()) {
             try {
-                var lines = Files.readAllLines(sharpcapFile.toPath());
+                var lines = tryRead(sharpcapFile);
                 var camera = lines.get(0).substring(1, lines.get(0).length() - 1);
                 if (camera.contains("(")) {
                     camera = camera.substring(0, camera.indexOf('(')).trim();
@@ -76,8 +80,8 @@ public class CaptureSoftwareMetadataHelper {
         File filecaptureFile = new File(serFile.getParentFile(), baseName + ".txt");
         if (filecaptureFile.exists()) {
             try {
-                var lines = Files.readAllLines(filecaptureFile.toPath());
-                if (lines.get(0).contains("Firecapture")) {
+                var lines = tryRead(filecaptureFile);
+                if (lines.get(0).toLowerCase(Locale.US).contains("firecapture")) {
                     String camera = null;
                     Integer binning = null;
                     for (var line : lines) {
@@ -98,6 +102,17 @@ public class CaptureSoftwareMetadataHelper {
             }
         }
         return Optional.empty();
+    }
+
+    private static List<String> tryRead(File filecaptureFile) throws IOException {
+        for (var charset : List.of(StandardCharsets.UTF_8, StandardCharsets.ISO_8859_1, StandardCharsets.US_ASCII)) {
+            try {
+                return Files.readAllLines(filecaptureFile.toPath(), charset);
+            } catch (IOException e) {
+                // ignore
+            }
+        }
+        return List.of("unknown");
     }
 
     public record CaptureMetadata(
