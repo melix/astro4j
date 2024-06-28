@@ -262,7 +262,7 @@ public class SolexVideoProcessor implements Broadcaster {
         }
         long imageSizeInBytes = width * newHeight * 4L * 3;
         long maxMemory = Runtime.getRuntime().maxMemory();
-        int batchSize = (int) (Math.ceil(maxMemory / (1.5d * imageSizeInBytes)));
+        int batchSize = (int) (Math.ceil(maxMemory / (4d * imageSizeInBytes)));
         checkAvailableDiskSpace(imageList, imageSizeInBytes);
 
         var maybePolynomial = Optional.ofNullable(polynomial).or(() -> findPolynomial(width, height, averageImage, imageNamingStrategy));
