@@ -29,14 +29,20 @@
             <children>
                 <Label text="%label" />
                 <TextField fx:id="label" GridPane.columnIndex="1" />
-                <Label text="%focal.length" GridPane.rowIndex="1" />
-                <TextField fx:id="focalLength" GridPane.columnIndex="1" GridPane.rowIndex="1" />
-                <Label text="%total.angle" GridPane.rowIndex="2" />
-                <TextField fx:id="totalAngle" GridPane.columnIndex="1" GridPane.rowIndex="2" />
-                <Label text="%density" GridPane.rowIndex="3" />
-                <TextField fx:id="density" GridPane.columnIndex="1" GridPane.rowIndex="3" />
-                <Label text="%order" GridPane.rowIndex="4" />
-                <TextField fx:id="order" GridPane.columnIndex="1" GridPane.rowIndex="4" />
+                <Label text="%camera.focal.length" GridPane.rowIndex="1" />
+                <TextField fx:id="cameraFocalLength" GridPane.columnIndex="1" GridPane.rowIndex="1" />
+                <Label text="%collimator.focal.length" GridPane.rowIndex="2" />
+                <TextField fx:id="collimatorFocalLength" GridPane.columnIndex="1" GridPane.rowIndex="2" />
+                <Label text="%total.angle" GridPane.rowIndex="3" />
+                <TextField fx:id="totalAngle" GridPane.columnIndex="1" GridPane.rowIndex="3" />
+                <Label text="%density" GridPane.rowIndex="4" />
+                <TextField fx:id="density" GridPane.columnIndex="1" GridPane.rowIndex="4" />
+                <Label text="%order" GridPane.rowIndex="5" />
+                <TextField fx:id="order" GridPane.columnIndex="1" GridPane.rowIndex="5" />
+                <Label text="%slit.width.microns" GridPane.rowIndex="6" />
+                <TextField fx:id="slitWidth" GridPane.columnIndex="1" GridPane.rowIndex="6" />
+                <Label text="%slit.height.millimeters" GridPane.rowIndex="7" />
+                <TextField fx:id="slitHeight" GridPane.columnIndex="1" GridPane.rowIndex="7" />
             </children>
             <padding>
                 <Insets bottom="8.0" left="8.0" right="8.0" top="8.0" />

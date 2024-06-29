@@ -5,6 +5,13 @@ Here are the new features in this version:
 - [Custom animations and cropping](#custom-animations-and-cropping)
 - [Bugfixes and improvements](#bugfixes-and-improvements)
 
+## Changes in 2.5.2
+
+- Improved exposure time calculator
+- Added more fields to the custom spectroheliographs editor
+- Fixed reading of Firecapture metadata
+- Reduced memory usage when analyzing images
+
 ## Changes in 2.5.1
 
 - Use separate display category for redshifts and promote redshift debug images to this category

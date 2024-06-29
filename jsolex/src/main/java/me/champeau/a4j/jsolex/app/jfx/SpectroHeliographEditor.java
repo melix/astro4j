@@ -47,13 +47,19 @@ public class SpectroHeliographEditor {
     @FXML
     private TextField label;
     @FXML
-    private TextField focalLength;
+    private TextField cameraFocalLength;
+    @FXML
+    private TextField collimatorFocalLength;
     @FXML
     private TextField totalAngle;
     @FXML
     private TextField density;
     @FXML
     private TextField order;
+    @FXML
+    private TextField slitWidth;
+    @FXML
+    private TextField slitHeight;
 
     private List<TextInputControl> formFields;
 
@@ -93,6 +99,16 @@ public class SpectroHeliographEditor {
         });
     }
 
+    private static TextFormatter<Double> createPositiveDoubleFormatter() {
+        return new TextFormatter<>(new DoubleStringConverter() {
+            @Override
+            public Double fromString(String value) {
+                var x = super.fromString(value);
+                return x == null || x < 0 ? 0 : x;
+            }
+        });
+    }
+
 
     private void fireDisableStatus(boolean disable) {
         formFields.forEach(e -> e.setDisable(disable));
@@ -101,12 +117,13 @@ public class SpectroHeliographEditor {
     public void setup(Stage stage) {
         formFields = List.of(
             label,
-            focalLength,
+            cameraFocalLength,
             totalAngle,
             density,
             order
         );
-        focalLength.setTextFormatter(createPositiveIntFormatter());
+        cameraFocalLength.setTextFormatter(createPositiveIntFormatter());
+        collimatorFocalLength.setTextFormatter(createPositiveIntFormatter());
         totalAngle.setTextFormatter(new TextFormatter<>(new DoubleStringConverter() {
             @Override
             public Double fromString(String value) {
@@ -116,6 +133,8 @@ public class SpectroHeliographEditor {
         }));
         density.setTextFormatter(createPositiveIntFormatter());
         order.setTextFormatter(createPositiveIntFormatter());
+        slitWidth.setTextFormatter(createPositiveDoubleFormatter());
+        slitHeight.setTextFormatter(createPositiveDoubleFormatter());
         elements.setCellFactory(new SGHCellFactory());
         var shgs = SpectroHeliographsIO.loadDefaults();
         this.stage = stage;
@@ -131,23 +150,29 @@ public class SpectroHeliographEditor {
                 var index = newValue.intValue();
                 var item = items.get(index);
                 label.setText(item.label());
-                focalLength.setText(String.valueOf(item.focalLength()));
+                cameraFocalLength.setText(String.valueOf(item.focalLength()));
+                collimatorFocalLength.setText(String.valueOf(item.collimatorFocalLength()));
                 totalAngle.setText(String.valueOf(item.totalAngleDegrees()));
                 density.setText(String.valueOf(item.density()));
                 order.setText(String.valueOf(item.order()));
+                slitWidth.setText(String.valueOf(item.slitWidthMicrons()));
+                slitHeight.setText(String.valueOf(item.slitHeightMillimeters()));
                 updating.set(false);
             }
         });
         ChangeListener<Object> updateValueListener = (obs, oldValue, newValue) -> {
             if (updating.compareAndSet(false, true)) {
                 var newLabel = label.getText();
-                var newFocalLength = focalLength.getText();
+                var newCameraFocalLength = cameraFocalLength.getText();
+                var newCollimatorFocalLength = collimatorFocalLength.getText();
                 var newTotalAngle = totalAngle.getText();
                 var newDensity = density.getText();
                 var newOrder = order.getText();
+                var newSlitWidth = slitWidth.getText();
+                var newSlitHeight = slitHeight.getText();
                 var selectedIndex = selectionModel.getSelectedIndex();
                 if (selectedIndex != -1) {
-                    var e = new SpectroHeliograph(newLabel, Double.parseDouble(newTotalAngle), Integer.parseInt(newFocalLength), Integer.parseInt(newDensity), Integer.parseInt(newOrder));
+                    var e = new SpectroHeliograph(newLabel, Double.parseDouble(newTotalAngle), Integer.parseInt(newCameraFocalLength), Integer.parseInt(newCollimatorFocalLength), Integer.parseInt(newDensity), Integer.parseInt(newOrder), Double.parseDouble(newSlitWidth), Double.parseDouble(newSlitHeight));
                     items.set(selectedIndex, e);
                     elements.getSelectionModel().select(e);
                 }
@@ -155,10 +180,13 @@ public class SpectroHeliographEditor {
             }
         };
         label.textProperty().addListener(updateValueListener);
-        focalLength.textProperty().addListener(updateValueListener);
+        cameraFocalLength.textProperty().addListener(updateValueListener);
+        collimatorFocalLength.textProperty().addListener(updateValueListener);
         totalAngle.textProperty().addListener(updateValueListener);
         density.textProperty().addListener(updateValueListener);
         order.textProperty().addListener(updateValueListener);
+        slitWidth.textProperty().addListener(updateValueListener);
+        slitHeight.textProperty().addListener(updateValueListener);
         if (!shgs.isEmpty()) {
             selectionModel.select(0);
         }
@@ -226,8 +254,11 @@ public class SpectroHeliographEditor {
             elements.getItems().isEmpty() ? SpectroHeliograph.SOLEX.label() : "Custom " + elements.getItems().size(),
             SpectroHeliograph.SOLEX.totalAngleDegrees(),
             SpectroHeliograph.SOLEX.focalLength(),
+            SpectroHeliograph.SOLEX.collimatorFocalLength(),
             SpectroHeliograph.SOLEX.density(),
-            SpectroHeliograph.SOLEX.order()
+            SpectroHeliograph.SOLEX.order(),
+            SpectroHeliograph.SOLEX.slitWidthMicrons(),
+            SpectroHeliograph.SOLEX.slitHeightMillimeters()
         );
         elements.getItems().add(newElement);
         elements.getSelectionModel().select(newElement);

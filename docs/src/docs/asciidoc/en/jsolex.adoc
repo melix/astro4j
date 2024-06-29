@@ -640,3 +640,4 @@ The software will then automatically compute the optimal exposure time in millis
 - Valérie Desnoux for her remarkable work on INTI
 - Jean-François Pittet for his bug reports, test videos, and geometric correction formulas
 - Sylvain Weiller for his intensive beta-testing, valuable feedback, and processing ideas
+- Ken M. Harrison for improved exposure time calculations
