@@ -11,7 +11,8 @@ Voici les nouvelles fonctionnalités de cette version :
 - Ajout de champs supplémentaires à l'éditeur de spectrohéliographes personnalisés
 - Correction de la lecture des métadonnées de Firecapture
 - Réduction de l'utilisation mémoire lors de l'analyse d'images
-- 
+- Remplacement du curseur de zoom par des boutons
+
 ## Modifications dans 2.5.1
 
 - Ajout d'une catégorie d'affichage séparée pour les décalages vers le rouge et promotion des images de débogage des décalages vers le rouge à cette catégorie

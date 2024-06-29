@@ -229,11 +229,10 @@ public class ImageViewer {
         saveButton.setOnAction(e -> saveImage());
         dimensions = new Label();
         var zoomLabel = new Label("Zoom");
-        var zoomSlider = new Slider(0.1, 5, 0.1);
-        zoomSlider.setMajorTickUnit(1);
-        zoomSlider.setShowTickLabels(true);
-        zoomSlider.setValue(1.0);
-        imageView.setOnZoomChanged(zoomSlider::setValue);
+        var zoomMinus = new Button("-");
+        zoomMinus.setOnAction(evt -> imageView.setZoom(imageView.getZoom() * 0.8));
+        var zoomPlus = new Button("+");
+        zoomPlus.setOnAction(evt -> imageView.setZoom(imageView.getZoom() * 1.2));
         var coordinatesLabel = new Label();
         imageView.setCoordinatesListener((x, y) -> {
             String extra = "";
@@ -250,7 +249,6 @@ public class ImageViewer {
             }
             coordinatesLabel.setText("(" + x.intValue() + ", " + y.intValue() + extra + ")");
         });
-        zoomSlider.valueProperty().addListener((obj, oldValue, newValue) -> imageView.setZoom(newValue.doubleValue()));
         correctAngleP = new CheckBox(message("correct.p.angle"));
         correctAngleP.setSelected(processParams.geometryParams().isAutocorrectAngleP());
         var applyNextTime = new Button("✔");
@@ -325,7 +323,7 @@ public class ImageViewer {
         applyNextTime.setTooltip(new Tooltip(message("apply.next.time")));
         applyNextTime.setDisable(true);
         line1.getChildren().addAll(reset, saveButton, prevButton, nextButton);
-        line2.getChildren().addAll(correctAngleP, zoomLabel, zoomSlider, fitButton, fitToCenter, oneToOneFit, leftRotate, rightRotate, verticalMirror, horizontalMirror, applyNextTime, dimensions, coordinatesLabel);
+        line2.getChildren().addAll(correctAngleP, zoomLabel, zoomMinus, zoomPlus, fitButton, fitToCenter, oneToOneFit, leftRotate, rightRotate, verticalMirror, horizontalMirror, applyNextTime, dimensions, coordinatesLabel);
         var titleLabel = new Label(title);
         titleLabel.setStyle("-fx-font-weight: bold");
         var alignButton = new Button("⌖");
