@@ -13,6 +13,11 @@ Here are the new features in this version:
 - Reduced memory usage when analyzing images
 - Replaced zoom slider with buttons
 
+## Changes in 2.5.3
+
+- Fixed redshifts position that could be incorrect in case of strong tilt or horizontal/vertical flip
+- Fixed double-click not changing zoom
+
 ## Changes in 2.5.1
 
 - Use separate display category for redshifts and promote redshift debug images to this category
