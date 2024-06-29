@@ -107,7 +107,9 @@ import java.util.concurrent.Semaphore;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.DoubleUnaryOperator;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
@@ -328,35 +330,7 @@ public class SolexVideoProcessor implements Broadcaster {
                 }
             });
             LOGGER.info(message("processing.done.generate.images"));
-            imageList.stream().parallel().forEach(state -> {
-                ImageWrapper32 rotated;
-                var recon = state.reconstructed().asImage();
-                var rotateLeft = ImageMath.newInstance().rotateLeft(recon);
-                var metadata = new HashMap<>(createMetadata(processParams, pixelShiftRange));
-                if (redshifts != null) {
-                    metadata.put(Redshifts.class, redshifts);
-                }
-                rotated = ImageWrapper32.fromImage(rotateLeft, metadata);
-                TransformationHistory.recordTransform(rotated, message("rotate.left"));
-                maybePerformFlips(rotated);
-                state.setImage(rotated);
-            });
-            var fitting = performEllipseFitting(imageList, (broadcaster, kind, outputDirectory) -> {
-                ImageEmitter emitter = new DefaultImageEmitter(broadcaster, outputDirectory.toFile());
-                emitter = new NamingStrategyAwareImageEmitter(emitter, imageNamingStrategy, sequenceNumber, kind, baseName);
-                return new DiscardNonRequiredImages(emitter, processParams.requestedImages().images());
-            });
-            IntStream.range(0, imageList.size()).mapToObj(i -> new Object() {
-                private final WorkflowState state = imageList.get(i);
-                private final int step = i;
-            }).parallel().forEach(o -> {
-                var state = o.state;
-                var step = o.step;
-                var imageEmitterFactory = new ProcessAwareImageEmitterFactory(state, imageNamingStrategy, baseName);
-                state.recordResult(WorkflowResults.MAIN_ELLIPSE_FITTING, fitting);
-                var workflow = new ProcessingWorkflow(this, outputDirectory, imageList, step, processParams, fps, imageEmitterFactory, header);
-                workflow.start();
-            });
+            startWorkflow(header, fps, imageList, imageNamingStrategy, baseName);
             var runnables = new ArrayList<Runnable>();
             if (processParams.requestedImages().isEnabled(GeneratedImageKind.DOPPLER) || processParams.requestedImages().isEnabled(GeneratedImageKind.DOPPLER_ECLIPSE)) {
                 runnables.add(() -> {
@@ -374,7 +348,8 @@ public class SolexVideoProcessor implements Broadcaster {
             }
             runnables.add(() -> {
                 var mathImages = processParams.requestedImages().mathImages();
-                generateImageMaths(imageNamingStrategy, baseName, imageList, mathImages);
+                var missingShiftLock = new ReentrantLock();
+                generateImageMaths(imageNamingStrategy, baseName, imageList, mathImages, shift -> computeMissingImageShift(converter, header, fps, serFile, start, end, shift, missingShiftLock, width, newHeight, geometry, height, polynomial, imageNamingStrategy, baseName));
             });
             runnables.stream()
                 .parallel()
@@ -407,6 +382,83 @@ public class SolexVideoProcessor implements Broadcaster {
             processParams,
             pixelShiftRange
         ));
+    }
+
+    /*
+     * In some rare cases, the image shift that is requested may not be available. This
+     * can happen when a shift is derived from a dynamic shift value, such as in the
+     * expression find_shift(...)+1.
+     * In this case, we need to compute the missing image shift dynamically. Note that
+     * for performance reasons it is important to avoid calling this method too often
+     * since it will not perform reconstruction in parallel like with precomputed shifts.
+     */
+    private ImageWrapper computeMissingImageShift(ImageConverter<float[]> converter,
+                                                  Header header,
+                                                  Double fps,
+                                                  File serFile,
+                                                  int start,
+                                                  int end,
+                                                  Double shift,
+                                                  ReentrantLock missingShiftLock,
+                                                  int width,
+                                                  int newHeight,
+                                                  ImageGeometry geometry,
+                                                  int height,
+                                                  DoubleUnaryOperator polynomial,
+                                                  FileNamingStrategy imageNamingStrategy,
+                                                  String baseName) {
+        missingShiftLock.lock();
+        try (var reader = SerFileReader.of(serFile)) {
+            var state = new WorkflowState(width, newHeight, shift);
+            state.setInternal(true);
+            var states = new WorkflowState[] { state };
+            var outputs = performImageReconstruction(converter, reader, start, end, geometry, width, height, polynomial, states);
+            maybeProduceRedshiftDetectionImages(outputs.redshifts, width, height, reader, converter, geometry, polynomial, imageNamingStrategy, baseName);
+            startWorkflow(header, fps, List.of(states), imageNamingStrategy, baseName);
+            var result = state.findResult(WorkflowResults.GEOMETRY_CORRECTION);
+            if (result.isPresent() && result.get() instanceof GeometryCorrector.Result geo) {
+                return geo.corrected();
+            }
+            return null;
+        } catch (Exception e) {
+            throw new ProcessingException(e);
+        } finally {
+            missingShiftLock.unlock();
+        }
+    }
+
+    private void startWorkflow(Header header, Double fps, List<WorkflowState> imageList, FileNamingStrategy imageNamingStrategy, String baseName) {
+        imageList.stream().parallel().forEach(this::prepareImageForCorrections);
+        var fitting = performEllipseFitting(imageList, (broadcaster, kind, outputDirectory) -> {
+            ImageEmitter emitter = new DefaultImageEmitter(broadcaster, outputDirectory.toFile());
+            emitter = new NamingStrategyAwareImageEmitter(emitter, imageNamingStrategy, sequenceNumber, kind, baseName);
+            return new DiscardNonRequiredImages(emitter, processParams.requestedImages().images());
+        });
+        IntStream.range(0, imageList.size()).mapToObj(i -> new Object() {
+            private final WorkflowState state = imageList.get(i);
+            private final int step = i;
+        }).parallel().forEach(o -> {
+            var state = o.state;
+            var step = o.step;
+            var imageEmitterFactory = new ProcessAwareImageEmitterFactory(state, imageNamingStrategy, baseName);
+            state.recordResult(WorkflowResults.MAIN_ELLIPSE_FITTING, fitting);
+            var workflow = new ProcessingWorkflow(this, outputDirectory, imageList, step, processParams, fps, imageEmitterFactory, header);
+            workflow.start();
+        });
+    }
+
+    private void prepareImageForCorrections(WorkflowState state) {
+        ImageWrapper32 rotated;
+        var recon = state.reconstructed().asImage();
+        var rotateLeft = ImageMath.newInstance().rotateLeft(recon);
+        var metadata = new HashMap<>(createMetadata(processParams, pixelShiftRange));
+        if (redshifts != null) {
+            metadata.put(Redshifts.class, redshifts);
+        }
+        rotated = ImageWrapper32.fromImage(rotateLeft, metadata);
+        TransformationHistory.recordTransform(rotated, message("rotate.left"));
+        maybePerformFlips(rotated);
+        state.setImage(rotated);
     }
 
     private boolean heliumLineVisible(PixelShiftRange pixelShiftRange, Double heliumLineShift) {
@@ -590,7 +642,8 @@ public class SolexVideoProcessor implements Broadcaster {
     private void generateImageMaths(FileNamingStrategy imageNamingStrategy,
                                     String baseName,
                                     List<WorkflowState> imageList,
-                                    ImageMathParams mathImages) {
+                                    ImageMathParams mathImages,
+                                    Function<Double, ImageWrapper> missingShiftSupplier) {
         if (!mathImages.scriptFiles().isEmpty()) {
             var images = new HashMap<Double, ImageWrapper>();
             Ellipse ellipse = null;
@@ -622,7 +675,16 @@ public class SolexVideoProcessor implements Broadcaster {
                 if (finalImageStats != null) {
                     context.put(ImageStats.class, finalImageStats);
                 }
-                var scriptRunner = new DefaultImageScriptExecutor(images::get, Collections.unmodifiableMap(context), this);
+                var scriptRunner = new DefaultImageScriptExecutor(shift -> {
+                    var img = images.get(shift);
+                    if (img == null) {
+                        // this can happen in situations where a shift is dynamic and cannot be computed
+                        // in advance, for example with expression find_shift(5254) + 1
+                        img = missingShiftSupplier.apply(shift);
+                        images.put(shift, img);
+                    }
+                    return img;
+                }, Collections.unmodifiableMap(context), this);
                 try {
                     var result = scriptRunner.execute(scriptFile.toPath(), ImageMathScriptExecutor.SectionKind.SINGLE);
                     ImageMathScriptExecutor.render(result, emitter);

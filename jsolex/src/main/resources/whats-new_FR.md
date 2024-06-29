@@ -13,6 +13,7 @@ Voici les nouvelles fonctionnalités de cette version :
 - Correction de la lecture des métadonnées de Firecapture
 - Réduction de l'utilisation mémoire lors de l'analyse d'images
 - Remplacement du curseur de zoom par des boutons
+- Correction des images manquantes dans les scripts en cas de composition avec le résultat de la fonction `find_shift`
 
 ## Modifications dans 2.5.1
 
