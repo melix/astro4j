@@ -21,7 +21,8 @@ Here are the new features in this version:
 - Fixed autostretch strategy producing bright images when the original SER file has a large offset
 - Fixed contrast adjustment not stretching to the full range
 - Fixed min/max pixel shift in custom animations limited to the min of the two
-
+- Fixed missing images in scripts in case of composition with `find_shift` function result
+- 
 ## Custom animations and cropping
 
 It is now possible to crop and image to a manual selection or create animations of a region of a solar disk, or a panel of redshifts, by manually selecting a region of interest.
