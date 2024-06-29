@@ -630,9 +630,11 @@ Enter the following parameters:
 - the camera pixel size (in microns) and the binning
 - the focal length of your instrument
 - the scan speed (a multiple of sideral speed, e.g 2, 4, 8, ...)
-- the declination of the sun at the moment of the observation
+- the observation date
 
-The software will then automatically compute the optimal exposure time in milliseconds.
+The software will then automatically compute the recommended framerate and the optimal exposure time in milliseconds.
+
+Note that you can change the type of spectroheliograph used, which can change the calculation of the optimal exposure.
 
 == Acknowledgements
 

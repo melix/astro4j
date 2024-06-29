@@ -637,9 +637,11 @@ Entrez :
 - la taille des pixels de votre caméra et le binning utilisé
 - la longueur focale de votre instrument
 - la vitesse du scan (en multiple de la vitesse sidérale, par exemple 2, 4, 8, ...)
-- la déclinaison du soleil en degrés au moment de l'observation
+- la date d'observation
 
-Le logiciel calculera alors l'exposition optimale en fonction de ces paramètres, en millisecondes.
+Le logiciel calculera alors le framerate recommandé annsi que l'exposition optimale en fonction de ces paramètres, en millisecondes.
+
+Notez que vous pouvez changer le type de spectrohéliographe utilisé, ce qui peut changer le calcul de l'exposition optimale.
 
 == Remerciements
 
