@@ -122,18 +122,29 @@
                                         <Label text="%redshift.creator.kind" GridPane.columnIndex="0" GridPane.rowIndex="3" prefWidth="200"/>
                                         <ChoiceBox fx:id="redshiftCreatorKind" GridPane.columnIndex="1" GridPane.rowIndex="3" prefWidth="200"/>
 
-                                        <Label fx:id="fullRangePanelsLabel" text="%full.range.panels" GridPane.columnIndex="0" GridPane.rowIndex="4" prefWidth="300">
+                                        <Label fx:id="annotateAnimationsLabel" text="%annotate.animations" GridPane.columnIndex="0" GridPane.rowIndex="4" prefWidth="300">
+                                            <tooltip>
+                                                <Tooltip text="%annotate.animations.tooltip"/>
+                                            </tooltip>
+                                        </Label>
+                                        <CheckBox fx:id="annotateAnimations" GridPane.columnIndex="1" GridPane.rowIndex="4" prefWidth="100">
+                                            <tooltip>
+                                                <Tooltip text="%annotate.animations.tooltip"/>
+                                            </tooltip>
+                                        </CheckBox>
+
+                                        <Label fx:id="fullRangePanelsLabel" text="%full.range.panels" GridPane.columnIndex="0" GridPane.rowIndex="5" prefWidth="300">
                                             <tooltip>
                                                 <Tooltip text="%full.range.panels.tooltip"/>
                                             </tooltip>
                                         </Label>
-                                        <CheckBox fx:id="fullRangePanels" GridPane.columnIndex="1" GridPane.rowIndex="4" prefWidth="100">
+                                        <CheckBox fx:id="fullRangePanels" GridPane.columnIndex="1" GridPane.rowIndex="5" prefWidth="100">
                                             <tooltip>
                                                 <Tooltip text="%full.range.panels.tooltip"/>
                                             </tooltip>
                                         </CheckBox>
 
-                                        <VBox alignment="CENTER" GridPane.rowIndex="5" GridPane.columnIndex="0" GridPane.columnSpan="2">
+                                        <VBox alignment="CENTER" GridPane.rowIndex="6" GridPane.columnIndex="0" GridPane.columnSpan="2">
                                             <Button fx:id="generateRedshiftImages" text="%generate"/>
                                         </VBox>
                                     </GridPane>

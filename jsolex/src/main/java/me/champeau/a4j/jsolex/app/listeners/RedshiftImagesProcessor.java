@@ -111,7 +111,7 @@ public class RedshiftImagesProcessor {
         return redshifts;
     }
 
-    public void produceImages(RedshiftCreatorKind kind, int boxSize, int margin, boolean useFullRangePanels) {
+    public void produceImages(RedshiftCreatorKind kind, int boxSize, int margin, boolean useFullRangePanels, boolean annotateAnimations) {
         var requiredShifts = createRange(margin, redshifts.stream().mapToInt(RedshiftArea::pixelShift).max().orElse(0));
         var missingShifts = requiredShifts.stream().filter(d -> !shiftImages.containsKey(d)).toList();
         if (!missingShifts.isEmpty()) {
@@ -126,7 +126,7 @@ public class RedshiftImagesProcessor {
             .orElse(List.of());
         for (var redshift : adjustedRedshifts) {
             broadcaster.broadcast(ProgressEvent.of(progress / redshifts.size(), "Producing images for redshift " + redshift));
-            produceImagesForRedshift(redshift, kind, boxSize, margin, useFullRangePanels);
+            produceImagesForRedshift(redshift, kind, boxSize, margin, useFullRangePanels, annotateAnimations);
             progress++;
         }
         broadcaster.broadcast(ProgressEvent.of(1, "Producing redshift animations and panels done"));
@@ -153,7 +153,7 @@ public class RedshiftImagesProcessor {
         return requiredShifts;
     }
 
-    private void produceImagesForRedshift(RedshiftArea redshift, RedshiftCreatorKind kind, int boxSize, int margin, boolean useFullRangePanels) {
+    private void produceImagesForRedshift(RedshiftArea redshift, RedshiftCreatorKind kind, int boxSize, int margin, boolean useFullRangePanels, boolean annotateAnimations) {
         var centerX = redshift.maxX();
         var centerY = redshift.maxY();
         // grow x1/x2/y1/y2 so that the area is centered and fits the box size
@@ -169,7 +169,7 @@ public class RedshiftImagesProcessor {
         var constrastAdjusted = contrast.autoContrast(List.of(initialImages, params.autoStretchParams().gamma()));
         var cropped = crop.crop(List.of(constrastAdjusted, x1, y1, boxSize, boxSize));
         if (kind == RedshiftCreatorKind.ANIMATION || kind == RedshiftCreatorKind.ALL) {
-            generateAnim(redshift, animate, cropped);
+            generateAnim(redshift, animate, cropped, annotateAnimations, boxSize, boxSize, new Scaling(Map.of(), broadcaster, crop));
         }
         if (kind == RedshiftCreatorKind.PANEL || kind == RedshiftCreatorKind.ALL) {
             generatePanel(redshift, (List<ImageWrapper>) cropped, boxSize, crop, useFullRangePanels);
@@ -196,6 +196,17 @@ public class RedshiftImagesProcessor {
         var initialImages = range.stream().map(shiftImages::get).toList();
         var constrastAdjusted = contrast.autoContrast(List.of(initialImages, params.autoStretchParams().gamma()));
         var cropped = crop.crop(List.of(constrastAdjusted, x, y, width, height));
+        var scaling = new Scaling(Map.of(), broadcaster, crop);
+        List<ImageWrapper> frames = createFrames(width, height, annotate, cropped, scaling);
+        var anim = (FileOutput) animate.createAnimation(List.of(frames, delay));
+        imageEmitter.newGenericFile(
+            GeneratedImageKind.CROPPED,
+            title,
+            name,
+            anim.file());
+    }
+
+    private List<ImageWrapper> createFrames(int width, int height, boolean annotate, Object cropped, Scaling scaling) {
         List<ImageWrapper> frames;
         if (annotate && cropped instanceof List list) {
             frames = new ArrayList<>();
@@ -207,7 +218,6 @@ public class RedshiftImagesProcessor {
             int finalHeight;
             if (width < 128) {
                 // rescale so that drawing text is readable
-                var scaling = new Scaling(Map.of(), broadcaster, crop);
                 var scale = 128d / width;
                 list = (List) scaling.relativeRescale(List.of(list, scale, scale));
                 finalWidth = 128;
@@ -228,12 +238,7 @@ public class RedshiftImagesProcessor {
         } else {
             frames = (List<ImageWrapper>) cropped;
         }
-        var anim = (FileOutput) animate.createAnimation(List.of(frames, delay));
-        imageEmitter.newGenericFile(
-            GeneratedImageKind.CROPPED,
-            title,
-            name,
-            anim.file());
+        return frames;
     }
 
     public void generateStandalonePanel(int x, int y, int width, int height, double minShift, double maxShift, String title, String name) {
@@ -266,8 +271,9 @@ public class RedshiftImagesProcessor {
         createSinglePanel(frames, finalWidth, finalHeight, title, name);
     }
 
-    private void generateAnim(RedshiftArea redshift, Animate animate, Object cropped) {
-        var anim = (FileOutput) animate.createAnimation(List.of(cropped, 25));
+    private void generateAnim(RedshiftArea redshift, Animate animate, Object cropped, boolean annotateAnimations, int width, int height, Scaling scaling) {
+        var frames = createFrames(width, height, annotateAnimations, cropped, scaling);
+        var anim = (FileOutput) animate.createAnimation(List.of(frames, 25));
         imageEmitter.newGenericFile(
             GeneratedImageKind.REDSHIFT,
             String.format("Panel %s (%.2f km/s)", redshift.id(), redshift.kmPerSec()),
