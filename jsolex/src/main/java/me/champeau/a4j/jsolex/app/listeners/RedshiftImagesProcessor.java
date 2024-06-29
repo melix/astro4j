@@ -51,6 +51,7 @@ import java.nio.file.Path;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
@@ -124,10 +125,24 @@ public class RedshiftImagesProcessor {
             .map(Redshifts::redshifts)
             .map(List::reversed)
             .orElse(List.of());
-        for (var redshift : adjustedRedshifts) {
-            broadcaster.broadcast(ProgressEvent.of(progress / redshifts.size(), "Producing images for redshift " + redshift));
-            produceImagesForRedshift(redshift, kind, boxSize, margin, useFullRangePanels, annotateAnimations);
-            progress++;
+        var maxShift = adjustedRedshifts.stream()
+            .mapToDouble(RedshiftArea::pixelShift)
+            .max()
+            .orElse(0d) + margin;
+        var range = createMinMaxRange(-maxShift, maxShift, .25).stream().sorted().toList();
+        var contrast = new AdjustContrast(Map.of(), broadcaster);
+        var initialImages = range.stream().map(shiftImages::get).toList();
+        var constrastAdjusted = contrast.autoContrast(List.of(initialImages, params.autoStretchParams().gamma()));
+        if (constrastAdjusted instanceof List list) {
+            var shiftToContrastAdjusted = new HashMap<Double, ImageWrapper>();
+            for (int i = 0; i < range.size(); i++) {
+                shiftToContrastAdjusted.put(range.get(i), (ImageWrapper) list.get(i));
+            }
+            for (var redshift : adjustedRedshifts) {
+                broadcaster.broadcast(ProgressEvent.of(progress / redshifts.size(), "Producing images for redshift " + redshift));
+                produceImagesForRedshift(redshift, kind, boxSize, margin, useFullRangePanels, annotateAnimations, shiftToContrastAdjusted);
+                progress++;
+            }
         }
         broadcaster.broadcast(ProgressEvent.of(1, "Producing redshift animations and panels done"));
     }
@@ -153,7 +168,7 @@ public class RedshiftImagesProcessor {
         return requiredShifts;
     }
 
-    private void produceImagesForRedshift(RedshiftArea redshift, RedshiftCreatorKind kind, int boxSize, int margin, boolean useFullRangePanels, boolean annotateAnimations) {
+    private void produceImagesForRedshift(RedshiftArea redshift, RedshiftCreatorKind kind, int boxSize, int margin, boolean useFullRangePanels, boolean annotateAnimations, Map<Double, ImageWrapper> shiftToContrastAdjusted) {
         var centerX = redshift.maxX();
         var centerY = redshift.maxY();
         // grow x1/x2/y1/y2 so that the area is centered and fits the box size
@@ -163,10 +178,8 @@ public class RedshiftImagesProcessor {
         var y1 = Math.max(0, centerY - dy);
         var range = createRange(margin, redshift.pixelShift());
         var crop = new Crop(Map.of(), broadcaster);
-        var contrast = new AdjustContrast(Map.of(), broadcaster);
+        var constrastAdjusted = range.stream().map(shiftToContrastAdjusted::get).toList();
         var animate = new Animate(Map.of(), broadcaster);
-        var initialImages = range.stream().map(shiftImages::get).toList();
-        var constrastAdjusted = contrast.autoContrast(List.of(initialImages, params.autoStretchParams().gamma()));
         var cropped = crop.crop(List.of(constrastAdjusted, x1, y1, boxSize, boxSize));
         if (kind == RedshiftCreatorKind.ANIMATION || kind == RedshiftCreatorKind.ALL) {
             generateAnim(redshift, animate, cropped, annotateAnimations, boxSize, boxSize, new Scaling(Map.of(), broadcaster, crop));
