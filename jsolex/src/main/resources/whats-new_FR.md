@@ -5,6 +5,11 @@ Voici les nouvelles fonctionnalités de cette version :
 - [Animations personnalisées et recadrage](#animations-personnalisees-et-recadrage)
 - [Corrections de bugs et améliorations](#corrections-de-bugs-et-ameliorations)
 
+## Modifications dans 2.5.3
+
+- Correction de la position des décalages vers le rouge qui pouvait être incorrecte en case de fort tilt ou d'inversion horizontale/verticale
+- Correction du double-clic qui ne changeait plus le zoom
+
 ## Modifications dans 2.5.2
 
 - Amélioration du calculateur de temps d'exposition

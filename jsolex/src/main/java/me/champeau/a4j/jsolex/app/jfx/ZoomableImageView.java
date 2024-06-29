@@ -92,6 +92,7 @@ public class ZoomableImageView extends HBox {
                 } else {
                     zoom = 1.0;
                 }
+                applyZoom();
                 triggerOnZoomChanged();
             }
         });
