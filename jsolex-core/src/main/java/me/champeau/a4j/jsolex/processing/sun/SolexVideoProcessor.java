@@ -349,7 +349,8 @@ public class SolexVideoProcessor implements Broadcaster {
             runnables.add(() -> {
                 var mathImages = processParams.requestedImages().mathImages();
                 var missingShiftLock = new ReentrantLock();
-                generateImageMaths(imageNamingStrategy, baseName, imageList, mathImages, shift -> computeMissingImageShift(converter, header, fps, serFile, start, end, shift, missingShiftLock, width, newHeight, geometry, height, polynomial, imageNamingStrategy, baseName));
+                generateImageMaths(imageNamingStrategy, baseName, imageList, mathImages,
+                    shift -> computeMissingImageShift(converter, header, fps, serFile, start, end, shift, missingShiftLock, width, newHeight, geometry, height, polynomial, imageNamingStrategy, baseName));
             });
             runnables.stream()
                 .parallel()
@@ -411,7 +412,7 @@ public class SolexVideoProcessor implements Broadcaster {
         try (var reader = SerFileReader.of(serFile)) {
             var state = new WorkflowState(width, newHeight, shift);
             state.setInternal(true);
-            var states = new WorkflowState[] { state };
+            var states = new WorkflowState[]{state};
             var outputs = performImageReconstruction(converter, reader, start, end, geometry, width, height, polynomial, states);
             maybeProduceRedshiftDetectionImages(outputs.redshifts, width, height, reader, converter, geometry, polynomial, imageNamingStrategy, baseName);
             startWorkflow(header, fps, List.of(states), imageNamingStrategy, baseName);
@@ -591,49 +592,49 @@ public class SolexVideoProcessor implements Broadcaster {
                 var buffer = converter.createBuffer(geometry);
                 var frameNb = redshift.maxX();
                 reader.seekFrame(frameNb);
-                    converter.convert(frameNb, reader.currentFrame().data(), geometry, buffer);
-                    var creator = new SpectralLineFrameImageCreator(analyzer, buffer, width, height);
-                    var image = creator.generateSpectrumImage(polynomial, rgb -> {
-                        var offset = rgb.offset();
-                        var w = rgb.width();
-                        var h = rgb.height();
-                        for (int x = redshift.y1(); x <= redshift.y2(); x++) {
-                            var correctedX = width - x - 1;
-                            for (int y = 0; y < h; y++) {
-                                var pos = offset + y * w + correctedX;
-                                rgb.r()[pos] = MAX_PIXEL_VALUE;
-                                rgb.g()[pos] = 0;
-                                rgb.b()[pos] = 0;
-                            }
-                            var y = ((int) Math.round(rgb.polynomial().applyAsDouble(correctedX))) + redshift.relPixelShift();
-                            var pos = y * w + correctedX;
-                            if (pos < 0 || pos >= rgb.r().length) {
-                                continue;
-                            }
+                converter.convert(frameNb, reader.currentFrame().data(), geometry, buffer);
+                var creator = new SpectralLineFrameImageCreator(analyzer, buffer, width, height);
+                var image = creator.generateSpectrumImage(polynomial, rgb -> {
+                    var offset = rgb.offset();
+                    var w = rgb.width();
+                    var h = rgb.height();
+                    for (int x = redshift.y1(); x <= redshift.y2(); x++) {
+                        var correctedX = width - x - 1;
+                        for (int y = 0; y < h; y++) {
+                            var pos = offset + y * w + correctedX;
                             rgb.r()[pos] = MAX_PIXEL_VALUE;
                             rgb.g()[pos] = 0;
                             rgb.b()[pos] = 0;
                         }
-                        var draw = new ImageDraw(Map.of(), Broadcaster.NO_OP);
-                        var copy = new RGBImage(w, 2*h, rgb.r(), rgb.g(), rgb.b(), Map.of());
-                        RGBImage color = (RGBImage) draw.drawOnImage(copy, (g, img) -> {
-                            g.setColor(java.awt.Color.GREEN);
-                            g.setFont(g.getFont().deriveFont(16f));
-                            g.drawString("Frame " + frameNb + " shift " + redshift.relPixelShift(), 16, img.height() - 16);
-                        });
-                        System.arraycopy(color.r(), 0, rgb.r(), 0, color.r().length);
-                        System.arraycopy(color.g(), 0, rgb.g(), 0, color.g().length);
-                        System.arraycopy(color.b(), 0, rgb.b(), 0, color.b().length);
+                        var y = ((int) Math.round(rgb.polynomial().applyAsDouble(correctedX))) + redshift.relPixelShift();
+                        var pos = y * w + correctedX;
+                        if (pos < 0 || pos >= rgb.r().length) {
+                            continue;
+                        }
+                        rgb.r()[pos] = MAX_PIXEL_VALUE;
+                        rgb.g()[pos] = 0;
+                        rgb.b()[pos] = 0;
+                    }
+                    var draw = new ImageDraw(Map.of(), Broadcaster.NO_OP);
+                    var copy = new RGBImage(w, 2 * h, rgb.r(), rgb.g(), rgb.b(), Map.of());
+                    RGBImage color = (RGBImage) draw.drawOnImage(copy, (g, img) -> {
+                        g.setColor(java.awt.Color.GREEN);
+                        g.setFont(g.getFont().deriveFont(16f));
+                        g.drawString("Frame " + frameNb + " shift " + redshift.relPixelShift(), 16, img.height() - 16);
                     });
-                    var targetFile = outputDirectory.resolve(fileNamingStrategy.render(sequenceNumber, Constants.TYPE_PROCESSED, "redshift", baseName + "_" + redshift.id()));
-                    broadcast(new ImageGeneratedEvent(
-                        new GeneratedImage(
-                            GeneratedImageKind.REDSHIFT,
-                            "Redshift %s (%.2f km/s)".formatted(redshift.id(), speed),
-                            targetFile,
-                            image
-                        )
-                    ));
+                    System.arraycopy(color.r(), 0, rgb.r(), 0, color.r().length);
+                    System.arraycopy(color.g(), 0, rgb.g(), 0, color.g().length);
+                    System.arraycopy(color.b(), 0, rgb.b(), 0, color.b().length);
+                });
+                var targetFile = outputDirectory.resolve(fileNamingStrategy.render(sequenceNumber, Constants.TYPE_PROCESSED, "redshift", baseName + "_" + redshift.id()));
+                broadcast(new ImageGeneratedEvent(
+                    new GeneratedImage(
+                        GeneratedImageKind.REDSHIFT,
+                        "Redshift %s (%.2f km/s)".formatted(redshift.id(), speed),
+                        targetFile,
+                        image
+                    )
+                ));
                 LOGGER.info(message("found.speed"), String.format("%.2f km/s", speed), redshift.x1(), redshift.y1(), redshift.x2(), redshift.y2(), redshift.relPixelShift());
             }
         }
@@ -808,13 +809,17 @@ public class SolexVideoProcessor implements Broadcaster {
                             var relPixelShift = area.relPixelShift();
                             var kmPerSec = area.kmPerSec();
                             if (hflip) {
-                                x1 = width - x1 - 1;
-                                x2 = width - x2 - 1;
+                                var tempX1 = width - x1 - 1;
+                                var tempX2 = width - x2 - 1;
+                                x1 = Math.min(tempX1, tempX2);
+                                x2 = Math.max(tempX1, tempX2);
                                 maxX = width - maxX - 1;
                             }
                             if (vflip) {
-                                y1 = height - y1 - 1;
-                                y2 = height - y2 - 1;
+                                var tempY1 = height - y1 - 1;
+                                var tempY2 = height - y2 - 1;
+                                y1 = Math.min(tempY1, tempY2);
+                                y2 = Math.max(tempY1, tempY2);
                                 maxY = height - maxY - 1;
                             }
                             return new RedshiftArea(area.id(), pixelShift, relPixelShift, kmPerSec, x1, y1, x2, y2, maxX, maxY);

@@ -148,11 +148,11 @@ public class GeometryCorrector extends AbstractTask<GeometryCorrector.Result> {
             // correct redshifts
             redshifts = new Redshifts(redshifts.redshifts().stream()
                 .map(r -> {
-                    var x1 = r.x1() + shift + r.y1() * shear;
+                    var x1 = r.x1() - shift + r.y1() * shear;
                     var y1 = r.y1();
-                    var x2 = r.x2() + shift + r.y2() * shear;
+                    var x2 = r.x2() - shift + r.y2() * shear;
                     var y2 = r.y2();
-                    var maxX = r.maxX() + shift + r.maxY() * shear;
+                    var maxX = r.maxX() - shift + r.maxY() * shear;
                     var maxY = r.maxY();
                     return new RedshiftArea(r.id(), r.pixelShift(), r.relPixelShift(), r.kmPerSec(), (int) (x1 * sx), (int) (y1 * finalSy), (int) (x2 *sx), (int) (y2 * finalSy), (int) (maxX * sx), (int) (maxY * finalSy));
                 })
