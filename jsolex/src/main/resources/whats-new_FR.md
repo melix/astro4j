@@ -9,6 +9,7 @@ Voici les nouvelles fonctionnalités de cette version :
 
 - Correction de la position des décalages vers le rouge qui pouvait être incorrecte en case de fort tilt ou d'inversion horizontale/verticale
 - Correction du double-clic qui ne changeait plus le zoom
+- Amélioration des performances de création des animations de décalages vers le rouge
 
 ## Modifications dans 2.5.2
 

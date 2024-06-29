@@ -17,6 +17,7 @@ Here are the new features in this version:
 
 - Fixed redshifts position that could be incorrect in case of strong tilt or horizontal/vertical flip
 - Fixed double-click not changing zoom
+- Improve performance of redshifts animations creation
 
 ## Changes in 2.5.1
 
