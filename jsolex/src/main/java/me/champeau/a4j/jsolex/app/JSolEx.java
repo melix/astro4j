@@ -237,6 +237,11 @@ public class JSolEx extends Application implements JSolExInterface {
     private TextField pixelShiftMargin;
 
     @FXML
+    private Label annotateAnimationsLabel;
+    @FXML
+    private CheckBox annotateAnimations;
+
+    @FXML
     private CheckBox fullRangePanels;
     @FXML
     private Label fullRangePanelsLabel;
@@ -938,6 +943,8 @@ public class JSolEx extends Application implements JSolExInterface {
             redshiftTab.setDisable(redshifts.isEmpty());
             fullRangePanels.disableProperty().bind(redshiftCreatorKind.valueProperty().isEqualTo(RedshiftImagesProcessor.RedshiftCreatorKind.ANIMATION));
             fullRangePanelsLabel.disableProperty().bind(redshiftCreatorKind.valueProperty().isEqualTo(RedshiftImagesProcessor.RedshiftCreatorKind.ANIMATION));
+            annotateAnimationsLabel.disableProperty().bind(redshiftCreatorKind.valueProperty().isEqualTo(RedshiftImagesProcessor.RedshiftCreatorKind.PANEL));
+            annotateAnimations.disableProperty().bind(redshiftCreatorKind.valueProperty().isEqualTo(RedshiftImagesProcessor.RedshiftCreatorKind.PANEL));
             redshiftBoxSize.getItems().clear();
             int bSize = boxSize;
             for (int i = 0; i < 4; i++) {
@@ -949,10 +956,11 @@ public class JSolEx extends Application implements JSolExInterface {
                 var size = redshiftBoxSize.getValue();
                 var margin = Integer.valueOf(pixelShiftMargin.getText());
                 var useFullRangePanels = fullRangePanels.isSelected();
+                var annotate = annotateAnimations.isSelected();
                 if (kind != null && size != null) {
                     BackgroundOperations.async(() -> {
                         BatchOperations.submit(() -> rightTabs.getSelectionModel().select(logsTab));
-                        processor.produceImages(kind, size, margin, useFullRangePanels);
+                        processor.produceImages(kind, size, margin, useFullRangePanels, annotate);
                     });
                 }
             });

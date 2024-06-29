@@ -8,6 +8,7 @@ Voici les nouvelles fonctionnalités de cette version :
 ## Modifications dans 2.5.2
 
 - Amélioration du calculateur de temps d'exposition
+- Possibilité d'annoter les animations de décalages vers le rouge
 - Ajout de champs supplémentaires à l'éditeur de spectrohéliographes personnalisés
 - Correction de la lecture des métadonnées de Firecapture
 - Réduction de l'utilisation mémoire lors de l'analyse d'images
