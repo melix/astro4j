@@ -11,6 +11,7 @@ Here are the new features in this version:
 - Added more fields to the custom spectroheliographs editor
 - Fixed reading of Firecapture metadata
 - Reduced memory usage when analyzing images
+- Replaced zoom slider with buttons
 
 ## Changes in 2.5.1
 
