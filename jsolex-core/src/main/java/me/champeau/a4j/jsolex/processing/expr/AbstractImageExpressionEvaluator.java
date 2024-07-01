@@ -51,6 +51,8 @@ import me.champeau.a4j.jsolex.processing.util.FileBackedImage;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 import me.champeau.a4j.math.image.ImageMath;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.nio.file.Paths;
 import java.util.ArrayList;
@@ -67,7 +69,10 @@ import java.util.function.DoubleBinaryOperator;
 import java.util.stream.DoubleStream;
 import java.util.stream.Stream;
 
+import static me.champeau.a4j.jsolex.processing.util.Constants.message;
+
 public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluator {
+    private static final Logger LOGGER = LoggerFactory.getLogger(AbstractImageExpressionEvaluator.class);
 
     private final Map<Class<?>, Object> context = new HashMap<>();
     private final ImageMath imageMath = ImageMath.newInstance();
@@ -492,6 +497,16 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
         if (from != null && to != null) {
             double fromDouble = from.doubleValue();
             double toDouble = to.doubleValue();
+            var maxRange = (PixelShiftRange) context.get(PixelShiftRange.class);
+            if (maxRange != null) {
+                var fromDoubleFixed = Math.max(fromDouble, maxRange.minPixelShift());
+                var toDoubleFixed = Math.min(toDouble, maxRange.maxPixelShift());
+                if (fromDoubleFixed != fromDouble || toDoubleFixed!=toDouble) {
+                    LOGGER.warn(String.format(message("restricting.range"), fromDoubleFixed, toDoubleFixed));
+                    fromDouble = fromDoubleFixed;
+                    toDouble = toDoubleFixed;
+                }
+            }
             double stepDouble = step.doubleValue();
             if (fromDouble > toDouble) {
                 double tmp = fromDouble;

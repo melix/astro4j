@@ -153,6 +153,7 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
     private ProcessParams adjustedParams;
     private Header header;
     private BarChart<String, Number> histogramChart;
+    private PixelShiftRange pixelShiftRange;
     private DoubleUnaryOperator polynomial;
     private Map<Class, Object> scriptExecutionContext;
     private ImageEmitter imageEmitter;
@@ -490,8 +491,21 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
         imageEmitter = payload.customImageEmitter();
         scriptExecutionContext = prepareExecutionContext(payload);
         shiftImages.putAll(payload.shiftImages());
+        pixelShiftRange = payload.pixelShiftRange();
         imageScriptExecutor = new JSolExScriptExecutor(
-            shiftImages::get,
+            shift -> {
+                var minShift = shiftImages.keySet().stream().mapToDouble(d -> d).min().orElse(0d);
+                var maxShift = shiftImages.keySet().stream().mapToDouble(d -> d).max().orElse(0d);
+                double lookup = shift;
+                if (lookup < minShift) {
+                    LOGGER.warn(String.format(message("cropping.window.invalid.shift"), lookup, minShift));
+                    lookup = minShift;
+                } else if (lookup > maxShift) {
+                    LOGGER.warn(String.format(message("cropping.window.invalid.shift"), lookup, maxShift));
+                    lookup = maxShift;
+                }
+                return shiftImages.get(lookup);
+            },
             new HashMap<>(scriptExecutionContext),
             this,
             null
@@ -600,6 +614,19 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
     }
 
     private void restartProcessForMissingShifts(Set<Double> missingShifts) {
+        var outOfRange = missingShifts.stream()
+            .filter(s -> s > pixelShiftRange.maxPixelShift())
+            .findAny();
+        if (outOfRange.isPresent()) {
+            missingShifts.add(pixelShiftRange.maxPixelShift());
+        }
+        outOfRange = missingShifts.stream()
+            .filter(s -> s < pixelShiftRange.minPixelShift())
+            .findAny();
+        if (outOfRange.isPresent()) {
+            missingShifts.add(pixelShiftRange.minPixelShift());
+        }
+        missingShifts.removeIf(s -> !pixelShiftRange.includes(s));
         LOGGER.warn(message("restarting.process.missing.shifts"), missingShifts.stream().map(d -> String.format("%.2f", d)).toList());
         // restart processing to include missing images
         var tmpParams = params.withRequestedImages(

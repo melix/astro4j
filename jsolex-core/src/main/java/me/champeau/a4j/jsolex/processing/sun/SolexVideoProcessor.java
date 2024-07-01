@@ -271,6 +271,26 @@ public class SolexVideoProcessor implements Broadcaster {
         if (maybePolynomial.isPresent()) {
             var polynomial = maybePolynomial.get();
             pixelShiftRange = computePixelShiftRange(start, end, height, polynomial);
+            var continuumShift = processParams.spectrumParams().continuumShift();
+            var minShift = pixelShiftRange.minPixelShift();
+            var maxShift = pixelShiftRange.maxPixelShift();
+            if (continuumShift > pixelShiftRange.maxPixelShift() || continuumShift < minShift) {
+                double newContinuumShift;
+                if (-continuumShift > minShift) {
+                    newContinuumShift = -continuumShift;
+                } else if (maxShift > 0) {
+                    newContinuumShift = maxShift;
+                } else {
+                    newContinuumShift = minShift;
+                }
+                LOGGER.warn(String.format(message("invalid.continuum.shift"), newContinuumShift));
+                processParams = processParams.withSpectrumParams(processParams.spectrumParams().withContinuumShift(newContinuumShift));
+                if (imageList.stream().noneMatch(s -> s.pixelShift() == newContinuumShift)) {
+                    var state = new WorkflowState(width, newHeight, newContinuumShift);
+                    imageList.add(state);
+                }
+            }
+            imageList.removeIf(s -> s.pixelShift() < minShift || s.pixelShift() > maxShift);
             var avgImage = new Image(width, height, averageImage);
             var leftBorder = Math.max(0, start);
             var rightBorder = Math.min(end, width);
@@ -350,7 +370,8 @@ public class SolexVideoProcessor implements Broadcaster {
                 var mathImages = processParams.requestedImages().mathImages();
                 var missingShiftLock = new ReentrantLock();
                 generateImageMaths(imageNamingStrategy, baseName, imageList, mathImages,
-                    shift -> computeMissingImageShift(converter, header, fps, serFile, start, end, shift, missingShiftLock, width, newHeight, geometry, height, polynomial, imageNamingStrategy, baseName));
+                    shift -> computeMissingImageShift(converter, header, fps, serFile, start, end, shift, missingShiftLock, width, newHeight, geometry, height, polynomial, imageNamingStrategy, baseName),
+                    minShift, maxShift);
             });
             runnables.stream()
                 .parallel()
@@ -594,7 +615,7 @@ public class SolexVideoProcessor implements Broadcaster {
                 reader.seekFrame(frameNb);
                 converter.convert(frameNb, reader.currentFrame().data(), geometry, buffer);
                 var creator = new SpectralLineFrameImageCreator(analyzer, buffer, width, height);
-                var image = creator.generateSpectrumImage(polynomial, rgb -> {
+                var image = creator.generateSpectrumImage(polynomial, true, rgb -> {
                     var offset = rgb.offset();
                     var w = rgb.width();
                     var h = rgb.height();
@@ -644,7 +665,9 @@ public class SolexVideoProcessor implements Broadcaster {
                                     String baseName,
                                     List<WorkflowState> imageList,
                                     ImageMathParams mathImages,
-                                    Function<Double, ImageWrapper> missingShiftSupplier) {
+                                    Function<Double, ImageWrapper> missingShiftSupplier,
+                                    double minShift,
+                                    double maxShift) {
         if (!mathImages.scriptFiles().isEmpty()) {
             var images = new HashMap<Double, ImageWrapper>();
             Ellipse ellipse = null;
@@ -677,12 +700,20 @@ public class SolexVideoProcessor implements Broadcaster {
                     context.put(ImageStats.class, finalImageStats);
                 }
                 var scriptRunner = new DefaultImageScriptExecutor(shift -> {
-                    var img = images.get(shift);
+                    double lookup = shift;
+                    if (lookup < minShift) {
+                        LOGGER.warn("Cropping window doesn't allow use of shift {}, replacing with {}", lookup, minShift);
+                        lookup = minShift;
+                    } else if (lookup > maxShift) {
+                        LOGGER.warn("Cropping window doesn't allow use of shift {}, replacing with {}", lookup, maxShift);
+                        lookup = maxShift;
+                    }
+                    var img = images.get(lookup);
                     if (img == null) {
                         // this can happen in situations where a shift is dynamic and cannot be computed
                         // in advance, for example with expression find_shift(5254) + 1
-                        img = missingShiftSupplier.apply(shift);
-                        images.put(shift, img);
+                        img = missingShiftSupplier.apply(lookup);
+                        images.put(lookup, img);
                     }
                     return img;
                 }, Collections.unmodifiableMap(context), this);

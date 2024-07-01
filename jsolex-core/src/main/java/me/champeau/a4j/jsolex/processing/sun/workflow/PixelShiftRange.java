@@ -30,4 +30,7 @@ public record PixelShiftRange(
     double maxPixelShift,
     double step
 ) {
+    public boolean includes(double shift) {
+        return shift >= minPixelShift && shift <= maxPixelShift;
+    }
 }

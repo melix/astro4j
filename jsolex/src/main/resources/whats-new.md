@@ -5,7 +5,13 @@ Here are the new features in this version:
 - [Custom animations and cropping](#custom-animations-and-cropping)
 - [Bugfixes and improvements](#bugfixes-and-improvements)
 
-## Changes in 2.5.2
+## Changes in 2.5.4
+
+- Added warning when requested pixel shift isn't available
+- Replace invalid pixel shifts with best fit
+
+
+## Changes in 2.5.3
 
 - Improved exposure time calculator
 - Added more fields to the custom spectroheliographs editor
@@ -13,7 +19,7 @@ Here are the new features in this version:
 - Reduced memory usage when analyzing images
 - Replaced zoom slider with buttons
 
-## Changes in 2.5.3
+## Changes in 2.5.2
 
 - Fixed redshifts position that could be incorrect in case of strong tilt or horizontal/vertical flip
 - Fixed double-click not changing zoom

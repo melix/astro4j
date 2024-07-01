@@ -15,10 +15,12 @@
  */
 package me.champeau.a4j.jsolex.processing.util;
 
+import me.champeau.a4j.jsolex.processing.stretching.LinearStrechingStrategy;
 import me.champeau.a4j.jsolex.processing.sun.DistortionCorrection;
 import me.champeau.a4j.jsolex.processing.sun.SpectrumFrameAnalyzer;
 import me.champeau.a4j.math.Point2D;
 
+import java.util.Map;
 import java.util.Optional;
 import java.util.function.Consumer;
 import java.util.function.DoubleUnaryOperator;
@@ -118,6 +120,7 @@ public class SpectralLineFrameImageCreator {
     }
 
     public RGBImage generateSpectrumImage(DoubleUnaryOperator forcedPolynomial,
+                                          boolean stretch,
                                           Consumer<? super DebugImage> debugImageConsumer) {
         int size = width * height;
         Optional<DoubleUnaryOperator> polynomial = Optional.ofNullable(forcedPolynomial).or(analyzer::findDistortionPolynomial);
@@ -128,6 +131,12 @@ public class SpectralLineFrameImageCreator {
         float[] rr = new float[2 * size + spacing];
         float[] gg = new float[2 * size + spacing];
         float[] bb = new float[2 * size + spacing];
+        var src = original;
+        if (stretch) {
+            src = new float[src.length];
+            System.arraycopy(original, 0, src, 0, src.length);
+            LinearStrechingStrategy.DEFAULT.stretch(new ImageWrapper32(width, height, src, Map.of()));
+        }
         System.arraycopy(original, 0, rr, 0, size);
         System.arraycopy(original, 0, gg, 0, size);
         System.arraycopy(original, 0, bb, 0, size);

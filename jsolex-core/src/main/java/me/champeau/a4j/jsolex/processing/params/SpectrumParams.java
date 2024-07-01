@@ -37,4 +37,8 @@ public record SpectrumParams(
     public SpectrumParams withSwitchRedBlueChannels(boolean switchRedBlueChannels) {
         return new SpectrumParams(ray, pixelShift, dopplerShift, continuumShift, switchRedBlueChannels);
     }
+
+    public SpectrumParams withContinuumShift(double continuumShift) {
+        return new SpectrumParams(ray, pixelShift, dopplerShift, continuumShift, switchRedBlueChannels);
+    }
 }

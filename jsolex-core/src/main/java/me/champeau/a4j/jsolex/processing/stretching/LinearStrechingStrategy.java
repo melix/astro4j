@@ -17,7 +17,6 @@ package me.champeau.a4j.jsolex.processing.stretching;
 
 import me.champeau.a4j.jsolex.processing.util.Constants;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
-import me.champeau.a4j.jsolex.processing.util.RGBImage;
 
 public final class LinearStrechingStrategy implements StretchingStrategy {
     public static final LinearStrechingStrategy DEFAULT = new LinearStrechingStrategy(0, Constants.MAX_PIXEL_VALUE);
@@ -48,22 +47,6 @@ public final class LinearStrechingStrategy implements StretchingStrategy {
             return;
         }
         rescale(data, range, min);
-    }
-
-    @Override
-    public void stretch(RGBImage image) {
-        var r = image.r();
-        var g = image.g();
-        var b = image.b();
-        double min = Math.min(Math.min(min(r), min(g)), min(b));
-        double max = Math.max(Math.max(max(r), max(g)), max(b));
-        double range = max - min;
-        if (range == 0) {
-            return;
-        }
-        rescale(r, range, min);
-        rescale(g, range, min);
-        rescale(b, range, min);
     }
 
     private void rescale(float[] data, double range, double min) {
