@@ -5,6 +5,11 @@ Voici les nouvelles fonctionnalités de cette version :
 - [Animations personnalisées et recadrage](#animations-personnalisees-et-recadrage)
 - [Corrections de bugs et améliorations](#corrections-de-bugs-et-ameliorations)
 
+## Changes in 2.5.4
+
+- Ajout d'un avertissement lorsque le décalage de pixel demandé n'est pas disponible
+- Remplacement des décalages de pixel invalides par le meilleur ajustement possible
+
 ## Modifications dans 2.5.3
 
 - Correction de la position des décalages vers le rouge qui pouvait être incorrecte en case de fort tilt ou d'inversion horizontale/verticale

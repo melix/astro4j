@@ -16,10 +16,11 @@
 package me.champeau.a4j.jsolex.processing.expr;
 
 import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
-import me.champeau.a4j.jsolex.processing.util.ForkJoinContext;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
 
 import java.util.function.Function;
+
+import static me.champeau.a4j.jsolex.processing.util.Constants.message;
 
 public class ImageExpressionEvaluator extends AbstractImageExpressionEvaluator {
     private final Function<Double, ImageWrapper> images;
@@ -32,7 +33,7 @@ public class ImageExpressionEvaluator extends AbstractImageExpressionEvaluator {
     protected ImageWrapper findImage(double shift) {
         var image = images.apply(shift);
         if (image == null) {
-            throw new IllegalArgumentException("Image for shift '" + shift + "' is missing");
+            throw new IllegalArgumentException(String.format(message("missing.shift"), shift));
         }
         return image;
     }
