@@ -324,7 +324,7 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
                         var controller = fxmlLoader.<CustomAnimationCreator>getController();
                         var stage = new Stage();
                         stage.setScene(new Scene(node));
-                        controller.setup(stage, adjustedParams, imageWrapper.findMetadata(PixelShiftRange.class).orElse(new PixelShiftRange(-15, 15, .25)), x, y, width, height, redshiftProcessor, animCount.getAndIncrement());
+                        controller.setup(stage, adjustedParams, imageWrapper.findMetadata(PixelShiftRange.class).orElse(new PixelShiftRange(-15, 15, .25)), imageWrapper.width(), imageWrapper.height(), x, y, width, height, redshiftProcessor, animCount.getAndIncrement());
                         stage.setTitle(I18N.string(JSolEx.class, "custom-anim-panel", "frame.title"));
                         stage.showAndWait();
                     });

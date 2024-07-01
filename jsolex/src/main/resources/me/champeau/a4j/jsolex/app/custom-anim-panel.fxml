@@ -29,6 +29,7 @@
           <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="NEVER" />
           <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="NEVER" />
             <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="NEVER" />
+            <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="NEVER" />
             <RowConstraints minHeight="10.0" prefHeight="30.0" />
             <RowConstraints minHeight="10.0" prefHeight="30.0" valignment="CENTER" />
         </rowConstraints>
@@ -49,15 +50,15 @@
                </GridPane.margin>
             </TextField>
             <TextField fx:id="maxShift" GridPane.columnIndex="3" GridPane.rowIndex="3" />
-            <CheckBox fx:id="generateAnim" mnemonicParsing="false" selected="true" text="%generate.animation" GridPane.columnSpan="2" GridPane.rowIndex="5" />
-            <CheckBox fx:id="generatePanel" mnemonicParsing="false" selected="true" text="%generate.panel" GridPane.columnIndex="2" GridPane.columnSpan="2" GridPane.rowIndex="5" />
+            <CheckBox fx:id="generateAnim" mnemonicParsing="false" selected="true" text="%generate.animation" GridPane.columnSpan="2" GridPane.rowIndex="6" />
+            <CheckBox fx:id="generatePanel" mnemonicParsing="false" selected="true" text="%generate.panel" GridPane.columnIndex="2" GridPane.columnSpan="2" GridPane.rowIndex="6" />
             <Label text="%title" GridPane.rowIndex="1" />
             <TextField fx:id="title" GridPane.columnIndex="1" GridPane.columnSpan="3" GridPane.rowIndex="1" />
-            <CheckBox fx:id="annotateAnim" mnemonicParsing="false" selected="true" text="%annotate.animation" GridPane.columnSpan="2" GridPane.rowIndex="6" />
+            <CheckBox fx:id="annotateAnim" mnemonicParsing="false" selected="true" text="%annotate.animation" GridPane.columnSpan="2" GridPane.rowIndex="7" />
             <TextArea disable="true" editable="false" focusTraversable="false" text="%instructions" wrapText="true" GridPane.columnSpan="4" />
             <Label fx:id="minShiftHint" disable="true" text="Label" GridPane.columnIndex="1" GridPane.rowIndex="4" />
             <Label fx:id="maxShiftHint" disable="true" text="Label" GridPane.columnIndex="3" GridPane.rowIndex="4" />
-            <VBox GridPane.columnIndex="2" GridPane.columnSpan="2" GridPane.rowIndex="6">
+            <VBox GridPane.columnIndex="2" GridPane.columnSpan="2" GridPane.rowIndex="7">
                <children>
                   <HBox alignment="CENTER_LEFT" spacing="16.0">
                      <children>
@@ -71,6 +72,7 @@
                   </HBox>
                </children>
             </VBox>
+            <Label fx:id="estimatedDiskSpace" disable="true" text="Label" GridPane.columnIndex="1" GridPane.columnSpan="2" GridPane.rowIndex="5" />
          </children>
          <padding>
             <Insets left="8.0" right="8.0" />
