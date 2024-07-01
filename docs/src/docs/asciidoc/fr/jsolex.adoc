@@ -9,6 +9,18 @@ S'il est principalement conçu pour traiter les images produites par Sol'Ex, il 
 
 JSol'Ex est un logiciel libre sous licence Apache 2, écrit en Java et fourni à titre gratuit sans aucune garantie.
 
+.Note aux utilisateurs français
+[IMPORTANT]
+====
+**Si vous votez Rassemblement National ou tout autre parti proche de l'extrême droite, je vous demande de ne pas utiliser ce logiciel**
+
+Mes convictions sont diamètralement opposées à celles de ces partis et je ne souhaite pas que mon travail, développé sur mon temps libre avec une licence libre serve à des personnes qui soutiennent ces idées nauséabondes.
+
+La solidarité, le partage, l'ouverture aux autres, la lutte contre les discriminations et les inégalités, le respect de toutes les religions, de tous les genres sont les valeurs qui m'animent. Elles sont à l'opposé de celles prônées par ces partis.
+
+Je vous invite à ne pas céder aux sirènes de la haine et à vous tourner vers des valeurs plus positives, où votre bien-être ne passe pas par le rejet de l'autre.
+====
+
 == Téléchargement
 
 link:https://jsolex.s3.eu-west-3.amazonaws.com/jsolex-windows-latest/{prefixName}-{version}.msi[icon:windows[] Télécharger JSol'Ex (Windows), role="badge"]
