@@ -9,6 +9,7 @@ Voici les nouvelles fonctionnalités de cette version :
 
 - Ajout d'un avertissement lorsque le décalage de pixel demandé n'est pas disponible
 - Remplacement des décalages de pixel invalides par le meilleur ajustement possible
+- Affichage de l'espace disque requis lors de la génération d'animations personnalisées
 
 ## Modifications dans 2.5.3
 

@@ -9,7 +9,7 @@ Here are the new features in this version:
 
 - Added warning when requested pixel shift isn't available
 - Replace invalid pixel shifts with best fit
-
+- Display required disk space when generating custom animations
 
 ## Changes in 2.5.3
 

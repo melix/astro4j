@@ -15,6 +15,7 @@
  */
 package me.champeau.a4j.jsolex.app.jfx;
 
+import javafx.beans.binding.Bindings;
 import javafx.fxml.FXML;
 import javafx.scene.control.CheckBox;
 import javafx.scene.control.Label;
@@ -23,15 +24,24 @@ import javafx.scene.control.TextFormatter;
 import javafx.stage.Stage;
 import javafx.util.converter.DoubleStringConverter;
 import javafx.util.converter.IntegerStringConverter;
+import me.champeau.a4j.jsolex.app.AlertFactory;
 import me.champeau.a4j.jsolex.app.listeners.RedshiftImagesProcessor;
 import me.champeau.a4j.jsolex.processing.params.ProcessParams;
 import me.champeau.a4j.jsolex.processing.sun.workflow.PixelShiftRange;
 import me.champeau.a4j.jsolex.processing.util.BackgroundOperations;
 
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+
 import static me.champeau.a4j.jsolex.app.JSolEx.message;
 
 public class CustomAnimationCreator {
     public static final String DEFAULT_DELAY = "25";
+    private static final int SAMPLING = 4;
+    private static final int BYTES_IN_FLOAT = 4;
+    private static final int TMP_IMAGES_COUNT = 4;
+
     @FXML
     public TextField width;
     @FXML
@@ -54,7 +64,11 @@ public class CustomAnimationCreator {
     public Label maxShiftHint;
     @FXML
     public TextField delay;
+    @FXML
+    public Label estimatedDiskSpace;
 
+    private int imageWidth;
+    private int imageHeight;
     private int x;
     private int y;
     private RedshiftImagesProcessor redshiftProcessor;
@@ -64,6 +78,8 @@ public class CustomAnimationCreator {
     public void setup(Stage stage,
                       ProcessParams processParams,
                       PixelShiftRange range,
+                      int imageWidth,
+                      int imageHeight,
                       int x,
                       int y,
                       int w,
@@ -73,6 +89,8 @@ public class CustomAnimationCreator {
         this.stage = stage;
         this.x = x;
         this.y = y;
+        this.imageWidth = imageWidth;
+        this.imageHeight = imageHeight;
         this.redshiftProcessor = redshiftProcessor;
         width.setTextFormatter(createDimensionFormatter());
         height.setTextFormatter(createDimensionFormatter());
@@ -99,6 +117,15 @@ public class CustomAnimationCreator {
             minShiftHint.setText(message("shift.hint"));
             maxShiftHint.setText(message("shift.hint"));
         }
+        estimatedDiskSpace.textProperty().bind(Bindings.subtract(
+            Bindings.createDoubleBinding(() -> Double.parseDouble(maxShift.getText()), maxShift.textProperty()),
+            Bindings.createDoubleBinding(() -> Double.parseDouble(minShift.getText()), minShift.textProperty())
+        ).map(n -> estimateRequiredBytesForProcessing(n.doubleValue()) / 1024 / 1024).map(size -> {
+            if (size > 1024) {
+                return String.format(message("disk.requirement"), size / 1024, "GB");
+            }
+            return String.format(message("disk.requirement"), size, "MB");
+        }));
         title.setText(String.format(message("custom.animation"), id));
         delay.setTextFormatter(new TextFormatter<>(new IntegerStringConverter() {
             @Override
@@ -111,6 +138,10 @@ public class CustomAnimationCreator {
             }
         }));
         delay.setText(DEFAULT_DELAY);
+    }
+
+    private double estimateRequiredBytesForProcessing(double n) {
+        return n * imageWidth * imageHeight * BYTES_IN_FLOAT * TMP_IMAGES_COUNT * SAMPLING;
     }
 
     private static double safeParseDouble(String s) {
@@ -188,6 +219,16 @@ public class CustomAnimationCreator {
 
     @FXML
     private void generate() {
+        double imageCount = Double.parseDouble(maxShift.getText())-Double.parseDouble(minShift.getText());
+        try {
+            if (Files.getFileStore(Path.of(System.getProperty("java.io.tmpdir"))).getUsableSpace() < estimateRequiredBytesForProcessing(imageCount)) {
+                var alert = AlertFactory.error(message("disk.space.error"));
+                alert.showAndWait();
+                return;
+            }
+        } catch (IOException e) {
+            // ignore
+        }
         stage.close();
         if (generateAnim.isSelected()) {
             BackgroundOperations.async(() -> redshiftProcessor.generateStandaloneAnimation(x, y, width(), height(), minPixelShift(), maxPixelShift(), title.getText(), "custom-anim", annotateAnim.isSelected(), Integer.parseInt(delay.getText())));

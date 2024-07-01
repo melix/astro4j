@@ -332,6 +332,8 @@ public class SolexVideoProcessor implements Broadcaster {
             broadcast(new AverageImageComputedEvent(new AverageImageComputedEvent.AverageImage(avgImage, polynomial, leftBorder, rightBorder, processParams)));
             LOGGER.info(message("starting.reconstruction"));
             LOGGER.info(message("distortion.polynomial"), polynomial);
+            var current = new AtomicInteger(0);
+            var totalImages = imageList.size();
             BackgroundOperations.exclusiveIO(() -> {
                 List<List<WorkflowState>> batches = batches(imageList, batchSize);
                 if (batches.size() > 1) {
@@ -339,7 +341,7 @@ public class SolexVideoProcessor implements Broadcaster {
                 }
                 for (var batch : batches) {
                     try (var reader = SerFileReader.of(serFile)) {
-                        var outputs = performImageReconstruction(converter, reader, start, end, geometry, width, height, polynomial, batch.toArray(new WorkflowState[0]));
+                        var outputs = performImageReconstruction(converter, reader, start, end, geometry, width, height, polynomial, current, totalImages, batch.toArray(new WorkflowState[0]));
                         maybeProduceRedshiftDetectionImages(outputs.redshifts, width, height, reader, converter, geometry, polynomial, imageNamingStrategy, baseName);
                         if (redshifts == null && outputs.redshifts != null) {
                             redshifts = new Redshifts(outputs.redshifts);
@@ -434,7 +436,7 @@ public class SolexVideoProcessor implements Broadcaster {
             var state = new WorkflowState(width, newHeight, shift);
             state.setInternal(true);
             var states = new WorkflowState[]{state};
-            var outputs = performImageReconstruction(converter, reader, start, end, geometry, width, height, polynomial, states);
+            var outputs = performImageReconstruction(converter, reader, start, end, geometry, width, height, polynomial, new AtomicInteger(), 1, states);
             maybeProduceRedshiftDetectionImages(outputs.redshifts, width, height, reader, converter, geometry, polynomial, imageNamingStrategy, baseName);
             startWorkflow(header, fps, List.of(states), imageNamingStrategy, baseName);
             var result = state.findResult(WorkflowResults.GEOMETRY_CORRECTION);
@@ -877,7 +879,7 @@ public class SolexVideoProcessor implements Broadcaster {
         imageList.addAll(list);
     }
 
-    private ReconstructionOutputs performImageReconstruction(ImageConverter<float[]> converter, SerFileReader reader, int start, int end, ImageGeometry geometry, int width, int height, DoubleUnaryOperator polynomial, WorkflowState... images) {
+    private ReconstructionOutputs performImageReconstruction(ImageConverter<float[]> converter, SerFileReader reader, int start, int end, ImageGeometry geometry, int width, int height, DoubleUnaryOperator polynomial, AtomicInteger processedCount, int totalCount, WorkflowState... images) {
         reader.seekFrame(start);
         int totalLines = end - start;
         var lambda0 = processParams.spectrumParams().ray().wavelength();
@@ -908,12 +910,16 @@ public class SolexVideoProcessor implements Broadcaster {
                         // The converter makes sure we only have a single channel
                         converter.convert(frameId, ByteBuffer.wrap(copy), geometry, original);
                         IntStream.range(0, images.length).forEach(idx -> {
-                            var state = images[idx];
-                            var buffer = reconstructedImages[idx];
-                            processSingleFrame(state.isInternal(), width, height, buffer, offset, original, polynomial, state.pixelShift(), totalLines);
-                            if (state.pixelShift() == 0 && processParams.spectrumParams().ray().label().equalsIgnoreCase(SpectralRay.H_ALPHA.label()) && processParams.requestedImages().isEnabled(GeneratedImageKind.REDSHIFT)) {
-                                phenomenaDetector.performDetection(frameId, width, height, original, polynomial);
-                                hasRedshifts.set(true);
+                            try {
+                                var state = images[idx];
+                                var buffer = reconstructedImages[idx];
+                                processSingleFrame(state.isInternal(), width, height, buffer, offset, original, polynomial, state.pixelShift(), totalLines);
+                                if (state.pixelShift() == 0 && processParams.spectrumParams().ray().label().equalsIgnoreCase(SpectralRay.H_ALPHA.label()) && processParams.requestedImages().isEnabled(GeneratedImageKind.REDSHIFT)) {
+                                    phenomenaDetector.performDetection(frameId, width, height, original, polynomial);
+                                    hasRedshifts.set(true);
+                                }
+                            } finally {
+                                broadcast(ProgressEvent.of((double) processedCount.incrementAndGet() / totalCount, message("reconstruction")));
                             }
                         });
                     } finally {
