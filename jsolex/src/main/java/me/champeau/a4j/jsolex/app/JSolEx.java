@@ -81,6 +81,7 @@ import me.champeau.a4j.jsolex.app.jfx.SimpleMarkdownViewer;
 import me.champeau.a4j.jsolex.app.jfx.SpectralLineDebugger;
 import me.champeau.a4j.jsolex.app.jfx.SpectralRayEditor;
 import me.champeau.a4j.jsolex.app.jfx.SpectroHeliographEditor;
+import me.champeau.a4j.jsolex.app.jfx.SpectrumBrowser;
 import me.champeau.a4j.jsolex.app.jfx.ime.ImageMathTextArea;
 import me.champeau.a4j.jsolex.app.jfx.stacking.StackingAndMosaicController;
 import me.champeau.a4j.jsolex.app.listeners.BatchModeEventListener;
@@ -793,6 +794,16 @@ public class JSolEx extends Application implements JSolExInterface {
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
+    }
+
+    @FXML
+    private void showSpectrumBrowser() {
+        var browser = new SpectrumBrowser(800);
+        var stage = newStage();
+        stage.initModality(Modality.NONE);
+        stage.setScene(new Scene(browser));
+        stage.setTitle(I18N.string(JSolEx.class, "spectrum-browser", "frame.title"));
+        stage.show();
     }
 
     private void executeStandaloneScripts(ProcessParams params) {

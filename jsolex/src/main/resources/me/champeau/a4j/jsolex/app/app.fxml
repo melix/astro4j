@@ -44,6 +44,7 @@
                 <MenuItem onAction="#showImageMathEditor" text="%imagemath.editor"/>
                 <MenuItem onAction="#showExposureCalculator" text="%exposure.calculator"/>
                 <MenuItem onAction="#showMosaicParams" text="%mosaic.stacking"/>
+                <MenuItem onAction="#showSpectrumBrowser" text="%spectrum.browser"/>
             </Menu>
             <Menu text="%equipment">
                 <MenuItem onAction="#showSHGEditor" text="%shg.editor"/>
