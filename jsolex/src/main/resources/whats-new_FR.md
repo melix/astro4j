@@ -7,6 +7,7 @@ Voici les nouvelles fonctionnalités de cette version :
 
 ## Changes in 2.5.4
 
+- Ajout d'un explorateur de spectre
 - Ajout d'un avertissement lorsque le décalage de pixel demandé n'est pas disponible
 - Remplacement des décalages de pixel invalides par le meilleur ajustement possible
 - Affichage de l'espace disque requis lors de la génération d'animations personnalisées

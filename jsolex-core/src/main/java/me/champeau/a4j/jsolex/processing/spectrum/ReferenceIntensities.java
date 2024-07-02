@@ -26,12 +26,14 @@ public class ReferenceIntensities {
     public static final ReferenceIntensities INSTANCE = new ReferenceIntensities();
 
     private final double minWavelength;
+    private final double maxWavelength;
     private final short[] intensities;
 
     private ReferenceIntensities() {
         try (var reader = new BufferedReader(new InputStreamReader(ReferenceIntensities.class.getResourceAsStream("/atlasvi.txt")))) {
             String line;
             double minWl = Double.MAX_VALUE;
+            double maxWl = 0;
             var intensities = new ArrayList<Short>();
             while ((line = reader.readLine()) != null) {
                 if (line.isEmpty()) {
@@ -42,15 +44,25 @@ public class ReferenceIntensities {
                 short intensity = Short.parseShort(parts[1]);
                 intensities.add(intensity);
                 minWl = Math.min(minWl, wl);
+                maxWl = Math.max(maxWl, wl);
             }
             this.intensities = new short[intensities.size()];
             for (int i = 0; i < intensities.size(); i++) {
                 this.intensities[i] = intensities.get(i);
             }
             this.minWavelength = minWl;
+            this.maxWavelength = maxWl;
         } catch (IOException e) {
             throw new ProcessingException(e);
         }
+    }
+
+    public double getMinWavelength() {
+        return minWavelength;
+    }
+
+    public double getMaxWavelength() {
+        return maxWavelength;
     }
 
     private short intensity(double wavelength) {

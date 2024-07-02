@@ -96,6 +96,12 @@ public record SpectralRay(String label, ColorCurve colorCurve, double wavelength
     }
 
     public int[] toRGB() {
+        var rgb = toSimpleRGB();
+
+        return improveEsthetics(rgb);
+    }
+
+    public int[] toSimpleRGB() {
         double factor;
         double r, g, b;
 
@@ -145,8 +151,7 @@ public record SpectralRay(String label, ColorCurve colorCurve, double wavelength
         rgb[0] = r == 0.0 ? 0 : (int) Math.round(255 * Math.pow(r * factor, 0.7));
         rgb[1] = g == 0.0 ? 0 : (int) Math.round(255 * Math.pow(g * factor, 0.7));
         rgb[2] = b == 0.0 ? 0 : (int) Math.round(255 * Math.pow(b * factor, 0.7));
-
-        return improveEsthetics(rgb);
+        return rgb;
     }
 
     private static int[] improveEsthetics(int[] rgb) {
