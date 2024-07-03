@@ -8,6 +8,7 @@ Here are the new features in this version:
 ## Changes in 2.5.4
 
 - Added a spectrum browser
+- Automatic identification of spectral rays from an image (experimental)
 - Added warning when requested pixel shift isn't available
 - Replace invalid pixel shifts with best fit
 - Display required disk space when generating custom animations
