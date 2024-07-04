@@ -37,3 +37,4 @@ Cela peut être particulièrement utile à des fins d'apprentissage, mais aussi 
 - Avertissement ajouté lorsque le décalage de pixels demandé n'est pas disponible
 - Remplacement des décalages de pixels invalides par le meilleur ajustement
 - Affichage de l'espace disque requis lors de la génération d'animations personnalisées
+- Renommage du débogueur de spectre, maintenant appelé "Analyseur de vidéo"
