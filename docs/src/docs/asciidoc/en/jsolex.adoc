@@ -510,12 +510,12 @@ Finally, select the type of rendering:
 
 image::pixel-shift-panel.jpg["Example of panel"]
 
-=== Measurements thanks to the spectrum debugger
+=== Measurements thanks to the video analyzer
 
 JSol'Ex provides a tool which will let you see what the detected spectral line is for a particular video.
 This tool chan be used, for example, to efficiently determine the pixel shift to apply when processing an Helium video.
 
-To do this, open the "Spectrum debugger" in the "Tools" section.
+To do this, open the "Video analyzer" in the "Tools" section.
 Select a video, the tool will compute the average image then show this window:
 
 image::spectral-debug-1-fr.jpg[]

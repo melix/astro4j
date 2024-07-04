@@ -38,13 +38,14 @@
                 <MenuItem onAction="#exit" text="%exit"/>
             </Menu>
             <Menu text="%tools">
-                <MenuItem onAction="#showFrameDebugger" text="%spectrum.debugger"/>
-                <MenuItem onAction="#showFileNamePatternEditor" text="%filename.pattern.editor"/>
-                <MenuItem onAction="#showSpectralRayEditor" text="%spectralray.editor"/>
-                <MenuItem onAction="#showImageMathEditor" text="%imagemath.editor"/>
+                <MenuItem onAction="#showFrameDebugger" text="%video.analyzer"/>
                 <MenuItem onAction="#showExposureCalculator" text="%exposure.calculator"/>
                 <MenuItem onAction="#showMosaicParams" text="%mosaic.stacking"/>
                 <MenuItem onAction="#showSpectrumBrowser" text="%spectrum.browser"/>
+                <SeparatorMenuItem/>
+                <MenuItem onAction="#showFileNamePatternEditor" text="%filename.pattern.editor"/>
+                <MenuItem onAction="#showSpectralRayEditor" text="%spectralray.editor"/>
+                <MenuItem onAction="#showImageMathEditor" text="%imagemath.editor"/>
             </Menu>
             <Menu text="%equipment">
                 <MenuItem onAction="#showSHGEditor" text="%shg.editor"/>

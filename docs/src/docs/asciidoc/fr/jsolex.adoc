@@ -524,12 +524,12 @@ Enfin, sélectionnez le type de rendu :
 
 image::pixel-shift-panel.jpg["Example of panel"]
 
-=== Mesures avec le débogueur de spectre
+=== Mesures avec l'analyseur de vidéo
 
 JSol'Ex propose un outil permettant de visualiser la détection des lignes spectrales sur une vidéo.
 Cet outil peut être utilisé pour trouver, par exemple, le décalage de pixels à appliquer pour trouver la raie hélium.
 
-Pour se faire, ouvrez une vidéo en cliquant sur "Outils -> Débogueur de spectre".
+Pour se faire, ouvrez une vidéo en cliquant sur "Outils -> Analyseur de vidéo".
 Le logiciel va calculer l'image moyenne pour la vidéo puis vous présenter cette fenêtre:
 
 image::spectral-debug-1-fr.jpg[]

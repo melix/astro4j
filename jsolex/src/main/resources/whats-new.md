@@ -22,3 +22,4 @@ This can be particularly useful for learning purposes, but also in order to find
 - Added warning when requested pixel shift isn't available
 - Replace invalid pixel shifts with best fit
 - Display required disk space when generating custom animations
+- Renamed "Spectrum Debugger" to "Video Analyzer" for clarity
