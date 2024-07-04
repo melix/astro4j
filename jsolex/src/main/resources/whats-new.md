@@ -3,6 +3,7 @@
 Here are the new features in this version:
 
 - [Spectrum browser](spectrum-browser)
+- [New ImageMath functions](#new-ImageMath-functions)
 - [Bugfixes and improvements](#bugfixes-and-improvements)
 
 ## Spectrum browser
@@ -16,6 +17,10 @@ It optionally provides a colorized version of the spectrum, so that you get an i
 This browser also features an experimental idenfication feature, inspired by [INTI Map](http://valerie.desnoux.free.fr/inti/map.html).
 You can basically select an image of the spectrum that you captured and JSol'Ex will try to find where it fits in the spectrum.
 This can be particularly useful for learning purposes, but also in order to find lines which are harder to identify visually.
+
+## New ImageMath functions
+
+- the `draw_earth` function has been added to draw the Earth on an image, scaled accordingly to the solar disk
 
 ## Bugfixes and improvements
 
