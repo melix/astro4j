@@ -94,24 +94,6 @@ class VectorApiImageMath implements ImageMath {
         return sum / max;
     }
 
-    /**
-     * Performs incremental computation of an average at step n.
-     * It uses the incremental average formula avg(n) = avg(n-1) + (cur(n)-avg(n-1)/n)
-     */
-    @Override
-    public void incrementalAverage(float[] current, float[] average, int n) {
-        var len = current.length;
-        int offset = 0;
-        for (; offset < FLOAT_SPECIES.loopBound(len); offset += FLOAT_LEN) {
-            var avg = FloatVector.fromArray(FLOAT_SPECIES, average, offset);
-            var cur = FloatVector.fromArray(FLOAT_SPECIES, current, offset);
-            cur.sub(avg).div(n).add(avg).intoArray(average, offset);
-        }
-        for (int j = offset; j < len; j++) {
-            average[j] = average[j] + (current[j] - average[j]) / n;
-        }
-    }
-
     @Override
     public Image multiply(Image source, float f) {
         var data = source.data();
