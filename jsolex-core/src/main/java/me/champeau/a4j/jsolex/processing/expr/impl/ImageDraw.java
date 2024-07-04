@@ -27,6 +27,7 @@ import me.champeau.a4j.jsolex.processing.util.RGBImage;
 import me.champeau.a4j.jsolex.processing.util.SolarParameters;
 import me.champeau.a4j.math.regression.Ellipse;
 
+import javax.imageio.ImageIO;
 import java.awt.BasicStroke;
 import java.awt.Color;
 import java.awt.Font;
@@ -35,6 +36,7 @@ import java.awt.RenderingHints;
 import java.awt.geom.AffineTransform;
 import java.awt.image.BufferedImage;
 import java.awt.image.DataBufferUShort;
+import java.io.IOException;
 import java.time.format.DateTimeFormatter;
 import java.util.HashMap;
 import java.util.List;
@@ -52,6 +54,8 @@ import static java.lang.Math.toRadians;
 public class ImageDraw extends AbstractFunctionImpl {
     private static final Pattern HEXA_COLOR = Pattern.compile("[0-9a-fA-F]{6}");
     private static final int DIVISIONS = 18;
+    private static final double SUN_DIAMETER_KM = 1_391_400;
+    private static final double EARTH_DIAMETER_KM = 12_742;
 
     public ImageDraw(Map<Class<?>, Object> context, Broadcaster broadcaster) {
         super(context, broadcaster);
@@ -553,6 +557,36 @@ public class ImageDraw extends AbstractFunctionImpl {
         return new double[]{cos(angle) * a - sin(angle) * b, sin(angle) * a + cos(angle) * b};
     }
 
+    public Object drawEarth(List<Object> arguments) {
+        assertExpectedArgCount(arguments, "draw_earth takes 3 arguments (image(s), x, y)", 3, 3);
+        var arg = arguments.get(0);
+        if (arg instanceof List<?>) {
+            return expandToImageList("draw_earth", arguments, this::drawEarth);
+        }
+        int x = intArg(arguments, 1);
+        int y = intArg(arguments, 2);
+        if (arg instanceof ImageWrapper wrapper) {
+            return drawOnImage(wrapper, (g, image) -> {
+                var ellipse = image.findMetadata(Ellipse.class);
+                double scale = 1.0;
+                double earthDiameterPixels = Earth.IMAGE.getWidth();
+                double sunDiameterPixels = 0;
+                if (ellipse.isPresent()) {
+                    var semiAxis = ellipse.get().semiAxis();
+                    sunDiameterPixels = (semiAxis.a() + semiAxis.b());
+                    var resolution = sunDiameterPixels / SUN_DIAMETER_KM;
+                    scale = resolution * EARTH_DIAMETER_KM / earthDiameterPixels;
+                }
+
+                int scaledWidth = (int) (earthDiameterPixels * scale);
+                int scaledHeight = (int) (Earth.IMAGE.getHeight() * scale);
+                g.drawImage(Earth.IMAGE, x, y, scaledWidth, scaledHeight, null);
+            });
+        }
+
+        return arg;
+    }
+
     private record Coordinates(double x, double y, double z) {
 
         public Coordinates rotateX(double angle) {
@@ -568,6 +602,18 @@ public class ImageDraw extends AbstractFunctionImpl {
         public Coordinates rotateZ(double angle) {
             var rot = rotate(x, y, angle);
             return new Coordinates(rot[0], rot[1], z);
+        }
+    }
+
+    private static class Earth {
+        private static final BufferedImage IMAGE;
+
+        static {
+            try {
+                IMAGE = ImageIO.read(ImageDraw.class.getResourceAsStream("earth_realistic.png"));
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
         }
     }
 }

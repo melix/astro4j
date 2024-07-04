@@ -43,6 +43,7 @@ public enum BuiltinFunction {
     DRAW_OBS_DETAILS,
     DRAW_SOLAR_PARAMS,
     DRAW_TEXT,
+    DRAW_EARTH,
     ELLIPSE_FIT,
     EXP,
     FIND_SHIFT,

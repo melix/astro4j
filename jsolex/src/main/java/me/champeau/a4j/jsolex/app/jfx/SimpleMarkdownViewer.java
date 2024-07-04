@@ -260,7 +260,15 @@ public class SimpleMarkdownViewer {
                                 for (int i = start; i < end; i++) {
                                     linkPositions.put(i, link.getDestination());
                                 }
+                            }
 
+                            @Override
+                            public void visit(Code code) {
+                                int start = markdownText.length();
+                                String codeText = code.getLiteral();
+                                markdownText.append(codeText); // Append the code text
+                                int end = markdownText.length();
+                                styleRanges.add(new StyleRange(start, end, "code"));
                             }
                         });
                         markdownText.append("\n");

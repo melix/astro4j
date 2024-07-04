@@ -226,6 +226,7 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
             case DRAW_OBS_DETAILS -> imageDraw.drawObservationDetails(arguments);
             case DRAW_SOLAR_PARAMS -> imageDraw.drawSolarParameters(arguments);
             case DRAW_TEXT -> imageDraw.drawText(arguments);
+            case DRAW_EARTH -> imageDraw.drawEarth(arguments);
             case ELLIPSE_FIT -> ellipseFit.fit(arguments);
             case EXP -> math.exp(arguments);
             case FIX_BANDING -> fixBanding.fixBanding(arguments);

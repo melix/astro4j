@@ -4,6 +4,7 @@ Voici les nouvelles fonctionnalités de cette version :
 
 - [Message aux utilisateurs français](message-aux-français)
 - [Explorateur de spectre](explorateur-de-spectre)
+- [Nouvelles fonctions ImageMath](#nouvelles-fonctions-ImageMath)
 - [Corrections de bugs et améliorations](#bugfixes-and-improvements)
 
 ## Message aux utilisateurs français
@@ -31,6 +32,10 @@ Il offre en option une version colorisée du spectre, afin que vous puissiez avo
 Cet explorateur propose également une fonctionnalité expérimentale d'identification, inspirée par [INTI Map](http://valerie.desnoux.free.fr/inti/map.html).
 Vous pouvez sélectionner une image du spectre que vous avez capturée et JSol'Ex essaiera de trouver où elle se situe dans le spectre.
 Cela peut être particulièrement utile à des fins d'apprentissage, mais aussi pour trouver des lignes plus difficiles à identifier visuellement.
+
+## Nouvelles fonctions ImageMath
+
+- La fonction `draw_earth` a été ajoutée pour dessiner la Terre sur une image, mise à l'échelle en fonction du disque solaire
 
 ## Corrections de bugs et améliorations
 
