@@ -655,6 +655,47 @@ Le logiciel calculera alors le framerate recommandé annsi que l'exposition opti
 
 Notez que vous pouvez changer le type de spectrohéliographe utilisé, ce qui peut changer le calcul de l'exposition optimale.
 
+== Explorateur de spectre
+
+L'explorateur de spectre est disponible dans le menu "Outils".
+Il permet de visualiser l'aspect du spectre tel qu'il serait vu dans un logiciel de capture tel que SharpCap ou FireCapture.
+Il vous permet de vous "promener" dans le spectre :
+
+image::spectrum-browser-1.jpg[]
+
+Dans la case "Longueur d'onde", vous pouvez saisir une longueur d'onde en Angströms.
+En cliquant sur "Aller" ou en tapant entrée, le spectre sera automatiquement centré autour de cette longueur d'onde :
+
+image::spectrum-browser-2.jpg[]
+
+Une ligne pointillée bleue est ajoutée, vous permettant de bien repérer la ligne.
+
+Alternativement, vous pouvez rechercher directement une ligne spectrale remarquable en la sélectionnant dans la boîte à côté du bouton "Aller".
+
+Lorsque vous cliquez sur "Coloriser", le spectre est alors colorisé de façon à vous donner une idée d'où vous vous situez dans le spectre visible (nous recommandons cependant de rester en niveaux de gris pour repérer précisément une raie) :
+
+image::spectrum-browser-3.jpg[]
+
+Sur la deuxième ligne, vous avez la possibilité de choisir le spectrohéliographe qui a été utilisé (celui-ci aura une influence sur la dispersion spectrale calculée), ainsi que de préciser la taille des pixels (pensez à multiplier par le _binning_).
+
+Si vous cochez la case "Ajuster dispersion", la dimension du spectre est automatiquement ajustée pour correspondre précisément à la dispersion par pixel.
+
+Vous pouvez zoomer soit en cliquant sur les boutons "+" et "-", ou, plus simplement, en appuyant sur "CTRL" et en faisant tourner votre molette de souris.
+Si vous zoomez, l'ajustement automatique est désactivé (puisqu'il ne correspond plus à la dispersion exacte par pixel).
+
+=== Identification automatique
+
+Enfin, JSol'Ex propose une fonctionnalité encore expérimentale : vous pouvez cliquer sur le bouton "Identifier" pour ouvrir une fenêtre de sélection de fichier.
+
+Choisissez alors une image du spectre, telle que capturée par votre logiciel.
+JSol'Ex essayera alors de retrouver dans quelle partie du spectre elle se trouve :
+
+image::spectrum-browser-4.jpg[]
+
+Si l'identification fonctionne, votre image sera affichée en transparence, par dessus le spectre, sur la partie gauche de l'image, ce qui vous permettra de vérifier facilement si l'identification a réussi.
+
+Vous pouvez masquer l'image en transparence en cliquant sur le bouton "Cacher".
+
 == Remerciements
 
 - Christian Buil pour avoir conçu le Sol'Ex et diriger la communauté d'une main de maître

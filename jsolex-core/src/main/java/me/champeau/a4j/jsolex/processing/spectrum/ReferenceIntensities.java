@@ -65,6 +65,10 @@ public class ReferenceIntensities {
         return maxWavelength;
     }
 
+    public double getStep() {
+        return (maxWavelength-minWavelength) / intensities.length;
+    }
+
     private short intensity(double wavelength) {
         if (wavelength < minWavelength) {
             return 0;
