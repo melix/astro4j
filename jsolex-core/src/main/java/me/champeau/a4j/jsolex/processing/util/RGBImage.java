@@ -36,4 +36,12 @@ public record RGBImage(
         System.arraycopy(array, 0, rcopy, 0, array.length);
         return rcopy;
     }
+
+    public ImageWrapper32 toMono() {
+        float[] monoData = new float[width * height];
+        for (int i = 0; i < width * height; i++) {
+            monoData[i] = 0.299f * r[i] + 0.587f * g[i] + 0.114f * b[i];
+        }
+        return new ImageWrapper32(width, height, monoData, new LinkedHashMap<>(metadata));
+    }
 }

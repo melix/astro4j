@@ -636,6 +636,46 @@ The software will then automatically compute the recommended framerate and the o
 
 Note that you can change the type of spectroheliograph used, which can change the calculation of the optimal exposure.
 
+== Spectrum Browser
+
+The Spectrum browser is available in the "Tools" menu.
+It allows you to visualize the aspect of the spectrum as it would be seen in capture software such as SharpCap or FireCapture.
+
+image::spectrum-browser-1.jpg[]
+
+In the "Wavelength" box, you can enter a wavelength in Angstroms.
+By clicking "Go" or pressing enter, the spectrum will automatically center around this wavelength:
+
+image::spectrum-browser-2.jpg[]
+
+A blue dashed line is added, allowing you to clearly identify the line.
+
+Alternatively, you can directly search for a notable spectral line by selecting it in the box next to the "Go" button.
+
+When you click "Colorize", the spectrum is then colorized to give you an idea of where you are in the visible spectrum (however, we recommend staying in grayscale to precisely identify a line):
+
+image::spectrum-browser-3.jpg[]
+
+On the second line, you have the option to choose the spectroheliograph that is used (this will affect the calculated spectral dispersion), as well as to specify the pixel size (remember to multiply by the binning).
+
+If you check the "Adjust Dispersion" box, the spectrum's dimension is automatically adjusted to precisely match the calculated dispersion per pixel.
+
+You can zoom either by clicking the "+" and "-" buttons, or more simply by pressing "CTRL" and scrolling your mouse wheel.
+If you zoom, the automatic adjustment is disabled (since it no longer corresponds to the exact dispersion per pixel).
+
+=== Automatic Identification
+
+Finally, JSol'Ex offers an experimental feature: you can click the "Identify" button to open a file selection window.
+
+Then choose an image of the spectrum, as captured by your software.
+JSol'Ex will then try to find out which part of the spectrum it is in:
+
+image::spectrum-browser-4.jpg[]
+
+If the identification works, your image will be displayed in transparency, overlaid on the spectrum, on the left side of the image, allowing you to easily verify if the identification was successful.
+
+You can hide the transparent image by clicking the "Hide" button.
+
 == Acknowledgements
 
 - Christian Buil for designing Sol'Ex and leading the community with great expertise

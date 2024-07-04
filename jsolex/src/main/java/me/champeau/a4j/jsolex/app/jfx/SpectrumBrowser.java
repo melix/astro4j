@@ -66,6 +66,7 @@ import me.champeau.a4j.jsolex.processing.sun.SpectrumFrameAnalyzer;
 import me.champeau.a4j.jsolex.processing.util.BackgroundOperations;
 import me.champeau.a4j.jsolex.processing.util.Constants;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
+import me.champeau.a4j.jsolex.processing.util.RGBImage;
 
 import java.io.BufferedReader;
 import java.io.File;
@@ -106,6 +107,7 @@ public class SpectrumBrowser extends BorderPane {
     private double currentMaxWavelength;
     private final DoubleProperty visibleRangeAngstroms = new SimpleDoubleProperty(100.0);
 
+    private final StackPane stackPane;
     private final Canvas canvas;
     private final ImageView imageView;
     private final DoubleProperty imageRangeAngstroms = new SimpleDoubleProperty(visibleRangeAngstroms.get());
@@ -126,11 +128,17 @@ public class SpectrumBrowser extends BorderPane {
             }
             return new Rectangle2D(0, 0, 0, 0);
         })));
-        var stackPane = new StackPane(canvas, imageViewPane);
+        stackPane = new StackPane(canvas, imageViewPane);
         stackPane.setAlignment(Pos.BASELINE_LEFT);
-        widthProperty().addListener((observableValue, number, w) -> {
+        widthProperty().addListener((observableValue, oldW, w) -> {
             canvas.setWidth(w.doubleValue());
             drawSpectrum();
+        });
+        heightProperty().addListener((observableValue, oldH, h) -> {
+            if (oldH != null && oldH.doubleValue() != h.doubleValue()) {
+                canvas.setHeight(h.doubleValue());
+                drawSpectrum();
+            }
         });
         setCenter(stackPane);
         var startY = new AtomicReference<Double>();
@@ -167,7 +175,7 @@ public class SpectrumBrowser extends BorderPane {
             event.consume();
         });
 
-        canvas.addEventFilter(MouseEvent.MOUSE_CLICKED, event -> {
+        stackPane.addEventFilter(MouseEvent.MOUSE_CLICKED, event -> {
             if (event.getClickCount() == 2) {
                 double y = event.getY();
                 double wavelength = currentMinWavelength + y * (visibleRangeAngstroms.get() / canvas.getHeight());
@@ -295,14 +303,16 @@ public class SpectrumBrowser extends BorderPane {
     }
 
     private void performWavelengthIdentification(File file) {
-        if (Loader.loadImage(file) instanceof ImageWrapper32 image) {
+        var wrapper = Loader.loadImage(file);
+        if (wrapper instanceof RGBImage rgb) {
+            wrapper = rgb.toMono();
+        }
+        if (wrapper instanceof ImageWrapper32 image) {
             CaptureSoftwareMetadataHelper.readSharpcapMetadata(file)
                 .or(() -> CaptureSoftwareMetadataHelper.readFireCaptureMetadata(file))
                 .ifPresent(md -> {
                     var observationDetails = ProcessParamsIO.loadDefaults().observationDetails();
-                    BatchOperations.submit(() -> {
-                        pixelSize.set(observationDetails.pixelSize() * md.binning());
-                    });
+                    BatchOperations.submit(() -> pixelSize.set(observationDetails.pixelSize() * md.binning()));
                 });
             var width = image.width();
             var analyzer = new SpectrumFrameAnalyzer(width, image.height(), null);
@@ -350,19 +360,22 @@ public class SpectrumBrowser extends BorderPane {
                             return new Score(wl, Double.MAX_VALUE);
                         }
                         double[] ref = new double[height];
+                        double maxAvg = 0;
                         for (int y = 0; y < height; y++) {
                             var currentWl = wl + y * baseDispersion;
                             ref[y] = ReferenceIntensities.intensityAt(currentWl) / 10000;
+                            maxAvg = Math.max(maxAvg, lineAverages[y]);
                         }
                         var localRefMinima = identifyLocalMinima(ref);
                         var total = 0d;
                         for (int y = 0; y < height; y++) {
-                            var diff = Math.abs(ref[y] - lineAverages[y]);
-                            total += Math.pow(diff, 2);
+                            var diff = ref[y] - lineAverages[y];
+                            var diff2 = ref[y] - lineAverages[y] / maxAvg;
+                            total += Math.min(Math.abs(diff), Math.abs(diff2));
                         }
                         var common = (BitSet) localMinima.clone();
                         common.and(localRefMinima);
-                        var weight = common.cardinality() / (double) Math.max(localRefMinima.cardinality(), localMinima.cardinality());
+                        var weight = Math.pow(common.cardinality() / (double) Math.max(localRefMinima.cardinality(), localMinima.cardinality()), 2);
                         total = total / weight;
                         return new Score(wl, total);
                     })
@@ -379,7 +392,7 @@ public class SpectrumBrowser extends BorderPane {
                             for (int y = 0; y < height; y++) {
                                 for (int x = finalMinX; x < finalMaxX; x++) {
                                     var v = corrected[x + y * width] / Constants.MAX_PIXEL_VALUE;
-                                    writableImage.getPixelWriter().setColor(x - finalMinX, y, Color.gray(v));
+                                    writableImage.getPixelWriter().setColor(x - finalMinX, y, Color.gray(v, .8));
                                 }
                                 imageView.fitHeightProperty().set(canvas.heightProperty().flatMap(w ->
                                     visibleRangeAngstroms.flatMap(visible ->
@@ -392,6 +405,8 @@ public class SpectrumBrowser extends BorderPane {
                         });
                     });
             }, this::showIdentificationFailure);
+        } else {
+            AlertFactory.error(I18N.string(JSolEx.class, "spectrum-browser", "unsupported.format")).showAndWait();
         }
     }
 
@@ -462,8 +477,10 @@ public class SpectrumBrowser extends BorderPane {
     private void adjustZoomToOptics() {
         var centerWavelength = currentMinWavelength + visibleRangeAngstroms.get() / 2.0;
         var dispersionAngrstromsPerPixel = computeDispersion(centerWavelength);
-        // adjust zoom level so that it matches the expected dispersion
-        visibleRangeAngstroms.set(canvas.getHeight() * dispersionAngrstromsPerPixel);
+        if (!Double.isNaN(dispersionAngrstromsPerPixel)) {
+            // adjust zoom level so that it matches the expected dispersion
+            visibleRangeAngstroms.set(canvas.getHeight() * dispersionAngrstromsPerPixel);
+        }
         centerWavelength(centerWavelength);
     }
 
@@ -479,7 +496,7 @@ public class SpectrumBrowser extends BorderPane {
         hbox.setSpacing(8);
         hbox.setPadding(new Insets(8, 8, 8, 8));
         var label = new Label();
-        canvas.setOnMouseMoved(evt -> {
+        stackPane.setOnMouseMoved(evt -> {
             var y = evt.getY();
             // determine wavelength from y position
             var wavelength = currentMinWavelength + y * (visibleRangeAngstroms.get() / canvas.getHeight());

@@ -2,55 +2,38 @@
 
 Voici les nouvelles fonctionnalités de cette version :
 
-- [Animations personnalisées et recadrage](#animations-personnalisees-et-recadrage)
-- [Corrections de bugs et améliorations](#corrections-de-bugs-et-ameliorations)
+- [Message aux utilisateurs français](message-aux-français)
+- [Explorateur de spectre](explorateur-de-spectre)
+- [Corrections de bugs et améliorations](#bugfixes-and-improvements)
 
-## Changes in 2.5.4
+## Message aux utilisateurs français
 
-- Ajout d'un explorateur de spectre
-- Identification automatique des raies à partir d'une image (expérimental)
-- Ajout d'un avertissement lorsque le décalage de pixel demandé n'est pas disponible
-- Remplacement des décalages de pixel invalides par le meilleur ajustement possible
-- Affichage de l'espace disque requis lors de la génération d'animations personnalisées
+**Si vous votez Rassemblement National ou tout autre parti proche de l'extrême droite, je vous demande de ne pas utiliser ce logiciel.**
 
-## Modifications dans 2.5.3
+Mes convictions sont diamètralement opposées à celles de ces partis et je ne souhaite pas que mon travail développé soirs et week-ends et malgré une licence libre, serve à des personnes qui soutiennent ces idées nauséabondes.
 
-- Correction de la position des décalages vers le rouge qui pouvait être incorrecte en case de fort tilt ou d'inversion horizontale/verticale
-- Correction du double-clic qui ne changeait plus le zoom
-- Amélioration des performances de création des animations de décalages vers le rouge
+La solidarité, le partage, l'écologie, l'ouverture aux autres, la lutte contre les discriminations et les inégalités, le respect de toutes les religions, de tous les genres et orientations sexuelles sont les valeurs qui m'animent.
+Elles sont à l'opposé de celles prônées par ces partis.
 
-## Modifications dans 2.5.2
+Aussi, si vous faites partie de leurs électeurs, je vous invite à ne pas céder aux sirènes de la haine et à vous tourner vers des valeurs plus positives, où votre bien-être ne passe pas par le rejet de l'autre.
+Inutile de venir vous plaindre, respecter ma volonté ne devrait pas être un problème pour des personnes qui prônent le respect de l'autorité.
 
-- Amélioration du calculateur de temps d'exposition
-- Possibilité d'annoter les animations de décalages vers le rouge
-- Ajout de champs supplémentaires à l'éditeur de spectrohéliographes personnalisés
-- Correction de la lecture des métadonnées de Firecapture
-- Réduction de l'utilisation mémoire lors de l'analyse d'images
-- Remplacement du curseur de zoom par des boutons
-- Correction des images manquantes dans les scripts en cas de composition avec le résultat de la fonction `find_shift`
+Trève de politique, place aux nouveautés !
 
-## Modifications dans 2.5.1
+## Explorateur de spectre
 
-- Ajout d'une catégorie d'affichage séparée pour les décalages vers le rouge et promotion des images de débogage des décalages vers le rouge à cette catégorie
-- Affichage du nombre de FPS dans la calculatrice d'exposition optimale
-- Correction de la stratégie d'autostretch produisant des images lumineuses lorsque le fichier SER original a un offset trop grand
-- Correction de l'ajustement du contraste ne s'étendant pas sur toute la plage disponible
-- Correction du décalage de pixel min/max dans les animations personnalisées limité au minimum des deux
+L'explorateur de spectre est disponible via le menu Outils.
+Il affiche une image du spectre telle qu'il serait vu à travers votre logiciel de capture préféré (SharpCap, FireCapture, ...) et vous permet de faire défiler les régions du spectre, ainsi que zoomer.
 
-## Animations personnalisées et recadrage
+L'explorateur affichera des lignes spectrales remarquables et vous permettra de rechercher des longueurs d'onde particulières.
+Il offre en option une version colorisée du spectre, afin que vous puissiez avoir une idée de "où" vous vous situez dans le spectre visible de la lumière.
 
-Il est désormais possible de recadrer une image manuellement ou de créer des animations d'une région d'un disque solaire, ou un panneau de décalages vers le rouge, en sélectionnant une région d'intérêt.
-
-Pour ce faire, dans la vue, appuyez sur "CTRL" puis cliquez et faites glisser pour sélectionner la région d'intérêt.
-Un menu apparaîtra où vous pourrez choisir de rogner l'image à la sélection ou de créer une animation/un panneau de la région sélectionnée.
-
-Pour que les annotations soient précises, assurez-vous que :
-
-- vous ayez défini la taille de pixel de votre caméra dans les détails de l'observation
-- vous ayez soit sélectionné "autodétection" dans la sélection de la longueur d'onde, soit spécifié explicitement la bonne longueur d'onde
+Cet explorateur propose également une fonctionnalité expérimentale d'identification, inspirée par [INTI Map](http://valerie.desnoux.free.fr/inti/map.html).
+Vous pouvez sélectionner une image du spectre que vous avez capturée et JSol'Ex essaiera de trouver où elle se situe dans le spectre.
+Cela peut être particulièrement utile à des fins d'apprentissage, mais aussi pour trouver des lignes plus difficiles à identifier visuellement.
 
 ## Corrections de bugs et améliorations
 
-- Ajout de la possibilité d'afficher les coordonnées GPS dans les détails de l'observation
-- Correction des artefacts de sonnerie dans l'image autostretchée
-- Correction d'un bug empêchant les coordonnées de longitude ou de latitude négatives
+- Avertissement ajouté lorsque le décalage de pixels demandé n'est pas disponible
+- Remplacement des décalages de pixels invalides par le meilleur ajustement
+- Affichage de l'espace disque requis lors de la génération d'animations personnalisées
