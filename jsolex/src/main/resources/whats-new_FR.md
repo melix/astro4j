@@ -34,6 +34,7 @@ Cela peut être particulièrement utile à des fins d'apprentissage, mais aussi 
 
 ## Corrections de bugs et améliorations
 
+- Ajout d'un modèle de nom de fichier par défaut pour les batches
 - Avertissement ajouté lorsque le décalage de pixels demandé n'est pas disponible
 - Remplacement des décalages de pixels invalides par le meilleur ajustement
 - Affichage de l'espace disque requis lors de la génération d'animations personnalisées

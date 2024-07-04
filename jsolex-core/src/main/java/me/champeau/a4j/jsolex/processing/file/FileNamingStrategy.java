@@ -32,11 +32,13 @@ import static me.champeau.a4j.jsolex.processing.util.Constants.message;
 public class FileNamingStrategy {
     public static final String DEFAULT_TEMPLATE = "%BASENAME%/%KIND%/%VIDEO_DATE%_%LABEL%";
     public static final String SAME_DIRECTORY = "%BASENAME%_%CURRENT_DATETIME%_%LABEL%";
+    public static final String BATCH_TEMPLATE = "batch/%CURRENT_DATETIME%/%CATEGORY%/%SEQUENCE_NUMBER%_%BASENAME%_%LABEL%";
     public static final String DEFAULT_DATE_FORMAT = "yyyyMMdd";
     public static final String DEFAULT_DATETIME_FORMAT = "yyyy-MM-dd'T'HHmmss";
     public static final List<NamedPattern> DEFAULTS = List.of(
             new NamedPattern(message("template.default"), DEFAULT_TEMPLATE, DEFAULT_DATETIME_FORMAT, DEFAULT_DATE_FORMAT),
-            new NamedPattern(message("template.same.directory"), SAME_DIRECTORY, DEFAULT_DATETIME_FORMAT, DEFAULT_DATE_FORMAT)
+            new NamedPattern(message("template.same.directory"), SAME_DIRECTORY, DEFAULT_DATETIME_FORMAT, DEFAULT_DATE_FORMAT),
+            new NamedPattern(message("batch"), BATCH_TEMPLATE, DEFAULT_DATETIME_FORMAT, DEFAULT_DATE_FORMAT)
     );
     private static final Pattern CATEGORY_PATTERN = Pattern.compile("^(.*?)(?:-\\d+)?$");
 
