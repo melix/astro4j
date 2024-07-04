@@ -19,6 +19,7 @@ This can be particularly useful for learning purposes, but also in order to find
 
 ## Bugfixes and improvements
 
+- Added a default file naming pattern for batch mode
 - Added warning when requested pixel shift isn't available
 - Replace invalid pixel shifts with best fit
 - Display required disk space when generating custom animations
