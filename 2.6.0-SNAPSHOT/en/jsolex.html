@@ -1229,6 +1229,9 @@ A special variable named <code>angleP</code> contains the computed solar P angle
 Stacking and mosaic functions:</p>
 </li>
 <li>
+<p><code>draw_earth</code> draws the Earth on the image, scaled accordingly to the solar disk. This function takes 3 parameters: the image and the coordinates (x,y) where to draw the Earth. For example: <code>draw_earth(img(0), 100, 100)</code>.</p>
+</li>
+<li>
 <p><code>stack</code> allows stacking images together. It will align images and compute the median value of each pixel. It accepts 1 to 3 parameters. The first one is the list of images to stack, for example: <code>stack(load_many("*.fits"))</code>. The 2d parameter is the tile size and the 3rd one is the overlap factor (between 0 and 1).</p>
 </li>
 <li>
