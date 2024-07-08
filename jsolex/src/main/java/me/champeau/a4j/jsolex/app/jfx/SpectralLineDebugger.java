@@ -45,7 +45,7 @@ import me.champeau.a4j.jsolex.processing.params.SpectralRay;
 import me.champeau.a4j.jsolex.processing.spectrum.SpectrumAnalyzer;
 import me.champeau.a4j.jsolex.processing.stretching.ArcsinhStretchingStrategy;
 import me.champeau.a4j.jsolex.processing.sun.ImageUtils;
-import me.champeau.a4j.jsolex.processing.sun.MagnitudeBasedSunEdgeDetector;
+import me.champeau.a4j.jsolex.processing.sun.AverageImageCreator;
 import me.champeau.a4j.jsolex.processing.sun.SpectrumFrameAnalyzer;
 import me.champeau.a4j.jsolex.processing.sun.detection.PhenomenaDetector;
 import me.champeau.a4j.jsolex.processing.util.BackgroundOperations;
@@ -171,14 +171,14 @@ public class SpectralLineDebugger {
     private void prepareView(File file, ColorMode colorMode, Scene scene, Stage stage, ToggleGroup toggleGroup) {
         var converter = createImageConverter(colorMode);
         BatchOperations.submit(() -> progressBox.setVisible(true));
-        var detector = new MagnitudeBasedSunEdgeDetector(converter, event -> {
+        var detector = new AverageImageCreator(converter, event -> {
             if (event instanceof ProgressEvent progress) {
                 BatchOperations.submitOneOfAKind("progress", () -> progressBar.setProgress(progress.getPayload().progress()));
             }
         });
         try {
             reader = SerFileReader.of(file);
-            detector.detectEdges(reader);
+            detector.computeAverageImage(reader);
             var averageImage = detector.getAverageImage();
             var tmpPath = Files.createTempFile("debug_", ".png");
             File imageFile = tmpPath.toFile();
@@ -309,7 +309,8 @@ public class SpectralLineDebugger {
         analyzer.analyze(buffer);
         processParams = ProcessParamsIO.loadDefaults();
         var instrument = processParams.observationDetails().instrument();
-        analyzer.findDistortionPolynomial().ifPresent(p -> {
+        var analysis = analyzer.result();
+        analysis.distortionPolynomial().ifPresent(p -> {
             this.polynomial = p;
             if (spectralRayDetectionResult == null) {
                 var pixelSize = processParams.observationDetails().pixelSize();
@@ -320,15 +321,15 @@ public class SpectralLineDebugger {
                         candidates.add(new SpectrumAnalyzer.QueryDetails(line, pixelSize, 2, instrument));
                     }
                 }
-                int leftBorder = analyzer.leftSunBorder().orElse(0);
-                int rightBorder = analyzer.rightSunBorder().orElse(width);
+                int leftBorder = analysis.leftBorder().orElse(0);
+                int rightBorder = analysis.rightBorder().orElse(width);
                 var map = candidates
                     .stream()
                     .collect(Collectors.toMap(d -> d, details -> SpectrumAnalyzer.computeDataPoints(details, polynomial, leftBorder, rightBorder, width, height, buffer)));
                 spectralRayDetectionResult = SpectrumAnalyzer.findBestMatch(map);
             }
         });
-        var detectedPolynomial = analyzer.findDistortionPolynomial().orElse(null);
+        var detectedPolynomial = analysis.distortionPolynomial().orElse(null);
         lockPolynomialCheckbox.selectedProperty().addListener((obj, oldValue, newValue) -> {
             if (Boolean.TRUE.equals(newValue) && detectedPolynomial != null) {
                 lockedPolynomial = detectedPolynomial;

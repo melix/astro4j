@@ -45,18 +45,18 @@ class SpectrumFrameAnalyzerTest extends Specification {
         def analyzer = new SpectrumFrameAnalyzer(image.width, image.height, 50d)
 
         when:
-        analyzer.analyze(data)
+        def result = analyzer.analyze(data)
 
         then:
-        analyzer.leftSunBorder().present
-        analyzer.leftSunBorder().get() == 210
-        analyzer.rightSunBorder().present
-        analyzer.rightSunBorder().get() == 1703
+        result.leftBorder().present
+        result.leftBorder().get() == 210
+        result.rightBorder().present
+        result.rightBorder().get() == 1703
 
         and:
-        def polynomial = analyzer.findDistortionPolynomial()
+        def polynomial = result.distortionPolynomial()
         polynomial.present
-        def samples = analyzer.samplePoints
+        def samples = result.samplePoints
         samples.size() == 187
         samples[120].x() == 1170
         samples[120].y() == 17
@@ -88,10 +88,10 @@ class SpectrumFrameAnalyzerTest extends Specification {
         def height = image.height()
         def data = ((ImageWrapper32)image).data()
         def analyzer = new SpectrumFrameAnalyzer(width, height, null)
-        analyzer.analyze(data)
-        def polynomial = analyzer.findDistortionPolynomial().get()
-        int leftBorder = analyzer.leftSunBorder().orElse(0)
-        int rightBorder = analyzer.rightSunBorder().orElse(width - 1)
+        def result = analyzer.analyze(data)
+        def polynomial = result.distortionPolynomial().get()
+        int leftBorder = result.leftBorder().orElse(0)
+        int rightBorder = result.rightBorder().orElse(width - 1)
         var candidates = new ArrayList<SpectrumAnalyzer.QueryDetails>();
         for (var line : SpectralRay.predefined()) {
             if (line.wavelength() > 0 && !line.emission()) {

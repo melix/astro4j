@@ -180,7 +180,7 @@ public class SolexVideoProcessor implements Broadcaster {
         }
         broadcast(ProcessingStartEvent.of(System.nanoTime(), processParams));
         var converter = ImageUtils.createImageConverter(processParams.videoParams().colorMode());
-        var detector = new MagnitudeBasedSunEdgeDetector(converter, this);
+        var detector = new AverageImageCreator(converter, this);
         AtomicInteger frameCountRef = new AtomicInteger();
         AtomicReference<Header> headerRef = new AtomicReference<>();
         AtomicReference<Double> fpsRef = new AtomicReference<>();
@@ -200,7 +200,7 @@ public class SolexVideoProcessor implements Broadcaster {
                 LOGGER.info(message("computing.average.image.limb.detect"));
                 // We use the IO executor to make sure we only read as single SER file at a time
                 if (averageImage == null) {
-                    detector.detectEdges(reader);
+                    detector.computeAverageImage(reader);
                 }
                 frameCountRef.set(frameCount);
                 headerRef.set(header);
@@ -266,11 +266,13 @@ public class SolexVideoProcessor implements Broadcaster {
         long maxMemory = Runtime.getRuntime().maxMemory();
         int batchSize = (int) (Math.ceil(maxMemory / (4d * imageSizeInBytes)));
         checkAvailableDiskSpace(imageList, imageSizeInBytes);
-
-        var maybePolynomial = Optional.ofNullable(polynomial).or(() -> findPolynomial(width, height, averageImage, imageNamingStrategy));
+        var analysis = analyzeAverageImage(width, height, averageImage, imageNamingStrategy);
+        var maybePolynomial = Optional.ofNullable(polynomial).or(analysis::distortionPolynomial);
         if (maybePolynomial.isPresent()) {
             var polynomial = maybePolynomial.get();
-            pixelShiftRange = computePixelShiftRange(start, end, height, polynomial);
+            var analyzer = new SpectrumFrameAnalyzer(width, height, null);
+            analyzer.analyze(averageImage);
+            pixelShiftRange = computePixelShiftRange(analysis.leftBorder().orElse(start), analysis.rightBorder().orElse(end), height, polynomial);
             var continuumShift = processParams.spectrumParams().continuumShift();
             var minShift = pixelShiftRange.minPixelShift();
             var maxShift = pixelShiftRange.maxPixelShift();
@@ -946,10 +948,9 @@ public class SolexVideoProcessor implements Broadcaster {
     }
 
 
-    private Optional<DoubleUnaryOperator> findPolynomial(int width, int height, float[] averageImage, FileNamingStrategy imageNamingStrategy) {
+    private SpectrumFrameAnalyzer.Result analyzeAverageImage(int width, int height, float[] averageImage, FileNamingStrategy imageNamingStrategy) {
         SpectrumFrameAnalyzer analyzer = new SpectrumFrameAnalyzer(width, height, null);
-        analyzer.analyze(averageImage);
-        var result = analyzer.findDistortionPolynomial();
+        var result = analyzer.analyze(averageImage);
         if (processParams.extraParams().generateDebugImages()) {
             var emitter = new DiscardNonRequiredImages(
                 new NamingStrategyAwareImageEmitter(new DefaultImageEmitter(this, outputDirectory.toFile()), imageNamingStrategy, 0, Constants.TYPE_DEBUG, serFile.getName().substring(0, serFile.getName().lastIndexOf("."))),

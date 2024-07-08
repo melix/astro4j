@@ -317,8 +317,8 @@ public class SpectrumBrowser extends BorderPane {
             var width = image.width();
             var analyzer = new SpectrumFrameAnalyzer(width, image.height(), null);
             analyzer.analyze(image.data());
-            var result = analyzer.findDistortionPolynomial();
-            result.ifPresentOrElse(polynomial -> {
+            var result = analyzer.result();
+            result.distortionPolynomial().ifPresentOrElse(polynomial -> {
                 var distorsionCorrection = new DistortionCorrection(image.data(), width, image.height());
                 var correctedImage = distorsionCorrection.polynomicalCorrectionHeightRestricted(polynomial);
                 var corrected = correctedImage.data();
@@ -329,11 +329,11 @@ public class SpectrumBrowser extends BorderPane {
                     }
                 }
                 var height = correctedImage.height();
-                int minX = analyzer.leftSunBorder().orElse(0);
+                int minX = result.leftBorder().orElse(0);
                 if (minX > 0) {
                     minX += 5 * width / 100;
                 }
-                int maxX = analyzer.rightSunBorder().orElse(width);
+                int maxX = result.rightBorder().orElse(width);
                 if (maxX < width) {
                     maxX -= 5 * width / 100;
                 }

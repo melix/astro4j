@@ -7,19 +7,9 @@ Voici les nouvelles fonctionnalités de cette version :
 - [Nouvelles fonctions ImageMath](#nouvelles-fonctions-ImageMath)
 - [Corrections de bugs et améliorations](#bugfixes-and-improvements)
 
-## Message aux utilisateurs français
+## Changements dans la version 2.6.1
 
-**Si vous votez Rassemblement National ou tout autre parti proche de l'extrême droite, je vous demande de ne pas utiliser ce logiciel.**
-
-Mes convictions sont diamètralement opposées à celles de ces partis et je ne souhaite pas que mon travail développé soirs et week-ends et malgré une licence libre, serve à des personnes qui soutiennent ces idées nauséabondes.
-
-La solidarité, le partage, l'écologie, l'ouverture aux autres, la lutte contre les discriminations et les inégalités, le respect de toutes les religions, de tous les genres et orientations sexuelles sont les valeurs qui m'animent.
-Elles sont à l'opposé de celles prônées par ces partis.
-
-Aussi, si vous faites partie de leurs électeurs, je vous invite à ne pas céder aux sirènes de la haine et à vous tourner vers des valeurs plus positives, où votre bien-être ne passe pas par le rejet de l'autre.
-Inutile de venir vous plaindre, respecter ma volonté ne devrait pas être un problème pour des personnes qui prônent le respect de l'autorité.
-
-Trève de politique, place aux nouveautés !
+- Correction des limites de la plage de décalage de pixels qui pouvaient entraîner le rejet de certaines images (bug #344)
 
 ## Explorateur de spectre
 
