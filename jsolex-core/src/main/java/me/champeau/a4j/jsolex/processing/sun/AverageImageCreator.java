@@ -16,46 +16,35 @@
 package me.champeau.a4j.jsolex.processing.sun;
 
 import me.champeau.a4j.jsolex.processing.event.ProgressEvent;
-import me.champeau.a4j.jsolex.processing.stats.ChannelStats;
 import me.champeau.a4j.jsolex.processing.util.ParallelExecutor;
 import me.champeau.a4j.jsolex.processing.util.ProcessingException;
 import me.champeau.a4j.math.image.ImageMath;
 import me.champeau.a4j.ser.ImageGeometry;
 import me.champeau.a4j.ser.SerFileReader;
 import me.champeau.a4j.ser.bayer.ImageConverter;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.nio.ByteBuffer;
-import java.util.Optional;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.function.BiConsumer;
 
 import static me.champeau.a4j.jsolex.processing.util.Constants.message;
 
 /**
- * An edge detector which performs an FFT of each line to compute
- * the magnitude of the signal and detect edges by comparing it
+ * An edge detector which compute the magnitude of the signal and detect edges by comparing it
  * to a threshold.
  */
-public class MagnitudeBasedSunEdgeDetector implements SunEdgeDetector {
-    private static final Logger LOGGER = LoggerFactory.getLogger(MagnitudeBasedSunEdgeDetector.class);
-
+public class AverageImageCreator {
     private final ImageConverter<float[]> imageConverter;
     private final Broadcaster broadcaster;
 
-    private Integer startEdge;
-    private Integer endEdge;
     private float[] averageImage;
 
-    public MagnitudeBasedSunEdgeDetector(ImageConverter<float[]> imageConverter,
-                                         Broadcaster broadcaster) {
+    public AverageImageCreator(ImageConverter<float[]> imageConverter,
+                               Broadcaster broadcaster) {
         this.imageConverter = imageConverter;
         this.broadcaster = broadcaster;
     }
 
-    @Override
-    public void detectEdges(SerFileReader reader) {
+    public void computeAverageImage(SerFileReader reader) {
         int frameCount = reader.header().frameCount();
         ImageGeometry geometry = reader.header().geometry();
         var limbDetectionMessage = message("computing.average.image.limb.detect");
@@ -102,28 +91,6 @@ public class MagnitudeBasedSunEdgeDetector implements SunEdgeDetector {
         } catch (Exception ex) {
             throw ProcessingException.wrap(ex);
         }
-    }
-
-    @Override
-    public void ifEdgesDetected(BiConsumer<Integer, Integer> consumer, Runnable orElse) {
-        if (startEdge != null && endEdge != null) {
-            consumer.accept(startEdge, endEdge);
-        } else {
-            orElse.run();
-        }
-    }
-
-    public Integer getLeftEdge() {
-        return startEdge;
-    }
-
-    public Integer getRightEdge() {
-        return endEdge;
-    }
-
-    @Override
-    public Optional<ChannelStats[]> getFrameStats() {
-        return Optional.empty();
     }
 
     public float[] getAverageImage() {

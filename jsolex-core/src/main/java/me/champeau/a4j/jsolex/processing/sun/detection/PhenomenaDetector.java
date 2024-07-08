@@ -67,12 +67,11 @@ public class PhenomenaDetector {
         // the wings, a sharp increase in intensity is expected, but it will not cover the
         // whole height.
         // Detection is done column by column.
-        var bordersAnalysis = new SpectrumFrameAnalyzer(width, height, 20000d);
-        bordersAnalysis.analyze(original);
+        var bordersAnalysis = new SpectrumFrameAnalyzer(width, height, 20000d).analyze(original);
         // 10 is to convert nm to angstrom
         int wingShiftInPixels = (int) Math.floor(0.5d / (10d * dispersion));
-        var leftBorder = bordersAnalysis.leftSunBorder();
-        var rightBorder = bordersAnalysis.rightSunBorder();
+        var leftBorder = bordersAnalysis.leftBorder();
+        var rightBorder = bordersAnalysis.rightBorder();
         var avgOfColumnAverages = 0d;
         if (leftBorder.isPresent() && rightBorder.isPresent()) {
             int leftLimit = leftBorder.get();

@@ -6,6 +6,10 @@ Here are the new features in this version:
 - [New ImageMath functions](#new-ImageMath-functions)
 - [Bugfixes and improvements](#bugfixes-and-improvements)
 
+## Changes in 2.6.1
+
+- Fixed pixel shift range limits which could cause some images to be rejected (issue #344)
+
 ## Spectrum browser
 
 The spectrum browser is available via the Tools menu.

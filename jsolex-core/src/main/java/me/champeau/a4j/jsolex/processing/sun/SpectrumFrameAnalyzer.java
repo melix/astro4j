@@ -20,22 +20,17 @@ import me.champeau.a4j.math.Point2D;
 import me.champeau.a4j.math.regression.LinearRegression;
 
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 import java.util.function.DoubleUnaryOperator;
-
-import static me.champeau.a4j.jsolex.processing.sun.workflow.AnalysisUtils.estimateBackgroundLevel;
 
 public class SpectrumFrameAnalyzer {
     public static final int MAX_DEVIATION = 10;
     private final int width;
     private final int height;
     private final Double sunDetectionThreshold;
-    private final List<Point2D> samplePoints;
 
-    private Integer leftBorder;
-    private Integer rightBorder;
+    private Result result;
     private double avg;
     private double max;
     private double min;
@@ -46,13 +41,69 @@ public class SpectrumFrameAnalyzer {
                                  Double sunDetectionThreshold) {
         this.width = width;
         this.height = height;
-        this.samplePoints = new ArrayList<>(width);
         this.sunDetectionThreshold = sunDetectionThreshold;
     }
 
-    public void analyze(float[] data) {
+    public Result result() {
+        return result;
+    }
+
+    public Result analyze(float[] data) {
         reset();
-        var threshold = sunDetectionThreshold != null ? sunDetectionThreshold : estimateBackgroundLevel(data);
+        this.data = data;
+        if (sunDetectionThreshold != null) {
+            performDetectionUsingExplicitThreshold();
+        } else {
+            performAutomaticDetection();
+        }
+        return result;
+    }
+
+    private void performAutomaticDetection() {
+        Integer leftBorder = null;
+        Integer rightBorder = null;
+        var columnAverages = new double[width];
+        for (int x = 0; x < width; x++) {
+            double columnAverage = 0;
+            for (int y = 0; y < height; y++) {
+                double value = data[y * width + x];
+                avg = avg + (value - avg) / (x + y + 1);
+                columnAverage = columnAverage + (value - columnAverage) / (y + 1);
+                if (value < min) {
+                    min = value;
+                }
+                if (value > max) {
+                    max = value;
+                }
+            }
+            columnAverages[x] = columnAverage;
+        }
+        // compute average of averages and stddev
+        var avgColumnAverage = 0d;
+        for (double columnAverage : columnAverages) {
+            avgColumnAverage += columnAverage;
+        }
+        avgColumnAverage /= width;
+        var stddev = 0d;
+        for (double columnAverage : columnAverages) {
+            stddev += Math.pow(columnAverage - avgColumnAverage, 2);
+        }
+        stddev = Math.sqrt(stddev / width);
+        // left and right border are the first and last columns which are more than 1 stddev away from the average
+        for (int x = 0; x < width; x++) {
+            if (columnAverages[x] > avgColumnAverage - stddev) {
+                if (leftBorder == null) {
+                    leftBorder = x;
+                }
+                rightBorder = x;
+            }
+        }
+        this.result = findDistortionPolynomial(leftBorder, rightBorder);
+    }
+
+    private void performDetectionUsingExplicitThreshold() {
+        Integer leftBorder = null;
+        Integer rightBorder = null;
         for (int x = 0; x < width; x++) {
             double lineAvg = 0;
             for (int y = 0; y < height; y++) {
@@ -66,22 +117,18 @@ public class SpectrumFrameAnalyzer {
                     max = value;
                 }
             }
-            if (lineAvg > threshold) {
+            if (lineAvg > sunDetectionThreshold) {
                 if (leftBorder == null) {
                     leftBorder = x;
                 }
                 rightBorder = x;
             }
         }
-        this.data = data;
+        this.result = findDistortionPolynomial(leftBorder, rightBorder);
     }
 
     private void reset() {
-        for (int x = 0; x < width; x++) {
-            samplePoints.clear();
-        }
-        leftBorder = null;
-        rightBorder = null;
+        result = null;
         avg = 0;
         max = 0;
         min = Double.MAX_VALUE;
@@ -105,15 +152,8 @@ public class SpectrumFrameAnalyzer {
         return -1;
     }
 
-    public Optional<Integer> leftSunBorder() {
-        return Optional.ofNullable(leftBorder);
-    }
-
-    public Optional<Integer> rightSunBorder() {
-        return Optional.ofNullable(rightBorder);
-    }
-
-    public Optional<DoubleUnaryOperator> findDistortionPolynomial() {
+    private Result findDistortionPolynomial(Integer leftBorder, Integer rightBorder) {
+        var samplePoints = new ArrayList<Point2D>(width);
         int l = 0;
         int r = width;
         if (leftBorder != null) {
@@ -151,7 +191,7 @@ public class SpectrumFrameAnalyzer {
                 }
             }
             var regression = LinearRegression.thirdOrderRegression(samplePoints.toArray(new Point2D[0]));
-            return Optional.of(regression.asPolynomial());
+            return new Result(leftBorder, rightBorder, regression.asPolynomial(), samplePoints);
         } else {
             // Not enough sample points, we have to include the whole width
             samplePoints.clear();
@@ -163,14 +203,10 @@ public class SpectrumFrameAnalyzer {
             }
             if (samplePoints.size() > 2) {
                 var triplet = LinearRegression.thirdOrderRegression(samplePoints.toArray(new Point2D[0]));
-                return Optional.of(triplet.asPolynomial());
+                return new Result(leftBorder, rightBorder, triplet.asPolynomial(), samplePoints);
             }
         }
-        return Optional.empty();
-    }
-
-    public List<Point2D> getSamplePoints() {
-        return Collections.unmodifiableList(samplePoints);
+        return new Result(leftBorder, rightBorder, null, samplePoints);
     }
 
     public double avg() {
@@ -185,4 +221,33 @@ public class SpectrumFrameAnalyzer {
         return min;
     }
 
+    public static class Result {
+        private final Integer leftBorder;
+        private final Integer rightBorder;
+        private final DoubleUnaryOperator distortionPolynomial;
+        private final List<Point2D> samplePoints;
+
+        public Result(Integer leftBorder, Integer rightBorder, DoubleUnaryOperator distortionPolynomial, List<Point2D> samplePoints) {
+            this.leftBorder = leftBorder;
+            this.rightBorder = rightBorder;
+            this.distortionPolynomial = distortionPolynomial;
+            this.samplePoints = samplePoints;
+        }
+
+        public Optional<Integer> leftBorder() {
+            return Optional.ofNullable(leftBorder);
+        }
+
+        public Optional<Integer> rightBorder() {
+            return Optional.ofNullable(rightBorder);
+        }
+
+        public Optional<DoubleUnaryOperator> distortionPolynomial() {
+            return Optional.ofNullable(distortionPolynomial);
+        }
+
+        public List<Point2D> getSamplePoints() {
+            return samplePoints;
+        }
+    }
 }

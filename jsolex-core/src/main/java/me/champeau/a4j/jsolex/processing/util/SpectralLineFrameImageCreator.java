@@ -46,7 +46,8 @@ public class SpectralLineFrameImageCreator {
 
     public RGBImage generateDebugImage(DoubleUnaryOperator forcedPolynomial) {
         int size = width * height;
-        Optional<DoubleUnaryOperator> polynomial = Optional.ofNullable(forcedPolynomial).or(analyzer::findDistortionPolynomial);
+        var lastResult = analyzer.result();
+        Optional<DoubleUnaryOperator> polynomial = Optional.ofNullable(forcedPolynomial).or(lastResult::distortionPolynomial);
         float[] corrected;
         if (polynomial.isPresent()) {
             var distorsionCorrection = new DistortionCorrection(original, width, height);
@@ -54,7 +55,7 @@ public class SpectralLineFrameImageCreator {
         } else {
             corrected = new float[size];
         }
-        var samples = analyzer.getSamplePoints();
+        var samples = lastResult.getSamplePoints();
         // We create RGB images for debugging, which contain the original image at top
         // and the corrected one at the bottom
         int spacing = 10 * width;
@@ -73,14 +74,14 @@ public class SpectralLineFrameImageCreator {
             gg[x + size + 5 * width] = MAX_PIXEL_VALUE / 2;
             bb[x + size + 5 * width] = MAX_PIXEL_VALUE;
         }
-        analyzer.leftSunBorder().ifPresent(bx -> {
+        lastResult.leftBorder().ifPresent(bx -> {
             for (int y = 0; y < height; y++) {
                 rr[offset + bx + y * width] = MAX_PIXEL_VALUE;
                 gg[offset + bx + y * width] = 0;
                 bb[offset + bx + y * width] = 0;
             }
         });
-        analyzer.rightSunBorder().ifPresent(bx -> {
+        lastResult.rightBorder().ifPresent(bx -> {
             for (int y = 0; y < height; y++) {
                 rr[offset + bx + y * width] = MAX_PIXEL_VALUE;
                 gg[offset + bx + y * width] = 0;
@@ -123,7 +124,7 @@ public class SpectralLineFrameImageCreator {
                                           boolean stretch,
                                           Consumer<? super DebugImage> debugImageConsumer) {
         int size = width * height;
-        Optional<DoubleUnaryOperator> polynomial = Optional.ofNullable(forcedPolynomial).or(analyzer::findDistortionPolynomial);
+        Optional<DoubleUnaryOperator> polynomial = Optional.ofNullable(forcedPolynomial).or(() -> analyzer.result().distortionPolynomial());
         // We create RGB images for debugging, which contain the original image at top
         // and the corrected one at the bottom
         int spacing = 10 * width;
