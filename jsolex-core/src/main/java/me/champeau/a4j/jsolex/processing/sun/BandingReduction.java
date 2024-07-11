@@ -23,6 +23,9 @@ import me.champeau.a4j.math.regression.Ellipse;
 import static me.champeau.a4j.jsolex.processing.sun.ImageUtils.bilinearSmoothing;
 
 public class BandingReduction {
+    public static final int DEFAULT_PASS_COUNT = 16;
+    public static final int DEFAULT_BAND_SIZE = 24;
+
     private BandingReduction() {
     }
 

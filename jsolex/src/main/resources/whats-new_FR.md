@@ -10,6 +10,8 @@ Voici les nouvelles fonctionnalités de cette version :
 ## Changements dans la version 2.6.1
 
 - Correction des limites de la plage de décalage de pixels qui pouvaient entraîner le rejet de certaines images (bug #344)
+- Amélioration de la correction par flat artificiel
+- Réduction des artéfacts de fond de ciel dans les images auto-stretch
 
 ## Explorateur de spectre
 

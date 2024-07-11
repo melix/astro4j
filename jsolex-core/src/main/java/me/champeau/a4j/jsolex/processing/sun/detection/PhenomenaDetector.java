@@ -26,14 +26,17 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Consumer;
 import java.util.function.DoubleUnaryOperator;
+import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
 public class PhenomenaDetector {
     private static final double SPEED_OF_LIGHT = 299792.458d;
     private final Map<Integer, List<Redshift>> redshiftsPerFrame = new ConcurrentHashMap<>();
-
+    private final Lock lock = new ReentrantLock();
     private final double dispersion;
     private final double lambda0;
     private final int reconstructedWidth;
@@ -105,18 +108,14 @@ public class PhenomenaDetector {
             }
             avgOfColumnAverages /= range;
             avgCenterLine /= avgCenterCount;
-            avgWings /= avgWingsCount;
-            var stddev = stddev(original, width, height, leftLimit, rightLimit);
             // perform per column analysis
             var collector = new ArrayList<Redshift>();
-            for (int x = leftLimit; x < rightLimit; x++) {
-                analyzeColumn(frameId, x, width, height, original, polynomial, wingShiftInPixels, collector, avgCenterLine, avgWings, stddev, avgOfColumnAverages, columnsAverages);
-            }
-
+            double finalAvgCenterLine = avgCenterLine;
+            double finalAvgOfColumnAverages = avgOfColumnAverages;
+            IntStream.range(leftLimit, rightLimit).parallel().forEach(x -> analyzeColumn(frameId, x, width, height, original, polynomial, wingShiftInPixels, collector, finalAvgCenterLine, finalAvgOfColumnAverages, columnsAverages));
             if (!collector.isEmpty()) {
                 redshiftsPerFrame.put(frameId, Collections.unmodifiableList(collector));
             }
-
         }
     }
 
@@ -162,8 +161,6 @@ public class PhenomenaDetector {
                                int wingShiftInPixels,
                                List<Redshift> collector,
                                double avgLineValue,
-                               double avgWingValue,
-                               double stddev,
                                double avgOfcolumnAverages,
                                double[] columnsAverages) {
         // The polynomial is used to find the original pixel position which is in the middle of the h-alpha line
@@ -242,15 +239,19 @@ public class PhenomenaDetector {
             return;
         }
         if (maxShift >= 2 * wingShiftInPixels) {
-            // the coordinates in the final image are reversed (x <-> y) because of a 90° rotation
-            // and flipped vertically
-            if (detectionListener != null) {
-                detectionListener.accept(new DoublePair(x, relMaxShift));
-            }
             var redshift = new Redshift(maxShift, relMaxShift, speedOf(maxShift), new IntPair(frameId, reconstructedWidth - x - 1));
-            collector.add(redshift);
+            lock.lock();
+            try {
+                // the coordinates in the final image are reversed (x <-> y) because of a 90° rotation
+                // and flipped vertically
+                if (detectionListener != null) {
+                    detectionListener.accept(new DoublePair(x, relMaxShift));
+                }
+                collector.add(redshift);
+            } finally {
+                lock.unlock();
+            }
         }
-
     }
 
     public List<RedshiftArea> getMaxRedshiftAreas(int limit) {

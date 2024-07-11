@@ -9,6 +9,8 @@ Here are the new features in this version:
 ## Changes in 2.6.1
 
 - Fixed pixel shift range limits which could cause some images to be rejected (issue #344)
+- Improved correction using artificial flat
+- Reduce background artifacts on autostretched images
 
 ## Spectrum browser
 

@@ -20,6 +20,7 @@ module me.champeau.a4j.math {
     exports me.champeau.a4j.math.matrix;
     exports me.champeau.a4j.math.regression;
     exports me.champeau.a4j.math.tuples;
+    exports me.champeau.a4j.math.image.analysis;
     requires jdk.incubator.vector;
     requires commons.math3;
 }

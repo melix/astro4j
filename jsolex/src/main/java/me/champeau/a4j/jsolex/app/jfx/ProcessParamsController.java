@@ -77,6 +77,8 @@ import java.util.Set;
 
 import static me.champeau.a4j.jsolex.app.JSolEx.message;
 import static me.champeau.a4j.jsolex.app.jfx.SetupEditor.nullable;
+import static me.champeau.a4j.jsolex.processing.sun.BandingReduction.DEFAULT_BAND_SIZE;
+import static me.champeau.a4j.jsolex.processing.sun.BandingReduction.DEFAULT_PASS_COUNT;
 
 public class ProcessParamsController {
     private boolean batchMode;
@@ -707,8 +709,8 @@ public class ProcessParamsController {
     }
 
     private void configureBandingCorrectionDefaults() {
-        bandingCorrectionWidth.setValue(24);
-        bandingCorrectionPasses.setValue(3);
+        bandingCorrectionWidth.setValue(DEFAULT_BAND_SIZE);
+        bandingCorrectionPasses.setValue(DEFAULT_PASS_COUNT);
     }
 
     private void configureClaheDefaults() {

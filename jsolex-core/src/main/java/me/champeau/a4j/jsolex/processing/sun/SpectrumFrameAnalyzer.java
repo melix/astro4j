@@ -90,8 +90,9 @@ public class SpectrumFrameAnalyzer {
         }
         stddev = Math.sqrt(stddev / width);
         // left and right border are the first and last columns which are more than 1 stddev away from the average
+        var threshold = Math.max(max/4, avgColumnAverage - stddev);
         for (int x = 0; x < width; x++) {
-            if (columnAverages[x] > avgColumnAverage - stddev) {
+            if (columnAverages[x] > threshold) {
                 if (leftBorder == null) {
                     leftBorder = x;
                 }

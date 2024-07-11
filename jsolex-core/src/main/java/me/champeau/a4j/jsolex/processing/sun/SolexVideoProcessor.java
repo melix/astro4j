@@ -356,9 +356,9 @@ public class SolexVideoProcessor implements Broadcaster {
             LOGGER.info(message("processing.done.generate.images"));
             startWorkflow(header, fps, imageList, imageNamingStrategy, baseName);
             var runnables = new ArrayList<Runnable>();
-            if (processParams.requestedImages().isEnabled(GeneratedImageKind.DOPPLER) || processParams.requestedImages().isEnabled(GeneratedImageKind.DOPPLER_ECLIPSE)) {
+            if (!imageList.isEmpty() && processParams.requestedImages().isEnabled(GeneratedImageKind.DOPPLER) || processParams.requestedImages().isEnabled(GeneratedImageKind.DOPPLER_ECLIPSE)) {
                 runnables.add(() -> {
-                    var imageEmitterFactory = new ProcessAwareImageEmitterFactory(imageList.get(0), imageNamingStrategy, baseName);
+                    var imageEmitterFactory = new ProcessAwareImageEmitterFactory(imageList.getFirst(), imageNamingStrategy, baseName);
                     var producer = new DopplerSupport(processParams, imageList, imageEmitterFactory.newEmitter(this, Constants.TYPE_PROCESSED, outputDirectory));
                     producer.produceDopplerImage();
                 });
@@ -460,6 +460,7 @@ public class SolexVideoProcessor implements Broadcaster {
             emitter = new NamingStrategyAwareImageEmitter(emitter, imageNamingStrategy, sequenceNumber, kind, baseName);
             return new DiscardNonRequiredImages(emitter, processParams.requestedImages().images());
         });
+        performFlatCorrection(imageList, fitting);
         IntStream.range(0, imageList.size()).mapToObj(i -> new Object() {
             private final WorkflowState state = imageList.get(i);
             private final int step = i;
@@ -467,9 +468,21 @@ public class SolexVideoProcessor implements Broadcaster {
             var state = o.state;
             var step = o.step;
             var imageEmitterFactory = new ProcessAwareImageEmitterFactory(state, imageNamingStrategy, baseName);
-            state.recordResult(WorkflowResults.MAIN_ELLIPSE_FITTING, fitting);
             var workflow = new ProcessingWorkflow(this, outputDirectory, imageList, step, processParams, fps, imageEmitterFactory, header);
             workflow.start();
+        });
+    }
+
+    private static void performFlatCorrection(List<WorkflowState> imageList, EllipseFittingTask.Result fitting) {
+        if (fitting == null) {
+            return;
+        }
+        var ellipse = fitting.ellipse();
+        IntStream.range(0, imageList.size()).parallel().forEach(i -> {
+            var state = imageList.get(i);
+            state.recordResult(WorkflowResults.MAIN_ELLIPSE_FITTING, fitting);
+            var corrected = FlatCorrection.correctImage(state.image(), FlatCorrection.computeCorrectionFactors(state.image(), ellipse));
+            state.setImage(corrected);
         });
     }
 
@@ -545,7 +558,8 @@ public class SolexVideoProcessor implements Broadcaster {
             var max = pixelShiftRange.maxPixelShift();
             var step = pixelShiftRange.step();
             for (var s = min; s <= max; s += step) {
-                if (!explicit.contains(s) && !internal.contains(s)) {
+                Double s2 = s;
+                if (!explicit.contains(s) && !internal.contains(s) && imageList.stream().map(WorkflowState::pixelShift).noneMatch(s2::equals)) {
                     var state = new WorkflowState(width, newHeight, s);
                     state.setInternal(true);
                     imageList.add(state);
@@ -881,7 +895,8 @@ public class SolexVideoProcessor implements Broadcaster {
         imageList.addAll(list);
     }
 
-    private ReconstructionOutputs performImageReconstruction(ImageConverter<float[]> converter, SerFileReader reader, int start, int end, ImageGeometry geometry, int width, int height, DoubleUnaryOperator polynomial, AtomicInteger processedCount, int totalCount, WorkflowState... images) {
+    private ReconstructionOutputs performImageReconstruction(ImageConverter<float[]> converter, SerFileReader reader, int start, int end, ImageGeometry geometry, int width, int height, DoubleUnaryOperator polynomial, AtomicInteger processedCount,
+                                                             int totalCount, WorkflowState... images) {
         reader.seekFrame(start);
         int totalLines = end - start;
         var lambda0 = processParams.spectrumParams().ray().wavelength();
@@ -937,7 +952,9 @@ public class SolexVideoProcessor implements Broadcaster {
             }
             for (int i = 0; i < images.length; i++) {
                 var state = images[i];
-                state.recordResult(WorkflowResults.RECONSTRUCTED, new ImageWrapper32(width, totalLines, reconstructedImages[i], MutableMap.of()));
+                var reconstructedImage = reconstructedImages[i];
+                var recon = new ImageWrapper32(width, totalLines, reconstructedImage, MutableMap.of());
+                state.recordResult(WorkflowResults.RECONSTRUCTED, recon);
             }
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();

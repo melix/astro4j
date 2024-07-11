@@ -20,7 +20,7 @@ public class StretchingUtils {
     }
 
 
-    static double[] performSmoothing(int[] values) {
+    public static double[] performSmoothing(int[] values) {
         double[] result = new double[values.length];
         double max = 0;
         result[0] = (2 * values[0] + values[1]) / 3d;
