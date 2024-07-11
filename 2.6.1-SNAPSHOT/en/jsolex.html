@@ -469,6 +469,7 @@ body.book #toc,body.book #preamble,body.book h1.sect0,body.book .sect1>h2{page-b
 <li><a href="#_image_enhancement">Image enhancement</a></li>
 <li><a href="#_observation_parameters">Observation parameters</a></li>
 <li><a href="#_other_parameters">Other parameters</a></li>
+<li><a href="#force-polynomial">Force polynomial</a></li>
 <li><a href="#filename-templates">File naming patterns</a></li>
 <li><a href="#_process_start">Process start</a>
 <ul class="sectlevel2">
@@ -607,6 +608,9 @@ You can specify:</p>
 </li>
 <li>
 <p>Force X/Y ratio: similarly, the X/Y ratio which is detected may be inaccurrate, in which case you can force it to a particular value.</p>
+</li>
+<li>
+<p>Force polynomial: this lets you override the detected spectral line, if for some reason it is not detected correctly. See the <a href="#force-polynomial">section about forcing the polynomial</a> for more information.</p>
 </li>
 <li>
 <p>Horizontal and vertical inversion let you mirror the image so that you match the North and East as expected in the output images.</p>
@@ -748,6 +752,41 @@ As of now, we do <em>not</em> recommend to publish images produced using JSol&#8
 <p>Generate FITS files : in addition to PNG files, will also generate FITS files.</p>
 </li>
 </ul>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="force-polynomial">Force polynomial</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>JSol&#8217;Ex performs detection of the spectral line by looking for the darkest line in the image, then fitting a 3rd order polynomial to it.
+Sometimes, detection may be incorrect, in which case you can force a polynomial to be used.</p>
+</div>
+<div class="paragraph">
+<p>In order to do this, click on the "force polynomial" button, which will let you enter the polynomial coefficients.</p>
+</div>
+<div class="paragraph">
+<p>The format of the polynomial is a list of 4 numbers between curly braces, separated by commas, for example: <code>{1.3414109042116584E-10,3.889927699830093E-5,-0.056529799336687114,35.76051527062038}</code>.</p>
+</div>
+<div class="paragraph">
+<p>The easiest way to get the polynomial coefficients is to click on the "&#8230;&#8203;" button, which will open a window with the average image and the detected spectral line :</p>
+</div>
+<div class="imageblock">
+<div class="content">
+<img src="force-polynomial-1.jpg" alt="force polynomial 1">
+</div>
+</div>
+<div class="paragraph">
+<p>You can then press "CTRL" then click on the line to add measurement points: a red cross will be added for each point.
+When you have enough points, click on the "Compute polynomial" button, which will fit a 3rd order polynomial to the points and automatically fill the "force polynomial" field in the process parameters:</p>
+</div>
+<div class="imageblock">
+<div class="content">
+<img src="force-polynomial-2.jpg" alt="force polynomial 2">
+</div>
+</div>
+<div class="paragraph">
+<p>You can then close the popup and start processing.</p>
 </div>
 </div>
 </div>

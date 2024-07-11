@@ -469,6 +469,7 @@ body.book #toc,body.book #preamble,body.book h1.sect0,body.book .sect1>h2{page-b
 <li><a href="#_paramètres_damélioration_de_limage">Paramètres d&#8217;amélioration de l&#8217;image</a></li>
 <li><a href="#_paramètres_dobservation">Paramètres d&#8217;observation</a></li>
 <li><a href="#_autres_paramètres_disponibles">Autres paramètres disponibles</a></li>
+<li><a href="#force-polynomial">Forcer le polynôme</a></li>
 <li><a href="#modele-noms-fichier">Modèles de noms de fichier</a></li>
 <li><a href="#_lancer_un_traitement">Lancer un traitement</a>
 <ul class="sectlevel2">
@@ -632,6 +633,9 @@ Vous pouvez préciser:</p>
 <p>Forcer le rapport X/Y : de manière similaire, sur certaines images dans des raies difficiles, l&#8217;ellipse peut ne pas parfaitement correspondre au disque solaire et ne pas reconstituer un soleil parfaitement circulaire. Vous pouvez surcharger le rapport détecté pour corriger ces problèmes</p>
 </li>
 <li>
+<p>Forcer le polynôme: permet de forcer le polynôme de second degré utilisé pour modéliser la raie spectrale. Voir la <a href="#force-polynomial">section sur le forçage du polynôme</a> pour plus d&#8217;informations.</p>
+</li>
+<li>
 <p>Inverser l&#8217;axe horizontal/vertical : permet de retourner l&#8217;image verticalement et horizontalement pour avoir le Nord et l&#8217;Est bien orientés</p>
 </li>
 <li>
@@ -772,6 +776,39 @@ A noter qu&#8217;à ce stade, nous ne recommandons pas d&#8217;envoyer les image
 <p>Générer des fichiers FITS : permet de générer des fichiers FITS, non destructifs, en plus des images PNG</p>
 </li>
 </ul>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="force-polynomial">Forcer le polynôme</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>JSol&#8217;Ex effectue une détection de la raie spectrale en cherchant la ligne la plus sombre dans l&#8217;image, puis en ajustant un polynôme de 3ème ordre.
+Il arrive parfois que la détection soit incorrecte, auquel cas vous pouvez forcer l&#8217;utilisation d&#8217;un polynôme.
+Pour ce faire, cliquez sur le bouton "forcer le polynôme", qui vous permettra d&#8217;entrer les coefficients du polynôme.</p>
+</div>
+<div class="paragraph">
+<p>Le format du polynôme est une liste de 4 nombres entre accolades, séparés par des virgules, par exemple: <code>{1.3414109042116584E-10,3.889927699830093E-5,-0.056529799336687114,35.76051527062038}</code>.</p>
+</div>
+<div class="paragraph">
+<p>La façon la plus simple d&#8217;obtenir les coefficients du polynôme est de cliquer sur les "&#8230;&#8203;" qui ouvrira une fenêtre avec l&#8217;image moyenne et la raie spectrale détectée :</p>
+</div>
+<div class="imageblock">
+<div class="content">
+<img src="force-polynomial-1.jpg" alt="force polynomial 1">
+</div>
+</div>
+<div class="paragraph">
+<p>Vous pouvez alors appuyer sur "CTRL" puis cliquer sur la ligne pour ajouter des points de mesure : une croix rouge sera ajoutée pour chaque point.
+Lorsque vous avez suffisamment de points, cliquez sur le bouton "Calculer le polynôme", qui ajustera un polynôme de 3ème ordre aux points et remplira automatiquement le champ "polynôme de force" dans les paramètres de traitement :</p>
+</div>
+<div class="imageblock">
+<div class="content">
+<img src="force-polynomial-2.jpg" alt="force polynomial 2">
+</div>
+</div>
+<div class="paragraph">
+<p>You can then close the popup and start processing.</p>
 </div>
 </div>
 </div>
