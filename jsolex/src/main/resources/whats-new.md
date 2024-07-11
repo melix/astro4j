@@ -4,10 +4,12 @@ Here are the new features in this version:
 
 - [Spectrum browser](spectrum-browser)
 - [New ImageMath functions](#new-ImageMath-functions)
+- [Forcing a polynomial](#forcing-a-polynomial)
 - [Bugfixes and improvements](#bugfixes-and-improvements)
 
 ## Changes in 2.6.1
 
+- Added the ability to force the polynomial (see below)
 - Fixed pixel shift range limits which could cause some images to be rejected (issue #344)
 - Improved correction using artificial flat
 - Reduce background artifacts on autostretched images
@@ -27,6 +29,14 @@ This can be particularly useful for learning purposes, but also in order to find
 ## New ImageMath functions
 
 - the `draw_earth` function has been added to draw the Earth on an image, scaled accordingly to the solar disk
+
+## Forcing a polynomial
+
+Since version 2.6.1, it is possible to force the polynomial used to detect the spectral line.
+To do so, in the processing settings, check the "Force polynomial" box, then click on the "...".
+This will open a window showing you the calculated average image.
+On this image, press `Ctrl` + left click to add a point on the spectral line, until you have added enough points.
+Then click on the "Calculate polynomial" button: the value will be displayed in the window and automatically reported in the processing settings.
 
 ## Bugfixes and improvements
 

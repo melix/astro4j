@@ -43,6 +43,8 @@ class GeometryParamsSerializer implements JsonSerializer<GeometryParams>, JsonDe
         var autocropMode = o.get("autocropMode") != null ? AutocropMode.valueOf(o.get("autocropMode").getAsString()) : AutocropMode.OFF;
         var deconvolutionMode = o.get("deconvolutionMode") != null ? DeconvolutionMode.valueOf(o.get("deconvolutionMode").getAsString()) : DeconvolutionMode.NONE;
         var richardsonLucyDeconvolutionParams = readRichardsonLucyDeconvolutionParams(o.get("richardsonLucyDeconvolutionParams"));
+        var forcePolynomial = o.get("forcePolynomial") != null ? o.get("forcePolynomial").getAsBoolean() : false;
+        var forcedPolynomial = o.get("forcedPolynomial") != null ? o.get("forcedPolynomial").getAsString() : null;
         return new GeometryParams(
             tilt == null ? null : tilt.getAsDouble(),
             ratio == null ? null : ratio.getAsDouble(),
@@ -54,7 +56,9 @@ class GeometryParamsSerializer implements JsonSerializer<GeometryParams>, JsonDe
             scanDirection,
             autocropMode,
             deconvolutionMode,
-            richardsonLucyDeconvolutionParams);
+            richardsonLucyDeconvolutionParams,
+            forcePolynomial,
+            forcedPolynomial);
     }
 
     private RichardsonLucyDeconvolutionParams readRichardsonLucyDeconvolutionParams(JsonElement params) {
@@ -86,6 +90,8 @@ class GeometryParamsSerializer implements JsonSerializer<GeometryParams>, JsonDe
             value.addProperty("iterations", rl.iterations());
             jsonObject.add("richardsonLucyDeconvolutionParams", value);
         });
+        jsonObject.addProperty("forcePolynomial", src.isForcePolynomial());
+        src.forcedPolynomial().ifPresent(forcedPolynomial -> jsonObject.addProperty("forcedPolynomial", forcedPolynomial));
         return jsonObject;
     }
 }

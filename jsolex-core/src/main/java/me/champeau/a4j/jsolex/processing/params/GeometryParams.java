@@ -30,6 +30,8 @@ public class GeometryParams {
     private final AutocropMode autocropMode;
     private final DeconvolutionMode deconvolutionMode;
     private final RichardsonLucyDeconvolutionParams richardsonLucyDeconvolutionParams;
+    private final boolean forcePolynomial;
+    private final String forcedPolynomial;
 
     public GeometryParams(Double tilt,
                           Double xyRatio,
@@ -41,7 +43,9 @@ public class GeometryParams {
                           RotationKind rotation,
                           AutocropMode autocropMode,
                           DeconvolutionMode deconvolutionMode,
-                          RichardsonLucyDeconvolutionParams richardsonLucyDeconvolutionParams) {
+                          RichardsonLucyDeconvolutionParams richardsonLucyDeconvolutionParams,
+                          boolean forcePolynomial,
+                          String forcedPolynomial) {
         this.tilt = tilt;
         this.xyRatio = xyRatio;
         this.horizontalMirror = horizontalMirror;
@@ -53,6 +57,8 @@ public class GeometryParams {
         this.autocropMode = autocropMode;
         this.deconvolutionMode = deconvolutionMode;
         this.richardsonLucyDeconvolutionParams = richardsonLucyDeconvolutionParams;
+        this.forcePolynomial = forcePolynomial;
+        this.forcedPolynomial = forcedPolynomial;
     }
 
     public OptionalDouble tilt() {
@@ -99,48 +105,64 @@ public class GeometryParams {
         return Optional.ofNullable(richardsonLucyDeconvolutionParams);
     }
 
+    public boolean isForcePolynomial() {
+        return forcePolynomial;
+    }
+
+    public Optional<String> forcedPolynomial() {
+        return Optional.ofNullable(forcedPolynomial);
+    }
+
     public GeometryParams withTilt(Double tilt) {
-        return new GeometryParams(tilt, xyRatio, horizontalMirror, verticalMirror, sharpen, disallowDownsampling, autocorrectAngleP, rotation, autocropMode, deconvolutionMode, richardsonLucyDeconvolutionParams);
+        return new GeometryParams(tilt, xyRatio, horizontalMirror, verticalMirror, sharpen, disallowDownsampling, autocorrectAngleP, rotation, autocropMode, deconvolutionMode, richardsonLucyDeconvolutionParams, forcePolynomial, forcedPolynomial);
     }
 
     public GeometryParams withXYRatio(Double xyRatio) {
-        return new GeometryParams(tilt, xyRatio, horizontalMirror, verticalMirror, sharpen, disallowDownsampling, autocorrectAngleP, rotation, autocropMode, deconvolutionMode, richardsonLucyDeconvolutionParams);
+        return new GeometryParams(tilt, xyRatio, horizontalMirror, verticalMirror, sharpen, disallowDownsampling, autocorrectAngleP, rotation, autocropMode, deconvolutionMode, richardsonLucyDeconvolutionParams, forcePolynomial, forcedPolynomial);
     }
 
     public GeometryParams withHorizontalMirror(boolean horizontalMirror) {
-        return new GeometryParams(tilt, xyRatio, horizontalMirror, verticalMirror, sharpen, disallowDownsampling, autocorrectAngleP, rotation, autocropMode, deconvolutionMode, richardsonLucyDeconvolutionParams);
+        return new GeometryParams(tilt, xyRatio, horizontalMirror, verticalMirror, sharpen, disallowDownsampling, autocorrectAngleP, rotation, autocropMode, deconvolutionMode, richardsonLucyDeconvolutionParams, forcePolynomial, forcedPolynomial);
     }
 
     public GeometryParams withVerticalMirror(boolean verticalMirror) {
-        return new GeometryParams(tilt, xyRatio, horizontalMirror, verticalMirror, sharpen, disallowDownsampling, autocorrectAngleP, rotation, autocropMode, deconvolutionMode, richardsonLucyDeconvolutionParams);
+        return new GeometryParams(tilt, xyRatio, horizontalMirror, verticalMirror, sharpen, disallowDownsampling, autocorrectAngleP, rotation, autocropMode, deconvolutionMode, richardsonLucyDeconvolutionParams, forcePolynomial, forcedPolynomial);
     }
 
     public GeometryParams withSharpen(boolean sharpen) {
-        return new GeometryParams(tilt, xyRatio, horizontalMirror, verticalMirror, sharpen, disallowDownsampling, autocorrectAngleP, rotation, autocropMode, deconvolutionMode, richardsonLucyDeconvolutionParams);
+        return new GeometryParams(tilt, xyRatio, horizontalMirror, verticalMirror, sharpen, disallowDownsampling, autocorrectAngleP, rotation, autocropMode, deconvolutionMode, richardsonLucyDeconvolutionParams, forcePolynomial, forcedPolynomial);
     }
 
     public GeometryParams withDisallowDownsampling(boolean disallowDownsampling) {
-        return new GeometryParams(tilt, xyRatio, horizontalMirror, verticalMirror, sharpen, disallowDownsampling, autocorrectAngleP, rotation, autocropMode, deconvolutionMode, richardsonLucyDeconvolutionParams);
+        return new GeometryParams(tilt, xyRatio, horizontalMirror, verticalMirror, sharpen, disallowDownsampling, autocorrectAngleP, rotation, autocropMode, deconvolutionMode, richardsonLucyDeconvolutionParams, forcePolynomial, forcedPolynomial);
     }
 
     public GeometryParams withAutocorrectAngleP(boolean autocorrectAngleP) {
-        return new GeometryParams(tilt, xyRatio, horizontalMirror, verticalMirror, sharpen, disallowDownsampling, autocorrectAngleP, rotation, autocropMode, deconvolutionMode, richardsonLucyDeconvolutionParams);
+        return new GeometryParams(tilt, xyRatio, horizontalMirror, verticalMirror, sharpen, disallowDownsampling, autocorrectAngleP, rotation, autocropMode, deconvolutionMode, richardsonLucyDeconvolutionParams, forcePolynomial, forcedPolynomial);
     }
 
     public GeometryParams withRotation(RotationKind rotation) {
-        return new GeometryParams(tilt, xyRatio, horizontalMirror, verticalMirror, sharpen, disallowDownsampling, autocorrectAngleP, rotation, autocropMode, deconvolutionMode, richardsonLucyDeconvolutionParams);
+        return new GeometryParams(tilt, xyRatio, horizontalMirror, verticalMirror, sharpen, disallowDownsampling, autocorrectAngleP, rotation, autocropMode, deconvolutionMode, richardsonLucyDeconvolutionParams, forcePolynomial, forcedPolynomial);
     }
 
     public GeometryParams withAutocropMode(AutocropMode autocropMode) {
-        return new GeometryParams(tilt, xyRatio, horizontalMirror, verticalMirror, sharpen, disallowDownsampling, autocorrectAngleP, rotation, autocropMode, deconvolutionMode, richardsonLucyDeconvolutionParams);
+        return new GeometryParams(tilt, xyRatio, horizontalMirror, verticalMirror, sharpen, disallowDownsampling, autocorrectAngleP, rotation, autocropMode, deconvolutionMode, richardsonLucyDeconvolutionParams, forcePolynomial, forcedPolynomial);
     }
 
     public GeometryParams withDeconvolutionMode(DeconvolutionMode deconvolutionMode) {
-        return new GeometryParams(tilt, xyRatio, horizontalMirror, verticalMirror, sharpen, disallowDownsampling, autocorrectAngleP, rotation, autocropMode, deconvolutionMode, richardsonLucyDeconvolutionParams);
+        return new GeometryParams(tilt, xyRatio, horizontalMirror, verticalMirror, sharpen, disallowDownsampling, autocorrectAngleP, rotation, autocropMode, deconvolutionMode, richardsonLucyDeconvolutionParams, forcePolynomial, forcedPolynomial);
     }
 
     public GeometryParams withRichardsonLucyDeconvolutionParams(RichardsonLucyDeconvolutionParams richardsonLucyDeconvolutionParams) {
-        return new GeometryParams(tilt, xyRatio, horizontalMirror, verticalMirror, sharpen, disallowDownsampling, autocorrectAngleP, rotation, autocropMode, deconvolutionMode, richardsonLucyDeconvolutionParams);
+        return new GeometryParams(tilt, xyRatio, horizontalMirror, verticalMirror, sharpen, disallowDownsampling, autocorrectAngleP, rotation, autocropMode, deconvolutionMode, richardsonLucyDeconvolutionParams, forcePolynomial, forcedPolynomial);
+    }
+
+    public GeometryParams withForcePolynomial(boolean forcePolynomial) {
+        return new GeometryParams(tilt, xyRatio, horizontalMirror, verticalMirror, sharpen, disallowDownsampling, autocorrectAngleP, rotation, autocropMode, deconvolutionMode, richardsonLucyDeconvolutionParams, forcePolynomial, forcedPolynomial);
+    }
+
+    public GeometryParams withForcedPolynomial(String forcedPolynomial) {
+        return new GeometryParams(tilt, xyRatio, horizontalMirror, verticalMirror, sharpen, disallowDownsampling, autocorrectAngleP, rotation, autocropMode, deconvolutionMode, richardsonLucyDeconvolutionParams, forcePolynomial, forcedPolynomial);
     }
 
     @Override

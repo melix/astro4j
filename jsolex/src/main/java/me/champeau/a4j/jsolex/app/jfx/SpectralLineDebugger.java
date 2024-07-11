@@ -18,9 +18,11 @@ package me.champeau.a4j.jsolex.app.jfx;
 import javafx.animation.PauseTransition;
 import javafx.beans.value.ChangeListener;
 import javafx.fxml.FXML;
+import javafx.scene.Parent;
 import javafx.scene.Scene;
 import javafx.scene.canvas.Canvas;
 import javafx.scene.canvas.GraphicsContext;
+import javafx.scene.control.Button;
 import javafx.scene.control.CheckBox;
 import javafx.scene.control.Label;
 import javafx.scene.control.ProgressBar;
@@ -44,8 +46,8 @@ import me.champeau.a4j.jsolex.processing.params.ProcessParamsIO;
 import me.champeau.a4j.jsolex.processing.params.SpectralRay;
 import me.champeau.a4j.jsolex.processing.spectrum.SpectrumAnalyzer;
 import me.champeau.a4j.jsolex.processing.stretching.ArcsinhStretchingStrategy;
-import me.champeau.a4j.jsolex.processing.sun.ImageUtils;
 import me.champeau.a4j.jsolex.processing.sun.AverageImageCreator;
+import me.champeau.a4j.jsolex.processing.sun.ImageUtils;
 import me.champeau.a4j.jsolex.processing.sun.SpectrumFrameAnalyzer;
 import me.champeau.a4j.jsolex.processing.sun.detection.PhenomenaDetector;
 import me.champeau.a4j.jsolex.processing.util.BackgroundOperations;
@@ -53,14 +55,17 @@ import me.champeau.a4j.jsolex.processing.util.Constants;
 import me.champeau.a4j.jsolex.processing.util.ImageFormat;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 import me.champeau.a4j.jsolex.processing.util.MutableMap;
+import me.champeau.a4j.jsolex.processing.util.ProcessingException;
 import me.champeau.a4j.jsolex.processing.util.SpectralLineFrameImageCreator;
 import me.champeau.a4j.math.Point2D;
+import me.champeau.a4j.math.regression.LinearRegression;
 import me.champeau.a4j.ser.ColorMode;
 import me.champeau.a4j.ser.ImageGeometry;
 import me.champeau.a4j.ser.SerFileReader;
 import me.champeau.a4j.ser.bayer.ImageConverter;
 
 import java.io.File;
+import java.io.IOException;
 import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.EnumSet;
@@ -68,9 +73,11 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.function.Consumer;
 import java.util.function.DoubleUnaryOperator;
 import java.util.stream.Collectors;
 
+import static me.champeau.a4j.jsolex.app.jfx.FXUtils.newStage;
 import static me.champeau.a4j.jsolex.processing.sun.ImageUtils.createImageConverter;
 
 public class SpectralLineDebugger {
@@ -105,6 +112,12 @@ public class SpectralLineDebugger {
     private CheckBox lockPolynomialCheckbox;
 
     @FXML
+    private Button computePolynomial;
+
+    @FXML
+    private TextField polynomialTextField;
+
+    @FXML
     private Slider contrastBoost;
 
     @FXML
@@ -126,6 +139,26 @@ public class SpectralLineDebugger {
     private SerFileReader reader;
     private SpectrumAnalyzer.QueryDetails spectralRayDetectionResult;
     private ProcessParams processParams;
+    private Consumer<? super String> onPolynomialComputed;
+
+    public static Stage open(File file, Consumer<? super String> onPolynomialComputed) {
+        var fxmlLoader = I18N.fxmlLoader(JSolEx.class, "frame-debugger");
+        Object configWindow;
+        try {
+            configWindow = fxmlLoader.load();
+        } catch (IOException e) {
+            throw new ProcessingException(e);
+        }
+        var controller = (SpectralLineDebugger) fxmlLoader.getController();
+        controller.onPolynomialComputed = onPolynomialComputed;
+        var stage = newStage();
+        Scene scene = new Scene((Parent) configWindow);
+        controller.open(file, null, scene, stage);
+        stage.setTitle(I18N.string(JSolEx.class, "frame-debugger", "frame.debugger") + " (" + file.getName() + ")");
+        stage.setScene(scene);
+        stage.show();
+        return stage;
+    }
 
     public void open(File file, ColorMode colorMode, Scene scene, Stage stage) {
         var toggleGroup = new ToggleGroup();
@@ -156,6 +189,8 @@ public class SpectralLineDebugger {
         });
         status.setDisable(true);
         BackgroundOperations.asyncIo(() -> prepareView(file, colorMode, scene, stage, toggleGroup));
+        computePolynomial.setDisable(true);
+        polynomialTextField.setDisable(true);
     }
 
     private void fireZoomChanged(Scene scene) {
@@ -212,6 +247,16 @@ public class SpectralLineDebugger {
                     );
                     pause.playFromStart();
                 };
+                computePolynomial.setOnAction(e -> {
+                    var polynomial = LinearRegression.thirdOrderRegression(samplePoints.toArray(new Point2D[0]));
+                    polynomialTextField.setText(polynomial.asPolynomialString());
+                    if (onPolynomialComputed != null) {
+                        onPolynomialComputed.accept(polynomial.asPolynomialString());
+                    }
+                    lockedPolynomial = polynomial.asPolynomial();
+                    processFrame(converter, reader, geometry, Integer.parseInt(frameId.getText()), imageFile, null, scene);
+                    redraw();
+                });
                 frameSlider.valueProperty().addListener(listener);
                 frameId.textProperty().addListener((observable, oldValue, newValue) -> {
                     if (!newValue.trim().isEmpty() && !Objects.equals(oldValue, newValue)) {
@@ -374,6 +419,13 @@ public class SpectralLineDebugger {
                 double avgDist = computeAverageDistanceToSpectralLineFromSamples();
                 info.setText(localized("average.distance.spectral.line") + " " + Math.round(avgDist));
                 redraw();
+                if (samplePoints.size()>2) {
+                    computePolynomial.setDisable(false);
+                    polynomialTextField.setDisable(false);
+                } else {
+                    computePolynomial.setDisable(true);
+                    polynomialTextField.setDisable(true);
+                }
                 return;
             }
             sampleDistances.clear();

@@ -55,6 +55,8 @@
                 </Label>
                 <TextField fx:id="sunDetectionThreshold" maxWidth="100"/>
                 <CheckBox fx:id="lockPolynomialCheckbox" text="%lock.polynomial"/>
+                <Button fx:id="computePolynomial" text="%compute.polynomial"/>
+                <TextField fx:id="polynomialTextField" editable="false"/>
                 <Label text="%contrast"/>
                 <Slider fx:id="contrastBoost" max="200" min="0"/>
             </HBox>

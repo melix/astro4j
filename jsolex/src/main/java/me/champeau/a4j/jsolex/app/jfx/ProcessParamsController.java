@@ -21,6 +21,7 @@ import javafx.fxml.FXML;
 import javafx.scene.Parent;
 import javafx.scene.Scene;
 import javafx.scene.control.Accordion;
+import javafx.scene.control.Button;
 import javafx.scene.control.ButtonType;
 import javafx.scene.control.CheckBox;
 import javafx.scene.control.ChoiceBox;
@@ -67,6 +68,7 @@ import me.champeau.a4j.math.tuples.DoublePair;
 import me.champeau.a4j.ser.ColorMode;
 import me.champeau.a4j.ser.Header;
 
+import java.io.File;
 import java.io.IOException;
 import java.time.ZonedDateTime;
 import java.util.EnumSet;
@@ -74,6 +76,7 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.CopyOnWriteArrayList;
 
 import static me.champeau.a4j.jsolex.app.JSolEx.message;
 import static me.champeau.a4j.jsolex.app.jfx.SetupEditor.nullable;
@@ -187,17 +190,25 @@ public class ProcessParamsController {
     private TextField rlSigma;
     @FXML
     private TextField rlIterations;
+    @FXML
+    private CheckBox forcePolynomial;
+    @FXML
+    private TextField forcedPolynomial;
+    @FXML
+    private Button forcePolynomialOpen;
 
-
+    private final List<Stage> popups = new CopyOnWriteArrayList<>();
     private Stage stage;
+    private File serFile;
     private Header serFileHeader;
     private ProcessParams initialProcessParams;
     private ProcessParams processParams;
     private boolean forceCamera;
     private boolean showCoordinatesInDetails;
 
-    public void setup(Stage stage, Header serFileHeader, CaptureSoftwareMetadataHelper.CaptureMetadata md, boolean batchMode, HostServices hostServices) {
+    public void setup(Stage stage, File serFile, Header serFileHeader, CaptureSoftwareMetadataHelper.CaptureMetadata md, boolean batchMode, HostServices hostServices) {
         this.stage = stage;
+        this.serFile = serFile;
         this.serFileHeader = serFileHeader;
         this.hostServices = hostServices;
         this.initialProcessParams = ProcessParams.loadDefaults();
@@ -433,6 +444,10 @@ public class ProcessParamsController {
                 return instruments.stream().filter(i -> i.label().equals(string)).findFirst().orElse(SpectroHeliograph.SOLEX);
             }
         });
+        forcedPolynomial.disableProperty().bind(forcePolynomial.selectedProperty().not());
+        forcePolynomial.setSelected(initialProcessParams.geometryParams().isForcePolynomial());
+        forcePolynomialOpen.disableProperty().bind(forcePolynomial.selectedProperty().not());
+        forcedPolynomial.setText(initialProcessParams.geometryParams().forcedPolynomial().orElse(null));
     }
 
     private void configureRichardsonLucyDefaults() {
@@ -451,6 +466,13 @@ public class ProcessParamsController {
                 })
             )
         );
+    }
+
+    @FXML
+    public void openVideoDebugger() {
+        var debugger = SpectralLineDebugger.open(serFile, polynomial -> forcedPolynomial.setText(polynomial));
+        popups.add(debugger);
+        debugger.setOnCloseRequest(e -> popups.remove(debugger));
     }
 
     @FXML
@@ -535,13 +557,24 @@ public class ProcessParamsController {
                 });
                 stage.setOnCloseRequest(onCloseRequest);
                 stage.setTitle(title);
+                closePopups();
+                popups.clear();
             });
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
     }
 
+    private void closePopups() {
+        popups.forEach(p -> {
+            if (p.isShowing()) {
+                p.close();
+            }
+        });
+    }
+
     private void doProcess(RequestedImages requestedImages) {
+        closePopups();
         var focalLength = this.focalLength.getText();
         var aperture = this.aperture.getText();
         var latitude = this.latitude.getText();
@@ -600,7 +633,9 @@ public class ProcessParamsController {
                     Double.parseDouble(rlRadius.getText()),
                     Double.parseDouble(rlSigma.getText()),
                     Integer.parseInt(rlIterations.getText())
-                )),
+                ),
+                forcePolynomial.isSelected(),
+                forcedPolynomial.getText()),
             new BandingCorrectionParams(
                 (int) Math.round(bandingCorrectionWidth.getValue()),
                 (int) Math.round(bandingCorrectionPasses.getValue())
@@ -667,10 +702,12 @@ public class ProcessParamsController {
         verticalMirror.setSelected(false);
         horizontalMirror.setSelected(false);
         rotation.getSelectionModel().select(RotationKind.NONE);
-        autocorrectAngleP.setSelected(true);
+        autocorrectAngleP.setSelected(false);
         forceTilt.setSelected(false);
         forceXYRatio.setSelected(false);
         disallowDownsampling.setSelected(false);
+        forcePolynomial.setSelected(false);
+        forcedPolynomial.setText(null);
     }
 
     @FXML

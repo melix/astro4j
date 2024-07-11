@@ -15,6 +15,8 @@
  */
 package me.champeau.a4j.math.tuples;
 
+import java.util.Locale;
+import java.util.Optional;
 import java.util.function.DoubleUnaryOperator;
 
 /**
@@ -40,6 +42,19 @@ public record DoubleQuadruplet(
         @Override
         public String toString() {
             return String.format("ax3 + bx2 + cx + d = 0\n   - a = %s\n   - b = %s\n   - c = %s\n   - d = %s", a, b, c, d);
+        }
+    }
+
+    public String asPolynomialString() {
+        return String.format(Locale.US, "{%s,%s,%s,%s}", a, b, c, d);
+    }
+
+    public static Optional<DoubleQuadruplet> parsePolynomial(String polynomial) {
+        try {
+            String[] parts = polynomial.substring(1, polynomial.length() - 1).split("\\s*,\\s*");
+            return Optional.of(new DoubleQuadruplet(Double.parseDouble(parts[0]), Double.parseDouble(parts[1]), Double.parseDouble(parts[2]), Double.parseDouble(parts[3])));
+        } catch (Exception e) {
+            return Optional.empty();
         }
     }
 }

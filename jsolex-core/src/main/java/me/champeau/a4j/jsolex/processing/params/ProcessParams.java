@@ -62,7 +62,9 @@ public record ProcessParams(
                 geometryParams().rotation(),
                 geometryParams().autocropMode(),
                 geometryParams().deconvolutionMode(),
-                geometryParams().richardsonLucyDeconvolutionParams().orElse(null)
+                geometryParams().richardsonLucyDeconvolutionParams().orElse(null),
+                geometryParams().isForcePolynomial(),
+                geometryParams().forcedPolynomial().orElse(null)
             ),
             bandingCorrectionParams,
             requestedImages,
