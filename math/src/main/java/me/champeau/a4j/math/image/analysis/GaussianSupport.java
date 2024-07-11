@@ -15,6 +15,8 @@
  */
 package me.champeau.a4j.math.image.analysis;
 
+import me.champeau.a4j.math.image.Kernel;
+
 public class GaussianSupport {
     private GaussianSupport() {
 
@@ -28,6 +30,41 @@ public class GaussianSupport {
             }
         }
         return gaussian;
+    }
+
+    public static float[][] gaussianSquareAsFloat(int n, float sigma) {
+        var gaussian = new float[n][n];
+        for (int x = 0; x < n; x++) {
+            for (int y = 0; y < n; y++) {
+                gaussian[y][x] = (float) gaussian(x, y, sigma);
+            }
+        }
+        return gaussian;
+    }
+
+    public static Kernel gaussianKernel(int n, float sigma) {
+        var kernel = gaussianSquareAsFloat(n, sigma);
+        return new Kernel() {
+            @Override
+            public int rows() {
+                return n;
+            }
+
+            @Override
+            public int cols() {
+                return n;
+            }
+
+            @Override
+            public float[][] kernel() {
+                return kernel;
+            }
+
+            @Override
+            public float factor() {
+                return 1;
+            }
+        };
     }
 
     public static double gaussian(double x, double y, double sigma) {

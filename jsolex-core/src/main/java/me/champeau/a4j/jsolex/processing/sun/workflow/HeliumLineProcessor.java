@@ -78,7 +78,7 @@ public class HeliumLineProcessor {
             for (int i = 0; i < 64; i++) {
                 BandingReduction.reduceBanding(image.width(), image.height(), image.data(), 8, ellipse);
             }
-            new AutohistogramStrategy(processParams.autoStretchParams().gamma()).stretch(image);
+            new AutohistogramStrategy(processParams.autoStretchParams().gamma(), 0.98).stretch(image);
             imageEmitter.newMonoImage(GeneratedImageKind.GEOMETRY_CORRECTED_PROCESSED, "Helium D3", "helium", image);
             var profile = SpectralRayIO.loadDefaults()
                 .stream()

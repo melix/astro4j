@@ -39,6 +39,8 @@ import java.util.EnumSet;
 import java.util.List;
 import java.util.Set;
 
+import static me.champeau.a4j.jsolex.processing.sun.BandingReduction.DEFAULT_BAND_SIZE;
+import static me.champeau.a4j.jsolex.processing.sun.BandingReduction.DEFAULT_PASS_COUNT;
 import static me.champeau.a4j.jsolex.processing.util.Constants.message;
 
 public abstract class ProcessParamsIO {
@@ -94,7 +96,7 @@ public abstract class ProcessParamsIO {
             new ExtraParams(false, true, EnumSet.of(ImageFormat.PNG), FileNamingStrategy.DEFAULT_TEMPLATE, FileNamingStrategy.DEFAULT_DATETIME_FORMAT, FileNamingStrategy.DEFAULT_DATE_FORMAT),
             new VideoParams(ColorMode.MONO),
             new GeometryParams(null, null, false, false, false, false, true, RotationKind.NONE, AutocropMode.RADIUS_1_2, DeconvolutionMode.NONE, null),
-            new BandingCorrectionParams(24, 3),
+            new BandingCorrectionParams(DEFAULT_BAND_SIZE, DEFAULT_PASS_COUNT),
             new RequestedImages(RequestedImages.FULL_MODE, List.of(0d), Set.of(), Set.of(), ImageMathParams.NONE, false),
             createDefaultClaheParams(),
             createDefaultAutoStretchParams(),
@@ -168,8 +170,8 @@ public abstract class ProcessParamsIO {
                     params.videoParams(),
                     params.geometryParams(),
                     new BandingCorrectionParams(
-                        24,
-                        3
+                        DEFAULT_BAND_SIZE,
+                        DEFAULT_PASS_COUNT
                     ),
                     params.requestedImages(),
                     params.claheParams(),

@@ -25,6 +25,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import static me.champeau.a4j.jsolex.processing.sun.ImageUtils.bilinearSmoothing;
+import static me.champeau.a4j.jsolex.processing.sun.workflow.AnalysisUtils.estimateBackground;
 import static me.champeau.a4j.jsolex.processing.sun.workflow.AnalysisUtils.estimateBackgroundLevel;
 import static me.champeau.a4j.jsolex.processing.util.Constants.message;
 
@@ -65,12 +66,12 @@ public class BackgroundRemoval {
      * modeling it using a 2nd order regression.
      *
      * @param image the image to process
-     * @param iterations the number of iterations
+     * @param maxIterations the number of iterations
      * @return the image with background neutralized
      */
-    public static ImageWrapper32 neutralizeBackground(ImageWrapper32 image, int iterations) {
+    public static ImageWrapper32 neutralizeBackground(ImageWrapper32 image, int maxIterations) {
         ImageWrapper32 img = image;
-        for (int i = 0; i < iterations; i++) {
+        for (int i = 0; i < maxIterations; i++) {
             img = neutralizeBackground(img);
         }
         return img;
@@ -88,7 +89,10 @@ public class BackgroundRemoval {
         var data = copy.data();
         var background = 0.8 * estimateBackgroundLevel(copy.data(), 64);
         LOGGER.debug("Background neutralization level: {}", background);
-
+        var ellipse = image.findMetadata(Ellipse.class).orElse(null);
+        if (ellipse != null) {
+            background = 0.8 * estimateBackground(image, ellipse);
+        }
         // Find samples for 2d order regression
         List<double[]> samples = new ArrayList<>();
         List<Double> values = new ArrayList<>();
@@ -98,12 +102,14 @@ public class BackgroundRemoval {
         while (samples.size() < 16 && iterations-- > 0) {
             for (int y = 0; y < height; y += 8) {
                 for (int x = 0; x < width; x += 8) {
-                    var idx = y * width + x;
-                    var value = data[idx];
-                    if (value < background && value > 0) {
-                        // Include x^2, y^2, and xy terms
-                        samples.add(new double[]{x, y, x * x, y * y, x * y});
-                        values.add((double) value);
+                    if (ellipse == null || !ellipse.isWithin(x, y)) {
+                        var idx = y * width + x;
+                        var value = data[idx];
+                        if (value < background && value > 0) {
+                            // Include x^2, y^2, and xy terms
+                            samples.add(new double[]{x, y, x * x, y * y, x * y});
+                            values.add((double) value);
+                        }
                     }
                 }
             }
