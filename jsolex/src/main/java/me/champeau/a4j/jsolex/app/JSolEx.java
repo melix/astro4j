@@ -707,22 +707,8 @@ public class JSolEx extends Application implements JSolExInterface {
     private void showFrameDebugger() {
         selectSerFileAndThen(file -> {
             config.loadedSerFile(file.toPath());
-            var fxmlLoader = I18N.fxmlLoader(getClass(), "frame-debugger");
-            Object configWindow;
-            try {
-                configWindow = fxmlLoader.load();
-            } catch (IOException e) {
-                throw new ProcessingException(e);
-            }
-            var controller = (SpectralLineDebugger) fxmlLoader.getController();
-            var stage = newStage();
-            Scene scene = new Scene((Parent) configWindow);
-            controller.open(file, null, scene, stage);
-            stage.setTitle(I18N.string(getClass(), "frame-debugger", "frame.debugger") + " (" + file.getName() + ")");
-            stage.setScene(scene);
-            stage.showAndWait();
+            SpectralLineDebugger.open(file, unused -> {});
         });
-
     }
 
     @FXML
@@ -1294,7 +1280,7 @@ public class JSolEx extends Application implements JSolExInterface {
             var md = CaptureSoftwareMetadataHelper.readSharpcapMetadata(serFile)
                 .or(() -> CaptureSoftwareMetadataHelper.readFireCaptureMetadata(serFile))
                 .orElse(null);
-            controller.setup(dialog, serFileReader.header(), md, batchMode, getHostServices());
+            controller.setup(dialog, serFile, serFileReader.header(), md, batchMode, getHostServices());
             dialog.setScene(scene);
             dialog.initOwner(rootStage);
             dialog.initModality(Modality.APPLICATION_MODAL);

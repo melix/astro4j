@@ -77,6 +77,7 @@ import me.champeau.a4j.jsolex.processing.util.SpectralLineFrameImageCreator;
 import me.champeau.a4j.math.image.Image;
 import me.champeau.a4j.math.image.ImageMath;
 import me.champeau.a4j.math.regression.Ellipse;
+import me.champeau.a4j.math.tuples.DoubleQuadruplet;
 import me.champeau.a4j.ser.Header;
 import me.champeau.a4j.ser.ImageGeometry;
 import me.champeau.a4j.ser.SerFileReader;
@@ -267,6 +268,17 @@ public class SolexVideoProcessor implements Broadcaster {
         int batchSize = (int) (Math.ceil(maxMemory / (4d * imageSizeInBytes)));
         checkAvailableDiskSpace(imageList, imageSizeInBytes);
         var analysis = analyzeAverageImage(width, height, averageImage, imageNamingStrategy);
+        if (polynomial == null && processParams.geometryParams().isForcePolynomial()) {
+            var forcedPolynomialString = processParams.geometryParams().forcedPolynomial();
+            if (forcedPolynomialString.isPresent()) {
+                var forcedPolynomial = DoubleQuadruplet.parsePolynomial(forcedPolynomialString.get());
+                forcedPolynomial.ifPresentOrElse(doubleQuadruplet -> {
+                    polynomial = doubleQuadruplet.asPolynomial();
+                    LOGGER.info(message("forced.polynomial"));
+                    },
+                    () -> LOGGER.error(message("invalid.forced.polynomial"), forcedPolynomialString.get()));
+            }
+        }
         var maybePolynomial = Optional.ofNullable(polynomial).or(analysis::distortionPolynomial);
         if (maybePolynomial.isPresent()) {
             var polynomial = maybePolynomial.get();

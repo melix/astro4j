@@ -5,13 +5,24 @@ Voici les nouvelles fonctionnalités de cette version :
 - [Message aux utilisateurs français](message-aux-français)
 - [Explorateur de spectre](explorateur-de-spectre)
 - [Nouvelles fonctions ImageMath](#nouvelles-fonctions-ImageMath)
+- [Forcer le polynôme](#forcer-le-polynôme)
 - [Corrections de bugs et améliorations](#bugfixes-and-improvements)
 
 ## Changements dans la version 2.6.1
 
+- Ajout de la possibilité de forcer le polynôme (cf ci-dessous)
 - Correction des limites de la plage de décalage de pixels qui pouvaient entraîner le rejet de certaines images (bug #344)
 - Amélioration de la correction par flat artificiel
 - Réduction des artéfacts de fond de ciel dans les images auto-stretch
+
+## Message aux utilisateurs français
+
+**Si vous votez Rassemblement National ou tout autre parti proche de l'extrême droite, je vous demande de ne pas utiliser ce logiciel.**
+
+Mes convictions sont diamètralement opposées à celles de ces partis et je ne souhaite pas que mon travail développé soirs et week-ends et malgré une licence libre, serve à des personnes qui soutiennent ces idées nauséabondes.
+
+La solidarité, le partage, l'écologie, l'ouverture aux autres, la lutte contre les discriminations et les inégalités, le respect de toutes les religions, de tous les genres et orientations sexuelles sont les valeurs qui m'animent.
+Elles sont à l'opposé de celles prônées par ces partis.
 
 ## Explorateur de spectre
 
@@ -28,6 +39,14 @@ Cela peut être particulièrement utile à des fins d'apprentissage, mais aussi 
 ## Nouvelles fonctions ImageMath
 
 - La fonction `draw_earth` a été ajoutée pour dessiner la Terre sur une image, mise à l'échelle en fonction du disque solaire
+
+## Forcer le polynôme
+
+Depuis la version 2.6.1, il est possible de forcer le polynôme utilisé pour détecter la ligne spectrale.
+Pour ce faire, dans les paramètres de traitement, cochez la case "Forcer le polynôme", puis cliquez sur les "...".
+Ceci ouvrira une fenêtre vous montrant l'image moyenne calculée.
+Sur cette image, appuyez sur `Ctrl` + clic gauche pour ajouter un point sur la ligne spectrale, jusqu'à avoir ajouté suffisamment de points.
+Cliquez ensuite sur le bouton "Calculer le polynôme" : la valeur sera affichée dans la fenêtre et reportée automatiquement dans les paramètres de traitement.
 
 ## Corrections de bugs et améliorations
 

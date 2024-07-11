@@ -63,6 +63,7 @@ Vous pouvez préciser:
 * Rayon (x...) : l'image sera redimensionnée en fonction du rayon du disque solaire, en appliquant un multiplicateur. Peut-être utile par exemple lorsque le disque est tronqué et que l'on veut avoir une image carrée permettant de "remettre" la portion à sa place.
 - Forcer la valeur du tilt : lors de la correction géométrique d'image, JSol'Ex calcule une ellipse pour modéliser le disque solaire reconstitué. Cette ellipse est utilisée pour calculer des paramètre comme l'angle de tilt. Si le calcul effectué par le logiciel est erroné, vous disposez de la possibilité de surcharger la valeur calculée.
 - Forcer le rapport X/Y : de manière similaire, sur certaines images dans des raies difficiles, l'ellipse peut ne pas parfaitement correspondre au disque solaire et ne pas reconstituer un soleil parfaitement circulaire. Vous pouvez surcharger le rapport détecté pour corriger ces problèmes
+- Forcer le polynôme: permet de forcer le polynôme de second degré utilisé pour modéliser la raie spectrale. Voir la <<#force-polynomial,section sur le forçage du polynôme>> pour plus d'informations.
 - Inverser l'axe horizontal/vertical : permet de retourner l'image verticalement et horizontalement pour avoir le Nord et l'Est bien orientés
 - Redimensionner au maximum: peut être utilisé si votre vidéo est sur-échantillonnée et que vous souhaitez conserver la résolution maximum. Ceci arrive par exemple si vous faites des scans à basse vitesse (ex, sidérale).
 
@@ -118,6 +119,27 @@ image::params-4-fr.jpg[]
 - Enregistrement automatique des images : si cette case est cochée, toutes les images générées sont automatiquement enregistrées sur disque. Dans le cas contraire, vous devrez dans l'interface qui affiche les images générés appuyer sur le bouton "Enregistrer" pour conserver les images produites
 - Générer des images de debug : permet de générer des images telles que la reconnaissance de contours, la reconnaissance d'ellipse/tilt, l'image moyenne. Utile pour vérifier si le logiciel ne se comporte pas correctement sur votre vidéo et que vous souhaitez vérifier là où il se trompe
 - Générer des fichiers FITS : permet de générer des fichiers FITS, non destructifs, en plus des images PNG
+
+[[force-polynomial]]
+== Forcer le polynôme
+
+JSol'Ex effectue une détection de la raie spectrale en cherchant la ligne la plus sombre dans l'image, puis en ajustant un polynôme de 3ème ordre.
+Il arrive parfois que la détection soit incorrecte, auquel cas vous pouvez forcer l'utilisation d'un polynôme.
+Pour ce faire, cliquez sur le bouton "forcer le polynôme", qui vous permettra d'entrer les coefficients du polynôme.
+
+Le format du polynôme est une liste de 4 nombres entre accolades, séparés par des virgules, par exemple: `{1.3414109042116584E-10,3.889927699830093E-5,-0.056529799336687114,35.76051527062038}`.
+
+La façon la plus simple d'obtenir les coefficients du polynôme est de cliquer sur les "..." qui ouvrira une fenêtre avec l'image moyenne et la raie spectrale détectée :
+
+image::force-polynomial-1.jpg[]
+
+Vous pouvez alors appuyer sur "CTRL" puis cliquer sur la ligne pour ajouter des points de mesure : une croix rouge sera ajoutée pour chaque point.
+Lorsque vous avez suffisamment de points, cliquez sur le bouton "Calculer le polynôme", qui ajustera un polynôme de 3ème ordre aux points et remplira automatiquement le champ "polynôme de force" dans les paramètres de traitement :
+
+image::force-polynomial-2.jpg[]
+
+You can then close the popup and start processing.
+
 
 [[modele-noms-fichier]]
 == Modèles de noms de fichier
