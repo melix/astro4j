@@ -10,6 +10,7 @@ Here are the new features in this version:
 ## Changes in 2.6.2
 
 - Fixed the `rescale_rel` function which was converting color images to monochrome
+- Fixed dynamic crop menu item which did nothing on some images
 
 ## Changes in 2.6.1
 
