@@ -8,6 +8,10 @@ Voici les nouvelles fonctionnalités de cette version :
 - [Forcer le polynôme](#forcer-le-polynôme)
 - [Corrections de bugs et améliorations](#bugfixes-and-improvements)
 
+## Changements dans la version 2.6.2
+
+- Correction de la fonction `rescale_rel` qui convertissait les images couleur en mono
+
 ## Changements dans la version 2.6.1
 
 - Ajout de la possibilité de forcer le polynôme (cf ci-dessous)
