@@ -267,6 +267,10 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
                 @Override
                 public boolean supports(ActionKind kind) {
                     if (kind.isCrop()) {
+                        if (kind == ActionKind.IMAGEMATH_CROP) {
+                            var stretchedImage = addedImageViewer.getStretchedImage();
+                            return stretchedImage.findMetadata(ReferenceCoords.class).isPresent();
+                        }
                         return true;
                     }
                     if (adjustedParams == null) {
@@ -282,7 +286,7 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
                 public void onSelectRegion(ActionKind kind, int x, int y, int width, int height) {
                     BackgroundOperations.async(() -> {
                         var stretchedImage = addedImageViewer.getStretchedImage();
-                        stretchedImage.findMetadata(ReferenceCoords.class).ifPresent(coord -> {
+                        stretchedImage.findMetadata(ReferenceCoords.class).ifPresentOrElse(coord -> {
                             var cx = x + width / 2d;
                             var cy = y + height / 2d;
                             var orig = coord.determineOriginalCoordinates(new Point2D(cx, cy), new Point2D(stretchedImage.width() / 2d, stretchedImage.height() / 2d), ReferenceCoords.GEO_CORRECTION);
@@ -294,6 +298,10 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
                                 performCropping(stretchedImage, x, y, width, height);
                             } else if (kind == ActionKind.CREATE_ANIM_OR_PANEL) {
                                 createAnimationOrPanel(xx, yy, width, height);
+                            }
+                        }, () -> {
+                            if (kind == ActionKind.CROP) {
+                                performCropping(stretchedImage, x, y, width, height);
                             }
                         });
                     });

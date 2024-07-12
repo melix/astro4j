@@ -11,6 +11,7 @@ Voici les nouvelles fonctionnalités de cette version :
 ## Changements dans la version 2.6.2
 
 - Correction de la fonction `rescale_rel` qui convertissait les images couleur en mono
+- Correction de l'élément de menu de rognage dynamique qui ne faisait rien sur certaines images
 
 ## Changements dans la version 2.6.1
 
