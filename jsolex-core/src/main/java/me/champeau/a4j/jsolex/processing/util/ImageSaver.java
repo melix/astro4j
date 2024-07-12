@@ -51,40 +51,11 @@ public class ImageSaver {
                 files = Stream.concat(files.stream(), Stream.of(fits)).toList();
                 FitsUtils.writeFitsFile(stretched, fits, processParams);
             }
-        } else if (image instanceof ColorizedImageWrapper colorImage) {
-            var stretched = stretch(colorImage);
-            var colorized = colorImage.converter().apply(stretched.mono());
-            var r = colorized[0];
-            var g = colorized[1];
-            var b = colorized[2];
-            files = ImageUtils.writeRgbImage(colorImage.width(), colorImage.height(), r, g, b, target, imageFormats);
-            if (imageFormats.contains(ImageFormat.FITS)) {
-                var fits = toFits(target);
-                files = Stream.concat(files.stream(), Stream.of(fits)).toList();
-                FitsUtils.writeFitsFile(new RGBImage(image.width(), image.height(), r, g, b, colorImage.metadata()), fits, processParams);
-            }
-        } else if (image instanceof RGBImage rgb) {
-            var stretched = stretch(rgb);
-            var r = stretched.r();
-            var g = stretched.g();
-            var b = stretched.b();
-            files = ImageUtils.writeRgbImage(rgb.width(), rgb.height(), r, g, b, target, imageFormats);
-            if (imageFormats.contains(ImageFormat.FITS)) {
-                var fits = toFits(target);
-                files = Stream.concat(files.stream(), Stream.of(fits)).toList();
-                FitsUtils.writeFitsFile(new RGBImage(image.width(), image.height(), r, g, b, rgb.metadata()), fits, processParams);
-            }
         }
         return files;
     }
 
     private ImageWrapper32 stretch(ImageWrapper32 image) {
-        var copy = image.copy();
-        stretchingStrategy.stretch(copy);
-        return copy;
-    }
-
-    private ColorizedImageWrapper stretch(ColorizedImageWrapper image) {
         var copy = image.copy();
         stretchingStrategy.stretch(copy);
         return copy;

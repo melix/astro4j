@@ -17,7 +17,6 @@ package me.champeau.a4j.jsolex.processing.expr.impl;
 
 import me.champeau.a4j.jsolex.processing.event.ProgressEvent;
 import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
-import me.champeau.a4j.jsolex.processing.util.ColorizedImageWrapper;
 import me.champeau.a4j.jsolex.processing.util.FileBackedImage;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
@@ -214,10 +213,6 @@ class AbstractFunctionImpl {
             var copy = mono.copy();
             applyFunction(copy.data(), unary);
             return copy;
-        } else if (img instanceof ColorizedImageWrapper colorized) {
-            var copy = colorized.copy();
-            applyFunction(copy.mono().data(), unary);
-            return copy;
         } else if (img instanceof RGBImage rgb) {
             var copy = rgb.copy();
             applyFunction(copy.r(), unary);
@@ -235,10 +230,6 @@ class AbstractFunctionImpl {
         if (img instanceof ImageWrapper32 mono) {
             var copy = mono.copy();
             transformer.transform(mono.width(), mono.height(), copy.data());
-            return copy;
-        } else if (img instanceof ColorizedImageWrapper colorized) {
-            var copy = colorized.copy();
-            transformer.transform(copy.width(), copy.height(), copy.mono().data());
             return copy;
         } else if (img instanceof RGBImage rgb) {
             var copy = rgb.copy();

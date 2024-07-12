@@ -25,9 +25,9 @@ import me.champeau.a4j.jsolex.processing.sun.BandingReduction;
 import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
 import me.champeau.a4j.jsolex.processing.sun.WorkflowState;
 import me.champeau.a4j.jsolex.processing.sun.tasks.GeometryCorrector;
-import me.champeau.a4j.jsolex.processing.util.ColorizedImageWrapper;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
+import me.champeau.a4j.jsolex.processing.util.RGBImage;
 import me.champeau.a4j.math.regression.Ellipse;
 
 import java.text.MessageFormat;
@@ -86,9 +86,9 @@ public class HeliumLineProcessor {
                 .findFirst()
                 .orElse(SpectralRay.HELIUM_D3)
                 .label();
-            if (evaluator.functionCall(BuiltinFunction.COLORIZE, List.of(image, profile)) instanceof ColorizedImageWrapper colorized) {
+            if (evaluator.functionCall(BuiltinFunction.COLORIZE, List.of(image, profile)) instanceof RGBImage colorized) {
                 // name -1 is so that we don't overwrite the mono image and put both images into the same category
-                imageEmitter.newColorImage(GeneratedImageKind.COLORIZED, MessageFormat.format(message("colorized"), profile), "helium-1", image.width(), image.height(), new HashMap<>(image.metadata()), () -> colorized.converter().apply(image));
+                imageEmitter.newColorImage(GeneratedImageKind.COLORIZED, MessageFormat.format(message("colorized"), profile), "helium-1", image.width(), image.height(), new HashMap<>(image.metadata()), () -> new float[][] { colorized.r(), colorized.g(), colorized.b() });
             }
         }
     }

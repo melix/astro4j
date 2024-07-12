@@ -20,7 +20,6 @@ import me.champeau.a4j.jsolex.processing.sun.detection.RedshiftArea;
 import me.champeau.a4j.jsolex.processing.sun.detection.Redshifts;
 import me.champeau.a4j.jsolex.processing.sun.workflow.ImageStats;
 import me.champeau.a4j.jsolex.processing.sun.workflow.ReferenceCoords;
-import me.champeau.a4j.jsolex.processing.util.ColorizedImageWrapper;
 import me.champeau.a4j.jsolex.processing.util.FileBackedImage;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
@@ -110,11 +109,6 @@ public class Rotate extends AbstractFunctionImpl {
         if (arg instanceof ImageWrapper32 mono) {
             var trn = arbitraryRotation(arguments, mono.asImage(), angle);
             return ImageWrapper32.fromImage(trn, fixMetadata(mono, angle, trn.width(), trn.height()));
-        } else if (arg instanceof ColorizedImageWrapper colorized) {
-            var mono = colorized.mono();
-            var trn = arbitraryRotation(arguments, mono.asImage(), angle);
-            var md = fixMetadata(mono, angle, trn.width(), trn.height());
-            return new ColorizedImageWrapper(ImageWrapper32.fromImage(trn, md), colorized.converter(), md);
         } else if (arg instanceof RGBImage rgb) {
             var height = rgb.height();
             var width = rgb.width();

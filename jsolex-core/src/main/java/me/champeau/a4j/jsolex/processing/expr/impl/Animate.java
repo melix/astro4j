@@ -18,7 +18,6 @@ package me.champeau.a4j.jsolex.processing.expr.impl;
 import me.champeau.a4j.jsolex.processing.event.ProgressEvent;
 import me.champeau.a4j.jsolex.processing.expr.FileOutput;
 import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
-import me.champeau.a4j.jsolex.processing.util.ColorizedImageWrapper;
 import me.champeau.a4j.jsolex.processing.util.FileBackedImage;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
@@ -36,7 +35,6 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Stream;
@@ -83,10 +81,6 @@ public class Animate extends AbstractFunctionImpl {
                 }
                 if (argument instanceof ImageWrapper32 image) {
                     addMonoFrame(encoder, image);
-                } else if (argument instanceof ColorizedImageWrapper image) {
-                    addColorFrame(encoder, image);
-                } else if (argument instanceof RGBImage rgb) {
-                    addColorFrame(encoder, rgb);
                 }
                 progress++;
             }
@@ -137,20 +131,6 @@ public class Animate extends AbstractFunctionImpl {
         } catch (IOException e) {
             e.printStackTrace();
         }
-    }
-
-    private static void addColorFrame(SequenceEncoder encoder, ColorizedImageWrapper image) {
-        int width = image.width();
-        int height = image.height();
-        if (width % 2 == 1) {
-            width--;
-        }
-        if (height % 2 == 1) {
-            height--;
-        }
-        var origRGB = image.converter().apply(image.mono());
-        var colorChannelsStream = Arrays.stream(origRGB);
-        addColorFrame(encoder, image, colorChannelsStream, width, height);
     }
 
     private static void addColorFrame(SequenceEncoder encoder, RGBImage image) {

@@ -52,7 +52,6 @@ import me.champeau.a4j.jsolex.processing.stretching.StretchingChain;
 import me.champeau.a4j.jsolex.processing.sun.ImageUtils;
 import me.champeau.a4j.jsolex.processing.sun.workflow.GeneratedImageKind;
 import me.champeau.a4j.jsolex.processing.util.BackgroundOperations;
-import me.champeau.a4j.jsolex.processing.util.ColorizedImageWrapper;
 import me.champeau.a4j.jsolex.processing.util.FileBackedImage;
 import me.champeau.a4j.jsolex.processing.util.ImageFormat;
 import me.champeau.a4j.jsolex.processing.util.ImageSaver;
@@ -440,17 +439,6 @@ public class ImageViewer {
         if (displayImage instanceof ImageWrapper32 mono) {
             stretchedImage = stretch(mono);
             var savedImages = ImageUtils.writeMonoImage(mono.width(), mono.height(), ((ImageWrapper32) stretchedImage).data(), tmpImage, imageFormats);
-            BatchOperations.submit(() -> updateDisplay(savedImages, resetZoom));
-        } else if (displayImage instanceof ColorizedImageWrapper colorImage) {
-            stretchedImage = stretch(colorImage);
-            var stretched = (ColorizedImageWrapper) stretchedImage;
-            var copy = stretched.mono().copy();
-            copy.metadata().putAll(stretched.metadata());
-            var rgb = colorImage.converter().apply(copy);
-            var r = rgb[0];
-            var g = rgb[1];
-            var b = rgb[2];
-            var savedImages = ImageUtils.writeRgbImage(colorImage.width(), colorImage.height(), r, g, b, tmpImage, imageFormats);
             BatchOperations.submit(() -> updateDisplay(savedImages, resetZoom));
         } else if (displayImage instanceof RGBImage rgb) {
             stretchedImage = stretch(rgb);

@@ -19,7 +19,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.function.Function;
 
-public sealed interface ImageWrapper permits ImageWrapper32, ColorizedImageWrapper, RGBImage, FileBackedImage {
+public sealed interface ImageWrapper permits ImageWrapper32, RGBImage, FileBackedImage {
     int width();
     int height();
     Map<Class<?>, Object> metadata();

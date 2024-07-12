@@ -17,7 +17,6 @@ package me.champeau.a4j.jsolex.app.jfx;
 
 import me.champeau.a4j.jsolex.processing.expr.impl.Rotate;
 import me.champeau.a4j.jsolex.processing.sun.workflow.ReferenceCoords;
-import me.champeau.a4j.jsolex.processing.util.ColorizedImageWrapper;
 import me.champeau.a4j.jsolex.processing.util.FileBackedImage;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
@@ -43,10 +42,6 @@ public class Corrector {
             if (img instanceof ImageWrapper32 mono) {
                 var trn = imageMath.rotate(mono.asImage(), angle, -1, resize);
                 return ImageWrapper32.fromImage(trn, Rotate.fixMetadata(mono, angle, trn.width(), trn.height()));
-            } else if (img instanceof ColorizedImageWrapper colorized) {
-                var mono = colorized.mono();
-                var trn = imageMath.rotate(mono.asImage(), angle, -1, resize);
-                return new ColorizedImageWrapper(ImageWrapper32.fromImage(trn), colorized.converter(), Rotate.fixMetadata(colorized, angle, trn.width(), trn.height()));
             } else if (img instanceof RGBImage rgb) {
                 var height = rgb.height();
                 var width = rgb.width();
@@ -71,10 +66,6 @@ public class Corrector {
                 var copy = mono.copy();
                 verticalFlip(copy.data(), copy.width(), copy.height());
                 return copy;
-            } else if (img instanceof ColorizedImageWrapper colorized) {
-                var copy = colorized.mono();
-                verticalFlip(copy.data(), copy.width(), copy.height());
-                return new ColorizedImageWrapper(copy, colorized.converter(), colorized.metadata());
             } else if (img instanceof RGBImage rgb) {
                 var r = copy(rgb.r());
                 var g = copy(rgb.r());

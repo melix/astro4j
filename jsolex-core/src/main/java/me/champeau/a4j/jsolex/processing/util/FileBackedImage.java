@@ -27,7 +27,6 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
-import java.util.function.Function;
 
 /**
  * An image wrapper where data is stored on disk instead of
@@ -38,7 +37,6 @@ public final class FileBackedImage implements ImageWrapper {
     private static final Map<Path, Integer> REF_COUNT = new HashMap<>();
     private static final Lock LOCK = new ReentrantLock();
     private static final byte MONO = 0;
-    private static final byte COLORIZED = 1;
     private static final byte RGB = 2;
 
     private final int width;
@@ -85,14 +83,6 @@ public final class FileBackedImage implements ImageWrapper {
                     byteBuffer.asFloatBuffer().put(data);
                     return new FileBackedImage(width, height, backingFile, mono.metadata(), null, wrapper);
                 }
-                if (wrapper instanceof ColorizedImageWrapper colorized) {
-                    var data = colorized.mono().data();
-                    var byteBuffer = channel.map(FileChannel.MapMode.READ_WRITE, 0, 1 + 4 + 4L * data.length);
-                    byteBuffer.put(COLORIZED);
-                    byteBuffer.putInt(data.length);
-                    byteBuffer.asFloatBuffer().put(data);
-                    return new FileBackedImage(width, height, backingFile, colorized.metadata(), colorized.converter(), wrapper);
-                }
                 if (wrapper instanceof RGBImage rgb) {
                     var r = rgb.r();
                     var g = rgb.g();
@@ -129,12 +119,6 @@ public final class FileBackedImage implements ImageWrapper {
                     float[] data = new float[size];
                     byteBuffer.asFloatBuffer().get(data);
                     yield new ImageWrapper32(width, height, data, metadata);
-                }
-                case COLORIZED -> {
-                    // Colorized image
-                    float[] data = new float[size];
-                    byteBuffer.asFloatBuffer().get(data);
-                    yield new ColorizedImageWrapper(new ImageWrapper32(width, height, data, metadata), (Function<ImageWrapper32, float[][]>) keptInMemory, metadata);
                 }
                 case RGB -> {
                     // RGB image

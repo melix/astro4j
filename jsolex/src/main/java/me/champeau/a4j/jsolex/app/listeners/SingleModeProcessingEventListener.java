@@ -85,7 +85,6 @@ import me.champeau.a4j.jsolex.processing.sun.workflow.PixelShift;
 import me.champeau.a4j.jsolex.processing.sun.workflow.PixelShiftRange;
 import me.champeau.a4j.jsolex.processing.sun.workflow.ReferenceCoords;
 import me.champeau.a4j.jsolex.processing.util.BackgroundOperations;
-import me.champeau.a4j.jsolex.processing.util.ColorizedImageWrapper;
 import me.champeau.a4j.jsolex.processing.util.Constants;
 import me.champeau.a4j.jsolex.processing.util.Histogram;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
@@ -386,16 +385,6 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
                 return List.of(new CachedHistogram(Histogram.of(
                     new Image(mono.width(), mono.height(), mono.data()), BINS
                 ), "grey"));
-            } else if (imageWrapper instanceof ColorizedImageWrapper colorized) {
-                var rgb = colorized.converter().apply(colorized.mono());
-                List<CachedHistogram> result = new ArrayList<>(rgb.length);
-                for (int i = 0; i < rgb.length; i++) {
-                    float[] channel = rgb[i];
-                    result.add(new CachedHistogram(Histogram.of(
-                        new Image(colorized.width(), colorized.height(), channel), BINS
-                    ), RGB_COLORS[i]));
-                }
-                return result;
             } else if (imageWrapper instanceof RGBImage rgbImage) {
                 var rgb = new float[][]{rgbImage.r(), rgbImage.g(), rgbImage.b()};
                 List<CachedHistogram> result = new ArrayList<>(rgb.length);

@@ -17,6 +17,7 @@ package me.champeau.a4j.jsolex.processing.util;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.function.Function;
 
 public record RGBImage(
         int width,
@@ -35,6 +36,15 @@ public record RGBImage(
         float[] rcopy = new float[array.length];
         System.arraycopy(array, 0, rcopy, 0, array.length);
         return rcopy;
+    }
+
+    public static RGBImage fromMono(ImageWrapper32 mono, Function<ImageWrapper32, float[][]> converter) {
+        return fromMono(mono, converter, new LinkedHashMap<>(mono.metadata()));
+    }
+
+    public static RGBImage fromMono(ImageWrapper32 mono, Function<ImageWrapper32, float[][]> converter, Map<Class<?>, Object> metadata) {
+        var rgb = converter.apply(mono);
+        return new RGBImage(mono.width(), mono.height(), rgb[0], rgb[1], rgb[2], metadata);
     }
 
     public ImageWrapper32 toMono() {
