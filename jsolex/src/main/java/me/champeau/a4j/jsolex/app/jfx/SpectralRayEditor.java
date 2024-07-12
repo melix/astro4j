@@ -35,11 +35,11 @@ import me.champeau.a4j.jsolex.processing.params.SpectralRay;
 import me.champeau.a4j.jsolex.processing.params.SpectralRayIO;
 import me.champeau.a4j.jsolex.processing.stretching.LinearStrechingStrategy;
 import me.champeau.a4j.jsolex.processing.sun.ImageUtils;
-import me.champeau.a4j.jsolex.processing.util.ColorizedImageWrapper;
 import me.champeau.a4j.jsolex.processing.util.ImageFormat;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 import me.champeau.a4j.jsolex.processing.util.MutableMap;
 import me.champeau.a4j.jsolex.processing.util.ProcessingException;
+import me.champeau.a4j.jsolex.processing.util.RGBImage;
 
 import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;
@@ -198,7 +198,7 @@ public class SpectralRayEditor {
 
     private void updateSunDiskPreview(SpectralRay newRay) {
         var curve = newRay.colorCurve();
-        var colorImage = new ColorizedImageWrapper(MONO_SUN_IMAGE, monoImage -> {
+        var colorImage = RGBImage.fromMono(MONO_SUN_IMAGE, monoImage -> {
             if (curve != null) {
                 return ImageUtils.convertToRGB(curve, monoImage.data());
             } else {
@@ -218,11 +218,10 @@ public class SpectralRayEditor {
                 }
                 return new float[][]{r, g, b};
             }
-        }, MutableMap.of());
-        var colorized = colorImage.converter().apply(MONO_SUN_IMAGE);
-        var r = colorized[0];
-        var g = colorized[1];
-        var b = colorized[2];
+        });
+        var r = colorImage.r();
+        var g = colorImage.g();
+        var b = colorImage.b();
         Path tmpFile;
         try {
             tmpFile = Files.createTempFile("img", ".png");

@@ -272,8 +272,6 @@ public class FitsUtils {
         }
         if (Objects.requireNonNull(image) instanceof ImageWrapper32 mono) {
             writeMono(mono);
-        } else if (image instanceof ColorizedImageWrapper colorized) {
-            writeColorized(colorized);
         } else if (image instanceof RGBImage rgb) {
             writeRGB(rgb);
         }
@@ -290,11 +288,6 @@ public class FitsUtils {
         } catch (IOException | FitsException e) {
             throw new RuntimeException(e);
         }
-    }
-
-    private void writeColorized(ColorizedImageWrapper colorized) {
-        var rgb = colorized.converter().apply(colorized.mono());
-        writeRGB(new RGBImage(colorized.width(), colorized.height(), rgb[0], rgb[1], rgb[2], colorized.metadata()));
     }
 
     private void writeMono(ImageWrapper32 mono) {

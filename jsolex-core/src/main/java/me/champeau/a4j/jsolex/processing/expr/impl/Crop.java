@@ -22,7 +22,6 @@ import me.champeau.a4j.jsolex.processing.sun.detection.Redshifts;
 import me.champeau.a4j.jsolex.processing.sun.tasks.ImageAnalysis;
 import me.champeau.a4j.jsolex.processing.sun.workflow.ImageStats;
 import me.champeau.a4j.jsolex.processing.sun.workflow.ReferenceCoords;
-import me.champeau.a4j.jsolex.processing.util.ColorizedImageWrapper;
 import me.champeau.a4j.jsolex.processing.util.FileBackedImage;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
@@ -63,20 +62,6 @@ public class Crop extends AbstractFunctionImpl {
         }
         if (img instanceof ImageWrapper32 mono) {
             return cropMonoImage(left, top, width, height, mono);
-        } else if (img instanceof ColorizedImageWrapper colorized) {
-            var mono = colorized.mono();
-            var converter = colorized.converter();
-            var rgb = converter.apply(mono);
-            var md = new HashMap<>(colorized.metadata());
-            var ri = cropMonoImage(left, top, width, height, new ImageWrapper32(colorized.width(), colorized.width(), rgb[0], md));
-            var gi = cropMonoImage(left, top, width, height, new ImageWrapper32(colorized.width(), colorized.height(), rgb[1], md));
-            var bi = cropMonoImage(left, top, width, height, new ImageWrapper32(colorized.width(), colorized.height(), rgb[2], md));
-            return new RGBImage(width, height,
-                ri.data(),
-                gi.data(),
-                bi.data(),
-                ri.metadata()
-            );
         } else if (img instanceof RGBImage rgb) {
             var ri = cropMonoImage(left, top, width, height, new ImageWrapper32(rgb.width(), rgb.height(), rgb.r(), rgb.metadata()));
             var gi = cropMonoImage(left, top, width, height, new ImageWrapper32(rgb.width(), rgb.height(), rgb.g(), rgb.metadata()));
@@ -112,10 +97,6 @@ public class Crop extends AbstractFunctionImpl {
             }
             if (img instanceof ImageWrapper32 mono) {
                 return cropToRectMonoImage(width, height, mono, sunDisk, blackPoint);
-            } else if (img instanceof ColorizedImageWrapper colorized) {
-                var mono = colorized.mono();
-                var cropped = cropToRectMonoImage(width, height, mono, sunDisk, blackPoint);
-                return new ColorizedImageWrapper(cropped, colorized.converter(), cropped.metadata());
             } else if (img instanceof RGBImage rgb) {
                 var ri = cropToRectMonoImage(width, height, new ImageWrapper32(rgb.width(), rgb.height(), rgb.r(), rgb.metadata()), sunDisk, blackPoint);
                 var gi = cropToRectMonoImage(width, height, new ImageWrapper32(rgb.width(), rgb.height(), rgb.g(), rgb.metadata()), sunDisk, blackPoint);
@@ -216,11 +197,6 @@ public class Crop extends AbstractFunctionImpl {
                 var cropResult = Cropper.cropToSquare(image, circle, blackpoint, diameterFactor, rounding);
                 var metadata = fixMetadata(mono, cropResult);
                 return ImageWrapper32.fromImage(cropResult.cropped(), metadata);
-            } else if (arg instanceof ColorizedImageWrapper wrapper) {
-                var mono = wrapper.mono();
-                var cropResult = Cropper.cropToSquare(mono.asImage(), circle, blackpoint, diameterFactor, rounding);
-                var metadata = fixMetadata(mono, cropResult);
-                return new ColorizedImageWrapper(ImageWrapper32.fromImage(cropResult.cropped()), wrapper.converter(), metadata);
             } else if (arg instanceof RGBImage rgb) {
                 var cropResult = Cropper.cropToSquare(new Image(rgb.width(), rgb.height(), rgb.r()), circle, blackpoint, diameterFactor, rounding);
                 var metadata = fixMetadata(rgb, cropResult);

@@ -16,7 +16,6 @@
 package me.champeau.a4j.jsolex.processing.stretching;
 
 import me.champeau.a4j.jsolex.processing.sun.ImageUtils;
-import me.champeau.a4j.jsolex.processing.util.ColorizedImageWrapper;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 import me.champeau.a4j.jsolex.processing.util.RGBImage;
@@ -37,7 +36,6 @@ public sealed interface StretchingStrategy permits
     default void stretch(ImageWrapper image) {
         switch (image) {
             case ImageWrapper32 mono -> stretch(mono);
-            case ColorizedImageWrapper colorized -> stretch(colorized.mono());
             case RGBImage rgb -> stretch(rgb);
             case null, default -> throw new IllegalArgumentException("Unsupported image type: " + image.getClass());
         }

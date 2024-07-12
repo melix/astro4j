@@ -17,12 +17,12 @@ package me.champeau.a4j.jsolex.processing.expr.impl;
 
 import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
 import me.champeau.a4j.jsolex.processing.sun.workflow.ImageStats;
-import me.champeau.a4j.jsolex.processing.util.ColorizedImageWrapper;
 import me.champeau.a4j.jsolex.processing.util.FileBackedImage;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 import me.champeau.a4j.jsolex.processing.util.RGBImage;
 import me.champeau.a4j.math.regression.Ellipse;
 
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -49,10 +49,6 @@ public class DiskFill extends AbstractFunctionImpl {
                 var copy = mono.copy();
                 doFill(ellipse.get(), copy.data(), copy.width(), fill);
                 return copy;
-            } else if (img instanceof ColorizedImageWrapper colorized) {
-                var copy = colorized.mono().copy();
-                doFill(ellipse.get(), copy.data(), copy.width(), fill);
-                return new ColorizedImageWrapper(copy, colorized.converter(), colorized.metadata());
             } else if (img instanceof RGBImage rgb) {
                 var r = new float[rgb.r().length];
                 System.arraycopy(rgb.r(), 0, r, 0, r.length);
@@ -63,7 +59,7 @@ public class DiskFill extends AbstractFunctionImpl {
                 var b = new float[rgb.b().length];
                 System.arraycopy(rgb.b(), 0, b, 0, b.length);
                 doFill(ellipse.get(), b, rgb.width(), fill);
-                return new RGBImage(rgb.width(), rgb.height(), r, g, b, rgb.metadata());
+                return new RGBImage(rgb.width(), rgb.height(), r, g, b, new LinkedHashMap<>(rgb.metadata()));
             }
         }
         throw new IllegalArgumentException("Ellipse fitting not found, cannot perform fill");

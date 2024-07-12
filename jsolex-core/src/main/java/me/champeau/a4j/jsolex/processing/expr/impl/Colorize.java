@@ -22,7 +22,6 @@ import me.champeau.a4j.jsolex.processing.stretching.GammaStrategy;
 import me.champeau.a4j.jsolex.processing.stretching.LinearStrechingStrategy;
 import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
 import me.champeau.a4j.jsolex.processing.sun.ImageUtils;
-import me.champeau.a4j.jsolex.processing.util.ColorizedImageWrapper;
 import me.champeau.a4j.jsolex.processing.util.Constants;
 import me.champeau.a4j.jsolex.processing.util.FileBackedImage;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
@@ -56,10 +55,10 @@ public class Colorize extends AbstractFunctionImpl {
                 arg = fileBackedImage.unwrapToMemory();
             }
             if (arg instanceof ImageWrapper32 mono) {
-                return new ColorizedImageWrapper(mono, data -> {
+                return RGBImage.fromMono(mono, data -> {
                     var curve = new ColorCurve("adhoc", rIn, rOut, gIn, gOut, bIn, bOut);
                     return doColorize(data.data(), curve);
-                }, mono.metadata());
+                });
             }
         } else {
             if (arg instanceof FileBackedImage fileBackedImage) {
@@ -71,10 +70,10 @@ public class Colorize extends AbstractFunctionImpl {
                 if (ray.label().equalsIgnoreCase(profile) && (arg instanceof ImageWrapper32 mono)) {
                     var curve = ray.colorCurve();
                     if (curve != null) {
-                        return new ColorizedImageWrapper(mono, data -> doColorize(data.data(), curve), mono.metadata());
+                        return RGBImage.fromMono(mono, data -> doColorize(data.data(), curve));
                     } else if (ray.wavelength() != 0) {
                         var rgb = ray.toRGB();
-                        return new ColorizedImageWrapper(mono, data -> doColorize(mono.width(), mono.height(), data.data(), rgb), mono.metadata());
+                        return RGBImage.fromMono(mono, data -> doColorize(mono.width(), mono.height(), data.data(), rgb));
                     }
                 }
             }

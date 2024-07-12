@@ -16,7 +16,6 @@
 package me.champeau.a4j.jsolex.processing.expr.impl;
 
 import me.champeau.a4j.jsolex.processing.sun.ImageUtils;
-import me.champeau.a4j.jsolex.processing.util.ColorizedImageWrapper;
 import me.champeau.a4j.jsolex.processing.util.FileBackedImage;
 import me.champeau.a4j.jsolex.processing.util.ImageFormat;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
@@ -61,9 +60,6 @@ public class FfmegEncoder {
                         }
                         if (img instanceof ImageWrapper32 mono) {
                             ImageUtils.writeMonoImage(mono.width(), mono.height(), mono.data(), file, Set.of(ImageFormat.PNG));
-                        } else if (img instanceof ColorizedImageWrapper colorized) {
-                            var rgb = colorized.converter().apply(colorized.mono());
-                            ImageUtils.writeRgbImage(colorized.width(), colorized.height(), rgb[0], rgb[1], rgb[2], file, Set.of(ImageFormat.PNG));
                         } else if (img instanceof RGBImage rgb) {
                             ImageUtils.writeRgbImage(rgb.width(), rgb.height(), rgb.r(), rgb.g(), rgb.b(), file, Set.of(ImageFormat.PNG));
                         }

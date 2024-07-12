@@ -17,7 +17,6 @@ package me.champeau.a4j.jsolex.processing.expr;
 
 import me.champeau.a4j.jsolex.processing.sun.workflow.GeneratedImageKind;
 import me.champeau.a4j.jsolex.processing.sun.workflow.ImageEmitter;
-import me.champeau.a4j.jsolex.processing.util.ColorizedImageWrapper;
 import me.champeau.a4j.jsolex.processing.util.FileBackedImage;
 import me.champeau.a4j.jsolex.processing.util.FilesUtils;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
@@ -42,16 +41,6 @@ public interface ImageMathScriptExecutor {
                         label,
                         label,
                         mono
-                );
-            } else if (image instanceof ColorizedImageWrapper colorized) {
-                emitter.newColorImage(
-                        GeneratedImageKind.IMAGE_MATH,
-                        label,
-                        label,
-                        colorized.width(),
-                        colorized.height(),
-                        colorized.metadata(),
-                        () -> colorized.converter().apply(colorized.mono())
                 );
             } else if (image instanceof RGBImage rgb) {
                 emitter.newColorImage(

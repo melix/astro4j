@@ -18,7 +18,6 @@ package me.champeau.a4j.jsolex.processing.expr.impl;
 import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
 import me.champeau.a4j.jsolex.processing.sun.detection.RedshiftArea;
 import me.champeau.a4j.jsolex.processing.sun.detection.Redshifts;
-import me.champeau.a4j.jsolex.processing.util.ColorizedImageWrapper;
 import me.champeau.a4j.jsolex.processing.util.FileBackedImage;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
@@ -151,15 +150,6 @@ public class Scaling extends AbstractFunctionImpl {
                     height
                 ),
                 metadata);
-        } else if (img instanceof ColorizedImageWrapper colorized) {
-            var mono = colorized.mono();
-            return new ColorizedImageWrapper(
-                ImageWrapper32.fromImage(
-                    imageMath.rescale(mono.asImage(),
-                        width,
-                        height
-                    ), metadata), colorized.converter(), metadata
-            );
         } else if (img instanceof RGBImage rgb) {
             var r = new Image(rgb.width(), rgb.height(), rgb.r());
             var g = new Image(rgb.width(), rgb.height(), rgb.r());

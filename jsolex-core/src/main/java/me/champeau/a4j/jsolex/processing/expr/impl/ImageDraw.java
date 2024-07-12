@@ -17,7 +17,6 @@ package me.champeau.a4j.jsolex.processing.expr.impl;
 
 import me.champeau.a4j.jsolex.processing.params.ProcessParams;
 import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
-import me.champeau.a4j.jsolex.processing.util.ColorizedImageWrapper;
 import me.champeau.a4j.jsolex.processing.util.Constants;
 import me.champeau.a4j.jsolex.processing.util.FileBackedImage;
 import me.champeau.a4j.jsolex.processing.util.GeoCoordinates;
@@ -401,10 +400,6 @@ public class ImageDraw extends AbstractFunctionImpl {
             for (float d : mono.data()) {
                 max = Math.max(max, d);
             }
-        } else if (wrapper instanceof ColorizedImageWrapper colorized) {
-            for (float d : colorized.mono().data()) {
-                max = Math.max(max, d);
-            }
         } else if (wrapper instanceof RGBImage rgb) {
             for (float d : rgb.r()) {
                 max = Math.max(max, d);
@@ -509,15 +504,6 @@ public class ImageDraw extends AbstractFunctionImpl {
             for (int i = 0; i < converted.length; i++) {
                 converted[i] = (short) round(data[i]);
             }
-        } else if (wrapper instanceof ColorizedImageWrapper colorized) {
-            var data = colorized.mono();
-            var rgb = colorized.converter().apply(data);
-            var r = rgb[0];
-            var g = rgb[1];
-            var b = rgb[2];
-            var width = colorized.width();
-            var height = colorized.height();
-            image = toBufferedImage(width, height, r, g, b);
         } else if (wrapper instanceof RGBImage rgb) {
             image = toBufferedImage(rgb.width(), rgb.height(), rgb.r(), rgb.g(), rgb.b());
         }

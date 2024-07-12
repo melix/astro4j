@@ -17,9 +17,9 @@ package me.champeau.a4j.jsolex.processing.sun.tasks;
 
 import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
 import me.champeau.a4j.jsolex.processing.sun.workflow.GeneratedImageKind;
-import me.champeau.a4j.jsolex.processing.util.ColorizedImageWrapper;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
+import me.champeau.a4j.jsolex.processing.util.RGBImage;
 
 import java.io.File;
 import java.util.function.Function;
@@ -43,6 +43,6 @@ public class WriteColorizedImageTask extends AbstractImageWriterTask {
 
     @Override
     public ImageWrapper createImageWrapper() {
-        return new ColorizedImageWrapper(mono.get(), converter, getMetadata());
+        return RGBImage.fromMono(mono.get(), converter, getMetadata());
     }
 }
