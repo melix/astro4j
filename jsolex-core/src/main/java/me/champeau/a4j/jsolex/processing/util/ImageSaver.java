@@ -51,6 +51,17 @@ public class ImageSaver {
                 files = Stream.concat(files.stream(), Stream.of(fits)).toList();
                 FitsUtils.writeFitsFile(stretched, fits, processParams);
             }
+        } else if (image instanceof RGBImage rgb) {
+            var stretched = stretch(rgb);
+            var r = stretched.r();
+            var g = stretched.g();
+            var b = stretched.b();
+            files = ImageUtils.writeRgbImage(rgb.width(), rgb.height(), r, g, b, target, imageFormats);
+            if (imageFormats.contains(ImageFormat.FITS)) {
+                var fits = toFits(target);
+                files = Stream.concat(files.stream(), Stream.of(fits)).toList();
+                FitsUtils.writeFitsFile(new RGBImage(image.width(), image.height(), r, g, b, rgb.metadata()), fits, processParams);
+            }
         }
         return files;
     }

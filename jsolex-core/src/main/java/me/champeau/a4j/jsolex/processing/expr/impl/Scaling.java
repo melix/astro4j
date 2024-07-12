@@ -152,8 +152,8 @@ public class Scaling extends AbstractFunctionImpl {
                 metadata);
         } else if (img instanceof RGBImage rgb) {
             var r = new Image(rgb.width(), rgb.height(), rgb.r());
-            var g = new Image(rgb.width(), rgb.height(), rgb.r());
-            var b = new Image(rgb.width(), rgb.height(), rgb.r());
+            var g = new Image(rgb.width(), rgb.height(), rgb.g());
+            var b = new Image(rgb.width(), rgb.height(), rgb.b());
             return new RGBImage(
                 width,
                 height,

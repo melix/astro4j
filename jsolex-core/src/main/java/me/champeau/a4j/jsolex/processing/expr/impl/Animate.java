@@ -81,6 +81,8 @@ public class Animate extends AbstractFunctionImpl {
                 }
                 if (argument instanceof ImageWrapper32 image) {
                     addMonoFrame(encoder, image);
+                } else if (argument instanceof RGBImage rgb) {
+                    addColorFrame(encoder, rgb);
                 }
                 progress++;
             }
