@@ -11,6 +11,7 @@ Here are the new features in this version:
 
 - Fixed the `rescale_rel` function which was converting color images to monochrome
 - Fixed dynamic crop menu item which did nothing on some images
+- Possibility to use the detected polynomial on a particular frame instead of looking for it manually (issue #353)
 
 ## Changes in 2.6.1
 

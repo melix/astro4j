@@ -18,6 +18,7 @@ package me.champeau.a4j.jsolex.processing.sun;
 import me.champeau.a4j.jsolex.processing.util.Constants;
 import me.champeau.a4j.math.Point2D;
 import me.champeau.a4j.math.regression.LinearRegression;
+import me.champeau.a4j.math.tuples.DoubleQuadruplet;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -192,7 +193,7 @@ public class SpectrumFrameAnalyzer {
                 }
             }
             var regression = LinearRegression.thirdOrderRegression(samplePoints.toArray(new Point2D[0]));
-            return new Result(leftBorder, rightBorder, regression.asPolynomial(), samplePoints);
+            return new Result(leftBorder, rightBorder, regression, samplePoints);
         } else {
             // Not enough sample points, we have to include the whole width
             samplePoints.clear();
@@ -203,8 +204,8 @@ public class SpectrumFrameAnalyzer {
                 }
             }
             if (samplePoints.size() > 2) {
-                var triplet = LinearRegression.thirdOrderRegression(samplePoints.toArray(new Point2D[0]));
-                return new Result(leftBorder, rightBorder, triplet.asPolynomial(), samplePoints);
+                var regression = LinearRegression.thirdOrderRegression(samplePoints.toArray(new Point2D[0]));
+                return new Result(leftBorder, rightBorder, regression, samplePoints);
             }
         }
         return new Result(leftBorder, rightBorder, null, samplePoints);
@@ -225,13 +226,13 @@ public class SpectrumFrameAnalyzer {
     public static class Result {
         private final Integer leftBorder;
         private final Integer rightBorder;
-        private final DoubleUnaryOperator distortionPolynomial;
+        private final DoubleQuadruplet distortionQuadruplet;
         private final List<Point2D> samplePoints;
 
-        public Result(Integer leftBorder, Integer rightBorder, DoubleUnaryOperator distortionPolynomial, List<Point2D> samplePoints) {
+        public Result(Integer leftBorder, Integer rightBorder, DoubleQuadruplet distortionQuadruplet, List<Point2D> samplePoints) {
             this.leftBorder = leftBorder;
             this.rightBorder = rightBorder;
-            this.distortionPolynomial = distortionPolynomial;
+            this.distortionQuadruplet = distortionQuadruplet;
             this.samplePoints = samplePoints;
         }
 
@@ -244,7 +245,11 @@ public class SpectrumFrameAnalyzer {
         }
 
         public Optional<DoubleUnaryOperator> distortionPolynomial() {
-            return Optional.ofNullable(distortionPolynomial);
+            return Optional.ofNullable(distortionQuadruplet).map(DoubleQuadruplet::asPolynomial);
+        }
+
+        public Optional<DoubleQuadruplet> distortionQuadruplet() {
+            return Optional.ofNullable(distortionQuadruplet);
         }
 
         public List<Point2D> getSamplePoints() {

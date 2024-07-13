@@ -190,7 +190,13 @@ public class SpectralLineDebugger {
         status.setDisable(true);
         BackgroundOperations.asyncIo(() -> prepareView(file, colorMode, scene, stage, toggleGroup));
         computePolynomial.setDisable(true);
-        polynomialTextField.setDisable(true);
+        polynomialTextField.textProperty().addListener((observable, oldValue, newValue) -> {
+            if (newValue != null && !newValue.trim().isEmpty()) {
+                if (onPolynomialComputed != null) {
+                    onPolynomialComputed.accept(newValue);
+                }
+            }
+        });
     }
 
     private void fireZoomChanged(Scene scene) {
@@ -249,12 +255,9 @@ public class SpectralLineDebugger {
                 };
                 computePolynomial.setOnAction(e -> {
                     var polynomial = LinearRegression.thirdOrderRegression(samplePoints.toArray(new Point2D[0]));
-                    polynomialTextField.setText(polynomial.asPolynomialString());
-                    if (onPolynomialComputed != null) {
-                        onPolynomialComputed.accept(polynomial.asPolynomialString());
-                    }
                     lockedPolynomial = polynomial.asPolynomial();
                     processFrame(converter, reader, geometry, Integer.parseInt(frameId.getText()), imageFile, null, scene);
+                    polynomialTextField.setText(polynomial.asPolynomialString());
                     redraw();
                 });
                 frameSlider.valueProperty().addListener(listener);
@@ -357,6 +360,7 @@ public class SpectralLineDebugger {
         var analysis = analyzer.result();
         analysis.distortionPolynomial().ifPresent(p -> {
             this.polynomial = p;
+            this.polynomialTextField.setText(analysis.distortionQuadruplet().get().asPolynomialString());
             if (spectralRayDetectionResult == null) {
                 var pixelSize = processParams.observationDetails().pixelSize();
                 var candidates = new ArrayList<SpectrumAnalyzer.QueryDetails>();

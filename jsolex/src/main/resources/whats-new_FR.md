@@ -12,6 +12,7 @@ Voici les nouvelles fonctionnalités de cette version :
 
 - Correction de la fonction `rescale_rel` qui convertissait les images couleur en mono
 - Correction de l'élément de menu de rognage dynamique qui ne faisait rien sur certaines images
+- Possibilité d'utiliser le polynôme détecté sur une trame particulière au lieu de le chercher manuellement (issue #353)
 
 ## Changements dans la version 2.6.1
 
