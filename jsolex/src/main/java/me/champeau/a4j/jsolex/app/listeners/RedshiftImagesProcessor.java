@@ -101,6 +101,10 @@ public class RedshiftImagesProcessor {
         this.averageImage = averageImage;
     }
 
+    public RedshiftImagesProcessor withRedshifts(List<RedshiftArea> redshifts) {
+        return new RedshiftImagesProcessor(shiftImages, params, serFile, outputDirectory, owner, broadcaster, imageEmitter, redshifts, polynomial, averageImage);
+    }
+
     public Optional<Double> getSunRadius() {
         return shiftImages.values().stream()
             .map(i -> i.findMetadata(Ellipse.class).map(e -> (e.semiAxis().a() + e.semiAxis().b()) / 2))

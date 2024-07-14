@@ -26,6 +26,7 @@
 <?import me.champeau.a4j.jsolex.app.jfx.ime.ImageMathTextArea?>
 <?import org.fxmisc.flowless.VirtualizedScrollPane?>
 <?import org.fxmisc.richtext.StyleClassedTextArea?>
+<?import javafx.scene.control.ScrollPane?>
 <BorderPane xmlns="http://javafx.com/javafx/19" xmlns:fx="http://javafx.com/fxml/1">
     <top>
         <MenuBar>
@@ -109,47 +110,53 @@
                                     </VBox>
                                 </top>
                                 <center>
-                                    <GridPane alignment="BASELINE_LEFT" hgap="10" vgap="10">
-                                        <padding>
-                                            <Insets bottom="4.0" left="4.0" right="4.0" top="4.0"/>
-                                        </padding>
-                                        <Label text="%redshifts.help" GridPane.rowIndex="0" GridPane.columnIndex="0" wrapText="true" GridPane.columnSpan="2"/>
+                                    <ScrollPane fitToHeight="true" fitToWidth="true">
+                                        <GridPane alignment="BASELINE_LEFT" hgap="10" vgap="10">
+                                            <padding>
+                                                <Insets bottom="4.0" left="4.0" right="4.0" top="4.0"/>
+                                            </padding>
+                                            <Label text="%redshifts.help" GridPane.rowIndex="0" GridPane.columnIndex="0" wrapText="true" GridPane.columnSpan="2"/>
 
-                                        <Label text="%box.size" GridPane.columnIndex="0" GridPane.rowIndex="1" prefWidth="200"/>
-                                        <ChoiceBox fx:id="redshiftBoxSize" GridPane.columnIndex="1" GridPane.rowIndex="1" prefWidth="200"/>
+                                            <Label text="%box.size" GridPane.columnIndex="0" GridPane.rowIndex="1" prefWidth="200"/>
+                                            <ChoiceBox fx:id="redshiftBoxSize" GridPane.columnIndex="1" GridPane.rowIndex="1" prefWidth="200"/>
 
-                                        <Label text="%pixel.shift.margin" GridPane.columnIndex="0" GridPane.rowIndex="2" prefWidth="200"/>
-                                        <TextField fx:id="pixelShiftMargin" GridPane.columnIndex="1" GridPane.rowIndex="2" maxWidth="50" prefWidth="50"/>
+                                            <Label text="%pixel.shift.margin" GridPane.columnIndex="0" GridPane.rowIndex="2" prefWidth="200"/>
+                                            <TextField fx:id="pixelShiftMargin" GridPane.columnIndex="1" GridPane.rowIndex="2" maxWidth="50" prefWidth="50"/>
 
-                                        <Label text="%redshift.creator.kind" GridPane.columnIndex="0" GridPane.rowIndex="3" prefWidth="200"/>
-                                        <ChoiceBox fx:id="redshiftCreatorKind" GridPane.columnIndex="1" GridPane.rowIndex="3" prefWidth="200"/>
+                                            <Label text="%redshift.creator.kind" GridPane.columnIndex="0" GridPane.rowIndex="3" prefWidth="200"/>
+                                            <ChoiceBox fx:id="redshiftCreatorKind" GridPane.columnIndex="1" GridPane.rowIndex="3" prefWidth="200"/>
 
-                                        <Label fx:id="annotateAnimationsLabel" text="%annotate.animations" GridPane.columnIndex="0" GridPane.rowIndex="4" prefWidth="300">
-                                            <tooltip>
-                                                <Tooltip text="%annotate.animations.tooltip"/>
-                                            </tooltip>
-                                        </Label>
-                                        <CheckBox fx:id="annotateAnimations" GridPane.columnIndex="1" GridPane.rowIndex="4" prefWidth="100">
-                                            <tooltip>
-                                                <Tooltip text="%annotate.animations.tooltip"/>
-                                            </tooltip>
-                                        </CheckBox>
+                                            <Label fx:id="annotateAnimationsLabel" text="%annotate.animations" GridPane.columnIndex="0" GridPane.rowIndex="4" prefWidth="300">
+                                                <tooltip>
+                                                    <Tooltip text="%annotate.animations.tooltip"/>
+                                                </tooltip>
+                                            </Label>
+                                            <CheckBox fx:id="annotateAnimations" GridPane.columnIndex="1" GridPane.rowIndex="4" prefWidth="100">
+                                                <tooltip>
+                                                    <Tooltip text="%annotate.animations.tooltip"/>
+                                                </tooltip>
+                                            </CheckBox>
 
-                                        <Label fx:id="fullRangePanelsLabel" text="%full.range.panels" GridPane.columnIndex="0" GridPane.rowIndex="5" prefWidth="300">
-                                            <tooltip>
-                                                <Tooltip text="%full.range.panels.tooltip"/>
-                                            </tooltip>
-                                        </Label>
-                                        <CheckBox fx:id="fullRangePanels" GridPane.columnIndex="1" GridPane.rowIndex="5" prefWidth="100">
-                                            <tooltip>
-                                                <Tooltip text="%full.range.panels.tooltip"/>
-                                            </tooltip>
-                                        </CheckBox>
-
-                                        <VBox alignment="CENTER" GridPane.rowIndex="6" GridPane.columnIndex="0" GridPane.columnSpan="2">
-                                            <Button fx:id="generateRedshiftImages" text="%generate"/>
-                                        </VBox>
-                                    </GridPane>
+                                            <Label fx:id="fullRangePanelsLabel" text="%full.range.panels" GridPane.columnIndex="0" GridPane.rowIndex="5" prefWidth="300">
+                                                <tooltip>
+                                                    <Tooltip text="%full.range.panels.tooltip"/>
+                                                </tooltip>
+                                            </Label>
+                                            <CheckBox fx:id="fullRangePanels" GridPane.columnIndex="1" GridPane.rowIndex="5" prefWidth="100">
+                                                <tooltip>
+                                                    <Tooltip text="%full.range.panels.tooltip"/>
+                                                </tooltip>
+                                            </CheckBox>
+                                            <VBox GridPane.rowIndex="6" GridPane.columnIndex="0" GridPane.columnSpan="2" spacing="4">
+                                                <Label text="%what.to.generate"/>
+                                                <GridPane fx:id="redshiftSelectionBox">
+                                                </GridPane>
+                                            </VBox>
+                                            <VBox alignment="CENTER" GridPane.rowIndex="7" GridPane.columnIndex="0" GridPane.columnSpan="2">
+                                                <Button fx:id="generateRedshiftImages" text="%generate"/>
+                                            </VBox>
+                                        </GridPane>
+                                    </ScrollPane>
                                 </center>
                             </BorderPane>
                         </Tab>
