@@ -54,6 +54,7 @@ import javafx.scene.control.TextField;
 import javafx.scene.control.TextFormatter;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
+import javafx.scene.layout.GridPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
 import javafx.stage.DirectoryChooser;
@@ -246,6 +247,9 @@ public class JSolEx extends Application implements JSolExInterface {
     private CheckBox fullRangePanels;
     @FXML
     private Label fullRangePanelsLabel;
+
+    @FXML
+    private GridPane redshiftSelectionBox;
 
     private final Map<String, ImageViewer> popupViewers = new ConcurrentHashMap<>();
 
@@ -707,7 +711,8 @@ public class JSolEx extends Application implements JSolExInterface {
     private void showFrameDebugger() {
         selectSerFileAndThen(file -> {
             config.loadedSerFile(file.toPath());
-            SpectralLineDebugger.open(file, unused -> {});
+            SpectralLineDebugger.open(file, unused -> {
+            });
         });
     }
 
@@ -943,6 +948,27 @@ public class JSolEx extends Application implements JSolExInterface {
             annotateAnimationsLabel.disableProperty().bind(redshiftCreatorKind.valueProperty().isEqualTo(RedshiftImagesProcessor.RedshiftCreatorKind.PANEL));
             annotateAnimations.disableProperty().bind(redshiftCreatorKind.valueProperty().isEqualTo(RedshiftImagesProcessor.RedshiftCreatorKind.PANEL));
             redshiftBoxSize.getItems().clear();
+            redshiftSelectionBox.getChildren().clear();
+            var selectedShifts = new HashSet<>(redshifts);
+            for (int i = 0; i < redshifts.size(); i++) {
+                var redshift = redshifts.get(i);
+                var checkBox = new CheckBox(String.format("%s (%.2f km/s)", redshift.id(), redshift.kmPerSec()));
+                checkBox.setSelected(true);
+                checkBox.selectedProperty().addListener((observableValue, aBoolean, newValue) -> {
+                    if (Boolean.TRUE.equals(newValue)) {
+                        selectedShifts.add(redshift);
+                    } else {
+                        selectedShifts.remove(redshift);
+                    }
+                });
+                var row = i / 3;
+                var column = i % 3;
+                GridPane.setRowIndex(checkBox, row);
+                GridPane.setColumnIndex(checkBox, column);
+                GridPane.setMargin(checkBox, new Insets(0, 8, 4, 8));
+                redshiftSelectionBox.setPadding(new Insets(8, 8, 8, 8));
+                redshiftSelectionBox.getChildren().add(checkBox);
+            }
             int bSize = boxSize;
             for (int i = 0; i < 4; i++) {
                 redshiftBoxSize.getItems().add(bSize);
@@ -957,7 +983,7 @@ public class JSolEx extends Application implements JSolExInterface {
                 if (kind != null && size != null) {
                     BackgroundOperations.async(() -> {
                         BatchOperations.submit(() -> rightTabs.getSelectionModel().select(logsTab));
-                        processor.produceImages(kind, size, margin, useFullRangePanels, annotate);
+                        processor.withRedshifts(selectedShifts.stream().toList()).produceImages(kind, size, margin, useFullRangePanels, annotate);
                     });
                 }
             });
