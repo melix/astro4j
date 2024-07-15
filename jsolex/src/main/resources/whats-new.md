@@ -7,6 +7,10 @@ Here are the new features in this version:
 - [Forcing a polynomial](#forcing-a-polynomial)
 - [Bugfixes and improvements](#bugfixes-and-improvements)
 
+## Changes in 2.6.3
+
+- Improve spectral line detection accuracy (issue #360)
+
 ## Changes in 2.6.2
 
 - Fixed the `rescale_rel` function which was converting color images to monochrome

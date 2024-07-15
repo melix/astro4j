@@ -113,6 +113,12 @@ public class DistortionCorrection {
         return correctedImage;
     }
 
+    public double correctY(DoubleUnaryOperator p, double x, double y) {
+        double middle = height / 2.0;
+        double yCorrection = -p.applyAsDouble(x) + middle;
+        return y + yCorrection;
+    }
+
     /**
      * Interpolates the pixel value at the given position using bilinear interpolation.
      *

@@ -140,6 +140,7 @@ public class SpectralLineDebugger {
     private SpectrumAnalyzer.QueryDetails spectralRayDetectionResult;
     private ProcessParams processParams;
     private Consumer<? super String> onPolynomialComputed;
+    private float[] averageImage;
 
     public static Stage open(File file, Consumer<? super String> onPolynomialComputed) {
         var fxmlLoader = I18N.fxmlLoader(JSolEx.class, "frame-debugger");
@@ -220,7 +221,7 @@ public class SpectralLineDebugger {
         try {
             reader = SerFileReader.of(file);
             detector.computeAverageImage(reader);
-            var averageImage = detector.getAverageImage();
+            averageImage = detector.getAverageImage();
             var tmpPath = Files.createTempFile("debug_", ".png");
             File imageFile = tmpPath.toFile();
             imageFile.deleteOnExit();
@@ -249,14 +250,14 @@ public class SpectralLineDebugger {
                     int newId = newValue instanceof Number ? ((Number) newValue).intValue() : frameSlider.valueProperty().intValue();
                     frameId.setText(newId + "");
                     pause.setOnFinished(e ->
-                        processFrame(converter, reader, geometry, newId, imageFile, null, scene)
+                        processFrame(converter, reader, geometry, newId, imageFile, toggleGroup.getSelectedToggle() == average ? averageImage : null, scene)
                     );
                     pause.playFromStart();
                 };
                 computePolynomial.setOnAction(e -> {
                     var polynomial = LinearRegression.thirdOrderRegression(samplePoints.toArray(new Point2D[0]));
                     lockedPolynomial = polynomial.asPolynomial();
-                    processFrame(converter, reader, geometry, Integer.parseInt(frameId.getText()), imageFile, null, scene);
+                    processFrame(converter, reader, geometry, Integer.parseInt(frameId.getText()), imageFile, toggleGroup.getSelectedToggle() == average ? averageImage : null, scene);
                     polynomialTextField.setText(polynomial.asPolynomialString());
                     redraw();
                 });
@@ -283,7 +284,7 @@ public class SpectralLineDebugger {
                 }));
                 contrastBoost.valueProperty().addListener((observable, oldValue, newValue) -> {
                     int frameId = frameSlider.valueProperty().intValue();
-                    pause.setOnFinished(e -> processFrame(converter, reader, geometry, frameId, imageFile, null, scene));
+                    pause.setOnFinished(e -> processFrame(converter, reader, geometry, frameId, imageFile, toggleGroup.getSelectedToggle() == average ? averageImage : null, scene));
                     pause.playFromStart();
                 });
                 sunDetectionThreshold.textProperty().set("");
