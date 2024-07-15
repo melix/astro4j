@@ -62,7 +62,7 @@ public class AverageImageCreator {
             maxMean = Math.max(imageMath.averageOf(middle), maxMean);
         }
         // We're going to ignore frames which are too dark
-        var threshold = 0.1f * maxMean;
+        var threshold = 0.5f * maxMean;
         try (var cpuExecutor = ParallelExecutor.newExecutor(1)) {
             try (var ioExecutor = ParallelExecutor.newExecutor(4 * Runtime.getRuntime().availableProcessors())) {
                 reader.seekFrame(0);

@@ -25,6 +25,7 @@ import java.util.stream.IntStream;
 
 public class FlatCorrection {
     private static final int MARGIN = 5;
+    private static final int BAND_SIZE = 2;
 
     private FlatCorrection() {
 
@@ -63,7 +64,7 @@ public class FlatCorrection {
         IntStream.range(0, height).parallel().forEach(y -> {
             var builder2 = Histogram.builder(65536);
             for (int x = 0; x < width; x++) {
-                for (int y1 = Math.max(0, y - MARGIN); y1 < Math.min(height, y + MARGIN); y1++) {
+                for (int y1 = Math.max(0, y - BAND_SIZE); y1 < Math.min(height, y + BAND_SIZE); y1++) {
                     if (ellipse.isWithin(x, y1)) {
                         var v = data[x + y1 * width];
                         if (v > lo && v < hi) {

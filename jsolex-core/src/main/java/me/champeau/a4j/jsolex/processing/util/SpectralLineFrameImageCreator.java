@@ -110,9 +110,10 @@ public class SpectralLineFrameImageCreator {
         }
         analyzer.analyze(corrected);
         // Add green lines showing the detected spectrum line
+        var distorsionCorrection = new DistortionCorrection(original, width, height);
         for (Point2D sample : samples) {
-            var x = sample.x();
-            var y = sample.y();
+            int x = (int) sample.x();
+            int y = polynomial.map(poly -> distorsionCorrection.correctY(poly, sample.x(), sample.y())).orElse(sample.y()).intValue();
             rr[(int) (offset + x + y * width)] = 0;
             gg[(int) (offset + x + y * width)] = MAX_PIXEL_VALUE;
             bb[(int) (offset + x + y * width)] = 0;

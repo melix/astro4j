@@ -26,15 +26,12 @@ import java.util.Optional;
 import java.util.function.DoubleUnaryOperator;
 
 public class SpectrumFrameAnalyzer {
-    public static final int MAX_DEVIATION = 10;
+    public static final int MAX_DEVIATION = 8;
     private final int width;
     private final int height;
     private final Double sunDetectionThreshold;
 
     private Result result;
-    private double avg;
-    private double max;
-    private double min;
     private float[] data;
 
     public SpectrumFrameAnalyzer(int width,
@@ -65,35 +62,24 @@ public class SpectrumFrameAnalyzer {
         Integer rightBorder = null;
         var columnAverages = new double[width];
         for (int x = 0; x < width; x++) {
-            double columnAverage = 0;
+            double colSum = 0;
             for (int y = 0; y < height; y++) {
                 double value = data[y * width + x];
-                avg = avg + (value - avg) / (x + y + 1);
-                columnAverage = columnAverage + (value - columnAverage) / (y + 1);
-                if (value < min) {
-                    min = value;
-                }
-                if (value > max) {
-                    max = value;
-                }
+                colSum += value;
             }
-            columnAverages[x] = columnAverage;
+            columnAverages[x] = colSum / height;
         }
-        // compute average of averages and stddev
-        var avgColumnAverage = 0d;
-        for (double columnAverage : columnAverages) {
-            avgColumnAverage += columnAverage;
+        double min = Double.MAX_VALUE;
+        double max = 0;
+        for (double avg : columnAverages) {
+            min = Math.min(avg, min);
+            max = Math.max(avg, max);
         }
-        avgColumnAverage /= width;
-        var stddev = 0d;
-        for (double columnAverage : columnAverages) {
-            stddev += Math.pow(columnAverage - avgColumnAverage, 2);
+        for (int i = 0; i < columnAverages.length; i++) {
+            columnAverages[i] = (columnAverages[i] - min) / (max - min);
         }
-        stddev = Math.sqrt(stddev / width);
-        // left and right border are the first and last columns which are more than 1 stddev away from the average
-        var threshold = Math.max(max/4, avgColumnAverage - stddev);
         for (int x = 0; x < width; x++) {
-            if (columnAverages[x] > threshold) {
+            if (columnAverages[x] > 0.2) {
                 if (leftBorder == null) {
                     leftBorder = x;
                 }
@@ -110,14 +96,7 @@ public class SpectrumFrameAnalyzer {
             double lineAvg = 0;
             for (int y = 0; y < height; y++) {
                 double value = data[y * width + x];
-                avg = avg + (value - avg) / (x + y + 1);
                 lineAvg = lineAvg + (value - lineAvg) / (y + 1);
-                if (value < min) {
-                    min = value;
-                }
-                if (value > max) {
-                    max = value;
-                }
             }
             if (lineAvg > sunDetectionThreshold) {
                 if (leftBorder == null) {
@@ -131,9 +110,6 @@ public class SpectrumFrameAnalyzer {
 
     private void reset() {
         result = null;
-        avg = 0;
-        max = 0;
-        min = Double.MAX_VALUE;
     }
 
     private int findYAtMinimalValue(float[] data, int x) {
@@ -164,34 +140,31 @@ public class SpectrumFrameAnalyzer {
         if (rightBorder != null) {
             r = rightBorder + 1;
         }
-        int limit = (int) (0.5d * (r - l) / 2);
+        int limit = (int) (0.75d * (r - l) / 2);
         // in the first pass we restrict samples to 50% of the spectrum
-        int step = 8;
+        int step = 4;
         for (int x = l + limit; x < r - limit; x += step) {
             var y = findYAtMinimalValue(data, x);
             if (y >= 0) {
                 samplePoints.add(new Point2D(x, y));
             }
         }
-        // compute average y value and stddev
-        var avgY = samplePoints.stream().mapToDouble(Point2D::y).average().orElse(0);
-        var stddev = Math.sqrt(samplePoints.stream().mapToDouble(p -> Math.pow(p.y() - avgY, 2)).sum() / samplePoints.size());
-        // remove samples which are 2*sigma away from the average
-        samplePoints.removeIf(p -> Math.abs(p.y() - avgY) > 2 * stddev);
+        var maxDiff = Math.max(4, 8 * removeOutliersByStdDev(samplePoints, 2));
 
         if (samplePoints.size() > 2) {
-            var polynomial = LinearRegression.thirdOrderRegression(samplePoints.toArray(new Point2D[0])).asPolynomial();
+            var polynomial = LinearRegression.secondOrderRegression(samplePoints.toArray(new Point2D[0])).asPolynomial();
             // In the 2d pass we consider all points but only keep those which are close enough to the first polynomial
             samplePoints.clear();
             for (int x = l; x < r; x += step) {
                 var y = findYAtMinimalValue(data, x);
                 if (y >= 0) {
                     var yy = polynomial.applyAsDouble(x);
-                    if (Math.abs(yy - y) < MAX_DEVIATION) {
+                    if (Math.abs(yy - y) < maxDiff) {
                         samplePoints.add(new Point2D(x, y));
                     }
                 }
             }
+            removeOutliersByStdDev(samplePoints, 3);
             var regression = LinearRegression.thirdOrderRegression(samplePoints.toArray(new Point2D[0]));
             return new Result(leftBorder, rightBorder, regression, samplePoints);
         } else {
@@ -204,23 +177,20 @@ public class SpectrumFrameAnalyzer {
                 }
             }
             if (samplePoints.size() > 2) {
-                var regression = LinearRegression.thirdOrderRegression(samplePoints.toArray(new Point2D[0]));
-                return new Result(leftBorder, rightBorder, regression, samplePoints);
+                var regression = LinearRegression.secondOrderRegression(samplePoints.toArray(new Point2D[0]));
+                return new Result(leftBorder, rightBorder, new DoubleQuadruplet(0, regression.a(), regression.b(), regression.c()), samplePoints);
             }
         }
         return new Result(leftBorder, rightBorder, null, samplePoints);
     }
 
-    public double avg() {
-        return avg;
-    }
-
-    public double max() {
-        return max;
-    }
-
-    public double min() {
-        return min;
+    private static double removeOutliersByStdDev(ArrayList<Point2D> samplePoints, double factor) {
+        // compute average y value and stddev
+        var avgY = samplePoints.stream().mapToDouble(Point2D::y).average().orElse(0);
+        var stddev = Math.sqrt(samplePoints.stream().mapToDouble(p -> Math.pow(p.y() - avgY, 2)).sum() / samplePoints.size());
+        // remove samples which are 2*sigma away from the average
+        samplePoints.removeIf(p -> Math.abs(p.y() - avgY) > factor * stddev);
+        return stddev;
     }
 
     public static class Result {
