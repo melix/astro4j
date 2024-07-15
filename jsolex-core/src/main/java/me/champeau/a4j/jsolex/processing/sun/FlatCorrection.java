@@ -25,7 +25,7 @@ import java.util.stream.IntStream;
 
 public class FlatCorrection {
     private static final int MARGIN = 5;
-    private static final int BAND_SIZE = 2;
+    private static final int BAND_SIZE = 1;
 
     private FlatCorrection() {
 
@@ -58,7 +58,7 @@ public class FlatCorrection {
         }
         var diskHistogram = builder.build().cumulative();
         var percentile = diskHistogram.percentile(0.95);
-        var lo = 0.5 * percentile;
+        var lo = 0.05 * percentile;
         var hi = diskHistogram.percentile(0.99);
         var medianValues = new double[height];
         IntStream.range(0, height).parallel().forEach(y -> {

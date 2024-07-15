@@ -10,6 +10,7 @@ Here are the new features in this version:
 ## Changes in 2.6.3
 
 - Improve spectral line detection accuracy (issue #360)
+- Improve correction using artificial flat
 
 ## Changes in 2.6.2
 
