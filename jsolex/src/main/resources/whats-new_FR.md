@@ -11,6 +11,7 @@ Voici les nouvelles fonctionnalités de cette version :
 ## Changements dans la version 2.6.3
 
 - Correction de la précision de la détection des lignes spectrales (issue #360)
+- Amélioration de la correction par flat artificiel
 
 ## Changements dans la version 2.6.2
 
