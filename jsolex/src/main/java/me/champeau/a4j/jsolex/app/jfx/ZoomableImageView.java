@@ -36,6 +36,7 @@ import javafx.scene.layout.Pane;
 import javafx.scene.paint.Color;
 import javafx.scene.shape.Rectangle;
 import javafx.util.Duration;
+import me.champeau.a4j.jsolex.processing.util.BackgroundOperations;
 import me.champeau.a4j.math.regression.Ellipse;
 
 import java.nio.file.Files;
@@ -339,8 +340,22 @@ public class ZoomableImageView extends HBox {
         }
         if (otherImage.getWidth() == img.getWidth() && otherImage.getHeight() == getImage().getHeight()) {
             setZoom(other.getZoom());
-            scrollPane.setHvalue(other.scrollPane.getHvalue());
-            scrollPane.setVvalue(other.scrollPane.getVvalue());
+            var hvalue = other.scrollPane.getHvalue();
+            var vvalue = other.scrollPane.getVvalue();
+            BackgroundOperations.async(() -> {
+                while (scrollPane.getHvalue() != hvalue || scrollPane.getVvalue() != vvalue) {
+                    BatchOperations.submit(() -> {
+                        scrollPane.setHvalue(hvalue);
+                        scrollPane.setVvalue(vvalue);
+                    });
+                    try {
+                        Thread.sleep(50);
+                    } catch (InterruptedException e) {
+                        Thread.currentThread().interrupt();
+                        break;
+                    }
+                }
+            });
         }
     }
 

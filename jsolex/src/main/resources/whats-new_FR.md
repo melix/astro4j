@@ -14,6 +14,7 @@ Voici les nouvelles fonctionnalités de cette version :
 - La correction par flat artificiel est maintenant optionnelle (issue #364)
 - Amélioration de la correction par flat artificiel
 - Correction du mauvais comportement du curseur de contraste dans l'analyseur de vidéo
+- Correction du bouton d'alignement n'alignant pas toujours les images
 
 ## Changements dans la version 2.6.2
 
