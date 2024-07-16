@@ -163,11 +163,11 @@
                                         <ChoiceBox fx:id="autocrop" prefHeight="24.0" prefWidth="362.0" GridPane.columnIndex="1" GridPane.rowIndex="5" />
                                         <Label text="%continuum.shift" GridPane.rowIndex="3" />
                                         <TextField fx:id="continuumShifting" maxWidth="80.0" GridPane.columnIndex="1" GridPane.rowIndex="3" />
-                                        <CheckBox fx:id="forcePolynomial" mnemonicParsing="false" text="%force.polynomial" GridPane.rowIndex="9"/>
+                                        <CheckBox fx:id="forcePolynomial" mnemonicParsing="false" text="%force.polynomial" GridPane.rowIndex="9" />
                                         <HBox prefHeight="100.0" prefWidth="200.0" spacing="16.0" GridPane.columnIndex="1" GridPane.rowIndex="9">
                                             <children>
-                                                <TextField fx:id="forcedPolynomial" prefHeight="24.0" prefWidth="328.0"/>
-                                                <Button fx:id="forcePolynomialOpen" mnemonicParsing="false" text="..." onAction="#openVideoDebugger"/>
+                                                <TextField fx:id="forcedPolynomial" prefHeight="24.0" prefWidth="328.0" />
+                                                <Button fx:id="forcePolynomialOpen" mnemonicParsing="false" onAction="#openVideoDebugger" text="..." />
                                             </children>
                                         </HBox>
                                     </children>
@@ -309,6 +309,7 @@
                                                 <TextField fx:id="autostretchGamma" GridPane.columnIndex="1" />
                                             </children>
                                         </GridPane>
+                                        <CheckBox fx:id="artificialFlatCorrection" mnemonicParsing="false" text="%artificial.flat" GridPane.columnIndex="1" GridPane.rowIndex="7" />
                                     </children>
                                 </GridPane>
                             </children>

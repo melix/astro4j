@@ -28,7 +28,8 @@ public record ProcessParams(
     RequestedImages requestedImages,
     ClaheParams claheParams,
     AutoStretchParams autoStretchParams,
-    ContrastEnhancement contrastEnhancement
+    ContrastEnhancement contrastEnhancement,
+    EnhancementParams enhancementParams
 ) {
     public static ProcessParams loadDefaults() {
         return ProcessParamsIO.loadDefaults();
@@ -70,7 +71,8 @@ public record ProcessParams(
             requestedImages,
             claheParams,
             autoStretchParams,
-            contrastEnhancement
+            contrastEnhancement,
+            enhancementParams
         );
     }
 
@@ -85,7 +87,8 @@ public record ProcessParams(
             requestedImages,
             claheParams,
             autoStretchParams,
-            contrastEnhancement
+            contrastEnhancement,
+            enhancementParams
         );
     }
 
@@ -100,7 +103,8 @@ public record ProcessParams(
             requestedImages,
             claheParams,
             autoStretchParams,
-            contrastEnhancement
+            contrastEnhancement,
+            enhancementParams
         );
     }
 
@@ -115,7 +119,8 @@ public record ProcessParams(
             requestedImages,
             claheParams,
             autoStretchParams,
-            contrastEnhancement
+            contrastEnhancement,
+            enhancementParams
         );
     }
 
@@ -130,7 +135,8 @@ public record ProcessParams(
             requestedImages,
             claheParams,
             autoStretchParams,
-            contrastEnhancement
+            contrastEnhancement,
+            enhancementParams
         );
     }
 
@@ -145,7 +151,8 @@ public record ProcessParams(
             requestedImages,
             claheParams,
             autoStretchParams,
-            contrastEnhancement
+            contrastEnhancement,
+            enhancementParams
         );
     }
 
@@ -160,7 +167,8 @@ public record ProcessParams(
             requestedImages,
             claheParams,
             autoStretchParams,
-            contrastEnhancement
+            contrastEnhancement,
+            enhancementParams
         );
     }
 
@@ -175,7 +183,8 @@ public record ProcessParams(
             requestedImages,
             claheParams,
             autoStretchParams,
-            contrastEnhancement
+            contrastEnhancement,
+            enhancementParams
         );
     }
 
@@ -190,7 +199,8 @@ public record ProcessParams(
             requestedImages,
             claheParams,
             autoStretchParams,
-            contrastEnhancement
+            contrastEnhancement,
+            enhancementParams
         );
     }
 
@@ -205,7 +215,8 @@ public record ProcessParams(
             requestedImages,
             claheParams,
             autoStretchParams,
-            contrastEnhancement
+            contrastEnhancement,
+            enhancementParams
         );
     }
 
@@ -220,7 +231,24 @@ public record ProcessParams(
             requestedImages,
             claheParams,
             autoStretchParams,
-            contrastEnhancement
+            contrastEnhancement,
+            enhancementParams
+        );
+    }
+
+    public ProcessParams withEnhancementParams(EnhancementParams enhancementParams) {
+        return new ProcessParams(
+            spectrumParams,
+            observationDetails,
+            extraParams,
+            videoParams,
+            geometryParams,
+            bandingCorrectionParams,
+            requestedImages,
+            claheParams,
+            autoStretchParams,
+            contrastEnhancement,
+            enhancementParams
         );
     }
 }

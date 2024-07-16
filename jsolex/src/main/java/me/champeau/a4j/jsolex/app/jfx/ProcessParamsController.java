@@ -42,6 +42,7 @@ import me.champeau.a4j.jsolex.processing.params.BandingCorrectionParams;
 import me.champeau.a4j.jsolex.processing.params.ClaheParams;
 import me.champeau.a4j.jsolex.processing.params.ContrastEnhancement;
 import me.champeau.a4j.jsolex.processing.params.DeconvolutionMode;
+import me.champeau.a4j.jsolex.processing.params.EnhancementParams;
 import me.champeau.a4j.jsolex.processing.params.ExtraParams;
 import me.champeau.a4j.jsolex.processing.params.FileNamingPatternsIO;
 import me.champeau.a4j.jsolex.processing.params.GeometryParams;
@@ -196,6 +197,8 @@ public class ProcessParamsController {
     private TextField forcedPolynomial;
     @FXML
     private Button forcePolynomialOpen;
+    @FXML
+    private CheckBox artificialFlatCorrection;
 
     private final List<Stage> popups = new CopyOnWriteArrayList<>();
     private Stage stage;
@@ -448,6 +451,7 @@ public class ProcessParamsController {
         forcePolynomial.setSelected(initialProcessParams.geometryParams().isForcePolynomial());
         forcePolynomialOpen.disableProperty().bind(forcePolynomial.selectedProperty().not());
         forcedPolynomial.setText(initialProcessParams.geometryParams().forcedPolynomial().orElse(null));
+        artificialFlatCorrection.setSelected(initialProcessParams.enhancementParams().artificialFlatCorrection());
     }
 
     private void configureRichardsonLucyDefaults() {
@@ -649,7 +653,8 @@ public class ProcessParamsController {
             new AutoStretchParams(
                 Double.parseDouble(autostretchGamma.getText())
             ),
-            contrastEnhancementTechnique.getValue()
+            contrastEnhancementTechnique.getValue(),
+            new EnhancementParams(artificialFlatCorrection.isSelected())
         );
         ProcessParams.saveDefaults(processParams);
         stage.close();
@@ -740,6 +745,7 @@ public class ProcessParamsController {
     public void resetImageEnhancementsParams() {
         deconvolutionMode.getSelectionModel().select(DeconvolutionMode.NONE);
         sharpen.setSelected(false);
+        artificialFlatCorrection.setSelected(false);
         configureRichardsonLucyDefaults();
         configureClaheDefaults();
         configureBandingCorrectionDefaults();

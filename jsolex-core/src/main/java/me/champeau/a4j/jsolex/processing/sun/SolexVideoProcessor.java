@@ -472,7 +472,13 @@ public class SolexVideoProcessor implements Broadcaster {
             emitter = new NamingStrategyAwareImageEmitter(emitter, imageNamingStrategy, sequenceNumber, kind, baseName);
             return new DiscardNonRequiredImages(emitter, processParams.requestedImages().images());
         });
-        performFlatCorrection(imageList, fitting);
+        IntStream.range(0, imageList.size()).parallel().forEach(i -> {
+            var state = imageList.get(i);
+            state.recordResult(WorkflowResults.MAIN_ELLIPSE_FITTING, fitting);
+        });
+        if (processParams.enhancementParams().artificialFlatCorrection()) {
+            performFlatCorrection(imageList, fitting);
+        }
         IntStream.range(0, imageList.size()).mapToObj(i -> new Object() {
             private final WorkflowState state = imageList.get(i);
             private final int step = i;
@@ -492,7 +498,6 @@ public class SolexVideoProcessor implements Broadcaster {
         var ellipse = fitting.ellipse();
         IntStream.range(0, imageList.size()).parallel().forEach(i -> {
             var state = imageList.get(i);
-            state.recordResult(WorkflowResults.MAIN_ELLIPSE_FITTING, fitting);
             var corrected = FlatCorrection.correctImage(state.image(), FlatCorrection.computeCorrectionFactors(state.image(), ellipse));
             state.setImage(corrected);
         });
