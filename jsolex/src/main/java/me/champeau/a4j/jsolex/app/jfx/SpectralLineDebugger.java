@@ -342,11 +342,13 @@ public class SpectralLineDebugger {
                               File imageFile,
                               float[] average,
                               Scene scene) {
-        float[] buffer = average != null ? average : converter.createBuffer(geometry);
+        float[] source = average != null ? average : converter.createBuffer(geometry);
         if (average == null) {
             reader.seekFrame(frameId);
-            converter.convert(frameId, reader.currentFrame().data(), geometry, buffer);
+            converter.convert(frameId, reader.currentFrame().data(), geometry, source);
         }
+        float[] buffer = new float[source.length];
+        System.arraycopy(source, 0, buffer, 0, source.length);
         int width = geometry.width();
         int height = geometry.height();
         Double sunThreshold = sunDetectionThreshold.textProperty().getValue().isEmpty() ? null : Double.parseDouble(sunDetectionThreshold.textProperty().getValue());
@@ -389,7 +391,9 @@ public class SpectralLineDebugger {
         });
         var boostValue = contrastBoost.getValue();
         if (boostValue > 0) {
-            new ArcsinhStretchingStrategy(0f, (float) boostValue, boostValue).stretch(new ImageWrapper32(width, height, buffer, MutableMap.of()));
+            for (int i=0; i<boostValue;i++) {
+                new ArcsinhStretchingStrategy(0f, 0.25f, 0.25f).stretch(new ImageWrapper32(width, height, buffer, MutableMap.of()));
+            }
         }
         var creator = new SpectralLineFrameImageCreator(analyzer, buffer, width, height);
         var rgb = creator.generateDebugImage(lockedPolynomial);
