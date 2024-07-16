@@ -12,6 +12,7 @@ Here are the new features in this version:
 - Improve spectral line detection accuracy (issue #360)
 - Made artificial flat correction optional (issue #364)
 - Improve correction using artificial flat
+- Fix bad behavior of contrast slider in frame analyzer
 
 ## Changes in 2.6.2
 

@@ -13,6 +13,7 @@ Voici les nouvelles fonctionnalités de cette version :
 - Correction de la précision de la détection des lignes spectrales (issue #360)
 - La correction par flat artificiel est maintenant optionnelle (issue #364)
 - Amélioration de la correction par flat artificiel
+- Correction du mauvais comportement du curseur de contraste dans l'analyseur de vidéo
 
 ## Changements dans la version 2.6.2
 
