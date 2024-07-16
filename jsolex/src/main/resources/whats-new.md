@@ -13,6 +13,7 @@ Here are the new features in this version:
 - Made artificial flat correction optional (issue #364)
 - Improve correction using artificial flat
 - Fix bad behavior of contrast slider in frame analyzer
+- Fixed alignment button not always aligning images
 
 ## Changes in 2.6.2
 
