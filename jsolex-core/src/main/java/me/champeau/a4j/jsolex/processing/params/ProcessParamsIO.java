@@ -100,7 +100,8 @@ public abstract class ProcessParamsIO {
             new RequestedImages(RequestedImages.FULL_MODE, List.of(0d), Set.of(), Set.of(), ImageMathParams.NONE, false),
             createDefaultClaheParams(),
             createDefaultAutoStretchParams(),
-            ContrastEnhancement.AUTOSTRETCH
+            ContrastEnhancement.AUTOSTRETCH,
+            new EnhancementParams(false)
         );
     }
 
@@ -134,7 +135,8 @@ public abstract class ProcessParamsIO {
                     params.requestedImages(),
                     params.claheParams(),
                     params.autoStretchParams(),
-                    params.contrastEnhancement()
+                    params.contrastEnhancement(),
+                    params.enhancementParams()
                 );
             }
             if (params.geometryParams() == null) {
@@ -161,7 +163,8 @@ public abstract class ProcessParamsIO {
                     params.requestedImages(),
                     params.claheParams(),
                     params.autoStretchParams(),
-                    params.contrastEnhancement()
+                    params.contrastEnhancement(),
+                    params.enhancementParams()
                 );
             }
             if (params.bandingCorrectionParams() == null) {
@@ -178,7 +181,8 @@ public abstract class ProcessParamsIO {
                     params.requestedImages(),
                     params.claheParams(),
                     params.autoStretchParams(),
-                    params.contrastEnhancement()
+                    params.contrastEnhancement(),
+                    params.enhancementParams()
                 );
             }
             if (params.requestedImages() == null) {
@@ -192,7 +196,8 @@ public abstract class ProcessParamsIO {
                     new RequestedImages(RequestedImages.FULL_MODE, List.of(0d), Set.of(), Set.of(), ImageMathParams.NONE, false),
                     params.claheParams(),
                     params.autoStretchParams(),
-                    params.contrastEnhancement()
+                    params.contrastEnhancement(),
+                    params.enhancementParams()
                 );
             }
             if (params.extraParams() == null) {
@@ -219,6 +224,9 @@ public abstract class ProcessParamsIO {
             }
             if (params.contrastEnhancement() == null) {
                 params = params.withContrastEnhancement(ContrastEnhancement.AUTOSTRETCH);
+            }
+            if (params.enhancementParams() == null) {
+                params = params.withEnhancementParams(new EnhancementParams(false));
             }
             return params;
         }
