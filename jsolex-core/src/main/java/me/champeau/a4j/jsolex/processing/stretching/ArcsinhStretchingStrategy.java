@@ -15,10 +15,10 @@
  */
 package me.champeau.a4j.jsolex.processing.stretching;
 
-import me.champeau.a4j.jsolex.processing.util.Constants;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 import me.champeau.a4j.jsolex.processing.util.RGBImage;
 
+import static me.champeau.a4j.jsolex.processing.util.Constants.MAX_PIXEL_VALUE;
 import static org.apache.commons.math3.util.FastMath.asinh;
 
 /**
@@ -30,12 +30,14 @@ public final class ArcsinhStretchingStrategy implements StretchingStrategy {
     private final double stretch;
     private final double maxStretch;
     private final double asinh;
+    private final double normalizedBlackPoint;
 
     public ArcsinhStretchingStrategy(float blackPoint, float stretch, double maxStretch) {
         this.blackPoint = blackPoint;
         this.stretch = stretch;
         this.maxStretch = maxStretch;
         this.asinh = asinh(stretch);
+        this.normalizedBlackPoint = blackPoint / MAX_PIXEL_VALUE;
     }
 
     public double getBlackPoint() {
@@ -53,20 +55,27 @@ public final class ArcsinhStretchingStrategy implements StretchingStrategy {
     @Override
     public void stretch(ImageWrapper32 image) {
         var data = image.data();
-        double max = Constants.MAX_PIXEL_VALUE;
-        var bp = blackPoint / max;
         for (int i = 0; i < data.length; i++) {
-            double original = data[i] / max;
-            var pixel = Math.max(0, original - bp);
-            double stretched = (pixel * asinh(original * stretch)) / (original * asinh);
-            data[i] = (float) (stretched * max);
+            var v = data[i];
+            var sv = stretchPixel(v);
+            data[i] = sv;
             if (Float.valueOf(data[i]).isNaN()) {
                 data[i] = 0;
             }
             data[i] = Math.max(0, data[i]);
-            data[i] = Math.min(Constants.MAX_PIXEL_VALUE, data[i]);
+            data[i] = Math.min(MAX_PIXEL_VALUE, data[i]);
         }
         LinearStrechingStrategy.DEFAULT.stretch(image);
+    }
+
+    public float stretchPixel(float v) {
+        if (v == 0) {
+            return 0;
+        }
+        double original = v / MAX_PIXEL_VALUE;
+        var pixel = Math.max(0, original - normalizedBlackPoint);
+        double stretched = (pixel * asinh(original * stretch)) / (original * asinh);
+        return (float) (stretched * MAX_PIXEL_VALUE);
     }
 
     @Override
@@ -76,7 +85,7 @@ public final class ArcsinhStretchingStrategy implements StretchingStrategy {
             image.g(),
             image.b()
         };
-        double max = Constants.MAX_PIXEL_VALUE;
+        double max = MAX_PIXEL_VALUE;
         var bp = blackPoint / max;
         int length = rgb[0].length;
         for (int i = 0; i < length; i++) {
@@ -90,7 +99,7 @@ public final class ArcsinhStretchingStrategy implements StretchingStrategy {
                     rgb[j][i] = 0;
                 }
                 rgb[j][i] = Math.max(0, rgb[j][i]);
-                rgb[j][i] = Math.min(Constants.MAX_PIXEL_VALUE, rgb[j][i]);
+                rgb[j][i] = Math.min(MAX_PIXEL_VALUE, rgb[j][i]);
             }
         }
         LinearStrechingStrategy.DEFAULT.stretch(image);

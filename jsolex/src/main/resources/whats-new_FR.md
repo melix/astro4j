@@ -10,6 +10,7 @@ Voici les nouvelles fonctionnalités de cette version :
 
 ## Changements dans la version 2.6.3
 
+- Amélioration d'autostretch pour éviter les saturations de pixels en calcium notamment
 - Correction de la précision de la détection des lignes spectrales (issue #360)
 - La correction par flat artificiel est maintenant optionnelle (issue #364)
 - Amélioration de la correction par flat artificiel

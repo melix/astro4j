@@ -17,7 +17,9 @@ package me.champeau.a4j.jsolex.processing.stretching;
 
 import me.champeau.a4j.jsolex.processing.util.Histogram;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
+import org.apache.commons.math3.analysis.polynomials.PolynomialFunction;
 import org.apache.commons.math3.fitting.GaussianCurveFitter;
+import org.apache.commons.math3.fitting.PolynomialCurveFitter;
 import org.apache.commons.math3.fitting.WeightedObservedPoint;
 
 import java.util.ArrayList;
@@ -25,7 +27,6 @@ import java.util.ArrayList;
 import static me.champeau.a4j.jsolex.processing.util.Constants.MAX_PIXEL_VALUE;
 
 public final class DynamicStretchStrategy implements StretchingStrategy {
-    private static final double EXPONENT = 1.1d;
     private static final int FIT_RANGE = 16;
 
     private final double target;
@@ -41,25 +42,21 @@ public final class DynamicStretchStrategy implements StretchingStrategy {
 
     @Override
     public void stretch(ImageWrapper32 image) {
-        double a = findLinearGrowthLimit(image);
-        double scaling = target / Math.pow(a, EXPONENT);
-        // if a is low, it means that the histogram is very compressed on the left side
-        // and there's a risk of saturating too many bright pixels, so we apply a simple
-        // correction factor to reduce this risk. It seeems to work pretty well in
-        // practice!
-        var correction = Math.min(1, 0.5 + a / 65535d);
-        var k = correction * MAX_PIXEL_VALUE / (a * (target - MAX_PIXEL_VALUE));
-        var d = (a * (MAX_PIXEL_VALUE - target) * Math.log((MAX_PIXEL_VALUE - target) / target)) / MAX_PIXEL_VALUE;
-
+        double a = 0.8*findLinearGrowthLimit(image);
+        double linearSlope = target / a;
+        double compressedSlope = (MAX_PIXEL_VALUE - target) / (MAX_PIXEL_VALUE - a);
         var data = image.data();
+        var observations = new ArrayList<WeightedObservedPoint>(65536);
+        for (int i = 0; i < 65536; i++) {
+            observations.add(new WeightedObservedPoint(1.0, i, i < a ? linearSlope * i : target + compressedSlope * (i - a)));
+        }
+        var fit = PolynomialCurveFitter.create(4).fit(observations);
+        var poly = new PolynomialFunction(fit);
         for (int i = 0; i < data.length; i++) {
             var v = data[i];
-            if (v < a) {
-                data[i] = (float) (scaling * Math.pow(v, EXPONENT));
-            } else {
-                data[i] = (float) (MAX_PIXEL_VALUE / (1 + Math.exp(k * (v - (a + d)))));
-            }
+            data[i] = (float) Math.clamp(poly.value(v), 0, MAX_PIXEL_VALUE);
         }
+        LinearStrechingStrategy.DEFAULT.stretch(image);
     }
 
     private int findLinearGrowthLimit(ImageWrapper32 image) {
@@ -79,9 +76,9 @@ public final class DynamicStretchStrategy implements StretchingStrategy {
                 observations.add(new WeightedObservedPoint(1.0, i, values[i]));
             }
             try {
-                return (int) Math.clamp(3f * gaussianEstimate(observations) / 2f, 0, MAX_PIXEL_VALUE);
+                return gaussianEstimate(observations);
             } catch (Exception e2) {
-                return (int) (Math.min(255, target/256) * 256);
+                return (int) (Math.min(255, target / 256) * 256);
             }
         }
     }
