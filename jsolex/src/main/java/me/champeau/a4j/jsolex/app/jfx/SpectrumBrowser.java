@@ -248,15 +248,10 @@ public class SpectrumBrowser extends BorderPane {
             try {
                 ps = Double.parseDouble(value);
             } catch (NumberFormatException ex) {
-                ps = 2.4;
+                return;
             }
             pixelSize.set(ps);
             adjustZoomToOpticsAndDraw();
-        });
-        pixelSize.addListener((observableValue, old, value) -> {
-            if (!value.equals(old)) {
-                pixelSizeValue.setText("" + value);
-            }
         });
         pixelSizeValue.setText("" + initialPixelSize);
         var instrumentLabel = new Label(I18N.string(JSolEx.class, "spectrum-browser", "instrument"));
@@ -622,6 +617,7 @@ public class SpectrumBrowser extends BorderPane {
         timeline.setOnFinished(evt -> {
             animating.set(false);
             drawSpectrum();
+            adjustDispersion.setSelected(true);
         });
         animating.set(true);
         timeline.playFromStart();
