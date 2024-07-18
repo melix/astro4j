@@ -9,6 +9,7 @@ Here are the new features in this version:
 
 ## Changes in 2.6.3
 
+- Improved autostretch to avoid pixel saturation which often happens with calcium line processing
 - Improve spectral line detection accuracy (issue #360)
 - Made artificial flat correction optional (issue #364)
 - Improve correction using artificial flat

@@ -25,17 +25,16 @@ import me.champeau.a4j.math.regression.Ellipse;
 import java.util.ArrayList;
 import java.util.List;
 
-import static me.champeau.a4j.jsolex.processing.util.Constants.message;
-import static me.champeau.a4j.jsolex.processing.util.LoggingSupport.LOGGER;
-
 public final class AutohistogramStrategy implements StretchingStrategy {
     private static final int HISTOGRAM_BINS = 256;
-    private static final double TARGET_PEAK = 0.65;
+    private static final double TARGET_PEAK = 0.4;
     private static final double LIMB_MARGIN = 1.1;
     private static final double REDUCED_AMPLIFICATION_LIMIT = 1.3;
+    private static final float ASINH_FACTOR = 2.5f;
 
-    public static final double DEFAULT_AMPLIFICATION_THRESHOLD = 0.95;
+    public static final double DEFAULT_AMPLIFICATION_THRESHOLD = 0.98;
     public static final double DEFAULT_GAMMA = 1.5;
+
 
     private final double gamma;
     private final double amplificationThreshold;
@@ -50,7 +49,7 @@ public final class AutohistogramStrategy implements StretchingStrategy {
         if (gamma < 1) {
             throw new IllegalArgumentException("Gamma must be greater than 1");
         }
-        if (amplificationThreshold<0 || amplificationThreshold>1) {
+        if (amplificationThreshold < 0 || amplificationThreshold > 1) {
             throw new IllegalArgumentException("Amplification threshold must be between 0 and 1");
         }
         this.amplificationThreshold = amplificationThreshold;
@@ -82,7 +81,6 @@ public final class AutohistogramStrategy implements StretchingStrategy {
         if (ellipse.isPresent()) {
             var e = ellipse.get();
             diskData = disk.data();
-            // the initial strech is to adjust the global brightness by estimating the brightness of the disk itself
             var cx = e.center().a();
             var cy = e.center().b();
             var semiAxis = e.semiAxis();
@@ -92,17 +90,19 @@ public final class AutohistogramStrategy implements StretchingStrategy {
             for (float v : diskData) {
                 max = Math.max(v, max);
             }
+            var asinhs = new ArcsinhStretchingStrategy(0, ASINH_FACTOR, ASINH_FACTOR);
             for (int y = 0; y < height; y++) {
                 for (int x = 0; x < width; x++) {
                     var idx = y * width + x;
                     var v = diskData[idx];
                     float normalized = v / max;
                     var dist = normalizedDistanceToCenter(x, y, cx, cy, radius);
-                    var gammaCorrected = (float) Math.pow(normalized, gamma) * Constants.MAX_PIXEL_VALUE;
+                    var gamma2 = 1 + (gamma - 1) * Math.sin(Math.PI * normalized / 2);
+                    var gammaCorrected = (float) Math.pow(normalized, gamma2) * Constants.MAX_PIXEL_VALUE;
                     if (dist <= 1 || v < amplificationThreshold) {
                         diskData[idx] = gammaCorrected;
                     } else {
-                        float corrected = (float) Math.pow((gammaCorrected - amplificationThreshold) / max, Math.max(.5, gamma * (.2 * Math.pow(1 / dist, .5))));
+                        float corrected = (float) ((gammaCorrected - amplificationThreshold) / max);
                         float newValue = corrected * Constants.MAX_PIXEL_VALUE;
                         if (Float.isNaN(newValue)) {
                             newValue = gammaCorrected;
@@ -116,32 +116,11 @@ public final class AutohistogramStrategy implements StretchingStrategy {
                         if (dist > REDUCED_AMPLIFICATION_LIMIT) {
                             limitFactor /= (float) (4 * (1 + (dist - REDUCED_AMPLIFICATION_LIMIT)));
                         }
-                        newValue = gammaCorrected + diff * limitFactor;
-                        diskData[idx] = newValue;
+                        newValue = gammaCorrected + asinhs.stretchPixel(diff) * limitFactor;
+                        diskData[idx] = Math.clamp(newValue, 0, Constants.MAX_PIXEL_VALUE);
                     }
                 }
             }
-            var newStats = ImageAnalysis.masked(diskData, width, height, e);
-            if (newStats.avg() < 4096) {
-                disk = image.copy();
-                diskData = disk.data();
-                var clamp = clamping(diskData);
-                clamp.stretch(disk);
-                for (int y = 0; y < height; y++) {
-                    for (int x = 0; x < width; x++) {
-                        var idx = y * width + x;
-                        float v = diskData[idx];
-                        if (e.isWithin(x, y) || v > 2*amplificationThreshold) {
-                            diskData[idx] = (float) Math.pow(v, .8);
-                        }
-                    }
-                }
-                new ClaheStrategy(16, 256, 1.0).stretch(disk);
-                LOGGER.warn(message("skip.gamma.stretch"));
-                System.arraycopy(diskData, 0, image.data(), 0, diskData.length);
-                return;
-            }
-
             System.arraycopy(diskData, 0, image.data(), 0, diskData.length);
         } else {
             new GammaStrategy(gamma).stretch(disk);
@@ -157,6 +136,13 @@ public final class AutohistogramStrategy implements StretchingStrategy {
             lohi = findLoHi(diskData);
         }
         new DynamicStretchStrategy(lohi.hi(), TARGET_PEAK).stretch(image);
+        mixInClahe(image, diskData);
+        alignLeftHistogram(diskData);
+        clamping(diskData, 0, .9995).stretch(image);
+        LinearStrechingStrategy.DEFAULT.stretch(image);
+    }
+
+    private static void mixInClahe(ImageWrapper32 image, float[] diskData) {
         var clahe = image.copy();
         new ClaheStrategy(8, 64, 1.0).stretch(clahe);
         // combine CLAHE with image
@@ -166,9 +152,35 @@ public final class AutohistogramStrategy implements StretchingStrategy {
         }
     }
 
-    private static ContrastAdjustmentStrategy clamping(float[] diskData) {
-        var limit = Histogram.of(diskData, 65536).cumulative().percentile(0.999);
-        return new ContrastAdjustmentStrategy(0, limit);
+    private static void alignLeftHistogram(float[] diskData) {
+        var histo = Histogram.of(diskData, 256);
+        var avg = 0;
+        for (int i = 0; i < 256; i++) {
+            avg += histo.get(i);
+        }
+        avg = avg / 256;
+        float stddev = 0;
+        for (int i = 0; i < 256; i++) {
+            var v = histo.get(i) - avg;
+            stddev += v * v;
+        }
+        stddev = (float) Math.sqrt(stddev / 255);
+        for (int i = 0; i < 256; i++) {
+            if (histo.get(i) > 2 * stddev) {
+                var limit = 256 * i;
+                for (int j = 0; j < diskData.length; j++) {
+                    diskData[j] = Math.max(0, diskData[j] - limit);
+                }
+                break;
+            }
+        }
+    }
+
+    private static ContrastAdjustmentStrategy clamping(float[] diskData, double loPercentile, double hiPercentile) {
+        var cumulative = Histogram.of(diskData, 65536).cumulative();
+        var lo = cumulative.percentile(loPercentile);
+        var hi = cumulative.percentile(hiPercentile);
+        return new ContrastAdjustmentStrategy(lo, hi);
     }
 
     private double findAmplificationThreshold(float[] diskData, int width, int height, Ellipse e) {
