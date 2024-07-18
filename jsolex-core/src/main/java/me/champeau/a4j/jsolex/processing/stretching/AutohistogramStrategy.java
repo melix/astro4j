@@ -138,7 +138,7 @@ public final class AutohistogramStrategy implements StretchingStrategy {
         new DynamicStretchStrategy(lohi.hi(), TARGET_PEAK).stretch(image);
         mixInClahe(image, diskData);
         alignLeftHistogram(diskData);
-        clamping(diskData, 0, .9995).stretch(image);
+        clamping(diskData, 0, .9998).stretch(image);
         LinearStrechingStrategy.DEFAULT.stretch(image);
     }
 
