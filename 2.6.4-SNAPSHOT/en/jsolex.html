@@ -1160,6 +1160,9 @@ If you don&#8217;t want to provide a custom black point value, you can use a pre
 <p><code>rgb</code> creates an RGB image by associating mono images on the respective R, G and B channels. As a consequence it accepts 3 parameters, for exemple: <code>rgb(img(3), avg(img(3), img(-3)), img(-3))</code>.</p>
 </li>
 <li>
+<p><code>neutralize_bg</code> is a function similar to <code>remove_bg</code> which uses a polynomial background modeling to neutralize the background and remove gradients. It takes an image as the first argument, and optionally a number of iterations as the second argument. e.g: <code>neutralize_bg(img(0), 2)</code></p>
+</li>
+<li>
 <p><code>saturate</code> (de)saturates an RGB image. It takes 2 arguments : an RGB image and a saturation factor (relative to the current image saturation). e.g: <code>saturate(doppler, 2)</code>.</p>
 </li>
 <li>

@@ -1140,6 +1140,9 @@ Le script apparaît désormais dans la liste de gauche, il sera appliqué lors d
 <li>
 <p><code>remove_bg</code> permet de supprimer l&#8217;arrière plan d&#8217;une image. Ceci peut être utile lorsque le constraste est très faible (par exemple en raie hélium). Le processus calcule la valeur moyenne des pixels en dehors du disque, puis applique une suppression de l&#8217;arrière plan en fonction de la distance au limbe. Par exemple: <code>remove_bg(stretched)</code>. Une variante est disponible avec une tolerance: <code>remove_bg(stretched, 0.2)</code>. Plus la tolérance est proche de 0, moins la suppression est forte.</p>
 </li>
+<li>
+<p><code>neutralize_bg</code> est une fonction similaire à <code>remove_bg</code> qui utilise une modélisation polynomiale du fond pour supprimer les gradients. Elle prend en paramètre l&#8217;image à traiter, et optionellement un nombre d&#8217;itérations en 2ème paramètre. Par exemple : <code>neutralize_bg(img(0), 2)</code>.</p>
+</li>
 </ul>
 </div>
 <div class="admonitionblock note">
