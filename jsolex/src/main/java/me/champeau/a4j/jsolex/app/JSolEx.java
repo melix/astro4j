@@ -838,13 +838,13 @@ public class JSolEx extends Application implements JSolExInterface {
 
                 private void processResult(ImageMathScriptResult result) {
                     result.imagesByLabel().entrySet().stream().parallel().forEach(entry -> {
-                        var name = namingStrategy.render(0, Constants.TYPE_PROCESSED, entry.getKey(), "standalone");
+                        var name = namingStrategy.render(0, null, Constants.TYPE_PROCESSED, entry.getKey(), "standalone");
                         var outputFile = new File(outputDirectory, name);
                         listener.onImageGenerated(new ImageGeneratedEvent(new GeneratedImage(GeneratedImageKind.IMAGE_MATH, entry.getKey(), outputFile.toPath(), entry.getValue())));
 
                     });
                     result.filesByLabel().entrySet().stream().parallel().forEach(entry -> {
-                        var name = namingStrategy.render(0, Constants.TYPE_PROCESSED, entry.getKey(), "standalone");
+                        var name = namingStrategy.render(0, null, Constants.TYPE_PROCESSED, entry.getKey(), "standalone");
                         try {
                             var fileName = entry.getValue().toFile().getName();
                             var ext = fileName.substring(fileName.lastIndexOf("."));
@@ -1292,7 +1292,7 @@ public class JSolEx extends Application implements JSolExInterface {
         var namingStrategy = new FileNamingStrategy(params.extraParams().fileNamePattern(), params.extraParams().datetimeFormat(), params.extraParams().dateFormat(), processingDate, header);
         var outputDirectory = selectedFile.getParentFile();
         var baseName = selectedFile.getName().substring(0, selectedFile.getName().lastIndexOf("."));
-        var logFileName = namingStrategy.render(sequenceNumber, "log", "log", baseName) + LOG_EXTENSION;
+        var logFileName = namingStrategy.render(sequenceNumber, null, "log", "log", baseName) + LOG_EXTENSION;
         var logFile = new File(outputDirectory, logFileName);
         // For the log file we cannot _fully_ use the pattern since some data is not yet available (the file header)
         logFile = new File(logFile.getParentFile(), String.format("%04d_%s" + LOG_EXTENSION, sequenceNumber, baseName));

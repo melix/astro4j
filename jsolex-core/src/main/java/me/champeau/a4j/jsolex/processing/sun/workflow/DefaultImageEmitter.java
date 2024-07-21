@@ -54,7 +54,7 @@ public class DefaultImageEmitter implements ImageEmitter {
     }
 
     @Override
-    public void newMonoImage(GeneratedImageKind kind, String title, String name, ImageWrapper32 image, Consumer<? super float[]> bufferConsumer) {
+    public void newMonoImage(GeneratedImageKind kind, String category, String title, String name, ImageWrapper32 image, Consumer<? super float[]> bufferConsumer) {
         prepareOutput(name);
         storeMetadata(kind, title, name, image);
         new WriteMonoImageTask(broadcaster,
@@ -85,7 +85,7 @@ public class DefaultImageEmitter implements ImageEmitter {
     }
 
     @Override
-    public void newMonoImage(GeneratedImageKind kind, String title, String name, ImageWrapper32 image) {
+    public void newMonoImage(GeneratedImageKind kind, String category, String title, String name, ImageWrapper32 image) {
         prepareOutput(name);
         storeMetadata(kind, title, name, image);
         new WriteMonoImageTask(broadcaster,
@@ -97,7 +97,7 @@ public class DefaultImageEmitter implements ImageEmitter {
     }
 
     @Override
-    public void newColorImage(GeneratedImageKind kind, String title, String name, ImageWrapper32 image, Function<ImageWrapper32, float[][]> rgbSupplier) {
+    public void newColorImage(GeneratedImageKind kind, String category, String title, String name, ImageWrapper32 image, Function<ImageWrapper32, float[][]> rgbSupplier) {
         prepareOutput(name);
         storeMetadata(kind, title, name, image);
         new WriteColorizedImageTask(broadcaster,
@@ -110,8 +110,8 @@ public class DefaultImageEmitter implements ImageEmitter {
     }
 
     @Override
-    public void newColorImage(GeneratedImageKind kind, String title, String name, ImageWrapper32 image, Function<ImageWrapper32, float[][]> rgbSupplier, BiConsumer<Graphics2D, ? super ImageWrapper> painter) {
-        newColorImage(kind, title, name, image, img -> {
+    public void newColorImage(GeneratedImageKind kind, String category, String title, String name, ImageWrapper32 image, Function<ImageWrapper32, float[][]> rgbSupplier, BiConsumer<Graphics2D, ? super ImageWrapper> painter) {
+        newColorImage(kind, null, title, name, image, img -> {
             var rgb = rgbSupplier.apply(img);
             var r = rgb[0];
             var g = rgb[1];
@@ -131,7 +131,7 @@ public class DefaultImageEmitter implements ImageEmitter {
     }
 
     @Override
-    public void newColorImage(GeneratedImageKind kind, String title, String name, int width, int height, Map<Class<?>, Object> metadata, Supplier<float[][]> rgbSupplier) {
+    public void newColorImage(GeneratedImageKind kind, String category, String title, String name, int width, int height, Map<Class<?>, Object> metadata, Supplier<float[][]> rgbSupplier) {
         prepareOutput(name);
         new WriteRGBImageTask(broadcaster,
             () -> {
@@ -147,7 +147,7 @@ public class DefaultImageEmitter implements ImageEmitter {
     }
 
     @Override
-    public void newGenericFile(GeneratedImageKind kind, String title, String name, Path file) {
+    public void newGenericFile(GeneratedImageKind kind, String category, String title, String name, Path file) {
         prepareOutput(name);
 
         var fileName = file.getFileName().toString();

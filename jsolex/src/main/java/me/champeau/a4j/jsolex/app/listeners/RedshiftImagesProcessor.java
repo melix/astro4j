@@ -239,7 +239,7 @@ public class RedshiftImagesProcessor {
         var anim = (FileOutput) animate.createAnimation(List.of(frames, delay));
         imageEmitter.newGenericFile(
             GeneratedImageKind.CROPPED,
-            title,
+            null, title,
             name,
             anim.file());
     }
@@ -314,7 +314,7 @@ public class RedshiftImagesProcessor {
         var anim = (FileOutput) animate.createAnimation(List.of(frames, 25));
         imageEmitter.newGenericFile(
             GeneratedImageKind.REDSHIFT,
-            String.format("Panel %s (%.2f km/s)", redshift.id(), redshift.kmPerSec()),
+            null, String.format("Panel %s (%.2f km/s)", redshift.id(), redshift.kmPerSec()),
             "redshift-" + redshift.id(),
             anim.file());
     }
@@ -363,7 +363,7 @@ public class RedshiftImagesProcessor {
         var dispersion = SpectrumAnalyzer.computeSpectralDispersionNanosPerPixel(instrument, lambda0, params.observationDetails().pixelSize() * params.observationDetails().binning());
         imageEmitter.newColorImage(
             GeneratedImageKind.REDSHIFT,
-            title,
+            null, title,
             name,
             panelWidth,
             panelHeight,

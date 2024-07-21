@@ -691,7 +691,7 @@ public class SolexVideoProcessor implements Broadcaster {
                     System.arraycopy(color.g(), 0, rgb.g(), 0, color.g().length);
                     System.arraycopy(color.b(), 0, rgb.b(), 0, color.b().length);
                 });
-                var targetFile = outputDirectory.resolve(fileNamingStrategy.render(sequenceNumber, Constants.TYPE_PROCESSED, "redshift", baseName + "_" + redshift.id()));
+                var targetFile = outputDirectory.resolve(fileNamingStrategy.render(sequenceNumber, "redshift", Constants.TYPE_PROCESSED, "redshift", baseName + "_" + redshift.id()));
                 broadcast(new ImageGeneratedEvent(
                     new GeneratedImage(
                         GeneratedImageKind.REDSHIFT,
@@ -998,7 +998,7 @@ public class SolexVideoProcessor implements Broadcaster {
             var emitter = new DiscardNonRequiredImages(
                 new NamingStrategyAwareImageEmitter(new DefaultImageEmitter(this, outputDirectory.toFile()), imageNamingStrategy, 0, Constants.TYPE_DEBUG, serFile.getName().substring(0, serFile.getName().lastIndexOf("."))),
                 processParams.requestedImages().images());
-            emitter.newColorImage(GeneratedImageKind.DEBUG, message("average"), "average", width, height, MutableMap.of(), () -> {
+            emitter.newColorImage(GeneratedImageKind.DEBUG, null, message("average"), "average", width, height, MutableMap.of(), () -> {
                 var rgb = new SpectralLineFrameImageCreator(analyzer, averageImage, width, height).generateDebugImage();
                 return new float[][]{rgb.r(), rgb.g(), rgb.b()};
             });

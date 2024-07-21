@@ -137,7 +137,7 @@ public class NamingPatternEditor {
 
     private void updateExampleText(Header header) {
         var namingStrategy = new FileNamingStrategy(pattern.getText(), datetimeFormat.getText(), dateFormat.getText(), LocalDateTime.now(), header);
-        example.setText(namingStrategy.render(24, Constants.TYPE_PROCESSED, "disk-1", "video_sun"));
+        example.setText(namingStrategy.render(24, null, Constants.TYPE_PROCESSED, "disk-1", "video_sun"));
     }
 
     private void prepareTokens() {

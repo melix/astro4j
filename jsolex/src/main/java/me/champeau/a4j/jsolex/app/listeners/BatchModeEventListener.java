@@ -277,7 +277,7 @@ public class BatchModeEventListener implements ProcessingEventListener, ImageMat
 
     private void renderBatchOutputs(FileNamingStrategy namingStrategy, ImageMathScriptResult result) {
         result.imagesByLabel().entrySet().stream().parallel().forEach(entry -> {
-            var name = namingStrategy.render(0, Constants.TYPE_PROCESSED, entry.getKey(), "batch");
+            var name = namingStrategy.render(0, null, Constants.TYPE_PROCESSED, entry.getKey(), "batch");
             var outputFile = new File(outputDirectory, name);
             delegate.onImageGenerated(new ImageGeneratedEvent(
                 new GeneratedImage(GeneratedImageKind.IMAGE_MATH, entry.getKey(), outputFile.toPath(), entry.getValue())
@@ -285,7 +285,7 @@ public class BatchModeEventListener implements ProcessingEventListener, ImageMat
 
         });
         result.filesByLabel().entrySet().stream().parallel().forEach(entry -> {
-            var name = namingStrategy.render(0, Constants.TYPE_PROCESSED, entry.getKey(), "batch");
+            var name = namingStrategy.render(0, null, Constants.TYPE_PROCESSED, entry.getKey(), "batch");
             try {
                 var fileName = entry.getValue().toFile().getName();
                 var ext = fileName.substring(fileName.lastIndexOf("."));
@@ -314,7 +314,7 @@ public class BatchModeEventListener implements ProcessingEventListener, ImageMat
         if (item.log().length() > 0 && header != null) {
             var namingStrategy = createNamingStrategy();
             var fileName = item.file().getName();
-            var logFileName = namingStrategy.render(sequenceNumber, "log", "notifications", fileName.substring(0, fileName.lastIndexOf("."))) + ".txt";
+            var logFileName = namingStrategy.render(sequenceNumber, null, "log", "notifications", fileName.substring(0, fileName.lastIndexOf("."))) + ".txt";
             try {
                 var logFilePath = outputDirectory.toPath().resolve(logFileName);
                 Files.writeString(logFilePath, item.log().toString(), Charset.defaultCharset());

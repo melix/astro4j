@@ -63,6 +63,7 @@ public class FileNamingStrategy {
     private Map<String, String> buildReplacementsMap(int sequenceNumber,
                                                      String imageKind,
                                                      String imageLabel,
+                                                     String category,
                                                      String serFileBasename) {
         Map<String, String> replacements = new HashMap<>();
         for (Token token : Token.values()) {
@@ -71,6 +72,9 @@ public class FileNamingStrategy {
                 case KIND -> imageKind;
                 case LABEL -> imageLabel;
                 case CATEGORY -> {
+                    if (category != null) {
+                        yield category;
+                    }
                     var m = CATEGORY_PATTERN.matcher(imageLabel);
                     if (m.find()) {
                         yield m.group(1);
@@ -88,13 +92,14 @@ public class FileNamingStrategy {
     }
 
     public String render(
-            int sequenceNumber,
-            String imageKind,
-            String imageLabel,
-            String serFileBasename
+        int sequenceNumber,
+        String category,
+        String imageKind,
+        String imageLabel,
+        String serFileBasename
 
     ) {
-        var replacements = buildReplacementsMap(sequenceNumber, imageKind, imageLabel, serFileBasename);
+        var replacements = buildReplacementsMap(sequenceNumber, imageKind, imageLabel, category, serFileBasename);
         var result = pattern;
         for (Map.Entry<String, String> entry : replacements.entrySet()) {
             result = result.replaceAll(Pattern.quote(entry.getKey()), entry.getValue());

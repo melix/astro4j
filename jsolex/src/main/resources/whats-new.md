@@ -12,6 +12,7 @@ Here are the new features in this version:
 - Added `neutralize_bg` ImageMath function
 - Fixed a bug preventing the creation of some redshift animations
 - Make wait time in watch mode configurable
+- Produce "direct" Helium image in addition to extracted version
 
 ## Changes in 2.6.3
 
