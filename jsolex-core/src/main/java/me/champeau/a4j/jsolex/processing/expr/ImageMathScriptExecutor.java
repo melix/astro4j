@@ -38,14 +38,14 @@ public interface ImageMathScriptExecutor {
             if (image instanceof ImageWrapper32 mono) {
                 emitter.newMonoImage(
                         GeneratedImageKind.IMAGE_MATH,
-                        label,
+                    null, label,
                         label,
                         mono
                 );
             } else if (image instanceof RGBImage rgb) {
                 emitter.newColorImage(
                         GeneratedImageKind.IMAGE_MATH,
-                        label,
+                    null, label,
                         label,
                         rgb.width(),
                         rgb.height(),
@@ -58,7 +58,7 @@ public interface ImageMathScriptExecutor {
             var label = entry.getKey();
             var file = entry.getValue();
             emitter.newGenericFile(GeneratedImageKind.IMAGE_MATH,
-                    label,
+                null, label,
                     label,
                     file);
         }

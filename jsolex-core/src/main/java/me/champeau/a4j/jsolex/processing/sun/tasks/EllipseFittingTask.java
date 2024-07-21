@@ -304,7 +304,7 @@ public class EllipseFittingTask extends AbstractTask<EllipseFittingTask.Result> 
 
     private void produceEdgeDetectionImage(EllipseFittingTask.Result result, ImageWrapper32 image) {
         if (debugImagesEmitter != null) {
-            debugImagesEmitter.newColorImage(GeneratedImageKind.DEBUG, message("edge.detection"), "edge-detection", image, debugImage -> {
+            debugImagesEmitter.newColorImage(GeneratedImageKind.DEBUG, null, message("edge.detection"), "edge-detection", image, debugImage -> {
                 float[][] rgb = new float[3][];
                 var mono = debugImage.data();
                 float[] overlay = new float[mono.length];

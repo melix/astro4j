@@ -110,7 +110,7 @@ public class ProcessingWorkflow {
     public void start() {
         var reconstructed = state.image();
         reconstructed.metadata().put(PixelShift.class, new PixelShift(state.pixelShift()));
-        rawImagesEmitter.newMonoImage(GeneratedImageKind.RAW, message(Constants.TYPE_RAW), "recon", reconstructed);
+        rawImagesEmitter.newMonoImage(GeneratedImageKind.RAW, null, message(Constants.TYPE_RAW), "recon", reconstructed);
         var existingFitting = state.findResult(WorkflowResults.MAIN_ELLIPSE_FITTING);
         if (existingFitting.isPresent()) {
             EllipseFittingTask.Result r = (EllipseFittingTask.Result) existingFitting.get();
@@ -123,7 +123,7 @@ public class ProcessingWorkflow {
             var claheParams = processParams.claheParams();
             ClaheStrategy.of(claheParams).stretch(clahe);
             TransformationHistory.recordTransform(clahe, "CLAHE (tile size: " + claheParams.tileSize() + ", clip limit: " + claheParams.clipping() + ", bins: " + claheParams.bins() + ")");
-            processedImagesEmitter.newMonoImage(GeneratedImageKind.GEOMETRY_CORRECTED_PROCESSED, message("processed"), "clahe", clahe);
+            processedImagesEmitter.newMonoImage(GeneratedImageKind.GEOMETRY_CORRECTED_PROCESSED, null, message("processed"), "clahe", clahe);
         }
 
     }
@@ -171,7 +171,7 @@ public class ProcessingWorkflow {
             kind = GeneratedImageKind.CONTINUUM;
         }
         if (!state.isInternal()) {
-            processedImagesEmitter.newMonoImage(kind, message("disk"), "disk", geometryFixed);
+            processedImagesEmitter.newMonoImage(kind, null, message("disk"), "disk", geometryFixed);
         }
         g = performEnhancements(g);
         var enhanced = (ImageWrapper32) g.enhanced().unwrapToMemory();
@@ -181,7 +181,7 @@ public class ProcessingWorkflow {
         }
         broadcaster.broadcast(OutputImageDimensionsDeterminedEvent.of(message("geometry.corrected"), geometryFixed.width(), geometryFixed.height()));
         var stretched = produceStretchedImage(enhanced, processParams.claheParams(), processParams.autoStretchParams(), processParams.contrastEnhancement());
-        processedImagesEmitter.newMonoImage(GeneratedImageKind.GEOMETRY_CORRECTED_PROCESSED, message("processed"), processParams.contrastEnhancement().name().toLowerCase(Locale.US), stretched);
+        processedImagesEmitter.newMonoImage(GeneratedImageKind.GEOMETRY_CORRECTED_PROCESSED, null, message("processed"), processParams.contrastEnhancement().name().toLowerCase(Locale.US), stretched);
         var runnables = new ArrayList<Runnable>();
         if (isMainShift() && shouldProduce(GeneratedImageKind.NEGATIVE)) {
             runnables.add(() -> produceNegativeImage(enhanced));
@@ -209,7 +209,7 @@ public class ProcessingWorkflow {
 
     private void produceRedshiftsImage(ImageWrapper32 geometryFixed, List<RedshiftArea> redshifts) {
         processedImagesEmitter.newColorImage(GeneratedImageKind.REDSHIFT,
-            message("redshift"),
+            null, message("redshift"),
             "redshift",
             geometryFixed,
             mono -> {
@@ -312,14 +312,14 @@ public class ProcessingWorkflow {
     private void produceColorizedImage(float blackPoint, ImageWrapper32 corrected, ProcessParams params) {
         var ray = params.spectrumParams().ray();
         ray.getColorCurve().ifPresentOrElse(curve ->
-                processedImagesEmitter.newColorImage(GeneratedImageKind.COLORIZED, MessageFormat.format(message("colorized"), curve.ray()), "colorized", corrected, monoImage -> {
+                processedImagesEmitter.newColorImage(GeneratedImageKind.COLORIZED, null, MessageFormat.format(message("colorized"), curve.ray()), "colorized", corrected, monoImage -> {
                     var mono = monoImage.data();
                     createStretchingForColorization(blackPoint, mono).stretch(new ImageWrapper32(corrected.width(), corrected.height(), mono, MutableMap.of()));
                     return ImageUtils.convertToRGB(curve, mono);
                 })
             , () -> {
                 if (ray.wavelength() > 0) {
-                    processedImagesEmitter.newColorImage(GeneratedImageKind.COLORIZED, MessageFormat.format(message("colorized"), ray.label()), "colorized", corrected, monoImage -> {
+                    processedImagesEmitter.newColorImage(GeneratedImageKind.COLORIZED, null, MessageFormat.format(message("colorized"), ray.label()), "colorized", corrected, monoImage -> {
                         var mono = monoImage.data();
                         var rgb = ray.toRGB();
                         return Colorize.doColorize(corrected.width(), corrected.height(), mono, rgb);
@@ -376,7 +376,7 @@ public class ProcessingWorkflow {
             ))
         ));
         decorated.metadata().put(RotationKind.class, RotationKind.NONE);
-        processedImagesEmitter.newMonoImage(GeneratedImageKind.TECHNICAL_CARD, message("technical.card"), "card", decorated);
+        processedImagesEmitter.newMonoImage(GeneratedImageKind.TECHNICAL_CARD, null, message("technical.card"), "card", decorated);
     }
 
     private void produceNegativeImage(ImageWrapper32 geometryFixed) {
@@ -384,7 +384,7 @@ public class ProcessingWorkflow {
         new ClaheStrategy(128, 512, .8f).stretch(negated);
         NegativeImageStrategy.DEFAULT.stretch(negated);
         TransformationHistory.recordTransform(negated, "Negative");
-        processedImagesEmitter.newMonoImage(GeneratedImageKind.NEGATIVE, message("negative"), "negative", negated);
+        processedImagesEmitter.newMonoImage(GeneratedImageKind.NEGATIVE, null, message("negative"), "negative", negated);
     }
 
     private void produceCoronagraph(float blackPoint, ImageWrapper32 geometryFixed) {
@@ -394,7 +394,7 @@ public class ProcessingWorkflow {
             var produceMixed = diskEllipse != null && shouldProduce(GeneratedImageKind.MIXED);
             if (produceVirtualEclipse || produceMixed) {
                 var coronagraph = new CoronagraphTask(broadcaster, imageSupplier(WorkflowResults.GEOMETRY_CORRECTION), diskEllipse, blackPoint).get();
-                processedImagesEmitter.newMonoImage(GeneratedImageKind.VIRTUAL_ECLIPSE, message("protus"), "protus", coronagraph);
+                processedImagesEmitter.newMonoImage(GeneratedImageKind.VIRTUAL_ECLIPSE, null, message("protus"), "protus", coronagraph);
                 if (produceMixed) {
                     var data = geometryFixed.data();
                     var copy = new float[data.length];
@@ -434,14 +434,14 @@ public class ProcessingWorkflow {
                     var colorCurve = ray.getColorCurve();
                     if (colorCurve.isPresent()) {
                         var curve = colorCurve.get();
-                        processedImagesEmitter.newColorImage(GeneratedImageKind.MIXED, message("mix"), "mix", mixedImage, monoImage -> ImageUtils.convertToRGB(curve, monoImage.data()));
+                        processedImagesEmitter.newColorImage(GeneratedImageKind.MIXED, null, message("mix"), "mix", mixedImage, monoImage -> ImageUtils.convertToRGB(curve, monoImage.data()));
                     } else if (ray.wavelength() > 0) {
-                        processedImagesEmitter.newColorImage(GeneratedImageKind.MIXED, message("mix"), "mix", mixedImage, monoImage -> {
+                        processedImagesEmitter.newColorImage(GeneratedImageKind.MIXED, null, message("mix"), "mix", mixedImage, monoImage -> {
                             var rgbColor = ray.toRGB();
                             return Colorize.doColorize(width, height, monoImage.data(), rgbColor);
                         });
                     } else {
-                        processedImagesEmitter.newMonoImage(GeneratedImageKind.MIXED, message("mix"), "mix", mixedImage);
+                        processedImagesEmitter.newMonoImage(GeneratedImageKind.MIXED, null, message("mix"), "mix", mixedImage);
                     }
                 }
             }

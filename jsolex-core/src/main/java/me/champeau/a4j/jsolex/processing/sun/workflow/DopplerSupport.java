@@ -63,7 +63,7 @@ public class DopplerSupport {
                 var metadata = new HashMap<>(grey1.metadata());
                 metadata.putAll(grey2.metadata());
                 processedImagesEmitter.newColorImage(GeneratedImageKind.DOPPLER,
-                    "Doppler",
+                    null, "Doppler",
                     "doppler",
                     width,
                     height,
@@ -91,7 +91,7 @@ public class DopplerSupport {
                 var metadata = new HashMap<>(grey1.metadata());
                 metadata.putAll(grey2.metadata());
                 processedImagesEmitter.newColorImage(GeneratedImageKind.DOPPLER_ECLIPSE,
-                    message("doppler.eclipse"),
+                    null, message("doppler.eclipse"),
                     "doppler-eclipse",
                     width,
                     height,

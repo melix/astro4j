@@ -346,7 +346,7 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
                             var imageName = "cropped-" + id;
                             var title = String.format(message("cropped.image"), id);
                             var path = adjustedParams != null
-                                ? outputDirectory.resolve(createNamingStrategy().render(0, Constants.TYPE_CUSTOM, imageName, computeSerFileBasename(serFile)))
+                                ? outputDirectory.resolve(createNamingStrategy().render(0, null, Constants.TYPE_CUSTOM, imageName, computeSerFileBasename(serFile)))
                                 : event.getPayload().path().getParent().resolve("cropped-" + id);
                             broadcast(new ImageGeneratedEvent(
                                 new GeneratedImage(
@@ -841,7 +841,7 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
             var writable = chart.snapshot(snapshotParameters, null);
             try {
                 var namingStrategy = createNamingStrategy();
-                var outputFile = outputDirectory.resolve(namingStrategy.render(0, Constants.TYPE_DEBUG, name, baseName) + ".png");
+                var outputFile = outputDirectory.resolve(namingStrategy.render(0, null, Constants.TYPE_DEBUG, name, baseName) + ".png");
                 var bufferedImage = SwingFXUtils.fromFXImage(writable, null);
                 Files.createDirectories(outputFile.getParent());
                 ImageIO.write(bufferedImage, "png", outputFile.toFile());
