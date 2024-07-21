@@ -11,6 +11,7 @@ Voici les nouvelles fonctionnalités de cette version :
 ## Changements dans la version 2.6.4
 
 - Ajout de la fonction ImageMath `neutralize_bg`
+- Correction d'un bug empêchant la création de certaines animations de décalages vers le rouge
 
 ## Changements dans la version 2.6.3
 

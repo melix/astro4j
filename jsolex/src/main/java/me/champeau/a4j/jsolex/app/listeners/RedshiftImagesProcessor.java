@@ -58,6 +58,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.TreeSet;
 import java.util.function.DoubleUnaryOperator;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
@@ -67,6 +68,9 @@ import static me.champeau.a4j.jsolex.app.JSolEx.message;
 
 public class RedshiftImagesProcessor {
     private static final Logger LOGGER = LoggerFactory.getLogger(RedshiftImagesProcessor.class);
+    private static final int SAMPLING = 4;
+    private static final int BYTES_IN_FLOAT = 4;
+    private static final int TMP_IMAGES_COUNT = 4;
 
     private final Map<Double, ImageWrapper> shiftImages;
     private final ProcessParams params;
@@ -78,6 +82,8 @@ public class RedshiftImagesProcessor {
     private final List<RedshiftArea> redshifts;
     private final DoubleUnaryOperator polynomial;
     private final float[] averageImage;
+    private final int imageWidth;
+    private final int imageHeight;
 
     public RedshiftImagesProcessor(Map<Double, ImageWrapper> shiftImages,
                                    ProcessParams params,
@@ -99,6 +105,14 @@ public class RedshiftImagesProcessor {
         this.redshifts = redshifts;
         this.polynomial = polynomial;
         this.averageImage = averageImage;
+        var image = shiftImages.values().stream().findFirst();
+        if (image.isPresent()) {
+            imageWidth = image.get().width();
+            imageHeight = image.get().height();
+        } else {
+            imageWidth = 0;
+            imageHeight = 0;
+        }
     }
 
     public RedshiftImagesProcessor withRedshifts(List<RedshiftArea> redshifts) {
@@ -124,6 +138,7 @@ public class RedshiftImagesProcessor {
         }
         broadcaster.broadcast(ProgressEvent.of(0, "Producing redshift animations and panels"));
         double progress = 0;
+        var computedShifts = new TreeSet<>(shiftImages.keySet());
         var adjustedRedshifts = shiftImages.get(0d)
             .findMetadata(Redshifts.class)
             .map(Redshifts::redshifts)
@@ -133,7 +148,9 @@ public class RedshiftImagesProcessor {
             .mapToDouble(RedshiftArea::pixelShift)
             .max()
             .orElse(0d) + margin;
-        var range = createMinMaxRange(-maxShift, maxShift, .25).stream().sorted().toList();
+        var min = Math.max(-maxShift, computedShifts.first());
+        var max = Math.min(maxShift, computedShifts.last());
+        var range = createMinMaxRange(min, max, .25).stream().sorted().toList();
         var contrast = new AdjustContrast(Map.of(), broadcaster);
         var initialImages = range.stream().map(shiftImages::get).toList();
         var constrastAdjusted = contrast.autoContrast(List.of(initialImages, params.autoStretchParams().gamma()));
@@ -144,7 +161,7 @@ public class RedshiftImagesProcessor {
             }
             for (var redshift : adjustedRedshifts) {
                 broadcaster.broadcast(ProgressEvent.of(progress / redshifts.size(), "Producing images for redshift " + redshift));
-                produceImagesForRedshift(redshift, kind, boxSize, margin, useFullRangePanels, annotateAnimations, shiftToContrastAdjusted);
+                produceImagesForRedshift(redshift, kind, boxSize, useFullRangePanels, annotateAnimations, shiftToContrastAdjusted);
                 progress++;
             }
         }
@@ -172,7 +189,12 @@ public class RedshiftImagesProcessor {
         return requiredShifts;
     }
 
-    private void produceImagesForRedshift(RedshiftArea redshift, RedshiftCreatorKind kind, int boxSize, int margin, boolean useFullRangePanels, boolean annotateAnimations, Map<Double, ImageWrapper> shiftToContrastAdjusted) {
+    private void produceImagesForRedshift(RedshiftArea redshift,
+                                          RedshiftCreatorKind kind,
+                                          int boxSize,
+                                          boolean useFullRangePanels,
+                                          boolean annotateAnimations,
+                                          Map<Double, ImageWrapper> shiftToContrastAdjusted) {
         var centerX = redshift.maxX();
         var centerY = redshift.maxY();
         // grow x1/x2/y1/y2 so that the area is centered and fits the box size
@@ -180,9 +202,8 @@ public class RedshiftImagesProcessor {
         var dy = boxSize / 2;
         var x1 = Math.max(0, centerX - dx);
         var y1 = Math.max(0, centerY - dy);
-        var range = createRange(margin, redshift.pixelShift());
         var crop = new Crop(Map.of(), broadcaster);
-        var constrastAdjusted = range.stream().map(shiftToContrastAdjusted::get).toList();
+        var constrastAdjusted = shiftToContrastAdjusted.keySet().stream().sorted().map(shiftToContrastAdjusted::get).toList();
         var animate = new Animate(Map.of(), broadcaster);
         var cropped = crop.crop(List.of(constrastAdjusted, x1, y1, boxSize, boxSize));
         if (kind == RedshiftCreatorKind.ANIMATION || kind == RedshiftCreatorKind.ALL) {
@@ -428,7 +449,28 @@ public class RedshiftImagesProcessor {
                 BatchOperations.submitOneOfAKind("progress", () -> owner.updateProgress(e.getPayload().progress(), e.getPayload().task()));
             }
         });
+        solexVideoProcessor.setIgnoreIncompleteShifts(true);
         solexVideoProcessor.process();
+    }
+
+    public double estimateRequiredBytesForProcessing(double n) {
+        return n * imageWidth * imageHeight * BYTES_IN_FLOAT * TMP_IMAGES_COUNT * SAMPLING;
+    }
+
+    public String estimateRequiredDiskSpace(double n) {
+        var size = estimateRequiredBytesForProcessing(n) / 1024 / 1024;
+        if (size > 1024) {
+            return String.format(message("disk.requirement"), size / 1024, "GB");
+        }
+        return String.format(message("disk.requirement"), size, "MB");
+    }
+
+    public String estimateRequiredDiskSpaceWithMargin(int margin) {
+        return estimateRequiredDiskSpace(createRange(margin, redshifts.stream().mapToInt(RedshiftArea::pixelShift).max().orElse(0)).size() / SAMPLING);
+    }
+
+    public double estimateRequiredBytesForProcessingWithMargin(int margin) {
+        return estimateRequiredBytesForProcessing(createRange(margin, redshifts.stream().mapToInt(RedshiftArea::pixelShift).max().orElse(0)).size() / SAMPLING);
     }
 
     public enum RedshiftCreatorKind {

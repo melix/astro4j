@@ -164,7 +164,7 @@ class AbstractFunctionImpl {
             consumer.accept(copy);
             return copy;
         }
-        throw new IllegalArgumentException(name + "first argument must be a mono image or a list of images");
+        throw new IllegalArgumentException(name + " first argument must be a mono image or a list of images");
     }
 
     protected Object applyUnary(List<Object> arguments, String name, DoubleUnaryOperator function) {
