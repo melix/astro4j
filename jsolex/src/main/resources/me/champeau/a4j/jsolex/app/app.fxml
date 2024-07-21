@@ -36,6 +36,8 @@
                 <MenuItem onAction="#watchMode" text="%open.watch"/>
                 <Menu fx:id="recentFilesMenu" text="%recent.files"/>
                 <SeparatorMenuItem/>
+                <MenuItem onAction="#showAdvancedParams" text="%advanced.params"/>
+                <SeparatorMenuItem/>
                 <MenuItem onAction="#exit" text="%exit"/>
             </Menu>
             <Menu text="%tools">

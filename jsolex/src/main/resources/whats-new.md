@@ -11,6 +11,7 @@ Here are the new features in this version:
 
 - Added `neutralize_bg` ImageMath function
 - Fixed a bug preventing the creation of some redshift animations
+- Make wait time in watch mode configurable
 
 ## Changes in 2.6.3
 

@@ -65,6 +65,7 @@ import javafx.util.Callback;
 import javafx.util.Duration;
 import javafx.util.StringConverter;
 import javafx.util.converter.IntegerStringConverter;
+import me.champeau.a4j.jsolex.app.jfx.AdvancedParamsController;
 import me.champeau.a4j.jsolex.app.jfx.ApplyUserRotation;
 import me.champeau.a4j.jsolex.app.jfx.BatchItem;
 import me.champeau.a4j.jsolex.app.jfx.BatchOperations;
@@ -161,12 +162,11 @@ public class JSolEx extends Application implements JSolExInterface {
     private static final String LOG_EXTENSION = ".log";
     private static final FileChooser.ExtensionFilter LOG_FILE_EXTENSION_FILTER = new FileChooser.ExtensionFilter("Log files (*" + LOG_EXTENSION + ")", "*" + LOG_EXTENSION);
     private static final FileChooser.ExtensionFilter SER_FILES_EXTENSION_FILTER = new FileChooser.ExtensionFilter("SER files", "*.ser", "*.SER");
-    private static final int FILE_WATCH_TIMEOUT = 2_500;
 
     public static final Set<String> IMAGE_FILE_EXTENSIONS = Set.of("png", "jpg", "jpeg", "tif", "tiff", "fits", "fit");
     public static final FileChooser.ExtensionFilter IMAGE_FILES_EXTENSIONS = new FileChooser.ExtensionFilter("Image Files", IMAGE_FILE_EXTENSIONS.stream().map(ext -> "*." + ext).toList());
 
-    private final Configuration config = new Configuration();
+    private final Configuration config = Configuration.getInstance();
 
     Stage rootStage;
 
@@ -410,6 +410,7 @@ public class JSolEx extends Application implements JSolExInterface {
     }
 
     private Thread startWatcherThread() {
+        var waitTime = config.getWatchModeWaitTimeMilis();
         var newFiles = new ConcurrentHashMap<Path, Long>();
         var watcherThread = new Thread(() -> {
             while (!Thread.currentThread().isInterrupted()) {
@@ -463,7 +464,7 @@ public class JSolEx extends Application implements JSolExInterface {
                     }
                 }
                 try {
-                    Thread.sleep(FILE_WATCH_TIMEOUT);
+                    Thread.sleep(waitTime);
                 } catch (InterruptedException e) {
                     Thread.currentThread().interrupt();
                 }
@@ -754,6 +755,23 @@ public class JSolEx extends Application implements JSolExInterface {
             BatchOperations.submit(this::newSession);
             e.getConfiguration().ifPresent(scripts -> BackgroundOperations.async(() -> executeStandaloneScripts(params.withRequestedImages(params.requestedImages().withMathImages(scripts)))));
         });
+    }
+
+    @FXML
+    private void showAdvancedParams() {
+        var fxmlLoader = I18N.fxmlLoader(JSolEx.class, "advanced-params");
+        try {
+            var stage = newStage();
+            var node = (Parent) fxmlLoader.load();
+            var controller = (AdvancedParamsController) fxmlLoader.getController();
+            controller.setup(stage);
+            Scene scene = new Scene(node);
+            stage.setTitle(I18N.string(JSolEx.class, "advanced-params", "frame.title"));
+            stage.setScene(scene);
+            stage.showAndWait();
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
     }
 
     @FXML

@@ -67,7 +67,7 @@ public class JSolExScriptExecutor extends DefaultImageScriptExecutor {
 
         private JSolExFileSelector(Stage stage) {
             this.stage = stage;
-            this.configuration = new Configuration();
+            this.configuration = Configuration.getInstance();
         }
 
         @Override
