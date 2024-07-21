@@ -18,6 +18,7 @@ package me.champeau.a4j.jsolex.processing.expr.impl;
 import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
 import me.champeau.a4j.jsolex.processing.sun.workflow.AnalysisUtils;
 import me.champeau.a4j.jsolex.processing.util.FileBackedImage;
+import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 import me.champeau.a4j.math.regression.Ellipse;
 
@@ -67,5 +68,29 @@ public class BackgroundRemoval extends AbstractFunctionImpl {
             });
         }
         throw new IllegalArgumentException("remove_bg only supports mono images");
+    }
+
+    public Object neutralizeBackground(List<Object> arguments) {
+        assertExpectedArgCount(arguments, "neutralize_bg takes 1 or 2 arguments (image(s), iterations)", 1, 2);
+        var arg = arguments.get(0);
+        if (arg instanceof List<?>) {
+            return expandToImageList("neutralize_bg", arguments, this::neutralizeBackground);
+        }
+        var iterations = arguments.size() == 2 ? intArg(arguments, 1) : 1;
+        if (arg instanceof ImageWrapper target) {
+            Optional<Ellipse> ellipse = target.findMetadata(Ellipse.class);
+            if (ellipse.isEmpty()) {
+                throw new IllegalArgumentException("Cannot perform background neutralization because ellipse isn't found");
+            }
+            return monoToMonoImageTransformer("neutralize_bg", 2, arguments, src -> {
+                if (src instanceof ImageWrapper32 image) {
+                    me.champeau.a4j.jsolex.processing.sun.BackgroundRemoval.neutralizeBackground(image, iterations);
+                } else {
+                    throw new IllegalArgumentException("neutralize_bg only supports mono images");
+                }
+            });
+        }
+
+        throw new IllegalArgumentException("neutralize_bg only supports mono images");
     }
 }

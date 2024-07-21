@@ -303,6 +303,7 @@ Les autres fonctions disponibles sont:
 - `linear_stretch` augmente la plage dynamique d'une image. Elle prend soit 1, soit 3 paramètres : l'image, puis optionellement les valeurs min et max des pixels (valeur comprise entre 0 et 65535). Par exemple: `linear_stretch(img(0))`
 - `fix_banding` permet d'appliquer l'algorithme de corrections de bandes (ou transversallium). Il prend 3 arguments: l'image, la largeur de bande et le nombre d'itérations. Par exemple, `fix_banding(img(0), 10, 5)`.
 - `remove_bg` permet de supprimer l'arrière plan d'une image. Ceci peut être utile lorsque le constraste est très faible (par exemple en raie hélium). Le processus calcule la valeur moyenne des pixels en dehors du disque, puis applique une suppression de l'arrière plan en fonction de la distance au limbe. Par exemple: `remove_bg(stretched)`. Une variante est disponible avec une tolerance: `remove_bg(stretched, 0.2)`. Plus la tolérance est proche de 0, moins la suppression est forte.
+- `neutralize_bg` est une fonction similaire à `remove_bg` qui utilise une modélisation polynomiale du fond pour supprimer les gradients. Elle prend en paramètre l'image à traiter, et optionellement un nombre d'itérations en 2ème paramètre. Par exemple : `neutralize_bg(img(0), 2)`.
 
 NOTE: Si vous ne connaissez pas la valeur du point noir, vous pouvez utiliser la valeur estimée par JSol'Ex, disponible dans une variable prédéfinie `blackPoint`: `asinh_stretch(img(0), blackPoint, 100)`
 

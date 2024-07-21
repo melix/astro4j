@@ -8,6 +8,10 @@ Voici les nouvelles fonctionnalités de cette version :
 - [Forcer le polynôme](#forcer-le-polynôme)
 - [Corrections de bugs et améliorations](#bugfixes-and-improvements)
 
+## Changements dans la version 2.6.4
+
+- Ajout de la fonction ImageMath `neutralize_bg`
+
 ## Changements dans la version 2.6.3
 
 - Amélioration d'autostretch pour éviter les saturations de pixels en calcium notamment

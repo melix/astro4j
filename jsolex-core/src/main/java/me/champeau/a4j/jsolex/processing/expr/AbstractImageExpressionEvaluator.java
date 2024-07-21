@@ -243,6 +243,7 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
             case MEDIAN -> simpleFunctionCall.applyFunction("median", arguments, AbstractImageExpressionEvaluator::median);
             case MIN -> simpleFunctionCall.applyFunction("min", arguments, DoubleStream::min);
             case MOSAIC -> mosaicComposition.mosaic(arguments);
+            case NEUTRALIZE_BG -> bgRemoval.neutralizeBackground(arguments);
             case POW -> math.pow(arguments);
             case RADIUS_RESCALE -> scaling.radiusRescale(arguments);
             case RANGE -> createRange(arguments);
