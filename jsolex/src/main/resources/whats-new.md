@@ -7,6 +7,10 @@ Here are the new features in this version:
 - [Forcing a polynomial](#forcing-a-polynomial)
 - [Bugfixes and improvements](#bugfixes-and-improvements)
 
+## Changes in 2.6.4
+
+- Added `neutralize_bg` ImageMath function
+
 ## Changes in 2.6.3
 
 - Improved autostretch to avoid pixel saturation which often happens with calcium line processing

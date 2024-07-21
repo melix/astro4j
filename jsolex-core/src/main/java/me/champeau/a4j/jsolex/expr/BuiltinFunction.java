@@ -60,6 +60,7 @@ public enum BuiltinFunction {
     MAX,
     MIN,
     MOSAIC,
+    NEUTRALIZE_BG,
     POW,
     RADIUS_RESCALE,
     RANGE,
