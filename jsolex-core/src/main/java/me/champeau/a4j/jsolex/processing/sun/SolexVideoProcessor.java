@@ -136,6 +136,7 @@ public class SolexVideoProcessor implements Broadcaster {
     private DoubleUnaryOperator polynomial;
     private float[] averageImage;
     private PixelShiftRange pixelShiftRange;
+    private boolean ignoreIncompleteShifts;
 
     public SolexVideoProcessor(File serFile,
                                Path outputDirectory,
@@ -149,6 +150,10 @@ public class SolexVideoProcessor implements Broadcaster {
         this.processParams = processParametersProvider;
         this.processingDate = processingDate;
         this.batchMode = batchMode;
+    }
+
+    public void setIgnoreIncompleteShifts(boolean ignoreIncompleteShifts) {
+        this.ignoreIncompleteShifts = ignoreIncompleteShifts;
     }
 
     public void setAverageImage(float[] averageImage) {
@@ -304,7 +309,11 @@ public class SolexVideoProcessor implements Broadcaster {
                     imageList.add(state);
                 }
             }
-            imageList.removeIf(s -> s.pixelShift() < minShift || s.pixelShift() > maxShift);
+            if (!ignoreIncompleteShifts) {
+                imageList.removeIf(s -> s.pixelShift() < minShift || s.pixelShift() > maxShift);
+            } else if (imageList.stream().anyMatch(s -> s.pixelShift() < minShift || s.pixelShift() > maxShift)) {
+                LOGGER.warn(message("some.shifts.outside.range"));
+            }
             var avgImage = new Image(width, height, averageImage);
             var leftBorder = Math.max(0, start);
             var rightBorder = Math.min(end, width);

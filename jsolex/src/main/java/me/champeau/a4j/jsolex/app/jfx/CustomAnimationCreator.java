@@ -38,9 +38,6 @@ import static me.champeau.a4j.jsolex.app.JSolEx.message;
 
 public class CustomAnimationCreator {
     public static final String DEFAULT_DELAY = "25";
-    private static final int SAMPLING = 4;
-    private static final int BYTES_IN_FLOAT = 4;
-    private static final int TMP_IMAGES_COUNT = 4;
 
     @FXML
     public TextField width;
@@ -120,12 +117,7 @@ public class CustomAnimationCreator {
         estimatedDiskSpace.textProperty().bind(Bindings.subtract(
             Bindings.createDoubleBinding(() -> Double.parseDouble(maxShift.getText()), maxShift.textProperty()),
             Bindings.createDoubleBinding(() -> Double.parseDouble(minShift.getText()), minShift.textProperty())
-        ).map(n -> estimateRequiredBytesForProcessing(n.doubleValue()) / 1024 / 1024).map(size -> {
-            if (size > 1024) {
-                return String.format(message("disk.requirement"), size / 1024, "GB");
-            }
-            return String.format(message("disk.requirement"), size, "MB");
-        }));
+        ).map(n -> redshiftProcessor.estimateRequiredDiskSpace(n.doubleValue())));
         title.setText(String.format(message("custom.animation"), id));
         delay.setTextFormatter(new TextFormatter<>(new IntegerStringConverter() {
             @Override
@@ -138,10 +130,6 @@ public class CustomAnimationCreator {
             }
         }));
         delay.setText(DEFAULT_DELAY);
-    }
-
-    private double estimateRequiredBytesForProcessing(double n) {
-        return n * imageWidth * imageHeight * BYTES_IN_FLOAT * TMP_IMAGES_COUNT * SAMPLING;
     }
 
     private static double safeParseDouble(String s) {
@@ -221,7 +209,7 @@ public class CustomAnimationCreator {
     private void generate() {
         double imageCount = Double.parseDouble(maxShift.getText())-Double.parseDouble(minShift.getText());
         try {
-            if (Files.getFileStore(Path.of(System.getProperty("java.io.tmpdir"))).getUsableSpace() < estimateRequiredBytesForProcessing(imageCount)) {
+            if (Files.getFileStore(Path.of(System.getProperty("java.io.tmpdir"))).getUsableSpace() < redshiftProcessor.estimateRequiredBytesForProcessing(imageCount)) {
                 var alert = AlertFactory.error(message("disk.space.error"));
                 alert.showAndWait();
                 return;

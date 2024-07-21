@@ -153,6 +153,9 @@
                                                 </GridPane>
                                             </VBox>
                                             <VBox alignment="CENTER" GridPane.rowIndex="7" GridPane.columnIndex="0" GridPane.columnSpan="2">
+                                                <Label fx:id="estimatedDiskSpace"/>
+                                            </VBox>
+                                            <VBox alignment="CENTER" GridPane.rowIndex="8" GridPane.columnIndex="0" GridPane.columnSpan="2">
                                                 <Button fx:id="generateRedshiftImages" text="%generate"/>
                                             </VBox>
                                         </GridPane>

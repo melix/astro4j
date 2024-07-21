@@ -10,6 +10,7 @@ Here are the new features in this version:
 ## Changes in 2.6.4
 
 - Added `neutralize_bg` ImageMath function
+- Fixed a bug preventing the creation of some redshift animations
 
 ## Changes in 2.6.3
 

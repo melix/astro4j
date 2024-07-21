@@ -58,11 +58,19 @@ public class FilesUtils {
     }
 
     public static List<String> readAllLines(Path file) {
-        return withCharsetDetection(charset -> Files.readAllLines(file, charset));
+        if (Files.exists(file)) {
+            return withCharsetDetection(charset -> Files.readAllLines(file, charset));
+        } else {
+            return List.of();
+        }
     }
 
     public static String readString(Path file) throws IOException {
-        return withCharsetDetection(charset -> Files.readString(file, charset));
+        if (Files.exists(file)) {
+            return withCharsetDetection(charset -> Files.readString(file, charset));
+        } else {
+            return "";
+        }
     }
 
     public static Reader newTextReader(Path file) throws IOException {

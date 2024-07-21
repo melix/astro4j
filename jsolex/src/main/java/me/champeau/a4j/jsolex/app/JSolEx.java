@@ -251,6 +251,9 @@ public class JSolEx extends Application implements JSolExInterface {
     @FXML
     private GridPane redshiftSelectionBox;
 
+    @FXML
+    private Label estimatedDiskSpace;
+
     private final Map<String, ImageViewer> popupViewers = new ConcurrentHashMap<>();
 
     private final MultipleImagesViewer multipleImagesViewer = new MultipleImagesViewer();
@@ -974,12 +977,24 @@ public class JSolEx extends Application implements JSolExInterface {
                 redshiftBoxSize.getItems().add(bSize);
                 bSize += boxSize;
             }
+            estimatedDiskSpace.textProperty().bind(pixelShiftMargin.textProperty().map(Double::parseDouble).map(m -> processor.estimateRequiredDiskSpaceWithMargin(m.intValue())));
             generateRedshiftImages.setOnAction(e -> {
                 var kind = redshiftCreatorKind.getValue();
                 var size = redshiftBoxSize.getValue();
                 var margin = Integer.valueOf(pixelShiftMargin.getText());
                 var useFullRangePanels = fullRangePanels.isSelected();
                 var annotate = annotateAnimations.isSelected();
+                try {
+                    if (Files.getFileStore(Path.of(System.getProperty("java.io.tmpdir"))).getUsableSpace() < processor.estimateRequiredBytesForProcessingWithMargin(margin)) {
+                        var alert = AlertFactory.confirmation(message("disk.space.error.confirm"));
+                        var result = alert.showAndWait();
+                        if (result.isPresent() && result.get() == ButtonType.CANCEL) {
+                            return;
+                        }
+                    }
+                } catch (IOException ex) {
+                    // ignore
+                }
                 if (kind != null && size != null) {
                     BackgroundOperations.async(() -> {
                         BatchOperations.submit(() -> rightTabs.getSelectionModel().select(logsTab));
