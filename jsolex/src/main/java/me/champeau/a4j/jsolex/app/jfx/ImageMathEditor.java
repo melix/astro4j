@@ -50,7 +50,7 @@ public class ImageMathEditor {
     public static final String MATH_EXTENSION = ".math";
     public static final FileChooser.ExtensionFilter MATH_SCRIPT_EXTENSION_FILTER = new FileChooser.ExtensionFilter("ImageMath Script (*.math)", "*" + MATH_EXTENSION);
 
-    private final Configuration configuration = new Configuration();
+    private final Configuration configuration = Configuration.getInstance();
 
     @FXML
     public BorderPane fileList;

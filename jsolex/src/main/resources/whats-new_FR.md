@@ -12,6 +12,7 @@ Voici les nouvelles fonctionnalités de cette version :
 
 - Ajout de la fonction ImageMath `neutralize_bg`
 - Correction d'un bug empêchant la création de certaines animations de décalages vers le rouge
+- Possibilité de configurer le temps d'attente en mode surveillance
 
 ## Changements dans la version 2.6.3
 

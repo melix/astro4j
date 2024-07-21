@@ -40,7 +40,7 @@ public class Configuration {
     private final Preferences prefs;
     private final List<Path> recentFiles;
 
-    public Configuration() {
+    private Configuration() {
         prefs = Preferences.userRoot().node(this.getClass().getName());
         String recentFilesString = prefs.get(RECENT_FILES, "");
         this.recentFiles = Arrays.stream(recentFilesString.split(Pattern.quote(File.pathSeparator)))
@@ -48,6 +48,10 @@ public class Configuration {
             .filter(Files::exists)
             .limit(10)
             .collect(Collectors.toCollection(java.util.ArrayList::new));
+    }
+
+    public static Configuration getInstance() {
+        return new Configuration();
     }
 
     public void loadedSerFile(Path path) {
@@ -124,6 +128,14 @@ public class Configuration {
 
     public void setPreferredHeigth(int height) {
         prefs.put(PREFERRED_HEIGHT, String.valueOf(height));
+    }
+
+    public int getWatchModeWaitTimeMilis() {
+        return prefs.getInt("watch.mode.wait.time", 2500);
+    }
+
+    public void setWatchModeWaitTimeMilis(int time) {
+        prefs.putInt("watch.mode.wait.time", Math.max(500, time));
     }
 
     public enum DirectoryKind {
