@@ -140,7 +140,8 @@ public class Configuration {
 
     public enum DirectoryKind {
         SER_FILE(null),
-        IMAGE_MATH("image.math");
+        IMAGE_MATH("image.math"),
+        SPECTRUM_IDENTIFICATION("spectrum.identification");
 
         private final String dirName;
 

@@ -51,6 +51,7 @@ import javafx.util.Duration;
 import javafx.util.StringConverter;
 import javafx.util.converter.DoubleStringConverter;
 import me.champeau.a4j.jsolex.app.AlertFactory;
+import me.champeau.a4j.jsolex.app.Configuration;
 import me.champeau.a4j.jsolex.app.JSolEx;
 import me.champeau.a4j.jsolex.processing.expr.impl.Loader;
 import me.champeau.a4j.jsolex.processing.params.ProcessParams;
@@ -67,6 +68,7 @@ import me.champeau.a4j.jsolex.processing.util.BackgroundOperations;
 import me.champeau.a4j.jsolex.processing.util.Constants;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 import me.champeau.a4j.jsolex.processing.util.RGBImage;
+import me.champeau.a4j.math.image.ImageMath;
 
 import java.io.BufferedReader;
 import java.io.File;
@@ -80,6 +82,7 @@ import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
@@ -95,6 +98,7 @@ public class SpectrumBrowser extends BorderPane {
     private static final Comparator<IdentifiedLine> IDENTIFIED_LINE_COMPARATOR =
         Comparator.comparingInt(IdentifiedLine::difficulty).thenComparing(IdentifiedLine::wavelength);
     private static final double WIDTH_FACTOR = 0.7;
+    public static final int CROP_HEIGHT = 64;
 
     private final DoubleProperty pixelSize = new SimpleDoubleProperty();
     private final BooleanProperty colorizeSpectrum = new SimpleBooleanProperty();
@@ -113,10 +117,11 @@ public class SpectrumBrowser extends BorderPane {
     private final DoubleProperty imageRangeAngstroms = new SimpleDoubleProperty(visibleRangeAngstroms.get());
 
     private final Set<IdentifiedLine> userDefinedLines = new HashSet<>();
+    private final Configuration configuration;
 
     public SpectrumBrowser(double height) {
         centerWavelength(H_ALPHA_WAVELENGTH);
-
+        configuration = Configuration.getInstance();
         canvas = new Canvas(1000, height);
         imageView = new ImageView();
         imageView.setPreserveRatio(true);
@@ -192,7 +197,7 @@ public class SpectrumBrowser extends BorderPane {
         var vbox = new VBox();
         var gtLabel = new Label(I18N.string(JSolEx.class, "spectrum-browser", "goto"));
         var textField = new TextField();
-        textField.setPrefWidth(64);
+        textField.setPrefWidth(CROP_HEIGHT);
         var unit = new Label("Å");
         adjustDispersion.setSelected(true);
         adjustDispersion.selectedProperty().addListener((observableValue, aBoolean, value) -> drawSpectrum());
@@ -265,9 +270,11 @@ public class SpectrumBrowser extends BorderPane {
         var loadImage = new Button(I18N.string(JSolEx.class, "spectrum-browser", "identify"));
         loadImage.setOnAction(evt -> {
             var fileChooser = new FileChooser();
+            configuration.findLastOpenDirectory(Configuration.DirectoryKind.SPECTRUM_IDENTIFICATION).ifPresent(dir -> fileChooser.setInitialDirectory(dir.toFile()));
             fileChooser.getExtensionFilters().add(IMAGE_FILES_EXTENSIONS);
             var file = fileChooser.showOpenDialog(null);
             if (file != null) {
+                configuration.updateLastOpenDirectory(file.getParentFile().toPath(), Configuration.DirectoryKind.SPECTRUM_IDENTIFICATION);
                 BackgroundOperations.async(() -> performWavelengthIdentification(file));
             }
 
@@ -309,9 +316,12 @@ public class SpectrumBrowser extends BorderPane {
                     var observationDetails = ProcessParamsIO.loadDefaults().observationDetails();
                     BatchOperations.submit(() -> pixelSize.set(observationDetails.pixelSize() * md.binning()));
                 });
+            // in order to improve distorsion correction, and because identification is likely to use an image which is full height
+            // we are going to perform a polynomial detection based on a limited area
+            var polynomialImage = cropForPolynomialDetection(image);
             var width = image.width();
-            var analyzer = new SpectrumFrameAnalyzer(width, image.height(), null);
-            analyzer.analyze(image.data());
+            var analyzer = new SpectrumFrameAnalyzer(width, polynomialImage.height(), null);
+            analyzer.analyze(polynomialImage.data());
             var result = analyzer.result();
             result.distortionPolynomial().ifPresentOrElse(polynomial -> {
                 var distorsionCorrection = new DistortionCorrection(image.data(), width, image.height());
@@ -396,13 +406,35 @@ public class SpectrumBrowser extends BorderPane {
                                 imageView.setImage(writableImage);
                             }
                             adjustDispersion.setSelected(false);
-                            searchByWavelength(score.wavelength + disp * height / 2);
+                            var targetWavelen = score.wavelength + disp * height / 2;
+                            searchByWavelength(targetWavelen);
                         });
                     });
             }, this::showIdentificationFailure);
         } else {
             AlertFactory.error(I18N.string(JSolEx.class, "spectrum-browser", "unsupported.format")).showAndWait();
         }
+    }
+
+    private static ImageWrapper32 cropForPolynomialDetection(ImageWrapper32 image) {
+        var lineAverages = ImageMath.newInstance().lineAverages(image.asImage());
+        int minLine = 0;
+        double minValue = Double.MAX_VALUE;
+        for (int i = 0; i < image.height(); i++) {
+            if (lineAverages[i] < minValue) {
+                minValue = lineAverages[i];
+                minLine = i;
+            }
+        }
+        int yMin = Math.max(0, minLine - CROP_HEIGHT);
+        int yMax = Math.min(image.height(), minLine + CROP_HEIGHT);
+        int restrictedHeight = yMax - yMin;
+        var cropped = new float[image.width() * restrictedHeight];
+        for (int y = yMin; y < yMax; y++) {
+            var width = image.width();
+            System.arraycopy(image.data(), y * image.width(), cropped, (y - yMin) * image.width(), width);
+        }
+        return new ImageWrapper32(image.width(), restrictedHeight, cropped, Map.of());
     }
 
     private static double[] performSmoothing(double[] values) {
@@ -617,7 +649,6 @@ public class SpectrumBrowser extends BorderPane {
         timeline.setOnFinished(evt -> {
             animating.set(false);
             drawSpectrum();
-            adjustDispersion.setSelected(true);
         });
         animating.set(true);
         timeline.playFromStart();
