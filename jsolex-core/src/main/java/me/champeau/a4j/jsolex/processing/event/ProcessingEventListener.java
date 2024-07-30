@@ -63,4 +63,8 @@ public interface ProcessingEventListener {
     default void onAverageImageComputed(AverageImageComputedEvent e) {
 
     }
+
+    default void onReconstructionDone(ReconstructionDoneEvent e) {
+
+    }
 }

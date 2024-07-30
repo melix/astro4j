@@ -36,6 +36,9 @@ import javafx.scene.image.WritableImage;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.Region;
 import javafx.scene.layout.VBox;
+import javafx.scene.paint.Color;
+import javafx.scene.text.Font;
+import javafx.scene.text.FontWeight;
 import javafx.scene.transform.Transform;
 import javafx.stage.Stage;
 import javafx.util.Duration;
@@ -46,8 +49,8 @@ import me.champeau.a4j.jsolex.app.jfx.BatchOperations;
 import me.champeau.a4j.jsolex.app.jfx.CustomAnimationCreator;
 import me.champeau.a4j.jsolex.app.jfx.I18N;
 import me.champeau.a4j.jsolex.app.jfx.ImageViewer;
+import me.champeau.a4j.jsolex.app.jfx.ReconstructionView;
 import me.champeau.a4j.jsolex.app.jfx.RectangleSelectionListener;
-import me.champeau.a4j.jsolex.app.jfx.ZoomableImageView;
 import me.champeau.a4j.jsolex.app.script.JSolExScriptExecutor;
 import me.champeau.a4j.jsolex.processing.event.AverageImageComputedEvent;
 import me.champeau.a4j.jsolex.processing.event.FileGeneratedEvent;
@@ -63,6 +66,7 @@ import me.champeau.a4j.jsolex.processing.event.ProcessingEvent;
 import me.champeau.a4j.jsolex.processing.event.ProcessingEventListener;
 import me.champeau.a4j.jsolex.processing.event.ProcessingStartEvent;
 import me.champeau.a4j.jsolex.processing.event.ProgressEvent;
+import me.champeau.a4j.jsolex.processing.event.ReconstructionDoneEvent;
 import me.champeau.a4j.jsolex.processing.event.SuggestionEvent;
 import me.champeau.a4j.jsolex.processing.event.VideoMetadataEvent;
 import me.champeau.a4j.jsolex.processing.expr.DefaultImageScriptExecutor;
@@ -77,6 +81,7 @@ import me.champeau.a4j.jsolex.processing.params.RequestedImages;
 import me.champeau.a4j.jsolex.processing.params.SpectroHeliograph;
 import me.champeau.a4j.jsolex.processing.spectrum.SpectrumAnalyzer;
 import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
+import me.champeau.a4j.jsolex.processing.sun.ImageUtils;
 import me.champeau.a4j.jsolex.processing.sun.SolexVideoProcessor;
 import me.champeau.a4j.jsolex.processing.sun.workflow.GeneratedImageKind;
 import me.champeau.a4j.jsolex.processing.sun.workflow.ImageEmitter;
@@ -134,7 +139,7 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
     private static final int BINS = 256;
 
     private final Map<SuggestionEvent.SuggestionKind, String> suggestions = Collections.synchronizedMap(new LinkedHashMap<>());
-    private final Map<Double, ZoomableImageView> imageViews;
+    private final Map<Double, ReconstructionView> imageViews;
     private final JSolExInterface owner;
     private final String baseName;
     private final File serFile;
@@ -200,15 +205,22 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
         height = event.getHeight();
     }
 
-    private ZoomableImageView createImageView(double pixelShift) {
-        var imageViewer = blockingUntilResultAvailable(() -> owner.getImagesViewer().addImage(this,
+    private ReconstructionView createImageView(double pixelShift) {
+        var reconstructionView = blockingUntilResultAvailable(() -> owner.getImagesViewer().addImage(this,
             message("image.reconstruction"), baseName,
-            GeneratedImageKind.RECONSTRUCTION, null, null, params, popupViews, new PixelShift(pixelShift), viewer -> {
+            GeneratedImageKind.RECONSTRUCTION, null, null, params, popupViews, new PixelShift(pixelShift),
+            viewer -> {
+                var parentWidth = owner.getImagesViewer().widthProperty();
+                viewer.getImageView().getScrollPane().maxWidthProperty().bind(parentWidth);
+                return new ReconstructionView(viewer.getImageView(), new byte[3 * width * height], parentWidth);
+            },
+            viewer -> {
+
             }));
-        var imageView = imageViewer.getImageView();
+        var imageView = reconstructionView.getSolarView();
         imageView.setImage(new WritableImage(width, height));
         imageView.resetZoom();
-        return imageView;
+        return reconstructionView;
     }
 
     @Override
@@ -216,29 +228,128 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
         var payload = event.getPayload();
         int y = payload.line();
         if (payload.display()) {
-            var imageView = getOrCreateImageView(event);
-            imageView.resetZoom();
-            WritableImage image = (WritableImage) imageView.getImage();
-            double[] line = payload.data();
-            byte[] rgb = new byte[3 * line.length];
-            for (int x = 0; x < line.length; x++) {
-                int v = (int) Math.round(line[x]);
-                byte c = (byte) (v >> 8);
-                rgb[3 * x] = c;
-                rgb[3 * x + SpectrumAnalyzer.DEFAULT_ORDER] = c;
-                rgb[3 * x + 2] = c;
-            }
-            var pixelformat = PixelFormat.getByteRgbInstance();
             onProgress(ProgressEvent.of((y + 1d) / height, message("reconstructing")));
-            BatchOperations.submit(() -> {
-                image.getPixelWriter().setPixels(0, y, line.length, SpectrumAnalyzer.DEFAULT_ORDER, pixelformat, rgb, 0, 3 * line.length);
+            var reconstructionView = getOrCreateImageView(event);
+            var imageView = reconstructionView.getSolarView();
+            imageView.resetZoom();
+            BackgroundOperations.async(() -> {
+                WritableImage image = (WritableImage) imageView.getImage();
+                double[] line = payload.data();
+                byte[] rgb = reconstructionView.getSolarImageData();
+                for (int x = 0; x < line.length; x++) {
+                    int v = (int) Math.round(line[x]);
+                    byte c = (byte) (v >> 8);
+                    var offset = 3 * (y * width + x);
+                    rgb[offset] = c;
+                    rgb[offset + 1] = c;
+                    rgb[offset + 2] = c;
+                }
+                var spectrum = payload.spectrum();
+                var pixelformat = PixelFormat.getByteRgbInstance();
+                var spectrumView = reconstructionView.getSpectrumView();
+                if (spectrumView.getImage() == null) {
+                    spectrumView.setImage(new WritableImage(spectrum.width(), spectrum.height()));
+                }
+                var spectrumImage = (WritableImage) spectrumView.getImage();
+                new WritableImage(spectrum.width(), spectrum.height());
+                var spectrumBuffer = convertSpectrumImage(spectrum);
+                var selectedViewer = owner.getImagesViewer().getSelectedViewer();
+                if (selectedViewer != null && selectedViewer.getImageView() == reconstructionView.getSolarView()) {
+                    BatchOperations.submit(() -> {
+                        image.getPixelWriter().setPixels(0, y, line.length, 1, pixelformat, rgb, 3 * y * line.length, 3 * line.length);
+                        if ((y % 4) == 0) {
+                            var pixelWriter = spectrumImage.getPixelWriter();
+                            pixelWriter.setPixels(0, 0, spectrum.width(), spectrum.height(), pixelformat, spectrumBuffer, 0, 3 * spectrum.width());
+                        }
+                    });
+                } else {
+                    owner.getImagesViewer().registerOnShowHook(reconstructionView, () -> {
+                        image.getPixelWriter().setPixels(0, 0, line.length, spectrum.width(), pixelformat, rgb, 0, 3 * line.length);
+                        var pixelWriter = spectrumImage.getPixelWriter();
+                        pixelWriter.setPixels(0, 0, spectrum.width(), spectrum.height(), pixelformat, spectrumBuffer, 0, 3 * spectrum.width());
+                        reconstructionView.getSolarView().resetZoom();
+                    });
+                }
             });
         } else {
             onProgress(ProgressEvent.of((y + 1d) / height, message("reconstructing")));
         }
     }
 
-    private synchronized ZoomableImageView getOrCreateImageView(PartialReconstructionEvent event) {
+    @Override
+    public void onReconstructionDone(ReconstructionDoneEvent e) {
+        var serFileReader = e.getPayload().reader();
+        var frameCount = serFileReader.header().frameCount();
+        var converter = ImageUtils.createImageConverter(params.videoParams().colorMode());
+        var pixelformat = PixelFormat.getByteRgbInstance();
+        imageViews.entrySet().forEach(entry -> {
+            var pixelShift = entry.getKey();
+            var view = entry.getValue();
+            var solarViewOverlay = view.getSolarViewOverlay();
+            var solarView = view.getSolarView();
+            solarView.setOnMouseClicked(evt -> {
+                var gso = solarViewOverlay.getGraphicsContext2D();
+                var spectrumViewOverlay = view.getSpectrumViewOverlay();
+                var gsp = spectrumViewOverlay.getGraphicsContext2D();
+                gso.clearRect(0, 0, solarViewOverlay.getWidth(), solarViewOverlay.getHeight());
+                gsp.clearRect(0, 0, spectrumViewOverlay.getWidth(), spectrumViewOverlay.getHeight());
+                var zoom = solarView.getZoom();
+                var yOffset = view.getOffsetY();
+                var xOffset = view.getOffsetX();
+                var frameNb = (evt.getY() + yOffset) / zoom;
+                if (frameNb < 0 || frameNb >= frameCount) {
+                    return;
+                }
+                gso.setFill(Color.RED);
+                gso.fillRect(0, evt.getY(), solarViewOverlay.getWidth(), 1);
+                gso.fillRect(evt.getX(), 0, 1, solarViewOverlay.getHeight());
+                gso.setFill(Color.GREEN);
+                gso.setFont(Font.font(gso.getFont().getFamily(), FontWeight.BOLD, 24));
+                gso.fillText(String.format(Locale.US, "Frame %.0f", frameNb), 10, 30);
+                if (polynomial != null) {
+                    var x = (evt.getX() + xOffset) / zoom;
+                    // draw a cross on the spectrum view
+                    var spectrumY = polynomial.applyAsDouble(x) * zoom - pixelShift;
+                    gsp.setFill(Color.RED);
+                    var cw = Math.max(4, 4 * zoom);
+                    gsp.fillRect(evt.getX() - cw, spectrumY, 2 * cw, 1);
+                    gsp.fillRect(evt.getX(), spectrumY - cw, 1, 2 * cw);
+                }
+                try (var reader = serFileReader.reopen()) {
+                    reader.seekFrame((int) frameNb);
+                    var currentFrame = reader.currentFrame().data();
+                    var geometry = reader.header().geometry();
+                    var buffer = converter.createBuffer(geometry);
+                    converter.convert((int) frameNb, currentFrame, geometry, buffer);
+                    var imageBytes = convertSpectrumImage(new Image(geometry.width(), geometry.height(), buffer));
+                    BatchOperations.submit(() -> {
+                        var pixelWriter = ((WritableImage) view.getSpectrumView().getImage()).getPixelWriter();
+                        pixelWriter.setPixels(0, 0, geometry.width(), geometry.height(), pixelformat, imageBytes, 0, 3 * geometry.width());
+                    });
+
+                } catch (Exception ex) {
+                    throw new ProcessingException(ex);
+                }
+            });
+        });
+    }
+
+    private static byte[] convertSpectrumImage(Image spectrum) {
+        var spectrumBuffer = new byte[3 * spectrum.width() * spectrum.height()];
+
+        for (int yy = 0; yy < spectrum.height(); yy++) {
+            for (int xx = 0; xx < spectrum.width(); xx++) {
+                int v = (int) (255 * spectrum.data()[yy * spectrum.width() + xx] / Constants.MAX_PIXEL_VALUE);
+                var offset = 3 * (yy * spectrum.width() + xx);
+                spectrumBuffer[offset] = (byte) v;
+                spectrumBuffer[offset + 1] = (byte) v;
+                spectrumBuffer[offset + 2] = (byte) v;
+            }
+        }
+        return spectrumBuffer;
+    }
+
+    private synchronized ReconstructionView getOrCreateImageView(PartialReconstructionEvent event) {
         return imageViews.computeIfAbsent(event.getPayload().pixelShift(), this::createImageView);
     }
 
@@ -259,6 +370,7 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
                 adjustedParams != null ? adjustedParams : params,
                 popupViews,
                 pixelShift.orElse(null),
+                viewer -> viewer,
                 viewer -> {
                     showHistogram(viewer.getStretchedImage());
                     showMetadata(imageWrapper.metadata());
@@ -331,7 +443,8 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
                         var controller = fxmlLoader.<CustomAnimationCreator>getController();
                         var stage = new Stage();
                         stage.setScene(new Scene(node));
-                        controller.setup(stage, adjustedParams, imageWrapper.findMetadata(PixelShiftRange.class).orElse(new PixelShiftRange(-15, 15, .25)), imageWrapper.width(), imageWrapper.height(), x, y, width, height, redshiftProcessor, animCount.getAndIncrement());
+                        controller.setup(stage, adjustedParams, imageWrapper.findMetadata(PixelShiftRange.class).orElse(new PixelShiftRange(-15, 15, .25)), imageWrapper.width(), imageWrapper.height(), x, y, width, height, redshiftProcessor,
+                            animCount.getAndIncrement());
                         stage.setTitle(I18N.string(JSolEx.class, "custom-anim-panel", "frame.title"));
                         stage.showAndWait();
                     });
@@ -687,6 +800,8 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
             onVideoMetadataAvailable(e);
         } else if (event instanceof AverageImageComputedEvent e) {
             onAverageImageComputed(e);
+        } else if (event instanceof ReconstructionDoneEvent e) {
+            onReconstructionDone(e);
         }
     }
 

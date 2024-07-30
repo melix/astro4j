@@ -76,7 +76,7 @@ import java.util.concurrent.locks.ReentrantLock;
 
 import static me.champeau.a4j.jsolex.app.JSolEx.message;
 
-public class ImageViewer {
+public class ImageViewer implements WithRootNode {
     private final Lock displayLock = new ReentrantLock();
     private Node root;
     private Stage stage;
@@ -482,6 +482,7 @@ public class ImageViewer {
         return tmpImage;
     }
 
+    @Override
     public Node getRoot() {
         return root;
     }

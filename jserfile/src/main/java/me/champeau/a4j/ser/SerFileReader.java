@@ -37,6 +37,7 @@ import java.util.Optional;
 public class SerFileReader implements AutoCloseable {
     private static final ZoneId UTC = ZoneId.of("UTC");
 
+    private final File backingFile;
     private final RandomAccessFile accessFile;
     private final ByteBuffer[] imageBuffers;
     private final ByteBuffer timestampsBuffer;
@@ -50,7 +51,8 @@ public class SerFileReader implements AutoCloseable {
     private ZonedDateTime currentTimestamp;
     private volatile boolean closed = false;
 
-    private SerFileReader(RandomAccessFile accessFile, ByteBuffer[] imageBuffers, int maxFramesPerBuffer, ByteBuffer timestampsBuffer, Header header) {
+    private SerFileReader(File backingFile, RandomAccessFile accessFile, ByteBuffer[] imageBuffers, int maxFramesPerBuffer, ByteBuffer timestampsBuffer, Header header) {
+        this.backingFile = backingFile;
         this.accessFile = accessFile;
         this.imageBuffers = imageBuffers;
         this.maxFramesPerBuffer = maxFramesPerBuffer;
@@ -114,6 +116,11 @@ public class SerFileReader implements AutoCloseable {
     }
 
     public static SerFileReader of(File file) throws IOException {
+        var tmpReader = createBaseReader(file);
+        return fixReader(tmpReader);
+    }
+
+    private static SerFileReader createBaseReader(File file) throws IOException {
         RandomAccessFile raf = new RandomAccessFile(file, "r");
         FileChannel channel = raf.getChannel();
         var headerBuffer = channel
@@ -142,8 +149,8 @@ public class SerFileReader implements AutoCloseable {
             header = new Header(header.camera(), header.geometry(), header.frameCount(), header.metadata().withoutTimestamps());
         }
         ByteBuffer timestampsBuffer = hasTimestamps ? channel.map(FileChannel.MapMode.READ_ONLY, headerLength + dataLength, 8L * header.frameCount()).order(ByteOrder.LITTLE_ENDIAN) : null;
-        var tmpReader = new SerFileReader(raf, imageBuffers, (int) maxFramesInBuffer, timestampsBuffer, header);
-        return fixReader(tmpReader);
+        var tmpReader = new SerFileReader(file, raf, imageBuffers, (int) maxFramesInBuffer, timestampsBuffer, header);
+        return tmpReader;
     }
 
     /**
@@ -183,7 +190,7 @@ public class SerFileReader implements AutoCloseable {
                 return tmpReader;
             }
             var newGeometry = new ImageGeometry(geometry.colorMode(), geometry.width(), geometry.height(), pixelDepth, geometry.imageEndian());
-            return new SerFileReader(tmpReader.accessFile, tmpReader.imageBuffers, tmpReader.maxFramesPerBuffer, tmpReader.timestampsBuffer,
+            return new SerFileReader(tmpReader.backingFile, tmpReader.accessFile, tmpReader.imageBuffers, tmpReader.maxFramesPerBuffer, tmpReader.timestampsBuffer,
                 new Header(tmpReader.header.camera(), newGeometry, tmpReader.header.frameCount(), tmpReader.header.metadata()));
         }
         return tmpReader;
@@ -283,5 +290,17 @@ public class SerFileReader implements AutoCloseable {
 
     public boolean isClosed() {
         return closed;
+    }
+
+    public SerFileReader reopen() throws IOException {
+        var baseReader = createBaseReader(backingFile);
+        return new SerFileReader(
+            baseReader.backingFile,
+            baseReader.accessFile,
+            baseReader.imageBuffers,
+            baseReader.maxFramesPerBuffer,
+            baseReader.timestampsBuffer,
+            header
+        );
     }
 }

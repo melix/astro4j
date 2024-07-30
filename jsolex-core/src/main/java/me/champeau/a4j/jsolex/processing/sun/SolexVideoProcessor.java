@@ -30,6 +30,7 @@ import me.champeau.a4j.jsolex.processing.event.ProcessingEvent;
 import me.champeau.a4j.jsolex.processing.event.ProcessingEventListener;
 import me.champeau.a4j.jsolex.processing.event.ProcessingStartEvent;
 import me.champeau.a4j.jsolex.processing.event.ProgressEvent;
+import me.champeau.a4j.jsolex.processing.event.ReconstructionDoneEvent;
 import me.champeau.a4j.jsolex.processing.event.ScriptExecutionResultEvent;
 import me.champeau.a4j.jsolex.processing.event.SuggestionEvent;
 import me.champeau.a4j.jsolex.processing.event.VideoMetadataEvent;
@@ -278,8 +279,8 @@ public class SolexVideoProcessor implements Broadcaster {
             if (forcedPolynomialString.isPresent()) {
                 var forcedPolynomial = DoubleQuadruplet.parsePolynomial(forcedPolynomialString.get());
                 forcedPolynomial.ifPresentOrElse(doubleQuadruplet -> {
-                    polynomial = doubleQuadruplet.asPolynomial();
-                    LOGGER.info(message("forced.polynomial"));
+                        polynomial = doubleQuadruplet.asPolynomial();
+                        LOGGER.info(message("forced.polynomial"));
                     },
                     () -> LOGGER.error(message("invalid.forced.polynomial"), forcedPolynomialString.get()));
             }
@@ -357,24 +358,27 @@ public class SolexVideoProcessor implements Broadcaster {
             LOGGER.info(message("distortion.polynomial"), polynomial);
             var current = new AtomicInteger(0);
             var totalImages = imageList.size();
+            var serFileReader = new AtomicReference<SerFileReader>();
             BackgroundOperations.exclusiveIO(() -> {
                 List<List<WorkflowState>> batches = batches(imageList, batchSize);
                 if (batches.size() > 1) {
                     LOGGER.info(message("reconstruction.batches"), batches.size(), batchSize);
                 }
                 for (var batch : batches) {
-                    try (var reader = SerFileReader.of(serFile)) {
+                    try (var reader = serFileReader.get() != null ? serFileReader.get().reopen() : SerFileReader.of(serFile)) {
                         var outputs = performImageReconstruction(converter, reader, start, end, geometry, width, height, polynomial, current, totalImages, batch.toArray(new WorkflowState[0]));
                         maybeProduceRedshiftDetectionImages(outputs.redshifts, width, height, reader, converter, geometry, polynomial, imageNamingStrategy, baseName);
                         if (redshifts == null && outputs.redshifts != null) {
                             redshifts = new Redshifts(outputs.redshifts);
                         }
+                        serFileReader.set(reader);
                     } catch (Exception e) {
                         throw new ProcessingException(e);
                     }
                 }
             });
             LOGGER.info(message("processing.done.generate.images"));
+            broadcast(ReconstructionDoneEvent.of(serFileReader.get()));
             startWorkflow(header, fps, imageList, imageNamingStrategy, baseName);
             var runnables = new ArrayList<Runnable>();
             if (!imageList.isEmpty() && processParams.requestedImages().isEnabled(GeneratedImageKind.DOPPLER) || processParams.requestedImages().isEnabled(GeneratedImageKind.DOPPLER_ECLIPSE)) {
@@ -1034,7 +1038,16 @@ public class SolexVideoProcessor implements Broadcaster {
             lastY = yi;
         }
         if (!internal) {
-            broadcast(new PartialReconstructionEvent(new ImageLine(pixelShift, offset / width, totalLines, line, processParams.extraParams().generateDebugImages() || processParams.requestedImages().isEnabled(GeneratedImageKind.RECONSTRUCTION))));
+            var copy = new float[buffer.length];
+            System.arraycopy(buffer, 0, copy, 0, buffer.length);
+            var imageLine = new ImageLine(pixelShift,
+                offset / width,
+                totalLines,
+                line,
+                processParams.extraParams().generateDebugImages() || processParams.requestedImages().isEnabled(GeneratedImageKind.RECONSTRUCTION),
+                new Image(width, height, copy)
+            );
+            broadcast(new PartialReconstructionEvent(imageLine));
         }
     }
 
@@ -1067,6 +1080,8 @@ public class SolexVideoProcessor implements Broadcaster {
                 listener.onScriptExecutionResult(e);
             } else if (event instanceof AverageImageComputedEvent e) {
                 listener.onAverageImageComputed(e);
+            } else if (event instanceof ReconstructionDoneEvent e) {
+                listener.onReconstructionDone(e);
             }
         }
     }

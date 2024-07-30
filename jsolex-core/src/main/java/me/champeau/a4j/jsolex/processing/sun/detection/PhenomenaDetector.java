@@ -311,6 +311,7 @@ public class PhenomenaDetector {
             .stream()
             .flatMap(List::stream)
             .sorted(Comparator.comparingInt(Redshift::pixelShift).reversed())
+            .limit(4096)
             .map(Redshift::toArea)
             .toList();
         var deleted = new BitSet(allRedshifts.size());

@@ -7,8 +7,9 @@ Here are the new features in this version:
 - [Forcing a polynomial](#forcing-a-polynomial)
 - [Bugfixes and improvements](#bugfixes-and-improvements)
 
-## Changes in 2.6.5
+## Changes in 2.7.0
 
+- Enhanced reconstruction view which allows finding which frame is the source for a particular pixel (issue #386)
 - Improve spectral line identification in spectrum browser
 
 ## Changes in 2.6.4
