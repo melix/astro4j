@@ -15,29 +15,22 @@
  */
 package me.champeau.a4j.jsolex.processing.event;
 
-public abstract sealed class ProcessingEvent<T> permits
-        AverageImageComputedEvent,
-        ImageGeneratedEvent,
-        FileGeneratedEvent,
-        NotificationEvent,
-        OutputImageDimensionsDeterminedEvent,
-        PartialReconstructionEvent,
-        ReconstructionDoneEvent,
-        ProcessingStartEvent,
-        ProcessingDoneEvent,
-        SuggestionEvent,
-        ProgressEvent,
-        GenericMessage,
-        VideoMetadataEvent,
-        ScriptExecutionResultEvent {
-    private final T payload;
+import me.champeau.a4j.ser.SerFileReader;
 
-    public ProcessingEvent(T payload) {
-        this.payload = payload;
+/**
+ * Event sent when the reconstruction is done, for all pixel shifts.
+ */
+public final class ReconstructionDoneEvent extends ProcessingEvent<ReconstructionDoneEvent.Payload> {
+    private ReconstructionDoneEvent(Payload payload) {
+        super(payload);
     }
 
-    public T getPayload() {
-        return payload;
+    public static  ReconstructionDoneEvent of(SerFileReader reader) {
+        return new ReconstructionDoneEvent(new Payload(reader));
     }
 
+    public record Payload(
+        SerFileReader reader
+    ) {
+    }
 }

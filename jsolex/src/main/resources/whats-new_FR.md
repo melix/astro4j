@@ -8,8 +8,9 @@ Voici les nouvelles fonctionnalités de cette version :
 - [Forcer le polynôme](#forcer-le-polynôme)
 - [Corrections de bugs et améliorations](#bugfixes-and-improvements)
 
-## Changements dans la version 2.6.5
+## Changements dans la version 2.7.0
 
+- Vue reconstruction améliorée permettant de retrouver les trames à l'origine d'un point précis (demande #386)
 - Amélioration de la détection de région dans l'explorateur de spectre
 
 ## Changements dans la version 2.6.4

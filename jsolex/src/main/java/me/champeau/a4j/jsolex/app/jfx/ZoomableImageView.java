@@ -99,12 +99,20 @@ public class ZoomableImageView extends HBox {
         });
         widthProperty().addListener((observable, oldValue, newValue) -> {
             if (newValue.doubleValue() > 0 && zoom == 0) {
-                fitToCenter();
+                if (canFitToCenter()) {
+                    fitToCenter();
+                } else {
+                    resetZoom(false);
+                }
             }
         });
         heightProperty().addListener((observable, oldValue, newValue) -> {
             if (newValue.doubleValue() > 0 && zoom == 0) {
-                fitToCenter();
+                if (canFitToCenter()) {
+                    fitToCenter();
+                } else {
+                    resetZoom(false);
+                }
             }
         });
         ctxMenu = new ContextMenu();
@@ -331,6 +339,10 @@ public class ZoomableImageView extends HBox {
         applyZoom();
     }
 
+    public ScrollPane getScrollPane() {
+        return scrollPane;
+    }
+
     public void alignWith(ZoomableImageView other) {
         var otherImage = other.getImage();
         var img = getImage();
@@ -451,6 +463,10 @@ public class ZoomableImageView extends HBox {
         // Set the scroll values to center the sun
         scrollPane.setHvalue(x / (image.getWidth() - width));
         scrollPane.setVvalue(y / (image.getHeight() - height));
+    }
+
+    public ImageView getImageView() {
+        return imageView;
     }
 
     public boolean canFitToCenter() {

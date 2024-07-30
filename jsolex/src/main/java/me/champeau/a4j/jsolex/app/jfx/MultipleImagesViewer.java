@@ -44,11 +44,13 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.function.Consumer;
+import java.util.function.Function;
 import java.util.stream.Stream;
 
 import static me.champeau.a4j.jsolex.app.JSolEx.message;
@@ -71,8 +73,10 @@ public class MultipleImagesViewer extends Pane {
     private final List<CategoryPane> safeCategories = Collections.synchronizedList(new ArrayList<>());
     private final ObservableList<Node> categories;
     private final BorderPane borderPane;
+    private Map<Object, Runnable> onShowHooks = Collections.synchronizedMap(new HashMap<>());
     private Hyperlink selected = null;
     private GeneratedImageKind selectedKind = null;
+    private Object selectedView;
 
     public MultipleImagesViewer() {
         getStyleClass().add("multiple-images-viewer");
@@ -97,6 +101,7 @@ public class MultipleImagesViewer extends Pane {
         });
         selected = null;
         selectedKind = null;
+        selectedView = null;
     }
 
     private ImageViewer newImageViewer() {
@@ -112,7 +117,11 @@ public class MultipleImagesViewer extends Pane {
         }
     }
 
-    public ImageViewer addImage(ProcessingEventListener listener,
+    public void registerOnShowHook(Object view, Runnable action) {
+        onShowHooks.put(view, action);
+    }
+
+    public <T extends WithRootNode> T addImage(ProcessingEventListener listener,
                                 String title,
                                 String baseName,
                                 GeneratedImageKind kind,
@@ -121,9 +130,11 @@ public class MultipleImagesViewer extends Pane {
                                 ProcessParams params,
                                 Map<String, ImageViewer> popupViews,
                                 PixelShift pixelShift,
+                                Function<? super ImageViewer, T> transformer,
                                 Consumer<? super ImageViewer> onShow) {
         var category = getOrCreateCategory(kind);
         var viewer = newImageViewer();
+        var transformed = transformer.apply(viewer);
         viewer.setup(
             listener,
             title,
@@ -137,9 +148,16 @@ public class MultipleImagesViewer extends Pane {
         );
         var hyperlink = category.addImage(title, pixelShift, link -> {
             categories().forEach(CategoryPane::clearSelection);
-            BatchOperations.submit(() -> borderPane.setCenter(viewer.getRoot()));
+            BatchOperations.submit(() -> {
+                borderPane.setCenter(transformed.getRoot());
+                var hook = onShowHooks.remove(transformed);
+                if (hook != null) {
+                    hook.run();
+                }
+            });
             selected = link;
             selectedKind = kind;
+            selectedView = viewer;
             onShow.accept(viewer);
             viewer.display();
         }, this::onClose);
@@ -149,7 +167,7 @@ public class MultipleImagesViewer extends Pane {
         } else if (shouldSelectAutomatically(params, kind, pixelShift)) {
             hyperlink.fire();
         }
-        return viewer;
+        return transformed;
     }
 
     private void onClose(Hyperlink link) {
@@ -189,6 +207,7 @@ public class MultipleImagesViewer extends Pane {
             categories().forEach(CategoryPane::clearSelection);
             borderPane.setCenter(contentBox);
             selected = link;
+            selectedView = contentBox;
         }, this::onClose);
         hyperlink.fire();
         return mediaPlayer;
@@ -228,6 +247,13 @@ public class MultipleImagesViewer extends Pane {
             return true;
         }
         return false;
+    }
+
+    public ImageViewer getSelectedViewer() {
+        if (selectedView instanceof ImageViewer viewer) {
+            return viewer;
+        }
+        return null;
     }
 
     private CategoryPane getOrCreateCategory(GeneratedImageKind kind) {
