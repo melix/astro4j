@@ -379,14 +379,14 @@ public class SolexVideoProcessor implements Broadcaster {
             var runnables = new ArrayList<Runnable>();
             if (!imageList.isEmpty() && processParams.requestedImages().isEnabled(GeneratedImageKind.DOPPLER) || processParams.requestedImages().isEnabled(GeneratedImageKind.DOPPLER_ECLIPSE)) {
                 runnables.add(() -> {
-                    var imageEmitterFactory = new ProcessAwareImageEmitterFactory(imageList.getFirst(), imageNamingStrategy, baseName);
+                    var imageEmitterFactory = createImageEmitterFactory(imageList, imageNamingStrategy, baseName);
                     var producer = new DopplerSupport(processParams, imageList, imageEmitterFactory.newEmitter(this, Constants.TYPE_PROCESSED, outputDirectory));
                     producer.produceDopplerImage();
                 });
             }
             if (canGenerateHeliumD3Images) {
                 runnables.add(() -> {
-                    var imageEmitterFactory = new ProcessAwareImageEmitterFactory(imageList.getFirst(), imageNamingStrategy, baseName);
+                    var imageEmitterFactory = createImageEmitterFactory(imageList, imageNamingStrategy, baseName);
                     var heliumLineProcessor = new HeliumLineProcessor(processParams, pixelShiftRange, imageList, heliumLineShift, imageEmitterFactory.newEmitter(this, Constants.TYPE_PROCESSED, outputDirectory), this);
                     heliumLineProcessor.process();
                 });
@@ -429,6 +429,14 @@ public class SolexVideoProcessor implements Broadcaster {
             processParams,
             pixelShiftRange
         ));
+    }
+
+    private ProcessAwareImageEmitterFactory createImageEmitterFactory(List<WorkflowState> imageList, FileNamingStrategy imageNamingStrategy, String baseName) {
+        var ref = imageList.stream()
+            .filter(i -> i.pixelShift() == processParams.spectrumParams().pixelShift())
+            .findFirst()
+            .orElse(imageList.getFirst());
+        return new ProcessAwareImageEmitterFactory(ref, imageNamingStrategy, baseName);
     }
 
     /*
