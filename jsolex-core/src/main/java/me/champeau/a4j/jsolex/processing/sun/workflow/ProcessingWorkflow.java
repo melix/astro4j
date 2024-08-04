@@ -86,6 +86,7 @@ public class ProcessingWorkflow {
     private final ImageEmitter processedImagesEmitter;
     private final Broadcaster broadcaster;
     private final int currentStep;
+    private final Path serFile;
 
     public ProcessingWorkflow(
         Broadcaster broadcaster,
@@ -95,6 +96,7 @@ public class ProcessingWorkflow {
         ProcessParams processParams,
         Double fps,
         ImageEmitterFactory imageEmitterFactory,
+        Path serFile,
         Header header) {
         this.broadcaster = broadcaster;
         this.header = header;
@@ -105,6 +107,7 @@ public class ProcessingWorkflow {
         this.debugImagesEmitter = imageEmitterFactory.newEmitter(broadcaster, Constants.TYPE_DEBUG, outputDirectory);
         this.processedImagesEmitter = imageEmitterFactory.newEmitter(broadcaster, Constants.TYPE_PROCESSED, outputDirectory);
         this.currentStep = currentStep;
+        this.serFile = serFile;
     }
 
     public void start() {
@@ -357,7 +360,7 @@ public class ProcessingWorkflow {
 
     private void produceTechnicalCard(ImageWrapper32 clahe) {
         var details = clahe.copy();
-        var context = SolexVideoProcessor.createMetadata(processParams, null);
+        var context = SolexVideoProcessor.createMetadata(processParams, serFile, null, header);
         var rotate = new Rotate(context, broadcaster);
         var crop = new Crop(context, broadcaster);
         var draw = new ImageDraw(context, broadcaster);

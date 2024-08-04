@@ -26,6 +26,7 @@ import me.champeau.a4j.jsolex.processing.expr.impl.Convolution;
 import me.champeau.a4j.jsolex.processing.expr.impl.Crop;
 import me.champeau.a4j.jsolex.processing.expr.impl.DiskFill;
 import me.champeau.a4j.jsolex.processing.expr.impl.EllipseFit;
+import me.champeau.a4j.jsolex.processing.expr.impl.Filtering;
 import me.champeau.a4j.jsolex.processing.expr.impl.FixBanding;
 import me.champeau.a4j.jsolex.processing.expr.impl.GeometryCorrection;
 import me.champeau.a4j.jsolex.processing.expr.impl.ImageDraw;
@@ -86,6 +87,7 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
     private final Crop crop;
     private final DiskFill diskFill;
     private final EllipseFit ellipseFit;
+    private final Filtering filtering;
     private final FixBanding fixBanding;
     private final GeometryCorrection geometryCorrection;
     private final ImageDraw imageDraw;
@@ -111,6 +113,7 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
         this.crop = new Crop(context, broadcaster);
         this.diskFill = new DiskFill(context, broadcaster);
         this.ellipseFit = new EllipseFit(context, broadcaster);
+        this.filtering = new Filtering(context, broadcaster);
         this.fixBanding = new FixBanding(context, broadcaster);
         this.geometryCorrection = new GeometryCorrection(context, broadcaster, ellipseFit);
         this.imageDraw = new ImageDraw(context, broadcaster);
@@ -229,6 +232,7 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
             case DRAW_EARTH -> imageDraw.drawEarth(arguments);
             case ELLIPSE_FIT -> ellipseFit.fit(arguments);
             case EXP -> math.exp(arguments);
+            case FILTER -> filtering.filter(arguments);
             case FIX_BANDING -> fixBanding.fixBanding(arguments);
             case FIX_GEOMETRY -> geometryCorrection.fixGeometry(arguments);
             case HFLIP -> rotate.hflip(arguments);

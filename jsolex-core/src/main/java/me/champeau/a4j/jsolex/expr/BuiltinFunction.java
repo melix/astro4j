@@ -78,6 +78,7 @@ public enum BuiltinFunction {
     STACK,
     SORT,
     VFLIP,
+    FILTER,
     VIDEO_DATETIME,
     WORKDIR(true);
 

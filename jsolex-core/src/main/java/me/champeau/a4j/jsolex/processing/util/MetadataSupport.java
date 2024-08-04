@@ -19,7 +19,9 @@ import me.champeau.a4j.jsolex.processing.params.ProcessParams;
 import me.champeau.a4j.jsolex.processing.sun.detection.Redshifts;
 import me.champeau.a4j.jsolex.processing.sun.workflow.GeneratedImageMetadata;
 import me.champeau.a4j.jsolex.processing.sun.workflow.PixelShift;
+import me.champeau.a4j.jsolex.processing.sun.workflow.PixelShiftRange;
 import me.champeau.a4j.jsolex.processing.sun.workflow.ReferenceCoords;
+import me.champeau.a4j.jsolex.processing.sun.workflow.SourceInfo;
 import me.champeau.a4j.jsolex.processing.sun.workflow.TransformationHistory;
 import me.champeau.a4j.math.regression.Ellipse;
 
@@ -47,8 +49,18 @@ public class MetadataSupport {
             case GeneratedImageMetadata generatedImage -> renderGeneratedImageMetadata(generatedImage);
             case Redshifts redshifts -> renderRedshifts(redshifts);
             case ReferenceCoords coords -> renderReferenceCoords(coords);
+            case SourceInfo info -> renderSourceInfo(info);
+            case PixelShiftRange range -> renderPixelShiftRange(range);
             default -> renderToString(clazz, value);
         });
+    }
+
+    private static String renderPixelShiftRange(PixelShiftRange range) {
+        return String.format(Locale.US, message("pixel.shift.range"), range.minPixelShift(), range.maxPixelShift(), range.step());
+    }
+
+    private static String renderSourceInfo(SourceInfo info) {
+        return String.format(message("source.path"), info.parentDirName() + "/" + info.serFileName());
     }
 
     private static String renderGeneratedImageMetadata(GeneratedImageMetadata image) {
