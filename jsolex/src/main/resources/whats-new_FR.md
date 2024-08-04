@@ -13,6 +13,7 @@ Voici les nouvelles fonctionnalités de cette version :
 - Vue reconstruction améliorée permettant de retrouver les trames à l'origine d'un point précis (demande #386)
 - Amélioration de la détection de région dans l'explorateur de spectre
 - Ajout de la fonction ImageMath `filter`, qui permet de filtrer une liste d'images, par exemple pour ne garder que celles qui sont postérieures à une certaine date
+- Ajout d'un paramètre de limitation de l'utilisation mémoire lors de la reconstruction
 
 ## Changements dans la version 2.6.4
 

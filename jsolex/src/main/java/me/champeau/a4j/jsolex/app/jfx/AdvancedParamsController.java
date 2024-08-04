@@ -16,6 +16,8 @@
 package me.champeau.a4j.jsolex.app.jfx;
 
 import javafx.fxml.FXML;
+import javafx.scene.control.Label;
+import javafx.scene.control.Slider;
 import javafx.scene.control.TextField;
 import javafx.scene.control.TextFormatter;
 import javafx.stage.Stage;
@@ -28,10 +30,17 @@ public class AdvancedParamsController {
     @FXML
     private TextField watchModeWaitTimeMillis;
 
+    @FXML
+    private Slider memoryRestrictionMultiplier;
+
+    @FXML
+    private Label memoryRestrictionHelp;
+
     private Stage stage;
 
     public void setup(Stage stage) {
         this.stage = stage;
+        this.memoryRestrictionHelp.textProperty().bind(memoryRestrictionMultiplier.valueProperty().map(v -> "(" + v.intValue() + ") " + computeMemoryUsageHelpLabel(v)));
         watchModeWaitTimeMillis.setTextFormatter(new TextFormatter<>(new IntegerStringConverter() {
             @Override
             public Integer fromString(String s) {
@@ -44,10 +53,25 @@ public class AdvancedParamsController {
         }));
         var initialWaitTime = Configuration.getInstance().getWatchModeWaitTimeMilis();
         watchModeWaitTimeMillis.setText(String.valueOf(initialWaitTime));
+        memoryRestrictionMultiplier.setValue(Configuration.getInstance().getMemoryRestrictionMultiplier());
+    }
+
+    private static String computeMemoryUsageHelpLabel(Number value) {
+        if (value.doubleValue() < 4) {
+            return I18N.string(JSolEx.class, "advanced-params", "memory.usage.high");
+        }
+        if (value.doubleValue() < 8) {
+            return I18N.string(JSolEx.class, "advanced-params", "memory.usage.conservative");
+        }
+        if (value.doubleValue() >= 16) {
+            return I18N.string(JSolEx.class, "advanced-params", "memory.usage.very.conservative");
+        }
+        return I18N.string(JSolEx.class, "advanced-params", "memory.usage.low");
     }
 
     public void close() {
         Configuration.getInstance().setWatchModeWaitTimeMilis(Integer.parseInt(watchModeWaitTimeMillis.getText()));
+        Configuration.getInstance().setMemoryRestrictionMultiplier((int) memoryRestrictionMultiplier.getValue());
         AlertFactory.info(I18N.string(JSolEx.class, "advanced-params", "must.restart"))
             .showAndWait();
         stage.close();

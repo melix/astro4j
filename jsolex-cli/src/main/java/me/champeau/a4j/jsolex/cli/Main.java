@@ -126,7 +126,8 @@ public class Main implements Runnable {
                     0,
                     processParams,
                     LocalDateTime.now(),
-                    false);
+                    false,
+                4);
             processor.addEventListener(new LoggingListener(processParams));
             processor.process();
         } catch (IOException e) {

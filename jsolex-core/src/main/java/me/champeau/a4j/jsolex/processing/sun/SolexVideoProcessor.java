@@ -131,6 +131,7 @@ public class SolexVideoProcessor implements Broadcaster {
     private final int sequenceNumber;
     private final LocalDateTime processingDate;
     private final boolean batchMode;
+    private final int memoryRestrictionMultiplier;
     private final Path outputDirectory;
     private ProcessParams processParams;
     private boolean binningIsReliable;
@@ -145,13 +146,15 @@ public class SolexVideoProcessor implements Broadcaster {
                                int sequenceNumber,
                                ProcessParams processParametersProvider,
                                LocalDateTime processingDate,
-                               boolean batchMode) {
+                               boolean batchMode,
+                               int memoryRestrictionMultiplier) {
         this.serFile = serFile;
         this.outputDirectory = outputDirectory;
         this.sequenceNumber = sequenceNumber;
         this.processParams = processParametersProvider;
         this.processingDate = processingDate;
         this.batchMode = batchMode;
+        this.memoryRestrictionMultiplier = memoryRestrictionMultiplier;
     }
 
     public void setIgnoreIncompleteShifts(boolean ignoreIncompleteShifts) {
@@ -272,7 +275,7 @@ public class SolexVideoProcessor implements Broadcaster {
         }
         long imageSizeInBytes = width * newHeight * 4L * 3;
         long maxMemory = Runtime.getRuntime().maxMemory();
-        int batchSize = (int) (Math.ceil(maxMemory / (4d * imageSizeInBytes)));
+        int batchSize = (int) (Math.ceil(maxMemory / (4d * imageSizeInBytes * memoryRestrictionMultiplier)));
         checkAvailableDiskSpace(imageList, imageSizeInBytes);
         var analysis = analyzeAverageImage(width, height, averageImage, imageNamingStrategy);
         if (polynomial == null && processParams.geometryParams().isForcePolynomial()) {
@@ -360,24 +363,44 @@ public class SolexVideoProcessor implements Broadcaster {
             var current = new AtomicInteger(0);
             var totalImages = imageList.size();
             var serFileReader = new AtomicReference<SerFileReader>();
+            long sd = System.nanoTime();
             BackgroundOperations.exclusiveIO(() -> {
                 List<List<WorkflowState>> batches = batches(imageList, batchSize);
                 if (batches.size() > 1) {
                     LOGGER.info(message("reconstruction.batches"), batches.size(), batchSize);
                 }
-                for (var batch : batches) {
+                for (int i = 0; i < batches.size(); i++) {
+                    var batch = batches.get(i);
+                    LOGGER.info(message("processing.batch"), i + 1, batches.size());
                     try (var reader = serFileReader.get() != null ? serFileReader.get().reopen() : SerFileReader.of(serFile)) {
+                        long serFileSize = Files.size(serFile.toPath());
+                        long unitSd = System.nanoTime();
                         var outputs = performImageReconstruction(converter, reader, start, end, geometry, width, height, polynomial, current, totalImages, batch.toArray(new WorkflowState[0]));
                         maybeProduceRedshiftDetectionImages(outputs.redshifts, width, height, reader, converter, geometry, polynomial, imageNamingStrategy, baseName);
                         if (redshifts == null && outputs.redshifts != null) {
                             redshifts = new Redshifts(outputs.redshifts);
                         }
                         serFileReader.set(reader);
+                        // Compute megabytes processed per second
+                        long ed = System.nanoTime();
+                        long time = ed - unitSd;
+                        double mbps = (serFileSize / 1024.0 / 1024.0) / (time / 1_000_000_000.0);
+                        LOGGER.info(String.format(Locale.US, message("reconstruction.mbs"), mbps));
                     } catch (Exception e) {
                         throw new ProcessingException(e);
                     }
+                    System.gc();
                 }
             });
+            try {
+                long serFileSize = Files.size(serFile.toPath());
+                long ed = System.nanoTime();
+                long time = ed - sd;
+                double mbps = (serFileSize / 1024.0 / 1024.0) / (time / 1_000_000_000.0);
+                LOGGER.info(String.format(Locale.US, message("global.reconstruction.mbs"), mbps));
+            } catch (IOException e) {
+                // ignore
+            }
             LOGGER.info(message("processing.done.generate.images"));
             broadcast(ReconstructionDoneEvent.of(serFileReader.get()));
             startWorkflow(header, fps, imageList, imageNamingStrategy, baseName);
