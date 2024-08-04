@@ -349,6 +349,31 @@ Analysis functions:
 - `find_shift` allows to compute a pixel shift from the detected ray. It accepts a single parameter, the name of the ray to search for, for example, `find_shift("Helium (D3)"), or the wavelength in Angström, for example `find_shift(5875.62)`. This function returns a number, the pixel shift.
 - `continuum` is a function without parameters which automatically determines a "continuum" image which can for example be subtracted from another image. This function differs from the classic continuum image in the sense that it is not a single image calculated from a fixed pixel difference of 15 pixels, but an image calculated from the median of a set of images. Usage: `continuum()`.
 
+Filtering:
+
+The `filter` function can be used on a list of images to keep these which match a particular criteria.
+This can be particularly useful in batch mode.
+For example, you may want to perform a vertical and horizontal flip to images after a certain time, because of meridian flip.
+
+The `filter` function accepts 4 arguments:
+
+1. the list of images to filter
+2. the subject of the filtering
+3. the operator
+4. the criteria
+
+For example, to create a list of images for which the time is after 12:00, you can use the following call: `filter(images, "time", ">", "12:00:00")`.
+
+|===
+|Subject|Description|Available operators|Example
+
+|`file-name`|The name of the SER file|`=`, `!=`, `contains`, `starts_with`, `ends_with`|`filter(images, "file-name", "contains", "2021-06-01")`
+|`dir-name`|The name of the directory which contains the SER file|`=`, `!=`, `contains`, `starts_with`, `ends_with`|`filter(images, "dir-name", "contains", "2021-06-01")`
+|`pixel-shift`|The pixel shift of the image|`=`, `!=`, `>`, `<`, `>=`, `<=`|`filter(images, "pixel-shift", ">", 0)`
+|`time`|The time of the acquisition (compared in UTC)|`=`, `!=`, `>`, `<`, `>=`, `<=`|`filter(images, "time", ">", "12:00:00")`
+|`datetime`|The date and time of the acquisition (compared in UTC)|`=`, `!=`, `>`, `<`, `>=`, `<=`|`filter(images, "datetime", ">", "2021-06-01 12:00:00")`
+|===
+
 Miscellaneous functions:
 
 - `sort` sorts a list of images. It accepts a list of images as the first argument and a sort criteria as the second one. For example: `sort(images, "date")`. The default criteria is `shift` for the pixel shift. It is possible to reverse the order by using `desc`, for example `sort(images, "date desc")`.

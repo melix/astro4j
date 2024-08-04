@@ -22,6 +22,7 @@ import me.champeau.a4j.jsolex.processing.sun.detection.RedshiftArea;
 import me.champeau.a4j.jsolex.processing.sun.detection.Redshifts;
 import me.champeau.a4j.jsolex.processing.sun.workflow.PixelShift;
 import me.champeau.a4j.jsolex.processing.sun.workflow.ReferenceCoords;
+import me.champeau.a4j.jsolex.processing.sun.workflow.SourceInfo;
 import me.champeau.a4j.jsolex.processing.sun.workflow.TransformationHistory;
 import me.champeau.a4j.math.regression.Ellipse;
 import me.champeau.a4j.math.tuples.DoubleSextuplet;
@@ -45,6 +46,7 @@ import java.io.IOException;
 import java.io.StringReader;
 import java.nio.charset.StandardCharsets;
 import java.text.Normalizer;
+import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -63,6 +65,7 @@ public class FitsUtils {
     public static final String PIXELSHIFT_VALUE = "PixelShift";
     public static final String REDSHIFTS_VALUE = "Redshifts";
     public static final String REFCOORDS_VALUE = "RefCoords";
+    public static final String SOURCEINFO_VALUE = "SourceInfo";
 
     // INTI metadata
     public static final String INTI_CENTER_X = "CENTER_X";
@@ -241,6 +244,12 @@ public class FitsUtils {
                         values.add(new ReferenceCoords.Operation(ReferenceCoords.OperationKind.valueOf(kind), value));
                     }
                     metadata.put(ReferenceCoords.class, new ReferenceCoords(Collections.unmodifiableList(values)));
+                } else if (SOURCEINFO_VALUE.equals(card.getValue())) {
+                    var binaryTable = binaryTableHdu.getData();
+                    var fileName = (String) binaryTable.get(0, 0);
+                    var parentName = (String) binaryTable.get(0, 1);
+                    var date = ZonedDateTime.parse((String) binaryTable.get(0, 2));
+                    metadata.put(SourceInfo.class, new SourceInfo(fileName, parentName, date));
                 } else if (REDSHIFTS_VALUE.equals(card.getValue())) {
                     var binaryTable = binaryTableHdu.getData();
                     int cpt = binaryTable.getNRows();
@@ -312,6 +321,7 @@ public class FitsUtils {
             writePixelShift(image, fits);
             writeRefCoords(image, fits);
             writeRedshifts(image, fits);
+            writeSourceInfo(image, fits);
         }
     }
 
@@ -360,6 +370,18 @@ public class FitsUtils {
             referenceCoords.operations().forEach(op -> table.addRow(new Object[] { op.kind().name(), op.value() }));
             var binaryTableHDU = BinaryTableHDU.wrap(table);
             binaryTableHDU.getHeader().addValue(JSOLEX_HEADER_KEY, REFCOORDS_VALUE, "Reference coordinate transforms");
+            fits.addHDU(binaryTableHDU);
+        }
+    }
+
+    private static void writeSourceInfo(ImageWrapper image, Fits fits) throws FitsException {
+        var metadata = image.findMetadata(SourceInfo.class);
+        if (metadata.isPresent()) {
+            var sourceInfo = metadata.get();
+            var table = new BinaryTable();
+            table.addRow(new Object[] { sourceInfo.serFileName(), sourceInfo.parentDirName(), sourceInfo.dateTime().toString() });
+            var binaryTableHDU = BinaryTableHDU.wrap(table);
+            binaryTableHDU.getHeader().addValue(JSOLEX_HEADER_KEY, SOURCEINFO_VALUE, "Source file information");
             fits.addHDU(binaryTableHDU);
         }
     }

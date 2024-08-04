@@ -62,6 +62,7 @@ import me.champeau.a4j.jsolex.processing.sun.workflow.PixelShiftRange;
 import me.champeau.a4j.jsolex.processing.sun.workflow.ProcessingWorkflow;
 import me.champeau.a4j.jsolex.processing.sun.workflow.ReferenceCoords;
 import me.champeau.a4j.jsolex.processing.sun.workflow.RenamingImageEmitter;
+import me.champeau.a4j.jsolex.processing.sun.workflow.SourceInfo;
 import me.champeau.a4j.jsolex.processing.sun.workflow.TransformationHistory;
 import me.champeau.a4j.jsolex.processing.sun.workflow.WorkflowResults;
 import me.champeau.a4j.jsolex.processing.util.BackgroundOperations;
@@ -400,7 +401,8 @@ public class SolexVideoProcessor implements Broadcaster {
                 var missingShiftLock = new ReentrantLock();
                 generateImageMaths(imageNamingStrategy, baseName, imageList, mathImages,
                     shift -> computeMissingImageShift(converter, header, fps, serFile, start, end, shift, missingShiftLock, width, newHeight, geometry, height, polynomial, imageNamingStrategy, baseName),
-                    minShift, maxShift);
+                    minShift, maxShift,
+                    header);
             });
             runnables.stream()
                 .parallel()
@@ -487,7 +489,7 @@ public class SolexVideoProcessor implements Broadcaster {
     }
 
     private void startWorkflow(Header header, Double fps, List<WorkflowState> imageList, FileNamingStrategy imageNamingStrategy, String baseName) {
-        imageList.stream().parallel().forEach(this::prepareImageForCorrections);
+        imageList.stream().parallel().forEach(i -> prepareImageForCorrections(i, header));
         var fitting = performEllipseFitting(imageList, (broadcaster, kind, outputDirectory) -> {
             ImageEmitter emitter = new DefaultImageEmitter(broadcaster, outputDirectory.toFile());
             emitter = new NamingStrategyAwareImageEmitter(emitter, imageNamingStrategy, sequenceNumber, kind, baseName);
@@ -507,7 +509,7 @@ public class SolexVideoProcessor implements Broadcaster {
             var state = o.state;
             var step = o.step;
             var imageEmitterFactory = new ProcessAwareImageEmitterFactory(state, imageNamingStrategy, baseName);
-            var workflow = new ProcessingWorkflow(this, outputDirectory, imageList, step, processParams, fps, imageEmitterFactory, header);
+            var workflow = new ProcessingWorkflow(this, outputDirectory, imageList, step, processParams, fps, imageEmitterFactory, serFile.toPath(), header);
             workflow.start();
         });
     }
@@ -524,11 +526,11 @@ public class SolexVideoProcessor implements Broadcaster {
         });
     }
 
-    private void prepareImageForCorrections(WorkflowState state) {
+    private void prepareImageForCorrections(WorkflowState state, Header header) {
         ImageWrapper32 rotated;
         var recon = state.reconstructed().asImage();
         var rotateLeft = ImageMath.newInstance().rotateLeft(recon);
-        var metadata = new HashMap<>(createMetadata(processParams, pixelShiftRange));
+        var metadata = new HashMap<>(createMetadata(processParams, serFile.toPath(), pixelShiftRange, header));
         if (redshifts != null) {
             metadata.put(Redshifts.class, redshifts);
         }
@@ -723,7 +725,8 @@ public class SolexVideoProcessor implements Broadcaster {
                                     ImageMathParams mathImages,
                                     Function<Double, ImageWrapper> missingShiftSupplier,
                                     double minShift,
-                                    double maxShift) {
+                                    double maxShift,
+                                    Header header) {
         if (!mathImages.scriptFiles().isEmpty()) {
             var images = new HashMap<Double, ImageWrapper>();
             Ellipse ellipse = null;
@@ -748,7 +751,7 @@ public class SolexVideoProcessor implements Broadcaster {
             ImageStats finalImageStats = imageStats;
             mathImages.scriptFiles().stream().parallel().forEach(scriptFile -> {
                 broadcast(ProgressEvent.of(0, "Running script " + scriptFile.getName()));
-                var context = createMetadata(processParams, pixelShiftRange);
+                var context = createMetadata(processParams, serFile.toPath(), pixelShiftRange, header);
                 if (circle != null) {
                     context.put(Ellipse.class, circle);
                 }
@@ -837,11 +840,13 @@ public class SolexVideoProcessor implements Broadcaster {
         return new PixelShiftRange(minPixelShift, maxPixelShift, (maxPixelShift - minPixelShift) / 10);
     }
 
-    public static Map<Class<?>, Object> createMetadata(ProcessParams processParams, PixelShiftRange pixelShiftRange) {
+    public static Map<Class<?>, Object> createMetadata(ProcessParams processParams, Path serFile, PixelShiftRange pixelShiftRange, Header header) {
         Map<Class<?>, Object> context = new HashMap<>();
         context.put(ProcessParams.class, processParams);
         context.put(SolarParameters.class, SolarParametersUtils.computeSolarParams(processParams.observationDetails().date().toLocalDateTime()));
         context.put(ReferenceCoords.class, new ReferenceCoords(List.of()));
+        var file = serFile.toFile();
+        context.put(SourceInfo.class, new SourceInfo(file.getName(), file.getParentFile().getName(), header.metadata().utcDateTime()));
         if (pixelShiftRange != null) {
             context.put(PixelShiftRange.class, pixelShiftRange);
         }

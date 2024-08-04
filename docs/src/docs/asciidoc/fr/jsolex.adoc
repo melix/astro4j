@@ -359,6 +359,31 @@ Fonctions d'analyse :
 - `find_shift` permet de calculer un décalage en pixels par rapport à la raie détectée. Elle accepte un seul paramètre, le nom de la raie recherchée, par exemple, `find_shift("Helium (D3)"), ou bien la longueur d'onde en Angström, par exemple `find_shift(5875.62)`. Cette fonction retourne un nombre, le décalage en pixels.
 - `continuum` est une fonction sans paramètre qui détermine automatiquement une image de type "continuum" qui peut par exemple être soustraite d'une autre image. Cette fonction diffère de l'image continuum classique au sens où il ne s'agit pas d'une image unique calculée à la différence de pixels fixe de 15 pixels, mais d'une image calculée à partir de la médiane d'un ensemble d'images. Utilisation : `continuum()`.
 
+Filtrage:
+
+La fonction `filter` permet de filtrer une liste d'images pour ne conserver que celles qui correspondent à un critère particulier.
+Ceci peut être particulièrement utile en mode batch.
+Par exemple, vous pouvez vouloir effectuer un retournement vertical et horizontal des images après un certain temps, en raison du retournement méridien.
+
+La fonction `filter` accepte 4 arguments:
+
+1. la liste d'images à filtrer
+2. le sujet du filtrage
+3. l'opérateur
+4. le critère
+
+Par exemple, pour créer une liste d'images pour lesquelles le temps est après 12:00, vous pouvez utiliser l'appel suivant: `filter(images, "time", ">", "12:00:00")`.
+
+|===
+|Sujet|Description|Opérateurs disponibles|Exemple
+
+|`file-name`|Le nom du fichier SER|`=`, `!=`, `contains`, `starts_with`, `ends_with`|`filter(images, "file-name", "contains", "2021-06-01")`
+|`dir-name`|Le nom du dossier qui contient le fichier SER|`=`, `!=`, `contains`, `starts_with`, `ends_with`|`filter(images, "dir-name", "contains", "2021-06-01")`
+|`pixel-shift`|Le décalage de pixels de l'image|`=`, `!=`, `>`, `<`, `>=`, `<=`|`filter(images, "pixel-shift", ">", 0)`
+|`time`|L'heure d'acquisition (comparé en UTC)|`=`, `!=`, `>`, `<`, `>=`, `<=`|`filter(images, "time", ">", "12:00:00")`
+|`datetime`|La date et l'heure de l'acquisition (comparée en UTC)|`=`, `!=`, `>`, `<`, `>=`, `<=`|`filter(images, "datetime", ">", "2021-06-01 12:00:00")`
+|===
+
 Fonctions diverses :
 
 - `sort` permet de trier une liste d'images. Elle accepte une liste d'images en premier argument et un critère de tri en second argument. Par exemple : `sort(images, "date")`. Le critère par défaut est `shift` pour le décalage en pixels.
