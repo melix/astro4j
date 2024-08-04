@@ -35,7 +35,8 @@ public class Configuration {
     private static final String PREFERRED_WIDTH = "preferred.width";
     private static final String PREFERRED_HEIGHT = "preferred.height";
     private static final String LAST_DIRECTORY = "last.directory";
-    public static final String CUSTOM_DIR = "custom.dir.";
+    private static final String CUSTOM_DIR = "custom.dir.";
+    private static final String MEMORY_RESTRICTION = "memory.restriction.multiplier";
 
     private final Preferences prefs;
     private final List<Path> recentFiles;
@@ -83,6 +84,14 @@ public class Configuration {
         String name = directory.toString();
         String key = CUSTOM_DIR + customKey;
         prefs.put(key, name);
+    }
+
+    public int getMemoryRestrictionMultiplier() {
+        return prefs.getInt(MEMORY_RESTRICTION, 1);
+    }
+
+    public void setMemoryRestrictionMultiplier(int multiplier) {
+        prefs.putInt(MEMORY_RESTRICTION, multiplier);
     }
 
     public List<Path> getRecentFiles() {

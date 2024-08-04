@@ -1301,7 +1301,7 @@ public class JSolEx extends Application implements JSolExInterface {
         }
         var appender = LogbackConfigurer.createContextualFileAppender(sequenceNumber, logFile);
         LoggingSupport.LOGGER.info(message("output.dir.set"), outputDirectory);
-        var processor = new SolexVideoProcessor(selectedFile, outputDirectory.toPath(), sequenceNumber, params, processingDate, batchMode);
+        var processor = new SolexVideoProcessor(selectedFile, outputDirectory.toPath(), sequenceNumber, params, processingDate, batchMode, config.getMemoryRestrictionMultiplier());
         var listener = createListener(baseName, params, batchMode, sequenceNumber, context);
         processor.addEventListener(listener);
         try {
