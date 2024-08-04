@@ -1313,6 +1313,84 @@ Une variable spéciale nommée <code>angleP</code> contient la valeur calculée 
 </ul>
 </div>
 <div class="paragraph">
+<p>Filtrage:</p>
+</div>
+<div class="paragraph">
+<p>La fonction <code>filter</code> permet de filtrer une liste d&#8217;images pour ne conserver que celles qui correspondent à un critère particulier.
+Ceci peut être particulièrement utile en mode batch.
+Par exemple, vous pouvez vouloir effectuer un retournement vertical et horizontal des images après un certain temps, en raison du retournement méridien.</p>
+</div>
+<div class="paragraph">
+<p>La fonction <code>filter</code> accepte 4 arguments:</p>
+</div>
+<div class="olist arabic">
+<ol class="arabic">
+<li>
+<p>la liste d&#8217;images à filtrer</p>
+</li>
+<li>
+<p>le sujet du filtrage</p>
+</li>
+<li>
+<p>l&#8217;opérateur</p>
+</li>
+<li>
+<p>le critère</p>
+</li>
+</ol>
+</div>
+<div class="paragraph">
+<p>Par exemple, pour créer une liste d&#8217;images pour lesquelles le temps est après 12:00, vous pouvez utiliser l&#8217;appel suivant: <code>filter(images, "time", "&gt;", "12:00:00")</code>.</p>
+</div>
+<table class="tableblock frame-all grid-all stretch">
+<colgroup>
+<col style="width: 25%;">
+<col style="width: 25%;">
+<col style="width: 25%;">
+<col style="width: 25%;">
+</colgroup>
+<thead>
+<tr>
+<th class="tableblock halign-left valign-top">Sujet</th>
+<th class="tableblock halign-left valign-top">Description</th>
+<th class="tableblock halign-left valign-top">Opérateurs disponibles</th>
+<th class="tableblock halign-left valign-top">Exemple</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>file-name</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Le nom du fichier SER</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>=</code>, <code>!=</code>, <code>contains</code>, <code>starts_with</code>, <code>ends_with</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>filter(images, "file-name", "contains", "2021-06-01")</code></p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>dir-name</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Le nom du dossier qui contient le fichier SER</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>=</code>, <code>!=</code>, <code>contains</code>, <code>starts_with</code>, <code>ends_with</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>filter(images, "dir-name", "contains", "2021-06-01")</code></p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>pixel-shift</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Le décalage de pixels de l&#8217;image</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>=</code>, <code>!=</code>, <code>&gt;</code>, <code>&lt;</code>, <code>&gt;=</code>, <code>&#8656;</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>filter(images, "pixel-shift", "&gt;", 0)</code></p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>time</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">L&#8217;heure d&#8217;acquisition (comparé en UTC)</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>=</code>, <code>!=</code>, <code>&gt;</code>, <code>&lt;</code>, <code>&gt;=</code>, <code>&#8656;</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>filter(images, "time", "&gt;", "12:00:00")</code></p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>datetime</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">La date et l&#8217;heure de l&#8217;acquisition (comparée en UTC)</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>=</code>, <code>!=</code>, <code>&gt;</code>, <code>&lt;</code>, <code>&gt;=</code>, <code>&#8656;</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>filter(images, "datetime", "&gt;", "2021-06-01 12:00:00")</code></p></td>
+</tr>
+</tbody>
+</table>
+<div class="paragraph">
 <p>Fonctions diverses :</p>
 </div>
 <div class="ulist">
