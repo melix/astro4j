@@ -251,7 +251,12 @@ public class SerFileReader implements AutoCloseable {
         String instrument = readAsciiString(buffer, 40);
         String telescope = readAsciiString(buffer, 40);
         LocalDateTime localDate = TimestampConverter.of(buffer.getLong()).orElse(null);
-        ZonedDateTime utcDate = TimestampConverter.of(buffer.getLong()).map(e -> e.atZone(UTC)).orElseThrow(() -> new IllegalStateException("Unable to read UTC timestamp"));
+        ZonedDateTime utcDate = TimestampConverter.of(buffer.getLong()).map(e -> e.atZone(UTC)).orElseGet(() -> {
+            if (localDate != null) {
+                return localDate.atZone(UTC);
+            }
+            return LocalDateTime.now().atZone(UTC);
+        });
         return new Header(
             camera,
             new ImageGeometry(colorMode.get(), imageWidth, imageHeight, pixelDepthPerPlane, imageByteOrder),
