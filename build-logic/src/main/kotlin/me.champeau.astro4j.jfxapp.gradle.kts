@@ -19,7 +19,7 @@ application {
 }
 
 jlink {
-    options.addAll(listOf("--strip-debug", "--compress", "2", "--no-header-files", "--no-man-pages"))
+    options.addAll(listOf("--compress", "2", "--no-header-files", "--no-man-pages"))
     jpackage {
         if (version.toString().endsWith("-SNAPSHOT")) {
             appVersion = version.toString().substringBefore("-SNAPSHOT")
