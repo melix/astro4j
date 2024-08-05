@@ -34,6 +34,9 @@ public sealed interface StretchingStrategy permits
     StretchingChain {
 
     default void stretch(ImageWrapper image) {
+        if (image.width() == 0 && image.height() == 0) {
+            return;
+        }
         switch (image) {
             case ImageWrapper32 mono -> stretch(mono);
             case RGBImage rgb -> stretch(rgb);

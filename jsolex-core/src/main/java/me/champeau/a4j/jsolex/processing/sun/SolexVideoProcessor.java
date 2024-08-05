@@ -366,6 +366,7 @@ public class SolexVideoProcessor implements Broadcaster {
             long sd = System.nanoTime();
             BackgroundOperations.exclusiveIO(() -> {
                 List<List<WorkflowState>> batches = batches(imageList, batchSize);
+                LOGGER.info(message("memory.pressure"), memoryRestrictionMultiplier);
                 if (batches.size() > 1) {
                     LOGGER.info(message("reconstruction.batches"), batches.size(), batchSize);
                 }

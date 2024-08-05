@@ -56,7 +56,7 @@ public class AdvancedParamsController {
         memoryRestrictionMultiplier.setValue(Configuration.getInstance().getMemoryRestrictionMultiplier());
     }
 
-    private static String computeMemoryUsageHelpLabel(Number value) {
+    public static String computeMemoryUsageHelpLabel(Number value) {
         if (value.doubleValue() < 4) {
             return I18N.string(JSolEx.class, "advanced-params", "memory.usage.high");
         }
