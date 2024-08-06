@@ -104,9 +104,13 @@ public class SpectralLineFrameImageCreator {
         for (Point2D sample : samples) {
             var x = sample.x();
             var y = sample.y();
-            rr[(int) (x + y * width)] = 0;
-            gg[(int) (x + y * width)] = MAX_PIXEL_VALUE;
-            bb[(int) (x + y * width)] = 0;
+            if (x < 0 || x >= width || y < 0 || y >= height) {
+                continue;
+            }
+            var idx = (int) (x + y * width);
+            rr[idx] = 0;
+            gg[idx] = MAX_PIXEL_VALUE;
+            bb[idx] = 0;
         }
         analyzer.analyze(corrected);
         // Add green lines showing the detected spectrum line
@@ -114,9 +118,13 @@ public class SpectralLineFrameImageCreator {
         for (Point2D sample : samples) {
             int x = (int) sample.x();
             int y = polynomial.map(poly -> distorsionCorrection.correctY(poly, sample.x(), sample.y())).orElse(sample.y()).intValue();
-            rr[(int) (offset + x + y * width)] = 0;
-            gg[(int) (offset + x + y * width)] = MAX_PIXEL_VALUE;
-            bb[(int) (offset + x + y * width)] = 0;
+            if (offset + x >= width || y >= height || x < 0 || y < 0) {
+                continue;
+            }
+            var idx = offset + x + y * width;
+            rr[idx] = 0;
+            gg[idx] = MAX_PIXEL_VALUE;
+            bb[idx] = 0;
         }
         return new RGBImage(width, 2 * height + 10, rr, gg, bb, MutableMap.of());
     }
