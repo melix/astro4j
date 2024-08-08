@@ -1050,30 +1050,53 @@ public class SolexVideoProcessor implements Broadcaster {
     private void processSingleFrame(boolean internal, int width, int height, float[] outputBuffer, int offset, float[] buffer, DoubleUnaryOperator p, double pixelShift, int totalLines) {
         double[] line = new double[width];
         int lastY = 0;
+
         for (int x = 0; x < width; x++) {
-            // To reconstruct the image, we use the polynom to find which pixel to use
+            // Compute the interpolated y-coordinate for the given x
             double yd = p.applyAsDouble(x) + pixelShift;
             int yi = (int) yd;
+
+            // Out-of-bounds handling: if yi is out of valid range, use last valid yi
             if (yi < 0 || yi >= height) {
-                yi = lastY;
                 yd = lastY;
-            }
-            double frac = yd - yi;
-            float value;
-            if (frac > 0) {
-                float lo = buffer[x + width * yi];
-                float hi = yi < height - 1 ? buffer[x + width * (yi + 1)] : buffer[x + width * yi];
-                value = (float) (lo + frac * (hi - lo));
+                yi = lastY;
             } else {
-                value = buffer[x + width * yi];
+                lastY = yi; // Update lastY only if yi is within bounds
             }
+
+            double fracY = yd - yi;
+
+            // Bound yi and calculate neighboring y-coordinates
+            int y0 = Math.max(0, Math.min(yi, height - 1));
+            int y1 = Math.max(0, Math.min(yi + 1, height - 1));
+
+            // Initialize interpolated value
+            float value = 0.0f;
+
+            if (fracY > 0) {
+                // Perform bilinear interpolation
+                for (int j = 0; j <= 1; j++) {
+                    int yy = (j == 0) ? y0 : y1;
+                    float lo = buffer[x + width * yy];
+                    float hi = x < width - 1 ? buffer[(x + 1) + width * yy] : buffer[x + width * yy];
+                    value += ((j == 0) ? (1 - fracY) : fracY) * (lo + fracY * (hi - lo));
+                }
+            } else {
+                // Use the single pixel value
+                value = buffer[x + width * y0];
+            }
+
+            // Ensure the interpolated value is within the valid range
             if (value < 0 || value > 65535) {
                 throw new IllegalArgumentException("Unexpected value computed " + value + " which should be in the [0..65535] range");
             }
+
+            // Store the computed value in the output buffer
             outputBuffer[offset + x] = value;
             line[x] = value;
-            lastY = yi;
         }
+
+        // If not internal, prepare and broadcast the PartialReconstructionEvent
         if (!internal) {
             var copy = new float[buffer.length];
             System.arraycopy(buffer, 0, copy, 0, buffer.length);

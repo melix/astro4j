@@ -10,6 +10,7 @@ Voici les nouvelles fonctionnalités de cette version :
 
 ## Changements dans la version 2.7.0
 
+- Amélioration de la qualité de la reconstruction en utilisant une interpolation bilinéaire au lieu de linéaire
 - Vue reconstruction améliorée permettant de retrouver les trames à l'origine d'un point précis (demande #386)
 - Amélioration de la détection de région dans l'explorateur de spectre
 - Ajout de la fonction ImageMath `filter`, qui permet de filtrer une liste d'images, par exemple pour ne garder que celles qui sont postérieures à une certaine date
