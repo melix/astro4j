@@ -9,6 +9,7 @@ Here are the new features in this version:
 
 ## Changes in 2.7.0
 
+- Improve quality of reconstruction using bilinear interpolation instead of linear
 - Enhanced reconstruction view which allows finding which frame is the source for a particular pixel (issue #386)
 - Improve spectral line identification in spectrum browser
 - Add `filter` ImageMath function, which allows filtering a list of images, for example to keep only these which are after a certain date
