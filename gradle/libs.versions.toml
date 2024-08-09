@@ -1,5 +1,5 @@
 [versions]
-slf4j-api = "2.0.13"
+slf4j-api = "2.0.15"
 logback = "1.5.6"
 commonmark = "0.22.0"
 commons-math = "3.6.1"
