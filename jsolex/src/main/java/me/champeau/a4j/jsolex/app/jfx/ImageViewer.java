@@ -211,7 +211,7 @@ public class ImageViewer implements WithRootNode {
         });
     }
 
-    private void configureStretching() {
+    private synchronized void configureStretching() {
         this.stretchingStrategy = ContrastAdjustmentStrategy.DEFAULT;
         var line1 = new HBox(8);
         line1.setAlignment(Pos.CENTER_LEFT);
