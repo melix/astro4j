@@ -59,6 +59,7 @@ import me.champeau.a4j.jsolex.processing.params.SpectroHeliograph;
 import me.champeau.a4j.jsolex.processing.params.SpectroHeliographsIO;
 import me.champeau.a4j.jsolex.processing.params.SpectrumParams;
 import me.champeau.a4j.jsolex.processing.params.VideoParams;
+import me.champeau.a4j.jsolex.processing.stretching.AutohistogramStrategy;
 import me.champeau.a4j.jsolex.processing.stretching.ClaheStrategy;
 import me.champeau.a4j.jsolex.processing.sun.CaptureSoftwareMetadataHelper;
 import me.champeau.a4j.jsolex.processing.sun.workflow.GeneratedImageKind;
@@ -746,6 +747,7 @@ public class ProcessParamsController {
         deconvolutionMode.getSelectionModel().select(DeconvolutionMode.NONE);
         sharpen.setSelected(false);
         artificialFlatCorrection.setSelected(false);
+        autostretchGamma.setText(String.valueOf(AutohistogramStrategy.DEFAULT_GAMMA));
         configureRichardsonLucyDefaults();
         configureClaheDefaults();
         configureBandingCorrectionDefaults();
