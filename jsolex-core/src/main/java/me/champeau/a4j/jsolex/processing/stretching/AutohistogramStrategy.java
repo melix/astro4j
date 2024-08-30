@@ -25,6 +25,8 @@ import me.champeau.a4j.math.regression.Ellipse;
 import java.util.ArrayList;
 import java.util.List;
 
+import static java.lang.Math.tanh;
+
 public final class AutohistogramStrategy implements StretchingStrategy {
     private static final int HISTOGRAM_BINS = 256;
     private static final double TARGET_PEAK = 0.4;
@@ -32,7 +34,7 @@ public final class AutohistogramStrategy implements StretchingStrategy {
     private static final double REDUCED_AMPLIFICATION_LIMIT = 1.3;
     private static final float ASINH_FACTOR = 2.5f;
 
-    public static final double DEFAULT_AMPLIFICATION_THRESHOLD = 0.98;
+    public static final double DEFAULT_AMPLIFICATION_THRESHOLD = 0.97;
     public static final double DEFAULT_GAMMA = 1.5;
 
 
@@ -97,26 +99,12 @@ public final class AutohistogramStrategy implements StretchingStrategy {
                     var v = diskData[idx];
                     float normalized = v / max;
                     var dist = normalizedDistanceToCenter(x, y, cx, cy, radius);
-                    var gamma2 = 1 + (gamma - 1) * Math.sin(Math.PI * normalized / 2);
-                    var gammaCorrected = (float) Math.pow(normalized, gamma2) * Constants.MAX_PIXEL_VALUE;
+                    var gammaCorrected = (float) Math.pow(normalized, gamma) * Constants.MAX_PIXEL_VALUE;
                     if (dist <= 1 || v < amplificationThreshold) {
                         diskData[idx] = gammaCorrected;
                     } else {
-                        float corrected = (float) ((gammaCorrected - amplificationThreshold) / max);
-                        float newValue = corrected * Constants.MAX_PIXEL_VALUE;
-                        if (Float.isNaN(newValue)) {
-                            newValue = gammaCorrected;
-                        }
-                        var diff = newValue - gammaCorrected;
-                        float limitFactor = 1f;
-                        if (dist < LIMB_MARGIN) {
-                            var k = (LIMB_MARGIN - dist) / (LIMB_MARGIN - 1);
-                            limitFactor = (float) (1f - k);
-                        }
-                        if (dist > REDUCED_AMPLIFICATION_LIMIT) {
-                            limitFactor /= (float) (4 * (1 + (dist - REDUCED_AMPLIFICATION_LIMIT)));
-                        }
-                        newValue = gammaCorrected + asinhs.stretchPixel(diff) * limitFactor;
+                        var f = 8 * Math.pow(gamma, 2) * tanh(dist - 1);
+                        var newValue = (float) (gammaCorrected + f * asinhs.stretchPixel(gammaCorrected));
                         diskData[idx] = Math.clamp(newValue, 0, Constants.MAX_PIXEL_VALUE);
                     }
                 }
