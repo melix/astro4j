@@ -155,9 +155,11 @@ public class ExposureCalculator {
             double v = Double.parseDouble(scanSpeed.getText());
             var date = this.date.getValue().atStartOfDay(UTC).toLocalDateTime();
             var shg = instrument.getSelectionModel().getSelectedItem();
-            double expo = recommendedExposureMillis(f, shg.focalLength(), shg.collimatorFocalLength(), p * bin, date, (int) v, ra.isSelected() ? ScanDirection.RA : ScanDirection.DEC);
-            fps.setText(String.format("%.2f fps", 1 / (expo / 1000)));
-            exposure.setText(String.format("%.2f ms", expo));
+            if (shg != null) {
+                double expo = recommendedExposureMillis(f, shg.focalLength(), shg.collimatorFocalLength(), p * bin, date, (int) v, ra.isSelected() ? ScanDirection.RA : ScanDirection.DEC);
+                fps.setText(String.format("%.2f fps", 1 / (expo / 1000)));
+                exposure.setText(String.format("%.2f ms", expo));
+            }
         };
     }
 
