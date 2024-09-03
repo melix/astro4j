@@ -12,11 +12,14 @@ It is written in en Java and provided for free without any warranty.
 
 == Downloads
 
-link:https://jsolex.s3.eu-west-3.amazonaws.com/jsolex-windows-latest/{prefixName}-{version}.msi[icon:windows[] Download JSol'Ex (Windows), role="badge"]
-link:https://jsolex.s3.eu-west-3.amazonaws.com/jsolex-ubuntu-latest/{prefixName}_{version}_amd64.deb[icon:linux[] Download JSol'Ex (Linux), role="badge"]
-link:https://jsolex.s3.eu-west-3.amazonaws.com/jsolex-macos-latest/{prefixName}-{version}.pkg[icon:apple[] Download JSol'Ex (Mac), role="badge"]
+Click on the button corresponding to your OS below:
 
-JSol'Ex can be downloaded from https://github.com/melix/astro4j/releases[this page].
+link:https://jsolex.s3.eu-west-3.amazonaws.com/jsolex-windows-latest/{prefixName}-{version}.msi[icon:windows[] JSol'Ex (Windows), role="badge"]
+link:https://jsolex.s3.eu-west-3.amazonaws.com/jsolex-ubuntu-latest/{prefixName}_{version}_amd64.deb[icon:linux[] JSol'Ex (Linux), role="badge"]
+link:https://jsolex.s3.eu-west-3.amazonaws.com/jsolex-macos-latest/{prefixName}-{version}.pkg[icon:apple[] JSol'Ex (Mac ARM64), role="badge"]
+link:https://jsolex.s3.eu-west-3.amazonaws.com/jsolex-macos-13/{prefixName}-{version}.pkg[icon:apple[] JSol'Ex (Mac Intel), role="badge"]
+
+JSol'Ex can also be downloaded or built from source from https://github.com/melix/astro4j/releases[this page].
 Installaters are available for Linux, Windows and MacOS.
 
 Alternatively, you may run JSol'Ex by checking out the sources and running the following command:

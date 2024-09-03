@@ -23,11 +23,14 @@ Je vous invite à ne pas céder aux sirènes de la haine et à vous tourner vers
 
 == Téléchargement
 
-link:https://jsolex.s3.eu-west-3.amazonaws.com/jsolex-windows-latest/{prefixName}-{version}.msi[icon:windows[] Télécharger JSol'Ex (Windows), role="badge"]
-link:https://jsolex.s3.eu-west-3.amazonaws.com/jsolex-ubuntu-latest/{prefixName}_{version}_amd64.deb[icon:linux[] Télécharger JSol'Ex (Linux), role="badge"]
-link:https://jsolex.s3.eu-west-3.amazonaws.com/jsolex-macos-latest/{prefixName}-{version}.pkg[icon:apple[] Télécharger JSol'Ex (Mac), role="badge"]
+Cliquez sur le bouton correspondant à votre système ci-dessous :
 
-JSol'Ex peut être téléchargé sur https://github.com/melix/astro4j/releases[cette page].
+link:https://jsolex.s3.eu-west-3.amazonaws.com/jsolex-windows-latest/{prefixName}-{version}.msi[icon:windows[] JSol'Ex (Windows), role="badge"]
+link:https://jsolex.s3.eu-west-3.amazonaws.com/jsolex-ubuntu-latest/{prefixName}_{version}_amd64.deb[icon:linux[] JSol'Ex (Linux), role="badge"]
+link:https://jsolex.s3.eu-west-3.amazonaws.com/jsolex-macos-latest/{prefixName}-{version}.pkg[icon:apple[] JSol'Ex (Mac ARM64), role="badge"]
+link:https://jsolex.s3.eu-west-3.amazonaws.com/jsolex-macos-13/{prefixName}-{version}.pkg[icon:apple[] JSol'Ex (Mac Intel), role="badge"]
+
+JSol'Ex peut aussi être téléchargé ou installé depuis les sources sur https://github.com/melix/astro4j/releases[cette page].
 Des installateurs sont disponibles pour Linux, Windows et MacOS.
 
 Alternativement, vous pouvez lancer JSol'Ex en téléchargeant les sources puis en exécutant la commande:
