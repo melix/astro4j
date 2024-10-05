@@ -49,6 +49,7 @@ public enum BuiltinFunction {
     FIND_SHIFT,
     FIX_BANDING,
     FIX_GEOMETRY,
+    FLAT_CORRECTION,
     HFLIP,
     IMG,
     INVERT,

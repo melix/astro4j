@@ -16,6 +16,9 @@
 package me.champeau.a4j.jsolex.processing.params;
 
 public record EnhancementParams(
-    boolean artificialFlatCorrection
+    boolean artificialFlatCorrection,
+    double artificialFlatCorrectionLoPercentile,
+    double artificialFlatCorrectionHiPercentile,
+    int artificialFlatCorrectionOrder
 ) {
 }
