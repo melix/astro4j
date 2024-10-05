@@ -703,6 +703,21 @@ Par défaut, aucune déconvolution n&#8217;est appliquée, mais vous pouvez choi
 <div class="paragraph">
 <p>Enfin, vous pouvez choisir d&#8217;appliquer un filtre d&#8217;amélioration des détails à la fin du traitement en cochant la case "aiguiser les images".</p>
 </div>
+<div class="admonitionblock note">
+<table>
+<tr>
+<td class="icon">
+<i class="fa icon-note" title="Note"></i>
+</td>
+<td class="content">
+<div class="title">Expérimental</div>
+<div class="paragraph">
+<p>La correction par flat artificiel permet de corriger un éventuel vignettage. Elle calcule un modèle à partir des pixels du disque. Les pixels considérés sont ceux dont la valeur est comprise entre un percentile bas et un percentile haut. Par exemple, si vous entrez 0.1 et 0.9, les pixels dont la valeur est comprise entre le 10ème et le 90ème percentile seront utilisés pour calculer le modèle. Enfin, un polynome d&#8217;ordre spécifié est ajusté sur les valeurs du modèle pour corriger l&#8217;image.</p>
+</div>
+</td>
+</tr>
+</table>
+</div>
 </div>
 </div>
 <div class="sect1">
