@@ -93,6 +93,12 @@ Pour la déconvolution de Richardson-Lucy, vous pouvez choisir la taille du PSF 
 
 Enfin, vous pouvez choisir d'appliquer un filtre d'amélioration des détails à la fin du traitement en cochant la case "aiguiser les images".
 
+[NOTE]
+.Expérimental
+====
+La correction par flat artificiel permet de corriger un éventuel vignettage. Elle calcule un modèle à partir des pixels du disque. Les pixels considérés sont ceux dont la valeur est comprise entre un percentile bas et un percentile haut. Par exemple, si vous entrez 0.1 et 0.9, les pixels dont la valeur est comprise entre le 10ème et le 90ème percentile seront utilisés pour calculer le modèle. Enfin, un polynome d'ordre spécifié est ajusté sur les valeurs du modèle pour corriger l'image.
+====
+
 == Paramètres d'observation
 
 Les paramètres d'observation sont utilisés lorsque vous enregistrez vos images au format FITS, pour remplir certaines métadonnées.

@@ -1,6 +1,12 @@
 # Welcome to JSol'Ex {{version}}!
 
-Here are the new features in this version:
+## Changes in 2.7.1
+
+- Added MacOS x86 installer
+- Improved artificial flat correction
+- Added `flat_correction` ImageMath function
+
+## Changes in 2.7.0
 
 - Fixed auto-contrast being a bit too agressive on prominences
 - Improve quality of reconstruction using bilinear interpolation instead of linear

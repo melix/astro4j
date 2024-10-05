@@ -19,6 +19,7 @@ import me.champeau.a4j.jsolex.expr.BuiltinFunction;
 import me.champeau.a4j.jsolex.expr.ExpressionEvaluator;
 import me.champeau.a4j.jsolex.processing.expr.impl.AdjustContrast;
 import me.champeau.a4j.jsolex.processing.expr.impl.Animate;
+import me.champeau.a4j.jsolex.processing.expr.impl.ArtifificialFlatCorrector;
 import me.champeau.a4j.jsolex.processing.expr.impl.BackgroundRemoval;
 import me.champeau.a4j.jsolex.processing.expr.impl.Clahe;
 import me.champeau.a4j.jsolex.processing.expr.impl.Colorize;
@@ -89,6 +90,7 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
     private final EllipseFit ellipseFit;
     private final Filtering filtering;
     private final FixBanding fixBanding;
+    private final ArtifificialFlatCorrector flatCorrector;
     private final GeometryCorrection geometryCorrection;
     private final ImageDraw imageDraw;
     private final Inverse inverse;
@@ -115,6 +117,7 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
         this.ellipseFit = new EllipseFit(context, broadcaster);
         this.filtering = new Filtering(context, broadcaster);
         this.fixBanding = new FixBanding(context, broadcaster);
+        this.flatCorrector = new ArtifificialFlatCorrector(context, broadcaster);
         this.geometryCorrection = new GeometryCorrection(context, broadcaster, ellipseFit);
         this.imageDraw = new ImageDraw(context, broadcaster);
         this.inverse = new Inverse(context, broadcaster);
@@ -235,6 +238,7 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
             case FILTER -> filtering.filter(arguments);
             case FIX_BANDING -> fixBanding.fixBanding(arguments);
             case FIX_GEOMETRY -> geometryCorrection.fixGeometry(arguments);
+            case FLAT_CORRECTION -> flatCorrector.performFlatCorrection(arguments);
             case HFLIP -> rotate.hflip(arguments);
             case IMG -> image(arguments);
             case INVERT -> inverse.invert(arguments);

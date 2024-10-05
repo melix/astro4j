@@ -25,6 +25,7 @@ import javafx.scene.control.Button;
 import javafx.scene.control.ButtonType;
 import javafx.scene.control.CheckBox;
 import javafx.scene.control.ChoiceBox;
+import javafx.scene.control.Label;
 import javafx.scene.control.Slider;
 import javafx.scene.control.TextField;
 import javafx.scene.control.TextFormatter;
@@ -200,6 +201,18 @@ public class ProcessParamsController {
     private Button forcePolynomialOpen;
     @FXML
     private CheckBox artificialFlatCorrection;
+    @FXML
+    private Label flatLoPercentileLabel;
+    @FXML
+    private TextField flatLoPercentile;
+    @FXML
+    private Label flatHiPercentileLabel;
+    @FXML
+    private TextField flatHiPercentile;
+    @FXML
+    private Label flatOrderLabel;
+    @FXML
+    private TextField flatOrder;
 
     private final List<Stage> popups = new CopyOnWriteArrayList<>();
     private Stage stage;
@@ -453,6 +466,55 @@ public class ProcessParamsController {
         forcePolynomialOpen.disableProperty().bind(forcePolynomial.selectedProperty().not());
         forcedPolynomial.setText(initialProcessParams.geometryParams().forcedPolynomial().orElse(null));
         artificialFlatCorrection.setSelected(initialProcessParams.enhancementParams().artificialFlatCorrection());
+        flatLoPercentileLabel.disableProperty().bind(artificialFlatCorrection.selectedProperty().not());
+        flatLoPercentile.disableProperty().bind(artificialFlatCorrection.selectedProperty().not());
+        flatHiPercentileLabel.disableProperty().bind(artificialFlatCorrection.selectedProperty().not());
+        flatHiPercentile.disableProperty().bind(artificialFlatCorrection.selectedProperty().not());
+        flatOrderLabel.disableProperty().bind(artificialFlatCorrection.selectedProperty().not());
+        flatOrder.disableProperty().bind(artificialFlatCorrection.selectedProperty().not());
+        flatLoPercentile.setTextFormatter(createPercentileFormatter());
+        flatHiPercentile.setTextFormatter(createPercentileFormatter());
+        flatOrder.setTextFormatter(createOrderFormatter());
+        flatLoPercentile.setText(String.valueOf(initialProcessParams.enhancementParams().artificialFlatCorrectionLoPercentile()));
+        flatHiPercentile.setText(String.valueOf(initialProcessParams.enhancementParams().artificialFlatCorrectionHiPercentile()));
+        flatOrder.setText(String.valueOf(initialProcessParams.enhancementParams().artificialFlatCorrectionOrder()));
+
+    }
+
+    private static TextFormatter<Integer> createOrderFormatter() {
+        return new TextFormatter<>(new IntegerStringConverter() {
+            @Override
+            public Integer fromString(String value) {
+                var v = super.fromString(value);
+                if (v != null) {
+                    if (v < 1) {
+                        return 1;
+                    }
+                    if (v > 16) {
+                        return 16;
+                    }
+                }
+                return v;
+            }
+        });
+    }
+
+    private static TextFormatter<Double> createPercentileFormatter() {
+        return new TextFormatter<>(new DoubleStringConverter() {
+            @Override
+            public Double fromString(String value) {
+                var v = super.fromString(value);
+                if (v != null) {
+                    if (v < 0) {
+                        return 0d;
+                    }
+                    if (v > 1) {
+                        return 1d;
+                    }
+                }
+                return v;
+            }
+        });
     }
 
     private void configureRichardsonLucyDefaults() {
@@ -655,7 +717,7 @@ public class ProcessParamsController {
                 Double.parseDouble(autostretchGamma.getText())
             ),
             contrastEnhancementTechnique.getValue(),
-            new EnhancementParams(artificialFlatCorrection.isSelected())
+            new EnhancementParams(artificialFlatCorrection.isSelected(), Double.parseDouble(flatLoPercentile.getText()), Double.parseDouble(flatHiPercentile.getText()), Integer.parseInt(flatOrder.getText()))
         );
         ProcessParams.saveDefaults(processParams);
         stage.close();

@@ -39,6 +39,7 @@ import me.champeau.a4j.jsolex.processing.expr.ImageMathScriptExecutor;
 import me.champeau.a4j.jsolex.processing.expr.InvalidExpression;
 import me.champeau.a4j.jsolex.processing.expr.impl.ImageDraw;
 import me.champeau.a4j.jsolex.processing.file.FileNamingStrategy;
+import me.champeau.a4j.jsolex.processing.params.EnhancementParams;
 import me.champeau.a4j.jsolex.processing.params.ImageMathParams;
 import me.champeau.a4j.jsolex.processing.params.ProcessParams;
 import me.champeau.a4j.jsolex.processing.params.SpectralRay;
@@ -524,7 +525,7 @@ public class SolexVideoProcessor implements Broadcaster {
             state.recordResult(WorkflowResults.MAIN_ELLIPSE_FITTING, fitting);
         });
         if (processParams.enhancementParams().artificialFlatCorrection()) {
-            performFlatCorrection(imageList, fitting);
+            performFlatCorrection(imageList, fitting, processParams.enhancementParams());
         }
         IntStream.range(0, imageList.size()).mapToObj(i -> new Object() {
             private final WorkflowState state = imageList.get(i);
@@ -538,14 +539,15 @@ public class SolexVideoProcessor implements Broadcaster {
         });
     }
 
-    private static void performFlatCorrection(List<WorkflowState> imageList, EllipseFittingTask.Result fitting) {
+    private static void performFlatCorrection(List<WorkflowState> imageList, EllipseFittingTask.Result fitting, EnhancementParams enhancementParams) {
         if (fitting == null) {
             return;
         }
         var ellipse = fitting.ellipse();
+        var flatCorrector = new FlatCorrection(enhancementParams.artificialFlatCorrectionLoPercentile(), enhancementParams.artificialFlatCorrectionHiPercentile(), enhancementParams.artificialFlatCorrectionOrder());
         IntStream.range(0, imageList.size()).parallel().forEach(i -> {
             var state = imageList.get(i);
-            var corrected = FlatCorrection.correctImage(state.image(), FlatCorrection.computeCorrectionFactors(state.image(), ellipse));
+            var corrected = flatCorrector.correctImage(state.image(), flatCorrector.computeCorrectionFactors(state.image(), ellipse));
             state.setImage(corrected);
         });
     }
