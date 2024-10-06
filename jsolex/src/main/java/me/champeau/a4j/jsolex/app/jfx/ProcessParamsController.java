@@ -63,6 +63,7 @@ import me.champeau.a4j.jsolex.processing.params.VideoParams;
 import me.champeau.a4j.jsolex.processing.stretching.AutohistogramStrategy;
 import me.champeau.a4j.jsolex.processing.stretching.ClaheStrategy;
 import me.champeau.a4j.jsolex.processing.sun.CaptureSoftwareMetadataHelper;
+import me.champeau.a4j.jsolex.processing.sun.FlatCorrection;
 import me.champeau.a4j.jsolex.processing.sun.workflow.GeneratedImageKind;
 import me.champeau.a4j.jsolex.processing.util.Constants;
 import me.champeau.a4j.jsolex.processing.util.ImageFormat;
@@ -808,11 +809,18 @@ public class ProcessParamsController {
     public void resetImageEnhancementsParams() {
         deconvolutionMode.getSelectionModel().select(DeconvolutionMode.NONE);
         sharpen.setSelected(false);
-        artificialFlatCorrection.setSelected(false);
+        configureArtificialFlatDefaults();
         autostretchGamma.setText(String.valueOf(AutohistogramStrategy.DEFAULT_GAMMA));
         configureRichardsonLucyDefaults();
         configureClaheDefaults();
         configureBandingCorrectionDefaults();
+    }
+
+    private void configureArtificialFlatDefaults() {
+        artificialFlatCorrection.setSelected(false);
+        flatLoPercentile.setText(String.valueOf(FlatCorrection.DEFAULT_LO_PERCENTILE));
+        flatHiPercentile.setText(String.valueOf(FlatCorrection.DEFAULT_HI_PERCENTILE));
+        flatOrder.setText(String.valueOf(FlatCorrection.DEFAULT_ORDER));
     }
 
     private void configureBandingCorrectionDefaults() {
