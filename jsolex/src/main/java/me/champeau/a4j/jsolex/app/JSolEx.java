@@ -587,6 +587,7 @@ public class JSolEx extends Application implements JSolExInterface {
         });
         imageMathSave.setOnAction(evt -> {
             var fileChooser = new FileChooser();
+            config.findLastOpenDirectory(Configuration.DirectoryKind.IMAGE_MATH).ifPresent(dir -> fileChooser.setInitialDirectory(dir.toFile()));
             fileChooser.getExtensionFilters().add(ImageMathEditor.MATH_SCRIPT_EXTENSION_FILTER);
             var file = fileChooser.showSaveDialog(rootStage);
             if (file != null) {
