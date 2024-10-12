@@ -59,7 +59,7 @@ public class AdjustContrast extends AbstractFunctionImpl {
             throw new IllegalArgumentException("auto_contrast takes 2 arguments (image(s), gamma)");
         }
         double gamma = doubleArg(arguments, 1);
-        if (gamma <= 1) {
+        if (gamma < 1) {
             throw new IllegalArgumentException("gamma must be greater than 1");
         }
         return monoToMonoImageTransformer( "auto_contrast", 3, arguments, image -> new AutohistogramStrategy(gamma).stretch(image));
