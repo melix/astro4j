@@ -321,6 +321,7 @@ NOTE: If you don't want to provide a custom black point value, you can use a pre
 - `sharpen` will apply sharpening the target image. For example, `sharpen(img(0))`.
 - `blur` will apply Gaussian blur the target image. For example, `blur(img(0))`.
 - `disk_fill` will fill the detected sun disk with a fill color (by default, the detected black point). e.g `disk_fill(img(0))` or `disk_fill(img(0), 0)`.
+- `disk_mask` creates an image mask, where pixels within the solar disk have value 1 and these outside the disk have value 0. It is possible to invert (0 within, 1 outside) by passing `1` as the second argument. For example: `disk_mask(img(0);1)`.
 - `rescale_rel` rescales an image. It accepts 3 arguments: the image, then the scaling factors for X and Y. For example, `rescale_rel(img(0);2;2)` will double the size of an image.
 - `rescale_abs` rescales an image to the specified dimensions. It takes 3 arguments: the image then the desired width and height. For example, `rescale_abs(img(0);2048;2048)`.
 - `radius_rescale` is a relative scaling method which can facilitate mosaic composition. It will therefore most likely be used in <<#batch-mode,batch mode>>. It allows rescaling a set of images so that they all have the same solar disk radius (in pixels). In order to do so, it will perform an ellipse regression against each image to compute their solar disk, then will rescale all images to match the radius of the largest one. For example: `radius_rescale(cropped)`.

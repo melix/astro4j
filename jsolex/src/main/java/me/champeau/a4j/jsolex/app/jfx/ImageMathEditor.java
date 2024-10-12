@@ -169,6 +169,7 @@ public class ImageMathEditor {
         loadPredefinedScript("doppler");
         loadPredefinedScript("virtual-eclipse");
         loadPredefinedScript("globe");
+        loadPredefinedScript("enhanced-invert");
         if (batchMode) {
             loadPredefinedScript("stacking");
         }
