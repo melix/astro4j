@@ -211,138 +211,144 @@ public class ImageViewer implements WithRootNode {
         });
     }
 
-    private synchronized void configureStretching() {
-        this.stretchingStrategy = ContrastAdjustmentStrategy.DEFAULT;
-        var line1 = new HBox(8);
-        line1.setAlignment(Pos.CENTER_LEFT);
-        var line2 = new HBox(8);
-        line2.setAlignment(Pos.CENTER_LEFT);
-        configureContrastAdjustment(line1);
-        var reset = new Button(message("reset"));
-        reset.setOnAction(event -> {
-            stretchingParams.getChildren().clear();
-            configureStretching();
-            stretchAndDisplay();
-        });
-        saveButton = new Button(message("save"));
-        saveButton.setOnAction(e -> saveImage());
-        dimensions = new Label();
-        var zoomLabel = new Label("Zoom");
-        var zoomMinus = new Button("-");
-        zoomMinus.setOnAction(evt -> imageView.setZoom(imageView.getZoom() * 0.8));
-        var zoomPlus = new Button("+");
-        zoomPlus.setOnAction(evt -> imageView.setZoom(imageView.getZoom() * 1.2));
-        var coordinatesLabel = new Label();
-        imageView.setCoordinatesListener((x, y) -> {
-            String extra = "";
-            if (displayImage == null) {
-                displayImage = image;
-            }
-            if (displayImage instanceof ImageWrapper32 mono) {
-                var idx = x.intValue() + y.intValue() * mono.width();
-                if (idx < 0 || idx >= mono.data().length) {
-                    return;
-                }
-                var pixelValue = mono.data()[idx];
-                extra = ", " + String.format("%.0f", pixelValue);
-            }
-            coordinatesLabel.setText("(" + x.intValue() + ", " + y.intValue() + extra + ")");
-        });
-        correctAngleP = new CheckBox(message("correct.p.angle"));
-        correctAngleP.setSelected(processParams.geometryParams().isAutocorrectAngleP());
-        var applyNextTime = new Button("✔");
-        correctAngleP.selectedProperty().addListener((obj, oldValue, newValue) -> {
-            stretchAndDisplay();
-            if (!Objects.equals(oldValue, newValue)) {
-                applyNextTime.setDisable(false);
-            }
-        });
-        correctAngleP.setDisable(kind.cannotPerformManualRotation());
-        var prevButton = new Button(message("prev.image"));
-        prevButton.disableProperty().bind(currentImage.isEqualTo(0));
-        prevButton.visibleProperty().bind(imageHistory.sizeProperty().greaterThan(1));
-        prevButton.setOnAction(evt -> {
-            currentImage.set(currentImage.get() - 1);
-            showImage();
-        });
-        var nextButton = new Button(message("next.image"));
-        nextButton.setOnAction(evt -> {
-            currentImage.set(currentImage.get() + 1);
-            showImage();
-        });
-        nextButton.disableProperty().bind(currentImage.isEqualTo(imageHistory.sizeProperty().subtract(1)));
-        nextButton.visibleProperty().bind(imageHistory.sizeProperty().greaterThan(1));
-        var fitButton = new Button("←fit→");
-        fitButton.setOnAction(evt -> imageView.resetZoom(true));
-        var fitToCenter = new Button("→fit←");
-        fitToCenter.disableProperty().bind(imageView.canFitToCenterProperty().map(e -> !e));
-        fitToCenter.setOnAction(evt -> imageView.fitToCenter());
-        var oneToOneFit = new Button("1:1");
-        oneToOneFit.disableProperty().bind(imageView.canFitToCenterProperty().map(e -> !e));
-        oneToOneFit.setOnAction(evt -> imageView.oneToOneZoomAndCenter());
-        var leftRotate = new Button("↶");
-        leftRotate.setTooltip(new Tooltip(message("rotate.left")));
-        leftRotate.setOnAction(evt -> {
-            rotation = (rotation - 1) % 4;
-            applyNextTime.setDisable(false);
-            stretchAndDisplay();
-        });
-        leftRotate.disableProperty().set(kind.cannotPerformManualRotation());
-        var rightRotate = new Button("↷");
-        rightRotate.setTooltip(new Tooltip(message("rotate.right")));
-        rightRotate.setOnAction(evt -> {
-            rotation = (rotation + 1) % 4;
-            applyNextTime.setDisable(false);
+    private void configureStretching() {
+        try {
+            displayLock.lock();
 
-            stretchAndDisplay();
-        });
-        rightRotate.disableProperty().set(kind.cannotPerformManualRotation());
-        var verticalMirror = new Button("⇅");
-        verticalMirror.setTooltip(new Tooltip(message("vertical.flip")));
-        verticalMirror.setOnAction(evt -> {
-            vflip = !vflip;
-            rotation = -rotation;
-            applyNextTime.setDisable(false);
-            stretchAndDisplay();
-        });
-        verticalMirror.disableProperty().set(kind.cannotPerformManualRotation());
-        var horizontalMirror = new Button("⇄");
-        horizontalMirror.setTooltip(new Tooltip(message("horizontal.flip")));
-        horizontalMirror.setOnAction(evt -> {
-            rotation = (rotation + 2) % 4;
-            applyNextTime.setDisable(false);
-            verticalMirror.fire();
-            stretchAndDisplay();
-        });
-        horizontalMirror.disableProperty().set(kind.cannotPerformManualRotation());
-        applyNextTime.setOnAction(evt -> {
-            broadcaster.onGenericMessage(GenericMessage.of(new ApplyUserRotation(rotation, correctAngleP.isSelected(), vflip)));
-            applyNextTime.setDisable(true);
-        });
-        applyNextTime.setTooltip(new Tooltip(message("apply.next.time")));
-        applyNextTime.setDisable(true);
-        line1.getChildren().addAll(reset, saveButton, prevButton, nextButton);
-        line2.getChildren().addAll(correctAngleP, zoomLabel, zoomMinus, zoomPlus, fitButton, fitToCenter, oneToOneFit, leftRotate, rightRotate, verticalMirror, horizontalMirror, applyNextTime, dimensions, coordinatesLabel);
-        var titleLabel = new Label(title);
-        titleLabel.setStyle("-fx-font-weight: bold");
-        var alignButton = new Button("⌖");
-        alignButton.setStyle("-fx-padding: 2; -fx-font-size: 18");
-        alignButton.setOnAction(evt -> {
-            for (var viewer : siblings) {
-                if (viewer != this) {
-                    viewer.imageView.alignWith(imageView);
+            this.stretchingStrategy = ContrastAdjustmentStrategy.DEFAULT;
+            var line1 = new HBox(8);
+            line1.setAlignment(Pos.CENTER_LEFT);
+            var line2 = new HBox(8);
+            line2.setAlignment(Pos.CENTER_LEFT);
+            configureContrastAdjustment(line1);
+            var reset = new Button(message("reset"));
+            reset.setOnAction(event -> {
+                stretchingParams.getChildren().clear();
+                configureStretching();
+                stretchAndDisplay();
+            });
+            saveButton = new Button(message("save"));
+            saveButton.setOnAction(e -> saveImage());
+            dimensions = new Label();
+            var zoomLabel = new Label("Zoom");
+            var zoomMinus = new Button("-");
+            zoomMinus.setOnAction(evt -> imageView.setZoom(imageView.getZoom() * 0.8));
+            var zoomPlus = new Button("+");
+            zoomPlus.setOnAction(evt -> imageView.setZoom(imageView.getZoom() * 1.2));
+            var coordinatesLabel = new Label();
+            imageView.setCoordinatesListener((x, y) -> {
+                String extra = "";
+                if (displayImage == null) {
+                    displayImage = image;
                 }
-            }
-        });
-        BatchOperations.submit(() -> {
-            alignButton.setTooltip(new Tooltip(message("align.images")));
-            var titleBox = new HBox(alignButton, titleLabel, new Label("(" + imageFile.getName() + ")"));
-            titleBox.setSpacing(4);
-            titleBox.setAlignment(Pos.CENTER_LEFT);
-            stretchingParams.getChildren().addAll(titleBox, line1, line2);
-            line1.getChildren().forEach(e -> HBox.setHgrow(e, Priority.ALWAYS));
-            line2.getChildren().stream().filter(e -> !(e instanceof Slider)).forEach(e -> HBox.setHgrow(e, Priority.ALWAYS));
-        });
+                if (displayImage instanceof ImageWrapper32 mono) {
+                    var idx = x.intValue() + y.intValue() * mono.width();
+                    if (idx < 0 || idx >= mono.data().length) {
+                        return;
+                    }
+                    var pixelValue = mono.data()[idx];
+                    extra = ", " + String.format("%.0f", pixelValue);
+                }
+                coordinatesLabel.setText("(" + x.intValue() + ", " + y.intValue() + extra + ")");
+            });
+            correctAngleP = new CheckBox(message("correct.p.angle"));
+            correctAngleP.setSelected(processParams.geometryParams().isAutocorrectAngleP());
+            var applyNextTime = new Button("✔");
+            correctAngleP.selectedProperty().addListener((obj, oldValue, newValue) -> {
+                stretchAndDisplay();
+                if (!Objects.equals(oldValue, newValue)) {
+                    applyNextTime.setDisable(false);
+                }
+            });
+            correctAngleP.setDisable(kind.cannotPerformManualRotation());
+            var prevButton = new Button(message("prev.image"));
+            prevButton.disableProperty().bind(currentImage.isEqualTo(0));
+            prevButton.visibleProperty().bind(imageHistory.sizeProperty().greaterThan(1));
+            prevButton.setOnAction(evt -> {
+                currentImage.set(currentImage.get() - 1);
+                showImage();
+            });
+            var nextButton = new Button(message("next.image"));
+            nextButton.setOnAction(evt -> {
+                currentImage.set(currentImage.get() + 1);
+                showImage();
+            });
+            nextButton.disableProperty().bind(currentImage.isEqualTo(imageHistory.sizeProperty().subtract(1)));
+            nextButton.visibleProperty().bind(imageHistory.sizeProperty().greaterThan(1));
+            var fitButton = new Button("←fit→");
+            fitButton.setOnAction(evt -> imageView.resetZoom(true));
+            var fitToCenter = new Button("→fit←");
+            fitToCenter.disableProperty().bind(imageView.canFitToCenterProperty().map(e -> !e));
+            fitToCenter.setOnAction(evt -> imageView.fitToCenter());
+            var oneToOneFit = new Button("1:1");
+            oneToOneFit.disableProperty().bind(imageView.canFitToCenterProperty().map(e -> !e));
+            oneToOneFit.setOnAction(evt -> imageView.oneToOneZoomAndCenter());
+            var leftRotate = new Button("↶");
+            leftRotate.setTooltip(new Tooltip(message("rotate.left")));
+            leftRotate.setOnAction(evt -> {
+                rotation = (rotation - 1) % 4;
+                applyNextTime.setDisable(false);
+                stretchAndDisplay();
+            });
+            leftRotate.disableProperty().set(kind.cannotPerformManualRotation());
+            var rightRotate = new Button("↷");
+            rightRotate.setTooltip(new Tooltip(message("rotate.right")));
+            rightRotate.setOnAction(evt -> {
+                rotation = (rotation + 1) % 4;
+                applyNextTime.setDisable(false);
+
+                stretchAndDisplay();
+            });
+            rightRotate.disableProperty().set(kind.cannotPerformManualRotation());
+            var verticalMirror = new Button("⇅");
+            verticalMirror.setTooltip(new Tooltip(message("vertical.flip")));
+            verticalMirror.setOnAction(evt -> {
+                vflip = !vflip;
+                rotation = -rotation;
+                applyNextTime.setDisable(false);
+                stretchAndDisplay();
+            });
+            verticalMirror.disableProperty().set(kind.cannotPerformManualRotation());
+            var horizontalMirror = new Button("⇄");
+            horizontalMirror.setTooltip(new Tooltip(message("horizontal.flip")));
+            horizontalMirror.setOnAction(evt -> {
+                rotation = (rotation + 2) % 4;
+                applyNextTime.setDisable(false);
+                verticalMirror.fire();
+                stretchAndDisplay();
+            });
+            horizontalMirror.disableProperty().set(kind.cannotPerformManualRotation());
+            applyNextTime.setOnAction(evt -> {
+                broadcaster.onGenericMessage(GenericMessage.of(new ApplyUserRotation(rotation, correctAngleP.isSelected(), vflip)));
+                applyNextTime.setDisable(true);
+            });
+            applyNextTime.setTooltip(new Tooltip(message("apply.next.time")));
+            applyNextTime.setDisable(true);
+            line1.getChildren().addAll(reset, saveButton, prevButton, nextButton);
+            line2.getChildren().addAll(correctAngleP, zoomLabel, zoomMinus, zoomPlus, fitButton, fitToCenter, oneToOneFit, leftRotate, rightRotate, verticalMirror, horizontalMirror, applyNextTime, dimensions, coordinatesLabel);
+            var titleLabel = new Label(title);
+            titleLabel.setStyle("-fx-font-weight: bold");
+            var alignButton = new Button("⌖");
+            alignButton.setStyle("-fx-padding: 2; -fx-font-size: 18");
+            alignButton.setOnAction(evt -> {
+                for (var viewer : siblings) {
+                    if (viewer != this) {
+                        viewer.imageView.alignWith(imageView);
+                    }
+                }
+            });
+            BatchOperations.submit(() -> {
+                alignButton.setTooltip(new Tooltip(message("align.images")));
+                var titleBox = new HBox(alignButton, titleLabel, new Label("(" + imageFile.getName() + ")"));
+                titleBox.setSpacing(4);
+                titleBox.setAlignment(Pos.CENTER_LEFT);
+                stretchingParams.getChildren().addAll(titleBox, line1, line2);
+                line1.getChildren().forEach(e -> HBox.setHgrow(e, Priority.ALWAYS));
+                line2.getChildren().stream().filter(e -> !(e instanceof Slider)).forEach(e -> HBox.setHgrow(e, Priority.ALWAYS));
+            });
+        } finally {
+            displayLock.unlock();
+        }
     }
 
     private static float linValueOf(double sliderValue) {
