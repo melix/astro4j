@@ -1227,6 +1227,9 @@ Si vous ne connaissez pas la valeur du point noir, vous pouvez utiliser la valeu
 <p><code>disk_fill</code> remplit le disque solaire détecté avec une valeur donnée (par défault, celle du point noir détecté). Par exemple <code>disk_fill(img(0))</code> ou <code>disk_fill(img(0), 0)</code>.</p>
 </li>
 <li>
+<p><code>disk_mask</code> crée un masque du disque solaire, où les pixels à l&#8217;intérieur du disque auront la valeur 1, contre 0 pour ceux à l&#8217;extérieur du disque. Il est possible d&#8217;inverser (0 à l&#8217;intérieur, 1 à l&#8217;extérieur) en passant <code>1</code> comme 2d paramètre de la fonction. Par exemple : <code>disk_mask(img(0);1)</code>.</p>
+</li>
+<li>
 <p><code>rescale_rel</code> permet d&#8217;agrandir ou réduire la taille d&#8217;une image. Elle prend 3 paramètres: l&#8217;image, puis les facteurs d&#8217;agrandissement en X et Y. Par exemple, <code>rescale_rel(img(0);2;2)</code> pour doubler la taille d&#8217;une image.</p>
 </li>
 <li>
