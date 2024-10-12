@@ -1,0 +1,27 @@
+###
+# Creates an enhanced inverted image, which combines a regular inverted image
+# with the prominences image
+###
+
+[params]
+gamma1 = 1.5
+gamma2 = 1.05
+protus_stretch = 20
+
+[tmp]
+# The negative image
+negative=invert(img(0))
+
+# A mask which has value 1 for pixels within the disk and 0 when outside
+mask=blur(disk_mask(img(0)))
+
+# The negative image, masked and contrasted
+masked_negative = auto_contrast(mask * negative;gamma1)
+
+# Create a prominences image
+protus=asinh_stretch(disk_fill(img(0));blackPoint;protus_stretch)
+
+# Combine both
+
+[outputs]
+result=auto_contrast(protus + masked_negative;gamma2)

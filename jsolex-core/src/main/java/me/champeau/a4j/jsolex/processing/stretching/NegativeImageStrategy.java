@@ -27,8 +27,12 @@ public final class NegativeImageStrategy implements StretchingStrategy {
     @Override
     public void stretch(ImageWrapper32 image) {
         var data = image.data();
+        float max = 0;
+        for (float v : data) {
+            max = Math.max(max, v);
+        }
         for (int i = 0; i < data.length; i++) {
-            data[i] = 65535 - data[i];
+            data[i] = max - data[i];
         }
     }
 

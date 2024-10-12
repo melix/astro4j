@@ -1,5 +1,10 @@
 # Bienvenue dans JSol'Ex {{version}} !
 
+## Nouveautés de la version 2.7.2
+
+- Ajout d'une fonction `disk_mask` permettant de créer un masque du disque solaire
+- Ajout d'un nouvel exemple de script ImageMath pour créer une image inverse améliorée
+
 ## Nouveautés de la version 2.7.1
 
 - Ajout d'un installeur pour MacOS x86

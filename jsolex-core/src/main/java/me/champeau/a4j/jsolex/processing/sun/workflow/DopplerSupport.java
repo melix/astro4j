@@ -83,8 +83,8 @@ public class DopplerSupport {
             var g1 = BackgroundRemoval.neutralizeBackground(grey1Eclipse);
             grey2Eclipse.findMetadata(Ellipse.class).ifPresent(eclipse2 -> {
                 var g2 = BackgroundRemoval.neutralizeBackground(grey2Eclipse);
-                DiskFill.doFill(eclipse1, g1.data(), width, 0);
-                DiskFill.doFill(eclipse2, g2.data(), width, 0);
+                DiskFill.doFill(eclipse1, g1.data(), width, 0, null);
+                DiskFill.doFill(eclipse2, g2.data(), width, 0, null);
                 var stretch = new ArcsinhStretchingStrategy(0, 50, 50);
                 stretch.stretch(g1);
                 stretch.stretch(g2);

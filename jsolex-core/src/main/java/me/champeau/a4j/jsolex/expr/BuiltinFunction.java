@@ -36,6 +36,7 @@ public enum BuiltinFunction {
     CROP,
     CROP_RECT,
     DISK_FILL,
+    DISK_MASK,
     DRAW_ARROW,
     DRAW_CIRCLE,
     DRAW_RECT,
