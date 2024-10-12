@@ -4,6 +4,7 @@
 
 - Ajout d'une fonction `disk_mask` permettant de créer un masque du disque solaire
 - Ajout d'un nouvel exemple de script ImageMath pour créer une image inverse améliorée
+- Correction du bouton script "Sauvegarder" qui ne conservait pas le dernier répertoire utilisé 
 
 ## Nouveautés de la version 2.7.1
 

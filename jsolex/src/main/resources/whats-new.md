@@ -4,6 +4,7 @@
 
 - Added `disk_mask` function which allows creating a mask of the solar disk
 - Added a new ImageMath sample for enhanced inverted image creation
+- Fixed ImageMath "save" button which didn't remember the directory used
 
 ## Changes in 2.7.1
 
