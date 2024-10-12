@@ -2,6 +2,7 @@
 
 ## Nouveautés de la version 2.7.2
 
+- Correction d'un bug de reconstruction qui provoque des artéfacts (particulièrement visible en Hélium)
 - Ajout d'une fonction `disk_mask` permettant de créer un masque du disque solaire
 - Ajout d'un nouvel exemple de script ImageMath pour créer une image inverse améliorée
 - Correction du bouton script "Sauvegarder" qui ne conservait pas le dernier répertoire utilisé 
