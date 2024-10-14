@@ -21,9 +21,12 @@ import me.champeau.a4j.math.regression.LinearRegression;
 import me.champeau.a4j.math.tuples.DoubleQuadruplet;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.function.DoubleUnaryOperator;
+import java.util.stream.IntStream;
 
 public class SpectrumFrameAnalyzer {
     public static final int MAX_DEVIATION = 8;
@@ -149,21 +152,26 @@ public class SpectrumFrameAnalyzer {
                 samplePoints.add(new Point2D(x, y));
             }
         }
-        var maxDiff = Math.max(4, 8 * removeOutliersByStdDev(samplePoints, 2));
+        removeOutliersByStdDev(samplePoints, 2);
 
         if (samplePoints.size() > 2) {
             var polynomial = LinearRegression.secondOrderRegression(samplePoints.toArray(new Point2D[0])).asPolynomial();
+            var minY = IntStream.range(l, r).mapToDouble(polynomial::applyAsDouble).min().orElse(0);
+            var maxY = IntStream.range(l, r).mapToDouble(polynomial::applyAsDouble).max().orElse(0);
+            var range = Math.max(16, 2 * (1 + maxY - minY));
             // In the 2d pass we consider all points but only keep those which are close enough to the first polynomial
-            samplePoints.clear();
+            var sampleToValue = new HashMap<Point2D, Float>();
             for (int x = l; x < r; x += step) {
                 var y = findYAtMinimalValue(data, x);
                 if (y >= 0) {
                     var yy = polynomial.applyAsDouble(x);
-                    if (Math.abs(yy - y) < maxDiff) {
-                        samplePoints.add(new Point2D(x, y));
+                    if (Math.abs(yy - y) <= range) {
+                        sampleToValue.put(new Point2D(x, y), data[y * width + x]);
                     }
                 }
             }
+            samplePoints = keepDarkestSamples(sampleToValue);
+            samplePoints = filterByMinMaxY(samplePoints);
             removeOutliersByStdDev(samplePoints, 3);
             var regression = LinearRegression.thirdOrderRegression(samplePoints.toArray(new Point2D[0]));
             return new Result(leftBorder, rightBorder, regression, samplePoints);
@@ -184,13 +192,43 @@ public class SpectrumFrameAnalyzer {
         return new Result(leftBorder, rightBorder, null, samplePoints);
     }
 
-    private static double removeOutliersByStdDev(ArrayList<Point2D> samplePoints, double factor) {
+    private static ArrayList<Point2D> keepDarkestSamples(Map<Point2D, Float> sampleToValue) {
+        long limit = (long) (sampleToValue.size() * 0.8);
+        return sampleToValue.entrySet().stream()
+            .sorted((e1, e2) -> Float.compare(e1.getValue(), e2.getValue()))
+            .limit(limit)
+            .map(Map.Entry::getKey)
+            .collect(ArrayList::new, ArrayList::add, ArrayList::addAll);
+    }
+
+    private static ArrayList<Point2D> filterByMinMaxY(ArrayList<Point2D> samplePoints) {
+        var minY = samplePoints.stream().mapToDouble(Point2D::y).min().orElse(0);
+        var maxY = samplePoints.stream().mapToDouble(Point2D::y).max().orElse(0);
+        // compute 2 groups, based on whether a point is closer to the min or max
+        var minGroup = new ArrayList<Point2D>();
+        var maxGroup = new ArrayList<Point2D>();
+        for (var point : samplePoints) {
+            if (Math.abs(point.y() - minY) < Math.abs(point.y() - maxY)) {
+                minGroup.add(point);
+            } else {
+                maxGroup.add(point);
+            }
+        }
+        // keep only the group with the maximum number of points
+        var minSize = minGroup.size();
+        var maxSize = maxGroup.size();
+        if (minSize > 3 * maxSize / 2 || maxSize > 3 * minSize / 2) {
+            return minSize > maxSize ? minGroup : maxGroup;
+        }
+        return samplePoints;
+    }
+
+    private static void removeOutliersByStdDev(ArrayList<Point2D> samplePoints, double factor) {
         // compute average y value and stddev
         var avgY = samplePoints.stream().mapToDouble(Point2D::y).average().orElse(0);
         var stddev = Math.sqrt(samplePoints.stream().mapToDouble(p -> Math.pow(p.y() - avgY, 2)).sum() / samplePoints.size());
         // remove samples which are 2*sigma away from the average
         samplePoints.removeIf(p -> Math.abs(p.y() - avgY) > factor * stddev);
-        return stddev;
     }
 
     public static class Result {
