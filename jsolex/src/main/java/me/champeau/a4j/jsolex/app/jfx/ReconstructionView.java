@@ -28,6 +28,8 @@ import javafx.scene.layout.Region;
 import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
 
+import java.util.concurrent.Semaphore;
+
 import static me.champeau.a4j.jsolex.app.JSolEx.message;
 
 public class ReconstructionView extends BorderPane implements WithRootNode {
@@ -35,6 +37,7 @@ public class ReconstructionView extends BorderPane implements WithRootNode {
     private final ZoomableImageView solarView;
     private final Canvas spectrumViewOverlay;
     private final Canvas solarViewOverlay;
+    private final Semaphore lock = new Semaphore(1);
 
     private final byte[] solarImageData;
 
@@ -78,6 +81,10 @@ public class ReconstructionView extends BorderPane implements WithRootNode {
         box.getChildren().addAll(help, spectrumViewStack);
         setTop(box);
         setCenter(solarViewStack);
+    }
+
+    public Semaphore getLock() {
+        return lock;
     }
 
     public byte[] getSolarImageData() {
