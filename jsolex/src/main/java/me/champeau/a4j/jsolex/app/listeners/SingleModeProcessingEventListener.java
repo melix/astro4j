@@ -15,6 +15,7 @@
  */
 package me.champeau.a4j.jsolex.app.listeners;
 
+import javafx.application.Platform;
 import javafx.embed.swing.SwingFXUtils;
 import javafx.scene.Parent;
 import javafx.scene.Scene;
@@ -52,6 +53,7 @@ import me.champeau.a4j.jsolex.app.jfx.I18N;
 import me.champeau.a4j.jsolex.app.jfx.ImageViewer;
 import me.champeau.a4j.jsolex.app.jfx.ReconstructionView;
 import me.champeau.a4j.jsolex.app.jfx.RectangleSelectionListener;
+import me.champeau.a4j.jsolex.app.jfx.ZoomableImageView;
 import me.champeau.a4j.jsolex.app.script.JSolExScriptExecutor;
 import me.champeau.a4j.jsolex.processing.event.AverageImageComputedEvent;
 import me.champeau.a4j.jsolex.processing.event.FileGeneratedEvent;
@@ -207,19 +209,21 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
     }
 
     private ReconstructionView createImageView(double pixelShift) {
+        var buffer = new byte[3 * width * height];
         var reconstructionView = blockingUntilResultAvailable(() -> owner.getImagesViewer().addImage(this,
             message("image.reconstruction"), baseName,
             GeneratedImageKind.RECONSTRUCTION, null, null, params, popupViews, new PixelShift(pixelShift),
             viewer -> {
                 var parentWidth = owner.getImagesViewer().widthProperty();
                 viewer.getImageView().getScrollPane().maxWidthProperty().bind(parentWidth);
-                return new ReconstructionView(viewer.getImageView(), new byte[3 * width * height], parentWidth);
+                return new ReconstructionView(viewer.getImageView(), buffer, parentWidth);
             },
             viewer -> {
 
             }));
         var imageView = reconstructionView.getSolarView();
-        imageView.setImage(new WritableImage(width, height));
+        var image = new WritableImage(width, height);
+        imageView.setImage(image);
         imageView.resetZoom();
         return reconstructionView;
     }
@@ -233,45 +237,34 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
             var reconstructionView = getOrCreateImageView(event);
             var imageView = reconstructionView.getSolarView();
             imageView.resetZoom();
-            BackgroundOperations.async(() -> {
-                WritableImage image = (WritableImage) imageView.getImage();
-                double[] line = payload.data();
-                byte[] rgb = reconstructionView.getSolarImageData();
-                for (int x = 0; x < line.length; x++) {
-                    int v = (int) Math.round(line[x]);
-                    byte c = (byte) (v >> 8);
-                    var offset = 3 * (y * width + x);
-                    rgb[offset] = c;
-                    rgb[offset + 1] = c;
-                    rgb[offset + 2] = c;
-                }
-                var spectrum = payload.spectrum();
-                var pixelformat = PixelFormat.getByteRgbInstance();
-                var spectrumView = reconstructionView.getSpectrumView();
-                if (spectrumView.getImage() == null) {
-                    spectrumView.setImage(new WritableImage(spectrum.width(), spectrum.height()));
-                }
-                var spectrumImage = (WritableImage) spectrumView.getImage();
-                new WritableImage(spectrum.width(), spectrum.height());
-                var spectrumBuffer = convertSpectrumImage(spectrum);
-                var selectedViewer = owner.getImagesViewer().getSelectedViewer();
-                if (selectedViewer != null && selectedViewer.getImageView() == reconstructionView.getSolarView()) {
-                    BatchOperations.submit(() -> {
-                        image.getPixelWriter().setPixels(0, y, line.length, 1, pixelformat, rgb, 3 * y * line.length, 3 * line.length);
-                        if ((y % 4) == 0) {
-                            var pixelWriter = spectrumImage.getPixelWriter();
-                            pixelWriter.setPixels(0, 0, spectrum.width(), spectrum.height(), pixelformat, spectrumBuffer, 0, 3 * spectrum.width());
-                        }
-                    });
-                } else {
-                    owner.getImagesViewer().registerOnShowHook(reconstructionView, () -> {
-                        image.getPixelWriter().setPixels(0, 0, line.length, spectrum.width(), pixelformat, rgb, 0, 3 * line.length);
-                        var pixelWriter = spectrumImage.getPixelWriter();
-                        pixelWriter.setPixels(0, 0, spectrum.width(), spectrum.height(), pixelformat, spectrumBuffer, 0, 3 * spectrum.width());
-                        reconstructionView.getSolarView().resetZoom();
-                    });
-                }
-            });
+            WritableImage image = (WritableImage) imageView.getImage();
+            double[] line = payload.data();
+            byte[] rgb = reconstructionView.getSolarImageData();
+            for (int x = 0; x < line.length; x++) {
+                int v = (int) Math.round(line[x]);
+                byte c = (byte) (v >> 8);
+                var offset = 3 * (y * width + x);
+                rgb[offset] = c;
+                rgb[offset + 1] = c;
+                rgb[offset + 2] = c;
+            }
+            var spectrum = payload.spectrum();
+            var pixelformat = PixelFormat.getByteRgbInstance();
+            var spectrumView = reconstructionView.getSpectrumView();
+            if (spectrumView.getImage() == null) {
+                spectrumView.setImage(new WritableImage(spectrum.width(), spectrum.height()));
+            }
+            var spectrumImage = (WritableImage) spectrumView.getImage();
+            var spectrumBuffer = convertSpectrumImage(spectrum);
+            var lock = reconstructionView.getLock();
+            if (lock.tryAcquire()) {
+                Platform.runLater(() -> {
+                    image.getPixelWriter().setPixels(0, 0, width, height, pixelformat, rgb, 0, 3 * width);
+                    var pixelWriter = spectrumImage.getPixelWriter();
+                    pixelWriter.setPixels(0, 0, spectrum.width(), spectrum.height(), pixelformat, spectrumBuffer, 0, 3 * spectrum.width());
+                    lock.release();
+                });
+            }
         } else {
             onProgress(ProgressEvent.of((y + 1d) / height, message("reconstructing")));
         }
@@ -288,6 +281,7 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
             var view = entry.getValue();
             var solarViewOverlay = view.getSolarViewOverlay();
             var solarView = view.getSolarView();
+            stretchReconstructionView(solarView);
             solarView.setOnMouseClicked(evt -> {
                 var gso = solarViewOverlay.getGraphicsContext2D();
                 var spectrumViewOverlay = view.getSpectrumViewOverlay();
@@ -335,16 +329,51 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
         });
     }
 
+    private void stretchReconstructionView(ZoomableImageView solarView) {
+        Platform.runLater(() -> {
+            WritableImage image = (WritableImage) solarView.getImage();
+            var pixelReader = image.getPixelReader();
+
+            // iterate over all pixels to find max value
+            double max = 0;
+            for (int y = 0; y < height; y++) {
+                for (int x = 0; x < width; x++) {
+                    var v = pixelReader.getArgb(x, y) & 0xFF;
+                    if (v > max) {
+                        max = v;
+                    }
+                }
+            }
+
+            // stretch colors
+            for (int y = 0; y < height; y++) {
+                for (int x = 0; x < width; x++) {
+                    var v = pixelReader.getArgb(x, y) & 0xFF;
+                    v = (int) (255 * v / max);
+                    image.getPixelWriter().setArgb(x, y, 0xFF000000 | (v << 16) | (v << 8) | v);
+                }
+            }
+        });
+    }
+
     private static byte[] convertSpectrumImage(Image spectrum) {
         var spectrumBuffer = new byte[3 * spectrum.width() * spectrum.height()];
-
+        int max = 0;
         for (int yy = 0; yy < spectrum.height(); yy++) {
             for (int xx = 0; xx < spectrum.width(); xx++) {
                 int v = (int) (255 * spectrum.data()[yy * spectrum.width() + xx] / Constants.MAX_PIXEL_VALUE);
+                max = Math.max(max, v);
+            }
+        }
+        // stretching
+        for (int yy = 0; yy < spectrum.height(); yy++) {
+            for (int xx = 0; xx < spectrum.width(); xx++) {
                 var offset = 3 * (yy * spectrum.width() + xx);
-                spectrumBuffer[offset] = (byte) v;
-                spectrumBuffer[offset + 1] = (byte) v;
-                spectrumBuffer[offset + 2] = (byte) v;
+                double v = 255 * spectrum.data()[yy * spectrum.width() + xx] / Constants.MAX_PIXEL_VALUE;
+                byte s = (byte) (255 * v / max);
+                spectrumBuffer[offset] = s;
+                spectrumBuffer[offset + 1] = s;
+                spectrumBuffer[offset + 2] = s;
             }
         }
         return spectrumBuffer;

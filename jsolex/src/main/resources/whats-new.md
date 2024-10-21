@@ -3,6 +3,7 @@
 ## Changes in 2.7.3
 
 - Fix polynomial detection when multiple dark lines are found in crop window
+- Strech colors of reconstruction view when reconstruction is done
 
 ## Changes in 2.7.2
 

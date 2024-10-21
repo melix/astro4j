@@ -3,6 +3,7 @@
 ## Nouveautés de la version 2.7.3
 
 - Correction d'un bug de détection du polynôme lorsqu'il y a plusieurs lignes sombres dans la fenêtre de capture
+- Étirement des couleurs de la vue reconstruction lorsque la reconstruction est terminée
 
 ## Nouveautés de la version 2.7.2
 

@@ -150,7 +150,7 @@ public class MultipleImagesViewer extends Pane {
             categories().forEach(CategoryPane::clearSelection);
             BatchOperations.submit(() -> {
                 borderPane.setCenter(transformed.getRoot());
-                var hook = onShowHooks.remove(transformed);
+                var hook = onShowHooks.get(transformed);
                 if (hook != null) {
                     hook.run();
                 }
