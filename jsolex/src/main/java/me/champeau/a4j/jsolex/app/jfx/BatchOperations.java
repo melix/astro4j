@@ -54,16 +54,6 @@ public final class BatchOperations {
         }
     }
 
-    public static void submit(Runnable action) {
-        LOCK.lock();
-        try {
-            ACTIONS.add(action);
-            CONDITION.signalAll();
-        } finally {
-            LOCK.unlock();
-        }
-    }
-
     public static <T> T blockingUntilResultAvailable(Supplier<T> supplier) {
         var ref = new AtomicReference<T>();
         var latch = new java.util.concurrent.CountDownLatch(1);

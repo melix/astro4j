@@ -16,6 +16,7 @@
 package me.champeau.a4j.jsolex.app.jfx;
 
 import javafx.animation.PauseTransition;
+import javafx.application.Platform;
 import javafx.beans.property.DoubleProperty;
 import javafx.beans.property.IntegerProperty;
 import javafx.beans.property.ListProperty;
@@ -205,7 +206,7 @@ public class ImageViewer implements WithRootNode {
         files.stream()
             .findFirst()
             .ifPresent(file -> imageView.setImagePathForOpeningInExplorer(file.toPath()));
-        BatchOperations.submit(() -> {
+        Platform.runLater(() -> {
             saveButton.setDisable(true);
             imageView.fileSaved();
         });
@@ -337,7 +338,7 @@ public class ImageViewer implements WithRootNode {
                     }
                 }
             });
-            BatchOperations.submit(() -> {
+            Platform.runLater(() -> {
                 alignButton.setTooltip(new Tooltip(message("align.images")));
                 var titleBox = new HBox(alignButton, titleLabel, new Label("(" + imageFile.getName() + ")"));
                 titleBox.setSpacing(4);
@@ -445,12 +446,12 @@ public class ImageViewer implements WithRootNode {
         if (displayImage instanceof ImageWrapper32 mono) {
             stretchedImage = stretch(mono);
             var savedImages = ImageUtils.writeMonoImage(mono.width(), mono.height(), ((ImageWrapper32) stretchedImage).data(), tmpImage, imageFormats);
-            BatchOperations.submit(() -> updateDisplay(savedImages, resetZoom));
+            Platform.runLater(() -> updateDisplay(savedImages, resetZoom));
         } else if (displayImage instanceof RGBImage rgb) {
             stretchedImage = stretch(rgb);
             var stretched = (RGBImage) stretchedImage;
             var savedImages = ImageUtils.writeRgbImage(rgb.width(), rgb.height(), stretched.r(), stretched.g(), stretched.b(), tmpImage, imageFormats);
-            BatchOperations.submit(() -> updateDisplay(savedImages, resetZoom));
+            Platform.runLater(() -> updateDisplay(savedImages, resetZoom));
         }
     }
 
@@ -508,7 +509,7 @@ public class ImageViewer implements WithRootNode {
         this.processParams = currentState.processParams;
         this.image = currentState.image;
         this.imageFile = currentState.imageFile;
-        BatchOperations.submit(() -> {
+        Platform.runLater(() -> {
             updateTitle();
             imageView.setImage(new Image(imageFile.toURI().toString()));
             imageView.setSolarDisk(image.findMetadata(Ellipse.class).orElse(null));

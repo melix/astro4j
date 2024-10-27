@@ -16,6 +16,7 @@
 package me.champeau.a4j.jsolex.app.jfx;
 
 import javafx.animation.PauseTransition;
+import javafx.application.Platform;
 import javafx.beans.binding.Bindings;
 import javafx.beans.binding.BooleanBinding;
 import javafx.beans.property.BooleanProperty;
@@ -356,7 +357,7 @@ public class ZoomableImageView extends HBox {
             var vvalue = other.scrollPane.getVvalue();
             BackgroundOperations.async(() -> {
                 while (scrollPane.getHvalue() != hvalue || scrollPane.getVvalue() != vvalue) {
-                    BatchOperations.submit(() -> {
+                    Platform.runLater(() -> {
                         scrollPane.setHvalue(hvalue);
                         scrollPane.setVvalue(vvalue);
                     });

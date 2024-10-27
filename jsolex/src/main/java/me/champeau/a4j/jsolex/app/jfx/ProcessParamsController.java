@@ -16,6 +16,7 @@
 package me.champeau.a4j.jsolex.app.jfx;
 
 import javafx.application.HostServices;
+import javafx.application.Platform;
 import javafx.collections.FXCollections;
 import javafx.fxml.FXML;
 import javafx.scene.Parent;
@@ -527,7 +528,7 @@ public class ProcessParamsController {
     @FXML
     public void openInstrumentEditor() {
         SpectroHeliographEditor.openEditor(stage, editor ->
-            BatchOperations.submit(() ->
+            Platform.runLater(() ->
                 editor.getSelected().ifPresent(s -> {
                     instrument.getItems().setAll(editor.getItems());
                     instrument.getSelectionModel().select(s);
@@ -546,7 +547,7 @@ public class ProcessParamsController {
     @FXML
     public void openSetupEditor() {
         SetupEditor.openEditor(stage, editor ->
-            BatchOperations.submit(() ->
+            Platform.runLater(() ->
                 editor.getSelected().ifPresent(s -> {
                     telescope.setText(nullable(s.telescope(), String::valueOf));
                     focalLength.setText(nullable(s.focalLength(), String::valueOf));

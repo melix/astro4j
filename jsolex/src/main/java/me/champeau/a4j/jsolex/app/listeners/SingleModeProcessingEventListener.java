@@ -255,12 +255,12 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
                 spectrumView.setImage(new WritableImage(spectrum.width(), spectrum.height()));
             }
             var spectrumImage = (WritableImage) spectrumView.getImage();
-            var spectrumBuffer = convertSpectrumImage(spectrum);
             var lock = reconstructionView.getLock();
             if (lock.tryAcquire()) {
                 Platform.runLater(() -> {
                     image.getPixelWriter().setPixels(0, 0, width, height, pixelformat, rgb, 0, 3 * width);
                     var pixelWriter = spectrumImage.getPixelWriter();
+                    var spectrumBuffer = convertSpectrumImage(spectrum);
                     pixelWriter.setPixels(0, 0, spectrum.width(), spectrum.height(), pixelformat, spectrumBuffer, 0, 3 * spectrum.width());
                     lock.release();
                 });
@@ -317,7 +317,7 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
                     var buffer = converter.createBuffer(geometry);
                     converter.convert((int) frameNb, currentFrame, geometry, buffer);
                     var imageBytes = convertSpectrumImage(new Image(geometry.width(), geometry.height(), buffer));
-                    BatchOperations.submit(() -> {
+                    Platform.runLater(() -> {
                         var pixelWriter = ((WritableImage) view.getSpectrumView().getImage()).getPixelWriter();
                         pixelWriter.setPixels(0, 0, geometry.width(), geometry.height(), pixelformat, imageBytes, 0, 3 * geometry.width());
                     });
@@ -385,7 +385,7 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
 
     @Override
     public void onImageGenerated(ImageGeneratedEvent event) {
-        BatchOperations.submit(() -> {
+        Platform.runLater(() -> {
             var payload = event.getPayload();
             var title = payload.title();
             var generatedImageKind = payload.kind();
@@ -462,7 +462,7 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
                         polynomial,
                         averageImage
                     );
-                    BatchOperations.submit(() -> {
+                    Platform.runLater(() -> {
                         var fxmlLoader = I18N.fxmlLoader(JSolEx.class, "custom-anim-panel");
                         Parent node;
                         try {
@@ -586,7 +586,7 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
     public void onFileGenerated(FileGeneratedEvent event) {
         var filePath = event.getPayload().path();
         if (filePath.toFile().getName().endsWith(".mp4")) {
-            BatchOperations.submit(() -> owner.getImagesViewer().addVideo(event.getPayload().kind(), event.getPayload().title(), filePath));
+            Platform.runLater(() -> owner.getImagesViewer().addVideo(event.getPayload().kind(), event.getPayload().title(), filePath));
         }
     }
 
@@ -599,7 +599,7 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
             // so let's not overwhelm the user
             return;
         }
-        BatchOperations.submit(() -> {
+        Platform.runLater(() -> {
             var alert = new Alert(Alert.AlertType.valueOf(e.type().name()));
             alert.setResizable(true);
             alert.getDialogPane().setPrefSize(480, 320);
@@ -665,7 +665,7 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
         LOGGER.info(finishedString);
         owner.prepareForScriptExecution(this, params);
         suggestions.clear();
-        BatchOperations.submit(() -> {
+        Platform.runLater(() -> {
             owner.updateProgress(1.0, finishedString);
             System.gc();
         });
@@ -931,7 +931,7 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
             }
             return lineChart;
         };
-        BatchOperations.submit(() -> profileTab.setContent(profileGraphFactory.get()));
+        Platform.runLater(() -> profileTab.setContent(profileGraphFactory.get()));
     }
 
     private void addDataPointToSeries(SpectrumAnalyzer.DataPoint dataPoint, XYChart.Series<String, Number> series) {
@@ -1013,7 +1013,7 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
         menu.getItems().add(saveToFile);
         chart.setOnContextMenuRequested(menuEvent -> menu.show(chart, menuEvent.getScreenX(), menuEvent.getScreenY()));
         var openInNewWindow = new MenuItem(message("open.in.new.window"));
-        openInNewWindow.setOnAction(evt -> BatchOperations.submit(() -> {
+        openInNewWindow.setOnAction(evt -> Platform.runLater(() -> {
             var newWindow = new Stage();
             newWindow.setTitle(message(message("profile")));
 

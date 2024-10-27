@@ -15,6 +15,7 @@
  */
 package me.champeau.a4j.jsolex.app.jfx;
 
+import javafx.application.Platform;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.geometry.Pos;
@@ -95,7 +96,7 @@ public class CategoryPane extends VBox {
         var close = createCloseLink(box, link, onClose);
         box.getChildren().add(close);
         getChildren().add(insertPoint, box);
-        BatchOperations.submit(() -> links.setAll(safeLinks));
+        Platform.runLater(() -> links.setAll(safeLinks));
         return link;
     }
 

@@ -15,10 +15,10 @@
  */
 package me.champeau.a4j.jsolex.app.jfx.ime;
 
+import javafx.application.Platform;
 import javafx.beans.value.ObservableValue;
 import javafx.concurrent.Task;
 import javafx.scene.layout.BorderPane;
-import me.champeau.a4j.jsolex.app.jfx.BatchOperations;
 import me.champeau.a4j.jsolex.expr.ExpressionParser;
 import me.champeau.a4j.jsolex.expr.Token;
 import me.champeau.a4j.jsolex.expr.TokenType;
@@ -77,7 +77,7 @@ public class ImageMathTextArea extends BorderPane {
     }
 
     public void setText(String text) {
-        BatchOperations.submit(() -> {
+        Platform.runLater(() -> {
             codeArea.replaceText(text);
             codeArea.moveTo(0);
             codeArea.showParagraphAtTop(0);

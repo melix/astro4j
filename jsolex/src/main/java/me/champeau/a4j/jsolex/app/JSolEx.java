@@ -20,6 +20,7 @@ import javafx.animation.KeyFrame;
 import javafx.animation.PauseTransition;
 import javafx.animation.Timeline;
 import javafx.application.Application;
+import javafx.application.Platform;
 import javafx.beans.binding.Bindings;
 import javafx.beans.binding.BooleanBinding;
 import javafx.beans.property.SimpleDoubleProperty;
@@ -68,7 +69,6 @@ import javafx.util.converter.IntegerStringConverter;
 import me.champeau.a4j.jsolex.app.jfx.AdvancedParamsController;
 import me.champeau.a4j.jsolex.app.jfx.ApplyUserRotation;
 import me.champeau.a4j.jsolex.app.jfx.BatchItem;
-import me.champeau.a4j.jsolex.app.jfx.BatchOperations;
 import me.champeau.a4j.jsolex.app.jfx.DocsHelper;
 import me.champeau.a4j.jsolex.app.jfx.ExplorerSupport;
 import me.champeau.a4j.jsolex.app.jfx.ExposureCalculator;
@@ -379,7 +379,7 @@ public class JSolEx extends Application implements JSolExInterface {
             }
         }));
         pixelShiftMargin.setText("2");
-        BatchOperations.submit(() -> redshiftCreatorKind.getSelectionModel().select(RedshiftImagesProcessor.RedshiftCreatorKind.ANIMATION));
+        Platform.runLater(() -> redshiftCreatorKind.getSelectionModel().select(RedshiftImagesProcessor.RedshiftCreatorKind.ANIMATION));
     }
 
     private void maybeShowWelcomeMessage(Scene current) throws IOException {
@@ -422,7 +422,7 @@ public class JSolEx extends Application implements JSolExInterface {
                         var currentSize = Files.size(child);
                         if (currentSize == oldSize) {
                             newFiles.remove(child);
-                            BatchOperations.submit(() -> {
+                            Platform.runLater(() -> {
                                 LOGGER.info(message("no.change.on.file"), child.getFileName());
                                 doOpen(child.toFile(), true);
                             });
@@ -480,7 +480,7 @@ public class JSolEx extends Application implements JSolExInterface {
         var currentVersion = toVersionLong(VersionUtil.getVersion());
         var latestRelease = toVersionLong(release.version());
         if (latestRelease > currentVersion) {
-            BatchOperations.submit(() -> {
+            Platform.runLater(() -> {
                 var alert = AlertFactory.info();
                 alert.setTitle(message("new.release.available"));
                 alert.setHeaderText("JSol'Ex " + release.version() + " " + message("has.been.released"));
@@ -568,7 +568,7 @@ public class JSolEx extends Application implements JSolExInterface {
         imageMathRun.setOnAction(evt -> {
             var text = imageMathScript.getText();
             if (clearImagesCheckbox.isSelected()) {
-                BatchOperations.submit(this::newSession);
+                Platform.runLater(this::newSession);
             }
             BackgroundOperations.async(() -> executor.execute(text, ImageMathScriptExecutor.SectionKind.SINGLE));
         });
@@ -613,7 +613,7 @@ public class JSolEx extends Application implements JSolExInterface {
         if (file != null) {
             config.rememberDirectoryFor(file.toPath(), Configuration.DirectoryKind.IMAGE_MATH);
             var script = String.join(System.lineSeparator(), FilesUtils.readAllLines(file.toPath()));
-            BatchOperations.submit(() -> {
+            Platform.runLater(() -> {
                 imageMathScript.setText(script);
                 imageMathSave.setDisable(true);
             });
@@ -655,7 +655,7 @@ public class JSolEx extends Application implements JSolExInterface {
                     reusedProcessParamsBinding.invalidate();
                     watchService.close();
                     if (interruptWatchButton != null) {
-                        BatchOperations.submit(() -> workButtons.getChildren().remove(interruptWatchButton));
+                        Platform.runLater(() -> workButtons.getChildren().remove(interruptWatchButton));
                         interruptWatchButton = null;
                     }
                 }
@@ -673,7 +673,7 @@ public class JSolEx extends Application implements JSolExInterface {
                     } catch (IOException ex) {
                         // ignore
                     }
-                    BatchOperations.submit(() -> {
+                    Platform.runLater(() -> {
                         workButtons.getChildren().remove(interruptWatchButton);
                         workButtons.getChildren().remove(interruptClearParamsButton);
                     });
@@ -681,7 +681,7 @@ public class JSolEx extends Application implements JSolExInterface {
                 });
                 interruptClearParamsButton = addInterruptClearParamsButton();
 
-                BatchOperations.submit(() -> workButtons.getChildren().add(interruptWatchButton));
+                Platform.runLater(() -> workButtons.getChildren().add(interruptWatchButton));
             } catch (IOException e) {
                 LOGGER.error("Cannot create watch service", e);
             }
@@ -695,7 +695,7 @@ public class JSolEx extends Application implements JSolExInterface {
             reusedProcessParamsBinding.invalidate();
         });
         interruptClearParamsButton.disableProperty().bind(reusedProcessParamsBinding);
-        BatchOperations.submit(() -> workButtons.getChildren().add(interruptClearParamsButton));
+        Platform.runLater(() -> workButtons.getChildren().add(interruptClearParamsButton));
         return interruptClearParamsButton;
     }
 
@@ -753,7 +753,7 @@ public class JSolEx extends Application implements JSolExInterface {
         ImageMathEditor.create(stage, params.requestedImages().mathImages(), getHostServices(), true, true, e -> {
         }, e -> {
             stage.close();
-            BatchOperations.submit(this::newSession);
+            Platform.runLater(this::newSession);
             e.getConfiguration().ifPresent(scripts -> BackgroundOperations.async(() -> executeStandaloneScripts(params.withRequestedImages(params.requestedImages().withMathImages(scripts)))));
         });
     }
@@ -908,7 +908,7 @@ public class JSolEx extends Application implements JSolExInterface {
         imageMathPane.setDisable(true);
         config.loadedSerFile(selectedFile.toPath());
         configureThreadExceptionHandler();
-        BatchOperations.submit(this::refreshRecentItemsMenu);
+        Platform.runLater(this::refreshRecentItemsMenu);
         Optional<ProcessParams> processParams;
         Header header;
         try (var reader = SerFileReader.of(selectedFile)) {
@@ -937,9 +937,9 @@ public class JSolEx extends Application implements JSolExInterface {
         console.clear();
         var interruptButton = addInterruptButton();
         var processingThread =
-            new Thread(() -> processSingleFile(params, selectedFile, false, 0, selectedFile, firstHeader, () -> BatchOperations.submit(() -> workButtons.getChildren().remove(interruptButton))));
+            new Thread(() -> processSingleFile(params, selectedFile, false, 0, selectedFile, firstHeader, () -> Platform.runLater(() -> workButtons.getChildren().remove(interruptButton))));
         interruptButton.setOnAction(e -> {
-            BatchOperations.submit(() -> {
+            Platform.runLater(() -> {
                 updateProgress(0, message("interrupted"));
                 workButtons.getChildren().remove(interruptButton);
             });
@@ -963,7 +963,7 @@ public class JSolEx extends Application implements JSolExInterface {
             .orElse(0);
         var power = highestPowerOfTwoGreaterOrEqualTo(processor.getSunRadius().map(r -> r / 10d).orElse(maxSize));
         int boxSize = (int) Math.pow(2, power);
-        BatchOperations.submit(() -> {
+        Platform.runLater(() -> {
             redshiftTab.setDisable(redshifts.isEmpty());
             fullRangePanels.disableProperty().bind(redshiftCreatorKind.valueProperty().isEqualTo(RedshiftImagesProcessor.RedshiftCreatorKind.ANIMATION));
             fullRangePanelsLabel.disableProperty().bind(redshiftCreatorKind.valueProperty().isEqualTo(RedshiftImagesProcessor.RedshiftCreatorKind.ANIMATION));
@@ -1016,7 +1016,7 @@ public class JSolEx extends Application implements JSolExInterface {
                 }
                 if (kind != null && size != null) {
                     BackgroundOperations.async(() -> {
-                        BatchOperations.submit(() -> rightTabs.getSelectionModel().select(logsTab));
+                        Platform.runLater(() -> rightTabs.getSelectionModel().select(logsTab));
                         processor.withRedshifts(selectedShifts.stream().toList()).produceImages(kind, size, margin, useFullRangePanels, annotate);
                     });
                 }
@@ -1039,7 +1039,7 @@ public class JSolEx extends Application implements JSolExInterface {
             button.setDisable(true);
             BackgroundOperations.async(() -> {
                 var optionalURL = GONG.fetchGongImage(processParams.observationDetails().date());
-                BatchOperations.submit(() -> {
+                Platform.runLater(() -> {
                     date.setText(message("file.date") + " " + processParams.observationDetails().date().format(GONG.FORMATTER));
                     optionalURL.ifPresentOrElse(
                         url -> {
@@ -1078,7 +1078,7 @@ public class JSolEx extends Application implements JSolExInterface {
                 });
             });
         });
-        BatchOperations.submit(() -> {
+        Platform.runLater(() -> {
             vbox.getChildren().addAll(button, date, imageView);
             var scrollPane = new ScrollPane(vbox);
             scrollPane.setFitToWidth(true);
@@ -1275,14 +1275,14 @@ public class JSolEx extends Application implements JSolExInterface {
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
             } finally {
-                BatchOperations.submit(() -> workButtons.getChildren().remove(interruptButton));
+                Platform.runLater(() -> workButtons.getChildren().remove(interruptButton));
             }
         }).start();
     }
 
     private Button addInterruptButton() {
         var interruptButton = new Button(message("interrupt"));
-        BatchOperations.submit(() -> workButtons.getChildren().add(interruptButton));
+        Platform.runLater(() -> workButtons.getChildren().add(interruptButton));
         return interruptButton;
     }
 
