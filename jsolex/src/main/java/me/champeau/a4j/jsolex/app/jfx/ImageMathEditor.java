@@ -160,6 +160,7 @@ public class ImageMathEditor {
         if (!items.isEmpty()) {
             scriptsToApply.getSelectionModel().selectFirst();
         }
+        scriptTextArea.minHeightProperty().bind(stage.heightProperty().subtract(200));
     }
 
     private void loadPredefinedScripts() {

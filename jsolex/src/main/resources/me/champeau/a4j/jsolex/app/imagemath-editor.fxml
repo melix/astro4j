@@ -19,36 +19,34 @@
             xmlns:fx="http://javafx.com/fxml/1" fx:controller="me.champeau.a4j.jsolex.app.jfx.ImageMathEditor">
     <center>
         <VBox>
-            <children>
-                <Label text="%script.text">
-                    <VBox.margin>
-                        <Insets top="4.0"/>
-                    </VBox.margin>
+            <Label text="%script.text">
+                <VBox.margin>
+                    <Insets top="4.0"/>
+                </VBox.margin>
+                <padding>
+                    <Insets left="8.0"/>
+                </padding>
+            </Label>
+            <Hyperlink fx:id="docsLink" text="%open.documentation" onAction="#openDocs"/>
+            <ImageMathTextArea fx:id="scriptTextArea" maxHeight="250.0" prefHeight="250.0" prefWidth="592.0" BorderPane.alignment="CENTER">
+                <VBox.margin>
+                    <Insets left="4" right="8" bottom="4" top="4"/>
+                </VBox.margin>
+            </ImageMathTextArea>
+            <HBox BorderPane.alignment="CENTER" alignment="CENTER_LEFT" spacing="4.0">
+                <Label text="%predefined.scripts"/>
+                <ChoiceBox fx:id="predefinedScripts"/>
+                <ButtonBar BorderPane.alignment="CENTER">
+                    <buttons>
+                        <Button mnemonicParsing="false" onAction="#newScript" prefHeight="24.0" prefWidth="86.0" text="%new"/>
+                        <Button mnemonicParsing="false" onAction="#loadScript" prefHeight="24.0" prefWidth="86.0" text="%load"/>
+                        <Button fx:id="saveButton" mnemonicParsing="false" onAction="#saveScript" prefHeight="24.0" prefWidth="86.0" text="%save"/>
+                    </buttons>
                     <padding>
-                        <Insets left="8.0"/>
+                        <Insets right="4.0" top="4.0"/>
                     </padding>
-                </Label>
-                <Hyperlink fx:id="docsLink" text="%open.documentation" onAction="#openDocs"/>
-                <ImageMathTextArea fx:id="scriptTextArea" maxHeight="250.0" prefHeight="250.0" prefWidth="592.0" BorderPane.alignment="CENTER">
-                    <VBox.margin>
-                        <Insets left="4" right="8" bottom="4" top="4"/>
-                    </VBox.margin>
-                </ImageMathTextArea>
-                <HBox BorderPane.alignment="CENTER" alignment="CENTER_LEFT" spacing="4.0">
-                    <Label text="%predefined.scripts"/>
-                    <ChoiceBox fx:id="predefinedScripts"/>
-                    <ButtonBar BorderPane.alignment="CENTER">
-                        <buttons>
-                            <Button mnemonicParsing="false" onAction="#newScript" prefHeight="24.0" prefWidth="86.0" text="%new"/>
-                            <Button mnemonicParsing="false" onAction="#loadScript" prefHeight="24.0" prefWidth="86.0" text="%load"/>
-                            <Button fx:id="saveButton" mnemonicParsing="false" onAction="#saveScript" prefHeight="24.0" prefWidth="86.0" text="%save"/>
-                        </buttons>
-                        <padding>
-                            <Insets right="4.0" top="4.0"/>
-                        </padding>
-                    </ButtonBar>
-                </HBox>
-            </children>
+                </ButtonBar>
+            </HBox>
         </VBox>
     </center>
     <bottom>
