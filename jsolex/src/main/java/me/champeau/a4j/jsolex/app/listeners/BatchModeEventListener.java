@@ -15,6 +15,7 @@
  */
 package me.champeau.a4j.jsolex.app.listeners;
 
+import javafx.application.Platform;
 import javafx.scene.control.ButtonType;
 import me.champeau.a4j.jsolex.app.AlertFactory;
 import me.champeau.a4j.jsolex.app.jfx.BatchItem;
@@ -185,7 +186,7 @@ public class BatchModeEventListener implements ProcessingEventListener, ImageMat
         if (completed.size() == totalItems && batchFinished.compareAndSet(false, true)) {
             var success = completed.size() - errors.size();
             if (success > 0 && !errors.isEmpty() && hasBatchScriptExpressions()) {
-                BatchOperations.submit(() -> {
+                Platform.runLater(() -> {
                     var alert = AlertFactory.warning(message("incomplete.batch.message"));
                     alert.setTitle(message("incomplete.batch"));
                     alert.getButtonTypes().clear();
@@ -194,16 +195,16 @@ public class BatchModeEventListener implements ProcessingEventListener, ImageMat
                         if (response == ButtonType.YES) {
                             executeBatchScriptExpressions();
                         } else {
-                            BatchOperations.submit(() -> owner.updateProgress(1, String.format(message("batch.finished"))));
+                            Platform.runLater(() -> owner.updateProgress(1, String.format(message("batch.finished"))));
                         }
                     });
                 });
             } else if (!errors.isEmpty()) {
-                BatchOperations.submit(() -> {
+                Platform.runLater(() -> {
                     var alert = AlertFactory.warning(message("incomplete.batch.error"));
                     alert.setTitle(message("incomplete.batch"));
                     alert.showAndWait();
-                    BatchOperations.submit(() -> owner.updateProgress(1, String.format(message("batch.finished"))));
+                    Platform.runLater(() -> owner.updateProgress(1, String.format(message("batch.finished"))));
                 });
             } else {
                 executeBatchScriptExpressions();
@@ -252,13 +253,13 @@ public class BatchModeEventListener implements ProcessingEventListener, ImageMat
                 executeBatchScript(namingStrategy, scriptFile);
             }
         } finally {
-            BatchOperations.submit(() -> owner.updateProgress(1, String.format(message("batch.finished"))));
+            Platform.runLater(() -> owner.updateProgress(1, String.format(message("batch.finished"))));
         }
     }
 
 
     private void executeBatchScript(FileNamingStrategy namingStrategy, File scriptFile) {
-        BatchOperations.submit(() -> {
+        Platform.runLater(() -> {
             owner.updateProgress(0, String.format(message("executing.script"), scriptFile));
         });
         ImageMathScriptResult result;
@@ -271,7 +272,7 @@ public class BatchModeEventListener implements ProcessingEventListener, ImageMat
             processScriptErrors(result);
             renderBatchOutputs(namingStrategy, result);
         } finally {
-            BatchOperations.submit(() -> owner.updateProgress(1, String.format(message("executing.script"), scriptFile)));
+            Platform.runLater(() -> owner.updateProgress(1, String.format(message("executing.script"), scriptFile)));
         }
     }
 

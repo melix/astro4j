@@ -23,7 +23,7 @@ import ch.qos.logback.core.Appender;
 import ch.qos.logback.core.AppenderBase;
 import ch.qos.logback.core.FileAppender;
 import ch.qos.logback.core.layout.EchoLayout;
-import me.champeau.a4j.jsolex.app.jfx.BatchOperations;
+import javafx.application.Platform;
 import org.fxmisc.richtext.LineNumberFactory;
 import org.fxmisc.richtext.StyleClassedTextArea;
 import org.slf4j.LoggerFactory;
@@ -62,7 +62,7 @@ class LogbackConfigurer {
         AppenderBase<ILoggingEvent> appender = new AppenderBase<>() {
             @Override
             protected void append(ILoggingEvent eventObject) {
-                BatchOperations.submit(() -> {
+                Platform.runLater(() -> {
                     var level = eventObject.getLevel();
                     var message = eventObject.getFormattedMessage() + System.lineSeparator();
                     int start = console.getLength();

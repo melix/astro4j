@@ -16,6 +16,7 @@
 package me.champeau.a4j.jsolex.app.jfx;
 
 import javafx.animation.PauseTransition;
+import javafx.application.Platform;
 import javafx.beans.value.ChangeListener;
 import javafx.fxml.FXML;
 import javafx.scene.Parent;
@@ -212,7 +213,7 @@ public class SpectralLineDebugger {
 
     private void prepareView(File file, ColorMode colorMode, Scene scene, Stage stage, ToggleGroup toggleGroup) {
         var converter = createImageConverter(colorMode);
-        BatchOperations.submit(() -> progressBox.setVisible(true));
+        Platform.runLater(() -> progressBox.setVisible(true));
         var detector = new AverageImageCreator(converter, event -> {
             if (event instanceof ProgressEvent progress) {
                 BatchOperations.submitOneOfAKind("progress", () -> progressBar.setProgress(progress.getPayload().progress()));
@@ -225,7 +226,7 @@ public class SpectralLineDebugger {
             var tmpPath = Files.createTempFile("debug_", ".png");
             File imageFile = tmpPath.toFile();
             imageFile.deleteOnExit();
-            BatchOperations.submit(() -> {
+            Platform.runLater(() -> {
                 status.setDisable(false);
                 progressBox.setVisible(false);
                 var header = reader.header();

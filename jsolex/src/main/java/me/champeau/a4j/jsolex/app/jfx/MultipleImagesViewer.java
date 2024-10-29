@@ -15,6 +15,7 @@
  */
 package me.champeau.a4j.jsolex.app.jfx;
 
+import javafx.application.Platform;
 import javafx.beans.binding.Bindings;
 import javafx.collections.ObservableList;
 import javafx.geometry.Pos;
@@ -93,7 +94,7 @@ public class MultipleImagesViewer extends Pane {
     }
 
     public void clear() {
-        BatchOperations.submit(() -> {
+        Platform.runLater(() -> {
             safeCategories.clear();
             categories.clear();
             borderPane.setCenter(null);
@@ -148,7 +149,7 @@ public class MultipleImagesViewer extends Pane {
         );
         var hyperlink = category.addImage(title, pixelShift, link -> {
             categories().forEach(CategoryPane::clearSelection);
-            BatchOperations.submit(() -> {
+            Platform.runLater(() -> {
                 borderPane.setCenter(transformed.getRoot());
                 var hook = onShowHooks.get(transformed);
                 if (hook != null) {
@@ -278,7 +279,7 @@ public class MultipleImagesViewer extends Pane {
         categoryPane.getProperties().put(DisplayCategory.class, category);
         safeCategories.add(categoryPane);
         safeCategories.sort(Comparator.comparingInt(t -> categoryOf(t).ordinal()));
-        BatchOperations.submit(() -> categories.setAll(safeCategories));
+        Platform.runLater(() -> categories.setAll(safeCategories));
         return categoryPane;
     }
 

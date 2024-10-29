@@ -4,6 +4,7 @@
 
 - Fix polynomial detection when multiple dark lines are found in crop window
 - Strech colors of reconstruction view when reconstruction is done
+- Add a "select and process" file which doesn't even ask for process params
 
 ## Changes in 2.7.2
 
