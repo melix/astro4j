@@ -55,8 +55,10 @@ import javafx.scene.control.TextField;
 import javafx.scene.control.TextFormatter;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
+import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.HBox;
+import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
 import javafx.stage.DirectoryChooser;
 import javafx.stage.FileChooser;
@@ -326,6 +328,7 @@ public class JSolEx extends Application implements JSolExInterface {
             stage.show();
             refreshRecentItemsMenu();
             LogbackConfigurer.configureLogger(console);
+            createFastModePane();
             stage.setOnCloseRequest(e -> System.exit(0));
             startWatcherThread();
             Thread.startVirtualThread(() -> UpdateChecker.findLatestRelease().ifPresent(this::maybeWarnAboutNewRelease));
@@ -335,6 +338,21 @@ public class JSolEx extends Application implements JSolExInterface {
             maybeShowWelcomeMessage(rootScene);
         } catch (IOException exception) {
             throw new ProcessingException(exception);
+        }
+    }
+
+    private void createFastModePane() {
+        var loader = I18N.fxmlLoader(getClass(), "fast-mode-open");
+        try {
+            loader.setController(this);
+            var pane = (BorderPane) loader.load();
+            var stack = new StackPane();
+            pane.prefWidthProperty().bind(stack.widthProperty());
+            stack.setAlignment(Pos.CENTER);
+            stack.getChildren().add(pane);
+            mainPane.getTabs().add(new Tab("Fast mode", stack));
+        } catch (IOException e) {
+            throw new RuntimeException(e);
         }
     }
 
@@ -424,7 +442,7 @@ public class JSolEx extends Application implements JSolExInterface {
                             newFiles.remove(child);
                             Platform.runLater(() -> {
                                 LOGGER.info(message("no.change.on.file"), child.getFileName());
-                                doOpen(child.toFile(), true);
+                                doOpen(child.toFile(), true, null);
                             });
                         } else {
                             newFiles.put(child, currentSize);
@@ -542,7 +560,7 @@ public class JSolEx extends Application implements JSolExInterface {
         recentFilesMenu.getItems().clear();
         for (Path recentFile : config.getRecentFiles()) {
             var recent = new MenuItem(recentFile.toAbsolutePath().toString());
-            recent.setOnAction(e -> doOpen(recentFile.toFile(), false));
+            recent.setOnAction(e -> doOpen(recentFile.toFile(), false, null));
             recentFilesMenu.getItems().add(recent);
         }
     }
@@ -622,7 +640,12 @@ public class JSolEx extends Application implements JSolExInterface {
 
     @FXML
     private void open() {
-        selectSerFileAndThen(f -> doOpen(f, false));
+        selectSerFileAndThen(f -> doOpen(f, false, null));
+    }
+
+    @FXML
+    private void openFastMode() {
+        selectSerFileAndThen(f -> doOpen(f, false, ProcessParams.loadDefaults()));
     }
 
     @FXML
@@ -904,7 +927,7 @@ public class JSolEx extends Application implements JSolExInterface {
         DocsHelper.openHelp(getHostServices(), null);
     }
 
-    private void doOpen(File selectedFile, boolean rememberProcessParams) {
+    private void doOpen(File selectedFile, boolean rememberProcessParams, ProcessParams forcedParams) {
         imageMathPane.setDisable(true);
         config.loadedSerFile(selectedFile.toPath());
         configureThreadExceptionHandler();
@@ -913,8 +936,9 @@ public class JSolEx extends Application implements JSolExInterface {
         Header header;
         try (var reader = SerFileReader.of(selectedFile)) {
             header = reader.header();
-            if (reusedProcessParams != null) {
-                processParams = Optional.of(reusedProcessParams.withObservationDetails(reusedProcessParams.observationDetails().withDate(header.metadata().utcDateTime())));
+            var params = forcedParams != null ? forcedParams : reusedProcessParams;
+            if (params != null) {
+                processParams = Optional.of(params.withObservationDetails(params.observationDetails().withDate(header.metadata().utcDateTime())));
             } else {
                 var controller = createProcessParams(selectedFile, reader, false);
                 processParams = controller.getProcessParams();
@@ -1372,6 +1396,13 @@ public class JSolEx extends Application implements JSolExInterface {
     @FXML
     void clearLog() {
         console.clear();
+    }
+
+    @FXML
+    void resetUI() {
+        console.clear();
+        mainPane.getTabs().clear();
+        createFastModePane();
     }
 
     public static String message(String label) {
