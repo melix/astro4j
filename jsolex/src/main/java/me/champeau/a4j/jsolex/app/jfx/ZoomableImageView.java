@@ -347,15 +347,17 @@ public class ZoomableImageView extends HBox {
     public void alignWith(ZoomableImageView other) {
         var otherImage = other.getImage();
         var img = getImage();
-        if (img == null) {
-            pendingOperations.add(() -> alignWith(other));
-            return;
+        if (img != null) {
+            doAlignWith(other, otherImage, img);
         }
-        if (otherImage.getWidth() == img.getWidth() && otherImage.getHeight() == getImage().getHeight()) {
-            setZoom(other.getZoom());
-            var hvalue = other.scrollPane.getHvalue();
-            var vvalue = other.scrollPane.getVvalue();
-            BackgroundOperations.async(() -> {
+    }
+
+    private void doAlignWith(ZoomableImageView other, Image otherImage, Image img) {
+        BackgroundOperations.async(() -> {
+            if (otherImage.getWidth() == img.getWidth() && otherImage.getHeight() == img.getHeight()) {
+                setZoom(other.getZoom());
+                var hvalue = other.scrollPane.getHvalue();
+                var vvalue = other.scrollPane.getVvalue();
                 while (scrollPane.getHvalue() != hvalue || scrollPane.getVvalue() != vvalue) {
                     Platform.runLater(() -> {
                         scrollPane.setHvalue(hvalue);
@@ -368,8 +370,8 @@ public class ZoomableImageView extends HBox {
                         break;
                     }
                 }
-            });
-        }
+            }
+        });
     }
 
     public void setOnZoomChanged(Consumer<? super Double> consumer) {

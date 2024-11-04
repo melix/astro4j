@@ -183,10 +183,6 @@ public class ImageViewer implements WithRootNode {
         }
     }
 
-    public void setOnDisplayUpdate(Runnable onDisplayUpdate) {
-        this.onDisplayUpdate = onDisplayUpdate;
-    }
-
     private void recordImage(String baseName, ImageWrapper image) {
         imageHistory.add(new ImageState(processParams, baseName, image, imageFile));
     }
@@ -332,9 +328,10 @@ public class ImageViewer implements WithRootNode {
             var alignButton = new Button("⌖");
             alignButton.setStyle("-fx-padding: 2; -fx-font-size: 18");
             alignButton.setOnAction(evt -> {
+                onDisplayUpdate = null;
                 for (var viewer : siblings) {
                     if (viewer != this) {
-                        viewer.imageView.alignWith(imageView);
+                        viewer.onDisplayUpdate = () -> viewer.imageView.alignWith(imageView);
                     }
                 }
             });
@@ -405,6 +402,8 @@ public class ImageViewer implements WithRootNode {
         if (image != null && firstShow) {
             BackgroundOperations.async(() -> stretchAndDisplay(true));
             firstShow = false;
+        } else if (image != null) {
+            BackgroundOperations.async(this::maybeRunOnUpdate);
         }
     }
 
@@ -427,14 +426,18 @@ public class ImageViewer implements WithRootNode {
                         imageView.resetZoom();
                     }
                     saveButton.setDisable(false);
-                    if (onDisplayUpdate != null) {
-                        onDisplayUpdate.run();
-                    }
+                    maybeRunOnUpdate();
                     tmpImage.delete();
                 } finally {
                     displayLock.unlock();
                 }
             });
+    }
+
+    private void maybeRunOnUpdate() {
+        if (onDisplayUpdate != null) {
+            onDisplayUpdate.run();
+        }
     }
 
     private void stretchAndDisplay(boolean resetZoom) {

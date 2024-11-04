@@ -1,5 +1,9 @@
 # Welcome to JSol'Ex {{version}}!
 
+## Changes in 2.7.4
+
+- Fixed bug in alignment button which didn't always sync zoom and position
+
 ## Changes in 2.7.3
 
 - Fix polynomial detection when multiple dark lines are found in crop window

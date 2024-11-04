@@ -1,5 +1,9 @@
 # Bienvenue dans JSol'Ex {{version}} !
 
+## Nouveautés de la version 2.7.4
+
+- Correction du bouton "aligner les images" qui ne fonctionnait pas toujours
+
 ## Nouveautés de la version 2.7.3
 
 - Correction d'un bug de détection du polynôme lorsqu'il y a plusieurs lignes sombres dans la fenêtre de capture
