@@ -20,37 +20,34 @@ import java.util.Map;
 import java.util.function.Function;
 
 public record RGBImage(
-        int width,
-        int height,
-        float[] r,
-        float[] g,
-        float[] b,
-        Map<Class<?>, Object> metadata
+    int width,
+    int height,
+    float[][] r,
+    float[][] g,
+    float[][] b,
+    Map<Class<?>, Object> metadata
 ) implements ImageWrapper {
     @Override
     public RGBImage copy() {
-        return new RGBImage(width, height, copyOf(r), copyOf(g), copyOf(b), new LinkedHashMap<>(metadata));
+        return new RGBImage(width, height, ImageWrapper.copyData(r), ImageWrapper.copyData(g), ImageWrapper.copyData(b), new LinkedHashMap<>(metadata));
     }
 
-    private static float[] copyOf(float[] array) {
-        float[] rcopy = new float[array.length];
-        System.arraycopy(array, 0, rcopy, 0, array.length);
-        return rcopy;
-    }
-
-    public static RGBImage fromMono(ImageWrapper32 mono, Function<ImageWrapper32, float[][]> converter) {
+    public static RGBImage fromMono(ImageWrapper32 mono, Function<ImageWrapper32, float[][][]> converter) {
         return fromMono(mono, converter, new LinkedHashMap<>(mono.metadata()));
     }
 
-    public static RGBImage fromMono(ImageWrapper32 mono, Function<ImageWrapper32, float[][]> converter, Map<Class<?>, Object> metadata) {
+    public static RGBImage fromMono(ImageWrapper32 mono, Function<ImageWrapper32, float[][][]> converter, Map<Class<?>, Object> metadata) {
         var rgb = converter.apply(mono);
         return new RGBImage(mono.width(), mono.height(), rgb[0], rgb[1], rgb[2], metadata);
     }
 
     public ImageWrapper32 toMono() {
-        float[] monoData = new float[width * height];
-        for (int i = 0; i < width * height; i++) {
-            monoData[i] = 0.299f * r[i] + 0.587f * g[i] + 0.114f * b[i];
+        float[][] monoData = new float[height][width];
+        for (int y = 0; y < height; y++) {
+            monoData[y] = new float[width];
+            for (int x = 0; x < width; x++) {
+                monoData[y][x] = 0.299f * r[y][x] + 0.587f * g[y][x] + 0.114f * b[y][x];
+            }
         }
         return new ImageWrapper32(width, height, monoData, new LinkedHashMap<>(metadata));
     }

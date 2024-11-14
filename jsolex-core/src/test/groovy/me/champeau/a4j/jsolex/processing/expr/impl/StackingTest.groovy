@@ -128,14 +128,14 @@ class StackingTest extends Specification {
     private static Image translate(Image image, int dx, int dy) {
         var refW = image.width()
         var refH = image.height()
-        var translated = new float[refW * refH]
+        var translated = new float[refH][refW]
         def source = image.data()
         for (int x = 0; x < refW; x++) {
             for (int y = 0; y < refH; y++) {
                 def xx = x + dx
                 def yy = y + dy
                 if (xx >= 0 && xx < refW && yy >= 0 && yy < refH) {
-                    translated[xx + yy * refW] = source[x + y * refW]
+                    translated[yy][xx] = source[y][x]
                 }
             }
         }

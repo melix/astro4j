@@ -328,10 +328,12 @@ public class SpectrumBrowser extends BorderPane {
                 var distorsionCorrection = new DistortionCorrection(image.data(), width, image.height());
                 var correctedImage = distorsionCorrection.polynomicalCorrectionHeightRestricted(polynomial);
                 var corrected = correctedImage.data();
-                for (float v : corrected) {
-                    if (Float.isNaN(v)) {
-                        showIdentificationFailure();
-                        return;
+                for (float[] line : corrected) {
+                    for (float v : line) {
+                        if (Float.isNaN(v)) {
+                            showIdentificationFailure();
+                            return;
+                        }
                     }
                 }
                 var height = correctedImage.height();
@@ -350,7 +352,7 @@ public class SpectrumBrowser extends BorderPane {
                 for (int y = 0; y < height; y++) {
                     double sum = 0;
                     for (int x = minX; x < maxX; x++) {
-                        var v = corrected[x + y * width] / Constants.MAX_PIXEL_VALUE;
+                        var v = corrected[y][x] / Constants.MAX_PIXEL_VALUE;
                         sum += v;
                     }
                     lineAverages[y] = sum / range;
@@ -397,7 +399,7 @@ public class SpectrumBrowser extends BorderPane {
                             var writableImage = new WritableImage(range, height);
                             for (int y = 0; y < height; y++) {
                                 for (int x = finalMinX; x < finalMaxX; x++) {
-                                    var v = corrected[x + y * width] / Constants.MAX_PIXEL_VALUE;
+                                    var v = corrected[y][x] / Constants.MAX_PIXEL_VALUE;
                                     writableImage.getPixelWriter().setColor(x - finalMinX, y, Color.gray(v, .8));
                                 }
                                 imageView.fitHeightProperty().set(canvas.heightProperty().flatMap(w ->
@@ -430,10 +432,10 @@ public class SpectrumBrowser extends BorderPane {
         int yMin = Math.max(0, minLine - CROP_HEIGHT);
         int yMax = Math.min(image.height(), minLine + CROP_HEIGHT);
         int restrictedHeight = yMax - yMin;
-        var cropped = new float[image.width() * restrictedHeight];
+        var cropped = new float[restrictedHeight][image.width()];
+        var width = image.width();
         for (int y = yMin; y < yMax; y++) {
-            var width = image.width();
-            System.arraycopy(image.data(), y * image.width(), cropped, (y - yMin) * image.width(), width);
+            System.arraycopy(image.data()[y], 0, cropped[y - yMin], 0, width);
         }
         return new ImageWrapper32(image.width(), restrictedHeight, cropped, Map.of());
     }

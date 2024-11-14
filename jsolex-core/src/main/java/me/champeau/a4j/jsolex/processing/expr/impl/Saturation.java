@@ -43,13 +43,15 @@ public class Saturation extends AbstractFunctionImpl {
             arg = fileBackedImage.unwrapToMemory();
         }
         if (arg instanceof RGBImage rgb) {
-            var hsl = ImageUtils.fromRGBtoHSL(new float[][]{rgb.r(), rgb.g(), rgb.b()});
+            var hsl = ImageUtils.fromRGBtoHSL(new float[][][]{rgb.r(), rgb.g(), rgb.b()});
             var s = hsl[1];
-            for (int i = 0; i < s.length; i++) {
-                var sat = Math.pow(s[i], exponent);
-                s[i] = (float) sat;
+            for (float[] line : s) {
+                for (int i = 0; i < s.length; i++) {
+                    var sat = Math.pow(line[i], exponent);
+                    line[i] = (float) sat;
+                }
             }
-            var output = new float[3][rgb.r().length];
+            var output = new float[3][rgb.height()][rgb.width()];
             ImageUtils.fromHSLtoRGB(hsl, output);
             return new RGBImage(rgb.width(), rgb.height(), output[0], output[1], output[2], new LinkedHashMap<>(rgb.metadata()));
         }

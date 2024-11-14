@@ -154,7 +154,7 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
     private final Tab metadataTab;
     private final WeakHashMap<ImageWrapper, List<CachedHistogram>> cachedHistograms = new WeakHashMap<>();
     private final LocalDateTime processingDate;
-    private float[] averageImage;
+    private float[][] averageImage;
 
     private ProcessParams params;
     private ProcessParams adjustedParams;
@@ -361,7 +361,7 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
         int max = 0;
         for (int yy = 0; yy < spectrum.height(); yy++) {
             for (int xx = 0; xx < spectrum.width(); xx++) {
-                int v = (int) (255 * spectrum.data()[yy * spectrum.width() + xx] / Constants.MAX_PIXEL_VALUE);
+                int v = (int) (255 * spectrum.data()[yy][xx] / Constants.MAX_PIXEL_VALUE);
                 max = Math.max(max, v);
             }
         }
@@ -369,7 +369,7 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
         for (int yy = 0; yy < spectrum.height(); yy++) {
             for (int xx = 0; xx < spectrum.width(); xx++) {
                 var offset = 3 * (yy * spectrum.width() + xx);
-                double v = 255 * spectrum.data()[yy * spectrum.width() + xx] / Constants.MAX_PIXEL_VALUE;
+                double v = 255 * spectrum.data()[yy][xx] / Constants.MAX_PIXEL_VALUE;
                 byte s = (byte) (255 * v / max);
                 spectrumBuffer[offset] = s;
                 spectrumBuffer[offset + 1] = s;
@@ -537,10 +537,10 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
                     new Image(mono.width(), mono.height(), mono.data()), BINS
                 ), "grey"));
             } else if (imageWrapper instanceof RGBImage rgbImage) {
-                var rgb = new float[][]{rgbImage.r(), rgbImage.g(), rgbImage.b()};
+                var rgb = new float[][][]{rgbImage.r(), rgbImage.g(), rgbImage.b()};
                 List<CachedHistogram> result = new ArrayList<>(rgb.length);
                 for (int i = 0; i < rgb.length; i++) {
-                    float[] channel = rgb[i];
+                    float[][] channel = rgb[i];
                     result.add(new CachedHistogram(Histogram.of(
                         new Image(rgbImage.width(), rgbImage.height(), channel), BINS
                     ), RGB_COLORS[i]));
@@ -902,8 +902,8 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
                     int upperNy = (int) Math.ceil(exactNy);
 
                     if (lowerNy >= 0 && upperNy < height) {
-                        var lowerValue = data[width * lowerNy + x];
-                        var upperValue = data[width * upperNy + x];
+                        var lowerValue = data[lowerNy][x];
+                        var upperValue = data[upperNy][x];
                         var interpolatedValue = lowerValue + (upperValue - lowerValue) * (exactNy - lowerNy);
 
                         val += interpolatedValue;

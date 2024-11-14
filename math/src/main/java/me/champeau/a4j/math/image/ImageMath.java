@@ -36,23 +36,11 @@ public interface ImageMath {
         var data = image.data();
         var width = image.width();
         var height = image.height();
-        float[] output = new float[data.length];
-        for (int y = 0; y < height; y++) {
-            for (int x = 0; x < width; x++) {
-                output[(width - x - 1) * height + y] = data[y * width + x];
-            }
-        }
-        return new Image(height, width, output);
-    }
+        float[][] output = new float[width][height];
 
-    default Image rotateRight(Image image) {
-        var data = image.data();
-        var width = image.width();
-        var height = image.height();
-        float[] output = new float[data.length];
         for (int y = 0; y < height; y++) {
             for (int x = 0; x < width; x++) {
-                output[x * height + (height - y - 1)] = data[y * width + x];
+                output[width - x - 1][y] = data[y][x];
             }
         }
         return new Image(height, width, output);
@@ -71,9 +59,8 @@ public interface ImageMath {
         var data = image.data();
         var width = image.width();
         double sum = 0;
-        int offset = lineNb * width;
         for (int x = 0; x < width; x++) {
-            sum += data[offset + x];
+            sum += data[lineNb][x];
         }
         return sum / width;
     }
@@ -87,18 +74,25 @@ public interface ImageMath {
         return sum / max;
     }
 
-    default float averageOf(float[] data) {
+    default float averageOf(float[][] data) {
         float sum = 0;
-        int max = data.length;
-        for (float datum : data) {
-            sum += datum;
+        int cpt = 0;
+        for (float[] line : data) {
+            for (float v : line) {
+                sum += v;
+                cpt++;
+            }
         }
-        return sum / max;
+        return sum / cpt;
     }
 
-    default void incrementalAverage(float[] current, float[] average, int n) {
+    default void incrementalAverage(float[][] current, float[][] average, int n) {
         for (int j = 0; j < current.length; j++) {
-            average[j] = average[j] + (current[j] - average[j]) / n;
+            var averageLine = average[j];
+            var currentLine = current[j];
+            for (int i = 0; i < currentLine.length; i++) {
+                averageLine[i] = averageLine[i] + (currentLine[i] - averageLine[i]) / n;
+            }
         }
     }
 
@@ -114,8 +108,10 @@ public interface ImageMath {
         int centerY = height / 2;
         int newCenterX = newWidth / 2;
         int newCenterY = newHeight / 2;
-        float[] output = new float[newWidth * newHeight];
-        Arrays.fill(output, blackpoint);
+        float[][] output = new float[newHeight][newWidth];
+        for (float[] line : output) {
+            Arrays.fill(line, blackpoint);
+        }
         for (int y = 0; y < newHeight; y++) {
             for (int x = 0; x < newWidth; x++) {
                 var rx = (x - newCenterX) / scaleX;
@@ -129,21 +125,22 @@ public interface ImageMath {
                 var fracX = sx - sourceX1;
                 var fracY = sy - sourceY1;
                 if (sourceX1 >= 0 && sourceX2 < width && sourceY1 >= 0 && sourceY2 < height && fracX >= 0 && fracY >= 0) {
-                    var val11 = data[sourceX1 + sourceY1 * width];
-                    var val12 = data[sourceX1 + sourceY2 * width];
-                    var val21 = data[sourceX2 + sourceY1 * width];
-                    var val22 = data[sourceX2 + sourceY2 * width];
+                    var val11 = data[sourceY1][sourceX1];
+                    var val12 = data[sourceY2][sourceX1];
+                    var val21 = data[sourceY1][sourceX2];
+                    var val22 = data[sourceY2][sourceX2];
                     var interpVal = (float) ((1 - fracX) * (1 - fracY) * val11 +
                                              fracX * (1 - fracY) * val21 +
                                              (1 - fracX) * fracY * val12 +
                                              fracX * fracY * val22);
-                    output[x + newWidth * y] = interpVal;
+                    output[y][x] = interpVal;
                 }
             }
         }
 
         return new Image(newWidth, newHeight, output);
     }
+
 
     default Image rotate(Image image, double angle, float blackpoint, boolean resize) {
         var data = image.data();
@@ -157,8 +154,10 @@ public interface ImageMath {
         int centerY = height / 2;
         int newCenterX = newWidth / 2;
         int newCenterY = newHeight / 2;
-        float[] output = new float[newWidth * newHeight];
-        Arrays.fill(output, blackpoint);
+        float[][] output = new float[newHeight][newWidth];
+        for (float[] line : output) {
+            Arrays.fill(line, blackpoint);
+        }
         double meanFill = 0;
         double missFill = 0;
         for (int y = 0; y < newHeight; y++) {
@@ -174,19 +173,19 @@ public interface ImageMath {
                 var fracX = sx - sourceX1;
                 var fracY = sy - sourceY1;
                 if (sourceX1 >= 0 && sourceX2 < width && sourceY1 >= 0 && sourceY2 < height && fracX >= 0 && fracY >= 0) {
-                    var val11 = data[sourceX1 + sourceY1 * width];
-                    var val12 = data[sourceX1 + sourceY2 * width];
-                    var val21 = data[sourceX2 + sourceY1 * width];
-                    var val22 = data[sourceX2 + sourceY2 * width];
+                    var val11 = data[sourceY1][sourceX1];
+                    var val12 = data[sourceY2][sourceX1];
+                    var val21 = data[sourceY1][sourceX2];
+                    var val22 = data[sourceY2][sourceX2];
                     var interpVal = (float) ((1 - fracX) * (1 - fracY) * val11 +
                                              fracX * (1 - fracY) * val21 +
                                              (1 - fracX) * fracY * val12 +
                                              fracX * fracY * val22);
-                    output[x + newWidth * y] = interpVal;
+                    output[y][x] = interpVal;
                 } else {
                     int prevSX = Math.min(Math.max(0, sourceX1), width - 1);
                     int prevSY = Math.min(Math.max(0, sourceY1), height - 1);
-                    var cur = data[prevSX + prevSY * width];
+                    var cur = data[prevSY][prevSX];
                     meanFill = meanFill + ((cur - meanFill) / (++missFill));
                 }
             }
@@ -206,7 +205,7 @@ public interface ImageMath {
                     var fracX = sx - sourceX1;
                     var fracY = sy - sourceY1;
                     if (sourceX1 < 0 || sourceX2 >= width || sourceY1 < 0 || sourceY2 >= height || (fracX < 0) || (fracY < 0)) {
-                        output[x + newWidth * y] = (float) meanFill;
+                        output[y][x] = (float) meanFill;
                     }
                 }
             }
@@ -225,7 +224,7 @@ public interface ImageMath {
         int newCenterY = newHeight / 2;
         double scaleX = (double) newWidth / width;
         double scaleY = (double) newHeight / height;
-        float[] output = new float[newWidth * newHeight];
+        float[][] output = new float[newHeight][newWidth];
         for (int y = 0; y < newHeight; y++) {
             for (int x = 0; x < newWidth; x++) {
                 var rx = (x - newCenterX) / scaleX;
@@ -239,15 +238,15 @@ public interface ImageMath {
                 var fracX = sx - sourceX1;
                 var fracY = sy - sourceY1;
                 if (sourceX1 >= 0 && sourceX2 < width && sourceY1 >= 0 && sourceY2 < height) {
-                    var val11 = data[sourceX1 + sourceY1 * width];
-                    var val12 = data[sourceX1 + sourceY2 * width];
-                    var val21 = data[sourceX2 + sourceY1 * width];
-                    var val22 = data[sourceX2 + sourceY2 * width];
+                    var val11 = data[sourceY1][sourceX1];
+                    var val12 = data[sourceY2][sourceX1];
+                    var val21 = data[sourceY1][sourceX2];
+                    var val22 = data[sourceY2][sourceX2];
                     var interpVal = (float) ((1 - fracX) * (1 - fracY) * val11 +
                                              fracX * (1 - fracY) * val21 +
                                              (1 - fracX) * fracY * val12 +
                                              fracX * fracY * val22);
-                    output[x + newWidth * y] = interpVal;
+                    output[y][x] = interpVal;
                 }
             }
         }
@@ -259,18 +258,20 @@ public interface ImageMath {
         if (!horizontalMirror && !verticalMirror) {
             return source;
         }
+
         var data = source.data();
-        var length = data.length;
         var width = source.width();
         var height = source.height();
-        float[] mirrored = new float[length];
+        float[][] mirrored = new float[height][width];
+
         for (int y = 0; y < height; y++) {
             for (int x = 0; x < width; x++) {
                 var sx = horizontalMirror ? (width - x - 1) : x;
                 var sy = verticalMirror ? (height - y - 1) : y;
-                mirrored[x + y * width] = data[sx + sy * width];
+                mirrored[y][x] = data[sy][sx];
             }
         }
+
         return new Image(width, height, mirrored);
     }
 
@@ -278,23 +279,32 @@ public interface ImageMath {
         var data = source.data();
         var width = source.width();
         var height = source.height();
-        float[] integral = new float[width * height];
-        integral[0] = data[0];
+        float[][] integral = new float[height][width];
+
+        // Initialize the first cell
+        integral[0][0] = data[0][0];
+
+        // Fill the first row
         for (int x = 1; x < width; x++) {
-            integral[x] = integral[x - 1] + data[x];
+            integral[0][x] = integral[0][x - 1] + data[0][x];
         }
+
+        // Fill the first column
         for (int y = 1; y < height; y++) {
-            int rowStart = y * width;
-            integral[rowStart] = integral[rowStart - width] + data[rowStart];
+            integral[y][0] = integral[y - 1][0] + data[y][0];
         }
+
+        // Fill the rest of the integral image
         for (int y = 1; y < height; y++) {
-            int rowStart = y * width;
             for (int x = 1; x < width; x++) {
-                int index = rowStart + x;
-                integral[index] = data[index] + integral[index - 1] + integral[index - width] - integral[index - width - 1];
+                integral[y][x] = data[y][x]
+                                 + integral[y - 1][x]
+                                 + integral[y][x - 1]
+                                 - integral[y - 1][x - 1];
             }
         }
-        return source.withData(integral);
+
+        return new Image(width, height, integral);
     }
 
     default float areaSum(Image integralImage, int x, int y, int width, int height) {
@@ -306,16 +316,16 @@ public interface ImageMath {
         int x1 = Math.min(x + width, imageWidth) - 1;
         int y1 = Math.min(y + height, imageHeight) - 1;
 
-        float topLeft = safeGet(x0, y0, data, imageWidth);
-        float topRight = safeGet(x1, y0, data, imageWidth);
-        float bottomLeft = safeGet(x0, y1, data, imageWidth);
-        float bottomRight = safeGet(x1, y1, data, imageWidth);
+        float topLeft = safeGet(x0, y0, data);
+        float topRight = safeGet(x1, y0, data);
+        float bottomLeft = safeGet(x0, y1, data);
+        float bottomRight = safeGet(x1, y1, data);
         return Math.max(0f, bottomRight - topRight - bottomLeft + topLeft);
     }
 
-    private static float safeGet(int x, int y, float[] integralImage, int width) {
+    private static float safeGet(int x, int y, float[][] integralImage) {
         if (x >= 0 && y >= 0) {
-            return integralImage[x + y * width];
+            return integralImage[y][x];
         }
         return 0;
     }
@@ -330,7 +340,10 @@ public interface ImageMath {
         var width = image.width();
         var maxX = width - 1;
         var maxY = height - 1;
-        float[] convolved = new float[source.length];
+        float[][] convolved = new float[height][width];
+        for (int i = 0; i < convolved.length; i++) {
+            convolved[i] = new float[width];
+        }
         float[][] krows = kernel.kernel();
         int kcx = kernel.cols() / 2;
         int kcy = kernel.rows() / 2;
@@ -343,11 +356,11 @@ public interface ImageMath {
                     for (int kx = 0; kx < kernelRow.length; kx++) {
                         float coef = kernelRow[kx];
                         int cx = Math.min(Math.max(x + kx - kcx, 0), maxX);
-                        sum += coef * source[cx + cy * width];
+                        sum += coef * source[cy][cx];
                     }
                 }
                 var val = Math.min(Math.max(0, sum * kernel.factor()), MAX_VALUE);
-                convolved[x + y * width] = val;
+                convolved[y][x] = val;
             }
         }
         return image.withData(convolved);
@@ -356,76 +369,98 @@ public interface ImageMath {
     default Gradient gradientLT(Image image) {
         var gx = convolve(image, Kernel33.SOBEL_LEFT).data();
         var gy = convolve(image, Kernel33.SOBEL_TOP).data();
-        var length = image.length();
-        float[] mag = new float[length];
-        float[] dir = new float[length];
-        for (int i = 0; i < length; i++) {
-            var x = gx[i];
-            var y = gy[i];
-            mag[i] = (float) Math.sqrt(x * x + y * y);
-            dir[i] = (float) Math.atan2(y, x);
+        var width = image.width();
+        var height = image.height();
+
+        float[][] mag = new float[height][width];
+        float[][] dir = new float[height][width];
+
+        for (int y = 0; y < height; y++) {
+            for (int x = 0; x < width; x++) {
+                var xVal = gx[y][x];
+                var yVal = gy[y][x];
+                mag[y][x] = (float) Math.sqrt(xVal * xVal + yVal * yVal);
+                dir[y][x] = (float) Math.atan2(yVal, xVal);
+            }
         }
-        return new Gradient(image.withData(mag), image.withData(dir));
+
+        return new Gradient(new Image(width, height, mag), new Image(width, height, dir));
     }
 
     default Gradient gradientRB(Image image) {
         var gx = convolve(image, Kernel33.SOBEL_RIGHT).data();
         var gy = convolve(image, Kernel33.SOBEL_BOTTOM).data();
-        var length = image.length();
-        float[] mag = new float[length];
-        float[] dir = new float[length];
-        for (int i = 0; i < length; i++) {
-            var x = gx[i];
-            var y = gy[i];
-            mag[i] = (float) Math.sqrt(x * x + y * y);
-            dir[i] = (float) Math.atan2(y, x);
+        var width = image.width();
+        var height = image.height();
+
+        float[][] mag = new float[height][width];
+        float[][] dir = new float[height][width];
+
+        for (int y = 0; y < height; y++) {
+            for (int x = 0; x < width; x++) {
+                var xVal = gx[y][x];
+                var yVal = gy[y][x];
+                mag[y][x] = (float) Math.sqrt(xVal * xVal + yVal * yVal);
+                dir[y][x] = (float) Math.atan2(yVal, xVal);
+            }
         }
-        return new Gradient(image.withData(mag), image.withData(dir));
+
+        return new Gradient(new Image(width, height, mag), new Image(width, height, dir));
+    }
+
+
+    default Image multiply(Image source, float f) {
+        var firstData = source.data();
+        var height = source.height();
+        var width = source.width();
+        float[][] result = new float[height][width];
+        for (int y = 0; y < height; y++) {
+            for (int x = 0; x < width; x++) {
+                result[y][x] = firstData[y][x] * f;
+            }
+        }
+        return new Image(width, height, result);
     }
 
     default Image add(Image source, float f) {
         var firstData = source.data();
-        var length = source.length();
-        float[] result = new float[length];
-        for (int i = 0; i < length; i++) {
-            result[i] = firstData[i] + f;
+        var height = source.height();
+        var width = source.width();
+        float[][] result = new float[height][width];
+        for (int y = 0; y < height; y++) {
+            for (int x = 0; x < width; x++) {
+                result[y][x] = firstData[y][x] + f;
+            }
         }
-        return new Image(source.width(), source.height(), result);
-    }
-
-    default Image multiply(Image source, float f) {
-        var firstData = source.data();
-        var length = source.length();
-        float[] result = new float[length];
-        for (int i = 0; i < length; i++) {
-            result[i] = firstData[i] * f;
-        }
-        return new Image(source.width(), source.height(), result);
+        return new Image(width, height, result);
     }
 
     default Image divide(Image first, Image second) {
         var firstData = first.data();
-        var secondData = second.data();
-        var length = first.length();
-        float[] result = new float[length];
-        for (int i = 0; i < length; i++) {
-            var denum = secondData[i];
-            if (denum > 0) {
-                result[i] = firstData[i] / denum;
+        var secondData = first.data();
+        var height = first.height();
+        var width = first.width();
+        float[][] result = new float[height][width];
+        for (int y = 0; y < height; y++) {
+            for (int x = 0; x < width; x++) {
+                result[y][x] = firstData[y][x] / secondData[y][x];
             }
         }
-        return new Image(first.width(), first.height(), result);
+        return new Image(width, height, result);
     }
 
     default Image multiply(Image first, Image second) {
         var firstData = first.data();
-        var secondData = second.data();
-        var length = first.length();
-        float[] result = new float[length];
-        for (int i = 0; i < length; i++) {
-            result[i] = firstData[i] * secondData[i];
+        var secondData = first.data();
+        var height = first.height();
+        var width = first.width();
+        float[][] result = new float[height][width];
+        for (int y = 0; y < height; y++) {
+            for (int x = 0; x < width; x++) {
+                result[y][x] = firstData[y][x] * secondData[y][x];
+            }
         }
-        return new Image(first.width(), first.height(), result);
+        return new Image(width, height, result);
     }
 
     /**
@@ -443,7 +478,7 @@ public interface ImageMath {
         double count = 0;
         for (int y = 0; y < height; y++) {
             for (int x = 0; x < width; x++) {
-                var magnitude = data[x + y * width];
+                var magnitude = data[y][x];
                 count++;
                 sumOfSquares += magnitude;
             }
@@ -457,10 +492,15 @@ public interface ImageMath {
     default Image laplacian(Image image) {
         var a = multiply(convolve(image, Kernel33.LAPLACIAN), 2 / 3f).data();
         var b = multiply(convolve(image, Kernel33.LAPLACIAN_B), 1 / 3f).data();
-        var sum = new float[image.length()];
-        for (int i = 0; i < sum.length; i++) {
-            sum[i] = a[i] + b[i];
+        var height = image.height();
+        var width = image.width();
+        var sum = new float[height][width];
+        for (int y = 0; y < height; y++) {
+            sum[y] = new float[width];
+            for (int x = 0; x < width; x++) {
+                sum[y][x] = a[y][x] + b[y][x];
+            }
         }
-        return new Image(image.width(), image.height(), sum);
+        return new Image(width, height, sum);
     }
 }

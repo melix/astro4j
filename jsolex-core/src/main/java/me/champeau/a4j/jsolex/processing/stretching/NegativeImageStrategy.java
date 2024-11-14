@@ -28,11 +28,17 @@ public final class NegativeImageStrategy implements StretchingStrategy {
     public void stretch(ImageWrapper32 image) {
         var data = image.data();
         float max = 0;
-        for (float v : data) {
-            max = Math.max(max, v);
+        var height = image.height();
+        var width = image.width();
+        for (int y = 0; y < height; y++) {
+            for (int x = 0; x < width; x++) {
+                max = Math.max(max, data[y][x]);
+            }
         }
-        for (int i = 0; i < data.length; i++) {
-            data[i] = max - data[i];
+        for (int y = 0; y < height; y++) {
+            for (int x = 0; x < width; x++) {
+                data[y][x] = max - data[y][x];
+            }
         }
     }
 

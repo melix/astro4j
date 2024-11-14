@@ -37,27 +37,21 @@ class VectorApiImageMath implements ImageMath {
 
     @Override
     public double averageOf(Image image, int lineNb) {
-        var data = image.data();
+        var data = image.data()[lineNb];
         var width = image.width();
-        int offset = lineNb * width;
         int x = 0;
         double sum = 0;
-        // pre-loop in order to align to float species length
-        while ((offset + x) % FLOAT_LEN != 0 && x < width) {
-            sum += data[offset + x];
-            x++;
-        }
         // vectorized loop
         var sumVector = FloatVector.zero(FLOAT_SPECIES);
         var max = FLOAT_SPECIES.loopBound(width - x);
         for (; x < max; x += FLOAT_LEN) {
-            var v = FloatVector.fromArray(FLOAT_SPECIES, data, offset + x);
+            var v = FloatVector.fromArray(FLOAT_SPECIES, data, x);
             sumVector = sumVector.add(v);
         }
         sum += sumVector.reduceLanes(VectorOperators.ADD);
         // post-loop for the remainder
         for (; x < width; x++) {
-            sum += data[offset + x];
+            sum += data[x];
         }
         return sum / width;
     }
@@ -79,90 +73,121 @@ class VectorApiImageMath implements ImageMath {
     }
 
     @Override
-    public float averageOf(float[] data) {
-        int max = data.length;
-        int x = 0;
-        var sumVector = FloatVector.zero(FLOAT_SPECIES);
-        for (; x < FLOAT_SPECIES.loopBound(max); x += FLOAT_SPECIES.length()) {
-            var v = FloatVector.fromArray(FLOAT_SPECIES, data, x);
-            sumVector = sumVector.add(v);
+    public float averageOf(float[][] data) {
+        float totalSum = 0;
+        float count = 0;
+        for (float[] line : data) {
+            int max = data.length;
+            int x = 0;
+            var sumVector = FloatVector.zero(FLOAT_SPECIES);
+            for (; x < FLOAT_SPECIES.loopBound(max); x += FLOAT_SPECIES.length()) {
+                var v = FloatVector.fromArray(FLOAT_SPECIES, line, x);
+                sumVector = sumVector.add(v);
+            }
+            float sum = sumVector.reduceLanes(VectorOperators.ADD);
+            for (; x < max; x++) {
+                sum += line[x];
+            }
+            totalSum += sum;
+            count += max;
         }
-        float sum = sumVector.reduceLanes(VectorOperators.ADD);
-        for (; x < max; x++) {
-            sum += data[x];
-        }
-        return sum / max;
+        return totalSum / count;
     }
 
     @Override
     public Image multiply(Image source, float f) {
-        var data = source.data();
-        int max = data.length;
-        int i = 0;
-        var result = new float[max];
-        for (; i < FLOAT_SPECIES.loopBound(max); i += FLOAT_SPECIES.length()) {
-            var mulVector = FloatVector.broadcast(FLOAT_SPECIES, f);
-            var v = FloatVector.fromArray(FLOAT_SPECIES, data, i);
-            mulVector = mulVector.mul(v);
-            mulVector.intoArray(result, i);
+        var height = source.height();
+        var width = source.width();
+        var output = new float[height][width];
+        for (int y = 0; y < height; y++) {
+            var data = source.data()[y];
+            int max = data.length;
+            int i = 0;
+            var result = new float[max];
+            for (; i < FLOAT_SPECIES.loopBound(max); i += FLOAT_SPECIES.length()) {
+                var mulVector = FloatVector.broadcast(FLOAT_SPECIES, f);
+                var v = FloatVector.fromArray(FLOAT_SPECIES, data, i);
+                mulVector = mulVector.mul(v);
+                mulVector.intoArray(result, i);
+            }
+            for (; i < max; i++) {
+                result[i] = data[i] * f;
+            }
+            output[y] = result;
         }
-        for (; i < max; i++) {
-            result[i] = data[i] * f;
-        }
-        return new Image(source.width(), source.height(), result);
+        return new Image(width, height, output);
     }
 
     @Override
     public Image add(Image source, float f) {
-        var data = source.data();
-        int max = data.length;
-        int i = 0;
-        var result = new float[max];
-        for (; i < FLOAT_SPECIES.loopBound(max); i += FLOAT_SPECIES.length()) {
-            var sumVector = FloatVector.broadcast(FLOAT_SPECIES, f);
-            var v = FloatVector.fromArray(FLOAT_SPECIES, data, i);
-            sumVector = sumVector.add(v);
-            sumVector.intoArray(result, i);
+        var height = source.height();
+        var width = source.width();
+        var output = new float[height][width];
+        for (int y = 0; y < height; y++) {
+            var data = source.data()[y];
+            int max = data.length;
+            int i = 0;
+            var result = new float[max];
+            for (; i < FLOAT_SPECIES.loopBound(max); i += FLOAT_SPECIES.length()) {
+                var sumVector = FloatVector.broadcast(FLOAT_SPECIES, f);
+                var v = FloatVector.fromArray(FLOAT_SPECIES, data, i);
+                sumVector = sumVector.add(v);
+                sumVector.intoArray(result, i);
+            }
+            for (; i < max; i++) {
+                result[i] = data[i] + f;
+            }
+            output[y] = result;
         }
-        for (; i < max; i++) {
-            result[i] = data[i] + f;
-        }
-        return new Image(source.width(), source.height(), result);
+        return new Image(source.width(), source.height(), output);
     }
 
     @Override
     public Image divide(Image first, Image second) {
-        var one = first.data();
-        var two = second.data();
-        int max = one.length;
-        int i = 0;
-        var result = new float[max];
-        for (; i < FLOAT_SPECIES.loopBound(max); i += FLOAT_SPECIES.length()) {
-            var v1 = FloatVector.fromArray(FLOAT_SPECIES, one, i);
-            var v2 = FloatVector.fromArray(FLOAT_SPECIES, two, i);
-            v1.div(v2).intoArray(result, i);
+        var height = first.height();
+        var width = second.width();
+        var output = new float[height][width];
+        for (int y = 0; y < height; y++) {
+            var one = first.data()[y];
+            var two = second.data()[y];
+            int max = one.length;
+            int i = 0;
+            var result = new float[max];
+            for (; i < FLOAT_SPECIES.loopBound(max); i += FLOAT_SPECIES.length()) {
+                var v1 = FloatVector.fromArray(FLOAT_SPECIES, one, i);
+                var v2 = FloatVector.fromArray(FLOAT_SPECIES, two, i);
+                v1.div(v2).intoArray(result, i);
+            }
+            for (; i < max; i++) {
+                result[i] = one[i] + two[i];
+            }
+            output[y] = result;
         }
-        for (; i < max; i++) {
-            result[i] = one[i] + two[i];
-        }
-        return new Image(first.width(), second.height(), result);
+        return new Image(first.width(), second.height(), output);
     }
 
     @Override
     public Image multiply(Image first, Image second) {
-        var one = first.data();
-        var two = second.data();
-        int max = one.length;
-        int i = 0;
-        var result = new float[max];
-        for (; i < FLOAT_SPECIES.loopBound(max); i += FLOAT_SPECIES.length()) {
-            var v1 = FloatVector.fromArray(FLOAT_SPECIES, one, i);
-            var v2 = FloatVector.fromArray(FLOAT_SPECIES, two, i);
-            v1.mul(v2).intoArray(result, i);
+        var height = first.height();
+        var width = second.width();
+        var output = new float[height][width];
+        for (int y = 0; y < height; y++) {
+            var one = first.data()[y];
+            var two = second.data()[y];
+
+            int max = one.length;
+            int i = 0;
+            var result = new float[max];
+            for (; i < FLOAT_SPECIES.loopBound(max); i += FLOAT_SPECIES.length()) {
+                var v1 = FloatVector.fromArray(FLOAT_SPECIES, one, i);
+                var v2 = FloatVector.fromArray(FLOAT_SPECIES, two, i);
+                v1.mul(v2).intoArray(result, i);
+            }
+            for (; i < max; i++) {
+                result[i] = one[i] + two[i];
+            }
+            output[y] = result;
         }
-        for (; i < max; i++) {
-            result[i] = one[i] + two[i];
-        }
-        return new Image(first.width(), second.height(), result);
+        return new Image(first.width(), second.height(), output);
     }
 }

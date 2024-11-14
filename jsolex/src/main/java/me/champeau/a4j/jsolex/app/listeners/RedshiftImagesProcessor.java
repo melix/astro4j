@@ -82,7 +82,7 @@ public class RedshiftImagesProcessor {
     private final ImageEmitter imageEmitter;
     private final List<RedshiftArea> redshifts;
     private final DoubleUnaryOperator polynomial;
-    private final float[] averageImage;
+    private final float[][] averageImage;
     private final int imageWidth;
     private final int imageHeight;
 
@@ -95,7 +95,7 @@ public class RedshiftImagesProcessor {
                                    ImageEmitter imageEmitter,
                                    List<RedshiftArea> redshifts,
                                    DoubleUnaryOperator polynomial,
-                                   float[] averageImage) {
+                                   float[][] averageImage) {
         this.shiftImages = shiftImages;
         this.params = params;
         this.serFile = serFile;
@@ -370,7 +370,7 @@ public class RedshiftImagesProcessor {
             panelHeight,
             Map.of(),
             () -> {
-                var rgb = new float[3][panelWidth * panelHeight];
+                var rgb = new float[3][panelHeight][panelWidth];
                 var r = rgb[0];
                 var g = rgb[1];
                 var b = rgb[2];
@@ -381,7 +381,8 @@ public class RedshiftImagesProcessor {
                     var data = mono.data();
                     var row = i / cols;
                     var col = i % cols;
-                    var offset = row * height * panelWidth + col * width;
+                    var yOffset = row * height;
+                    var xOffset = col * width;
                     var pixelShift = snap.findMetadata(PixelShift.class).map(PixelShift::pixelShift).orElse(0d);
                     var angstroms = 10 * pixelShift * dispersion;
                     var legend = String.format(Locale.US, "%.2fÅ (%.2f km/s)", angstroms, Math.abs(PhenomenaDetector.speedOf(pixelShift, dispersion, lambda0)));
@@ -391,18 +392,16 @@ public class RedshiftImagesProcessor {
                     var legendPixel = new int[1];
                     for (int y = 0; y < height; y++) {
                         for (int x = 0; x < width; x++) {
-                            var idx = y * width + x;
-                            var panelIdx = offset + y * panelWidth + x;
-                            var gray = data[idx];
+                            var gray = data[y][x];
                             legendOverlay.getPixel(x, y, legendPixel);
                             if (legendPixel[0] > 0) {
-                                r[panelIdx] = 60395;
-                                g[panelIdx] = 53970;
-                                b[panelIdx] = 13364;
+                                r[yOffset + y][xOffset + x] = 60395;
+                                g[yOffset + y][xOffset + x] = 53970;
+                                b[yOffset + y][xOffset + x] = 13364;
                             } else {
-                                r[panelIdx] = gray;
-                                g[panelIdx] = gray;
-                                b[panelIdx] = gray;
+                                r[yOffset + y][xOffset + x] = gray;
+                                g[yOffset + y][xOffset + x] = gray;
+                                b[yOffset + y][xOffset + x] = gray;
                             }
                         }
                     }

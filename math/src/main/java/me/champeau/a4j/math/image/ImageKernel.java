@@ -29,7 +29,7 @@ public class ImageKernel implements Kernel {
         float sum = 0;
         for (int y = 0; y < height; y++) {
             for (int x = 0; x < width; x++) {
-                var value = data[y * width + x] / 65535f;
+                var value = data[y][x] / 65535f;
                 sum += value;
                 kernel[y][x] = value;
             }

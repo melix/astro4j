@@ -29,7 +29,7 @@ import java.util.Map;
 public record ImageWrapper32(
         int width,
         int height,
-        float[] data,
+        float[][] data,
         Map<Class<?>, Object> metadata
 ) implements ImageWrapper {
 
@@ -39,7 +39,7 @@ public record ImageWrapper32(
      * @return a new empty image
      */
     public static ImageWrapper32 createEmpty() {
-        return new ImageWrapper32(0, 0, new float[0], MutableMap.of());
+        return new ImageWrapper32(0, 0, new float[0][0], MutableMap.of());
     }
 
     public Image asImage() {
@@ -55,8 +55,7 @@ public record ImageWrapper32(
     }
 
     public ImageWrapper32 copy() {
-        float[] copy = new float[data.length];
-        System.arraycopy(data, 0, copy, 0, data.length);
+        float[][] copy = ImageWrapper.copyData(data);
         return new ImageWrapper32(width, height, copy, new LinkedHashMap<>(metadata));
     }
 }

@@ -95,11 +95,11 @@ public class GeometryCorrector extends AbstractTask<GeometryCorrector.Result> {
         LOGGER.debug("a = {}, b={}, theta={}", a, b, theta);
         var maxDx = height * shear;
         var shift = maxDx < 0 ? maxDx : 0;
-        float[] newBuffer;
+        float[][] newBuffer;
         int extendedWidth;
         var buffer = getBuffer();
         extendedWidth = width + (int) Math.ceil(Math.abs(maxDx));
-        newBuffer = new float[height * extendedWidth];
+        newBuffer = new float[height][extendedWidth];
         for (int y = 0; y < height; y++) {
             var dx = y * shear;
             for (int x = 0; x < width; x++) {
@@ -108,17 +108,17 @@ public class GeometryCorrector extends AbstractTask<GeometryCorrector.Result> {
                 var x2 = x1 + 1;
                 var factor = nx - x1;
                 if (x1 >= 0 && x2 < extendedWidth) {
-                    newBuffer[x1 + y * extendedWidth] += (1 - factor) * buffer[x + y * width];
-                    newBuffer[x2 + y * extendedWidth] += factor * buffer[x + y * width];
+                    newBuffer[y][x1] += (1 - factor) * buffer[y][x];
+                    newBuffer[y][x2] += factor * buffer[y][x];
                 }
                 // reduce transform artifacts by filling with same border color
                 if (x == 0) {
                     for (int k = 0; k < nx; k++) {
-                        newBuffer[k + y * extendedWidth] = buffer[x + y * width];
+                        newBuffer[y][k] = buffer[y][x];
                     }
                 } else if (x == width - 1) {
                     for (int k = (int) nx; k < extendedWidth; k++) {
-                        newBuffer[k + y * extendedWidth] = buffer[x + y * width];
+                        newBuffer[y][k] = buffer[y][x];
                     }
                 }
             }

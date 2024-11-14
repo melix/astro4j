@@ -205,18 +205,22 @@ public class SpectralRayEditor {
                 var mono = monoImage.data();
                 var rgbColor = newRay.toRGB();
                 if (rgbColor[0] == 0 && rgbColor[1] == 0 && rgbColor[2] == 0) {
-                    return new float[][]{mono, mono, mono};
+                    return new float[][][]{mono, mono, mono};
                 }
-                var r = new float[mono.length];
-                var g = new float[mono.length];
-                var b = new float[mono.length];
-                for (int i = 0; i < mono.length; i++) {
-                    var gray = mono[i];
-                    r[i] = gray * rgbColor[0] / 255f;
-                    g[i] = gray * rgbColor[1] / 255f;
-                    b[i] = gray * rgbColor[2] / 255f;
+                var height = monoImage.height();
+                var width = monoImage.width();
+                var r = new float[height][width];
+                var g = new float[height][width];
+                var b = new float[height][width];
+                for (int y = 0; y < height; y++) {
+                    for (int x = 0; x < width; x++) {
+                        var gray = mono[y][x];
+                        r[y][x] = gray * rgbColor[0] / 255f;
+                        g[y][x] = gray * rgbColor[1] / 255f;
+                        b[y][x] = gray * rgbColor[2] / 255f;
+                    }
                 }
-                return new float[][]{r, g, b};
+                return new float[][][]{r, g, b};
             }
         });
         var r = colorImage.r();
@@ -288,10 +292,12 @@ public class SpectralRayEditor {
             }
             var width = image.getWidth();
             var height = image.getHeight();
-            var data = new float[width * height];
+            var data = new float[height][width];
             var rgb = image.getRGB(0, 0, width, height, null, 0, width);
-            for (int i = 0; i < data.length; i++) {
-                data[i] = rgb[i] & 0xFF;
+            for (int y = 0; y < height; y++) {
+                for (int x = 0; x < width; x++) {
+                    data[y][x] = rgb[y * width + x] & 0xFF;
+                }
             }
             var result = new ImageWrapper32(width, height, data, MutableMap.of());
             LinearStrechingStrategy.DEFAULT.stretch(result);

@@ -27,10 +27,10 @@ class ImageIOUtils {
         var img = ImageIO.read(AlignerTest.getResource(name))
         var refW = img.width
         var refH = img.height
-        var loaded = new float[refW * refH]
+        var loaded = new float[refH][refW]
         for (int x = 0; x < refW; x++) {
             for (int y = 0; y < refH; y++) {
-                loaded[x + y * refW] = (img.getRGB(x, y) & 0xFF) << 8
+                loaded[y][x] = (img.getRGB(x, y) & 0xFF) << 8
             }
         }
         new Image(refW, refH, loaded)

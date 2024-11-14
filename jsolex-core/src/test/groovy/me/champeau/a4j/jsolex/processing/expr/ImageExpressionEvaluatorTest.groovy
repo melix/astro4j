@@ -27,7 +27,7 @@ class ImageExpressionEvaluatorTest extends Specification {
     @Subject
     ImageExpressionEvaluator evaluator
 
-    private Map<Integer, ImageWrapper32> images = [:].withDefault { new ImageWrapper32(0, 0, new float[0], [:]) }
+    private Map<Integer, ImageWrapper32> images = [:].withDefault { new ImageWrapper32(0, 0, new float[0][], [:]) }
 
     def "can collect image shifts from expression"() {
         given:

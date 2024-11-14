@@ -69,7 +69,7 @@ public abstract class AbstractTask<T> implements Callable<T>, Supplier<T> {
     /**
      * Returns this task image buffer
      */
-    public final float[] getBuffer() {
+    public final float[][] getBuffer() {
         return workImage.data();
     }
 

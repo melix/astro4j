@@ -64,7 +64,7 @@ public class PhenomenaDetector {
         return redshiftsPerFrame;
     }
 
-    public void performDetection(int frameId, int width, int height, float[] original, DoubleUnaryOperator polynomial) {
+    public void performDetection(int frameId, int width, int height, float[][] original, DoubleUnaryOperator polynomial) {
         // Ellerman bomb detection consists in looking for a sharp increase in intensity
         // around the h-alpha line. The center of the h-alpha line is untouched, but around
         // the wings, a sharp increase in intensity is expected, but it will not cover the
@@ -88,20 +88,20 @@ public class PhenomenaDetector {
             var avgWingsCount = 0;
             var columnsAverages = new double[width];
             for (int x = leftLimit; x < rightLimit; x++) {
-                var columnAvg = columnAverage(x, width, height, original);
+                var columnAvg = columnAverage(x, height, original);
                 columnsAverages[x] = columnAvg;
                 avgOfColumnAverages += columnAvg;
                 var y = (int) Math.round(polynomial.applyAsDouble(x));
-                double v = original[x + y * width];
+                double v = original[y][x];
                 avgCenterLine += v;
                 avgCenterCount++;
                 if (y - wingShiftInPixels >= 0) {
-                    v = original[x + (y - wingShiftInPixels) * width];
+                    v = original[(y - wingShiftInPixels)][x];
                     avgWings += v;
                     avgWingsCount++;
                 }
                 if (y + wingShiftInPixels < height) {
-                    v = original[x + (y + wingShiftInPixels) * width];
+                    v = original[(y + wingShiftInPixels)][x];
                     avgWings += v;
                     avgWingsCount++;
                 }
@@ -119,14 +119,14 @@ public class PhenomenaDetector {
         }
     }
 
-    private static double stddev(float[] data, int width, int height, int startX, int endX) {
+    private static double stddev(float[][] data, int width, int height, int startX, int endX) {
         double sum = 0;
         double range = endX - startX;
         int count = (int) (height * range);
 
         for (int x = startX; x < endX; x++) {
             for (int y = 0; y < height; y++) {
-                sum += data[x + y * width];
+                sum += data[y][x];
             }
         }
         double avg = sum / count;
@@ -134,7 +134,7 @@ public class PhenomenaDetector {
         double varianceSum = 0;
         for (int x = startX; x < endX; x++) {
             for (int y = 0; y < height; y++) {
-                var v = data[x + y * width] - avg;
+                var v = data[y][x] - avg;
                 varianceSum += v * v;
             }
         }
@@ -144,10 +144,10 @@ public class PhenomenaDetector {
     }
 
 
-    private static double columnAverage(int column, int width, int height, float[] data) {
+    private static double columnAverage(int column, int height, float[][] data) {
         var tmp = 0d;
         for (int y = 0; y < height; y++) {
-            tmp += data[column + y * width];
+            tmp += data[y][column];
         }
         return tmp / height;
     }
@@ -156,7 +156,7 @@ public class PhenomenaDetector {
                                int x,
                                int width,
                                int height,
-                               float[] original,
+                               float[][] original,
                                DoubleUnaryOperator polynomial,
                                int wingShiftInPixels,
                                List<Redshift> collector,
@@ -174,14 +174,14 @@ public class PhenomenaDetector {
         if (columnAverage < 0.9 * avgOfcolumnAverages) {
             return;
         }
-        var middleValue = original[x + width * yi];
+        var middleValue = original[yi][x];
         if (middleValue > 1.5 * avgLineValue) {
             // reduce risks of detecting flares
             return;
         }
         var colMax = 0d;
         for (int y = 0; y < height; y++) {
-            var v = original[x + width * y];
+            var v = original[y][x];
             if (v > colMax) {
                 colMax = v;
             }
@@ -195,7 +195,7 @@ public class PhenomenaDetector {
         int minY = 0;
         int maxY = 0;
         while (y < height) {
-            var v = original[x + width * y];
+            var v = original[y][x];
             var shift = y - yi;
             var threshold = avgLineValue + 2 * colStdDev;
             if (v >= threshold || (prev > 0 && v > 1.2 * prev)) {
@@ -214,7 +214,7 @@ public class PhenomenaDetector {
         int maxShiftDown = 0;
         int relMaxShiftDown = 0;
         while (y >= 0) {
-            var v = original[x + width * y];
+            var v = original[y][x];
             var shift = yi - y;
             var threshold = avgLineValue + 2 * colStdDev;
             if (v >= threshold || (prev > 0 && v > 1.2 * prev)) {

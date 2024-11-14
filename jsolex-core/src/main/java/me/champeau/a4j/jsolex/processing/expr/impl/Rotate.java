@@ -65,10 +65,10 @@ public class Rotate extends AbstractFunctionImpl {
     public Object hflip(List<Object> arguments) {
         assertExpectedArgCount(arguments, "hflip takes 1 arguments (image(s))", 1, 1);
         return applyUnary(arguments, "hflip", (width, height, data) -> {
-            var result = new float[width * height];
+            var result = new float[height][width];
             for (var y = 0; y < height; y++) {
                 for (var x = 0; x < width; x++) {
-                    result[y * width + x] = data[y * width + width - x - 1];
+                    result[y][x] = data[y][width - x - 1];
                 }
             }
             System.arraycopy(result, 0, data, 0, result.length);

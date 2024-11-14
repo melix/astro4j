@@ -83,8 +83,8 @@ public class DopplerSupport {
             var g1 = BackgroundRemoval.neutralizeBackground(grey1Eclipse);
             grey2Eclipse.findMetadata(Ellipse.class).ifPresent(eclipse2 -> {
                 var g2 = BackgroundRemoval.neutralizeBackground(grey2Eclipse);
-                DiskFill.doFill(eclipse1, g1.data(), width, 0, null);
-                DiskFill.doFill(eclipse2, g2.data(), width, 0, null);
+                DiskFill.doFill(eclipse1, g1.data(), 0, null);
+                DiskFill.doFill(eclipse2, g2.data(), 0, null);
                 var stretch = new ArcsinhStretchingStrategy(0, 50, 50);
                 stretch.stretch(g1);
                 stretch.stretch(g2);
@@ -105,27 +105,29 @@ public class DopplerSupport {
         });
     }
 
-    static float[][] toDopplerImage(int width, int height, ImageWrapper32 grey1, ImageWrapper32 grey2) {
-        float[] r = new float[width * height];
-        float[] g = new float[width * height];
-        float[] b = new float[width * height];
+    static float[][][] toDopplerImage(int width, int height, ImageWrapper32 grey1, ImageWrapper32 grey2) {
+        float[][] r = new float[height][width];
+        float[][] g = new float[height][width];
+        float[][] b = new float[height][width];
         var d1 = grey1.data();
         var d2 = grey2.data();
         for (int y = 0; y < height; y++) {
             for (int x = 0; x < width; x++) {
-                var idx = x + y * width;
-                r[idx] = d1[idx];
-                g[idx] = (d1[idx] + d2[idx]) / 2;
-                b[idx] = d2[idx];
+                r[y][x] = d1[y][x];
+                g[y][x] = (d1[y][x] + d2[y][x]) / 2;
+                b[y][x] = d2[y][x];
 
             }
         }
-        var rgb = new float[][]{r, g, b};
+        var rgb = new float[][][]{r, g, b};
         var hsl = ImageUtils.fromRGBtoHSL(rgb);
         var saturation = hsl[1];
-        for (int i = 0; i < saturation.length; i++) {
-            var sat = Math.sqrt(saturation[i]);
-            saturation[i] = (float) sat;
+        for (float[] line : saturation) {
+            for (int j = 0; j < line.length; j++) {
+                float v = line[j];
+                var sat = Math.sqrt(v);
+                line[j] = (float) sat;
+            }
         }
         ImageUtils.fromHSLtoRGB(hsl, rgb);
         var metadata = MutableMap.<Class<?>, Object>of();

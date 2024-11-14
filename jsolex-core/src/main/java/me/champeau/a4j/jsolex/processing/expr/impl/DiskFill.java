@@ -54,18 +54,15 @@ public class DiskFill extends AbstractFunctionImpl {
         }
         if (img instanceof ImageWrapper32 mono) {
             var copy = mono.copy();
-            doFill(ellipse, copy.data(), copy.width(), fill, outsideFill);
+            doFill(ellipse, copy.data(), fill, outsideFill);
             return copy;
         } else if (img instanceof RGBImage rgb) {
-            var r = new float[rgb.r().length];
-            System.arraycopy(rgb.r(), 0, r, 0, r.length);
-            doFill(ellipse, r, rgb.width(), fill, outsideFill);
-            var g = new float[rgb.g().length];
-            System.arraycopy(rgb.g(), 0, g, 0, g.length);
-            doFill(ellipse, g, rgb.width(), fill, outsideFill);
-            var b = new float[rgb.b().length];
-            System.arraycopy(rgb.b(), 0, b, 0, b.length);
-            doFill(ellipse, b, rgb.width(), fill, outsideFill);
+            var r = ImageWrapper.copyData(rgb.r());
+            doFill(ellipse, r, fill, outsideFill);
+            var g = ImageWrapper.copyData(rgb.g());
+            doFill(ellipse, g, fill, outsideFill);
+            var b = ImageWrapper.copyData(rgb.b());
+            doFill(ellipse, b, fill, outsideFill);
             return new RGBImage(rgb.width(), rgb.height(), r, g, b, new LinkedHashMap<>(rgb.metadata()));
         }
         return null;
@@ -99,14 +96,14 @@ public class DiskFill extends AbstractFunctionImpl {
         }
     }
 
-    public static void doFill(Ellipse ellipse, float[] image, int width, float color, Float outsideColor) {
-        int height = image.length / width;
-        for (int x = 0; x < width; x++) {
-            for (int y = 0; y < height; y++) {
+    public static void doFill(Ellipse ellipse, float[][] image, float color, Float outsideColor) {
+        for (int y = 0; y < image.length; y++) {
+            var line = image[y];
+            for (int x = 0; x < line.length; x++) {
                 if (ellipse.isWithin(x, y)) {
-                    image[x + y * width] = color;
+                    image[y][x] = color;
                 } else if (outsideColor != null) {
-                    image[x + y * width] = outsideColor;
+                    image[y][x] = outsideColor;
                 }
             }
         }

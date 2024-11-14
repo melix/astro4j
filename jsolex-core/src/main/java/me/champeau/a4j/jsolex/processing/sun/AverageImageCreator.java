@@ -33,12 +33,12 @@ import static me.champeau.a4j.jsolex.processing.util.Constants.message;
  * to a threshold.
  */
 public class AverageImageCreator {
-    private final ImageConverter<float[]> imageConverter;
+    private final ImageConverter<float[][]> imageConverter;
     private final Broadcaster broadcaster;
 
-    private float[] averageImage;
+    private float[][] averageImage;
 
-    public AverageImageCreator(ImageConverter<float[]> imageConverter,
+    public AverageImageCreator(ImageConverter<float[][]> imageConverter,
                                Broadcaster broadcaster) {
         this.imageConverter = imageConverter;
         this.broadcaster = broadcaster;
@@ -49,7 +49,7 @@ public class AverageImageCreator {
         ImageGeometry geometry = reader.header().geometry();
         var limbDetectionMessage = message("computing.average.image.limb.detect");
         var imageMath = ImageMath.newInstance();
-        averageImage = new float[geometry.width() * geometry.height()];
+        averageImage = new float[geometry.height()][geometry.width()];
         var counter = new AtomicInteger(0);
         // we start with sampling frames to find the one with the maximum intensity
         var sampling = Math.max(10, frameCount / 100);
@@ -93,7 +93,7 @@ public class AverageImageCreator {
         }
     }
 
-    public float[] getAverageImage() {
+    public float[][] getAverageImage() {
         return averageImage;
     }
 }

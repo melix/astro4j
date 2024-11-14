@@ -146,9 +146,11 @@ class AbstractFunctionImpl {
         return processed.stream().sorted(Comparator.comparingInt(IndexedObject::idx)).map(IndexedObject::image).toList();
     }
 
-    private static void applyFunction(float[] data, DoubleUnaryOperator function) {
-        for (var i = 0; i < data.length; i++) {
-            data[i] = (float) function.applyAsDouble(data[i]);
+    private static void applyFunction(int width, int height, float[][] data, DoubleUnaryOperator function) {
+        for (int y = 0; y < height; y++) {
+            for (int x = 0; x < width; x++) {
+                data[y][x] = (float) function.applyAsDouble(data[y][x]);
+            }
         }
     }
 
@@ -211,13 +213,13 @@ class AbstractFunctionImpl {
         }
         if (img instanceof ImageWrapper32 mono) {
             var copy = mono.copy();
-            applyFunction(copy.data(), unary);
+            applyFunction(mono.width(), mono.height(), copy.data(), unary);
             return copy;
         } else if (img instanceof RGBImage rgb) {
             var copy = rgb.copy();
-            applyFunction(copy.r(), unary);
-            applyFunction(copy.g(), unary);
-            applyFunction(copy.b(), unary);
+            applyFunction(rgb.width(), rgb.height(), copy.r(), unary);
+            applyFunction(rgb.width(), rgb.height(), copy.g(), unary);
+            applyFunction(rgb.width(), rgb.height(), copy.b(), unary);
             return copy;
         }
         throw new IllegalStateException("Unexpected image type " + img);
@@ -248,6 +250,6 @@ class AbstractFunctionImpl {
 
     @FunctionalInterface
     public interface MonoImageTransformer {
-        void transform(int width, int height, float[] data);
+        void transform(int width, int height, float[][] data);
     }
 }

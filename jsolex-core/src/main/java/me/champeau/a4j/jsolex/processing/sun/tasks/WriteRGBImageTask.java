@@ -25,7 +25,7 @@ import java.io.File;
 import java.util.function.Supplier;
 
 public class WriteRGBImageTask extends AbstractImageWriterTask {
-    private final Supplier<float[][]> supplier;
+    private final Supplier<float[][][]> supplier;
 
     public WriteRGBImageTask(Broadcaster broadcaster,
                              Supplier<ImageWrapper32> ref,
@@ -33,7 +33,7 @@ public class WriteRGBImageTask extends AbstractImageWriterTask {
                              String title,
                              String name,
                              GeneratedImageKind kind,
-                             Supplier<float[][]> supplier) {
+                             Supplier<float[][][]> supplier) {
         super(broadcaster, ref, outputDirectory, title, name, kind);
         this.supplier = supplier;
     }

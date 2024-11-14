@@ -29,7 +29,7 @@ public class BandingReduction {
     private BandingReduction() {
     }
 
-    public static void reduceBanding(int width, int height, float[] data, int bandSize, Ellipse ellipse) {
+    public static void reduceBanding(int width, int height, float[][] data, int bandSize, Ellipse ellipse) {
         double[] lineAverages = lineAverages(width, height, data, ellipse);
         for (int y = 0; y < height; y++) {
             double bandAverage = computeAverageForBand(height, lineAverages, bandSize, y);
@@ -37,10 +37,9 @@ public class BandingReduction {
             if (currentLineAverage < bandAverage) {
                 Double correction = bandAverage / currentLineAverage;
                 if (!correction.isInfinite() && !correction.isNaN()) {
-                    var offset = y * width;
                     for (int x = 0; x < width; x++) {
                         if (ellipse == null || ellipse.isWithin(x, y)) {
-                            data[offset + x] *= correction;
+                            data[y][x] *= correction;
                         }
                     }
                 }
@@ -49,9 +48,11 @@ public class BandingReduction {
         if (ellipse != null) {
             bilinearSmoothing(ellipse, width, height, data);
         }
-        for (int i = 0; i < data.length; i++) {
-            float v = data[i];
-            data[i] = Math.min(v, Constants.MAX_PIXEL_VALUE);
+        for (int y = 0; y < height; y++) {
+            for (int x = 0; x < width; x++) {
+                float v = data[y][x];
+                data[y][x] = Math.min(v, Constants.MAX_PIXEL_VALUE);
+            }
         }
     }
 
@@ -68,7 +69,7 @@ public class BandingReduction {
         return sum / count;
     }
 
-    private static double[] lineAverages(int width, int height, float[] data, Ellipse ellipse) {
+    private static double[] lineAverages(int width, int height, float[][] data, Ellipse ellipse) {
         if (ellipse == null) {
             return ImageMath.newInstance().lineAverages(new Image(width, height, data));
         }
@@ -79,13 +80,12 @@ public class BandingReduction {
         return averages;
     }
 
-    private static double lineAverage(int width, int y, float[] data, Ellipse ellipse) {
+    private static double lineAverage(int width, int y, float[][] data, Ellipse ellipse) {
         double sum = 0;
         int count = 0;
-        var offset = y * width;
         for (int x = 0; x < width; x++) {
             if (ellipse.isWithin(x, y)) {
-                sum += data[x + offset];
+                sum += data[y][x];
                 count++;
             }
         }

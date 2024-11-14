@@ -74,12 +74,14 @@ public final class AutohistogramStrategy implements StretchingStrategy {
         // Neutralize offset
         var stats = ImageAnalysis.of(diskData);
         var min = stats.min();
-        for (int j = 0; j < diskData.length; j++) {
-            diskData[j] -= min;
-        }
-        var ellipse = image.findMetadata(Ellipse.class);
         var height = image.height();
         var width = image.width();
+        for (int y = 0; y < height; y++) {
+            for (int x = 0; x < width; x++) {
+                diskData[y][x] -= min;
+            }
+        }
+        var ellipse = image.findMetadata(Ellipse.class);
         if (ellipse.isPresent()) {
             var e = ellipse.get();
             diskData = disk.data();
@@ -89,30 +91,35 @@ public final class AutohistogramStrategy implements StretchingStrategy {
             var radius = (semiAxis.a() + semiAxis.b()) / 2;
             var amplificationThreshold = findAmplificationThreshold(diskData, width, height, e);
             float max = 1e-7f;
-            for (float v : diskData) {
-                max = Math.max(v, max);
+            for (int y = 0; y < height; y++) {
+                for (int x = 0; x < width; x++) {
+                    max = Math.max(diskData[y][x], max);
+                }
             }
             var asinhs = new ArcsinhStretchingStrategy(0, ASINH_FACTOR, ASINH_FACTOR);
             for (int y = 0; y < height; y++) {
                 for (int x = 0; x < width; x++) {
-                    var idx = y * width + x;
-                    var v = diskData[idx];
+                    var v = diskData[y][x];
                     float normalized = v / max;
                     var dist = normalizedDistanceToCenter(x, y, cx, cy, radius);
                     var gammaCorrected = (float) Math.pow(normalized, gamma) * Constants.MAX_PIXEL_VALUE;
                     if (dist <= 1 || v < amplificationThreshold) {
-                        diskData[idx] = gammaCorrected;
+                        diskData[y][x] = gammaCorrected;
                     } else {
                         var f = 8 * Math.pow(gamma, 2) * tanh(dist - 1);
                         var newValue = (float) (gammaCorrected + f * asinhs.stretchPixel(gammaCorrected));
-                        diskData[idx] = Math.clamp(newValue, 0, Constants.MAX_PIXEL_VALUE);
+                        diskData[y][x] = Math.clamp(newValue, 0, Constants.MAX_PIXEL_VALUE);
                     }
                 }
             }
-            System.arraycopy(diskData, 0, image.data(), 0, diskData.length);
+            for (int y = 0; y < height; y++) {
+                System.arraycopy(diskData[y], 0, image.data()[y], 0, width);
+            }
         } else {
             new GammaStrategy(gamma).stretch(disk);
-            System.arraycopy(diskData, 0, image.data(), 0, diskData.length);
+            for (int y = 0; y < height; y++) {
+                System.arraycopy(diskData[y], 0, image.data()[y], 0, width);
+            }
         }
         diskData = image.data();
         // for histogram transform, we will only consider pixels within 1.2 * radius of the center of the disk
@@ -130,17 +137,21 @@ public final class AutohistogramStrategy implements StretchingStrategy {
         LinearStrechingStrategy.DEFAULT.stretch(image);
     }
 
-    private static void mixInClahe(ImageWrapper32 image, float[] diskData) {
+    private static void mixInClahe(ImageWrapper32 image, float[][] diskData) {
         var clahe = image.copy();
         new ClaheStrategy(8, 64, 1.0).stretch(clahe);
         // combine CLAHE with image
         var claheData = clahe.data();
-        for (int i = 0; i < diskData.length; i++) {
-            diskData[i] = (float) (0.75 * diskData[i] + 0.25 * claheData[i]);
+        var width = image.width();
+        var height = image.height();
+        for (int y = 0; y < height; y++) {
+            for (int x = 0; x < width; x++) {
+                diskData[y][x] = (float) (0.75 * diskData[y][x] + 0.25 * claheData[y][x]);
+            }
         }
     }
 
-    private static void alignLeftHistogram(float[] diskData) {
+    private static void alignLeftHistogram(float[][] diskData) {
         var histo = Histogram.of(diskData, 256);
         var avg = 0;
         for (int i = 0; i < 256; i++) {
@@ -156,27 +167,30 @@ public final class AutohistogramStrategy implements StretchingStrategy {
         for (int i = 0; i < 256; i++) {
             if (histo.get(i) > 2 * stddev) {
                 var limit = 256 * i;
-                for (int j = 0; j < diskData.length; j++) {
-                    diskData[j] = Math.max(0, diskData[j] - limit);
+                for (var line : diskData) {
+                    for (int k = 0; k < line.length; k++) {
+                        float v = line[k];
+                        line[k] = Math.max(0, v - limit);
+                    }
                 }
                 break;
             }
         }
     }
 
-    private static ContrastAdjustmentStrategy clamping(float[] diskData, double loPercentile, double hiPercentile) {
+    private static ContrastAdjustmentStrategy clamping(float[][] diskData, double loPercentile, double hiPercentile) {
         var cumulative = Histogram.of(diskData, 65536).cumulative();
         var lo = cumulative.percentile(loPercentile);
         var hi = cumulative.percentile(hiPercentile);
         return new ContrastAdjustmentStrategy(lo, hi);
     }
 
-    private double findAmplificationThreshold(float[] diskData, int width, int height, Ellipse e) {
+    private double findAmplificationThreshold(float[][] diskData, int width, int height, Ellipse e) {
         var builder = Histogram.builder(65536);
         for (int y = 0; y < height; y++) {
             for (int x = 0; x < width; x++) {
                 if (!e.isWithin(x, y)) {
-                    builder.record(diskData[y * width + x]);
+                    builder.record(diskData[y][x]);
                 }
             }
         }
@@ -195,19 +209,19 @@ public final class AutohistogramStrategy implements StretchingStrategy {
         return distance / radius;
     }
 
-    private static Histogram maskedHistogram(float[] image, int width, int height, Ellipse ellipse) {
+    private static Histogram maskedHistogram(float[][] image, int width, int height, Ellipse ellipse) {
         var builder = Histogram.builder(HISTOGRAM_BINS);
         for (int y = 0; y < height; y++) {
             for (int x = 0; x < width; x++) {
                 if (ellipse.isWithin(x, y)) {
-                    builder.record(image[y * width + x]);
+                    builder.record(image[y][x]);
                 }
             }
         }
         return builder.build();
     }
 
-    private static LoHi findLoHi(float[] image) {
+    private static LoHi findLoHi(float[][] image) {
         var histo = Histogram.of(image, HISTOGRAM_BINS);
         return findLoHi(histo);
     }

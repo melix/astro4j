@@ -114,7 +114,7 @@ public class SpectrumAnalyzer {
                                                     int end,
                                                     int width,
                                                     int height,
-                                                    float[] data) {
+                                                    float[][] data) {
         var lambda0 = details.line().wavelength();
         var pixelSize = details.pixelSize();
         var binning = details.binning();
@@ -149,8 +149,8 @@ public class SpectrumAnalyzer {
                 int upperNy = (int) Math.ceil(exactNy);
 
                 if (lowerNy >= 0 && upperNy < height) {
-                    var lowerValue = data[width * lowerNy + x];
-                    var upperValue = data[width * upperNy + x];
+                    var lowerValue = data[lowerNy][x];
+                    var upperValue = data[upperNy][x];
                     var interpolatedValue = lowerValue + (upperValue - lowerValue) * (exactNy - lowerNy);
 
                     val += interpolatedValue;

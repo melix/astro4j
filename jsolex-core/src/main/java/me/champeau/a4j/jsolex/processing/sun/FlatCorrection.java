@@ -62,7 +62,7 @@ public class FlatCorrection {
         for (int y = 0; y < height; y++) {
             for (int x = 0; x < width; x++) {
                 if (ellipse.isWithin(x, y)) {
-                    var v = data[x + y * width];
+                    var v = data[y][x];
                     builder.record(v);
                     minX = Math.min(minX, x);
                     maxX = Math.max(maxX, x);
@@ -82,7 +82,7 @@ public class FlatCorrection {
             double count = 0;
             for (int x = 0; x < width; x++) {
                 if (ellipse.isWithin(x, y)) {
-                    var v = data[x + y * width];
+                    var v = data[y][x];
                     if (v > lo && v < hi) {
                         total += v;
                         count++;
@@ -132,12 +132,11 @@ public class FlatCorrection {
         int width = source.width();
         int height = source.height();
         var data = source.data();
-        var outData = new float[data.length];
+        var outData = new float[height][width];
         for (int y = 0; y < height; y++) {
             var correction = normalized[y];
             for (int x = 0; x < width; x++) {
-                var idx = x + y * width;
-                outData[idx] = (float) (data[idx] / correction);
+                outData[y][x] = (float) (data[y][x] / correction);
             }
         }
         return new ImageWrapper32(width, height, outData, new HashMap<>(source.metadata()));

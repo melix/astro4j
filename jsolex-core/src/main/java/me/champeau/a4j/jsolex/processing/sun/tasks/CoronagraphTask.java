@@ -15,6 +15,7 @@
  */
 package me.champeau.a4j.jsolex.processing.sun.tasks;
 
+import me.champeau.a4j.jsolex.processing.expr.impl.DiskFill;
 import me.champeau.a4j.jsolex.processing.stretching.ArcsinhStretchingStrategy;
 import me.champeau.a4j.jsolex.processing.sun.BackgroundRemoval;
 import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
@@ -39,7 +40,7 @@ public class CoronagraphTask extends AbstractTask<ImageWrapper32> {
     @Override
     protected ImageWrapper32 doCall() throws Exception {
         var buffer = getBuffer();
-        fill(fitting, buffer, width, 0);
+        DiskFill.doFill(fitting, buffer, 0, null);
         for (int i=0;i<2;i++) {
             workImage = BackgroundRemoval.neutralizeBackground(workImage);
         }
@@ -47,17 +48,6 @@ public class CoronagraphTask extends AbstractTask<ImageWrapper32> {
         new ArcsinhStretchingStrategy(0, 50, 50).stretch(workImage);
         workImage = new ImageWrapper32(width, height, buffer, workImage.metadata());
         return workImage;
-    }
-
-    private void fill(Ellipse ellipse, float[] image, int width, int color) {
-        int height = image.length / width;
-        for (int x = 0; x < width; x++) {
-            for (int y = 0; y < height; y++) {
-                if (ellipse.isWithin(x, y)) {
-                    image[x + y * width] = color;
-                }
-            }
-        }
     }
 
 }

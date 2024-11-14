@@ -17,25 +17,29 @@ package me.champeau.a4j.math.image;
 
 import java.util.Arrays;
 
-public record Image(int width, int height, float[] data) {
+public record Image(int width, int height, float[][] data) {
 
-    int length() {
-        return data.length;
-    }
-
-    public Image withData(float[] data) {
-        return new Image(width, height, data);
+    public Image withData(float[][] newData) {
+        var copyData = deepCopy(newData);
+        return new Image(width, height, copyData);
     }
 
     public Image copy() {
-        var copy = new float[data.length];
-        System.arraycopy(data, 0, copy, 0, data.length);
-        return new Image(width, height, copy);
+        var copyData = deepCopy(data);
+        return new Image(width, height, copyData);
     }
 
-    @Override
-    public String toString() {
-        return "{ width = " + width + ", height = " + height + "}";
+    private float[][] deepCopy(float[][] original) {
+        if (original.length==0) {
+            return new float[0][];
+        }
+        var copy = new float[original.length][];
+        for (int i = 0; i < original.length; i++) {
+            var length = original[i].length;
+            copy[i] = new float[length];
+            System.arraycopy(original[i], 0, copy[i], 0, length);
+        }
+        return copy;
     }
 
     @Override
@@ -55,14 +59,29 @@ public record Image(int width, int height, float[] data) {
         if (height != image.height) {
             return false;
         }
-        return Arrays.equals(data, image.data);
+        for (int i = 0; i < data.length; i++) {
+            float[] line = data[i];
+            float[] other = image.data[i];
+            if (!Arrays.equals(line, other)) {
+                return false;
+            }
+        }
+        return true;
     }
 
     @Override
     public int hashCode() {
         int result = width;
         result = 31 * result + height;
-        result = 31 * result + Arrays.hashCode(data);
+        for (float[] line : data) {
+            result = 31 * result + Arrays.hashCode(line);
+        }
         return result;
     }
+
+    @Override
+    public String toString() {
+        return "{ width = " + width + ", height = " + height + " }";
+    }
+
 }

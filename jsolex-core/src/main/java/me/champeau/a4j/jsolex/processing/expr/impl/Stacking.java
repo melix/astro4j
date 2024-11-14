@@ -101,7 +101,8 @@ public class Stacking extends AbstractFunctionImpl {
     ImageWrapper32 doStack(List<ImageWrapper32> images, int tileSize, float overlap, ImageWrapper32 referenceImage, float threshold) {
         var widths = images.stream().mapToInt(ImageWrapper::width).distinct().toArray();
         var heights = images.stream().mapToInt(ImageWrapper::height).distinct().toArray();
-        images = prepareForStacking(images, widths, heights);;
+        images = prepareForStacking(images, widths, heights);
+        ;
         // the reference image is the first image
         // We perform stacking by doing the following:
         // for each image to stack, we split the image into tiles of size tileSize
@@ -146,7 +147,7 @@ public class Stacking extends AbstractFunctionImpl {
         for (ImageWrapper32 image : images) {
             metadata.putAll(image.metadata());
         }
-        var finalImage = assembleImage(result);
+        var finalImage = assembleImage(result, width, height);
         return new ImageWrapper32(width, height, finalImage, metadata);
     }
 
@@ -250,7 +251,7 @@ public class Stacking extends AbstractFunctionImpl {
                                  int y,
                                  int height,
                                  int imageCount,
-                                 float[] referenceData,
+                                 float[][] referenceData,
                                  float[][] result,
                                  double[] weights,
                                  float threshold,
@@ -288,8 +289,8 @@ public class Stacking extends AbstractFunctionImpl {
      * @param maxLookupShift the maximum shift we're going to try for alignment
      * @return the best match
      */
-    static Optional<ScoredMatch> findBestMatch(float[] referenceData,
-                                               float[] data,
+    static Optional<ScoredMatch> findBestMatch(float[][] referenceData,
+                                               float[][] data,
                                                int width,
                                                int height,
                                                int tileSize,
@@ -383,7 +384,7 @@ public class Stacking extends AbstractFunctionImpl {
         return Optional.of(new ScoredMatch(curX, curY, bestError));
     }
 
-    private void pushTileStack(int tileSize, int width, int height, int bestX, int bestY, double[][][] tileStack, int imageIndex, float[] bestTileData, float threshold) {
+    private void pushTileStack(int tileSize, int width, int height, int bestX, int bestY, double[][][] tileStack, int imageIndex, float[][] bestTileData, float threshold) {
         for (int dy = 0; dy < tileSize; dy++) {
             for (int dx = 0; dx < tileSize; dx++) {
                 var yy = bestY + dy;
@@ -391,8 +392,7 @@ public class Stacking extends AbstractFunctionImpl {
                 if (yy < 0 || yy >= height || xx < 0 || xx >= width) {
                     continue;
                 }
-                var idx = yy * width + xx;
-                var v = bestTileData[idx];
+                var v = bestTileData[yy][xx];
                 if (v > threshold) {
                     tileStack[dy][dx][imageIndex] = v;
                 }
@@ -454,9 +454,9 @@ public class Stacking extends AbstractFunctionImpl {
     static double computeError(int tileSize,
                                int width, int height,
                                int refX, int refY,
-                               float[] referenceData,
+                               float[][] referenceData,
                                int tileX, int tileY,
-                               float[] data) {
+                               float[][] data) {
         var error = 0d;
         int count = 0;
         var minDx = Math.max(Math.max(0, -refX), Math.max(0, -tileX));
@@ -469,8 +469,8 @@ public class Stacking extends AbstractFunctionImpl {
             for (int dy = minDy; dy < Math.min(maxDy, tileSize); dy++) {
                 var yy = refY + dy;
                 var tileYY = tileY + dy;
-                var ref = referenceData[yy * width + xx];
-                var img = data[tileYY * width + tileXX];
+                var ref = referenceData[yy][xx];
+                var img = data[tileYY][tileXX];
                 var e = (ref - img);
                 error += e * e;
                 count++;
@@ -505,20 +505,23 @@ public class Stacking extends AbstractFunctionImpl {
         }
     }
 
-    private static float[] assembleImage(float[][] stacks) {
-        var result = new float[stacks.length];
-        for (int pixelIndex = 0; pixelIndex < stacks.length; pixelIndex++) {
-            float[] stack = stacks[pixelIndex];
-            float sum = 0;
-            float count = 0;
-            for (float v : stack) {
-                if (v >= 0) {
-                    sum += v;
-                    count++;
+    private static float[][] assembleImage(float[][] stacks, int width, int height) {
+        var result = new float[height][width];
+        for (int y = 0; y < height; y++) {
+            for (int x = 0; x < width; x++) {
+                int pixelIndex = y * width + x;
+                float[] stack = stacks[pixelIndex];
+                float sum = 0;
+                float count = 0;
+                for (float v : stack) {
+                    if (v >= 0) {
+                        sum += v;
+                        count++;
+                    }
                 }
-            }
-            if (sum > 0) {
-                result[pixelIndex] = sum / count;
+                if (sum > 0) {
+                    result[y][x] = sum / count;
+                }
             }
         }
         return result;

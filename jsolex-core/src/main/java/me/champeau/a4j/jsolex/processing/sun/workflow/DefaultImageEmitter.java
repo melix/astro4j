@@ -54,7 +54,7 @@ public class DefaultImageEmitter implements ImageEmitter {
     }
 
     @Override
-    public void newMonoImage(GeneratedImageKind kind, String category, String title, String name, ImageWrapper32 image, Consumer<? super float[]> bufferConsumer) {
+    public void newMonoImage(GeneratedImageKind kind, String category, String title, String name, ImageWrapper32 image, Consumer<? super float[][]> bufferConsumer) {
         prepareOutput(name);
         storeMetadata(kind, title, name, image);
         new WriteMonoImageTask(broadcaster,
@@ -97,7 +97,7 @@ public class DefaultImageEmitter implements ImageEmitter {
     }
 
     @Override
-    public void newColorImage(GeneratedImageKind kind, String category, String title, String name, ImageWrapper32 image, Function<ImageWrapper32, float[][]> rgbSupplier) {
+    public void newColorImage(GeneratedImageKind kind, String category, String title, String name, ImageWrapper32 image, Function<ImageWrapper32, float[][][]> rgbSupplier) {
         prepareOutput(name);
         storeMetadata(kind, title, name, image);
         new WriteColorizedImageTask(broadcaster,
@@ -110,7 +110,7 @@ public class DefaultImageEmitter implements ImageEmitter {
     }
 
     @Override
-    public void newColorImage(GeneratedImageKind kind, String category, String title, String name, ImageWrapper32 image, Function<ImageWrapper32, float[][]> rgbSupplier, BiConsumer<Graphics2D, ? super ImageWrapper> painter) {
+    public void newColorImage(GeneratedImageKind kind, String category, String title, String name, ImageWrapper32 image, Function<ImageWrapper32, float[][][]> rgbSupplier, BiConsumer<Graphics2D, ? super ImageWrapper> painter) {
         newColorImage(kind, null, title, name, image, img -> {
             var rgb = rgbSupplier.apply(img);
             var r = rgb[0];
@@ -126,16 +126,16 @@ public class DefaultImageEmitter implements ImageEmitter {
             );
             var draw = new ImageDraw(Map.of(), broadcaster);
             RGBImage color = (RGBImage) draw.drawOnImage(copy, painter);
-            return new float[][]{color.r(), color.g(), color.b()};
+            return new float[][][]{color.r(), color.g(), color.b()};
         });
     }
 
     @Override
-    public void newColorImage(GeneratedImageKind kind, String category, String title, String name, int width, int height, Map<Class<?>, Object> metadata, Supplier<float[][]> rgbSupplier) {
+    public void newColorImage(GeneratedImageKind kind, String category, String title, String name, int width, int height, Map<Class<?>, Object> metadata, Supplier<float[][][]> rgbSupplier) {
         prepareOutput(name);
         new WriteRGBImageTask(broadcaster,
             () -> {
-                var image = new ImageWrapper32(width, height, new float[0], new HashMap<>(metadata));
+                var image = new ImageWrapper32(width, height, new float[0][], new HashMap<>(metadata));
                 storeMetadata(kind, title, name, image);
                 return image;
             },

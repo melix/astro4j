@@ -20,11 +20,11 @@ import me.champeau.a4j.math.image.Image;
 import java.util.function.DoubleUnaryOperator;
 
 public class DistortionCorrection {
-    private final float[] data;
+    private final float[][] data;
     private final int width;
     private final int height;
 
-    public DistortionCorrection(float[] data, int width, int height) {
+    public DistortionCorrection(float[][] data, int width, int height) {
         this.data = data;
         this.width = width;
         this.height = height;
@@ -42,7 +42,7 @@ public class DistortionCorrection {
      * @param p the coefficients of the polynomial
      * @return the corrected image
      */
-    public float[] polynomialCorrection(DoubleUnaryOperator p) {
+    public float[][] polynomialCorrection(DoubleUnaryOperator p) {
         return polynomialCorrection2(p, false);
     }
 
@@ -64,7 +64,7 @@ public class DistortionCorrection {
         for (int y = 0; y < height; y++) {
             boolean allPositive = true;
             for (int x = 0; x < width; x++) {
-                if (corrected[x + y * width] < 0) {
+                if (corrected[y][x] < 0) {
                     allPositive = false;
                     break;
                 }
@@ -78,7 +78,7 @@ public class DistortionCorrection {
         for (int y = height - 1; y >= 0; y--) {
             boolean allPositive = true;
             for (int x = 0; x < width; x++) {
-                if (corrected[x + y * width] < 0) {
+                if (corrected[y][x] < 0) {
                     allPositive = false;
                     break;
                 }
@@ -89,24 +89,22 @@ public class DistortionCorrection {
             }
         }
         int newHeight = maxY - minY;
-        float[] result = new float[width * newHeight];
+        float[][] result = new float[newHeight][width];
         for (int y = minY; y < maxY; y++) {
-            for (int x = 0; x < width; x++) {
-                result[x + (y - minY) * width] = corrected[x + y * width];
-            }
+            System.arraycopy(corrected[y], 0, result[(y - minY)], 0, width);
         }
         return new Image(width, newHeight, result);
     }
 
-    private float[] polynomialCorrection2(DoubleUnaryOperator p, boolean mark) {
-        float[] correctedImage = new float[data.length];
+    private float[][] polynomialCorrection2(DoubleUnaryOperator p, boolean mark) {
+        float[][] correctedImage = new float[height][width];
         double middle = height / 2.0;
         for (int y = 0; y < height; y++) {
             for (int x = 0; x < width; x++) {
                 // The amount of pixels that we need to shift the spectrum line vertically
                 double yCorrection = -p.applyAsDouble(x) + middle;
 
-                correctedImage[y * width + x] = (float) bilinearInterpolation(x, y - yCorrection, mark);
+                correctedImage[y][x] = (float) bilinearInterpolation(x, y - yCorrection, mark);
             }
         }
 
@@ -167,7 +165,7 @@ public class DistortionCorrection {
             }
             y = height - 1;
         }
-        return data[y * width + x];
+        return data[y][x];
     }
 
 

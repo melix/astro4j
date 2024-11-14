@@ -29,11 +29,11 @@ import static me.champeau.a4j.jsolex.processing.util.Constants.MAX_PIXEL_VALUE;
 
 public class SpectralLineFrameImageCreator {
     private final SpectrumFrameAnalyzer analyzer;
-    private final float[] original;
+    private final float[][] original;
     private final int width;
     private final int height;
 
-    public SpectralLineFrameImageCreator(SpectrumFrameAnalyzer analyzer, float[] original, int width, int height) {
+    public SpectralLineFrameImageCreator(SpectrumFrameAnalyzer analyzer, float[][] original, int width, int height) {
         this.analyzer = analyzer;
         this.original = original;
         this.width = width;
@@ -45,50 +45,51 @@ public class SpectralLineFrameImageCreator {
     }
 
     public RGBImage generateDebugImage(DoubleUnaryOperator forcedPolynomial) {
-        int size = width * height;
         var lastResult = analyzer.result();
         Optional<DoubleUnaryOperator> polynomial = Optional.ofNullable(forcedPolynomial).or(lastResult::distortionPolynomial);
-        float[] corrected;
+        float[][] corrected;
         if (polynomial.isPresent()) {
             var distorsionCorrection = new DistortionCorrection(original, width, height);
             corrected = distorsionCorrection.polynomialCorrection(polynomial.get());
         } else {
-            corrected = new float[size];
+            corrected = new float[height][width];
         }
         var samples = lastResult.getSamplePoints();
         // We create RGB images for debugging, which contain the original image at top
         // and the corrected one at the bottom
-        int spacing = 10 * width;
-        int offset = size + spacing;
-        float[] rr = new float[2 * size + spacing];
-        float[] gg = new float[2 * size + spacing];
-        float[] bb = new float[2 * size + spacing];
-        System.arraycopy(original, 0, rr, 0, size);
-        System.arraycopy(original, 0, gg, 0, size);
-        System.arraycopy(original, 0, bb, 0, size);
-        System.arraycopy(corrected, 0, rr, offset, size);
-        System.arraycopy(corrected, 0, gg, offset, size);
-        System.arraycopy(corrected, 0, bb, offset, size);
+        int spacing = 10;
+        float[][] rr = new float[2 * height + spacing][width];
+        float[][] gg = new float[2 * height + spacing][width];
+        float[][] bb = new float[2 * height + spacing][width];
+        for (int y = 0; y < height; y++) {
+            System.arraycopy(original[y], 0, rr[y], 0, width);
+            System.arraycopy(original[y], 0, gg[y], 0, width);
+            System.arraycopy(original[y], 0, bb[y], 0, width);
+            System.arraycopy(corrected[y], 0, rr[y + spacing + height], 0, width);
+            System.arraycopy(corrected[y], 0, gg[y + spacing + height], 0, width);
+            System.arraycopy(corrected[y], 0, bb[y + spacing + height], 0, width);
+        }
         for (int x = 0; x < width; x++) {
-            rr[x + size + 5 * width] = MAX_PIXEL_VALUE;
-            gg[x + size + 5 * width] = MAX_PIXEL_VALUE / 2;
-            bb[x + size + 5 * width] = MAX_PIXEL_VALUE;
+            rr[height + spacing / 2][x] = MAX_PIXEL_VALUE;
+            gg[height + spacing / 2][x] = MAX_PIXEL_VALUE / 2;
+            bb[height + spacing / 2][x] = MAX_PIXEL_VALUE;
         }
         lastResult.leftBorder().ifPresent(bx -> {
             for (int y = 0; y < height; y++) {
-                rr[offset + bx + y * width] = MAX_PIXEL_VALUE;
-                gg[offset + bx + y * width] = 0;
-                bb[offset + bx + y * width] = 0;
+                rr[y + spacing + height][bx] = MAX_PIXEL_VALUE;
+                gg[y + spacing + height][bx] = 0;
+                bb[y + spacing + height][bx] = 0;
             }
         });
         lastResult.rightBorder().ifPresent(bx -> {
             for (int y = 0; y < height; y++) {
-                rr[offset + bx + y * width] = MAX_PIXEL_VALUE;
-                gg[offset + bx + y * width] = 0;
-                bb[offset + bx + y * width] = 0;
+                rr[y + spacing + height][bx] = MAX_PIXEL_VALUE;
+                gg[y + spacing + height][bx] = 0;
+                bb[y + spacing + height][bx] = 0;
             }
         });
         polynomial.ifPresent(poly -> {
+            int size = height * width;
             // Draw a line on the top graph corresponding to the detected curvature
             for (int x = 0; x < width; x++) {
                 int y = (int) Math.round(poly.applyAsDouble(x));
@@ -96,9 +97,9 @@ public class SpectralLineFrameImageCreator {
                 if (idx < 0 || idx >= size) {
                     continue;
                 }
-                rr[idx] = MAX_PIXEL_VALUE;
-                gg[idx] = 0;
-                bb[idx] = 0;
+                rr[y][x] = MAX_PIXEL_VALUE;
+                gg[y][x] = 0;
+                bb[y][x] = 0;
             }
         });
         for (Point2D sample : samples) {
@@ -107,10 +108,9 @@ public class SpectralLineFrameImageCreator {
             if (x < 0 || x >= width || y < 0 || y >= height) {
                 continue;
             }
-            var idx = (int) (x + y * width);
-            rr[idx] = 0;
-            gg[idx] = MAX_PIXEL_VALUE;
-            bb[idx] = 0;
+            rr[(int) y][(int) x] = 0;
+            gg[(int) y][(int) x] = MAX_PIXEL_VALUE;
+            bb[(int) y][(int) x] = 0;
         }
         analyzer.analyze(corrected);
         // Add green lines showing the detected spectrum line
@@ -118,62 +118,61 @@ public class SpectralLineFrameImageCreator {
         for (Point2D sample : samples) {
             int x = (int) sample.x();
             int y = polynomial.map(poly -> distorsionCorrection.correctY(poly, sample.x(), sample.y())).orElse(sample.y()).intValue();
-            if (offset + x >= width || y >= height || x < 0 || y < 0) {
+            if (spacing + x >= width || y >= height || x < 0 || y < 0) {
                 continue;
             }
-            var idx = offset + x + y * width;
-            rr[idx] = 0;
-            gg[idx] = MAX_PIXEL_VALUE;
-            bb[idx] = 0;
+            rr[y + height + spacing][x] = 0;
+            gg[y + height + spacing][x] = MAX_PIXEL_VALUE;
+            bb[y + height + spacing][x] = 0;
         }
-        return new RGBImage(width, 2 * height + 10, rr, gg, bb, MutableMap.of());
+        return new RGBImage(width, 2 * height + spacing, rr, gg, bb, MutableMap.of());
     }
 
     public RGBImage generateSpectrumImage(DoubleUnaryOperator forcedPolynomial,
                                           boolean stretch,
                                           Consumer<? super DebugImage> debugImageConsumer) {
-        int size = width * height;
         Optional<DoubleUnaryOperator> polynomial = Optional.ofNullable(forcedPolynomial).or(() -> analyzer.result().distortionPolynomial());
         // We create RGB images for debugging, which contain the original image at top
         // and the corrected one at the bottom
-        int spacing = 10 * width;
-        int offset = size + spacing;
-        float[] rr = new float[2 * size + spacing];
-        float[] gg = new float[2 * size + spacing];
-        float[] bb = new float[2 * size + spacing];
+        int spacing = 10;
+        float[][] rr = new float[2 * height + spacing][width];
+        float[][] gg = new float[2 * height + spacing][width];
+        float[][] bb = new float[2 * height + spacing][width];
         var src = original;
         if (stretch) {
-            src = new float[src.length];
-            System.arraycopy(original, 0, src, 0, src.length);
+            src = ImageWrapper.copyData(original);
             LinearStrechingStrategy.DEFAULT.stretch(new ImageWrapper32(width, height, src, Map.of()));
         }
-        System.arraycopy(original, 0, rr, 0, size);
-        System.arraycopy(original, 0, gg, 0, size);
-        System.arraycopy(original, 0, bb, 0, size);
+        for (int y = 0; y < height; y++) {
+            System.arraycopy(original[y], 0, rr[y], 0, width);
+            System.arraycopy(original[y], 0, gg[y], 0, width);
+            System.arraycopy(original[y], 0, bb[y], 0, width);
+        }
         polynomial.ifPresent(poly -> {
             // Draw a line on the top graph corresponding to the detected curvature
+            int size = width * height;
             for (int x = 0; x < width; x++) {
                 int y = (int) Math.round(poly.applyAsDouble(x));
                 int idx = x + y * width;
                 if (idx < 0 || idx >= size) {
                     continue;
                 }
-                rr[idx] = MAX_PIXEL_VALUE;
-                gg[idx] = 0;
-                bb[idx] = 0;
+                rr[y][x] = MAX_PIXEL_VALUE;
+                gg[y][x] = 0;
+                bb[y][x] = 0;
             }
-            debugImageConsumer.accept(new DebugImage(rr, gg, bb, offset, width, height, poly));
+            debugImageConsumer.accept(new DebugImage(rr, gg, bb, width, height, spacing, poly));
         });
-        return new RGBImage(width, 2 * height + 10, rr, gg, bb, MutableMap.of());
+        return new RGBImage(width, 2 * height + spacing, rr, gg, bb, MutableMap.of());
     }
 
     public record DebugImage(
-        float[] r,
-        float[] g,
-        float[] b,
-        int offset,
+        float[][] r,
+        float[][] g,
+        float[][] b,
         int width,
         int height,
+        int spacing,
         DoubleUnaryOperator polynomial) {
 
     }

@@ -21,6 +21,6 @@ public record HessianFilterResponse(
         int boxSize,
         Image determinants,
         float maxValue,
-        byte[] laplacian
+        byte[][] laplacian
 ) {
 }

@@ -41,7 +41,7 @@ public final class ProcessingDoneEvent extends ProcessingEvent<ProcessingDoneEve
         ImageStats imageStats,
         List<RedshiftArea> redshifts,
         DoubleUnaryOperator polynomial,
-        float[] averageImage,
+        float[][] averageImage,
         ProcessParams processParams,
         PixelShiftRange pixelShiftRange) {
 
@@ -54,7 +54,7 @@ public final class ProcessingDoneEvent extends ProcessingEvent<ProcessingDoneEve
                                          ImageStats imageStats,
                                          List<RedshiftArea> redshifts,
                                          DoubleUnaryOperator polynomial,
-                                         float[] averageImage,
+                                         float[][] averageImage,
                                          ProcessParams processParams,
                                          PixelShiftRange pixelShiftRange) {
         return new ProcessingDoneEvent(new Outcome(timestamp, Collections.unmodifiableMap(images), customImageEmitter, ellipse, imageStats, redshifts, polynomial, averageImage, processParams, pixelShiftRange));

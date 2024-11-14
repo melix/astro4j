@@ -80,7 +80,7 @@ public class HeliumLineProcessor {
             imageEmitter.newMonoImage(GeneratedImageKind.GEOMETRY_CORRECTED_PROCESSED, "helium", message("helium.d3.direct"), "helium-direct", direct);
             if (evaluator.functionCall(BuiltinFunction.COLORIZE, List.of(direct, colorProfile)) instanceof RGBImage colorized) {
                 imageEmitter.newColorImage(GeneratedImageKind.COLORIZED, "helium",
-                    message("helium.d3.direct.colorized"), "helium-direct-colorized", colorized.width(), colorized.height(), new HashMap<>(colorized.metadata()), () -> new float[][] { colorized.r(), colorized.g(), colorized.b() });
+                    message("helium.d3.direct.colorized"), "helium-direct-colorized", colorized.width(), colorized.height(), new HashMap<>(colorized.metadata()), () -> new float[][][] { colorized.r(), colorized.g(), colorized.b() });
             }
         }
         var continuum = evaluator.createContinuumImage();
@@ -94,7 +94,7 @@ public class HeliumLineProcessor {
             imageEmitter.newMonoImage(GeneratedImageKind.GEOMETRY_CORRECTED_PROCESSED, "helium", message("helium.d3.processed"), "helium-extracted", image);
             if (evaluator.functionCall(BuiltinFunction.COLORIZE, List.of(image, colorProfile)) instanceof RGBImage colorized) {
                 imageEmitter.newColorImage(GeneratedImageKind.COLORIZED, "helium",
-                    message("helium.d3.processed.colorized"), "helium-extracted-colorized", image.width(), image.height(), new HashMap<>(image.metadata()), () -> new float[][] { colorized.r(), colorized.g(), colorized.b() });
+                    message("helium.d3.processed.colorized"), "helium-extracted-colorized", image.width(), image.height(), new HashMap<>(image.metadata()), () -> new float[][][] { colorized.r(), colorized.g(), colorized.b() });
             }
         }
     }

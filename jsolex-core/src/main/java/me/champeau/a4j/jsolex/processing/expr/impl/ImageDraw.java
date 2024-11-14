@@ -397,18 +397,26 @@ public class ImageDraw extends AbstractFunctionImpl {
     private static int maxValue(ImageWrapper wrapper) {
         float max = Integer.MIN_VALUE;
         if (wrapper instanceof ImageWrapper32 mono) {
-            for (float d : mono.data()) {
-                max = Math.max(max, d);
+            for (float[] line : mono.data()) {
+                for (float d : line) {
+                    max = Math.max(max, d);
+                }
             }
         } else if (wrapper instanceof RGBImage rgb) {
-            for (float d : rgb.r()) {
-                max = Math.max(max, d);
+            for (float[] line : rgb.r()) {
+                for (float d : line) {
+                    max = Math.max(max, d);
+                }
             }
-            for (float d : rgb.g()) {
-                max = Math.max(max, d);
+            for (float[] line : rgb.g()) {
+                for (float d : line) {
+                    max = Math.max(max, d);
+                }
             }
-            for (float d : rgb.b()) {
-                max = Math.max(max, d);
+            for (float[] line : rgb.b()) {
+                for (float d : line) {
+                    max = Math.max(max, d);
+                }
             }
         } else {
             max = Constants.MAX_PIXEL_VALUE;
@@ -501,8 +509,12 @@ public class ImageDraw extends AbstractFunctionImpl {
             var data = mono.data();
             image = new BufferedImage(mono.width(), mono.height(), BufferedImage.TYPE_USHORT_GRAY);
             short[] converted = ((DataBufferUShort) image.getRaster().getDataBuffer()).getData();
-            for (int i = 0; i < converted.length; i++) {
-                converted[i] = (short) round(data[i]);
+            var width = mono.width();
+            var height = mono.height();
+            for (int y = 0; y < height; y++) {
+                for (int x = 0; x < width; x++) {
+                    converted[y*width + x] = (short) round(data[y][x]);
+                }
             }
         } else if (wrapper instanceof RGBImage rgb) {
             image = toBufferedImage(rgb.width(), rgb.height(), rgb.r(), rgb.g(), rgb.b());
@@ -518,14 +530,14 @@ public class ImageDraw extends AbstractFunctionImpl {
         return null;
     }
 
-    private static BufferedImage toBufferedImage(int width, int height, float[] r, float[] g, float[] b) {
+    private static BufferedImage toBufferedImage(int width, int height, float[][] r, float[][] g, float[][] b) {
         BufferedImage image;
         image = new BufferedImage(width, height, BufferedImage.TYPE_INT_RGB);
         for (int x = 0; x < width; x++) {
             for (int y = 0; y < height; y++) {
-                int rv = round(r[y * width + x]);
-                int gv = round(g[y * width + x]);
-                int bv = round(b[y * width + x]);
+                int rv = round(r[y][x]);
+                int gv = round(g[y][x]);
+                int bv = round(b[y][x]);
                 rv = (rv >> 8) & 0xFF;
                 gv = (gv >> 8) & 0xFF;
                 bv = (bv >> 8) & 0xFF;

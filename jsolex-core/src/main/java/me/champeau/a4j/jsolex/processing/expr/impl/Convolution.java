@@ -67,7 +67,7 @@ public class Convolution extends AbstractFunctionImpl {
         if (image instanceof ImageWrapper32 mono) {
             return new ImageWrapper32(mono.width(), mono.height(), imageMath.convolve(mono.asImage(), kernel).data(), mono.metadata());
         } else if (image instanceof RGBImage rgb) {
-            var hsl = ImageUtils.fromRGBtoHSL(new float[][] { rgb.r(), rgb.g(), rgb.b() });
+            var hsl = ImageUtils.fromRGBtoHSL(new float[][][] { rgb.r(), rgb.g(), rgb.b() });
             hsl[2] = imageMath.convolve(new Image(rgb.width(), rgb.height(), hsl[2]), kernel).data();
             var transformed = ImageUtils.fromHSLtoRGB(hsl);
             return new RGBImage(rgb.width(), rgb.height(), transformed[0], transformed[1], transformed[2], rgb.metadata());
