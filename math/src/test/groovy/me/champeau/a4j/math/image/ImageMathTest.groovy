@@ -19,22 +19,22 @@ import spock.lang.Specification
 
 class ImageMathTest extends Specification {
     def "tests integral image (#label)"() {
-        var image = new Image(5, 4, new float[]{
-                4, 1, 2, 2, 1,
-                0, 4, 1, 3, 5,
-                3, 1, 0, 4, 2,
-                2, 1, 3, 2, 1
+        var image = new Image(5, 4, new float[][]{
+                new float[]{4, 1, 2, 2, 1},
+                new float[]{0, 4, 1, 3, 5},
+                new float[]{3, 1, 0, 4, 2},
+                new float[]{2, 1, 3, 2, 1}
         })
 
         when:
         def integral = imageMath.integralImage(image)
 
         then:
-        integral == new Image(5, 4, new float[]{
-                4, 5, 7, 9, 10,
-                4, 9, 12, 17, 23,
-                7, 13, 16, 25, 33,
-                9, 16, 22, 33, 42
+        integral == new Image(5, 4, new float[][]{
+                new float[]{4, 5, 7, 9, 10},
+                new float[]{4, 9, 12, 17, 23},
+                new float[]{7, 13, 16, 25, 33},
+                new float[]{9, 16, 22, 33, 42}
         })
 
         when:
@@ -86,30 +86,30 @@ class ImageMathTest extends Specification {
     }
 
     def "computes incremental average (#label)"() {
-        float[] current = new float[333]
-        for (int i = 0; i < current.length; i++) {
-            current[i] = i
+        float[][] current = new float[1][333]
+        for (int i = 0; i < 333; i++) {
+            current[0][i] = i
         }
-        float[] average = new float[333]
+        float[][] average = new float[1][333]
 
         when:
         imageMath.incrementalAverage(current, average, 10)
 
         then:
-        average[0] == 0
-        average[1] == 0.1f
-        average[2] == 0.2f
-        average[120] == 12f
-        average[332] == 33.2f
+        average[0][0] == 0
+        average[0][1] == 0.1f
+        average[0][2] == 0.2f
+        average[0][120] == 12f
+        average[0][332] == 33.2f
 
         when:
         imageMath.incrementalAverage(current, average, 11)
 
         then:
-        average[0] == 0
-        average[1] == 0.18181819f
-        average[120] == 21.818182f
-        average[332] == 60.363636f
+        average[0][0] == 0
+        average[0][1] == 0.18181819f
+        average[0][120] == 21.818182f
+        average[0][332] == 60.363636f
 
         where:
         label        | imageMath
@@ -118,11 +118,10 @@ class ImageMathTest extends Specification {
     }
 
     static Image newImage(int width, int height) {
-        var size = width * height
-        var data = new float[size]
+        var data = new float[height][width]
         for (int y = 0; y < height; y++) {
             for (int x = 0; x < width; x++) {
-                data[y * width + x] = y + x
+                data[y][x] = y + x
             }
         }
         return new Image(width, height, data)

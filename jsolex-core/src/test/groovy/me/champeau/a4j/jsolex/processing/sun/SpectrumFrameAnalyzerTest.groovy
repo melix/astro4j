@@ -36,10 +36,10 @@ class SpectrumFrameAnalyzerTest extends Specification {
     def "analyzes spectrum frame"() {
         given:
         def image = ImageIO.read(getClass().getResourceAsStream("/spectrum.tif"))
-        float[] data = new float[image.width * image.height]
+        float[][] data = new float[image.height][image.width]
         for (int x = 0; x < image.width; x++) {
             for (int y = 0; y < image.height; y++) {
-                data[x + y * image.width] = image.getRGB(x, y) & 0xFF
+                data[y][x] = image.getRGB(x, y) & 0xFF
             }
         }
         def analyzer = new SpectrumFrameAnalyzer(image.width, image.height, 50d)
@@ -71,7 +71,7 @@ class SpectrumFrameAnalyzerTest extends Specification {
         def corrected = imageCorrector.polynomialCorrection(p)
         for (int x = 0; x < image.width; x++) {
             for (int y = 0; y < image.height; y++) {
-                int correctedValue = (corrected[x + y * image.width] as int) & 0xFF
+                int correctedValue = (corrected[y][x] as int) & 0xFF
                 int greyScale = (correctedValue << 16) | (correctedValue << 8) | correctedValue
                 image.setRGB(x, y, greyScale)
             }

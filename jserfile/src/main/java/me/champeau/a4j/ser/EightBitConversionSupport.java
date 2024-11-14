@@ -29,11 +29,19 @@ public class EightBitConversionSupport {
         return converted;
     }
 
-    public static byte[] to8BitImage(float[] image) {
-        byte[] converted = new byte[image.length];
-        for (int i = 0; i < image.length; i++) {
-            int value = Math.round(image[i]);
-            converted[i] = (byte) (value >> 8);
+    public static byte[] to8BitImage(float[][] image) {
+        if (image.length == 0) {
+            return new byte[0];
+        }
+        var height = image.length;
+        var width = image[1].length;
+
+        byte[] converted = new byte[width * height];
+        for (int y = 0; y < height; y++) {
+            for (int x = 0; x < width; x++) {
+                int value = Math.round(image[y][x]);
+                converted[y * width + x] = (byte) (value >> 8);
+            }
         }
         return converted;
     }

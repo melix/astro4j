@@ -21,8 +21,11 @@ import java.util.function.Function;
 
 public sealed interface ImageWrapper permits ImageWrapper32, RGBImage, FileBackedImage {
     int width();
+
     int height();
+
     Map<Class<?>, Object> metadata();
+
     default <T> Optional<T> findMetadata(Class<T> clazz) {
         var metadata = metadata();
         if (metadata.containsKey(clazz)) {
@@ -47,5 +50,18 @@ public sealed interface ImageWrapper permits ImageWrapper32, RGBImage, FileBacke
 
     default ImageWrapper wrap() {
         return FileBackedImage.wrap(this);
+    }
+
+    static float[][] copyData(float[][] source) {
+        if (source.length == 0) {
+            return new float[0][];
+        }
+        int height = source.length;
+        int width = source[0].length;
+        float[][] result = new float[height][width];
+        for (int y = 0; y < height; y++) {
+            System.arraycopy(source[y], 0, result[y], 0, width);
+        }
+        return result;
     }
 }

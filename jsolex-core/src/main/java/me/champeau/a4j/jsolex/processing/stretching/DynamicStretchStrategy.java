@@ -52,9 +52,13 @@ public final class DynamicStretchStrategy implements StretchingStrategy {
         }
         var fit = PolynomialCurveFitter.create(4).fit(observations);
         var poly = new PolynomialFunction(fit);
-        for (int i = 0; i < data.length; i++) {
-            var v = data[i];
-            data[i] = (float) Math.clamp(poly.value(v), 0, MAX_PIXEL_VALUE);
+        var height = image.height();
+        var width = image.width();
+        for (int y = 0; y < height; y++) {
+            for (int x = 0; x < width; x++) {
+                var v = data[y][x];
+                data[y][x] = (float) Math.clamp(poly.value(v), 0, MAX_PIXEL_VALUE);
+            }
         }
         LinearStrechingStrategy.DEFAULT.stretch(image);
     }

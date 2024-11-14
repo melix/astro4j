@@ -138,7 +138,7 @@ public class SolexVideoProcessor implements Broadcaster {
     private boolean binningIsReliable;
     private Redshifts redshifts;
     private DoubleUnaryOperator polynomial;
-    private float[] averageImage;
+    private float[][] averageImage;
     private PixelShiftRange pixelShiftRange;
     private boolean ignoreIncompleteShifts;
 
@@ -162,7 +162,7 @@ public class SolexVideoProcessor implements Broadcaster {
         this.ignoreIncompleteShifts = ignoreIncompleteShifts;
     }
 
-    public void setAverageImage(float[] averageImage) {
+    public void setAverageImage(float[][] averageImage) {
         this.averageImage = averageImage;
     }
 
@@ -256,7 +256,7 @@ public class SolexVideoProcessor implements Broadcaster {
         broadcast(new NotificationEvent(new Notification(Notification.AlertType.ERROR, message("unexpected.error"), message("error.during.processing"), trace)));
     }
 
-    private void generateImages(ImageConverter<float[]> converter, Header header, Double fps, File serFile, int start, int end) {
+    private void generateImages(ImageConverter<float[][]> converter, Header header, Double fps, File serFile, int start, int end) {
         List<WorkflowState> imageList = new ArrayList<>();
         var imageNamingStrategy = new FileNamingStrategy(processParams.extraParams().fileNamePattern(), processParams.extraParams().datetimeFormat(), processParams.extraParams().dateFormat(), processingDate, header);
         var baseName = serFile.getName().substring(0, serFile.getName().lastIndexOf("."));
@@ -478,7 +478,7 @@ public class SolexVideoProcessor implements Broadcaster {
      * for performance reasons it is important to avoid calling this method too often
      * since it will not perform reconstruction in parallel like with precomputed shifts.
      */
-    private ImageWrapper computeMissingImageShift(ImageConverter<float[]> converter,
+    private ImageWrapper computeMissingImageShift(ImageConverter<float[][]> converter,
                                                   Header header,
                                                   Double fps,
                                                   File serFile,
@@ -680,7 +680,7 @@ public class SolexVideoProcessor implements Broadcaster {
                                                      int width,
                                                      int height,
                                                      SerFileReader reader,
-                                                     ImageConverter<float[]> converter,
+                                                     ImageConverter<float[][]> converter,
                                                      ImageGeometry geometry,
                                                      DoubleUnaryOperator polynomial,
                                                      FileNamingStrategy fileNamingStrategy,
@@ -700,28 +700,26 @@ public class SolexVideoProcessor implements Broadcaster {
                 converter.convert(frameNb, reader.currentFrame().data(), geometry, buffer);
                 var creator = new SpectralLineFrameImageCreator(analyzer, buffer, width, height);
                 var image = creator.generateSpectrumImage(polynomial, true, rgb -> {
-                    var offset = rgb.offset();
+                    var spacing = rgb.spacing();
                     var w = rgb.width();
                     var h = rgb.height();
                     for (int x = redshift.y1(); x <= redshift.y2(); x++) {
                         var correctedX = width - x - 1;
                         for (int y = 0; y < h; y++) {
-                            var pos = offset + y * w + correctedX;
-                            rgb.r()[pos] = MAX_PIXEL_VALUE;
-                            rgb.g()[pos] = 0;
-                            rgb.b()[pos] = 0;
+                            rgb.r()[y + spacing + height][correctedX] = MAX_PIXEL_VALUE;
+                            rgb.g()[y + spacing + height][correctedX] = 0;
+                            rgb.b()[y + spacing + height][correctedX] = 0;
                         }
                         var y = ((int) Math.round(rgb.polynomial().applyAsDouble(correctedX))) + redshift.relPixelShift();
-                        var pos = y * w + correctedX;
-                        if (pos < 0 || pos >= rgb.r().length) {
+                        if (y<0 || x<0 || y>=height || x>=width) {
                             continue;
                         }
-                        rgb.r()[pos] = MAX_PIXEL_VALUE;
-                        rgb.g()[pos] = 0;
-                        rgb.b()[pos] = 0;
+                        rgb.r()[y][correctedX] = MAX_PIXEL_VALUE;
+                        rgb.g()[y][correctedX] = 0;
+                        rgb.b()[y][correctedX] = 0;
                     }
                     var draw = new ImageDraw(Map.of(), Broadcaster.NO_OP);
-                    var copy = new RGBImage(w, 2 * h, rgb.r(), rgb.g(), rgb.b(), Map.of());
+                    var copy = new RGBImage(w, 2 * h + spacing, rgb.r(), rgb.g(), rgb.b(), Map.of());
                     RGBImage color = (RGBImage) draw.drawOnImage(copy, (g, img) -> {
                         g.setColor(java.awt.Color.GREEN);
                         g.setFont(g.getFont().deriveFont(16f));
@@ -904,14 +902,14 @@ public class SolexVideoProcessor implements Broadcaster {
         var vflip = processParams.geometryParams().isVerticalMirror();
         if (hflip || vflip) {
             var original = rotated.data();
-            float[] flipped = new float[original.length];
-            var height = rotated.height();
             var width = rotated.width();
+            var height = rotated.height();
+            float[][] flipped = new float[height][width];
             for (int y = 0; y < height; y++) {
                 for (int x = 0; x < width; x++) {
                     var nx = hflip ? width - x - 1 : x;
                     var ny = vflip ? height - y - 1 : y;
-                    flipped[nx + width * ny] = original[x + y * width];
+                    flipped[ny][nx] = original[y][x];
                 }
             }
             rotated.findMetadata(Redshifts.class).ifPresent(redshifts -> {
@@ -964,8 +962,17 @@ public class SolexVideoProcessor implements Broadcaster {
         imageList.addAll(list);
     }
 
-    private ReconstructionOutputs performImageReconstruction(ImageConverter<float[]> converter, SerFileReader reader, int start, int end, ImageGeometry geometry, int width, int height, DoubleUnaryOperator polynomial, AtomicInteger processedCount,
-                                                             int totalCount, WorkflowState... images) {
+    private ReconstructionOutputs performImageReconstruction(ImageConverter<float[][]> converter,
+                                                             SerFileReader reader,
+                                                             int start,
+                                                             int end,
+                                                             ImageGeometry geometry,
+                                                             int width,
+                                                             int height,
+                                                             DoubleUnaryOperator polynomial,
+                                                             AtomicInteger processedCount,
+                                                             int totalCount,
+                                                             WorkflowState... images) {
         reader.seekFrame(start);
         int totalLines = end - start;
         var lambda0 = processParams.spectrumParams().ray().wavelength();
@@ -981,15 +988,15 @@ public class SolexVideoProcessor implements Broadcaster {
         var latch = new CountDownLatch(end - start);
         var semaphore = new Semaphore(MAX_INMEMORY_BUFFERS);
         try (var executor = Executors.newFixedThreadPool(MAX_PARALLEL_READS)) {
-            var reconstructedImages = new float[images.length][width * totalLines];
-            for (int i = start, j = 0; i < end; i++, j += width) {
+            var reconstructedImages = new float[images.length][totalLines][width];
+            for (int i = start, j = 0; i < end; i++, j += 1) {
                 semaphore.acquire();
                 var currentFrame = reader.currentFrame().data().array();
                 byte[] copy = new byte[currentFrame.length];
                 System.arraycopy(currentFrame, 0, copy, 0, currentFrame.length);
                 reader.nextFrame();
                 var original = converter.createBuffer(geometry);
-                int offset = j;
+                int y = j;
                 int frameId = i;
                 executor.submit(() -> {
                     try {
@@ -999,7 +1006,7 @@ public class SolexVideoProcessor implements Broadcaster {
                             try {
                                 var state = images[idx];
                                 var buffer = reconstructedImages[idx];
-                                processSingleFrame(state.isInternal(), width, height, buffer, offset, original, polynomial, state.pixelShift(), totalLines);
+                                processSingleFrame(state.isInternal(), width, height, buffer, y, original, polynomial, state.pixelShift(), totalLines);
                                 if (state.pixelShift() == 0 && processParams.spectrumParams().ray().label().equalsIgnoreCase(SpectralRay.H_ALPHA.label()) && processParams.requestedImages().isEnabled(GeneratedImageKind.REDSHIFT)) {
                                     phenomenaDetector.performDetection(frameId, width, height, original, polynomial);
                                     hasRedshifts.set(true);
@@ -1034,7 +1041,7 @@ public class SolexVideoProcessor implements Broadcaster {
     }
 
 
-    private SpectrumFrameAnalyzer.Result analyzeAverageImage(int width, int height, float[] averageImage, FileNamingStrategy imageNamingStrategy) {
+    private SpectrumFrameAnalyzer.Result analyzeAverageImage(int width, int height, float[][] averageImage, FileNamingStrategy imageNamingStrategy) {
         SpectrumFrameAnalyzer analyzer = new SpectrumFrameAnalyzer(width, height, null);
         var result = analyzer.analyze(averageImage);
         if (processParams.extraParams().generateDebugImages()) {
@@ -1043,13 +1050,13 @@ public class SolexVideoProcessor implements Broadcaster {
                 processParams.requestedImages().images());
             emitter.newColorImage(GeneratedImageKind.DEBUG, null, message("average"), "average", width, height, MutableMap.of(), () -> {
                 var rgb = new SpectralLineFrameImageCreator(analyzer, averageImage, width, height).generateDebugImage();
-                return new float[][]{rgb.r(), rgb.g(), rgb.b()};
+                return new float[][][]{rgb.r(), rgb.g(), rgb.b()};
             });
         }
         return result;
     }
 
-    private void processSingleFrame(boolean internal, int width, int height, float[] outputBuffer, int offset, float[] buffer, DoubleUnaryOperator p, double pixelShift, int totalLines) {
+    private void processSingleFrame(boolean internal, int width, int height, float[][] outputBuffer, int y, float[][] source, DoubleUnaryOperator p, double pixelShift, int totalLines) {
         double[] line = new double[width];
         int lastY = 0;
         for (int x = 0; x < width; x++) {
@@ -1063,24 +1070,23 @@ public class SolexVideoProcessor implements Broadcaster {
             double frac = yd - yi;
             float value;
             if (frac > 0) {
-                float lo = buffer[x + width * yi];
-                float hi = yi < height - 1 ? buffer[x + width * (yi + 1)] : buffer[x + width * yi];
+                float lo = source[yi][x];
+                float hi = yi < height - 1 ? source[(yi + 1)][x] : source[yi][x];
                 value = (float) (lo + frac * (hi - lo));
             } else {
-                value = buffer[x + width * yi];
+                value = source[yi][x];
             }
             if (value < 0 || value > 65535) {
                 throw new IllegalArgumentException("Unexpected value computed " + value + " which should be in the [0..65535] range");
             }
-            outputBuffer[offset + x] = value;
+            outputBuffer[y][x] = value;
             line[x] = value;
             lastY = yi;
         }
         if (!internal) {
-            var copy = new float[buffer.length];
-            System.arraycopy(buffer, 0, copy, 0, buffer.length);
+            var copy = ImageWrapper.copyData(source);
             var imageLine = new ImageLine(pixelShift,
-                offset / width,
+                y,
                 totalLines,
                 line,
                 processParams.extraParams().generateDebugImages() || processParams.requestedImages().isEnabled(GeneratedImageKind.RECONSTRUCTION),

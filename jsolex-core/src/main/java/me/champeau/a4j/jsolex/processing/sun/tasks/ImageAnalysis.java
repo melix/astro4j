@@ -28,29 +28,33 @@ import me.champeau.a4j.math.regression.Ellipse;
  */
 public record ImageAnalysis(float avg, float stddev, float min, float max, Histogram histogram) {
 
-    public static ImageAnalysis of(float[] array) {
+    public static ImageAnalysis of(float[][] array) {
         float min = Float.MAX_VALUE;
         float max = Float.MIN_VALUE;
         float sum = 0.0f;
         var builder = Histogram.builder(65536);
-
-        int n = array.length;
-        for (float v : array) {
-            sum += v;
-            min = Math.min(min, v);
-            max = Math.max(max, v);
-            builder.record(v);
+        int n = 0;
+        for (float[] line : array) {
+            for (float v : line) {
+                sum += v;
+                n++;
+                min = Math.min(min, v);
+                max = Math.max(max, v);
+                builder.record(v);
+            }
         }
         float average = sum / n;
         float stddev = 0;
-        for (float v : array) {
-            stddev += (v - average) * (v - average);
+        for (float[] line : array) {
+            for (float v : line) {
+                stddev += (v - average) * (v - average);
+            }
         }
         stddev = (float) Math.sqrt(stddev / (n - 1));
         return new ImageAnalysis(average, stddev, min, max, builder.build());
     }
 
-    public static ImageAnalysis masked(float[] array, int width, int height, Ellipse e) {
+    public static ImageAnalysis masked(float[][] array, int width, int height, Ellipse e) {
         float min = Float.MAX_VALUE;
         float max = Float.MIN_VALUE;
         float sum = 0.0f;
@@ -61,7 +65,7 @@ public record ImageAnalysis(float avg, float stddev, float min, float max, Histo
             for (int x = 0; x < width; x++) {
                 if (e.isWithin(x, y)) {
                     n++;
-                    var v = array[y * width + x];
+                    var v = array[y][x];
                     sum += v;
                     min = Math.min(min, v);
                     max = Math.max(max, v);
@@ -71,8 +75,10 @@ public record ImageAnalysis(float avg, float stddev, float min, float max, Histo
         }
         float average = sum / n;
         float stddev = 0;
-        for (float v : array) {
-            stddev += (v - average) * (v - average);
+        for (float[] line : array) {
+            for (float v : line) {
+                stddev += (v - average) * (v - average);
+            }
         }
         stddev = (float) Math.sqrt(stddev / (n - 1));
         return new ImageAnalysis(average, stddev, min, max, builder.build());

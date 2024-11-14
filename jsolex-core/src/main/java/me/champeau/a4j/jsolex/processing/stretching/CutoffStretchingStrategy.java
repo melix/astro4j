@@ -55,11 +55,15 @@ public final class CutoffStretchingStrategy implements StretchingStrategy {
     @Override
     public void stretch(ImageWrapper32 image) {
         var data = image.data();
-        for (int i = 0; i < data.length; i++) {
-            if (data[i] < min) {
-                data[i] = zeroFill;
-            } else if (data[i] > max) {
-                data[i] = maxFill;
+        var height = image.height();
+        var width = image.width();
+        for (int y = 0; y < height; y++) {
+            for (int x = 0; x < width; x++) {
+                if (data[y][x] < min) {
+                    data[y][x] = zeroFill;
+                } else if (data[y][x] > max) {
+                    data[y][x] = maxFill;
+                }
             }
         }
     }

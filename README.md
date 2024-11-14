@@ -43,17 +43,17 @@ They are provided as-is, without any warranty.
 You can also install the _development_ version of JSol'Ex as it can contain numerous bugfixes and improvements over the release versions.
 
 - Development versions (updated on each commit)
-  - [JSol'Ex (Linux, deb, AMD64)](https://jsolex.s3.eu-west-3.amazonaws.com/jsolex-ubuntu-latest/jsolex-devel_2.7.4_amd64.deb)
-  - [JSol'Ex (Windows)](https://jsolex.s3.eu-west-3.amazonaws.com/jsolex-windows-latest/jsolex-devel-2.7.4.msi)
-  - [JSol'Ex (MacOS)](https://jsolex.s3.eu-west-3.amazonaws.com/jsolex-macos-latest/jsolex-devel-2.7.4.pkg)
-  - [JSol'Ex (MacOS Intel)](https://jsolex.s3.eu-west-3.amazonaws.com/jsolex-macos-13/jsolex-devel-2.7.4.pkg)
-  - [JSol'Ex (Tarball)](https://jsolex.s3.eu-west-3.amazonaws.com/jsolex-macos-latest/jsolex-2.7.4-SNAPSHOT.tar.gz)
-  - [JSol'Ex (Zip)](https://jsolex.s3.eu-west-3.amazonaws.com/jsolex-macos-latest/jsolex-2.7.4-SNAPSHOT.zip)
-  - [Ser Player (Linux, deb, AMD64)](https://jsolex.s3.eu-west-3.amazonaws.com/ser-player-ubuntu-latest/ser-player-devel_2.7.4_amd64.deb)
-  - [Ser Player (Windows)](https://jsolex.s3.eu-west-3.amazonaws.com/ser-player-windows-latest/ser-player-devel-2.7.4.msi)
-  - [Ser Player (MacOS)](https://jsolex.s3.eu-west-3.amazonaws.com/ser-player-macos-latest/ser-player-devel-2.7.4.pkg)
-  - [Ser Player (Tarball)](https://jsolex.s3.eu-west-3.amazonaws.com/ser-player-macos-latest/ser-player-2.7.4-SNAPSHOT.tar.gz)
-  - [Ser Player (Zip)](https://jsolex.s3.eu-west-3.amazonaws.com/ser-player-macos-latest/ser-player-2.7.4-SNAPSHOT.zip)
+  - [JSol'Ex (Linux, deb, AMD64)](https://jsolex.s3.eu-west-3.amazonaws.com/jsolex-ubuntu-latest/jsolex-devel_2.8.0_amd64.deb)
+  - [JSol'Ex (Windows)](https://jsolex.s3.eu-west-3.amazonaws.com/jsolex-windows-latest/jsolex-devel-2.8.0.msi)
+  - [JSol'Ex (MacOS)](https://jsolex.s3.eu-west-3.amazonaws.com/jsolex-macos-latest/jsolex-devel-2.8.0.pkg)
+  - [JSol'Ex (MacOS Intel)](https://jsolex.s3.eu-west-3.amazonaws.com/jsolex-macos-13/jsolex-devel-2.8.0.pkg)
+  - [JSol'Ex (Tarball)](https://jsolex.s3.eu-west-3.amazonaws.com/jsolex-macos-latest/jsolex-2.8.0-SNAPSHOT.tar.gz)
+  - [JSol'Ex (Zip)](https://jsolex.s3.eu-west-3.amazonaws.com/jsolex-macos-latest/jsolex-2.8.0-SNAPSHOT.zip)
+  - [Ser Player (Linux, deb, AMD64)](https://jsolex.s3.eu-west-3.amazonaws.com/ser-player-ubuntu-latest/ser-player-devel_2.8.0_amd64.deb)
+  - [Ser Player (Windows)](https://jsolex.s3.eu-west-3.amazonaws.com/ser-player-windows-latest/ser-player-devel-2.8.0.msi)
+  - [Ser Player (MacOS)](https://jsolex.s3.eu-west-3.amazonaws.com/ser-player-macos-latest/ser-player-devel-2.8.0.pkg)
+  - [Ser Player (Tarball)](https://jsolex.s3.eu-west-3.amazonaws.com/ser-player-macos-latest/ser-player-2.8.0-SNAPSHOT.tar.gz)
+  - [Ser Player (Zip)](https://jsolex.s3.eu-west-3.amazonaws.com/ser-player-macos-latest/ser-player-2.8.0-SNAPSHOT.zip)
 
 Licensed under Apache License version 2.
 

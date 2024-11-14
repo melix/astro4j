@@ -31,7 +31,7 @@ public class AnalysisUtils {
         for (int x = 0; x < width; x++) {
             for (int y = 0; y < height; y++) {
                 if (!ellipse.isWithin(x, y)) {
-                    var v = buffer[x + y * width];
+                    var v = buffer[y][x];
                     if (v > 0) {
                         var offcenter = 2 * Math.sqrt((x - cx) * (x - cx) + (y - cy) * (y - cy)) / (width + height);
                         blackEstimate = blackEstimate + (offcenter * v - blackEstimate) / (++cpt);
@@ -51,7 +51,7 @@ public class AnalysisUtils {
         for (int x = 0; x < width; x++) {
             for (int y = 0; y < height; y++) {
                 if (!ellipse.isWithin(x, y)) {
-                    var v = buffer[x + y * width];
+                    var v = buffer[y][x];
                     if (v > 0) {
                         avg = avg + (v - avg) / (++cpt);
                     }
@@ -61,15 +61,15 @@ public class AnalysisUtils {
         return avg;
     }
 
-    public static float estimateSignalLevel(float[] data) {
+    public static float estimateSignalLevel(float[][] data) {
         return estimateSignalLevel(data, 32);
     }
 
-    public static float estimateBackgroundLevel(float[] data) {
+    public static float estimateBackgroundLevel(float[][] data) {
         return estimateBackgroundLevel(data, 64);
     }
 
-    public static float estimateBackgroundLevel(float[] data, int bins) {
+    public static float estimateBackgroundLevel(float[][] data, int bins) {
         var h = Histogram.of(data, bins);
         var values = h.values();
         float cur = values[0];
@@ -89,7 +89,7 @@ public class AnalysisUtils {
         return (65535f * idx) / bins;
     }
 
-    public static float estimateSignalLevel(float[] data, int bins) {
+    public static float estimateSignalLevel(float[][] data, int bins) {
         var h = Histogram.of(data, bins);
         var values = h.values();
         float cur = values[0];

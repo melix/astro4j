@@ -407,16 +407,18 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
             if (width != rightImage.width() || height != rightImage.height()) {
                 throw new IllegalArgumentException("Both images must have the same dimensions");
             }
-            float[] result = new float[length];
+            float[][] result = new float[height][width];
             float min = 0;
-            for (int i = 0; i < length; i++) {
-                var v = (float) operator.applyAsDouble(leftData[i], rightData[i]);
-                if (v < min) {
-                    min = v;
+            for (int y = 0; y < height; y++) {
+                for (int x = 0; x < width; x++) {
+                    var v = (float) operator.applyAsDouble(leftData[y][x], rightData[y][x]);
+                    if (v < min) {
+                        min = v;
+                    }
+                    result[y][x] = v;
                 }
-                result[i] = v;
             }
-            normalize(length, result, min);
+            normalize(result, min);
             Map<Class<?>, Object> metadata = new LinkedHashMap<>();
             metadata.putAll(leftImage.metadata());
             metadata.putAll(rightImage.metadata());
@@ -428,34 +430,37 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
             var length = leftData.length;
             var width = leftImage.width();
             var height = leftImage.height();
-            float[] result = new float[length];
+            float[][] result = new float[height][width];
             float min = 0;
-            for (int i = 0; i < length; i++) {
-                var v = (float) operator.applyAsDouble(leftData[i], scalar);
-                if (v < min) {
-                    min = v;
+            for (int y = 0; y < height; y++) {
+                for (int x = 0; x < width; x++) {
+                    var v = (float) operator.applyAsDouble(leftData[y][x], scalar);
+                    if (v < min) {
+                        min = v;
+                    }
+                    result[y][x] = v;
                 }
-                result[i] = v;
             }
-            normalize(length, result, min);
+            normalize(result, min);
             return new ImageWrapper32(width, height, result, leftImage.metadata());
         }
         if (rightImage != null && leftScalar != null) {
             var scalar = leftScalar.doubleValue();
             var rightData = rightImage.data();
-            var length = rightData.length;
             var width = rightImage.width();
             var height = rightImage.height();
-            float[] result = new float[length];
+            float[][] result = new float[height][width];
             float min = 0;
-            for (int i = 0; i < length; i++) {
-                var v = (float) operator.applyAsDouble(rightData[i], scalar);
-                if (v < min) {
-                    min = v;
+            for (int y = 0; y < height; y++) {
+                for (int x = 0; x < width; x++) {
+                    var v = (float) operator.applyAsDouble(rightData[y][x], scalar);
+                    if (v < min) {
+                        min = v;
+                    }
+                    result[y][x] = v;
                 }
-                result[i] = v;
             }
-            normalize(length, result, min);
+            normalize(result, min);
             return new ImageWrapper32(width, height, result, rightImage.metadata());
         }
         if (leftScalar != null && rightScalar != null) {
@@ -464,12 +469,14 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
         throw new IllegalArgumentException("Unexpected operand types");
     }
 
-    private static void normalize(int length, float[] result, float min) {
+    private static void normalize(float[][] result, float min) {
         if (min < 0) {
             // shift all values so that they are positive
             var abs = Math.abs(min);
-            for (int i = 0; i < length; i++) {
-                result[i] += abs;
+            for (float[] line : result) {
+                for (int i = 0; i < line.length; i++) {
+                    line[i] += abs;
+                }
             }
         }
     }
@@ -512,7 +519,7 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
             if (maxRange != null) {
                 var fromDoubleFixed = Math.max(fromDouble, maxRange.minPixelShift());
                 var toDoubleFixed = Math.min(toDouble, maxRange.maxPixelShift());
-                if (fromDoubleFixed != fromDouble || toDoubleFixed!=toDouble) {
+                if (fromDoubleFixed != fromDouble || toDoubleFixed != toDouble) {
                     LOGGER.warn(String.format(message("restricting.range"), fromDoubleFixed, toDoubleFixed));
                     fromDouble = fromDoubleFixed;
                     toDouble = toDoubleFixed;

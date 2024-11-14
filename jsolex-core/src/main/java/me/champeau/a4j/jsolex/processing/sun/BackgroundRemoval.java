@@ -38,7 +38,7 @@ public class BackgroundRemoval {
 
     public static void removeBackground(int width,
                                         int height,
-                                        float[] data,
+                                        float[][] data,
                                         double tolerance,
                                         double background,
                                         Ellipse ellipse) {
@@ -47,13 +47,12 @@ public class BackgroundRemoval {
         var radius = (ellipse.semiAxis().a() + ellipse.semiAxis().b()) / 2;
         for (int y = 0; y < height; y++) {
             for (int x = 0; x < width; x++) {
-                int offset = y * width + x;
                 if (!ellipse.isWithin(x, y)) {
-                    var v = data[offset];
+                    var v = data[y][x];
                     var offcenter = Math.sqrt((x - cx) * (x - cx) + (y - cy) * (y - cy)) / radius;
                     var correction = tolerance * (offcenter * offcenter) * background;
                     var corrected = Math.max(0, v - correction);
-                    data[offset] = (float) corrected;
+                    data[y][x] = (float) corrected;
                 }
             }
         }
@@ -103,8 +102,7 @@ public class BackgroundRemoval {
             for (int y = 0; y < height; y += 8) {
                 for (int x = 0; x < width; x += 8) {
                     if (ellipse == null || !ellipse.isWithin(x, y)) {
-                        var idx = y * width + x;
-                        var value = data[idx];
+                        var value = data[y][x];
                         if (value < background && value > 0) {
                             // Include x^2, y^2, and xy terms
                             samples.add(new double[]{x, y, x * x, y * y, x * y});
@@ -130,12 +128,11 @@ public class BackgroundRemoval {
             // Remove background using the regression model
             for (int y = 0; y < height; y++) {
                 for (int x = 0; x < width; x++) {
-                    var idx = y * width + x;
-                    var value = data[idx];
+                    var value = data[y][x];
                     var estimated = coefficients[0] + coefficients[1] * x + coefficients[2] * y
                                     + coefficients[3] * x * x + coefficients[4] * y * y
                                     + coefficients[5] * x * y;
-                    data[idx] = (float) Math.max(0, value - estimated);
+                    data[y][x] = (float) Math.max(0, value - estimated);
                 }
             }
         } catch (Exception ex) {
@@ -155,14 +152,19 @@ public class BackgroundRemoval {
         var copy = image.copy();
         var data = copy.data();
         var minValue = Float.MAX_VALUE;
-        for (var v : data) {
-            if (v >= 1 && v < minValue) {
-                minValue = v;
+        for (var line : data) {
+            for (float v : line) {
+                if (v >= 1 && v < minValue) {
+                    minValue = v;
+                }
             }
         }
-        for (int i = 0; i < data.length; i++) {
-            if (data[i] == 0) {
-                data[i] = minValue;
+        for (var line : data) {
+            for (int i = 0; i < line.length; i++) {
+                float v = line[i];
+                if (v == 0) {
+                    line[i] = minValue;
+                }
             }
         }
         return copy;

@@ -25,6 +25,7 @@ import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
 import me.champeau.a4j.jsolex.processing.sun.workflow.GeneratedImageKind;
 import me.champeau.a4j.jsolex.processing.sun.workflow.ImageEmitter;
 import me.champeau.a4j.jsolex.processing.util.Constants;
+import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 import me.champeau.a4j.math.Point2D;
 import me.champeau.a4j.math.image.BlurKernel;
@@ -98,9 +99,13 @@ public class EllipseFittingTask extends AbstractTask<EllipseFittingTask.Result> 
         workImage = ImageWrapper32.fromImage(tmp);
         var data = tmp.data();
         tmp = imageMath.convolve(tmp, Kernel33.GAUSSIAN_BLUR);
-        for (int i = 0; i < data.length; i++) {
-            var v = data[i] / Constants.MAX_PIXEL_VALUE;
-            data[i] = v * v * Constants.MAX_PIXEL_VALUE;
+        var height = image.height();
+        var width = image.width();
+        for (int y = 0; y < height; y++) {
+            for (int x = 0; x < width; x++) {
+                var v = data[y][x] / Constants.MAX_PIXEL_VALUE;
+                data[y][x] = v * v * Constants.MAX_PIXEL_VALUE;
+            }
         }
         tmp = imageMath.convolve(tmp, BLUR_8);
         workImage = ImageWrapper32.fromImage(tmp);
@@ -190,7 +195,7 @@ public class EllipseFittingTask extends AbstractTask<EllipseFittingTask.Result> 
         });
     }
 
-    private List<Point2D> findSamplesUsingDynamicSensitivity(float[] magnitudes) {
+    private List<Point2D> findSamplesUsingDynamicSensitivity(float[][] magnitudes) {
         Set<Point2D> samples = new LinkedHashSet<>();
         var stats = statsOf(magnitudes);
         var maxMagnitude = stats.max();
@@ -265,18 +270,18 @@ public class EllipseFittingTask extends AbstractTask<EllipseFittingTask.Result> 
         samples.removeIf(p -> minDistanceToSamples.get(p) > threshold);
     }
 
-    private void scan(Collection<Point2D> samples, double minLimit, int width, int height, float[] magnitudes, boolean scanInYDirection, int minX, int maxX, int minY, int maxY) {
+    private void scan(Collection<Point2D> samples, double minLimit, int width, int height, float[][] magnitudes, boolean scanInYDirection, int minX, int maxX, int minY, int maxY) {
         for (int i = scanInYDirection ? minY : minX; i < (scanInYDirection ? maxY : maxX); i++) {
             int min = -1;
             int max = -1;
             for (int j = scanInYDirection ? minX : minY; j < (scanInYDirection ? maxX : maxY); j++) {
                 int x = scanInYDirection ? j : i;
                 int y = scanInYDirection ? i : j;
-                var mag = magnitudes[x + y * width];
+                var mag = magnitudes[y][x];
                 if (min == -1 && mag > minLimit) {
                     min = scanInYDirection ? x : y;
                 }
-                mag = magnitudes[scanInYDirection ? (width - x - 1) + y * width : x + (height - y - 1) * width];
+                mag = scanInYDirection ? magnitudes[y][(width - x - 1)] : magnitudes[(height - y - 1)][x];
                 if (max == -1 && mag > minLimit) {
                     max = scanInYDirection ? (width - x - 1) : (height - y - 1);
                 }
@@ -305,10 +310,9 @@ public class EllipseFittingTask extends AbstractTask<EllipseFittingTask.Result> 
     private void produceEdgeDetectionImage(EllipseFittingTask.Result result, ImageWrapper32 image) {
         if (debugImagesEmitter != null) {
             debugImagesEmitter.newColorImage(GeneratedImageKind.DEBUG, null, message("edge.detection"), "edge-detection", image, debugImage -> {
-                float[][] rgb = new float[3][];
+                float[][][] rgb = new float[3][][];
                 var mono = debugImage.data();
-                float[] overlay = new float[mono.length];
-                System.arraycopy(mono, 0, overlay, 0, overlay.length);
+                float[][] overlay = ImageWrapper.copyData(mono);
                 rgb[0] = overlay;
                 rgb[1] = mono;
                 rgb[2] = mono;
@@ -327,36 +331,45 @@ public class EllipseFittingTask extends AbstractTask<EllipseFittingTask.Result> 
         var data = image.data();
         var stats = statsOf(data);
         var minNonZero = stats.minNonZero();
-        for (int i = 0; i < data.length; i++) {
-            float v = data[i];
-            if (v == 0) {
-                data[i] = minNonZero;
+        var height = image.height();
+        var width = image.width();
+        for (int y = 0; y < height; y++) {
+            for (int x = 0; x < width; x++) {
+                float v = data[y][x];
+                if (v == 0) {
+                    data[y][x] = minNonZero;
+                }
             }
         }
         return image;
     }
 
-    private static Stats statsOf(float[] array) {
+    private static Stats statsOf(float[][] array) {
         float min = Float.MAX_VALUE;
         float max = -Float.MAX_VALUE;
         float minNonZero = Float.MAX_VALUE;
         float sum = 0.0f;
         var distinctValues = new HashSet<Float>();
 
-        int n = array.length;
-        for (float v : array) {
-            sum += v;
-            min = Math.min(min, v);
-            max = Math.max(max, v);
-            distinctValues.add(v);
-            if (v > 0) {
-                minNonZero = Math.min(minNonZero, v);
+        int n = 0;
+        for (float[] line : array) {
+            for (float v : line) {
+                n++;
+                sum += v;
+                min = Math.min(min, v);
+                max = Math.max(max, v);
+                distinctValues.add(v);
+                if (v > 0) {
+                    minNonZero = Math.min(minNonZero, v);
+                }
             }
         }
         float average = sum / n;
         float stddev = 0;
-        for (float v : array) {
-            stddev += (v - average) * (v - average);
+        for (float[] line : array) {
+            for (float v : line) {
+                stddev += (v - average) * (v - average);
+            }
         }
         stddev = (float) Math.sqrt(stddev / (n - 1));
         return new Stats(average, stddev, min, max, minNonZero, distinctValues.size());

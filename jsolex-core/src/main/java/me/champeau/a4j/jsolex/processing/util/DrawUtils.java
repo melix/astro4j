@@ -34,7 +34,7 @@ public class DrawUtils {
     }
 
 
-    public static void drawLine(float[] image, int width, int height, int x1, int y1, int x2, int y2, int thickness) {
+    public static void drawLine(float[][] image, int width, int height, int x1, int y1, int x2, int y2, int thickness) {
         var dx = x2 - x1;
         var dy = y2 - y1;
         var length = Math.max(Math.abs(dx), Math.abs(dy));
@@ -48,22 +48,11 @@ public class DrawUtils {
                 if (x >= 0 && x < width && y >= 0 && y < height) {
                     int idx = y * width + x;
                     if (idx >= 0 && idx < image.length) {
-                        image[idx] = 65535;
+                        image[y][x] = 65535;
                     }
                 }
             }
         }
     }
 
-    public static float[][] asTile(float[] data, int x, int y, int width, int tileSize) {
-        float[][] result = new float[tileSize][tileSize];
-        for (int dy = 0; dy < tileSize; dy++) {
-            for (int dx = 0; dx < tileSize; dx++) {
-                if (y * width + x < data.length) {
-                    result[dy][dx] = data[y * width + x];
-                }
-            }
-        }
-        return result;
-    }
 }

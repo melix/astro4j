@@ -45,6 +45,7 @@ import me.champeau.a4j.jsolex.processing.sun.tasks.EllipseFittingTask;
 import me.champeau.a4j.jsolex.processing.sun.tasks.GeometryCorrector;
 import me.champeau.a4j.jsolex.processing.sun.tasks.ImageBandingCorrector;
 import me.champeau.a4j.jsolex.processing.util.Constants;
+import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 import me.champeau.a4j.jsolex.processing.util.MutableMap;
 import me.champeau.a4j.math.Point2D;
@@ -218,13 +219,10 @@ public class ProcessingWorkflow {
             mono -> {
                 LinearStrechingStrategy.DEFAULT.stretch(mono);
                 var data = mono.data();
-                var r = new float[data.length];
-                System.arraycopy(data, 0, r, 0, data.length);
-                var g = new float[data.length];
-                System.arraycopy(data, 0, g, 0, data.length);
-                var b = new float[data.length];
-                System.arraycopy(data, 0, b, 0, data.length);
-                return new float[][]{r, g, b};
+                var r = ImageWrapper.copyData(data);
+                var g = ImageWrapper.copyData(data);
+                var b = ImageWrapper.copyData(data);
+                return new float[][][]{r, g, b};
             }, (gr, img) -> {
                 for (var redshift : redshifts) {
                     var x1 = redshift.x1();
@@ -317,7 +315,7 @@ public class ProcessingWorkflow {
         ray.getColorCurve().ifPresentOrElse(curve ->
                 processedImagesEmitter.newColorImage(GeneratedImageKind.COLORIZED, null, MessageFormat.format(message("colorized"), curve.ray()), "colorized", corrected, monoImage -> {
                     var mono = monoImage.data();
-                    createStretchingForColorization(blackPoint, mono).stretch(new ImageWrapper32(corrected.width(), corrected.height(), mono, MutableMap.of()));
+                    createStretchingForColorization(blackPoint).stretch(new ImageWrapper32(corrected.width(), corrected.height(), mono, MutableMap.of()));
                     return ImageUtils.convertToRGB(curve, mono);
                 })
             , () -> {
@@ -331,7 +329,7 @@ public class ProcessingWorkflow {
             });
     }
 
-    private static StretchingStrategy createStretchingForColorization(float blackPoint, float[] mono) {
+    private static StretchingStrategy createStretchingForColorization(float blackPoint) {
         return new ArcsinhStretchingStrategy(blackPoint, 2, 2);
     }
 
@@ -400,26 +398,25 @@ public class ProcessingWorkflow {
                 processedImagesEmitter.newMonoImage(GeneratedImageKind.VIRTUAL_ECLIPSE, null, message("protus"), "protus", coronagraph);
                 if (produceMixed) {
                     var data = geometryFixed.data();
-                    var copy = new float[data.length];
-                    System.arraycopy(data, 0, copy, 0, data.length);
+                    var copy = ImageWrapper.copyData(data);
                     var work = new ImageWrapper32(geometryFixed.width(), geometryFixed.height(), copy, geometryFixed.metadata());
                     var stretched = produceStretchedImage(work, processParams.claheParams(), processParams.autoStretchParams(), processParams.contrastEnhancement());
                     new ArcsinhStretchingStrategy(blackPoint, 2, 2).stretch(stretched);
-                    System.arraycopy(stretched.data(), 0, copy, 0, copy.length);
                     var width = geometryFixed.width();
                     var height = geometryFixed.height();
-                    float[] mix = new float[data.length];
+                    for (int y = 0; y < stretched.data().length; y++) {
+                        System.arraycopy(stretched.data()[y], 0, copy[y], 0, width);
+                    }
+                    float[][] mix = new float[height][width];
                     var coronaData = coronagraph.data();
-                    var filtered = new float[coronaData.length];
-                    System.arraycopy(coronaData, 0, filtered, 0, filtered.length);
+                    var filtered = ImageWrapper.copyData(coronaData);
                     prefilter(diskEllipse, filtered, width, height);
                     for (int y = 0; y < height; y++) {
                         for (int x = 0; x < width; x++) {
-                            var index = x + y * width;
                             if (diskEllipse.isWithin(x, y)) {
-                                mix[index] = copy[index];
+                                mix[y][x] = copy[y][x];
                             } else {
-                                mix[index] = filtered[index];
+                                mix[y][x] = filtered[y][x];
                             }
                         }
                     }
@@ -428,9 +425,11 @@ public class ProcessingWorkflow {
                     }
                     var metadata = new HashMap<>(geometryFixed.metadata());
                     metadata.put(Ellipse.class, diskEllipse);
-                    for (int i = 0; i < mix.length; i++) {
-                        float d = mix[i];
-                        mix[i] = Math.max(0, Math.min(d, Constants.MAX_PIXEL_VALUE));
+                    for (int y = 0; y < height; y++) {
+                        for (int x = 0; x < width; x++) {
+                            float d = mix[y][x];
+                            mix[y][x] = Math.max(0, Math.min(d, Constants.MAX_PIXEL_VALUE));
+                        }
                     }
                     var mixedImage = new ImageWrapper32(width, height, mix, metadata);
                     var ray = processParams.spectrumParams().ray();
@@ -451,8 +450,8 @@ public class ProcessingWorkflow {
         });
     }
 
-    private boolean shouldProduce(GeneratedImageKind virtualEclipse) {
-        return processParams.requestedImages().isEnabled(virtualEclipse);
+    private boolean shouldProduce(GeneratedImageKind kind) {
+        return processParams.requestedImages().isEnabled(kind);
     }
 
     /**
@@ -463,7 +462,7 @@ public class ProcessingWorkflow {
      *
      * @param ellipse the circle representing the sun disk
      */
-    private void prefilter(Ellipse ellipse, float[] filtered, int width, int height) {
+    private void prefilter(Ellipse ellipse, float[][] filtered, int width, int height) {
         var center = ellipse.center();
         var cx = center.a();
         var cy = center.b();
@@ -474,7 +473,7 @@ public class ProcessingWorkflow {
                     var dist = Math.sqrt((x - cx) * (x - cx) + (y - cy) * (y - cy));
                     // compute distance to circle
                     var scale = Math.pow(Math.log(0.99 + dist / radius) / Math.log(2), 10);
-                    filtered[x + y * width] /= scale;
+                    filtered[y][x] /= scale;
                 }
             }
         }

@@ -46,37 +46,43 @@ public final class LinearStrechingStrategy implements StretchingStrategy {
         if (range == 0) {
             return;
         }
-        rescale(data, range, min);
+        rescale(data, image.width(), image.height(), range, min);
     }
 
-    private void rescale(float[] data, double range, double min) {
-        for (int i = 0; i < data.length; i++) {
-            float v = (float) (hi / range * (data[i] - min));
-            data[i] = v;
+    private void rescale(float[][] data, int width, int height, double range, double min) {
+        for (int y = 0; y < height; y++) {
+            for (int x = 0; x < width; x++) {
+                float v = (float) (hi / range * (data[y][x] - min));
+                data[y][x] = v;
+            }
         }
     }
 
-    private double min(float[] array) {
+    private double min(float[][] array) {
         if (array.length == 0) {
             return lo;
         }
         double min = Double.MAX_VALUE;
-        for (float v : array) {
-            if (v < min) {
-                min = v;
+        for (float[] line : array) {
+            for (float v : line) {
+                if (v < min) {
+                    min = v;
+                }
             }
         }
         return min;
     }
 
-    private double max(float[] array) {
+    private double max(float[][] array) {
         if (array.length == 0) {
             return hi;
         }
         double max = -Double.MAX_VALUE;
-        for (float v : array) {
-            if (v > max) {
-                max = v;
+        for (float[] line : array) {
+            for (float v : line) {
+                if (v > max) {
+                    max = v;
+                }
             }
         }
         return max;

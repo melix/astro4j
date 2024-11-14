@@ -42,13 +42,13 @@ import java.util.regex.Pattern;
 public class Loader extends AbstractFunctionImpl {
     private static final Logger LOGGER = LoggerFactory.getLogger(Loader.class);
     private static final Set<String> RECOGNIZED_IMAGE_FORMATS = Set.of(
-            "png",
-            "jpg",
-            "jpeg",
-            "tif",
-            "tiff",
-            "fits",
-            "fit"
+        "png",
+        "jpg",
+        "jpeg",
+        "tif",
+        "tiff",
+        "fits",
+        "fit"
     );
 
     public Loader(Map<Class<?>, Object> context, Broadcaster broadcaster) {
@@ -91,29 +91,35 @@ public class Loader extends AbstractFunctionImpl {
         var colorModel = image.getColorModel();
         var size = width * height;
         if (colorModel.getNumComponents() >= 3) {
-            var r = new float[size];
-            var g = new float[size];
-            var b = new float[size];
+            var r = new float[height][width];
+            var g = new float[height][width];
+            var b = new float[height][width];
             var color = image.getRGB(0, 0, width, height, null, 0, width);
-            for (int i = 0; i < size; i++) {
-                var pixel = color[i];
-                r[i] = ((pixel >> 16) & 0xFF) << 8;
-                g[i] = ((pixel >> 8) & 0xFF) << 8;
-                b[i] = (pixel & 0xFF) << 8;
+            for (int y = 0; y < height; y++) {
+                for (int x = 0; x < width; x++) {
+                    var pixel = color[y*width + x];
+                    r[y][x] = ((pixel >> 16) & 0xFF) << 8;
+                    g[y][x] = ((pixel >> 8) & 0xFF) << 8;
+                    b[y][x] = (pixel & 0xFF) << 8;
+                }
             }
             return new RGBImage(width, height, r, g, b, metadata);
         } else {
-            var data = new float[size];
+            var data = new float[height][width];
             var dataBuffer = image.getRaster().getDataBuffer();
             if (dataBuffer instanceof DataBufferUShort shortBuffer) {
                 // 16-bit image
-                for (int i = 0; i < size; i++) {
-                    data[i] = shortBuffer.getElemFloat(i);
+                for (int y = 0; y < height; y++) {
+                    for (int x = 0; x < width; x++) {
+                        data[y][x] = shortBuffer.getElemFloat(y * width + x);
+                    }
                 }
             } else {
                 var rgb = image.getRGB(0, 0, width, height, null, 0, width);
-                for (int i = 0; i < data.length; i++) {
-                    data[i] = rgb[i] & 0xFF;
+                for (int y = 0; y < height; y++) {
+                    for (int x = 0; x < width; x++) {
+                        data[y][x] = rgb[y * width + x] & 0xFF;
+                    }
                 }
             }
             return new ImageWrapper32(width, height, data, metadata);
@@ -130,11 +136,11 @@ public class Loader extends AbstractFunctionImpl {
         if (Files.isDirectory(lookupDir)) {
             try (var stream = Files.list(lookupDir)) {
                 return stream.map(Path::toFile)
-                        .filter(p -> pattern.matcher(p.getName()).matches())
-                        .filter(Loader::isImageFile)
-                        .parallel()
-                        .map(Loader::loadImage)
-                        .toList();
+                    .filter(p -> pattern.matcher(p.getName()).matches())
+                    .filter(Loader::isImageFile)
+                    .parallel()
+                    .map(Loader::loadImage)
+                    .toList();
             } catch (IOException e) {
                 LOGGER.error("Unable to load files", e);
                 return List.of();

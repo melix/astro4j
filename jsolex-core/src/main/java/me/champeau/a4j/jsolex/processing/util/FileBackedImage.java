@@ -77,23 +77,32 @@ public final class FileBackedImage implements ImageWrapper {
                 var channel = raf.getChannel();
                 if (wrapper instanceof ImageWrapper32 mono) {
                     var data = mono.data();
-                    var byteBuffer = channel.map(FileChannel.MapMode.READ_WRITE, 0, 1 + 4 + 4L * data.length);
+                    var length = mono.width() * mono.height();
+                    var byteBuffer = channel.map(FileChannel.MapMode.READ_WRITE, 0, 1 + 4 + 4 + 4L * length);
                     byteBuffer.put(MONO);
-                    byteBuffer.putInt(data.length);
-                    byteBuffer.asFloatBuffer().put(data);
+                    byteBuffer.putInt(height);
+                    byteBuffer.putInt(width);
+                    var floatBuffer = byteBuffer.asFloatBuffer();
+                    for (int y = 0; y < height; y++) {
+                        floatBuffer.put(data[y]);
+                    }
                     return new FileBackedImage(width, height, backingFile, mono.metadata(), null, wrapper);
                 }
                 if (wrapper instanceof RGBImage rgb) {
                     var r = rgb.r();
                     var g = rgb.g();
                     var b = rgb.b();
-                    var byteBuffer = channel.map(FileChannel.MapMode.READ_WRITE, 0, 1 + 4 + 3 * 4L * r.length);
+                    var length = rgb.width() * rgb.height();
+                    var byteBuffer = channel.map(FileChannel.MapMode.READ_WRITE, 0, 1 + 4 + 4 + 3 * 4L * length);
                     byteBuffer.put(RGB);
-                    byteBuffer.putInt(r.length);
+                    byteBuffer.putInt(rgb.height());
+                    byteBuffer.putInt(rgb.width());
                     var floatBuffer = byteBuffer.asFloatBuffer();
-                    floatBuffer.put(r);
-                    floatBuffer.put(g);
-                    floatBuffer.put(b);
+                    for (int y = 0; y < height; y++) {
+                        floatBuffer.put(r[y]);
+                        floatBuffer.put(g[y]);
+                        floatBuffer.put(b[y]);
+                    }
                     return new FileBackedImage(width, height, backingFile, rgb.metadata(), null, wrapper);
                 }
                 throw new ProcessingException("Unexpected image type " + wrapper);
@@ -112,23 +121,33 @@ public final class FileBackedImage implements ImageWrapper {
             var channel = raf.getChannel();
             var byteBuffer = channel.map(FileChannel.MapMode.READ_ONLY, 0, channel.size());
             int kind = byteBuffer.get();
-            int size = byteBuffer.getInt();
+            int height = byteBuffer.getInt();
+            int width = byteBuffer.getInt();
             return switch (kind) {
                 case MONO -> {
                     // Mono image
-                    float[] data = new float[size];
-                    byteBuffer.asFloatBuffer().get(data);
+                    float[][] data = new float[height][width];
+                    var floatBuffer = byteBuffer.asFloatBuffer();
+                    for (int y = 0; y < height; y++) {
+                        data[y] = new float[width];
+                        floatBuffer.get(data[y]);
+                    }
                     yield new ImageWrapper32(width, height, data, metadata);
                 }
                 case RGB -> {
                     // RGB image
-                    float[] r = new float[size];
-                    float[] g = new float[size];
-                    float[] b = new float[size];
+                    float[][] r = new float[height][width];
+                    float[][] g = new float[height][width];
+                    float[][] b = new float[height][width];
                     var floatBuffer = byteBuffer.asFloatBuffer();
-                    floatBuffer.get(r);
-                    floatBuffer.get(g);
-                    floatBuffer.get(b);
+                    for (int y = 0; y < height; y++) {
+                        r[y] = new float[width];
+                        g[y] = new float[width];
+                        b[y] = new float[width];
+                        floatBuffer.get(r[y]);
+                        floatBuffer.get(g[y]);
+                        floatBuffer.get(b[y]);
+                    }
                     yield new RGBImage(width, height, r, g, b, metadata);
                 }
                 default -> throw new IllegalStateException("Undefined image kind " + kind);

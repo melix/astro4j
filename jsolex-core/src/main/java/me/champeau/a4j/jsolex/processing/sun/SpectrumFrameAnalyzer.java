@@ -35,7 +35,7 @@ public class SpectrumFrameAnalyzer {
     private final Double sunDetectionThreshold;
 
     private Result result;
-    private float[] data;
+    private float[][] data;
 
     public SpectrumFrameAnalyzer(int width,
                                  int height,
@@ -49,7 +49,7 @@ public class SpectrumFrameAnalyzer {
         return result;
     }
 
-    public Result analyze(float[] data) {
+    public Result analyze(float[][] data) {
         reset();
         this.data = data;
         if (sunDetectionThreshold != null) {
@@ -67,7 +67,7 @@ public class SpectrumFrameAnalyzer {
         for (int x = 0; x < width; x++) {
             double colSum = 0;
             for (int y = 0; y < height; y++) {
-                double value = data[y * width + x];
+                double value = data[y][x];
                 colSum += value;
             }
             columnAverages[x] = colSum / height;
@@ -98,7 +98,7 @@ public class SpectrumFrameAnalyzer {
         for (int x = 0; x < width; x++) {
             double lineAvg = 0;
             for (int y = 0; y < height; y++) {
-                double value = data[y * width + x];
+                double value = data[y][x];
                 lineAvg = lineAvg + (value - lineAvg) / (y + 1);
             }
             if (lineAvg > sunDetectionThreshold) {
@@ -115,12 +115,12 @@ public class SpectrumFrameAnalyzer {
         result = null;
     }
 
-    private int findYAtMinimalValue(float[] data, int x) {
+    private int findYAtMinimalValue(float[][] data, int x) {
         int minY = 0;
         double min = Double.MAX_VALUE;
         var margin = Math.min(height, 1);
         for (int y = margin; y < height - margin; y++) {
-            double value = data[y * width + x];
+            double value = data[y][x];
             if (value < min) {
                 minY = y;
                 min = value;
@@ -166,7 +166,7 @@ public class SpectrumFrameAnalyzer {
                 if (y >= 0) {
                     var yy = polynomial.applyAsDouble(x);
                     if (Math.abs(yy - y) <= range) {
-                        sampleToValue.put(new Point2D(x, y), data[y * width + x]);
+                        sampleToValue.put(new Point2D(x, y), data[y][x]);
                     }
                 }
             }

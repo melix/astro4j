@@ -65,8 +65,7 @@ public final class ClaheStrategy implements StretchingStrategy {
         }
         for (int y = 0; y < height; y++) {
             for (int x = 0; x < width; x++) {
-                int offset = x + y * width;
-                float src = data[offset];
+                float src = data[y][x];
                 int bin = findHistogramBin(src);
                 int tileX = x / tileSize;
                 int tileY = y / tileSize;
@@ -145,7 +144,7 @@ public final class ClaheStrategy implements StretchingStrategy {
                     y2 = y1 + tileSize;
                     interpolatedValue = bilinearInterpolation(v11, v12, v21, v22, x1, y1, x2, y2, x, y);
                 }
-                data[offset] = MAX_PIXEL_VALUE * interpolatedValue;
+                data[y][x] = MAX_PIXEL_VALUE * interpolatedValue;
             }
         }
     }
@@ -220,7 +219,7 @@ public final class ClaheStrategy implements StretchingStrategy {
         return new CumulativeDistributionFunction(cumulative);
     }
 
-    private Histogram histogram(int width, int height, float[] data, int tileX, int tileY, int tileSize) {
+    private Histogram histogram(int width, int height, float[][] data, int tileX, int tileY, int tileSize) {
         int[] histogram = new int[bins];
         int xStart = tileX * tileSize;
         int xEnd = Math.min(width, (tileX + 1) * tileSize);
@@ -230,7 +229,7 @@ public final class ClaheStrategy implements StretchingStrategy {
         int max = -1;
         for (int y = yStart; y < yEnd; y++) {
             for (int x = xStart; x < xEnd; x++) {
-                float src = data[x + y * width];
+                float src = data[y][x];
                 int bin = findHistogramBin(src);
                 histogram[bin]++;
                 size++;

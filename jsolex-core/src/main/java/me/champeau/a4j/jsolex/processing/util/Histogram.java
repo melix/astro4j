@@ -32,17 +32,15 @@ public record Histogram(
     int maxValue
 ) {
     public static Histogram of(Image image, int bins) {
-        var builder = builder(bins);
-        for (float d : image.data()) {
-            builder.record(d);
-        }
-        return builder.build();
+        return of(image.data(), bins);
     }
 
-    public static Histogram of(float[] image, int bins) {
+    public static Histogram of(float[][] image, int bins) {
         var builder = builder(bins);
-        for (float d : image) {
-            builder.record(d);
+        for (float[] line : image) {
+            for (float d : line) {
+                builder.record(d);
+            }
         }
         return builder.build();
     }

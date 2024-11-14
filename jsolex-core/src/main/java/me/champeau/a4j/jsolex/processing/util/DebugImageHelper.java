@@ -52,9 +52,9 @@ public class DebugImageHelper {
         }
     }
 
-    private static void produceOverlayImage(ImageEmitter processedImagesEmitter, int width, int height, float[] newData, float[] original, Map<Class<?>, Object> metadata) {
+    private static void produceOverlayImage(ImageEmitter processedImagesEmitter, int width, int height, float[][] newData, float[][] original, Map<Class<?>, Object> metadata) {
         processedImagesEmitter.newColorImage(GeneratedImageKind.DEBUG, null, message("tilt.detection"), "tilt", width, height, metadata, () -> {
-            float[][] rgb = new float[3][];
+            float[][][] rgb = new float[3][][];
             rgb[0] = newData;
             rgb[1] = original;
             rgb[2] = original;
@@ -62,7 +62,7 @@ public class DebugImageHelper {
         });
     }
 
-    public static void drawEllipse(int width, int height, Ellipse ellipse, float[] buffer) {
+    public static void drawEllipse(int width, int height, Ellipse ellipse, float[][] buffer) {
         var center = ellipse.center();
         var cx = (int) center.a();
         var cy = (int) center.b();
@@ -95,7 +95,7 @@ public class DebugImageHelper {
         }
     }
 
-    public static void drawCircle(int cx, int cy, int radius, int width, int height, float[] data) {
+    public static void drawCircle(int cx, int cy, int radius, int width, int height, float[][] data) {
         for (double angle = 0; angle <= 2 * Math.PI; angle += 0.01) {
             var x = cx + radius * Math.cos(angle);
             var y = cy + radius * Math.sin(angle);
@@ -103,18 +103,18 @@ public class DebugImageHelper {
         }
     }
 
-    public static void plot(int x, int y, int width, int height, float[] data) {
+    public static void plot(int x, int y, int width, int height, float[][] data) {
         plot(x, y, width, height, data, 1);
     }
 
-    public static void plot(Point2D p, int width, int height, float[] data, int size) {
+    public static void plot(Point2D p, int width, int height, float[][] data, int size) {
         plot((int) p.x(), (int) p.y(), width, height, data, size);
     }
 
-    public static void plot(int x, int y, int width, int height, float[] data, int size) {
+    public static void plot(int x, int y, int width, int height, float[][] data, int size) {
         for (int yy = Math.max(0, y - size); yy < Math.min(height, y + size + 1); yy++) {
             for (int xx = Math.max(0, x - size); xx < Math.min(width, x + size + 1); xx++) {
-                data[xx + yy * width] = Constants.MAX_PIXEL_VALUE;
+                data[yy][xx] = Constants.MAX_PIXEL_VALUE;
             }
         }
     }

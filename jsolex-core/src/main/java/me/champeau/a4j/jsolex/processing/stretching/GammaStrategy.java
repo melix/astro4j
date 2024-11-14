@@ -34,14 +34,21 @@ public final class GammaStrategy implements StretchingStrategy {
     public void stretch(ImageWrapper32 image) {
         var data = image.data();
         float max = 1e-7f;
-        for (float v : data) {
-            max = Math.max(v, max);
+        int width = image.width();
+        var height = image.height();
+        for (int y = 0; y < height; y++) {
+            for (int x = 0; x < width; x++) {
+                var v = data[y][x];
+                max = Math.max(v, max);
+            }
         }
-        for (int i = 0; i < data.length; i++) {
-            var v = data[i];
-            float normalized = v / max;
-            float corrected = (float) Math.pow(normalized, gamma);
-            data[i] = corrected * Constants.MAX_PIXEL_VALUE;
+        for (int y = 0; y < height; y++) {
+            for (int x = 0; x < width; x++) {
+                var v = data[y][x];
+                float normalized = v / max;
+                float corrected = (float) Math.pow(normalized, gamma);
+                data[y][x] = corrected * Constants.MAX_PIXEL_VALUE;
+            }
         }
     }
 

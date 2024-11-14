@@ -67,9 +67,9 @@ public class Corrector {
                 verticalFlip(copy.data(), copy.width(), copy.height());
                 return copy;
             } else if (img instanceof RGBImage rgb) {
-                var r = copy(rgb.r());
-                var g = copy(rgb.r());
-                var b = copy(rgb.r());
+                var r = ImageWrapper.copyData(rgb.r());
+                var g = ImageWrapper.copyData(rgb.g());
+                var b = ImageWrapper.copyData(rgb.b());
                 verticalFlip(r, rgb.width(), rgb.height());
                 verticalFlip(g, rgb.width(), rgb.height());
                 verticalFlip(b, rgb.width(), rgb.height());
@@ -81,20 +81,10 @@ public class Corrector {
         return result;
     }
 
-    private static float[] copy(float[] data) {
-        var copy = new float[data.length];
-        System.arraycopy(data, 0, copy, 0, data.length);
-        return copy;
-    }
-
-    private static void verticalFlip(float[] data, int width, int height) {
-        var tmp = new float[width];
-        for (int y = 0; y < height / 2; y++) {
-            int y1 = y * width;
-            int y2 = (height - y - 1) * width;
-            System.arraycopy(data, y1, tmp, 0, width);
-            System.arraycopy(data, y2, data, y1, width);
-            System.arraycopy(tmp, 0, data, y2, width);
+    private static void verticalFlip(float[][] data, int width, int height) {
+        var tmp = ImageWrapper.copyData(data);
+        for (int y = 0; y < height; y++) {
+            System.arraycopy(tmp[height - y - 1], 0, data[y], 0, width);
         }
     }
 }

@@ -57,14 +57,16 @@ public class Cropper {
         }
         LOGGER.info(message("diameter"), String.format("%.2f", diameter));
         var half = square / 2;
-        var cropped = new float[square * square];
-        Arrays.fill(cropped, blackPoint);
+        var cropped = new float[square][square];
+        for (float[] floats : cropped) {
+            Arrays.fill(floats, blackPoint);
+        }
         for (int yy = 0; yy < square; yy++) {
             for (int xx = 0; xx < square; xx++) {
                 int sourceX = (int) cx - half + xx;
                 int sourceY = (int) cy - half + yy;
                 if (sourceX >= 0 && sourceY >= 0 && sourceX < width && sourceY < height) {
-                    cropped[xx + yy * square] = source[sourceX + sourceY * width];
+                    cropped[yy][xx] = source[sourceY][sourceX];
                 }
             }
         }
@@ -83,14 +85,16 @@ public class Cropper {
         var cy = center.b();
         var offsetX = width / 2;
         var offsetY = height / 2;
-        var cropped = new float[width * height];
-        Arrays.fill(cropped, blackPoint);
+        var cropped = new float[height][width];
+        for (float[] line : cropped) {
+            Arrays.fill(line, blackPoint);
+        }
         for (int yy = 0; yy < height; yy++) {
             for (int xx = 0; xx < width; xx++) {
                 int sourceX = (int) cx - offsetX + xx;
                 int sourceY = (int) cy - offsetY + yy;
                 if (sourceX >= 0 && sourceY >= 0 && sourceX < sourceWidth && sourceY < sourceHeight) {
-                    cropped[xx + yy * width] = source[sourceX + sourceY * sourceWidth];
+                    cropped[yy][xx] = source[sourceY][sourceX];
                 }
             }
         }

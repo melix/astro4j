@@ -148,7 +148,7 @@ public class Animate extends AbstractFunctionImpl {
         addColorFrame(encoder, image, colorChannelsStream, width, height);
     }
 
-    private static void addColorFrame(SequenceEncoder encoder, ImageWrapper image, Stream<float[]> colorChannelsStream, int width, int height) {
+    private static void addColorFrame(SequenceEncoder encoder, ImageWrapper image, Stream<float[][]> colorChannelsStream, int width, int height) {
         var bytes = colorChannelsStream.map(EightBitConversionSupport::to8BitImage).toArray(byte[][]::new);
         if (width != image.width() || height != image.height()) {
             for (int channel = 0; channel < 3; channel++) {

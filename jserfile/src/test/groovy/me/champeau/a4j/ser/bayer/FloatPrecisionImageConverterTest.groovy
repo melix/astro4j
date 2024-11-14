@@ -15,11 +15,13 @@
  */
 package me.champeau.a4j.ser.bayer
 
+import me.champeau.a4j.ser.ColorMode
 import me.champeau.a4j.ser.ImageGeometry
 import spock.lang.Specification
 import spock.lang.Subject
 
 import java.nio.ByteBuffer
+import java.nio.ByteOrder
 
 class FloatPrecisionImageConverterTest extends Specification {
     private static final double EPSILON = 0.000001d;
@@ -30,14 +32,15 @@ class FloatPrecisionImageConverterTest extends Specification {
     )
 
     def "converts to double array"() {
+        def geometry = new ImageGeometry(ColorMode.MONO, 3, 1, 8, ByteOrder.BIG_ENDIAN)
         when:
-        def buffer = converter.createBuffer(null)
-        converter.convert(0, null, null, buffer)
+        def buffer = converter.createBuffer(geometry)
+        converter.convert(0, null, geometry, buffer)
 
         then:
-        assertEquals(buffer[0], 0.0d)
-        assertEquals(buffer[1], 8000d)
-        assertEquals(buffer[2], 65535d)
+        assertEquals(buffer[0][0], 0.0d)
+        assertEquals(buffer[0][1], 8000d)
+        assertEquals(buffer[0][2], 65535d)
     }
 
     static void assertEquals(double a, double b) {

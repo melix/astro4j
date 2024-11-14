@@ -243,7 +243,7 @@ public class ImageViewer implements WithRootNode {
                     if (idx < 0 || idx >= mono.data().length) {
                         return;
                     }
-                    var pixelValue = mono.data()[idx];
+                    var pixelValue = mono.data()[y.intValue()][x.intValue()];
                     extra = ", " + String.format("%.0f", pixelValue);
                 }
                 coordinatesLabel.setText("(" + x.intValue() + ", " + y.intValue() + extra + ")");

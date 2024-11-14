@@ -54,6 +54,7 @@ import me.champeau.a4j.jsolex.processing.sun.detection.PhenomenaDetector;
 import me.champeau.a4j.jsolex.processing.util.BackgroundOperations;
 import me.champeau.a4j.jsolex.processing.util.Constants;
 import me.champeau.a4j.jsolex.processing.util.ImageFormat;
+import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 import me.champeau.a4j.jsolex.processing.util.MutableMap;
 import me.champeau.a4j.jsolex.processing.util.ProcessingException;
@@ -141,7 +142,7 @@ public class SpectralLineDebugger {
     private SpectrumAnalyzer.QueryDetails spectralRayDetectionResult;
     private ProcessParams processParams;
     private Consumer<? super String> onPolynomialComputed;
-    private float[] averageImage;
+    private float[][] averageImage;
 
     public static Stage open(File file, Consumer<? super String> onPolynomialComputed) {
         var fxmlLoader = I18N.fxmlLoader(JSolEx.class, "frame-debugger");
@@ -336,20 +337,19 @@ public class SpectralLineDebugger {
         reader.close();
     }
 
-    private void processFrame(ImageConverter<float[]> converter,
+    private void processFrame(ImageConverter<float[][]> converter,
                               SerFileReader reader,
                               ImageGeometry geometry,
                               int frameId,
                               File imageFile,
-                              float[] average,
+                              float[][] average,
                               Scene scene) {
-        float[] source = average != null ? average : converter.createBuffer(geometry);
+        float[][] source = average != null ? average : converter.createBuffer(geometry);
         if (average == null) {
             reader.seekFrame(frameId);
             converter.convert(frameId, reader.currentFrame().data(), geometry, source);
         }
-        float[] buffer = new float[source.length];
-        System.arraycopy(source, 0, buffer, 0, source.length);
+        float[][] buffer = ImageWrapper.copyData(source);
         int width = geometry.width();
         int height = geometry.height();
         Double sunThreshold = sunDetectionThreshold.textProperty().getValue().isEmpty() ? null : Double.parseDouble(sunDetectionThreshold.textProperty().getValue());
@@ -405,10 +405,9 @@ public class SpectralLineDebugger {
             detector.setDetectionListener(rs -> {
                 var x = rs.a();
                 var y = ((int) Math.round(polynomial.applyAsDouble(x))) + rs.b();
-                var pos = (int) (y * width + x);
-                rgb.r()[pos] = 0;
-                rgb.g()[pos] = Constants.MAX_PIXEL_VALUE;
-                rgb.b()[pos] = Constants.MAX_PIXEL_VALUE;
+                rgb.r()[(int) y][(int) x] = 0;
+                rgb.g()[(int) y][(int) x] = Constants.MAX_PIXEL_VALUE;
+                rgb.b()[(int) y][(int) x] = Constants.MAX_PIXEL_VALUE;
             });
             detector.performDetection(frameId, width, height, buffer, polynomial);
         }

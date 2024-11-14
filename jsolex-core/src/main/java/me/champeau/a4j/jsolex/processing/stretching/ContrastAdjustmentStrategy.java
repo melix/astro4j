@@ -48,20 +48,24 @@ public final class ContrastAdjustmentStrategy implements StretchingStrategy {
         truncate(data);
     }
 
-    private void truncate(float[] data) {
-        for (int i = 0; i < data.length; i++) {
-            if (data[i] < min) {
-                data[i] = 0;
-            } else if (data[i] > max) {
-                data[i] = max;
+    private void truncate(float[][] data) {
+        for (int y = 0; y < data.length; y++) {
+            var line = data[y];
+            for (int x = 0; x < line.length; x++) {
+                float v = line[x];
+                if (v < min) {
+                    line[x] = 0;
+                } else if (v > max) {
+                    line[x] = max;
+                }
             }
         }
     }
 
     @Override
     public void stretch(RGBImage image) {
-       truncate(image.r());
-       truncate(image.g());
-       truncate(image.b());
+        truncate(image.r());
+        truncate(image.g());
+        truncate(image.b());
     }
 }

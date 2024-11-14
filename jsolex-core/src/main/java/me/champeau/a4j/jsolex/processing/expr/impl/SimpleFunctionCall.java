@@ -81,10 +81,13 @@ public class SimpleFunctionCall extends AbstractFunctionImpl {
             if (images.stream().anyMatch(i -> i.data().length != length || i.width() != width || i.height() != height)) {
                 throw new IllegalArgumentException(name + " function call failed: all images must have the same dimensions");
             }
-            float[] result = new float[length];
-            for (int i = 0; i < length; i++) {
-                var idx = i;
-                result[i] = (float) operator.apply(images.stream().mapToDouble(img -> img.data()[idx])).orElse(0);
+            float[][] result = new float[height][width];
+            for (int y = 0; y < height; y++) {
+                for (int x = 0; x < width; x++) {
+                    int finalY = y;
+                    int finalX = x;
+                    result[y][x] = (float) operator.apply(images.stream().mapToDouble(img -> img.data()[finalY][finalX])).orElse(0);
+                }
             }
             Map<Class<?>, Object> metadata = new HashMap<>();
             CutoffStretchingStrategy.DEFAULT.stretch(new ImageWrapper32(width, height, result, metadata));

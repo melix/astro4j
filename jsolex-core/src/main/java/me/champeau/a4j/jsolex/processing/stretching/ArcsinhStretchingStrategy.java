@@ -55,15 +55,20 @@ public final class ArcsinhStretchingStrategy implements StretchingStrategy {
     @Override
     public void stretch(ImageWrapper32 image) {
         var data = image.data();
-        for (int i = 0; i < data.length; i++) {
-            var v = data[i];
-            var sv = stretchPixel(v);
-            data[i] = sv;
-            if (Float.valueOf(data[i]).isNaN()) {
-                data[i] = 0;
+        var height = image.height();
+        var width = image.width();
+        for (int y = 0; y < height; y++) {
+            var line = data[y];
+            for (int x = 0; x < width; x++) {
+                var v = line[x];
+                var sv = stretchPixel(v);
+                line[x] = sv;
+                if (Float.valueOf(line[x]).isNaN()) {
+                    line[x] = 0;
+                }
+                line[x] = Math.max(0, line[x]);
+                line[x] = Math.min(MAX_PIXEL_VALUE, line[x]);
             }
-            data[i] = Math.max(0, data[i]);
-            data[i] = Math.min(MAX_PIXEL_VALUE, data[i]);
         }
         LinearStrechingStrategy.DEFAULT.stretch(image);
     }
@@ -80,26 +85,29 @@ public final class ArcsinhStretchingStrategy implements StretchingStrategy {
 
     @Override
     public void stretch(RGBImage image) {
-        var rgb = new float[][]{
+        var rgb = new float[][][]{
             image.r(),
             image.g(),
             image.b()
         };
         double max = MAX_PIXEL_VALUE;
         var bp = blackPoint / max;
-        int length = rgb[0].length;
-        for (int i = 0; i < length; i++) {
-            double mean = (0.2126 * rgb[0][i] + 0.7152 * rgb[1][i] + 0.0722 * rgb[2][i]);
-            for (int j = 0; j < rgb.length; j++) {
-                double original = rgb[j][i] / max;
-                var pixel = Math.max(0, original - bp);
-                double stretched = (pixel * asinh(original * stretch)) / (mean * asinh);
-                rgb[j][i] = (float) (stretched * max);
-                if (Float.valueOf(rgb[j][i]).isNaN()) {
-                    rgb[j][i] = 0;
+        int height = image.height();
+        int width = image.width();
+        for (int y = 0; y < height; y++) {
+            for (int x = 0; x < width; x++) {
+                double mean = (0.2126 * rgb[0][y][x] + 0.7152 * rgb[1][y][x] + 0.0722 * rgb[2][y][x]);
+                for (int j = 0; j < rgb.length; j++) {
+                    double original = rgb[j][y][x] / max;
+                    var pixel = Math.max(0, original - bp);
+                    double stretched = (pixel * asinh(original * stretch)) / (mean * asinh);
+                    rgb[j][y][x] = (float) (stretched * max);
+                    if (Float.valueOf(rgb[j][y][x]).isNaN()) {
+                        rgb[j][y][x] = 0;
+                    }
+                    rgb[j][y][x] = Math.max(0, rgb[j][y][x]);
+                    rgb[j][y][x] = Math.min(MAX_PIXEL_VALUE, rgb[j][y][x]);
                 }
-                rgb[j][i] = Math.max(0, rgb[j][i]);
-                rgb[j][i] = Math.min(MAX_PIXEL_VALUE, rgb[j][i]);
             }
         }
         LinearStrechingStrategy.DEFAULT.stretch(image);

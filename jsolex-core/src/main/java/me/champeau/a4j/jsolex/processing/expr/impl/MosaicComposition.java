@@ -181,8 +181,7 @@ public class MosaicComposition extends AbstractFunctionImpl {
                 var feat = findInterestPoints(reference, referenceIntegral, compareIntegral, threshold, distorsionGridSize);
                 var length = width * height;
                 var otherData = compare.data();
-                var assembledData = new float[length];
-                System.arraycopy(referenceData, 0, assembledData, 0, length);
+                var assembledData = ImageWrapper.copyData(referenceData);
                 boolean updated = false;
                 Map<Point2D, List<Point2D>> localInterestPoints = new HashMap<>();
                 var offset = distorsionGridSize;
@@ -248,18 +247,18 @@ public class MosaicComposition extends AbstractFunctionImpl {
         return corrected.get(0);
     }
 
-    private static boolean assembleSingleTile(int tileSize, int x, int y, int newX, int newY, int width, int length, float[] assembledData, float[] otherData, boolean[] mask) {
+    private static boolean assembleSingleTile(int tileSize, int x, int y, int newX, int newY, int width, int length, float[][] assembledData, float[][] otherData, boolean[] mask) {
         var updated = false;
         for (int dy = 0; dy < tileSize; dy++) {
             for (int dx = 0; dx < tileSize; dx++) {
                 int idx = (newY + dy) * width + (newX + dx);
                 var origIdx = (y + dy) * width + (x + dx);
                 if (idx >= 0 && idx < length && origIdx >= 0 && origIdx < length) {
-                    var source = assembledData[origIdx];
-                    var other = otherData[idx];
+                    var source = assembledData[y + dy][x + dx];
+                    var other = otherData[newY + dy][newX + dx];
                     updated = true;
                     if (source < 0.5 * other) {
-                        assembledData[origIdx] = other;
+                        assembledData[y + dy][x + dx] = other;
                     }
                     mask[origIdx] = true;
                 }
@@ -436,9 +435,11 @@ public class MosaicComposition extends AbstractFunctionImpl {
             public int pixelsAboveBackground() {
                 var data = image.data();
                 var count = 0;
-                for (float datum : data) {
-                    if (datum > background) {
-                        count++;
+                for (float[] line : data) {
+                    for (float v : line) {
+                        if (v > background) {
+                            count++;
+                        }
                     }
                 }
                 return count;
@@ -485,8 +486,12 @@ public class MosaicComposition extends AbstractFunctionImpl {
         var result = image.copy();
         if (correction != 1) {
             var data = result.data();
-            for (int j = 0; j < data.length; j++) {
-                data[j] = Math.max(0, Math.min(Constants.MAX_PIXEL_VALUE, data[j] * correction));
+            var height = result.height();
+            var width = result.width();
+            for (int y = 0; y < height; y++) {
+                for (int x = 0; x < width; x++) {
+                    data[y][x] = Math.max(0, Math.min(Constants.MAX_PIXEL_VALUE, data[y][x] * correction));
+                }
             }
         }
         return result;
@@ -496,11 +501,16 @@ public class MosaicComposition extends AbstractFunctionImpl {
         var data = image.data();
         var total = 0d;
         var count = 0;
-        for (float datum : data) {
-            // only count pixels which are above the threshold and not saturated
-            if (datum > threshold && datum < 65000) {
-                total += datum;
-                count++;
+        var height = image.height();
+        var width = image.width();
+        for (int y = 0; y < height; y++) {
+            for (int x = 0; x < width; x++) {
+                var v = data[y][x];
+                // only count pixels which are above the threshold and not saturated
+                if (v > threshold && v < 65000) {
+                    total += v;
+                    count++;
+                }
             }
         }
         if (count == 0) {
@@ -517,54 +527,53 @@ public class MosaicComposition extends AbstractFunctionImpl {
         }
         int cpt = DEBUG_COUNTER.incrementAndGet();
         IntStream.range(0, candidates.size()).mapToObj(i -> new Object() {
-            private final DistorsionSample candidate = candidates.get(i);
-            private final int idx = i;
-        })
+                private final DistorsionSample candidate = candidates.get(i);
+                private final int idx = i;
+            })
             .parallel()
             .forEach(o -> {
-            var candidate = o.candidate;
-            var idx = o.idx;
-            var bi = new BufferedImage(width * 2, height, BufferedImage.TYPE_INT_RGB);
-            var g = bi.createGraphics();
-            for (int i = 0; i < 2; i++) {
-                var img = corrected.get(i).data();
-                var offset = width * i;
-                for (int y = 0; y < height; y++) {
-                    for (int x = 0; x < width; x++) {
-                        int grey = (int) img[y * width + x] >> 8;
-                        int rgb = grey << 16 | grey << 8 | grey;
-                        bi.setRGB(x + offset, y, rgb);
+                var candidate = o.candidate;
+                var idx = o.idx;
+                var bi = new BufferedImage(width * 2, height, BufferedImage.TYPE_INT_RGB);
+                var g = bi.createGraphics();
+                for (int i = 0; i < 2; i++) {
+                    var img = corrected.get(i).data();
+                    var offset = width * i;
+                    for (int y = 0; y < height; y++) {
+                        for (int x = 0; x < width; x++) {
+                            int grey = (int) img[y][x] >> 8;
+                            int rgb = grey << 16 | grey << 8 | grey;
+                            bi.setRGB(x + offset, y, rgb);
+                        }
                     }
                 }
-            }
-            g.setColor(Color.WHITE);
-            g.setFont(g.getFont().deriveFont(60f));
-            g.drawString("Tile size %d".formatted(tileSize), (width / 2), 30);
-            int fx = (int) candidate.source().x();
-            int fy = (int) candidate.source().y();
-            int sx = (int) candidate.target().x();
-            int sy = (int) candidate.target().y();
-            g.drawLine(fx, fy, sx + width, sy);
-            g.setColor(Color.ORANGE);
-            g.drawRect(fx, fy, tileSize, tileSize);
-            g.drawRect(sx + width, sy, tileSize, tileSize);
-            g.setFont(g.getFont().deriveFont(30f));
-            g.drawString("(" + fx + "," + fy + ")", fx - 40, fy - 50);
-            g.drawString("(%d,%d score %.1f)".formatted(sx, sy, candidate.error()), sx + width - 40, sy - 50);
-            try {
-                new File(DEBUG_IMAGES + "/" + cpt).mkdirs();
-                ImageIO.write(bi, "png", new File(String.format(DEBUG_IMAGES + "/%d/%04d_match.png", cpt, idx)));
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
-        });
-        var tmp = new float[2 * width * height];
+                g.setColor(Color.WHITE);
+                g.setFont(g.getFont().deriveFont(60f));
+                g.drawString("Tile size %d".formatted(tileSize), (width / 2), 30);
+                int fx = (int) candidate.source().x();
+                int fy = (int) candidate.source().y();
+                int sx = (int) candidate.target().x();
+                int sy = (int) candidate.target().y();
+                g.drawLine(fx, fy, sx + width, sy);
+                g.setColor(Color.ORANGE);
+                g.drawRect(fx, fy, tileSize, tileSize);
+                g.drawRect(sx + width, sy, tileSize, tileSize);
+                g.setFont(g.getFont().deriveFont(30f));
+                g.drawString("(" + fx + "," + fy + ")", fx - 40, fy - 50);
+                g.drawString("(%d,%d score %.1f)".formatted(sx, sy, candidate.error()), sx + width - 40, sy - 50);
+                try {
+                    new File(DEBUG_IMAGES + "/" + cpt).mkdirs();
+                    ImageIO.write(bi, "png", new File(String.format(DEBUG_IMAGES + "/%d/%04d_match.png", cpt, idx)));
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+            });
+        var tmp = new float[2 * height][width];
         for (int i = 0; i < 2; i++) {
             var img = corrected.get(i).data();
-            var offset = width * i;
             for (int y = 0; y < height; y++) {
                 for (int x = 0; x < width; x++) {
-                    tmp[y * 2 * width + x + offset] = img[y * width + x];
+                    tmp[y * 2 + i][x] = img[y][x];
                 }
             }
         }

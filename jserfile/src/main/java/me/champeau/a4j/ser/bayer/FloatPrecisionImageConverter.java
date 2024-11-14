@@ -25,7 +25,7 @@ import java.nio.ByteBuffer;
  * This class is responsible for converting each byte into a float
  * value ranging from 0 to 65535.
  */
-public class FloatPrecisionImageConverter implements ImageConverter<float[]> {
+public class FloatPrecisionImageConverter implements ImageConverter<float[][]> {
     private final ImageConverter<short[]> delegate;
 
     public FloatPrecisionImageConverter(ImageConverter<short[]> delegate) {
@@ -33,17 +33,21 @@ public class FloatPrecisionImageConverter implements ImageConverter<float[]> {
     }
 
     @Override
-    public float[] createBuffer(ImageGeometry geometry) {
-        return new float[delegate.createBuffer(geometry).length];
+    public float[][] createBuffer(ImageGeometry geometry) {
+        return new float[geometry.height()][geometry.width()];
     }
 
 
     @Override
-    public void convert(int frameId, ByteBuffer frameData, ImageGeometry geometry, float[] outputData) {
+    public void convert(int frameId, ByteBuffer frameData, ImageGeometry geometry, float[][] outputData) {
         var intermediateBuffer = delegate.createBuffer(geometry);
         delegate.convert(frameId, frameData, geometry, intermediateBuffer);
-        for (int i = 0; i < intermediateBuffer.length; i++) {
-            outputData[i] = intermediateBuffer[i] & 0xFFFF;
+        var height = geometry.height();
+        var width = geometry.width();
+        for (int y = 0; y < height; y++) {
+            for (int x = 0; x < width; x++) {
+                outputData[y][x] = intermediateBuffer[y * width + x] & 0xFFFF;
+            }
         }
     }
 

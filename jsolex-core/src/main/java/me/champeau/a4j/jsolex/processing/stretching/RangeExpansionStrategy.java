@@ -30,13 +30,20 @@ public final class RangeExpansionStrategy implements StretchingStrategy {
     public void stretch(ImageWrapper32 image) {
         var data = image.data();
         double max = -Double.MAX_VALUE;
-        for (float v : data) {
-            if (v > max) {
-                max = v;
+        var height = image.height();
+        var width = image.width();
+        for (int y = 0; y < height; y++) {
+            for (int x = 0; x < width; x++) {
+                var v = data[y][x];
+                if (v > max) {
+                    max = v;
+                }
             }
         }
-        for (int i = 0; i < data.length; i++) {
-            data[i] = (float) ((MAX_VALUE / max) * data[i]);
+        for (int y = 0; y < height; y++) {
+            for (int x = 0; x < width; x++) {
+                data[y][x] = (float) ((MAX_VALUE / max) * data[y][x]);
+            }
         }
     }
 

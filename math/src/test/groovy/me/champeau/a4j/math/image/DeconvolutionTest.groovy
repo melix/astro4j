@@ -58,7 +58,7 @@ class DeconvolutionTest extends Specification {
         )
         for (int x = 0; x < width; x++) {
             for (int y = 0; y < height; y++) {
-                int grayScale = Math.round(data[x + y * width]) >> 8
+                int grayScale = Math.round(data[y][x]) >> 8
                 int pixelValue = (grayScale << 16) | (grayScale << 8) | grayScale
                 output.setRGB(x, y, pixelValue);
             }
@@ -74,10 +74,10 @@ class DeconvolutionTest extends Specification {
         var img = ImageIO.read(DeconvolutionTest.getResource(name))
         var refW = img.width
         var refH = img.height
-        var loaded = new float[refW * refH]
+        var loaded = new float[refH][refW]
         for (int x = 0; x < refW; x++) {
             for (int y = 0; y < refH; y++) {
-                loaded[x + y * refW] = (img.getRGB(x, y) & 0xFF) << 8
+                loaded[y][x] = (img.getRGB(x, y) & 0xFF) << 8
             }
         }
         new Image(refW, refH, loaded)

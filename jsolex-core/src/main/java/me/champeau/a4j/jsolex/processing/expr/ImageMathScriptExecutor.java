@@ -50,7 +50,7 @@ public interface ImageMathScriptExecutor {
                         rgb.width(),
                         rgb.height(),
                         rgb.metadata(),
-                        () -> new float[][]{rgb.r(), rgb.g(), rgb.b()}
+                        () -> new float[][][]{rgb.r(), rgb.g(), rgb.b()}
                 );
             }
         }

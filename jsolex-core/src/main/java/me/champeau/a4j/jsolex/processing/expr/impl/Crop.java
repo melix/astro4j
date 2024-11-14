@@ -121,9 +121,11 @@ public class Crop extends AbstractFunctionImpl {
         if (top + height > mono.height()) {
             throw new IllegalArgumentException("Crop height too large");
         }
-        float[] cropped = new float[width * height];
+        float[][] cropped = new float[height][width];
+        var sourceData = mono.data();
         for (int y = 0; y < height; y++) {
-            System.arraycopy(mono.data(), left + (y + top) * mono.width(), cropped, y * width, width);
+            var line = sourceData[y + top];
+            System.arraycopy(line, left, cropped[y], 0, width);
         }
         var metadata = fixMetadata(mono, new Cropper.CropResult(new Image(width, height, cropped), new DoublePair(left, top)));
         return new ImageWrapper32(width, height, cropped, metadata);
@@ -184,8 +186,10 @@ public class Crop extends AbstractFunctionImpl {
         var blackpoint = getFromContext(ImageStats.class).map(ImageStats::blackpoint).orElseGet(() -> {
             if (finalArg instanceof ImageWrapper wrapper && wrapper.unwrapToMemory() instanceof ImageWrapper32 mono) {
                 var histo = Histogram.builder(65536);
-                for (float v : mono.data()) {
-                    histo.record(v);
+                for (float[] line : mono.data()) {
+                    for (float v : line) {
+                        histo.record(v);
+                    }
                 }
                 return (float) histo.build().cumulative().percentile(0.01);
             }

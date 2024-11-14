@@ -158,14 +158,14 @@ public class HessianBoxFilter {
     public HessianFilterResponse apply(int boxSize) {
         var width = integralImage.width();
         var height = integralImage.height();
-        var determinants = new float[width * height];
-        var laplacians = new byte[width * height];
+        var determinants = new float[height][width];
+        var laplacians = new byte[height][width];
         float max = 0;
         for (int y = 0; y < height; y++) {
             for (int x = 0; x < width; x++) {
                 var current = determinantAndLaplacian(x, y, boxSize);
-                determinants[x + y * width] = current.determinant;
-                laplacians[x + y * width] = current.laplacian;
+                determinants[y][x] = current.determinant;
+                laplacians[y][x] = current.laplacian;
                 if (current.determinant > max) {
                     max = current.determinant;
                 }

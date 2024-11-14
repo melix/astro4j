@@ -27,7 +27,7 @@ import java.util.function.Supplier;
 
 public class WriteColorizedImageTask extends AbstractImageWriterTask {
     private final Supplier<ImageWrapper32> mono;
-    private final Function<ImageWrapper32, float[][]> converter;
+    private final Function<ImageWrapper32, float[][][]> converter;
 
     public WriteColorizedImageTask(Broadcaster broadcaster,
                                    Supplier<ImageWrapper32> image,
@@ -35,7 +35,7 @@ public class WriteColorizedImageTask extends AbstractImageWriterTask {
                                    String title,
                                    String name,
                                    GeneratedImageKind kind,
-                                   Function<ImageWrapper32, float[][]> converter) {
+                                   Function<ImageWrapper32, float[][][]> converter) {
         super(broadcaster, image, outputDirectory, title, name, kind);
         this.mono = image;
         this.converter = converter;

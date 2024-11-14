@@ -42,7 +42,7 @@ public class RenamingImageEmitter implements ImageEmitter {
     }
 
     @Override
-    public void newMonoImage(GeneratedImageKind kind, String category, String title, String name, ImageWrapper32 image, Consumer<? super float[]> bufferConsumer) {
+    public void newMonoImage(GeneratedImageKind kind, String category, String title, String name, ImageWrapper32 image, Consumer<? super float[][]> bufferConsumer) {
         delegate.newMonoImage(kind, null, titleRenamer.apply(title), fileRenamer.apply(name), image, bufferConsumer);
     }
 
@@ -52,17 +52,17 @@ public class RenamingImageEmitter implements ImageEmitter {
     }
 
     @Override
-    public void newColorImage(GeneratedImageKind kind, String category, String title, String name, ImageWrapper32 image, Function<ImageWrapper32, float[][]> rgbSupplier) {
+    public void newColorImage(GeneratedImageKind kind, String category, String title, String name, ImageWrapper32 image, Function<ImageWrapper32, float[][][]> rgbSupplier) {
         delegate.newColorImage(kind, null, titleRenamer.apply(title), fileRenamer.apply(name), image, rgbSupplier);
     }
 
     @Override
-    public void newColorImage(GeneratedImageKind kind, String category, String title, String name, ImageWrapper32 image, Function<ImageWrapper32, float[][]> rgbSupplier, BiConsumer<Graphics2D, ? super ImageWrapper> painter) {
+    public void newColorImage(GeneratedImageKind kind, String category, String title, String name, ImageWrapper32 image, Function<ImageWrapper32, float[][][]> rgbSupplier, BiConsumer<Graphics2D, ? super ImageWrapper> painter) {
         delegate.newColorImage(kind, null, titleRenamer.apply(title), fileRenamer.apply(name), image, rgbSupplier, painter);
     }
 
     @Override
-    public void newColorImage(GeneratedImageKind kind, String category, String title, String name, int width, int height, Map<Class<?>, Object> metadata, Supplier<float[][]> rgbSupplier) {
+    public void newColorImage(GeneratedImageKind kind, String category, String title, String name, int width, int height, Map<Class<?>, Object> metadata, Supplier<float[][][]> rgbSupplier) {
         delegate.newColorImage(kind, null, titleRenamer.apply(title), fileRenamer.apply(name), width, height, metadata, rgbSupplier);
     }
 

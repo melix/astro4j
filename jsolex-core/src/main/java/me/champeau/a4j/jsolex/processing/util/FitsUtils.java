@@ -86,8 +86,8 @@ public class FitsUtils {
 
     public static ImageWrapper readFitsFile(File source) {
         try (var fits = new Fits(source)) {
-            float[] data = null;
-            float[][] rgb = null;
+            float[][] data = null;
+            float[][][] rgb = null;
             int rows = 0;
             int cols = 0;
             Map<Class<?>, Object> metadata = new HashMap<>();
@@ -117,7 +117,7 @@ public class FitsUtils {
                         cols = rows == 0 ? 0 : mono[0].length;
                         data = readChannel(mono, rows, cols, bzero);
                     } else if (kernel instanceof short[][][] channels) {
-                        rgb = new float[3][];
+                        rgb = new float[3][][];
                         for (int i = 0; i < channels.length; i++) {
                             short[][] channel = channels[i];
                             rows = channel.length;
@@ -165,12 +165,11 @@ public class FitsUtils {
         }
     }
 
-    private static float[] readChannel(short[][] mono, int rows, int cols, int bzero) {
-        float[] data;
-        data = new float[rows * cols];
+    private static float[][] readChannel(short[][] mono, int rows, int cols, int bzero) {
+        float[][] data = new float[rows][cols];
         for (int y = 0; y < rows; y++) {
             for (int x = 0; x < cols; x++) {
-                data[x + y * cols] = mono[y][x] + bzero;
+                data[y][x] = mono[y][x] + bzero;
             }
         }
         return data;
@@ -367,7 +366,7 @@ public class FitsUtils {
         if (metadata.isPresent()) {
             var referenceCoords = metadata.get();
             var table = new BinaryTable();
-            referenceCoords.operations().forEach(op -> table.addRow(new Object[] { op.kind().name(), op.value() }));
+            referenceCoords.operations().forEach(op -> table.addRow(new Object[]{op.kind().name(), op.value()}));
             var binaryTableHDU = BinaryTableHDU.wrap(table);
             binaryTableHDU.getHeader().addValue(JSOLEX_HEADER_KEY, REFCOORDS_VALUE, "Reference coordinate transforms");
             fits.addHDU(binaryTableHDU);
@@ -379,7 +378,7 @@ public class FitsUtils {
         if (metadata.isPresent()) {
             var sourceInfo = metadata.get();
             var table = new BinaryTable();
-            table.addRow(new Object[] { sourceInfo.serFileName(), sourceInfo.parentDirName(), sourceInfo.dateTime().toString() });
+            table.addRow(new Object[]{sourceInfo.serFileName(), sourceInfo.parentDirName(), sourceInfo.dateTime().toString()});
             var binaryTableHDU = BinaryTableHDU.wrap(table);
             binaryTableHDU.getHeader().addValue(JSOLEX_HEADER_KEY, SOURCEINFO_VALUE, "Source file information");
             fits.addHDU(binaryTableHDU);
@@ -508,19 +507,21 @@ public class FitsUtils {
     }
 
     private static String normalize(String string) {
-        return Normalizer.normalize(string, Normalizer.Form.NFKD).replaceAll("\\p{M}", "");
+        return Normalizer.normalize(string, Normalizer.Form.NFKD)
+            .replaceAll("\\p{M}", "")
+            .replaceAll("[^\\x20-\\x7E]", "_");
     }
 
     private static boolean notEmpty(String str) {
         return str != null && !str.isEmpty();
     }
 
-    private short[] toRows(int width, float[] data) {
-        var rowCount = data.length / width;
-        var result = new short[data.length];
+    private short[] toRows(int width, float[][] data) {
+        var rowCount = data.length;
+        var result = new short[rowCount * width];
         for (int y = 0; y < rowCount; y++) {
             for (int x = 0; x < width; x++) {
-                int value = Math.round(data[x + y * width]);
+                int value = Math.round(data[y][x]);
                 if (value < 0) {
                     value = 0;
                 } else if (value > 65536) {
@@ -532,7 +533,7 @@ public class FitsUtils {
         return result;
     }
 
-    private short[][] toRows(int width, float[] r, float[] g, float[] b) {
+    private short[][] toRows(int width, float[][] r, float[][] g, float[][] b) {
         var rgb = new short[3][];
         rgb[0] = toRows(width, r);
         rgb[1] = toRows(width, g);
