@@ -1194,6 +1194,12 @@ Si vous ne connaissez pas la valeur du point noir, vous pouvez utiliser la valeu
 <p><code>rgb</code> permet de créer une image RGB à partir de 3 images mono. Elle prend donc 3 paramètres, par exemple: <code>rgb(img(3), avg(img(3), img(-3)), img(-3))</code>.</p>
 </li>
 <li>
+<p><code>get_r</code>, <code>get_g</code> et <code>get_b</code> permettent d&#8217;extraire respectivement le canal rouge, vert ou bleu d&#8217;une image couleur. Au cas où une image mono est passée en paramètre, elle est renvoyée telle quelle.</p>
+</li>
+<li>
+<p><code>mono</code> convertit une image couleur en mono en utilisant la formule gris=0.299 * Rouge + 0.587 * Vert + 0.114 * Bleu</p>
+</li>
+<li>
 <p><code>saturate</code> permet de (dé)saturer une image RGB. Elle accepte 2 paramètres : une image couleur et un facteur de saturation (relatif à la saturation courante de l&#8217;image). Par exemple: <code>saturate(doppler, 2)</code>.</p>
 </li>
 <li>
