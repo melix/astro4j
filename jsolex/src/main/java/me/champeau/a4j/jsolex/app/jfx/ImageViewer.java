@@ -238,15 +238,16 @@ public class ImageViewer implements WithRootNode {
                 if (displayImage == null) {
                     displayImage = image;
                 }
+                var xx = x.intValue();
+                var yy = y.intValue();
                 if (displayImage instanceof ImageWrapper32 mono) {
-                    var idx = x.intValue() + y.intValue() * mono.width();
-                    if (idx < 0 || idx >= mono.data().length) {
+                    if (xx < 0 || xx >= mono.width() || yy < 0 || yy >= mono.height()) {
                         return;
                     }
-                    var pixelValue = mono.data()[y.intValue()][x.intValue()];
+                    var pixelValue = mono.data()[yy][xx];
                     extra = ", " + String.format("%.0f", pixelValue);
                 }
-                coordinatesLabel.setText("(" + x.intValue() + ", " + y.intValue() + extra + ")");
+                coordinatesLabel.setText("(" + xx + ", " + yy + extra + ")");
             });
             correctAngleP = new CheckBox(message("correct.p.angle"));
             correctAngleP.setSelected(processParams.geometryParams().isAutocorrectAngleP());
