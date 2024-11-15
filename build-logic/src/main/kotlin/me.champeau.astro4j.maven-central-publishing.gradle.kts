@@ -10,3 +10,5 @@ nexusPublishing {
         }
     }
 }
+
+group = "me.champeau.astro4j"

@@ -117,7 +117,7 @@ signing {
         this as MavenPublication
         pom {
             name.set(project.name)
-            description.set(project.description)
+            description.set(provider { project.description })
             url.set("https://github.com/melix/astro4j")
             licenses {
                 license {
