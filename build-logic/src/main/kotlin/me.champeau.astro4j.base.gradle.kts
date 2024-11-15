@@ -15,7 +15,7 @@ extensions.create("astro4j", BuildExtension::class.java, project)
 
 java {
     toolchain {
-        languageVersion.set(JavaLanguageVersion.of(21))
+        languageVersion.set(JavaLanguageVersion.of(23))
     }
     withSourcesJar()
     withJavadocJar()

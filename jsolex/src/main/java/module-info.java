@@ -28,7 +28,6 @@ module me.champeau.a4j.jsolex {
     requires jdk.incubator.vector;
     requires org.fxmisc.richtext;
     requires com.google.gson;
-    requires jdk.crypto.ec;
     requires reactfx;
     requires org.commonmark;
     requires org.fxmisc.flowless;

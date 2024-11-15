@@ -59,8 +59,8 @@ Licensed under Apache License version 2.
 
 ## Building from sources
 
-You need to have a Java 21 SDK to build from sources.
-I recommend that you install [GraalVM for Java 21](https://www.graalvm.org/).
+You need to have a Java 23 SDK to build from sources.
+I recommend that you install [GraalVM for Java 23](https://www.graalvm.org/).
 
 This project makes use of [Gradle](https://gradle.org) to build.
 Here are some common tasks you may want to execute:
