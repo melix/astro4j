@@ -1,0 +1,85 @@
+{
+  "resources":{
+  "includes":[{
+    "pattern":"\\QMETA-INF/micronaut/io.micronaut.context.ApplicationContextConfigurer\\E"
+  }, {
+    "pattern":"\\QMETA-INF/micronaut/io.micronaut.context.env.PropertySourceLoader\\E"
+  }, {
+    "pattern":"\\QMETA-INF/micronaut/io.micronaut.core.beans.BeanIntrospectionReference\\E"
+  }, {
+    "pattern":"\\QMETA-INF/micronaut/io.micronaut.core.convert.TypeConverterRegistrar\\E"
+  }, {
+    "pattern":"\\QMETA-INF/micronaut/io.micronaut.inject.BeanConfiguration\\E"
+  }, {
+    "pattern":"\\QMETA-INF/micronaut/io.micronaut.inject.BeanDefinitionReference\\E"
+  }, {
+    "pattern":"\\QMETA-INF/services/ch.qos.logback.classic.spi.Configurator\\E"
+  }, {
+    "pattern":"\\QMETA-INF/services/io.micronaut.context.ApplicationContextConfigurer\\E"
+  }, {
+    "pattern":"\\QMETA-INF/services/io.micronaut.context.env.PropertySourceLoader\\E"
+  }, {
+    "pattern":"\\QMETA-INF/services/io.micronaut.core.beans.BeanIntrospectionReference\\E"
+  }, {
+    "pattern":"\\QMETA-INF/services/io.micronaut.core.convert.TypeConverterRegistrar\\E"
+  }, {
+    "pattern":"\\QMETA-INF/services/io.micronaut.core.optim.StaticOptimizations$Loader\\E"
+  }, {
+    "pattern":"\\QMETA-INF/services/io.micronaut.inject.BeanConfiguration\\E"
+  }, {
+    "pattern":"\\QMETA-INF/services/io.micronaut.inject.BeanDefinitionReference\\E"
+  }, {
+    "pattern":"\\QMETA-INF/services/java.lang.System$LoggerFinder\\E"
+  }, {
+    "pattern":"\\QMETA-INF/services/java.net.spi.InetAddressResolverProvider\\E"
+  }, {
+    "pattern":"\\QMETA-INF/services/java.nio.file.spi.FileSystemProvider\\E"
+  }, {
+    "pattern":"\\QMETA-INF/services/java.time.zone.ZoneRulesProvider\\E"
+  }, {
+    "pattern":"\\QMETA-INF/services/java.util.spi.ResourceBundleControlProvider\\E"
+  }, {
+    "pattern":"\\QMETA-INF/services/javax.imageio.spi.ImageInputStreamSpi\\E"
+  }, {
+    "pattern":"\\QMETA-INF/services/javax.imageio.spi.ImageOutputStreamSpi\\E"
+  }, {
+    "pattern":"\\QMETA-INF/services/javax.imageio.spi.ImageReaderSpi\\E"
+  }, {
+    "pattern":"\\QMETA-INF/services/javax.imageio.spi.ImageTranscoderSpi\\E"
+  }, {
+    "pattern":"\\QMETA-INF/services/javax.imageio.spi.ImageWriterSpi\\E"
+  }, {
+    "pattern":"\\QMETA-INF/services/javax.management.remote.JMXConnectorServerProvider\\E"
+  }, {
+    "pattern":"\\QMETA-INF/services/javax.xml.parsers.SAXParserFactory\\E"
+  }, {
+    "pattern":"\\QMETA-INF/services/nom.tam.fits.compress.ICompressProvider\\E"
+  }, {
+    "pattern":"\\QMETA-INF/services/org.slf4j.spi.SLF4JServiceProvider\\E"
+  }, {
+    "pattern":"\\Qapplication-cli.properties\\E"
+  }, {
+    "pattern":"\\Qapplication.properties\\E"
+  }, {
+    "pattern":"\\Qlogback-test.scmo\\E"
+  }, {
+    "pattern":"\\Qlogback-test.xml\\E"
+  }, {
+    "pattern":"\\Qlogback.scmo\\E"
+  }, {
+    "pattern":"\\Qlogback.xml\\E"
+  }, {
+    "pattern":"\\Qversion.txt\\E"
+  }, {
+    "pattern":"java.base:\\Qjdk/internal/icu/impl/data/icudt72b/nfkc.nrm\\E"
+  }, {
+    "pattern":"jdk.jfr:\\Qjdk/jfr/internal/query/view.ini\\E"
+  }]},
+  "bundles":[{
+    "name":"me.champeau.a4j.jsolex.processing.util.messages",
+    "locales":["und"]
+  }, {
+    "name":"sun.awt.resources.awt",
+    "classNames":["sun.awt.resources.awt"]
+  }]
+}
