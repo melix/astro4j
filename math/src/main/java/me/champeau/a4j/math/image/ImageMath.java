@@ -437,7 +437,7 @@ public interface ImageMath {
 
     default Image divide(Image first, Image second) {
         var firstData = first.data();
-        var secondData = first.data();
+        var secondData = second.data();
         var height = first.height();
         var width = first.width();
         float[][] result = new float[height][width];
@@ -451,7 +451,7 @@ public interface ImageMath {
 
     default Image multiply(Image first, Image second) {
         var firstData = first.data();
-        var secondData = first.data();
+        var secondData = second.data();
         var height = first.height();
         var width = first.width();
         float[][] result = new float[height][width];
