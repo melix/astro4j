@@ -107,6 +107,8 @@ class AbstractFunctionImpl {
             var obj = arguments.get(position);
             if (obj instanceof Number num) {
                 return num;
+            } else if (obj instanceof CharSequence str) {
+                return Double.parseDouble(str.toString());
             }
             throw new IllegalStateException("Expected to find a number argument at position " + position + " but it as a " + obj.getClass());
         }
