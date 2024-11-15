@@ -19,14 +19,18 @@ import me.champeau.a4j.jsolex.processing.params.ProcessParams;
 import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
 import me.champeau.a4j.jsolex.processing.sun.workflow.PixelShift;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
+import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
+import me.champeau.a4j.jsolex.processing.util.RGBImage;
 
 import java.time.format.DateTimeFormatter;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
 public class Utilities extends AbstractFunctionImpl {
     private static final String DEFAULT_DATE_FORMAT = "yyyy/MM/dd HH:mm:ss [z]";
+
     public Utilities(Map<Class<?>, Object> context, Broadcaster broadcaster) {
         super(context, broadcaster);
     }
@@ -77,9 +81,53 @@ public class Utilities extends AbstractFunctionImpl {
             comparator = comparator.reversed();
         }
         return list.stream()
-                .sorted(comparator)
-                .toList();
+            .sorted(comparator)
+            .toList();
     }
 
+    public Object extractChannel(List<Object> arguments, int channel) {
+        if (arguments.size() != 1) {
+            throw new IllegalArgumentException("extract_channel accepts a single argument");
+        }
+        if (arguments.getFirst() instanceof List) {
+            return expandToImageList("extractChannel", arguments, args -> extractChannel(args, channel));
+        }
+        var image = arguments.getFirst();
+        if (image instanceof ImageWrapper wrapper) {
+            wrapper = wrapper.unwrapToMemory();
+            if (wrapper instanceof ImageWrapper32 mono) {
+                return mono;
+            }
+            if (wrapper instanceof RGBImage rgb) {
+                var metadata = new HashMap<>(rgb.metadata());
+                return switch (channel) {
+                    case 0 -> new ImageWrapper32(rgb.width(), rgb.height(), rgb.r(), metadata);
+                    case 1 -> new ImageWrapper32(rgb.width(), rgb.height(), rgb.g(), metadata);
+                    case 2 -> new ImageWrapper32(rgb.width(), rgb.height(), rgb.b(), metadata);
+                    default -> throw new IllegalArgumentException("Channel must be an int between 0 and 2");
+                };
+            }
+        }
+        throw new IllegalArgumentException("Unexpected argument type: " + image.getClass());
+    }
 
+    public Object toMono(List<Object> arguments) {
+        if (arguments.size() != 1) {
+            throw new IllegalArgumentException("toMono accepts a single argument");
+        }
+        if (arguments.getFirst() instanceof List) {
+            return expandToImageList("toMono", arguments, this::toMono);
+        }
+        var image = arguments.getFirst();
+        if (image instanceof ImageWrapper wrapper) {
+            wrapper = wrapper.unwrapToMemory();
+            if (wrapper instanceof ImageWrapper32 mono) {
+                return mono;
+            }
+            if (wrapper instanceof RGBImage rgb) {
+                return rgb.toMono();
+            }
+        }
+        throw new IllegalArgumentException("Unexpected argument type: " + image.getClass());
+    }
 }
