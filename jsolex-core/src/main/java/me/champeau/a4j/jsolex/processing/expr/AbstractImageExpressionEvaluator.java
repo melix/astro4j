@@ -216,6 +216,7 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
             case AUTOCROP -> crop.autocrop(arguments);
             case AUTOCROP2 -> crop.autocrop2(arguments);
             case AVG -> simpleFunctionCall.applyFunction("avg", arguments, DoubleStream::average);
+            case GET_B -> utilities.extractChannel(arguments, 2);
             case BLUR -> convolution.blur(arguments);
             case CLAHE -> clahe.clahe(arguments);
             case CHOOSE_FILE -> loader.chooseFile(arguments);
@@ -241,6 +242,7 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
             case FIX_GEOMETRY -> geometryCorrection.fixGeometry(arguments);
             case FLAT_CORRECTION -> flatCorrector.performFlatCorrection(arguments);
             case HFLIP -> rotate.hflip(arguments);
+            case GET_G -> utilities.extractChannel(arguments, 1);
             case IMG -> image(arguments);
             case INVERT -> inverse.invert(arguments);
             case LINEAR_STRETCH -> stretching.linearStretch(arguments);
@@ -251,9 +253,11 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
             case MAX -> simpleFunctionCall.applyFunction("max", arguments, DoubleStream::max);
             case MEDIAN -> simpleFunctionCall.applyFunction("median", arguments, AbstractImageExpressionEvaluator::median);
             case MIN -> simpleFunctionCall.applyFunction("min", arguments, DoubleStream::min);
+            case MONO -> utilities.toMono(arguments);
             case MOSAIC -> mosaicComposition.mosaic(arguments);
             case NEUTRALIZE_BG -> bgRemoval.neutralizeBackground(arguments);
             case POW -> math.pow(arguments);
+            case GET_R -> utilities.extractChannel(arguments, 0);
             case RADIUS_RESCALE -> scaling.radiusRescale(arguments);
             case RANGE -> createRange(arguments);
             case REMOVE_BG -> bgRemoval.removeBackground(arguments);
