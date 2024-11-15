@@ -28,7 +28,7 @@ graalvmNative {
     metadataRepository.enabled.set(true)
     binaries.named("main") {
         imageName.set("jsolex-scripting")
-//        buildArgs.addAll(listOf("--add-modules", "jdk.incubator.vector"))
+        buildArgs.addAll(listOf("--add-modules", "jdk.incubator.vector"))
     }
 }
 

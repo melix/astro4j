@@ -5,6 +5,7 @@
 - Correction du bouton "aligner les images" qui ne fonctionnait pas toujours
 - Ajout des fonctions `GET_R`, `GET_G`, `GET_B` et `MONO` qui extraient respectivement les canaux rouge, vert et bleu d'une image couleur, et convertissent une image couleur en mono pour la dernière
 - Modifications des structures de données internes pour faciliter de futures évolutions
+- Passage à Java 23
 
 ## Message aux utilisateurs français
 

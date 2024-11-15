@@ -15,7 +15,7 @@ jobs:
           ssh-key: "${{ secrets.SSH_PRIVATE_KEY }}"
       - uses: graalvm/setup-graalvm@v1
         with:
-          java-version: '21'
+          java-version: '23'
           distribution: 'graalvm'
           github-token: ${{ secrets.GITHUB_TOKEN }}
           native-image-job-reports: 'true'
@@ -37,7 +37,7 @@ jobs:
           git config --global user.email 'melix@users.noreply.github.com'
       - uses: actions/setup-java@v1
         with:
-          java-version: 21
+          java-version: 23
       - uses: gradle/gradle-build-action@v2
         with:
           arguments: :docs:gitPublishPush
