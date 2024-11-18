@@ -117,7 +117,7 @@ public class ExposureCalculator {
         setup.getSelectionModel().select(0);
         var shgs = SpectroHeliographsIO.loadDefaults();
         if (shgs.isEmpty()) {
-            shgs = List.of(SpectroHeliograph.SOLEX);
+            shgs = SpectroHeliographsIO.predefined();
         }
         instrument.getItems().addAll(shgs);
         instrument.getSelectionModel().select(0);
