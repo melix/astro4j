@@ -104,7 +104,11 @@ public class Scaling extends AbstractFunctionImpl {
     List<ImageWrapper> performRadiusRescale(List<? extends ImageWrapper> filtered) {
         var fittings = new LinkedHashMap<ImageWrapper, Double>();
         for (ImageWrapper img : filtered) {
-            var fit = img.findMetadata(Ellipse.class).orElseGet(() -> (Ellipse) ellipseFit.fit(List.of(img)));
+            var ellipse = img.findMetadata(Ellipse.class).orElse(null);
+            if (ellipse == null ) {
+                img = (ImageWrapper) ellipseFit.fit(List.of(img));
+            }
+            var fit = img.findMetadata(Ellipse.class).orElse(null);
             if (fit != null) {
                 fittings.put(img, radiusOf(fit));
             }

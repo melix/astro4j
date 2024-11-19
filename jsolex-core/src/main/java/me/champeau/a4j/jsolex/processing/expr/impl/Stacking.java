@@ -102,7 +102,6 @@ public class Stacking extends AbstractFunctionImpl {
         var widths = images.stream().mapToInt(ImageWrapper::width).distinct().toArray();
         var heights = images.stream().mapToInt(ImageWrapper::height).distinct().toArray();
         images = prepareForStacking(images, widths, heights);
-        ;
         // the reference image is the first image
         // We perform stacking by doing the following:
         // for each image to stack, we split the image into tiles of size tileSize
