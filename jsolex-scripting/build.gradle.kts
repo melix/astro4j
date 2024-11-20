@@ -47,6 +47,6 @@ tasks.withType<JavaExec>().configureEach {
     args(listOf(
         "-o", "/tmp/out2",
         "-s", "/home/cchampeau/DEV/PROJECTS/GITHUB/astro4j/stacking.math",
-        "-p", "input_dir=/tmp/scaled"
+        "-p", "input_dir=/home/cchampeau/Downloads/stack_191124/stack_191124"
     ))
 }

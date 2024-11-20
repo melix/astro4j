@@ -23,7 +23,7 @@ import me.champeau.a4j.jsolex.processing.event.ProgressEvent;
 import me.champeau.a4j.jsolex.processing.expr.DefaultImageScriptExecutor;
 import me.champeau.a4j.jsolex.processing.expr.ImageMathScriptExecutor;
 import me.champeau.a4j.jsolex.processing.params.ProcessParams;
-import me.champeau.a4j.jsolex.processing.stretching.LinearStrechingStrategy;
+import me.champeau.a4j.jsolex.processing.stretching.CutoffStretchingStrategy;
 import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
 import me.champeau.a4j.jsolex.processing.util.ImageFormat;
 import me.champeau.a4j.jsolex.processing.util.ImageSaver;
@@ -90,7 +90,7 @@ public class ScriptingEntryPoint implements Runnable {
             var result = scriptExecutor.execute(sourceScriptPath, ImageMathScriptExecutor.SectionKind.SINGLE);
             var processParams = ProcessParams.loadDefaults();
             processParams = processParams.withExtraParams(processParams.extraParams().withImageFormats(Set.of(ImageFormat.FITS, ImageFormat.JPG, ImageFormat.PNG, ImageFormat.TIF)));
-            var saver = new ImageSaver(LinearStrechingStrategy.DEFAULT, processParams);
+            var saver = new ImageSaver(CutoffStretchingStrategy.DEFAULT, processParams);
             var directory = outputDir == null ? new File(".") : outputDir;
             result.imagesByLabel().forEach((name, image) -> {
                 var saved = saver.save(image, new File(directory, name + ".png"));

@@ -97,7 +97,7 @@ public class Loader extends AbstractFunctionImpl {
             var color = image.getRGB(0, 0, width, height, null, 0, width);
             for (int y = 0; y < height; y++) {
                 for (int x = 0; x < width; x++) {
-                    var pixel = color[y*width + x];
+                    var pixel = color[y * width + x];
                     r[y][x] = ((pixel >> 16) & 0xFF) << 8;
                     g[y][x] = ((pixel >> 8) & 0xFF) << 8;
                     b[y][x] = (pixel & 0xFF) << 8;
@@ -115,10 +115,11 @@ public class Loader extends AbstractFunctionImpl {
                     }
                 }
             } else {
-                var rgb = image.getRGB(0, 0, width, height, null, 0, width);
+                var raster = image.getRaster();
                 for (int y = 0; y < height; y++) {
                     for (int x = 0; x < width; x++) {
-                        data[y][x] = rgb[y * width + x] & 0xFF;
+                        // Get raw sample value and scale to 16-bit
+                        data[y][x] = raster.getSample(x, y, 0) << 8;
                     }
                 }
             }

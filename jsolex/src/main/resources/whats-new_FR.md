@@ -4,7 +4,10 @@
 
 - Correction du bouton "aligner les images" qui ne fonctionnait pas toujours
 - Ajout des fonctions `GET_R`, `GET_G`, `GET_B` et `MONO` qui extraient respectivement les canaux rouge, vert et bleu d'une image couleur, et convertissent une image couleur en mono pour la dernière
+- Correction du chargement des images JPEG mono 8-bit qui ne prenait pas en compte la correction gamma
+- Amélioration de la stabilité de l'empilement
 - Modifications des structures de données internes pour faciliter de futures évolutions
+- Ajout d'un module permettant de lancer des scripts depuis la ligne de commande
 - Passage à Java 23
 
 ## Message aux utilisateurs français
