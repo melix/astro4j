@@ -30,6 +30,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 public class Scaling extends AbstractFunctionImpl {
     private final ImageMath imageMath = ImageMath.newInstance();
@@ -102,17 +103,20 @@ public class Scaling extends AbstractFunctionImpl {
     }
 
     List<ImageWrapper> performRadiusRescale(List<? extends ImageWrapper> filtered) {
-        var fittings = new LinkedHashMap<ImageWrapper, Double>();
-        for (ImageWrapper img : filtered) {
-            var ellipse = img.findMetadata(Ellipse.class).orElse(null);
-            if (ellipse == null ) {
-                img = (ImageWrapper) ellipseFit.fit(List.of(img));
-            }
-            var fit = img.findMetadata(Ellipse.class).orElse(null);
-            if (fit != null) {
-                fittings.put(img, radiusOf(fit));
-            }
-        }
+        var fittings = filtered.stream()
+            .parallel()
+            .map(img -> {
+                ImageWrapper withEllipse = img;
+                var ellipse = img.findMetadata(Ellipse.class).orElse(null);
+                if (ellipse == null) {
+                    withEllipse = (ImageWrapper) ellipseFit.fit(List.of(img));
+                }
+                return withEllipse;
+            })
+            .collect(Collectors.toMap(img -> img, img -> {
+                var fit = img.findMetadata(Ellipse.class).orElse(null);
+                return radiusOf(fit);
+            }));
         var targetRadius = fittings.values().stream().mapToDouble(Double::doubleValue).max();
         if (targetRadius.isPresent()) {
             List<ImageWrapper> result = new ArrayList<>();
