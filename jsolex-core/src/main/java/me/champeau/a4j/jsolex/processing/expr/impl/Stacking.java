@@ -31,7 +31,6 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.concurrent.atomic.AtomicReference;
 
 import static me.champeau.a4j.jsolex.processing.util.Constants.message;
 
@@ -56,7 +55,7 @@ public class Stacking extends AbstractFunctionImpl {
         if (images.size() == 1) {
             return images.get(0);
         }
-        return doStack(images, tileSize, overlap, null, 0);
+        return doStack(images, tileSize, overlap, null);
     }
 
     public Object stack(List<Object> arguments) {
@@ -92,13 +91,13 @@ public class Stacking extends AbstractFunctionImpl {
             if (overlap < 0 || overlap > 1) {
                 throw new IllegalArgumentException("overlap factor must be between 0 and 1");
             }
-            return doStack(images, tileSize, overlap, null, 0);
+            return doStack(images, tileSize, overlap, null);
         } else {
             throw new IllegalArgumentException("stack first argument must be a list of images");
         }
     }
 
-    ImageWrapper32 doStack(List<ImageWrapper32> images, int tileSize, float overlap, ImageWrapper32 referenceImage, float threshold) {
+    ImageWrapper32 doStack(List<ImageWrapper32> images, int tileSize, float overlap, ImageWrapper32 referenceImage) {
         var widths = images.stream().mapToInt(ImageWrapper::width).distinct().toArray();
         var heights = images.stream().mapToInt(ImageWrapper::height).distinct().toArray();
         images = prepareForStacking(images, widths, heights);
@@ -138,7 +137,7 @@ public class Stacking extends AbstractFunctionImpl {
                 double progress = (double) (idx) / (width * height);
                 broadcaster.broadcast(ProgressEvent.of(progress, STACKING_MESSAGE));
                 var weights = prepareTileWeights(images, tileSize, referenceImage, sharpness, integralImages, x, y, referenceIntegral);
-                stackSingleTile(images, tileSize, x, width, y, height, imageCount, referenceData, result, weights, threshold, overlap >= 0.3f);
+                stackSingleTile(images, tileSize, x, width, y, height, imageCount, referenceData, result, weights, overlap >= 0.3f);
             }
         }
         broadcaster.broadcast(ProgressEvent.of(1.0, STACKING_MESSAGE));
@@ -253,7 +252,6 @@ public class Stacking extends AbstractFunctionImpl {
                                  float[][] referenceData,
                                  float[][] result,
                                  double[] weights,
-                                 float threshold,
                                  boolean circle) {
         var tileStack = createStackForTile(tileSize, imageCount);
         for (var image : images) {
@@ -263,7 +261,7 @@ public class Stacking extends AbstractFunctionImpl {
             findBestMatch(referenceData, data, width, height, tileSize, x, y, maxLookupShift).ifPresent(match -> {
                 var bestX = match.x();
                 var bestY = match.y();
-                pushTileStack(tileSize, width, height, bestX, bestY, tileStack, imageIndex, data, threshold);
+                pushTileStack(tileSize, width, height, bestX, bestY, tileStack, imageIndex, data);
             });
 
         }
@@ -298,6 +296,7 @@ public class Stacking extends AbstractFunctionImpl {
                                                int maxLookupShift) {
         record IntermediateResult(
             double error,
+            double distance,
             int x,
             int y) implements Comparable<IntermediateResult> {
 
@@ -347,7 +346,7 @@ public class Stacking extends AbstractFunctionImpl {
                 }
             }
 
-            var curError = new AtomicReference<>(bestError);
+            var curError = new double[]{bestError};
             var best = tests.stream()
                 .parallel()
                 .<IntermediateResult>mapMulti((coords, consumer) -> {
@@ -355,14 +354,14 @@ public class Stacking extends AbstractFunctionImpl {
                     var yy = coords.b();
                     var e = computeError(tileSize, width, height, x, y, referenceData, xx, yy, data);
                     errors[yy - y + maxLookupShift][xx - x + maxLookupShift] = e;
-                    if (e < curError.get()) {
+                    if (e <= curError[0]) {
                         // We don't care that another thread can change the value here
                         // in between, since we're going to sort and take the best anyway
-                        curError.set(e);
-                        consumer.accept(new IntermediateResult(e, xx, yy));
+                        curError[0] = e;
+                        consumer.accept(new IntermediateResult(e, Math.hypot(xx - x, yy - y), xx, yy));
                     }
                 })
-                .min(Comparator.comparing(IntermediateResult::error));
+                .min(Comparator.comparing(IntermediateResult::error).thenComparing(IntermediateResult::distance));
             update = best.isPresent();
             if (update) {
                 var result = best.get();
@@ -373,8 +372,6 @@ public class Stacking extends AbstractFunctionImpl {
                     // Happy path: we found a perfect match, no need to continue
                     break;
                 }
-                // reduce search window for subsequent iterations
-                localSearch = Math.min(maxLookupShift, 6);
             }
         }
         if (bestError == Double.MAX_VALUE) {
@@ -383,7 +380,7 @@ public class Stacking extends AbstractFunctionImpl {
         return Optional.of(new ScoredMatch(curX, curY, bestError));
     }
 
-    private void pushTileStack(int tileSize, int width, int height, int bestX, int bestY, double[][][] tileStack, int imageIndex, float[][] bestTileData, float threshold) {
+    private void pushTileStack(int tileSize, int width, int height, int bestX, int bestY, double[][][] tileStack, int imageIndex, float[][] bestTileData) {
         for (int dy = 0; dy < tileSize; dy++) {
             for (int dx = 0; dx < tileSize; dx++) {
                 var yy = bestY + dy;
@@ -392,9 +389,7 @@ public class Stacking extends AbstractFunctionImpl {
                     continue;
                 }
                 var v = bestTileData[yy][xx];
-                if (v > threshold) {
-                    tileStack[dy][dx][imageIndex] = v;
-                }
+                tileStack[dy][dx][imageIndex] = v;
             }
         }
     }

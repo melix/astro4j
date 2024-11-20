@@ -237,7 +237,7 @@ public class MosaicComposition extends AbstractFunctionImpl {
                     threshold = threshold / 4;
                 } else if (reassembled || !updated || step == maxSteps) {
                     corrected.remove(1);
-                    var mosaic = stacking.doStack(List.of(first, second), tileSize, overlap, assembled, 0);
+                    var mosaic = stacking.doStack(List.of(first, second), tileSize, overlap, assembled);
                     corrected.set(0, mosaic);
                     break;
                 }
