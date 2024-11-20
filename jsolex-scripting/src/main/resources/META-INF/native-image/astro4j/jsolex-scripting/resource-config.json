@@ -1,17 +1,7 @@
 {
   "resources":{
   "includes":[{
-    "pattern":"\\QMETA-INF/micronaut/io.micronaut.context.ApplicationContextConfigurer\\E"
-  }, {
-    "pattern":"\\QMETA-INF/micronaut/io.micronaut.context.env.PropertySourceLoader\\E"
-  }, {
-    "pattern":"\\QMETA-INF/micronaut/io.micronaut.core.beans.BeanIntrospectionReference\\E"
-  }, {
-    "pattern":"\\QMETA-INF/micronaut/io.micronaut.core.convert.TypeConverterRegistrar\\E"
-  }, {
-    "pattern":"\\QMETA-INF/micronaut/io.micronaut.inject.BeanConfiguration\\E"
-  }, {
-    "pattern":"\\QMETA-INF/micronaut/io.micronaut.inject.BeanDefinitionReference\\E"
+    "pattern":"\\QMETA-INF/micronaut/\\E"
   }, {
     "pattern":"\\QMETA-INF/services/ch.qos.logback.classic.spi.Configurator\\E"
   }, {
@@ -24,10 +14,6 @@
     "pattern":"\\QMETA-INF/services/io.micronaut.core.convert.TypeConverterRegistrar\\E"
   }, {
     "pattern":"\\QMETA-INF/services/io.micronaut.core.optim.StaticOptimizations$Loader\\E"
-  }, {
-    "pattern":"\\QMETA-INF/services/io.micronaut.inject.BeanConfiguration\\E"
-  }, {
-    "pattern":"\\QMETA-INF/services/io.micronaut.inject.BeanDefinitionReference\\E"
   }, {
     "pattern":"\\QMETA-INF/services/java.lang.System$LoggerFinder\\E"
   }, {
@@ -49,11 +35,7 @@
   }, {
     "pattern":"\\QMETA-INF/services/javax.imageio.spi.ImageWriterSpi\\E"
   }, {
-    "pattern":"\\QMETA-INF/services/javax.management.remote.JMXConnectorServerProvider\\E"
-  }, {
     "pattern":"\\QMETA-INF/services/javax.xml.parsers.SAXParserFactory\\E"
-  }, {
-    "pattern":"\\QMETA-INF/services/nom.tam.fits.compress.ICompressProvider\\E"
   }, {
     "pattern":"\\QMETA-INF/services/org.slf4j.spi.SLF4JServiceProvider\\E"
   }, {
@@ -69,17 +51,29 @@
   }, {
     "pattern":"\\Qlogback.xml\\E"
   }, {
+    "pattern":"\\Qme/champeau/a4j/jsolex/processing/util/messages.properties\\E"
+  }, {
+    "pattern":"\\Qme/champeau/a4j/jsolex/processing/util/messages_en.properties\\E"
+  }, {
+    "pattern":"\\Qme/champeau/a4j/jsolex/processing/util/messages_en_US.properties\\E"
+  }, {
     "pattern":"\\Qversion.txt\\E"
   }, {
-    "pattern":"java.base:\\Qjdk/internal/icu/impl/data/icudt72b/nfkc.nrm\\E"
+    "pattern":"java.base:\\Qjdk/internal/icu/impl/data/icudt74b/nfkc.nrm\\E"
+  }, {
+    "pattern":"java.desktop:\\Qsun/awt/resources/awt_en.properties\\E"
+  }, {
+    "pattern":"java.desktop:\\Qsun/awt/resources/awt_en_US.properties\\E"
+  }, {
+    "pattern":"java.xml:\\Qjdk/xml/internal/jdkcatalog/JDKCatalog.xml\\E"
   }, {
     "pattern":"jdk.jfr:\\Qjdk/jfr/internal/query/view.ini\\E"
   }]},
   "bundles":[{
     "name":"me.champeau.a4j.jsolex.processing.util.messages",
-    "locales":["und"]
+    "locales":["en-US"]
   }, {
     "name":"sun.awt.resources.awt",
-    "classNames":["sun.awt.resources.awt"]
+    "locales":["en-US"]
   }]
 }
