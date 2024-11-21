@@ -7,6 +7,7 @@
 - Correction du chargement des images JPEG mono 8-bit qui ne prenait pas en compte la correction gamma
 - Amélioration de la stabilité de l'empilement
 - Modifications des structures de données internes pour faciliter de futures évolutions
+- Correction de l'inversion des champs latitude/longitude
 - Ajout d'un module permettant de lancer des scripts depuis la ligne de commande
 - Passage à Java 23
 

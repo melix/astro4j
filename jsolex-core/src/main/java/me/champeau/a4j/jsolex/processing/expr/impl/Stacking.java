@@ -84,8 +84,8 @@ public class Stacking extends AbstractFunctionImpl {
                 return List.of();
             }
             var tileSize = arguments.size() >= 2 ? intArg(arguments, 1) : DEFAULT_TILE_SIZE;
-            if (tileSize < 16) {
-                throw new IllegalArgumentException("tile size must be at least 16");
+            if (tileSize < 4) {
+                throw new IllegalArgumentException("tile size must be at least 4");
             }
             var overlap = arguments.size() >= 3 ? floatArg(arguments, 2) : DEFAULT_OVERLAP_FACTOR;
             if (overlap < 0 || overlap > 1) {

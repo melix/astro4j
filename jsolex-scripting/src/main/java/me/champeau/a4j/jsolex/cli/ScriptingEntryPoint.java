@@ -35,9 +35,10 @@ import picocli.CommandLine.Option;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
+import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.stream.Collectors;
 
 
 @Command(name = "jsolex", description = "Sol'Ex spectroheliograph video processing",
@@ -57,6 +58,9 @@ public class ScriptingEntryPoint implements Runnable {
 
     @Option(names = {"-o", "--output"}, description = "Output directory")
     File outputDir;
+
+    @Option(names = {"-f", "--format"}, description = "Image formats (jpg, png, fits, tif)")
+    List<String> formats = List.of(ImageFormat.FITS.name(), ImageFormat.JPG.name(), ImageFormat.PNG.name(), ImageFormat.TIF.name());
 
     public static void main(String[] args) {
         PicocliRunner.run(ScriptingEntryPoint.class, args);
@@ -89,7 +93,8 @@ public class ScriptingEntryPoint implements Runnable {
             }
             var result = scriptExecutor.execute(sourceScriptPath, ImageMathScriptExecutor.SectionKind.SINGLE);
             var processParams = ProcessParams.loadDefaults();
-            processParams = processParams.withExtraParams(processParams.extraParams().withImageFormats(Set.of(ImageFormat.FITS, ImageFormat.JPG, ImageFormat.PNG, ImageFormat.TIF)));
+            var formats = this.formats.stream().map(String::toUpperCase).map(ImageFormat::valueOf).collect(Collectors.toSet());
+            processParams = processParams.withExtraParams(processParams.extraParams().withImageFormats(formats));
             var saver = new ImageSaver(CutoffStretchingStrategy.DEFAULT, processParams);
             var directory = outputDir == null ? new File(".") : outputDir;
             result.imagesByLabel().forEach((name, image) -> {
