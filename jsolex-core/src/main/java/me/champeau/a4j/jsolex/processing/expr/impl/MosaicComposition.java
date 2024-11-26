@@ -196,7 +196,7 @@ public class MosaicComposition extends AbstractFunctionImpl {
                             int py = distorsionGridSize * (y / distorsionGridSize);
                             var localPoints = localInterestPoints.computeIfAbsent(new Point2D(px, py), p -> feat.stream().parallel().filter(f -> f.distanceTo(p) <= 2 * dist).toList());
                             if (avg1 == 0 && avg2 == 0) {
-                                assembleSingleTile(distorsionGridSize, x, y, x, y, width, length, assembledData, otherData, mask);
+                                assembleSingleTile(distorsionGridSize, x, y, x, y, width, height, assembledData, otherData, mask);
                             } else {
                                 var point = new Point2D(x, y);
                                 var samples = findBestMatches(cachedInterestPoints, reference, referenceIntegral, localPoints, compare, compareIntegral, distorsionGridSize, step, x, y, dist);
@@ -208,7 +208,7 @@ public class MosaicComposition extends AbstractFunctionImpl {
                                         var model = buildDistorsionModel(restrictedSamples);
                                         int newX = (int) Math.round(model.modelForX().asPolynomial().applyAsDouble(point.x()));
                                         int newY = (int) Math.round(model.modelForY().asPolynomial().applyAsDouble(point.y()));
-                                        updated = assembleSingleTile(distorsionGridSize, x, y, newX, newY, width, length, assembledData, otherData, mask);
+                                        updated = assembleSingleTile(distorsionGridSize, x, y, newX, newY, width, height, assembledData, otherData, mask);
                                     }
                                 }
                             }
@@ -247,13 +247,17 @@ public class MosaicComposition extends AbstractFunctionImpl {
         return corrected.get(0);
     }
 
-    private static boolean assembleSingleTile(int tileSize, int x, int y, int newX, int newY, int width, int length, float[][] assembledData, float[][] otherData, boolean[] mask) {
+    private static boolean assembleSingleTile(int tileSize, int x, int y, int newX, int newY, int width, int height, float[][] assembledData, float[][] otherData, boolean[] mask) {
         var updated = false;
         for (int dy = 0; dy < tileSize; dy++) {
             for (int dx = 0; dx < tileSize; dx++) {
+                var origX = x + dx;
+                var origY = y + dy;
+                var targetX = newX + dx;
+                var targetY = newY + dy;
                 int idx = (newY + dy) * width + (newX + dx);
                 var origIdx = (y + dy) * width + (x + dx);
-                if (idx >= 0 && idx < length && origIdx >= 0 && origIdx < length) {
+                if (origX >= 0 && origX < width && origY >= 0 && origY < height && targetX >= 0 && targetX < width && targetY >= 0 && targetY < height) {
                     var source = assembledData[y + dy][x + dx];
                     var other = otherData[newY + dy][newX + dx];
                     updated = true;
