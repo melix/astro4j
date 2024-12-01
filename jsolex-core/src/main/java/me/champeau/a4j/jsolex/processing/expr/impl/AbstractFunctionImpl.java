@@ -137,7 +137,7 @@ class AbstractFunctionImpl {
                 var p = progress.incrementAndGet();
                 broadcaster.broadcast(ProgressEvent.of(p / (double) array.length, "ImageMath: " + currentFunction));
                 var result = function.apply(allArgs);
-                if (result instanceof ImageWrapper img && !(result instanceof FileBackedImage)) {
+                if (result instanceof ImageWrapper img) {
                     // save memory!
                     result = FileBackedImage.wrap(img);
                 }

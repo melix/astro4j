@@ -178,11 +178,11 @@ public class ProcessingWorkflow {
             processedImagesEmitter.newMonoImage(kind, null, message("disk"), "disk", geometryFixed);
         }
         g = performEnhancements(g);
-        var enhanced = (ImageWrapper32) g.enhanced().unwrapToMemory();
         state.recordResult(WorkflowResults.GEOMETRY_CORRECTION, g);
         if (state.isInternal()) {
             return;
         }
+        var enhanced = (ImageWrapper32) g.enhanced().unwrapToMemory();
         broadcaster.broadcast(OutputImageDimensionsDeterminedEvent.of(message("geometry.corrected"), geometryFixed.width(), geometryFixed.height()));
         var stretched = produceStretchedImage(enhanced, processParams.claheParams(), processParams.autoStretchParams(), processParams.contrastEnhancement());
         processedImagesEmitter.newMonoImage(GeneratedImageKind.GEOMETRY_CORRECTED_PROCESSED, null, message("processed"), processParams.contrastEnhancement().name().toLowerCase(Locale.US), stretched);

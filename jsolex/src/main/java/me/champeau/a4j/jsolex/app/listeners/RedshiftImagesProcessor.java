@@ -38,6 +38,7 @@ import me.champeau.a4j.jsolex.processing.sun.detection.Redshifts;
 import me.champeau.a4j.jsolex.processing.sun.workflow.GeneratedImageKind;
 import me.champeau.a4j.jsolex.processing.sun.workflow.ImageEmitter;
 import me.champeau.a4j.jsolex.processing.sun.workflow.PixelShift;
+import me.champeau.a4j.jsolex.processing.util.FileBackedImage;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 import me.champeau.a4j.math.regression.Ellipse;
@@ -50,7 +51,6 @@ import java.awt.image.BufferedImage;
 import java.io.File;
 import java.nio.file.Path;
 import java.time.LocalDateTime;
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.LinkedHashSet;
@@ -60,6 +60,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.TreeSet;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.DoubleUnaryOperator;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
@@ -72,6 +73,7 @@ public class RedshiftImagesProcessor {
     private static final int SAMPLING = 4;
     private static final int BYTES_IN_FLOAT = 4;
     private static final int TMP_IMAGES_COUNT = 4;
+    private static final int MAX_PANEL_SIZE = 7680;
 
     private final Map<Double, ImageWrapper> shiftImages;
     private final ProcessParams params;
@@ -146,9 +148,9 @@ public class RedshiftImagesProcessor {
             .map(List::reversed)
             .orElse(List.of());
         var maxShift = adjustedRedshifts.stream()
-            .mapToDouble(RedshiftArea::pixelShift)
-            .max()
-            .orElse(0d) + margin;
+                           .mapToDouble(RedshiftArea::pixelShift)
+                           .max()
+                           .orElse(0d) + margin;
         var min = Math.max(-maxShift, computedShifts.first());
         var max = Math.min(maxShift, computedShifts.last());
         var range = createMinMaxRange(min, max, .25).stream().sorted().toList();
@@ -184,7 +186,7 @@ public class RedshiftImagesProcessor {
 
     private LinkedHashSet<Double> createMinMaxRange(double minShift, double maxShift, double increment) {
         var requiredShifts = new LinkedHashSet<Double>();
-        for (double i = minShift; i <= maxShift; i+=increment) {
+        for (double i = minShift; i <= maxShift; i += increment) {
             requiredShifts.add(i);
         }
         return requiredShifts;
@@ -233,10 +235,15 @@ public class RedshiftImagesProcessor {
             restartProcessForMissingShifts(new LinkedHashSet<>(missingShifts));
         }
         var initialImages = range.stream().map(shiftImages::get).toList();
+        var maxWidth = initialImages.stream().mapToInt(ImageWrapper::width).max().orElse(0);
+        var maxHeight = initialImages.stream().mapToInt(ImageWrapper::height).max().orElse(0);
+        // make sure that x+width <= maxWidth and y+height <= maxHeight
+        var cropWidth = Math.min(width, maxWidth - x);
+        var cropHeight = Math.min(height, maxHeight - y);
         var constrastAdjusted = contrast.autoContrast(List.of(initialImages, params.autoStretchParams().gamma()));
-        var cropped = crop.crop(List.of(constrastAdjusted, x, y, width, height));
+        var cropped = crop.crop(List.of(constrastAdjusted, x, y, cropWidth, cropHeight));
         var scaling = new Scaling(Map.of(), broadcaster, crop);
-        List<ImageWrapper> frames = createFrames(width, height, annotate, cropped, scaling);
+        List<ImageWrapper> frames = createFrames(cropWidth, cropHeight, annotate, cropped, scaling);
         var anim = (FileOutput) animate.createAnimation(List.of(frames, delay));
         imageEmitter.newGenericFile(
             GeneratedImageKind.CROPPED,
@@ -248,7 +255,6 @@ public class RedshiftImagesProcessor {
     private List<ImageWrapper> createFrames(int width, int height, boolean annotate, Object cropped, Scaling scaling) {
         List<ImageWrapper> frames;
         if (annotate && cropped instanceof List list) {
-            frames = new ArrayList<>();
             var lambda0 = params.spectrumParams().ray().wavelength();
             var instrument = params.observationDetails().instrument();
             var dispersion = SpectrumAnalyzer.computeSpectralDispersionNanosPerPixel(instrument, lambda0, params.observationDetails().pixelSize() * params.observationDetails().binning());
@@ -266,14 +272,24 @@ public class RedshiftImagesProcessor {
                 finalHeight = height;
             }
             var fontSize = finalWidth / 16f;
-            for (Object o : list) {
-                var frame = (ImageWrapper) o;
-                var pixelShift = frame.findMetadata(PixelShift.class).map(PixelShift::pixelShift).orElse(0d);
-                var angstroms = 10 * pixelShift * dispersion;
-                var legend = String.format(Locale.US, "%.2fÅ (%.2f km/s)", angstroms, Math.abs(PhenomenaDetector.speedOf(pixelShift, dispersion, lambda0)));
-                var rendered = draw.drawText(frame, "*" + legend + "*", (int) fontSize, (int) (finalHeight - 2 * fontSize / 3), "ffff00", (int) fontSize);
-                frames.add((ImageWrapper) rendered);
-            }
+            var progress = new AtomicInteger(0);
+            broadcaster.broadcast(ProgressEvent.of(0, "Annotating frames"));
+            double totalImages = list.size();
+            frames = ((List<Object>)list).stream()
+                .parallel()
+                .map(o -> {
+                    var frame = (ImageWrapper) o;
+                    double pixelShift = frame.findMetadata(PixelShift.class).map(PixelShift::pixelShift).orElse(0d);
+                    var angstroms = 10 * pixelShift * dispersion;
+                    var legend = String.format(Locale.US, "%.2fÅ (%.2f km/s)", angstroms, Math.abs(PhenomenaDetector.speedOf(pixelShift, dispersion, lambda0)));
+                    var annotated = (ImageWrapper) draw.drawText(frame, "*" + legend + "*", (int) fontSize, (int) (finalHeight - 2 * fontSize / 3), "ffff00", (int) fontSize);
+                    broadcaster.broadcast(ProgressEvent.of(progress.incrementAndGet() / totalImages, "Annotating frames"));
+                    return annotated;
+                })
+                .map(FileBackedImage::wrap)
+                .map(ImageWrapper.class::cast)
+                .toList();
+            broadcaster.broadcast(ProgressEvent.of(1, "Annotating frames"));
         } else {
             frames = (List<ImageWrapper>) cropped;
         }
@@ -290,21 +306,34 @@ public class RedshiftImagesProcessor {
         }
         var initialImages = range.stream().map(shiftImages::get).toList();
         var constrastAdjusted = contrast.autoContrast(List.of(initialImages, params.autoStretchParams().gamma()));
-        var cropped = crop.crop(List.of(constrastAdjusted, x, y, width, height));
+        // make sure that x+width <= maxWidth and y+height <= maxHeight
+        var cropWidth = Math.min(width, initialImages.stream().mapToInt(ImageWrapper::width).max().orElse(0) - x);
+        var cropHeight = Math.min(height, initialImages.stream().mapToInt(ImageWrapper::height).max().orElse(0) - y);
+        var cropped = crop.crop(List.of(constrastAdjusted, x, y, cropWidth, cropHeight));
+        // compute individual width/height so that the final image width doesn't exceed 7680 pixels
+        var maxWidth = MAX_PANEL_SIZE / Math.sqrt(initialImages.size());
+        var maxHeight = MAX_PANEL_SIZE / Math.sqrt(initialImages.size());
+        var maxBoxSize = Math.min(maxWidth, maxHeight);
         int finalWidth;
         int finalHeight;
         List<ImageWrapper> frames;
-        if (width < 128) {
-            // rescale so that drawing text is readable
+        if (cropWidth < 128 || cropHeight < 128) {
+            // rescale so that drawing text is readable and final image not too big
             var scaling = new Scaling(Map.of(), broadcaster, crop);
-            var scale = 128d / width;
+            var scale = 128d / cropWidth;
             frames = (List<ImageWrapper>) scaling.relativeRescale(List.of(cropped, scale, scale));
             finalWidth = 128;
-            finalHeight = (int) (height * scale);
+            finalHeight = (int) (cropHeight * scale);
+        } else if (cropWidth > maxBoxSize || cropHeight > maxBoxSize) {
+            // rescale so that the final image doesn't exceed 7680 pixels
+            var scale = Math.min(maxBoxSize / (double) cropWidth, maxBoxSize / (double) cropHeight);
+            frames = (List<ImageWrapper>) new Scaling(Map.of(), broadcaster, crop).relativeRescale(List.of(cropped, scale, scale));
+            finalWidth = (int) (cropWidth * scale);
+            finalHeight = (int) (cropHeight * scale);
         } else {
             frames = (List<ImageWrapper>) cropped;
-            finalWidth = width;
-            finalHeight = height;
+            finalWidth = cropWidth;
+            finalHeight = cropHeight;
         }
 
         createSinglePanel(frames, finalWidth, finalHeight, title, name);
