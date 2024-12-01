@@ -12,4 +12,5 @@
 - Internal image format changes to make future changes easier to implement
 - Added module to run scripts from command-line
 - Fixed inversion of latitude/longitude fields in process params display
+- Added ability to select annotation color when creating custom animations
 - Upgrade to Java 23

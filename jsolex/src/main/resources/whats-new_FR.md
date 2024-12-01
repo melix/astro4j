@@ -12,6 +12,7 @@
 - Modifications des structures de données internes pour faciliter de futures évolutions
 - Correction de l'inversion des champs latitude/longitude
 - Ajout d'un module permettant de lancer des scripts depuis la ligne de commande
+- Ajout de la possibilité de choisir la couleur des annotations lors de la création d'animations personnalisées
 - Passage à Java 23
 
 ## Message aux utilisateurs français

@@ -1041,7 +1041,7 @@ public class JSolEx extends Application implements JSolExInterface {
                 if (kind != null && size != null) {
                     BackgroundOperations.async(() -> {
                         Platform.runLater(() -> rightTabs.getSelectionModel().select(logsTab));
-                        processor.withRedshifts(selectedShifts.stream().toList()).produceImages(kind, size, margin, useFullRangePanels, annotate);
+                        processor.withRedshifts(selectedShifts.stream().toList()).produceImages(kind, size, margin, useFullRangePanels, annotate, new int[]{255, 255, 0});
                     });
                 }
             });

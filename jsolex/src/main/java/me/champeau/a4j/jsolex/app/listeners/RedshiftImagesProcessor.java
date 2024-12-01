@@ -38,6 +38,7 @@ import me.champeau.a4j.jsolex.processing.sun.detection.Redshifts;
 import me.champeau.a4j.jsolex.processing.sun.workflow.GeneratedImageKind;
 import me.champeau.a4j.jsolex.processing.sun.workflow.ImageEmitter;
 import me.champeau.a4j.jsolex.processing.sun.workflow.PixelShift;
+import me.champeau.a4j.jsolex.processing.util.Constants;
 import me.champeau.a4j.jsolex.processing.util.FileBackedImage;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
@@ -70,6 +71,7 @@ import static me.champeau.a4j.jsolex.app.JSolEx.message;
 
 public class RedshiftImagesProcessor {
     private static final Logger LOGGER = LoggerFactory.getLogger(RedshiftImagesProcessor.class);
+    private final static int[] YELLOW = {255, 255, 0};
     private static final int SAMPLING = 4;
     private static final int BYTES_IN_FLOAT = 4;
     private static final int TMP_IMAGES_COUNT = 4;
@@ -133,7 +135,7 @@ public class RedshiftImagesProcessor {
         return redshifts;
     }
 
-    public void produceImages(RedshiftCreatorKind kind, int boxSize, int margin, boolean useFullRangePanels, boolean annotateAnimations) {
+    public void produceImages(RedshiftCreatorKind kind, int boxSize, int margin, boolean useFullRangePanels, boolean annotateAnimations, int[] annotationColor) {
         var requiredShifts = createRange(margin, redshifts.stream().mapToInt(RedshiftArea::pixelShift).max().orElse(0));
         var missingShifts = requiredShifts.stream().filter(d -> !shiftImages.containsKey(d)).toList();
         if (!missingShifts.isEmpty()) {
@@ -164,7 +166,7 @@ public class RedshiftImagesProcessor {
             }
             for (var redshift : adjustedRedshifts) {
                 broadcaster.broadcast(ProgressEvent.of(progress / redshifts.size(), "Producing images for redshift " + redshift));
-                produceImagesForRedshift(redshift, kind, boxSize, useFullRangePanels, annotateAnimations, shiftToContrastAdjusted);
+                produceImagesForRedshift(redshift, kind, boxSize, useFullRangePanels, annotateAnimations, shiftToContrastAdjusted, annotationColor);
                 progress++;
             }
         }
@@ -197,7 +199,8 @@ public class RedshiftImagesProcessor {
                                           int boxSize,
                                           boolean useFullRangePanels,
                                           boolean annotateAnimations,
-                                          Map<Double, ImageWrapper> shiftToContrastAdjusted) {
+                                          Map<Double, ImageWrapper> shiftToContrastAdjusted,
+                                          int[] annotationColor) {
         var centerX = redshift.maxX();
         var centerY = redshift.maxY();
         // grow x1/x2/y1/y2 so that the area is centered and fits the box size
@@ -210,10 +213,11 @@ public class RedshiftImagesProcessor {
         var animate = new Animate(Map.of(), broadcaster);
         var cropped = crop.crop(List.of(constrastAdjusted, x1, y1, boxSize, boxSize));
         if (kind == RedshiftCreatorKind.ANIMATION || kind == RedshiftCreatorKind.ALL) {
-            generateAnim(redshift, animate, cropped, annotateAnimations, boxSize, boxSize, new Scaling(Map.of(), broadcaster, crop));
+            var annotationColorHex = toHex(annotationColor);
+            generateAnim(redshift, animate, cropped, annotateAnimations, boxSize, boxSize, new Scaling(Map.of(), broadcaster, crop), annotationColorHex);
         }
         if (kind == RedshiftCreatorKind.PANEL || kind == RedshiftCreatorKind.ALL) {
-            generatePanel(redshift, (List<ImageWrapper>) cropped, boxSize, crop, useFullRangePanels);
+            generatePanel(redshift, (List<ImageWrapper>) cropped, boxSize, crop, useFullRangePanels, annotationColor);
         }
     }
 
@@ -225,7 +229,7 @@ public class RedshiftImagesProcessor {
         return String.format(Locale.US, "%.2fÅ", angstroms);
     }
 
-    public void generateStandaloneAnimation(int x, int y, int width, int height, double minShift, double maxShift, String title, String name, boolean annotate, int delay) {
+    public void generateStandaloneAnimation(int x, int y, int width, int height, double minShift, double maxShift, String title, String name, boolean annotate, int delay, int[] annotationColor) {
         var crop = new Crop(Map.of(), broadcaster);
         var contrast = new AdjustContrast(Map.of(), broadcaster);
         var animate = new Animate(Map.of(), broadcaster);
@@ -243,7 +247,8 @@ public class RedshiftImagesProcessor {
         var constrastAdjusted = contrast.autoContrast(List.of(initialImages, params.autoStretchParams().gamma()));
         var cropped = crop.crop(List.of(constrastAdjusted, x, y, cropWidth, cropHeight));
         var scaling = new Scaling(Map.of(), broadcaster, crop);
-        List<ImageWrapper> frames = createFrames(cropWidth, cropHeight, annotate, cropped, scaling);
+        var annotationColorHex = toHex(annotationColor);
+        List<ImageWrapper> frames = createFrames(cropWidth, cropHeight, annotate, cropped, scaling, annotationColorHex);
         var anim = (FileOutput) animate.createAnimation(List.of(frames, delay));
         imageEmitter.newGenericFile(
             GeneratedImageKind.CROPPED,
@@ -252,7 +257,11 @@ public class RedshiftImagesProcessor {
             anim.file());
     }
 
-    private List<ImageWrapper> createFrames(int width, int height, boolean annotate, Object cropped, Scaling scaling) {
+    private static String toHex(int[] annotationColor) {
+        return String.format("%02x%02x%02x", annotationColor[0], annotationColor[1], annotationColor[2]);
+    }
+
+    private List<ImageWrapper> createFrames(int width, int height, boolean annotate, Object cropped, Scaling scaling, String annotationColorHex) {
         List<ImageWrapper> frames;
         if (annotate && cropped instanceof List list) {
             var lambda0 = params.spectrumParams().ray().wavelength();
@@ -282,7 +291,7 @@ public class RedshiftImagesProcessor {
                     double pixelShift = frame.findMetadata(PixelShift.class).map(PixelShift::pixelShift).orElse(0d);
                     var angstroms = 10 * pixelShift * dispersion;
                     var legend = String.format(Locale.US, "%.2fÅ (%.2f km/s)", angstroms, Math.abs(PhenomenaDetector.speedOf(pixelShift, dispersion, lambda0)));
-                    var annotated = (ImageWrapper) draw.drawText(frame, "*" + legend + "*", (int) fontSize, (int) (finalHeight - 2 * fontSize / 3), "ffff00", (int) fontSize);
+                    var annotated = (ImageWrapper) draw.drawText(frame, "*" + legend + "*", (int) fontSize, (int) (finalHeight - 2 * fontSize / 3), annotationColorHex, (int) fontSize);
                     broadcaster.broadcast(ProgressEvent.of(progress.incrementAndGet() / totalImages, "Annotating frames"));
                     return annotated;
                 })
@@ -296,7 +305,7 @@ public class RedshiftImagesProcessor {
         return frames;
     }
 
-    public void generateStandalonePanel(int x, int y, int width, int height, double minShift, double maxShift, String title, String name) {
+    public void generateStandalonePanel(int x, int y, int width, int height, double minShift, double maxShift, String title, String name, int[] annotationColor) {
         var crop = new Crop(Map.of(), broadcaster);
         var contrast = new AdjustContrast(Map.of(), broadcaster);
         var range = createMinMaxRange(minShift, maxShift, 1);
@@ -336,11 +345,11 @@ public class RedshiftImagesProcessor {
             finalHeight = cropHeight;
         }
 
-        createSinglePanel(frames, finalWidth, finalHeight, title, name);
+        createSinglePanel(frames, finalWidth, finalHeight, title, name, annotationColor);
     }
 
-    private void generateAnim(RedshiftArea redshift, Animate animate, Object cropped, boolean annotateAnimations, int width, int height, Scaling scaling) {
-        var frames = createFrames(width, height, annotateAnimations, cropped, scaling);
+    private void generateAnim(RedshiftArea redshift, Animate animate, Object cropped, boolean annotateAnimations, int width, int height, Scaling scaling, String annotationColorHex) {
+        var frames = createFrames(width, height, annotateAnimations, cropped, scaling, annotationColorHex);
         var anim = (FileOutput) animate.createAnimation(List.of(frames, 25));
         imageEmitter.newGenericFile(
             GeneratedImageKind.REDSHIFT,
@@ -349,7 +358,7 @@ public class RedshiftImagesProcessor {
             anim.file());
     }
 
-    private void generatePanel(RedshiftArea redshift, List<ImageWrapper> cropped, int boxSize, Crop crop, boolean useFullRangePanels) {
+    private void generatePanel(RedshiftArea redshift, List<ImageWrapper> cropped, int boxSize, Crop crop, boolean useFullRangePanels, int[] annotationColor) {
         var snapshots = cropped;
         if (boxSize <= 128) {
             // this is a bit small to display the text, so we're going to scale by a factor of 2
@@ -380,10 +389,10 @@ public class RedshiftImagesProcessor {
         var name = "redshift-" + redshift.id();
         var width = boxSize;
         var height = boxSize;
-        createSinglePanel(snapshotsToDisplay, width, height, title, name);
+        createSinglePanel(snapshotsToDisplay, width, height, title, name, annotationColor);
     }
 
-    private void createSinglePanel(List<ImageWrapper> snapshotsToDisplay, int width, int height, String title, String name) {
+    private void createSinglePanel(List<ImageWrapper> snapshotsToDisplay, int width, int height, String title, String name, int[] annotationColor) {
         int cols = (int) Math.ceil(Math.sqrt(snapshotsToDisplay.size()));
         int rows = (int) Math.ceil((double) snapshotsToDisplay.size() / cols);
         int panelWidth = cols * width;
@@ -424,9 +433,9 @@ public class RedshiftImagesProcessor {
                             var gray = data[y][x];
                             legendOverlay.getPixel(x, y, legendPixel);
                             if (legendPixel[0] > 0) {
-                                r[yOffset + y][xOffset + x] = 60395;
-                                g[yOffset + y][xOffset + x] = 53970;
-                                b[yOffset + y][xOffset + x] = 13364;
+                                r[yOffset + y][xOffset + x] = Constants.MAX_PIXEL_VALUE * annotationColor[0] / 255;
+                                g[yOffset + y][xOffset + x] = Constants.MAX_PIXEL_VALUE * annotationColor[1] / 255;
+                                b[yOffset + y][xOffset + x] = Constants.MAX_PIXEL_VALUE * annotationColor[2] / 255;
                             } else {
                                 r[yOffset + y][xOffset + x] = gray;
                                 g[yOffset + y][xOffset + x] = gray;
