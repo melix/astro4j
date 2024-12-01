@@ -18,9 +18,11 @@ package me.champeau.a4j.jsolex.app.jfx;
 import javafx.beans.binding.Bindings;
 import javafx.fxml.FXML;
 import javafx.scene.control.CheckBox;
+import javafx.scene.control.ColorPicker;
 import javafx.scene.control.Label;
 import javafx.scene.control.TextField;
 import javafx.scene.control.TextFormatter;
+import javafx.scene.paint.Color;
 import javafx.stage.Stage;
 import javafx.util.converter.DoubleStringConverter;
 import javafx.util.converter.IntegerStringConverter;
@@ -63,6 +65,8 @@ public class CustomAnimationCreator {
     public TextField delay;
     @FXML
     public Label estimatedDiskSpace;
+    @FXML
+    public ColorPicker annotationColor;
 
     private int imageWidth;
     private int imageHeight;
@@ -130,6 +134,8 @@ public class CustomAnimationCreator {
             }
         }));
         delay.setText(DEFAULT_DELAY);
+        annotationColor.setValue(Color.YELLOW);
+        annotationColor.disableProperty().bind(annotateAnim.selectedProperty().not());
     }
 
     private static double safeParseDouble(String s) {
@@ -219,10 +225,18 @@ public class CustomAnimationCreator {
         }
         stage.close();
         if (generateAnim.isSelected()) {
-            BackgroundOperations.async(() -> redshiftProcessor.generateStandaloneAnimation(x, y, width(), height(), minPixelShift(), maxPixelShift(), title.getText(), "custom-anim", annotateAnim.isSelected(), Integer.parseInt(delay.getText())));
+            BackgroundOperations.async(() -> redshiftProcessor.generateStandaloneAnimation(x, y, width(), height(), minPixelShift(), maxPixelShift(), title.getText(), "custom-anim", annotateAnim.isSelected(), Integer.parseInt(delay.getText()), asRGB(annotationColor.getValue())));
         }
         if (generatePanel.isSelected()) {
-            BackgroundOperations.async(() -> redshiftProcessor.generateStandalonePanel(x, y, width(), height(), minPixelShift(), maxPixelShift(), title.getText(), "custom-panel"));
+            BackgroundOperations.async(() -> redshiftProcessor.generateStandalonePanel(x, y, width(), height(), minPixelShift(), maxPixelShift(), title.getText(), "custom-panel", asRGB(annotationColor.getValue())));
         }
+    }
+
+    private static int[] asRGB(Color color) {
+        return new int[] {
+            (int) (color.getRed() * 255),
+            (int) (color.getGreen() * 255),
+            (int) (color.getBlue() * 255)
+        };
     }
 }
