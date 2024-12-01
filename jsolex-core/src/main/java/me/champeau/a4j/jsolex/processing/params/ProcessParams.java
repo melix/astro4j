@@ -65,7 +65,8 @@ public record ProcessParams(
                 geometryParams().deconvolutionMode(),
                 geometryParams().richardsonLucyDeconvolutionParams().orElse(null),
                 geometryParams().isForcePolynomial(),
-                geometryParams().forcedPolynomial().orElse(null)
+                geometryParams().forcedPolynomial().orElse(null),
+                geometryParams().isSpectrumVFlip()
             ),
             bandingCorrectionParams,
             requestedImages,

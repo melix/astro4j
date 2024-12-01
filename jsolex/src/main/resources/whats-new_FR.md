@@ -6,6 +6,7 @@
 - Réduction de la pression mémoire lors de la génération d'animations ou de panneaux
 - Limitation de la taille des panneaux à 7680x7680 pixels
 - Correction de la double création d'animations lorsque FFMPEG était disponible
+- Ajout d'une option pour effectuer un retournement vertical du spectre, utile par exemple avec Sunscan où le rouge apparaît en haut au lieu d'en bas
 - Ajout des fonctions `GET_R`, `GET_G`, `GET_B` et `MONO` qui extraient respectivement les canaux rouge, vert et bleu d'une image couleur, et convertissent une image couleur en mono pour la dernière
 - Correction du chargement des images JPEG mono 8-bit qui ne prenait pas en compte la correction gamma
 - Amélioration de la stabilité de l'empilement

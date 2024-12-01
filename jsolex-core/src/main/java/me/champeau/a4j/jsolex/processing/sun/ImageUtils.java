@@ -25,6 +25,7 @@ import me.champeau.a4j.ser.bayer.ChannelExtractingConverter;
 import me.champeau.a4j.ser.bayer.DemosaicingRGBImageConverter;
 import me.champeau.a4j.ser.bayer.FloatPrecisionImageConverter;
 import me.champeau.a4j.ser.bayer.ImageConverter;
+import me.champeau.a4j.ser.bayer.VerticalMirrorConverter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -167,8 +168,8 @@ public class ImageUtils {
         return writeAllFormats(outputFile, imageFormats, image);
     }
 
-    public static ImageConverter<float[][]> createImageConverter(ColorMode colorMode) {
-        return new FloatPrecisionImageConverter(
+    public static ImageConverter<float[][]> createImageConverter(ColorMode colorMode, boolean vflip) {
+        var converter = new FloatPrecisionImageConverter(
             new ChannelExtractingConverter(
                 new DemosaicingRGBImageConverter(
                     new BilinearDemosaicingStrategy(),
@@ -177,6 +178,14 @@ public class ImageUtils {
                 GREEN
             )
         );
+        if (vflip) {
+            return new VerticalMirrorConverter(converter);
+        }
+        return converter;
+    }
+
+    public static ImageConverter<float[][]> createImageConverter(ColorMode colorMode) {
+        return createImageConverter(colorMode, true);
     }
 
     public static float[][][] convertToRGB(ColorCurve curve, float[][] mono) {
