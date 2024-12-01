@@ -45,6 +45,7 @@ class GeometryParamsSerializer implements JsonSerializer<GeometryParams>, JsonDe
         var richardsonLucyDeconvolutionParams = readRichardsonLucyDeconvolutionParams(o.get("richardsonLucyDeconvolutionParams"));
         var forcePolynomial = o.get("forcePolynomial") != null ? o.get("forcePolynomial").getAsBoolean() : false;
         var forcedPolynomial = o.get("forcedPolynomial") != null ? o.get("forcedPolynomial").getAsString() : null;
+        var spectrumVFlip = o.get("spectrumVFlip") != null ? o.get("spectrumVFlip").getAsBoolean() : false;
         return new GeometryParams(
             tilt == null ? null : tilt.getAsDouble(),
             ratio == null ? null : ratio.getAsDouble(),
@@ -58,7 +59,8 @@ class GeometryParamsSerializer implements JsonSerializer<GeometryParams>, JsonDe
             deconvolutionMode,
             richardsonLucyDeconvolutionParams,
             forcePolynomial,
-            forcedPolynomial);
+            forcedPolynomial,
+            spectrumVFlip);
     }
 
     private RichardsonLucyDeconvolutionParams readRichardsonLucyDeconvolutionParams(JsonElement params) {
@@ -92,6 +94,7 @@ class GeometryParamsSerializer implements JsonSerializer<GeometryParams>, JsonDe
         });
         jsonObject.addProperty("forcePolynomial", src.isForcePolynomial());
         src.forcedPolynomial().ifPresent(forcedPolynomial -> jsonObject.addProperty("forcedPolynomial", forcedPolynomial));
+        jsonObject.addProperty("spectrumVFlip", src.isSpectrumVFlip());
         return jsonObject;
     }
 }

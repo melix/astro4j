@@ -215,6 +215,8 @@ public class ProcessParamsController {
     private Label flatOrderLabel;
     @FXML
     private TextField flatOrder;
+    @FXML
+    private CheckBox spectrumVFlip;
 
     private final List<Stage> popups = new CopyOnWriteArrayList<>();
     private Stage stage;
@@ -463,6 +465,11 @@ public class ProcessParamsController {
                 return instruments.stream().filter(i -> i.label().equals(string)).findFirst().orElse(SpectroHeliograph.SOLEX);
             }
         });
+        instrument.getSelectionModel().selectedItemProperty().addListener((observable, oldValue, newValue) -> {
+            if (newValue != null) {
+                spectrumVFlip.setSelected(newValue.spectrumVFlip());
+            }
+        });
         forcedPolynomial.disableProperty().bind(forcePolynomial.selectedProperty().not());
         forcePolynomial.setSelected(initialProcessParams.geometryParams().isForcePolynomial());
         forcePolynomialOpen.disableProperty().bind(forcePolynomial.selectedProperty().not());
@@ -480,7 +487,7 @@ public class ProcessParamsController {
         flatLoPercentile.setText(String.valueOf(initialProcessParams.enhancementParams().artificialFlatCorrectionLoPercentile()));
         flatHiPercentile.setText(String.valueOf(initialProcessParams.enhancementParams().artificialFlatCorrectionHiPercentile()));
         flatOrder.setText(String.valueOf(initialProcessParams.enhancementParams().artificialFlatCorrectionOrder()));
-
+        spectrumVFlip.setSelected(initialProcessParams.geometryParams().isSpectrumVFlip());
     }
 
     private static TextFormatter<Integer> createOrderFormatter() {
@@ -704,7 +711,9 @@ public class ProcessParamsController {
                     Integer.parseInt(rlIterations.getText())
                 ),
                 forcePolynomial.isSelected(),
-                forcedPolynomial.getText()),
+                forcedPolynomial.getText(),
+                spectrumVFlip.isSelected()
+            ),
             new BandingCorrectionParams(
                 (int) Math.round(bandingCorrectionWidth.getValue()),
                 (int) Math.round(bandingCorrectionPasses.getValue())

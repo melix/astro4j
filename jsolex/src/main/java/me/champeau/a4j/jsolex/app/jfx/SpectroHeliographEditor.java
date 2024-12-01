@@ -19,6 +19,8 @@ import javafx.beans.value.ChangeListener;
 import javafx.fxml.FXML;
 import javafx.scene.Parent;
 import javafx.scene.Scene;
+import javafx.scene.control.CheckBox;
+import javafx.scene.control.Control;
 import javafx.scene.control.ListCell;
 import javafx.scene.control.ListView;
 import javafx.scene.control.TextField;
@@ -60,8 +62,10 @@ public class SpectroHeliographEditor {
     private TextField slitWidth;
     @FXML
     private TextField slitHeight;
+    @FXML
+    private CheckBox spectrumVFlip;
 
-    private List<TextInputControl> formFields;
+    private List<Control> formFields;
 
     private Stage stage;
     private SpectroHeliograph selected;
@@ -120,7 +124,8 @@ public class SpectroHeliographEditor {
             cameraFocalLength,
             totalAngle,
             density,
-            order
+            order,
+            spectrumVFlip
         );
         cameraFocalLength.setTextFormatter(createPositiveIntFormatter());
         collimatorFocalLength.setTextFormatter(createPositiveIntFormatter());
@@ -157,6 +162,7 @@ public class SpectroHeliographEditor {
                 order.setText(String.valueOf(item.order()));
                 slitWidth.setText(String.valueOf(item.slitWidthMicrons()));
                 slitHeight.setText(String.valueOf(item.slitHeightMillimeters()));
+                spectrumVFlip.setSelected(item.spectrumVFlip());
                 updating.set(false);
             }
         });
@@ -171,8 +177,10 @@ public class SpectroHeliographEditor {
                 var newSlitWidth = slitWidth.getText();
                 var newSlitHeight = slitHeight.getText();
                 var selectedIndex = selectionModel.getSelectedIndex();
+                var vFlipSelected = spectrumVFlip.isSelected();
                 if (selectedIndex != -1) {
-                    var e = new SpectroHeliograph(newLabel, Double.parseDouble(newTotalAngle), Integer.parseInt(newCameraFocalLength), Integer.parseInt(newCollimatorFocalLength), Integer.parseInt(newDensity), Integer.parseInt(newOrder), Double.parseDouble(newSlitWidth), Double.parseDouble(newSlitHeight));
+                    var e = new SpectroHeliograph(newLabel, safeParseDouble(newTotalAngle), safeParseInt(newCameraFocalLength), safeParseInt(newCollimatorFocalLength), safeParseInt(newDensity), safeParseInt(newOrder), safeParseDouble(newSlitWidth), safeParseDouble(newSlitHeight),
+                        vFlipSelected);
                     items.set(selectedIndex, e);
                     elements.getSelectionModel().select(e);
                 }
@@ -187,12 +195,28 @@ public class SpectroHeliographEditor {
         order.textProperty().addListener(updateValueListener);
         slitWidth.textProperty().addListener(updateValueListener);
         slitHeight.textProperty().addListener(updateValueListener);
+        spectrumVFlip.selectedProperty().addListener(updateValueListener);
         if (!shgs.isEmpty()) {
             selectionModel.select(0);
         }
         fireDisableStatus(shgs.isEmpty());
     }
 
+    private static double safeParseDouble(String str) {
+        try {
+            return Double.parseDouble(str);
+        } catch (NumberFormatException e) {
+            return 0;
+        }
+    }
+
+    private static int safeParseInt(String str) {
+        try {
+            return Integer.parseInt(str);
+        } catch (NumberFormatException e) {
+            return 0;
+        }
+    }
 
     @FXML
     public void close() {
@@ -240,7 +264,13 @@ public class SpectroHeliographEditor {
         var idx = elements.getSelectionModel().getSelectedIndex();
         elements.getItems().remove(idx);
         if (elements.getItems().isEmpty()) {
-            formFields.forEach(TextInputControl::clear);
+            formFields.forEach(e -> {
+                if (e instanceof TextInputControl text) {
+                    text.clear();
+                } else if (e instanceof CheckBox cb) {
+                    cb.setSelected(false);
+                }
+            });
             fireDisableStatus(true);
         } else {
             elements.getSelectionModel().select(Math.min(idx, elements.getItems().size() - 1));
@@ -258,7 +288,8 @@ public class SpectroHeliographEditor {
             SpectroHeliograph.SOLEX.density(),
             SpectroHeliograph.SOLEX.order(),
             SpectroHeliograph.SOLEX.slitWidthMicrons(),
-            SpectroHeliograph.SOLEX.slitHeightMillimeters()
+            SpectroHeliograph.SOLEX.slitHeightMillimeters(),
+            SpectroHeliograph.SOLEX.spectrumVFlip()
         );
         elements.getItems().add(newElement);
         elements.getSelectionModel().select(newElement);

@@ -274,7 +274,7 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
     public void onReconstructionDone(ReconstructionDoneEvent e) {
         var serFileReader = e.getPayload().reader();
         var frameCount = serFileReader.header().frameCount();
-        var converter = ImageUtils.createImageConverter(params.videoParams().colorMode());
+        var converter = ImageUtils.createImageConverter(params.videoParams().colorMode(), params.geometryParams().isSpectrumVFlip());
         var pixelformat = PixelFormat.getByteRgbInstance();
         imageViews.entrySet().forEach(entry -> {
             var pixelShift = entry.getKey();

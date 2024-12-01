@@ -191,7 +191,7 @@ public class SolexVideoProcessor implements Broadcaster {
             processParams.saveTo(configFile);
         }
         broadcast(ProcessingStartEvent.of(System.nanoTime(), processParams));
-        var converter = ImageUtils.createImageConverter(processParams.videoParams().colorMode());
+        var converter = ImageUtils.createImageConverter(processParams.videoParams().colorMode(), processParams.geometryParams().isSpectrumVFlip());
         var detector = new AverageImageCreator(converter, this);
         AtomicInteger frameCountRef = new AtomicInteger();
         AtomicReference<Header> headerRef = new AtomicReference<>();

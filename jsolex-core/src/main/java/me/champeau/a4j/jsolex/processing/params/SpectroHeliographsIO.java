@@ -63,7 +63,7 @@ public class SpectroHeliographsIO {
     }
 
     public static List<SpectroHeliograph> predefined() {
-        return List.of(SpectroHeliograph.SOLEX, SpectroHeliograph.SOLEX_10, SpectroHeliograph.SOLEX_7, SpectroHeliograph.MLASTRO_SHG_400, SpectroHeliograph.MLASTRO_SHG_700);
+        return List.of(SpectroHeliograph.SOLEX, SpectroHeliograph.SOLEX_10, SpectroHeliograph.SOLEX_7, SpectroHeliograph.SUNSCAN, SpectroHeliograph.MLASTRO_SHG_400, SpectroHeliograph.MLASTRO_SHG_700);
     }
 
     @SuppressWarnings("unchecked")
