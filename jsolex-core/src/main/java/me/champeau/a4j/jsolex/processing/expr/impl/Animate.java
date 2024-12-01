@@ -69,7 +69,9 @@ public class Animate extends AbstractFunctionImpl {
             var tempFile = Files.createTempFile("video_jsolex", ".mp4");
             var frames = (List) arguments.get(0);
             if (FfmegEncoder.isAvailable()) {
-                encodeWithFfmpeg(frames, tempFile, (int) delay);
+                if (encodeWithFfmpeg(broadcaster, frames, tempFile, (int) delay)) {
+                    return new FileOutput(tempFile);
+                }
             }
             var encoder = SequenceEncoder.createWithFps(NIOUtils.writableChannel(tempFile.toFile()),
                     new Rational((int) (1000 / delay), 1));
@@ -94,12 +96,13 @@ public class Animate extends AbstractFunctionImpl {
         }
     }
 
-    private static void encodeWithFfmpeg(List frames, Path tempFile, int delay) {
+    private static boolean encodeWithFfmpeg(Broadcaster broadcaster, List frames, Path tempFile, int delay) {
         try {
-            FfmegEncoder.encode(frames, tempFile.toFile(), delay);
+            return FfmegEncoder.encode(broadcaster, frames, tempFile.toFile(), delay);
         } catch (IOException e) {
             // fallback to jcodec
             LOGGER.info("Failed to encode video with ffmpeg, falling back to jcodec", e);
+            return false;
         }
     }
 
