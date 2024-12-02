@@ -271,6 +271,17 @@ public class Ellipse {
         return e2.translate(cx, cy);
     }
 
+    public double eccentricity() {
+        var sa = semiAxis();
+        var a = sa.a();
+        var b = sa.b();
+        if (a < b) {
+            var temp = a;
+            a = b;
+            b = temp;
+        }
+        return Math.sqrt(1 - (b * b) / (a * a));
+    }
 
     @Override
     public String toString() {

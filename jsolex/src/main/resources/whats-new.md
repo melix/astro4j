@@ -1,18 +1,40 @@
 # Welcome to JSol'Ex {{version}}!
 
-## Changes in 2.8.0
+## What's New in Version 2.8.0
 
-- Fixed bug in alignment button which didn't always sync zoom and position
-- Reduced memory pressure when generating animations or panels
-- Limited panels size to 7680x7680 pixels
-- Fixed duplicate animation creation when FFMPEG was available
-- Added option to perform a vertical flip of the spectrum, useful for example with Sunscan where the red appears at the top instead of the bottom
-- Added `GET_R`, `GET_G`, `GET_B` and `MONO` functions which respectively extract the R, G and B channels of an image, and converts it to mono for the last one
-- Fixed loading of 8-bit mono JPEGs which didn't account for gamma correction
-- Improved stacking stability
-- Internal image format changes to make future changes easier to implement
-- Added module to run scripts from command-line
-- Fixed inversion of latitude/longitude fields in process params display
-- Added ability to select annotation color when creating custom animations
-- Changed rendering of Doppler image to have colors closer to red/blue
-- Upgrade to Java 23
+### Support for Sunscan
+
+The [Sunscan](https://www.sunscan.net/) is the latest innovation from the Staros team.  
+The new kid of the Sol'Ex family is a compact, fully automated device that allows you to capture images of the Sun directly from your phone, without the need for a computer.  
+However, some users export their SER files to process them with JSol'Ex.  
+To facilitate this processing, JSol'Ex 2.8 introduces several new features:
+
+- The ability to invert the spectrum: Sunscan spectrum images have red at the top and blue at the bottom.
+- A new stacking algorithm, developed with the help of Christian Buil, makes it easier to stack images from a Sunscan.
+
+This new stacking algorithm replaces the old one, even for non-Sunscan images.  
+Adjustments to your scripts may be necessary to account for these changes.  
+Additionally, this algorithm enables easier implementation of new features in the future.
+
+### New Functions in Scripts
+
+New functions have been added to simplify image processing:
+
+- `GET_R`, `GET_G`, `GET_B`, and `MONO` allow you to extract the red, green, and blue channels from a color image, and convert a color image to monochrome, respectively.
+- `DEDISTORT` corrects image distortion using a reference image. This function was developed by Christian Buil and adapted for JSol'Ex.
+- `STACK_REF` allows you to specify a reference image for stacking.
+
+### Bug Fixes and Improvements
+
+- Fixed the "align images" button, which was not always working.
+- Reduced memory usage when generating animations or panels.
+- Limited panel sizes to 7680x7680 pixels.
+- Fixed the double creation of animations when FFMPEG was available.
+- Fixed the loading of 8-bit mono JPEG images to correctly account for gamma correction.
+- Improved stacking stability.
+- Fixed the inversion of latitude/longitude fields.
+- Added a module to execute scripts from the command line.
+- Added the ability to select annotation colors when creating custom animations.
+- Adjusted the Doppler image rendering for colors closer to red/blue.
+- Upgraded to Java 23.
+- Updated internal data structures to facilitate future enhancements.

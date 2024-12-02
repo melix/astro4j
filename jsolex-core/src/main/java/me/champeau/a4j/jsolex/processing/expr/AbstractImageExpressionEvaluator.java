@@ -25,6 +25,7 @@ import me.champeau.a4j.jsolex.processing.expr.impl.Clahe;
 import me.champeau.a4j.jsolex.processing.expr.impl.Colorize;
 import me.champeau.a4j.jsolex.processing.expr.impl.Convolution;
 import me.champeau.a4j.jsolex.processing.expr.impl.Crop;
+import me.champeau.a4j.jsolex.processing.expr.impl.Dedistort;
 import me.champeau.a4j.jsolex.processing.expr.impl.DiskFill;
 import me.champeau.a4j.jsolex.processing.expr.impl.EllipseFit;
 import me.champeau.a4j.jsolex.processing.expr.impl.Filtering;
@@ -86,6 +87,7 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
     private final Colorize colorize;
     private final Convolution convolution;
     private final Crop crop;
+    private final Dedistort dedistort;
     private final DiskFill diskFill;
     private final EllipseFit ellipseFit;
     private final Filtering filtering;
@@ -113,6 +115,7 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
         this.colorize = new Colorize(context, broadcaster);
         this.convolution = new Convolution(context, broadcaster);
         this.crop = new Crop(context, broadcaster);
+        this.dedistort = new Dedistort(context, broadcaster);
         this.diskFill = new DiskFill(context, broadcaster);
         this.ellipseFit = new EllipseFit(context, broadcaster);
         this.filtering = new Filtering(context, broadcaster);
@@ -128,7 +131,7 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
         this.scaling = new Scaling(context, broadcaster, crop);
         this.simpleFunctionCall = new SimpleFunctionCall(context, broadcaster);
         this.stretching = new Stretching(context, broadcaster);
-        this.stacking = new Stacking(context, scaling, crop, broadcaster);
+        this.stacking = new Stacking(context, scaling, crop, simpleFunctionCall, imageDraw, broadcaster);
         this.mosaicComposition = new MosaicComposition(context, broadcaster, stacking, ellipseFit, scaling);
         this.utilities = new Utilities(context, broadcaster);
     }
@@ -225,6 +228,7 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
             case CONTINUUM -> createContinuumImage();
             case CROP -> crop.crop(arguments);
             case CROP_RECT -> crop.cropToRect(arguments);
+            case DEDISTORT -> dedistort.dedistort(arguments);
             case DISK_FILL -> diskFill.fill(arguments);
             case DISK_MASK -> diskFill.mask(arguments);
             case DRAW_ARROW -> imageDraw.drawArrow(arguments);
@@ -273,6 +277,7 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
             case SHARPEN -> convolution.sharpen(arguments);
             case FIND_SHIFT -> pixelShiftFor(arguments);
             case STACK -> stacking.stack(arguments);
+            case STACK_REF -> stacking.chooseReference(arguments);
             case SORT -> utilities.sort(arguments);
             case VFLIP -> rotate.vflip(arguments);
             case VIDEO_DATETIME -> utilities.videoDateTime(arguments);
@@ -358,7 +363,7 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
         return SpectrumAnalyzer.computePixelShift(pixelSize, binning, lambda0 * 10, targetWaveLength, instrument);
     }
 
-    private static OptionalDouble median(DoubleStream doubleStream) {
+    public static OptionalDouble median(DoubleStream doubleStream) {
         var array = doubleStream.toArray();
         if (array.length == 0) {
             return OptionalDouble.empty();

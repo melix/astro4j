@@ -513,7 +513,7 @@ public class ImageDraw extends AbstractFunctionImpl {
             var height = mono.height();
             for (int y = 0; y < height; y++) {
                 for (int x = 0; x < width; x++) {
-                    converted[y*width + x] = (short) round(data[y][x]);
+                    converted[y * width + x] = (short) round(data[y][x]);
                 }
             }
         } else if (wrapper instanceof RGBImage rgb) {
@@ -533,6 +533,7 @@ public class ImageDraw extends AbstractFunctionImpl {
     private static BufferedImage toBufferedImage(int width, int height, float[][] r, float[][] g, float[][] b) {
         BufferedImage image;
         image = new BufferedImage(width, height, BufferedImage.TYPE_INT_RGB);
+        int[] rgbArray = new int[width * height];
         for (int x = 0; x < width; x++) {
             for (int y = 0; y < height; y++) {
                 int rv = round(r[y][x]);
@@ -541,9 +542,10 @@ public class ImageDraw extends AbstractFunctionImpl {
                 rv = (rv >> 8) & 0xFF;
                 gv = (gv >> 8) & 0xFF;
                 bv = (bv >> 8) & 0xFF;
-                image.setRGB(x, y, rv << 16 | gv << 8 | bv);
+                rgbArray[y * width + x] = (rv << 16) | (gv << 8) | bv;
             }
         }
+        image.setRGB(0, 0, width, height, rgbArray, 0, width);
         return image;
     }
 

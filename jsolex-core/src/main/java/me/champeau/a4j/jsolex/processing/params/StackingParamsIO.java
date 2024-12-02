@@ -76,7 +76,14 @@ public class StackingParamsIO {
         Gson gson = newGson();
         if (Files.exists(configFile)) {
             try (var reader = FilesUtils.newTextReader(configFile)) {
-                return gson.fromJson(reader, StackingWorkflow.Parameters.class);
+                var parameters = gson.fromJson(reader, StackingWorkflow.Parameters.class);
+                if (parameters.stackingSampling() == 0) {
+                    parameters = parameters.withStackingSampling(Stacking.DEFAULT_SAMPLING);
+                }
+                if (parameters.mosaicSampling() == 0) {
+                    parameters = parameters.withMosaicSampling(MosaicComposition.DEFAULT_SAMPLING);
+                }
+                return parameters;
             } catch (IOException e) {
                 // fallback to default params
             }
@@ -87,13 +94,13 @@ public class StackingParamsIO {
     public static StackingWorkflow.Parameters predefined() {
         return new StackingWorkflow.Parameters(
             Stacking.DEFAULT_TILE_SIZE,
-            Stacking.DEFAULT_OVERLAP_FACTOR,
+            Stacking.DEFAULT_SAMPLING,
             false,
             false,
             null,
             true,
             MosaicComposition.DEFAULT_TILE_SIZE,
-            MosaicComposition.DEFAULT_OVERLAP_FACTOR,
+            MosaicComposition.DEFAULT_SAMPLING,
             null
         );
     }
