@@ -227,7 +227,7 @@ public class StackingAndMosaicController {
     }
 
     public void resetStackingParams() {
-        stackOverlap.setValue(Stacking.DEFAULT_OVERLAP_FACTOR);
+        stackOverlap.setValue(Stacking.DEFAULT_SAMPLING_RATIO);
         stackTileSize.setValue(Stacking.DEFAULT_TILE_SIZE);
         stackForceRecomputeEllipse.setSelected(false);
         stackFixGeometry.setSelected(false);

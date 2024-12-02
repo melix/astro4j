@@ -44,7 +44,7 @@ class StackingTest extends Specification {
         def match = best.get()
         match.x() == refX + dx
         match.y() == refY + dy
-        match.score() == 0
+        match.error() == 0
 
         where:
         [dx, dy] << [(-5..5), (-5..5)].combinations()

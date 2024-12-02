@@ -20,6 +20,7 @@ import me.champeau.a4j.jsolex.processing.params.ProcessParamsIO;
 import me.champeau.a4j.jsolex.processing.spectrum.SpectrumAnalyzer;
 import me.champeau.a4j.jsolex.processing.sun.detection.RedshiftArea;
 import me.champeau.a4j.jsolex.processing.sun.detection.Redshifts;
+import me.champeau.a4j.jsolex.processing.sun.workflow.MetadataTable;
 import me.champeau.a4j.jsolex.processing.sun.workflow.PixelShift;
 import me.champeau.a4j.jsolex.processing.sun.workflow.ReferenceCoords;
 import me.champeau.a4j.jsolex.processing.sun.workflow.SourceInfo;
@@ -66,6 +67,7 @@ public class FitsUtils {
     public static final String REDSHIFTS_VALUE = "Redshifts";
     public static final String REFCOORDS_VALUE = "RefCoords";
     public static final String SOURCEINFO_VALUE = "SourceInfo";
+    public static final String METADATA_TABLE_VALUE = "TMetadata";
 
     // INTI metadata
     public static final String INTI_CENTER_X = "CENTER_X";
@@ -269,6 +271,13 @@ public class FitsUtils {
                         values.add(redshift);
                     }
                     metadata.put(Redshifts.class, new Redshifts(values));
+                } else if (METADATA_TABLE_VALUE.equals(card.getValue())) {
+                    var binaryTable = binaryTableHdu.getData();
+                    var table = new HashMap<String, String>();
+                    for (int i = 0; i < binaryTable.getNRows(); i++) {
+                        table.put((String) binaryTable.get(i, 0), String.valueOf(binaryTable.get(i, 1)));
+                    }
+                    metadata.put(MetadataTable.class, new MetadataTable(table));
                 }
             }
         }
@@ -321,7 +330,22 @@ public class FitsUtils {
             writeRefCoords(image, fits);
             writeRedshifts(image, fits);
             writeSourceInfo(image, fits);
+            writeMetadataTable(image, fits);
         }
+    }
+
+    private static void writeMetadataTable(ImageWrapper image, Fits fits) {
+        image.findMetadata(MetadataTable.class).ifPresent(metadataTable -> {
+            var table = new BinaryTable();
+            metadataTable.properties().forEach((key, value) -> table.addRow(new Object[]{key, value}));
+            var binaryTableHDU = BinaryTableHDU.wrap(table);
+            binaryTableHDU.getHeader().addValue(JSOLEX_HEADER_KEY, METADATA_TABLE_VALUE, "Metadata table");
+            try {
+                fits.addHDU(binaryTableHDU);
+            } catch (FitsException e) {
+                throw new RuntimeException(e);
+            }
+        });
     }
 
     private static void writeRedshifts(ImageWrapper image, Fits fits) {

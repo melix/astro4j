@@ -128,7 +128,7 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
         this.scaling = new Scaling(context, broadcaster, crop);
         this.simpleFunctionCall = new SimpleFunctionCall(context, broadcaster);
         this.stretching = new Stretching(context, broadcaster);
-        this.stacking = new Stacking(context, scaling, crop, broadcaster);
+        this.stacking = new Stacking(context, scaling, crop, simpleFunctionCall, imageDraw, broadcaster);
         this.mosaicComposition = new MosaicComposition(context, broadcaster, stacking, ellipseFit, scaling);
         this.utilities = new Utilities(context, broadcaster);
     }
@@ -358,7 +358,7 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
         return SpectrumAnalyzer.computePixelShift(pixelSize, binning, lambda0 * 10, targetWaveLength, instrument);
     }
 
-    private static OptionalDouble median(DoubleStream doubleStream) {
+    public static OptionalDouble median(DoubleStream doubleStream) {
         var array = doubleStream.toArray();
         if (array.length == 0) {
             return OptionalDouble.empty();
