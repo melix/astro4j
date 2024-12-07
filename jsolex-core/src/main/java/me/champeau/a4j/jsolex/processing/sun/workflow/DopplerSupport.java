@@ -114,9 +114,8 @@ public class DopplerSupport {
         for (int y = 0; y < height; y++) {
             for (int x = 0; x < width; x++) {
                 r[y][x] = d1[y][x];
-                g[y][x] = (d1[y][x] + d2[y][x]) / 2;
+                g[y][x] = Math.min(d1[y][x], d2[y][x]);
                 b[y][x] = d2[y][x];
-
             }
         }
         var rgb = new float[][][]{r, g, b};
