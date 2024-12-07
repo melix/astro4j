@@ -14,6 +14,7 @@
 - Correction de l'inversion des champs latitude/longitude
 - Ajout d'un module permettant de lancer des scripts depuis la ligne de commande
 - Ajout de la possibilité de choisir la couleur des annotations lors de la création d'animations personnalisées
+- Changement du rendu de l'image Doppler pour avoir des couleurs plus proches du rouge/bleu
 - Passage à Java 23
 
 ## Message aux utilisateurs français

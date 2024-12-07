@@ -14,4 +14,5 @@
 - Added module to run scripts from command-line
 - Fixed inversion of latitude/longitude fields in process params display
 - Added ability to select annotation color when creating custom animations
+- Changed rendering of Doppler image to have colors closer to red/blue
 - Upgrade to Java 23
