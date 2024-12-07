@@ -60,7 +60,7 @@ public final class DynamicStretchStrategy implements StretchingStrategy {
                 data[y][x] = (float) Math.clamp(poly.value(v), 0, MAX_PIXEL_VALUE);
             }
         }
-        LinearStrechingStrategy.DEFAULT.stretch(image);
+        RangeExpansionStrategy.DEFAULT.stretch(image);
     }
 
     private int findLinearGrowthLimit(ImageWrapper32 image) {

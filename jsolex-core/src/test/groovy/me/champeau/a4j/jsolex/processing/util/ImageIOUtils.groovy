@@ -16,7 +16,7 @@
 package me.champeau.a4j.jsolex.processing.util
 
 import groovy.transform.CompileStatic
-import me.champeau.a4j.jsolex.processing.sun.align.AlignerTest
+import me.champeau.a4j.jsolex.processing.sun.ImageUtils
 import me.champeau.a4j.math.image.Image
 
 import javax.imageio.ImageIO
@@ -24,7 +24,7 @@ import javax.imageio.ImageIO
 @CompileStatic
 class ImageIOUtils {
     static Image loadImage(String name) {
-        var img = ImageIO.read(AlignerTest.getResource(name))
+        var img = ImageIO.read(ImageUtils.getResource(name))
         var refW = img.width
         var refH = img.height
         var loaded = new float[refH][refW]

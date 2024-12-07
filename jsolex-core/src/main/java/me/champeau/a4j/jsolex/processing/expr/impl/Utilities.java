@@ -17,7 +17,9 @@ package me.champeau.a4j.jsolex.processing.expr.impl;
 
 import me.champeau.a4j.jsolex.processing.params.ProcessParams;
 import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
+import me.champeau.a4j.jsolex.processing.sun.workflow.MetadataTable;
 import me.champeau.a4j.jsolex.processing.sun.workflow.PixelShift;
+import me.champeau.a4j.jsolex.processing.sun.workflow.SourceInfo;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 import me.champeau.a4j.jsolex.processing.util.RGBImage;
@@ -73,6 +75,11 @@ public class Utilities extends AbstractFunctionImpl {
             comparator = Comparator.comparing(image -> image.findMetadata(ProcessParams.class).orElse((ProcessParams) context.get(ProcessParams.class)).observationDetails().date());
         } else if ("shift".equals(ordering)) {
             comparator = Comparator.comparingDouble(image -> image.findMetadata(PixelShift.class).map(PixelShift::pixelShift).orElse(0.0));
+        } else if ("file_name".equals(ordering)) {
+            comparator = Comparator.comparing(image -> image.findMetadata(MetadataTable.class)
+                .flatMap(t -> t.get(MetadataTable.FILE_NAME))
+                .orElseGet(() -> image.findMetadata(SourceInfo.class).map(SourceInfo::serFileName).orElse(""))
+            );
         }
         if (comparator == null) {
             return list;

@@ -120,6 +120,9 @@
     "queryAllPublicConstructors": true
   },
   {
+    "name":"[Lorg.jcodec.containers.mp4.boxes.PixelAspectExt;"
+  },
+  {
     "name": "[S",
     "allDeclaredFields": true,
     "allPublicFields": true,

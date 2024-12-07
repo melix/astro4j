@@ -87,7 +87,7 @@ public class StackingParamsIO {
     public static StackingWorkflow.Parameters predefined() {
         return new StackingWorkflow.Parameters(
             Stacking.DEFAULT_TILE_SIZE,
-            Stacking.DEFAULT_OVERLAP_FACTOR,
+            Stacking.DEFAULT_SAMPLING_RATIO,
             false,
             false,
             null,

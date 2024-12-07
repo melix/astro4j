@@ -134,7 +134,7 @@ public final class AutohistogramStrategy implements StretchingStrategy {
         mixInClahe(image, diskData);
         alignLeftHistogram(diskData);
         clamping(diskData, 0, .9998).stretch(image);
-        LinearStrechingStrategy.DEFAULT.stretch(image);
+        RangeExpansionStrategy.DEFAULT.stretch(image);
     }
 
     private static void mixInClahe(ImageWrapper32 image, float[][] diskData) {

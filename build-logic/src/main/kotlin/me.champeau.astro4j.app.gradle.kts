@@ -1,3 +1,4 @@
+import org.graalvm.buildtools.gradle.tasks.BuildNativeImageTask
 import org.gradle.api.tasks.JavaExec
 import org.gradle.api.tasks.compile.JavaCompile
 import org.gradle.api.tasks.testing.Test
@@ -56,4 +57,12 @@ graalvmNative {
         }
         jvmArgs("--enable-preview")
     }
+}
+
+tasks.register<Zip>("nativeZip") {
+    archiveBaseName = project.name
+    archiveVersion = version.toString()
+    archiveClassifier = System.getProperty("os.name").lowercase() + "-" +System.getProperty("os.arch")
+    destinationDirectory = layout.buildDirectory.dir("distributions")
+    from(tasks.nativeCompile.flatMap(BuildNativeImageTask::getOutputDirectory))
 }

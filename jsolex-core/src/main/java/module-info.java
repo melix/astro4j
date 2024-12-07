@@ -41,5 +41,6 @@ module me.champeau.a4j.jsolex.core {
     exports me.champeau.a4j.jsolex.processing.util;
     exports me.champeau.a4j.jsolex.processing.sun.workflow;
     exports me.champeau.a4j.jsolex.processing.sun.detection;
+    exports me.champeau.a4j.jsolex.processing.expr.stacking;
     uses nom.tam.fits.compress.ICompressProvider;
 }
