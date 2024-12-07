@@ -349,7 +349,6 @@ public class EllipseFittingTask extends AbstractTask<EllipseFittingTask.Result> 
         float max = -Float.MAX_VALUE;
         float minNonZero = Float.MAX_VALUE;
         float sum = 0.0f;
-        var distinctValues = new HashSet<Float>();
 
         int n = 0;
         for (float[] line : array) {
@@ -358,7 +357,6 @@ public class EllipseFittingTask extends AbstractTask<EllipseFittingTask.Result> 
                 sum += v;
                 min = Math.min(min, v);
                 max = Math.max(max, v);
-                distinctValues.add(v);
                 if (v > 0) {
                     minNonZero = Math.min(minNonZero, v);
                 }
@@ -372,10 +370,10 @@ public class EllipseFittingTask extends AbstractTask<EllipseFittingTask.Result> 
             }
         }
         stddev = (float) Math.sqrt(stddev / (n - 1));
-        return new Stats(average, stddev, min, max, minNonZero, distinctValues.size());
+        return new Stats(average, stddev, min, max, minNonZero);
     }
 
-    private record Stats(float avg, float stddev, float min, float max, float minNonZero, int distinctValues) {
+    private record Stats(float avg, float stddev, float min, float max, float minNonZero) {
 
     }
 

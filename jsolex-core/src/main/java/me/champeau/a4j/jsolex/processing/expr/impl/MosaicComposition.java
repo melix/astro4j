@@ -57,8 +57,8 @@ import java.util.stream.Collectors;
 import java.util.stream.DoubleStream;
 import java.util.stream.IntStream;
 
-import static me.champeau.a4j.jsolex.processing.expr.impl.Stacking.createTilesForComparison;
-import static me.champeau.a4j.jsolex.processing.expr.impl.Stacking.crossCorrelationShiftFFT;
+import static me.champeau.a4j.jsolex.processing.expr.impl.Dedistort.createTilesForComparison;
+import static me.champeau.a4j.jsolex.processing.expr.impl.Dedistort.crossCorrelationShiftFFT;
 import static me.champeau.a4j.jsolex.processing.sun.workflow.AnalysisUtils.estimateBackgroundLevel;
 import static me.champeau.a4j.jsolex.processing.util.Constants.message;
 import static me.champeau.a4j.math.regression.LinearRegression.firstOrderRegression;

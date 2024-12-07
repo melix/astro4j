@@ -44,15 +44,16 @@ tasks.named<JavaExec>("run") {
 }
 
 tasks.withType<JavaExec>().configureEach {
+    jvmArgs("-agentpath:/home/cchampeau/TOOLS/YourKit-JavaProfiler-2023.9/bin/linux-x86-64/libyjpagent.so=_no_java_version_check,sampling")
     args(listOf(
-        "-o", "/tmp/out/serie3",
-        "-s", "/home/cchampeau/DEV/PROJECTS/GITHUB/astro4j/stacking.math",
+        "-o", "/tmp/out/serie4",
+        "-s", "/home/cchampeau/DEV/PROJECTS/GITHUB/astro4j/stacking-conti.math",
 //        "-p", "input_dir=/home/cchampeau/Downloads/stack_151124",
-        "-p", "input_dir=/home/cchampeau/Downloads/stack_191124/stack_191124",
-        "-p", "kind=clahe",
+        "-p", "input_dir=/home/cchampeau/Downloads/stack_151124/renamed",
+//        "-p", "kind=clahe",
         "-p", "tile_size=64",
         "-p", "sampling=.25",
         "-f", "jpg",
-        "-d"
+//        "-d"
     ))
 }

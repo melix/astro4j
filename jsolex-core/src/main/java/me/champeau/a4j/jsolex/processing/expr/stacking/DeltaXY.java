@@ -13,17 +13,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package me.champeau.a4j.jsolex.processing.sun.workflow;
+package me.champeau.a4j.jsolex.processing.expr.stacking;
 
-import java.util.Map;
-import java.util.Optional;
+/**
+ * Represents a delta in the x and y axis in a distorsion map.
+ * @param dx the delta in the x axis
+ * @param dy the delta in the y axis
+ */
+public record DeltaXY(double dx, double dy) {
 
-public record MetadataTable(
-    Map<String, String> properties
-) {
-    public static final String FILE_NAME = "fileName";
-
-    public Optional<String> get(String key) {
-        return Optional.ofNullable(properties.get(key));
-    }
 }
