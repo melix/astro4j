@@ -252,6 +252,8 @@ public class Stacking extends AbstractFunctionImpl {
             if (params.requestedImages().isEnabled(GeneratedImageKind.DEBUG)) {
                 generateDebugImages = true;
             }
+        } else {
+            generateDebugImages = params.requestedImages().isEnabled(GeneratedImageKind.DEBUG);
         }
         var dedistorted = generateDebugImages ? new float[sourceImages.size()][height][width] : null;
         var finalImage = assembleImage(sourceImages, weights, distorsions, width, height, tileSize, referenceImage, dedistorted);

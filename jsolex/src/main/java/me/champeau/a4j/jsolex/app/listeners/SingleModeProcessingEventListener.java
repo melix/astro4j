@@ -396,7 +396,7 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
                 baseName,
                 generatedImageKind,
                 imageWrapper,
-                payload.path().toFile(),
+                payload.path().toAbsolutePath().toFile(),
                 adjustedParams != null ? adjustedParams : params,
                 popupViews,
                 pixelShift.orElse(null),
