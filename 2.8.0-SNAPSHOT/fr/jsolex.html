@@ -1320,7 +1320,13 @@ Une variable spéciale nommée <code>angleP</code> contient la valeur calculée 
 <div class="ulist">
 <ul>
 <li>
-<p><code>stack</code> permet d&#8217;empiler des images. Elle prend entre 1 et 3 paramètres. Le premier est la liste des images à empiler, par exemple: <code>stack(load_many("*.fits"))</code>. Le 2ème paramètre est la taille des tuiles et le 3ème est le facteur de recouvrement (entre 0 et 1).</p>
+<p><code>stack</code> permet d&#8217;empiler des images. Elle aligne les images et calcule la valeur médiane de chaque pixel. Elle accepte entre 1 et 4 paramètres. Le premier est la liste des images à empiler, par exemple: <code>stack(load_many("*.fits"))</code>. Le 2ème paramètre est la taille des tuiles et le 3ème est le facteur d&#8217;échantillonnage (&gt;0). Par exemple, si le facteur d&#8217;échantillonnage est de 0,5 et la taille de la tuile de 32 pixels, alors un échantillon sera pris tous les 16 pixels. Le 4ème paramètre est la méthode de sélection de la référence, qui est l&#8217;une des suivantes : <code>first</code> (première image de la liste), <code>sharpness</code> (l&#8217;image la plus nette), <code>average</code> (calcule la moyenne de toutes les images), <code>median</code> (calcule la médiane de toutes les images) ou <code>eccentricity</code> (choisit l&#8217;image la plus proche d&#8217;un cercle). Par exemple : <code>stack(load_many("\*.fits"), 32, 0.5, "sharpness")</code>. Par défaut, la méthode de sélection de la référence est <code>sharpness</code>.</p>
+</li>
+<li>
+<p><code>stack_ref</code> prend 2 paramètres : une liste d&#8217;images et une méthode de sélection de référence. Elle renvoie alors une image pouvant servir de référence pour le stacking. Les méthodes de sélection sont les mêmes que pour <code>stack</code>. Par exemple : <code>stack_ref(load_many("\*.fits"), "sharpness")</code>.</p>
+</li>
+<li>
+<p><code>dedistort</code> permet de corriger la distorsion d&#8217;une image. Elle dispose de 2 modes d&#8217;utilisation distincts. Dans le premier mode, on lui fournit une image de référence et une image à corriger, ainsi que 3 paramètres optionnels : la taille des tuiles, l&#8217;échantillonage et la valeur du fond de ciel. Par exemple : <code>dedistort(ref, img(0), 32, 0.5, 0)</code>. L&#8217;image renvoyée sera corrigée en s&#8217;approchant au possible de l&#8217;image de référence, la rendant par exemple utilisable pour du stacking. Dans le second mode, on lui fournit une liste d&#8217;images à corriger (1er paramètre) et une liste d&#8217;images déja corrigées (2d paramètre), auquel cas les paramètres de correction de chaque image est pris en utilisant l&#8217;image de même index dans la liste des images déja corrigées. Ceci peut-être utile par exemple lorsqu&#8217;on calcule la distorsion sur le centre de la raie (décalage 0) et qu&#8217;on souhaite appliquer les mêmes corrections à des images de décalage différent. Par exemple : <code>dedistort(images, corrected)</code>.</p>
 </li>
 <li>
 <p><code>mosaic</code> permet de créer une mosaïque d&#8217;images. Elle prend entre 1 et 3 paramètres. Le premier est la liste des images à empiler, par exemple: <code>mosaic(load_many("*.fits"))</code>. Le 2ème paramètre est la taille des tuiles et le 3ème est le facteur de recouvrement (entre 0 et 1).</p>
@@ -1940,11 +1946,23 @@ Le premier contient 3 images qui seront empilées pour faire le panneau nord, et
 <div class="paragraph">
 <p>Les options d&#8217;empilement sont visibles à droite.
 Il n&#8217;est pas recommandé de les modifier, sauf si vous savez ce que vous faites.
-Les options sont les suivantes:
-- la taille des tuiles permet de découper l&#8217;image en tuiles pour l&#8217;empilement. Plus la taille est petite, plus l&#8217;empilement sera précis mais le calcul sera plus long et il ne sera pas possible de découvrir des décalages importants entre les images.
-- le chevauchement permet d&#8217;améliorer la qualité du résultat en faisant le même calcul avec une fenêtre glissante. Plus le chevauchement est grand, plus le résultat sera précis mais le calcul sera plus long.
-- Forcer le recalcul des ellipses permet de recalculer l&#8217;ellipse (ou le cercle) du disque solaire pour chaque image. Ceci est utile notamment si vous utilisez des images venant d&#8217;un autre logiciel ou que les ellipses ont été mal détectées.
-- Corriger la géométrie permet de rendre le disque solaire parfaitement circulaire, ce qui est généralement une bonne idée si les images que vous importez n&#8217;ont pas été corrigées.</p>
+Les options sont les suivantes:</p>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p>la taille des tuiles permet de découper l&#8217;image en tuiles pour l&#8217;empilement. Plus la taille est petite, plus l&#8217;empilement sera précis mais le calcul sera plus long et il ne sera pas possible de découvrir des décalages importants entre les images.</p>
+</li>
+<li>
+<p>l&#8217;échantillonage permet de déterminer où seront pris les échantillons servant à calculer le modèle de distorsion. Un facteur de 0.5 combiné à des tuiles de 32 pixels signifie par exemple un échantillon tous les 16 pixels.</p>
+</li>
+<li>
+<p>Forcer le recalcul des ellipses permet de recalculer l&#8217;ellipse (ou le cercle) du disque solaire pour chaque image. Ceci est utile notamment si vous utilisez des images venant d&#8217;un autre logiciel ou que les ellipses ont été mal détectées.</p>
+</li>
+<li>
+<p>Corriger la géométrie permet de rendre le disque solaire parfaitement circulaire, ce qui est généralement une bonne idée si les images que vous importez n&#8217;ont pas été corrigées.</p>
+</li>
+</ul>
 </div>
 <div class="paragraph">
 <p>Le script de post-traitement vous permet de sélectionner un script <code>ImageMath</code> à appliquer à chaque image après empilement.</p>
