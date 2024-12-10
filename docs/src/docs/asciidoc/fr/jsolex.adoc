@@ -363,7 +363,9 @@ Fonctions décoratives
 
 Fonctions d'empilement et de création de mosaiques :
 
-- `stack` permet d'empiler des images. Elle prend entre 1 et 3 paramètres. Le premier est la liste des images à empiler, par exemple: `stack(load_many("*.fits"))`. Le 2ème paramètre est la taille des tuiles et le 3ème est le facteur de recouvrement (entre 0 et 1).
+- `stack` permet d'empiler des images. Elle aligne les images et calcule la valeur médiane de chaque pixel. Elle accepte entre 1 et 4 paramètres. Le premier est la liste des images à empiler, par exemple: `stack(load_many("\*.fits"))`. Le 2ème paramètre est la taille des tuiles et le 3ème est le facteur d'échantillonnage (>0). Par exemple, si le facteur d'échantillonnage est de 0,5 et la taille de la tuile de 32 pixels, alors un échantillon sera pris tous les 16 pixels. Le 4ème paramètre est la méthode de sélection de la référence, qui est l'une des suivantes : `first` (première image de la liste), `sharpness` (l'image la plus nette), `average` (calcule la moyenne de toutes les images), `median` (calcule la médiane de toutes les images) ou `eccentricity` (choisit l'image la plus proche d'un cercle). Par exemple : `stack(load_many("\*.fits"), 32, 0.5, "sharpness")`. Par défaut, la méthode de sélection de la référence est `sharpness`.
+- `stack_ref` prend 2 paramètres : une liste d'images et une méthode de sélection de référence. Elle renvoie alors une image pouvant servir de référence pour le stacking. Les méthodes de sélection sont les mêmes que pour `stack`. Par exemple : `stack_ref(load_many("\*.fits"), "sharpness")`.
+- `dedistort` permet de corriger la distorsion d'une image. Elle dispose de 2 modes d'utilisation distincts. Dans le premier mode, on lui fournit une image de référence et une image à corriger, ainsi que 3 paramètres optionnels : la taille des tuiles, l'échantillonage et la valeur du fond de ciel. Par exemple : `dedistort(ref, img(0), 32, 0.5, 0)`. L'image renvoyée sera corrigée en s'approchant au possible de l'image de référence, la rendant par exemple utilisable pour du stacking. Dans le second mode, on lui fournit une liste d'images à corriger (1er paramètre) et une liste d'images déja corrigées (2d paramètre), auquel cas les paramètres de correction de chaque image est pris en utilisant l'image de même index dans la liste des images déja corrigées. Ceci peut-être utile par exemple lorsqu'on calcule la distorsion sur le centre de la raie (décalage 0) et qu'on souhaite appliquer les mêmes corrections à des images de décalage différent. Par exemple : `dedistort(images, corrected)`.
 - `mosaic` permet de créer une mosaïque d'images. Elle prend entre 1 et 3 paramètres. Le premier est la liste des images à empiler, par exemple: `mosaic(load_many("*.fits"))`. Le 2ème paramètre est la taille des tuiles et le 3ème est le facteur de recouvrement (entre 0 et 1).
 
 Fonctions d'analyse :
@@ -677,8 +679,9 @@ Le premier contient 3 images qui seront empilées pour faire le panneau nord, et
 Les options d'empilement sont visibles à droite.
 Il n'est pas recommandé de les modifier, sauf si vous savez ce que vous faites.
 Les options sont les suivantes:
+
 - la taille des tuiles permet de découper l'image en tuiles pour l'empilement. Plus la taille est petite, plus l'empilement sera précis mais le calcul sera plus long et il ne sera pas possible de découvrir des décalages importants entre les images.
-- le chevauchement permet d'améliorer la qualité du résultat en faisant le même calcul avec une fenêtre glissante. Plus le chevauchement est grand, plus le résultat sera précis mais le calcul sera plus long.
+- l'échantillonage permet de déterminer où seront pris les échantillons servant à calculer le modèle de distorsion. Un facteur de 0.5 combiné à des tuiles de 32 pixels signifie par exemple un échantillon tous les 16 pixels.
 - Forcer le recalcul des ellipses permet de recalculer l'ellipse (ou le cercle) du disque solaire pour chaque image. Ceci est utile notamment si vous utilisez des images venant d'un autre logiciel ou que les ellipses ont été mal détectées.
 - Corriger la géométrie permet de rendre le disque solaire parfaitement circulaire, ce qui est généralement une bonne idée si les images que vous importez n'ont pas été corrigées.
 

@@ -16,6 +16,7 @@
 package me.champeau.a4j.jsolex.processing.expr.impl;
 
 import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
+import me.champeau.a4j.jsolex.processing.sun.workflow.MetadataTable;
 import me.champeau.a4j.jsolex.processing.util.FitsUtils;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
@@ -73,6 +74,18 @@ public class Loader extends AbstractFunctionImpl {
     }
 
     public static ImageWrapper loadImage(File file) {
+        var imageWrapper = doLoad(file);
+        imageWrapper.findMetadata(MetadataTable.class).ifPresentOrElse(metadata -> {
+            metadata.properties().put(MetadataTable.FILE_NAME, file.getName());
+        }, () -> {
+            var metadata = MutableMap.<String, String>of();
+            metadata.put(MetadataTable.FILE_NAME, file.getName());
+            imageWrapper.metadata().put(MetadataTable.class, new MetadataTable(metadata));
+        });
+        return imageWrapper;
+    }
+
+    private static ImageWrapper doLoad(File file) {
         if (file.getName().toLowerCase(Locale.US).endsWith(".fits")) {
             return FitsUtils.readFitsFile(file);
         }
@@ -82,7 +95,8 @@ public class Loader extends AbstractFunctionImpl {
         } catch (IOException e) {
             throw new ProcessingException(e);
         }
-        return toImageWrapper(image, MutableMap.of());
+        var metadata = MutableMap.<Class<?>, Object>of();
+        return toImageWrapper(image, metadata);
     }
 
     static ImageWrapper toImageWrapper(BufferedImage image, Map<Class<?>, Object> metadata) {

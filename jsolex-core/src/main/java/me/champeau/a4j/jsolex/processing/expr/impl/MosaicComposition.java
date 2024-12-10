@@ -32,7 +32,6 @@ import me.champeau.a4j.math.Point2D;
 import me.champeau.a4j.math.image.Image;
 import me.champeau.a4j.math.image.ImageMath;
 import me.champeau.a4j.math.tuples.DoublePair;
-import me.champeau.a4j.math.tuples.IntPair;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -58,6 +57,8 @@ import java.util.stream.Collectors;
 import java.util.stream.DoubleStream;
 import java.util.stream.IntStream;
 
+import static me.champeau.a4j.jsolex.processing.expr.impl.Dedistort.createTilesForComparison;
+import static me.champeau.a4j.jsolex.processing.expr.impl.Dedistort.crossCorrelationShiftFFT;
 import static me.champeau.a4j.jsolex.processing.sun.workflow.AnalysisUtils.estimateBackgroundLevel;
 import static me.champeau.a4j.jsolex.processing.util.Constants.message;
 import static me.champeau.a4j.math.regression.LinearRegression.firstOrderRegression;
@@ -68,7 +69,7 @@ public class MosaicComposition extends AbstractFunctionImpl {
     private static final AtomicInteger DEBUG_COUNTER = new AtomicInteger();
     private static final String DEBUG_IMAGES = System.getProperty("jsolex.debug.images");
     public static final int DEFAULT_TILE_SIZE = 64;
-    public static final float DEFAULT_OVERLAP_FACTOR = 0.3f;
+    public static final float DEFAULT_SAMPLING = 0.25f;
 
     private final ImageMath imageMath = ImageMath.newInstance();
     private final Broadcaster broadcaster;
@@ -84,12 +85,12 @@ public class MosaicComposition extends AbstractFunctionImpl {
         this.scaling = scaling;
     }
 
-    public ImageWrapper32 mosaic(List<ImageWrapper32> stackedImages, int tileSize, float overlap) {
-        return doMosaic(stackedImages, tileSize, overlap);
+    public ImageWrapper32 mosaic(List<ImageWrapper32> stackedImages, int tileSize, float sampling) {
+        return doMosaic(stackedImages, tileSize, sampling);
     }
 
     public Object mosaic(List<Object> arguments) {
-        assertExpectedArgCount(arguments, "mosaic takes 1, 2, or 3 arguments (image(s), [tile size], [overlap])", 1, 3);
+        assertExpectedArgCount(arguments, "mosaic takes 1, 2, or 3 arguments (image(s), [tile size], [sampling])", 1, 3);
         var arg = arguments.get(0);
         if (arg instanceof List<?> list) {
             var images = list.stream().filter(ImageWrapper.class::isInstance).map(img -> {
@@ -108,12 +109,12 @@ public class MosaicComposition extends AbstractFunctionImpl {
             if (tileSize < 16) {
                 throw new IllegalArgumentException("tile size must be at least 16");
             }
-            var overlap = arguments.size() >= 3 ? floatArg(arguments, 2) : DEFAULT_OVERLAP_FACTOR;
-            if (overlap < 0 || overlap > 1) {
-                throw new IllegalArgumentException("overlap factor must be between 0 and 1");
+            var sampling = arguments.size() >= 3 ? floatArg(arguments, 2) : DEFAULT_SAMPLING;
+            if (sampling <= 0) {
+                throw new IllegalArgumentException("sampling must be greater than 0");
             }
             try {
-                return doMosaic(images, tileSize, overlap);
+                return doMosaic(images, tileSize, sampling);
             } catch (Exception ex) {
                 ex.printStackTrace();
                 throw new ProcessingException(ex);
@@ -123,14 +124,14 @@ public class MosaicComposition extends AbstractFunctionImpl {
         }
     }
 
-    ImageWrapper32 doMosaic(List<ImageWrapper32> images, int tileSize, float overlap) {
+    ImageWrapper32 doMosaic(List<ImageWrapper32> images, int tileSize, float sampling) {
         var backgroundNeutralized = images.stream().map(BackgroundRemoval::neutralizeBackground).toList();
         var rescaled = scaling.performRadiusRescale(backgroundNeutralized)
             .stream()
             .map(ImageWrapper::unwrapToMemory)
             .map(ImageWrapper32.class::cast).toList();
         var adjustment = normalizeHistograms(rescaled);
-        var mosaic = doMosaicNoHistogramTransform(tileSize, overlap, adjustment.corrected(), adjustment.background(), new HashMap<>(), new HashMap<>());
+        var mosaic = doMosaicNoHistogramTransform(tileSize, sampling, adjustment.corrected(), adjustment.background(), new HashMap<>(), new HashMap<>());
         return ellipseFit.performEllipseFitting(mosaic);
     }
 
@@ -149,7 +150,7 @@ public class MosaicComposition extends AbstractFunctionImpl {
         return Collections.unmodifiableSet(result);
     }
 
-    private ImageWrapper32 doMosaicNoHistogramTransform(int tileSize, float overlap, List<ImageWrapper32> corrected, float background, Map<ImageWrapper32, Set<Integer>> imageToTilesOverbackground, Map<ImageWrapper32, Image> integralImages) {
+    private ImageWrapper32 doMosaicNoHistogramTransform(int tileSize, float sampling, List<ImageWrapper32> corrected, float background, Map<ImageWrapper32, Set<Integer>> imageToTilesOverbackground, Map<ImageWrapper32, Image> integralImages) {
         while (corrected.size() > 1) {
             var imageCount = corrected.size();
             var first = corrected.iterator().next();
@@ -237,7 +238,7 @@ public class MosaicComposition extends AbstractFunctionImpl {
                     threshold = threshold / 4;
                 } else if (reassembled || !updated || step == maxSteps) {
                     corrected.remove(1);
-                    var mosaic = stacking.doStack(List.of(first, second), tileSize, overlap, assembled);
+                    var mosaic = stacking.doStack(List.of(first, second), tileSize, assembled, sampling, Stacking.ReferenceSelection.FIRST);
                     corrected.set(0, mosaic);
                     break;
                 }
@@ -397,17 +398,16 @@ public class MosaicComposition extends AbstractFunctionImpl {
                 return;
             }
             var distorsionSample = cache.computeIfAbsent(referencePoint, p -> {
-                var bestMatch = Stacking.findBestMatch(referenceData, data, width, height, tileSize / 2, x, y, maxLookupShift);
-                if (bestMatch.isPresent()) {
-                    var second = bestMatch.get();
-                    var sy = second.y();
-                    var sx = second.x();
-                    var referenceAvg = imageMath.areaAverage(referenceIntegral, x, y, tileSize, tileSize);
-                    var otherAvg = imageMath.areaAverage(otherIntegral, sx, sy, tileSize, tileSize);
-                    if (withinTolerance(otherAvg, referenceAvg, 0.25)) {
-                        return Optional.of(new DistorsionSample(referencePoint, new Point2D(sx, sy), second.score()));
-                    }
+                var tiles = createTilesForComparison(tileSize, x, width, y, height, referenceData, data, 0);
+                var dxy = crossCorrelationShiftFFT(tiles.referenceTile(), tiles.dataTile());
+                var sy = y - dxy.a();
+                var sx = x - dxy.b();
+                var referenceAvg = imageMath.areaAverage(referenceIntegral, x, y, tileSize, tileSize);
+                var otherAvg = imageMath.areaAverage(otherIntegral, (int) sx, (int) sy, tileSize, tileSize);
+                if (withinTolerance(otherAvg, referenceAvg, 0.25)) {
+                    return Optional.of(new DistorsionSample(referencePoint, new Point2D(sx, sy), 0));
                 }
+
                 return Optional.empty();
             });
             distorsionSample.ifPresent(consumer);
@@ -611,10 +611,6 @@ public class MosaicComposition extends AbstractFunctionImpl {
         }
     }
 
-    private record Match(IntPair first, IntPair second, double score) {
-
-    }
-
     private record TileOverlap(int image1, int image2, int overlappingTiles) {
     }
 
@@ -631,5 +627,6 @@ public class MosaicComposition extends AbstractFunctionImpl {
             return true;
         }
     }
+
 
 }

@@ -1,0 +1,44 @@
+name: Native distributions
+
+on:
+  push:
+    branches:
+      - main
+    tags:
+      - '*'
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: [ self-hosted, linux, ARM64 ]
+    container:
+      image: "ubuntu:22.04"
+      volumes:
+        - ${{ github.workspace }}:/${{ github.workspace }}
+    steps:
+      - name: Update package list
+        run: apt-get update
+      - name: Install build essentials
+        run: apt-get install -y build-essential libz-dev zlib1g-dev
+      - uses: actions/checkout@v4
+      - uses: graalvm/setup-graalvm@v1
+        with:
+            java-version: '23'
+            distribution: 'graalvm'
+            github-token: ${{ secrets.GITHUB_TOKEN }}
+            native-image-job-reports: 'true'
+      - uses: gradle/wrapper-validation-action@v1
+      - name: Setup Gradle
+        uses: gradle/gradle-build-action@v2
+
+      - name: Build native binary
+        run: ./gradlew :jsolex-scripting:nativeZip
+
+      - uses: shallwefootball/s3-upload-action@master
+        name: Upload JSol'Ex scripting
+        with:
+          aws_key_id: ${{ secrets.AWS_KEY_ID }}
+          aws_secret_access_key: ${{ secrets.AWS_SECRET_ACCESS_KEY}}
+          aws_bucket: ${{ secrets.AWS_BUCKET }}
+          source_dir: 'jsolex-scripting/build/distributions'
+          destination_dir: jsolex-scripting-${{ matrix.os }}

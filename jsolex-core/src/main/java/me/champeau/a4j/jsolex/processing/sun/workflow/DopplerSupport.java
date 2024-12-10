@@ -19,7 +19,6 @@ import me.champeau.a4j.jsolex.processing.expr.impl.DiskFill;
 import me.champeau.a4j.jsolex.processing.params.ProcessParams;
 import me.champeau.a4j.jsolex.processing.params.SpectralRay;
 import me.champeau.a4j.jsolex.processing.stretching.ArcsinhStretchingStrategy;
-import me.champeau.a4j.jsolex.processing.stretching.LinearStrechingStrategy;
 import me.champeau.a4j.jsolex.processing.stretching.RangeExpansionStrategy;
 import me.champeau.a4j.jsolex.processing.sun.BackgroundRemoval;
 import me.champeau.a4j.jsolex.processing.sun.ImageUtils;
@@ -30,6 +29,7 @@ import me.champeau.a4j.jsolex.processing.util.MutableMap;
 import me.champeau.a4j.jsolex.processing.util.RGBImage;
 import me.champeau.a4j.math.regression.Ellipse;
 
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 
@@ -98,7 +98,7 @@ public class DopplerSupport {
                     metadata,
                     () -> {
                         var dopplerImage = DopplerSupport.toDopplerImage(width, height, g1, g2);
-                        LinearStrechingStrategy.DEFAULT.stretch(new RGBImage(width, height, dopplerImage[0], dopplerImage[1], dopplerImage[2], metadata));
+                        RangeExpansionStrategy.DEFAULT.stretch(new RGBImage(width, height, dopplerImage[0], dopplerImage[1], dopplerImage[2], metadata));
                         return dopplerImage;
                     });
             });
@@ -121,13 +121,13 @@ public class DopplerSupport {
         var rgb = new float[][][]{r, g, b};
         var hsl = ImageUtils.fromRGBtoHSL(rgb);
         var saturation = hsl[1];
-        for (float[] line : saturation) {
+        Arrays.stream(saturation).forEach(line -> {
             for (int j = 0; j < line.length; j++) {
                 float v = line[j];
                 var sat = Math.sqrt(v);
                 line[j] = (float) sat;
             }
-        }
+        });
         ImageUtils.fromHSLtoRGB(hsl, rgb);
         var metadata = MutableMap.<Class<?>, Object>of();
         metadata.putAll(grey1.metadata());

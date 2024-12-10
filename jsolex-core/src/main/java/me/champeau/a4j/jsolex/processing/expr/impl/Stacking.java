@@ -16,50 +16,130 @@
 package me.champeau.a4j.jsolex.processing.expr.impl;
 
 import me.champeau.a4j.jsolex.processing.event.ProgressEvent;
+import me.champeau.a4j.jsolex.processing.expr.AbstractImageExpressionEvaluator;
+import me.champeau.a4j.jsolex.processing.expr.stacking.DistorsionDebugImageCreator;
+import me.champeau.a4j.jsolex.processing.expr.stacking.DistorsionMap;
+import me.champeau.a4j.jsolex.processing.params.ProcessParams;
 import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
+import me.champeau.a4j.jsolex.processing.sun.workflow.GeneratedImageKind;
 import me.champeau.a4j.jsolex.processing.util.FileBackedImage;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 import me.champeau.a4j.jsolex.processing.util.MutableMap;
+import me.champeau.a4j.math.fft.FFTSupport;
 import me.champeau.a4j.math.image.Image;
 import me.champeau.a4j.math.image.ImageMath;
-import me.champeau.a4j.math.tuples.IntPair;
+import me.champeau.a4j.math.regression.Ellipse;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-import java.util.ArrayList;
+import java.time.Duration;
 import java.util.Arrays;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
-import java.util.Optional;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.Supplier;
+import java.util.stream.DoubleStream;
+import java.util.stream.IntStream;
 
 import static me.champeau.a4j.jsolex.processing.util.Constants.message;
 
 public class Stacking extends AbstractFunctionImpl {
+    private static final Logger LOGGER = LoggerFactory.getLogger(Stacking.class);
+
     private static final String STACKING_MESSAGE = message("stacking");
+    private static final String FIND_CORRESP_MESSAGE = message("finding.correspondances");
     public static final int DEFAULT_TILE_SIZE = 32;
-    public static final float DEFAULT_OVERLAP_FACTOR = 0.3f;
+    public static final float DEFAULT_SAMPLING = .5f;
 
     private final ImageMath imageMath = ImageMath.newInstance();
     private final Scaling scaling;
     private final Crop crop;
+    private final SimpleFunctionCall simpleFunctionCall;
+    private final ImageDraw imageDraw;
     private final Broadcaster broadcaster;
 
-    public Stacking(Map<Class<?>, Object> context, Scaling scaling, Crop crop, Broadcaster broadcaster) {
+    public Stacking(Map<Class<?>, Object> context,
+                    Scaling scaling,
+                    Crop crop,
+                    SimpleFunctionCall simpleFunctionCall,
+                    ImageDraw imageDraw,
+                    Broadcaster broadcaster) {
         super(context, broadcaster);
         this.scaling = scaling;
         this.crop = crop;
+        this.simpleFunctionCall = simpleFunctionCall;
+        this.imageDraw = imageDraw;
         this.broadcaster = broadcaster;
     }
 
-    public ImageWrapper32 stack(List<ImageWrapper32> images, int tileSize, float overlap) {
+    /**
+     * Stacks a list of images, using a given tile size and sampling ratio.
+     * The reference image is selected based on the given reference selection.
+     * @param images the list of images to stack
+     * @param tileSize the size of the tiles to use
+     * @param sampling the sampling ratio
+     * @param referenceSelection the reference selection
+     * @return the stacked image
+     */
+    public ImageWrapper32 stack(List<ImageWrapper32> images, int tileSize, float sampling, ReferenceSelection referenceSelection) {
         if (images.size() == 1) {
             return images.get(0);
         }
-        return doStack(images, tileSize, overlap, null);
+        return doStack(images, tileSize, null, sampling, referenceSelection);
     }
 
+    /**
+     * Chooses or generates a reference image from a list of images, based on the given reference selection.
+     * @param images the list of images
+     * @param referenceSelection the reference selection
+     * @return the reference image
+     */
+    public ImageWrapper32 chooseReference(List<ImageWrapper32> images, ReferenceSelection referenceSelection) {
+        return computeReferenceImageAndAdjustWeights(images, referenceSelection, new double[images.size()]);
+    }
+
+    /**
+     * Chooses or generates a reference image from a list of images, based on the given reference selection.
+     */
+    public Object chooseReference(List<Object> arguments) {
+        assertExpectedArgCount(arguments, "choose_reference takes 1 or 2 arguments (image(s), [reference selection])", 1, 2);
+        var arg = arguments.get(0);
+        if (arg instanceof List<?> list) {
+            if (list.size() == 1) {
+                return list.get(0);
+            }
+            var images = list.stream()
+                .parallel()
+                .filter(ImageWrapper.class::isInstance)
+                .map(img -> {
+                    if (img instanceof FileBackedImage fbi) {
+                        return fbi.unwrapToMemory();
+                    }
+                    return img;
+                })
+                .filter(ImageWrapper32.class::isInstance)
+                .map(ImageWrapper32.class::cast)
+                .toList();
+            if (images.size() == 1) {
+                return images.get(0);
+            } else if (images.isEmpty()) {
+                return List.of();
+            }
+            var referenceSelection = arguments.size() == 2 ? ReferenceSelection.valueOf(stringArg(arguments, 1).toUpperCase(Locale.US)) : ReferenceSelection.SHARPNESS;
+            return chooseReference(images, referenceSelection);
+        } else {
+            throw new IllegalArgumentException("choose_reference first argument must be a list of images");
+        }
+    }
+
+    /**
+     * Stacks a list of images, using a given tile size and sampling ratio.
+     */
     public Object stack(List<Object> arguments) {
-        assertExpectedArgCount(arguments, "stack takes 1, 2, or 3 arguments (image(s), [tile size], [overlap])", 1, 3);
+        assertExpectedArgCount(arguments, "stack takes 1, to 4 arguments (image(s), [tile size], [sampling], [reference selection])", 1, 4);
         var arg = arguments.get(0);
         if (arg instanceof List<?> list) {
             if (list.size() == 1) {
@@ -87,20 +167,26 @@ public class Stacking extends AbstractFunctionImpl {
             if (tileSize < 4) {
                 throw new IllegalArgumentException("tile size must be at least 4");
             }
-            var overlap = arguments.size() >= 3 ? floatArg(arguments, 2) : DEFAULT_OVERLAP_FACTOR;
-            if (overlap < 0 || overlap > 1) {
-                throw new IllegalArgumentException("overlap factor must be between 0 and 1");
+            if (!FFTSupport.isPowerOf2(tileSize)) {
+                throw new IllegalArgumentException("tile size must be a power of 2");
             }
-            return doStack(images, tileSize, overlap, null);
+            var sampling = arguments.size() == 3 ? doubleArg(arguments, 2) : DEFAULT_SAMPLING;
+            var referenceSelection = arguments.size() == 4 ? ReferenceSelection.valueOf(stringArg(arguments, 3).toUpperCase(Locale.US)) : ReferenceSelection.SHARPNESS;
+            return doStack(images, tileSize, null, sampling, referenceSelection);
         } else {
             throw new IllegalArgumentException("stack first argument must be a list of images");
         }
     }
 
-    ImageWrapper32 doStack(List<ImageWrapper32> images, int tileSize, float overlap, ImageWrapper32 referenceImage) {
+    ImageWrapper32 doStack(List<ImageWrapper32> images,
+                           int tileSize,
+                           ImageWrapper32 referenceImage,
+                           double sampling,
+                           ReferenceSelection referenceSelection) {
         var widths = images.stream().mapToInt(ImageWrapper::width).distinct().toArray();
         var heights = images.stream().mapToInt(ImageWrapper::height).distinct().toArray();
-        images = prepareForStacking(images, widths, heights);
+        var preparationResult = measure(() -> prepareForStacking(images, widths, heights));
+        var sourceImages = preparationResult.result;
         // the reference image is the first image
         // We perform stacking by doing the following:
         // for each image to stack, we split the image into tiles of size tileSize
@@ -109,44 +195,127 @@ public class Stacking extends AbstractFunctionImpl {
         // instead of simply using ONE tile for the image to stack, we're going to try
         // shifting the tile between -tileSize/4 and +tileSize/4 in both directions, to
         // select the tile which has the lowest error.
-        var first = images.iterator().next();
+        var first = sourceImages.iterator().next();
         var height = first.height();
         var width = first.width();
-        var sharpness = normalizedSharpnessOf(images, width, height);
         ImageWrapper32 reference = null;
-        var referenceSharpness = -Double.MAX_VALUE;
-        for (int i = 0; i < sharpness.length; i++) {
-            double v = sharpness[i];
-            if (v > referenceSharpness) {
-                referenceSharpness = v;
-                reference = images.get(i);
-            }
+        var weights = new double[sourceImages.size()];
+        Arrays.fill(weights, -1);
+        if (referenceImage == null) {
+            Arrays.fill(weights, 1);
+            reference = computeReferenceImageAndAdjustWeights(sourceImages, referenceSelection, weights);
         }
-        var integralImages = referenceImage == null ? null : images.stream()
-            .parallel()
-            .map(img -> imageMath.integralImage(img.asImage()))
-            .toList();
         var referenceData = referenceImage != null ? referenceImage.data() : reference.data();
-        var referenceIntegral = referenceImage != null ? imageMath.integralImage(referenceImage.asImage()) : null;
-        var increment = overlap == -1 ? tileSize : (int) (tileSize * (1 - overlap));
-        var result = createOverlappingStack(tileSize, height, width, increment);
-        var imageCount = images.size();
-        for (int y = 0; y < height; y += increment) {
-            for (int x = 0; x < width; x += increment) {
-                var idx = y * width + x;
-                double progress = (double) (idx) / (width * height);
-                broadcaster.broadcast(ProgressEvent.of(progress, STACKING_MESSAGE));
-                var weights = prepareTileWeights(images, tileSize, referenceImage, sharpness, integralImages, x, y, referenceIntegral);
-                stackSingleTile(images, tileSize, x, width, y, height, imageCount, referenceData, result, weights, overlap >= 0.3f);
-            }
+        var signal = 1;
+        var imageCount = sourceImages.size();
+        var increment = (int) Math.max(2, tileSize * sampling);
+        var distorsions = new DistorsionMap[imageCount];
+        for (int i = 0; i < distorsions.length; i++) {
+            distorsions[i] = new DistorsionMap(width, height, tileSize, increment);
         }
-        broadcaster.broadcast(ProgressEvent.of(1.0, STACKING_MESSAGE));
+        AtomicInteger progressCounter = new AtomicInteger();
+        var displacementResult = measure(() -> {
+            IntStream.iterate(0, y -> y < height, y -> y + increment)
+                .parallel()
+                .forEach(y -> {
+                    for (int x = 0; x < width; x += increment) {
+                        findDisplacement(sourceImages, tileSize, x, width, y, height, referenceData, distorsions, signal);
+                    }
+                    var progress = progressCounter.addAndGet(increment) / (double) height;
+                    broadcaster.broadcast(ProgressEvent.of(progress, FIND_CORRESP_MESSAGE));
+                });
+            broadcaster.broadcast(ProgressEvent.of(1.0, FIND_CORRESP_MESSAGE));
+            return null;
+        });
         var metadata = MutableMap.<Class<?>, Object>of();
-        for (ImageWrapper32 image : images) {
+        for (ImageWrapper32 image : sourceImages) {
             metadata.putAll(image.metadata());
         }
-        var finalImage = assembleImage(result, width, height);
-        return new ImageWrapper32(width, height, finalImage, metadata);
+        var interpolationResult = measure(() -> {
+            broadcaster.broadcast(ProgressEvent.of(0.0, message("interpolating.models")));
+            progressCounter.set(0);
+            Arrays.stream(distorsions).parallel().forEach(distorsionMap -> {
+                var progress = progressCounter.getAndIncrement() / (double) imageCount;
+                broadcaster.broadcast(ProgressEvent.of(progress, message("interpolating.models")));
+                distorsionMap.computeInterpolators();
+            });
+            broadcaster.broadcast(ProgressEvent.of(1.0, message("interpolating.models")));
+            return null;
+        });
+        ProcessParams params = (ProcessParams) metadata.get(ProcessParams.class);
+        boolean generateDebugImages = false;
+        if (params == null) {
+            params = (ProcessParams) context.get(ProcessParams.class);
+            if (params == null) {
+                params = ProcessParams.loadDefaults();
+            }
+            if (params.requestedImages().isEnabled(GeneratedImageKind.DEBUG)) {
+                generateDebugImages = true;
+            }
+        }
+        var dedistorted = generateDebugImages ? new float[sourceImages.size()][height][width] : null;
+        var finalImage = assembleImage(sourceImages, weights, distorsions, width, height, tileSize, referenceImage, dedistorted);
+        var stacked = new ImageWrapper32(width, height, finalImage, metadata);
+        if (generateDebugImages) {
+            createDebugImages(new ImageWrapper32(width, height, referenceData, Map.of()), stacked, distorsions, sourceImages, tileSize, increment, dedistorted, referenceSelection);
+        }
+        LOGGER.debug("Preparation took {}ms", preparationResult.duration.toMillis());
+        LOGGER.debug("Finding displacements took {}ms", displacementResult.duration.toMillis());
+        LOGGER.debug("Interpolating models took {}ms", interpolationResult.duration.toMillis());
+        return stacked;
+    }
+
+    private void createDebugImages(ImageWrapper32 referenceImage,
+                                   ImageWrapper32 stacked,
+                                   DistorsionMap[] distorsions,
+                                   List<ImageWrapper32> images,
+                                   int tileSize,
+                                   int increment,
+                                   float[][][] dedistorted,
+                                   ReferenceSelection referenceSelection) {
+        var progress = new AtomicInteger(0);
+        var creator = new DistorsionDebugImageCreator(broadcaster, scaling, imageDraw);
+        IntStream.range(0, images.size())
+            .parallel()
+            .forEach(i -> {
+                creator.createDebugImage(referenceImage, stacked, distorsions[i], images.get(i), tileSize, increment, i, dedistorted[i], referenceSelection);
+                var pg = (double) progress.incrementAndGet() / images.size();
+                broadcaster.broadcast(ProgressEvent.of(pg, "Generating stacking debug images"));
+            });
+        broadcaster.broadcast(ProgressEvent.of(1.0, "Generating stacking debug images"));
+    }
+
+    private ImageWrapper32 computeReferenceImageAndAdjustWeights(List<ImageWrapper32> images, ReferenceSelection referenceSelection, double[] weights) {
+        return switch (referenceSelection) {
+            case FIRST -> images.getFirst();
+            case AVERAGE -> (ImageWrapper32) simpleFunctionCall.applyFunction("average", (List) images, DoubleStream::average);
+            case MEDIAN -> (ImageWrapper32) simpleFunctionCall.applyFunction("median", (List) images, AbstractImageExpressionEvaluator::median);
+            case ECCENTRICITY -> images.stream()
+                .map(img -> {
+                    var ecc = img.findMetadata(Ellipse.class).map(Ellipse::eccentricity).orElse(.99d);
+                    return new Object() {
+                        private final double eccentricity = ecc;
+                        private final ImageWrapper32 image = img;
+                    };
+                })
+                .min(Comparator.comparingDouble(a -> a.eccentricity))
+                .map(o -> o.image)
+                .orElseThrow();
+            case SHARPNESS -> IntStream.range(0, images.size())
+                .parallel()
+                .mapToObj(i -> {
+                    var img = images.get(i);
+                    var v = imageMath.estimateSharpness(img.asImage());
+                    weights[i] = v;
+                    return new Object() {
+                        private final double sharpness = v;
+                        private final ImageWrapper32 image = img;
+                    };
+                })
+                .max(Comparator.comparingDouble(a -> a.sharpness))
+                .map(o -> o.image)
+                .orElseThrow();
+        };
     }
 
     private List<ImageWrapper32> prepareForStacking(List<ImageWrapper32> images, int[] widths, int[] heights) {
@@ -168,364 +337,108 @@ public class Stacking extends AbstractFunctionImpl {
             .map(ImageWrapper32.class::cast).toList();
     }
 
-    /**
-     * Computes the weights for each tile. The weights are computed based on the sharpness, or,
-     * if a reference image is provided, on the difference between the reference image and the
-     * tile.
-     *
-     * @param images the images to stack
-     * @param tileSize the tile size
-     * @param referenceImage the reference image, if any
-     * @param sharpness the sharpness of each image
-     * @param integralImages the integral images of each image
-     * @param x the x coordinate of the tile
-     * @param y the y coordinate of the tile
-     * @param referenceIntegral the integral image of the reference image, if any
-     * @return the weights
-     */
-    private double[] prepareTileWeights(List<ImageWrapper32> images, int tileSize, ImageWrapper32 referenceImage, double[] sharpness, List<Image> integralImages, int x, int y, Image referenceIntegral) {
-        var weights = sharpness;
-        if (referenceImage != null) {
-            weights = new double[sharpness.length];
-            var refAvg = imageMath.areaAverage(referenceIntegral, x, y, tileSize, tileSize);
-            for (int i = 0; i < images.size(); i++) {
-                // The computation of the weights here is based on empirical observations
-                // and is not based on any scientific paper. It's a heuristic which seems
-                // to work well in practice, with the idea that we want to give more weight
-                // to images which are similar to the reference image, and minimize the error
-                // due to truncation of the solar disk at edges and artifacts at the borders.
-                var areaAvg = imageMath.areaAverage(integralImages.get(i), x, y, tileSize, tileSize);
-                double diff = Math.abs(areaAvg - refAvg) / (refAvg + 1e-5);
-                double w = Math.exp(-8 * diff);
-                weights[i] = w;
-            }
-        }
-        return weights;
-    }
-
-    /**
-     * The result image will be computed using overlapping tiles. This means that we have, for
-     * each pixel, multiple values which will need to be stacked. This method is responsible
-     * for creating the overlapping stack.
-     *
-     * @param tileSize the tile size
-     * @param height the height of the image
-     * @param width the width of the image
-     * @param increment the increment between two tiles
-     * @return the stack
-     */
-    private static float[][] createOverlappingStack(int tileSize, int height, int width, int increment) {
-        var result = new float[height * width][1 + tileSize / increment];
-        for (float[] stack : result) {
-            Arrays.fill(stack, -1);
-        }
-        return result;
-    }
-
-    private double[] normalizedSharpnessOf(List<ImageWrapper32> images, int width, int height) {
-        double[] sharpness = new double[images.size()];
-        double totalSharpness = 0;
+    private void findDisplacement(List<ImageWrapper32> images,
+                                  int tileSize,
+                                  int x,
+                                  int width,
+                                  int y,
+                                  int height,
+                                  float[][] referenceData,
+                                  DistorsionMap[] distorsions,
+                                  float signal) {
         for (int i = 0; i < images.size(); i++) {
             var image = images.get(i);
-            double progress = (double) i / images.size();
-            broadcaster.broadcast(ProgressEvent.of(progress, message("estimating.sharpness")));
-            var v = imageMath.estimateSharpness(new Image(width, height, image.data()));
-            sharpness[i] = v;
-            totalSharpness += v;
-        }
-        if (totalSharpness > 0) {
-            for (int i = 0; i < sharpness.length; i++) {
-                sharpness[i] = sharpness[i] / totalSharpness;
-            }
-        }
-        broadcaster.broadcast(ProgressEvent.of(1, message("estimating.sharpness")));
-        return sharpness;
-    }
-
-    private void stackSingleTile(List<ImageWrapper32> images,
-                                 int tileSize,
-                                 int x,
-                                 int width,
-                                 int y,
-                                 int height,
-                                 int imageCount,
-                                 float[][] referenceData,
-                                 float[][] result,
-                                 double[] weights,
-                                 boolean circle) {
-        var tileStack = createStackForTile(tileSize, imageCount);
-        for (var image : images) {
-            var maxLookupShift = 2 * tileSize / 3;
-            var data = image.data();
-            var imageIndex = images.indexOf(image);
-            findBestMatch(referenceData, data, width, height, tileSize, x, y, maxLookupShift).ifPresent(match -> {
-                var bestX = match.x();
-                var bestY = match.y();
-                pushTileStack(tileSize, width, height, bestX, bestY, tileStack, imageIndex, data);
-            });
-
-        }
-
-        writeOutputValue(tileSize, x, y, width, height, result, tileStack, weights, circle);
-    }
-
-    /**
-     * This method is a local search algorithm which tries to find the best match
-     * for a given tile. It will try to find the best match by computing an error
-     * between the reference tile and the tile of the image to stack. Because a
-     * full search is too expensive, we're going to try to find the best match
-     * by doing a local search around the current position.
-     *
-     * @param referenceData the reference tile data
-     * @param data the tile we're trying to match
-     * @param width the width of the image
-     * @param height the height of the image
-     * @param tileSize the tile size
-     * @param x the x coordinate of the reference tile
-     * @param y the y coordinate of the reference tile
-     * @param maxLookupShift the maximum shift we're going to try for alignment
-     * @return the best match
-     */
-    static Optional<ScoredMatch> findBestMatch(float[][] referenceData,
-                                               float[][] data,
-                                               int width,
-                                               int height,
-                                               int tileSize,
-                                               int x,
-                                               int y,
-                                               int maxLookupShift) {
-        record IntermediateResult(
-            double error,
-            double distance,
-            int x,
-            int y) implements Comparable<IntermediateResult> {
-
-            private static final Comparator<IntermediateResult> COMPARATOR =
-                Comparator.comparingDouble(IntermediateResult::error);
-
-            @Override
-            public int compareTo(IntermediateResult o) {
-                return COMPARATOR
-                    .compare(this, o);
-            }
-        }
-
-        int minX = Math.max(0, x - maxLookupShift);
-        int minY = Math.max(0, y - maxLookupShift);
-        int maxX = Math.min(width, x + maxLookupShift);
-        int maxY = Math.min(height, y + maxLookupShift);
-
-        // initialize search position with the heuristic values
-        var curX = x;
-        var curY = y;
-        var bestError = Double.MAX_VALUE;
-        boolean update = true;
-        // We memoize the errors for the points we've already computed
-        var errors = new double[2 * maxLookupShift][2 * maxLookupShift];
-        for (double[] error : errors) {
-            Arrays.fill(error, -1);
-        }
-        int localSearch = Math.min(maxLookupShift, 12);
-        while (update) {
-            // compute the errors for the points around the current position (if within bounds)
-            var tests = new ArrayList<IntPair>();
-            for (int dy = -localSearch; dy <= localSearch; dy++) {
-                var yy = curY + dy;
-                if (yy < minY || yy >= maxY) {
-                    continue;
-                }
-                for (int dx = -localSearch; dx <= localSearch; dx++) {
-                    var xx = curX + dx;
-                    if (xx < minX || xx >= maxX || errors[yy - y + maxLookupShift][xx - x + maxLookupShift] != -1) {
-                        continue;
-                    }
-                    var dist = Math.sqrt(dx * dx + dy * dy);
-                    if (dist <= localSearch) {
-                        tests.add(new IntPair(xx, yy));
-                    }
-                }
-            }
-
-            var curError = new double[]{bestError};
-            var best = tests.stream()
-                .parallel()
-                .<IntermediateResult>mapMulti((coords, consumer) -> {
-                    var xx = coords.a();
-                    var yy = coords.b();
-                    var e = computeError(tileSize, width, height, x, y, referenceData, xx, yy, data);
-                    errors[yy - y + maxLookupShift][xx - x + maxLookupShift] = e;
-                    if (e <= curError[0]) {
-                        // We don't care that another thread can change the value here
-                        // in between, since we're going to sort and take the best anyway
-                        curError[0] = e;
-                        consumer.accept(new IntermediateResult(e, Math.hypot(xx - x, yy - y), xx, yy));
-                    }
-                })
-                .min(Comparator.comparing(IntermediateResult::error).thenComparing(IntermediateResult::distance));
-            update = best.isPresent();
-            if (update) {
-                var result = best.get();
-                curX = result.x();
-                curY = result.y();
-                bestError = result.error();
-                if (bestError == 0) {
-                    // Happy path: we found a perfect match, no need to continue
-                    break;
-                }
-            }
-        }
-        if (bestError == Double.MAX_VALUE) {
-            return Optional.empty();
-        }
-        return Optional.of(new ScoredMatch(curX, curY, bestError));
-    }
-
-    private void pushTileStack(int tileSize, int width, int height, int bestX, int bestY, double[][][] tileStack, int imageIndex, float[][] bestTileData) {
-        for (int dy = 0; dy < tileSize; dy++) {
-            for (int dx = 0; dx < tileSize; dx++) {
-                var yy = bestY + dy;
-                var xx = bestX + dx;
-                if (yy < 0 || yy >= height || xx < 0 || xx >= width) {
-                    continue;
-                }
-                var v = bestTileData[yy][xx];
-                tileStack[dy][dx][imageIndex] = v;
-            }
+            var distorsion = distorsions[i];
+            Dedistort.findDisplacement(referenceData, image, width, height, x, y, tileSize, signal, distorsion);
         }
     }
 
-    private static void writeOutputValue(int tileSize, int x, int y, int width, int height, float[][] result, double[][][] tileStack, double[] weights, boolean circle) {
-        var c = tileSize / 2;
-        for (int dy = 0; dy < tileSize; dy++) {
-            for (int dx = 0; dx < tileSize; dx++) {
-                var yy = y + dy;
-                var xx = x + dx;
-                if (yy < 0 || yy >= height || xx < 0 || xx >= width) {
-                    continue;
-                }
-                // only consider pixels within radius of the center
-                if (circle && Math.sqrt((dx - c) * (dx - c) + (dy - c) * (dy - c)) > c) {
-                    continue;
-                }
-                var values = tileStack[dy][dx];
-                var pixelIndex = yy * width + xx;
-                float[] stack = result[pixelIndex];
-                float value;
-                if (weights != null) {
-                    value = (float) weightedAverage(values, weights);
-                } else {
-                    value = (float) Arrays.stream(values).filter(v -> v > 0).average().orElse(-1);
-                }
-                for (int i = 0; i < stack.length; i++) {
-                    if (stack[i] == -1) {
-                        stack[i] = value;
-                        break;
-                    }
-                }
-            }
-        }
+    private static double heuristicWeight(double ref, double val) {
+        return Math.exp(-8 * Math.abs(ref - val) / (Math.max(ref, val) + 1e-5));
     }
 
-    /**
-     * Because we can either use the median or the average of the stack, we need
-     * a data structure which can handle both. The median requires all values to
-     * be sorted, so we use 3-dimensional arrays to store the stack of values.
-     *
-     * @param tileSize the size of the tile
-     * @param imageCount the maximum number of values in the stack
-     * @return the stack
-     */
-    private static double[][][] createStackForTile(int tileSize, int imageCount) {
-        var partial = new double[tileSize][tileSize][imageCount];
-        for (int i = 0; i < tileSize; i++) {
-            for (int j = 0; j < tileSize; j++) {
-                Arrays.fill(partial[i][j], -1f);
-            }
-        }
-        return partial;
+    private static double computeTileWeight(ImageMath imageMath, Image referenceIntegral, Image integralImage, int x, int y, int tileSize) {
+        // The computation of the weights here is based on empirical observations
+        // and is not based on any scientific paper. It's a heuristic which seems
+        // to work well in practice, with the idea that we want to give more weight
+        // to images which are similar to the reference image, and minimize the error
+        // due to truncation of the solar disk at edges and artifacts at the borders.
+        var offset = tileSize / 2;
+        var refAvg = imageMath.areaAverage(referenceIntegral, Math.max(0, x - offset), Math.max(0, y - offset), tileSize, tileSize);
+        var areaAvg = imageMath.areaAverage(integralImage, Math.max(0, x - offset), Math.max(0, y - offset), tileSize, tileSize);
+        return heuristicWeight(refAvg, areaAvg);
     }
 
-    static double computeError(int tileSize,
-                               int width, int height,
-                               int refX, int refY,
-                               float[][] referenceData,
-                               int tileX, int tileY,
-                               float[][] data) {
-        var error = 0d;
-        int count = 0;
-        var minDx = Math.max(Math.max(0, -refX), Math.max(0, -tileX));
-        var minDy = Math.max(Math.max(0, -refY), Math.max(0, -tileY));
-        var maxDx = Math.min(width - refX - 1, width - tileX - 1);
-        var maxDy = Math.min(height - refY - 1, height - tileY - 1);
-        for (int dx = minDx; dx < Math.min(maxDx, tileSize); dx++) {
-            var xx = refX + dx;
-            var tileXX = tileX + dx;
-            for (int dy = minDy; dy < Math.min(maxDy, tileSize); dy++) {
-                var yy = refY + dy;
-                var tileYY = tileY + dy;
-                var ref = referenceData[yy][xx];
-                var img = data[tileYY][tileXX];
-                var e = (ref - img);
-                error += e * e;
-                count++;
-            }
-        }
-        if (count == 0) {
-            return Double.MAX_VALUE;
-        }
-        return Math.sqrt(error / count);
-    }
-
-
-    private static double weightedAverage(double[] values, double[] weights) {
-        if (values.length == weights.length) {
-            var valueSum = 0d;
-            var weightSum = 0d;
-            for (int i = 0; i < values.length; i++) {
-                var value = values[i];
-                if (value >= 0) {
-                    var weight = weights[i];
-                    valueSum += value * weight;
-                    weightSum += weight;
-                }
-            }
-            if (weightSum > 0) {
-                return valueSum / weightSum;
-            } else {
-                return 0;
-            }
-        } else {
-            throw new IllegalStateException("Values and weights must have the same length");
-        }
-    }
-
-    private static float[][] assembleImage(float[][] stacks, int width, int height) {
+    private float[][] assembleImage(List<ImageWrapper32> images,
+                                    double[] weights,
+                                    DistorsionMap[] distorsions,
+                                    int width,
+                                    int height,
+                                    int tileSize,
+                                    ImageWrapper32 referenceImage,
+                                    float[][][] dedistorted) {
+        boolean usePixelWeight = weights[0] == -1;
+        var integralImages = usePixelWeight ? images.stream().map(ImageWrapper32::asImage).map(imageMath::integralImage).toList() : null;
+        var referenceIntegral = usePixelWeight ? imageMath.integralImage(referenceImage.asImage()) : null;
         var result = new float[height][width];
-        for (int y = 0; y < height; y++) {
-            for (int x = 0; x < width; x++) {
-                int pixelIndex = y * width + x;
-                float[] stack = stacks[pixelIndex];
-                float sum = 0;
-                float count = 0;
-                for (float v : stack) {
-                    if (v >= 0) {
-                        sum += v;
-                        count++;
+        var currentY = new AtomicInteger();
+        IntStream.range(0, height)
+            .parallel()
+            .forEach(y -> {
+                var progress = currentY.incrementAndGet() / (double) height;
+                broadcaster.broadcast(ProgressEvent.of(progress, STACKING_MESSAGE));
+                var line = result[y];
+                for (int x = 0; x < width; x++) {
+                    double sum = 0;
+                    double count = 0;
+                    for (int i = 0; i < images.size(); i++) {
+                        var w = usePixelWeight ? computeTileWeight(imageMath, referenceIntegral, integralImages.get(i), x, y, tileSize) : weights[i];
+                        var image = images.get(i).data();
+                        var displacement = distorsions[i].findDistorsion(x, y);
+                        var xx = x + displacement.dx();
+                        var yy = y + displacement.dy();
+                        if (xx >= 0 && xx < width && yy >= 0 && yy < height) {
+                            var interpolatedValue = Dedistort.bilinearInterpolation(image, xx, yy, width, height);
+                            var pixelDiff = heuristicWeight(image[y][x], interpolatedValue);
+                            if (usePixelWeight) {
+                                w = Math.min(w, pixelDiff);
+                            }
+                            sum += w * interpolatedValue;
+                            count += w;
+                            if (dedistorted != null) {
+                                dedistorted[i][y][x] = interpolatedValue;
+                            }
+                        }
+                    }
+
+                    if (count > 0) {
+                        line[x] = (float) (sum / count);
                     }
                 }
-                if (sum > 0) {
-                    result[y][x] = sum / count;
-                }
-            }
-        }
+            });
+        broadcaster.broadcast(ProgressEvent.of(1.0, STACKING_MESSAGE));
         return result;
     }
 
-    record ScoredMatch(
-        int x,
-        int y,
-        double score
-    ) {
-
+    private static <T> TimedResult<T> measure(Supplier<T> generator) {
+        long start = System.nanoTime();
+        var result = generator.get();
+        long end = System.nanoTime();
+        return new TimedResult<>(Duration.ofNanos(end - start), result);
     }
+
+    private record TimedResult<T>(Duration duration, T result) {
+    }
+
+    public record Tiles(float[][] referenceTile, float[][] dataTile, boolean isRelevant) {
+    }
+
+    public enum ReferenceSelection {
+        FIRST,
+        AVERAGE,
+        MEDIAN,
+        ECCENTRICITY,
+        SHARPNESS
+    }
+
 }

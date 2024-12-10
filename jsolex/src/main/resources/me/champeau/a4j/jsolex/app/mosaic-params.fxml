@@ -50,8 +50,11 @@
                         <VBox prefHeight="836.0" prefWidth="398.0" spacing="8.0">
                             <Label text="%tile.size" fx:id="stackTileSizeLabel"/>
                             <Slider fx:id="stackTileSize" blockIncrement="8" majorTickUnit="64.0" max="256.0" min="16.0" minorTickCount="8" showTickLabels="true" showTickMarks="true" value="32.0"/>
-                            <Label fx:id="stackTileOverlapLabel" text="%tile.overlap"/>
-                            <Slider fx:id="stackOverlap" blockIncrement="0.1" majorTickUnit="0.1" max="1.0" minorTickCount="1" showTickLabels="true" showTickMarks="true" value="0.3"/>
+                            <HBox alignment="CENTER_LEFT" spacing="4">
+                                <Label text="%sampling"/>
+                                <TextField fx:id="stackSampling" prefWidth="64"/>
+                                <Label fx:id="samplingLabel" text=""/>
+                            </HBox>
                             <CheckBox fx:id="stackForceRecomputeEllipse" mnemonicParsing="false" text="%force.recompute.ellipses"/>
                             <CheckBox fx:id="stackFixGeometry" mnemonicParsing="false" text="%fix.geometry"/>
                             <Label text="%postprocessing.script"/>
@@ -80,9 +83,11 @@
                             <CheckBox fx:id="createMosaic" text="%create.mosaic"/>
                             <Label text="%tile.size" fx:id="mosaicTileSizeLabel"/>
                             <Slider fx:id="mosaicTileSize" blockIncrement="8" majorTickUnit="64.0" max="256.0" min="16.0" minorTickCount="8" showTickLabels="true" showTickMarks="true" value="64.0"/>
-                            <Label text="%tile.overlap" fx:id="mosaicTileOverlapLabel"/>
-                            <Slider fx:id="mosaicOverlap" snapToTicks="true" blockIncrement="0.1" majorTickUnit="0.1" max="1.0" minorTickCount="1" showTickLabels="true" showTickMarks="true"
-                                    value="0.3"/>
+                            <HBox alignment="CENTER_LEFT" spacing="4">
+                                <Label text="%sampling"/>
+                                <TextField fx:id="mosaicSampling"/>
+                                <Label fx:id="mosaicTileSamplingLabel"/>
+                            </HBox>
                             <Label text="%postprocessing.script"/>
                             <HBox spacing="8">
                                 <TextField HBox.hgrow="ALWAYS" fx:id="mosaicPostProcessingScript" disable="true"/>

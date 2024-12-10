@@ -25,9 +25,11 @@ import me.champeau.a4j.jsolex.processing.expr.ImageMathScriptResult;
 import me.champeau.a4j.jsolex.processing.expr.impl.Crop;
 import me.champeau.a4j.jsolex.processing.expr.impl.EllipseFit;
 import me.champeau.a4j.jsolex.processing.expr.impl.GeometryCorrection;
+import me.champeau.a4j.jsolex.processing.expr.impl.ImageDraw;
 import me.champeau.a4j.jsolex.processing.expr.impl.Loader;
 import me.champeau.a4j.jsolex.processing.expr.impl.MosaicComposition;
 import me.champeau.a4j.jsolex.processing.expr.impl.Scaling;
+import me.champeau.a4j.jsolex.processing.expr.impl.SimpleFunctionCall;
 import me.champeau.a4j.jsolex.processing.expr.impl.Stacking;
 import me.champeau.a4j.jsolex.processing.file.FileNamingStrategy;
 import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
@@ -67,7 +69,7 @@ public class StackingWorkflow {
         this.ellipseFit = new EllipseFit(context, broadcaster);
         this.geometryCorrector = new GeometryCorrection(context, broadcaster, ellipseFit);
         this.scaling = new Scaling(context, broadcaster, crop);
-        this.stacking = new Stacking(context, scaling, crop, broadcaster);
+        this.stacking = new Stacking(context, scaling, crop, new SimpleFunctionCall(context, broadcaster), new ImageDraw(context, broadcaster), broadcaster);
         this.mosaicComposition = new MosaicComposition(context, broadcaster, stacking, ellipseFit, scaling);
     }
 
@@ -137,7 +139,7 @@ public class StackingWorkflow {
                 .map(ImageWrapper32.class::cast)
                 .toList();
             var fileName = namingStrategy.render(0, null, Constants.TYPE_PROCESSED, "mosaic", "standalone");
-            var mosaic = mosaicComposition.mosaic(croppedImages, parameters.mosaicTileSize(), parameters.mosaicOverlap());
+            var mosaic = mosaicComposition.mosaic(croppedImages, parameters.mosaicTileSize(), parameters.mosaicSampling());
             broadcaster.broadcast(new ImageGeneratedEvent(
                 new GeneratedImage(
                     GeneratedImageKind.COMPOSITION,
@@ -186,21 +188,48 @@ public class StackingWorkflow {
                 .map(geometryCorrector::fixGeometry)
                 .toList();
         }
-        return stacking.stack(images, parameters.stackingTileSize(), parameters.stackingOverlap());
+        return stacking.stack(images, parameters.stackingTileSize(), parameters.stackingSampling(), Stacking.ReferenceSelection.SHARPNESS);
     }
 
     public record Parameters(
         int stackingTileSize,
-        float stackingOverlap,
+        float stackingSampling,
         boolean forceEllipseFit,
         boolean fixGeometry,
         File stackPostProcessingScriptFile,
         boolean createMosaic,
         int mosaicTileSize,
-        float mosaicOverlap,
+        float mosaicSampling,
         File mosaicPostProcessingScriptFile
         ) {
 
+        public Parameters withStackingSampling(float defaultSampling) {
+            return new Parameters(
+                stackingTileSize,
+                defaultSampling,
+                forceEllipseFit,
+                fixGeometry,
+                stackPostProcessingScriptFile,
+                createMosaic,
+                mosaicTileSize,
+                mosaicSampling,
+                mosaicPostProcessingScriptFile
+            );
+        }
+
+        public Parameters withMosaicSampling(float defaultSampling) {
+            return new Parameters(
+                stackingTileSize,
+                stackingSampling,
+                forceEllipseFit,
+                fixGeometry,
+                stackPostProcessingScriptFile,
+                createMosaic,
+                mosaicTileSize,
+                defaultSampling,
+                mosaicPostProcessingScriptFile
+            );
+        }
     }
 
     public record Panel(

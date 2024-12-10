@@ -351,9 +351,10 @@ Decorative functions
 Stacking and mosaic functions:
 - `draw_earth` draws the Earth on the image, scaled accordingly to the solar disk. This function takes 3 parameters: the image and the coordinates (x,y) where to draw the Earth. For example: `draw_earth(img(0), 100, 100)`.
 
-- `stack` allows stacking images together. It will align images and compute the median value of each pixel. It accepts 1 to 3 parameters. The first one is the list of images to stack, for example: `stack(load_many("*.fits"))`. The 2d parameter is the tile size and the 3rd one is the overlap factor (between 0 and 1).
-- `mosaic` allows stitching images together in order to create a mosaic. It accepts 1 to 3 parameters. The first one is the list of images to stack, for example: `mosaic(load_many("*.fits"))`. The 2d parameter is the tile size and the 3rd one is the overlap factor (between 0 and 1).
-
+- `stack` allows stacking images together. It will align images and compute the median value of each pixel. It accepts 1 to 4 parameters. The first one is the list of images to stack, for example: `stack(load_many("\*.fits"))`. The 2d parameter is the tile size. The 3rd one is the sampling factor (>0). For example, if the sampling factor is 0.5 and the tile size is 32 pixels, then a sample will be picked every 16 pixels. The 4th parameter is the reference selection method, which is one of `first` (first image of the list), `sharpness` (the sharpest image), `average` (computes the average of all images), `median` (computes the median of all images) or `eccentricity` (chooses the image which is closest to a circle). For example: `stack(load_many("\*.fits"), 32, 0.5, "sharpness")`. The default reference selection method is `sharpness`.
+- `stack_ref` takes 2 parameters: a list of images and a reference selection method. It then returns an image which can be used as a reference for stacking. The selection methods are the same as for `stack`. For example: `stack_ref(load_many("\*.fits"), "sharpness")`.
+- `mosaic` allows stitching images together in order to create a mosaic. It accepts 1 to 3 parameters. The first one is the list of images to stack, for example: `mosaic(load_many("*.fits"))`. The 2d parameter is the tile size and the 3rd one is the sampling factor (>0).
+- `dedistort` allows to correct the distortion of an image. It has 2 distinct modes of operation. In the first mode, you provide it with a reference image and an image to correct, as well as 3 optional parameters: the tile size, the sampling and the sky background value. For example: `dedistort(ref, img(0), 32, 0.5, 0)`. The returned image will be corrected as much as possible to match the reference image, making it for example usable for stacking. In the second mode, you provide it with a list of images to correct (1st parameter) and a list of already corrected images (2nd parameter), in which case the correction parameters of each image are taken using the image at the same index in the list of already corrected images. This can be useful for example when you calculate the distortion in the middle of the ray (shift 0) and you want to apply the same corrections to images with different shifts. For example: `dedistort(images, corrected)`.
 - `continuum` est une fonction sans paramètre qui détermine automatiquement une image de type "continuum" qui peut par exemple être soustraite d'une autre image. Cette fonction diffère de l'image continuum classique au sens où il ne s'agit pas d'une image unique calculée à la différence de pixels fixe de 15 pixels, mais d'une image calculée à partir de la médiane d'un ensemble d'images. Utilisation: `continuum()`.
 
 Analysis functions:
@@ -660,8 +661,9 @@ The first one contains 3 images which will be stacked to make the north panel, a
 Stacking parameters are visible on the right.
 It is not recommended to change them, unless you know what you're doing.
 The following options are available:
+
 - the tile size allows to cut the image in tiles for stacking. The smaller the tile size, the more precise the stacking will be, but the longer it will take and the less likely it will be able to compensate for large shifts between images.
-- the overlap factor allows improving the quality of images by creating a sliding window between tiles. The higher the overlap factor, the more precise the stacking will be, but the longer it will take.
+- the sampling factor determines where samples will be picked when computing the distorsion model. A sampling factor of 0.5 combined with a tile size of 32 means that a sample will be picked every 16 pixels.
 - Forcing the computation of ellipses can be useful if the images you import come from another software or if the ellipses were badly detected. In that case, we will recompute them before stacking.
 - Geometry correction should be applied on images which weren't corrected before (e.g raw images).
 
