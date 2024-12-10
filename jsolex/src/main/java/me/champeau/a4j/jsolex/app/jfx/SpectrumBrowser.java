@@ -105,6 +105,7 @@ public class SpectrumBrowser extends BorderPane {
     private final BooleanProperty colorizeSpectrum = new SimpleBooleanProperty();
     private final CheckBox adjustDispersion = new CheckBox(I18N.string(JSolEx.class, "spectrum-browser", "adjust.dispersion"));
     private final AtomicBoolean animating = new AtomicBoolean(false);
+    private final CheckBox flipSpectrumCheckBox = new CheckBox(I18N.string(JSolEx.class, "spectrum-browser", "flip.spectrum"));
 
     private SpectroHeliograph selectedShg;
 
@@ -188,6 +189,9 @@ public class SpectrumBrowser extends BorderPane {
                 userDefinedLines.add(new IdentifiedLine(wavelength, null, -1));
                 drawSpectrum();
             }
+        });
+        flipSpectrumCheckBox.selectedProperty().addListener((observable, oldValue, newValue) -> {
+            drawSpectrum();
         });
         setTop(createTopBar());
         setBottom(createBottomBar());
@@ -291,11 +295,18 @@ public class SpectrumBrowser extends BorderPane {
         line2.setAlignment(Pos.CENTER);
         line2.setSpacing(8);
         line2.setPadding(new Insets(4, 4, 4, 4));
-        line1.getChildren().addAll(gtLabel, textField, unit, searchButton, choiceBox, colorize);
+        line1.getChildren().addAll(gtLabel, textField, unit, searchButton, choiceBox, colorize, flipSpectrumCheckBox);
         line2.getChildren().addAll(instrumentLabel, shg, pixelSizeLabel, pixelSizeValue, adjustDispersion, zoomIn, zoomOut, help, loadImage, hide);
         vbox.getChildren().addAll(line1, line2);
         return vbox;
     }
+
+    private double calculatePosition(double originalPosition, double spectrumHeight) {
+        return flipSpectrumCheckBox.isSelected()
+            ? spectrumHeight - originalPosition
+            : originalPosition;
+    }
+
 
     private void showIdentificationFailure() {
         Platform.runLater(() -> {
@@ -349,13 +360,15 @@ public class SpectrumBrowser extends BorderPane {
                 int finalMinX = minX;
                 int finalMaxX = maxX;
                 double[] lineAverages = new double[height];
+                var flipped = flipSpectrumCheckBox.isSelected();
                 for (int y = 0; y < height; y++) {
                     double sum = 0;
                     for (int x = minX; x < maxX; x++) {
                         var v = corrected[y][x] / Constants.MAX_PIXEL_VALUE;
                         sum += v;
                     }
-                    lineAverages[y] = sum / range;
+                    var yy = flipped ? height - y - 1 : y;
+                    lineAverages[yy] = sum / range;
                 }
                 var localMinima = identifyLocalMinima(lineAverages);
 
@@ -544,9 +557,10 @@ public class SpectrumBrowser extends BorderPane {
 
     private void drawSpectrum() {
         if (adjustDispersion.isSelected() && !animating.get()) {
-            // for performance reasons we don't recompute dispersion during animations
+            // For performance reasons, we don't recompute dispersion during animations
             adjustZoomToOptics();
         }
+
         var gc = canvas.getGraphicsContext2D();
         var height = canvas.getHeight();
         gc.clearRect(0, 0, canvas.getWidth(), height);
@@ -554,25 +568,33 @@ public class SpectrumBrowser extends BorderPane {
         var spectrumWidth = canvas.getWidth() * WIDTH_FACTOR;
         var range = currentMaxWavelength - currentMinWavelength;
         var step = range / height;
+
+        // Draw spectrum bounds
         gc.setStroke(Color.BLACK);
         gc.setLineWidth(2);
         gc.strokeLine(SPECTRUM_OFFSET, 0, SPECTRUM_OFFSET, height);
         gc.strokeLine(SPECTRUM_OFFSET + spectrumWidth, 0, SPECTRUM_OFFSET + spectrumWidth, height);
 
         for (int i = 0; i < height; i++) {
+            // Calculate wavelength and intensity
             var wavelength = currentMinWavelength + i * step;
             var intensity = ReferenceIntensities.intensityAt(wavelength);
-
             var grayscale = 0.9 * (intensity / 10000.0);
+
+            // Determine drawing position, flipped if necessary
+            var position = calculatePosition(i, height);
+
+            // Choose color
             var color = colorizeSpectrum.get() ? createColor(grayscale, wavelength) : Color.gray(grayscale);
+
+            // Draw spectrum line
             gc.setStroke(color);
             gc.setLineWidth(1);
-            gc.strokeLine(SPECTRUM_OFFSET, i, SPECTRUM_OFFSET + spectrumWidth, i);
-
+            gc.strokeLine(SPECTRUM_OFFSET, position, SPECTRUM_OFFSET + spectrumWidth, position);
         }
 
+        // Draw legend and identified lines
         drawLegend(step, gc);
-
         drawIdentifiedLines(gc, spectrumWidth, step, IDENTIFIED_LINES, Color.RED);
         drawIdentifiedLines(gc, spectrumWidth, step, userDefinedLines.toArray(new IdentifiedLine[0]), Color.BLUE);
     }
@@ -587,32 +609,43 @@ public class SpectrumBrowser extends BorderPane {
     }
 
     private void drawLegend(double step, GraphicsContext gc) {
+        var spectrumHeight = gc.getCanvas().getHeight();
         for (double wl = Math.floor(currentMinWavelength / 50) * 50; wl <= currentMaxWavelength; wl += 50) {
-            var position = (wl - currentMinWavelength) / step;
+            var originalPosition = (wl - currentMinWavelength) / step;
+            var position = calculatePosition(originalPosition, spectrumHeight);
             gc.setFill(Color.BLACK);
             gc.fillText(String.format(Locale.US, "%.0f", wl), 10, position + 5);
         }
     }
 
     private void drawIdentifiedLines(GraphicsContext gc, double spectrumWidth, double step, IdentifiedLine[] lines, Color color) {
-        double previousY = -1;
+        double previousPosition = -1;
+        var height = canvas.getHeight();
         var sortedByWavelen = Arrays.stream(lines).sorted(Comparator.comparingDouble(IdentifiedLine::wavelength)).toList();
+
         for (var identifiedLine : sortedByWavelen) {
             var identifiedWavelength = identifiedLine.wavelength();
             if (identifiedWavelength >= currentMinWavelength && identifiedWavelength <= currentMaxWavelength) {
-                var position1 = (identifiedWavelength - currentMinWavelength) / step;
-                var position2 = position1;
-                if (position1 - previousY < 18) {
-                    position2 = previousY + 18;
+                // Calculate position and handle flipping
+                var position = calculatePosition((identifiedWavelength - currentMinWavelength) / step, height);
+
+                // Ensure labels are spaced out properly
+                if (Math.abs(position - previousPosition) < 18) {
+                    position = flipSpectrumCheckBox.isSelected()
+                        ? previousPosition - 18
+                        : previousPosition + 18;
                 }
-                previousY = position2;
+
+                previousPosition = position;
+
+                // Draw line and label
                 gc.setStroke(color);
                 gc.setLineDashes(5);
                 gc.setLineCap(StrokeLineCap.BUTT);
-                gc.strokeLine(SPECTRUM_OFFSET + spectrumWidth + 5, position1, SPECTRUM_OFFSET + spectrumWidth + 50, position2);
+                gc.strokeLine(SPECTRUM_OFFSET + spectrumWidth + 5, position, SPECTRUM_OFFSET + spectrumWidth + 50, position);
                 gc.setLineDashes(0);
                 gc.setFill(color);
-                gc.fillText(identifiedLine.toString(), SPECTRUM_OFFSET + spectrumWidth + 55, position2 + 5);
+                gc.fillText(identifiedLine.toString(), SPECTRUM_OFFSET + spectrumWidth + 55, position + 5);
             }
         }
     }
