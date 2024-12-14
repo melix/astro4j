@@ -125,6 +125,7 @@ public class SolexVideoProcessor implements Broadcaster {
     private static final Logger LOGGER = LoggerFactory.getLogger(SolexVideoProcessor.class);
     public static final int MAX_PARALLEL_READS = 16;
     public static final int MAX_INMEMORY_BUFFERS = 64;
+    public static final int BATCH_LINES = 128;
 
     private final Set<ProcessingEventListener> progressEventListeners = new HashSet<>();
 
@@ -1059,31 +1060,36 @@ public class SolexVideoProcessor implements Broadcaster {
 
     private void processSingleFrame(boolean internal, int width, int height, float[][] outputBuffer, int y, float[][] source, DoubleUnaryOperator p, double pixelShift, int totalLines) {
         double[] line = new double[width];
-        int lastY = 0;
-        for (int x = 0; x < width; x++) {
-            // To reconstruct the image, we use the polynom to find which pixel to use
-            double yd = p.applyAsDouble(x) + pixelShift;
-            int yi = (int) yd;
-            if (yi < 0 || yi >= height) {
-                yi = lastY;
-                yd = lastY;
-            }
-            double frac = yd - yi;
-            float value;
-            if (frac > 0) {
-                float lo = source[yi][x];
-                float hi = yi < height - 1 ? source[(yi + 1)][x] : source[yi][x];
-                value = (float) (lo + frac * (hi - lo));
-            } else {
-                value = source[yi][x];
-            }
-            if (value < 0 || value > 65535) {
-                throw new IllegalArgumentException("Unexpected value computed " + value + " which should be in the [0..65535] range");
-            }
-            outputBuffer[y][x] = value;
-            line[x] = value;
-            lastY = yi;
-        }
+        IntStream.iterate(0, x -> x < width, x -> x + BATCH_LINES)
+            .parallel()
+            .forEach(batchStart -> {
+                int batchEnd = Math.min(batchStart + BATCH_LINES, width);
+                for (int x = batchStart; x < batchEnd; x++) {
+                    double value = 0;
+                    for (double k = -.5; k <= .5; k += .5) {
+                        // Reconstruct the image using the polynomial to find which pixel to use
+                        double yd = p.applyAsDouble(x) + pixelShift + k;
+
+                        // Compute indices for interpolation
+                        int y1 = (int) Math.floor(yd);
+                        int y2 = (int) Math.ceil(yd);
+
+                        double frac = yd - y1;
+
+                        if (y1 >= 0 && y1 < height && y2 >= 0 && y2 < height) {
+                            value += (1 - frac) * source[y1][x] + frac * source[y2][x];
+                        } else if (y1 >= 0 && y1 < height) {
+                            value += source[y1][x];
+                        } else if (y2 >= 0 && y2 < height) {
+                            value += source[y2][x];
+                        }
+                    }
+                    value /= 3;
+                    outputBuffer[y][x] = (float) value;
+                    line[x] = (float) value;
+                }
+        });
+
         if (!internal) {
             var copy = ImageWrapper.copyData(source);
             var imageLine = new ImageLine(pixelShift,
