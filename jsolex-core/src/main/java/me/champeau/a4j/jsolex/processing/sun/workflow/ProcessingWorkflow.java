@@ -338,9 +338,6 @@ public class ProcessingWorkflow {
         switch (contrastEnhancement) {
             case AUTOSTRETCH -> {
                 var autohistogramStrategy = new AutohistogramStrategy(autoStretchParams.gamma());
-                if (System.getProperty("jsolex.debug.autohistogram.masking") != null) {
-                    autohistogramStrategy.setBroadcaster(broadcaster);
-                }
                 autohistogramStrategy.stretch(stretched);
                 TransformationHistory.recordTransform(stretched, "AutoStretch (gamma: " + autoStretchParams.gamma() + ")");
             }

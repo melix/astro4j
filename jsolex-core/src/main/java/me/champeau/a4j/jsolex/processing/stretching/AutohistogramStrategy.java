@@ -15,9 +15,7 @@
  */
 package me.champeau.a4j.jsolex.processing.stretching;
 
-import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
 import me.champeau.a4j.jsolex.processing.sun.tasks.ImageAnalysis;
-import me.champeau.a4j.jsolex.processing.util.Constants;
 import me.champeau.a4j.jsolex.processing.util.Histogram;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 import me.champeau.a4j.math.regression.Ellipse;
@@ -25,14 +23,17 @@ import me.champeau.a4j.math.regression.Ellipse;
 import java.util.ArrayList;
 import java.util.List;
 
-import static java.lang.Math.tanh;
+import static java.lang.Math.clamp;
+import static java.lang.Math.log;
+import static java.lang.Math.log1p;
+import static java.lang.Math.pow;
+import static java.lang.Math.sqrt;
+import static me.champeau.a4j.jsolex.processing.util.Constants.MAX_PIXEL_VALUE;
 
 public final class AutohistogramStrategy implements StretchingStrategy {
     private static final int HISTOGRAM_BINS = 256;
     private static final double TARGET_PEAK = 0.4;
-    private static final double LIMB_MARGIN = 1.1;
-    private static final double REDUCED_AMPLIFICATION_LIMIT = 1.3;
-    private static final float ASINH_FACTOR = 2.5f;
+    private static final double LOG_NORM = log(2);
 
     public static final double DEFAULT_AMPLIFICATION_THRESHOLD = 0.97;
     public static final double DEFAULT_GAMMA = 1.5;
@@ -40,8 +41,6 @@ public final class AutohistogramStrategy implements StretchingStrategy {
 
     private final double gamma;
     private final double amplificationThreshold;
-
-    private Broadcaster broadcaster;
 
     public AutohistogramStrategy(double gamma) {
         this(gamma, DEFAULT_AMPLIFICATION_THRESHOLD);
@@ -56,10 +55,6 @@ public final class AutohistogramStrategy implements StretchingStrategy {
         }
         this.amplificationThreshold = amplificationThreshold;
         this.gamma = gamma;
-    }
-
-    public void setBroadcaster(Broadcaster broadcaster) {
-        this.broadcaster = broadcaster;
     }
 
     /**
@@ -96,19 +91,20 @@ public final class AutohistogramStrategy implements StretchingStrategy {
                     max = Math.max(diskData[y][x], max);
                 }
             }
-            var asinhs = new ArcsinhStretchingStrategy(0, ASINH_FACTOR, ASINH_FACTOR);
             for (int y = 0; y < height; y++) {
                 for (int x = 0; x < width; x++) {
                     var v = diskData[y][x];
                     float normalized = v / max;
                     var dist = normalizedDistanceToCenter(x, y, cx, cy, radius);
-                    var gammaCorrected = (float) Math.pow(normalized, gamma) * Constants.MAX_PIXEL_VALUE;
-                    if (dist <= 1 || v < amplificationThreshold) {
-                        diskData[y][x] = gammaCorrected;
+                    var gammaCorrected = (float) pow(normalized, gamma) * MAX_PIXEL_VALUE;
+                    var v1 = clamp(gammaCorrected, 0, MAX_PIXEL_VALUE);
+                    var v2 = clamp((float) (gammaCorrected + amplificationThreshold * Math.max(dist, 1.1) * log1p(gammaCorrected / amplificationThreshold) / LOG_NORM), 0, MAX_PIXEL_VALUE);
+                    if (dist <= 1) {
+                        diskData[y][x] = v1;
                     } else {
-                        var f = 8 * Math.pow(gamma, 2) * tanh(dist - 1);
-                        var newValue = (float) (gammaCorrected + f * asinhs.stretchPixel(gammaCorrected));
-                        diskData[y][x] = Math.clamp(newValue, 0, Constants.MAX_PIXEL_VALUE);
+                        float t = (float) Math.min(1, Math.max(0, (dist - 1) / 0.02));
+                        t = t * t * (3 - 2 * t);
+                        diskData[y][x] = (int) (v1 * (1 - t) + v2 * t);
                     }
                 }
             }
@@ -163,7 +159,7 @@ public final class AutohistogramStrategy implements StretchingStrategy {
             var v = histo.get(i) - avg;
             stddev += v * v;
         }
-        stddev = (float) Math.sqrt(stddev / 255);
+        stddev = (float) sqrt(stddev / 255);
         for (int i = 0; i < 256; i++) {
             if (histo.get(i) > 2 * stddev) {
                 var limit = 256 * i;
@@ -205,7 +201,7 @@ public final class AutohistogramStrategy implements StretchingStrategy {
     private static double normalizedDistanceToCenter(double x, double y, double cx, double cy, double radius) {
         var dx = x - cx;
         var dy = y - cy;
-        double distance = Math.sqrt(dx * dx + dy * dy);
+        double distance = sqrt(dx * dx + dy * dy);
         return distance / radius;
     }
 
