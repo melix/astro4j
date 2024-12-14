@@ -198,7 +198,7 @@ public class ImageViewer implements WithRootNode {
 
     private void saveImage() {
         var image = applyTransformations(this.image);
-        var files = new ImageSaver(stretchingStrategy, processParams).save(image, imageFile);
+        var files = new ImageSaver(new StretchingChain(stretchingStrategy, RangeExpansionStrategy.DEFAULT), processParams).save(image, imageFile);
         files.stream()
             .findFirst()
             .ifPresent(file -> imageView.setImagePathForOpeningInExplorer(file.toPath()));
