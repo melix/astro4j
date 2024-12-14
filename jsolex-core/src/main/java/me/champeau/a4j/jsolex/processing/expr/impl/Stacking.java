@@ -22,6 +22,7 @@ import me.champeau.a4j.jsolex.processing.expr.stacking.DistorsionMap;
 import me.champeau.a4j.jsolex.processing.params.ProcessParams;
 import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
 import me.champeau.a4j.jsolex.processing.sun.workflow.GeneratedImageKind;
+import me.champeau.a4j.jsolex.processing.sun.workflow.ImageEmitter;
 import me.champeau.a4j.jsolex.processing.util.FileBackedImage;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
@@ -78,6 +79,7 @@ public class Stacking extends AbstractFunctionImpl {
     /**
      * Stacks a list of images, using a given tile size and sampling ratio.
      * The reference image is selected based on the given reference selection.
+     *
      * @param images the list of images to stack
      * @param tileSize the size of the tiles to use
      * @param sampling the sampling ratio
@@ -93,6 +95,7 @@ public class Stacking extends AbstractFunctionImpl {
 
     /**
      * Chooses or generates a reference image from a list of images, based on the given reference selection.
+     *
      * @param images the list of images
      * @param referenceSelection the reference selection
      * @return the reference image
@@ -275,16 +278,18 @@ public class Stacking extends AbstractFunctionImpl {
                                    int increment,
                                    float[][][] dedistorted,
                                    ReferenceSelection referenceSelection) {
-        var progress = new AtomicInteger(0);
-        var creator = new DistorsionDebugImageCreator(broadcaster, scaling, imageDraw);
-        IntStream.range(0, images.size())
-            .parallel()
-            .forEach(i -> {
-                creator.createDebugImage(referenceImage, stacked, distorsions[i], images.get(i), tileSize, increment, i, dedistorted[i], referenceSelection);
-                var pg = (double) progress.incrementAndGet() / images.size();
-                broadcaster.broadcast(ProgressEvent.of(pg, "Generating stacking debug images"));
-            });
-        broadcaster.broadcast(ProgressEvent.of(1.0, "Generating stacking debug images"));
+        if (context.get(ImageEmitter.class) instanceof ImageEmitter imageEmitter) {
+            var progress = new AtomicInteger(0);
+            var creator = new DistorsionDebugImageCreator(imageEmitter, scaling, imageDraw);
+            IntStream.range(0, images.size())
+                .parallel()
+                .forEach(i -> {
+                    creator.createDebugImage(referenceImage, stacked, distorsions[i], images.get(i), tileSize, increment, i, dedistorted[i], referenceSelection);
+                    var pg = (double) progress.incrementAndGet() / images.size();
+                    broadcaster.broadcast(ProgressEvent.of(pg, "Generating stacking debug images"));
+                });
+            broadcaster.broadcast(ProgressEvent.of(1.0, "Generating stacking debug images"));
+        }
     }
 
     private ImageWrapper32 computeReferenceImageAndAdjustWeights(List<ImageWrapper32> images, ReferenceSelection referenceSelection, double[] weights) {

@@ -1,5 +1,5 @@
 /*
- * Copyright 2023-2023 the original author or authors.
+ * Copyright 2003-2021 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,17 +15,9 @@
  */
 package me.champeau.a4j.jsolex.processing.sun.workflow;
 
-import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
-
-import java.nio.file.Path;
-
-/**
- * An image emitter factory is responsible for creating
- * instances of image emitters, which can for example
- * be no-op (in case we don't care about intermediate
- * images) or renaming files.
- */
-public interface ImageEmitterFactory {
-    ImageEmitter newEmitter(Broadcaster broadcaster,
-                            Path outputDirectory);
+public enum DirectoryKind {
+    RAW,
+    PROCESSED,
+    CUSTOM,
+    DEBUG
 }

@@ -410,14 +410,14 @@ public class SolexVideoProcessor implements Broadcaster {
             if (!imageList.isEmpty() && processParams.requestedImages().isEnabled(GeneratedImageKind.DOPPLER) || processParams.requestedImages().isEnabled(GeneratedImageKind.DOPPLER_ECLIPSE)) {
                 runnables.add(() -> {
                     var imageEmitterFactory = createImageEmitterFactory(imageList, imageNamingStrategy, baseName);
-                    var producer = new DopplerSupport(processParams, imageList, imageEmitterFactory.newEmitter(this, Constants.TYPE_PROCESSED, outputDirectory));
+                    var producer = new DopplerSupport(processParams, imageList, imageEmitterFactory.newEmitter(this, outputDirectory));
                     producer.produceDopplerImage();
                 });
             }
             if (canGenerateHeliumD3Images) {
                 runnables.add(() -> {
                     var imageEmitterFactory = createImageEmitterFactory(imageList, imageNamingStrategy, baseName);
-                    var heliumLineProcessor = new HeliumLineProcessor(processParams, pixelShiftRange, imageList, heliumLineShift, imageEmitterFactory.newEmitter(this, Constants.TYPE_PROCESSED, outputDirectory), this);
+                    var heliumLineProcessor = new HeliumLineProcessor(processParams, pixelShiftRange, imageList, heliumLineShift, imageEmitterFactory.newEmitter(this, outputDirectory), this);
                     heliumLineProcessor.process();
                 });
             }
@@ -515,9 +515,9 @@ public class SolexVideoProcessor implements Broadcaster {
 
     private void startWorkflow(Header header, Double fps, List<WorkflowState> imageList, FileNamingStrategy imageNamingStrategy, String baseName) {
         imageList.stream().parallel().forEach(i -> prepareImageForCorrections(i, header));
-        var fitting = performEllipseFitting(imageList, (broadcaster, kind, outputDirectory) -> {
+        var fitting = performEllipseFitting(imageList, (broadcaster, outputDirectory) -> {
             ImageEmitter emitter = new DefaultImageEmitter(broadcaster, outputDirectory.toFile());
-            emitter = new NamingStrategyAwareImageEmitter(emitter, imageNamingStrategy, sequenceNumber, kind, baseName);
+            emitter = new NamingStrategyAwareImageEmitter(emitter, imageNamingStrategy, sequenceNumber, baseName);
             return new DiscardNonRequiredImages(emitter, processParams.requestedImages().images());
         });
         IntStream.range(0, imageList.size()).parallel().forEach(i -> {
@@ -711,7 +711,7 @@ public class SolexVideoProcessor implements Broadcaster {
                             rgb.b()[y + spacing + height][correctedX] = 0;
                         }
                         var y = ((int) Math.round(rgb.polynomial().applyAsDouble(correctedX))) + redshift.relPixelShift();
-                        if (y<0 || x<0 || y>=height || x>=width) {
+                        if (y < 0 || x < 0 || y >= height || x >= width) {
                             continue;
                         }
                         rgb.r()[y][correctedX] = MAX_PIXEL_VALUE;
@@ -751,7 +751,7 @@ public class SolexVideoProcessor implements Broadcaster {
                                     double minShift,
                                     double maxShift,
                                     Header header) {
-        if (!mathImages.scriptFiles().isEmpty()) {
+        if (!mathImages.scriptFiles().isEmpty() && !imageList.isEmpty()) {
             var images = new HashMap<Double, ImageWrapper>();
             Ellipse ellipse = null;
             ImageStats imageStats = null;
@@ -776,6 +776,7 @@ public class SolexVideoProcessor implements Broadcaster {
             mathImages.scriptFiles().stream().parallel().forEach(scriptFile -> {
                 broadcast(ProgressEvent.of(0, "Running script " + scriptFile.getName()));
                 var context = createMetadata(processParams, serFile.toPath(), pixelShiftRange, header);
+                context.put(ImageEmitter.class, emitter);
                 if (circle != null) {
                     context.put(Ellipse.class, circle);
                 }
@@ -878,12 +879,12 @@ public class SolexVideoProcessor implements Broadcaster {
     }
 
     private ImageEmitter createCustomImageEmitter(FileNamingStrategy imageNamingStrategy, String baseName) {
-        return new NamingStrategyAwareImageEmitter(new DefaultImageEmitter(this, outputDirectory.toFile()), imageNamingStrategy, sequenceNumber, Constants.TYPE_CUSTOM, baseName);
+        return new NamingStrategyAwareImageEmitter(new DefaultImageEmitter(this, outputDirectory.toFile()), imageNamingStrategy, sequenceNumber, baseName);
     }
 
     private EllipseFittingTask.Result performEllipseFitting(List<WorkflowState> imageList, ImageEmitterFactory imageEmitterFactory) {
         var selected = imageList.stream().sorted(Comparator.comparing(WorkflowState::pixelShift)).map(state -> {
-            var ellipseFittingTask = new EllipseFittingTask(this, state::image, processParams, imageEmitterFactory.newEmitter(this, Constants.TYPE_DEBUG, outputDirectory));
+            var ellipseFittingTask = new EllipseFittingTask(this, state::image, processParams, imageEmitterFactory.newEmitter(this, outputDirectory));
             try {
                 return Optional.of(ellipseFittingTask.call());
             } catch (Exception e) {
@@ -1046,7 +1047,7 @@ public class SolexVideoProcessor implements Broadcaster {
         var result = analyzer.analyze(averageImage);
         if (processParams.extraParams().generateDebugImages()) {
             var emitter = new DiscardNonRequiredImages(
-                new NamingStrategyAwareImageEmitter(new DefaultImageEmitter(this, outputDirectory.toFile()), imageNamingStrategy, 0, Constants.TYPE_DEBUG, serFile.getName().substring(0, serFile.getName().lastIndexOf("."))),
+                new NamingStrategyAwareImageEmitter(new DefaultImageEmitter(this, outputDirectory.toFile()), imageNamingStrategy, 0, serFile.getName().substring(0, serFile.getName().lastIndexOf("."))),
                 processParams.requestedImages().images());
             emitter.newColorImage(GeneratedImageKind.DEBUG, null, message("average"), "average", width, height, MutableMap.of(), () -> {
                 var rgb = new SpectralLineFrameImageCreator(analyzer, averageImage, width, height).generateDebugImage();
@@ -1143,30 +1144,27 @@ public class SolexVideoProcessor implements Broadcaster {
         }
 
         @Override
-        public ImageEmitter newEmitter(Broadcaster broadcaster, String kind, Path outputDirectory) {
+        public ImageEmitter newEmitter(Broadcaster broadcaster, Path outputDirectory) {
             if (state.isInternal()) {
                 return new NoOpImageEmitter();
             }
             ImageEmitter emitter = new DefaultImageEmitter(broadcaster, outputDirectory.toFile());
             var shift = state.pixelShift();
-            if ("doppler".equals(kind)) {
-                emitter = new NamingStrategyAwareImageEmitter(emitter, imageNamingStrategy, sequenceNumber, kind, baseName);
-            } else {
-                emitter = new NamingStrategyAwareImageEmitter(new RenamingImageEmitter(emitter, name -> {
-                    if (name.toLowerCase(Locale.US).contains("doppler")) {
-                        return name;
-                    }
-                    var spectrumParams = processParams.spectrumParams();
-                    var suffix = shift == spectrumParams.pixelShift() ? "" : " (" + (shift == spectrumParams.continuumShift() ? "continuum" : shift) + ")";
-                    return name + suffix;
-                }, name -> {
-                    if (name.toLowerCase(Locale.US).contains("doppler")) {
-                        return name;
-                    }
-                    var suffix = "_" + String.format(Locale.US, "%.2f", shift).replace('.', '_');
-                    return name + suffix;
-                }), imageNamingStrategy, sequenceNumber, kind, baseName);
-            }
+
+            emitter = new NamingStrategyAwareImageEmitter(new RenamingImageEmitter(emitter, name -> {
+                if (name.toLowerCase(Locale.US).contains("doppler")) {
+                    return name;
+                }
+                var spectrumParams = processParams.spectrumParams();
+                var suffix = shift == spectrumParams.pixelShift() ? "" : " (" + (shift == spectrumParams.continuumShift() ? "continuum" : shift) + ")";
+                return name + suffix;
+            }, name -> {
+                if (name.toLowerCase(Locale.US).contains("doppler")) {
+                    return name;
+                }
+                var suffix = "_" + String.format(Locale.US, "%.2f", shift).replace('.', '_');
+                return name + suffix;
+            }), imageNamingStrategy, sequenceNumber, baseName);
             return new DiscardNonRequiredImages(emitter, processParams.requestedImages().images());
         }
     }

@@ -154,6 +154,7 @@ public class ImageUtils {
         Set<ImageFormat> imageFormats
     ) {
         var image = new BufferedImage(width, height, BufferedImage.TYPE_INT_RGB);
+        int[] rgb = new int[width * height];
         for (int x = 0; x < width; x++) {
             for (int y = 0; y < height; y++) {
                 int rv = Math.round(r[y][x]);
@@ -162,9 +163,10 @@ public class ImageUtils {
                 rv = (rv >> 8) & 0xFF;
                 gv = (gv >> 8) & 0xFF;
                 bv = (bv >> 8) & 0xFF;
-                image.setRGB(x, y, rv << 16 | gv << 8 | bv);
+                rgb[y * width + x] = (rv << 16) | (gv << 8) | bv;
             }
         }
+        image.setRGB(0, 0, width, height, rgb, 0, width);
         return writeAllFormats(outputFile, imageFormats, image);
     }
 

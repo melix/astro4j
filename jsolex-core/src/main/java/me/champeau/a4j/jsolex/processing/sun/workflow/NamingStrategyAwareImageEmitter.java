@@ -21,6 +21,7 @@ import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 
 import java.awt.Graphics2D;
 import java.nio.file.Path;
+import java.util.Locale;
 import java.util.Map;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
@@ -31,52 +32,49 @@ public class NamingStrategyAwareImageEmitter implements ImageEmitter {
     private final ImageEmitter delegate;
     private final FileNamingStrategy strategy;
     private final int sequenceNumber;
-    private final String imageKind;
     private final String serFileBaseName;
 
     public NamingStrategyAwareImageEmitter(ImageEmitter delegate,
                                            FileNamingStrategy strategy,
                                            int sequenceNumber,
-                                           String imageKind,
                                            String serFileBaseName) {
         this.delegate = delegate;
         this.strategy = strategy;
         this.sequenceNumber = sequenceNumber;
-        this.imageKind = imageKind;
         this.serFileBaseName = serFileBaseName;
     }
 
-    private String rename(String name, String category) {
-        return strategy.render(sequenceNumber, category, imageKind, name, serFileBaseName);
+    private String rename(GeneratedImageKind kind, String name, String category) {
+        return strategy.render(sequenceNumber, category, kind.directoryKind().name().toLowerCase(Locale.US), name, serFileBaseName);
     }
 
     @Override
     public void newMonoImage(GeneratedImageKind kind, String category, String title, String name, ImageWrapper32 image, Consumer<? super float[][]> bufferConsumer) {
-        delegate.newMonoImage(kind, null, title, rename(name, category), image, bufferConsumer);
+        delegate.newMonoImage(kind, null, title, rename(kind, name, category), image, bufferConsumer);
     }
 
     @Override
     public void newMonoImage(GeneratedImageKind kind, String category, String title, String name, ImageWrapper32 image) {
-        delegate.newMonoImage(kind, null, title, rename(name, category), image);
+        delegate.newMonoImage(kind, null, title, rename(kind, name, category), image);
     }
 
     @Override
     public void newColorImage(GeneratedImageKind kind, String category, String title, String name, ImageWrapper32 image, Function<ImageWrapper32, float[][][]> rgbSupplier) {
-        delegate.newColorImage(kind, null, title, rename(name, category), image, rgbSupplier);
+        delegate.newColorImage(kind, null, title, rename(kind, name, category), image, rgbSupplier);
     }
 
     @Override
     public void newColorImage(GeneratedImageKind kind, String category, String title, String name, int width, int height, Map<Class<?>, Object> metadata, Supplier<float[][][]> rgbSupplier) {
-        delegate.newColorImage(kind, null, title, rename(name, category), width, height, metadata, rgbSupplier);
+        delegate.newColorImage(kind, null, title, rename(kind, name, category), width, height, metadata, rgbSupplier);
     }
 
     @Override
     public void newColorImage(GeneratedImageKind kind, String category, String title, String name, ImageWrapper32 image, Function<ImageWrapper32, float[][][]> rgbSupplier, BiConsumer<Graphics2D, ? super ImageWrapper> painter) {
-        delegate.newColorImage(kind, null, title, rename(name, category), image, rgbSupplier, painter);
+        delegate.newColorImage(kind, null, title, rename(kind, name, category), image, rgbSupplier, painter);
     }
 
     @Override
     public void newGenericFile(GeneratedImageKind kind, String category, String title, String name, Path file) {
-        delegate.newGenericFile(kind, null, title, rename(name, category), file);
+        delegate.newGenericFile(kind, null, title, rename(kind, name, category), file);
     }
 }

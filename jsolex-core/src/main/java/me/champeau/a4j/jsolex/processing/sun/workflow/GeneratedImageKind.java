@@ -20,32 +20,38 @@ package me.champeau.a4j.jsolex.processing.sun.workflow;
  * supports.
  */
 public enum GeneratedImageKind {
-    RECONSTRUCTION(DisplayCategory.RECONSTRUCTION),
-    RAW(DisplayCategory.RAW),
-    DEBUG(DisplayCategory.DEBUG),
-    GEOMETRY_CORRECTED(DisplayCategory.PROCESSED),
-    GEOMETRY_CORRECTED_PROCESSED(DisplayCategory.PROCESSED),
-    VIRTUAL_ECLIPSE(DisplayCategory.MISC),
-    DOPPLER_ECLIPSE(DisplayCategory.MISC),
-    COLORIZED(DisplayCategory.COLORIZED),
-    CONTINUUM(DisplayCategory.PROCESSED),
-    MIXED(DisplayCategory.COLORIZED),
-    DOPPLER(DisplayCategory.COLORIZED),
-    NEGATIVE(DisplayCategory.COLORIZED),
-    TECHNICAL_CARD(DisplayCategory.MISC),
-    IMAGE_MATH(DisplayCategory.IMAGE_MATH),
-    COMPOSITION(DisplayCategory.PROCESSED),
-    CROPPED(DisplayCategory.MISC),
-    REDSHIFT(DisplayCategory.REDSHIFT);
+    RECONSTRUCTION(DisplayCategory.RECONSTRUCTION, DirectoryKind.RAW),
+    RAW(DisplayCategory.RAW, DirectoryKind.RAW),
+    DEBUG(DisplayCategory.DEBUG, DirectoryKind.DEBUG),
+    GEOMETRY_CORRECTED(DisplayCategory.PROCESSED, DirectoryKind.PROCESSED),
+    GEOMETRY_CORRECTED_PROCESSED(DisplayCategory.PROCESSED, DirectoryKind.PROCESSED),
+    VIRTUAL_ECLIPSE(DisplayCategory.MISC, DirectoryKind.PROCESSED),
+    DOPPLER_ECLIPSE(DisplayCategory.MISC, DirectoryKind.PROCESSED),
+    COLORIZED(DisplayCategory.COLORIZED, DirectoryKind.PROCESSED),
+    CONTINUUM(DisplayCategory.PROCESSED, DirectoryKind.PROCESSED),
+    MIXED(DisplayCategory.COLORIZED, DirectoryKind.PROCESSED),
+    DOPPLER(DisplayCategory.COLORIZED, DirectoryKind.PROCESSED),
+    NEGATIVE(DisplayCategory.COLORIZED, DirectoryKind.PROCESSED),
+    TECHNICAL_CARD(DisplayCategory.MISC, DirectoryKind.PROCESSED),
+    IMAGE_MATH(DisplayCategory.IMAGE_MATH, DirectoryKind.CUSTOM),
+    COMPOSITION(DisplayCategory.PROCESSED, DirectoryKind.PROCESSED),
+    CROPPED(DisplayCategory.MISC, DirectoryKind.PROCESSED),
+    REDSHIFT(DisplayCategory.REDSHIFT, DirectoryKind.PROCESSED);
 
     private final DisplayCategory displayCategory;
+    private final DirectoryKind directoryKind;
 
-    GeneratedImageKind(DisplayCategory displayCategory) {
+    GeneratedImageKind(DisplayCategory displayCategory, DirectoryKind directoryKind) {
         this.displayCategory = displayCategory;
+        this.directoryKind = directoryKind;
     }
 
     public DisplayCategory displayCategory() {
         return displayCategory;
+    }
+
+    public DirectoryKind directoryKind() {
+        return directoryKind;
     }
 
     public boolean cannotPerformManualRotation() {

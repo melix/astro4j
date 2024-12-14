@@ -167,7 +167,7 @@ public class ImageViewer implements WithRootNode {
                             throw new ProcessingException(ex);
                         }
                     });
-                    imageView.getCtxMenu().getItems().add(openInNewWindow);
+                    Platform.runLater(() -> imageView.getCtxMenu().getItems().add(openInNewWindow));
                 }
             });
         }

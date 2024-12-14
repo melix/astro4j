@@ -43,11 +43,14 @@ import me.champeau.a4j.jsolex.processing.params.AutocropMode;
 import me.champeau.a4j.jsolex.processing.params.ProcessParams;
 import me.champeau.a4j.jsolex.processing.params.RotationKind;
 import me.champeau.a4j.jsolex.processing.stretching.RangeExpansionStrategy;
+import me.champeau.a4j.jsolex.processing.sun.workflow.DefaultImageEmitter;
 import me.champeau.a4j.jsolex.processing.sun.workflow.GeneratedImageKind;
+import me.champeau.a4j.jsolex.processing.sun.workflow.ImageEmitter;
+import me.champeau.a4j.jsolex.processing.sun.workflow.NamingStrategyAwareImageEmitter;
+import me.champeau.a4j.jsolex.processing.sun.workflow.RenamingImageEmitter;
 import me.champeau.a4j.jsolex.processing.util.Constants;
 import me.champeau.a4j.jsolex.processing.util.ImageSaver;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
-import me.champeau.a4j.jsolex.processing.util.MutableMap;
 import me.champeau.a4j.jsolex.processing.util.ProcessingException;
 import me.champeau.a4j.jsolex.processing.util.SolarParametersUtils;
 import me.champeau.a4j.ser.Header;
@@ -60,6 +63,7 @@ import java.nio.file.Files;
 import java.nio.file.StandardCopyOption;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -67,6 +71,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
 
 import static me.champeau.a4j.jsolex.app.JSolEx.message;
+import static me.champeau.a4j.jsolex.processing.sun.CaptureSoftwareMetadataHelper.computeSerFileBasename;
 import static me.champeau.a4j.jsolex.processing.util.LoggingSupport.LOGGER;
 
 public class BatchModeEventListener implements ProcessingEventListener, ImageMathScriptExecutor {
@@ -232,11 +237,14 @@ public class BatchModeEventListener implements ProcessingEventListener, ImageMat
             if (scriptFiles.isEmpty()) {
                 return;
             }
+            var imageEmitter = new NamingStrategyAwareImageEmitter(new RenamingImageEmitter(new DefaultImageEmitter(delegate, outputDirectory), name -> name, name -> name), createNamingStrategy(), sequenceNumber, computeSerFileBasename(item.file()));
+            var ctx = new HashMap<Class, Object>();
+            ctx.put(ImageEmitter.class, imageEmitter);
             batchScriptExecutor = new JSolExScriptExecutor(
                 idx -> {
                     throw new IllegalStateException("Cannot call img() in batch outputs. Use variables to store images instead");
                 },
-                MutableMap.of(),
+                ctx,
                 delegate,
                 null
             );
