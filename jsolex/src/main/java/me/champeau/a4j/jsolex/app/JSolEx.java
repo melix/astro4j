@@ -1175,6 +1175,14 @@ public class JSolEx extends Application implements JSolExInterface {
         }
     }
 
+    @Override
+    public void showImages() {
+        mainPane.getTabs().stream().filter(tab -> tab.getContent() == multipleImagesViewer)
+            .findFirst()
+            .ifPresent(tab -> Platform.runLater(() -> mainPane.getSelectionModel().select(tab))
+            );
+    }
+
 
     private static int highestPowerOfTwoGreaterOrEqualTo(double n) {
         var power = 0;

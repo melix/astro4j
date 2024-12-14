@@ -68,6 +68,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 
 import static me.champeau.a4j.jsolex.app.JSolEx.message;
@@ -262,15 +263,30 @@ public class BatchModeEventListener implements ProcessingEventListener, ImageMat
             }
         } finally {
             Platform.runLater(() -> owner.updateProgress(1, String.format(message("batch.finished"))));
+            owner.showImages();
         }
     }
 
 
     private void executeBatchScript(FileNamingStrategy namingStrategy, File scriptFile) {
-        Platform.runLater(() -> {
-            owner.updateProgress(0, String.format(message("executing.script"), scriptFile));
-        });
+        Platform.runLater(() -> owner.updateProgress(0, String.format(message("executing.script"), scriptFile)));
         ImageMathScriptResult result;
+        var progressThread = new Thread() {
+            private final AtomicInteger step = new AtomicInteger();
+            @Override
+            public void run() {
+                while (!Thread.currentThread().isInterrupted()) {
+                    var pg = Math.abs(Math.sin(Math.PI*step.incrementAndGet()/50));
+                    Platform.runLater(() -> owner.updateProgress(pg, String.format(message("executing.script"), scriptFile)));
+                    try {
+                        Thread.sleep(25);
+                    } catch (InterruptedException e) {
+                        Thread.currentThread().interrupt();
+                    }
+                }
+            }
+        };
+        progressThread.start();
         try {
             result = batchScriptExecutor.execute(scriptFile.toPath(), ImageMathScriptExecutor.SectionKind.BATCH);
         } catch (IOException e) {
@@ -280,6 +296,7 @@ public class BatchModeEventListener implements ProcessingEventListener, ImageMat
             processScriptErrors(result);
             renderBatchOutputs(namingStrategy, result);
         } finally {
+            progressThread.interrupt();
             Platform.runLater(() -> owner.updateProgress(1, String.format(message("executing.script"), scriptFile)));
         }
     }

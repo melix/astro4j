@@ -50,4 +50,6 @@ public interface JSolExInterface {
     void prepareForGongImageDownload(ProcessParams processParams);
 
     void applyUserRotation(ApplyUserRotation params);
+
+    void showImages();
 }
