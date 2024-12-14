@@ -346,12 +346,15 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
             }
 
             // stretch colors
-            for (int y = 0; y < height; y++) {
-                for (int x = 0; x < width; x++) {
-                    var v = pixelReader.getArgb(x, y) & 0xFF;
-                    v = (int) (255 * v / max);
-                    image.getPixelWriter().setArgb(x, y, 0xFF000000 | (v << 16) | (v << 8) | v);
+            try {
+                for (int y = 0; y < height; y++) {
+                    for (int x = 0; x < width; x++) {
+                        var v = pixelReader.getArgb(x, y) & 0xFF;
+                        v = (int) (255 * v / max);
+                        image.getPixelWriter().setArgb(x, y, 0xFF000000 | (v << 16) | (v << 8) | v);
+                    }
                 }
+            } catch (IndexOutOfBoundsException e) {
             }
         });
     }
