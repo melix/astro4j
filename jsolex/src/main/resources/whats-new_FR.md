@@ -36,6 +36,7 @@ De nouvelles fonctions ont été ajoutées pour faciliter le traitement des imag
 - Ajout d'un module permettant de lancer des scripts depuis la ligne de commande
 - Ajout de la possibilité de choisir la couleur des annotations lors de la création d'animations personnalisées
 - Changement du rendu de l'image Doppler pour avoir des couleurs plus proches du rouge/bleu
+- Utilisation du suréchantillonnage dans la reconstruction pour éviter les artefacts d'aliasing lorsque la ligne spectrale est fine
 - Passage à Java 23
 - Modifications des structures de données internes pour faciliter de futures évolutions
 

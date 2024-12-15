@@ -17,7 +17,6 @@ package me.champeau.a4j.jsolex.processing.stretching;
 
 import me.champeau.a4j.jsolex.processing.util.Constants;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
-import me.champeau.a4j.jsolex.processing.util.RGBImage;
 
 public final class ContrastAdjustmentStrategy implements StretchingStrategy {
     public static final ContrastAdjustmentStrategy DEFAULT = new ContrastAdjustmentStrategy(0, Constants.MAX_PIXEL_VALUE);
@@ -62,10 +61,4 @@ public final class ContrastAdjustmentStrategy implements StretchingStrategy {
         }
     }
 
-    @Override
-    public void stretch(RGBImage image) {
-        truncate(image.r());
-        truncate(image.g());
-        truncate(image.b());
-    }
 }

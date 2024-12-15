@@ -1066,29 +1066,34 @@ public class SolexVideoProcessor implements Broadcaster {
                 int batchEnd = Math.min(batchStart + BATCH_LINES, width);
                 for (int x = batchStart; x < batchEnd; x++) {
                     double value = 0;
-                    for (double k = -.5; k <= .5; k += .5) {
-                        // Reconstruct the image using the polynomial to find which pixel to use
-                        double yd = p.applyAsDouble(x) + pixelShift + k;
+                    double weightSum = 0;
 
-                        // Compute indices for interpolation
+                    for (double dy = -1.0; dy <= 1.0; dy += 0.5) {
+                        double yd = p.applyAsDouble(x) + pixelShift + dy;
+
                         int y1 = (int) Math.floor(yd);
-                        int y2 = (int) Math.ceil(yd);
+                        int y2 = y1 + 1;
 
                         double frac = yd - y1;
 
+                        double weight = Math.exp(-0.5 * dy * dy);  // Gaussian decay
+
                         if (y1 >= 0 && y1 < height && y2 >= 0 && y2 < height) {
-                            value += (1 - frac) * source[y1][x] + frac * source[y2][x];
-                        } else if (y1 >= 0 && y1 < height) {
-                            value += source[y1][x];
-                        } else if (y2 >= 0 && y2 < height) {
-                            value += source[y2][x];
+                            double yValue = (1 - frac) * source[y1][x] + frac * source[y2][x];
+                            value += weight * yValue;
+                            weightSum += weight;
                         }
                     }
-                    value /= 3;
+
+                    if (weightSum > 0) {
+                        value /= weightSum;
+                    }
+
                     outputBuffer[y][x] = (float) value;
                     line[x] = (float) value;
                 }
-        });
+
+            });
 
         if (!internal) {
             var copy = ImageWrapper.copyData(source);

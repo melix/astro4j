@@ -36,5 +36,6 @@ New functions have been added to simplify image processing:
 - Added a module to execute scripts from the command line.
 - Added the ability to select annotation colors when creating custom animations.
 - Adjusted the Doppler image rendering for colors closer to red/blue.
+- Use supersampling in reconstruction to avoid aliasing artifacts when the spectral line is thin
 - Upgraded to Java 23.
 - Updated internal data structures to facilitate future enhancements.
