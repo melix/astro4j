@@ -20,7 +20,7 @@ dependencies {
     implementation("com.github.vlsi.gradle:license-gather-plugin:1.90")
     implementation("io.micronaut.gradle:micronaut-gradle-plugin:4.4.4")
     implementation("io.github.gradle-nexus:publish-plugin:2.0.0")
-    implementation("org.asciidoctor:asciidoctor-gradle-jvm:4.0.3")
+    implementation("org.asciidoctor:asciidoctor-gradle-jvm:4.0.4")
     implementation("org.ajoberstar:gradle-git-publish:3.0.0")
 
 }
