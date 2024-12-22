@@ -187,7 +187,7 @@ public class ImageUtils {
     }
 
     public static ImageConverter<float[][]> createImageConverter(ColorMode colorMode) {
-        return createImageConverter(colorMode, true);
+        return createImageConverter(colorMode, false);
     }
 
     public static float[][][] convertToRGB(ColorCurve curve, float[][] mono) {

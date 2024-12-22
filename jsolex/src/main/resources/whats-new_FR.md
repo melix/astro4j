@@ -1,5 +1,9 @@
 # Bienvenue dans JSol'Ex {{version}} !
 
+## Nouveautés de la version 2.8.1
+
+- Correction d'un bug dans le calcul de l'image moyenne qui pouvait résulter en une image noire
+
 ## Nouveautés de la version 2.8.0
 
 ### Support du Sunscan
