@@ -255,6 +255,15 @@ public class SpectroHeliographEditor {
         requestClose();
     }
 
+    @FXML
+    public void addMissingShgs() {
+        for (var shg: SpectroHeliographsIO.predefined()) {
+            if (!elements.getItems().contains(shg)) {
+                elements.getItems().add(shg);
+            }
+        }
+    }
+
     public Optional<SpectroHeliograph> getSelected() {
         return Optional.ofNullable(selected);
     }
