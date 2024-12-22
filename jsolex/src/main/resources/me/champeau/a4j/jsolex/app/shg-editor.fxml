@@ -13,6 +13,7 @@
 <?import javafx.scene.layout.ColumnConstraints?>
 <?import javafx.scene.layout.GridPane?>
 <?import javafx.scene.layout.RowConstraints?>
+
 <BorderPane maxHeight="-Infinity" maxWidth="-Infinity" minHeight="-Infinity" minWidth="-Infinity" prefHeight="420.0" prefWidth="748.0" xmlns="http://javafx.com/javafx/19" xmlns:fx="http://javafx.com/fxml/1" fx:controller="me.champeau.a4j.jsolex.app.jfx.SpectroHeliographEditor">
     <center>
         <GridPane vgap="4.0" BorderPane.alignment="CENTER">
@@ -26,10 +27,10 @@
                 <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="NEVER" />
                 <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="NEVER" />
                 <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="NEVER" />
-            <RowConstraints />
-            <RowConstraints />
-            <RowConstraints />
-            <RowConstraints minHeight="10.0" prefHeight="30.0" />
+                <RowConstraints />
+                <RowConstraints />
+                <RowConstraints />
+                <RowConstraints minHeight="10.0" prefHeight="30.0" />
             </rowConstraints>
             <children>
                 <Label text="%label" />
@@ -50,7 +51,7 @@
                 <TextField fx:id="slitHeight" GridPane.columnIndex="1" GridPane.rowIndex="7" />
                 <CheckBox fx:id="spectrumVFlip" mnemonicParsing="false" text="%spectrum.vflip" GridPane.columnSpan="2" GridPane.rowIndex="8">
                     <tooltip>
-                        <Tooltip text="%spectrum.vflip.tooltip"/>
+                        <Tooltip text="%spectrum.vflip.tooltip" />
                     </tooltip>
                 </CheckBox>
             </children>
@@ -64,6 +65,7 @@
             <children>
                 <Button layoutX="641.0" layoutY="7.0" mnemonicParsing="false" onAction="#close" text="%ok" />
                 <Button layoutX="559.0" layoutY="7.0" mnemonicParsing="false" onAction="#cancel" text="%cancel" />
+                <Button layoutX="26.0" layoutY="7.0" mnemonicParsing="false" onAction="#addMissingShgs" text="%add.missing" />
             </children>
         </AnchorPane>
     </bottom>

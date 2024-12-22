@@ -3,6 +3,7 @@
 ## Nouveautés de la version 2.8.1
 
 - Correction d'un bug dans le calcul de l'image moyenne qui pouvait résulter en une image noire
+- Ajout d'un bouton pour ajouter des modèles de SHG connus qui ne sont pas listés
 
 ## Nouveautés de la version 2.8.0
 

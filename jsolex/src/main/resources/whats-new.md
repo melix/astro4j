@@ -3,6 +3,7 @@
 ## What's New in Version 2.8.1
 
 - Fixed bug in average image calculation which would result in a black image
+- Added a button to add known SHGs models which are not listed
 
 ## What's New in Version 2.8.0
 
