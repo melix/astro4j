@@ -41,9 +41,9 @@ class VectorApiImageMath implements ImageMath {
         var width = image.width();
         int x = 0;
         double sum = 0;
-        // vectorized loop
+        // Vectorized loop
         var sumVector = FloatVector.zero(FLOAT_SPECIES);
-        var max = FLOAT_SPECIES.loopBound(width - x);
+        var max = FLOAT_SPECIES.loopBound(width);
         for (; x < max; x += FLOAT_LEN) {
             var v = FloatVector.fromArray(FLOAT_SPECIES, data, x);
             sumVector = sumVector.add(v);
@@ -74,10 +74,10 @@ class VectorApiImageMath implements ImageMath {
 
     @Override
     public float averageOf(float[][] data) {
-        float totalSum = 0;
-        float count = 0;
+        double totalSum = 0;
+        double count = 0;
         for (float[] line : data) {
-            int max = data.length;
+            int max = line.length;
             int x = 0;
             var sumVector = FloatVector.zero(FLOAT_SPECIES);
             for (; x < FLOAT_SPECIES.loopBound(max); x += FLOAT_SPECIES.length()) {
@@ -91,7 +91,7 @@ class VectorApiImageMath implements ImageMath {
             totalSum += sum;
             count += max;
         }
-        return totalSum / count;
+        return (float) (totalSum / count);
     }
 
     @Override
@@ -144,6 +144,9 @@ class VectorApiImageMath implements ImageMath {
 
     @Override
     public Image divide(Image first, Image second) {
+        if (first.height() != second.height() || first.width() != second.width()) {
+            throw new IllegalArgumentException("Images must have the same dimensions");
+        }
         var height = first.height();
         var width = second.width();
         var output = new float[height][width];
@@ -159,7 +162,7 @@ class VectorApiImageMath implements ImageMath {
                 v1.div(v2).intoArray(result, i);
             }
             for (; i < max; i++) {
-                result[i] = one[i] + two[i];
+                result[i] = one[i] / two[i];
             }
             output[y] = result;
         }
@@ -174,7 +177,6 @@ class VectorApiImageMath implements ImageMath {
         for (int y = 0; y < height; y++) {
             var one = first.data()[y];
             var two = second.data()[y];
-
             int max = one.length;
             int i = 0;
             var result = new float[max];
@@ -184,7 +186,7 @@ class VectorApiImageMath implements ImageMath {
                 v1.mul(v2).intoArray(result, i);
             }
             for (; i < max; i++) {
-                result[i] = one[i] + two[i];
+                result[i] = one[i] * two[i];
             }
             output[y] = result;
         }
