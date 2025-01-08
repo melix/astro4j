@@ -86,7 +86,8 @@ public class Loader extends AbstractFunctionImpl {
     }
 
     private static ImageWrapper doLoad(File file) {
-        if (file.getName().toLowerCase(Locale.US).endsWith(".fits")) {
+        var extension = file.getName().toLowerCase(Locale.US);
+        if (extension.endsWith(".fits")) {
             return FitsUtils.readFitsFile(file);
         }
         BufferedImage image;

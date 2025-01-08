@@ -47,7 +47,7 @@ tasks.withType<JavaExec>().configureEach {
     jvmArgs("-agentpath:/home/cchampeau/TOOLS/YourKit-JavaProfiler-2023.9/bin/linux-x86-64/libyjpagent.so=_no_java_version_check,sampling")
     args(listOf(
         "-o", "/tmp/out/serie4",
-        "-s", "/home/cchampeau/DEV/PROJECTS/GITHUB/astro4j/stacking-conti.math",
+        "-s", "/home/cchampeau/DEV/PROJECTS/GITHUB/astro4j/sunscan.math",
 //        "-p", "input_dir=/home/cchampeau/Downloads/stack_151124",
         "-p", "input_dir=/home/cchampeau/Downloads/stack_151124/renamed",
 //        "-p", "kind=clahe",
