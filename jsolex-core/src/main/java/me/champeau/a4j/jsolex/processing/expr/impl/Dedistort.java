@@ -294,6 +294,7 @@ public class Dedistort extends AbstractFunctionImpl {
             var target = arguments.get(1);
             if (target instanceof List<?> listOfImages) {
                 return listOfImages.stream()
+                    .parallel()
                     .map(img -> {
                         var newArgs = new ArrayList<Object>();
                         newArgs.add(arg);
@@ -321,6 +322,7 @@ public class Dedistort extends AbstractFunctionImpl {
                     .map(img -> img.findMetadata(DistorsionMap.class).orElseThrow(() -> new IllegalArgumentException("No distorsion map found in reference image")))
                     .toList();
                 return IntStream.range(0, images.size())
+                    .parallel()
                     .mapToObj(i -> dedistortSingle(images.get(i), distorsions.get(i), images.get(i).height(), images.get(i).width()))
                     .toList();
             }
