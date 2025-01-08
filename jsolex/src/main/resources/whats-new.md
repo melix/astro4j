@@ -1,5 +1,13 @@
 # Welcome to JSol'Ex {{version}}!
 
+## What's New in Version 2.8.2
+
+This is a bugfix release.
+
+- Fixed native binary of scripting module not being able to load configuration
+- Improved performance of the DEDISTORT function
+- Fixed focal length of the MLAstro SGH 700
+
 ## What's New in Version 2.8.1
 
 - Fixed bug in average image calculation which would result in a black image

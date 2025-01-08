@@ -1,5 +1,13 @@
 # Bienvenue dans JSol'Ex {{version}} !
 
+## Nouveautés de la version 2.8.2
+
+Il s'agit d'une version de correction de bugs.
+
+- Correction du binaire natif du module de scripting qui ne pouvait pas charger la configuration
+- Amélioration des performances de la fonction DEDISTORT
+- Correction de la focale du MLAstro SGH 700
+
 ## Nouveautés de la version 2.8.1
 
 - Correction d'un bug dans le calcul de l'image moyenne qui pouvait résulter en une image noire
