@@ -1,5 +1,9 @@
 # Welcome to JSol'Ex {{version}}!
 
+## What's New in Version 2.8.3
+
+- Add ability to process SER files to the standalone scripting module
+
 ## What's New in Version 2.8.2
 
 This is a bugfix release.

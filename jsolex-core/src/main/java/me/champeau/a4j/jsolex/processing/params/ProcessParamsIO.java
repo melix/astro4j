@@ -79,6 +79,10 @@ public abstract class ProcessParamsIO {
             return params;
         }
         LOGGER.debug(message("no.config.file.found"), defaultsFile, "process params");
+        return createNewDefaults();
+    }
+
+    public static ProcessParams createNewDefaults() {
         return new ProcessParams(
             new SpectrumParams(SpectralRay.AUTO, 0, 3, Constants.DEFAULT_CONTINUUM_SHIFT, false),
             new ObservationDetails(

@@ -38,7 +38,7 @@ tasks.named<JavaExec>("run") {
         .getOrElse(false)
     if (profile) {
         jvmArgs(listOf(
-                "-agentpath:/home/cchampeau/TOOLS/hp/liblagent.so=interval=7,logPath=/tmp/log.hpl",
+            "-agentpath:/home/cchampeau/TOOLS/hp/liblagent.so=interval=7,logPath=/tmp/log.hpl",
         ))
     }
 }
@@ -47,13 +47,15 @@ tasks.withType<JavaExec>().configureEach {
     jvmArgs("-agentpath:/home/cchampeau/TOOLS/YourKit-JavaProfiler-2023.9/bin/linux-x86-64/libyjpagent.so=_no_java_version_check,sampling")
     args(listOf(
         "-o", "/tmp/out/serie4",
-        "-s", "/home/cchampeau/DEV/PROJECTS/GITHUB/astro4j/sunscan.math",
+        "-c", "/home/cchampeau/DEV/PROJECTS/GITHUB/astro4j/config.json",
+        "-s", "/home/cchampeau/DEV/PROJECTS/GITHUB/astro4j/empty.math",
 //        "-p", "input_dir=/home/cchampeau/Downloads/stack_151124",
-        "-p", "input_dir=/home/cchampeau/Downloads/stack_151124/renamed",
+//        "-p", "input_dir=/home/cchampeau/Downloads/stack_151124/renamed",
 //        "-p", "kind=clahe",
-        "-p", "tile_size=64",
-        "-p", "sampling=.25",
-        "-f", "jpg",
+//        "-p", "tile_size=64",
+//        "-p", "sampling=.25",
+//        "-f", "jpg",
+        "-i", "/home/cchampeau/Downloads/sunscan_2025_01_06-13_31_58.ser"
 //        "-d"
     ))
 }

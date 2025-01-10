@@ -1,5 +1,9 @@
 # Bienvenue dans JSol'Ex {{version}} !
 
+## Nouveautés de la version 2.8.3
+
+- Ajout de la possibilité de traiter les fichiers SER dans le module de scripting autonome
+
 ## Nouveautés de la version 2.8.2
 
 Il s'agit d'une version de correction de bugs.
