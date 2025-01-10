@@ -50,6 +50,7 @@ tasks.rat {
     excludes.add("**/*.txt")
     excludes.add("**/*.math")
     excludes.add("**/*.properties")
+    excludes.add("**/*.iprof")
     excludes.add("**/javadoc.options")
 }
 
