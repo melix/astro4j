@@ -16,7 +16,7 @@ dependencies {
     implementation("org.graalvm.buildtools:native-gradle-plugin:0.10.4")
     implementation("org.beryx.jlink:org.beryx.jlink.gradle.plugin:3.1.1")
     implementation("org.javamodularity:moduleplugin:1.8.15")
-    implementation("com.diffplug.spotless:spotless-plugin-gradle:7.0.1")
+    implementation("com.diffplug.spotless:spotless-plugin-gradle:7.0.2")
     implementation("com.github.vlsi.gradle:license-gather-plugin:1.90")
     implementation("io.micronaut.gradle:micronaut-gradle-plugin:4.4.4")
     implementation("io.github.gradle-nexus:publish-plugin:2.0.0")
