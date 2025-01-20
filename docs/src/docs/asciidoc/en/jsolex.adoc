@@ -67,13 +67,13 @@ This section lets you configure the transformations which will be applied to ima
 
 image::params-2-en.jpg[]
 
-- CLAHE parameters : allows configuring the CLAHE constrast improvement algorithm.
+- CLAHE parameters : allows configuring the CLAHE contrast improvement algorithm.
 It is possible to configure the size of the tiles used to compute histograms, the histogram resolution and the clipping factor.
 
 Next come the banding correction parameters, which allow to correct transversal bands which can appear on images, for example because of dust on the slit.
 
 - Banding correction width: this is the width of the bands which are used in the transversallium correction algorithm. Bands are used to compute the average brightness of pixels in the band, then lines are corrected according the band they belong to.
-- Banding correction passes: the more passes you'll apply, the more lines should be corrected, at the cost of lower constrast images
+- Banding correction passes: the more passes you'll apply, the more lines should be corrected, at the cost of lower contrast images
 
 Another section lets you configure image deconvolution.
 By default, no deconvolution is applied, but you can choose the deconvolution algorithm and its parameters.
@@ -292,11 +292,11 @@ Another example: `0.8*img(5) + 0.2*avg(range(0;10))`
 Other functions are available:
 
 - `adjust_gamma` applies a gamma correction to an image. It accepts 2 arguments: the image and the gamma value. For example: `adjust_gamma(img(0), 2.2)`. A gamma value < 1 will lighten the image, while a value > 1 will darken it.
-- `auto_constrast` is a contrast enhancement function which is designed specifically for Sol'Ex images. It combines several techniques to enhance the contrast of the image. It accepts 2 arguments: the image and an enhancement factor. For example: `auto_contrast(img(0), 1.5)`. The enhancement factor is a value starting from 1. The higher the value, the stronger the contrast enhancement.
+- `auto_contrast` is a contrast enhancement function which is designed specifically for Sol'Ex images. It combines several techniques to enhance the contrast of the image. It accepts 2 arguments: the image and an enhancement factor. For example: `auto_contrast(img(0), 1.5)`. The enhancement factor is a value starting from 1. The higher the value, the stronger the contrast enhancement.
 - `invert`, generates a color inverted image
 - `clahe` performs https://en.wikipedia.org/wiki/Adaptive_histogram_equalization#Contrast_Limited_AHE[Contrast Limited Adaptative Histogram Equalization] on your image. It supports either 2 or 4 parameters. In the first form, it takes the image to equalize and clip factor, for example: `clahe(img(0); 1.5)`. In the long form, it takes 2 additional parameters which are the tile size (used to compute histograms) and the number of bins (the lower, the smaller the dynamic range). e.g `clahe(img(0); 128; 256; 1.2)`
 - `adjust_contrast` applies simple contrast adujstment by clipping values under the minimal value or above the maximal value. e.g `adjust_contrast(img(0), 10, 210)`. The range is must be between 0 and 255.
-- `asinh_stretch` applies the inverse arcsin hypobolic transformation to increase constrast. It accepts 3 arguments: the image, the black point value and a stretch value.
+- `asinh_stretch` applies the inverse arcsin hypobolic transformation to increase contrast. It accepts 3 arguments: the image, the black point value and a stretch value.
 - `linear_stretch` expands the image dynamic range. It takes either one or 3 arguments: the image and optionally the minimal and maximal value. The min/max values are used to determine to what range to expand. It's a 16-bit value between 0 and 65535. For example: `linear_stretch(img(0))`
 - `fix_banding` applies the banding correction algorithm. It accepts 3 arguments: the image, the banding width, the number of passes. For example, `fix_banding(img(0), 10, 5)`.
 
@@ -399,7 +399,7 @@ Scripts go beyond this by combining these into a powerful tool to generate image
 As an illustration, let's look at this script which will let us generate an Helium image.
 Helium image processing is complicated, because the Helium ray is very dim and the software cannot find it in the image.
 Therefore, we can use a technique which consists of taking a larger capture window which includes a dark ray, then by determining by how many pixels the helium ray is shifted from that line, we can reconstruct an image.
-Even so, the work is not finished, since it's an extremely low constrast ray, so we have to substract the continuum value.
+Even so, the work is not finished, since it's an extremely low contrast ray, so we have to substract the continuum value.
 Producing such images is quite cumbersome but can be simplified to the extreme with ImageMath:
 
 [source]

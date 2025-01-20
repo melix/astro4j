@@ -195,7 +195,7 @@ Vous avez le choix entre 3 modes de traitement.
 === Affichage des images produites
 
 Lorsque les images sont produites, elles apparaissent au fur et à mesure en onglets.
-Il vous est alors possible, en fonction des images, de modifier des paramètres de constraste et d'enregistrer les images.
+Il vous est alors possible, en fonction des images, de modifier des paramètres de contraste et d'enregistrer les images.
 
 image::image-display-fr.jpg[]
 
@@ -303,7 +303,7 @@ Ou encore: `0.8*img(5) + 0.2*avg(range(0;10))`
 Les autres fonctions disponibles sont:
 
 - `adjust_gamma` permet d'appliquer une correction gamma à une image. Cette fonction accepte 2 paramètres : l'image et le facteur de correction gamma. Par exemple, `adjust_gamma(img(0), 2.2)`. Un gamma < 1 éclaircit l'image, un gamma > 1 la fonce.
-- `auto_constrast` est une fonction d'amélioration du contraste crée spécifiquement pour les images Sol'Ex. Elle combine plusieurs techniques pour améliorer l'image. Cette fonction prend 2 arguments : l'image et un facteur de correction. Le facteur doit être supérieur à 1 et plus il est élevé, plus la correction sera forte. Par exemple : `auto_contrast(img(0), 1.5)`.
+- `auto_contrast` est une fonction d'amélioration du contraste crée spécifiquement pour les images Sol'Ex. Elle combine plusieurs techniques pour améliorer l'image. Cette fonction prend 2 arguments : l'image et un facteur de correction. Le facteur doit être supérieur à 1 et plus il est élevé, plus la correction sera forte. Par exemple : `auto_contrast(img(0), 1.5)`.
 - `invert`, qui permet d'obtenir le négatif d'une image
 - `invert`, generates a color inverted image
 - `clahe` applique une https://en.wikipedia.org/wiki/Adaptive_histogram_equalization#Contrast_Limited_AHE[transformation d'histogramme adaptative (CLAHE)] sur votre image. Cette fonctiona accepte soit 2, soit 4 arguments. Dans la version courte, elle prend l'image et un facteur de clipping. Par exemple: `clahe(img(0); 1.5)`. Dans sa version longue, elle accepte 2 paramètres supplémentaires: la taille des tuiles utilisées pour calculer les histogrammes et la résolution de l'histogramme. Plus la résolution est élevée, plus la dynamique est élevée, mais plus vous devrez utiliser des tuiles petites. Par exemple: `clahe(img(0); 128; 256; 1.2)`.
@@ -311,7 +311,7 @@ Les autres fonctions disponibles sont:
 - `asinh_stretch` permet d'appliquer la fonction d'étirement par arcsinus hyperbolique. Elle prend 3 paramètres: l'image, le point noir et le coefficient de stretch. Par exemple, `asinh_stretch(img(0), 200, 100)`.
 - `linear_stretch` augmente la plage dynamique d'une image. Elle prend soit 1, soit 3 paramètres : l'image, puis optionellement les valeurs min et max des pixels (valeur comprise entre 0 et 65535). Par exemple: `linear_stretch(img(0))`
 - `fix_banding` permet d'appliquer l'algorithme de corrections de bandes (ou transversallium). Il prend 3 arguments: l'image, la largeur de bande et le nombre d'itérations. Par exemple, `fix_banding(img(0), 10, 5)`.
-- `remove_bg` permet de supprimer l'arrière plan d'une image. Ceci peut être utile lorsque le constraste est très faible (par exemple en raie hélium). Le processus calcule la valeur moyenne des pixels en dehors du disque, puis applique une suppression de l'arrière plan en fonction de la distance au limbe. Par exemple: `remove_bg(stretched)`. Une variante est disponible avec une tolerance: `remove_bg(stretched, 0.2)`. Plus la tolérance est proche de 0, moins la suppression est forte.
+- `remove_bg` permet de supprimer l'arrière plan d'une image. Ceci peut être utile lorsque le contraste est très faible (par exemple en raie hélium). Le processus calcule la valeur moyenne des pixels en dehors du disque, puis applique une suppression de l'arrière plan en fonction de la distance au limbe. Par exemple: `remove_bg(stretched)`. Une variante est disponible avec une tolerance: `remove_bg(stretched, 0.2)`. Plus la tolérance est proche de 0, moins la suppression est forte.
 - `neutralize_bg` est une fonction similaire à `remove_bg` qui utilise une modélisation polynomiale du fond pour supprimer les gradients. Elle prend en paramètre l'image à traiter, et optionellement un nombre d'itérations en 2ème paramètre. Par exemple : `neutralize_bg(img(0), 2)`.
 
 NOTE: Si vous ne connaissez pas la valeur du point noir, vous pouvez utiliser la valeur estimée par JSol'Ex, disponible dans une variable prédéfinie `blackPoint`: `asinh_stretch(img(0), blackPoint, 100)`
