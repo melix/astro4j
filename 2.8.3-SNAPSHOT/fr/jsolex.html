@@ -932,7 +932,7 @@ Si ce modèle ne vous convient pas, vous pouvez créer vos propres modèles de n
 <h3 id="_affichage_des_images_produites">Affichage des images produites</h3>
 <div class="paragraph">
 <p>Lorsque les images sont produites, elles apparaissent au fur et à mesure en onglets.
-Il vous est alors possible, en fonction des images, de modifier des paramètres de constraste et d&#8217;enregistrer les images.</p>
+Il vous est alors possible, en fonction des images, de modifier des paramètres de contraste et d&#8217;enregistrer les images.</p>
 </div>
 <div class="imageblock">
 <div class="content">
@@ -1133,7 +1133,7 @@ Le script apparaît désormais dans la liste de gauche, il sera appliqué lors d
 <p><code>adjust_gamma</code> permet d&#8217;appliquer une correction gamma à une image. Cette fonction accepte 2 paramètres : l&#8217;image et le facteur de correction gamma. Par exemple, <code>adjust_gamma(img(0), 2.2)</code>. Un gamma &lt; 1 éclaircit l&#8217;image, un gamma &gt; 1 la fonce.</p>
 </li>
 <li>
-<p><code>auto_constrast</code> est une fonction d&#8217;amélioration du contraste crée spécifiquement pour les images Sol&#8217;Ex. Elle combine plusieurs techniques pour améliorer l&#8217;image. Cette fonction prend 2 arguments : l&#8217;image et un facteur de correction. Le facteur doit être supérieur à 1 et plus il est élevé, plus la correction sera forte. Par exemple : <code>auto_contrast(img(0), 1.5)</code>.</p>
+<p><code>auto_contrast</code> est une fonction d&#8217;amélioration du contraste crée spécifiquement pour les images Sol&#8217;Ex. Elle combine plusieurs techniques pour améliorer l&#8217;image. Cette fonction prend 2 arguments : l&#8217;image et un facteur de correction. Le facteur doit être supérieur à 1 et plus il est élevé, plus la correction sera forte. Par exemple : <code>auto_contrast(img(0), 1.5)</code>.</p>
 </li>
 <li>
 <p><code>invert</code>, qui permet d&#8217;obtenir le négatif d&#8217;une image</p>
@@ -1157,7 +1157,7 @@ Le script apparaît désormais dans la liste de gauche, il sera appliqué lors d
 <p><code>fix_banding</code> permet d&#8217;appliquer l&#8217;algorithme de corrections de bandes (ou transversallium). Il prend 3 arguments: l&#8217;image, la largeur de bande et le nombre d&#8217;itérations. Par exemple, <code>fix_banding(img(0), 10, 5)</code>.</p>
 </li>
 <li>
-<p><code>remove_bg</code> permet de supprimer l&#8217;arrière plan d&#8217;une image. Ceci peut être utile lorsque le constraste est très faible (par exemple en raie hélium). Le processus calcule la valeur moyenne des pixels en dehors du disque, puis applique une suppression de l&#8217;arrière plan en fonction de la distance au limbe. Par exemple: <code>remove_bg(stretched)</code>. Une variante est disponible avec une tolerance: <code>remove_bg(stretched, 0.2)</code>. Plus la tolérance est proche de 0, moins la suppression est forte.</p>
+<p><code>remove_bg</code> permet de supprimer l&#8217;arrière plan d&#8217;une image. Ceci peut être utile lorsque le contraste est très faible (par exemple en raie hélium). Le processus calcule la valeur moyenne des pixels en dehors du disque, puis applique une suppression de l&#8217;arrière plan en fonction de la distance au limbe. Par exemple: <code>remove_bg(stretched)</code>. Une variante est disponible avec une tolerance: <code>remove_bg(stretched, 0.2)</code>. Plus la tolérance est proche de 0, moins la suppression est forte.</p>
 </li>
 <li>
 <p><code>neutralize_bg</code> est une fonction similaire à <code>remove_bg</code> qui utilise une modélisation polynomiale du fond pour supprimer les gradients. Elle prend en paramètre l&#8217;image à traiter, et optionellement un nombre d&#8217;itérations en 2ème paramètre. Par exemple : <code>neutralize_bg(img(0), 2)</code>.</p>
