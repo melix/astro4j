@@ -19,6 +19,7 @@ import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
 import me.champeau.a4j.jsolex.processing.sun.crop.Cropper;
 import me.champeau.a4j.jsolex.processing.sun.detection.RedshiftArea;
 import me.champeau.a4j.jsolex.processing.sun.detection.Redshifts;
+import me.champeau.a4j.jsolex.processing.sun.detection.Sunspots;
 import me.champeau.a4j.jsolex.processing.sun.workflow.ImageStats;
 import me.champeau.a4j.jsolex.processing.sun.workflow.ReferenceCoords;
 import me.champeau.a4j.jsolex.processing.util.FileBackedImage;
@@ -29,14 +30,20 @@ import me.champeau.a4j.jsolex.processing.util.RGBImage;
 import me.champeau.a4j.math.image.Image;
 import me.champeau.a4j.math.regression.Ellipse;
 import me.champeau.a4j.math.tuples.DoublePair;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 
 
 public class Crop extends AbstractFunctionImpl {
+    private static final Logger LOGGER = LoggerFactory.getLogger(Crop.class);
+    private static final int DEFAULT_SUNSPOT_SIZE = 32;
+
     public Crop(Map<Class<?>, Object> context, Broadcaster broadcaster) {
         super(context, broadcaster);
     }
@@ -242,7 +249,52 @@ public class Crop extends AbstractFunctionImpl {
                     .toList()
             ));
         });
+        img.findMetadata(Sunspots.class).ifPresent(sunspots -> metadata.put(Sunspots.class, sunspots.translate(-left, -top)));
         img.findMetadata(ReferenceCoords.class).ifPresent(coords -> metadata.put(ReferenceCoords.class, coords.addOffsetX(left).addOffsetY(top)));
         return metadata;
+    }
+
+    /**
+     * Given an image and a list of sunspots, returns a list of cropped images, each containing one sunspot.
+     * @param arguments an image or list of images
+     * @return the cropped images
+     */
+    public Object cropSunspots(List<Object> arguments) {
+        assertExpectedArgCount(arguments, "crop_sunspots takes 1 or 2 arguments (image(s), [min size])", 1, 2);
+        var arg = arguments.get(0);
+        if (arg instanceof List<?>) {
+            return expandToImageList("crop_sunspots", arguments, this::cropSunspots);
+        }
+        if (arg instanceof ImageWrapper wrapper) {
+            int minSize = arguments.size() == 2 ? intArg(arguments, 1) : DEFAULT_SUNSPOT_SIZE;
+            var img = wrapper.unwrapToMemory();
+            var sunspots = img.findMetadata(Sunspots.class).orElse(null);
+            if (sunspots == null) {
+                return List.of();
+            }
+            var list = sunspots.sunspotList().stream()
+                .map(sunspot -> {
+                    var left = (int) sunspot.topLeft().x();
+                    var top = (int) sunspot.topLeft().y();
+                    var width = (int) sunspot.width();
+                    var height = (int) sunspot.height();
+                    if (width >= minSize && height >= minSize) {
+                        // expand the crop area by 10%
+                        var cropWidth = (int) (width * 1.1);
+                        var cropHeight = (int) (height * 1.1);
+                        var cropLeft = left - (cropWidth - width) / 2;
+                        var cropTop = top - (cropHeight - height) / 2;
+                        return crop(List.of(img, cropLeft, cropTop, cropWidth, cropHeight));
+                    }
+                    return null;
+                })
+                .filter(Objects::nonNull)
+                .toList();
+            if (list.isEmpty()) {
+                LOGGER.info("No sunspots larger than {}x{} found", minSize, minSize);
+            }
+            return list;
+        }
+        return List.of();
     }
 }

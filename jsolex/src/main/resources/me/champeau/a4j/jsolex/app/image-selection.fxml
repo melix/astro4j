@@ -14,9 +14,9 @@
 <?import javafx.scene.layout.RowConstraints?>
 <?import javafx.scene.layout.VBox?>
 
-<BorderPane maxHeight="-Infinity" maxWidth="-Infinity" minHeight="-Infinity" minWidth="-Infinity" prefHeight="432.0" prefWidth="600.0" xmlns="http://javafx.com/javafx/19" xmlns:fx="http://javafx.com/fxml/1" fx:controller="me.champeau.a4j.jsolex.app.jfx.ImageSelector">
+<BorderPane maxHeight="-Infinity" maxWidth="-Infinity" minHeight="-Infinity" minWidth="-Infinity" prefHeight="469.0" prefWidth="600.0" xmlns="http://javafx.com/javafx/19" xmlns:fx="http://javafx.com/fxml/1" fx:controller="me.champeau.a4j.jsolex.app.jfx.ImageSelector">
     <bottom>
-        <ButtonBar prefHeight="40.0" prefWidth="200.0" BorderPane.alignment="CENTER">
+        <ButtonBar prefHeight="40.0" prefWidth="592.0" BorderPane.alignment="CENTER">
             <buttons>
                 <Button mnemonicParsing="false" onAction="#cancel" text="%cancel" />
                 <Button mnemonicParsing="false" onAction="#process" text="%ok" />
@@ -63,6 +63,7 @@
                         <CheckBox fx:id="continuum" mnemonicParsing="false" text="%continuum" />
                         <CheckBox fx:id="technicalCard" mnemonicParsing="false" text="%technical.card" />
                         <CheckBox fx:id="redshift" mnemonicParsing="false" text="%redshift" />
+                        <CheckBox fx:id="sunspots" mnemonicParsing="false" text="%sunspots" />
                         <CheckBox fx:id="debug" mnemonicParsing="false" text="%debug.images" />
                     </children>
                     <padding>

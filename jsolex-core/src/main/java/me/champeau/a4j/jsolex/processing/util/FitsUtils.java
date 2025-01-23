@@ -21,11 +21,14 @@ import me.champeau.a4j.jsolex.processing.params.ProcessParamsIO;
 import me.champeau.a4j.jsolex.processing.spectrum.SpectrumAnalyzer;
 import me.champeau.a4j.jsolex.processing.sun.detection.RedshiftArea;
 import me.champeau.a4j.jsolex.processing.sun.detection.Redshifts;
+import me.champeau.a4j.jsolex.processing.sun.detection.Sunspot;
+import me.champeau.a4j.jsolex.processing.sun.detection.Sunspots;
 import me.champeau.a4j.jsolex.processing.sun.workflow.MetadataTable;
 import me.champeau.a4j.jsolex.processing.sun.workflow.PixelShift;
 import me.champeau.a4j.jsolex.processing.sun.workflow.ReferenceCoords;
 import me.champeau.a4j.jsolex.processing.sun.workflow.SourceInfo;
 import me.champeau.a4j.jsolex.processing.sun.workflow.TransformationHistory;
+import me.champeau.a4j.math.Point2D;
 import me.champeau.a4j.math.regression.Ellipse;
 import me.champeau.a4j.math.tuples.DoubleSextuplet;
 import nom.tam.fits.BasicHDU;
@@ -45,6 +48,8 @@ import nom.tam.fits.header.extra.SBFitsExt;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
+import java.io.DataInputStream;
+import java.io.DataOutputStream;
 import java.io.File;
 import java.io.IOException;
 import java.io.StringReader;
@@ -72,6 +77,7 @@ public class FitsUtils {
     public static final String SOURCEINFO_VALUE = "SourceInfo";
     public static final String METADATA_TABLE_VALUE = "TMetadata";
     public static final String DISTORSION_MAP_VALUE = "DistorsionMap";
+    public static final String SUNSPOTS_VALUE = "Sunspots";
 
     // INTI metadata
     public static final String INTI_CENTER_X = "CENTER_X";
@@ -192,7 +198,7 @@ public class FitsUtils {
         return false;
     }
 
-    private static void readMetadata(BinaryTableHDU binaryTableHdu, Map<Class<?>, Object> metadata) throws FitsException {
+    private static void readMetadata(BinaryTableHDU binaryTableHdu, Map<Class<?>, Object> metadata) throws FitsException, IOException {
         var iterator = binaryTableHdu.getHeader().iterator();
         while (iterator.hasNext()) {
             var card = iterator.next();
@@ -286,6 +292,26 @@ public class FitsUtils {
                     var binaryTable = binaryTableHdu.getData();
                     var bytes = (byte[]) binaryTable.get(0, 0);
                     metadata.put(DistorsionMap.class, DistorsionMap.loadFrom(new ByteArrayInputStream(bytes)));
+                } else if (SUNSPOTS_VALUE.equals(card.getValue())) {
+                    var binaryTable = binaryTableHdu.getData();
+                    var sunspots = new ArrayList<Sunspot>();
+                    for (int i = 0; i < binaryTable.getNRows(); i++) {
+                        var row = binaryTable.getRow(i);
+                        var data = (byte[]) row[0];
+                        var dais = new DataInputStream(new ByteArrayInputStream(data));
+                        var sunspotCount = dais.readInt();
+                        for (int j = 0; j < sunspotCount; j++) {
+                            var pointCount = dais.readInt();
+                            var points = new ArrayList<Point2D>();
+                            for (int k = 0; k < pointCount; k++) {
+                                var x = dais.readDouble();
+                                var y = dais.readDouble();
+                                points.add(new Point2D(x, y));
+                            }
+                            sunspots.add(Sunspot.of(points));
+                        }
+                    }
+                    metadata.put(Sunspots.class, new Sunspots(sunspots));
                 }
             }
         }
@@ -328,7 +354,7 @@ public class FitsUtils {
         }
     }
 
-    private static void writeMetadata(ImageWrapper image, Fits fits) throws FitsException {
+    private static void writeMetadata(ImageWrapper image, Fits fits) throws FitsException, IOException {
         if (!image.metadata().isEmpty()) {
             writeEllipse(image, fits);
             writeProcessParams(image, fits);
@@ -340,6 +366,7 @@ public class FitsUtils {
             writeSourceInfo(image, fits);
             writeMetadataTable(image, fits);
             writeDistorsionMap(image, fits);
+            writeSunspots(image, fits);
         }
     }
 
@@ -353,28 +380,49 @@ public class FitsUtils {
             }
             var table = new BinaryTable();
             table.addRow(new Object[]{baos.toByteArray()});
-            var binaryTableHDU = BinaryTableHDU.wrap(table);
-            binaryTableHDU.getHeader().addValue(JSOLEX_HEADER_KEY, DISTORSION_MAP_VALUE, "Distorsion map");
-            try {
-                fits.addHDU(binaryTableHDU);
-            } catch (FitsException e) {
-                throw new RuntimeException(e);
-            }
+            writeBinaryTable(table, DISTORSION_MAP_VALUE, "Distorsion map", fits);
         });
+    }
+
+    private static void writeSunspots(ImageWrapper image, Fits fits) throws IOException {
+        var metadata = image.findMetadata(Sunspots.class);
+        if (metadata.isPresent()) {
+            var sunspots = metadata.get();
+            var table = new BinaryTable();
+            var baos = new ByteArrayOutputStream();
+            var daos = new DataOutputStream(baos);
+            var sunspotList = sunspots.sunspotList();
+            daos.writeInt(sunspotList.size());
+            for (var sunspot : sunspotList) {
+                var points = sunspot.points();
+                daos.writeInt(points.size());
+                // we only need to store the points, not the bounding box
+                for (var p : points) {
+                    daos.writeDouble(p.x());
+                    daos.writeDouble(p.y());
+                }
+            }
+            table.addRow(new Object[]{baos.toByteArray()});
+            writeBinaryTable(table, SUNSPOTS_VALUE, "Sunspots", fits);
+        }
     }
 
     private static void writeMetadataTable(ImageWrapper image, Fits fits) {
         image.findMetadata(MetadataTable.class).ifPresent(metadataTable -> {
             var table = new BinaryTable();
             metadataTable.properties().forEach((key, value) -> table.addRow(new Object[]{key, value}));
-            var binaryTableHDU = BinaryTableHDU.wrap(table);
-            binaryTableHDU.getHeader().addValue(JSOLEX_HEADER_KEY, METADATA_TABLE_VALUE, "Metadata table");
-            try {
-                fits.addHDU(binaryTableHDU);
-            } catch (FitsException e) {
-                throw new RuntimeException(e);
-            }
+            writeBinaryTable(table, METADATA_TABLE_VALUE, "Metadata table", fits);
         });
+    }
+
+    private static void writeBinaryTable(BinaryTable table, String metadataTableValue, String Metadata_table, Fits fits) {
+        var binaryTableHDU = BinaryTableHDU.wrap(table);
+        binaryTableHDU.getHeader().addValue(JSOLEX_HEADER_KEY, metadataTableValue, Metadata_table);
+        try {
+            fits.addHDU(binaryTableHDU);
+        } catch (FitsException e) {
+            throw new RuntimeException(e);
+        }
     }
 
     private static void writeRedshifts(ImageWrapper image, Fits fits) {
@@ -392,13 +440,7 @@ public class FitsUtils {
                 redshift.maxY(),
                 redshift.id()
             }));
-            var binaryTableHDU = BinaryTableHDU.wrap(table);
-            binaryTableHDU.getHeader().addValue(JSOLEX_HEADER_KEY, REDSHIFTS_VALUE, "Measured redshifts");
-            try {
-                fits.addHDU(binaryTableHDU);
-            } catch (FitsException e) {
-                throw new RuntimeException(e);
-            }
+            writeBinaryTable(table, REDSHIFTS_VALUE, "Measured redshifts", fits);
         });
     }
 

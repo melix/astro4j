@@ -82,6 +82,8 @@ public class ImageSelector {
     @FXML
     private TextField pixelShifts;
     @FXML
+    private CheckBox sunspots;
+    @FXML
     private Button openImageMathButton;
     @FXML
     private ChoiceBox<PixelShiftMode> mode;
@@ -158,12 +160,18 @@ public class ImageSelector {
                 case RECONSTRUCTION -> reconstruction.setSelected(true);
                 case TECHNICAL_CARD -> technicalCard.setSelected(true);
                 case REDSHIFT -> redshift.setSelected(true);
+                case SUNSPOTS -> sunspots.setSelected(true);
             }
         }
         this.debug.setSelected(debug);
         updatePixelShiftsWithSelectedImages(newPixelShifts);
         doppler.selectedProperty().addListener((observable, oldValue, newValue) -> adjustPixelShifts(newValue, -dopplerShift, dopplerShift));
         continuum.selectedProperty().addListener((observable, oldValue, newValue) -> adjustPixelShifts(newValue, continuumShift));
+        sunspots.selectedProperty().addListener((observable, oldValue, newValue) -> {
+            if (newValue) {
+                continuum.setSelected(true);
+            }
+        });
     }
 
     private void updatePixelShiftsWithSelectedImages(List<Double> newPixelShifts) {
@@ -287,6 +295,10 @@ public class ImageSelector {
             images.add(GeneratedImageKind.REDSHIFT);
             makeDefaultShiftNonInternal();
         }
+        if (sunspots.isSelected()) {
+            images.add(GeneratedImageKind.SUNSPOTS);
+            makeDefaultShiftNonInternal();
+        }
         var pixelShifts = readPixelShifts();
         requestedImages = new RequestedImages(
             images,
@@ -330,6 +342,7 @@ public class ImageSelector {
         technicalCard.setSelected(selected);
         debug.setSelected(selected);
         redshift.setSelected(selected);
+        sunspots.setSelected(selected);
     }
 
     @FXML

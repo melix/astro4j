@@ -792,6 +792,7 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
                 BatchOperations.submitOneOfAKind("progress", () -> owner.updateProgress(e.getPayload().progress(), e.getPayload().task()));
             }
         });
+        solexVideoProcessor.setForceDetectSunspots(params.requestedImages().isEnabled(GeneratedImageKind.SUNSPOTS));
         solexVideoProcessor.process();
     }
 

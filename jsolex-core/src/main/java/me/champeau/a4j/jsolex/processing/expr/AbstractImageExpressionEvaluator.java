@@ -228,6 +228,7 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
             case CONTINUUM -> createContinuumImage();
             case CROP -> crop.crop(arguments);
             case CROP_RECT -> crop.cropToRect(arguments);
+            case CROP_SUNSPOTS -> crop.cropSunspots(arguments);
             case DEDISTORT -> dedistort.dedistort(arguments);
             case DISK_FILL -> diskFill.fill(arguments);
             case DISK_MASK -> diskFill.mask(arguments);
@@ -246,6 +247,7 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
             case FIX_GEOMETRY -> geometryCorrection.fixGeometry(arguments);
             case FLAT_CORRECTION -> flatCorrector.performFlatCorrection(arguments);
             case HFLIP -> rotate.hflip(arguments);
+            case GET_AT -> utilities.doGetAt(arguments);
             case GET_G -> utilities.extractChannel(arguments, 1);
             case IMG -> image(arguments);
             case INVERT -> inverse.invert(arguments);
@@ -279,6 +281,7 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
             case STACK -> stacking.stack(arguments);
             case STACK_REF -> stacking.chooseReference(arguments);
             case SORT -> utilities.sort(arguments);
+            case SUNSPOTS_OVERLAY -> imageDraw.sunspotsOverlay(arguments);
             case VFLIP -> rotate.vflip(arguments);
             case VIDEO_DATETIME -> utilities.videoDateTime(arguments);
             case WORKDIR -> setWorkDir(arguments);

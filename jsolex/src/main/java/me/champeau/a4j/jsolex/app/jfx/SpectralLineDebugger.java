@@ -51,6 +51,7 @@ import me.champeau.a4j.jsolex.processing.sun.AverageImageCreator;
 import me.champeau.a4j.jsolex.processing.sun.ImageUtils;
 import me.champeau.a4j.jsolex.processing.sun.SpectrumFrameAnalyzer;
 import me.champeau.a4j.jsolex.processing.sun.detection.PhenomenaDetector;
+import me.champeau.a4j.jsolex.processing.sun.detection.PhenomenaListener;
 import me.champeau.a4j.jsolex.processing.util.BackgroundOperations;
 import me.champeau.a4j.jsolex.processing.util.Constants;
 import me.champeau.a4j.jsolex.processing.util.ImageFormat;
@@ -61,6 +62,7 @@ import me.champeau.a4j.jsolex.processing.util.ProcessingException;
 import me.champeau.a4j.jsolex.processing.util.SpectralLineFrameImageCreator;
 import me.champeau.a4j.math.Point2D;
 import me.champeau.a4j.math.regression.LinearRegression;
+import me.champeau.a4j.math.tuples.DoublePair;
 import me.champeau.a4j.ser.ColorMode;
 import me.champeau.a4j.ser.ImageGeometry;
 import me.champeau.a4j.ser.SerFileReader;
@@ -81,6 +83,7 @@ import java.util.stream.Collectors;
 
 import static me.champeau.a4j.jsolex.app.jfx.FXUtils.newStage;
 import static me.champeau.a4j.jsolex.processing.sun.ImageUtils.createImageConverter;
+import static me.champeau.a4j.jsolex.processing.util.SpectralLineFrameImageCreator.SPACING;
 
 public class SpectralLineDebugger {
     private static final int FAST_MOVE = 10;
@@ -398,16 +401,28 @@ public class SpectralLineDebugger {
         }
         var creator = new SpectralLineFrameImageCreator(analyzer, buffer, width, height);
         var rgb = creator.generateDebugImage(lockedPolynomial);
-        if (spectralRayDetectionResult != null && spectralRayDetectionResult.line().equals(SpectralRay.H_ALPHA)) {
+        if (spectralRayDetectionResult != null) {
             var line = spectralRayDetectionResult.line();
             var dispersion = SpectrumAnalyzer.computeSpectralDispersionNanosPerPixel(instrument, line.wavelength(), spectralRayDetectionResult.pixelSize() * spectralRayDetectionResult.binning());
             var detector = new PhenomenaDetector(dispersion, line.wavelength(), 0);
-            detector.setDetectionListener(rs -> {
-                var x = rs.a();
-                var y = ((int) Math.round(polynomial.applyAsDouble(x))) + rs.b();
-                rgb.r()[(int) y][(int) x] = 0;
-                rgb.g()[(int) y][(int) x] = Constants.MAX_PIXEL_VALUE;
-                rgb.b()[(int) y][(int) x] = Constants.MAX_PIXEL_VALUE;
+            detector.setDetectRedshifts(spectralRayDetectionResult.line().equals(SpectralRay.H_ALPHA));
+            detector.setDetectionListener(new PhenomenaListener() {
+                @Override
+                public void onRedshift(DoublePair rs) {
+                    var x = rs.a();
+                    var y = ((int) Math.round(polynomial.applyAsDouble(x))) + rs.b();
+                    rgb.r()[(int) y][(int) x] = 0;
+                    rgb.g()[(int) y][(int) x] = Constants.MAX_PIXEL_VALUE;
+                    rgb.b()[(int) y][(int) x] = Constants.MAX_PIXEL_VALUE;
+                }
+
+                @Override
+                public void onSunspot(int x) {
+                    for (int y=0;y<height;y++) {
+                        rgb.r()[y + height + SPACING][x] = Constants.MAX_PIXEL_VALUE;
+                        rgb.b()[y + height + SPACING][x] = Constants.MAX_PIXEL_VALUE;
+                    }
+                }
             });
             detector.performDetection(frameId, width, height, buffer, polynomial);
         }

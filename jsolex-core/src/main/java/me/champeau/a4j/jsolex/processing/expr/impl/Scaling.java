@@ -18,10 +18,12 @@ package me.champeau.a4j.jsolex.processing.expr.impl;
 import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
 import me.champeau.a4j.jsolex.processing.sun.detection.RedshiftArea;
 import me.champeau.a4j.jsolex.processing.sun.detection.Redshifts;
+import me.champeau.a4j.jsolex.processing.sun.detection.Sunspots;
 import me.champeau.a4j.jsolex.processing.util.FileBackedImage;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 import me.champeau.a4j.jsolex.processing.util.RGBImage;
+import me.champeau.a4j.math.Point2D;
 import me.champeau.a4j.math.image.Image;
 import me.champeau.a4j.math.image.ImageMath;
 import me.champeau.a4j.math.regression.Ellipse;
@@ -188,6 +190,15 @@ public class Scaling extends AbstractFunctionImpl {
             metadata.put(Redshifts.class, new Redshifts(redshifts.redshifts().stream()
                 .map(rs -> new RedshiftArea(rs.id(), rs.pixelShift(), rs.relPixelShift(), rs.kmPerSec(), (int) (rs.x1() / sx), (int) (rs.y1() / sy), (int) (rs.x2() / sx), (int) (rs.y2() / sy), (int) (rs.maxX() / sx), (int) (rs.maxY() / sy)))
                 .toList()));
+        });
+        image.findMetadata(Sunspots.class).ifPresent(sunspots -> {
+            double sx = image.width() / width;
+            double sy = image.height() / height;
+            metadata.put(Sunspots.class, sunspots.transform(p -> {
+                var x = (p.x() / sx);
+                var y = (p.y() / sy);
+                return new Point2D(x, y);
+            }));
         });
         return metadata;
     }

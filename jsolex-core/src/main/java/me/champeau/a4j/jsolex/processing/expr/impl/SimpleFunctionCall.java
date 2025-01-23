@@ -128,7 +128,15 @@ public class SimpleFunctionCall extends AbstractFunctionImpl {
                 );
                 metadata.put(SolarParameters.class, solarParams);
             }
-            return new ImageWrapper32(width, height, result, metadata);
+            var output = new ImageWrapper32(width, height, result, metadata);
+            for (var sample : images) {
+                for (var entry : sample.metadata().entrySet()) {
+                    if (output.findMetadata(entry.getKey()).isEmpty()) {
+                        output.metadata().put(entry.getKey(), entry.getValue());
+                    }
+                }
+            }
+            return output;
         }
         throw new IllegalArgumentException("Unexpected argument type '" + type + "'");
     }

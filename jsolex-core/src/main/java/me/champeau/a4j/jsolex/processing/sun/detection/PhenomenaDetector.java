@@ -16,6 +16,8 @@
 package me.champeau.a4j.jsolex.processing.sun.detection;
 
 import me.champeau.a4j.jsolex.processing.sun.SpectrumFrameAnalyzer;
+import me.champeau.a4j.math.Point2D;
+import me.champeau.a4j.math.regression.LinearRegression;
 import me.champeau.a4j.math.tuples.DoublePair;
 import me.champeau.a4j.math.tuples.IntPair;
 
@@ -23,24 +25,34 @@ import java.util.ArrayList;
 import java.util.BitSet;
 import java.util.Collections;
 import java.util.Comparator;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.Stack;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
-import java.util.function.Consumer;
 import java.util.function.DoubleUnaryOperator;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
 public class PhenomenaDetector {
+    private static final double SUNSPOT_STDDEV_THRESHOLD = 0.85;
+    private static final double SUNSPOT_AVG_THRESHOLD = 0.95;
+    private static final int MIN_SUNSPOT_AREA = 16;
+
     private static final double SPEED_OF_LIGHT = 299792.458d;
     private final Map<Integer, List<Redshift>> redshiftsPerFrame = new ConcurrentHashMap<>();
+    private final Map<Integer, BitSet> sunspotsPerFrame = new ConcurrentHashMap<>();
     private final Lock lock = new ReentrantLock();
     private final double dispersion;
     private final double lambda0;
     private final int reconstructedWidth;
-    private Consumer<DoublePair> detectionListener;
+
+    private PhenomenaListener detectionListener;
+    private boolean detectSunspots = true;
+    private boolean detectRedshifts = true;
 
     public PhenomenaDetector(double dispersion, double lambda0, int reconstructedWidth) {
         this.dispersion = dispersion;
@@ -48,7 +60,15 @@ public class PhenomenaDetector {
         this.reconstructedWidth = reconstructedWidth;
     }
 
-    public void setDetectionListener(Consumer<DoublePair> detectionListener) {
+    public void setDetectSunspots(boolean detectSunspots) {
+        this.detectSunspots = detectSunspots;
+    }
+
+    public void setDetectRedshifts(boolean detectRedshifts) {
+        this.detectRedshifts = detectRedshifts;
+    }
+
+    public void setDetectionListener(PhenomenaListener detectionListener) {
         this.detectionListener = detectionListener;
     }
 
@@ -65,11 +85,9 @@ public class PhenomenaDetector {
     }
 
     public void performDetection(int frameId, int width, int height, float[][] original, DoubleUnaryOperator polynomial) {
-        // Ellerman bomb detection consists in looking for a sharp increase in intensity
-        // around the h-alpha line. The center of the h-alpha line is untouched, but around
-        // the wings, a sharp increase in intensity is expected, but it will not cover the
-        // whole height.
-        // Detection is done column by column.
+        if (!detectRedshifts && !detectSunspots) {
+            return;
+        }
         var bordersAnalysis = new SpectrumFrameAnalyzer(width, height, 20000d).analyze(original);
         // 10 is to convert nm to angstrom
         int wingShiftInPixels = (int) Math.floor(0.5d / (10d * dispersion));
@@ -77,6 +95,7 @@ public class PhenomenaDetector {
         var rightBorder = bordersAnalysis.rightBorder();
         var avgOfColumnAverages = 0d;
         if (leftBorder.isPresent() && rightBorder.isPresent()) {
+            var sunspotMask = new BitSet(width);
             int leftLimit = leftBorder.get();
             int rightLimit = rightBorder.get();
             var range = rightLimit - leftLimit;
@@ -84,9 +103,8 @@ public class PhenomenaDetector {
             rightLimit -= (int) (range / 40d);
             var avgCenterLine = 0d;
             var avgCenterCount = 0;
-            var avgWings = 0d;
-            var avgWingsCount = 0;
             var columnsAverages = new double[width];
+            var columnsStddevs = new double[width];
             for (int x = leftLimit; x < rightLimit; x++) {
                 var columnAvg = columnAverage(x, height, original);
                 columnsAverages[x] = columnAvg;
@@ -95,26 +113,36 @@ public class PhenomenaDetector {
                 double v = original[y][x];
                 avgCenterLine += v;
                 avgCenterCount++;
-                if (y - wingShiftInPixels >= 0) {
-                    v = original[(y - wingShiftInPixels)][x];
-                    avgWings += v;
-                    avgWingsCount++;
-                }
-                if (y + wingShiftInPixels < height) {
-                    v = original[(y + wingShiftInPixels)][x];
-                    avgWings += v;
-                    avgWingsCount++;
-                }
             }
+            var avgPoints = new ArrayList<Point2D>();
+            var stddevPoints = new ArrayList<Point2D>();
+            for (int x = leftLimit; x < rightLimit; x++) {
+                var avg = columnsAverages[x];
+                avgPoints.add(new Point2D(x, avg));
+                double stddev = 0;
+                for (int y = 0; y < height; y++) {
+                    var delta = original[y][x] - avg;
+                    stddev += delta * delta;
+                }
+                columnsStddevs[x] = Math.sqrt(stddev / height);
+                stddevPoints.add(new Point2D(x, columnsStddevs[x]));
+            }
+            var avgModel = LinearRegression.thirdOrderRegression(avgPoints.toArray(Point2D[]::new)).asPolynomial();
+            var stddevModel = LinearRegression.thirdOrderRegression(stddevPoints.toArray(Point2D[]::new)).asPolynomial();
             avgOfColumnAverages /= range;
             avgCenterLine /= avgCenterCount;
             // perform per column analysis
             var collector = new ArrayList<Redshift>();
             double finalAvgCenterLine = avgCenterLine;
             double finalAvgOfColumnAverages = avgOfColumnAverages;
-            IntStream.range(leftLimit, rightLimit).parallel().forEach(x -> analyzeColumn(frameId, x, width, height, original, polynomial, wingShiftInPixels, collector, finalAvgCenterLine, finalAvgOfColumnAverages, columnsAverages));
+            IntStream.range(leftLimit, rightLimit)
+                .parallel()
+                .forEach(x -> analyzeColumn(frameId, x, width, height, original, polynomial, wingShiftInPixels, collector, finalAvgCenterLine, finalAvgOfColumnAverages, columnsAverages, columnsStddevs, avgModel, stddevModel, sunspotMask));
             if (!collector.isEmpty()) {
                 redshiftsPerFrame.put(frameId, Collections.unmodifiableList(collector));
+            }
+            if (sunspotMask.cardinality() > 0) {
+                sunspotsPerFrame.put(frameId, sunspotMask);
             }
         }
     }
@@ -162,7 +190,18 @@ public class PhenomenaDetector {
                                List<Redshift> collector,
                                double avgLineValue,
                                double avgOfcolumnAverages,
-                               double[] columnsAverages) {
+                               double[] columnsAverages,
+                               double[] columnsStddevs,
+                               DoubleUnaryOperator avgModel,
+                               DoubleUnaryOperator stddevModel,
+                               BitSet sunspotMask
+    ) {
+        if (detectSunspots) {
+            detectSunspots(x, columnsAverages, columnsStddevs, avgModel, stddevModel, sunspotMask);
+        }
+        if (!detectRedshifts) {
+            return;
+        }
         // The polynomial is used to find the original pixel position which is in the middle of the h-alpha line
         double yd = polynomial.applyAsDouble(x);
         int yi = (int) yd;
@@ -245,7 +284,7 @@ public class PhenomenaDetector {
                 // the coordinates in the final image are reversed (x <-> y) because of a 90° rotation
                 // and flipped vertically
                 if (detectionListener != null) {
-                    detectionListener.accept(new DoublePair(x, relMaxShift));
+                    detectionListener.onRedshift(new DoublePair(x, relMaxShift));
                 }
                 collector.add(redshift);
             } finally {
@@ -253,6 +292,146 @@ public class PhenomenaDetector {
             }
         }
     }
+
+    private void detectSunspots(int x, double[] columnsAverages, double[] columnsStddevs, DoubleUnaryOperator avgModel, DoubleUnaryOperator stddevModel, BitSet sunspotMask) {
+        if (isPotentialSunspot(x, columnsAverages, columnsStddevs, avgModel, stddevModel, sunspotMask)/*
+        && (isPotentialSunspot(x - 1, columnsAverages, columnsStddevs, avgModel, stddevModel, sunspotMask) || isPotentialSunspot(x + 1, columnsAverages, columnsStddevs, avgModel, stddevModel, sunspotMask))*/
+        ) {
+            // sunspot detected in this column
+            sunspotMask.set(x);
+            if (detectionListener != null) {
+                detectionListener.onSunspot(x);
+            }
+        }
+    }
+
+    private boolean isPotentialSunspot(int x, double[] columnsAverages, double[] columnsStddevs, DoubleUnaryOperator avgModel, DoubleUnaryOperator stddevModel, BitSet sunspotMask) {
+        var avg = columnsAverages[x];
+        var stddev = columnsStddevs[x];
+        var avgModelValue = avgModel.applyAsDouble(x);
+        var stddevModelValue = stddevModel.applyAsDouble(x);
+        return avg < SUNSPOT_AVG_THRESHOLD * avgModelValue && stddev < SUNSPOT_STDDEV_THRESHOLD * stddevModelValue;
+    }
+
+    public Sunspots getSunspots() {
+        var points = new Stack<Point2D>();
+        points.addAll(sunspotsPerFrame.entrySet()
+            .stream()
+            .filter(entry -> !entry.getValue().isEmpty())
+            .flatMap(entry -> entry.getValue().stream().mapToObj(x -> new Point2D(x, entry.getKey())))
+            .toList());
+        Set<Point2D> pointsAsSet = new HashSet<>(points);
+        Set<Point2D> visited = new HashSet<>();
+        List<List<Point2D>> sunspots = new ArrayList<>();
+        while (!points.isEmpty()) {
+            var current = points.pop();
+            if (visited.contains(current)) {
+                continue;
+            }
+            pointsAsSet.remove(current);
+            var area = new ArrayList<Point2D>();
+            dfs(current, pointsAsSet, visited, area);
+            sunspots.add(area);
+        }
+        var sunspotList = sunspots.stream()
+            .sorted(Comparator.<List<Point2D>>comparingInt(List::size).reversed())
+            .map(Sunspot::of)
+            .filter(s -> s.width() >= MIN_SUNSPOT_AREA && s.height() >= MIN_SUNSPOT_AREA)
+            .toList();
+        return new Sunspots(clusterSunspots(sunspotList));
+    }
+
+    private List<Sunspot> clusterSunspots(List<Sunspot> sunspotList) {
+        sunspotList = new ArrayList<>(sunspotList); // make mutable
+        sunspotList.sort(
+            Comparator.<Sunspot>comparingDouble(s -> s.topLeft().x())
+                .thenComparingDouble(s -> s.topLeft().y())
+        );
+
+        var deleted = new BitSet(sunspotList.size());
+        var clusters = new ArrayList<Sunspot>();
+
+        for (int i = 0; i < sunspotList.size(); i++) {
+            if (deleted.get(i)) {
+                continue;
+            }
+
+            var currentCluster = sunspotList.get(i);
+
+            for (int j = i + 1; j < sunspotList.size(); j++) {
+                if (deleted.get(j)) {
+                    continue;
+                }
+
+                var next = sunspotList.get(j);
+
+                if (shouldMerge(currentCluster, next)) {
+                    currentCluster = mergeSunspots(currentCluster, next);
+                    deleted.set(j); // Mark as merged
+                }
+            }
+
+            // Add the merged cluster to the result
+            clusters.add(currentCluster);
+        }
+
+        return clusters.size() == sunspotList.size() ? sunspotList : clusterSunspots(clusters);
+    }
+
+    private boolean shouldMerge(Sunspot a, Sunspot b) {
+        var aSize = sizeOf(a);
+        var bSize = sizeOf(b);
+        var centerA = new Point2D((a.topLeft().x() + a.bottomRight().x()) / 2, (a.topLeft().y() + a.bottomRight().y()) / 2);
+        var centerB = new Point2D((b.topLeft().x() + b.bottomRight().x()) / 2, (b.topLeft().y() + b.bottomRight().y()) / 2);
+        return centerA.distanceTo(centerB) < (aSize + bSize) / 2;
+    }
+
+    private Sunspot mergeSunspots(Sunspot a, Sunspot b) {
+        return Sunspot.of(
+            Stream.concat(a.points().stream(), b.points().stream())
+                .toList()
+        );
+    }
+
+    private static double sizeOf(Sunspot sunspot) {
+        return Math.sqrt(sunspot.width() * sunspot.width() + sunspot.height() * sunspot.height());
+    }
+
+
+    private static void dfs(Point2D start,
+                            Set<Point2D> points,
+                            Set<Point2D> visited,
+                            List<Point2D> area) {
+        var stack = new Stack<Point2D>();
+        stack.push(start);
+
+        while (!stack.isEmpty()) {
+            var current = stack.pop();
+
+            if (visited.add(current)) {
+                var left = new Point2D(current.x() - 1, current.y());
+                var right = new Point2D(current.x() + 1, current.y());
+                var down = new Point2D(current.x(), current.y() + 1);
+                var up = new Point2D(current.x(), current.y() - 1);
+
+                area.add(current);
+
+                if (points.contains(right) && !visited.contains(right)) {
+                    stack.push(right);
+                }
+                if (points.contains(left) && !visited.contains(left)) {
+                    stack.push(left);
+                }
+                if (points.contains(down) && !visited.contains(down)) {
+                    stack.push(down);
+                }
+                if (points.contains(up) && !visited.contains(up)) {
+                    stack.push(up);
+                }
+            }
+        }
+    }
+
 
     public List<RedshiftArea> getMaxRedshiftAreas(int limit) {
         var anonynous = computeAreas()
@@ -365,8 +544,20 @@ public class PhenomenaDetector {
     }
 
 
-    public boolean isEmpty() {
-        return redshiftsPerFrame.isEmpty();
+    public boolean hasRedshifts() {
+        return !redshiftsPerFrame.isEmpty();
+    }
+
+    public boolean hasSunspots() {
+        return !sunspotsPerFrame.isEmpty();
+    }
+
+    public boolean isRedShiftDetectionEnabled() {
+        return detectRedshifts;
+    }
+
+    public boolean isSunspotDetectionEnabled() {
+        return detectSunspots;
     }
 
     private record Cluster(int x1, int y1, int x2, int y2, int pixelShift, List<RedshiftArea> areas) {

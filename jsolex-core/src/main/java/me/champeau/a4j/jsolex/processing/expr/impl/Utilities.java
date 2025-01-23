@@ -137,4 +137,16 @@ public class Utilities extends AbstractFunctionImpl {
         }
         throw new IllegalArgumentException("Unexpected argument type: " + image.getClass());
     }
+
+    public Object doGetAt(List<Object> arguments) {
+        assertExpectedArgCount(arguments, "get_at expects 2 arguments (images, index)", 2, 2);
+        if (!(arguments.getFirst() instanceof List list)) {
+            throw new IllegalArgumentException("get_at expects a list of images as first argument");
+        }
+        if (!list.isEmpty() && list.getFirst() instanceof List) {
+            return expandToImageList("get_at", arguments, this::doGetAt);
+        }
+        var index = intArg(arguments, 1);
+        return list.get(index);
+    }
 }
