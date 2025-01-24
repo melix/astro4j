@@ -286,6 +286,7 @@ Fonctions "unitaires":
 
 - `img` demande une image à un décalage de pixels donné. Par exemple, `img(0)` est l'image centrée sur la raie, `img(-10)` est celle décalée de 10 pixels vers le haut.
 - `list` crée une liste à partir des arguments. Par exemple `list(img(-3), img(3))`
+- `get_at` récupère une image de la liste. Par exemple, `get_at(list(img(-3), img(3)), 1)` renverra l'image à l'index 1, qui est `img(3)`. Si l'argument est une liste de listes d'images, alors il renverra une liste qui contient les images à l'index spécifié.
 - `avg` permet de calculer la valeur moyenne d'images, par exemple: `avg(img(-1), img(0), img(1))` calcule la moyenne des images aux décalages -1, 0 et 1. Il est aussi possible d'écrire: `avg(range(-1,1))`
 - `max` permet de calculer la valeur maximale d'images, par exemple `max(img(-3), img(3))`. Le maximum est calculé pixel par pixel.
 - `min` permet de calculer la valeur minimale d'images, par exemple `min(img(-3), img(3))`. Le minimum est calculé pixel par pixel.
@@ -397,6 +398,11 @@ Par exemple, pour créer une liste d'images pour lesquelles le temps est après 
 |`time`|L'heure d'acquisition (comparé en UTC)|`=`, `!=`, `>`, `<`, `>=`, `<=`|`filter(images, "time", ">", "12:00:00")`
 |`datetime`|La date et l'heure de l'acquisition (comparée en UTC)|`=`, `!=`, `>`, `<`, `>=`, `<=`|`filter(images, "datetime", ">", "2021-06-01 12:00:00")`
 |===
+
+Fonctions spéciales :
+
+- `sunspots_overlay` génère une image avec les taches solaires détectées. Elle accepte un seul paramètre : l'image sur laquelle dessiner les taches. Cette fonction ne fonctionnera que si la génération d'images de taches solaires a été sélectionnée. Par exemple : `sunspots_overlay(continuum())`.
+- `crop_sunspots` génère une liste d'images correspondant aux taches solaires détectées. Par exemple: `crop_sunspots(continuum())`. Elle accepte un paramètre optionnel qui est la taille minimale des taches, en pixels. Par exemple: `crop_sunspots(continuum(), 10)`. La taille par défaut est de 32 pixels.
 
 Fonctions diverses :
 

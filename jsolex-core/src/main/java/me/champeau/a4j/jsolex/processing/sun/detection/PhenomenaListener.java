@@ -13,19 +13,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package me.champeau.a4j.math;
+package me.champeau.a4j.jsolex.processing.sun.detection;
 
-/**
- * A 2D point.
- * @param x the x coordinate
- * @param y the y coordinate
- */
-public record Point2D(double x, double y) {
-    public double distanceTo(Point2D other) {
-        return Math.sqrt(Math.pow(x-other.x, 2) + Math.pow(y - other.y, 2));
-    }
+import me.champeau.a4j.math.tuples.DoublePair;
 
-    public Point2D translate(double dx, double dy) {
-        return new Point2D(x + dx, y + dy);
-    }
+public interface PhenomenaListener {
+    void onRedshift(DoublePair redshift);
+    void onSunspot(int x);
 }

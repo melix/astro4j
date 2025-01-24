@@ -17,6 +17,7 @@ package me.champeau.a4j.jsolex.processing.util;
 
 import me.champeau.a4j.jsolex.processing.params.ProcessParams;
 import me.champeau.a4j.jsolex.processing.sun.detection.Redshifts;
+import me.champeau.a4j.jsolex.processing.sun.detection.Sunspots;
 import me.champeau.a4j.jsolex.processing.sun.workflow.GeneratedImageMetadata;
 import me.champeau.a4j.jsolex.processing.sun.workflow.PixelShift;
 import me.champeau.a4j.jsolex.processing.sun.workflow.PixelShiftRange;
@@ -51,6 +52,7 @@ public class MetadataSupport {
             case ReferenceCoords coords -> renderReferenceCoords(coords);
             case SourceInfo info -> renderSourceInfo(info);
             case PixelShiftRange range -> renderPixelShiftRange(range);
+            case Sunspots sunspots -> renderSunspots(sunspots);
             default -> renderToString(clazz, value);
         });
     }
@@ -113,6 +115,10 @@ public class MetadataSupport {
 
     private static String renderToString(Class<?> clazz, Object value) {
         return clazz.getSimpleName() + " = " + value.toString();
+    }
+
+    private static String renderSunspots(Sunspots sunspots) {
+        return String.format(message("sunspots.pattern"), sunspots.sunspotList().size());
     }
 
     public static Object applyMetadata(String message, Supplier<Object> supplier) {

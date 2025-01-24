@@ -32,6 +32,11 @@ public record RGBImage(
         return new RGBImage(width, height, ImageWrapper.copyData(r), ImageWrapper.copyData(g), ImageWrapper.copyData(b), new LinkedHashMap<>(metadata));
     }
 
+    public static RGBImage toRGB(ImageWrapper32 mono) {
+        var monoData = mono.data();
+        return new RGBImage(mono.width(), mono.height(), ImageWrapper.copyData(monoData), ImageWrapper.copyData(monoData), ImageWrapper.copyData(monoData), new LinkedHashMap<>(mono.metadata()));
+    }
+
     public static RGBImage fromMono(ImageWrapper32 mono, Function<ImageWrapper32, float[][][]> converter) {
         return fromMono(mono, converter, new LinkedHashMap<>(mono.metadata()));
     }

@@ -10,6 +10,18 @@ It is primarily designed to process images for Sol'Ex, but it might work properl
 JSol'Ex is free software published under the Apache 2 software license.
 It is written in en Java and provided for free without any warranty.
 
+.Note to US citizen and far right supporters
+[IMPORTANT]
+====
+**If you support Trump or any other party close to the far right, I ask you not to use this software.**
+
+My values are fundamentally opposed to those of these parties, and I do not wish for my work, which I have developed during evenings and weekends, and despite it being open source, to be used by people who support these nauseating ideas.
+
+Solidarity, openness to others, ecology, fight against discrimination and inequality, respect for all religions, genders, and sexual orientations are the values that drive me.
+I do not accept that my work be used by people who are responsible for suffering and exclusion.
+If you do, I kindly ask you to review your choices and turn to more positive values, where your well-being does not come from the rejection of others.
+====
+
 == Downloads
 
 Click on the button corresponding to your OS below:
@@ -275,6 +287,7 @@ Base functions:
 
 - `img` requests an image at a particular pixel shift. For example, `img(0)` is the image centered on the detected spectral ray, while `img(-10)` is a continuum image, shifted 10 pixels up.
 - `list` builds a list from its arguments. e.g `list(img(-3), img(3))`
+- `get_at` retrieves an image from the list. For example, `get_at(list(img(-3), img(3)), 1)` will return the image at index 1, which is `img(3)`. In case the argument is a list of list of images, then it will return a list which consists of the images at the specified index.
 - `avg` computes the average of different images. For example: `avg(img(-1), img(0), img(1))` computes the average of images at pixel shifts -1, 0 and +1. It is also possible to use the simpler `avg(range(-1,1))` expression
 - `max` computes the maximum of multiple images, for example `max(img(-3), img(3))`. Maximum is per pixel.
 - `min` computes the minimum of multiple images, for example `min(img(-3), img(3))`. Minimum is per pixel.
@@ -386,6 +399,11 @@ For example, to create a list of images for which the time is after 12:00, you c
 |`time`|The time of the acquisition (compared in UTC)|`=`, `!=`, `>`, `<`, `>=`, `<=`|`filter(images, "time", ">", "12:00:00")`
 |`datetime`|The date and time of the acquisition (compared in UTC)|`=`, `!=`, `>`, `<`, `>=`, `<=`|`filter(images, "datetime", ">", "2021-06-01 12:00:00")`
 |===
+
+Special functions:
+
+- `sunspots_overlay` generates an overlay of the detected sunspots. It accepts a single parameter: the image on which to draw the overlay. This feature will only work if sunspots image generation has been selected. For example: `sunspots_overlay(continuum())`.
+- `crop_sunspots` takes a single image and generates a list of images, each one cropped around a detected sunspot. For example: `crop_sunspots(continuum())`. It accepts an optional parameter which is the minimal size of the sunspot, in pixels. For example: `crop_sunspots(continuum(), 10)`. The default size is 32 pixels.
 
 Miscellaneous functions:
 

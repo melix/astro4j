@@ -28,6 +28,7 @@ import java.util.function.DoubleUnaryOperator;
 import static me.champeau.a4j.jsolex.processing.util.Constants.MAX_PIXEL_VALUE;
 
 public class SpectralLineFrameImageCreator {
+    public static final int SPACING = 10;
     private final SpectrumFrameAnalyzer analyzer;
     private final float[][] original;
     private final int width;
@@ -57,7 +58,7 @@ public class SpectralLineFrameImageCreator {
         var samples = lastResult.getSamplePoints();
         // We create RGB images for debugging, which contain the original image at top
         // and the corrected one at the bottom
-        int spacing = 10;
+        int spacing = SPACING;
         float[][] rr = new float[2 * height + spacing][width];
         float[][] gg = new float[2 * height + spacing][width];
         float[][] bb = new float[2 * height + spacing][width];
@@ -134,7 +135,7 @@ public class SpectralLineFrameImageCreator {
         Optional<DoubleUnaryOperator> polynomial = Optional.ofNullable(forcedPolynomial).or(() -> analyzer.result().distortionPolynomial());
         // We create RGB images for debugging, which contain the original image at top
         // and the corrected one at the bottom
-        int spacing = 10;
+        int spacing = SPACING;
         float[][] rr = new float[2 * height + spacing][width];
         float[][] gg = new float[2 * height + spacing][width];
         float[][] bb = new float[2 * height + spacing][width];

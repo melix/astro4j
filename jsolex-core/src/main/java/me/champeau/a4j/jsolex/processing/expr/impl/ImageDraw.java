@@ -17,6 +17,7 @@ package me.champeau.a4j.jsolex.processing.expr.impl;
 
 import me.champeau.a4j.jsolex.processing.params.ProcessParams;
 import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
+import me.champeau.a4j.jsolex.processing.sun.detection.Sunspots;
 import me.champeau.a4j.jsolex.processing.util.Constants;
 import me.champeau.a4j.jsolex.processing.util.FileBackedImage;
 import me.champeau.a4j.jsolex.processing.util.GeoCoordinates;
@@ -585,6 +586,65 @@ public class ImageDraw extends AbstractFunctionImpl {
         }
 
         return arg;
+    }
+
+    public Object sunspotsOverlay(List<Object> arguments) {
+        assertExpectedArgCount(arguments, "sunspots_overlay takes 1 argument (image(s))", 1, 1);
+        var arg = arguments.get(0);
+        if (arg instanceof List<?>) {
+            return expandToImageList("sunspots_overlay", arguments, this::sunspotsOverlay);
+        }
+        if (arg instanceof ImageWrapper wrapper) {
+            var metadata = wrapper.findMetadata(Sunspots.class);
+            if (metadata.isPresent()) {
+                var sunspots = metadata.get();
+                var img = wrapper.unwrapToMemory();
+                if (img instanceof ImageWrapper32 mono) {
+                    var rgb = RGBImage.toRGB(mono);
+                    return drawSunspots(rgb, sunspots);
+                } else if (img instanceof RGBImage rgb) {
+                    return drawSunspots(rgb, sunspots);
+                }
+            }
+        }
+        return arg;
+    }
+
+    public static RGBImage drawSunspots(RGBImage rgb, Sunspots sunspots) {
+        var width = rgb.width();
+        var height = rgb.height();
+        var r = rgb.r();
+        var b = rgb.b();
+        drawSunspots(sunspots, width, height, r, b);
+        return rgb;
+    }
+
+    public static void drawSunspots(Sunspots sunspots, int width, int height, float[][] r, float[][] b) {
+        for (var sunspot : sunspots.sunspotList()) {
+            var points = sunspot.points();
+            for (var point : points) {
+                var x = (int) Math.round(point.x());
+                var y = (int) Math.round(point.y());
+                if (x >= 0 && x < width && y >= 0 && y < height) {
+                    r[y][x] = Constants.MAX_PIXEL_VALUE;
+                    b[y][x] = Constants.MAX_PIXEL_VALUE;
+                    var next = points.stream().filter(p -> p.x() > point.x() && p.y() > point.y()).findFirst();
+                    next.ifPresent(p -> {
+                        var nx = (int) Math.ceil(p.x());
+                        var ny = (int) Math.ceil(p.y());
+                        // fill within box
+                        for (int i = x; i < nx; i++) {
+                            for (int j = y; j < ny; j++) {
+                                if (i < width && j < height) {
+                                    r[j][i] = Constants.MAX_PIXEL_VALUE;
+                                    b[j][i] = Constants.MAX_PIXEL_VALUE;
+                                }
+                            }
+                        }
+                    });
+                }
+            }
+        }
     }
 
     private record Coordinates(double x, double y, double z) {

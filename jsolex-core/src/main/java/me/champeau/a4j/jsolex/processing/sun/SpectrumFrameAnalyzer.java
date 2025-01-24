@@ -19,6 +19,7 @@ import me.champeau.a4j.jsolex.processing.util.Constants;
 import me.champeau.a4j.math.Point2D;
 import me.champeau.a4j.math.regression.LinearRegression;
 import me.champeau.a4j.math.tuples.DoubleQuadruplet;
+import me.champeau.a4j.math.tuples.IntPair;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -250,6 +251,10 @@ public class SpectrumFrameAnalyzer {
 
         public Optional<Integer> rightBorder() {
             return Optional.ofNullable(rightBorder);
+        }
+
+        public Optional<IntPair> borders() {
+            return leftBorder().flatMap(l -> rightBorder().map(r -> new IntPair(l, r)));
         }
 
         public Optional<DoubleUnaryOperator> distortionPolynomial() {

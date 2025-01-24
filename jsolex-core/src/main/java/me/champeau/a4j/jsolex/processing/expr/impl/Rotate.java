@@ -18,6 +18,7 @@ package me.champeau.a4j.jsolex.processing.expr.impl;
 import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
 import me.champeau.a4j.jsolex.processing.sun.detection.RedshiftArea;
 import me.champeau.a4j.jsolex.processing.sun.detection.Redshifts;
+import me.champeau.a4j.jsolex.processing.sun.detection.Sunspots;
 import me.champeau.a4j.jsolex.processing.sun.workflow.ImageStats;
 import me.champeau.a4j.jsolex.processing.sun.workflow.ReferenceCoords;
 import me.champeau.a4j.jsolex.processing.util.FileBackedImage;
@@ -162,6 +163,22 @@ public class Rotate extends AbstractFunctionImpl {
                 })
                 .toList();
             metadata.put(Redshifts.class, new Redshifts(rotated));
+        });
+        wrapper.findMetadata(Sunspots.class).ifPresent(sunspots -> {
+            var rotated = sunspots.transform(p -> {
+                var cx = origWidth / 2;
+                var cy = origHeight / 2;
+                var sx = cx + (newWidth - origWidth) / 2;
+                var sy = cy + (newHeight - origHeight) / 2;
+                var cosAlpha = Math.cos(angle);
+                var sinAlpha = Math.sin(angle);
+                var x = p.x();
+                var y = p.y();
+                var xp = (int) (sx + Math.round((x - cx) * cosAlpha - (y - cy) * sinAlpha));
+                var yp = (int) (sy + Math.round((x - cx) * sinAlpha + (y - cy) * cosAlpha));
+                return new Point2D(xp, yp);
+            });
+            metadata.put(Sunspots.class, rotated);
         });
         wrapper.findMetadata(ReferenceCoords.class).ifPresent(coords -> coords.addRotation(angle));
         return metadata;

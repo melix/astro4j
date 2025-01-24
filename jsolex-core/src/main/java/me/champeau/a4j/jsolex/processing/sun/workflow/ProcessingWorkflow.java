@@ -40,6 +40,7 @@ import me.champeau.a4j.jsolex.processing.sun.SolexVideoProcessor;
 import me.champeau.a4j.jsolex.processing.sun.WorkflowState;
 import me.champeau.a4j.jsolex.processing.sun.detection.RedshiftArea;
 import me.champeau.a4j.jsolex.processing.sun.detection.Redshifts;
+import me.champeau.a4j.jsolex.processing.sun.detection.Sunspots;
 import me.champeau.a4j.jsolex.processing.sun.tasks.CoronagraphTask;
 import me.champeau.a4j.jsolex.processing.sun.tasks.EllipseFittingTask;
 import me.champeau.a4j.jsolex.processing.sun.tasks.GeometryCorrector;
@@ -195,6 +196,14 @@ public class ProcessingWorkflow {
         if (isMainShift() && shouldProduce(GeneratedImageKind.TECHNICAL_CARD)) {
             produceTechnicalCard(stretched);
         }
+        if (shouldProduce(GeneratedImageKind.SUNSPOTS)) {
+            if (isMainShift()) {
+                produceSunspotsImage(enhanced);
+            }
+            if (shouldProduce(GeneratedImageKind.CONTINUUM) && state.pixelShift() == processParams.spectrumParams().continuumShift()) {
+                produceSunspotsImage(enhanced);
+            }
+        }
         if (processParams.spectrumParams().pixelShift() == 0 && isMainShift() && shouldProduce(GeneratedImageKind.REDSHIFT)) {
             geometryFixed.findMetadata(Redshifts.class).ifPresent(redshifts -> {
                 if (!redshifts.redshifts().isEmpty()) {
@@ -205,6 +214,25 @@ public class ProcessingWorkflow {
         runnables.stream()
             .parallel()
             .forEach(Runnable::run);
+    }
+
+    private void produceSunspotsImage(ImageWrapper32 image) {
+        imagesEmitter.newColorImage(
+            GeneratedImageKind.SUNSPOTS,
+            null,
+            message("sunspots"),
+            "sunspots",
+            image,
+            mono -> {
+                new LinearStrechingStrategy(0, .75f * Constants.MAX_PIXEL_VALUE).stretch(mono);
+                var data = mono.data();
+                var r = ImageWrapper.copyData(data);
+                var g = ImageWrapper.copyData(data);
+                var b = ImageWrapper.copyData(data);
+                mono.findMetadata(Sunspots.class).ifPresent(sunspots -> ImageDraw.drawSunspots(sunspots, mono.width(), mono.height(), r, b));
+                return new float[][][]{r, g, b};
+            }
+        );
     }
 
     private void produceRedshiftsImage(ImageWrapper32 geometryFixed, List<RedshiftArea> redshifts) {
