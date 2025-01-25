@@ -402,7 +402,7 @@ Par exemple, pour créer une liste d'images pour lesquelles le temps est après 
 Fonctions spéciales :
 
 - `sunspots_overlay` génère une image avec les taches solaires détectées. Elle accepte un seul paramètre : l'image sur laquelle dessiner les taches. Cette fonction ne fonctionnera que si la génération d'images de taches solaires a été sélectionnée. Par exemple : `sunspots_overlay(continuum())`.
-- `crop_sunspots` génère une liste d'images correspondant aux taches solaires détectées. Par exemple: `crop_sunspots(continuum())`. Elle accepte un paramètre optionnel qui est la taille minimale des taches, en pixels. Par exemple: `crop_sunspots(continuum(), 10)`. La taille par défaut est de 32 pixels.
+- `crop_sunspots` génère une liste d'images correspondant aux taches solaires détectées. Par exemple: `crop_sunspots(continuum())`. Elle accepte deux paramètres optionnels qui sont la taille minimale des taches, en pixels et une marge en pourcentage. Par exemple: `crop_sunspots(continuum(), 10, 20)`. La taille par défaut est de 32 pixels.
 
 Fonctions diverses :
 

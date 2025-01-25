@@ -256,17 +256,19 @@ public class Crop extends AbstractFunctionImpl {
 
     /**
      * Given an image and a list of sunspots, returns a list of cropped images, each containing one sunspot.
+     *
      * @param arguments an image or list of images
      * @return the cropped images
      */
     public Object cropSunspots(List<Object> arguments) {
-        assertExpectedArgCount(arguments, "crop_sunspots takes 1 or 2 arguments (image(s), [min size])", 1, 2);
+        assertExpectedArgCount(arguments, "crop_sunspots takes 1 to 3 arguments (image(s), [min size], [margin%])", 1, 3);
         var arg = arguments.get(0);
         if (arg instanceof List<?>) {
             return expandToImageList("crop_sunspots", arguments, this::cropSunspots);
         }
         if (arg instanceof ImageWrapper wrapper) {
-            int minSize = arguments.size() == 2 ? intArg(arguments, 1) : DEFAULT_SUNSPOT_SIZE;
+            int minSize = arguments.size() >= 2 ? intArg(arguments, 1) : DEFAULT_SUNSPOT_SIZE;
+            double margin = (arguments.size() >= 3 ? doubleArg(arguments, 2) : 10)/100d;
             var img = wrapper.unwrapToMemory();
             var sunspots = img.findMetadata(Sunspots.class).orElse(null);
             if (sunspots == null) {
@@ -280,8 +282,8 @@ public class Crop extends AbstractFunctionImpl {
                     var height = (int) sunspot.height();
                     if (width >= minSize && height >= minSize) {
                         // expand the crop area by 10%
-                        var cropWidth = (int) (width * 1.1);
-                        var cropHeight = (int) (height * 1.1);
+                        var cropWidth = (int) (width * (1 + margin));
+                        var cropHeight = (int) (height * (1 + margin));
                         var cropLeft = left - (cropWidth - width) / 2;
                         var cropTop = top - (cropHeight - height) / 2;
                         return crop(List.of(img, cropLeft, cropTop, cropWidth, cropHeight));

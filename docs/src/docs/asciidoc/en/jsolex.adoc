@@ -403,7 +403,7 @@ For example, to create a list of images for which the time is after 12:00, you c
 Special functions:
 
 - `sunspots_overlay` generates an overlay of the detected sunspots. It accepts a single parameter: the image on which to draw the overlay. This feature will only work if sunspots image generation has been selected. For example: `sunspots_overlay(continuum())`.
-- `crop_sunspots` takes a single image and generates a list of images, each one cropped around a detected sunspot. For example: `crop_sunspots(continuum())`. It accepts an optional parameter which is the minimal size of the sunspot, in pixels. For example: `crop_sunspots(continuum(), 10)`. The default size is 32 pixels.
+- `crop_sunspots` takes a single image and generates a list of images, each one cropped around a detected sunspot. For example: `crop_sunspots(continuum())`. It accepts 2 optional parameters which are the minimal size of the sunspot, in pixels and a margin in %. For example: `crop_sunspots(continuum(), 10, 20)`. The default size is 32 pixels.
 
 Miscellaneous functions:
 
