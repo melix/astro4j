@@ -16,6 +16,8 @@ Les fonctions suivantes ont été ajoutées :
 
 ### Corrections de bugs et autres améliorations
 
+- Correction d'un bug où un message d'erreur pouvait être affiché lors de la reconstruction, sans effet sur le résultat.
+
 ## Message aux utilisateurs français
 
 **Si vous votez Rassemblement National ou tout autre parti proche de l'extrême droite, je vous demande de ne pas utiliser ce logiciel.**

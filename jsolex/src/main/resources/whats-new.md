@@ -16,6 +16,8 @@ The following functions have been added:
 
 ### Bug Fixes and Improvements
 
+- Fixed a bug where an error message could be displayed during reconstruction, with no effet on the result.
+
 ## Message to US citizen and far right supporters
 
 **If you support Trump or any other party close to the far right, I ask you not to use this software.**

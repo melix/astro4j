@@ -333,20 +333,19 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
         Platform.runLater(() -> {
             WritableImage image = (WritableImage) solarView.getImage();
             var pixelReader = image.getPixelReader();
-
-            // iterate over all pixels to find max value
-            double max = 0;
-            for (int y = 0; y < height; y++) {
-                for (int x = 0; x < width; x++) {
-                    var v = pixelReader.getArgb(x, y) & 0xFF;
-                    if (v > max) {
-                        max = v;
+            try {
+                // iterate over all pixels to find max value
+                double max = 0;
+                for (int y = 0; y < height; y++) {
+                    for (int x = 0; x < width; x++) {
+                        var v = pixelReader.getArgb(x, y) & 0xFF;
+                        if (v > max) {
+                            max = v;
+                        }
                     }
                 }
-            }
 
-            // stretch colors
-            try {
+                // stretch colors
                 for (int y = 0; y < height; y++) {
                     for (int x = 0; x < width; x++) {
                         var v = pixelReader.getArgb(x, y) & 0xFF;
