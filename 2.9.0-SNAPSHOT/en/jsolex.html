@@ -1444,7 +1444,7 @@ For example, you may want to perform a vertical and horizontal flip to images af
 <p><code>sunspots_overlay</code> generates an overlay of the detected sunspots. It accepts a single parameter: the image on which to draw the overlay. This feature will only work if sunspots image generation has been selected. For example: <code>sunspots_overlay(continuum())</code>.</p>
 </li>
 <li>
-<p><code>crop_sunspots</code> takes a single image and generates a list of images, each one cropped around a detected sunspot. For example: <code>crop_sunspots(continuum())</code>. It accepts an optional parameter which is the minimal size of the sunspot, in pixels. For example: <code>crop_sunspots(continuum(), 10)</code>. The default size is 32 pixels.</p>
+<p><code>crop_sunspots</code> takes a single image and generates a list of images, each one cropped around a detected sunspot. For example: <code>crop_sunspots(continuum())</code>. It accepts 2 optional parameters which are the minimal size of the sunspot, in pixels and a margin in %. For example: <code>crop_sunspots(continuum(), 10, 20)</code>. The default size is 32 pixels.</p>
 </li>
 </ul>
 </div>
