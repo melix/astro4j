@@ -21,6 +21,7 @@ jlink {
         additive = true
         uses("nom.tam.fits.compress.ICompressProvider")
     }
+    forceMerge("commons-compress")
 }
 
 application {
