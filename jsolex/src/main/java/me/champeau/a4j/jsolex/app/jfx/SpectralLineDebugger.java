@@ -417,7 +417,7 @@ public class SpectralLineDebugger {
                 }
 
                 @Override
-                public void onSunspot(int x) {
+                public void onActiveRegion(int x) {
                     for (int y=0;y<height;y++) {
                         rgb.r()[y + height + SPACING][x] = Constants.MAX_PIXEL_VALUE;
                         rgb.b()[y + height + SPACING][x] = Constants.MAX_PIXEL_VALUE;

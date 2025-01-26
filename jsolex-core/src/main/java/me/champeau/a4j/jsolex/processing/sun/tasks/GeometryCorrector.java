@@ -22,7 +22,7 @@ import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
 import me.champeau.a4j.jsolex.processing.sun.WorkflowState;
 import me.champeau.a4j.jsolex.processing.sun.detection.RedshiftArea;
 import me.champeau.a4j.jsolex.processing.sun.detection.Redshifts;
-import me.champeau.a4j.jsolex.processing.sun.detection.Sunspots;
+import me.champeau.a4j.jsolex.processing.sun.detection.ActiveRegions;
 import me.champeau.a4j.jsolex.processing.sun.workflow.ImageEmitter;
 import me.champeau.a4j.jsolex.processing.sun.workflow.ReferenceCoords;
 import me.champeau.a4j.jsolex.processing.sun.workflow.TransformationHistory;
@@ -160,14 +160,14 @@ public class GeometryCorrector extends AbstractTask<GeometryCorrector.Result> {
                 .toList());
             metadata.put(Redshifts.class, redshifts);
         }
-        Sunspots sunspots = (Sunspots) metadata.get(Sunspots.class);
-        if (sunspots != null) {
-            sunspots = sunspots.transform(p -> {
+        ActiveRegions activeRegions = (ActiveRegions) metadata.get(ActiveRegions.class);
+        if (activeRegions != null) {
+            activeRegions = activeRegions.transform(p -> {
                 var x = p.x() - shift + p.y() * shear;
                 var y = p.y();
                 return new Point2D(x * sx, y * finalSy);
             });
-            metadata.put(Sunspots.class, sunspots);
+            metadata.put(ActiveRegions.class, activeRegions);
         }
         var corrected = ImageWrapper32.fromImage(rescaled, metadata);
         TransformationHistory.recordTransform(corrected, message("geometry.correction"));

@@ -82,7 +82,7 @@ public class ImageSelector {
     @FXML
     private TextField pixelShifts;
     @FXML
-    private CheckBox sunspots;
+    private CheckBox activeRegions;
     @FXML
     private Button openImageMathButton;
     @FXML
@@ -160,14 +160,14 @@ public class ImageSelector {
                 case RECONSTRUCTION -> reconstruction.setSelected(true);
                 case TECHNICAL_CARD -> technicalCard.setSelected(true);
                 case REDSHIFT -> redshift.setSelected(true);
-                case SUNSPOTS -> sunspots.setSelected(true);
+                case ACTIVE_REGIONS -> activeRegions.setSelected(true);
             }
         }
         this.debug.setSelected(debug);
         updatePixelShiftsWithSelectedImages(newPixelShifts);
         doppler.selectedProperty().addListener((observable, oldValue, newValue) -> adjustPixelShifts(newValue, -dopplerShift, dopplerShift));
         continuum.selectedProperty().addListener((observable, oldValue, newValue) -> adjustPixelShifts(newValue, continuumShift));
-        sunspots.selectedProperty().addListener((observable, oldValue, newValue) -> {
+        activeRegions.selectedProperty().addListener((observable, oldValue, newValue) -> {
             if (newValue) {
                 continuum.setSelected(true);
             }
@@ -295,8 +295,8 @@ public class ImageSelector {
             images.add(GeneratedImageKind.REDSHIFT);
             makeDefaultShiftNonInternal();
         }
-        if (sunspots.isSelected()) {
-            images.add(GeneratedImageKind.SUNSPOTS);
+        if (activeRegions.isSelected()) {
+            images.add(GeneratedImageKind.ACTIVE_REGIONS);
             makeDefaultShiftNonInternal();
         }
         var pixelShifts = readPixelShifts();
@@ -342,7 +342,7 @@ public class ImageSelector {
         technicalCard.setSelected(selected);
         debug.setSelected(selected);
         redshift.setSelected(selected);
-        sunspots.setSelected(selected);
+        activeRegions.setSelected(selected);
     }
 
     @FXML

@@ -21,10 +21,10 @@ import java.util.Comparator;
 import java.util.List;
 
 /**
- * Represents a sunspot, which is a group of points, guaranteed to be sorted by x and y.
- * @param points points belonging to the sunspot
+ * Represents an active region, which is a group of points, guaranteed to be sorted by x and y.
+ * @param points points belonging to the active region
  */
-public record Sunspot(
+public record ActiveRegion(
     List<Point2D> points,
     Point2D topLeft,
     Point2D bottomRight
@@ -32,7 +32,7 @@ public record Sunspot(
 
     private static final Comparator<Point2D> POINTS_COMPARATOR = Comparator.comparingDouble(Point2D::x).thenComparingDouble(Point2D::y);
 
-    public static Sunspot of(List<Point2D> points) {
+    public static ActiveRegion of(List<Point2D> points) {
         var sortedPoints = points.stream()
             .sorted(POINTS_COMPARATOR)
             .toList();
@@ -49,7 +49,7 @@ public record Sunspot(
         }
         var topLeft = new Point2D(minX, minY);
         var bottomRight = new Point2D(maxX, maxY);
-        return new Sunspot(sortedPoints, topLeft, bottomRight);
+        return new ActiveRegion(sortedPoints, topLeft, bottomRight);
     }
 
     public Point2D topLeft() {

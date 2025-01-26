@@ -21,19 +21,19 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.function.Function;
 
-public record Sunspots(
-    List<Sunspot> sunspotList
+public record ActiveRegions(
+    List<ActiveRegion> regionList
 ) {
-    public Sunspots(List<Sunspot> sunspotList) {
-        this.sunspotList = sunspotList.stream()
-            .sorted(Comparator.comparingDouble(Sunspot::area).reversed())
+    public ActiveRegions(List<ActiveRegion> regionList) {
+        this.regionList = regionList.stream()
+            .sorted(Comparator.comparingDouble(ActiveRegion::area).reversed())
             .toList();
     }
 
-    public Sunspots transform(Function<? super Point2D, Point2D> transformer) {
-        return new Sunspots(
-            sunspotList.stream()
-                .map(s -> Sunspot.of(
+    public ActiveRegions transform(Function<? super Point2D, Point2D> transformer) {
+        return new ActiveRegions(
+            regionList.stream()
+                .map(s -> ActiveRegion.of(
                     s.points().stream()
                         .map(transformer)
                         .toList()
@@ -42,7 +42,7 @@ public record Sunspots(
         );
     }
 
-    public Sunspots translate(double dx, double dy) {
+    public ActiveRegions translate(double dx, double dy) {
         return transform(p -> p.translate(dx, dy));
     }
 

@@ -17,9 +17,9 @@ package me.champeau.a4j.jsolex.processing.expr.impl;
 
 import me.champeau.a4j.jsolex.processing.params.ProcessParams;
 import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
-import me.champeau.a4j.jsolex.processing.sun.detection.Sunspot;
-import me.champeau.a4j.jsolex.processing.sun.detection.Sunspots;
-import me.champeau.a4j.jsolex.processing.util.ActiveRegion;
+import me.champeau.a4j.jsolex.processing.sun.detection.ActiveRegion;
+import me.champeau.a4j.jsolex.processing.sun.detection.ActiveRegions;
+import me.champeau.a4j.jsolex.processing.util.NOAAActiveRegion;
 import me.champeau.a4j.jsolex.processing.util.Constants;
 import me.champeau.a4j.jsolex.processing.util.FileBackedImage;
 import me.champeau.a4j.jsolex.processing.util.GeoCoordinates;
@@ -460,23 +460,23 @@ public class ImageDraw extends AbstractFunctionImpl {
             drawRotationAxis(0, radius, g, centerX, centerY);
             g.setFont(font);
             var processParams = findProcessParams(image);
-            var detectedSunspots = image.findMetadata(Sunspots.class).map(Sunspots::sunspotList).orElse(List.of());
-            if (processParams.isPresent() && !detectedSunspots.isEmpty()) {
-                // Draw each sunspot with label
+            var detectedRegions = image.findMetadata(ActiveRegions.class).map(ActiveRegions::regionList).orElse(List.of());
+            if (processParams.isPresent() && !detectedRegions.isEmpty()) {
+                // Draw each region with label
                 var date = processParams.get().observationDetails().date();
                 var regions = NOAARegions.findActiveRegions(date);
-                drawActiveRegionsLabels(detectedSunspots, angleP, b0, g, radius, regions, centerX, centerY, false);
+                drawActiveRegionsLabels(detectedRegions, angleP, b0, g, radius, regions, centerX, centerY, false);
             }
         });
     }
 
     private static void drawActiveRegionsLabels(
-        List<Sunspot> detectedSunspots,
+        List<ActiveRegion> detectedRegions,
         double angleP,
         double b0,
         Graphics2D g,
         double radius,
-        List<ActiveRegion> regions,
+        List<NOAAActiveRegion> regions,
         double centerX,
         double centerY,
         boolean rotateLabels) {
@@ -485,26 +485,26 @@ public class ImageDraw extends AbstractFunctionImpl {
             g.setFont(g.getFont().deriveFont(AffineTransform.getRotateInstance(-angleP)));
         }
         for (var activeRegion : regions) {
-            String sunspotID = activeRegion.id();
+            String regionId = activeRegion.id();
 
             // Convert latitude and longitude to radians
             double latitude = Math.toRadians(activeRegion.latitudeDeg()) + Math.PI / 2;
             double longitude = Math.toRadians(activeRegion.longitudeDeg());
 
             // Convert spherical coordinates (latitude, longitude) to 2D screen coordinates
-            var sunspot = ofSpherical(longitude, latitude, radius).rotateX(-b0).rotateZ(-angleP);
+            var regionCoords = ofSpherical(longitude, latitude, radius).rotateX(-b0).rotateZ(-angleP);
 
-            // Draw the sunspot label on the globe
-            if (sunspot.z > 0) {
-                // Adjust the position slightly so the label doesn't overlap with the sunspot
-                int labelX = (int) round(centerX + sunspot.x);
-                int labelY = (int) round(centerY + sunspot.y);
-                var wasDetected = detectedSunspots.stream()
+            // Draw the region label on the globe
+            if (regionCoords.z > 0) {
+                // Adjust the position slightly so the label doesn't overlap with the region
+                int labelX = (int) round(centerX + regionCoords.x);
+                int labelY = (int) round(centerY + regionCoords.y);
+                var wasDetected = detectedRegions.stream()
                     .anyMatch(s -> {
                         var cx = s.topLeft().x() + s.width()/2;
                         var cy = s.topLeft().y() + s.height()/2;
-                        // we have the radius of the sun and the width of the sunspot
-                        // and we consider that the label matches if the center of the sunspot is within a distance
+                        // we have the radius of the sun and the width of the region
+                        // and we consider that the label matches if the center of the region is within a distance
                         // of 10% of the sun radius
                         return Math.hypot(cx - labelX, cy - labelY) < 0.1 * radius;
                     });
@@ -515,8 +515,8 @@ public class ImageDraw extends AbstractFunctionImpl {
                     g.setColor(Color.RED);
                     g.setFont(g.getFont().deriveFont(Font.PLAIN));
                 }
-                // Draw the sunspot ID (or other information) as a label
-                g.drawString(sunspotID, labelX + 5, labelY);  // Offset the label a bit to the right
+                // Draw the active region id (or other information) as a label
+                g.drawString(regionId, labelX + 5, labelY);  // Offset the label a bit to the right
             }
         }
     }
@@ -651,36 +651,36 @@ public class ImageDraw extends AbstractFunctionImpl {
         return arg;
     }
 
-    public Object sunspotsOverlay(List<Object> arguments) {
-        assertExpectedArgCount(arguments, "sunspots_overlay takes 2 arguments (image(s), [show labels])", 1, 2);
+    public Object activeRegionsOverlay(List<Object> arguments) {
+        assertExpectedArgCount(arguments, "ar_overlay takes 2 arguments (image(s), [show labels])", 1, 2);
         var arg = arguments.get(0);
         if (arg instanceof List<?>) {
-            return expandToImageList("sunspots_overlay", arguments, this::sunspotsOverlay);
+            return expandToImageList("ar_overlay", arguments, this::activeRegionsOverlay);
         }
         if (arg instanceof ImageWrapper wrapper) {
-            var metadata = wrapper.findMetadata(Sunspots.class);
+            var metadata = wrapper.findMetadata(ActiveRegions.class);
             if (metadata.isPresent()) {
                 int showLabelsValue = arguments.size() > 1 ? intArg(arguments, 1) : 1;
                 boolean showLabels = showLabelsValue == 1;
-                var sunspots = metadata.get();
+                var activeRegions = metadata.get();
                 var img = wrapper.unwrapToMemory();
                 if (img instanceof ImageWrapper32 mono) {
                     var rgb = RGBImage.toRGB(mono);
-                    return drawSunspots(rgb, sunspots, showLabels);
+                    return drawActiveRegions(rgb, activeRegions, showLabels);
                 } else if (img instanceof RGBImage rgb) {
-                    return drawSunspots(rgb, sunspots, showLabels);
+                    return drawActiveRegions(rgb, activeRegions, showLabels);
                 }
             }
         }
         return arg;
     }
 
-    public static RGBImage drawSunspots(RGBImage rgb, Sunspots sunspots, boolean showLabels) {
+    public static RGBImage drawActiveRegions(RGBImage rgb, ActiveRegions activeRegions, boolean showLabels) {
         var width = rgb.width();
         var height = rgb.height();
         var r = rgb.r();
         var b = rgb.b();
-        drawSunspots(sunspots, width, height, r, b);
+        drawActiveRegions(activeRegions, width, height, r, b);
         var result = new AtomicReference<>(rgb);
         if (showLabels) {
             rgb.findMetadata(ProcessParams.class).ifPresent(processParams -> {
@@ -692,9 +692,9 @@ public class ImageDraw extends AbstractFunctionImpl {
                         double centerX = ellipse.center().a();
                         double centerY = ellipse.center().b();
                         double radius = (ellipse.semiAxis().a() + ellipse.semiAxis().b()) / 2d;
-                        var detectedSunspots = sunspots.sunspotList();
+                        var detectedActiveRegions = activeRegions.regionList();
                         result.set((RGBImage) drawOnImage(rgb, (g, image) -> {
-                            drawActiveRegionsLabels(detectedSunspots, angleP, b0, g, radius, NOAARegions.findActiveRegions(date), centerX, centerY, processParams.geometryParams().isAutocorrectAngleP());
+                            drawActiveRegionsLabels(detectedActiveRegions, angleP, b0, g, radius, NOAARegions.findActiveRegions(date), centerX, centerY, processParams.geometryParams().isAutocorrectAngleP());
                         }));
                     });
                 });
@@ -703,9 +703,9 @@ public class ImageDraw extends AbstractFunctionImpl {
         return result.get();
     }
 
-    private static void drawSunspots(Sunspots sunspots, int width, int height, float[][] r, float[][] b) {
-        for (var sunspot : sunspots.sunspotList()) {
-            var points = sunspot.points();
+    private static void drawActiveRegions(ActiveRegions activeRegions, int width, int height, float[][] r, float[][] b) {
+        for (var activeRegion : activeRegions.regionList()) {
+            var points = activeRegion.points();
             for (var point : points) {
                 var x = (int) Math.round(point.x());
                 var y = (int) Math.round(point.y());

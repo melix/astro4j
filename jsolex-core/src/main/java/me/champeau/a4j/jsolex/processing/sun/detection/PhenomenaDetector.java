@@ -38,20 +38,20 @@ import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
 public class PhenomenaDetector {
-    private static final double SUNSPOT_STDDEV_THRESHOLD = 0.85;
-    private static final double SUNSPOT_AVG_THRESHOLD = 0.95;
-    private static final int MIN_SUNSPOT_AREA = 8;
+    private static final double AR_STDDEV_THRESHOLD = 0.85;
+    private static final double AR_AVG_THRESHOLD = 0.95;
+    private static final int MIN_AR_AREA = 8;
 
     private static final double SPEED_OF_LIGHT = 299792.458d;
     private final Map<Integer, List<Redshift>> redshiftsPerFrame = new ConcurrentHashMap<>();
-    private final Map<Integer, BitSet> sunspotsPerFrame = new ConcurrentHashMap<>();
+    private final Map<Integer, BitSet> activeRegionsPerFrame = new ConcurrentHashMap<>();
     private final Lock lock = new ReentrantLock();
     private final double dispersion;
     private final double lambda0;
     private final int reconstructedWidth;
 
     private PhenomenaListener detectionListener;
-    private boolean detectSunspots = true;
+    private boolean detectActiveRegions = true;
     private boolean detectRedshifts = true;
 
     public PhenomenaDetector(double dispersion, double lambda0, int reconstructedWidth) {
@@ -60,8 +60,8 @@ public class PhenomenaDetector {
         this.reconstructedWidth = reconstructedWidth;
     }
 
-    public void setDetectSunspots(boolean detectSunspots) {
-        this.detectSunspots = detectSunspots;
+    public void setDetectActiveRegions(boolean detectActiveRegions) {
+        this.detectActiveRegions = detectActiveRegions;
     }
 
     public void setDetectRedshifts(boolean detectRedshifts) {
@@ -85,7 +85,7 @@ public class PhenomenaDetector {
     }
 
     public void performDetection(int frameId, int width, int height, float[][] original, DoubleUnaryOperator polynomial) {
-        if (!detectRedshifts && !detectSunspots) {
+        if (!detectRedshifts && !detectActiveRegions) {
             return;
         }
         var bordersAnalysis = new SpectrumFrameAnalyzer(width, height, 20000d).analyze(original);
@@ -95,7 +95,7 @@ public class PhenomenaDetector {
         var rightBorder = bordersAnalysis.rightBorder();
         var avgOfColumnAverages = 0d;
         if (leftBorder.isPresent() && rightBorder.isPresent()) {
-            var sunspotMask = new BitSet(width);
+            var activeRegionsMask = new BitSet(width);
             int leftLimit = leftBorder.get();
             int rightLimit = rightBorder.get();
             var range = rightLimit - leftLimit;
@@ -137,12 +137,12 @@ public class PhenomenaDetector {
             double finalAvgOfColumnAverages = avgOfColumnAverages;
             IntStream.range(leftLimit, rightLimit)
                 .parallel()
-                .forEach(x -> analyzeColumn(frameId, x, width, height, original, polynomial, wingShiftInPixels, collector, finalAvgCenterLine, finalAvgOfColumnAverages, columnsAverages, columnsStddevs, avgModel, stddevModel, sunspotMask));
+                .forEach(x -> analyzeColumn(frameId, x, width, height, original, polynomial, wingShiftInPixels, collector, finalAvgCenterLine, finalAvgOfColumnAverages, columnsAverages, columnsStddevs, avgModel, stddevModel, activeRegionsMask));
             if (!collector.isEmpty()) {
                 redshiftsPerFrame.put(frameId, Collections.unmodifiableList(collector));
             }
-            if (sunspotMask.cardinality() > 0) {
-                sunspotsPerFrame.put(frameId, sunspotMask);
+            if (activeRegionsMask.cardinality() > 0) {
+                activeRegionsPerFrame.put(frameId, activeRegionsMask);
             }
         }
     }
@@ -194,10 +194,10 @@ public class PhenomenaDetector {
                                double[] columnsStddevs,
                                DoubleUnaryOperator avgModel,
                                DoubleUnaryOperator stddevModel,
-                               BitSet sunspotMask
+                               BitSet activeRegionMask
     ) {
-        if (detectSunspots) {
-            detectSunspots(x, columnsAverages, columnsStddevs, avgModel, stddevModel, sunspotMask);
+        if (detectActiveRegions) {
+            detectActiveRegions(x, columnsAverages, columnsStddevs, avgModel, stddevModel, activeRegionMask);
         }
         if (!detectRedshifts) {
             return;
@@ -293,36 +293,34 @@ public class PhenomenaDetector {
         }
     }
 
-    private void detectSunspots(int x, double[] columnsAverages, double[] columnsStddevs, DoubleUnaryOperator avgModel, DoubleUnaryOperator stddevModel, BitSet sunspotMask) {
-        if (isPotentialSunspot(x, columnsAverages, columnsStddevs, avgModel, stddevModel, sunspotMask)/*
-        && (isPotentialSunspot(x - 1, columnsAverages, columnsStddevs, avgModel, stddevModel, sunspotMask) || isPotentialSunspot(x + 1, columnsAverages, columnsStddevs, avgModel, stddevModel, sunspotMask))*/
-        ) {
-            // sunspot detected in this column
-            sunspotMask.set(x);
+    private void detectActiveRegions(int x, double[] columnsAverages, double[] columnsStddevs, DoubleUnaryOperator avgModel, DoubleUnaryOperator stddevModel, BitSet activeRegionMask) {
+        if (isPotentialActiveRegion(x, columnsAverages, columnsStddevs, avgModel, stddevModel)) {
+            // active region detected in this column
+            activeRegionMask.set(x);
             if (detectionListener != null) {
-                detectionListener.onSunspot(x);
+                detectionListener.onActiveRegion(x);
             }
         }
     }
 
-    private boolean isPotentialSunspot(int x, double[] columnsAverages, double[] columnsStddevs, DoubleUnaryOperator avgModel, DoubleUnaryOperator stddevModel, BitSet sunspotMask) {
+    private boolean isPotentialActiveRegion(int x, double[] columnsAverages, double[] columnsStddevs, DoubleUnaryOperator avgModel, DoubleUnaryOperator stddevModel) {
         var avg = columnsAverages[x];
         var stddev = columnsStddevs[x];
         var avgModelValue = avgModel.applyAsDouble(x);
         var stddevModelValue = stddevModel.applyAsDouble(x);
-        return avg < SUNSPOT_AVG_THRESHOLD * avgModelValue && stddev < SUNSPOT_STDDEV_THRESHOLD * stddevModelValue;
+        return avg < AR_AVG_THRESHOLD * avgModelValue && stddev < AR_STDDEV_THRESHOLD * stddevModelValue;
     }
 
-    public Sunspots getSunspots() {
+    public ActiveRegions getActiveRegions() {
         var points = new Stack<Point2D>();
-        points.addAll(sunspotsPerFrame.entrySet()
+        points.addAll(activeRegionsPerFrame.entrySet()
             .stream()
             .filter(entry -> !entry.getValue().isEmpty())
             .flatMap(entry -> entry.getValue().stream().mapToObj(x -> new Point2D(x, entry.getKey())))
             .toList());
         Set<Point2D> pointsAsSet = new HashSet<>(points);
         Set<Point2D> visited = new HashSet<>();
-        List<List<Point2D>> sunspots = new ArrayList<>();
+        List<List<Point2D>> activeRegions = new ArrayList<>();
         while (!points.isEmpty()) {
             var current = points.pop();
             if (visited.contains(current)) {
@@ -331,42 +329,42 @@ public class PhenomenaDetector {
             pointsAsSet.remove(current);
             var area = new ArrayList<Point2D>();
             dfs(current, pointsAsSet, visited, area);
-            sunspots.add(area);
+            activeRegions.add(area);
         }
-        var sunspotList = sunspots.stream()
+        var activeRegionList = activeRegions.stream()
             .sorted(Comparator.<List<Point2D>>comparingInt(List::size).reversed())
-            .map(Sunspot::of)
-            .filter(s -> s.width() >= MIN_SUNSPOT_AREA && s.height() >= MIN_SUNSPOT_AREA)
+            .map(ActiveRegion::of)
+            .filter(s -> s.width() >= MIN_AR_AREA && s.height() >= MIN_AR_AREA)
             .toList();
-        return new Sunspots(clusterSunspots(sunspotList));
+        return new ActiveRegions(clusterActiveRegions(activeRegionList));
     }
 
-    private List<Sunspot> clusterSunspots(List<Sunspot> sunspotList) {
-        sunspotList = new ArrayList<>(sunspotList); // make mutable
-        sunspotList.sort(
-            Comparator.<Sunspot>comparingDouble(s -> s.topLeft().x())
+    private List<ActiveRegion> clusterActiveRegions(List<ActiveRegion> activeRegionList) {
+        activeRegionList = new ArrayList<>(activeRegionList); // make mutable
+        activeRegionList.sort(
+            Comparator.<ActiveRegion>comparingDouble(s -> s.topLeft().x())
                 .thenComparingDouble(s -> s.topLeft().y())
         );
 
-        var deleted = new BitSet(sunspotList.size());
-        var clusters = new ArrayList<Sunspot>();
+        var deleted = new BitSet(activeRegionList.size());
+        var clusters = new ArrayList<ActiveRegion>();
 
-        for (int i = 0; i < sunspotList.size(); i++) {
+        for (int i = 0; i < activeRegionList.size(); i++) {
             if (deleted.get(i)) {
                 continue;
             }
 
-            var currentCluster = sunspotList.get(i);
+            var currentCluster = activeRegionList.get(i);
 
-            for (int j = i + 1; j < sunspotList.size(); j++) {
+            for (int j = i + 1; j < activeRegionList.size(); j++) {
                 if (deleted.get(j)) {
                     continue;
                 }
 
-                var next = sunspotList.get(j);
+                var next = activeRegionList.get(j);
 
                 if (shouldMerge(currentCluster, next)) {
-                    currentCluster = mergeSunspots(currentCluster, next);
+                    currentCluster = mergeActiveRegions(currentCluster, next);
                     deleted.set(j); // Mark as merged
                 }
             }
@@ -375,10 +373,10 @@ public class PhenomenaDetector {
             clusters.add(currentCluster);
         }
 
-        return clusters.size() == sunspotList.size() ? sunspotList : clusterSunspots(clusters);
+        return clusters.size() == activeRegionList.size() ? activeRegionList : clusterActiveRegions(clusters);
     }
 
-    private boolean shouldMerge(Sunspot a, Sunspot b) {
+    private boolean shouldMerge(ActiveRegion a, ActiveRegion b) {
         var aSize = sizeOf(a);
         var bSize = sizeOf(b);
         var centerA = new Point2D((a.topLeft().x() + a.bottomRight().x()) / 2, (a.topLeft().y() + a.bottomRight().y()) / 2);
@@ -386,15 +384,15 @@ public class PhenomenaDetector {
         return centerA.distanceTo(centerB) < (aSize + bSize) / 2;
     }
 
-    private Sunspot mergeSunspots(Sunspot a, Sunspot b) {
-        return Sunspot.of(
+    private ActiveRegion mergeActiveRegions(ActiveRegion a, ActiveRegion b) {
+        return ActiveRegion.of(
             Stream.concat(a.points().stream(), b.points().stream())
                 .toList()
         );
     }
 
-    private static double sizeOf(Sunspot sunspot) {
-        return Math.sqrt(sunspot.width() * sunspot.width() + sunspot.height() * sunspot.height());
+    private static double sizeOf(ActiveRegion activeRegion) {
+        return Math.sqrt(activeRegion.width() * activeRegion.width() + activeRegion.height() * activeRegion.height());
     }
 
 
@@ -548,16 +546,16 @@ public class PhenomenaDetector {
         return !redshiftsPerFrame.isEmpty();
     }
 
-    public boolean hasSunspots() {
-        return !sunspotsPerFrame.isEmpty();
+    public boolean hasActiveRegions() {
+        return !activeRegionsPerFrame.isEmpty();
     }
 
     public boolean isRedShiftDetectionEnabled() {
         return detectRedshifts;
     }
 
-    public boolean isSunspotDetectionEnabled() {
-        return detectSunspots;
+    public boolean isActiveRegionsDetectionEnabled() {
+        return detectActiveRegions;
     }
 
     private record Cluster(int x1, int y1, int x2, int y2, int pixelShift, List<RedshiftArea> areas) {

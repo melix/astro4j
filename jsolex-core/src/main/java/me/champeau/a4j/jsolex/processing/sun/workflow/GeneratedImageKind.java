@@ -37,7 +37,7 @@ public enum GeneratedImageKind {
     COMPOSITION(DisplayCategory.PROCESSED, DirectoryKind.PROCESSED),
     CROPPED(DisplayCategory.MISC, DirectoryKind.PROCESSED),
     REDSHIFT(DisplayCategory.REDSHIFT, DirectoryKind.PROCESSED),
-    SUNSPOTS(DisplayCategory.COLORIZED, DirectoryKind.PROCESSED),;
+    ACTIVE_REGIONS(DisplayCategory.COLORIZED, DirectoryKind.PROCESSED),;
 
     private final DisplayCategory displayCategory;
     private final DirectoryKind directoryKind;

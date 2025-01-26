@@ -18,7 +18,7 @@ package me.champeau.a4j.jsolex.processing.util;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
 
-public record ActiveRegion(
+public record NOAAActiveRegion(
     String id,
     double latitudeDeg,
     double longitudeDeg
@@ -30,11 +30,11 @@ public record ActiveRegion(
     // Adjusts the longitude of the active region for the given time, knowing that the Sun rotates
     // around its axis in about 27 days. This method is used to adjust the position of the active
     // region on the solar disk.
-    public ActiveRegion adjustForTime(ZonedDateTime time) {
+    public NOAAActiveRegion adjustForTime(ZonedDateTime time) {
         var utc = time.withZoneSameInstant(ZoneId.of("UTC"));
         // compute number of hours since midnight
         var hours = utc.getHour() + utc.getMinute() / 60.0 + utc.getSecond() / 3600.0;
-        return new ActiveRegion(
+        return new NOAAActiveRegion(
             id,
             latitudeDeg,
             longitudeDeg + hours * ROTATION_DEGREES_PER_HOUR

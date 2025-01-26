@@ -2,8 +2,8 @@
 
 ## What's New in Version 2.9.0
 
-- Added detection of sunspots
-- Automatically label detected sunspots
+- Added detection of active regions
+- Automatically label detected active regions
 - Add ability to process SER files to the standalone scripting module
 
 ### New Functions in Scripts
@@ -11,8 +11,8 @@
 The following functions have been added:
 
 - `GET_AT` allows fetching an image in a list at a specific index.
-- `SUNSPOTS_OVERLAY` generates an overlay of sunspots on an image.
-- `CROP_SUNSPOTS` crops an image to the sunspots.
+- `AR_OVERLAY` generates an overlay of active regions on an image.
+- `CROP_AR` crops an image to the detected active regions.
 
 ### Bug Fixes and Improvements
 

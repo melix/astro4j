@@ -47,11 +47,11 @@ public class NOAARegions {
     private static final String SRS_BASE_URL = "ftp://ftp.swpc.noaa.gov/pub/forecasts/SRS";
     private static final Lock LOCK = new ReentrantLock();
 
-    public static List<ActiveRegion> findActiveRegions(ZonedDateTime date) {
+    public static List<NOAAActiveRegion> findActiveRegions(ZonedDateTime date) {
         return findActiveRegions(date, VersionUtil.getJsolexDir().resolve("srs"));
     }
 
-    private static List<ActiveRegion> findActiveRegions(ZonedDateTime date, Path targetFolder) {
+    private static List<NOAAActiveRegion> findActiveRegions(ZonedDateTime date, Path targetFolder) {
         try {
             LOCK.lock();
             Optional<String> srs = fetchSRS(date, targetFolder);
@@ -63,12 +63,12 @@ public class NOAARegions {
         }
     }
 
-    private static List<ActiveRegion> parseRegions(String data) {
+    private static List<NOAAActiveRegion> parseRegions(String data) {
         List<String> lines = Arrays.stream(data.split("\n"))
             .map(line -> line.replaceAll("\\s+", " "))
             .toList();
         boolean inTable = false;
-        List<ActiveRegion> regions = new ArrayList<>();
+        List<NOAAActiveRegion> regions = new ArrayList<>();
         for (String line : lines) {
             if (line.equals("Nmbr Location Lo Area Z LL NN Mag Type")) {
                 inTable = true;
@@ -91,7 +91,7 @@ public class NOAARegions {
                     if ('E' == lonDir) {
                         lonDeg = -lonDeg;
                     }
-                    regions.add(new ActiveRegion(id, latDeg, lonDeg));
+                    regions.add(new NOAAActiveRegion(id, latDeg, lonDeg));
                 }
             }
         }
