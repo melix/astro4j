@@ -660,27 +660,30 @@ public class ImageDraw extends AbstractFunctionImpl {
         if (arg instanceof ImageWrapper wrapper) {
             var metadata = wrapper.findMetadata(ActiveRegions.class);
             if (metadata.isPresent()) {
-                int showLabelsValue = arguments.size() > 1 ? intArg(arguments, 1) : 1;
-                boolean showLabels = showLabelsValue == 1;
+                int displayParams = arguments.size() > 1 ? intArg(arguments, 1) : 1;
+                boolean showLabels = displayParams > 0;
+                boolean fillRegions = displayParams == 0 || displayParams == 1;
                 var activeRegions = metadata.get();
                 var img = wrapper.unwrapToMemory();
                 if (img instanceof ImageWrapper32 mono) {
                     var rgb = RGBImage.toRGB(mono);
-                    return drawActiveRegions(rgb, activeRegions, showLabels);
+                    return drawActiveRegions(rgb, activeRegions, fillRegions, showLabels);
                 } else if (img instanceof RGBImage rgb) {
-                    return drawActiveRegions(rgb, activeRegions, showLabels);
+                    return drawActiveRegions(rgb, activeRegions, fillRegions, showLabels);
                 }
             }
         }
         return arg;
     }
 
-    public static RGBImage drawActiveRegions(RGBImage rgb, ActiveRegions activeRegions, boolean showLabels) {
+    public static RGBImage drawActiveRegions(RGBImage rgb, ActiveRegions activeRegions, boolean fillRegions, boolean showLabels) {
         var width = rgb.width();
         var height = rgb.height();
         var r = rgb.r();
         var b = rgb.b();
-        drawActiveRegions(activeRegions, width, height, r, b);
+        if (fillRegions) {
+            drawActiveRegions(activeRegions, width, height, r, b);
+        }
         var result = new AtomicReference<>(rgb);
         if (showLabels) {
             rgb.findMetadata(ProcessParams.class).ifPresent(processParams -> {
