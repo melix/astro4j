@@ -1049,8 +1049,8 @@ public class SolexVideoProcessor implements Broadcaster {
                                 );
                                 phenomenaDetector.setDetectSunspots(forceDetectSunspots || processParams.requestedImages().isEnabled(GeneratedImageKind.SUNSPOTS));
                                 phenomenaDetector.performDetection(frameId, width, height, original, polynomial);
-                                hasRedshifts.set(phenomenaDetector.isRedShiftDetectionEnabled());
-                                hasSunspots.set(phenomenaDetector.isSunspotDetectionEnabled());
+                                hasRedshifts.set(hasRedshifts.get() || phenomenaDetector.isRedShiftDetectionEnabled());
+                                hasSunspots.set(hasSunspots.get() || phenomenaDetector.isSunspotDetectionEnabled());
                             } finally {
                                 broadcast(ProgressEvent.of((double) processedCount.incrementAndGet() / totalCount, message("reconstruction")));
                             }
