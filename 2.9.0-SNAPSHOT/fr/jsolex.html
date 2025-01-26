@@ -1433,10 +1433,10 @@ Par exemple, vous pouvez vouloir effectuer un retournement vertical et horizonta
 <div class="ulist">
 <ul>
 <li>
-<p><code>sunspots_overlay</code> génère une image avec les taches solaires détectées. Elle accepte un seul paramètre : l&#8217;image sur laquelle dessiner les taches. Cette fonction ne fonctionnera que si la génération d&#8217;images de taches solaires a été sélectionnée. Par exemple : <code>sunspots_overlay(continuum())</code>.</p>
+<p><code>ar_overlay</code> génère une image avec les taches solaires détectées. Elle accepte un seul paramètre obligatoire : l&#8217;image sur laquelle dessiner les taches. Le deuxième paramètre détermine si le nom de la région doit être affiché (0 = ne pas afficher, 1 = afficher les zones et labels, 2 = seulement les labels). Cette fonction ne fonctionnera que si la génération d&#8217;images de taches solaires a été sélectionnée. Par exemple : <code>ar_overlay(continuum())</code>.</p>
 </li>
 <li>
-<p><code>crop_sunspots</code> génère une liste d&#8217;images correspondant aux taches solaires détectées. Par exemple: <code>crop_sunspots(continuum())</code>. Elle accepte deux paramètres optionnels qui sont la taille minimale des taches, en pixels et une marge en pourcentage. Par exemple: <code>crop_sunspots(continuum(), 10, 20)</code>. La taille par défaut est de 32 pixels.</p>
+<p><code>crop_ar</code> génère une liste d&#8217;images correspondant aux taches solaires détectées. Par exemple: <code>crop_ar(continuum())</code>. Elle accepte deux paramètres optionnels qui sont la taille minimale des taches, en pixels et une marge en pourcentage. Par exemple: <code>crop_ar(continuum(), 10, 20)</code>. La taille par défaut est de 32 pixels.</p>
 </li>
 </ul>
 </div>
