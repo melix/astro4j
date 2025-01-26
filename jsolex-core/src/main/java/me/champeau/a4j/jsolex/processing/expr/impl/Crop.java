@@ -19,7 +19,7 @@ import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
 import me.champeau.a4j.jsolex.processing.sun.crop.Cropper;
 import me.champeau.a4j.jsolex.processing.sun.detection.RedshiftArea;
 import me.champeau.a4j.jsolex.processing.sun.detection.Redshifts;
-import me.champeau.a4j.jsolex.processing.sun.detection.Sunspots;
+import me.champeau.a4j.jsolex.processing.sun.detection.ActiveRegions;
 import me.champeau.a4j.jsolex.processing.sun.workflow.ImageStats;
 import me.champeau.a4j.jsolex.processing.sun.workflow.ReferenceCoords;
 import me.champeau.a4j.jsolex.processing.util.FileBackedImage;
@@ -42,7 +42,7 @@ import java.util.Optional;
 
 public class Crop extends AbstractFunctionImpl {
     private static final Logger LOGGER = LoggerFactory.getLogger(Crop.class);
-    private static final int DEFAULT_SUNSPOT_SIZE = 32;
+    private static final int DEFAULT_AR_SIZE = 32;
 
     public Crop(Map<Class<?>, Object> context, Broadcaster broadcaster) {
         super(context, broadcaster);
@@ -249,37 +249,37 @@ public class Crop extends AbstractFunctionImpl {
                     .toList()
             ));
         });
-        img.findMetadata(Sunspots.class).ifPresent(sunspots -> metadata.put(Sunspots.class, sunspots.translate(-left, -top)));
+        img.findMetadata(ActiveRegions.class).ifPresent(activeRegions -> metadata.put(ActiveRegions.class, activeRegions.translate(-left, -top)));
         img.findMetadata(ReferenceCoords.class).ifPresent(coords -> metadata.put(ReferenceCoords.class, coords.addOffsetX(left).addOffsetY(top)));
         return metadata;
     }
 
     /**
-     * Given an image and a list of sunspots, returns a list of cropped images, each containing one sunspot.
+     * Given an image and a list of active regions, returns a list of cropped images, each containing one region.
      *
      * @param arguments an image or list of images
      * @return the cropped images
      */
-    public Object cropSunspots(List<Object> arguments) {
-        assertExpectedArgCount(arguments, "crop_sunspots takes 1 to 3 arguments (image(s), [min size], [margin%])", 1, 3);
+    public Object cropActiveRegions(List<Object> arguments) {
+        assertExpectedArgCount(arguments, "crop_ar takes 1 to 3 arguments (image(s), [min size], [margin%])", 1, 3);
         var arg = arguments.get(0);
         if (arg instanceof List<?>) {
-            return expandToImageList("crop_sunspots", arguments, this::cropSunspots);
+            return expandToImageList("crop_ar", arguments, this::cropActiveRegions);
         }
         if (arg instanceof ImageWrapper wrapper) {
-            int minSize = arguments.size() >= 2 ? intArg(arguments, 1) : DEFAULT_SUNSPOT_SIZE;
+            int minSize = arguments.size() >= 2 ? intArg(arguments, 1) : DEFAULT_AR_SIZE;
             double margin = (arguments.size() >= 3 ? doubleArg(arguments, 2) : 10)/100d;
             var img = wrapper.unwrapToMemory();
-            var sunspots = img.findMetadata(Sunspots.class).orElse(null);
-            if (sunspots == null) {
+            var activeRegions = img.findMetadata(ActiveRegions.class).orElse(null);
+            if (activeRegions == null) {
                 return List.of();
             }
-            var list = sunspots.sunspotList().stream()
-                .map(sunspot -> {
-                    var left = (int) sunspot.topLeft().x();
-                    var top = (int) sunspot.topLeft().y();
-                    var width = (int) sunspot.width();
-                    var height = (int) sunspot.height();
+            var list = activeRegions.regionList().stream()
+                .map(activeRegion -> {
+                    var left = (int) activeRegion.topLeft().x();
+                    var top = (int) activeRegion.topLeft().y();
+                    var width = (int) activeRegion.width();
+                    var height = (int) activeRegion.height();
                     if (width >= minSize && height >= minSize) {
                         // expand the crop area by 10%
                         var cropWidth = (int) (width * (1 + margin));
@@ -293,7 +293,7 @@ public class Crop extends AbstractFunctionImpl {
                 .filter(Objects::nonNull)
                 .toList();
             if (list.isEmpty()) {
-                LOGGER.info("No sunspots larger than {}x{} found", minSize, minSize);
+                LOGGER.info("No active region larger than {}x{} found", minSize, minSize);
             }
             return list;
         }

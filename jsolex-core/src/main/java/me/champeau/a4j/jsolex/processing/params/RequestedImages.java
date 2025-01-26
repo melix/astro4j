@@ -50,7 +50,7 @@ public record RequestedImages(
         GeneratedImageKind.TECHNICAL_CARD,
         GeneratedImageKind.COMPOSITION,
         GeneratedImageKind.REDSHIFT,
-        GeneratedImageKind.SUNSPOTS
+        GeneratedImageKind.ACTIVE_REGIONS
     );
     public static final Set<GeneratedImageKind> FULL_MODE_WITH_DEBUG = EnumSet.of(
         GeneratedImageKind.DEBUG,
@@ -68,7 +68,7 @@ public record RequestedImages(
         GeneratedImageKind.TECHNICAL_CARD,
         GeneratedImageKind.COMPOSITION,
         GeneratedImageKind.REDSHIFT,
-        GeneratedImageKind.SUNSPOTS
+        GeneratedImageKind.ACTIVE_REGIONS
     );
     public static final Set<GeneratedImageKind> QUICK_MODE = EnumSet.of(
         GeneratedImageKind.RECONSTRUCTION,

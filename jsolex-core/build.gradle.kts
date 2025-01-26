@@ -11,6 +11,7 @@ dependencies {
     api(projects.math)
     api(libs.slf4j.api)
     api(libs.logback)
+    implementation(libs.commons.compress)
     implementation(libs.commons.math)
     implementation(libs.gson)
     implementation(libs.fits) {

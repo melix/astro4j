@@ -3,6 +3,7 @@
 ## Nouveautés de la version 2.9.0
 
 - Ajout de la détection de taches solaires
+- Annotation automatique des taches solaires détectées
 - Ajout de la possibilité de traiter des fichiers SER dans le module de scripting en ligne de commande
 
 ### Nouvelles fonctions dans les scripts
@@ -10,8 +11,8 @@
 Les fonctions suivantes ont été ajoutées :
 
 - `GET_AT` permet de récupérer une image dans une liste à un index spécifique.
-- `SUNSPOTS_OVERLAY` génère un calque de taches solaires sur une image.
-- `CROP_SUNSPOTS` recadre une image sur les taches solaires (génère une image par tache).
+- `AR_OVERLAY` génère un calque de taches solaires sur une image.
+- `CROP_AR` recadre une image sur les taches solaires (génère une image par tache).
 
 ### Corrections de bugs et autres améliorations
 

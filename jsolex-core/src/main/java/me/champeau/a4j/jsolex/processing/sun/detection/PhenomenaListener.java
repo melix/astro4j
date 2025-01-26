@@ -19,5 +19,5 @@ import me.champeau.a4j.math.tuples.DoublePair;
 
 public interface PhenomenaListener {
     void onRedshift(DoublePair redshift);
-    void onSunspot(int x);
+    void onActiveRegion(int x);
 }

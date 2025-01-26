@@ -47,7 +47,7 @@ import me.champeau.a4j.jsolex.processing.spectrum.SpectrumAnalyzer;
 import me.champeau.a4j.jsolex.processing.sun.detection.PhenomenaDetector;
 import me.champeau.a4j.jsolex.processing.sun.detection.RedshiftArea;
 import me.champeau.a4j.jsolex.processing.sun.detection.Redshifts;
-import me.champeau.a4j.jsolex.processing.sun.detection.Sunspots;
+import me.champeau.a4j.jsolex.processing.sun.detection.ActiveRegions;
 import me.champeau.a4j.jsolex.processing.sun.tasks.EllipseFittingTask;
 import me.champeau.a4j.jsolex.processing.sun.tasks.GeometryCorrector;
 import me.champeau.a4j.jsolex.processing.sun.workflow.DefaultImageEmitter;
@@ -140,12 +140,12 @@ public class SolexVideoProcessor implements Broadcaster {
     private ProcessParams processParams;
     private boolean binningIsReliable;
     private Redshifts redshifts;
-    private Sunspots sunspots;
+    private ActiveRegions activeRegions;
     private DoubleUnaryOperator polynomial;
     private float[][] averageImage;
     private PixelShiftRange pixelShiftRange;
     private boolean ignoreIncompleteShifts;
-    private boolean forceDetectSunspots;
+    private boolean forceDetectActiveRegions;
 
     public SolexVideoProcessor(File serFile,
                                Path outputDirectory,
@@ -183,8 +183,8 @@ public class SolexVideoProcessor implements Broadcaster {
         this.redshifts = redshifts;
     }
 
-    public void setForceDetectSunspots(boolean forceDetectSunspots) {
-        this.forceDetectSunspots = forceDetectSunspots;
+    public void setForceDetectActiveRegions(boolean forceDetectActiveRegions) {
+        this.forceDetectActiveRegions = forceDetectActiveRegions;
     }
 
     public void addEventListener(ProcessingEventListener listener) {
@@ -391,8 +391,8 @@ public class SolexVideoProcessor implements Broadcaster {
                         if (redshifts == null && outputs.redshifts != null) {
                             redshifts = new Redshifts(outputs.redshifts);
                         }
-                        if (sunspots == null && outputs.sunspots != null) {
-                            sunspots = outputs.sunspots;
+                        if (activeRegions == null && outputs.activeRegions != null) {
+                            activeRegions = outputs.activeRegions;
                         }
                         serFileReader.set(reader);
                         // Compute megabytes processed per second
@@ -406,9 +406,9 @@ public class SolexVideoProcessor implements Broadcaster {
                     System.gc();
                 }
             });
-            if (sunspots != null) {
+            if (activeRegions != null) {
                 for (WorkflowState state : imageList) {
-                    state.reconstructed().metadata().put(Sunspots.class, sunspots);
+                    state.reconstructed().metadata().put(ActiveRegions.class, activeRegions);
                 }
             }
             try {
@@ -577,9 +577,9 @@ public class SolexVideoProcessor implements Broadcaster {
         if (redshifts != null) {
             metadata.put(Redshifts.class, redshifts);
         }
-        if (sunspots != null) {
+        if (activeRegions != null) {
             var width = recon.width();
-            metadata.put(Sunspots.class, sunspots.transform(p -> new Point2D(p.y(), width - p.x())));
+            metadata.put(ActiveRegions.class, activeRegions.transform(p -> new Point2D(p.y(), width - p.x())));
         }
         rotated = ImageWrapper32.fromImage(rotateLeft, metadata);
         TransformationHistory.recordTransform(rotated, message("rotate.left"));
@@ -966,8 +966,8 @@ public class SolexVideoProcessor implements Broadcaster {
                 redshifts = new Redshifts(rotatedRedshifts);
                 rotated.metadata().put(Redshifts.class, redshifts);
             });
-            rotated.findMetadata(Sunspots.class).ifPresent(sunspots -> {
-                var flippedSunspots = sunspots.transform(p -> {
+            rotated.findMetadata(ActiveRegions.class).ifPresent(activeRegions -> {
+                var flippedActiveRegions = activeRegions.transform(p -> {
                     var x = p.x();
                     var y = p.y();
                     if (hflip) {
@@ -978,7 +978,7 @@ public class SolexVideoProcessor implements Broadcaster {
                     }
                     return new Point2D(x, y);
                 });
-                rotated.metadata().put(Sunspots.class, flippedSunspots);
+                rotated.metadata().put(ActiveRegions.class, flippedActiveRegions);
             });
             System.arraycopy(flipped, 0, original, 0, original.length);
             TransformationHistory.recordTransform(rotated, message("flip"));
@@ -1021,7 +1021,7 @@ public class SolexVideoProcessor implements Broadcaster {
         );
         var phenomenaDetector = new PhenomenaDetector(dispersion, lambda0, width);
         AtomicBoolean hasRedshifts = new AtomicBoolean();
-        AtomicBoolean hasSunspots = new AtomicBoolean();
+        AtomicBoolean hasActiveRegions = new AtomicBoolean();
         var latch = new CountDownLatch(end - start);
         var semaphore = new Semaphore(MAX_INMEMORY_BUFFERS);
         try (var executor = Executors.newFixedThreadPool(MAX_PARALLEL_READS)) {
@@ -1047,10 +1047,10 @@ public class SolexVideoProcessor implements Broadcaster {
                                 phenomenaDetector.setDetectRedshifts(
                                     state.pixelShift() == 0 && processParams.spectrumParams().ray().label().equalsIgnoreCase(SpectralRay.H_ALPHA.label()) && processParams.requestedImages().isEnabled(GeneratedImageKind.REDSHIFT)
                                 );
-                                phenomenaDetector.setDetectSunspots(forceDetectSunspots || processParams.requestedImages().isEnabled(GeneratedImageKind.SUNSPOTS));
+                                phenomenaDetector.setDetectActiveRegions(forceDetectActiveRegions || processParams.requestedImages().isEnabled(GeneratedImageKind.ACTIVE_REGIONS));
                                 phenomenaDetector.performDetection(frameId, width, height, original, polynomial);
                                 hasRedshifts.set(hasRedshifts.get() || phenomenaDetector.isRedShiftDetectionEnabled());
-                                hasSunspots.set(hasSunspots.get() || phenomenaDetector.isSunspotDetectionEnabled());
+                                hasActiveRegions.set(hasActiveRegions.get() || phenomenaDetector.isActiveRegionsDetectionEnabled());
                             } finally {
                                 broadcast(ProgressEvent.of((double) processedCount.incrementAndGet() / totalCount, message("reconstruction")));
                             }
@@ -1079,7 +1079,7 @@ public class SolexVideoProcessor implements Broadcaster {
 
         return new ReconstructionOutputs(
             hasRedshifts.get() ? phenomenaDetector.getMaxRedshiftAreas(5) : null,
-            hasSunspots.get() ? phenomenaDetector.getSunspots() : null
+            hasActiveRegions.get() ? phenomenaDetector.getActiveRegions() : null
         );
     }
 
@@ -1223,7 +1223,7 @@ public class SolexVideoProcessor implements Broadcaster {
 
     private record ReconstructionOutputs(
         List<RedshiftArea> redshifts,
-        Sunspots sunspots
+        ActiveRegions activeRegions
     ) {
 
     }

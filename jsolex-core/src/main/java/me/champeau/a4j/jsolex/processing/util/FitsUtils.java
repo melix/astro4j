@@ -21,8 +21,8 @@ import me.champeau.a4j.jsolex.processing.params.ProcessParamsIO;
 import me.champeau.a4j.jsolex.processing.spectrum.SpectrumAnalyzer;
 import me.champeau.a4j.jsolex.processing.sun.detection.RedshiftArea;
 import me.champeau.a4j.jsolex.processing.sun.detection.Redshifts;
-import me.champeau.a4j.jsolex.processing.sun.detection.Sunspot;
-import me.champeau.a4j.jsolex.processing.sun.detection.Sunspots;
+import me.champeau.a4j.jsolex.processing.sun.detection.ActiveRegion;
+import me.champeau.a4j.jsolex.processing.sun.detection.ActiveRegions;
 import me.champeau.a4j.jsolex.processing.sun.workflow.MetadataTable;
 import me.champeau.a4j.jsolex.processing.sun.workflow.PixelShift;
 import me.champeau.a4j.jsolex.processing.sun.workflow.ReferenceCoords;
@@ -77,7 +77,7 @@ public class FitsUtils {
     public static final String SOURCEINFO_VALUE = "SourceInfo";
     public static final String METADATA_TABLE_VALUE = "TMetadata";
     public static final String DISTORSION_MAP_VALUE = "DistorsionMap";
-    public static final String SUNSPOTS_VALUE = "Sunspots";
+    public static final String ACTIVE_REGION_VALUE = "AR";
 
     // INTI metadata
     public static final String INTI_CENTER_X = "CENTER_X";
@@ -292,15 +292,15 @@ public class FitsUtils {
                     var binaryTable = binaryTableHdu.getData();
                     var bytes = (byte[]) binaryTable.get(0, 0);
                     metadata.put(DistorsionMap.class, DistorsionMap.loadFrom(new ByteArrayInputStream(bytes)));
-                } else if (SUNSPOTS_VALUE.equals(card.getValue())) {
+                } else if (ACTIVE_REGION_VALUE.equals(card.getValue())) {
                     var binaryTable = binaryTableHdu.getData();
-                    var sunspots = new ArrayList<Sunspot>();
+                    var activeRegions = new ArrayList<ActiveRegion>();
                     for (int i = 0; i < binaryTable.getNRows(); i++) {
                         var row = binaryTable.getRow(i);
                         var data = (byte[]) row[0];
                         var dais = new DataInputStream(new ByteArrayInputStream(data));
-                        var sunspotCount = dais.readInt();
-                        for (int j = 0; j < sunspotCount; j++) {
+                        var activeRegionCount = dais.readInt();
+                        for (int j = 0; j < activeRegionCount; j++) {
                             var pointCount = dais.readInt();
                             var points = new ArrayList<Point2D>();
                             for (int k = 0; k < pointCount; k++) {
@@ -308,10 +308,10 @@ public class FitsUtils {
                                 var y = dais.readDouble();
                                 points.add(new Point2D(x, y));
                             }
-                            sunspots.add(Sunspot.of(points));
+                            activeRegions.add(ActiveRegion.of(points));
                         }
                     }
-                    metadata.put(Sunspots.class, new Sunspots(sunspots));
+                    metadata.put(ActiveRegions.class, new ActiveRegions(activeRegions));
                 }
             }
         }
@@ -366,7 +366,7 @@ public class FitsUtils {
             writeSourceInfo(image, fits);
             writeMetadataTable(image, fits);
             writeDistorsionMap(image, fits);
-            writeSunspots(image, fits);
+            writeActiveRegions(image, fits);
         }
     }
 
@@ -384,17 +384,17 @@ public class FitsUtils {
         });
     }
 
-    private static void writeSunspots(ImageWrapper image, Fits fits) throws IOException {
-        var metadata = image.findMetadata(Sunspots.class);
+    private static void writeActiveRegions(ImageWrapper image, Fits fits) throws IOException {
+        var metadata = image.findMetadata(ActiveRegions.class);
         if (metadata.isPresent()) {
-            var sunspots = metadata.get();
+            var activeRegions = metadata.get();
             var table = new BinaryTable();
             var baos = new ByteArrayOutputStream();
             var daos = new DataOutputStream(baos);
-            var sunspotList = sunspots.sunspotList();
-            daos.writeInt(sunspotList.size());
-            for (var sunspot : sunspotList) {
-                var points = sunspot.points();
+            var activeRegionList = activeRegions.regionList();
+            daos.writeInt(activeRegionList.size());
+            for (var activeRegion : activeRegionList) {
+                var points = activeRegion.points();
                 daos.writeInt(points.size());
                 // we only need to store the points, not the bounding box
                 for (var p : points) {
@@ -403,7 +403,7 @@ public class FitsUtils {
                 }
             }
             table.addRow(new Object[]{baos.toByteArray()});
-            writeBinaryTable(table, SUNSPOTS_VALUE, "Sunspots", fits);
+            writeBinaryTable(table, ACTIVE_REGION_VALUE, "Active regions", fits);
         }
     }
 

@@ -40,7 +40,7 @@ import me.champeau.a4j.jsolex.processing.sun.SolexVideoProcessor;
 import me.champeau.a4j.jsolex.processing.sun.WorkflowState;
 import me.champeau.a4j.jsolex.processing.sun.detection.RedshiftArea;
 import me.champeau.a4j.jsolex.processing.sun.detection.Redshifts;
-import me.champeau.a4j.jsolex.processing.sun.detection.Sunspots;
+import me.champeau.a4j.jsolex.processing.sun.detection.ActiveRegions;
 import me.champeau.a4j.jsolex.processing.sun.tasks.CoronagraphTask;
 import me.champeau.a4j.jsolex.processing.sun.tasks.EllipseFittingTask;
 import me.champeau.a4j.jsolex.processing.sun.tasks.GeometryCorrector;
@@ -49,6 +49,7 @@ import me.champeau.a4j.jsolex.processing.util.Constants;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 import me.champeau.a4j.jsolex.processing.util.MutableMap;
+import me.champeau.a4j.jsolex.processing.util.RGBImage;
 import me.champeau.a4j.math.Point2D;
 import me.champeau.a4j.math.image.Deconvolution;
 import me.champeau.a4j.math.image.ImageMath;
@@ -196,12 +197,12 @@ public class ProcessingWorkflow {
         if (isMainShift() && shouldProduce(GeneratedImageKind.TECHNICAL_CARD)) {
             produceTechnicalCard(stretched);
         }
-        if (shouldProduce(GeneratedImageKind.SUNSPOTS)) {
+        if (shouldProduce(GeneratedImageKind.ACTIVE_REGIONS)) {
             if (isMainShift()) {
-                produceSunspotsImage(enhanced);
+                produceActiveRegionsImage(enhanced);
             }
             if (shouldProduce(GeneratedImageKind.CONTINUUM) && state.pixelShift() == processParams.spectrumParams().continuumShift()) {
-                produceSunspotsImage(enhanced);
+                produceActiveRegionsImage(enhanced);
             }
         }
         if (processParams.spectrumParams().pixelShift() == 0 && isMainShift() && shouldProduce(GeneratedImageKind.REDSHIFT)) {
@@ -216,20 +217,27 @@ public class ProcessingWorkflow {
             .forEach(Runnable::run);
     }
 
-    private void produceSunspotsImage(ImageWrapper32 image) {
+    private void produceActiveRegionsImage(ImageWrapper32 image) {
         imagesEmitter.newColorImage(
-            GeneratedImageKind.SUNSPOTS,
+            GeneratedImageKind.ACTIVE_REGIONS,
             null,
-            message("sunspots"),
-            "sunspots",
+            message("activeregions"),
+            "activeregions",
             image,
             mono -> {
                 new LinearStrechingStrategy(0, .75f * Constants.MAX_PIXEL_VALUE).stretch(mono);
-                var data = mono.data();
-                var r = ImageWrapper.copyData(data);
-                var g = ImageWrapper.copyData(data);
-                var b = ImageWrapper.copyData(data);
-                mono.findMetadata(Sunspots.class).ifPresent(sunspots -> ImageDraw.drawSunspots(sunspots, mono.width(), mono.height(), r, b));
+                var rgb = RGBImage.toRGB(mono);
+                var r = rgb.r();
+                var g = rgb.g();
+                var b = rgb.b();
+                var activeRegionsMetadata = mono.findMetadata(ActiveRegions.class);
+                if (activeRegionsMetadata.isPresent()) {
+                    var activeRegions = activeRegionsMetadata.get();
+                    var img = ImageDraw.drawActiveRegions(rgb, activeRegions, true, true);
+                    r = img.r();
+                    g = img.g();
+                    b = img.b();
+                }
                 return new float[][][]{r, g, b};
             }
         );
