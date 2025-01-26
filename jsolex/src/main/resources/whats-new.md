@@ -6,6 +6,21 @@
 - Automatically label detected active regions
 - Add ability to process SER files to the standalone scripting module
 
+### Active Regions Detection
+
+This version introduces detection of active regions in solar images.
+The detection works by analyzing each frame in your SER file, and identifying regions with unexpected brightness compared to a model of what it should look like.
+Active regions detection will generate 2 images:
+
+- one of the studied line with an overlay of the detected active regions
+- one with the continuum image of the studied line, with the detected active regions highlighted
+
+The detection mechanism is responsible for detecting the "areas" which cover sunspots.
+However, if you have access to internet, it will also be able to put labels onto those active areas, to help you identify them.
+Note, however, that the label positions will only be correct if you are using an equatorial mount, that the image is oriented correctly (horizontal/vertical flips) and that the time and date are correctly set in your SER file.
+
+You can also generate more images by using the scripts functions which are described below.
+
 ### New Functions in Scripts
 
 The following functions have been added:

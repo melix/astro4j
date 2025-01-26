@@ -6,6 +6,21 @@
 - Annotation automatique des taches solaires détectées
 - Ajout de la possibilité de traiter des fichiers SER dans le module de scripting en ligne de commande
 
+### Détection des régions actives
+
+Cette version introduit la détection des régions actives dans les images solaires.
+La détection fonctionne en analysant chaque image de votre fichier SER et en identifiant les régions ayant une luminosité inattendue par rapport à un modèle calculé à partir de chaque trame.
+La détection des régions actives générera 2 images :
+
+- une de la ligne étudiée avec une superposition des régions actives détectées
+- une avec l'image du continuum de la ligne étudiée, avec les régions actives détectées mises en évidence
+
+Le mécanisme de détection est responsable de la détection des "zones" qui couvrent les taches solaires.
+Cependant, si vous avez accès à Internet, il pourra également ajouter des étiquettes sur ces zones actives pour vous aider à les identifier.
+Notez toutefois que les positions des étiquettes ne seront correctes que si vous utilisez une monture équatoriale, que l'image est orientée correctement (flips horizontaux/verticaux) et que l'heure et la date sont correctement réglées dans votre logiciel d'acquisition.
+
+Vous pouvez également générer plus d'images en utilisant les fonctions de scripts décrites ci-dessous.
+
 ### Nouvelles fonctions dans les scripts
 
 Les fonctions suivantes ont été ajoutées :
