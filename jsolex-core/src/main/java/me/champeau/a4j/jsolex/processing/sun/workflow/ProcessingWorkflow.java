@@ -49,6 +49,7 @@ import me.champeau.a4j.jsolex.processing.util.Constants;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 import me.champeau.a4j.jsolex.processing.util.MutableMap;
+import me.champeau.a4j.jsolex.processing.util.RGBImage;
 import me.champeau.a4j.math.Point2D;
 import me.champeau.a4j.math.image.Deconvolution;
 import me.champeau.a4j.math.image.ImageMath;
@@ -225,11 +226,18 @@ public class ProcessingWorkflow {
             image,
             mono -> {
                 new LinearStrechingStrategy(0, .75f * Constants.MAX_PIXEL_VALUE).stretch(mono);
-                var data = mono.data();
-                var r = ImageWrapper.copyData(data);
-                var g = ImageWrapper.copyData(data);
-                var b = ImageWrapper.copyData(data);
-                mono.findMetadata(Sunspots.class).ifPresent(sunspots -> ImageDraw.drawSunspots(sunspots, mono.width(), mono.height(), r, b));
+                var rgb = RGBImage.toRGB(mono);
+                var r = rgb.r();
+                var g = rgb.g();
+                var b = rgb.b();
+                var sunspotsMd = mono.findMetadata(Sunspots.class);
+                if (sunspotsMd.isPresent()) {
+                    var sunspots = sunspotsMd.get();
+                    var img = ImageDraw.drawSunspots(rgb, sunspots, true);
+                    r = img.r();
+                    g = img.g();
+                    b = img.b();
+                }
                 return new float[][][]{r, g, b};
             }
         );

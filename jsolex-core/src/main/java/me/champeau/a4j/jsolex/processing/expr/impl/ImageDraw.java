@@ -17,12 +17,15 @@ package me.champeau.a4j.jsolex.processing.expr.impl;
 
 import me.champeau.a4j.jsolex.processing.params.ProcessParams;
 import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
+import me.champeau.a4j.jsolex.processing.sun.detection.Sunspot;
 import me.champeau.a4j.jsolex.processing.sun.detection.Sunspots;
+import me.champeau.a4j.jsolex.processing.util.ActiveRegion;
 import me.champeau.a4j.jsolex.processing.util.Constants;
 import me.champeau.a4j.jsolex.processing.util.FileBackedImage;
 import me.champeau.a4j.jsolex.processing.util.GeoCoordinates;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
+import me.champeau.a4j.jsolex.processing.util.NOAARegions;
 import me.champeau.a4j.jsolex.processing.util.RGBImage;
 import me.champeau.a4j.jsolex.processing.util.SolarParameters;
 import me.champeau.a4j.math.regression.Ellipse;
@@ -43,6 +46,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BiConsumer;
 import java.util.regex.Pattern;
 
@@ -432,7 +436,7 @@ public class ImageDraw extends AbstractFunctionImpl {
             double centerX = ellipse.center().a();
             double centerY = ellipse.center().b();
             double radius = (ellipse.semiAxis().a() + ellipse.semiAxis().b()) / 2d;
-            double resolution = 0.04d;
+            double resolution = 0.0002d;
             var diameter = (int) Math.round(2 * radius);
             autoScaleFont(g, 1.0d, radius);
             g.drawOval((int) (centerX - radius), (int) (centerY - radius), diameter, diameter);
@@ -440,7 +444,7 @@ public class ImageDraw extends AbstractFunctionImpl {
             int geodesisInc = 180 / DIVISIONS;
             for (int i = -180; i <= 180; i += geodesisInc) {
                 var angle = toRadians(i);
-                for (double theta = 0; theta < 360; theta += resolution) {
+                for (double theta = -Math.PI; theta < Math.PI; theta += resolution) {
                     var lines = List.of(ofSpherical(angle, theta, radius).rotateX(-b0).rotateZ(-angleP), ofSpherical(theta, angle, radius).rotateX(-b0).rotateZ(-angleP));
                     for (int j = 0; j < lines.size(); j++) {
                         Coordinates c = lines.get(j);
@@ -455,7 +459,66 @@ public class ImageDraw extends AbstractFunctionImpl {
             drawRotationAxis(angleP, radius, g, centerX, centerY);
             drawRotationAxis(0, radius, g, centerX, centerY);
             g.setFont(font);
+            var processParams = findProcessParams(image);
+            var detectedSunspots = image.findMetadata(Sunspots.class).map(Sunspots::sunspotList).orElse(List.of());
+            if (processParams.isPresent() && !detectedSunspots.isEmpty()) {
+                // Draw each sunspot with label
+                var date = processParams.get().observationDetails().date();
+                var regions = NOAARegions.findActiveRegions(date);
+                drawActiveRegionsLabels(detectedSunspots, angleP, b0, g, radius, regions, centerX, centerY, false);
+            }
         });
+    }
+
+    private static void drawActiveRegionsLabels(
+        List<Sunspot> detectedSunspots,
+        double angleP,
+        double b0,
+        Graphics2D g,
+        double radius,
+        List<ActiveRegion> regions,
+        double centerX,
+        double centerY,
+        boolean rotateLabels) {
+        autoScaleFont(g, 2.0d, radius);
+        if (rotateLabels) {
+            g.setFont(g.getFont().deriveFont(AffineTransform.getRotateInstance(-angleP)));
+        }
+        for (var activeRegion : regions) {
+            String sunspotID = activeRegion.id();
+
+            // Convert latitude and longitude to radians
+            double latitude = Math.toRadians(activeRegion.latitudeDeg()) + Math.PI / 2;
+            double longitude = Math.toRadians(activeRegion.longitudeDeg());
+
+            // Convert spherical coordinates (latitude, longitude) to 2D screen coordinates
+            var sunspot = ofSpherical(longitude, latitude, radius).rotateX(-b0).rotateZ(-angleP);
+
+            // Draw the sunspot label on the globe
+            if (sunspot.z > 0) {
+                // Adjust the position slightly so the label doesn't overlap with the sunspot
+                int labelX = (int) round(centerX + sunspot.x);
+                int labelY = (int) round(centerY + sunspot.y);
+                var wasDetected = detectedSunspots.stream()
+                    .anyMatch(s -> {
+                        var cx = s.topLeft().x() + s.width()/2;
+                        var cy = s.topLeft().y() + s.height()/2;
+                        // we have the radius of the sun and the width of the sunspot
+                        // and we consider that the label matches if the center of the sunspot is within a distance
+                        // of 10% of the sun radius
+                        return Math.hypot(cx - labelX, cy - labelY) < 0.1 * radius;
+                    });
+                if (wasDetected) {
+                    g.setColor(Color.BLUE);
+                    g.setFont(g.getFont().deriveFont(Font.BOLD));
+                } else {
+                    g.setColor(Color.RED);
+                    g.setFont(g.getFont().deriveFont(Font.PLAIN));
+                }
+                // Draw the sunspot ID (or other information) as a label
+                g.drawString(sunspotID, labelX + 5, labelY);  // Offset the label a bit to the right
+            }
+        }
     }
 
     private static void autoScaleFont(Graphics2D g, double radius, double factor) {
@@ -498,7 +561,7 @@ public class ImageDraw extends AbstractFunctionImpl {
         }
     }
 
-    public ImageWrapper drawOnImage(ImageWrapper wrapper, BiConsumer<? super Graphics2D, ? super ImageWrapper> consumer) {
+    public static ImageWrapper drawOnImage(ImageWrapper wrapper, BiConsumer<? super Graphics2D, ? super ImageWrapper> consumer) {
         if (wrapper.width() == 0 || wrapper.height() == 0) {
             return wrapper;
         }
@@ -589,7 +652,7 @@ public class ImageDraw extends AbstractFunctionImpl {
     }
 
     public Object sunspotsOverlay(List<Object> arguments) {
-        assertExpectedArgCount(arguments, "sunspots_overlay takes 1 argument (image(s))", 1, 1);
+        assertExpectedArgCount(arguments, "sunspots_overlay takes 2 arguments (image(s), [show labels])", 1, 2);
         var arg = arguments.get(0);
         if (arg instanceof List<?>) {
             return expandToImageList("sunspots_overlay", arguments, this::sunspotsOverlay);
@@ -597,29 +660,50 @@ public class ImageDraw extends AbstractFunctionImpl {
         if (arg instanceof ImageWrapper wrapper) {
             var metadata = wrapper.findMetadata(Sunspots.class);
             if (metadata.isPresent()) {
+                int showLabelsValue = arguments.size() > 1 ? intArg(arguments, 1) : 1;
+                boolean showLabels = showLabelsValue == 1;
                 var sunspots = metadata.get();
                 var img = wrapper.unwrapToMemory();
                 if (img instanceof ImageWrapper32 mono) {
                     var rgb = RGBImage.toRGB(mono);
-                    return drawSunspots(rgb, sunspots);
+                    return drawSunspots(rgb, sunspots, showLabels);
                 } else if (img instanceof RGBImage rgb) {
-                    return drawSunspots(rgb, sunspots);
+                    return drawSunspots(rgb, sunspots, showLabels);
                 }
             }
         }
         return arg;
     }
 
-    public static RGBImage drawSunspots(RGBImage rgb, Sunspots sunspots) {
+    public static RGBImage drawSunspots(RGBImage rgb, Sunspots sunspots, boolean showLabels) {
         var width = rgb.width();
         var height = rgb.height();
         var r = rgb.r();
         var b = rgb.b();
         drawSunspots(sunspots, width, height, r, b);
-        return rgb;
+        var result = new AtomicReference<>(rgb);
+        if (showLabels) {
+            rgb.findMetadata(ProcessParams.class).ifPresent(processParams -> {
+                var date = processParams.observationDetails().date();
+                rgb.findMetadata(SolarParameters.class).ifPresent(solarParams -> {
+                    var angleP = solarParams.p();
+                    var b0 = solarParams.b0();
+                    rgb.findMetadata(Ellipse.class).ifPresent(ellipse -> {
+                        double centerX = ellipse.center().a();
+                        double centerY = ellipse.center().b();
+                        double radius = (ellipse.semiAxis().a() + ellipse.semiAxis().b()) / 2d;
+                        var detectedSunspots = sunspots.sunspotList();
+                        result.set((RGBImage) drawOnImage(rgb, (g, image) -> {
+                            drawActiveRegionsLabels(detectedSunspots, angleP, b0, g, radius, NOAARegions.findActiveRegions(date), centerX, centerY, processParams.geometryParams().isAutocorrectAngleP());
+                        }));
+                    });
+                });
+            });
+        }
+        return result.get();
     }
 
-    public static void drawSunspots(Sunspots sunspots, int width, int height, float[][] r, float[][] b) {
+    private static void drawSunspots(Sunspots sunspots, int width, int height, float[][] r, float[][] b) {
         for (var sunspot : sunspots.sunspotList()) {
             var points = sunspot.points();
             for (var point : points) {

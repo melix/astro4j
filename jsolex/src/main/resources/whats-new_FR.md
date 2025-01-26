@@ -3,6 +3,7 @@
 ## Nouveautés de la version 2.9.0
 
 - Ajout de la détection de taches solaires
+- Annotation automatique des taches solaires détectées
 - Ajout de la possibilité de traiter des fichiers SER dans le module de scripting en ligne de commande
 
 ### Nouvelles fonctions dans les scripts

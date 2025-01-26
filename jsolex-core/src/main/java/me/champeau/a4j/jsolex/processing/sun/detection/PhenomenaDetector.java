@@ -40,7 +40,7 @@ import java.util.stream.Stream;
 public class PhenomenaDetector {
     private static final double SUNSPOT_STDDEV_THRESHOLD = 0.85;
     private static final double SUNSPOT_AVG_THRESHOLD = 0.95;
-    private static final int MIN_SUNSPOT_AREA = 16;
+    private static final int MIN_SUNSPOT_AREA = 8;
 
     private static final double SPEED_OF_LIGHT = 299792.458d;
     private final Map<Integer, List<Redshift>> redshiftsPerFrame = new ConcurrentHashMap<>();

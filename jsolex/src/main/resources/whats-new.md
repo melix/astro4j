@@ -3,6 +3,7 @@
 ## What's New in Version 2.9.0
 
 - Added detection of sunspots
+- Automatically label detected sunspots
 - Add ability to process SER files to the standalone scripting module
 
 ### New Functions in Scripts
