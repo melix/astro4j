@@ -63,6 +63,7 @@ class ObservationDetailsSerializer implements JsonSerializer<ObservationDetails>
             var focalLength = getNullableInt(obj, "focalLength");
             var forceCamera = getNullableBoolean(obj, "forceCamera");
             var showCoordinatesInDetails = getNullableBoolean(obj, "showCoordinatesInDetails");
+            var altAzMode = getNullableBoolean(obj, "altAzMode");
             SpectroHeliograph instrument;
             if (obj.get("instrument") instanceof JsonObject) {
                 instrument = context.deserialize(obj.get("instrument"), SpectroHeliograph.class);
@@ -75,7 +76,7 @@ class ObservationDetailsSerializer implements JsonSerializer<ObservationDetails>
                     .orElse(SpectroHeliograph.SOLEX);
             }
             var coordinates = (DoublePair) context.deserialize(obj.get("coordinates"), DoublePair.class);
-            return new ObservationDetails(observer, email, instrument, telescope, focalLength, aperture, coordinates, date, camera, binning, pixelSize, forceCamera, showCoordinatesInDetails);
+            return new ObservationDetails(observer, email, instrument, telescope, focalLength, aperture, coordinates, date, camera, binning, pixelSize, forceCamera, showCoordinatesInDetails, altAzMode);
         }
         throw new IllegalAccessError("Unexpected JSON type " + json.getClass());
     }
@@ -96,6 +97,7 @@ class ObservationDetailsSerializer implements JsonSerializer<ObservationDetails>
         obj.add("coordinates", context.serialize(src.coordinates()));
         obj.add("forceCamera", context.serialize(src.forceCamera()));
         obj.add("showCoordinatesInDetails", context.serialize(src.showCoordinatesInDetails()));
+        obj.add("altAzMode", context.serialize(src.altAzMode()));
         return obj;
     }
 }

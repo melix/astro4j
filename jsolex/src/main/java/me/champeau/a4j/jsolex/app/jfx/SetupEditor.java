@@ -67,6 +67,8 @@ public class SetupEditor {
     private TextField latitude;
     @FXML
     private TextField longitude;
+    @FXML
+    private CheckBox altAzMode;
 
     private List<Control> formFields;
 
@@ -117,7 +119,8 @@ public class SetupEditor {
             latitude,
             longitude,
             showInDetails,
-            forceCamera
+            forceCamera,
+            altAzMode
         );
         label.setTextFormatter(new TextFormatter<>(new StringConverter<String>() {
             @Override
@@ -157,6 +160,7 @@ public class SetupEditor {
                 longitude.setText(nullable(item.longitude(), String::valueOf));
                 forceCamera.setSelected(item.forceCamera());
                 showInDetails.setSelected(item.showCoordinatesInDetails());
+                altAzMode.setSelected(item.altAzMode());
                 updating.set(false);
             }
         });
@@ -173,6 +177,7 @@ public class SetupEditor {
                 var newForceCamera = forceCamera.isSelected();
                 var newShowInDetails = showInDetails.isSelected();
                 var selectedIndex = selectionModel.getSelectedIndex();
+                var altAz = altAzMode.isSelected();
                 if (selectedIndex != -1) {
                     try {
                         var e = new Setup(
@@ -185,7 +190,8 @@ public class SetupEditor {
                             nullable(newLatitude, SetupEditor::safeParseDouble),
                             nullable(newLongitude, SetupEditor::safeParseDouble),
                             newForceCamera,
-                            newShowInDetails
+                            newShowInDetails,
+                            altAz
                         );
                         items.set(selectedIndex, e);
                         elements.getSelectionModel().select(e);
@@ -311,7 +317,8 @@ public class SetupEditor {
                 selected.latitude(),
                 selected.longitude(),
                 selected.forceCamera(),
-                selected.showCoordinatesInDetails()
+                selected.showCoordinatesInDetails(),
+                selected.altAzMode()
             );
         } else {
             newElement = new Setup(
@@ -323,6 +330,7 @@ public class SetupEditor {
                 null,
                 null,
                 null,
+                false,
                 false,
                 false
             );

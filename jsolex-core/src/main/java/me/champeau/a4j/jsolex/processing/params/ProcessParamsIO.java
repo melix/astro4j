@@ -98,6 +98,7 @@ public abstract class ProcessParamsIO {
                 1,
                 2.4,
                 false,
+                false,
                 false),
             new ExtraParams(false, true, EnumSet.of(ImageFormat.PNG), FileNamingStrategy.DEFAULT_TEMPLATE, FileNamingStrategy.DEFAULT_DATETIME_FORMAT, FileNamingStrategy.DEFAULT_DATE_FORMAT),
             new VideoParams(ColorMode.MONO),

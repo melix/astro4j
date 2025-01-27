@@ -25,7 +25,8 @@ public record Setup(
     Double latitude,
     Double longitude,
     boolean forceCamera,
-    boolean showCoordinatesInDetails
+    boolean showCoordinatesInDetails,
+    boolean altAzMode
 ) {
     @Override
     public String toString() {
