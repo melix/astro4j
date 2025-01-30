@@ -42,6 +42,7 @@ The following functions have been added:
 ### Bug Fixes and Improvements
 
 - Fixed a bug where an error message could be displayed during reconstruction, with no effet on the result.
+- Fixed SER files not being closed, preventing them from being deleted under Windows
 
 ## Message to US citizen and far right supporters
 
