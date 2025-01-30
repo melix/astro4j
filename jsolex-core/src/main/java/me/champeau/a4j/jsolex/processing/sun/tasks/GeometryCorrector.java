@@ -17,12 +17,13 @@ package me.champeau.a4j.jsolex.processing.sun.tasks;
 
 import me.champeau.a4j.jsolex.processing.event.ProgressEvent;
 import me.champeau.a4j.jsolex.processing.expr.impl.Crop;
+import me.champeau.a4j.jsolex.processing.expr.impl.Rotate;
 import me.champeau.a4j.jsolex.processing.params.ProcessParams;
 import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
 import me.champeau.a4j.jsolex.processing.sun.WorkflowState;
+import me.champeau.a4j.jsolex.processing.sun.detection.ActiveRegions;
 import me.champeau.a4j.jsolex.processing.sun.detection.RedshiftArea;
 import me.champeau.a4j.jsolex.processing.sun.detection.Redshifts;
-import me.champeau.a4j.jsolex.processing.sun.detection.ActiveRegions;
 import me.champeau.a4j.jsolex.processing.sun.workflow.ImageEmitter;
 import me.champeau.a4j.jsolex.processing.sun.workflow.ReferenceCoords;
 import me.champeau.a4j.jsolex.processing.sun.workflow.TransformationHistory;
@@ -30,6 +31,7 @@ import me.champeau.a4j.jsolex.processing.util.FileBackedImage;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 import me.champeau.a4j.jsolex.processing.util.MutableMap;
+import me.champeau.a4j.jsolex.processing.util.SolarParametersUtils;
 import me.champeau.a4j.math.Point2D;
 import me.champeau.a4j.math.image.Image;
 import me.champeau.a4j.math.image.ImageMath;
@@ -171,6 +173,21 @@ public class GeometryCorrector extends AbstractTask<GeometryCorrector.Result> {
         }
         var corrected = ImageWrapper32.fromImage(rescaled, metadata);
         TransformationHistory.recordTransform(corrected, message("geometry.correction"));
+        if (processParams.observationDetails().altAzMode()) {
+            var coordinates = processParams.observationDetails().coordinates();
+            if (coordinates != null) {
+                double angle = SolarParametersUtils.computeParallacticAngleRad(
+                    processParams.observationDetails().date(),
+                    coordinates.a(),
+                    coordinates.b()
+                );
+                LOGGER.info(String.format(message("parallactic.angle"), Math.toDegrees(angle)));
+                var rotated = new Rotate(MutableMap.of(Ellipse.class, ellipse),broadcaster).rotateRadians(
+                    List.of(corrected, angle, 0, 1)
+                );
+                corrected = (ImageWrapper32) rotated;
+            }
+        }
         var autocropMode = processParams.geometryParams().autocropMode();
         if (autocropMode != null) {
             var cropping = new Crop(MutableMap.of(Ellipse.class, ellipse), broadcaster);

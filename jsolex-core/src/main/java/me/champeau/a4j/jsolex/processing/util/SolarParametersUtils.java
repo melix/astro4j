@@ -15,17 +15,24 @@
  */
 package me.champeau.a4j.jsolex.processing.util;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.time.LocalDateTime;
+import java.time.ZonedDateTime;
 
 import static java.lang.Math.PI;
 import static java.lang.Math.asin;
 import static java.lang.Math.atan;
+import static java.lang.Math.atan2;
 import static java.lang.Math.cos;
 import static java.lang.Math.sin;
 import static java.lang.Math.tan;
+import static java.lang.Math.toDegrees;
 import static java.lang.Math.toRadians;
 
 public final class SolarParametersUtils {
+    private static final Logger LOGGER = LoggerFactory.getLogger(SolarParametersUtils.class);
 
     public static final double CARRINGTON_ROTATION_PERIOD = 27.2753;
     public static final int BASE_JULIAN_DATE = 2398167;
@@ -40,11 +47,11 @@ public final class SolarParametersUtils {
     private static final double EPHEMERIS_DAYS = 36525d;
 
     private SolarParametersUtils() {
-
     }
 
     /**
      * Computes the Julian date from a local date time
+     *
      * @param dateTime the datetime
      * @return a Julian date
      */
@@ -69,6 +76,7 @@ public final class SolarParametersUtils {
 
     /**
      * Computes the Carrington rotation number for a particular Julian date
+     *
      * @param julianDate the Julian date
      * @return the Carrington rotation
      */
@@ -79,7 +87,7 @@ public final class SolarParametersUtils {
 
     /**
      * Computes solar parameters at a given date.
-     * Formulas from Astronomical Algoriths, Jean Meeus.
+     * Formulas from Astronomical Algorithms, Jean Meeus.
      */
     public static SolarParameters computeSolarParams(LocalDateTime localDateTime) {
         return computeSolarParams(localDateTimeToJulianDate(localDateTime));
@@ -87,9 +95,14 @@ public final class SolarParametersUtils {
 
     /**
      * Computes solar parameters at a given date.
-     * Formulas from Astronomical Algoriths, Jean Meeus.
+     * Formulas from Astronomical Algorithms, Jean Meeus.
      */
     public static SolarParameters computeSolarParams(double julianDate) {
+        return computeFullSolarParams(julianDate)
+            .solarParameters();
+    }
+
+    private static FullSolarParameters computeFullSolarParams(double julianDate) {
         // Page 190
         var theta = (julianDate - JULIAN_DATE_OFFSET_1) * 360 / 25.38;
         var k = 73.6667 + 1.3958333 * (julianDate - JULIAN_DATE_OFFSET_2) / EPHEMERIS_DAYS;
@@ -134,19 +147,64 @@ public final class SolarParametersUtils {
         var l0 = toPositiveAngle(n - toRadians(theta % 360d));
 
         var eccentricity = 0.016708634 - 0.000042037 * t - 0.0000001267 * t * t;
-        var earthSunDist = 1.000001018 * (1 - eccentricity*eccentricity)/(1+eccentricity * cos(toRadians(trueAnomaly)));
-        var sunApparentSizeDegrees = (959.63 / earthSunDist)/1800;
-        return new SolarParameters(
+        var earthSunDist = 1.000001018 * (1 - eccentricity * eccentricity) / (1 + eccentricity * cos(toRadians(trueAnomaly)));
+        var sunApparentSizeDegrees = (959.63 / earthSunDist) / 1800;
+        return new FullSolarParameters(
+            new SolarParameters(
                 computeCarringtonRotationNumber(julianDate),
                 b0,
                 l0,
                 p,
-                toRadians(sunApparentSizeDegrees)
+                toRadians(sunApparentSizeDegrees)),
+            apparentLong,
+            meanObliquity
         );
     }
 
     /**
+     * Computes the parallactic angle for a given observation date and observer's latitude.
+     *
+     * @param observationDate The date and time of observation.
+     * @param observerLatitude The latitude of the observer in degrees.
+     * @param observerLongitude The longitude of the observer in degrees.
+     * @return The parallactic angle in radians.
+     */
+    public static double computeParallacticAngleRad(ZonedDateTime observationDate, double observerLatitude, double observerLongitude) {
+        double julianDate = localDateTimeToJulianDate(observationDate.toLocalDateTime());
+        var fullSolarParams = computeFullSolarParams(julianDate);
+
+        // Compute the Sun's right ascension (RA) and declination (Dec)
+        double apparentLongitude = toRadians(fullSolarParams.apparentLongitude());
+        double obliquity = toRadians(fullSolarParams.meanObliquity());
+
+        double ra = atan2(sin(apparentLongitude) * cos(obliquity), cos(apparentLongitude));
+        double dec = asin(sin(apparentLongitude) * sin(obliquity));
+
+        // Compute the hour angle (H)
+        double greenwichSiderealTime = computeGreenwichSiderealTime(julianDate);
+        double localSiderealTime = greenwichSiderealTime + observerLongitude;
+        double hourAngleRad = toRadians(localSiderealTime - toDegrees(ra));
+
+        // Compute the parallactic angle
+        double latitudeRad = toRadians(observerLatitude);
+        return atan2(sin(hourAngleRad), tan(latitudeRad) * cos(dec) - sin(dec) * cos(hourAngleRad));
+    }
+
+    /**
+     * Computes the Greenwich Sidereal Time (GST) for a given Julian date.
+     *
+     * @param julianDate The Julian date.
+     * @return The Greenwich Sidereal Time in degrees.
+     */
+    private static double computeGreenwichSiderealTime(double julianDate) {
+        double t = (julianDate - 2451545.0) / 36525.0;
+        double gst = 280.46061837 + 360.98564736629 * (julianDate - 2451545.0) + 0.000387933 * t * t - t * t * t / 38710000.0;
+        return gst % 360.0;
+    }
+
+    /**
      * Makes sure that an angle is positive and within the [0; 2*PI] range
+     *
      * @param angle the angle
      * @return the same angle but as a positive value
      */
@@ -155,4 +213,16 @@ public final class SolarParametersUtils {
         return positiveAngle >= 0 ? positiveAngle : (positiveAngle + 2 * PI);
     }
 
+    /**
+     * Record to store the result of the parallactic angle computation.
+     */
+    public record ParallacticAngleResult(double parallacticAngle) {
+    }
+
+    private record FullSolarParameters(
+        SolarParameters solarParameters,
+        double apparentLongitude,
+        double meanObliquity) {
+
+    }
 }

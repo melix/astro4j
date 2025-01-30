@@ -217,6 +217,8 @@ public class ProcessParamsController {
     private TextField flatOrder;
     @FXML
     private CheckBox spectrumVFlip;
+    @FXML
+    private CheckBox altAzMode;
 
     private final List<Stage> popups = new CopyOnWriteArrayList<>();
     private Stage stage;
@@ -283,7 +285,7 @@ public class ProcessParamsController {
         pixelShifting.textProperty().set(String.valueOf(initialProcessParams.spectrumParams().pixelShift()));
         dopplerShifting.textProperty().set(String.valueOf(initialProcessParams.spectrumParams().dopplerShift()));
         var continuumShift = initialProcessParams.spectrumParams().continuumShift();
-        continuumShifting.textProperty().set(String.valueOf(continuumShift == 0 ? Constants.DEFAULT_CONTINUUM_SHIFT: continuumShift));
+        continuumShifting.textProperty().set(String.valueOf(continuumShift == 0 ? Constants.DEFAULT_CONTINUUM_SHIFT : continuumShift));
         switchRedBlueChannels.setSelected(initialProcessParams.spectrumParams().switchRedBlueChannels());
         assumeMonoVideo.setSelected(initialProcessParams.videoParams().colorMode() == ColorMode.MONO);
         forceTilt.setSelected(false);
@@ -488,6 +490,7 @@ public class ProcessParamsController {
         flatHiPercentile.setText(String.valueOf(initialProcessParams.enhancementParams().artificialFlatCorrectionHiPercentile()));
         flatOrder.setText(String.valueOf(initialProcessParams.enhancementParams().artificialFlatCorrectionOrder()));
         spectrumVFlip.setSelected(initialProcessParams.geometryParams().isSpectrumVFlip());
+        altAzMode.setSelected(initialProcessParams.observationDetails().altAzMode());
     }
 
     private static TextFormatter<Integer> createOrderFormatter() {
@@ -565,6 +568,7 @@ public class ProcessParamsController {
                     pixelSize.setText(nullable(s.pixelSize(), String::valueOf));
                     forceCamera = s.forceCamera();
                     showCoordinatesInDetails = s.showCoordinatesInDetails();
+                    altAzMode.setSelected(s.altAzMode());
                 })
             )
         );
@@ -650,6 +654,17 @@ public class ProcessParamsController {
     }
 
     private void doProcess(RequestedImages requestedImages) {
+        if (altAzMode.isSelected()) {
+            // check that longitude and latitude are set and warn otherwise
+            if (longitude.getText() == null || longitude.getText().isEmpty() || latitude.getText() == null || latitude.getText().isEmpty()) {
+                var alert = AlertFactory.confirmation(I18N.string(JSolEx.class, "process-params", "altazmode.warning.header"));
+                alert.setContentText(I18N.string(JSolEx.class, "process-params", "altazmode.warning.content"));
+                var result = alert.showAndWait();
+                if (ButtonType.CANCEL.equals(result.orElse(ButtonType.CANCEL))) {
+                    return;
+                }
+            }
+        }
         closePopups();
         var focalLength = this.focalLength.getText();
         var aperture = this.aperture.getText();
@@ -690,7 +705,8 @@ public class ProcessParamsController {
                 binning.getValue(),
                 getPixelSizeAsDouble(),
                 forceCamera,
-                showCoordinatesInDetails
+                showCoordinatesInDetails,
+                altAzMode.isSelected()
             ),
             new ExtraParams(generateDebugImages.isSelected() || debugImagesRequested, autoSave.isSelected(), imageFormats, namingStrategy.pattern(), namingStrategy.datetimeFormat(), namingStrategy.dateFormat()),
             new VideoParams(assumeMonoVideo.isSelected() ? ColorMode.MONO : null),

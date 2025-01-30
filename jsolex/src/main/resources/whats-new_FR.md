@@ -5,6 +5,7 @@
 - Ajout de la détection de taches solaires
 - Annotation automatique des taches solaires détectées
 - Ajout de la possibilité de traiter des fichiers SER dans le module de scripting en ligne de commande
+- Correction de l'angle parallactique pour les montures Alt-Az
 
 ### Détection des régions actives
 
@@ -20,6 +21,14 @@ Cependant, si vous avez accès à Internet, il pourra également ajouter des ét
 Notez toutefois que les positions des étiquettes ne seront correctes que si vous utilisez une monture équatoriale, que l'image est orientée correctement (flips horizontaux/verticaux) et que l'heure et la date sont correctement réglées dans votre logiciel d'acquisition.
 
 Vous pouvez également générer plus d'images en utilisant les fonctions de scripts décrites ci-dessous.
+
+### Correction de l'angle parallactique pour les montures Alt-Az
+
+Jusqu'à cette version, JSol'Ex supposait que les images étaient capturées avec une monture équatoriale.
+Ainsi, la grille d'orientation et la correction de l'angle P supposaient que vous utilisiez une monture équatoriale.
+Avec cette version, vous avez la possibilité de cocher le mode "Alt-Az" dans les paramètres de traitement, ainsi que de déclarer un montage comme utilisant une monture Alt-Az.
+C'est par exemple votre cas si vous utilisez un Sunscan, ou un Sol'Ex en mode Sunscan.
+Dans ce cas, nous vous recommandons également d'entrer la latitude et la longitude de l'observation, ce qui permettra à JSol'Ex de corriger automatiquement l'angle parallactique.
 
 ### Nouvelles fonctions dans les scripts
 
