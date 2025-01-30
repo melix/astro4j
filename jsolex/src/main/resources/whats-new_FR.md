@@ -7,7 +7,9 @@
 - Ajout de la possibilité de traiter des fichiers SER dans le module de scripting en ligne de commande
 - Correction de l'angle parallactique pour les montures Alt-Az
 - Ajout d'un bouton pour supprimer le fichier SER après traitement
-- 
+
+Rejoignez-nous sur Discord ! https://discord.gg/y9NCGaWzve
+
 ### Détection des régions actives
 
 Cette version introduit la détection des régions actives dans les images solaires.
