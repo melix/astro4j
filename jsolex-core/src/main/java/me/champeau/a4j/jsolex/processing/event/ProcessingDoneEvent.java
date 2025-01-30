@@ -43,7 +43,8 @@ public final class ProcessingDoneEvent extends ProcessingEvent<ProcessingDoneEve
         DoubleUnaryOperator polynomial,
         float[][] averageImage,
         ProcessParams processParams,
-        PixelShiftRange pixelShiftRange) {
+        PixelShiftRange pixelShiftRange,
+        int detectedActiveRegions) {
 
     }
 
@@ -56,7 +57,8 @@ public final class ProcessingDoneEvent extends ProcessingEvent<ProcessingDoneEve
                                          DoubleUnaryOperator polynomial,
                                          float[][] averageImage,
                                          ProcessParams processParams,
-                                         PixelShiftRange pixelShiftRange) {
-        return new ProcessingDoneEvent(new Outcome(timestamp, Collections.unmodifiableMap(images), customImageEmitter, ellipse, imageStats, redshifts, polynomial, averageImage, processParams, pixelShiftRange));
+                                         PixelShiftRange pixelShiftRange,
+                                         int detectedActiveRegions) {
+        return new ProcessingDoneEvent(new Outcome(timestamp, Collections.unmodifiableMap(images), customImageEmitter, ellipse, imageStats, redshifts, polynomial, averageImage, processParams, pixelShiftRange, detectedActiveRegions));
     }
 }

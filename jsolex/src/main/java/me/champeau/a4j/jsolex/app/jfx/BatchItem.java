@@ -16,6 +16,7 @@
 package me.champeau.a4j.jsolex.app.jfx;
 
 import javafx.beans.property.SimpleDoubleProperty;
+import javafx.beans.property.SimpleIntegerProperty;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.collections.ObservableList;
 
@@ -27,6 +28,8 @@ public record BatchItem(
         SimpleDoubleProperty reconstructionProgress,
         ObservableList<File> generatedFiles,
         SimpleStringProperty status,
+        SimpleIntegerProperty detectedActiveRegions,
+        SimpleDoubleProperty maxRedshiftKmPerSec,
         StringBuilder log
 ) {
 }

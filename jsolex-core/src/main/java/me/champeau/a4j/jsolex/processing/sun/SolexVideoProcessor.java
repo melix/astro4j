@@ -475,7 +475,8 @@ public class SolexVideoProcessor implements Broadcaster {
             polynomial,
             averageImage,
             processParams,
-            pixelShiftRange
+            pixelShiftRange,
+            activeRegions == null ? 0 : activeRegions.regionList().size()
         ));
     }
 

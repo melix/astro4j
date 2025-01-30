@@ -24,6 +24,7 @@ import javafx.application.Platform;
 import javafx.beans.binding.Bindings;
 import javafx.beans.binding.BooleanBinding;
 import javafx.beans.property.SimpleDoubleProperty;
+import javafx.beans.property.SimpleIntegerProperty;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.collections.FXCollections;
 import javafx.collections.ListChangeListener;
@@ -1240,7 +1241,8 @@ public class JSolEx extends Application implements JSolExInterface {
         var batchItems = new ArrayList<BatchItem>(selectedFiles.size());
         for (int i = 0; i < selectedFiles.size(); i++) {
             var selectedFile = selectedFiles.get(i);
-            batchItems.add(new BatchItem(i, selectedFile, new SimpleDoubleProperty(0), FXCollections.synchronizedObservableList(FXCollections.observableArrayList()), new SimpleStringProperty(message("batch.pending")), new StringBuilder()));
+            batchItems.add(new BatchItem(i, selectedFile, new SimpleDoubleProperty(0), FXCollections.synchronizedObservableList(FXCollections.observableArrayList()), new SimpleStringProperty(message("batch.pending")), new SimpleIntegerProperty(),
+                new SimpleDoubleProperty(), new StringBuilder()));
         }
         table.getItems().addAll(batchItems);
         var idColumn = new TableColumn<BatchItem, String>();
@@ -1260,10 +1262,34 @@ public class JSolEx extends Application implements JSolExInterface {
         var statusColumn = new TableColumn<BatchItem, String>();
         statusColumn.setText(message("status"));
         statusColumn.setCellValueFactory(param -> param.getValue().status());
-        var firstColumnsWidth = idColumn.widthProperty().add(fnColumn.widthProperty().add(progressColumn.widthProperty())).add(statusColumn.widthProperty()).add(20);
+        var detectedActiveRegions = new TableColumn<BatchItem, Integer>();
+        detectedActiveRegions.setText(message("detected.active.regions"));
+        detectedActiveRegions.setCellValueFactory(param -> param.getValue().detectedActiveRegions().asObject());
+        var maxRedshiftKmPerSec = new TableColumn<BatchItem, Double>();
+        maxRedshiftKmPerSec.setText(message("max.redshift.km.per.sec"));
+        maxRedshiftKmPerSec.setCellValueFactory(param -> param.getValue().maxRedshiftKmPerSec().asObject());
+        maxRedshiftKmPerSec.setCellFactory(new RedshiftCellFactory());
+        var firstColumnsWidth = idColumn.widthProperty()
+            .add(fnColumn.widthProperty()
+                .add(progressColumn.widthProperty()))
+            .add(statusColumn.widthProperty())
+            .add(20);
+        if (params.requestedImages().isEnabled(GeneratedImageKind.ACTIVE_REGIONS)) {
+            firstColumnsWidth = firstColumnsWidth.add(detectedActiveRegions.widthProperty());
+        }
+        if (params.requestedImages().isEnabled(GeneratedImageKind.REDSHIFT)) {
+            firstColumnsWidth = firstColumnsWidth.add(maxRedshiftKmPerSec.widthProperty());
+        }
         images.prefWidthProperty().bind(table.widthProperty().subtract(firstColumnsWidth));
         var columns = table.getColumns();
-        columns.setAll(idColumn, fnColumn, progressColumn, images, statusColumn);
+        columns.setAll(idColumn, fnColumn, progressColumn, images);
+        if (params.requestedImages().isEnabled(GeneratedImageKind.ACTIVE_REGIONS)) {
+            columns.add(detectedActiveRegions);
+        }
+        if (params.requestedImages().isEnabled(GeneratedImageKind.REDSHIFT)) {
+            columns.add(maxRedshiftKmPerSec);
+        }
+        columns.add(statusColumn);
         tab.setContent(table);
         mainPane.getTabs().addFirst(tab);
         mainPane.getSelectionModel().select(0);
@@ -1469,6 +1495,20 @@ public class JSolEx extends Application implements JSolExInterface {
                         var progress = new ProgressBar(newValue.doubleValue());
                         cell.graphicProperty().set(progress);
                     }
+                }
+            });
+            return cell;
+        }
+    }
+
+    private static class RedshiftCellFactory implements Callback<TableColumn<BatchItem, Double>, TableCell<BatchItem, Double>> {
+
+        @Override
+        public TableCell<BatchItem, Double> call(TableColumn<BatchItem, Double> column) {
+            var cell = new TableCell<BatchItem, Double>();
+            cell.itemProperty().addListener((observable, oldValue, newValue) -> {
+                if (newValue != null) {
+                    cell.graphicProperty().set(new Label(String.format("%.2f km/s", newValue)));
                 }
             });
             return cell;

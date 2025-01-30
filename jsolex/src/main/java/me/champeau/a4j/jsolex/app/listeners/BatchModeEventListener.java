@@ -43,6 +43,7 @@ import me.champeau.a4j.jsolex.processing.params.AutocropMode;
 import me.champeau.a4j.jsolex.processing.params.ProcessParams;
 import me.champeau.a4j.jsolex.processing.params.RotationKind;
 import me.champeau.a4j.jsolex.processing.stretching.RangeExpansionStrategy;
+import me.champeau.a4j.jsolex.processing.sun.detection.RedshiftArea;
 import me.champeau.a4j.jsolex.processing.sun.workflow.DefaultImageEmitter;
 import me.champeau.a4j.jsolex.processing.sun.workflow.GeneratedImageKind;
 import me.champeau.a4j.jsolex.processing.sun.workflow.ImageEmitter;
@@ -181,6 +182,8 @@ public class BatchModeEventListener implements ProcessingEventListener, ImageMat
     public void onProcessingDone(ProcessingDoneEvent e) {
         updateProgressStatus(true);
         maybeWriteLogs();
+        item.detectedActiveRegions().set(e.getPayload().detectedActiveRegions());
+        item.maxRedshiftKmPerSec().set(e.getPayload().redshifts().stream().map(RedshiftArea::kmPerSec).max(Double::compareTo).orElse(0.0));
         if (item.status().get().equals(message("batch.error"))) {
             return;
         }
