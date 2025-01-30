@@ -41,6 +41,13 @@ Alternatively, you may run JSol'Ex by checking out the sources and running the f
 ./gradlew jsolex:run
 ----
 
+== Community
+
+You can join the JSol'Ex community on the https://discord.gg/y9NCGaWzve[Discord server] to share your images, discuss JSol'Ex or ask for help.
+
+[link=https://discord.gg/y9NCGaWzve]
+image::https://discordapp.com/api/guilds/1305595962663768074/widget.png?style=banner2[]
+
 == Processing a video file
 
 JSol'Ex only supports SER files, please make sure to configure your capture software to use this format.

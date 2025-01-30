@@ -33,6 +33,10 @@ Solidarity, openness to others, ecology, fight against discrimination and inequa
 I do not accept that my work be used by people who are responsible for suffering and exclusion.
 If you do, I kindly ask you to review your choices and turn to more positive values, where your well-being does not come from the rejection of others.
 
+## Community
+
+[<img src="https://discordapp.com/api/guilds/1305595962663768074/widget.png?style=banner2">](https://discord.gg/y9NCGaWzve)
+
 ## Download links
 
 The following binaries are provided as a convenience and built from sources using GitHub Actions.

@@ -40,6 +40,13 @@ Alternativement, vous pouvez lancer JSol'Ex en téléchargeant les sources puis 
 ./gradlew jsolex:run
 ----
 
+== Communauté
+
+Vous pouvez nous rejoindre sur notre https://discord.gg/y9NCGaWzve[serveur Discord] pour discuter de JSol'Ex, poser des questions, ou partager vos images.
+
+[link=https://discord.gg/y9NCGaWzve]
+image::https://discordapp.com/api/guilds/1305595962663768074/widget.png?style=banner2[]
+
 == Traitement d'une vidéo
 
 JSol'Ex ne peut traiter que les fichiers SER, vous devez donc configurer votre logiciel de capture pour utiliser ce format.
