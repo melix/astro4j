@@ -22,6 +22,7 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
@@ -33,6 +34,20 @@ public class CaptureSoftwareMetadataHelper {
 
     private CaptureSoftwareMetadataHelper() {
 
+    }
+
+    public static Optional<File> findMetadataFile(Path serFilePath) {
+        var serFile = serFilePath.toFile();
+        var baseName = computeSerFileBasename(serFile);
+        var sharpcapFile = new File(serFile.getParentFile(), baseName + ".CameraSettings.txt");
+        if (sharpcapFile.exists()) {
+            return Optional.of(sharpcapFile);
+        }
+        var filecaptureFile = new File(serFile.getParentFile(), baseName + ".txt");
+        if (filecaptureFile.exists()) {
+            return Optional.of(filecaptureFile);
+        }
+        return Optional.empty();
     }
 
     public static Optional<CaptureMetadata> readSharpcapMetadata(File serFile) {

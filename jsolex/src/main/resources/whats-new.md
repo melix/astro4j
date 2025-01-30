@@ -6,7 +6,8 @@
 - Automatically label detected active regions
 - Add ability to process SER files to the standalone scripting module
 - Parallactic angle correction for Alt-Az mounts
-
+- Add button to delete SER file after processing
+- 
 ### Active Regions Detection
 
 This version introduces detection of active regions in solar images.
