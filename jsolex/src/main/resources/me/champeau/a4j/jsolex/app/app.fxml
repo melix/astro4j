@@ -73,6 +73,7 @@
                                         <Insets bottom="4.0" left="4.0" right="20.0" top="4.0"/>
                                     </padding>
                                     <buttons>
+                                        <Button fx:id="deleteSerFileButton" onAction="#deleteSerFile" text="%delete.ser.file" visible="false"/>
                                         <Button onAction="#resetUI" text="%reset.ui"/>
                                         <Button onAction="#clearLog" text="%clear.log"/>
                                         <Button onAction="#saveLog" text="%save.log"/>

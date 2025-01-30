@@ -256,6 +256,9 @@ public class JSolEx extends Application implements JSolExInterface {
     @FXML
     private Label estimatedDiskSpace;
 
+    @FXML
+    private Button deleteSerFileButton;
+
     private final Map<String, ImageViewer> popupViewers = new ConcurrentHashMap<>();
 
     private final MultipleImagesViewer multipleImagesViewer = new MultipleImagesViewer();
@@ -953,6 +956,7 @@ public class JSolEx extends Application implements JSolExInterface {
                 reusedProcessParamsBinding.invalidate();
             }
             processFileWithParams(selectedFile, firstHeader, params);
+            deleteSerFileButton.setVisible(true);
         });
     }
 
@@ -1408,9 +1412,36 @@ public class JSolEx extends Application implements JSolExInterface {
 
     @FXML
     void resetUI() {
+        deleteSerFileButton.setVisible(false);
         console.clear();
         mainPane.getTabs().clear();
         createFastModePane();
+    }
+
+    @FXML
+    void deleteSerFile() {
+        var confirmation = AlertFactory.confirmation(message("delete.ser.file.confirm"));
+        confirmation.setTitle(message("delete.ser.file"));
+        if (confirmation.showAndWait().orElse(ButtonType.CANCEL) == ButtonType.OK) {
+            var recentFiles = config.getRecentFiles();
+            if (!recentFiles.isEmpty()) {
+                var toDelete = recentFiles.getFirst();
+                CaptureSoftwareMetadataHelper.findMetadataFile(toDelete).ifPresent(md -> {
+                    try {
+                        Files.deleteIfExists(md.toPath());
+                    } catch (IOException e) {
+                        LOGGER.error("Cannot delete metadata file", e);
+                    }
+                });
+                try {
+                    Files.deleteIfExists(toDelete);
+                } catch (IOException e) {
+                    LOGGER.error("Cannot delete SER file", e);
+                }
+            }
+            resetUI();
+            refreshRecentItemsMenu();
+        }
     }
 
     public static String message(String label) {
