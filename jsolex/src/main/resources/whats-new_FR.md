@@ -41,6 +41,7 @@ Les fonctions suivantes ont été ajoutées :
 ### Corrections de bugs et autres améliorations
 
 - Correction d'un bug où un message d'erreur pouvait être affiché lors de la reconstruction, sans effet sur le résultat.
+- Correction des fichiers SER qui n'étaient pas fermés, les empêchant d'être supprimés sous Windows.
 
 ## Message aux utilisateurs français
 

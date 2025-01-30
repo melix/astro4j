@@ -25,6 +25,7 @@ import java.time.Duration;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
+import java.util.Arrays;
 import java.util.Optional;
 
 /**
@@ -40,7 +41,7 @@ public class SerFileReader implements AutoCloseable {
     private final File backingFile;
     private final RandomAccessFile accessFile;
     private final ByteBuffer[] imageBuffers;
-    private final ByteBuffer timestampsBuffer;
+    private final ByteBuffer[] timestampsBuffer;
     private final Header header;
     private final byte[] frameBuffer;
     private final int bytesPerFrame;
@@ -56,7 +57,7 @@ public class SerFileReader implements AutoCloseable {
         this.accessFile = accessFile;
         this.imageBuffers = imageBuffers;
         this.maxFramesPerBuffer = maxFramesPerBuffer;
-        this.timestampsBuffer = timestampsBuffer;
+        this.timestampsBuffer = new ByteBuffer[] { timestampsBuffer };
         this.header = header;
         this.bytesPerFrame = header.geometry().getBytesPerFrame();
         this.frameBuffer = new byte[bytesPerFrame];
@@ -70,8 +71,8 @@ public class SerFileReader implements AutoCloseable {
         assertNotClosed();
         if (previousFrame != currentFrame) {
             findBuffer().slice().limit(bytesPerFrame).get(frameBuffer);
-            if (timestampsBuffer != null) {
-                currentTimestamp = TimestampConverter.of(timestampsBuffer.getLong()).map(c -> c.atZone(UTC)).orElse(null);
+            if (timestampsBuffer[0] != null) {
+                currentTimestamp = TimestampConverter.of(timestampsBuffer[0].getLong()).map(c -> c.atZone(UTC)).orElse(null);
             }
             previousFrame = currentFrame;
         }
@@ -96,8 +97,8 @@ public class SerFileReader implements AutoCloseable {
 
     private void positionBuffers() {
         findBuffer().position((currentFrame % maxFramesPerBuffer) * bytesPerFrame);
-        if (timestampsBuffer != null) {
-            timestampsBuffer.position(8 * currentFrame);
+        if (timestampsBuffer[0] != null) {
+            timestampsBuffer[0].position(8 * currentFrame);
         }
     }
 
@@ -190,7 +191,7 @@ public class SerFileReader implements AutoCloseable {
                 return tmpReader;
             }
             var newGeometry = new ImageGeometry(geometry.colorMode(), geometry.width(), geometry.height(), pixelDepth, geometry.imageEndian());
-            return new SerFileReader(tmpReader.backingFile, tmpReader.accessFile, tmpReader.imageBuffers, tmpReader.maxFramesPerBuffer, tmpReader.timestampsBuffer,
+            return new SerFileReader(tmpReader.backingFile, tmpReader.accessFile, tmpReader.imageBuffers, tmpReader.maxFramesPerBuffer, tmpReader.timestampsBuffer[0],
                 new Header(tmpReader.header.camera(), newGeometry, tmpReader.header.frameCount(), tmpReader.header.metadata()));
         }
         return tmpReader;
@@ -291,6 +292,9 @@ public class SerFileReader implements AutoCloseable {
     public void close() throws Exception {
         closed = true;
         accessFile.close();
+        Arrays.fill(imageBuffers, null);
+        timestampsBuffer[0] = null;
+        System.gc();
     }
 
     public boolean isClosed() {
@@ -304,7 +308,7 @@ public class SerFileReader implements AutoCloseable {
             baseReader.accessFile,
             baseReader.imageBuffers,
             baseReader.maxFramesPerBuffer,
-            baseReader.timestampsBuffer,
+            baseReader.timestampsBuffer[0],
             header
         );
     }

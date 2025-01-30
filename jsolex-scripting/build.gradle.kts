@@ -44,18 +44,18 @@ tasks.named<JavaExec>("run") {
 }
 
 tasks.withType<JavaExec>().configureEach {
-    jvmArgs("-agentpath:/home/cchampeau/TOOLS/YourKit-JavaProfiler-2023.9/bin/linux-x86-64/libyjpagent.so=_no_java_version_check,sampling")
+//    jvmArgs("-agentpath:/home/cchampeau/TOOLS/YourKit-JavaProfiler-2023.9/bin/linux-x86-64/libyjpagent.so=_no_java_version_check,sampling")
     args(listOf(
         "-o", "/tmp/out/serie4",
         "-c", "/home/cchampeau/DEV/PROJECTS/GITHUB/astro4j/config.json",
-        "-s", "/home/cchampeau/DEV/PROJECTS/GITHUB/astro4j/empty.math",
-//        "-p", "input_dir=/home/cchampeau/Downloads/stack_151124",
+        "-s", "/home/cchampeau/DEV/PROJECTS/GITHUB/astro4j/stacking-conti.math",
+        "-p", "input_dir=/home/cchampeau/Downloads/stack_151124",
 //        "-p", "input_dir=/home/cchampeau/Downloads/stack_151124/renamed",
 //        "-p", "kind=clahe",
-//        "-p", "tile_size=64",
-//        "-p", "sampling=.25",
+        "-p", "tile_size=32",
+        "-p", "sampling=.05",
 //        "-f", "jpg",
-        "-i", "/home/cchampeau/Downloads/sunscan_2025_01_06-13_31_58.ser"
+        //"-i", "/home/cchampeau/Downloads/sunscan_2025_01_06-13_31_58.ser"
 //        "-d"
     ))
 }
