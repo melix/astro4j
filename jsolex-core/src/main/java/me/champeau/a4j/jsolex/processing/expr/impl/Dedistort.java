@@ -350,15 +350,13 @@ public class Dedistort extends AbstractFunctionImpl {
         var referenceData = reference.data();
         var progressCounter = new AtomicInteger();
         var signal = backgroundThreshold != null ? backgroundThreshold.floatValue() : 1;
-        IntStream.iterate(0, y -> y < height, y -> y + increment)
-            .parallel()
-            .forEach(y -> {
-                for (int x = 0; x < width; x += increment) {
-                    findDisplacement(referenceData, image, width, height, x, y, tileSize, signal, distorsionMap);
-                }
-                var progress = progressCounter.addAndGet(increment) / (double) height;
-                broadcaster.broadcast(ProgressEvent.of(progress, FIND_CORRESP_MESSAGE));
-            });
+        for (int y = 0; y < height; y += increment) {
+            for (int x = 0; x < width; x += increment) {
+                findDisplacement(referenceData, image, width, height, x, y, tileSize, signal, distorsionMap);
+            }
+            var progress = progressCounter.addAndGet(increment) / (double) height;
+            broadcaster.broadcast(ProgressEvent.of(progress, FIND_CORRESP_MESSAGE));
+        }
         broadcaster.broadcast(ProgressEvent.of(1.0, FIND_CORRESP_MESSAGE));
         return dedistortSingle(image, distorsionMap, height, width);
     }
@@ -373,21 +371,19 @@ public class Dedistort extends AbstractFunctionImpl {
         var currentY = new AtomicInteger();
         var imageData = image.data();
         var result = new float[height][width];
-        IntStream.range(0, height)
-            .parallel()
-            .forEach(y -> {
-                var progress = currentY.incrementAndGet() / (double) height;
-                broadcaster.broadcast(ProgressEvent.of(progress, DEDISTORT));
-                for (int x = 0; x < width; x++) {
-                    var displacement = distorsionMap.findDistorsion(x, y);
-                    var xx = x + displacement.dx();
-                    var yy = y + displacement.dy();
-                    if (xx >= 0 && xx < width && yy >= 0 && yy < height) {
-                        var interpolatedValue = bilinearInterpolation(imageData, xx, yy, width, height);
-                        result[y][x] = interpolatedValue;
-                    }
+        for (int y = 0; y < height; y++) {
+            var progress = currentY.incrementAndGet() / (double) height;
+            broadcaster.broadcast(ProgressEvent.of(progress, DEDISTORT));
+            for (int x = 0; x < width; x++) {
+                var displacement = distorsionMap.findDistorsion(x, y);
+                var xx = x + displacement.dx();
+                var yy = y + displacement.dy();
+                if (xx >= 0 && xx < width && yy >= 0 && yy < height) {
+                    var interpolatedValue = bilinearInterpolation(imageData, xx, yy, width, height);
+                    result[y][x] = interpolatedValue;
                 }
-            });
+            }
+        }
         metadata.put(DistorsionMap.class, distorsionMap);
         return new ImageWrapper32(width, height, result, metadata);
     }
