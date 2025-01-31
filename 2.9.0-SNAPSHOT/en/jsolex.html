@@ -781,7 +781,31 @@ As of now, we do <em>not</em> recommend to publish images produced using JSol&#8
 <li>
 <p>Pixel size : the size of the camera pixels in microns</p>
 </li>
+<li>
+<p>Vertical flip of the spectrum : normally, the spectrum should have the blue wing at the top and the red wing at the bottom. If it&#8217;s the opposite, you can check this box. This is typically the case if you are using a Sunscan.</p>
+</li>
+<li>
+<p>Alt-Az mode : check this box if you are not using an equatorial mount but an alt-az mount.</p>
+</li>
 </ul>
+</div>
+<div class="admonitionblock important">
+<table>
+<tr>
+<td class="icon">
+<i class="fa icon-important" title="Important"></i>
+</td>
+<td class="content">
+<div class="title">Alt-Az mode and image orientation correctness</div>
+<div class="paragraph">
+<p>It is important to understand that JSol&#8217;Ex is not capable of determining if an image is flipped vertically or horizontally, but it can compute the solar angle P from the observation date.
+However, the orientation grid that is generated will only be correct if you are using an equatorial mount.
+If you are using an alt-az mount, then the orientation grid will be incorrect, as well as the position of the labels of detected active regions.
+In order to fix this, you must check the "Alt-Az" box and enter your observation site coordinates: JSol&#8217;Ex will then compute the parallactic angle and perform correction automatically, resulting in a well oriented image.</p>
+</div>
+</td>
+</tr>
+</table>
 </div>
 </div>
 </div>

@@ -782,7 +782,31 @@ A noter qu&#8217;à ce stade, nous ne recommandons pas d&#8217;envoyer les image
 <li>
 <p>Taille des pixels : la taille des pixels de la caméra, en microns</p>
 </li>
+<li>
+<p>Inversement haut/bas du spectre : normalement, le spectre doit avoir l&#8217;aile bleue en haut et l&#8217;aile rouge en bas. Si c&#8217;est l&#8217;inverse, vous pouvez cocher cette case. C&#8217;est typiquement le cas si vous utilisez un Sunscan.</p>
+</li>
+<li>
+<p>Mode altazimutal : cochez cette case si vous n&#8217;utilisez pas une monture équatoriale mais une monture altazimutale (typiquement le cas avec Sunscan).</p>
+</li>
 </ul>
+</div>
+<div class="admonitionblock important">
+<table>
+<tr>
+<td class="icon">
+<i class="fa icon-important" title="Important"></i>
+</td>
+<td class="content">
+<div class="title">Mode altazimutal et correction de l&#8217;orientation des images</div>
+<div class="paragraph">
+<p>Il est important de comprendre que JSol&#8217;Ex n&#8217;est pas capable de déterminer si une image est retournée verticalement ou horizontalement, mais il peut calculer l&#8217;angle solaire P à partir de la date d&#8217;observation.
+Cependant, la grille d&#8217;orientation qui est générée ne sera correcte que si vous utilisez une monture équatoriale.
+Si vous utilisez une monture altazimutale, l&#8217;oritentation sera incorrecte, ainsi que la position des étiquettes des régions actives détectées.
+Pour corriger cela, vous devez cocher la case "mode altazimutal" et entrer les coordonnées de votre site d&#8217;observation : JSol&#8217;Ex calculera alors l&#8217;angle parallactique et effectuera la correction automatiquement, donnant une image bien orientée.</p>
+</div>
+</td>
+</tr>
+</table>
 </div>
 </div>
 </div>
