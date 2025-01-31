@@ -126,6 +126,17 @@ Voici les champs disponibles dans JSol'Ex:
 - Date : pré-rempli avec les métadonnées du fichier SER, en zone UTC
 - Binning : le binning appliqué à la caméra lors de l'acquisition
 - Taille des pixels : la taille des pixels de la caméra, en microns
+- Inversement haut/bas du spectre : normalement, le spectre doit avoir l'aile bleue en haut et l'aile rouge en bas. Si c'est l'inverse, vous pouvez cocher cette case. C'est typiquement le cas si vous utilisez un Sunscan.
+- Mode altazimutal : cochez cette case si vous n'utilisez pas une monture équatoriale mais une monture altazimutale (typiquement le cas avec Sunscan).
+
+[IMPORTANT]
+.Mode altazimutal et correction de l'orientation des images
+====
+Il est important de comprendre que JSol'Ex n'est pas capable de déterminer si une image est retournée verticalement ou horizontalement, mais il peut calculer l'angle solaire P à partir de la date d'observation.
+Cependant, la grille d'orientation qui est générée ne sera correcte que si vous utilisez une monture équatoriale.
+Si vous utilisez une monture altazimutale, l'oritentation sera incorrecte, ainsi que la position des étiquettes des régions actives détectées.
+Pour corriger cela, vous devez cocher la case "mode altazimutal" et entrer les coordonnées de votre site d'observation : JSol'Ex calculera alors l'angle parallactique et effectuera la correction automatiquement, donnant une image bien orientée.
+====
 
 == Autres paramètres disponibles
 

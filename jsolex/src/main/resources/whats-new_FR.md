@@ -2,13 +2,14 @@
 
 ## Nouveautés de la version 2.9.0
 
-- Ajout de la détection de taches solaires
+- [Ajout de la détection de taches solaires](#détection-des-régions-actives)
+- [Correction de l'angle parallactique pour les montures Alt-Az](#correction-de-l'angle-parallactique-pour-les-montures-alt-az)
+- [Nouvelles fonctions dans les scripts](#nouvelles-fonctions-dans-les-scripts)
 - Annotation automatique des taches solaires détectées
-- Ajout de la possibilité de traiter des fichiers SER dans le module de scripting en ligne de commande
-- Correction de l'angle parallactique pour les montures Alt-Az
 - Ajout d'un bouton pour supprimer le fichier SER après traitement
+- Ajout de la possibilité de traiter des fichiers SER dans le module de scripting en ligne de commande
 
-Rejoignez-nous sur Discord ! https://discord.gg/y9NCGaWzve
+Rejoignez-nous sur Discord ! [https://discord.gg/y9NCGaWzve](https://discord.gg/y9NCGaWzve)
 
 ### Détection des régions actives
 

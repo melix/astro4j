@@ -15,6 +15,7 @@
  */
 package me.champeau.a4j.jsolex.app.jfx;
 
+import javafx.application.HostServices;
 import javafx.geometry.Insets;
 import javafx.scene.Scene;
 import javafx.scene.control.Button;
@@ -53,9 +54,11 @@ import static me.champeau.a4j.jsolex.app.JSolEx.message;
 
 public class SimpleMarkdownViewer {
     private final String title;
+    private final HostServices hostServices;
 
-    public SimpleMarkdownViewer(String title) {
+    public SimpleMarkdownViewer(String title, HostServices hostServices) {
         this.title = title;
+        this.hostServices = hostServices;
     }
 
     public void render(Scene parent, String markdown, Runnable onDismiss) {
@@ -102,7 +105,7 @@ public class SimpleMarkdownViewer {
         stage.showAndWait();
     }
 
-    private static void configureLinkClicks(StyleClassedTextArea styledTextArea, HashMap<Integer, String> linkPositions, HashMap<String, Integer> anchorPositions) {
+    private void configureLinkClicks(StyleClassedTextArea styledTextArea, HashMap<Integer, String> linkPositions, HashMap<String, Integer> anchorPositions) {
         styledTextArea.setOnMouseClicked(event -> {
             var offset = styledTextArea.getCaretPosition();
             if (linkPositions.containsKey(offset)) {
@@ -115,6 +118,8 @@ public class SimpleMarkdownViewer {
                         // Ensure the target is at the top of the viewport
                         styledTextArea.showParagraphAtTop(paragraph);
                     }
+                } else {
+                    hostServices.showDocument(link);
                 }
             }
         });

@@ -2,13 +2,14 @@
 
 ## What's New in Version 2.9.0
 
-- Added detection of active regions
+- [Added detection of active regions](#active-regions-detection)
+- [Parallactic angle correction for Alt-Az mounts](#alt-az-mode-and-parallactic-angle-correction)
+- [New functions in scripts](#new-functions-in-scripts)
 - Automatically label detected active regions
-- Add ability to process SER files to the standalone scripting module
-- Parallactic angle correction for Alt-Az mounts
 - Add button to delete SER file after processing
+- Add ability to process SER files to the standalone scripting module
 
-Join us on Discord! https://discord.gg/y9NCGaWzve
+Join us on Discord! [https://discord.gg/y9NCGaWzve](https://discord.gg/y9NCGaWzve)
 
 ### Active Regions Detection
 

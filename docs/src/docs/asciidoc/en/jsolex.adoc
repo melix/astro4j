@@ -126,6 +126,17 @@ Here are the fields available in JSol'Ex:
 - Date : pre-filled with information from the SER file, expressed in the UTC timezone
 - Binning : the binning of pixels when the video was recorded
 - Pixel size : the size of the camera pixels in microns
+- Vertical flip of the spectrum : normally, the spectrum should have the blue wing at the top and the red wing at the bottom. If it's the opposite, you can check this box. This is typically the case if you are using a Sunscan.
+- Alt-Az mode : check this box if you are not using an equatorial mount but an alt-az mount.
+
+[IMPORTANT]
+.Alt-Az mode and image orientation correctness
+====
+It is important to understand that JSol'Ex is not capable of determining if an image is flipped vertically or horizontally, but it can compute the solar angle P from the observation date.
+However, the orientation grid that is generated will only be correct if you are using an equatorial mount.
+If you are using an alt-az mount, then the orientation grid will be incorrect, as well as the position of the labels of detected active regions.
+In order to fix this, you must check the "Alt-Az" box and enter your observation site coordinates: JSol'Ex will then compute the parallactic angle and perform correction automatically, resulting in a well oriented image.
+====
 
 == Other parameters
 
