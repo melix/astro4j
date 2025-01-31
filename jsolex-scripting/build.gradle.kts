@@ -28,7 +28,10 @@ graalvmNative {
     metadataRepository.enabled.set(true)
     binaries.named("main") {
         imageName.set("jsolex-scripting")
-        buildArgs.addAll(listOf("--add-modules", "jdk.incubator.vector"))
+        // Vector API is not supported in native-image yet
+//        buildArgs.addAll(listOf("--add-modules", "jdk.incubator.vector"))
+        buildArgs.add("--gc=G1")
+        buildArgs.add("-march=native")
     }
 }
 
@@ -53,7 +56,7 @@ tasks.withType<JavaExec>().configureEach {
 //        "-p", "input_dir=/home/cchampeau/Downloads/stack_151124/renamed",
 //        "-p", "kind=clahe",
         "-p", "tile_size=32",
-        "-p", "sampling=.05",
+        "-p", "sampling=.25",
 //        "-f", "jpg",
         //"-i", "/home/cchampeau/Downloads/sunscan_2025_01_06-13_31_58.ser"
 //        "-d"
