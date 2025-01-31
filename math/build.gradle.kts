@@ -2,7 +2,7 @@ import java.util.*
 
 plugins {
     id("me.champeau.astro4j.library")
-    id("me.champeau.jmh") version "0.7.2"
+    id("me.champeau.jmh") version "0.7.3"
 }
 
 description = "Provides some mathematical functions like linear or elliptic regression"
