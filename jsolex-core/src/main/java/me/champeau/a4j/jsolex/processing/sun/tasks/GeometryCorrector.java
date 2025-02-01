@@ -31,6 +31,7 @@ import me.champeau.a4j.jsolex.processing.util.FileBackedImage;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 import me.champeau.a4j.jsolex.processing.util.MutableMap;
+import me.champeau.a4j.jsolex.processing.util.ProcessingException;
 import me.champeau.a4j.jsolex.processing.util.SolarParametersUtils;
 import me.champeau.a4j.math.Point2D;
 import me.champeau.a4j.math.image.Image;
@@ -230,21 +231,24 @@ public class GeometryCorrector extends AbstractTask<GeometryCorrector.Result> {
      * @return a circle, if detected, or null.
      */
     private Ellipse computeCorrectedCircle(double shear, double shift, double sx, double sy) {
-        var newSamples = IntStream.range(0, 32)
-            .mapToDouble(i -> i * Math.PI / 16)
-            .mapToObj(ellipse::toCartesian)
-            .map(p -> {
-                var newX = (p.x() - shift + p.y() * shear);
-                return new Point2D(newX * sx, p.y() * sy);
-            })
-            .toList();
-        Ellipse correctedEllipse = null;
-        try {
-            correctedEllipse = new EllipseRegression(newSamples).solve();
-        } catch (Exception ex) {
-            // ignore
+        int samples = 32;
+        while (samples < 1024) {
+            int finalSamples = samples;
+            var newSamples = IntStream.range(0, samples)
+                .mapToDouble(i -> 2 * i * Math.PI / finalSamples)
+                .mapToObj(ellipse::toCartesian)
+                .map(p -> {
+                    var newX = (p.x() - shift + p.y() * shear);
+                    return new Point2D(newX * sx, p.y() * sy);
+                })
+                .toList();
+            try {
+                return new EllipseRegression(newSamples).solve();
+            } catch (Exception ex) {
+                samples *= 2;
+            }
         }
-        return correctedEllipse;
+        throw new ProcessingException("Could not compute corrected ellipse");
     }
 
     public record Result(
