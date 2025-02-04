@@ -1,5 +1,10 @@
 # Welcome to JSol'Ex {{version}}!
 
+## What's New in Version 2.9.1
+
+- Added convolution kernel size for `SHARPEN` and `BLUR` functions
+- Fixed rare bug where ellipse fitting would fail despite being detected
+
 ## What's New in Version 2.9.0
 
 - [Added detection of active regions](#active-regions-detection)

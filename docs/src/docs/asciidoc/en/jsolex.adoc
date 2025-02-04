@@ -351,8 +351,8 @@ NOTE: If you don't want to provide a custom black point value, you can use a pre
 - `choose_files` lets the user select multiple image files. It will open a file chooser dialog with a help message that you provide. The function requires 2 arguments: an id and the message. The id is used to remember the last directory with was used when calling this function. For example: `choose_files("myImage", "Please select some images")`. The message cannot be empty.
 - `workdir` sets the default working directory, which is used whenever the `load` operation is done with relative paths. e.g `workdir("/path/to/session")`
 - `rl_decon` applies theRichardson-Lucy deconvolution algorithm to the image. This function makes use of a synthetic PSF. It requires a single mandatory parameter which is the image to process. For example: `rl_decon(img(0))`. 3 optional parameters are available: the PSF radius in pixels, the sigma factor and the number of iterations. For example: `rl_decon(img(0), 2.5, 2.5, 10)`.
-- `sharpen` will apply sharpening the target image. For example, `sharpen(img(0))`.
-- `blur` will apply Gaussian blur the target image. For example, `blur(img(0))`.
+- `sharpen` will apply sharpening the target image. For example, `sharpen(img(0))`. It accepts an optional parameter, the kernel size, which must be an odd number > 3. For example, `sharpen(img(0), 5)`.
+- `blur` will apply Gaussian blur the target image. For example, `blur(img(0))`. It accepts an optional parameter, the kernel size, which must be an odd number > 3. For example, `blur(img(0), 5)`.
 - `disk_fill` will fill the detected sun disk with a fill color (by default, the detected black point). e.g `disk_fill(img(0))` or `disk_fill(img(0), 0)`.
 - `disk_mask` creates an image mask, where pixels within the solar disk have value 1 and these outside the disk have value 0. It is possible to invert (0 within, 1 outside) by passing `1` as the second argument. For example: `disk_mask(img(0);1)`.
 - `rescale_rel` rescales an image. It accepts 3 arguments: the image, then the scaling factors for X and Y. For example, `rescale_rel(img(0);2;2)` will double the size of an image.

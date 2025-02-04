@@ -21,11 +21,12 @@ import me.champeau.a4j.jsolex.processing.util.FileBackedImage;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 import me.champeau.a4j.jsolex.processing.util.RGBImage;
+import me.champeau.a4j.math.image.BlurKernel;
 import me.champeau.a4j.math.image.Deconvolution;
 import me.champeau.a4j.math.image.Image;
 import me.champeau.a4j.math.image.ImageMath;
 import me.champeau.a4j.math.image.Kernel;
-import me.champeau.a4j.math.image.Kernel33;
+import me.champeau.a4j.math.image.SharpenKernel;
 
 import java.util.List;
 import java.util.Map;
@@ -39,25 +40,26 @@ public class Convolution extends AbstractFunctionImpl {
     }
 
     public Object sharpen(List<Object> arguments) {
-        return applyConvolution(arguments, Kernel33.SHARPEN, "sharpen");
+        return applyConvolution(arguments, SharpenKernel::of, "sharpen");
     }
 
     public Object blur(List<Object> arguments) {
-        return applyConvolution(arguments, Kernel33.GAUSSIAN_BLUR, "blur");
+        return applyConvolution(arguments, BlurKernel::of, "blur");
     }
 
-    private Object applyConvolution(List<Object> arguments, Kernel kernel, String functionName) {
-        if (arguments.size() != 1) {
-            throw new IllegalArgumentException(functionName + " takes 1 arguments (image(s))");
+    private Object applyConvolution(List<Object> arguments, KernelFactory kernelFactory, String functionName) {
+        if (arguments.size() > 2) {
+            throw new IllegalArgumentException(functionName + " takes 1 or 2 arguments (image(s). [kernel size])");
         }
         var arg = arguments.get(0);
         if (arg instanceof List<?>) {
-            return expandToImageList(functionName, arguments, a -> applyConvolution(a, kernel, functionName));
+            return expandToImageList(functionName, arguments, a -> applyConvolution(a, kernelFactory, functionName));
         }
         if (arg instanceof ImageWrapper image) {
-            return convolve(image, kernel);
+            int kernelSize = arguments.size() > 1 ? intArg(arguments, 1) : 3;
+            return convolve(image, kernelFactory.create(kernelSize));
         }
-        throw new IllegalArgumentException(functionName  + " doesn't support argument " + arg);
+        throw new IllegalArgumentException(functionName + " doesn't support argument " + arg);
     }
 
     private Object convolve(ImageWrapper image, Kernel kernel) {
@@ -67,7 +69,7 @@ public class Convolution extends AbstractFunctionImpl {
         if (image instanceof ImageWrapper32 mono) {
             return new ImageWrapper32(mono.width(), mono.height(), imageMath.convolve(mono.asImage(), kernel).data(), mono.metadata());
         } else if (image instanceof RGBImage rgb) {
-            var hsl = ImageUtils.fromRGBtoHSL(new float[][][] { rgb.r(), rgb.g(), rgb.b() });
+            var hsl = ImageUtils.fromRGBtoHSL(new float[][][]{rgb.r(), rgb.g(), rgb.b()});
             hsl[2] = imageMath.convolve(new Image(rgb.width(), rgb.height(), hsl[2]), kernel).data();
             var transformed = ImageUtils.fromHSLtoRGB(hsl);
             return new RGBImage(rgb.width(), rgb.height(), transformed[0], transformed[1], transformed[2], rgb.metadata());
@@ -96,5 +98,9 @@ public class Convolution extends AbstractFunctionImpl {
             throw new IllegalArgumentException("rl_decon only supports mono images");
         }
         throw new IllegalArgumentException("rl_decon doesn't support argument " + arg);
+    }
+
+    private interface KernelFactory {
+        Kernel create(int size);
     }
 }
