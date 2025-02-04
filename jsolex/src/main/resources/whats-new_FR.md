@@ -1,5 +1,10 @@
 # Bienvenue dans JSol'Ex {{version}} !
 
+## Nouveautés de la version 2.9.1
+
+- Ajout de la taille du noyau de convolution pour les fonctions `SHARPEN` et `BLUR`
+- Correction d'un bug rare où la régression d'ellipse échouait malgré sa détection
+
 ## Nouveautés de la version 2.9.0
 
 - [Ajout de la détection de taches solaires](#détection-des-régions-actives)
