@@ -1265,10 +1265,10 @@ Si vous ne connaissez pas la valeur du point noir, vous pouvez utiliser la valeu
 <p><code>rl_decon</code> applique l&#8217;algorithme de déconvolution de Richardson-Lucy à l&#8217;image. Cette fonction utilise un PSF synthétique. Au minimum, cette fonction accepte un paramètre : l&#8217;image. Par exemple : <code>rl_decon(img(0))</code>. 3 autres paramètres optionnels sont disponibles : le rayon du PSF en pixels, le facteur sigma et le nombre d&#8217;itérations. Par exemple: <code>rl_decon(img(0), 2.5, 2.5, 10)</code>.</p>
 </li>
 <li>
-<p><code>sharpen</code> applique un filtre d&#8217;augmentation des détails à votre image. Exemple: <code>sharpen(img(0))</code>.</p>
+<p><code>sharpen</code> applique un filtre d&#8217;augmentation des détails à votre image. Exemple: <code>sharpen(img(0))</code>. Elle accepte un paramètre optionnel, la taille du noyau de convolution, qui doit être un nombre impair &gt; 3. Par exemple: <code>sharpen(img(0), 5)</code>.</p>
 </li>
 <li>
-<p><code>blur</code> applique un flou gaussien à votre image. Par exemple : <code>blur(img(0))</code>.</p>
+<p><code>blur</code> applique un flou gaussien à votre image. Par exemple : <code>blur(img(0))</code>. Elle accepte un paramètre optionnel, la taille du noyau de convolution, qui doit être un nombre impair &gt; 3. Par exemple: <code>blur(img(0), 5)</code>.</p>
 </li>
 <li>
 <p><code>disk_fill</code> remplit le disque solaire détecté avec une valeur donnée (par défault, celle du point noir détecté). Par exemple <code>disk_fill(img(0))</code> ou <code>disk_fill(img(0), 0)</code>.</p>

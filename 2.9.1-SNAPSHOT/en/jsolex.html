@@ -1276,10 +1276,10 @@ If you don&#8217;t want to provide a custom black point value, you can use a pre
 <p><code>rl_decon</code> applies theRichardson-Lucy deconvolution algorithm to the image. This function makes use of a synthetic PSF. It requires a single mandatory parameter which is the image to process. For example: <code>rl_decon(img(0))</code>. 3 optional parameters are available: the PSF radius in pixels, the sigma factor and the number of iterations. For example: <code>rl_decon(img(0), 2.5, 2.5, 10)</code>.</p>
 </li>
 <li>
-<p><code>sharpen</code> will apply sharpening the target image. For example, <code>sharpen(img(0))</code>.</p>
+<p><code>sharpen</code> will apply sharpening the target image. For example, <code>sharpen(img(0))</code>. It accepts an optional parameter, the kernel size, which must be an odd number &gt; 3. For example, <code>sharpen(img(0), 5)</code>.</p>
 </li>
 <li>
-<p><code>blur</code> will apply Gaussian blur the target image. For example, <code>blur(img(0))</code>.</p>
+<p><code>blur</code> will apply Gaussian blur the target image. For example, <code>blur(img(0))</code>. It accepts an optional parameter, the kernel size, which must be an odd number &gt; 3. For example, <code>blur(img(0), 5)</code>.</p>
 </li>
 <li>
 <p><code>disk_fill</code> will fill the detected sun disk with a fill color (by default, the detected black point). e.g <code>disk_fill(img(0))</code> or <code>disk_fill(img(0), 0)</code>.</p>
