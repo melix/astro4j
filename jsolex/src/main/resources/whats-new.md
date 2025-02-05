@@ -4,6 +4,7 @@
 
 - Added convolution kernel size for `SHARPEN` and `BLUR` functions
 - Fixed rare bug where ellipse fitting would fail despite being detected
+- Process files sequentially in batch mode instead of concurrently to reduce pressure on lower end machines
 
 ## What's New in Version 2.9.0
 

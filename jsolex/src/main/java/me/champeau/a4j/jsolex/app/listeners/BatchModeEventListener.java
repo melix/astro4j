@@ -88,6 +88,7 @@ public class BatchModeEventListener implements ProcessingEventListener, ImageMat
     private final double totalItems;
     private final File outputDirectory;
     private final LocalDateTime processingDate;
+    private final AtomicBoolean hasCustomImages = new AtomicBoolean();
 
     private final Header referenceHeader;
 
@@ -266,7 +267,9 @@ public class BatchModeEventListener implements ProcessingEventListener, ImageMat
             }
         } finally {
             Platform.runLater(() -> owner.updateProgress(1, String.format(message("batch.finished"))));
-            owner.showImages();
+            if (hasCustomImages.get()) {
+                owner.showImages();
+            }
         }
     }
 
@@ -311,7 +314,7 @@ public class BatchModeEventListener implements ProcessingEventListener, ImageMat
             delegate.onImageGenerated(new ImageGeneratedEvent(
                 new GeneratedImage(GeneratedImageKind.IMAGE_MATH, entry.getKey(), outputFile.toPath(), entry.getValue())
             ));
-
+            hasCustomImages.set(true);
         });
         result.filesByLabel().entrySet().stream().parallel().forEach(entry -> {
             var name = namingStrategy.render(0, null, Constants.TYPE_PROCESSED, entry.getKey(), "batch");

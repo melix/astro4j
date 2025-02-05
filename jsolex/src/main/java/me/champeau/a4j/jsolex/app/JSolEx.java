@@ -151,7 +151,6 @@ import java.util.Optional;
 import java.util.Scanner;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.Semaphore;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
@@ -1295,52 +1294,30 @@ public class JSolEx extends Application implements JSolExInterface {
         mainPane.getTabs().addFirst(tab);
         mainPane.getSelectionModel().select(0);
         var interruptButton = addInterruptButton();
-        new Thread(() -> {
-            configureThreadExceptionHandler();
-            var groups = new ArrayList<List<File>>();
-            var current = new ArrayList<File>();
-            var batchSize = Math.max(1, Runtime.getRuntime().availableProcessors() / 2);
-            for (File selectedFile : selectedFiles) {
-                current.add(selectedFile);
-                if (current.size() == batchSize) {
-                    groups.add(current);
-                    current = new ArrayList<>();
-                }
-            }
-            if (!current.isEmpty()) {
-                groups.add(current);
-            }
-            var batchContext =
-                new BatchProcessingContext(batchItems, Collections.synchronizedSet(new HashSet<>()), Collections.synchronizedSet(new HashSet<>()), new AtomicBoolean(), selectedFiles.get(0).getParentFile(), LocalDateTime.now(), new HashMap<>(),
-                    header);
-            var semaphore = new Semaphore(Math.max(1, Runtime.getRuntime().availableProcessors() / 4));
-            // We're using a separate task submission thread in order to not
-            // block the processing ones
-            var taskSubmissionThread = new Thread(() -> {
-                int idx = 0;
-                while (idx < selectedFiles.size() && !Thread.currentThread().isInterrupted()) {
-                    semaphore.acquireUninterruptibly();
-                    var selectedFile = selectedFiles.get(idx);
-                    var fileIdx = idx;
-                    BackgroundOperations.async(() -> processSingleFile(params, selectedFile, true, fileIdx, batchContext, header, semaphore::release));
-                    idx++;
-                }
-            });
-            interruptButton.setOnAction(e -> {
-                interruptButton.setDisable(true);
-                taskSubmissionThread.interrupt();
-                BackgroundOperations.interrupt();
-                updateProgress(0, message("batch.interrupted"));
-            });
-            taskSubmissionThread.start();
+        var batchThread = new Thread(() -> {
             try {
-                taskSubmissionThread.join();
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
+                var batchContext =
+                    new BatchProcessingContext(batchItems, Collections.synchronizedSet(new HashSet<>()), Collections.synchronizedSet(new HashSet<>()), new AtomicBoolean(), selectedFiles.get(0).getParentFile(), LocalDateTime.now(), new HashMap<>(),
+                        header);
+                for (int fileIdx = 0; fileIdx < selectedFiles.size(); fileIdx++) {
+                    var selectedFile = selectedFiles.get(fileIdx);
+                    processSingleFile(params, selectedFile, true, fileIdx, batchContext, header, () -> {
+                    });
+                    if (Thread.currentThread().isInterrupted()) {
+                        break;
+                    }
+                }
             } finally {
                 Platform.runLater(() -> workButtons.getChildren().remove(interruptButton));
             }
-        }).start();
+        });
+        interruptButton.setOnAction(e -> {
+            interruptButton.setDisable(true);
+            BackgroundOperations.interrupt();
+            batchThread.interrupt();
+            updateProgress(0, message("batch.interrupted"));
+        });
+        batchThread.start();
     }
 
     private Button addInterruptButton() {

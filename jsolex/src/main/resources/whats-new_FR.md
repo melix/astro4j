@@ -4,6 +4,7 @@
 
 - Ajout de la taille du noyau de convolution pour les fonctions `SHARPEN` et `BLUR`
 - Correction d'un bug rare où la régression d'ellipse échouait malgré sa détection
+- Traitement des fichiers en séquence dans le mode batch, pour réduire la pression sur les machines moins puissantes
 
 ## Nouveautés de la version 2.9.0
 
