@@ -519,7 +519,8 @@ public class JSolEx extends Application implements JSolExInterface {
                 alert.getButtonTypes().add(ButtonType.CLOSE);
                 alert.showAndWait().ifPresent(button -> {
                     if (button == download) {
-                        getHostServices().showDocument("https://github.com/melix/astro4j");
+                        var lang = "FR".equals(Locale.getDefault().getCountry()) ? "fr" : "en";
+                        getHostServices().showDocument("https://melix.github.io/astro4j/latest/" + lang + "/jsolex.html");
                     }
                 });
             });
