@@ -67,4 +67,8 @@ public interface ProcessingEventListener {
     default void onReconstructionDone(ReconstructionDoneEvent e) {
 
     }
+
+    default void onTrimmingParametersDetermined(TrimmingParametersDeterminedEvent e) {
+
+    }
 }

@@ -1,58 +1,22 @@
 # Welcome to JSol'Ex {{version}}!
 
-## What's New in Version 2.9.1
+## What's New in Version 2.10.0
 
+- Added ability to [trim the processed SER files](#trimming-processed-ser-files)
 - Added convolution kernel size for `SHARPEN` and `BLUR` functions
 - Fixed rare bug where ellipse fitting would fail despite being detected
 - Process files sequentially in batch mode instead of concurrently to reduce pressure on lower end machines
 
-## What's New in Version 2.9.0
+### Trimming Processed SER Files
 
-- [Added detection of active regions](#active-regions-detection)
-- [Parallactic angle correction for Alt-Az mounts](#alt-az-mode-and-parallactic-angle-correction)
-- [New functions in scripts](#new-functions-in-scripts)
-- Automatically label detected active regions
-- Add button to delete SER file after processing
-- Add ability to process SER files to the standalone scripting module
+Sometimes, for practical reasons, the SER files that you are processing may contain a lot of empty frames at the beginning or end of the file, for example if you are using a mount that takes a few seconds to stabilize before starting the acquisition.
+Sometimes, you may also have used a large cropping window, which contains significantly more spectral lines than useful for the processing.
 
-Join us on Discord! [https://discord.gg/y9NCGaWzve](https://discord.gg/y9NCGaWzve)
-
-### Active Regions Detection
-
-This version introduces detection of active regions in solar images.
-The detection works by analyzing each frame in your SER file, and identifying regions with unexpected brightness compared to a model of what it should look like.
-Active regions detection will generate 2 images:
-
-- one of the studied line with an overlay of the detected active regions
-- one with the continuum image of the studied line, with the detected active regions highlighted
-
-The detection mechanism is responsible for detecting the "areas" which cover sunspots.
-However, if you have access to internet, it will also be able to put labels onto those active areas, to help you identify them.
-Note, however, that the label positions will only be correct if the image is oriented correctly (horizontal/vertical flips) and that the time and date are correctly set in your SER file.
-
-You can also generate more images by using the scripts functions which are described below.
-
-### Alt-Az Mode and parallactic angle correction
-
-Until this version, JSol'Ex assumed that the images were captured using an equatorial mount.
-As such, the orientation grid and the P-angle correction were assuming that you were using an equatorial mount.
-With this version, you have the option to check the "Alt-Az" mode in the processing parameters, as well as declaring a setup as using an Alt-Az mount.
-This is for example your case if you are using a Sunscan, or a Sol'Ex in Sunscan mode.
-In this case, we recommend that you also enter the latitude and longitude of the observation, since JSol'Ex will automatically perform parallactic angle correction.
-This will make sure that the image is oriented correctly (except for horizontal/vertical flips), that the P-angle correction is done correctly, and that the labels for active regions are correctly positioned.
-
-### New Functions in Scripts
-
-The following functions have been added:
-
-- `GET_AT` allows fetching an image in a list at a specific index.
-- `AR_OVERLAY` generates an overlay of active regions on an image.
-- `CROP_AR` crops an image to the detected active regions.
-
-### Bug Fixes and Improvements
-
-- Fixed a bug where an error message could be displayed during reconstruction, with no effet on the result.
-- Fixed SER files not being closed, preventing them from being deleted under Windows
+In these cases, it is possible to trim the processed SER files to remove these empty frames and reduce the size of the files.
+At the end of processing, the "Trim SER file" button will be enabled, and will suggest a range of frames to keep, as well as a portion of each frame to crop.
+These are based on the detection of the solar disk in the frames, with a 10% margin.
+In addition, the trimmed SER file will have "smile" correction applied, which means that all lines will be perfectly horizontal.
+You have the option to choose how many pixels you want to keep around the center line.
 
 ## Message to US citizen and far right supporters
 

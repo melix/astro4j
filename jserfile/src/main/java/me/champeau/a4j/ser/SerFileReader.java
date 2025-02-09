@@ -37,6 +37,7 @@ import java.util.Optional;
  */
 public class SerFileReader implements AutoCloseable {
     private static final ZoneId UTC = ZoneId.of("UTC");
+    public static final String JSOLEX_RECORDER = "JSOLEX-TRIMMED";
 
     private final File backingFile;
     private final RandomAccessFile accessFile;
@@ -126,9 +127,9 @@ public class SerFileReader implements AutoCloseable {
         FileChannel channel = raf.getChannel();
         var headerBuffer = channel
             .map(FileChannel.MapMode.READ_ONLY, 0, Math.min(65536, channel.size()));
-        readAsciiString(headerBuffer, 14);
+        var fileId = readAsciiString(headerBuffer, 14);
         headerBuffer.order(ByteOrder.LITTLE_ENDIAN);
-        Header header = readHeader(headerBuffer);
+        Header header = readHeader(fileId, headerBuffer);
         long headerLength = headerBuffer.position();
         var bytesPerFrame = header.geometry().getBytesPerFrame();
         long maxFramesInBuffer = (long) Math.floor(Integer.MAX_VALUE / (double) bytesPerFrame);
@@ -144,10 +145,10 @@ public class SerFileReader implements AutoCloseable {
         }
         boolean hasTimestamps = header.metadata().localDateTime() != null;
         long dataLength = header.frameCount() * (long) bytesPerFrame;
-        if (headerLength + dataLength * 8L * header.frameCount() > file.length()) {
+        if (headerLength + dataLength + 8L * header.frameCount() > file.length()) {
             // Workaround for some videos where timestamps are truncated
             hasTimestamps = false;
-            header = new Header(header.camera(), header.geometry(), header.frameCount(), header.metadata().withoutTimestamps());
+            header = new Header(fileId, header.camera(), header.geometry(), header.frameCount(), header.metadata().withoutTimestamps());
         }
         ByteBuffer timestampsBuffer = hasTimestamps ? channel.map(FileChannel.MapMode.READ_ONLY, headerLength + dataLength, 8L * header.frameCount()).order(ByteOrder.LITTLE_ENDIAN) : null;
         var tmpReader = new SerFileReader(file, raf, imageBuffers, (int) maxFramesInBuffer, timestampsBuffer, header);
@@ -164,6 +165,10 @@ public class SerFileReader implements AutoCloseable {
      * @return a fixed reader
      */
     private static SerFileReader fixReader(SerFileReader tmpReader) {
+        if (JSOLEX_RECORDER.equals(tmpReader.header.fileId())) {
+            // Trust JSol'Ex rewritten files
+            return tmpReader;
+        }
         var frameCount = tmpReader.header.frameCount();
         var geometry = tmpReader.header.geometry();
         var width = geometry.width();
@@ -192,7 +197,7 @@ public class SerFileReader implements AutoCloseable {
             }
             var newGeometry = new ImageGeometry(geometry.colorMode(), geometry.width(), geometry.height(), pixelDepth, geometry.imageEndian());
             return new SerFileReader(tmpReader.backingFile, tmpReader.accessFile, tmpReader.imageBuffers, tmpReader.maxFramesPerBuffer, tmpReader.timestampsBuffer[0],
-                new Header(tmpReader.header.camera(), newGeometry, tmpReader.header.frameCount(), tmpReader.header.metadata()));
+                new Header(tmpReader.header.fileId(), tmpReader.header.camera(), newGeometry, tmpReader.header.frameCount(), tmpReader.header.metadata()));
         }
         return tmpReader;
     }
@@ -237,7 +242,7 @@ public class SerFileReader implements AutoCloseable {
         return value;
     }
 
-    private static Header readHeader(ByteBuffer buffer) throws IOException {
+    private static Header readHeader(String fileId, ByteBuffer buffer) throws IOException {
         Camera camera = new Camera(buffer.getInt());
         Optional<ColorMode> colorMode = ColorMode.of(buffer.getInt());
         if (colorMode.isEmpty()) {
@@ -259,6 +264,7 @@ public class SerFileReader implements AutoCloseable {
             return LocalDateTime.now().atZone(UTC);
         });
         return new Header(
+            fileId,
             camera,
             new ImageGeometry(colorMode.get(), imageWidth, imageHeight, pixelDepthPerPlane, imageByteOrder),
             frameCount,

@@ -488,6 +488,56 @@ Au final, la section `[outputs]` déclare les images qui nous intéressent :
 
 NOTE: Vous pouvez mettre des commentaires sur une ligne commençant par `#` ou `//`
 
+[[trimming-ser-files]]
+== Réduire la taille des fichiers SER
+
+Il n'est pas rare d'avoir des fichiers SER qui contiennent beaucoup de trames vides au début ou à la fin, en raison de la façon dont nous capturons généralement les vidéos : nous commençons la capture, puis nous attendons que le montage se stabilise, enfin nous arrêtons la capture.
+De plus, notre fenêtre de rognage peut être un peu trop grande pour ce que nous voulons réellement étudier.
+
+En conséquence, les fichiers SER stockés sur le disque sont généralement beaucoup plus grands que ce qu'ils devraient être.
+Depuis JSol'Ex 2.10, une nouvelle option est disponible à la fin du traitement d'un fichier.
+Vous pouvez cliquer sur le bouton "Réduire SER" en haut à droite de l'interface, ce qui ouvrira une nouvelle fenêtre :
+
+image::trimming-fr.jpg[]
+
+Cette fenêtre est pré-remplie avec des paramètres déduits du fichier traité.
+En particulier, les trames de début et de fin, ainsi que les valeurs X mininum et maximum (largeur) sont déterminées automatiquement à partir de la détection du disque solaire dans la vidéo.
+Une marge raisonnables de 10% est ajoutée, ce qui signifie que parfois, la première et la dernière trame peuvent en fait correspondre à la vidéo complète si vous avez réellement une vidéo où le soleil apparaît rapidement dans le champ de vision.
+
+Les paramètres "pixels vers le haut"/"pixels vers le bas" correspondent au nombre de pixels que vous souhaitez conserver dans le fichier SER cible autour de la ligne spectrale.
+Une fois de plus ces valeurs sont déduites de ce qu'il est possible de faire en corrigeant le "sourire" (courbature de la ligne spectrale), mais il peut être particulièrement intéressant de les réduire, car cela aura un impact important sur la taille du fichier.
+Cependant, réduire le nombre de pixels vers le haut/bas supprimera des informations de la vidéo (vous ne pourrez pas calculer d'images avec des décalages de pixels plus importants), alors soyez toujours prudent de ne pas trop les réduire.
+
+Une fois que vous êtes satisfait des paramètres, cliquez sur "Réduire" et un nouveau fichier SER sera créé dans le même dossier que l'original, avec le suffixe `_trimmed`.
+
+Il est important de savoir que la vidéo rognée aura également la correction du sourire appliquée, ce qui signifie que la ligne spectrale sera centrée dans la vidéo et que chaque ligne sera parfaitement horizontale.
+Cette information est utilisée par JSol'Ex si vous décidez de traiter la vidéo rognée, de sorte que vous n'ayez pas à recalculer la correction du sourire.
+
+[IMPORTANT]
+====
+Il est important de comprendre que la réduction de fichier SER est une opération destructive : si vous réduisez le nombre de trames ou les valeurs min x/max x, alors vous tronquez potentiellement le disque solaire ou des caractéristiques comme les protubérances.
+Si vous choisissez des valeurs trop faibles pour les pixels vers le haut/bas, alors vous réduisez la bande passante de l'observation, ce qui signifie par exemple que vous ne pourrez plus générer d'image de continuum.
+Dans les deux cas, le résultat du traitement de la vidéo rognée sera différent de l'original.
+====
+
+Voici un exemple de résultat :
+
+++++
+<video width="100%" controls autoplay loop>
+  <source src="orig.webm" type="video/webm">
+  Your browser does not support the video tag.
+</video>
+++++
+
+Et la version réduite :
+
+++++
+<video width="100%" controls autoplay loop>
+  <source src="trimmed.webm" type="video/webm">
+  Your browser does not support the video tag.
+</video>
+++++
+
 [[batch-mode]]
 == Traitement par lots
 

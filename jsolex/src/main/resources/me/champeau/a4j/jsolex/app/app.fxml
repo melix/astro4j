@@ -63,136 +63,156 @@
     <center>
         <SplitPane dividerPositions="0.7">
             <TabPane fx:id="mainPane" prefWidth="400.0"/>
-            <SplitPane dividerPositions="0.5" orientation="VERTICAL">
-                <items>
-                    <TabPane side="right" tabClosingPolicy="UNAVAILABLE" fx:id="rightTabs">
-                        <Tab text="%logs" fx:id="logsTab">
-                            <VBox>
-                                <ButtonBar>
-                                    <padding>
-                                        <Insets bottom="4.0" left="4.0" right="20.0" top="4.0"/>
-                                    </padding>
-                                    <buttons>
-                                        <Button fx:id="deleteSerFileButton" onAction="#deleteSerFile" text="%delete.ser.file" visible="false"/>
-                                        <Button onAction="#resetUI" text="%reset.ui"/>
-                                        <Button onAction="#clearLog" text="%clear.log"/>
-                                        <Button onAction="#saveLog" text="%save.log"/>
-                                    </buttons>
-                                </ButtonBar>
-                                <VirtualizedScrollPane VBox.vgrow="ALWAYS">
-                                    <content>
-                                        <StyleClassedTextArea fx:id="console" editable="false" wrapText="true">
-                                            <padding>
-                                                <Insets bottom="4.0" left="4.0" right="4.0" top="4.0"/>
-                                            </padding>
-                                        </StyleClassedTextArea>
-                                    </content>
-                                </VirtualizedScrollPane>
-                            </VBox>
-                        </Tab>
-                        <Tab fx:id="referenceImageTab" text="%reference.image">
+            <VBox>
+                <HBox spacing="8">
+                    <padding>
+                        <Insets bottom="4.0" left="4.0" right="20.0" top="4.0"/>
+                    </padding>
+                    <Button fx:id="closeAllButton" onAction="#resetUI" text="%reset.ui" disable="true">
+                        <tooltip>
+                            <Tooltip text="%reset.ui.tooltip"/>
+                        </tooltip>
+                    </Button>
+                    <Button fx:id="deleteSerFileButton" onAction="#deleteSerFile" text="%delete.ser.file" disable="true">
+                        <tooltip>
+                            <Tooltip text="%delete.ser.file.tooltip"/>
+                        </tooltip>
+                    </Button>
+                    <Button fx:id="trimSerFileButton" onAction="#trimSerFile" text="%trim.ser.file" disable="true">
+                        <tooltip>
+                            <Tooltip text="%trim.ser.file.tooltip"/>
+                        </tooltip>
+                    </Button>
+                </HBox>
+                <SplitPane dividerPositions="0.5" orientation="VERTICAL">
+                    <items>
+                        <TabPane side="right" tabClosingPolicy="UNAVAILABLE" fx:id="rightTabs">
+                            <Tab text="%logs" fx:id="logsTab">
+                                <VBox>
+                                    <ButtonBar>
+                                        <padding>
+                                            <Insets bottom="4.0" left="4.0" right="20.0" top="4.0"/>
+                                        </padding>
+                                        <buttons>
+                                            <Button onAction="#clearLog" text="%clear.log"/>
+                                            <Button onAction="#saveLog" text="%save.log"/>
+                                        </buttons>
+                                    </ButtonBar>
+                                    <VirtualizedScrollPane VBox.vgrow="ALWAYS">
+                                        <content>
+                                            <StyleClassedTextArea fx:id="console" editable="false" wrapText="true">
+                                                <padding>
+                                                    <Insets bottom="4.0" left="4.0" right="4.0" top="4.0"/>
+                                                </padding>
+                                            </StyleClassedTextArea>
+                                        </content>
+                                    </VirtualizedScrollPane>
+                                </VBox>
+                            </Tab>
+                            <Tab fx:id="referenceImageTab" text="%reference.image">
 
-                        </Tab>
-                        <Tab fx:id="statsTab" text="%stats">
+                            </Tab>
+                            <Tab fx:id="statsTab" text="%stats">
 
-                        </Tab>
+                            </Tab>
 
-                        <Tab fx:id="metadataTab" text="%metadata">
-                        </Tab>
+                            <Tab fx:id="metadataTab" text="%metadata">
+                            </Tab>
 
-                        <Tab fx:id="profileTab" text="%profile">
+                            <Tab fx:id="profileTab" text="%profile">
 
-                        </Tab>
-                        <Tab fx:id="redshiftTab" text="%redshifts" disable="true">
-                            <BorderPane>
-                                <padding>
-                                    <Insets bottom="4.0" left="4.0" right="4.0" top="4.0"/>
-                                </padding>
-                                <top>
-                                    <VBox alignment="CENTER">
-                                        <Label text="%redshifts.description" style="-fx-font-weight: bold;"/>
-                                    </VBox>
-                                </top>
-                                <center>
-                                    <ScrollPane fitToHeight="true" fitToWidth="true">
-                                        <GridPane alignment="BASELINE_LEFT" hgap="10" vgap="10">
-                                            <padding>
-                                                <Insets bottom="4.0" left="4.0" right="4.0" top="4.0"/>
-                                            </padding>
-                                            <Label text="%redshifts.help" GridPane.rowIndex="0" GridPane.columnIndex="0" wrapText="true" GridPane.columnSpan="2"/>
-
-                                            <Label text="%box.size" GridPane.columnIndex="0" GridPane.rowIndex="1" prefWidth="200"/>
-                                            <ChoiceBox fx:id="redshiftBoxSize" GridPane.columnIndex="1" GridPane.rowIndex="1" prefWidth="200"/>
-
-                                            <Label text="%pixel.shift.margin" GridPane.columnIndex="0" GridPane.rowIndex="2" prefWidth="200"/>
-                                            <TextField fx:id="pixelShiftMargin" GridPane.columnIndex="1" GridPane.rowIndex="2" maxWidth="50" prefWidth="50"/>
-
-                                            <Label text="%redshift.creator.kind" GridPane.columnIndex="0" GridPane.rowIndex="3" prefWidth="200"/>
-                                            <ChoiceBox fx:id="redshiftCreatorKind" GridPane.columnIndex="1" GridPane.rowIndex="3" prefWidth="200"/>
-
-                                            <Label fx:id="annotateAnimationsLabel" text="%annotate.animations" GridPane.columnIndex="0" GridPane.rowIndex="4" prefWidth="300">
-                                                <tooltip>
-                                                    <Tooltip text="%annotate.animations.tooltip"/>
-                                                </tooltip>
-                                            </Label>
-                                            <CheckBox fx:id="annotateAnimations" GridPane.columnIndex="1" GridPane.rowIndex="4" prefWidth="100">
-                                                <tooltip>
-                                                    <Tooltip text="%annotate.animations.tooltip"/>
-                                                </tooltip>
-                                            </CheckBox>
-
-                                            <Label fx:id="fullRangePanelsLabel" text="%full.range.panels" GridPane.columnIndex="0" GridPane.rowIndex="5" prefWidth="300">
-                                                <tooltip>
-                                                    <Tooltip text="%full.range.panels.tooltip"/>
-                                                </tooltip>
-                                            </Label>
-                                            <CheckBox fx:id="fullRangePanels" GridPane.columnIndex="1" GridPane.rowIndex="5" prefWidth="100">
-                                                <tooltip>
-                                                    <Tooltip text="%full.range.panels.tooltip"/>
-                                                </tooltip>
-                                            </CheckBox>
-                                            <VBox GridPane.rowIndex="6" GridPane.columnIndex="0" GridPane.columnSpan="2" spacing="4">
-                                                <Label text="%what.to.generate"/>
-                                                <GridPane fx:id="redshiftSelectionBox">
-                                                </GridPane>
-                                            </VBox>
-                                            <VBox alignment="CENTER" GridPane.rowIndex="7" GridPane.columnIndex="0" GridPane.columnSpan="2">
-                                                <Label fx:id="estimatedDiskSpace"/>
-                                            </VBox>
-                                            <VBox alignment="CENTER" GridPane.rowIndex="8" GridPane.columnIndex="0" GridPane.columnSpan="2">
-                                                <Button fx:id="generateRedshiftImages" text="%generate"/>
-                                            </VBox>
-                                        </GridPane>
-                                    </ScrollPane>
-                                </center>
-                            </BorderPane>
-                        </Tab>
-                    </TabPane>
-                    <VBox fx:id="imageMathPane">
-                        <children>
-                            <TitledPane text="%imagemath.script">
+                            </Tab>
+                            <Tab fx:id="redshiftTab" text="%redshifts" disable="true">
                                 <BorderPane>
+                                    <padding>
+                                        <Insets bottom="4.0" left="4.0" right="4.0" top="4.0"/>
+                                    </padding>
+                                    <top>
+                                        <VBox alignment="CENTER">
+                                            <Label text="%redshifts.description" style="-fx-font-weight: bold;"/>
+                                        </VBox>
+                                    </top>
                                     <center>
-                                        <ImageMathTextArea fx:id="imageMathScript"/>
+                                        <ScrollPane fitToHeight="true" fitToWidth="true">
+                                            <GridPane alignment="BASELINE_LEFT" hgap="10" vgap="10">
+                                                <padding>
+                                                    <Insets bottom="4.0" left="4.0" right="4.0" top="4.0"/>
+                                                </padding>
+                                                <Label text="%redshifts.help" GridPane.rowIndex="0" GridPane.columnIndex="0" wrapText="true" GridPane.columnSpan="2"/>
+
+                                                <Label text="%box.size" GridPane.columnIndex="0" GridPane.rowIndex="1" prefWidth="200"/>
+                                                <ChoiceBox fx:id="redshiftBoxSize" GridPane.columnIndex="1" GridPane.rowIndex="1" prefWidth="200"/>
+
+                                                <Label text="%pixel.shift.margin" GridPane.columnIndex="0" GridPane.rowIndex="2" prefWidth="200"/>
+                                                <TextField fx:id="pixelShiftMargin" GridPane.columnIndex="1" GridPane.rowIndex="2" maxWidth="50" prefWidth="50"/>
+
+                                                <Label text="%redshift.creator.kind" GridPane.columnIndex="0" GridPane.rowIndex="3" prefWidth="200"/>
+                                                <ChoiceBox fx:id="redshiftCreatorKind" GridPane.columnIndex="1" GridPane.rowIndex="3" prefWidth="200"/>
+
+                                                <Label fx:id="annotateAnimationsLabel" text="%annotate.animations" GridPane.columnIndex="0" GridPane.rowIndex="4" prefWidth="300">
+                                                    <tooltip>
+                                                        <Tooltip text="%annotate.animations.tooltip"/>
+                                                    </tooltip>
+                                                </Label>
+                                                <CheckBox fx:id="annotateAnimations" GridPane.columnIndex="1" GridPane.rowIndex="4" prefWidth="100">
+                                                    <tooltip>
+                                                        <Tooltip text="%annotate.animations.tooltip"/>
+                                                    </tooltip>
+                                                </CheckBox>
+
+                                                <Label fx:id="fullRangePanelsLabel" text="%full.range.panels" GridPane.columnIndex="0" GridPane.rowIndex="5" prefWidth="300">
+                                                    <tooltip>
+                                                        <Tooltip text="%full.range.panels.tooltip"/>
+                                                    </tooltip>
+                                                </Label>
+                                                <CheckBox fx:id="fullRangePanels" GridPane.columnIndex="1" GridPane.rowIndex="5" prefWidth="100">
+                                                    <tooltip>
+                                                        <Tooltip text="%full.range.panels.tooltip"/>
+                                                    </tooltip>
+                                                </CheckBox>
+                                                <VBox GridPane.rowIndex="6" GridPane.columnIndex="0" GridPane.columnSpan="2" spacing="4">
+                                                    <Label text="%what.to.generate"/>
+                                                    <GridPane fx:id="redshiftSelectionBox">
+                                                    </GridPane>
+                                                </VBox>
+                                                <VBox alignment="CENTER" GridPane.rowIndex="7" GridPane.columnIndex="0" GridPane.columnSpan="2">
+                                                    <Label fx:id="estimatedDiskSpace"/>
+                                                </VBox>
+                                                <VBox alignment="CENTER" GridPane.rowIndex="8" GridPane.columnIndex="0" GridPane.columnSpan="2">
+                                                    <Button fx:id="generateRedshiftImages" text="%generate"/>
+                                                </VBox>
+                                            </GridPane>
+                                        </ScrollPane>
                                     </center>
-                                    <bottom>
-                                        <HBox alignment="CENTER_LEFT">
-                                            <CheckBox fx:id="clearImagesCheckbox" text="%clear.images"/>
-                                            <ButtonBar prefHeight="40.0" prefWidth="200.0">
-                                                <buttons>
-                                                    <Button fx:id="imageMathLoad" mnemonicParsing="false" text="%imagemath.load"/>
-                                                    <Button fx:id="imageMathSave" mnemonicParsing="false" text="%imagemath.save"/>
-                                                    <Button fx:id="imageMathRun" mnemonicParsing="false" text="%imagemath.run"/>
-                                                </buttons>
-                                            </ButtonBar>
-                                        </HBox>
-                                    </bottom>
                                 </BorderPane>
-                            </TitledPane>
-                        </children>
-                    </VBox>
-                </items>
-            </SplitPane>
+                            </Tab>
+                        </TabPane>
+                        <VBox fx:id="imageMathPane">
+                            <children>
+                                <TitledPane text="%imagemath.script">
+                                    <BorderPane>
+                                        <center>
+                                            <ImageMathTextArea fx:id="imageMathScript"/>
+                                        </center>
+                                        <bottom>
+                                            <HBox alignment="CENTER_LEFT">
+                                                <CheckBox fx:id="clearImagesCheckbox" text="%clear.images"/>
+                                                <ButtonBar prefHeight="40.0" prefWidth="200.0">
+                                                    <buttons>
+                                                        <Button fx:id="imageMathLoad" mnemonicParsing="false" text="%imagemath.load"/>
+                                                        <Button fx:id="imageMathSave" mnemonicParsing="false" text="%imagemath.save"/>
+                                                        <Button fx:id="imageMathRun" mnemonicParsing="false" text="%imagemath.run"/>
+                                                    </buttons>
+                                                </ButtonBar>
+                                            </HBox>
+                                        </bottom>
+                                    </BorderPane>
+                                </TitledPane>
+                            </children>
+                        </VBox>
+                    </items>
+                </SplitPane>
+            </VBox>
         </SplitPane>
     </center>
     <bottom>

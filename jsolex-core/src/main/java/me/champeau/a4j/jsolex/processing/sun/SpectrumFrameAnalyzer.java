@@ -34,16 +34,18 @@ public class SpectrumFrameAnalyzer {
     private final int width;
     private final int height;
     private final Double sunDetectionThreshold;
-
+    private final boolean isReducedSerFile;
     private Result result;
     private float[][] data;
 
     public SpectrumFrameAnalyzer(int width,
                                  int height,
+                                 boolean isReducedSerFile,
                                  Double sunDetectionThreshold) {
         this.width = width;
         this.height = height;
         this.sunDetectionThreshold = sunDetectionThreshold;
+        this.isReducedSerFile = isReducedSerFile;
     }
 
     public Result result() {
@@ -90,7 +92,15 @@ public class SpectrumFrameAnalyzer {
                 rightBorder = x;
             }
         }
-        this.result = findDistortionPolynomial(leftBorder, rightBorder);
+        var distortionPolynomial = findDistortionPolynomial(leftBorder, rightBorder);
+        this.result = distortionPolynomial;
+        if (isReducedSerFile) {
+            var doubleQuadruplet = distortionPolynomial.distortionQuadruplet();
+            if (doubleQuadruplet.isPresent()) {
+                var polynomial = doubleQuadruplet.get();
+                this.result = new Result(leftBorder, rightBorder, new DoubleQuadruplet(0, 0, 0, Math.round(polynomial.d())), result.samplePoints);
+            }
+        }
     }
 
     private void performDetectionUsingExplicitThreshold() {

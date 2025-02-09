@@ -42,7 +42,7 @@ class SpectrumFrameAnalyzerTest extends Specification {
                 data[y][x] = image.getRGB(x, y) & 0xFF
             }
         }
-        def analyzer = new SpectrumFrameAnalyzer(image.width, image.height, 50d)
+        def analyzer = new SpectrumFrameAnalyzer(image.width, image.height, false, 50d)
 
         when:
         def result = analyzer.analyze(data)
@@ -87,7 +87,7 @@ class SpectrumFrameAnalyzerTest extends Specification {
         def width = image.width()
         def height = image.height()
         def data = ((ImageWrapper32)image).data()
-        def analyzer = new SpectrumFrameAnalyzer(width, height, null)
+        def analyzer = new SpectrumFrameAnalyzer(width, height, false, null)
         def result = analyzer.analyze(data)
         def polynomial = result.distortionPolynomial().get()
         int leftBorder = result.leftBorder().orElse(0)

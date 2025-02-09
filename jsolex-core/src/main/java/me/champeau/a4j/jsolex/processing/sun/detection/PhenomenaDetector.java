@@ -20,6 +20,7 @@ import me.champeau.a4j.math.Point2D;
 import me.champeau.a4j.math.regression.LinearRegression;
 import me.champeau.a4j.math.tuples.DoublePair;
 import me.champeau.a4j.math.tuples.IntPair;
+import me.champeau.a4j.ser.Header;
 
 import java.util.ArrayList;
 import java.util.BitSet;
@@ -84,11 +85,11 @@ public class PhenomenaDetector {
         return redshiftsPerFrame;
     }
 
-    public void performDetection(int frameId, int width, int height, float[][] original, DoubleUnaryOperator polynomial) {
+    public void performDetection(int frameId, int width, int height, float[][] original, DoubleUnaryOperator polynomial, Header header) {
         if (!detectRedshifts && !detectActiveRegions) {
             return;
         }
-        var bordersAnalysis = new SpectrumFrameAnalyzer(width, height, 20000d).analyze(original);
+        var bordersAnalysis = new SpectrumFrameAnalyzer(width, height, header.isJSolexTrimmedSer(), 20000d).analyze(original);
         // 10 is to convert nm to angstrom
         int wingShiftInPixels = (int) Math.floor(0.5d / (10d * dispersion));
         var leftBorder = bordersAnalysis.leftBorder();
