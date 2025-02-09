@@ -219,6 +219,8 @@ public class ProcessParamsController {
     private CheckBox spectrumVFlip;
     @FXML
     private CheckBox altAzMode;
+    @FXML
+    private CheckBox autoTrimSerFile;
 
     private final List<Stage> popups = new CopyOnWriteArrayList<>();
     private Stage stage;
@@ -228,6 +230,7 @@ public class ProcessParamsController {
     private ProcessParams processParams;
     private boolean forceCamera;
     private boolean showCoordinatesInDetails;
+    private boolean autoTrimSerFileSelected;
 
     public void setup(Stage stage, File serFile, Header serFileHeader, CaptureSoftwareMetadataHelper.CaptureMetadata md, boolean batchMode, HostServices hostServices) {
         this.stage = stage;
@@ -491,6 +494,7 @@ public class ProcessParamsController {
         flatOrder.setText(String.valueOf(initialProcessParams.enhancementParams().artificialFlatCorrectionOrder()));
         spectrumVFlip.setSelected(initialProcessParams.geometryParams().isSpectrumVFlip());
         altAzMode.setSelected(initialProcessParams.observationDetails().altAzMode());
+        autoTrimSerFile.setVisible(batchMode);
     }
 
     private static TextFormatter<Integer> createOrderFormatter() {
@@ -747,6 +751,7 @@ public class ProcessParamsController {
             new EnhancementParams(artificialFlatCorrection.isSelected(), Double.parseDouble(flatLoPercentile.getText()), Double.parseDouble(flatHiPercentile.getText()), Integer.parseInt(flatOrder.getText()))
         );
         ProcessParams.saveDefaults(processParams);
+        autoTrimSerFileSelected = autoTrimSerFile.isSelected();
         stage.close();
     }
 
@@ -787,6 +792,10 @@ public class ProcessParamsController {
 
     public Optional<ProcessParams> getProcessParams() {
         return Optional.ofNullable(processParams);
+    }
+
+    public boolean isAutoTrimSerFileSelected() {
+        return autoTrimSerFileSelected;
     }
 
     @FXML

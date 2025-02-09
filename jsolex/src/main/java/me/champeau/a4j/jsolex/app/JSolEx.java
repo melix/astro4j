@@ -81,6 +81,7 @@ import me.champeau.a4j.jsolex.app.jfx.ImageViewer;
 import me.champeau.a4j.jsolex.app.jfx.MultipleImagesViewer;
 import me.champeau.a4j.jsolex.app.jfx.NamingPatternEditor;
 import me.champeau.a4j.jsolex.app.jfx.ProcessParamsController;
+import me.champeau.a4j.jsolex.app.jfx.SerFileTrimmerController;
 import me.champeau.a4j.jsolex.app.jfx.SetupEditor;
 import me.champeau.a4j.jsolex.app.jfx.SimpleMarkdownViewer;
 import me.champeau.a4j.jsolex.app.jfx.SpectralLineDebugger;
@@ -106,8 +107,10 @@ import me.champeau.a4j.jsolex.processing.file.FileNamingStrategy;
 import me.champeau.a4j.jsolex.processing.params.ProcessParams;
 import me.champeau.a4j.jsolex.processing.params.ProcessParamsIO;
 import me.champeau.a4j.jsolex.processing.params.RotationKind;
+import me.champeau.a4j.jsolex.processing.spectrum.SerFileTrimmer;
 import me.champeau.a4j.jsolex.processing.sun.CaptureSoftwareMetadataHelper;
 import me.champeau.a4j.jsolex.processing.sun.SolexVideoProcessor;
+import me.champeau.a4j.jsolex.processing.sun.TrimmingParameters;
 import me.champeau.a4j.jsolex.processing.sun.detection.RedshiftArea;
 import me.champeau.a4j.jsolex.processing.sun.workflow.GeneratedImageKind;
 import me.champeau.a4j.jsolex.processing.util.BackgroundOperations;
@@ -157,6 +160,7 @@ import java.util.stream.Collectors;
 
 import static java.nio.file.StandardWatchEventKinds.OVERFLOW;
 import static me.champeau.a4j.jsolex.app.jfx.FXUtils.newStage;
+import static me.champeau.a4j.jsolex.app.jfx.SerFileTrimmerController.toTrimmedFile;
 import static me.champeau.a4j.jsolex.processing.util.LoggingSupport.logError;
 
 public class JSolEx extends Application implements JSolExInterface {
@@ -257,7 +261,13 @@ public class JSolEx extends Application implements JSolExInterface {
     private Label estimatedDiskSpace;
 
     @FXML
+    private Button closeAllButton;
+
+    @FXML
     private Button deleteSerFileButton;
+
+    @FXML
+    private Button trimSerFileButton;
 
     private final Map<String, ImageViewer> popupViewers = new ConcurrentHashMap<>();
 
@@ -269,6 +279,7 @@ public class JSolEx extends Application implements JSolExInterface {
     private Button interruptWatchButton;
     private Button interruptClearParamsButton;
     private final BooleanBinding reusedProcessParamsBinding = Bindings.createBooleanBinding(() -> reusedProcessParams == null);
+    private TrimmingParameters trimmingParameters;
 
     @Override
     public MultipleImagesViewer getImagesViewer() {
@@ -563,9 +574,11 @@ public class JSolEx extends Application implements JSolExInterface {
     private void refreshRecentItemsMenu() {
         recentFilesMenu.getItems().clear();
         for (Path recentFile : config.getRecentFiles()) {
-            var recent = new MenuItem(recentFile.toAbsolutePath().toString());
-            recent.setOnAction(e -> doOpen(recentFile.toFile(), false, null));
-            recentFilesMenu.getItems().add(recent);
+            if (Files.exists(recentFile)) {
+                var recent = new MenuItem(recentFile.toAbsolutePath().toString());
+                recent.setOnAction(e -> doOpen(recentFile.toFile(), false, null));
+                recentFilesMenu.getItems().add(recent);
+            }
         }
     }
 
@@ -901,7 +914,7 @@ public class JSolEx extends Application implements JSolExInterface {
     }
 
     public static Header createFakeHeader(LocalDateTime now) {
-        return new Header(null, null, 0, new ImageMetadata(null, null, null, true, now, now.atZone(ZoneId.of("UTC"))));
+        return new Header(null, null, null, 0, new ImageMetadata(null, null, null, true, now, now.atZone(ZoneId.of("UTC"))));
     }
 
     @FXML
@@ -956,8 +969,9 @@ public class JSolEx extends Application implements JSolExInterface {
                 reusedProcessParams = params;
                 reusedProcessParamsBinding.invalidate();
             }
+            deleteSerFileButton.setDisable(true);
+            trimSerFileButton.setDisable(true);
             processFileWithParams(selectedFile, firstHeader, params);
-            deleteSerFileButton.setVisible(true);
         });
     }
 
@@ -1216,11 +1230,13 @@ public class JSolEx extends Application implements JSolExInterface {
         imageMathPane.setDisable(true);
         configureThreadExceptionHandler();
         Optional<ProcessParams> processParams = Optional.empty();
+        Optional<Boolean> autoTrim = Optional.empty();
         Header header = null;
         for (var selectedFile : selectedFiles) {
             try (var reader = SerFileReader.of(selectedFile)) {
                 var controller = createProcessParams(selectedFile, reader, true);
                 processParams = controller.getProcessParams();
+                autoTrim = Optional.of(controller.isAutoTrimSerFileSelected());
                 header = reader.header();
                 config.updateLastOpenDirectory(selectedFile.toPath().getParent());
                 break;
@@ -1229,11 +1245,12 @@ public class JSolEx extends Application implements JSolExInterface {
             }
         }
         var firstHeader = header;
-        processParams.ifPresent(params -> startBatchProcess(firstHeader, params, selectedFiles));
+        boolean autoTrimFinal = autoTrim.orElse(false);
+        processParams.ifPresent(params -> startBatchProcess(firstHeader, params, selectedFiles, autoTrimFinal));
 
     }
 
-    private void startBatchProcess(Header header, ProcessParams params, List<File> selectedFiles) {
+    private void startBatchProcess(Header header, ProcessParams params, List<File> selectedFiles, boolean autoTrimSerFile) {
         newSession();
         LOGGER.info(message("batch.mode.info"));
         var tab = new Tab(message("batch.process"));
@@ -1302,6 +1319,25 @@ public class JSolEx extends Application implements JSolExInterface {
                 for (int fileIdx = 0; fileIdx < selectedFiles.size(); fileIdx++) {
                     var selectedFile = selectedFiles.get(fileIdx);
                     processSingleFile(params, selectedFile, true, fileIdx, batchContext, header, () -> {
+                        if (autoTrimSerFile) {
+                            var outputFile = toTrimmedFile(trimmingParameters.serFile());
+                            SerFileTrimmer.trimFile(
+                                trimmingParameters.serFile(),
+                                outputFile,
+                                trimmingParameters.firstFrame(),
+                                trimmingParameters.lastFrame(),
+                                trimmingParameters.pixelsUp(),
+                                trimmingParameters.pixelsDown(),
+                                trimmingParameters.minX(),
+                                trimmingParameters.maxX(),
+                                trimmingParameters.polynomial(),
+                                trimmingParameters.verticalFlip(),
+                                progress -> Platform.runLater(() -> updateProgress(
+                                    progress,
+                                    I18N.string(JSolEx.class, "ser-trimmer", "trimming")
+                                ))
+                            );
+                        }
                     });
                     if (Thread.currentThread().isInterrupted()) {
                         break;
@@ -1355,6 +1391,49 @@ public class JSolEx extends Application implements JSolExInterface {
             appender.stop();
             LogbackConfigurer.clearOwners();
         }
+        closeAllButton.setDisable(false);
+        if (!batchMode) {
+            deleteSerFileButton.setDisable(false);
+        }
+    }
+
+    @Override
+    public void setTrimmingParameters(TrimmingParameters payload) {
+        this.trimmingParameters = payload;
+        trimSerFileButton.setDisable(false);
+    }
+
+    @FXML
+    public void trimSerFile() {
+        Platform.runLater(() -> {
+            var stage = newStage();
+            SerFileTrimmerController.create(stage,
+                trimmingParameters,
+                this::showProgress,
+                this::updateProgress,
+                trimmedFile -> {
+                    hideProgress();
+                    if (trimmedFile != null) {
+                        long initialSize = trimmingParameters.serFile().length();
+                        long finalSize = trimmedFile.length();
+                        double initialSizeMb = initialSize / (1024.0 * 1024.0);
+                        double finalSizeMb = finalSize / (1024.0 * 1024.0);
+                        double reduction = 100.0 - (100.0 * finalSize / initialSize);
+                        var alert = AlertFactory.confirmation(
+                            String.format(message("trimming.success"), trimmedFile.getName(), initialSizeMb, finalSizeMb, reduction)
+                        );
+                        alert.setHeaderText(message("trimming.success.title"));
+                        alert.showAndWait().ifPresent(button -> {
+                            if (button == ButtonType.OK) {
+                                doOpen(trimmedFile, false, lastExecutionProcessParams);
+                            }
+                        });
+                    } else {
+                        AlertFactory.error(message("trimming.failure"));
+                    }
+                }
+            );
+        });
     }
 
     private ProcessingEventListener createListener(String baseName, ProcessParams params, boolean batchMode, int sequenceNumber, Object context) {
@@ -1416,9 +1495,12 @@ public class JSolEx extends Application implements JSolExInterface {
 
     @FXML
     void resetUI() {
-        deleteSerFileButton.setVisible(false);
+        closeAllButton.setDisable(true);
+        deleteSerFileButton.setDisable(true);
+        trimSerFileButton.setDisable(true);
         console.clear();
         mainPane.getTabs().clear();
+        trimmingParameters = null;
         createFastModePane();
     }
 

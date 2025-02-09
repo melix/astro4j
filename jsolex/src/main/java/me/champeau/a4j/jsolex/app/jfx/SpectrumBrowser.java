@@ -332,7 +332,7 @@ public class SpectrumBrowser extends BorderPane {
             // we are going to perform a polynomial detection based on a limited area
             var polynomialImage = cropForPolynomialDetection(image);
             var width = image.width();
-            var analyzer = new SpectrumFrameAnalyzer(width, polynomialImage.height(), null);
+            var analyzer = new SpectrumFrameAnalyzer(width, polynomialImage.height(), false, null);
             analyzer.analyze(polynomialImage.data());
             var result = analyzer.result();
             result.distortionPolynomial().ifPresentOrElse(polynomial -> {

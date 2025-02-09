@@ -13,27 +13,24 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package me.champeau.a4j.ser;
+package me.champeau.a4j.jsolex.processing.sun;
 
-import static me.champeau.a4j.ser.SerFileReader.JSOLEX_RECORDER;
+import java.io.File;
+import java.util.function.DoubleUnaryOperator;
 
-/**
- * The SER file header.
- * @param fileId the file ID
- * @param camera the camera
- * @param geometry the image geometry
- * @param frameCount the total frame count
- * @param metadata image metadata
- */
-public record Header(
-        String fileId,
-        Camera camera,
-        ImageGeometry geometry,
-        int frameCount,
-        ImageMetadata metadata
+public record TrimmingParameters(
+    File serFile,
+    int firstFrame,
+    int lastFrame,
+    int pixelsUp,
+    int pixelsDown,
+    int minX,
+    int maxX,
+    DoubleUnaryOperator polynomial,
+    boolean verticalFlip,
+    // control parameters
+    int totalFrames,
+    int maxWidth,
+    double dispersionNanosPerPixel
 ) {
-
-    public boolean isJSolexTrimmedSer() {
-        return JSOLEX_RECORDER.equals(fileId);
-    }
 }

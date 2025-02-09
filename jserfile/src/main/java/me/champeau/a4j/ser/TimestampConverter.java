@@ -16,9 +16,18 @@
 package me.champeau.a4j.ser;
 
 import java.time.LocalDateTime;
+import java.time.temporal.ChronoUnit;
 import java.util.Optional;
 
+/**
+ * Utility class to convert timestamps from and to long values.
+ * SER file spec mentions:
+ *  "Each increment represents 100 nanoseconds of elapsed time since the
+ * beginning of January 1 of the year 1 in the Gregorian calendar"
+ */
 public abstract class TimestampConverter {
+    private static final LocalDateTime BASE_DATE_TIME = LocalDateTime.of(1, 1, 1, 0, 0, 0, 0);
+
     private TimestampConverter() {
 
     }
@@ -40,5 +49,55 @@ public abstract class TimestampConverter {
         }
         return Optional.of(localDateTime);
     }
+
+
+    /**
+     * Converts a local datetime to the timestamp format that SER file use.
+     * The complexity of this algorithm is because of number overflow :
+     * simply using chrono unit, nanosBetween would lead to numbers larger
+     * than long.
+     * @param localDateTime the date to convert
+     * @return the SER timestamp
+     */
+    public static long toTimestamp(LocalDateTime localDateTime) {
+        if (localDateTime == null || localDateTime.isBefore(BASE_DATE_TIME)) {
+            return -1;
+        }
+
+        long timestamp = 0;
+        LocalDateTime temp = BASE_DATE_TIME;
+
+        long days = ChronoUnit.DAYS.between(temp, localDateTime);
+        temp = temp.plusDays(days);
+        timestamp += days * (24L * 60 * 60 * 10_000_000);
+
+        long hours = ChronoUnit.HOURS.between(temp, localDateTime);
+        temp = temp.plusHours(hours);
+        timestamp += hours * (60L * 60 * 10_000_000);
+
+        long minutes = ChronoUnit.MINUTES.between(temp, localDateTime);
+        temp = temp.plusMinutes(minutes);
+        timestamp += minutes * (60L * 10_000_000);
+
+        long seconds = ChronoUnit.SECONDS.between(temp, localDateTime);
+        temp = temp.plusSeconds(seconds);
+        timestamp += seconds * 10_000_000;
+
+        long millis = ChronoUnit.MILLIS.between(temp, localDateTime);
+        temp = temp.plus(millis, ChronoUnit.MILLIS);
+        timestamp += millis * 10_000;
+
+        long micros = ChronoUnit.MICROS.between(temp, localDateTime);
+        temp = temp.plusNanos(micros * 1_000);
+        timestamp += micros * 10;
+
+        while (temp.isBefore(localDateTime)) {
+            temp = temp.plusNanos(100);
+            timestamp++;
+        }
+
+        return timestamp;
+    }
+
 
 }

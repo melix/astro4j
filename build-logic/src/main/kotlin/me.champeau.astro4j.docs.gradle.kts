@@ -16,6 +16,12 @@ tasks {
             from("src/docs/asciidoc/js") {
                 into("js")
             }
+            from("src/docs/asciidoc/shared") {
+                into("en")
+            }
+            from("src/docs/asciidoc/shared") {
+                into("fr")
+            }
         }
     }
 }

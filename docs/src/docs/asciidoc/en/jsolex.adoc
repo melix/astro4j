@@ -259,6 +259,58 @@ It's worth noting that if you check some images like "Doppler", some pixel shift
 
 If this isn't good enough for you, you can go even more advanced by enabling the "ImageMath" mode which is extremely powerful while relatively simple to grasp.
 
+[[trimming-ser-files]]
+== Trimming SER files
+
+It is not unsual to have SER files which contain a lot of empty frames at the beginning or at the end, because of how we usually capture videos: we start the capture, then we wait for the mount to stabilize, then we stop the capture.
+In addition, our cropping window may be a bit too large for what we actually want to study.
+
+As a consequence, SER files stored on disk are usually significantly larger than what they need to be.
+Since JSol'Ex 2.10, a new option is available at the end of the processing of a file.
+You can click on the "Trim SER file" button on the top right corner of the interface, which will open a new window:
+
+image::trimming-en.jpg[]
+
+This window is pre-filled with parameters which are deduced from the processed file.
+In particular, the start and end frames, as well as the mininum and maximum X values (width) are automatically determined from the detection of the solar disk in the video.
+A reasonable margin of 10% is added, which means that sometimes, the first and last frame may actually correspond to the full video if you actually have video where the sun appears quickly in the field of view.
+
+The "pixels up" and "pixels down" parameters correspond to how many pixels you want to keep in the target SER file.
+Again these are automatically determined from the correction of the "smile" (the curvature of the spectral line), but it may be particularly interesting to reduce, since it will have a large impact on the size of the file.
+However, reducing the number of pixels up/down will remove information from the video (you won't be able to compute images with larger pixel shifts), so always be careful not to reduce it too much.
+
+Once you're happy with the parameters, click on "Trim" and a new SER file will be created in the same directory as the original one, with the suffix `_trimmed`.
+
+It's worth noting that the trimmed video will also have the smile correction applied, which means that the spectral line will be centered in the video and that each line will be perfectly horizontal.
+This information is used by JSol'Ex in case you decide to process the trimmed video, so that you don't have to recompute the smile correction.
+
+[IMPORTANT]
+====
+It is important to understand that trimming is a destrutive operation: when you reduce the number of frames or the min x/max x values, then you are potentially truncating the solar disk or features like prominences.
+If you are selecting too low pixel up/down values, then you are reducing the bandwidth of observation, which means for example that you may not be able to generate a continuum image anymore.
+In both cases, the result of processing the trimmed video will be different from the original one.
+====
+
+Here's an example of a video:
+
+++++
+<video width="100%" controls autoplay loop>
+  <source src="orig.webm" type="video/webm">
+  Your browser does not support the video tag.
+</video>
+++++
+
+And the result after trimming:
+
+++++
+<video width="100%" controls autoplay loop>
+  <source src="trimmed.webm" type="video/webm">
+  Your browser does not support the video tag.
+</video>
+++++
+
+[[batch-mode]]
+
 [[imagemath]]
 == ImageMath : images generation scripts
 === Introduction to ImageMath

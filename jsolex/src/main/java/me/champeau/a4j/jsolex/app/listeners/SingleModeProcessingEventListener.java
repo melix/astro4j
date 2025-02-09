@@ -71,6 +71,7 @@ import me.champeau.a4j.jsolex.processing.event.ProcessingStartEvent;
 import me.champeau.a4j.jsolex.processing.event.ProgressEvent;
 import me.champeau.a4j.jsolex.processing.event.ReconstructionDoneEvent;
 import me.champeau.a4j.jsolex.processing.event.SuggestionEvent;
+import me.champeau.a4j.jsolex.processing.event.TrimmingParametersDeterminedEvent;
 import me.champeau.a4j.jsolex.processing.event.VideoMetadataEvent;
 import me.champeau.a4j.jsolex.processing.expr.DefaultImageScriptExecutor;
 import me.champeau.a4j.jsolex.processing.expr.ImageMathScriptExecutor;
@@ -935,6 +936,11 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
             return lineChart;
         };
         Platform.runLater(() -> profileTab.setContent(profileGraphFactory.get()));
+    }
+
+    @Override
+    public void onTrimmingParametersDetermined(TrimmingParametersDeterminedEvent e) {
+        owner.setTrimmingParameters(e.getPayload());
     }
 
     private void addDataPointToSeries(SpectrumAnalyzer.DataPoint dataPoint, XYChart.Series<String, Number> series) {

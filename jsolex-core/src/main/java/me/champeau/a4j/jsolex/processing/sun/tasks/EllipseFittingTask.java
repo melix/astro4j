@@ -322,6 +322,19 @@ public class EllipseFittingTask extends AbstractTask<EllipseFittingTask.Result> 
                     var y = sample.y();
                     plot((int) x, (int) y, image.width(), image.height(), overlay);
                 }
+                var boundingBox = result.ellipse.boundingBox();
+                var x1 = boundingBox.a();
+                var y1 = boundingBox.c();
+                var x2 = boundingBox.b();
+                var y2 = boundingBox.d();
+                for (int x = (int) x1; x < x2; x++) {
+                    plot(x, (int) y1, image.width(), image.height(), overlay);
+                    plot(x, (int) y2, image.width(), image.height(), overlay);
+                }
+                for (int y = (int) y1; y < y2; y++) {
+                    plot((int) x1, y, image.width(), image.height(), overlay);
+                    plot((int) x2, y, image.width(), image.height(), overlay);
+                }
                 return rgb;
             });
         }

@@ -34,6 +34,7 @@ import me.champeau.a4j.jsolex.processing.event.ProcessingDoneEvent;
 import me.champeau.a4j.jsolex.processing.event.ProcessingEventListener;
 import me.champeau.a4j.jsolex.processing.event.ProcessingStartEvent;
 import me.champeau.a4j.jsolex.processing.event.ScriptExecutionResultEvent;
+import me.champeau.a4j.jsolex.processing.event.TrimmingParametersDeterminedEvent;
 import me.champeau.a4j.jsolex.processing.event.VideoMetadataEvent;
 import me.champeau.a4j.jsolex.processing.expr.DefaultImageScriptExecutor;
 import me.champeau.a4j.jsolex.processing.expr.ImageMathScriptExecutor;
@@ -157,6 +158,11 @@ public class BatchModeEventListener implements ProcessingEventListener, ImageMat
     public void onPartialReconstruction(PartialReconstructionEvent event) {
         var payload = event.getPayload();
         item.reconstructionProgress().setValue(payload.line() / (double) payload.totalLines());
+    }
+
+    @Override
+    public void onTrimmingParametersDetermined(TrimmingParametersDeterminedEvent e) {
+        owner.setTrimmingParameters(e.getPayload());
     }
 
     @Override

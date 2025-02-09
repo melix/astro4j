@@ -20,6 +20,7 @@ import javafx.scene.control.Alert;
 public class AlertFactory {
     private static Alert newAlert(Alert.AlertType type, String message) {
         var alert = new Alert(type);
+        alert.setWidth(600);
         alert.setResizable(true);
         if (message != null) {
             alert.setContentText(message);

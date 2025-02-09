@@ -359,6 +359,7 @@ public class SpectralLineDebugger {
         var analyzer = new SpectrumFrameAnalyzer(
             width,
             height,
+            reader.header().isJSolexTrimmedSer(),
             sunThreshold
         );
         analyzer.analyze(buffer);
@@ -424,7 +425,7 @@ public class SpectralLineDebugger {
                     }
                 }
             });
-            detector.performDetection(frameId, width, height, buffer, polynomial);
+            detector.performDetection(frameId, width, height, buffer, polynomial, reader.header());
         }
         ImageUtils.writeRgbImage(rgb.width(), rgb.height(), rgb.r(), rgb.g(), rgb.b(), imageFile, EnumSet.of(ImageFormat.PNG));
         image = new Image(imageFile.toURI().toString());

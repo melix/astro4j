@@ -21,6 +21,7 @@ import me.champeau.a4j.jsolex.app.jfx.ApplyUserRotation;
 import me.champeau.a4j.jsolex.app.jfx.MultipleImagesViewer;
 import me.champeau.a4j.jsolex.processing.expr.ImageMathScriptExecutor;
 import me.champeau.a4j.jsolex.processing.params.ProcessParams;
+import me.champeau.a4j.jsolex.processing.sun.TrimmingParameters;
 
 public interface JSolExInterface {
     MultipleImagesViewer getImagesViewer();
@@ -52,4 +53,6 @@ public interface JSolExInterface {
     void applyUserRotation(ApplyUserRotation params);
 
     void showImages();
+
+    void setTrimmingParameters(TrimmingParameters payload);
 }

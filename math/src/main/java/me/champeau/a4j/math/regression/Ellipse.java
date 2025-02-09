@@ -17,6 +17,7 @@ package me.champeau.a4j.math.regression;
 
 import me.champeau.a4j.math.Point2D;
 import me.champeau.a4j.math.tuples.DoublePair;
+import me.champeau.a4j.math.tuples.DoubleQuadruplet;
 import me.champeau.a4j.math.tuples.DoubleSextuplet;
 
 import java.util.Optional;
@@ -281,6 +282,27 @@ public class Ellipse {
             b = temp;
         }
         return Math.sqrt(1 - (b * b) / (a * a));
+    }
+
+    public DoubleQuadruplet boundingBox() {
+        var center = center();
+        var x0 = center.a();
+        var y0 = center.b();
+        var sa = semiAxis();
+        var a = sa.a();
+        var b = sa.b();
+        var theta = rotationAngle();
+
+        var cosTheta = Math.cos(theta);
+        var sinTheta = Math.sin(theta);
+
+        var w = Math.sqrt(a * a * cosTheta * cosTheta + b * b * sinTheta * sinTheta);
+        var h = Math.sqrt(a * a * sinTheta * sinTheta + b * b * cosTheta * cosTheta);
+
+        return new DoubleQuadruplet(
+            x0 - w, x0 + w,
+            y0 - h, y0 + h
+        );
     }
 
     @Override
