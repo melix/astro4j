@@ -161,6 +161,7 @@ import java.util.stream.Collectors;
 import static java.nio.file.StandardWatchEventKinds.OVERFLOW;
 import static me.champeau.a4j.jsolex.app.jfx.FXUtils.newStage;
 import static me.champeau.a4j.jsolex.app.jfx.SerFileTrimmerController.toTrimmedFile;
+import static me.champeau.a4j.jsolex.processing.sun.CaptureSoftwareMetadataHelper.findMetadataFile;
 import static me.champeau.a4j.jsolex.processing.util.LoggingSupport.logError;
 
 public class JSolEx extends Application implements JSolExInterface {
@@ -1337,6 +1338,7 @@ public class JSolEx extends Application implements JSolExInterface {
                                     I18N.string(JSolEx.class, "ser-trimmer", "trimming")
                                 ))
                             );
+                            SerFileTrimmerController.maybeCopyMetadata(trimmingParameters.serFile());
                         }
                     });
                     if (Thread.currentThread().isInterrupted()) {
@@ -1512,7 +1514,7 @@ public class JSolEx extends Application implements JSolExInterface {
             var recentFiles = config.getRecentFiles();
             if (!recentFiles.isEmpty()) {
                 var toDelete = recentFiles.getFirst();
-                CaptureSoftwareMetadataHelper.findMetadataFile(toDelete).ifPresent(md -> {
+                findMetadataFile(toDelete).ifPresent(md -> {
                     try {
                         Files.deleteIfExists(md.toPath());
                     } catch (IOException e) {

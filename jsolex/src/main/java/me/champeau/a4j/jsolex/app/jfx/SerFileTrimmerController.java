@@ -27,14 +27,22 @@ import javafx.util.converter.IntegerStringConverter;
 import me.champeau.a4j.jsolex.app.JSolEx;
 import me.champeau.a4j.jsolex.processing.spectrum.SerFileTrimmer;
 import me.champeau.a4j.jsolex.processing.sun.TrimmingParameters;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.StandardCopyOption;
 import java.util.Locale;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 
+import static me.champeau.a4j.jsolex.processing.sun.CaptureSoftwareMetadataHelper.findMetadataFile;
+
 public class SerFileTrimmerController {
+    private static final Logger LOGGER = LoggerFactory.getLogger(SerFileTrimmerController.class);
+
     @FXML
     private TextField firstFrame;
 
@@ -90,6 +98,17 @@ public class SerFileTrimmerController {
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
+    }
+
+    public static void maybeCopyMetadata(File serFile) {
+        findMetadataFile(serFile.toPath()).ifPresent(metadataFile -> {
+            var outputMetadataFile = toTrimmedFile(metadataFile);
+            try {
+                Files.copy(metadataFile.toPath(), outputMetadataFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
+            } catch (IOException e) {
+                LOGGER.error("Cannot copy metadata file", e);
+            }
+        });
     }
 
     private void setup(Stage stage, TrimmingParameters payload, BiConsumer<Double, String> progressConsumer, Runnable onStart, Consumer<? super File> onFinish) {
@@ -254,6 +273,7 @@ public class SerFileTrimmerController {
                         I18N.string(JSolEx.class, "ser-trimmer", "trimming")
                     ))
                 );
+                maybeCopyMetadata(trimmingParameters.serFile());
             } finally {
                 Platform.runLater(() -> {
                         if (outputFile.exists()) {
@@ -270,8 +290,9 @@ public class SerFileTrimmerController {
 
     public static File toTrimmedFile(File serFile) {
         var baseName = serFile.getName().substring(0, serFile.getName().lastIndexOf('.'));
+        var ext = serFile.getName().substring(serFile.getName().lastIndexOf('.'));
         var parent = serFile.getParentFile();
-        var trimmedName = baseName + "-trimmed.ser";
+        var trimmedName = baseName + "-trimmed." + ext;
         return new File(parent, trimmedName);
     }
 }
