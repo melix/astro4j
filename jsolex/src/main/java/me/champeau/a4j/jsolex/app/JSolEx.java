@@ -175,6 +175,7 @@ public class JSolEx extends Application implements JSolExInterface {
     private static final String LOG_EXTENSION = ".log";
     private static final FileChooser.ExtensionFilter LOG_FILE_EXTENSION_FILTER = new FileChooser.ExtensionFilter("Log files (*" + LOG_EXTENSION + ")", "*" + LOG_EXTENSION);
     private static final FileChooser.ExtensionFilter SER_FILES_EXTENSION_FILTER = new FileChooser.ExtensionFilter("SER files", "*.ser", "*.SER");
+    private static final String DISCORD_INVITE = "https://discord.gg/y9NCGaWzve";
 
     public static final int EMBEDDED_SERVER_DEFAULT_PORT = 9122;
     public static final Set<String> IMAGE_FILE_EXTENSIONS = Set.of("png", "jpg", "jpeg", "tif", "tiff", "fits", "fit");
@@ -983,6 +984,11 @@ public class JSolEx extends Application implements JSolExInterface {
     @FXML
     private void showHelp() {
         DocsHelper.openHelp(getHostServices(), null);
+    }
+
+    @FXML
+    private void openDiscord() {
+        getHostServices().showDocument(DISCORD_INVITE);
     }
 
     private void doOpen(File selectedFile, boolean rememberProcessParams, ProcessParams forcedParams) {
