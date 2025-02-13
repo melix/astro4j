@@ -37,6 +37,8 @@ public class Configuration {
     private static final String LAST_DIRECTORY = "last.directory";
     private static final String CUSTOM_DIR = "custom.dir.";
     private static final String MEMORY_RESTRICTION = "memory.restriction.multiplier";
+    private static final String AUTO_START_SERVER = "auto.start.server";
+    private static final String AUTO_START_SERVER_PORT = "auto.start.server.port";
 
     private final Preferences prefs;
     private final List<Path> recentFiles;
@@ -123,6 +125,23 @@ public class Configuration {
         }
         return Optional.empty();
     }
+
+    public boolean isAutoStartServer() {
+        return prefs.getBoolean(AUTO_START_SERVER, false);
+    }
+
+    public void setAutoStartServer(boolean autoStart) {
+        prefs.putBoolean(AUTO_START_SERVER, autoStart);
+    }
+
+    public int getAutoStartServerPort() {
+        return prefs.getInt(AUTO_START_SERVER_PORT, JSolEx.EMBEDDED_SERVER_DEFAULT_PORT);
+    }
+
+    public void setAutoStartServerPort(int port) {
+        prefs.putInt(AUTO_START_SERVER_PORT, port);
+    }
+
 
     public IntPair getPreferredDimensions() {
         return new IntPair(

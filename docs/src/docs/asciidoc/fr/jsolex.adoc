@@ -834,6 +834,21 @@ Si l'identification fonctionne, votre image sera affichée en transparence, par 
 
 Vous pouvez masquer l'image en transparence en cliquant sur le bouton "Cacher".
 
+== Serveur Web embarqué
+
+Dans le menu "Outils", vous trouverez la possibilité de lancer un serveur web embarqué.
+Ce serveur permet de voir les images traitées par le logiciel depuis d'autres ordinateurs, en se connectant à ce serveur.
+
+Cette fonctionalité peut-être particulièrement pratique lors de projections publiques, en ayant un ordinateur utilisant JSol'Ex pour l'acquisition des images et un autre ordinateur sur le même réseau pour la projection sur un écran.
+
+image::embedded-server-1-fr.jpg[]
+
+Vous pouvez configurer le port sur lequel le serveur écoute et disposez de la possibilité de le lancer automatiquement au démarrage du logiciel.
+
+L'interface donne accès aux images en cours de traitement ainsi qu'à leur historique, au cas où vous traitez plusieurs images successivement.
+
+image::embedded-server-2-fr.jpg[]
+
 == Remerciements
 
 - Christian Buil pour avoir conçu le Sol'Ex et diriger la communauté d'une main de maître

@@ -49,6 +49,8 @@
                 <MenuItem onAction="#showFileNamePatternEditor" text="%filename.pattern.editor"/>
                 <MenuItem onAction="#showSpectralRayEditor" text="%spectralray.editor"/>
                 <MenuItem onAction="#showImageMathEditor" text="%imagemath.editor"/>
+                <SeparatorMenuItem/>
+                <MenuItem onAction="#showEmbeddedServerMenu" text="%embedded.server"/>
             </Menu>
             <Menu text="%equipment">
                 <MenuItem onAction="#showSHGEditor" text="%shg.editor"/>

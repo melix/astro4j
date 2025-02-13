@@ -16,6 +16,7 @@
 module me.champeau.a4j.jsolex {
     requires me.champeau.a4j.jserfile;
     requires me.champeau.a4j.jsolex.core;
+    requires me.champeau.a4j.jsolex.server;
     requires org.slf4j;
     requires java.desktop;
     requires ch.qos.logback.core;
@@ -31,6 +32,8 @@ module me.champeau.a4j.jsolex {
     requires reactfx;
     requires org.commonmark;
     requires org.fxmisc.flowless;
+    requires io.micronaut.context;
+    requires io.micronaut.inject;
     exports me.champeau.a4j.jsolex.app to javafx.graphics;
     exports me.champeau.a4j.jsolex.app.jfx.ime to javafx.fxml, javafx.graphics;
     opens me.champeau.a4j.jsolex.app.jfx.stacking to javafx.fxml, javafx.graphics;

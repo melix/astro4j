@@ -15,6 +15,7 @@
  */
 package me.champeau.a4j.jsolex.app;
 
+import io.micronaut.context.ApplicationContext;
 import javafx.animation.Animation;
 import javafx.animation.KeyFrame;
 import javafx.animation.PauseTransition;
@@ -73,6 +74,7 @@ import me.champeau.a4j.jsolex.app.jfx.AdvancedParamsController;
 import me.champeau.a4j.jsolex.app.jfx.ApplyUserRotation;
 import me.champeau.a4j.jsolex.app.jfx.BatchItem;
 import me.champeau.a4j.jsolex.app.jfx.DocsHelper;
+import me.champeau.a4j.jsolex.app.jfx.EmbeddedServerController;
 import me.champeau.a4j.jsolex.app.jfx.ExplorerSupport;
 import me.champeau.a4j.jsolex.app.jfx.ExposureCalculator;
 import me.champeau.a4j.jsolex.app.jfx.I18N;
@@ -92,6 +94,7 @@ import me.champeau.a4j.jsolex.app.jfx.ime.ImageMathTextArea;
 import me.champeau.a4j.jsolex.app.jfx.stacking.StackingAndMosaicController;
 import me.champeau.a4j.jsolex.app.listeners.BatchModeEventListener;
 import me.champeau.a4j.jsolex.app.listeners.BatchProcessingContext;
+import me.champeau.a4j.jsolex.app.listeners.DelegatingProcessingEventListener;
 import me.champeau.a4j.jsolex.app.listeners.JSolExInterface;
 import me.champeau.a4j.jsolex.app.listeners.RedshiftImagesProcessor;
 import me.champeau.a4j.jsolex.app.listeners.SingleModeProcessingEventListener;
@@ -108,6 +111,7 @@ import me.champeau.a4j.jsolex.processing.params.ProcessParams;
 import me.champeau.a4j.jsolex.processing.params.ProcessParamsIO;
 import me.champeau.a4j.jsolex.processing.params.RotationKind;
 import me.champeau.a4j.jsolex.processing.spectrum.SerFileTrimmer;
+import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
 import me.champeau.a4j.jsolex.processing.sun.CaptureSoftwareMetadataHelper;
 import me.champeau.a4j.jsolex.processing.sun.SolexVideoProcessor;
 import me.champeau.a4j.jsolex.processing.sun.TrimmingParameters;
@@ -120,6 +124,7 @@ import me.champeau.a4j.jsolex.processing.util.LoggingSupport;
 import me.champeau.a4j.jsolex.processing.util.MutableMap;
 import me.champeau.a4j.jsolex.processing.util.ProcessingException;
 import me.champeau.a4j.jsolex.processing.util.VersionUtil;
+import me.champeau.a4j.jsolex.server.JSolexServer;
 import me.champeau.a4j.math.VectorApiSupport;
 import me.champeau.a4j.ser.Header;
 import me.champeau.a4j.ser.ImageMetadata;
@@ -157,6 +162,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import static java.nio.file.StandardWatchEventKinds.OVERFLOW;
 import static me.champeau.a4j.jsolex.app.jfx.FXUtils.newStage;
@@ -170,6 +176,7 @@ public class JSolEx extends Application implements JSolExInterface {
     private static final FileChooser.ExtensionFilter LOG_FILE_EXTENSION_FILTER = new FileChooser.ExtensionFilter("Log files (*" + LOG_EXTENSION + ")", "*" + LOG_EXTENSION);
     private static final FileChooser.ExtensionFilter SER_FILES_EXTENSION_FILTER = new FileChooser.ExtensionFilter("SER files", "*.ser", "*.SER");
 
+    public static final int EMBEDDED_SERVER_DEFAULT_PORT = 9122;
     public static final Set<String> IMAGE_FILE_EXTENSIONS = Set.of("png", "jpg", "jpeg", "tif", "tiff", "fits", "fit");
     public static final FileChooser.ExtensionFilter IMAGE_FILES_EXTENSIONS = new FileChooser.ExtensionFilter("Image Files", IMAGE_FILE_EXTENSIONS.stream().map(ext -> "*." + ext).toList());
 
@@ -281,6 +288,7 @@ public class JSolEx extends Application implements JSolExInterface {
     private Button interruptClearParamsButton;
     private final BooleanBinding reusedProcessParamsBinding = Bindings.createBooleanBinding(() -> reusedProcessParams == null);
     private TrimmingParameters trimmingParameters;
+    private ApplicationContext applicationContext;
 
     @Override
     public MultipleImagesViewer getImagesViewer() {
@@ -351,6 +359,9 @@ public class JSolEx extends Application implements JSolExInterface {
             LOGGER.info("Vector API support is {} and {}", VectorApiSupport.isPresent() ? "available" : "missing",
                 VectorApiSupport.isEnabled() ? "enabled (disable by setting " + VectorApiSupport.VECTOR_API_ENV_VAR + " environment variable to false)" : "disabled");
             maybeShowWelcomeMessage(rootScene);
+            if (config.isAutoStartServer()) {
+                Thread.startVirtualThread(() -> applicationContext = JSolexServer.start(config.getAutoStartServerPort(), ProcessParamsIO.loadDefaults()));
+            }
         } catch (IOException exception) {
             throw new ProcessingException(exception);
         }
@@ -368,6 +379,24 @@ public class JSolEx extends Application implements JSolExInterface {
             mainPane.getTabs().add(new Tab("Fast mode", stack));
         } catch (IOException e) {
             throw new RuntimeException(e);
+        }
+    }
+
+    @FXML
+    private void showEmbeddedServerMenu() {
+        var stage = newStage();
+        var fxmlLoader = I18N.fxmlLoader(JSolEx.class, "embedded-server");
+        try {
+            var node = (Parent) fxmlLoader.load();
+            var controller = (EmbeddedServerController) fxmlLoader.getController();
+            controller.setup(stage, applicationContext, getHostServices(), config);
+            stage.setScene(new Scene(node));
+            stage.setTitle(I18N.string(JSolEx.class, "embedded-server", "frame.title"));
+            stage.initModality(Modality.APPLICATION_MODAL);
+            stage.showAndWait();
+            applicationContext = controller.getApplicationContext();
+        } catch (IOException e) {
+            throw new ProcessingException(e);
         }
     }
 
@@ -866,11 +895,11 @@ public class JSolEx extends Application implements JSolExInterface {
         scriptFile.ifPresent(script -> {
             var outputDirectory = script.getParentFile();
             var processingDate = LocalDateTime.now();
-            var listener = new SingleModeProcessingEventListener(this, "", null, outputDirectory.toPath(), params, processingDate, popupViewers);
+            var listener = delegatingListener(new SingleModeProcessingEventListener(this, "", null, outputDirectory.toPath(), params, processingDate, popupViewers));
             var namingStrategy = new FileNamingStrategy(params.extraParams().fileNamePattern(), params.extraParams().datetimeFormat(), params.extraParams().dateFormat(), processingDate, createFakeHeader(processingDate));
             var imageScriptExecutor = new JSolExScriptExecutor(img -> {
                 throw new ProcessingException("img() is not available in standalone image math scripts. Use load or load_many to load images");
-            }, MutableMap.of(), listener, null) {
+            }, MutableMap.of(), (Broadcaster) listener, null) {
                 @Override
                 public ImageMathScriptResult execute(String script, SectionKind kind) {
                     var result = super.execute(script, kind);
@@ -912,6 +941,17 @@ public class JSolEx extends Application implements JSolExInterface {
                 prepareForScriptExecution(imageScriptExecutor, params);
             }
         });
+    }
+
+    private ProcessingEventListener delegatingListener(SingleModeProcessingEventListener singleModeProcessingEventListener) {
+        if (applicationContext != null && applicationContext.isRunning()) {
+            List<ProcessingEventListener> listeners = Stream.concat(
+                Stream.of(singleModeProcessingEventListener),
+                applicationContext.getBeansOfType(ProcessingEventListener.class).stream()
+            ).toList();
+            return new DelegatingProcessingEventListener(listeners);
+        }
+        return singleModeProcessingEventListener;
     }
 
     public static Header createFakeHeader(LocalDateTime now) {
@@ -1447,7 +1487,7 @@ public class JSolEx extends Application implements JSolExInterface {
         }
         var serFile = (File) context;
         var outputDirectory = serFile.getParentFile().toPath();
-        return new SingleModeProcessingEventListener(this, baseName, serFile, outputDirectory, params, LocalDateTime.now(), popupViewers);
+        return delegatingListener(new SingleModeProcessingEventListener(this, baseName, serFile, outputDirectory, params, LocalDateTime.now(), popupViewers));
     }
 
     private ProcessParamsController createProcessParams(File serFile, SerFileReader serFileReader, boolean batchMode) {

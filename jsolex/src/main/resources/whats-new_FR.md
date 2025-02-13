@@ -3,6 +3,7 @@
 ## Nouveautés de la version 2.10.0
 
 - Ajout de la possibilité de [réduire les fichiers SER traités](#réduction-des-fichiers-ser)
+- Ajout d'un [serveur web embarqué](#serveur-web-embarqué)
 - Ajout de la taille du noyau de convolution pour les fonctions `SHARPEN` et `BLUR`
 - Correction d'un bug rare où la régression d'ellipse échouait malgré sa détection
 - Traitement des fichiers en séquence dans le mode batch, pour réduire la pression sur les machines moins puissantes
@@ -17,6 +18,19 @@ A la fin du traitement, le bouton "Réduire le fichier SER" sera activé, et pro
 Ces valeurs sont basées sur la détection du disque solaire dans les trames, avec une marge de 10%.
 De plus, le fichier SER réduit aura une correction du "sourire" appliquée, ce qui signifie que toutes les lignes seront parfaitement horizontales.
 Vous disposez de la possibilité de choisir combien de pixels vous souhaitez conserver autour de la ligne centrale.
+
+## Serveur Web embarqué
+
+JSol'Ex est parfois utilisé dans des événements publics, où il peut être intéressant de projeter le soleil en direct avec un vidéoprojecteur par exemple.
+Pour cela, JSol'Ex proposait déja une option permettant d'ouvrir les images dans une fenêtre séparée (en faisant un clic droit dessus), ce qui permettrait par exemple de déplacer cette fenêtre sur un écran externe.
+Cependant, la limitation est que votre ordinateur doit être connecté à un moniteur externe.
+
+Avec cette nouvelle version, une interface web simplifiée est disponible via le menu "Outils".
+Vous pouvez démarrer un serveur Web embarqué qui servira les images en cours de traitement.
+L'avantage est que vous pouvez partager l'URL du serveur avec des personnes du même réseau : chacune d'entre elles peut voir les images sur son propre appareil par exemple.
+Cela permet également d'utiliser un écran externe depuis un ordinateur distant.
+
+Le serveur Web écoute par défaut sur le port `9122` et peut être activé en allant dans le menu "Outils".
 
 ## Message aux utilisateurs français
 

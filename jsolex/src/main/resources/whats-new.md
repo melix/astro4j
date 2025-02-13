@@ -3,6 +3,7 @@
 ## What's New in Version 2.10.0
 
 - Added ability to [trim the processed SER files](#trimming-processed-ser-files)
+- Added an embedded [web server](#embedded-web-server)
 - Added convolution kernel size for `SHARPEN` and `BLUR` functions
 - Fixed rare bug where ellipse fitting would fail despite being detected
 - Process files sequentially in batch mode instead of concurrently to reduce pressure on lower end machines
@@ -17,6 +18,18 @@ At the end of processing, the "Trim SER file" button will be enabled, and will s
 These are based on the detection of the solar disk in the frames, with a 10% margin.
 In addition, the trimmed SER file will have "smile" correction applied, which means that all lines will be perfectly horizontal.
 You have the option to choose how many pixels you want to keep around the center line.
+
+## Embedded Web Server
+
+JSol'Ex is sometimes used in public settings, where it can be interesting to show the sun live.
+For this purpose, JSol'Ex offered an option to open images in a separate window (by right-clicking on it), which would make it possible, for example, to move that window on an external screen.
+However, the limitation is that your computer has to be wired to an external monitor.
+With this release, a new, simplified UI is available via the "Tools" menu.
+You can start an embedded web server which will serve images being processed.
+The advantage is that you can share the URL to the server to people on the same network: each of them can see the images on their own devices.
+This also makes it possible to use an external screen from a remote computer.
+
+The web server listens by default on port `9122`, and can be activated by going to the "Tools" menu.
 
 ## Message to US citizen and far right supporters
 
