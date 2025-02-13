@@ -1,0 +1,8 @@
+<ul class="navbar-nav nav-tabs" id="imagekinds" hx-swap="morph:innerHTML">
+    <li th:each="category : ${categories}" class="nav-item dropdown" th:id="|category_${category.id}|">
+        <a class="nav-link dropdown-toggle" data-bs-toggle="dropdown" href="#" role="button" aria-expanded="false" th:text="${category.label}"/>
+        <ul class="dropdown-menu">
+            <li th:each="image: ${category.images}"><a class="dropdown-item" href="#" th:text="${image.label}" th:attr="data-id=${image.id},data-src=${image.url},data-caption=${image.caption}"/></li>
+        </ul>
+    </li>
+</ul>

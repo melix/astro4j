@@ -18,10 +18,14 @@ package me.champeau.a4j.jsolex.app.jfx;
 import javafx.fxml.FXMLLoader;
 
 import java.util.Locale;
+import java.util.Map;
 import java.util.MissingResourceException;
 import java.util.ResourceBundle;
+import java.util.concurrent.ConcurrentHashMap;
 
 public class I18N {
+    private static final Map<String, ResourceBundle> CACHED_BUNDLES = new ConcurrentHashMap<>();
+
     private I18N() {
 
     }
@@ -37,7 +41,8 @@ public class I18N {
 
     public static String string(Class<?> clazz, String resourceName, String label) {
         try {
-            var bundle = ResourceBundle.getBundle(clazz.getPackageName() + "." + resourceName, Locale.getDefault());
+            var baseName = clazz.getPackageName() + "." + resourceName;
+            var bundle = CACHED_BUNDLES.computeIfAbsent(baseName, _ -> ResourceBundle.getBundle(baseName, Locale.getDefault()));
             return bundle.getString(label);
         } catch (MissingResourceException ex) {
             return "";

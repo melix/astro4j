@@ -827,6 +827,22 @@ If the identification works, your image will be displayed in transparency, overl
 
 You can hide the transparent image by clicking the "Hide" button.
 
+== Embedded Web Server
+
+In the "Tools" menu, you will find the option to start an embedded web server.
+This server allows you to view images processed by the software from other computers, by connecting to this server.
+
+This feature can be particularly useful during public presentations, with one computer using JSol'Ex for image acquisition and another computer on the same network for projection on a screen.
+
+image::embedded-server-1-en.jpg[]
+
+You can configure the port on which the server listens and have the option to start it automatically when the software starts.
+
+The web UI gives access to images being processed as well as their history, in case you process several images successively.
+
+image::embedded-server-2-en.jpg[]
+
+
 == Acknowledgements
 
 - Christian Buil for designing Sol'Ex and leading the community with great expertise

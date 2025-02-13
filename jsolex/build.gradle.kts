@@ -8,6 +8,8 @@ description = "A Sol'Ex spectroheliographic video file processor (JavaFX version
 
 dependencies {
     implementation(projects.jsolexCore)
+    implementation(projects.jsolexServer)
+    implementation(mn.micronaut.context)
     implementation(libs.gson)
     implementation(libs.richtextfx) {
         exclude(group = "org.openjfx")
@@ -20,8 +22,27 @@ jlink {
     mergedModule {
         additive = true
         uses("nom.tam.fits.compress.ICompressProvider")
+        uses("ch.qos.logback.classic.spi.Configurator")
+        excludeProvides(
+            mapOf(
+                "servicePattern" to "reactor.blockhound.integration.*"
+            )
+        )
+        excludeProvides(
+            mapOf(
+                "servicePattern" to "jakarta.servlet.*"
+            )
+        )
+        excludeProvides(
+            mapOf(
+                "servicePattern" to "io.micrometer.*"
+            )
+        )
     }
-    forceMerge("commons-compress")
+    forceMerge(
+        "commons-compress",
+        "logback-core", "logback-classic",
+    )
 }
 
 application {

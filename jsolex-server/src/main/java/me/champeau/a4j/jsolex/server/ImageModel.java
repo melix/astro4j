@@ -13,17 +13,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package me.champeau.a4j.jsolex.processing.event;
+package me.champeau.a4j.jsolex.server;
 
-import me.champeau.a4j.jsolex.processing.sun.workflow.GeneratedImageKind;
-import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
-
-import java.nio.file.Path;
-
-public record GeneratedImage(
-    GeneratedImageKind kind,
+public record ImageModel(
+    Long id,
+    String category,
     String title,
-    Path path,
-    ImageWrapper image
+    String path,
+    String caption
 ) {
 }

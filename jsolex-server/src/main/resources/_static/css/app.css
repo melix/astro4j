@@ -1,0 +1,99 @@
+.bd-sidebar {
+    padding: 5px;
+}
+
+.nav-item {
+    margin-bottom: 2px;
+}
+
+.nav-link {
+    padding: 5px 8px;
+    font-size: 0.9rem;
+}
+
+#image-display {
+    height: 100vh;
+    overflow: hidden;
+    position: relative;
+}
+
+#carousel {
+    height: 100%;
+}
+
+.carousel-inner {
+    height: 100%;
+}
+
+.carousel-item {
+    height: 100%;
+}
+
+.carousel-item img {
+    object-fit: contain;
+    height: 100%;
+    width: 100%;
+}
+
+.carousel-control-prev,
+.carousel-control-next {
+    background-color: rgba(255, 253, 253, 0.5);
+    border: none;
+    color: white;
+    padding: 10px;
+    transition: background-color 0.3s ease;
+}
+
+.carousel-control-prev-icon,
+.carousel-control-next-icon {
+    filter: invert(1);
+}
+
+.carousel-control-prev:hover,
+.carousel-control-next:hover {
+    background-color: rgba(133, 75, 75, 0.7);
+}
+
+.bd-navbar {
+    background-color: #222;
+    padding: 0.75rem 1rem;
+}
+
+.navbar-brand {
+    color: #f8f9fa;
+    font-weight: bold;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.navbar-brand img {
+    border-radius: 50%;
+}
+
+.nav-tabs {
+    border-bottom: none;
+}
+
+.nav-tabs .nav-item .nav-link {
+    color: #f8f9fa;
+    border: none;
+    padding: 0.5rem 1rem;
+}
+
+.nav-tabs .nav-item .nav-link.active,
+.nav-tabs .nav-item .nav-link:hover {
+    background-color: #444;
+    border-radius: 5px;
+}
+
+.navbar-text {
+    color: #f8f9fa;
+    font-size: 0.9rem;
+    margin-left: auto;
+}
+
+.navbar-brand span {
+    font-size: 0.9rem;
+    color: #f8f9fa;
+}

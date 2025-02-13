@@ -13,17 +13,26 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package me.champeau.a4j.jsolex.processing.event;
+package me.champeau.a4j.jsolex.server;
 
-import me.champeau.a4j.jsolex.processing.sun.workflow.GeneratedImageKind;
-import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
+import jakarta.inject.Singleton;
 
-import java.nio.file.Path;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
-public record GeneratedImage(
-    GeneratedImageKind kind,
-    String title,
-    Path path,
-    ImageWrapper image
-) {
+/**
+ * This bean is used to instantiate shared context between the JSol'Ex main application and the server.
+ */
+@Singleton
+public class SharedContext {
+    private final Map<Class<?>, Object> context = new ConcurrentHashMap<>();
+
+    public <T> T get(Class<T> type) {
+        return type.cast(context.get(type));
+    }
+
+    public <T> void set(Class<T> type, T value) {
+        context.put(type, value);
+    }
+
 }
