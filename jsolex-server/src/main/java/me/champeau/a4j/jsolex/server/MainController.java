@@ -63,9 +63,10 @@ public class MainController extends AbstractController {
     @Get("/views/menu")
     public ModelAndView<?> view() {
         var params = sharedContext.get(ProcessParams.class);
+        var observer = params.observationDetails().observer();
         return new ModelAndView<>("menu", Map.of(
             "version", VersionUtil.getFullVersion(),
-            "observer", String.format(localized("observer"), params.observationDetails().observer()))
+            "observer", observer == null ? "" : String.format(localized("observer"), observer))
         );
     }
 
