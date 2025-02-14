@@ -18,7 +18,7 @@
             // Add caption
             let caption = document.createElement("div");
             caption.className = "carousel-caption d-none d-md-block";
-            caption.innerHTML = "<p>" + captions[index] + "</p>";
+            caption.innerHTML = "<p class='text-white'>" + captions[index] + "</p>";
             item.appendChild(caption);
             carousel.querySelector(".carousel-inner").appendChild(item);
         });
