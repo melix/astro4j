@@ -33,7 +33,7 @@ import java.util.stream.Collectors;
 
 import static me.champeau.a4j.jsolex.processing.util.Constants.message;
 
-@ServerWebSocket("/ws")
+@ServerWebSocket("/ws/live")
 public class MainWebSocket extends AbstractController implements StoreListener {
     private static final Logger LOGGER = LoggerFactory.getLogger(MainWebSocket.class);
 
