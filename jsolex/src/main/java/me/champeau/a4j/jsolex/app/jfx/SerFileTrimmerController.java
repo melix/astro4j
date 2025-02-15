@@ -292,7 +292,7 @@ public class SerFileTrimmerController {
         var baseName = serFile.getName().substring(0, serFile.getName().lastIndexOf('.'));
         var ext = serFile.getName().substring(serFile.getName().lastIndexOf('.'));
         var parent = serFile.getParentFile();
-        var trimmedName = baseName + "-trimmed." + ext;
+        var trimmedName = baseName + "-trimmed" + ext;
         return new File(parent, trimmedName);
     }
 }
