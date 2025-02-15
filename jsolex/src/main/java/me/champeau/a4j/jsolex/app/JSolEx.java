@@ -15,7 +15,6 @@
  */
 package me.champeau.a4j.jsolex.app;
 
-import io.micronaut.context.ApplicationContext;
 import javafx.animation.Animation;
 import javafx.animation.KeyFrame;
 import javafx.animation.PauseTransition;
@@ -62,6 +61,9 @@ import javafx.scene.layout.GridPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
+import javafx.scene.paint.Color;
+import javafx.scene.shape.Circle;
+import javafx.scene.text.Text;
 import javafx.stage.DirectoryChooser;
 import javafx.stage.FileChooser;
 import javafx.stage.Modality;
@@ -124,7 +126,6 @@ import me.champeau.a4j.jsolex.processing.util.LoggingSupport;
 import me.champeau.a4j.jsolex.processing.util.MutableMap;
 import me.champeau.a4j.jsolex.processing.util.ProcessingException;
 import me.champeau.a4j.jsolex.processing.util.VersionUtil;
-import me.champeau.a4j.jsolex.server.JSolexServer;
 import me.champeau.a4j.math.VectorApiSupport;
 import me.champeau.a4j.ser.Header;
 import me.champeau.a4j.ser.ImageMetadata;
@@ -278,9 +279,13 @@ public class JSolEx extends Application implements JSolExInterface {
     @FXML
     private Button trimSerFileButton;
 
+    @FXML
+    private Button serverStatus;
+
     private final Map<String, ImageViewer> popupViewers = new ConcurrentHashMap<>();
 
     private final MultipleImagesViewer multipleImagesViewer = new MultipleImagesViewer();
+    private final JSolExServerHolder server = new JSolExServerHolder();
     private ProcessParams reusedProcessParams;
     private ProcessParams lastExecutionProcessParams;
     private Path watchedDirectory;
@@ -289,7 +294,6 @@ public class JSolEx extends Application implements JSolExInterface {
     private Button interruptClearParamsButton;
     private final BooleanBinding reusedProcessParamsBinding = Bindings.createBooleanBinding(() -> reusedProcessParams == null);
     private TrimmingParameters trimmingParameters;
-    private ApplicationContext applicationContext;
 
     @Override
     public MultipleImagesViewer getImagesViewer() {
@@ -361,11 +365,24 @@ public class JSolEx extends Application implements JSolExInterface {
                 VectorApiSupport.isEnabled() ? "enabled (disable by setting " + VectorApiSupport.VECTOR_API_ENV_VAR + " environment variable to false)" : "disabled");
             maybeShowWelcomeMessage(rootScene);
             if (config.isAutoStartServer()) {
-                Thread.startVirtualThread(() -> applicationContext = JSolexServer.start(config.getAutoStartServerPort(), ProcessParamsIO.loadDefaults()));
+                server.start(config.getAutoStartServerPort());
             }
+            updateServerStatus(false);
+            server.addStatusChangeListener(started -> updateServerStatus(started));
         } catch (IOException exception) {
             throw new ProcessingException(exception);
         }
+    }
+
+    private void updateServerStatus(boolean started) {
+        Platform.runLater(() -> {
+            var serverText = new Text(message("server") + "");
+            var statusCircle = new Circle(6, started ? Color.GREEN : Color.RED);
+            var statusBox = new HBox(serverText, statusCircle);
+            statusBox.setSpacing(4);
+            statusBox.setAlignment(Pos.CENTER_LEFT);
+            serverStatus.setGraphic(statusBox);
+        });
     }
 
     private void createFastModePane() {
@@ -390,12 +407,11 @@ public class JSolEx extends Application implements JSolExInterface {
         try {
             var node = (Parent) fxmlLoader.load();
             var controller = (EmbeddedServerController) fxmlLoader.getController();
-            controller.setup(stage, applicationContext, getHostServices(), config);
+            controller.setup(stage, server, getHostServices(), config);
             stage.setScene(new Scene(node));
             stage.setTitle(I18N.string(JSolEx.class, "embedded-server", "frame.title"));
             stage.initModality(Modality.APPLICATION_MODAL);
             stage.showAndWait();
-            applicationContext = controller.getApplicationContext();
         } catch (IOException e) {
             throw new ProcessingException(e);
         }
@@ -945,10 +961,10 @@ public class JSolEx extends Application implements JSolExInterface {
     }
 
     private ProcessingEventListener delegatingListener(SingleModeProcessingEventListener singleModeProcessingEventListener) {
-        if (applicationContext != null && applicationContext.isRunning()) {
+        if (server.isStarted()) {
             List<ProcessingEventListener> listeners = Stream.concat(
                 Stream.of(singleModeProcessingEventListener),
-                applicationContext.getBeansOfType(ProcessingEventListener.class).stream()
+                server.getListeners().stream()
             ).toList();
             return new DelegatingProcessingEventListener(listeners);
         }

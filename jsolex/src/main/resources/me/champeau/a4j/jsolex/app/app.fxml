@@ -86,6 +86,7 @@
                             <Tooltip text="%trim.ser.file.tooltip"/>
                         </tooltip>
                     </Button>
+                    <Button fx:id="serverStatus" onMouseClicked="#showEmbeddedServerMenu" alignment="BASELINE_CENTER"/>
                 </HBox>
                 <SplitPane dividerPositions="0.5" orientation="VERTICAL">
                     <items>

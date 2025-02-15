@@ -15,9 +15,8 @@
  */
 package me.champeau.a4j.jsolex.app.jfx;
 
-import io.micronaut.context.ApplicationContext;
-import io.micronaut.runtime.server.EmbeddedServer;
 import javafx.application.HostServices;
+import javafx.application.Platform;
 import javafx.fxml.FXML;
 import javafx.scene.control.Button;
 import javafx.scene.control.CheckBox;
@@ -30,11 +29,14 @@ import javafx.stage.Stage;
 import javafx.util.converter.IntegerStringConverter;
 import me.champeau.a4j.jsolex.app.Configuration;
 import me.champeau.a4j.jsolex.app.JSolEx;
-import me.champeau.a4j.jsolex.processing.params.ProcessParamsIO;
-import me.champeau.a4j.jsolex.server.JSolexServer;
+import me.champeau.a4j.jsolex.app.JSolExServerHolder;
+
+import java.net.URI;
+import java.util.function.Consumer;
 
 public class EmbeddedServerController {
 
+    private Consumer<? super Boolean> listener;
     @FXML
     private VBox serverUrls;
 
@@ -48,13 +50,13 @@ public class EmbeddedServerController {
     private CheckBox startOnLaunch;
 
     private Stage stage;
-    private ApplicationContext context;
+    private JSolExServerHolder server;
     private HostServices hostServices;
     private Configuration configuration;
 
-    public void setup(Stage stage, ApplicationContext context, HostServices hostServices, Configuration configuration) {
+    public void setup(Stage stage, JSolExServerHolder server, HostServices hostServices, Configuration configuration) {
         this.stage = stage;
-        this.context = context;
+        this.server = server;
         this.hostServices = hostServices;
         this.configuration = configuration;
         serverPort.setTextFormatter(new TextFormatter<>(new IntegerStringConverter() {
@@ -67,12 +69,17 @@ public class EmbeddedServerController {
                 return value;
             }
         }));
-        if (context != null) {
-            serverPort.setText(String.valueOf(context.getBean(EmbeddedServer.class).getPort()));
+        if (server.isStarted()) {
+            serverPort.setText(String.valueOf(server.getPort()));
         } else {
             serverPort.setText(String.valueOf(configuration.getAutoStartServerPort()));
         }
         startOnLaunch.setSelected(configuration.isAutoStartServer());
+        listener = started -> Platform.runLater(() ->{
+            startStopButton.setDisable(false);
+            updateStartStopLabel();
+        });
+        server.addStatusChangeListener(listener);
         updateStartStopLabel();
     }
 
@@ -86,15 +93,13 @@ public class EmbeddedServerController {
         } else {
             serverPort.setDisable(true);
             startStopButton.setText(I18N.string(JSolEx.class, "embedded-server", "stop"));
-            var contextURI = context.getBean(EmbeddedServer.class).getContextURI();
-            var server = context.getBean(EmbeddedServer.class);
-            var urls = JSolexServer.getServerUrls(server);
+            var urls = server.getServerUrls();
             serverUrls.getChildren().clear();
             for (var url : urls) {
                 addServerUrl(url);
             }
             if (serverUrls.getChildren().isEmpty()) {
-                addServerUrl(contextURI.toString());
+                addServerUrl(server.getContextUri().map(URI::toString).orElse(""));
             }
         }
     }
@@ -106,16 +111,16 @@ public class EmbeddedServerController {
     }
 
     private boolean isStopped() {
-        return context == null || !context.isRunning();
+        return !server.isStarted();
     }
 
     @FXML
     public void startOrStop() {
+        startStopButton.setDisable(true);
         if (isStopped()) {
-            context = JSolexServer.start(Integer.parseInt(serverPort.getText()), ProcessParamsIO.loadDefaults());
+            server.start(Integer.parseInt(serverPort.getText()));
         } else {
-            context.stop();
-            context = null;
+            server.stop();
         }
         updateStartStopLabel();
     }
@@ -125,9 +130,7 @@ public class EmbeddedServerController {
         configuration.setAutoStartServer(startOnLaunch.isSelected());
         configuration.setAutoStartServerPort(Integer.parseInt(serverPort.getText()));
         stage.close();
+        server.removeStatusChangeListener(listener);
     }
 
-    public ApplicationContext getApplicationContext() {
-        return context;
-    }
 }
