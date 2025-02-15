@@ -14,7 +14,7 @@
             let item = document.createElement("div");
             let active = index === last;
             item.className = "carousel-item" + (active ? " active" : "");
-            item.innerHTML = `<img src="${url}" class="d-block w-100">`;
+            item.innerHTML = `<img src="${url}" class="d-block w-100" onclick="imageClicked(this)">`;
             // Add caption
             let caption = document.createElement("div");
             caption.className = "carousel-caption d-none d-md-block";
@@ -45,3 +45,7 @@
         });
     });
 })();
+
+function imageClicked(img) {
+    window.open(img.src, "_blank");
+}
