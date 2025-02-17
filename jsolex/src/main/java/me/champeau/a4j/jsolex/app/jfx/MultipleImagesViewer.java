@@ -37,6 +37,7 @@ import me.champeau.a4j.jsolex.processing.sun.workflow.DisplayCategory;
 import me.champeau.a4j.jsolex.processing.sun.workflow.GeneratedImageKind;
 import me.champeau.a4j.jsolex.processing.sun.workflow.PixelShift;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
+import me.champeau.a4j.jsolex.processing.util.TemporaryFolder;
 
 import java.io.File;
 import java.io.IOException;
@@ -123,16 +124,16 @@ public class MultipleImagesViewer extends Pane {
     }
 
     public <T extends WithRootNode> T addImage(ProcessingEventListener listener,
-                                String title,
-                                String baseName,
-                                GeneratedImageKind kind,
-                                ImageWrapper imageWrapper,
-                                File file,
-                                ProcessParams params,
-                                Map<String, ImageViewer> popupViews,
-                                PixelShift pixelShift,
-                                Function<? super ImageViewer, T> transformer,
-                                Consumer<? super ImageViewer> onShow) {
+                                               String title,
+                                               String baseName,
+                                               GeneratedImageKind kind,
+                                               ImageWrapper imageWrapper,
+                                               File file,
+                                               ProcessParams params,
+                                               Map<String, ImageViewer> popupViews,
+                                               PixelShift pixelShift,
+                                               Function<? super ImageViewer, T> transformer,
+                                               Consumer<? super ImageViewer> onShow) {
         var category = getOrCreateCategory(kind);
         var viewer = newImageViewer();
         var transformed = transformer.apply(viewer);
@@ -220,9 +221,7 @@ public class MultipleImagesViewer extends Pane {
             // for example because of re-running a script which writes the file in the same location,
             // file writing will fail because the media player has locked the file
             try {
-                var tempDir = Path.of(System.getProperty("java.io.tmpdir")).resolve("jsolex");
-                Files.createDirectories(tempDir);
-                var tempFile = Files.createTempFile(tempDir, "jsolex", ".mp4");
+                var tempFile = TemporaryFolder.newTempFile("jsolex", ".mp4");
                 Files.copy(filePath, tempFile, java.nio.file.StandardCopyOption.REPLACE_EXISTING);
                 return new Media(tempFile.toUri().toString());
             } catch (IOException e) {
@@ -271,7 +270,7 @@ public class MultipleImagesViewer extends Pane {
     }
 
     private CategoryPane addCategory(DisplayCategory category) {
-        var categoryPane = new CategoryPane(message("displayCategory." + category.name()), e ->{
+        var categoryPane = new CategoryPane(message("displayCategory." + category.name()), e -> {
             categories.remove(e);
             safeCategories.remove(e);
         });

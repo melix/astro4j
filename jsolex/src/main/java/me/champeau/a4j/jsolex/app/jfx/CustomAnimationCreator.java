@@ -31,10 +31,10 @@ import me.champeau.a4j.jsolex.app.listeners.RedshiftImagesProcessor;
 import me.champeau.a4j.jsolex.processing.params.ProcessParams;
 import me.champeau.a4j.jsolex.processing.sun.workflow.PixelShiftRange;
 import me.champeau.a4j.jsolex.processing.util.BackgroundOperations;
+import me.champeau.a4j.jsolex.processing.util.TemporaryFolder;
 
 import java.io.IOException;
 import java.nio.file.Files;
-import java.nio.file.Path;
 
 import static me.champeau.a4j.jsolex.app.JSolEx.message;
 
@@ -215,7 +215,7 @@ public class CustomAnimationCreator {
     private void generate() {
         double imageCount = Double.parseDouble(maxShift.getText())-Double.parseDouble(minShift.getText());
         try {
-            if (Files.getFileStore(Path.of(System.getProperty("java.io.tmpdir"))).getUsableSpace() < redshiftProcessor.estimateRequiredBytesForProcessing(imageCount)) {
+            if (Files.getFileStore(TemporaryFolder.tempDir()).getUsableSpace() < redshiftProcessor.estimateRequiredBytesForProcessing(imageCount)) {
                 var alert = AlertFactory.error(message("disk.space.error"));
                 alert.showAndWait();
                 return;

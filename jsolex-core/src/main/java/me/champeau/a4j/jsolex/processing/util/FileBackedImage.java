@@ -69,10 +69,7 @@ public final class FileBackedImage implements ImageWrapper {
         var width = wrapper.width();
         var height = wrapper.height();
         try {
-            var tempDir = Path.of(System.getProperty("java.io.tmpdir")).resolve("jsolex");
-            Files.createDirectories(tempDir);
-            var backingFile = Files.createTempFile(tempDir, "jsolex", ".img");
-            backingFile.toFile().deleteOnExit();
+            var backingFile = TemporaryFolder.newTempFile("jsolex", ".img");
             try (var raf = new RandomAccessFile(backingFile.toFile(), "rw")) {
                 var channel = raf.getChannel();
                 if (wrapper instanceof ImageWrapper32 mono) {

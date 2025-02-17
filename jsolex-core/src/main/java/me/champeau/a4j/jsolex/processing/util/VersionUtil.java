@@ -73,7 +73,7 @@ public class VersionUtil {
         if (System.getProperty("tmp.home") != null) {
             try {
                 if (TEMPORARY_HOME == null) {
-                    TEMPORARY_HOME = Files.createTempDirectory("jsolex");
+                    TEMPORARY_HOME = TemporaryFolder.newTempDir("jsolex");
                 }
                 path = TEMPORARY_HOME;
             } catch (IOException e) {

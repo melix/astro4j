@@ -22,6 +22,7 @@ import me.champeau.a4j.jsolex.processing.util.FileBackedImage;
 import me.champeau.a4j.jsolex.processing.util.ImageFormat;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 import me.champeau.a4j.jsolex.processing.util.RGBImage;
+import me.champeau.a4j.jsolex.processing.util.TemporaryFolder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -50,7 +51,7 @@ public class FfmegEncoder {
                               int msBetweenFrames) throws IOException {
         // first step is to export each image in a temporary directory
         // and each frame must be named with a sequence number, eg. frame-0001.png
-        var tempDir = Files.createTempDirectory("jsolex-ffmpeg-");
+        var tempDir = TemporaryFolder.newTempDir("jsolex-ffmpeg-");
         List<File> frames = null;
         try {
             broadcaster.broadcast(ProgressEvent.of(0, "Exporting frames"));

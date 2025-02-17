@@ -25,8 +25,8 @@ import me.champeau.a4j.jsolex.processing.sun.workflow.GeneratedImageKind;
 import me.champeau.a4j.jsolex.processing.sun.workflow.SourceInfo;
 import me.champeau.a4j.jsolex.processing.util.ImageFormat;
 import me.champeau.a4j.jsolex.processing.util.ImageSaver;
+import me.champeau.a4j.jsolex.processing.util.TemporaryFolder;
 
-import java.nio.file.Path;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.Collections;
@@ -62,7 +62,7 @@ public class ImagesStore implements ProcessingEventListener {
     @Override
     public void onImageGenerated(ImageGeneratedEvent event) {
         var payload = event.getPayload();
-        var tempDir = Path.of(System.getProperty("java.io.tmpdir")).resolve("jsolex/server-images");
+        var tempDir = TemporaryFolder.tempDir().resolve("server-images");
         var id = currentId.incrementAndGet();
         var name = id + "_" + payload.path().toFile().getName() + ".jpg";
         var saved = tempDir.resolve(name).toFile();

@@ -23,6 +23,7 @@ import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 import me.champeau.a4j.jsolex.processing.util.ProcessingException;
 import me.champeau.a4j.jsolex.processing.util.RGBImage;
+import me.champeau.a4j.jsolex.processing.util.TemporaryFolder;
 import me.champeau.a4j.ser.EightBitConversionSupport;
 import org.jcodec.api.SequenceEncoder;
 import org.jcodec.common.io.NIOUtils;
@@ -33,7 +34,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
-import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.Map;
@@ -66,7 +66,7 @@ public class Animate extends AbstractFunctionImpl {
         }
         var delay = arguments.size() == 1 ? DEFAULT_DELAY : doubleArg(arguments, 1);
         try {
-            var tempFile = Files.createTempFile("video_jsolex", ".mp4");
+            var tempFile = TemporaryFolder.newTempFile("video_jsolex", ".mp4");
             var frames = (List) arguments.get(0);
             if (FfmegEncoder.isAvailable()) {
                 if (encodeWithFfmpeg(broadcaster, frames, tempFile, (int) delay)) {
