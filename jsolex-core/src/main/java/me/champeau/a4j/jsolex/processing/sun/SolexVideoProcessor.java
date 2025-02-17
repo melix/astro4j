@@ -79,6 +79,7 @@ import me.champeau.a4j.jsolex.processing.util.RGBImage;
 import me.champeau.a4j.jsolex.processing.util.SolarParameters;
 import me.champeau.a4j.jsolex.processing.util.SolarParametersUtils;
 import me.champeau.a4j.jsolex.processing.util.SpectralLineFrameImageCreator;
+import me.champeau.a4j.jsolex.processing.util.TemporaryFolder;
 import me.champeau.a4j.math.Point2D;
 import me.champeau.a4j.math.image.Image;
 import me.champeau.a4j.math.image.ImageMath;
@@ -711,7 +712,7 @@ public class SolexVideoProcessor implements Broadcaster {
         }
         LOGGER.info(message("processing.disk.requirements"), String.format("%.2f", requiredDiskSpace), unit);
         try {
-            var path = Path.of(System.getProperty("java.io.tmpdir"));
+            var path = TemporaryFolder.tempDir();
             var freespace = Files.getFileStore(path)
                 .getUsableSpace();
             if (freespace < requiredDiskSpace) {

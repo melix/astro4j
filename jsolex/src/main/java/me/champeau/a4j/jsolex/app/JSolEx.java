@@ -125,6 +125,7 @@ import me.champeau.a4j.jsolex.processing.util.FilesUtils;
 import me.champeau.a4j.jsolex.processing.util.LoggingSupport;
 import me.champeau.a4j.jsolex.processing.util.MutableMap;
 import me.champeau.a4j.jsolex.processing.util.ProcessingException;
+import me.champeau.a4j.jsolex.processing.util.TemporaryFolder;
 import me.champeau.a4j.jsolex.processing.util.VersionUtil;
 import me.champeau.a4j.math.VectorApiSupport;
 import me.champeau.a4j.ser.Header;
@@ -1110,7 +1111,7 @@ public class JSolEx extends Application implements JSolExInterface {
                 var useFullRangePanels = fullRangePanels.isSelected();
                 var annotate = annotateAnimations.isSelected();
                 try {
-                    if (Files.getFileStore(Path.of(System.getProperty("java.io.tmpdir"))).getUsableSpace() < processor.estimateRequiredBytesForProcessingWithMargin(margin)) {
+                    if (Files.getFileStore(TemporaryFolder.tempDir()).getUsableSpace() < processor.estimateRequiredBytesForProcessingWithMargin(margin)) {
                         var alert = AlertFactory.confirmation(message("disk.space.error.confirm"));
                         var result = alert.showAndWait();
                         if (result.isPresent() && result.get() == ButtonType.CANCEL) {

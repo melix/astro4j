@@ -1,5 +1,9 @@
 # Welcome to JSol'Ex {{version}}!
 
+## What's New in Version 2.10.1
+
+- Improved handling of temporary files to avoid them accumulating
+
 ## What's New in Version 2.10.0
 
 - Added ability to [trim the processed SER files](#trimming-processed-ser-files)

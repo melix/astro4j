@@ -60,6 +60,7 @@ import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 import me.champeau.a4j.jsolex.processing.util.MutableMap;
 import me.champeau.a4j.jsolex.processing.util.ProcessingException;
 import me.champeau.a4j.jsolex.processing.util.SpectralLineFrameImageCreator;
+import me.champeau.a4j.jsolex.processing.util.TemporaryFolder;
 import me.champeau.a4j.math.Point2D;
 import me.champeau.a4j.math.regression.LinearRegression;
 import me.champeau.a4j.math.tuples.DoublePair;
@@ -70,7 +71,6 @@ import me.champeau.a4j.ser.bayer.ImageConverter;
 
 import java.io.File;
 import java.io.IOException;
-import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.EnumSet;
 import java.util.List;
@@ -227,9 +227,8 @@ public class SpectralLineDebugger {
             reader = SerFileReader.of(file);
             detector.computeAverageImage(reader);
             averageImage = detector.getAverageImage();
-            var tmpPath = Files.createTempFile("debug_", ".png");
+            var tmpPath = TemporaryFolder.newTempFile("debug_", ".png");
             File imageFile = tmpPath.toFile();
-            imageFile.deleteOnExit();
             Platform.runLater(() -> {
                 status.setDisable(false);
                 progressBox.setVisible(false);

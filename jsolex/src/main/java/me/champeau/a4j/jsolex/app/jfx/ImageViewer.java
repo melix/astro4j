@@ -61,11 +61,11 @@ import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 import me.champeau.a4j.jsolex.processing.util.ProcessingException;
 import me.champeau.a4j.jsolex.processing.util.RGBImage;
 import me.champeau.a4j.jsolex.processing.util.SolarParametersUtils;
+import me.champeau.a4j.jsolex.processing.util.TemporaryFolder;
 import me.champeau.a4j.math.regression.Ellipse;
 
 import java.io.File;
 import java.io.IOException;
-import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.EnumSet;
 import java.util.List;
@@ -486,7 +486,7 @@ public class ImageViewer implements WithRootNode {
     private File createTmpFile() {
         File tmpImage;
         try {
-            tmpImage = Files.createTempFile(imageFile.getName(), "jsolex.png").toFile();
+            tmpImage = TemporaryFolder.newTempFile(imageFile.getName(), "jsolex.png").toFile();
         } catch (IOException e) {
             throw new ProcessingException(e);
         }

@@ -1,5 +1,9 @@
 # Bienvenue dans JSol'Ex {{version}} !
 
+## Nouveautés de la version 2.10.1
+
+- Amélioration de la gestion des fichiers temporaires pour éviter qu'ils ne s'accumulent
+
 ## Nouveautés de la version 2.10.0
 
 - Ajout de la possibilité de [réduire les fichiers SER traités](#réduction-des-fichiers-ser)

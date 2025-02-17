@@ -40,6 +40,7 @@ import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 import me.champeau.a4j.jsolex.processing.util.MutableMap;
 import me.champeau.a4j.jsolex.processing.util.ProcessingException;
 import me.champeau.a4j.jsolex.processing.util.RGBImage;
+import me.champeau.a4j.jsolex.processing.util.TemporaryFolder;
 
 import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;
@@ -228,7 +229,7 @@ public class SpectralRayEditor {
         var b = colorImage.b();
         Path tmpFile;
         try {
-            tmpFile = Files.createTempFile("img", ".png");
+            tmpFile = TemporaryFolder.newTempFile("img", ".png");
             ImageUtils.writeRgbImage(colorImage.width(), colorImage.height(), r, g, b, tmpFile.toFile(), EnumSet.of(ImageFormat.PNG));
             sunPreview.setImage(new Image(tmpFile.toFile().toURI().toString()));
             Files.delete(tmpFile);
