@@ -357,6 +357,7 @@ Base functions:
 
 - `img` requests an image at a particular pixel shift. For example, `img(0)` is the image centered on the detected spectral ray, while `img(-10)` is a continuum image, shifted 10 pixels up.
 - `list` builds a list from its arguments. e.g `list(img(-3), img(3))`
+- `concat` concatenates lists. e.g `concat(list(img(-3), img(3)), list(img(-5), img(5)))`
 - `get_at` retrieves an image from the list. For example, `get_at(list(img(-3), img(3)), 1)` will return the image at index 1, which is `img(3)`. In case the argument is a list of list of images, then it will return a list which consists of the images at the specified index.
 - `avg` computes the average of different images. For example: `avg(img(-1), img(0), img(1))` computes the average of images at pixel shifts -1, 0 and +1. It is also possible to use the simpler `avg(range(-1,1))` expression
 - `max` computes the maximum of multiple images, for example `max(img(-3), img(3))`. Maximum is per pixel.

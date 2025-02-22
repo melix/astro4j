@@ -5,7 +5,8 @@
 - Amélioration de la gestion des fichiers temporaires pour éviter qu'ils ne s'accumulent
 - Correction de la fonction `continuum` qui pouvait échouer dans certains cas rares
 - Support des opérations binaires sur des listes de même taille : par exemple `min(list1, list2)` applique `min` sur chaque élément des listes
-- 
+- Ajout de la fonction `concat` pour concaténer des listes
+
 ## Nouveautés de la version 2.10.0
 
 - Ajout de la possibilité de [réduire les fichiers SER traités](#réduction-des-fichiers-ser)

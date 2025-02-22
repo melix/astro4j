@@ -32,6 +32,7 @@ public enum BuiltinFunction {
     CHOOSE_FILE,
     CHOOSE_FILES,
     COLORIZE,
+    CONCAT,
     CONTINUUM,
     CROP,
     CROP_RECT,
