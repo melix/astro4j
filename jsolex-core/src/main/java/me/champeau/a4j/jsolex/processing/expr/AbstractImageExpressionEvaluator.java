@@ -225,6 +225,7 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
             case CHOOSE_FILE -> loader.chooseFile(arguments);
             case CHOOSE_FILES -> loader.chooseFiles(arguments);
             case COLORIZE -> colorize.colorize(arguments);
+            case CONCAT -> utilities.concat(arguments);
             case CONTINUUM -> createContinuumImage();
             case CROP -> crop.crop(arguments);
             case CROP_RECT -> crop.cropToRect(arguments);

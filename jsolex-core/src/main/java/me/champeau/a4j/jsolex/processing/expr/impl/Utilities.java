@@ -149,4 +149,19 @@ public class Utilities extends AbstractFunctionImpl {
         var index = intArg(arguments, 1);
         return list.get(index);
     }
+
+    /**
+     * Concatenates a list of lists into a single list
+     * @param arguments the list of lists to concatenate
+     * @return a single list
+     */
+    public Object concat(List<Object> arguments) {
+        if (arguments.stream().allMatch(i -> i instanceof List<?>)) {
+            return arguments.stream()
+                .map(List.class::cast)
+                .flatMap(List::stream)
+                .toList();
+        }
+        return arguments;
+    }
 }
