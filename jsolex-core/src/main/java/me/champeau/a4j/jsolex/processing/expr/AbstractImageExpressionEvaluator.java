@@ -319,12 +319,18 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
                 })
                 .toList();
             // compute average of the averages
-            var average = list.stream().mapToDouble(ImageWithAverage::average).average().orElse(0);
+            var average = list.stream()
+                .filter(img -> Double.isFinite(img.average()))
+                .mapToDouble(ImageWithAverage::average).average().orElse(0);
             // keep only the images which are above the average
             samples = list.stream()
+                .filter(img -> Double.isFinite(img.average()))
                 .filter(img -> img.average() > average)
                 .map(ImageWithAverage::image)
                 .toList();
+            if (samples.isEmpty()) {
+                samples = list.stream().map(ImageWithAverage::image).toList();
+            }
         }
         return (ImageWrapper32) functionCall(BuiltinFunction.MEDIAN, List.of(samples));
     }
