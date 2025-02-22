@@ -54,6 +54,21 @@ public class SimpleFunctionCall extends AbstractFunctionImpl {
                 return applyFunction(name, (List<Object>) list, operator);
             }
         }
+        if (arguments.stream().allMatch(i -> i instanceof List<?>)) {
+            // make sure that all lists have the same size
+            if (arguments.stream().map(List.class::cast).map(List::size).distinct().count() == 1) {
+                List<Object> result = new ArrayList<>();
+                var size = ((List<?>) arguments.getFirst()).size();
+                for (int i = 0; i < size; i++) {
+                    List<Object> args = new ArrayList<>();
+                    for (Object argument : arguments) {
+                        args.add(((List<?>) argument).get(i));
+                    }
+                    result.add(applyFunction(name, args, operator));
+                }
+                return result;
+            }
+        }
         if (arguments.isEmpty()) {
             throw new IllegalArgumentException("'" + name + "' must have at least one argument");
         }
