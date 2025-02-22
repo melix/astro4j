@@ -4,6 +4,7 @@
 
 - Improved handling of temporary files to avoid them accumulating
 - Fixed `continuum` function which could fail in some rare cases
+- Support binary operation on lists of same size: for example min(list1, list2) applies `min` on each element of the lists
 
 ## What's New in Version 2.10.0
 
