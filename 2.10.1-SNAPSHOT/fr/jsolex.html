@@ -1133,6 +1133,9 @@ Le script apparaît désormais dans la liste de gauche, il sera appliqué lors d
 <p><code>list</code> crée une liste à partir des arguments. Par exemple <code>list(img(-3), img(3))</code></p>
 </li>
 <li>
+<p><code>concat</code> joint des listes d&#8217;images en une seule liste. Par exemple, <code>concat(list(img(-3), img(3)), list(img(-5), img(5)))</code> renverra une liste d&#8217;images contenant les images à -3, 3, -5 et 5 pixels.</p>
+</li>
+<li>
 <p><code>get_at</code> récupère une image de la liste. Par exemple, <code>get_at(list(img(-3), img(3)), 1)</code> renverra l&#8217;image à l&#8217;index 1, qui est <code>img(3)</code>. Si l&#8217;argument est une liste de listes d&#8217;images, alors il renverra une liste qui contient les images à l&#8217;index spécifié.</p>
 </li>
 <li>
