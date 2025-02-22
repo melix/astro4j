@@ -3,6 +3,7 @@
 ## Nouveautés de la version 2.10.1
 
 - Amélioration de la gestion des fichiers temporaires pour éviter qu'ils ne s'accumulent
+- Correction de la fonction `continuum` qui pouvait échouer dans certains cas rares
 
 ## Nouveautés de la version 2.10.0
 

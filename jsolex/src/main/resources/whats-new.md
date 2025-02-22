@@ -3,6 +3,7 @@
 ## What's New in Version 2.10.1
 
 - Improved handling of temporary files to avoid them accumulating
+- Fixed `continuum` function which could fail in some rare cases
 
 ## What's New in Version 2.10.0
 
