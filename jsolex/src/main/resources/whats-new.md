@@ -6,6 +6,7 @@
 - Fixed `continuum` function which could fail in some rare cases
 - Support binary operation on lists of same size: for example min(list1, list2) applies `min` on each element of the lists
 - Added `concat` function to concatenate lists
+- Save `CENTER_X`, `CENTER_Y` and `SOLAR_R` in FITS header for INTI compatibility
 
 ## What's New in Version 2.10.0
 
