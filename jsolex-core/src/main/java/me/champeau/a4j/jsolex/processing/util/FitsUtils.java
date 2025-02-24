@@ -19,10 +19,10 @@ import me.champeau.a4j.jsolex.processing.expr.stacking.DistorsionMap;
 import me.champeau.a4j.jsolex.processing.params.ProcessParams;
 import me.champeau.a4j.jsolex.processing.params.ProcessParamsIO;
 import me.champeau.a4j.jsolex.processing.spectrum.SpectrumAnalyzer;
-import me.champeau.a4j.jsolex.processing.sun.detection.RedshiftArea;
-import me.champeau.a4j.jsolex.processing.sun.detection.Redshifts;
 import me.champeau.a4j.jsolex.processing.sun.detection.ActiveRegion;
 import me.champeau.a4j.jsolex.processing.sun.detection.ActiveRegions;
+import me.champeau.a4j.jsolex.processing.sun.detection.RedshiftArea;
+import me.champeau.a4j.jsolex.processing.sun.detection.Redshifts;
 import me.champeau.a4j.jsolex.processing.sun.workflow.MetadataTable;
 import me.champeau.a4j.jsolex.processing.sun.workflow.PixelShift;
 import me.champeau.a4j.jsolex.processing.sun.workflow.ReferenceCoords;
@@ -80,9 +80,18 @@ public class FitsUtils {
     public static final String ACTIVE_REGION_VALUE = "AR";
 
     // INTI metadata
-    public static final String INTI_CENTER_X = "CENTER_X";
-    public static final String INTI_CENTER_Y = "CENTER_Y";
-    public static final String INTI_SOLAR_R = "SOLAR_R";
+    public static final String CENTER_X = "CENTER_X";
+    public static final String INTI_CENTER_X = "INTI_XC";
+    public static final String CENTER_Y = "CENTER_Y";
+    public static final String INTI_CENTER_Y = "INTI_YC";
+    public static final String SOLAR_R = "SOLAR_R";
+    public static final String INTI_SOLAR_R = "INTI_R";
+
+    // Bounding box in INTI
+    public static final String INTI_X1 = "INTI_X1";
+    public static final String INTI_Y1 = "INTI_Y1";
+    public static final String INTI_X2 = "INTI_X2";
+    public static final String INTI_Y2 = "INTI_Y2";
 
     private final ProcessParams params;
     private final File destination;
@@ -159,11 +168,11 @@ public class FitsUtils {
 
     private static void readMetadata(Header header, Map<Class<?>, Object> metadata) {
         // try to see if we can read some INTI metadata and convert it to JSol'Ex metadata
-        if (header.containsKey(INTI_CENTER_X) && header.containsKey(INTI_CENTER_Y) && header.containsKey(INTI_SOLAR_R)) {
+        if (header.containsKey(CENTER_X) && header.containsKey(CENTER_Y) && header.containsKey(SOLAR_R)) {
             // cool, we have an ellipse!
-            double centerX = header.getIntValue(INTI_CENTER_X);
-            double centerY = header.getIntValue(INTI_CENTER_Y);
-            double solarR = header.getIntValue(INTI_SOLAR_R);
+            double centerX = header.getIntValue(CENTER_X);
+            double centerY = header.getIntValue(CENTER_Y);
+            double solarR = header.getIntValue(SOLAR_R);
             // need to convert to Ellipse parameters
             var ellipse = Ellipse.ofCartesian(new DoubleSextuplet(
                 1,
@@ -173,7 +182,7 @@ public class FitsUtils {
                 -2d * centerY,
                 centerX * centerX + centerY * centerY - solarR * solarR
             ));
-            metadata.put(Ellipse.class, ellipse);
+            metadata.putIfAbsent(Ellipse.class, ellipse);
         }
     }
 
@@ -593,6 +602,31 @@ public class FitsUtils {
             }
             header.addValue("WAVELNTH", wavelength, "Wavelength (nm)");
         }
+        writeIntiCompatibleFields(image, header);
+    }
+
+    private void writeIntiCompatibleFields(ImageWrapper image, Header header) {
+        image.findMetadata(Ellipse.class).ifPresent(ellipse -> {
+            var center = ellipse.center();
+            int cx = (int) Math.round(center.a());
+            int cy = (int) Math.round(center.b());
+            int radius = (int) Math.round((ellipse.semiAxis().a() + ellipse.semiAxis().b()) / 2);
+            var boundingBox = ellipse.boundingBox();
+            int x1 = (int) Math.max(0, Math.round(boundingBox.a()));
+            int x2 = (int) Math.max(0, Math.round(boundingBox.b()));
+            int y1 = (int) Math.min(image.width() - 1, Math.round(boundingBox.c()));
+            int y2 = (int) Math.min(image.width() - 1, Math.round(boundingBox.d()));
+            header.addValue(CENTER_X, cx, "Center X");
+            header.addValue(INTI_CENTER_X, cx, "Center X");
+            header.addValue(CENTER_Y, cy, "Center Y");
+            header.addValue(INTI_CENTER_Y, cy, "Center Y");
+            header.addValue(SOLAR_R, radius, "Solar radius");
+            header.addValue(INTI_SOLAR_R, radius, "Solar radius");
+            header.addValue(INTI_X1, x1, "Bounding box X1");
+            header.addValue(INTI_Y1, y1, "Bounding box Y1");
+            header.addValue(INTI_X2, x2, "Bounding box X2");
+            header.addValue(INTI_Y2, y2, "Bounding box Y2");
+        });
     }
 
     private static void maybeAdd(Header header, IFitsHeader key, String string) throws HeaderCardException {
