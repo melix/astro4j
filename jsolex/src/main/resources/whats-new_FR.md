@@ -1,5 +1,9 @@
 # Bienvenue dans JSol'Ex {{version}} !
 
+## Nouveautés de la version 2.10.2
+
+- Amélioration de la réactivité de l'interface utilisateur
+
 ## Nouveautés de la version 2.10.1
 
 - Amélioration de la gestion des fichiers temporaires pour éviter qu'ils ne s'accumulent

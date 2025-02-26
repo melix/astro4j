@@ -17,7 +17,6 @@ package me.champeau.a4j.jsolex.processing.util;
 
 import java.util.Deque;
 import java.util.concurrent.ConcurrentLinkedDeque;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
@@ -76,18 +75,7 @@ public final class BackgroundOperations {
     public static void exclusiveIO(Runnable action) {
         try {
             EXCLUSIVE_IO_LOCK.lock();
-            Future<?> future = EXCLUSIVE_IO.submit(wrap(action));
-            TASKS.add(future);
-            try {
-                future.get();
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-                throw new ProcessingException(e);
-            } catch (ExecutionException e) {
-                throw new ProcessingException(e);
-            } finally {
-                TASKS.remove(future);
-            }
+            action.run();
         } finally {
             EXCLUSIVE_IO_LOCK.unlock();
         }
