@@ -35,6 +35,8 @@ import javafx.scene.control.MenuItem;
 import javafx.scene.control.Slider;
 import javafx.scene.control.Tooltip;
 import javafx.scene.image.Image;
+import javafx.scene.image.PixelFormat;
+import javafx.scene.image.WritableImage;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
@@ -50,7 +52,6 @@ import me.champeau.a4j.jsolex.processing.params.RotationKind;
 import me.champeau.a4j.jsolex.processing.stretching.ContrastAdjustmentStrategy;
 import me.champeau.a4j.jsolex.processing.stretching.RangeExpansionStrategy;
 import me.champeau.a4j.jsolex.processing.stretching.StretchingChain;
-import me.champeau.a4j.jsolex.processing.sun.ImageUtils;
 import me.champeau.a4j.jsolex.processing.sun.workflow.GeneratedImageKind;
 import me.champeau.a4j.jsolex.processing.util.BackgroundOperations;
 import me.champeau.a4j.jsolex.processing.util.FileBackedImage;
@@ -61,13 +62,11 @@ import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 import me.champeau.a4j.jsolex.processing.util.ProcessingException;
 import me.champeau.a4j.jsolex.processing.util.RGBImage;
 import me.champeau.a4j.jsolex.processing.util.SolarParametersUtils;
-import me.champeau.a4j.jsolex.processing.util.TemporaryFolder;
 import me.champeau.a4j.math.regression.Ellipse;
 
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Path;
-import java.util.EnumSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -412,27 +411,22 @@ public class ImageViewer implements WithRootNode {
         stretchAndDisplay(false);
     }
 
-    private void updateDisplay(List<File> candidateImages, boolean resetZoom) {
-        candidateImages.stream()
-            .findFirst()
-            .ifPresent(tmpImage -> {
-                try {
-                    displayLock.lock();
-                    if (displayImage != null) {
-                        dimensions.setText(displayImage.width() + "x" + displayImage.height());
-                    }
-                    imageView.setImage(new Image(tmpImage.toURI().toString()));
-                    imageView.setSolarDisk(image != null ? image.findMetadata(Ellipse.class).orElse(null) : null);
-                    if (resetZoom) {
-                        imageView.resetZoom();
-                    }
-                    saveButton.setDisable(false);
-                    maybeRunOnUpdate();
-                    tmpImage.delete();
-                } finally {
-                    displayLock.unlock();
-                }
-            });
+    private void updateDisplay(Image newImage, boolean resetZoom) {
+        try {
+            displayLock.lock();
+            if (displayImage != null) {
+                dimensions.setText(displayImage.width() + "x" + displayImage.height());
+            }
+            imageView.setImage(newImage);
+            imageView.setSolarDisk(image != null ? image.findMetadata(Ellipse.class).orElse(null) : null);
+            if (resetZoom) {
+                imageView.resetZoom();
+            }
+            saveButton.setDisable(false);
+            maybeRunOnUpdate();
+        } finally {
+            displayLock.unlock();
+        }
     }
 
     private void maybeRunOnUpdate() {
@@ -442,20 +436,47 @@ public class ImageViewer implements WithRootNode {
     }
 
     private void stretchAndDisplay(boolean resetZoom) {
-        var imageFormats = EnumSet.of(ImageFormat.PNG);
-        // For some reason the image doesn't look as good when using PixelWriter
-        // so we write the image in a tmp file and load it from here.
         displayImage = applyTransformations(this.image);
-        var tmpImage = createTmpFile();
         if (displayImage instanceof ImageWrapper32 mono) {
             stretchedImage = stretch(mono);
-            var savedImages = ImageUtils.writeMonoImage(mono.width(), mono.height(), ((ImageWrapper32) stretchedImage).data(), tmpImage, imageFormats);
-            Platform.runLater(() -> updateDisplay(savedImages, resetZoom));
+            var image = new WritableImage(mono.width(), mono.height());
+            var writer = image.getPixelWriter();
+            float[][] data = mono.data();
+            byte[] pixels = new byte[3 * mono.width() * mono.height()];
+            for (int y = 0; y < mono.height(); y++) {
+                for (int x = 0; x < mono.width(); x++) {
+                    int value = (int) data[y][x];
+                    var v = (byte) (value >> 8);
+                    var offset = 3 * (y * mono.width() + x);
+                    pixels[offset] = v;
+                    pixels[offset + 1] = v;
+                    pixels[offset + 2] = v;
+                }
+            }
+            writer.setPixels(0, 0, mono.width(), mono.height(), PixelFormat.getByteRgbInstance(), pixels, 0, 3 * mono.width());
+            Platform.runLater(() -> updateDisplay(image, resetZoom));
         } else if (displayImage instanceof RGBImage rgb) {
             stretchedImage = stretch(rgb);
             var stretched = (RGBImage) stretchedImage;
-            var savedImages = ImageUtils.writeRgbImage(rgb.width(), rgb.height(), stretched.r(), stretched.g(), stretched.b(), tmpImage, imageFormats);
-            Platform.runLater(() -> updateDisplay(savedImages, resetZoom));
+            var image = new WritableImage(rgb.width(), rgb.height());
+            var writer = image.getPixelWriter();
+            float[][] r = stretched.r();
+            float[][] g = stretched.g();
+            float[][] b = stretched.b();
+            byte[] pixels = new byte[3 * rgb.width() * rgb.height()];
+            for (int y = 0; y < rgb.height(); y++) {
+                for (int x = 0; x < rgb.width(); x++) {
+                    int vr = (int) r[y][x];
+                    int vg = (int) g[y][x];
+                    int vb = (int) b[y][x];
+                    int offset = 3 * (y * rgb.width() + x);
+                    pixels[offset] = (byte) (vr >> 8);
+                    pixels[offset + 1] = (byte) (vg >> 8);
+                    pixels[offset + 2] = (byte) (vb >> 8);
+                }
+            }
+            writer.setPixels(0, 0, rgb.width(), rgb.height(), PixelFormat.getByteRgbInstance(), pixels, 0, 3 * rgb.width());
+            Platform.runLater(() -> updateDisplay(image, resetZoom));
         }
     }
 
@@ -481,16 +502,6 @@ public class ImageViewer implements WithRootNode {
 
     public ImageWrapper getStretchedImage() {
         return stretchedImage == null ? image : stretchedImage;
-    }
-
-    private File createTmpFile() {
-        File tmpImage;
-        try {
-            tmpImage = TemporaryFolder.newTempFile(imageFile.getName(), "jsolex.png").toFile();
-        } catch (IOException e) {
-            throw new ProcessingException(e);
-        }
-        return tmpImage;
     }
 
     @Override

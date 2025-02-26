@@ -229,47 +229,71 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
         return reconstructionView;
     }
 
-    @Override
     public void onPartialReconstruction(PartialReconstructionEvent event) {
         var payload = event.getPayload();
         int y = payload.line();
-        if (payload.display()) {
-            onProgress(ProgressEvent.of((y + 1d) / height, message("reconstructing")));
-            var reconstructionView = getOrCreateImageView(event);
-            var imageView = reconstructionView.getSolarView();
-            imageView.resetZoom();
-            WritableImage image = (WritableImage) imageView.getImage();
-            double[] line = payload.data();
-            byte[] rgb = reconstructionView.getSolarImageData();
-            for (int x = 0; x < line.length; x++) {
-                int v = (int) Math.round(line[x]);
-                byte c = (byte) (v >> 8);
-                var offset = 3 * (y * width + x);
-                rgb[offset] = c;
-                rgb[offset + 1] = c;
-                rgb[offset + 2] = c;
-            }
-            var spectrum = payload.spectrum();
-            var pixelformat = PixelFormat.getByteRgbInstance();
-            var spectrumView = reconstructionView.getSpectrumView();
-            if (spectrumView.getImage() == null) {
-                spectrumView.setImage(new WritableImage(spectrum.width(), spectrum.height()));
-            }
-            var spectrumImage = (WritableImage) spectrumView.getImage();
-            var lock = reconstructionView.getLock();
-            if (lock.tryAcquire()) {
+        onProgress(ProgressEvent.of((y + 1d) / height, message("reconstructing")));
+
+        if (!payload.display()) {
+            return;
+        }
+
+        var reconstructionView = getOrCreateImageView(event);
+        var imageView = reconstructionView.getSolarView();
+        imageView.resetZoom();
+        WritableImage image = (WritableImage) imageView.getImage();
+        double[] line = payload.data();
+        byte[] rgb = reconstructionView.getSolarImageData();
+
+        // Update the current row in the rgb buffer.
+        for (int x = 0; x < line.length; x++) {
+            int v = (int) Math.round(line[x]);
+            byte c = (byte) (v >> 8);
+            int offset = 3 * (y * width + x);
+            rgb[offset] = c;
+            rgb[offset + 1] = c;
+            rgb[offset + 2] = c;
+        }
+
+        // Ensure the spectrum image is ready.
+        var spectrum = payload.spectrum();
+        var pixelformat = PixelFormat.getByteRgbInstance();
+        var spectrumView = reconstructionView.getSpectrumView();
+        if (spectrumView.getImage() == null) {
+            spectrumView.setImage(new WritableImage(spectrum.width(), spectrum.height()));
+        }
+        WritableImage spectrumImage = (WritableImage) spectrumView.getImage();
+
+        var lock = reconstructionView.getLock();
+        if (lock.tryAcquire()) {
+            Thread.startVirtualThread(() -> {
+                var spectrumBuffer = convertSpectrumImage(spectrum);
                 Platform.runLater(() -> {
-                    image.getPixelWriter().setPixels(0, 0, width, height, pixelformat, rgb, 0, 3 * width);
-                    var pixelWriter = spectrumImage.getPixelWriter();
-                    var spectrumBuffer = convertSpectrumImage(spectrum);
-                    pixelWriter.setPixels(0, 0, spectrum.width(), spectrum.height(), pixelformat, spectrumBuffer, 0, 3 * spectrum.width());
-                    lock.release();
+                    try {
+                        spectrumImage.getPixelWriter().setPixels(
+                            0, 0,
+                            spectrum.width(), spectrum.height(),
+                            pixelformat,
+                            spectrumBuffer,
+                            0,
+                            3 * spectrum.width()
+                        );
+                        image.getPixelWriter().setPixels(
+                            0, 0,
+                            width, y,
+                            pixelformat,
+                            rgb,
+                            0,
+                            3 * width
+                        );
+                    } finally {
+                        lock.release();
+                    }
                 });
-            }
-        } else {
-            onProgress(ProgressEvent.of((y + 1d) / height, message("reconstructing")));
+            });
         }
     }
+
 
     @Override
     public void onReconstructionDone(ReconstructionDoneEvent e) {

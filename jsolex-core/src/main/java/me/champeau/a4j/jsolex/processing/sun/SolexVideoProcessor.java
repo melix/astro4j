@@ -68,7 +68,6 @@ import me.champeau.a4j.jsolex.processing.sun.workflow.RenamingImageEmitter;
 import me.champeau.a4j.jsolex.processing.sun.workflow.SourceInfo;
 import me.champeau.a4j.jsolex.processing.sun.workflow.TransformationHistory;
 import me.champeau.a4j.jsolex.processing.sun.workflow.WorkflowResults;
-import me.champeau.a4j.jsolex.processing.util.BackgroundOperations;
 import me.champeau.a4j.jsolex.processing.util.Constants;
 import me.champeau.a4j.jsolex.processing.util.FileBackedImage;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
@@ -127,8 +126,7 @@ import static me.champeau.a4j.ser.SerFileReader.JSOLEX_RECORDER;
 
 public class SolexVideoProcessor implements Broadcaster {
     private static final Logger LOGGER = LoggerFactory.getLogger(SolexVideoProcessor.class);
-    public static final int MAX_PARALLEL_READS = 16;
-    public static final int MAX_INMEMORY_BUFFERS = 64;
+    public static final int INMEMORY_BUFFERS_PER_CORE = 16;
     public static final int BATCH_LINES = 128;
 
     private final Set<ProcessingEventListener> progressEventListeners = new HashSet<>();
@@ -207,31 +205,29 @@ public class SolexVideoProcessor implements Broadcaster {
         AtomicInteger frameCountRef = new AtomicInteger();
         AtomicReference<Header> headerRef = new AtomicReference<>();
         AtomicReference<Double> fpsRef = new AtomicReference<>();
-        BackgroundOperations.exclusiveIO(() -> {
-            try (SerFileReader reader = SerFileReader.of(serFile)) {
-                var header = reader.header();
-                broadcast(new VideoMetadataEvent(header));
-                maybeUpdateProcessParams(header);
-                ImageGeometry geometry = header.geometry();
-                var frameCount = header.frameCount();
-                var dateTime = header.metadata().utcDateTime().toLocalDateTime();
-                LOGGER.info(message("ser.file.date"), dateTime);
-                LOGGER.info(message("ser.file.contains"), frameCount);
-                LOGGER.info(message("color.mode.geometry"), geometry.colorMode(), geometry.getBytesPerPixel(), geometry.pixelDepthPerPlane());
-                LOGGER.info(message("width.height"), geometry.width(), geometry.height());
-                LOGGER.info(message("solar.parameters"), SolarParametersUtils.computeSolarParams(dateTime));
-                LOGGER.info(message("computing.average.image.limb.detect"));
-                // We use the IO executor to make sure we only read as single SER file at a time
-                if (averageImage == null) {
-                    detector.computeAverageImage(reader);
-                }
-                frameCountRef.set(frameCount);
-                headerRef.set(header);
-                fpsRef.set(reader.estimateFps().orElse(null));
-            } catch (Exception e) {
-                broadcastError(e);
+        try (SerFileReader reader = SerFileReader.of(serFile)) {
+            var header = reader.header();
+            broadcast(new VideoMetadataEvent(header));
+            maybeUpdateProcessParams(header);
+            ImageGeometry geometry = header.geometry();
+            var frameCount = header.frameCount();
+            var dateTime = header.metadata().utcDateTime().toLocalDateTime();
+            LOGGER.info(message("ser.file.date"), dateTime);
+            LOGGER.info(message("ser.file.contains"), frameCount);
+            LOGGER.info(message("color.mode.geometry"), geometry.colorMode(), geometry.getBytesPerPixel(), geometry.pixelDepthPerPlane());
+            LOGGER.info(message("width.height"), geometry.width(), geometry.height());
+            LOGGER.info(message("solar.parameters"), SolarParametersUtils.computeSolarParams(dateTime));
+            LOGGER.info(message("computing.average.image.limb.detect"));
+            // We use the IO executor to make sure we only read as single SER file at a time
+            if (averageImage == null) {
+                detector.computeAverageImage(reader);
             }
-        });
+            frameCountRef.set(frameCount);
+            headerRef.set(header);
+            fpsRef.set(reader.estimateFps().orElse(null));
+        } catch (Exception e) {
+            broadcastError(e);
+        }
         var header = headerRef.get();
         if (header != null) {
             if (averageImage == null) {
@@ -368,39 +364,37 @@ public class SolexVideoProcessor implements Broadcaster {
             var totalImages = imageList.size();
             var serFileReader = new AtomicReference<SerFileReader>();
             long sd = System.nanoTime();
-            BackgroundOperations.exclusiveIO(() -> {
-                List<List<WorkflowState>> batches = batches(imageList, batchSize);
-                LOGGER.info(message("memory.pressure"), memoryRestrictionMultiplier);
-                if (batches.size() > 1) {
-                    LOGGER.info(message("reconstruction.batches"), batches.size(), batchSize);
-                }
+            List<List<WorkflowState>> batches = batches(imageList, batchSize);
+            LOGGER.info(message("memory.pressure"), memoryRestrictionMultiplier);
+            if (batches.size() > 1) {
+                LOGGER.info(message("reconstruction.batches"), batches.size(), batchSize);
+            }
 
-                for (int i = 0; i < batches.size(); i++) {
-                    var batch = batches.get(i);
-                    LOGGER.info(message("processing.batch"), i + 1, batches.size());
-                    try (var reader = serFileReader.get() != null ? serFileReader.get().reopen() : SerFileReader.of(serFile)) {
-                        long serFileSize = Files.size(serFile.toPath());
-                        long unitSd = System.nanoTime();
-                        var outputs = performImageReconstruction(converter, reader, 0, end, geometry, width, height, polynomial, current, totalImages, batch.toArray(new WorkflowState[0]));
-                        maybeProduceRedshiftDetectionImages(outputs.redshifts, width, height, reader, converter, geometry, polynomial, imageNamingStrategy, baseName);
-                        if (redshifts == null && outputs.redshifts != null) {
-                            redshifts = new Redshifts(outputs.redshifts);
-                        }
-                        if (activeRegions == null && outputs.activeRegions != null) {
-                            activeRegions = outputs.activeRegions;
-                        }
-                        serFileReader.set(reader);
-                        // Compute megabytes processed per second
-                        long ed = System.nanoTime();
-                        long time = ed - unitSd;
-                        double mbps = (serFileSize / 1024.0 / 1024.0) / (time / 1_000_000_000.0);
-                        LOGGER.info(String.format(Locale.US, message("reconstruction.mbs"), mbps));
-                    } catch (Exception e) {
-                        throw new ProcessingException(e);
+            for (int i = 0; i < batches.size(); i++) {
+                var batch = batches.get(i);
+                LOGGER.info(message("processing.batch"), i + 1, batches.size());
+                try (var reader = serFileReader.get() != null ? serFileReader.get().reopen() : SerFileReader.of(serFile)) {
+                    long serFileSize = Files.size(serFile.toPath());
+                    long unitSd = System.nanoTime();
+                    var outputs = performImageReconstruction(converter, reader, 0, end, geometry, width, height, polynomial, current, totalImages, batch.toArray(new WorkflowState[0]));
+                    maybeProduceRedshiftDetectionImages(outputs.redshifts, width, height, reader, converter, geometry, polynomial, imageNamingStrategy, baseName);
+                    if (redshifts == null && outputs.redshifts != null) {
+                        redshifts = new Redshifts(outputs.redshifts);
                     }
-                    System.gc();
+                    if (activeRegions == null && outputs.activeRegions != null) {
+                        activeRegions = outputs.activeRegions;
+                    }
+                    serFileReader.set(reader);
+                    // Compute megabytes processed per second
+                    long ed = System.nanoTime();
+                    long time = ed - unitSd;
+                    double mbps = (serFileSize / 1024.0 / 1024.0) / (time / 1_000_000_000.0);
+                    LOGGER.info(String.format(Locale.US, message("reconstruction.mbs"), mbps));
+                } catch (Exception e) {
+                    throw new ProcessingException(e);
                 }
-            });
+                System.gc();
+            }
 
             if (activeRegions != null) {
                 for (WorkflowState state : imageList) {
@@ -496,7 +490,7 @@ public class SolexVideoProcessor implements Broadcaster {
                             (int) Math.max(0, y1 - marginWidth),
                             (int) Math.min(y2 + marginWidth, width - 1),
                             maybePolynomial.get(),
-                            processParams.geometryParams().isSpectrumVFlip(), 
+                            processParams.geometryParams().isSpectrumVFlip(),
                             newHeight,
                             width,
                             dispersion
@@ -1064,9 +1058,9 @@ public class SolexVideoProcessor implements Broadcaster {
         var hasRedshifts = new AtomicBoolean();
         var hasActiveRegions = new AtomicBoolean();
         var latch = new CountDownLatch(end - start);
-        var semaphore = new Semaphore(MAX_INMEMORY_BUFFERS);
+        var semaphore = new Semaphore(INMEMORY_BUFFERS_PER_CORE * Runtime.getRuntime().availableProcessors());
         var jSolexSer = reader.header().isJSolexTrimmedSer();
-        try (var executor = Executors.newFixedThreadPool(MAX_PARALLEL_READS)) {
+        try (var executor = Executors.newFixedThreadPool(Math.max(2, Runtime.getRuntime().availableProcessors()/2))) {
             var reconstructedImages = new float[images.length][totalLines][width];
             for (int i = start, j = 0; i < end; i++, j += 1) {
                 semaphore.acquire();
@@ -1081,7 +1075,7 @@ public class SolexVideoProcessor implements Broadcaster {
                     try {
                         // The converter makes sure we only have a single channel
                         converter.convert(frameId, ByteBuffer.wrap(copy), geometry, original);
-                        IntStream.range(0, images.length).forEach(idx -> {
+                        IntStream.range(0, images.length).parallel().forEach(idx -> {
                             try {
                                 var state = images[idx];
                                 var buffer = reconstructedImages[idx];
