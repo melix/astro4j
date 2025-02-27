@@ -9,6 +9,7 @@ gson = "2.12.1"
 micronaut = "4.7.6"
 richtextfx = "0.11.4"
 jcodec="0.2.5"
+ikonli="12.3.1"
 
 [libraries]
 slf4j-api = { module = "org.slf4j:slf4j-api", version.ref = "slf4j-api" }
@@ -21,3 +22,5 @@ gson = { module = "com.google.code.gson:gson", version.ref = "gson" }
 richtextfx = { module = "org.fxmisc.richtext:richtextfx", version.ref = "richtextfx" }
 jcodec = { module = "org.jcodec:jcodec", version.ref = "jcodec"}
 micronaut = { module = "io.micronaut.platform:micronaut-platform", version.ref = "micronaut"}
+ikonli= { module = "org.kordamp.ikonli:ikonli-javafx", version.ref = "ikonli" }
+ikonli-fluentui = { module = "org.kordamp.ikonli:ikonli-fluentui-pack", version.ref = "ikonli" }

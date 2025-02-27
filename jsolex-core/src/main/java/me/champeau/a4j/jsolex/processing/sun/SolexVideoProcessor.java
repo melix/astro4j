@@ -791,7 +791,7 @@ public class SolexVideoProcessor implements Broadcaster {
                         GeneratedImageKind.REDSHIFT,
                         "Redshift %s (%.2f km/s)".formatted(redshift.id(), speed),
                         targetFile,
-                        image
+                        FileBackedImage.wrap(image)
                     )
                 ));
                 LOGGER.info(message("found.speed"), String.format("%.2f km/s", speed), redshift.x1(), redshift.y1(), redshift.x2(), redshift.y2(), redshift.relPixelShift());

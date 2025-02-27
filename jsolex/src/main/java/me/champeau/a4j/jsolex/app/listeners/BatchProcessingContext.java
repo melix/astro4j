@@ -16,6 +16,7 @@
 package me.champeau.a4j.jsolex.app.listeners;
 
 import me.champeau.a4j.jsolex.app.jfx.BatchItem;
+import me.champeau.a4j.jsolex.app.jfx.CandidateImageDescriptor;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
 import me.champeau.a4j.ser.Header;
 
@@ -34,6 +35,10 @@ public record BatchProcessingContext(
     File outputDirectory,
     LocalDateTime processingDate,
     Map<String, List<ImageWrapper>> imagesByLabel,
+    Map<Integer, List<ImageWrapper>> imageWrappersByIndex,
+    Map<Integer, List<CandidateImageDescriptor>> imagesByIndex,
+    Map<Integer, List<File>> filesByIndex,
+    Map<Integer, File> serFilesByIndex,
     Header referenceHeader
 ) {
 }

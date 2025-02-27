@@ -1,0 +1,83 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.Button?>
+<?import javafx.scene.control.ButtonBar?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.control.ListView?>
+<?import javafx.scene.control.ProgressBar?>
+<?import javafx.scene.control.ScrollPane?>
+<?import javafx.scene.control.ToggleButton?>
+<?import javafx.scene.control.ToolBar?>
+<?import javafx.scene.image.ImageView?>
+<?import javafx.scene.layout.BorderPane?>
+<?import javafx.scene.layout.HBox?>
+<?import javafx.scene.layout.StackPane?>
+<?import javafx.scene.layout.VBox?>
+<BorderPane maxHeight="-Infinity" maxWidth="-Infinity" minHeight="-Infinity" minWidth="-Infinity" prefHeight="643.0" prefWidth="986.0" xmlns="http://javafx.com/javafx/19" xmlns:fx="http://javafx.com/fxml/1" fx:controller="me.champeau.a4j.jsolex.app.jfx.ImageInspectorController">
+    <left>
+        <VBox>
+            <ToolBar prefHeight="40.0" prefWidth="200.0" />
+            <ListView fx:id="imageList" prefHeight="200.0" prefWidth="200.0" VBox.vgrow="ALWAYS" />
+        </VBox>
+    </left>
+    <bottom>
+        <StackPane BorderPane.alignment="CENTER">
+            <BorderPane.margin>
+                <Insets/>
+            </BorderPane.margin>
+            <ButtonBar prefHeight="40.0" prefWidth="200.0">
+                <buttons>
+                    <Button fx:id="previousButton" mnemonicParsing="false" text="%previous"/>
+                    <Button fx:id="nextButton" mnemonicParsing="false" text="%next"/>
+                    <Button mnemonicParsing="false" onAction="#finish" text="%finish"/>
+                </buttons>
+                <opaqueInsets>
+                    <Insets/>
+                </opaqueInsets>
+                <padding>
+                    <Insets left="8.0" right="8.0"/>
+                </padding>
+            </ButtonBar>
+            <Label fx:id="summaryLabel" text="summary" StackPane.alignment="CENTER_LEFT">
+                <padding>
+                    <Insets left="8.0"/>
+                </padding>
+            </Label>
+        </StackPane>
+    </bottom>
+    <center>
+        <VBox prefHeight="200.0" prefWidth="100.0" BorderPane.alignment="CENTER">
+            <ToolBar nodeOrientation="RIGHT_TO_LEFT" prefHeight="40.0" prefWidth="200.0">
+                <ToggleButton fx:id="setBestButton" mnemonicParsing="false" text="%set.best" />
+                <ToggleButton fx:id="keepButton" mnemonicParsing="false" text="%keep" />
+                <ToggleButton fx:id="discardButton" mnemonicParsing="false" text="%discard" />
+            </ToolBar>
+            <ScrollPane fx:id="scrollPane" fitToHeight="true" fitToWidth="true" pannable="true">
+                <StackPane fx:id="imagePane">
+                    <HBox fx:id="imageHBox" spacing="10">
+                        <!-- Best image on the left -->
+                        <StackPane fx:id="bestImageContainer" HBox.hgrow="ALWAYS">
+                            <ImageView fx:id="bestImageView" preserveRatio="true" />
+                            <Label text="%best"
+                                   style="-fx-background-color: rgba(0,0,0,0.5); -fx-text-fill: white; -fx-padding: 5px;"
+                                   StackPane.alignment="TOP_LEFT"/>
+                        </StackPane>
+                        <!-- Current image on the right -->
+                        <StackPane fx:id="currentImageContainer" HBox.hgrow="ALWAYS">
+                            <ImageView fx:id="currentImageView" preserveRatio="true" />
+                            <Label text="%current"
+                                   style="-fx-background-color: rgba(0,0,0,0.5); -fx-text-fill: white; -fx-padding: 5px;"
+                                   StackPane.alignment="TOP_LEFT"/>
+                        </StackPane>
+                    </HBox>
+
+                </StackPane>
+            </ScrollPane>
+            <HBox spacing="10" alignment="CENTER">
+                <ProgressBar fx:id="progressBar" prefWidth="200" />
+                <Label fx:id="progressLabel" text="0/0 images reviewed" />
+            </HBox>
+        </VBox>
+    </center>
+</BorderPane>

@@ -15,6 +15,8 @@ dependencies {
         exclude(group = "org.openjfx")
     }
     implementation(libs.commonmark)
+    implementation(libs.ikonli)
+    implementation(libs.ikonli.fluentui)
 }
 
 jlink {

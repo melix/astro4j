@@ -322,6 +322,11 @@ public class JSolEx extends Application implements JSolExInterface {
     }
 
     @Override
+    public Stage getMainStage() {
+        return rootStage;
+    }
+
+    @Override
     public void start(Stage stage) throws Exception {
         this.rootStage = stage;
         var fxmlLoader = I18N.fxmlLoader(getClass(), "app");
@@ -1377,9 +1382,19 @@ public class JSolEx extends Application implements JSolExInterface {
         var interruptButton = addInterruptButton();
         var batchThread = new Thread(() -> {
             try {
-                var batchContext =
-                    new BatchProcessingContext(batchItems, Collections.synchronizedSet(new HashSet<>()), Collections.synchronizedSet(new HashSet<>()), new AtomicBoolean(), selectedFiles.get(0).getParentFile(), LocalDateTime.now(), new HashMap<>(),
-                        header);
+                var batchContext = new BatchProcessingContext(
+                    batchItems,
+                    Collections.synchronizedSet(new HashSet<>()),
+                    Collections.synchronizedSet(new HashSet<>()),
+                    new AtomicBoolean(),
+                    selectedFiles.getFirst().getParentFile(),
+                    LocalDateTime.now(),
+                    Collections.synchronizedMap(new HashMap<>()),
+                    Collections.synchronizedMap(new HashMap<>()),
+                    Collections.synchronizedMap(new HashMap<>()),
+                    Collections.synchronizedMap(new HashMap<>()),
+                    Collections.synchronizedMap(new HashMap<>()),
+                    header);
                 for (int fileIdx = 0; fileIdx < selectedFiles.size(); fileIdx++) {
                     var selectedFile = selectedFiles.get(fileIdx);
                     processSingleFile(params, selectedFile, true, fileIdx, batchContext, header, () -> {

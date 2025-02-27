@@ -25,28 +25,33 @@ public record ExtraParams(
         Set<ImageFormat> imageFormats,
         String fileNamePattern,
         String datetimeFormat,
-        String dateFormat) {
+        String dateFormat,
+        boolean reviewImagesAfterBatch) {
     public ExtraParams withGenerateDebugImages(boolean generateDebugImages) {
-        return new ExtraParams(generateDebugImages, autosave, imageFormats, fileNamePattern, datetimeFormat, dateFormat);
+        return new ExtraParams(generateDebugImages, autosave, imageFormats, fileNamePattern, datetimeFormat, dateFormat, reviewImagesAfterBatch);
     }
 
     public ExtraParams withAutosave(boolean autosave) {
-        return new ExtraParams(generateDebugImages, autosave, imageFormats, fileNamePattern, datetimeFormat, dateFormat);
+        return new ExtraParams(generateDebugImages, autosave, imageFormats, fileNamePattern, datetimeFormat, dateFormat, reviewImagesAfterBatch);
     }
 
     public ExtraParams withImageFormats(Set<ImageFormat> imageFormats) {
-        return new ExtraParams(generateDebugImages, autosave, imageFormats, fileNamePattern, datetimeFormat, dateFormat);
+        return new ExtraParams(generateDebugImages, autosave, imageFormats, fileNamePattern, datetimeFormat, dateFormat, reviewImagesAfterBatch);
     }
 
     public ExtraParams withFileNamePattern(String fileNamePattern) {
-        return new ExtraParams(generateDebugImages, autosave, imageFormats, fileNamePattern, datetimeFormat, dateFormat);
+        return new ExtraParams(generateDebugImages, autosave, imageFormats, fileNamePattern, datetimeFormat, dateFormat, reviewImagesAfterBatch);
     }
 
     public ExtraParams withDateTimeFormat(String datetimeFormat) {
-        return new ExtraParams(generateDebugImages, autosave, imageFormats, fileNamePattern, datetimeFormat, dateFormat);
+        return new ExtraParams(generateDebugImages, autosave, imageFormats, fileNamePattern, datetimeFormat, dateFormat, reviewImagesAfterBatch);
     }
 
     public ExtraParams withDateFormat(String dateFormat) {
-        return new ExtraParams(generateDebugImages, autosave, imageFormats, fileNamePattern, datetimeFormat, dateFormat);
+        return new ExtraParams(generateDebugImages, autosave, imageFormats, fileNamePattern, datetimeFormat, dateFormat, reviewImagesAfterBatch);
+    }
+
+    public ExtraParams withReviewImagesAfterBatch(boolean reviewImagesAfterBatch) {
+        return new ExtraParams(generateDebugImages, autosave, imageFormats, fileNamePattern, datetimeFormat, dateFormat, reviewImagesAfterBatch);
     }
 }

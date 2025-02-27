@@ -34,6 +34,10 @@ module me.champeau.a4j.jsolex {
     requires org.fxmisc.flowless;
     requires io.micronaut.context;
     requires io.micronaut.inject;
+    requires org.kordamp.ikonli.core;
+    requires org.kordamp.ikonli.javafx;
+    // add icon pack modules
+    requires org.kordamp.ikonli.fluentui;
     exports me.champeau.a4j.jsolex.app to javafx.graphics;
     exports me.champeau.a4j.jsolex.app.jfx.ime to javafx.fxml, javafx.graphics;
     opens me.champeau.a4j.jsolex.app.jfx.stacking to javafx.fxml, javafx.graphics;

@@ -34,6 +34,7 @@ import me.champeau.a4j.jsolex.processing.expr.impl.Stacking;
 import me.champeau.a4j.jsolex.processing.file.FileNamingStrategy;
 import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
 import me.champeau.a4j.jsolex.processing.util.Constants;
+import me.champeau.a4j.jsolex.processing.util.FileBackedImage;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 import me.champeau.a4j.jsolex.processing.util.ProcessingException;
@@ -145,7 +146,7 @@ public class StackingWorkflow {
                     GeneratedImageKind.COMPOSITION,
                     "mosaic",
                     outputDirectory.toPath().resolve(fileName),
-                    mosaic
+                    FileBackedImage.wrap(mosaic)
                 )
             ));
             return mosaic;
@@ -165,7 +166,7 @@ public class StackingWorkflow {
                     GeneratedImageKind.COMPOSITION,
                     label,
                     outputDirectory.toPath().resolve(fileName),
-                    stackedImage
+                    FileBackedImage.wrap(stackedImage)
                 )
             ));
         }

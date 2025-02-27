@@ -17,6 +17,7 @@ package me.champeau.a4j.jsolex.app.listeners;
 
 import javafx.application.HostServices;
 import javafx.scene.control.Tab;
+import javafx.stage.Stage;
 import me.champeau.a4j.jsolex.app.jfx.ApplyUserRotation;
 import me.champeau.a4j.jsolex.app.jfx.MultipleImagesViewer;
 import me.champeau.a4j.jsolex.processing.expr.ImageMathScriptExecutor;
@@ -25,6 +26,8 @@ import me.champeau.a4j.jsolex.processing.sun.TrimmingParameters;
 
 public interface JSolExInterface {
     MultipleImagesViewer getImagesViewer();
+
+    Stage getMainStage();
 
     Tab getStatsTab();
 

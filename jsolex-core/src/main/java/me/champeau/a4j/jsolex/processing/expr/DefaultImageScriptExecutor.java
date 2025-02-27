@@ -83,6 +83,10 @@ public class DefaultImageScriptExecutor implements ImageMathScriptExecutor {
         variables.put(name, value);
     }
 
+    public <T> void putInContext(Class<T> key, T value) {
+        context.put(key, value);
+    }
+
     @Override
     public ImageMathScriptResult execute(String script, SectionKind kind) {
         long nanoTime = System.nanoTime();

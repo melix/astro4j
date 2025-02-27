@@ -20,7 +20,9 @@ import javafx.scene.control.ButtonType;
 import me.champeau.a4j.jsolex.app.AlertFactory;
 import me.champeau.a4j.jsolex.app.jfx.BatchItem;
 import me.champeau.a4j.jsolex.app.jfx.BatchOperations;
+import me.champeau.a4j.jsolex.app.jfx.CandidateImageDescriptor;
 import me.champeau.a4j.jsolex.app.jfx.Corrector;
+import me.champeau.a4j.jsolex.app.jfx.ImageInspectorController;
 import me.champeau.a4j.jsolex.app.script.JSolExScriptExecutor;
 import me.champeau.a4j.jsolex.processing.event.AverageImageComputedEvent;
 import me.champeau.a4j.jsolex.processing.event.FileGeneratedEvent;
@@ -36,6 +38,7 @@ import me.champeau.a4j.jsolex.processing.event.ProcessingStartEvent;
 import me.champeau.a4j.jsolex.processing.event.ScriptExecutionResultEvent;
 import me.champeau.a4j.jsolex.processing.event.TrimmingParametersDeterminedEvent;
 import me.champeau.a4j.jsolex.processing.event.VideoMetadataEvent;
+import me.champeau.a4j.jsolex.processing.expr.BestImages;
 import me.champeau.a4j.jsolex.processing.expr.DefaultImageScriptExecutor;
 import me.champeau.a4j.jsolex.processing.expr.ImageMathScriptExecutor;
 import me.champeau.a4j.jsolex.processing.expr.ImageMathScriptResult;
@@ -49,7 +52,9 @@ import me.champeau.a4j.jsolex.processing.sun.workflow.DefaultImageEmitter;
 import me.champeau.a4j.jsolex.processing.sun.workflow.GeneratedImageKind;
 import me.champeau.a4j.jsolex.processing.sun.workflow.ImageEmitter;
 import me.champeau.a4j.jsolex.processing.sun.workflow.NamingStrategyAwareImageEmitter;
+import me.champeau.a4j.jsolex.processing.sun.workflow.PixelShift;
 import me.champeau.a4j.jsolex.processing.sun.workflow.RenamingImageEmitter;
+import me.champeau.a4j.jsolex.processing.sun.workflow.SourceInfo;
 import me.champeau.a4j.jsolex.processing.util.Constants;
 import me.champeau.a4j.jsolex.processing.util.ImageSaver;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
@@ -66,11 +71,13 @@ import java.nio.file.StandardCopyOption;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
 import static me.champeau.a4j.jsolex.app.JSolEx.message;
@@ -97,7 +104,12 @@ public class BatchModeEventListener implements ProcessingEventListener, ImageMat
     private DefaultImageScriptExecutor batchScriptExecutor;
 
     private Header header;
+    private final List<BatchItem> allItems;
     private final Map<String, List<ImageWrapper>> imagesByLabel;
+    private final Map<Integer, List<ImageWrapper>> imageWrappersByIndex;
+    private final Map<Integer, List<CandidateImageDescriptor>> imagesByIndex;
+    private final Map<Integer, List<File>> filesByIndex;
+    private final Map<Integer, File> serFilesByIndex;
     private ProcessParams adjustedParams;
 
     public BatchModeEventListener(JSolExInterface owner,
@@ -114,9 +126,14 @@ public class BatchModeEventListener implements ProcessingEventListener, ImageMat
         this.outputDirectory = context.outputDirectory();
         this.processingDate = context.processingDate();
         this.imagesByLabel = context.imagesByLabel();
+        this.imageWrappersByIndex = context.imageWrappersByIndex();
+        this.imagesByIndex = context.imagesByIndex();
+        this.filesByIndex = context.filesByIndex();
+        this.serFilesByIndex = context.serFilesByIndex();
         this.referenceHeader = context.referenceHeader();
         this.item = context.items().stream().filter(batchItem -> batchItem.id() == sequenceNumber).findFirst().get();
         this.totalItems = context.items().size();
+        this.allItems = context.items();
         this.sequenceNumber = sequenceNumber;
     }
 
@@ -146,7 +163,14 @@ public class BatchModeEventListener implements ProcessingEventListener, ImageMat
         var saved = new ImageSaver(RangeExpansionStrategy.DEFAULT, params).save(img, target);
         for (var file : saved) {
             item.generatedFiles().add(file);
+            filesByIndex.computeIfAbsent(sequenceNumber, unused -> new ArrayList<>()).add(file);
         }
+        imagesByIndex.computeIfAbsent(sequenceNumber, unused -> new ArrayList<>()).add(new CandidateImageDescriptor(
+            payload.kind(),
+            payload.title(),
+            payload.path(),
+            payload.image().findMetadata(PixelShift.class).map(PixelShift::pixelShift).orElse(0d)
+        ));
     }
 
     @Override
@@ -183,6 +207,7 @@ public class BatchModeEventListener implements ProcessingEventListener, ImageMat
     public void onProcessingStart(ProcessingStartEvent e) {
         item.status().set(message("batch.started"));
         updateProgressStatus(false);
+        serFilesByIndex.put(sequenceNumber, item.file());
     }
 
     @Override
@@ -198,6 +223,39 @@ public class BatchModeEventListener implements ProcessingEventListener, ImageMat
         maybeExecuteEndOfBatch();
     }
 
+    private void maybeFilterImages(Consumer<? super FilteringResult> onClose) {
+        if (processParams.extraParams().reviewImagesAfterBatch()) {
+            Platform.runLater(() -> ImageInspectorController.create(processParams, imagesByIndex, filesByIndex, serFilesByIndex, outputDirectory, controller -> {
+                var deletedFiles = controller.getDeletedFiles();
+                var movedFiles = controller.getMovedFiles();
+                adjustDeletedAndMovedFilesList(deletedFiles, movedFiles);
+                Thread.startVirtualThread(() -> onClose.accept(new FilteringResult(controller.getDiscardedImages(), controller.getBestImage().orElse(null))));
+            }));
+        } else {
+            Thread.startVirtualThread(() -> onClose.accept(new FilteringResult(List.of(), null)));
+        }
+    }
+
+    /**
+     * After the user has filtered images, we need to adjust the list of generated files because the links
+     * in the UI are based on the original list of files.
+     *
+     * @param deletedFiles the list of deleted files
+     * @param movedFiles the list of moved files
+     */
+    private void adjustDeletedAndMovedFilesList(Set<File> deletedFiles, Map<File, File> movedFiles) {
+        for (var curItem : allItems) {
+            curItem.generatedFiles().removeIf(deletedFiles::contains);
+        }
+        var newFileList = new ArrayList<File>();
+        for (var curItem : allItems) {
+            for (var file : curItem.generatedFiles()) {
+                newFileList.add(movedFiles.getOrDefault(file, file));
+            }
+        }
+        item.generatedFiles().setAll(newFileList);
+    }
+
     private void maybeExecuteEndOfBatch() {
         if (completed.size() == totalItems && batchFinished.compareAndSet(false, true)) {
             var success = completed.size() - errors.size();
@@ -209,7 +267,7 @@ public class BatchModeEventListener implements ProcessingEventListener, ImageMat
                     alert.getButtonTypes().addAll(ButtonType.CANCEL, ButtonType.YES);
                     alert.showAndWait().ifPresent(response -> {
                         if (response == ButtonType.YES) {
-                            executeBatchScriptExpressions();
+                            maybeFilterImages(this::executeBatchScriptExpressions);
                         } else {
                             Platform.runLater(() -> owner.updateProgress(1, String.format(message("batch.finished"))));
                         }
@@ -223,7 +281,7 @@ public class BatchModeEventListener implements ProcessingEventListener, ImageMat
                     Platform.runLater(() -> owner.updateProgress(1, String.format(message("batch.finished"))));
                 });
             } else {
-                executeBatchScriptExpressions();
+                maybeFilterImages(this::executeBatchScriptExpressions);
             }
         }
     }
@@ -242,10 +300,10 @@ public class BatchModeEventListener implements ProcessingEventListener, ImageMat
         });
     }
 
-    private void executeBatchScriptExpressions() {
+    private void executeBatchScriptExpressions(FilteringResult result) {
         try {
             var scriptFiles = processParams.requestedImages().mathImages().scriptFiles();
-            if (scriptFiles.isEmpty()) {
+            if (scriptFiles.isEmpty() || result.discarded().size() == totalItems) {
                 return;
             }
             var imageEmitter = new NamingStrategyAwareImageEmitter(new RenamingImageEmitter(new DefaultImageEmitter(delegate, outputDirectory), name -> name, name -> name), createNamingStrategy(), sequenceNumber, computeSerFileBasename(item.file()));
@@ -259,8 +317,21 @@ public class BatchModeEventListener implements ProcessingEventListener, ImageMat
                 delegate,
                 null
             );
+            var discarded = new HashSet<ImageWrapper>();
+            for (var index : result.discarded()) {
+                discarded.addAll(imageWrappersByIndex.get(index));
+            }
             for (Map.Entry<String, List<ImageWrapper>> entry : imagesByLabel.entrySet()) {
-                batchScriptExecutor.putVariable(entry.getKey(), entry.getValue());
+                var images = entry.getValue().stream().filter(img -> !discarded.contains(img)).toList();
+                batchScriptExecutor.putVariable(entry.getKey(), images);
+            }
+            if (result.best != null) {
+                var bestSource = imageWrappersByIndex.get(result.best)
+                    .stream()
+                    .findFirst()
+                    .flatMap(i -> i.findMetadata(SourceInfo.class))
+                    .orElse(null);
+                batchScriptExecutor.putInContext(BestImages.class, new BestImages(bestSource));
             }
             var namingStrategy = createNamingStrategy();
             boolean initial = true;
@@ -285,10 +356,11 @@ public class BatchModeEventListener implements ProcessingEventListener, ImageMat
         ImageMathScriptResult result;
         var progressThread = new Thread() {
             private final AtomicInteger step = new AtomicInteger();
+
             @Override
             public void run() {
                 while (!Thread.currentThread().isInterrupted()) {
-                    var pg = Math.abs(Math.sin(Math.PI*step.incrementAndGet()/50));
+                    var pg = Math.abs(Math.sin(Math.PI * step.incrementAndGet() / 50));
                     Platform.runLater(() -> owner.updateProgress(pg, String.format(message("executing.script"), scriptFile)));
                     try {
                         Thread.sleep(25);
@@ -343,6 +415,8 @@ public class BatchModeEventListener implements ProcessingEventListener, ImageMat
             var images = e.getPayload().imagesByLabel();
             for (Map.Entry<String, ImageWrapper> entry : images.entrySet()) {
                 imagesByLabel.computeIfAbsent(entry.getKey(), unused -> new ArrayList<>())
+                    .add(entry.getValue());
+                imageWrappersByIndex.computeIfAbsent(sequenceNumber, unused -> new ArrayList<>())
                     .add(entry.getValue());
             }
         }
@@ -435,5 +509,12 @@ public class BatchModeEventListener implements ProcessingEventListener, ImageMat
                 message
             )));
         }
+    }
+
+    private record FilteringResult(
+        List<Integer> discarded,
+        Integer best
+    ) {
+
     }
 }
