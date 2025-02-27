@@ -1,7 +1,8 @@
 # Welcome to JSol'Ex {{version}}!
 
-## What's New in Version 2.10.2
+## What's New in Version 2.11.0
 
+- Added an image reviewing tool to quickly browse through processed images in batch mode and reject bad scans
 - Improve responsiveness of the UI
 
 ## What's New in Version 2.10.1

@@ -435,7 +435,7 @@ Decorative functions
 Stacking and mosaic functions:
 - `draw_earth` draws the Earth on the image, scaled accordingly to the solar disk. This function takes 3 parameters: the image and the coordinates (x,y) where to draw the Earth. For example: `draw_earth(img(0), 100, 100)`.
 
-- `stack` allows stacking images together. It will align images and compute the median value of each pixel. It accepts 1 to 4 parameters. The first one is the list of images to stack, for example: `stack(load_many("\*.fits"))`. The 2d parameter is the tile size. The 3rd one is the sampling factor (>0). For example, if the sampling factor is 0.5 and the tile size is 32 pixels, then a sample will be picked every 16 pixels. The 4th parameter is the reference selection method, which is one of `first` (first image of the list), `sharpness` (the sharpest image), `average` (computes the average of all images), `median` (computes the median of all images) or `eccentricity` (chooses the image which is closest to a circle). For example: `stack(load_many("\*.fits"), 32, 0.5, "sharpness")`. The default reference selection method is `sharpness`.
+- `stack` allows stacking images together. It will align images and compute the median value of each pixel. It accepts 1 to 4 parameters. The first one is the list of images to stack, for example: `stack(load_many("\*.fits"))`. The 2d parameter is the tile size. The 3rd one is the sampling factor (>0). For example, if the sampling factor is 0.5 and the tile size is 32 pixels, then a sample will be picked every 16 pixels. The 4th parameter is the reference selection method, which is one of `first` (first image of the list), `sharpness` (the sharpest image), `average` (computes the average of all images), `median` (computes the median of all images) or `eccentricity` (chooses the image which is closest to a circle). For example: `stack(load_many("\*.fits"), 32, 0.5, "sharpness")`. The default reference selection method is `sharpness`. An additional method, `manual`, is available in batch mode.
 - `stack_ref` takes 2 parameters: a list of images and a reference selection method. It then returns an image which can be used as a reference for stacking. The selection methods are the same as for `stack`. For example: `stack_ref(load_many("\*.fits"), "sharpness")`.
 - `mosaic` allows stitching images together in order to create a mosaic. It accepts 1 to 3 parameters. The first one is the list of images to stack, for example: `mosaic(load_many("*.fits"))`. The 2d parameter is the tile size and the 3rd one is the sampling factor (>0).
 - `dedistort` allows to correct the distortion of an image. It has 2 distinct modes of operation. In the first mode, you provide it with a reference image and an image to correct, as well as 3 optional parameters: the tile size, the sampling and the sky background value. For example: `dedistort(ref, img(0), 32, 0.5, 0)`. The returned image will be corrected as much as possible to match the reference image, making it for example usable for stacking. In the second mode, you provide it with a list of images to correct (1st parameter) and a list of already corrected images (2nd parameter), in which case the correction parameters of each image are taken using the image at the same index in the list of already corrected images. This can be useful for example when you calculate the distortion in the middle of the ray (shift 0) and you want to apply the same corrections to images with different shifts. For example: `dedistort(images, corrected)`.
@@ -563,6 +563,38 @@ The file list for each SER file will include the log file for each video, as wel
 
 NOTE: In batch mode, we recommend that you pick a custom <<#filename-templates,file name template>> which will output all images in a single directory: using the sequence number, this will make it easier to import into 3rd party software.
 
+=== Reviewing batch processed images
+
+Once a batch has been processed, it is possible to review the generated images.
+This will make it possible, for example, to keep only images with a cloudless disk, or images without distortions.
+
+In order to do so, in the processing options, in the "misc" tab, check the "Review images after batch processing" box:
+
+image::image-filtering-3-en.jpg[]
+
+Once processing is done, a new window will open, allowing you to review the processed images:
+
+image::image-filtering-1-en.jpg[]
+
+On the top right, you can choose to reject an image, keep it, or set it as the best image.
+The best image is then displayed on the left, and the current image on the right.
+You can then compare each image to the best image, and decide whether to keep it or not.
+
+On the left, you have the list of images generated for each SER file.
+On the bottom right, you can move to the next or previous image, and finish the process.
+
+Once you're done, the following window will open:
+
+image::image-filtering-2-en.jpg[]
+
+This lets you choose what you want to do with the rejected images: keep them, delete them, or move them to a sub-folder (by default, they will be moved).
+Similarly, you can choose what you want to do with the SER files which were used to generate these rejected images: keep them, delete them, or move them to a subfolder.
+
+If you use a script in batch mode, the `[[batch]]` part of the script will only be executed for the images you have kept, which will allow, for example, stacking only the selected images.
+
+Note that in the `stack` and `stack_ref` functions, you will then have the possibility to specify the reference selection method `manual`, which will then choose the best image you have selected.
+
+[[script-batch]]
 === ImageMath extensions available in batch mode
 
 When you are in batch mode, an additional section is available in <<#imagemath,ImageMath scripts>>.

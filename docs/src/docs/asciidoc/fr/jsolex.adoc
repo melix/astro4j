@@ -561,6 +561,38 @@ La liste des fichiers comprend le _fichier de log_ du traitement de ce fichier, 
 
 NOTE: En mode batch, nous recommendons d'utiliser un <<#modele-noms-fichier,modèle de nom de fichier>> qui met toutes les images dans le même dossier, ce qui rendra plus simple leur exploitation dans un programme tiers.
 
+=== Passage en revue des images traitées en lot
+
+Une fois qu'un lot a été traité, il est possible de passer en revue les images générées.
+Ceci permettra, par exemple, de ne conserver que les images avec un disque sans passage nuageux, ou les images sans déformations.
+
+Pour ce faire, dans les options de traitement, dans l'onglet "divers", cochez la case "Passer en revue les images après traitement en lot" :
+
+image::image-filtering-3-fr.jpg[]
+
+Lorsque le traitement est terminé, une nouvelle fenêtre s'ouvre, vous permettant de passer en revue les images traitées :
+
+image::image-filtering-1-fr.jpg[]
+
+En haut à droite, vous pouvez choisir entre rejeter une image, la conserver, ou la définir comme la meilleure image.
+La meilleure image est alors affichée à gauche, et l'image courante à droite.
+Vous pouvez ainsi comparer chaque image à la meilleure image, et décider si vous la conservez ou non.
+
+Dans la liste de gauche, vous disposez de la liste des images générées pour chaque fichier SER.
+En bas à droite, vous pouvez passer à l'image suivante ou précédente, et terminer le processus.
+
+Lorsque vous avez fini, la fenêtre suivante s'ouvre :
+
+image::image-filtering-2-fr.jpg[]
+
+Elle vous permet de choisir ce que vous voulez faire des images qui ont été rejetées : les conserver, les supprimer, ou les déplacer dans un sous-dossier (par défaut, elles seront déplacées).
+De même, vous pouvez choisir ce que vous voulez faire des fichiers SER qui ont servi à générer ces images rejetées : les conserver, les supprimer, ou les déplacer dans un sous-dossier.
+
+Si vous utilisez un script en mode batch, la partie `[[batch]]` du script ne s'exécutera que pour les images que vous avez conservées, ce qui permettra donc, par exemple, de faire un stacking uniquement sur les images de qualité.
+
+A noter que dans les fonctions `stack` et `stack_ref`, vous disposerez alors de la possiblitité de spécifier la méthode de sélection de la référence `manual`, qui choisira alors la meilleure image que vous avez sélectionnée.
+
+[[script-batch]]
 === Extensions d'ImageMath disponibles en mode batch
 
 Lorsque vous utilisez le mode batch, une nouvelle section est disponible dans les <<#imagemath,scripts ImageMath>>.

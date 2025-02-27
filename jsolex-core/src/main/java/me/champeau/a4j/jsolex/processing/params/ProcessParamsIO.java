@@ -100,7 +100,7 @@ public abstract class ProcessParamsIO {
                 false,
                 false,
                 false),
-            new ExtraParams(false, true, EnumSet.of(ImageFormat.PNG), FileNamingStrategy.DEFAULT_TEMPLATE, FileNamingStrategy.DEFAULT_DATETIME_FORMAT, FileNamingStrategy.DEFAULT_DATE_FORMAT),
+            new ExtraParams(false, true, EnumSet.of(ImageFormat.PNG), FileNamingStrategy.DEFAULT_TEMPLATE, FileNamingStrategy.DEFAULT_DATETIME_FORMAT, FileNamingStrategy.DEFAULT_DATE_FORMAT, false),
             new VideoParams(ColorMode.MONO),
             new GeometryParams(null, null, false, false, false, false, true, RotationKind.NONE, AutocropMode.RADIUS_1_2, DeconvolutionMode.NONE, null, false, null, false),
             new BandingCorrectionParams(DEFAULT_BAND_SIZE, DEFAULT_PASS_COUNT),
@@ -215,7 +215,8 @@ public abstract class ProcessParamsIO {
                     EnumSet.of(ImageFormat.PNG),
                     FileNamingStrategy.DEFAULT_TEMPLATE,
                     FileNamingStrategy.DEFAULT_DATETIME_FORMAT,
-                    FileNamingStrategy.DEFAULT_DATE_FORMAT
+                    FileNamingStrategy.DEFAULT_DATE_FORMAT,
+                    false
                 ));
             }
             if (params.extraParams().datetimeFormat() == null) {

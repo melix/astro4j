@@ -17,12 +17,14 @@ package me.champeau.a4j.jsolex.processing.expr.impl;
 
 import me.champeau.a4j.jsolex.processing.event.ProgressEvent;
 import me.champeau.a4j.jsolex.processing.expr.AbstractImageExpressionEvaluator;
+import me.champeau.a4j.jsolex.processing.expr.BestImages;
 import me.champeau.a4j.jsolex.processing.expr.stacking.DistorsionDebugImageCreator;
 import me.champeau.a4j.jsolex.processing.expr.stacking.DistorsionMap;
 import me.champeau.a4j.jsolex.processing.params.ProcessParams;
 import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
 import me.champeau.a4j.jsolex.processing.sun.workflow.GeneratedImageKind;
 import me.champeau.a4j.jsolex.processing.sun.workflow.ImageEmitter;
+import me.champeau.a4j.jsolex.processing.sun.workflow.SourceInfo;
 import me.champeau.a4j.jsolex.processing.util.FileBackedImage;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
@@ -100,8 +102,8 @@ public class Stacking extends AbstractFunctionImpl {
      * @param referenceSelection the reference selection
      * @return the reference image
      */
-    public ImageWrapper32 chooseReference(List<ImageWrapper32> images, ReferenceSelection referenceSelection) {
-        return computeReferenceImageAndAdjustWeights(images, referenceSelection, new double[images.size()]);
+    public ImageWrapper32 chooseReference(List<ImageWrapper32> images, SourceInfo bestSourceInfo, ReferenceSelection referenceSelection) {
+        return computeReferenceImageAndAdjustWeights(images, bestSourceInfo, referenceSelection, new double[images.size()]);
     }
 
     /**
@@ -132,10 +134,19 @@ public class Stacking extends AbstractFunctionImpl {
                 return List.of();
             }
             var referenceSelection = arguments.size() == 2 ? ReferenceSelection.valueOf(stringArg(arguments, 1).toUpperCase(Locale.US)) : ReferenceSelection.SHARPNESS;
-            return chooseReference(images, referenceSelection);
+            var bestSource = referenceSelection == ReferenceSelection.MANUAL ? bestSourceInfo() : null;
+            return chooseReference(images, bestSource, referenceSelection);
         } else {
             throw new IllegalArgumentException("choose_reference first argument must be a list of images");
         }
+    }
+
+    private SourceInfo bestSourceInfo() {
+        var bestImages = (BestImages) context.get(BestImages.class);
+        if (bestImages != null) {
+            return bestImages.sourceInfo();
+        }
+        return null;
     }
 
     /**
@@ -206,7 +217,7 @@ public class Stacking extends AbstractFunctionImpl {
         Arrays.fill(weights, -1);
         if (referenceImage == null) {
             Arrays.fill(weights, 1);
-            reference = computeReferenceImageAndAdjustWeights(sourceImages, referenceSelection, weights);
+            reference = computeReferenceImageAndAdjustWeights(sourceImages, bestSourceInfo(), referenceSelection, weights);
         }
         var referenceData = referenceImage != null ? referenceImage.data() : reference.data();
         var signal = 1;
@@ -292,7 +303,10 @@ public class Stacking extends AbstractFunctionImpl {
         }
     }
 
-    private ImageWrapper32 computeReferenceImageAndAdjustWeights(List<ImageWrapper32> images, ReferenceSelection referenceSelection, double[] weights) {
+    private ImageWrapper32 computeReferenceImageAndAdjustWeights(List<ImageWrapper32> images,
+                                                                 SourceInfo bestImageSource,
+                                                                 ReferenceSelection referenceSelection,
+                                                                 double[] weights) {
         return switch (referenceSelection) {
             case FIRST -> images.getFirst();
             case AVERAGE -> (ImageWrapper32) simpleFunctionCall.applyFunction("average", (List) images, DoubleStream::average);
@@ -322,6 +336,17 @@ public class Stacking extends AbstractFunctionImpl {
                 .max(Comparator.comparingDouble(a -> a.sharpness))
                 .map(o -> o.image)
                 .orElseThrow();
+            case MANUAL -> {
+                if (bestImageSource == null) {
+                    yield computeReferenceImageAndAdjustWeights(images, null, ReferenceSelection.SHARPNESS, weights);
+                }
+                yield images.stream()
+                .filter(i -> i.findMetadata(SourceInfo.class).map(bestImageSource::equals).orElse(false))
+                .findFirst()
+                .map(ImageWrapper::unwrapToMemory)
+                .map(ImageWrapper32.class::cast)
+                .orElseThrow();
+            }
         };
     }
 
@@ -445,7 +470,8 @@ public class Stacking extends AbstractFunctionImpl {
         AVERAGE,
         MEDIAN,
         ECCENTRICITY,
-        SHARPNESS
+        SHARPNESS,
+        MANUAL
     }
 
 }

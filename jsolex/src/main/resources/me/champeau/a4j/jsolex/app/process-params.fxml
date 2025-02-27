@@ -484,7 +484,7 @@
                                                 <Tooltip text="%assume.mono.images.tooltip"/>
                                             </tooltip>
                                         </CheckBox>
-                                        <Button mnemonicParsing="false" onAction="#resetMiscParams" text="%reset.to.defaults" GridPane.columnIndex="1" GridPane.rowIndex="4"/>
+                                        <Button mnemonicParsing="false" onAction="#resetMiscParams" text="%reset.to.defaults" GridPane.columnIndex="1" GridPane.rowIndex="5"/>
                                         <CheckBox fx:id="autoSave" mnemonicParsing="false" text="%automatic.save.images" GridPane.columnIndex="1">
                                             <tooltip>
                                                 <Tooltip text="%automatic.save.images.tooltip"/>
@@ -520,6 +520,11 @@
                                         <CheckBox fx:id="autoTrimSerFile" mnemonicParsing="false" text="%auto.trim.ser.file" GridPane.columnSpan="2" GridPane.rowIndex="3" visible="false">
                                             <tooltip>
                                                 <Tooltip text="%auto.trim.ser.file.tooltip"/>
+                                            </tooltip>
+                                        </CheckBox>
+                                        <CheckBox fx:id="reviewImagesAfterBatch" mnemonicParsing="false" text="%review.images.after.batch" GridPane.columnSpan="2" GridPane.rowIndex="4" visible="false">
+                                            <tooltip>
+                                                <Tooltip text="%review.images.after.batch.tooltip"/>
                                             </tooltip>
                                         </CheckBox>
                                     </children>

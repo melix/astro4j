@@ -221,6 +221,8 @@ public class ProcessParamsController {
     private CheckBox altAzMode;
     @FXML
     private CheckBox autoTrimSerFile;
+    @FXML
+    private CheckBox reviewImagesAfterBatch;
 
     private final List<Stage> popups = new CopyOnWriteArrayList<>();
     private Stage stage;
@@ -495,6 +497,8 @@ public class ProcessParamsController {
         spectrumVFlip.setSelected(initialProcessParams.geometryParams().isSpectrumVFlip());
         altAzMode.setSelected(initialProcessParams.observationDetails().altAzMode());
         autoTrimSerFile.setVisible(batchMode);
+        reviewImagesAfterBatch.setVisible(batchMode);
+        reviewImagesAfterBatch.setSelected(initialProcessParams.extraParams().reviewImagesAfterBatch());
     }
 
     private static TextFormatter<Integer> createOrderFormatter() {
@@ -712,7 +716,7 @@ public class ProcessParamsController {
                 showCoordinatesInDetails,
                 altAzMode.isSelected()
             ),
-            new ExtraParams(generateDebugImages.isSelected() || debugImagesRequested, autoSave.isSelected(), imageFormats, namingStrategy.pattern(), namingStrategy.datetimeFormat(), namingStrategy.dateFormat()),
+            new ExtraParams(generateDebugImages.isSelected() || debugImagesRequested, autoSave.isSelected(), imageFormats, namingStrategy.pattern(), namingStrategy.datetimeFormat(), namingStrategy.dateFormat(), reviewImagesAfterBatch.isSelected()),
             new VideoParams(assumeMonoVideo.isSelected() ? ColorMode.MONO : null),
             new GeometryParams(
                 forceTilt.isSelected() ? Double.parseDouble(tiltValue.getText()) : null,
@@ -820,6 +824,7 @@ public class ProcessParamsController {
         generateDebugImages.setSelected(false);
         autoSave.setSelected(true);
         generateFits.setSelected(true);
+        reviewImagesAfterBatch.setSelected(false);
     }
 
     @FXML
