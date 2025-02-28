@@ -38,9 +38,7 @@ import me.champeau.a4j.jsolex.app.JSolEx;
 import me.champeau.a4j.jsolex.processing.expr.impl.Loader;
 import me.champeau.a4j.jsolex.processing.params.ProcessParams;
 import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
-import me.champeau.a4j.jsolex.processing.sun.ImageUtils;
 import me.champeau.a4j.jsolex.processing.sun.workflow.GeneratedImageKind;
-import me.champeau.a4j.jsolex.processing.util.FitsUtils;
 import me.champeau.a4j.jsolex.processing.util.ImageFormat;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
@@ -431,20 +429,16 @@ public class ImageInspectorController {
             return cached;
         }
         var path = findImageFile(selectedItem);
-        if (path != null && !path.toString().endsWith(ImageFormat.FITS.extension())) {
-            var image = new Image(path.toFile().toURI().toString());
-            imageCache.put(selectedItem, image);
-            return image;
+        if (path != null) {
+            var supportedByJavaFX = path.toString().toLowerCase().endsWith(".png") || path.toString().endsWith(".jpg");
+            if (supportedByJavaFX) {
+                var image = new Image(path.toFile().toURI().toString());
+                imageCache.put(selectedItem, image);
+                return image;
+            }
         }
         if (path != null) {
-            // convert to png first
-            var wrapper = FitsUtils.readFitsFile(path.toFile());
-            if (wrapper instanceof ImageWrapper32 mono) {
-                ImageUtils.writeMonoImage(mono.width(), mono.height(), mono.data(), tempFile, Set.of(ImageFormat.PNG));
-            } else if (wrapper instanceof RGBImage rgb) {
-                ImageUtils.writeRgbImage(rgb.width(), rgb.height(), rgb.r(), rgb.g(), rgb.b(), tempFile, Set.of(ImageFormat.PNG));
-            }
-            var image = new Image(tempFile.toURI().toString());
+            var image = WritableImageSupport.asWritable(Loader.loadImage(path.toFile()));
             imageCache.put(selectedItem, image);
             return image;
         }

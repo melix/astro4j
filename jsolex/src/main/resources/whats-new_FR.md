@@ -1,5 +1,9 @@
 # Bienvenue dans JSol'Ex {{version}} !
 
+## Nouveautés de la version 2.11.1
+
+- Correction du chargement des images TIF dans l'outil de revue d'images
+
 ## Nouveautés de la version 2.11.0
 
 - Ajout d'un outil de revue d'images pour parcourir rapidement les images traitées en mode batch et rejeter les mauvais scans
