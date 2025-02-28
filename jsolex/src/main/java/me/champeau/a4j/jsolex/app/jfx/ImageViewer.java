@@ -35,8 +35,6 @@ import javafx.scene.control.MenuItem;
 import javafx.scene.control.Slider;
 import javafx.scene.control.Tooltip;
 import javafx.scene.image.Image;
-import javafx.scene.image.PixelFormat;
-import javafx.scene.image.WritableImage;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
@@ -439,45 +437,11 @@ public class ImageViewer implements WithRootNode {
         displayImage = applyTransformations(this.image);
         if (displayImage instanceof ImageWrapper32 mono) {
             stretchedImage = stretch(mono);
-            var image = new WritableImage(mono.width(), mono.height());
-            var writer = image.getPixelWriter();
-            float[][] data = mono.data();
-            byte[] pixels = new byte[3 * mono.width() * mono.height()];
-            for (int y = 0; y < mono.height(); y++) {
-                for (int x = 0; x < mono.width(); x++) {
-                    int value = (int) data[y][x];
-                    var v = (byte) (value >> 8);
-                    var offset = 3 * (y * mono.width() + x);
-                    pixels[offset] = v;
-                    pixels[offset + 1] = v;
-                    pixels[offset + 2] = v;
-                }
-            }
-            writer.setPixels(0, 0, mono.width(), mono.height(), PixelFormat.getByteRgbInstance(), pixels, 0, 3 * mono.width());
-            Platform.runLater(() -> updateDisplay(image, resetZoom));
         } else if (displayImage instanceof RGBImage rgb) {
             stretchedImage = stretch(rgb);
-            var stretched = (RGBImage) stretchedImage;
-            var image = new WritableImage(rgb.width(), rgb.height());
-            var writer = image.getPixelWriter();
-            float[][] r = stretched.r();
-            float[][] g = stretched.g();
-            float[][] b = stretched.b();
-            byte[] pixels = new byte[3 * rgb.width() * rgb.height()];
-            for (int y = 0; y < rgb.height(); y++) {
-                for (int x = 0; x < rgb.width(); x++) {
-                    int vr = (int) r[y][x];
-                    int vg = (int) g[y][x];
-                    int vb = (int) b[y][x];
-                    int offset = 3 * (y * rgb.width() + x);
-                    pixels[offset] = (byte) (vr >> 8);
-                    pixels[offset + 1] = (byte) (vg >> 8);
-                    pixels[offset + 2] = (byte) (vb >> 8);
-                }
-            }
-            writer.setPixels(0, 0, rgb.width(), rgb.height(), PixelFormat.getByteRgbInstance(), pixels, 0, 3 * rgb.width());
-            Platform.runLater(() -> updateDisplay(image, resetZoom));
         }
+        var writable = WritableImageSupport.asWritable(stretchedImage);
+        Platform.runLater(() -> updateDisplay(writable, resetZoom));
     }
 
     private ImageWrapper applyTransformations(ImageWrapper image) {
