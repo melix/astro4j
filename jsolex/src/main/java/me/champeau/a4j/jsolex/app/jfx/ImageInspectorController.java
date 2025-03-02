@@ -313,22 +313,27 @@ public class ImageInspectorController {
         }
 
         var currentImages = images.get(currentImageIndex.get());
+        var newItemToSelect = findCurrentSelectionInNewCandidateList(imageList.getSelectionModel().getSelectedItem(), currentImages);
         imageList.getItems().setAll(currentImages);
-
-        var selectedOpt = findMainImage(currentImages);
-        if (selectedOpt.isPresent()) {
-            var selectedCandidate = selectedOpt.get();
-            imageList.getSelectionModel().select(selectedCandidate);
-            var state = selections.get(currentImageIndex.get()).getState();
-            discardButton.setSelected(state == SelectionState.DISCARD);
-            keepButton.setSelected(state == SelectionState.KEEP);
-            setBestButton.setSelected(state == SelectionState.BEST);
-            var currentImg = getFromCacheOrCreateImage(selectedCandidate);
+        newItemToSelect.ifPresentOrElse(newItem -> {
+            imageList.getSelectionModel().select(newItem);
+            var currentImg = getFromCacheOrCreateImage(newItem);
             currentImageView.setImage(currentImg);
-        } else {
-            currentImageView.setImage(null);
-        }
-
+        }, () -> {
+            var selectedOpt = findMainImage(currentImages);
+            if (selectedOpt.isPresent()) {
+                var selectedCandidate = selectedOpt.get();
+                imageList.getSelectionModel().select(selectedCandidate);
+                var currentImg = getFromCacheOrCreateImage(selectedCandidate);
+                currentImageView.setImage(currentImg);
+            } else {
+                currentImageView.setImage(null);
+            }
+        });
+        var state = selections.get(currentImageIndex.get()).getState();
+        discardButton.setSelected(state == SelectionState.DISCARD);
+        keepButton.setSelected(state == SelectionState.KEEP);
+        setBestButton.setSelected(state == SelectionState.BEST);
         var bestIndexOpt = getBestImage();
         if (bestIndexOpt.isPresent()) {
             var bestIndex = bestIndexOpt.get();
@@ -392,14 +397,7 @@ public class ImageInspectorController {
         }
         // Get the current reference candidate from the ListView
         CandidateImageDescriptor referenceCandidate = imageList.getSelectionModel().getSelectedItem();
-        Optional<CandidateImageDescriptor> candidateOpt = Optional.empty();
-        if (referenceCandidate != null) {
-            candidateOpt = bestImages.stream()
-                .filter(gi -> gi.title().equals(referenceCandidate.title()))
-                .filter(gi -> gi.pixelShift() == referenceCandidate.pixelShift())
-                .filter(gi -> gi.kind() == referenceCandidate.kind())
-                .findFirst();
-        }
+        var candidateOpt = findCurrentSelectionInNewCandidateList(referenceCandidate, bestImages);
         // Fallback to the default "main" candidate if no match was found.
         if (candidateOpt.isEmpty()) {
             candidateOpt = findMainImage(bestImages);
@@ -411,6 +409,19 @@ public class ImageInspectorController {
         } else {
             bestImageView.setImage(null);
         }
+    }
+
+    private static Optional<CandidateImageDescriptor> findCurrentSelectionInNewCandidateList(CandidateImageDescriptor referenceCandidate,
+                                                                                             List<CandidateImageDescriptor> bestImages) {
+        Optional<CandidateImageDescriptor> candidateOpt = Optional.empty();
+        if (referenceCandidate != null) {
+            candidateOpt = bestImages.stream()
+                .filter(gi -> gi.title().equals(referenceCandidate.title()))
+                .filter(gi -> gi.pixelShift() == referenceCandidate.pixelShift())
+                .filter(gi -> gi.kind() == referenceCandidate.kind())
+                .findFirst();
+        }
+        return candidateOpt;
     }
 
     private Path findImageFile(CandidateImageDescriptor candidate) {
