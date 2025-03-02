@@ -30,18 +30,21 @@ public abstract class AbstractImageWriterTask extends AbstractTask<Void> {
     private final String title;
     private final String name;
     private final GeneratedImageKind kind;
+    private final String description;
 
     protected AbstractImageWriterTask(Broadcaster broadcaster,
                                       Supplier<ImageWrapper32> image,
                                       File outputDirectory,
                                       String title,
                                       String name,
+                                      String description,
                                       GeneratedImageKind kind) {
         super(broadcaster, image);
         this.outputDirectory = outputDirectory;
         this.title = title;
         this.name = name;
         this.kind = kind;
+        this.description = description;
     }
 
     public void transform() {
@@ -52,7 +55,7 @@ public abstract class AbstractImageWriterTask extends AbstractTask<Void> {
     protected final Void doCall() {
         transform();
         File outputFile = new File(outputDirectory, name);
-        var image = new GeneratedImage(kind, title, outputFile.toPath(), createImageWrapper());
+        var image = new GeneratedImage(kind, title, outputFile.toPath(), createImageWrapper(), description);
         broadcaster.broadcast(new ImageGeneratedEvent(image));
         return null;
     }

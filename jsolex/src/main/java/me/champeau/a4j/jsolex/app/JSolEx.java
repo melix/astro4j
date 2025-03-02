@@ -934,7 +934,7 @@ public class JSolEx extends Application implements JSolExInterface {
                     result.imagesByLabel().entrySet().stream().parallel().forEach(entry -> {
                         var name = namingStrategy.render(0, null, Constants.TYPE_PROCESSED, entry.getKey(), "standalone");
                         var outputFile = new File(outputDirectory, name);
-                        listener.onImageGenerated(new ImageGeneratedEvent(new GeneratedImage(GeneratedImageKind.IMAGE_MATH, entry.getKey(), outputFile.toPath(), entry.getValue())));
+                        listener.onImageGenerated(new ImageGeneratedEvent(new GeneratedImage(GeneratedImageKind.IMAGE_MATH, entry.getKey(), outputFile.toPath(), entry.getValue(), null)));
 
                     });
                     result.filesByLabel().entrySet().stream().parallel().forEach(entry -> {

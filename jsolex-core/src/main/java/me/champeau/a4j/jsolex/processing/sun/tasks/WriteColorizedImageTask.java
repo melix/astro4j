@@ -34,9 +34,10 @@ public class WriteColorizedImageTask extends AbstractImageWriterTask {
                                    File outputDirectory,
                                    String title,
                                    String name,
+                                   String description,
                                    GeneratedImageKind kind,
                                    Function<ImageWrapper32, float[][][]> converter) {
-        super(broadcaster, image, outputDirectory, title, name, kind);
+        super(broadcaster, image, outputDirectory, title, name, description, kind);
         this.mono = image;
         this.converter = converter;
     }

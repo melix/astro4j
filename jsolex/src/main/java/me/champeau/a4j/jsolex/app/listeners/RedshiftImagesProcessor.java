@@ -254,6 +254,7 @@ public class RedshiftImagesProcessor {
             GeneratedImageKind.CROPPED,
             null, title,
             name,
+            null,
             anim.file());
     }
 
@@ -355,6 +356,7 @@ public class RedshiftImagesProcessor {
             GeneratedImageKind.REDSHIFT,
             null, String.format("Panel %s (%.2f km/s)", redshift.id(), redshift.kmPerSec()),
             "redshift-" + redshift.id(),
+            null,
             anim.file());
     }
 
@@ -404,10 +406,10 @@ public class RedshiftImagesProcessor {
             GeneratedImageKind.REDSHIFT,
             null, title,
             name,
+            null,
             panelWidth,
             panelHeight,
-            Map.of(),
-            () -> {
+            Map.of(), () -> {
                 var rgb = new float[3][panelHeight][panelWidth];
                 var r = rgb[0];
                 var g = rgb[1];

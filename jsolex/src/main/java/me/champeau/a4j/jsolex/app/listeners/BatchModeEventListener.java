@@ -390,7 +390,7 @@ public class BatchModeEventListener implements ProcessingEventListener, ImageMat
             var name = namingStrategy.render(0, null, Constants.TYPE_PROCESSED, entry.getKey(), "batch");
             var outputFile = new File(outputDirectory, name);
             delegate.onImageGenerated(new ImageGeneratedEvent(
-                new GeneratedImage(GeneratedImageKind.IMAGE_MATH, entry.getKey(), outputFile.toPath(), entry.getValue())
+                new GeneratedImage(GeneratedImageKind.IMAGE_MATH, entry.getKey(), outputFile.toPath(), entry.getValue(), null)
             ));
             hasCustomImages.set(true);
         });

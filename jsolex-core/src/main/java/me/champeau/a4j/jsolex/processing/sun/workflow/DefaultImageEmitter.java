@@ -54,7 +54,7 @@ public class DefaultImageEmitter implements ImageEmitter {
     }
 
     @Override
-    public void newMonoImage(GeneratedImageKind kind, String category, String title, String name, ImageWrapper32 image, Consumer<? super float[][]> bufferConsumer) {
+    public void newMonoImage(GeneratedImageKind kind, String category, String title, String name, String description, ImageWrapper32 image, Consumer<? super float[][]> bufferConsumer) {
         prepareOutput(name);
         storeMetadata(kind, title, name, image);
         new WriteMonoImageTask(broadcaster,
@@ -62,6 +62,7 @@ public class DefaultImageEmitter implements ImageEmitter {
             outputDir,
             title,
             name,
+            description,
             kind
         ) {
             @Override
@@ -85,7 +86,7 @@ public class DefaultImageEmitter implements ImageEmitter {
     }
 
     @Override
-    public void newMonoImage(GeneratedImageKind kind, String category, String title, String name, ImageWrapper32 image) {
+    public void newMonoImage(GeneratedImageKind kind, String category, String title, String name, String description, ImageWrapper32 image) {
         prepareOutput(name);
         storeMetadata(kind, title, name, image);
         new WriteMonoImageTask(broadcaster,
@@ -93,11 +94,12 @@ public class DefaultImageEmitter implements ImageEmitter {
             outputDir,
             title,
             name,
+            description,
             kind).get();
     }
 
     @Override
-    public void newColorImage(GeneratedImageKind kind, String category, String title, String name, ImageWrapper32 image, Function<ImageWrapper32, float[][][]> rgbSupplier) {
+    public void newColorImage(GeneratedImageKind kind, String category, String title, String name, String description, ImageWrapper32 image, Function<ImageWrapper32, float[][][]> rgbSupplier) {
         prepareOutput(name);
         storeMetadata(kind, title, name, image);
         new WriteColorizedImageTask(broadcaster,
@@ -105,13 +107,14 @@ public class DefaultImageEmitter implements ImageEmitter {
             outputDir,
             title,
             name,
+            description,
             kind,
             rgbSupplier).get();
     }
 
     @Override
-    public void newColorImage(GeneratedImageKind kind, String category, String title, String name, ImageWrapper32 image, Function<ImageWrapper32, float[][][]> rgbSupplier, BiConsumer<Graphics2D, ? super ImageWrapper> painter) {
-        newColorImage(kind, null, title, name, image, img -> {
+    public void newColorImage(GeneratedImageKind kind, String category, String title, String name, String description, ImageWrapper32 image, Function<ImageWrapper32, float[][][]> rgbSupplier, BiConsumer<Graphics2D, ? super ImageWrapper> painter) {
+        newColorImage(kind, null, title, name, description, image, img -> {
             var rgb = rgbSupplier.apply(img);
             var r = rgb[0];
             var g = rgb[1];
@@ -131,7 +134,7 @@ public class DefaultImageEmitter implements ImageEmitter {
     }
 
     @Override
-    public void newColorImage(GeneratedImageKind kind, String category, String title, String name, int width, int height, Map<Class<?>, Object> metadata, Supplier<float[][][]> rgbSupplier) {
+    public void newColorImage(GeneratedImageKind kind, String category, String title, String name, String description, int width, int height, Map<Class<?>, Object> metadata, Supplier<float[][][]> rgbSupplier) {
         prepareOutput(name);
         new WriteRGBImageTask(broadcaster,
             () -> {
@@ -142,12 +145,13 @@ public class DefaultImageEmitter implements ImageEmitter {
             outputDir,
             title,
             name,
+            description,
             kind,
             rgbSupplier).get();
     }
 
     @Override
-    public void newGenericFile(GeneratedImageKind kind, String category, String title, String name, Path file) {
+    public void newGenericFile(GeneratedImageKind kind, String category, String title, String name, String description, Path file) {
         prepareOutput(name);
 
         var fileName = file.getFileName().toString();

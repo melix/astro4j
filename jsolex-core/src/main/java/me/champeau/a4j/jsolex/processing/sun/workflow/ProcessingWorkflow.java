@@ -123,14 +123,14 @@ public class ProcessingWorkflow {
             var claheParams = processParams.claheParams();
             ClaheStrategy.of(claheParams).stretch(clahe);
             TransformationHistory.recordTransform(clahe, "CLAHE (tile size: " + claheParams.tileSize() + ", clip limit: " + claheParams.clipping() + ", bins: " + claheParams.bins() + ")");
-            imagesEmitter.newMonoImage(GeneratedImageKind.GEOMETRY_CORRECTED_PROCESSED, null, message("processed"), "clahe", clahe);
+            imagesEmitter.newMonoImage(GeneratedImageKind.GEOMETRY_CORRECTED_PROCESSED, null, message("processed"), "clahe", String.format(message("contrast.enhanced.description"), state.pixelShift(), "CLAHE"), clahe);
         }
     }
 
     private void emitReconImage() {
         var reconstructed = state.image();
         reconstructed.metadata().put(PixelShift.class, new PixelShift(state.pixelShift()));
-        imagesEmitter.newMonoImage(GeneratedImageKind.RAW, null, message(Constants.TYPE_RAW), "recon", reconstructed);
+        imagesEmitter.newMonoImage(GeneratedImageKind.RAW, null, message(Constants.TYPE_RAW), "recon", String.format(message("recon.description"), state.pixelShift()), reconstructed);
     }
 
     private void logIfFirstStep(String message, Object... params) {
@@ -176,7 +176,7 @@ public class ProcessingWorkflow {
             kind = GeneratedImageKind.CONTINUUM;
         }
         if (!state.isInternal()) {
-            imagesEmitter.newMonoImage(kind, null, message("disk"), "disk", geometryFixed);
+            imagesEmitter.newMonoImage(kind, null, message("disk"), "disk", String.format(message("geometry.corrected.description"), state.pixelShift()), geometryFixed);
         }
         g = performEnhancements(g);
         state.recordResult(WorkflowResults.GEOMETRY_CORRECTION, g);
@@ -186,7 +186,7 @@ public class ProcessingWorkflow {
         var enhanced = (ImageWrapper32) g.enhanced().unwrapToMemory();
         broadcaster.broadcast(OutputImageDimensionsDeterminedEvent.of(message("geometry.corrected"), geometryFixed.width(), geometryFixed.height()));
         var stretched = produceStretchedImage(enhanced, processParams.claheParams(), processParams.autoStretchParams(), processParams.contrastEnhancement());
-        imagesEmitter.newMonoImage(GeneratedImageKind.GEOMETRY_CORRECTED_PROCESSED, null, message("processed"), processParams.contrastEnhancement().name().toLowerCase(Locale.US), stretched);
+        imagesEmitter.newMonoImage(GeneratedImageKind.GEOMETRY_CORRECTED_PROCESSED, null, message("processed"), processParams.contrastEnhancement().name().toLowerCase(Locale.US), String.format(message("contrast.enhanced.description"), state.pixelShift(), processParams.contrastEnhancement()), stretched);
         var runnables = new ArrayList<Runnable>();
         if (isMainShift() && shouldProduce(GeneratedImageKind.NEGATIVE)) {
             runnables.add(() -> produceNegativeImage(enhanced));
@@ -226,6 +226,7 @@ public class ProcessingWorkflow {
             null,
             message("activeregions"),
             "activeregions",
+            message("activeregions.description"),
             image,
             mono -> {
                 new LinearStrechingStrategy(0, .75f * Constants.MAX_PIXEL_VALUE).stretch(mono);
@@ -242,16 +243,15 @@ public class ProcessingWorkflow {
                     b = img.b();
                 }
                 return new float[][][]{r, g, b};
-            }
-        );
+            });
     }
 
     private void produceRedshiftsImage(ImageWrapper32 geometryFixed, List<RedshiftArea> redshifts) {
         imagesEmitter.newColorImage(GeneratedImageKind.REDSHIFT,
             null, message("redshift"),
             "redshift",
-            geometryFixed,
-            mono -> {
+            message("redshift.description"),
+            geometryFixed, mono -> {
                 LinearStrechingStrategy.DEFAULT.stretch(mono);
                 var data = mono.data();
                 var r = ImageWrapper.copyData(data);
@@ -348,14 +348,14 @@ public class ProcessingWorkflow {
     private void produceColorizedImage(float blackPoint, ImageWrapper32 corrected, ProcessParams params) {
         var ray = params.spectrumParams().ray();
         ray.getColorCurve().ifPresentOrElse(curve ->
-                imagesEmitter.newColorImage(GeneratedImageKind.COLORIZED, null, MessageFormat.format(message("colorized"), curve.ray()), "colorized", corrected, monoImage -> {
+                imagesEmitter.newColorImage(GeneratedImageKind.COLORIZED, null, MessageFormat.format(message("colorized"), curve.ray()), "colorized", String.format(message("colorized.description"), state.pixelShift()), corrected, monoImage -> {
                     var mono = monoImage.data();
                     createStretchingForColorization(blackPoint).stretch(new ImageWrapper32(corrected.width(), corrected.height(), mono, MutableMap.of()));
                     return ImageUtils.convertToRGB(curve, mono);
                 })
             , () -> {
                 if (ray.wavelength() > 0) {
-                    imagesEmitter.newColorImage(GeneratedImageKind.COLORIZED, null, MessageFormat.format(message("colorized"), ray.label()), "colorized", corrected, monoImage -> {
+                    imagesEmitter.newColorImage(GeneratedImageKind.COLORIZED, null, MessageFormat.format(message("colorized"), ray.label()), "colorized", String.format(message("colorized.description"), state.pixelShift()), corrected, monoImage -> {
                         var mono = monoImage.data();
                         var rgb = ray.toRGB();
                         return Colorize.doColorize(corrected.width(), corrected.height(), mono, rgb);
@@ -409,7 +409,7 @@ public class ProcessingWorkflow {
             ))
         ));
         decorated.metadata().put(RotationKind.class, RotationKind.NONE);
-        imagesEmitter.newMonoImage(GeneratedImageKind.TECHNICAL_CARD, null, message("technical.card"), "card", decorated);
+        imagesEmitter.newMonoImage(GeneratedImageKind.TECHNICAL_CARD, null, message("technical.card"), "card", message("technical.card.description"), decorated);
     }
 
     private void produceNegativeImage(ImageWrapper32 geometryFixed) {
@@ -417,7 +417,7 @@ public class ProcessingWorkflow {
         new ClaheStrategy(128, 512, .8f).stretch(negated);
         NegativeImageStrategy.DEFAULT.stretch(negated);
         TransformationHistory.recordTransform(negated, "Negative");
-        imagesEmitter.newMonoImage(GeneratedImageKind.NEGATIVE, null, message("negative"), "negative", negated);
+        imagesEmitter.newMonoImage(GeneratedImageKind.NEGATIVE, null, message("negative"), "negative", String.format(message("negative.description"), state.pixelShift()), negated);
     }
 
     private void produceCoronagraph(float blackPoint, ImageWrapper32 geometryFixed) {
@@ -427,7 +427,7 @@ public class ProcessingWorkflow {
             var produceMixed = diskEllipse != null && shouldProduce(GeneratedImageKind.MIXED);
             if (produceVirtualEclipse || produceMixed) {
                 var coronagraph = new CoronagraphTask(broadcaster, imageSupplier(WorkflowResults.GEOMETRY_CORRECTION), diskEllipse, blackPoint).get();
-                imagesEmitter.newMonoImage(GeneratedImageKind.VIRTUAL_ECLIPSE, null, message("protus"), "protus", coronagraph);
+                imagesEmitter.newMonoImage(GeneratedImageKind.VIRTUAL_ECLIPSE, null, message("protus"), "protus", message("protus.description"), coronagraph);
                 if (produceMixed) {
                     var data = geometryFixed.data();
                     var copy = ImageWrapper.copyData(data);
@@ -468,14 +468,14 @@ public class ProcessingWorkflow {
                     var colorCurve = ray.getColorCurve();
                     if (colorCurve.isPresent()) {
                         var curve = colorCurve.get();
-                        imagesEmitter.newColorImage(GeneratedImageKind.MIXED, null, message("mix"), "mix", mixedImage, monoImage -> ImageUtils.convertToRGB(curve, monoImage.data()));
+                        imagesEmitter.newColorImage(GeneratedImageKind.MIXED, null, message("mix"), "mix", message("mix.description"), mixedImage, monoImage -> ImageUtils.convertToRGB(curve, monoImage.data()));
                     } else if (ray.wavelength() > 0) {
-                        imagesEmitter.newColorImage(GeneratedImageKind.MIXED, null, message("mix"), "mix", mixedImage, monoImage -> {
+                        imagesEmitter.newColorImage(GeneratedImageKind.MIXED, null, message("mix"), "mix", message("mix.description"), mixedImage, monoImage -> {
                             var rgbColor = ray.toRGB();
                             return Colorize.doColorize(width, height, monoImage.data(), rgbColor);
                         });
                     } else {
-                        imagesEmitter.newMonoImage(GeneratedImageKind.MIXED, null, message("mix"), "mix", mixedImage);
+                        imagesEmitter.newMonoImage(GeneratedImageKind.MIXED, null, message("mix"), "mix", message("mix.description"), mixedImage);
                     }
                 }
             }

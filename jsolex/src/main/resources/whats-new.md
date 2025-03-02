@@ -2,6 +2,7 @@
 
 ## What's New in Version 2.11.1
 
+- Added a description to the generated images
 - Fixed loading of TIF images in the image reviewing tool
 - Fixed selection of images in the list of the reviewing tool which could be lost when clicking next/previous
 

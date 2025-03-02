@@ -213,7 +213,7 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
         var buffer = new byte[3 * width * height];
         var reconstructionView = blockingUntilResultAvailable(() -> owner.getImagesViewer().addImage(this,
             message("image.reconstruction"), baseName,
-            GeneratedImageKind.RECONSTRUCTION, null, null, params, popupViews, new PixelShift(pixelShift),
+            GeneratedImageKind.RECONSTRUCTION,  null,null, null, params, popupViews, new PixelShift(pixelShift),
             viewer -> {
                 var parentWidth = owner.getImagesViewer().widthProperty();
                 viewer.getImageView().getScrollPane().maxWidthProperty().bind(parentWidth);
@@ -422,6 +422,7 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
                 title,
                 baseName,
                 generatedImageKind,
+                payload.description(),
                 imageWrapper,
                 payload.path().toAbsolutePath().toFile(),
                 adjustedParams != null ? adjustedParams : params,
@@ -523,7 +524,8 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
                                     GeneratedImageKind.CROPPED,
                                     title,
                                     path,
-                                    croppedImage
+                                    croppedImage,
+                                    null
                                 )
                             ));
                         }

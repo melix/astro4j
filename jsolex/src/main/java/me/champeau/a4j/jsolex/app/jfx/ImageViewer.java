@@ -33,6 +33,7 @@ import javafx.scene.control.CheckBox;
 import javafx.scene.control.Label;
 import javafx.scene.control.MenuItem;
 import javafx.scene.control.Slider;
+import javafx.scene.control.TextArea;
 import javafx.scene.control.Tooltip;
 import javafx.scene.image.Image;
 import javafx.scene.layout.HBox;
@@ -94,9 +95,13 @@ public class ImageViewer implements WithRootNode {
     @FXML
     private ZoomableImageView imageView;
 
+    @FXML
+    private TextArea descriptionArea;
+
     private CheckBox correctAngleP;
     private Button saveButton;
     private String title;
+    private String description;
     private Runnable onDisplayUpdate;
     private int rotation;
     private boolean vflip;
@@ -118,6 +123,7 @@ public class ImageViewer implements WithRootNode {
                       String title,
                       String baseName,
                       GeneratedImageKind kind,
+                      String description,
                       ImageWrapper image,
                       File imageName,
                       ProcessParams params,
@@ -127,7 +133,14 @@ public class ImageViewer implements WithRootNode {
         this.processParams = params;
         this.kind = kind;
         this.title = title;
+        this.description = description;
         this.siblings = siblings;
+        this.descriptionArea.textProperty().addListener((obs, old, newValue) -> {
+            var textElement = this.descriptionArea.lookup(".text");
+            if (textElement != null) {
+                Platform.runLater(() -> this.descriptionArea.setPrefHeight(textElement.getLayoutBounds().getHeight()));
+            }
+        });
         if (image != null) {
             this.image = image instanceof FileBackedImage fbi ? fbi.unwrapToMemory() : image;
             this.imageFile = new File(imageName.getParentFile(), baseName + "_" + imageName.getName() + imageDisplayExtension(params));
@@ -146,7 +159,7 @@ public class ImageViewer implements WithRootNode {
                             var controller = (ImageViewer) fxmlLoader.getController();
                             controller.init(node);
                             controller.setup(new ProcessingEventListener() {
-                            }, title, baseName, kind, image, imageFile, processParams, popupViews, siblings);
+                            }, title, baseName, kind, description, image, imageFile, processParams, popupViews, siblings);
                             var stage = new Stage();
                             var scene = new Scene((Parent) node);
                             controller.stage = stage;
@@ -421,6 +434,13 @@ public class ImageViewer implements WithRootNode {
                 imageView.resetZoom();
             }
             saveButton.setDisable(false);
+            if (description != null) {
+                descriptionArea.setVisible(true);
+                descriptionArea.setText(description);
+            } else {
+                descriptionArea.setVisible(false);
+                descriptionArea.setPrefHeight(0);
+            }
             maybeRunOnUpdate();
         } finally {
             displayLock.unlock();

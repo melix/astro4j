@@ -53,7 +53,7 @@ public class DebugImageHelper {
     }
 
     private static void produceOverlayImage(ImageEmitter processedImagesEmitter, int width, int height, float[][] newData, float[][] original, Map<Class<?>, Object> metadata) {
-        processedImagesEmitter.newColorImage(GeneratedImageKind.DEBUG, null, message("tilt.detection"), "tilt", width, height, metadata, () -> {
+        processedImagesEmitter.newColorImage(GeneratedImageKind.DEBUG, null, message("tilt.detection"), "tilt", message("tilt.detection.description"), width, height, metadata, () -> {
             float[][][] rgb = new float[3][][];
             rgb[0] = newData;
             rgb[1] = original;

@@ -791,7 +791,8 @@ public class SolexVideoProcessor implements Broadcaster {
                         GeneratedImageKind.REDSHIFT,
                         "Redshift %s (%.2f km/s)".formatted(redshift.id(), speed),
                         targetFile,
-                        FileBackedImage.wrap(image)
+                        FileBackedImage.wrap(image),
+                        message("individual.redshift.image.description")
                     )
                 ));
                 LOGGER.info(message("found.speed"), String.format("%.2f km/s", speed), redshift.x1(), redshift.y1(), redshift.x2(), redshift.y2(), redshift.relPixelShift());
@@ -1127,7 +1128,7 @@ public class SolexVideoProcessor implements Broadcaster {
             var emitter = new DiscardNonRequiredImages(
                 new NamingStrategyAwareImageEmitter(new DefaultImageEmitter(this, outputDirectory.toFile()), imageNamingStrategy, 0, serFile.getName().substring(0, serFile.getName().lastIndexOf("."))),
                 processParams.requestedImages().images());
-            emitter.newColorImage(GeneratedImageKind.DEBUG, null, message("average"), "average", width, height, MutableMap.of(), () -> {
+            emitter.newColorImage(GeneratedImageKind.DEBUG, null, message("average"), "average", message("average.image.description"), width, height, MutableMap.of(), () -> {
                 var rgb = new SpectralLineFrameImageCreator(analyzer, averageImage, width, height).generateDebugImage();
                 return new float[][][]{rgb.r(), rgb.g(), rgb.b()};
             });
