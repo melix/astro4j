@@ -32,9 +32,10 @@ public class WriteRGBImageTask extends AbstractImageWriterTask {
                              File outputDirectory,
                              String title,
                              String name,
+                             String description,
                              GeneratedImageKind kind,
                              Supplier<float[][][]> supplier) {
-        super(broadcaster, ref, outputDirectory, title, name, kind);
+        super(broadcaster, ref, outputDirectory, title, name, description, kind);
         this.supplier = supplier;
     }
 

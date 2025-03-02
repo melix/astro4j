@@ -49,32 +49,32 @@ public class NamingStrategyAwareImageEmitter implements ImageEmitter {
     }
 
     @Override
-    public void newMonoImage(GeneratedImageKind kind, String category, String title, String name, ImageWrapper32 image, Consumer<? super float[][]> bufferConsumer) {
-        delegate.newMonoImage(kind, null, title, rename(kind, name, category), image, bufferConsumer);
+    public void newMonoImage(GeneratedImageKind kind, String category, String title, String name, String description, ImageWrapper32 image, Consumer<? super float[][]> bufferConsumer) {
+        delegate.newMonoImage(kind, null, title, rename(kind, name, category), description, image, bufferConsumer);
     }
 
     @Override
-    public void newMonoImage(GeneratedImageKind kind, String category, String title, String name, ImageWrapper32 image) {
-        delegate.newMonoImage(kind, null, title, rename(kind, name, category), image);
+    public void newMonoImage(GeneratedImageKind kind, String category, String title, String name, String description, ImageWrapper32 image) {
+        delegate.newMonoImage(kind, null, title, rename(kind, name, category), description, image);
     }
 
     @Override
-    public void newColorImage(GeneratedImageKind kind, String category, String title, String name, ImageWrapper32 image, Function<ImageWrapper32, float[][][]> rgbSupplier) {
-        delegate.newColorImage(kind, null, title, rename(kind, name, category), image, rgbSupplier);
+    public void newColorImage(GeneratedImageKind kind, String category, String title, String name, String description, ImageWrapper32 image, Function<ImageWrapper32, float[][][]> rgbSupplier) {
+        delegate.newColorImage(kind, null, title, rename(kind, name, category), description, image, rgbSupplier);
     }
 
     @Override
-    public void newColorImage(GeneratedImageKind kind, String category, String title, String name, int width, int height, Map<Class<?>, Object> metadata, Supplier<float[][][]> rgbSupplier) {
-        delegate.newColorImage(kind, null, title, rename(kind, name, category), width, height, metadata, rgbSupplier);
+    public void newColorImage(GeneratedImageKind kind, String category, String title, String name, String description, int width, int height, Map<Class<?>, Object> metadata, Supplier<float[][][]> rgbSupplier) {
+        delegate.newColorImage(kind, null, title, rename(kind, name, category), description, width, height, metadata, rgbSupplier);
     }
 
     @Override
-    public void newColorImage(GeneratedImageKind kind, String category, String title, String name, ImageWrapper32 image, Function<ImageWrapper32, float[][][]> rgbSupplier, BiConsumer<Graphics2D, ? super ImageWrapper> painter) {
-        delegate.newColorImage(kind, null, title, rename(kind, name, category), image, rgbSupplier, painter);
+    public void newColorImage(GeneratedImageKind kind, String category, String title, String name, String description, ImageWrapper32 image, Function<ImageWrapper32, float[][][]> rgbSupplier, BiConsumer<Graphics2D, ? super ImageWrapper> painter) {
+        delegate.newColorImage(kind, null, title, rename(kind, name, category), description, image, rgbSupplier, painter);
     }
 
     @Override
-    public void newGenericFile(GeneratedImageKind kind, String category, String title, String name, Path file) {
-        delegate.newGenericFile(kind, null, title, rename(kind, name, category), file);
+    public void newGenericFile(GeneratedImageKind kind, String category, String title, String name, String description, Path file) {
+        delegate.newGenericFile(kind, null, title, rename(kind, name, category), description, file);
     }
 }

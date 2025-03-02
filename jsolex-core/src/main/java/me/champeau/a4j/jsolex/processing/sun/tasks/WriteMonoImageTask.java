@@ -24,8 +24,8 @@ import java.io.File;
 import java.util.function.Supplier;
 
 public class WriteMonoImageTask extends AbstractImageWriterTask {
-    public WriteMonoImageTask(Broadcaster broadcaster, Supplier<ImageWrapper32> image, File outputDirectory, String title, String name, GeneratedImageKind kind) {
-        super(broadcaster, image, outputDirectory, title, name, kind);
+    public WriteMonoImageTask(Broadcaster broadcaster, Supplier<ImageWrapper32> image, File outputDirectory, String title, String name, String description, GeneratedImageKind kind) {
+        super(broadcaster, image, outputDirectory, title, name, description, kind);
     }
 
     @Override

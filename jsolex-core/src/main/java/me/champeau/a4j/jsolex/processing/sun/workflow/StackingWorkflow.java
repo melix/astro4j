@@ -146,7 +146,8 @@ public class StackingWorkflow {
                     GeneratedImageKind.COMPOSITION,
                     "mosaic",
                     outputDirectory.toPath().resolve(fileName),
-                    FileBackedImage.wrap(mosaic)
+                    FileBackedImage.wrap(mosaic),
+                    message("mosaic.description")
                 )
             ));
             return mosaic;
@@ -166,7 +167,8 @@ public class StackingWorkflow {
                     GeneratedImageKind.COMPOSITION,
                     label,
                     outputDirectory.toPath().resolve(fileName),
-                    FileBackedImage.wrap(stackedImage)
+                    FileBackedImage.wrap(stackedImage),
+                    null
                 )
             ));
         }

@@ -24,6 +24,7 @@ public record GeneratedImage(
     GeneratedImageKind kind,
     String title,
     Path path,
-    ImageWrapper image
+    ImageWrapper image,
+    String description
 ) {
 }

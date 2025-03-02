@@ -37,21 +37,21 @@ public interface ImageMathScriptExecutor {
             }
             if (image instanceof ImageWrapper32 mono) {
                 emitter.newMonoImage(
-                        GeneratedImageKind.IMAGE_MATH,
+                    GeneratedImageKind.IMAGE_MATH,
                     null, label,
-                        label,
-                        mono
-                );
+                    label,
+                    null,
+                    mono);
             } else if (image instanceof RGBImage rgb) {
                 emitter.newColorImage(
-                        GeneratedImageKind.IMAGE_MATH,
+                    GeneratedImageKind.IMAGE_MATH,
                     null, label,
-                        label,
-                        rgb.width(),
-                        rgb.height(),
-                        rgb.metadata(),
-                        () -> new float[][][]{rgb.r(), rgb.g(), rgb.b()}
-                );
+                    label,
+                    null,
+                    rgb.width(),
+                    rgb.height(),
+                    rgb.metadata(),
+                    () -> new float[][][]{rgb.r(), rgb.g(), rgb.b()});
             }
         }
         for (Map.Entry<String, Path> entry : result.filesByLabel().entrySet()) {
@@ -59,8 +59,9 @@ public interface ImageMathScriptExecutor {
             var file = entry.getValue();
             emitter.newGenericFile(GeneratedImageKind.IMAGE_MATH,
                 null, label,
-                    label,
-                    file);
+                label,
+                null,
+                file);
         }
     }
 

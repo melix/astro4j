@@ -589,7 +589,7 @@ public class MosaicComposition extends AbstractFunctionImpl {
             DrawUtils.drawLine(tmp, 2 * width, height, fx, fy, sx + width, sy, 1);
         }
         broadcaster.broadcast(new ImageGeneratedEvent(
-            new GeneratedImage(GeneratedImageKind.IMAGE_MATH, "match" + System.currentTimeMillis(), Path.of(DEBUG_IMAGES + "/match-" + System.currentTimeMillis() + ".png"), new ImageWrapper32(width * 2, height, tmp, MutableMap.of()))));
+            new GeneratedImage(GeneratedImageKind.IMAGE_MATH, "match" + System.currentTimeMillis(), Path.of(DEBUG_IMAGES + "/match-" + System.currentTimeMillis() + ".png"), new ImageWrapper32(width * 2, height, tmp, MutableMap.of()), null)));
     }
 
     private record HistogramNormalization(List<ImageWrapper32> corrected, float background) {

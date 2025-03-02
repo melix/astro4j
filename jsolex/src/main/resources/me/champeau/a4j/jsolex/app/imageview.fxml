@@ -5,6 +5,7 @@
 <?import javafx.scene.layout.HBox?>
 <?import me.champeau.a4j.jsolex.app.jfx.ZoomableImageView?>
 <?import javafx.scene.layout.VBox?>
+<?import javafx.scene.control.TextArea?>
 <BorderPane xmlns:fx="http://javafx.com/fxml"
             style="-fx-padding: 5; "
             fx:controller="me.champeau.a4j.jsolex.app.jfx.ImageViewer">
@@ -14,4 +15,7 @@
     <center>
         <ZoomableImageView fx:id="imageView"/>
     </center>
+    <bottom>
+        <TextArea fx:id="descriptionArea" editable="false" wrapText="true" prefHeight="100"/>
+    </bottom>
 </BorderPane>
