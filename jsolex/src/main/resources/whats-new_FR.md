@@ -3,6 +3,7 @@
 ## Nouveautés de la version 2.11.1
 
 - Correction du chargement des images TIF dans l'outil de revue d'images
+- Correction de la sélection des images dans la liste de l'outil de revue qui pouvait être perdue lors du clic sur suivant/précédent
 
 ## Nouveautés de la version 2.11.0
 

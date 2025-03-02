@@ -3,6 +3,7 @@
 ## What's New in Version 2.11.1
 
 - Fixed loading of TIF images in the image reviewing tool
+- Fixed selection of images in the list of the reviewing tool which could be lost when clicking next/previous
 
 ## What's New in Version 2.11.0
 

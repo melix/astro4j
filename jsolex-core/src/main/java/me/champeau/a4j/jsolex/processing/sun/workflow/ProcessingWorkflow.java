@@ -110,9 +110,7 @@ public class ProcessingWorkflow {
     }
 
     public void start() {
-        var reconstructed = state.image();
-        reconstructed.metadata().put(PixelShift.class, new PixelShift(state.pixelShift()));
-        imagesEmitter.newMonoImage(GeneratedImageKind.RAW, null, message(Constants.TYPE_RAW), "recon", reconstructed);
+        emitReconImage();
         var existingFitting = state.findResult(WorkflowResults.MAIN_ELLIPSE_FITTING);
         if (existingFitting.isPresent()) {
             EllipseFittingTask.Result r = (EllipseFittingTask.Result) existingFitting.get();
@@ -121,13 +119,18 @@ public class ProcessingWorkflow {
             state.recordResult(WorkflowResults.BANDING_CORRECTION, bandingFixed);
             geometryCorrection(r, bandingFixed);
         } else {
-            var clahe = reconstructed.copy();
+            var clahe = state.image().copy();
             var claheParams = processParams.claheParams();
             ClaheStrategy.of(claheParams).stretch(clahe);
             TransformationHistory.recordTransform(clahe, "CLAHE (tile size: " + claheParams.tileSize() + ", clip limit: " + claheParams.clipping() + ", bins: " + claheParams.bins() + ")");
             imagesEmitter.newMonoImage(GeneratedImageKind.GEOMETRY_CORRECTED_PROCESSED, null, message("processed"), "clahe", clahe);
         }
+    }
 
+    private void emitReconImage() {
+        var reconstructed = state.image();
+        reconstructed.metadata().put(PixelShift.class, new PixelShift(state.pixelShift()));
+        imagesEmitter.newMonoImage(GeneratedImageKind.RAW, null, message(Constants.TYPE_RAW), "recon", reconstructed);
     }
 
     private void logIfFirstStep(String message, Object... params) {
