@@ -1,0 +1,14 @@
+[tmp]
+base=avg(range(-1;1;.5))
+
+[outputs]
+cst=auto_contrast(sharpen(linear_stretch(pow(rl_decon(base);1.5));7);1)
+eclipse=asinh_stretch(disk_fill(cst);0;20)
+rotated=rotate_rad(max(cst;eclipse);angleP)
+inv=linear_stretch(pow(invert(blur(disk_mask(rotated);7)*rotated);2))*disk_mask(rotated) + eclipse
+
+[[batch]]
+
+[outputs]
+animation=anim(rescale_rel(sort(linear_stretch(radius_rescale(rotated));"date");.5;.5);1000)
+anim_inv=anim(rescale_rel(sort(linear_stretch(radius_rescale(inv));"date");.5;.5);1000)

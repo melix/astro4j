@@ -1,0 +1,2 @@
+[outputs]
+foo=1

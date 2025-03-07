@@ -1,0 +1,8 @@
+[outputs]
+base=img(0)
+
+[[batch]]
+decon=rl_decon(base)
+
+[outputs]
+cst=auto_contrast(stack(decon;64;.25;"manual");1.5)

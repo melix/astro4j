@@ -2,6 +2,7 @@ import me.champeau.astro4j.SpectrumFileConverter
 
 plugins {
     id("me.champeau.astro4j.library")
+    id("me.champeau.astro4j.congocc")
 }
 
 description = "Shared library for spectroheliographic video file processing"
@@ -39,6 +40,12 @@ tasks.withType<Javadoc>().configureEach {
     doFirst {
         options.setModulePath(classpath.files.toList())
         classpath = files()
+    }
+}
+
+tasks {
+    generateParser {
+        grammarFile = "ImageMath.ccc"
     }
 }
 

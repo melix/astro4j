@@ -1,0 +1,14 @@
+// Style 1 comment
+foo=1
+# Style 2 comment
+bar=2
+/* Style 3 comment */
+baz=3
+/**
+ * multiline comment
+ */
+qux=4
+
+zog=5 // end of line comment
+
+foo(/* inline comment */ 1,2)

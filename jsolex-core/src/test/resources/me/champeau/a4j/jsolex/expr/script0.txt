@@ -1,0 +1,5 @@
+"Hello " + 'world'
+'String with "quotes"'
+"String with 'quotes'"
+"String with \"escaped quotes\""
+"String with emoji: 😂"

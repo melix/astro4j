@@ -1,0 +1,109 @@
+DEFAULT_LEXICAL_STATE=IMAGEMATH;
+PARSER_PACKAGE="me.champeau.a4j.expr";
+ENSURE_FINAL_EOL;
+
+INCLUDE "ImageMathLexer.ccc"
+
+Root : FirstSection ( SubsequentSection )* <EOF> ;
+
+FirstSection#Section : [SectionHeader] (Expression)*;
+
+SubsequentSection#Section : SectionHeader (Expression)* ;
+
+INJECT Section: {
+    public java.util.Optional<String> name() {
+        return java.util.Optional.ofNullable(firstChildOfType(SectionHeader.class))
+                   .map(header -> header.firstChildOfType(Identifier.class).toString());
+    }
+}
+
+SectionHeader :
+(
+    <LBRACKET> (
+        <LBRACKET> <IDENTIFIER> <RBRACKET> <RBRACKET> |
+        <IDENTIFIER> <RBRACKET>
+    )
+);
+
+Expression:
+    [UnaryOp] PrimaryExpression (BinaryOp PrimaryExpression)* ;
+
+PrimaryExpression:
+    FunctionCall |
+    Assignment |
+    StringLiteral |
+    NumericalLiteral |
+    <IDENTIFIER> |
+    <LPAREN> Expression <RPAREN>;
+
+FunctionCall:
+    <IDENTIFIER> InvocationArguments =>|| ;
+
+Assignment:
+    <IDENTIFIER> <ASSIGNMENT> Expression =>|| ;
+
+UnaryOp:
+    <MINUS> | <PLUS>;
+
+BinaryOp:
+    <MUL> | <PLUS> | <MINUS> | <DIV>;
+
+UnaryExpression:
+    <MINUS> Expression |
+    <PLUS> Expression;
+
+StringLiteral#void :
+   <SINGLE_QUOTE_STRING>
+   |
+   <DOUBLE_QUOTE_STRING>
+;
+
+NumericalLiteral#void :
+   <INTEGER_LITERAL>
+   |
+   <FLOATING_POINT_LITERAL>
+;
+
+NamedArgument :
+    <IDENTIFIER> <COLON> Expression =>||;
+
+INJECT NamedArgument : extends Argument;
+
+Argument:
+    NamedArgument | Expression;
+
+InvocationArguments :
+    <LPAREN>
+    [ Argument ((<COMMA>|<SEMICOLON>) Argument)* ]#Argument
+    <RPAREN>
+;
+
+INJECT Assignment: {
+    public Node getVariable() {
+        return firstChildOfType(Identifier.class);
+    }
+    public Node getExpression() {
+        return firstChildOfType(Expression.class);
+    }
+}
+
+INJECT FunctionCall:
+    import me.champeau.a4j.jsolex.expr.BuiltinFunction;
+ {
+
+    public String getFunctionName() {
+        return firstChildOfType(Identifier.class).toString();
+    }
+    public List<Argument> getArguments() {
+        return descendantsOfType(Argument.class);
+    }
+
+    public Optional<BuiltinFunction> getBuiltinFunction() {
+        var name = getFunctionName();
+        try {
+            return Optional.of(BuiltinFunction.valueOf(name.toUpperCase(Locale.US)));
+        } catch (IllegalArgumentException e) {
+            return Optional.empty();
+        }
+    }
+}
