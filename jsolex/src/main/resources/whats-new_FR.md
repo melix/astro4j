@@ -1,5 +1,9 @@
 # Bienvenue dans JSol'Ex {{version}} !
 
+## Nouveautés de la version 2.11.2
+
+- Amélioration de la détection de la profondeur de pixel des fichiers SER
+
 ## Nouveautés de la version 2.11.1
 
 - Ajout d'une description aux images générées

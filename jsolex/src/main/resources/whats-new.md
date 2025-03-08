@@ -1,5 +1,9 @@
 # Welcome to JSol'Ex {{version}}!
 
+## What's New in Version 2.11.2
+
+- Made SER file pixel depth detection more robust
+
 ## What's New in Version 2.11.1
 
 - Added a description to the generated images
