@@ -73,6 +73,7 @@ public record RequestedImages(
     public static final Set<GeneratedImageKind> QUICK_MODE = EnumSet.of(
         GeneratedImageKind.RECONSTRUCTION,
         GeneratedImageKind.RAW,
+        GeneratedImageKind.GEOMETRY_CORRECTED,
         GeneratedImageKind.GEOMETRY_CORRECTED_PROCESSED,
         GeneratedImageKind.COMPOSITION
     );
@@ -80,6 +81,7 @@ public record RequestedImages(
         GeneratedImageKind.DEBUG,
         GeneratedImageKind.RAW,
         GeneratedImageKind.RECONSTRUCTION,
+        GeneratedImageKind.GEOMETRY_CORRECTED,
         GeneratedImageKind.GEOMETRY_CORRECTED_PROCESSED,
         GeneratedImageKind.COMPOSITION
     );

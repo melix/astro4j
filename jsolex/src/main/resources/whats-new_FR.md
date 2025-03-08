@@ -3,6 +3,7 @@
 ## Nouveautés de la version 2.11.2
 
 - Amélioration de la détection de la profondeur de pixel des fichiers SER
+- Ajout de l'image corrigée géométriquement (sans amélioration du contraste) dans le mode rapide
 
 ## Nouveautés de la version 2.11.1
 
