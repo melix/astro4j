@@ -58,7 +58,7 @@ public class SerFileReader implements AutoCloseable {
         this.accessFile = accessFile;
         this.imageBuffers = imageBuffers;
         this.maxFramesPerBuffer = maxFramesPerBuffer;
-        this.timestampsBuffer = new ByteBuffer[] { timestampsBuffer };
+        this.timestampsBuffer = new ByteBuffer[]{timestampsBuffer};
         this.header = header;
         this.bytesPerFrame = header.geometry().getBytesPerFrame();
         this.frameBuffer = new byte[bytesPerFrame];
@@ -173,25 +173,43 @@ public class SerFileReader implements AutoCloseable {
         var geometry = tmpReader.header.geometry();
         var width = geometry.width();
         var height = geometry.height();
-        var min = Math.max(0, frameCount / 2 - 5);
-        var max = Math.min(frameCount, frameCount / 2 + 5);
+        var sampling = Math.max(10, 10 * frameCount / 100);
         int bytesPerPixel = geometry.getBytesPerPixel();
         if (bytesPerPixel > 1) {
             int numPlanes = geometry.colorMode().getNumberOfPlanes();
             int bitsToDiscard = 16 - geometry.pixelDepthPerPlane();
             int maxPixel = 0;
             int minPixel = Integer.MAX_VALUE;
-            for (int i = min; i < max; i++) {
+            int pixelDepth = 0;
+            int mid = frameCount / 2;
+            boolean goLeft = true;
+
+            outer:
+            for (int step = 0; step <= mid; step += goLeft ? 0 : sampling) {
+                int i = goLeft ? mid - step : mid + step;
+                goLeft = !goLeft;
+
+                if (i < 0 || i >= frameCount) {
+                    continue;
+                }
+
                 tmpReader.seekFrame(i);
                 var data = tmpReader.currentFrame().data();
-                for (int j = 0; j < width * height * numPlanes; j++) {
+                var dataLen = width * height * numPlanes;
+
+                for (int j = 0; j < dataLen; j += 16) {
                     int pixelValue = readColor(data, bytesPerPixel, bitsToDiscard);
                     maxPixel = Math.max(maxPixel, pixelValue);
                     minPixel = Math.min(minPixel, pixelValue);
+                    pixelDepth = (int) Math.ceil(Math.log(maxPixel) / Math.log(2));
+
+                    if (pixelDepth == 16) {
+                        break outer;
+                    }
                 }
             }
 
-            int pixelDepth = (int) Math.ceil(Math.log(maxPixel) / Math.log(2));
+            pixelDepth = (int) Math.ceil(Math.log(maxPixel) / Math.log(2));
             if (pixelDepth < 1) {
                 return tmpReader;
             }
