@@ -73,6 +73,7 @@ import me.champeau.a4j.jsolex.processing.util.FileBackedImage;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 import me.champeau.a4j.jsolex.processing.util.MutableMap;
+import me.champeau.a4j.jsolex.processing.util.ParallelExecutor;
 import me.champeau.a4j.jsolex.processing.util.ProcessingException;
 import me.champeau.a4j.jsolex.processing.util.RGBImage;
 import me.champeau.a4j.jsolex.processing.util.SolarParameters;
@@ -108,7 +109,6 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.Executors;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -1061,7 +1061,7 @@ public class SolexVideoProcessor implements Broadcaster {
         var latch = new CountDownLatch(end - start);
         var semaphore = new Semaphore(INMEMORY_BUFFERS_PER_CORE * Runtime.getRuntime().availableProcessors());
         var jSolexSer = reader.header().isJSolexTrimmedSer();
-        try (var executor = Executors.newFixedThreadPool(Math.max(2, Runtime.getRuntime().availableProcessors()/2))) {
+        try (var executor = ParallelExecutor.newExecutor(Math.max(2, Runtime.getRuntime().availableProcessors()))) {
             var reconstructedImages = new float[images.length][totalLines][width];
             for (int i = start, j = 0; i < end; i++, j += 1) {
                 semaphore.acquire();
@@ -1111,7 +1111,9 @@ public class SolexVideoProcessor implements Broadcaster {
             }
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
-            throw new RuntimeException(e);
+            throw new ProcessingException(e);
+        } catch (Exception e) {
+            throw new ProcessingException(e);
         }
 
         return new ReconstructionOutputs(

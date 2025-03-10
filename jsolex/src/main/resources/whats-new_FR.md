@@ -4,6 +4,7 @@
 
 - Amélioration de la détection de la profondeur de pixel des fichiers SER
 - Ajout de l'image corrigée géométriquement (sans amélioration du contraste) dans le mode rapide
+- Amélioration des performances de la conversion SER
 
 ## Nouveautés de la version 2.11.1
 

@@ -42,11 +42,17 @@ public class FloatPrecisionImageConverter implements ImageConverter<float[][]> {
     public void convert(int frameId, ByteBuffer frameData, ImageGeometry geometry, float[][] outputData) {
         var intermediateBuffer = delegate.createBuffer(geometry);
         delegate.convert(frameId, frameData, geometry, intermediateBuffer);
+        convertToFloatArray(geometry, outputData, intermediateBuffer);
+    }
+
+    private static void convertToFloatArray(ImageGeometry geometry, float[][] outputData, short[] intermediateBuffer) {
         var height = geometry.height();
         var width = geometry.width();
         for (int y = 0; y < height; y++) {
+            var line = outputData[y];
+            var offset = y * width;
             for (int x = 0; x < width; x++) {
-                outputData[y][x] = intermediateBuffer[y * width + x] & 0xFFFF;
+                line[x] = intermediateBuffer[offset + x] & 0xFFFF;
             }
         }
     }

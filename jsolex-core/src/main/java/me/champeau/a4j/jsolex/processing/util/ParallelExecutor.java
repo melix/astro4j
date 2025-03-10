@@ -27,12 +27,13 @@ import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 
 public class ParallelExecutor implements AutoCloseable {
-    private final ExecutorService executorService = Executors.newWorkStealingPool();
+    private final ExecutorService executorService;
     private final Semaphore semaphore;
 
     private Consumer<? super Throwable> exceptionHandler = (Consumer<Throwable>) LoggingSupport::logError;
 
     private ParallelExecutor(int parallelism) {
+        executorService = Executors.newWorkStealingPool(parallelism);
         semaphore = new Semaphore(parallelism);
     }
 
