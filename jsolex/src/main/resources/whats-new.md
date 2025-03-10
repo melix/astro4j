@@ -4,6 +4,7 @@
 
 - Made SER file pixel depth detection more robust
 - Added geometry corrected image (no contrast enhancement) to the quick mode
+- Improve performance of SER conversion
 
 ## What's New in Version 2.11.1
 

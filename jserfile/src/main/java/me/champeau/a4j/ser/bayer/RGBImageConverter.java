@@ -40,27 +40,53 @@ public class RGBImageConverter implements ImageConverter<short[]>, BayerMatrixSu
         int height = geometry.height();
         int bytesPerPixel = geometry.getBytesPerPixel();
         int bitsToDiscard = bytesPerPixel == 1 ? 8 - geometry.pixelDepthPerPlane() : 16 - geometry.pixelDepthPerPlane();
+        if (geometry.colorMode() == ColorMode.MONO || isBayer) {
+            convertMono(frameData, outputData, height, width, bytesPerPixel, bitsToDiscard);
+        } else if (geometry.colorMode() == ColorMode.BGR) {
+            convertBGR(frameData, outputData, height, width, bytesPerPixel, bitsToDiscard);
+        } else if (geometry.colorMode() == ColorMode.RGB) {
+            convertRGB(frameData, outputData, height, width, bytesPerPixel, bitsToDiscard);
+        }
+    }
+
+    private static void convertBGR(ByteBuffer frameData, short[] outputData, int height, int width, int bytesPerPixel, int bitsToDiscard) {
+        int k = 0;
+        for (int y = 0; y < height; y++) {
+            for (int x = 0; x < width; x++) {
+                short b = readColor(frameData, bytesPerPixel, bitsToDiscard);
+                short g = readColor(frameData, bytesPerPixel, bitsToDiscard);
+                short r = readColor(frameData, bytesPerPixel, bitsToDiscard);
+                outputData[k + RED] = r;
+                outputData[k + GREEN] = g;
+                outputData[k + BLUE] = b;
+                k += 3;
+            }
+        }
+    }
+
+    private static void convertRGB(ByteBuffer frameData, short[] outputData, int height, int width, int bytesPerPixel, int bitsToDiscard) {
+        int k = 0;
+        for (int y = 0; y < height; y++) {
+            for (int x = 0; x < width; x++) {
+                short r = readColor(frameData, bytesPerPixel, bitsToDiscard);
+                short g = readColor(frameData, bytesPerPixel, bitsToDiscard);
+                short b = readColor(frameData, bytesPerPixel, bitsToDiscard);
+                outputData[k + RED] = r;
+                outputData[k + GREEN] = g;
+                outputData[k + BLUE] = b;
+                k += 3;
+            }
+        }
+    }
+
+    private static void convertMono(ByteBuffer frameData, short[] outputData, int height, int width, int bytesPerPixel, int bitsToDiscard) {
         int k = 0;
         for (int y = 0; y < height; y++) {
             for (int x = 0; x < width; x++) {
                 short value = readColor(frameData, bytesPerPixel, bitsToDiscard);
-                if (geometry.colorMode() == ColorMode.MONO || isBayer) {
-                    outputData[k + RED] = value;
-                    outputData[k + GREEN] = value;
-                    outputData[k + BLUE] = value;
-                } else if (geometry.colorMode() == ColorMode.BGR) {
-                    short g = readColor(frameData, bytesPerPixel, bitsToDiscard);
-                    short r = readColor(frameData, bytesPerPixel, bitsToDiscard);
-                    outputData[k + RED] = r;
-                    outputData[k + GREEN] = g;
-                    outputData[k + BLUE] = value;
-                } else if (geometry.colorMode() == ColorMode.RGB) {
-                    short g = readColor(frameData, bytesPerPixel, bitsToDiscard);
-                    short b = readColor(frameData, bytesPerPixel, bitsToDiscard);
-                    outputData[k + RED] = value;
-                    outputData[k + GREEN] = g;
-                    outputData[k + BLUE] = b;
-                }
+                outputData[k + RED] = value;
+                outputData[k + GREEN] = value;
+                outputData[k + BLUE] = value;
                 k += 3;
             }
         }
