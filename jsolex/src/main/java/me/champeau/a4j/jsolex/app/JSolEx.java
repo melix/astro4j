@@ -482,7 +482,7 @@ public class JSolEx extends Application implements JSolExInterface {
 
     private void showWelcomeMessage(Scene current, Runnable onDismiss) {
         var webview = new SimpleMarkdownViewer(message("welcome"), getHostServices());
-        var country = Locale.getDefault().getCountry();
+        var country = Locale.getDefault().getLanguage().toUpperCase(Locale.US);
         InputStream resource = getClass().getResourceAsStream("/whats-new_" + country + ".md");
         if (resource == null) {
             resource = getClass().getResourceAsStream("/whats-new.md");
