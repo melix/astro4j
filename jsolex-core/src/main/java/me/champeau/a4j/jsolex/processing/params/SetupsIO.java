@@ -19,17 +19,17 @@ import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
 import me.champeau.a4j.jsolex.processing.util.FilesUtils;
 import me.champeau.a4j.jsolex.processing.util.VersionUtil;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
+import java.util.Locale;
+import java.util.stream.Stream;
 
 public abstract class SetupsIO {
-    private static final Logger LOGGER = LoggerFactory.getLogger(SetupsIO.class);
+    private static final Setup SUNSCAN = new Setup("Sunscan by Staros", "Sunscan", 200, 25, "IMX477", 3.1, null, null, false, false, true);
 
     private SetupsIO() {
 
@@ -54,9 +54,12 @@ public abstract class SetupsIO {
         var defaultsFile = resolveDefaultsFile();
         List<Setup> patterns = readFrom(defaultsFile);
         if (patterns != null) {
+            if (patterns.stream().noneMatch(s -> s.label().toLowerCase(Locale.US).contains("sunscan") || s.telescope().toLowerCase(Locale.US).contains("sunscan"))) {
+                patterns = Stream.concat(patterns.stream(), Stream.of(SUNSCAN)).toList();
+            }
             return patterns;
         }
-        return List.of();
+        return List.of(SUNSCAN);
     }
 
     @SuppressWarnings("unchecked")
