@@ -15,6 +15,8 @@
  */
 package me.champeau.a4j.jsolex.processing.sun.workflow;
 
+import java.util.function.DoubleUnaryOperator;
+
 /**
  * Stores information about the maximum range of pixel shifts
  * which can be used given the detected polynomial and frame
@@ -30,6 +32,49 @@ public record PixelShiftRange(
     double maxPixelShift,
     double step
 ) {
+    public static PixelShiftRange computePixelShiftRange(int start, int end, int height, DoubleUnaryOperator polynomial) {
+        // determine the min and max pixel shifts
+        double min = Double.MAX_VALUE;
+        double max = -Double.MAX_VALUE;
+        for (int x = start; x < end; x++) {
+            var v = polynomial.applyAsDouble(x);
+            min = Math.min(v, min);
+            max = Math.max(v, max);
+        }
+        if (min == Double.MAX_VALUE) {
+            min = 0;
+        }
+        if (max == -Double.MAX_VALUE) {
+            max = height;
+        }
+        min = Math.max(0, min);
+        max = Math.min(height, max);
+        double mid = (max + min) / 2.0;
+        double range = (max - min) / 2.0;
+        var maxPixelShift = -Double.MAX_VALUE;
+        var minPixelShift = Double.MAX_VALUE;
+        for (int y = (int) range; y < height - range; y++) {
+            double cpt = 0;
+            for (int x = start; x < end; x++) {
+                var v = polynomial.applyAsDouble(x);
+                var shift = v - mid;
+                int ny = (int) Math.round(y + shift);
+                if (ny >= 0 && ny < height) {
+                    cpt++;
+                }
+            }
+            if (cpt > 0) {
+                var pixelShift = y - mid;
+                minPixelShift = Math.min(minPixelShift, pixelShift);
+                maxPixelShift = Math.max(maxPixelShift, pixelShift);
+            }
+        }
+        // round to a 1/10th
+        minPixelShift = Math.floor(minPixelShift / 10) * 10;
+        maxPixelShift = Math.ceil(maxPixelShift / 10) * 10;
+        return new PixelShiftRange(minPixelShift, maxPixelShift, (maxPixelShift - minPixelShift) / 10);
+    }
+
     public boolean includes(double shift) {
         return shift >= minPixelShift && shift <= maxPixelShift;
     }

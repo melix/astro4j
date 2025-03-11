@@ -16,6 +16,7 @@
 package me.champeau.a4j.jsolex.processing.spectrum;
 
 import me.champeau.a4j.jsolex.processing.util.ProcessingException;
+import me.champeau.a4j.jsolex.processing.util.Wavelen;
 
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -101,7 +102,7 @@ public class ReferenceIntensities {
         return (short) interpolation;
     }
 
-    public static double intensityAt(double wavelength) {
-        return INSTANCE.intensity(wavelength);
+    public static double intensityAt(Wavelen wavelength) {
+        return INSTANCE.intensity(wavelength.angstroms());
     }
 }

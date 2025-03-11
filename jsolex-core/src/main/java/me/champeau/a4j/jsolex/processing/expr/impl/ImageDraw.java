@@ -112,8 +112,8 @@ public class ImageDraw extends AbstractFunctionImpl {
                     sb.append(date.format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss 'UTC'"))).append("\n");
                     var ray = params.spectrumParams().ray();
                     String rayDetails = "";
-                    if (ray.wavelength() > 0) {
-                        rayDetails = " (" + String.format(Locale.US, "%.2fÅ", 10 * ray.wavelength()) + ")";
+                    if (ray.wavelength().nanos() > 0) {
+                        rayDetails = " (" + String.format(Locale.US, "%.2fÅ", ray.wavelength().angstroms()) + ")";
                     }
                     appendLine(details.instrument().label() + " - " + ray + rayDetails, sb);
                     appendLine(details.telescope(), sb);

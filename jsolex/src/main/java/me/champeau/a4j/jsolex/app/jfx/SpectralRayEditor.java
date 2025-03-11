@@ -41,6 +41,7 @@ import me.champeau.a4j.jsolex.processing.util.MutableMap;
 import me.champeau.a4j.jsolex.processing.util.ProcessingException;
 import me.champeau.a4j.jsolex.processing.util.RGBImage;
 import me.champeau.a4j.jsolex.processing.util.TemporaryFolder;
+import me.champeau.a4j.jsolex.processing.util.Wavelen;
 
 import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;
@@ -49,6 +50,7 @@ import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.EnumSet;
+import java.util.Locale;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
@@ -128,7 +130,7 @@ public class SpectralRayEditor {
                 var index = newValue.intValue();
                 var item = items.get(index);
                 label.setText(item.label());
-                wavelength.setText(Double.toString(item.wavelength()));
+                wavelength.setText(String.format(Locale.US, "%.2f", item.wavelength().angstroms()));
                 var curve = item.colorCurve();
                 if (curve == null) {
                     curveCheckbox.setSelected(false);
@@ -166,7 +168,7 @@ public class SpectralRayEditor {
                 var newRay = new SpectralRay(
                     newLabel,
                     hasColor ? new ColorCurve(newLabel, rInValue, rOutValue, gInValue, gOutValue, bInValue, bOutValue) : null,
-                    newWavelen,
+                    Wavelen.ofAngstroms(newWavelen),
                     false);
                 updateEditableInOut(hasColor);
                 items.set(selectionModel.getSelectedIndex(), newRay);
@@ -277,7 +279,7 @@ public class SpectralRayEditor {
         var spectralRay = new SpectralRay(
             "<new> " + elements.getItems().size(),
             null,
-            0,
+            Wavelen.ofAngstroms(0),
             false);
         elements.getItems().add(spectralRay);
         elements.getSelectionModel().select(spectralRay);

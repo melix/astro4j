@@ -80,8 +80,8 @@ public class ExposureCalculator {
     public void setup(Stage stage) {
         pixelSize.setTextFormatter(new TextFormatter<>(new DoubleStringConverter()));
         binning.setTextFormatter(new TextFormatter<>(new IntegerStringConverter()));
-        focalLength.setTextFormatter(new TextFormatter<>(new IntegerStringConverter()));
-        scanSpeed.setTextFormatter(new TextFormatter<>(new IntegerStringConverter()));
+        focalLength.setTextFormatter(new TextFormatter<>(new DoubleStringConverter()));
+        scanSpeed.setTextFormatter(new TextFormatter<>(new DoubleStringConverter()));
 
         pixelSize.setText("2.4");
         binning.setText("1");
@@ -156,7 +156,7 @@ public class ExposureCalculator {
             var date = this.date.getValue().atStartOfDay(UTC).toLocalDateTime();
             var shg = instrument.getSelectionModel().getSelectedItem();
             if (shg != null) {
-                double expo = recommendedExposureMillis(f, shg.focalLength(), shg.collimatorFocalLength(), p * bin, date, (int) v, ra.isSelected() ? ScanDirection.RA : ScanDirection.DEC);
+                double expo = recommendedExposureMillis(f, shg.focalLength(), shg.collimatorFocalLength(), p * bin, date, v, ra.isSelected() ? ScanDirection.RA : ScanDirection.DEC);
                 fps.setText(String.format("%.2f fps", 1 / (expo / 1000)));
                 exposure.setText(String.format("%.2f ms", expo));
             }
@@ -192,13 +192,13 @@ public class ExposureCalculator {
         });
     }
 
-    private static double recommendedFrameRate(double focalLength, double cameraFocalLength, double collimatorFocalLength, double pixelSize, LocalDateTime date, int slewRate, ScanDirection direction) {
+    private static double recommendedFrameRate(double focalLength, double cameraFocalLength, double collimatorFocalLength, double pixelSize, LocalDateTime date, double slewRate, ScanDirection direction) {
         var apparentSizeArcMins = solarDiskApparentSizeArcMin(date);
         var correction = direction == ScanDirection.RA ? Math.cos(toRadians(sunDeclinationDegrees(date))) : 1;
         return correction * solarDiskHeight(focalLength, cameraFocalLength, collimatorFocalLength, apparentSizeArcMins, pixelSize) / fullDiskScanTimeSeconds(apparentSizeArcMins, slewRate);
     }
 
-    private static double recommendedExposureMillis(double focalLength, double cameraFocalLength, double collimatorFocalLength, double pixelSize, LocalDateTime date, int slewRate, ScanDirection scanDirection) {
+    private static double recommendedExposureMillis(double focalLength, double cameraFocalLength, double collimatorFocalLength, double pixelSize, LocalDateTime date, double slewRate, ScanDirection scanDirection) {
         var fps = recommendedFrameRate(focalLength, cameraFocalLength, collimatorFocalLength, pixelSize, date, slewRate, scanDirection);
         return 1000 / fps;
     }
@@ -215,7 +215,7 @@ public class ExposureCalculator {
         return Math.tan(toRadians(solarDiskArcMins / 60)) * focalLength;
     }
 
-    private static double fullDiskScanTimeSeconds(double apparentSizeArcMins, int slewRate) {
+    private static double fullDiskScanTimeSeconds(double apparentSizeArcMins, double slewRate) {
         return apparentSizeArcMins * 4 / slewRate;
     }
 

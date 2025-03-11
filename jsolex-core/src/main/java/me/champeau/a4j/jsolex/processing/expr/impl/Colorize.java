@@ -71,7 +71,7 @@ public class Colorize extends AbstractFunctionImpl {
                     var curve = ray.colorCurve();
                     if (curve != null) {
                         return RGBImage.fromMono(mono, data -> doColorize(mono.width(), mono.height(), data.data(), curve));
-                    } else if (ray.wavelength() != 0) {
+                    } else if (ray.wavelength().nanos() != 0) {
                         var rgb = ray.toRGB();
                         return RGBImage.fromMono(mono, data -> doColorize(mono.width(), mono.height(), data.data(), rgb));
                     }

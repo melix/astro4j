@@ -589,7 +589,7 @@ public class FitsUtils {
         if (aperture != null) {
             header.addValue(InstrumentDescription.APERTURE, String.valueOf(aperture));
         }
-        var wavelength = params.spectrumParams().ray().wavelength();
+        var wavelength = params.spectrumParams().ray().wavelength().nanos();
         var obsParams = params.observationDetails();
         // alter the wavelength according to the pixel shift
         if (wavelength != 0) {
@@ -597,8 +597,8 @@ public class FitsUtils {
             var pixelSize = obsParams.pixelSize();
             var binning = obsParams.binning();
             if (pixelShift.isPresent() && pixelSize != null && pixelSize > 0 && binning != null && binning > 0) {
-                var dispersion = SpectrumAnalyzer.computeSpectralDispersionNanosPerPixel(obsParams.instrument(), wavelength, pixelSize * binning);
-                wavelength += pixelShift.get() * dispersion;
+                var dispersion = SpectrumAnalyzer.computeSpectralDispersion(obsParams.instrument(), Wavelen.ofNanos(wavelength), pixelSize * binning);
+                wavelength += pixelShift.get() * dispersion.nanosPerPixel();
             }
             header.addValue("WAVELNTH", wavelength, "Wavelength (nm)");
         }

@@ -17,6 +17,8 @@ package me.champeau.a4j.jsolex.processing.spectrum;
 
 import me.champeau.a4j.jsolex.processing.params.SpectralRay;
 import me.champeau.a4j.jsolex.processing.params.SpectroHeliograph;
+import me.champeau.a4j.jsolex.processing.util.Dispersion;
+import me.champeau.a4j.jsolex.processing.util.Wavelen;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -39,11 +41,11 @@ public class SpectrumAnalyzer {
      *
      * @param order the grating order
      * @param density the grating density, in lines/mm
-     * @param lambda0 the wavelength in nanometers
+     * @param lambda0 the wavelength
      * @param totalAngle the total angle of the instrument
      * @return the beta angle (in radians)
      */
-    private static double computeAngleBeta(int order, int density, double lambda0, double totalAngle) {
+    private static double computeAngleBeta(int order, int density, Wavelen lambda0, double totalAngle) {
         return computeAlphaAngle(order, density, lambda0, totalAngle) - totalAngle;
     }
 
@@ -52,27 +54,27 @@ public class SpectrumAnalyzer {
      *
      * @param order the grating order
      * @param density the grating density, in lines/mm
-     * @param lambda0 the wavelength in nanometers
+     * @param lambda0 the wavelength
      * @param totalAngle the total angle of the instrument
      * @return the alpha angle (in radians)
      */
-    private static double computeAlphaAngle(int order, int density, double lambda0, double totalAngle) {
-        return Math.asin(order * density * lambda0 / (2_000_000 * cos(totalAngle / 2))) + totalAngle / 2;
+    private static double computeAlphaAngle(int order, int density, Wavelen lambda0, double totalAngle) {
+        return Math.asin(1e-6 * order * density * lambda0.nanos() / 2 / cos(totalAngle / 2)) + (totalAngle / 2);
     }
 
     /**
-     * Returns the spectral dispersion, in nanometers/pixel
+     * Returns the spectral dispersion.
      *
      * @param instrument the SHG for which to compute the dispersion
-     * @param lambda0NanoMeters the wavelength in nanometers
+     * @param lambda0 the wavelength
      * @param pixelSizeMicrons the pixel size, in micrometers
-     * @return the spectral dispersion, in nanometers/pixel
+     * @return the spectral dispersion
      */
-    public static double computeSpectralDispersionNanosPerPixel(SpectroHeliograph instrument,
-                                                                double lambda0NanoMeters,
-                                                                double pixelSizeMicrons) {
-        var beta = computeAngleBeta(instrument.order(), instrument.density(), lambda0NanoMeters, instrument.totalAngleRadians());
-        return 1000 * pixelSizeMicrons * cos(beta) / instrument.density() / instrument.focalLength();
+    public static Dispersion computeSpectralDispersion(SpectroHeliograph instrument,
+                                                       Wavelen lambda0,
+                                                       double pixelSizeMicrons) {
+        var beta = computeAngleBeta(instrument.order(), instrument.density(), lambda0, instrument.totalAngleRadians());
+        return Dispersion.ofNanosPerPixel(1000 * pixelSizeMicrons * cos(beta) / instrument.density() / instrument.focalLength());
     }
 
     /**
@@ -119,7 +121,7 @@ public class SpectrumAnalyzer {
         var pixelSize = details.pixelSize();
         var binning = details.binning();
         var instrument = details.instrument();
-        double dispersion = computeSpectralDispersionNanosPerPixel(instrument, lambda0, pixelSize * binning);
+        var dispersion = computeSpectralDispersion(instrument, lambda0, pixelSize * binning);
         var dataPoints = new ArrayList<DataPoint>();
         double min = Double.MAX_VALUE;
         double max = -Double.MAX_VALUE;
@@ -211,10 +213,10 @@ public class SpectrumAnalyzer {
         if (best == null) {
             // Not a good solution, so we'll assume H-alpha or the closest to H-alpha
             double min = Double.MAX_VALUE;
-            var ha = SpectralRay.H_ALPHA.wavelength();
+            var ha = SpectralRay.H_ALPHA.wavelength().nanos();
             for (var entry : measurements.entrySet()) {
                 var query = entry.getKey();
-                var diff = Math.abs(query.line().wavelength() - ha);
+                var diff = Math.abs(query.line().wavelength().nanos() - ha);
                 if (diff < min) {
                     min = diff;
                     best = query;
@@ -229,22 +231,21 @@ public class SpectrumAnalyzer {
      *
      * @param pixelSize pixel size in microns
      * @param binning the binning
-     * @param lambda0Angstroms the reference wavelength in angstroms
-     * @param targetWaveLengthAngstroms the target wavelength in angstroms
+     * @param lambda0 the reference wavelength in angstroms
+     * @param targetWaveLength the target wavelength in angstroms
      * @return the pixel shift
      */
     public static double computePixelShift(double pixelSize,
                                            int binning,
-                                           double lambda0Angstroms,
-                                           double targetWaveLengthAngstroms,
+                                           Wavelen lambda0,
+                                           Wavelen targetWaveLength,
                                            SpectroHeliograph instrument) {
-        var dispersionAngstromsPerPixel = 10 * SpectrumAnalyzer.computeSpectralDispersionNanosPerPixel(
+        var dispersion = SpectrumAnalyzer.computeSpectralDispersion(
             instrument,
-            lambda0Angstroms / 10,
+            lambda0,
             pixelSize * binning
         );
-        // dispersion is angstroms per pixel so now we can compute the shift in pixels
-        var pixelShift = (targetWaveLengthAngstroms - lambda0Angstroms) / dispersionAngstromsPerPixel;
+        var pixelShift = (targetWaveLength.angstroms() - lambda0.angstroms()) / dispersion.angstromsPerPixel();
         // round pixel shift to 1/10th of a pixel
         pixelShift = Math.round(pixelShift * 10) / 10.0;
         return pixelShift;
@@ -279,14 +280,14 @@ public class SpectrumAnalyzer {
         return area;
     }
 
-    private static double computeWavelength(double pixelShift, double lambda, double dispersion) {
-        return 10 * (lambda + pixelShift * dispersion);
+    private static Wavelen computeWavelength(double pixelShift, Wavelen lambda, Dispersion dispersion) {
+        return lambda.plus(pixelShift, dispersion);
     }
 
     public record QueryDetails(SpectralRay line, double pixelSize, int binning, SpectroHeliograph instrument) {
     }
 
-    public record DataPoint(double wavelen, double pixelShift, double intensity) {
+    public record DataPoint(Wavelen wavelen, double pixelShift, double intensity) {
     }
 
 }

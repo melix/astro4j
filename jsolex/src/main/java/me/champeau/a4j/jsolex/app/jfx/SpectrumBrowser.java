@@ -67,8 +67,10 @@ import me.champeau.a4j.jsolex.processing.sun.DistortionCorrection;
 import me.champeau.a4j.jsolex.processing.sun.SpectrumFrameAnalyzer;
 import me.champeau.a4j.jsolex.processing.util.BackgroundOperations;
 import me.champeau.a4j.jsolex.processing.util.Constants;
+import me.champeau.a4j.jsolex.processing.util.Dispersion;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 import me.champeau.a4j.jsolex.processing.util.RGBImage;
+import me.champeau.a4j.jsolex.processing.util.Wavelen;
 import me.champeau.a4j.math.image.ImageMath;
 
 import java.io.BufferedReader;
@@ -94,10 +96,10 @@ import static me.champeau.a4j.jsolex.app.JSolEx.IMAGE_FILES_EXTENSIONS;
 public class SpectrumBrowser extends BorderPane {
     private static final int SPECTRUM_OFFSET = 60;
     private static final double ZOOM_FACTOR = 1.05; // Adjust zoom factor for better control
-    private static final double H_ALPHA_WAVELENGTH = 6563.0;
+    private static final Wavelen H_ALPHA_WAVELENGTH = Wavelen.ofAngstroms(6563.0);
     private static final IdentifiedLine[] IDENTIFIED_LINES = loadDefaultLines();
     private static final Comparator<IdentifiedLine> IDENTIFIED_LINE_COMPARATOR =
-        Comparator.comparingInt(IdentifiedLine::difficulty).thenComparing(IdentifiedLine::wavelength);
+        Comparator.comparingInt(IdentifiedLine::difficulty).thenComparing(i -> i.wavelength().angstroms());
     private static final double WIDTH_FACTOR = 0.7;
     public static final int CROP_HEIGHT = 64;
 
@@ -186,7 +188,7 @@ public class SpectrumBrowser extends BorderPane {
             if (event.getClickCount() == 2) {
                 double y = event.getY();
                 double wavelength = currentMinWavelength + y * (visibleRangeAngstroms.get() / canvas.getHeight());
-                userDefinedLines.add(new IdentifiedLine(wavelength, null, -1));
+                userDefinedLines.add(new IdentifiedLine(Wavelen.ofAngstroms(wavelength), null, -1));
                 drawSpectrum();
             }
         });
@@ -376,14 +378,14 @@ public class SpectrumBrowser extends BorderPane {
                 DoubleStream.iterate(ReferenceIntensities.INSTANCE.getMinWavelength(), wl -> wl < ReferenceIntensities.INSTANCE.getMaxWavelength(), wl -> wl + step)
                     .parallel()
                     .mapToObj(wl -> {
-                        var baseDispersion = computeDispersion(wl);
-                        if (Double.isNaN(baseDispersion)) {
-                            return new Score(wl, Double.MAX_VALUE);
+                        var baseDispersion = computeDispersion(Wavelen.ofAngstroms(wl));
+                        if (Double.isNaN(baseDispersion.angstromsPerPixel())) {
+                            return new Score(Wavelen.ofAngstroms(wl), Double.MAX_VALUE);
                         }
                         double[] ref = new double[height];
                         double maxAvg = 0;
                         for (int y = 0; y < height; y++) {
-                            var currentWl = wl + y * baseDispersion;
+                            var currentWl = Wavelen.ofAngstroms(wl + y * baseDispersion.angstromsPerPixel());
                             ref[y] = ReferenceIntensities.intensityAt(currentWl) / 10000;
                             maxAvg = Math.max(maxAvg, lineAverages[y]);
                         }
@@ -398,15 +400,15 @@ public class SpectrumBrowser extends BorderPane {
                         common.and(localRefMinima);
                         var weight = Math.pow(common.cardinality() / (double) Math.max(localRefMinima.cardinality(), localMinima.cardinality()), 2);
                         total = total / weight;
-                        return new Score(wl, total);
+                        return new Score(Wavelen.ofAngstroms(wl), total);
                     })
                     .min(Comparator.comparingDouble(Score::score))
                     .ifPresent(score -> {
                         var disp = computeDispersion(score.wavelength);
-                        if (Double.isNaN(disp)) {
+                        if (Double.isNaN(disp.angstromsPerPixel())) {
                             return;
                         }
-                        visibleRangeAngstroms.set(disp * height);
+                        visibleRangeAngstroms.set(disp.angstromsPerPixel() * height);
                         imageRangeAngstroms.set(visibleRangeAngstroms.get());
                         Platform.runLater(() -> {
                             var writableImage = new WritableImage(range, height);
@@ -422,7 +424,7 @@ public class SpectrumBrowser extends BorderPane {
                                 imageView.setImage(writableImage);
                             }
                             adjustDispersion.setSelected(false);
-                            var targetWavelen = score.wavelength + disp * height / 2;
+                            var targetWavelen = score.wavelength.plusAngstroms(disp.angstromsPerPixel() * height / 2);
                             searchByWavelength(targetWavelen);
                         });
                     });
@@ -518,18 +520,17 @@ public class SpectrumBrowser extends BorderPane {
     }
 
     private void adjustZoomToOptics() {
-        var centerWavelength = currentMinWavelength + visibleRangeAngstroms.get() / 2.0;
-        var dispersionAngrstromsPerPixel = computeDispersion(centerWavelength);
-        if (!Double.isNaN(dispersionAngrstromsPerPixel)) {
+        var centerWavelength = Wavelen.ofAngstroms(currentMinWavelength + visibleRangeAngstroms.get() / 2.0);
+        var dispersion = computeDispersion(centerWavelength);
+        if (!Double.isNaN(dispersion.angstromsPerPixel())) {
             // adjust zoom level so that it matches the expected dispersion
-            visibleRangeAngstroms.set(canvas.getHeight() * dispersionAngrstromsPerPixel);
+            visibleRangeAngstroms.set(canvas.getHeight() * dispersion.angstromsPerPixel());
         }
         centerWavelength(centerWavelength);
     }
 
-    private double computeDispersion(double centerWavelength) {
-        var dispersion = SpectrumAnalyzer.computeSpectralDispersionNanosPerPixel(selectedShg, centerWavelength / 10, pixelSize.get());
-        return dispersion * 10;
+    private Dispersion computeDispersion(Wavelen centerWavelength) {
+        return SpectrumAnalyzer.computeSpectralDispersion(selectedShg, centerWavelength, pixelSize.get());
     }
 
     private HBox createBottomBar() {
@@ -549,10 +550,10 @@ public class SpectrumBrowser extends BorderPane {
         return hbox;
     }
 
-    private void centerWavelength(double centerWavelength) {
+    private void centerWavelength(Wavelen centerWavelength) {
         var halfRange = visibleRangeAngstroms.get() / 2.0;
-        currentMinWavelength = centerWavelength - halfRange;
-        currentMaxWavelength = centerWavelength + halfRange;
+        currentMinWavelength = centerWavelength.angstroms() - halfRange;
+        currentMaxWavelength = centerWavelength.angstroms() + halfRange;
     }
 
     private void drawSpectrum() {
@@ -577,7 +578,7 @@ public class SpectrumBrowser extends BorderPane {
 
         for (int i = 0; i < height; i++) {
             // Calculate wavelength and intensity
-            var wavelength = currentMinWavelength + i * step;
+            var wavelength = Wavelen.ofAngstroms(currentMinWavelength + i * step);
             var intensity = ReferenceIntensities.intensityAt(wavelength);
             var grayscale = 0.9 * (intensity / 10000.0);
 
@@ -599,8 +600,8 @@ public class SpectrumBrowser extends BorderPane {
         drawIdentifiedLines(gc, spectrumWidth, step, userDefinedLines.toArray(new IdentifiedLine[0]), Color.BLUE);
     }
 
-    private Color createColor(double grayscale, double wavelength) {
-        var ray = new SpectralRay("", null, wavelength / 10, false);
+    private Color createColor(double grayscale, Wavelen wavelength) {
+        var ray = new SpectralRay("", null, wavelength, false);
         var rgb = ray.toSimpleRGB();
         if (rgb[0] == 0 && rgb[1] == 0 && rgb[2] == 0) {
             return Color.gray(grayscale);
@@ -621,10 +622,10 @@ public class SpectrumBrowser extends BorderPane {
     private void drawIdentifiedLines(GraphicsContext gc, double spectrumWidth, double step, IdentifiedLine[] lines, Color color) {
         double previousPosition = -1;
         var height = canvas.getHeight();
-        var sortedByWavelen = Arrays.stream(lines).sorted(Comparator.comparingDouble(IdentifiedLine::wavelength)).toList();
+        var sortedByWavelen = Arrays.stream(lines).sorted(Comparator.comparingDouble(i -> i.wavelength().angstroms())).toList();
 
         for (var identifiedLine : sortedByWavelen) {
-            var identifiedWavelength = identifiedLine.wavelength();
+            var identifiedWavelength = identifiedLine.wavelength().angstroms();
             if (identifiedWavelength >= currentMinWavelength && identifiedWavelength <= currentMaxWavelength) {
                 // Calculate position and handle flipping
                 var position = calculatePosition((identifiedWavelength - currentMinWavelength) / step, height);
@@ -654,13 +655,13 @@ public class SpectrumBrowser extends BorderPane {
         double centerWavelength = (currentMinWavelength + currentMaxWavelength) / 2.0;
         adjustDispersion.setSelected(false);
         visibleRangeAngstroms.set(visibleRangeAngstroms.get() * factor);
-        centerWavelength(centerWavelength);
+        centerWavelength(Wavelen.ofAngstroms(centerWavelength));
         drawSpectrum();
     }
 
     private void searchByWavelength(String text) {
         try {
-            var wavelength = Double.parseDouble(text);
+            var wavelength = Wavelen.ofAngstroms(Double.parseDouble(text));
             wavelength = searchByWavelength(wavelength);
             userDefinedLines.add(new IdentifiedLine(wavelength, null, -1));
         } catch (NumberFormatException e) {
@@ -669,12 +670,12 @@ public class SpectrumBrowser extends BorderPane {
         }
     }
 
-    private double searchByWavelength(double wavelength) {
+    private Wavelen searchByWavelength(Wavelen wl) {
         var currentWaveLength = currentMinWavelength + (currentMaxWavelength - currentMinWavelength) / 2.0;
-        wavelength = Math.clamp(wavelength, ReferenceIntensities.INSTANCE.getMinWavelength(), ReferenceIntensities.INSTANCE.getMaxWavelength());
+        var wavelength = Math.clamp(wl.angstroms(), ReferenceIntensities.INSTANCE.getMinWavelength(), ReferenceIntensities.INSTANCE.getMaxWavelength());
         var wavelengthProperty = new SimpleDoubleProperty(wavelength);
         wavelengthProperty.addListener((observable, oldValue, newValue) -> {
-            centerWavelength(newValue.doubleValue());
+            centerWavelength(Wavelen.ofAngstroms(newValue.doubleValue()));
             drawSpectrum();
         });
         var timeline = new Timeline(
@@ -688,22 +689,22 @@ public class SpectrumBrowser extends BorderPane {
         });
         animating.set(true);
         timeline.playFromStart();
-        return wavelength;
+        return Wavelen.ofAngstroms(wavelength);
     }
 
-    private record IdentifiedLine(double wavelength, String name, int difficulty) {
+    private record IdentifiedLine(Wavelen wavelength, String name, int difficulty) {
         @Override
         public String toString() {
             if (name == null) {
-                return String.format(Locale.US, "%.2f", wavelength);
+                return String.format(Locale.US, "%.2f", wavelength.angstroms());
             } else {
-                return String.format(Locale.US, "%s (%.2f)", name, wavelength);
+                return String.format(Locale.US, "%s (%.2f)", name, wavelength.angstroms());
             }
         }
     }
 
     private record Score(
-        double wavelength,
+        Wavelen wavelength,
         double score
     ) {
     }
@@ -719,7 +720,7 @@ public class SpectrumBrowser extends BorderPane {
                 var parts = cur.split(";");
                 if (parts.length == 4) {
                     var line = new IdentifiedLine(
-                        Double.parseDouble(parts[0]),
+                        Wavelen.ofAngstroms(Double.parseDouble(parts[0])),
                         parts[1] + " (" + parts[2] + ")",
                         Integer.parseInt(parts[3])
                     );

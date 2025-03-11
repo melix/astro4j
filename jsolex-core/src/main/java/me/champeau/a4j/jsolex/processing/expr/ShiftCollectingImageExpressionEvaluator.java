@@ -21,6 +21,7 @@ import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
 import me.champeau.a4j.jsolex.processing.util.FileBackedImage;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
+import me.champeau.a4j.jsolex.processing.util.Wavelen;
 
 import java.util.Collections;
 import java.util.HashMap;
@@ -52,8 +53,8 @@ public class ShiftCollectingImageExpressionEvaluator extends ImageExpressionEval
     }
 
     @Override
-    protected double computePixelShift(ProcessParams params, double targetWaveLength) {
-        autoWavelenghts.add(targetWaveLength);
+    protected double computePixelShift(ProcessParams params, Wavelen targetWaveLength) {
+        autoWavelenghts.add(targetWaveLength.angstroms());
         return super.computePixelShift(params, targetWaveLength);
     }
 

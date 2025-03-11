@@ -24,6 +24,7 @@ import com.google.gson.JsonPrimitive;
 import com.google.gson.JsonSerializationContext;
 import com.google.gson.JsonSerializer;
 import me.champeau.a4j.jsolex.processing.color.ColorCurve;
+import me.champeau.a4j.jsolex.processing.util.Wavelen;
 
 import java.lang.reflect.Type;
 
@@ -48,7 +49,7 @@ class SpectralRaySerializer implements JsonSerializer<SpectralRay>, JsonDeserial
             return new SpectralRay(
                     obj.get("label").getAsString(),
                     curve,
-                    obj.get("wavelength").getAsDouble(),
+                    Wavelen.ofNanos(obj.get("wavelength").getAsDouble()),
                 false);
         }
         throw new IllegalAccessError("Unexpected JSON type " + json.getClass());
@@ -89,7 +90,7 @@ class SpectralRaySerializer implements JsonSerializer<SpectralRay>, JsonDeserial
     public JsonElement serialize(SpectralRay src, Type typeOfSrc, JsonSerializationContext context) {
         var obj = new JsonObject();
         obj.addProperty("label", src.label());
-        obj.addProperty("wavelength", src.wavelength());
+        obj.addProperty("wavelength", src.wavelength().nanos());
         var curve = writeColorCurve(src.colorCurve());
         if (curve != null) {
             obj.add("colorCurve", curve);

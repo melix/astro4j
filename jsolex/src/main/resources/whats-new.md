@@ -5,6 +5,7 @@
 - Made SER file pixel depth detection more robust
 - Added geometry corrected image (no contrast enhancement) to the quick mode
 - Improve performance of SER conversion
+- Let user use decimal numbers for focal length and slew rates
 
 ## What's New in Version 2.11.1
 

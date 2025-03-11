@@ -16,6 +16,7 @@
 package me.champeau.a4j.jsolex.processing.event;
 
 import me.champeau.a4j.jsolex.processing.sun.TrimmingParameters;
+import me.champeau.a4j.jsolex.processing.util.Dispersion;
 
 import java.io.File;
 import java.util.function.DoubleUnaryOperator;
@@ -36,9 +37,9 @@ public final class TrimmingParametersDeterminedEvent extends ProcessingEvent<Tri
                                                        boolean verticalFlip,
                                                        int totalFrames,
                                                        int maxWidth,
-                                                       double dispersionNanosPerPixel) {
+                                                       Dispersion dispersion) {
         return new TrimmingParametersDeterminedEvent(
-            new TrimmingParameters(serFile, firstFrame, lastFrame, pixelsUp, pixelsDown, minX, maxX, polynomial, verticalFlip, totalFrames, maxWidth, dispersionNanosPerPixel)
+            new TrimmingParameters(serFile, firstFrame, lastFrame, pixelsUp, pixelsDown, minX, maxX, polynomial, verticalFlip, totalFrames, maxWidth, dispersion)
         );
     }
 }

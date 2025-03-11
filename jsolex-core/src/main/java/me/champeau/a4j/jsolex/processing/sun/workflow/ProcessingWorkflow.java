@@ -358,7 +358,7 @@ public class ProcessingWorkflow {
                     return ImageUtils.convertToRGB(curve, mono);
                 })
             , () -> {
-                if (ray.wavelength() > 0) {
+                if (ray.wavelength().nanos() > 0) {
                     imagesEmitter.newColorImage(GeneratedImageKind.COLORIZED, null, MessageFormat.format(message("colorized"), ray.label()), "colorized", String.format(message("colorized.description"), state.pixelShift()), corrected, monoImage -> {
                         var mono = monoImage.data();
                         var rgb = ray.toRGB();
@@ -473,7 +473,7 @@ public class ProcessingWorkflow {
                     if (colorCurve.isPresent()) {
                         var curve = colorCurve.get();
                         imagesEmitter.newColorImage(GeneratedImageKind.MIXED, null, message("mix"), "mix", message("mix.description"), mixedImage, monoImage -> ImageUtils.convertToRGB(curve, monoImage.data()));
-                    } else if (ray.wavelength() > 0) {
+                    } else if (ray.wavelength().nanos() > 0) {
                         imagesEmitter.newColorImage(GeneratedImageKind.MIXED, null, message("mix"), "mix", message("mix.description"), mixedImage, monoImage -> {
                             var rgbColor = ray.toRGB();
                             return Colorize.doColorize(width, height, monoImage.data(), rgbColor);
