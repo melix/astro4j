@@ -127,8 +127,8 @@ public class SpectroHeliographEditor {
             order,
             spectrumVFlip
         );
-        cameraFocalLength.setTextFormatter(createPositiveIntFormatter());
-        collimatorFocalLength.setTextFormatter(createPositiveIntFormatter());
+        cameraFocalLength.setTextFormatter(createPositiveDoubleFormatter());
+        collimatorFocalLength.setTextFormatter(createPositiveDoubleFormatter());
         totalAngle.setTextFormatter(new TextFormatter<>(new DoubleStringConverter() {
             @Override
             public Double fromString(String value) {
@@ -179,7 +179,7 @@ public class SpectroHeliographEditor {
                 var selectedIndex = selectionModel.getSelectedIndex();
                 var vFlipSelected = spectrumVFlip.isSelected();
                 if (selectedIndex != -1) {
-                    var e = new SpectroHeliograph(newLabel, safeParseDouble(newTotalAngle), safeParseInt(newCameraFocalLength), safeParseInt(newCollimatorFocalLength), safeParseInt(newDensity), safeParseInt(newOrder), safeParseDouble(newSlitWidth), safeParseDouble(newSlitHeight),
+                    var e = new SpectroHeliograph(newLabel, safeParseDouble(newTotalAngle), safeParseDouble(newCameraFocalLength), safeParseDouble(newCollimatorFocalLength), safeParseInt(newDensity), safeParseInt(newOrder), safeParseDouble(newSlitWidth), safeParseDouble(newSlitHeight),
                         vFlipSelected);
                     items.set(selectedIndex, e);
                     elements.getSelectionModel().select(e);
@@ -289,16 +289,20 @@ public class SpectroHeliographEditor {
     @FXML
     public void addNewItem() {
         fireDisableStatus(false);
+        var reference = elements.getSelectionModel().getSelectedItem();
+        if (reference == null) {
+            reference = SpectroHeliograph.SOLEX;
+        }
         var newElement = new SpectroHeliograph(
-            elements.getItems().isEmpty() ? SpectroHeliograph.SOLEX.label() : "Custom " + elements.getItems().size(),
-            SpectroHeliograph.SOLEX.totalAngleDegrees(),
-            SpectroHeliograph.SOLEX.focalLength(),
-            SpectroHeliograph.SOLEX.collimatorFocalLength(),
-            SpectroHeliograph.SOLEX.density(),
-            SpectroHeliograph.SOLEX.order(),
-            SpectroHeliograph.SOLEX.slitWidthMicrons(),
-            SpectroHeliograph.SOLEX.slitHeightMillimeters(),
-            SpectroHeliograph.SOLEX.spectrumVFlip()
+            elements.getItems().isEmpty() ? reference.label() : "Custom " + elements.getItems().size(),
+            reference.totalAngleDegrees(),
+            reference.focalLength(),
+            reference.collimatorFocalLength(),
+            reference.density(),
+            reference.order(),
+            reference.slitWidthMicrons(),
+            reference.slitHeightMillimeters(),
+            reference.spectrumVFlip()
         );
         elements.getItems().add(newElement);
         elements.getSelectionModel().select(newElement);

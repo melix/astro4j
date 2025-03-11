@@ -16,6 +16,8 @@
 package me.champeau.a4j.jsolex.processing.sun.detection;
 
 import me.champeau.a4j.jsolex.processing.sun.SpectrumFrameAnalyzer;
+import me.champeau.a4j.jsolex.processing.util.Dispersion;
+import me.champeau.a4j.jsolex.processing.util.Wavelen;
 import me.champeau.a4j.math.Point2D;
 import me.champeau.a4j.math.regression.LinearRegression;
 import me.champeau.a4j.math.tuples.DoublePair;
@@ -47,15 +49,15 @@ public class PhenomenaDetector {
     private final Map<Integer, List<Redshift>> redshiftsPerFrame = new ConcurrentHashMap<>();
     private final Map<Integer, BitSet> activeRegionsPerFrame = new ConcurrentHashMap<>();
     private final Lock lock = new ReentrantLock();
-    private final double dispersion;
-    private final double lambda0;
+    private final Dispersion dispersion;
+    private final Wavelen lambda0;
     private final int reconstructedWidth;
 
     private PhenomenaListener detectionListener;
     private boolean detectActiveRegions = true;
     private boolean detectRedshifts = true;
 
-    public PhenomenaDetector(double dispersion, double lambda0, int reconstructedWidth) {
+    public PhenomenaDetector(Dispersion dispersion, Wavelen lambda0, int reconstructedWidth) {
         this.dispersion = dispersion;
         this.lambda0 = lambda0;
         this.reconstructedWidth = reconstructedWidth;
@@ -77,8 +79,8 @@ public class PhenomenaDetector {
         return speedOf(shift, dispersion, lambda0);
     }
 
-    public static double speedOf(double shift, double dispersion, double lambda0) {
-        return SPEED_OF_LIGHT * shift * dispersion / lambda0;
+    public static double speedOf(double shift, Dispersion dispersion, Wavelen lambda0) {
+        return SPEED_OF_LIGHT * shift * dispersion.angstromsPerPixel() / lambda0.angstroms();
     }
 
     public Map<Integer, List<Redshift>> getRedshifts() {
@@ -91,7 +93,7 @@ public class PhenomenaDetector {
         }
         var bordersAnalysis = new SpectrumFrameAnalyzer(width, height, header.isJSolexTrimmedSer(), 20000d).analyze(original);
         // 10 is to convert nm to angstrom
-        int wingShiftInPixels = (int) Math.floor(0.5d / (10d * dispersion));
+        int wingShiftInPixels = (int) Math.floor(0.5d / dispersion.angstromsPerPixel());
         var leftBorder = bordersAnalysis.leftBorder();
         var rightBorder = bordersAnalysis.rightBorder();
         var avgOfColumnAverages = 0d;

@@ -94,7 +94,7 @@ class SpectrumFrameAnalyzerTest extends Specification {
         int rightBorder = result.rightBorder().orElse(width - 1)
         var candidates = new ArrayList<SpectrumAnalyzer.QueryDetails>();
         for (var line : SpectralRay.predefined()) {
-            if (line.wavelength() > 0 && !line.emission()) {
+            if (line.wavelength().angstroms() > 0 && !line.emission()) {
                 candidates.add(new SpectrumAnalyzer.QueryDetails(line, 2.4, 1, SOLEX))
                 candidates.add(new SpectrumAnalyzer.QueryDetails(line, 2.4, 2, SOLEX))
             }

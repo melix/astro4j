@@ -15,6 +15,8 @@
  */
 package me.champeau.a4j.jsolex.processing.sun;
 
+import me.champeau.a4j.jsolex.processing.util.Dispersion;
+
 import java.io.File;
 import java.util.function.DoubleUnaryOperator;
 
@@ -31,6 +33,6 @@ public record TrimmingParameters(
     // control parameters
     int totalFrames,
     int maxWidth,
-    double dispersionNanosPerPixel
+    Dispersion dispersion
 ) {
 }

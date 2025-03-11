@@ -80,6 +80,7 @@ import me.champeau.a4j.jsolex.processing.util.SolarParameters;
 import me.champeau.a4j.jsolex.processing.util.SolarParametersUtils;
 import me.champeau.a4j.jsolex.processing.util.SpectralLineFrameImageCreator;
 import me.champeau.a4j.jsolex.processing.util.TemporaryFolder;
+import me.champeau.a4j.jsolex.processing.util.Wavelen;
 import me.champeau.a4j.math.Point2D;
 import me.champeau.a4j.math.image.Image;
 import me.champeau.a4j.math.image.ImageMath;
@@ -303,7 +304,7 @@ public class SolexVideoProcessor implements Broadcaster {
             var polynomial = maybePolynomial.get();
             var analyzer = new SpectrumFrameAnalyzer(width, height, header.isJSolexTrimmedSer(), null);
             analyzer.analyze(averageImage);
-            pixelShiftRange = computePixelShiftRange(analysis.leftBorder().orElse(0), analysis.rightBorder().orElse(end), height, polynomial);
+            pixelShiftRange = PixelShiftRange.computePixelShiftRange(analysis.leftBorder().orElse(0), analysis.rightBorder().orElse(end), height, polynomial);
             var continuumShift = processParams.spectrumParams().continuumShift();
             var minShift = pixelShiftRange.minPixelShift();
             var maxShift = pixelShiftRange.maxPixelShift();
@@ -334,7 +335,7 @@ public class SolexVideoProcessor implements Broadcaster {
                 var instrument = processParams.observationDetails().instrument();
                 var candidates = new ArrayList<SpectrumAnalyzer.QueryDetails>();
                 for (var line : SpectralRay.predefined()) {
-                    if (line.wavelength() > 0 && !line.emission()) {
+                    if (line.wavelength().nanos() > 0 && !line.emission()) {
                         if (binningIsReliable) {
                             candidates.add(new SpectrumAnalyzer.QueryDetails(line, pixelSize, processParams.observationDetails().binning(), instrument));
                         } else {
@@ -357,7 +358,7 @@ public class SolexVideoProcessor implements Broadcaster {
             var canGenerateHeliumD3Images = isSodiumOrFe1() && heliumLineVisible(pixelShiftRange, heliumLineShift) && processParams.requestedImages().isEnabled(GeneratedImageKind.GEOMETRY_CORRECTED_PROCESSED);
             addPixelShiftsForRequestedByWavelength(width, newHeight, imageList);
             addPixelShiftsForAutoContinnum(canGenerateHeliumD3Images, width, newHeight, imageList, heliumLineShift);
-            broadcast(new AverageImageComputedEvent(new AverageImageComputedEvent.AverageImage(avgImage, polynomial, 0, width, processParams)));
+            broadcast(new AverageImageComputedEvent(new AverageImageComputedEvent.AverageImage(avgImage, polynomial, analysis.leftBorder().orElse(0), analysis.rightBorder().orElse(width), processParams)));
             LOGGER.info(message("starting.reconstruction"));
             LOGGER.info(message("distortion.polynomial"), polynomial);
             var current = new AtomicInteger(0);
@@ -476,7 +477,7 @@ public class SolexVideoProcessor implements Broadcaster {
                         var lambda0 = processParams.spectrumParams().ray().wavelength();
                         var observationDetails = processParams.observationDetails();
                         var instrument = observationDetails.instrument();
-                        var dispersion = SpectrumAnalyzer.computeSpectralDispersionNanosPerPixel(
+                        var dispersion = SpectrumAnalyzer.computeSpectralDispersion(
                             instrument,
                             lambda0,
                             observationDetails.pixelSize() * observationDetails.binning()
@@ -637,8 +638,8 @@ public class SolexVideoProcessor implements Broadcaster {
         var pixelShift = SpectrumAnalyzer.computePixelShift(
             pixelSize,
             binning,
-            10 * processParams.spectrumParams().ray().wavelength(),
-            10 * SpectralRay.HELIUM_D3.wavelength(),
+            processParams.spectrumParams().ray().wavelength(),
+            SpectralRay.HELIUM_D3.wavelength(),
             processParams.observationDetails().instrument()
         );
         return pixelShift;
@@ -653,10 +654,10 @@ public class SolexVideoProcessor implements Broadcaster {
         if (!processParams.requestedImages().requestedWaveLengths().isEmpty()) {
             var finalPS = processParams.observationDetails().pixelSize() == null ? 2.4 : processParams.observationDetails().pixelSize();
             var binning = processParams.observationDetails().binning() == null ? 1 : processParams.observationDetails().binning();
-            var lambda0 = 10 * processParams.spectrumParams().ray().wavelength();
+            var lambda0 = processParams.spectrumParams().ray().wavelength();
             var instrument = processParams.observationDetails().instrument();
             var implicitPixelShifts = processParams.requestedImages().requestedWaveLengths().stream()
-                .mapToDouble(wavelength -> SpectrumAnalyzer.computePixelShift(finalPS, binning, lambda0, wavelength, instrument))
+                .mapToDouble(wavelength -> SpectrumAnalyzer.computePixelShift(finalPS, binning, lambda0, Wavelen.ofAngstroms(wavelength), instrument))
                 .boxed()
                 .toList();
             var explicit = processParams.requestedImages().pixelShifts();
@@ -879,49 +880,6 @@ public class SolexVideoProcessor implements Broadcaster {
         }
     }
 
-    private static PixelShiftRange computePixelShiftRange(int start, int end, int height, DoubleUnaryOperator polynomial) {
-        // determine the min and max pixel shifts
-        double min = Double.MAX_VALUE;
-        double max = -Double.MAX_VALUE;
-        for (int x = start; x < end; x++) {
-            var v = polynomial.applyAsDouble(x);
-            min = Math.min(v, min);
-            max = Math.max(v, max);
-        }
-        if (min == Double.MAX_VALUE) {
-            min = 0;
-        }
-        if (max == -Double.MAX_VALUE) {
-            max = height;
-        }
-        min = Math.max(0, min);
-        max = Math.min(height, max);
-        double mid = (max + min) / 2.0;
-        double range = (max - min) / 2.0;
-        var maxPixelShift = -Double.MAX_VALUE;
-        var minPixelShift = Double.MAX_VALUE;
-        for (int y = (int) range; y < height - range; y++) {
-            double cpt = 0;
-            for (int x = start; x < end; x++) {
-                var v = polynomial.applyAsDouble(x);
-                var shift = v - mid;
-                int ny = (int) Math.round(y + shift);
-                if (ny >= 0 && ny < height) {
-                    cpt++;
-                }
-            }
-            if (cpt > 0) {
-                var pixelShift = y - mid;
-                minPixelShift = Math.min(minPixelShift, pixelShift);
-                maxPixelShift = Math.max(maxPixelShift, pixelShift);
-            }
-        }
-        // round to a 1/10th
-        minPixelShift = Math.floor(minPixelShift / 10) * 10;
-        maxPixelShift = Math.ceil(maxPixelShift / 10) * 10;
-        return new PixelShiftRange(minPixelShift, maxPixelShift, (maxPixelShift - minPixelShift) / 10);
-    }
-
     public static Map<Class<?>, Object> createMetadata(ProcessParams processParams, Path serFile, PixelShiftRange pixelShiftRange, Header header) {
         Map<Class<?>, Object> context = new HashMap<>();
         context.put(ProcessParams.class, processParams);
@@ -1050,7 +1008,7 @@ public class SolexVideoProcessor implements Broadcaster {
         var lambda0 = processParams.spectrumParams().ray().wavelength();
         var observationDetails = processParams.observationDetails();
         var instrument = observationDetails.instrument();
-        var dispersion = SpectrumAnalyzer.computeSpectralDispersionNanosPerPixel(
+        var dispersion = SpectrumAnalyzer.computeSpectralDispersion(
             instrument,
             lambda0,
             observationDetails.pixelSize() * observationDetails.binning()

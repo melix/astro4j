@@ -372,7 +372,7 @@ public class SpectralLineDebugger {
                 var pixelSize = processParams.observationDetails().pixelSize();
                 var candidates = new ArrayList<SpectrumAnalyzer.QueryDetails>();
                 for (var line : SpectralRay.predefined()) {
-                    if (line.wavelength() > 0 && !line.emission()) {
+                    if (line.wavelength().angstroms() > 0 && !line.emission()) {
                         candidates.add(new SpectrumAnalyzer.QueryDetails(line, pixelSize, 1, instrument));
                         candidates.add(new SpectrumAnalyzer.QueryDetails(line, pixelSize, 2, instrument));
                     }
@@ -403,7 +403,7 @@ public class SpectralLineDebugger {
         var rgb = creator.generateDebugImage(lockedPolynomial);
         if (spectralRayDetectionResult != null) {
             var line = spectralRayDetectionResult.line();
-            var dispersion = SpectrumAnalyzer.computeSpectralDispersionNanosPerPixel(instrument, line.wavelength(), spectralRayDetectionResult.pixelSize() * spectralRayDetectionResult.binning());
+            var dispersion = SpectrumAnalyzer.computeSpectralDispersion(instrument, line.wavelength(), spectralRayDetectionResult.pixelSize() * spectralRayDetectionResult.binning());
             var detector = new PhenomenaDetector(dispersion, line.wavelength(), 0);
             detector.setDetectRedshifts(spectralRayDetectionResult.line().equals(SpectralRay.H_ALPHA));
             detector.setDetectionListener(new PhenomenaListener() {

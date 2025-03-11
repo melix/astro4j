@@ -27,6 +27,7 @@ import javafx.util.converter.IntegerStringConverter;
 import me.champeau.a4j.jsolex.app.JSolEx;
 import me.champeau.a4j.jsolex.processing.spectrum.SerFileTrimmer;
 import me.champeau.a4j.jsolex.processing.sun.TrimmingParameters;
+import me.champeau.a4j.jsolex.processing.util.Dispersion;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -229,16 +230,15 @@ public class SerFileTrimmerController {
         maxX.setText(String.valueOf(payload.maxX()));
         pixelsUp.setText(String.valueOf(payload.pixelsUp()));
         pixelsDown.setText(String.valueOf(payload.pixelsDown()));
-        pixelsUpAngstroms.textProperty().bind(pixelsUp.textProperty().map(s -> toAngstroms(s, payload.dispersionNanosPerPixel())));
-        pixelsDownAngstroms.textProperty().bind(pixelsDown.textProperty().map(s -> toAngstroms(s, payload.dispersionNanosPerPixel())));
+        pixelsUpAngstroms.textProperty().bind(pixelsUp.textProperty().map(s -> toAngstroms(s, payload.dispersion())));
+        pixelsDownAngstroms.textProperty().bind(pixelsDown.textProperty().map(s -> toAngstroms(s, payload.dispersion())));
         totalFrames.setText(String.format(I18N.string(JSolEx.class, "ser-trimmer", "total.frames"), payload.totalFrames()));
         maxWidth.setText(String.format(I18N.string(JSolEx.class, "ser-trimmer", "max.width"), payload.maxWidth()));
     }
 
-    private static String toAngstroms(String pixels, double dispersionNanosPerPixel) {
+    private static String toAngstroms(String pixels, Dispersion dispersion) {
         try {
-            var dispersionNanos = Double.parseDouble(pixels) * dispersionNanosPerPixel;
-            var dispersionAngstroms = dispersionNanos * 10;
+            var dispersionAngstroms = Double.parseDouble(pixels) * dispersion.angstromsPerPixel();
             return String.format(Locale.US, "%.2fÅ", dispersionAngstroms);
         } catch (NumberFormatException ex) {
             return "";

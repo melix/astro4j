@@ -51,6 +51,7 @@ public abstract class SpectralRayIO {
 
     private static Gson newGson() {
         var builder = new Gson().newBuilder();
+        builder.registerTypeAdapter(SpectralRay.class, new SpectralRaySerializer());
         return builder.create();
     }
 
@@ -90,7 +91,7 @@ public abstract class SpectralRayIO {
             }
             schemas.put(SCHEMA_KEY, String.valueOf(SCHEMA_VERSION));
             VersionUtil.writeSchemaVersions(schemas);
-            newRays = newRays.stream().sorted(Comparator.comparingDouble(SpectralRay::wavelength)).toList();
+            newRays = newRays.stream().sorted(Comparator.comparingDouble(r -> r.wavelength().angstroms())).toList();
             saveDefaults(newRays);
             return newRays;
         }

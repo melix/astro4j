@@ -111,7 +111,7 @@ public class CustomAnimationCreator {
         maxShift.setText(Double.toString(maxPixelShift));
         annotateAnim.disableProperty().bind(generateAnim.selectedProperty().not());
         delay.disableProperty().bind(generateAnim.selectedProperty().not());
-        if (processParams.spectrumParams().ray().wavelength() > 0) {
+        if (processParams.spectrumParams().ray().wavelength().nanos() > 0) {
             minShiftHint.textProperty().bind(minShift.textProperty().map(s -> redshiftProcessor.toAngstroms(safeParseDouble(s))));
             maxShiftHint.textProperty().bind(maxShift.textProperty().map(s -> redshiftProcessor.toAngstroms(safeParseDouble(s))));
         } else {

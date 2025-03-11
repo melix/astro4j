@@ -95,6 +95,7 @@ import me.champeau.a4j.jsolex.processing.sun.workflow.PixelShiftRange;
 import me.champeau.a4j.jsolex.processing.sun.workflow.ReferenceCoords;
 import me.champeau.a4j.jsolex.processing.util.BackgroundOperations;
 import me.champeau.a4j.jsolex.processing.util.Constants;
+import me.champeau.a4j.jsolex.processing.util.Dispersion;
 import me.champeau.a4j.jsolex.processing.util.Histogram;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
@@ -103,6 +104,7 @@ import me.champeau.a4j.jsolex.processing.util.ProcessingException;
 import me.champeau.a4j.jsolex.processing.util.RGBImage;
 import me.champeau.a4j.jsolex.processing.util.SolarParameters;
 import me.champeau.a4j.jsolex.processing.util.SolarParametersUtils;
+import me.champeau.a4j.jsolex.processing.util.Wavelen;
 import me.champeau.a4j.math.Point2D;
 import me.champeau.a4j.math.image.Image;
 import me.champeau.a4j.math.regression.Ellipse;
@@ -899,35 +901,18 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
             var lambda0 = params.spectrumParams().ray().wavelength();
             var binning = params.observationDetails().binning();
             var pixelSize = params.observationDetails().pixelSize();
-            var canDrawReference = binning != null && pixelSize != null && lambda0 > 0 && pixelSize > 0 && binning > 0;
+            var canDrawReference = binning != null && pixelSize != null && lambda0.nanos() > 0 && pixelSize > 0 && binning > 0;
             registerSaveChartAction("profile", lineChart);
             series.setName(formatLegend(params.observationDetails().instrument(), lambda0, binning, pixelSize));
-            double dispersion = canDrawReference ? SpectrumAnalyzer.computeSpectralDispersionNanosPerPixel(params.observationDetails().instrument(), lambda0, pixelSize * binning) : 0;
-            double min = Double.MAX_VALUE;
-            double max = -Double.MAX_VALUE;
-            for (int x = start; x < end; x++) {
-                var v = polynomial.applyAsDouble(x);
-                min = Math.min(v, min);
-                max = Math.max(v, max);
-            }
-            if (min == Double.MAX_VALUE) {
-                min = 0;
-            }
-            if (max == -Double.MAX_VALUE) {
-                max = height;
-            }
-            min = Math.max(0, min);
-            max = Math.min(height, max);
-            double mid = (max + min) / 2.0;
-            double range = (max - min) / 2.0;
+            var dispersion = canDrawReference ? SpectrumAnalyzer.computeSpectralDispersion(params.observationDetails().instrument(), lambda0, pixelSize * binning) : null;
+            var range = PixelShiftRange.computePixelShiftRange(start, end, height, polynomial);
             var dataPoints = new ArrayList<SpectrumAnalyzer.DataPoint>();
-            for (double y = range; y < height - range; y += 1) {
+            for (var pixelShift = range.minPixelShift(); pixelShift < range.maxPixelShift(); pixelShift++) {
                 double cpt = 0;
                 double val = 0;
                 for (int x = start; x < end; x++) {
                     var v = polynomial.applyAsDouble(x);
-                    var shift = v - mid;
-                    var exactNy = y + shift;
+                    var exactNy = v + pixelShift;
                     int lowerNy = (int) Math.floor(exactNy);
                     int upperNy = (int) Math.ceil(exactNy);
 
@@ -941,8 +926,7 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
                     }
                 }
                 if (cpt > 0) {
-                    var pixelShift = y - mid;
-                    var wl = canDrawReference ? computeWavelength(pixelShift, lambda0, dispersion) : 0;
+                    Wavelen wl = canDrawReference ? computeWavelength(pixelShift, lambda0, dispersion) : Wavelen.ofAngstroms(0);
                     dataPoints.add(new SpectrumAnalyzer.DataPoint(wl, pixelShift, val / cpt));
                 }
             }
@@ -1063,23 +1047,25 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
         menu.getItems().add(openInNewWindow);
     }
 
-    private static String formatWavelength(double pixelShift, double wavelength) {
-        if (wavelength > 0) {
-            return String.format(Locale.US, "%.2f", wavelength);
+    private static String formatWavelength(double pixelShift, Wavelen wavelength) {
+        if (wavelength.angstroms() > 0) {
+            return String.format(Locale.US, "%.2f", wavelength.angstroms());
         }
-        return String.format(Locale.US, "%.2f", pixelShift);
+        return String.format(Locale.US, "%.2fpx", pixelShift);
     }
 
-    private static double computeWavelength(double pixelShift, double lambda, double dispersion) {
-        return 10 * (lambda + pixelShift * dispersion);
+    private static Wavelen computeWavelength(double pixelShift, Wavelen lambda, Dispersion dispersion) {
+        if (dispersion == null) {
+            return lambda;
+        }
+        return lambda.plus(pixelShift, dispersion);
     }
 
-    private static String formatLegend(SpectroHeliograph instrument, Double lambda0, Integer binning, Double pixelSize) {
+    private static String formatLegend(SpectroHeliograph instrument, Wavelen lambda0, Integer binning, Double pixelSize) {
         if (binning != null && pixelSize != null && lambda0 != null) {
-            double lambda = lambda0;
             double pixSize = pixelSize;
-            if (lambda > 0 && pixSize > 0) {
-                double disp = 10 * SpectrumAnalyzer.computeSpectralDispersionNanosPerPixel(instrument, lambda, pixelSize * binning);
+            if (lambda0.angstroms() > 0 && pixSize > 0) {
+                double disp = SpectrumAnalyzer.computeSpectralDispersion(instrument, lambda0, pixelSize * binning).angstromsPerPixel();
                 return String.format(message("intensity.legend"), pixelSize, binning, disp);
             }
         }

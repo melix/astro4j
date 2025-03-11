@@ -53,6 +53,7 @@ import me.champeau.a4j.jsolex.processing.sun.workflow.PixelShiftRange;
 import me.champeau.a4j.jsolex.processing.util.FileBackedImage;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
+import me.champeau.a4j.jsolex.processing.util.Wavelen;
 import me.champeau.a4j.math.image.ImageMath;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -347,16 +348,16 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
                 .filter(ray -> ray.label().equalsIgnoreCase(rayName))
                 .findFirst();
             if (first.isPresent()) {
-                targetWaveLength = 10 * first.get().wavelength();
+                targetWaveLength = first.get().wavelength().angstroms();
             }
         } else {
             targetWaveLength = asScalar(arguments.get(0)).doubleValue();
         }
         ProcessParams params = (ProcessParams) context.get(ProcessParams.class);
-        return computePixelShift(params, targetWaveLength);
+        return computePixelShift(params, Wavelen.ofAngstroms(targetWaveLength));
     }
 
-    protected double computePixelShift(ProcessParams params, double targetWaveLength) {
+    protected double computePixelShift(ProcessParams params, Wavelen targetWaveLength) {
         if (params == null) {
             return 0;
         }
@@ -370,7 +371,7 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
         }
         var lambda0 = params.spectrumParams().ray().wavelength();
         var instrument = params.observationDetails().instrument();
-        return SpectrumAnalyzer.computePixelShift(pixelSize, binning, lambda0 * 10, targetWaveLength, instrument);
+        return SpectrumAnalyzer.computePixelShift(pixelSize, binning, lambda0, targetWaveLength, instrument);
     }
 
     public static OptionalDouble median(DoubleStream doubleStream) {

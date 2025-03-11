@@ -18,8 +18,8 @@ package me.champeau.a4j.jsolex.processing.params;
 public record SpectroHeliograph(
     String label,
     double totalAngleDegrees,
-    int focalLength,
-    int collimatorFocalLength,
+    double focalLength,
+    double collimatorFocalLength,
     int density,
     int order,
     double slitWidthMicrons,
@@ -41,7 +41,7 @@ public record SpectroHeliograph(
         return new SpectroHeliograph(label, totalAngleDegrees, focalLength, collimatorFocalLength, density, order, slitWidthMicrons, slitHeightMillimeters, spectrumVFlip);
     }
 
-    public SpectroHeliograph withCollimatorFocalLength(int collimatorFocalLength) {
+    public SpectroHeliograph withCollimatorFocalLength(double collimatorFocalLength) {
         return new SpectroHeliograph(label, totalAngleDegrees, focalLength, collimatorFocalLength, density, order, slitWidthMicrons, slitHeightMillimeters, spectrumVFlip);
     }
 
@@ -61,7 +61,7 @@ public record SpectroHeliograph(
         return new SpectroHeliograph(label, totalAngleDegrees, focalLength, collimatorFocalLength, density, order, slitWidthMicrons, slideHeightMillimeters, spectrumVFlip);
     }
 
-    public SpectroHeliograph withCameraFocalLength(int focalLength) {
+    public SpectroHeliograph withCameraFocalLength(double focalLength) {
         return new SpectroHeliograph(label, totalAngleDegrees, focalLength, collimatorFocalLength, density, order, slitWidthMicrons, slitHeightMillimeters, spectrumVFlip);
     }
 

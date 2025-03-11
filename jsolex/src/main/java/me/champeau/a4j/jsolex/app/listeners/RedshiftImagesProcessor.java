@@ -224,8 +224,8 @@ public class RedshiftImagesProcessor {
     public String toAngstroms(double shift) {
         var lambda0 = params.spectrumParams().ray().wavelength();
         var instrument = params.observationDetails().instrument();
-        var dispersion = SpectrumAnalyzer.computeSpectralDispersionNanosPerPixel(instrument, lambda0, params.observationDetails().pixelSize() * params.observationDetails().binning());
-        var angstroms = 10 * shift * dispersion;
+        var dispersion = SpectrumAnalyzer.computeSpectralDispersion(instrument, lambda0, params.observationDetails().pixelSize() * params.observationDetails().binning());
+        var angstroms = shift * dispersion.angstromsPerPixel();
         return String.format(Locale.US, "%.2fÅ", angstroms);
     }
 
@@ -267,7 +267,7 @@ public class RedshiftImagesProcessor {
         if (annotate && cropped instanceof List list) {
             var lambda0 = params.spectrumParams().ray().wavelength();
             var instrument = params.observationDetails().instrument();
-            var dispersion = SpectrumAnalyzer.computeSpectralDispersionNanosPerPixel(instrument, lambda0, params.observationDetails().pixelSize() * params.observationDetails().binning());
+            var dispersion = SpectrumAnalyzer.computeSpectralDispersion(instrument, lambda0, params.observationDetails().pixelSize() * params.observationDetails().binning());
             var draw = new ImageDraw(Map.of(), broadcaster);
             int finalWidth;
             int finalHeight;
@@ -290,7 +290,7 @@ public class RedshiftImagesProcessor {
                 .map(o -> {
                     var frame = (ImageWrapper) o;
                     double pixelShift = frame.findMetadata(PixelShift.class).map(PixelShift::pixelShift).orElse(0d);
-                    var angstroms = 10 * pixelShift * dispersion;
+                    var angstroms = pixelShift * dispersion.angstromsPerPixel();
                     var legend = String.format(Locale.US, "%.2fÅ (%.2f km/s)", angstroms, Math.abs(PhenomenaDetector.speedOf(pixelShift, dispersion, lambda0)));
                     var annotated = (ImageWrapper) draw.drawText(frame, "*" + legend + "*", (int) fontSize, (int) (finalHeight - 2 * fontSize / 3), annotationColorHex, (int) fontSize);
                     broadcaster.broadcast(ProgressEvent.of(progress.incrementAndGet() / totalImages, "Annotating frames"));
@@ -401,7 +401,7 @@ public class RedshiftImagesProcessor {
         int panelHeight = rows * height;
         var lambda0 = params.spectrumParams().ray().wavelength();
         var instrument = params.observationDetails().instrument();
-        var dispersion = SpectrumAnalyzer.computeSpectralDispersionNanosPerPixel(instrument, lambda0, params.observationDetails().pixelSize() * params.observationDetails().binning());
+        var dispersion = SpectrumAnalyzer.computeSpectralDispersion(instrument, lambda0, params.observationDetails().pixelSize() * params.observationDetails().binning());
         imageEmitter.newColorImage(
             GeneratedImageKind.REDSHIFT,
             null, title,
@@ -424,7 +424,7 @@ public class RedshiftImagesProcessor {
                     var yOffset = row * height;
                     var xOffset = col * width;
                     var pixelShift = snap.findMetadata(PixelShift.class).map(PixelShift::pixelShift).orElse(0d);
-                    var angstroms = 10 * pixelShift * dispersion;
+                    var angstroms = pixelShift * dispersion.angstromsPerPixel();
                     var legend = String.format(Locale.US, "%.2fÅ (%.2f km/s)", angstroms, Math.abs(PhenomenaDetector.speedOf(pixelShift, dispersion, lambda0)));
                     // draw legend on a dummy image
                     var legendImage = createLegendImage(width, height, legend);
