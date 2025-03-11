@@ -7,6 +7,7 @@
 - Amélioration des performances de la conversion SER
 - Utilisation de la version française pour tous les pays francophones (et non uniquement la France)
 - Possibilité d'utiliser des nombres décimaux pour la focale et les vitesses de déplacement
+- Ajout du Sunscan dans la liste des équipements
 
 ## Nouveautés de la version 2.11.1
 
