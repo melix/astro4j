@@ -30,7 +30,8 @@ public record SpectroHeliograph(
     public static final SpectroHeliograph SUNSCAN = new SpectroHeliograph("Sunscan", 34, 100, 75, 2400, 1, 10, 6, true);
     public static final SpectroHeliograph SOLEX_7 = new SpectroHeliograph("Sol'Ex (7μm/6mm slit)", 34, 125, 80, 2400, 1, 7, 6, false);
     public static final SpectroHeliograph SOLEX_10 = new SpectroHeliograph("Sol'Ex (10μm/6mm slit)", 34, 125, 80, 2400, 1, 10, 6, false);
-    public static final SpectroHeliograph MLASTRO_SHG_700 = new SpectroHeliograph("MLAstro SHG 700", 34, 75, 75, 2400, 1, 7, 7, false);
+    public static final SpectroHeliograph MLASTRO_SHG_700_OLD_75 = new SpectroHeliograph("MLAstro SHG 700", 34, 75, 75, 2400, 1, 7, 7, false);
+    public static final SpectroHeliograph MLASTRO_SHG_700 = new SpectroHeliograph("MLAstro SHG 700", 34, 72, 72, 2400, 1, 7, 7, false);
     public static final SpectroHeliograph MLASTRO_SHG_400 = new SpectroHeliograph("MLAstro SHG 400", 34, 100, 100, 2400, 1, 7, 7, false);
 
     public double totalAngleRadians() {

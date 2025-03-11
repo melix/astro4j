@@ -56,7 +56,12 @@ public class SpectroHeliographsIO {
         var defaultsFile = resolveDefaultsFile();
         List<SpectroHeliograph> patterns = readFrom(defaultsFile);
         if (patterns != null) {
-            return patterns;
+            return patterns.stream().map(shg -> {
+                if (SpectroHeliograph.MLASTRO_SHG_700_OLD_75.equals(shg)) {
+                    return SpectroHeliograph.MLASTRO_SHG_700;
+                }
+                return shg;
+            }).toList();
         }
         LOGGER.debug(message("no.config.file.found"), defaultsFile, "SHG");
         return SpectroHeliographsIO.predefined();
