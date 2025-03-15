@@ -84,7 +84,10 @@ public class BackgroundRemoval extends AbstractFunctionImpl {
             }
             return monoToMonoImageTransformer("neutralize_bg", 2, arguments, src -> {
                 if (src instanceof ImageWrapper32 image) {
-                    me.champeau.a4j.jsolex.processing.sun.BackgroundRemoval.neutralizeBackground(image, iterations);
+                    var model = me.champeau.a4j.jsolex.processing.sun.BackgroundRemoval.neutralizeBackground(image, iterations).data();
+                    for (int y = 0; y < image.height(); y++) {
+                        System.arraycopy(model[y], 0, image.data()[y], 0, image.width());
+                    }
                 } else {
                     throw new IllegalArgumentException("neutralize_bg only supports mono images");
                 }
@@ -92,5 +95,32 @@ public class BackgroundRemoval extends AbstractFunctionImpl {
         }
 
         throw new IllegalArgumentException("neutralize_bg only supports mono images");
+    }
+
+    public Object backgroundModel(List<Object> arguments) {
+        assertExpectedArgCount(arguments, "backgroundModel takes 1 or 2 arguments (image(s), order)", 1, 2);
+        var arg = arguments.get(0);
+        if (arg instanceof List<?>) {
+            return expandToImageList("backgroundModel", arguments, this::backgroundModel);
+        }
+        if (arg instanceof ImageWrapper target) {
+            Optional<Ellipse> ellipse = target.findMetadata(Ellipse.class);
+            if (ellipse.isEmpty()) {
+                throw new IllegalArgumentException("Cannot perform background neutralization because ellipse isn't found");
+            }
+            int order = arguments.size() == 2 ? intArg(arguments, 1) : 2;
+            return monoToMonoImageTransformer("backgroundModel", 2, arguments, src -> {
+                if (src instanceof ImageWrapper32 image) {
+                    var model = me.champeau.a4j.jsolex.processing.sun.BackgroundRemoval.backgroundModel(image, order).data();
+                    for (int y = 0; y < image.height(); y++) {
+                        System.arraycopy(model[y], 0, image.data()[y], 0, image.width());
+                    }
+                } else {
+                    throw new IllegalArgumentException("backgroundModel only supports mono images");
+                }
+            });
+        }
+
+        throw new IllegalArgumentException("backgroundModel only supports mono images");
     }
 }

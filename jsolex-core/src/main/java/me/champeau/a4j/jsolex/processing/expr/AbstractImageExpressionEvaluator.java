@@ -220,6 +220,7 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
             case AUTOCROP -> crop.autocrop(arguments);
             case AUTOCROP2 -> crop.autocrop2(arguments);
             case AVG -> simpleFunctionCall.applyFunction("avg", arguments, DoubleStream::average);
+            case BG_MODEL -> bgRemoval.backgroundModel(arguments);
             case GET_B -> utilities.extractChannel(arguments, 2);
             case BLUR -> convolution.blur(arguments);
             case CLAHE -> clahe.clahe(arguments);

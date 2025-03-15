@@ -1,5 +1,9 @@
 # Bienvenue dans JSol'Ex {{version}} !
 
+## Nouveautés de la version 2.12.0
+
+- Introduction de la nouvelle fonction `BG_MODEL` pour modéliser l'arrière-plan de l'image
+
 ## Nouveautés de la version 2.11.2
 
 - Amélioration de la détection de la profondeur de pixel des fichiers SER
