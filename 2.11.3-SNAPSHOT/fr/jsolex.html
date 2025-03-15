@@ -1209,6 +1209,9 @@ Le script apparaît désormais dans la liste de gauche, il sera appliqué lors d
 <li>
 <p><code>neutralize_bg</code> est une fonction similaire à <code>remove_bg</code> qui utilise une modélisation polynomiale du fond pour supprimer les gradients. Elle prend en paramètre l&#8217;image à traiter, et optionellement un nombre d&#8217;itérations en 2ème paramètre. Par exemple : <code>neutralize_bg(img(0), 2)</code>.</p>
 </li>
+<li>
+<p><code>bg_model</code> crée un modèle de fond de ciel à partir d&#8217;une image, qui peut par exemple être soustraite de l&#8217;image d&#8217;origine. Elle prend en paramètre l&#8217;image à traiter, ainsi qu&#8217;un ordre de polynôme. Par exemple: <code>bg_model(img(0))</code>. L&#8217;ordre par défaut est 2. Il n&#8217;est pas recommandé d&#8217;utiliser un ordre supérieur à 3.</p>
+</li>
 </ul>
 </div>
 <div class="admonitionblock note">
