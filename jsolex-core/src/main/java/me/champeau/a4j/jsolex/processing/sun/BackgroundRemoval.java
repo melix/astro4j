@@ -15,14 +15,19 @@
  */
 package me.champeau.a4j.jsolex.processing.sun;
 
+import me.champeau.a4j.jsolex.processing.util.Constants;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 import me.champeau.a4j.math.regression.Ellipse;
+import org.apache.commons.math3.linear.LUDecomposition;
+import org.apache.commons.math3.linear.MatrixUtils;
 import org.apache.commons.math3.stat.regression.OLSMultipleLinearRegression;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.stream.IntStream;
 
 import static me.champeau.a4j.jsolex.processing.sun.ImageUtils.bilinearSmoothing;
 import static me.champeau.a4j.jsolex.processing.sun.workflow.AnalysisUtils.estimateBackground;
@@ -31,6 +36,7 @@ import static me.champeau.a4j.jsolex.processing.util.Constants.message;
 
 public class BackgroundRemoval {
     private static final Logger LOGGER = LoggerFactory.getLogger(BackgroundRemoval.class);
+    private static final double PENALTY = 1e-6;
 
     private BackgroundRemoval() {
 
@@ -140,6 +146,98 @@ public class BackgroundRemoval {
         }
         return copy;
     }
+
+    /**
+     * Computes a background model for the given image.
+     *
+     * @param image the image to process
+     * @return the background model
+     */
+    public static ImageWrapper32 backgroundModel(ImageWrapper32 image, int degree) {
+        var data = image.data();
+        int height = image.height();
+        int width = image.width();
+        var ellipse = image.findMetadata(Ellipse.class).orElse(null);
+
+        List<double[]> xMatrix = new ArrayList<>();
+        List<Double> yVector = new ArrayList<>();
+        int numTerms = (degree + 1) * (degree + 2) / 2;
+
+        var step = Math.max(width, height) / 32;
+        for (int y = 0; y < height; y += step) {
+            for (int x = 0; x < width; x += step) {
+                if (ellipse == null || !ellipse.isWithin(x, y)) {
+                    double z = data[x][y];
+                    var terms = generatePolynomialTerms(x, y, width, height, degree);
+                    xMatrix.add(terms);
+                    yVector.add(z);
+                }
+            }
+        }
+
+        // Filter samples using 2 sigma
+        var mean = yVector.stream().mapToDouble(Double::doubleValue).average().orElse(0);
+        var sigma = Math.sqrt(yVector.stream().mapToDouble(v -> (v - mean) * (v - mean)).sum() / yVector.size());
+        var threshold = 2 * sigma;
+        List<double[]> filteredX = new ArrayList<>();
+        List<Double> filteredY = new ArrayList<>();
+        for (int i = 0; i < yVector.size(); i++) {
+            if (Math.abs(yVector.get(i) - mean) < threshold) {
+                filteredX.add(xMatrix.get(i));
+                filteredY.add(yVector.get(i));
+            }
+        }
+        xMatrix = filteredX;
+        yVector = filteredY;
+
+        // Check for sufficient samples
+        if (xMatrix.size() < numTerms) {
+            throw new IllegalStateException("Insufficient samples: " + xMatrix.size() + " < " + numTerms);
+        }
+
+        var mX = MatrixUtils.createRealMatrix(xMatrix.toArray(new double[0][]));
+        var mY = MatrixUtils.createRealVector(yVector.stream().mapToDouble(Double::doubleValue).toArray());
+
+        // Compute X^T * X and X^T * y
+        var mXtX = mX.transpose().multiply(mX);
+        var mXty = mX.transpose().operate(mY);
+
+        var penalty = MatrixUtils.createRealIdentityMatrix(mXtX.getRowDimension()).scalarMultiply(PENALTY);
+        var mXtXRegularized = mXtX.add(penalty);
+
+        // Solve (XtX + lambda*I) * coefficients = Xty
+        var solver = new LUDecomposition(mXtXRegularized).getSolver();
+        var coefficients = solver.solve(mXty);
+
+        // Generate background using the coefficients
+        var background = new float[width][height];
+        IntStream.range(0, height).parallel().forEach(y -> {
+            for (int x = 0; x < width; x++) {
+                double[] terms = generatePolynomialTerms(x, y, width, height, degree);
+                double bgValue = 0;
+                for (int i = 0; i < terms.length; i++) {
+                    bgValue += coefficients.getEntry(i) * terms[i];
+                }
+                background[x][y] = (float) Math.clamp(bgValue, 0, Constants.MAX_PIXEL_VALUE);
+            }
+        });
+
+        return new ImageWrapper32(width, height, background, new HashMap<>(image.metadata()));
+    }
+
+    private static double[] generatePolynomialTerms(double x, double y, int width, int height, int degree) {
+        List<Double> terms = new ArrayList<>();
+        double xNorm = x / (width - 1);
+        double yNorm = y / (height - 1);
+        for (int s = 0; s <= degree; s++) {
+            for (int i = s; i >= 0; i--) {
+                int j = s - i;
+                terms.add(Math.pow(xNorm, i) * Math.pow(yNorm, j));
+            }
+        }
+        return terms.stream().mapToDouble(Double::doubleValue).toArray();
+    }
+
 
     /**
      * This method replaces all pixels which have a value of 0 with the

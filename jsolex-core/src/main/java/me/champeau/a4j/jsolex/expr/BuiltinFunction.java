@@ -26,6 +26,7 @@ public enum BuiltinFunction {
     AUTOCROP,
     AUTOCROP2,
     AVG,
+    BG_MODEL,
     MEDIAN,
     BLUR,
     CLAHE,

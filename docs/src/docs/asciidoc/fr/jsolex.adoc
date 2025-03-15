@@ -333,6 +333,7 @@ Les autres fonctions disponibles sont:
 - `fix_banding` permet d'appliquer l'algorithme de corrections de bandes (ou transversallium). Il prend 3 arguments: l'image, la largeur de bande et le nombre d'itérations. Par exemple, `fix_banding(img(0), 10, 5)`.
 - `remove_bg` permet de supprimer l'arrière plan d'une image. Ceci peut être utile lorsque le contraste est très faible (par exemple en raie hélium). Le processus calcule la valeur moyenne des pixels en dehors du disque, puis applique une suppression de l'arrière plan en fonction de la distance au limbe. Par exemple: `remove_bg(stretched)`. Une variante est disponible avec une tolerance: `remove_bg(stretched, 0.2)`. Plus la tolérance est proche de 0, moins la suppression est forte.
 - `neutralize_bg` est une fonction similaire à `remove_bg` qui utilise une modélisation polynomiale du fond pour supprimer les gradients. Elle prend en paramètre l'image à traiter, et optionellement un nombre d'itérations en 2ème paramètre. Par exemple : `neutralize_bg(img(0), 2)`.
+- `bg_model` crée un modèle de fond de ciel à partir d'une image, qui peut par exemple être soustraite de l'image d'origine. Elle prend en paramètre l'image à traiter, ainsi qu'un ordre de polynôme. Par exemple: `bg_model(img(0))`. L'ordre par défaut est 2. Il n'est pas recommandé d'utiliser un ordre supérieur à 3.
 
 NOTE: Si vous ne connaissez pas la valeur du point noir, vous pouvez utiliser la valeur estimée par JSol'Ex, disponible dans une variable prédéfinie `blackPoint`: `asinh_stretch(img(0), blackPoint, 100)`
 

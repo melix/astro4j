@@ -1,5 +1,9 @@
 # Welcome to JSol'Ex {{version}}!
 
+# What's New in Version 2.12.0
+
+- Introduced new `BG_MODEL` function to model the background of the image
+
 ## What's New in Version 2.11.2
 
 - Made SER file pixel depth detection more robust
