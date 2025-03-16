@@ -1389,7 +1389,13 @@ Une variable spéciale nommée <code>angleP</code> contient la valeur calculée 
 <div class="ulist">
 <ul>
 <li>
-<p><code>find_shift</code> permet de calculer un décalage en pixels par rapport à la raie détectée. Elle accepte un seul paramètre, le nom de la raie recherchée, par exemple, <code>find_shift("Helium (D3)"), ou bien la longueur d&#8217;onde en Angström, par exemple `find_shift(5875.62)</code>. Cette fonction retourne un nombre, le décalage en pixels.</p>
+<p><code>find_shift</code> permet de calculer un décalage en pixels par rapport à la raie détectée. Elle accepte un paramètre, le nom de la raie recherchée, par exemple, <code>find_shift("Helium (D3)"), ou bien la longueur d&#8217;onde en Angström, par exemple `find_shift(5875.62)</code>. Cette fonction retourne un nombre, le décalage en pixels. Il est possible de passer un 2ème argument, la raie de référence, dans le cas où la raie détectée est incorrecte.</p>
+</li>
+<li>
+<p><code>a2px</code> convertit des Angströms en pixels. Le premier paramètre est le nombre d&#8217;Angströms. Le second est optionnel, la longueur d&#8217;onde de référence. Par exemple : <code>a2px(1.5, 6562.8)</code>.</p>
+</li>
+<li>
+<p><code>px2a</code> convertit des pixels en Angströms. Le premier paramètre est le nombre de pixels. Le second est optionnel, la longueur d&#8217;onde de référence. Par exemple : <code>px2a(10, 6562.8)</code>.</p>
 </li>
 <li>
 <p><code>continuum</code> est une fonction sans paramètre qui détermine automatiquement une image de type "continuum" qui peut par exemple être soustraite d&#8217;une autre image. Cette fonction diffère de l&#8217;image continuum classique au sens où il ne s&#8217;agit pas d&#8217;une image unique calculée à la différence de pixels fixe de 15 pixels, mais d&#8217;une image calculée à partir de la médiane d&#8217;un ensemble d&#8217;images. Utilisation : <code>continuum()</code>.</p>

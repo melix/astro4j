@@ -1463,7 +1463,13 @@ Stacking and mosaic functions:</p>
 <div class="ulist">
 <ul>
 <li>
-<p><code>find_shift</code> allows to compute a pixel shift from the detected ray. It accepts a single parameter, the name of the ray to search for, for example, <code>find_shift("Helium (D3)"), or the wavelength in Angström, for example `find_shift(5875.62)</code>. This function returns a number, the pixel shift.</p>
+<p><code>find_shift</code> allows to compute a pixel shift from the detected ray. It accepts a parameter, the name of the ray to search for, for example, <code>find_shift("Helium (D3)"), or the wavelength in Angström, for example `find_shift(5875.62)</code>. This function returns a number, the pixel shift. Optionally, you can add a second argument which is the reference wavelength, in case the detected ray is incorrect.</p>
+</li>
+<li>
+<p><code>a2px</code> converts Angström to pixel. The first parameter is the number of Angström. The second one is optional, the reference wavelength. In case it&#8217;s not specified, the reference wavelength is the detected spectral ray. For example: <code>a2px(1.5, 6562.8)</code>.</p>
+</li>
+<li>
+<p><code>px2a</code> converts pixels to Angström. The first parameter is the number of pixels. The second one is optional, the reference wavelength. In case it&#8217;s not specified, the reference wavelength is the detected spectral ray. For example: <code>px2a(10, 6562.8)</code>.</p>
 </li>
 <li>
 <p><code>continuum</code> is a function without parameters which automatically determines a "continuum" image which can for example be subtracted from another image. This function differs from the classic continuum image in the sense that it is not a single image calculated from a fixed pixel difference of 15 pixels, but an image calculated from the median of a set of images. Usage: <code>continuum()</code>.</p>
