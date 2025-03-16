@@ -18,6 +18,7 @@ package me.champeau.a4j.jsolex.expr;
 import java.util.Locale;
 
 public enum BuiltinFunction {
+    A2PX,
     ADJUST_CONTRAST,
     ADJUST_GAMMA,
     ANIM,
@@ -73,6 +74,7 @@ public enum BuiltinFunction {
     MOSAIC,
     NEUTRALIZE_BG,
     POW,
+    PX2A,
     RADIUS_RESCALE,
     RANGE,
     REMOVE_BG,

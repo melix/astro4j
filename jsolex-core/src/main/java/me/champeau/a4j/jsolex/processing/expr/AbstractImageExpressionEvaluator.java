@@ -50,6 +50,7 @@ import me.champeau.a4j.jsolex.processing.spectrum.SpectrumAnalyzer;
 import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
 import me.champeau.a4j.jsolex.processing.sun.workflow.PixelShift;
 import me.champeau.a4j.jsolex.processing.sun.workflow.PixelShiftRange;
+import me.champeau.a4j.jsolex.processing.util.Dispersion;
 import me.champeau.a4j.jsolex.processing.util.FileBackedImage;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
@@ -212,6 +213,7 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
     @Override
     public Object functionCall(BuiltinFunction function, List<Object> arguments) {
         return switch (function) {
+            case A2PX -> angstromsToPixels(arguments);
             case ADJUST_CONTRAST -> adjustContrast.adjustContrast(arguments);
             case ADJUST_GAMMA -> adjustContrast.adjustGamma(arguments);
             case ANIM -> animate.createAnimation(arguments);
@@ -266,6 +268,7 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
             case MOSAIC -> mosaicComposition.mosaic(arguments);
             case NEUTRALIZE_BG -> bgRemoval.neutralizeBackground(arguments);
             case POW -> math.pow(arguments);
+            case PX2A -> pixelsToAngstroms(arguments);
             case GET_R -> utilities.extractChannel(arguments, 0);
             case RADIUS_RESCALE -> scaling.radiusRescale(arguments);
             case RANGE -> createRange(arguments);
@@ -339,11 +342,18 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
     }
 
     public Object pixelShiftFor(List<Object> arguments) {
-        if (arguments.size() != 1) {
-            throw new IllegalArgumentException("shift() call must have a single argument (wavelength in angstroms or spectral ray)");
+        if (arguments.size() != 1 && arguments.size() != 2) {
+            throw new IllegalArgumentException("find_shift() accepts one or 2 arguments (wavelength in angstroms or spectral ray to find, wavelength or spectral ray of reference)");
         }
+        var target = toWavelength(arguments.getFirst());
+        var reference = arguments.size() == 2 ? toWavelength(arguments.get(1)) : null;
+        ProcessParams params = (ProcessParams) context.get(ProcessParams.class);
+        return computePixelShift(params, target, reference);
+    }
+
+    private static Wavelen toWavelength(Object firstArg) {
         double targetWaveLength = 0;
-        if (arguments.getFirst() instanceof String rayName) {
+        if (firstArg instanceof String rayName) {
             var first = SpectralRayIO.loadDefaults()
                 .stream()
                 .filter(ray -> ray.label().equalsIgnoreCase(rayName))
@@ -352,13 +362,58 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
                 targetWaveLength = first.get().wavelength().angstroms();
             }
         } else {
-            targetWaveLength = asScalar(arguments.get(0)).doubleValue();
+            targetWaveLength = asScalar(firstArg).doubleValue();
         }
-        ProcessParams params = (ProcessParams) context.get(ProcessParams.class);
-        return computePixelShift(params, Wavelen.ofAngstroms(targetWaveLength));
+        return Wavelen.ofAngstroms(targetWaveLength);
     }
 
-    protected double computePixelShift(ProcessParams params, Wavelen targetWaveLength) {
+    public Object angstromsToPixels(List<Object> arguments) {
+        if (arguments.size() != 1 && arguments.size() != 2) {
+            throw new IllegalArgumentException("a2px() accepts 1 or 2 argument (angstroms, [reference wavelength angstroms])");
+        }
+        double angstroms = asScalar(arguments.getFirst()).doubleValue();
+        var params = (ProcessParams) context.get(ProcessParams.class);
+        var lambda0 = params.spectrumParams().ray().wavelength();
+        if (arguments.size() == 2) {
+            lambda0 = toWavelength(arguments.get(1));
+        }
+        var dispersion = computeDispersion(params, lambda0);
+        // round to 2 digits
+        return Math.round(100d * angstroms / dispersion.angstromsPerPixel())/100d;
+    }
+
+    public Object pixelsToAngstroms(List<Object> arguments) {
+        if (arguments.size() != 1 && arguments.size() != 2) {
+            throw new IllegalArgumentException("px2a() accepts 1 or 2 arguments (pixels, [reference wavelength angstroms])");
+        }
+        double pixels = asScalar(arguments.getFirst()).doubleValue();
+        var params = (ProcessParams) context.get(ProcessParams.class);
+        var lambda0 = params.spectrumParams().ray().wavelength();
+        if (arguments.size() == 2) {
+            lambda0 = toWavelength(arguments.get(1));
+        }
+        var dispersion = computeDispersion(params, lambda0);
+        return Math.round(100d * pixels * dispersion.angstromsPerPixel())/100d;
+    }
+
+    private static Dispersion computeDispersion(ProcessParams params, Wavelen lambda0) {
+        var instrument = params.observationDetails().instrument();
+        var pixelSize = params.observationDetails().pixelSize();
+        var binning = params.observationDetails().binning();
+        if (pixelSize == null) {
+            pixelSize = 2.4;
+        }
+        if (binning == null) {
+            binning = 1;
+        }
+        return SpectrumAnalyzer.computeSpectralDispersion(
+            instrument,
+            lambda0,
+            pixelSize * binning
+            );
+    }
+
+    protected double computePixelShift(ProcessParams params, Wavelen targetWaveLength, Wavelen referenceWavelength) {
         if (params == null) {
             return 0;
         }
@@ -370,7 +425,7 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
         if (binning == null) {
             binning = 1;
         }
-        var lambda0 = params.spectrumParams().ray().wavelength();
+        var lambda0 = referenceWavelength == null ? params.spectrumParams().ray().wavelength() : referenceWavelength;
         var instrument = params.observationDetails().instrument();
         return SpectrumAnalyzer.computePixelShift(pixelSize, binning, lambda0, targetWaveLength, instrument);
     }
