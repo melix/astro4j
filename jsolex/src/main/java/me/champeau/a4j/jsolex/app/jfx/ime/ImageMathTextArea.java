@@ -161,7 +161,12 @@ public class ImageMathTextArea extends BorderPane {
         int start = 0;
         int end = expression.end() - offset;
         String text = expression.expression();
-        var tokens = expressionParser.parseExpression(text).tokens();
+        var parsedExpression = expressionParser.parseExpression(text);
+        if (parsedExpression==null) {
+            spansBuilder.add(List.of("underline_error"), end);
+            return;
+        }
+        var tokens = parsedExpression.tokens();
         var sortedTokens = tokens.stream().sorted(Comparator.comparingInt(Token::start)).toList();
         for (Token token : sortedTokens) {
             var tokenStart = token.start();

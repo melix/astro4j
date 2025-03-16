@@ -53,9 +53,9 @@ public class ShiftCollectingImageExpressionEvaluator extends ImageExpressionEval
     }
 
     @Override
-    protected double computePixelShift(ProcessParams params, Wavelen targetWaveLength) {
+    protected double computePixelShift(ProcessParams params, Wavelen targetWaveLength, Wavelen reference) {
         autoWavelenghts.add(targetWaveLength.angstroms());
-        return super.computePixelShift(params, targetWaveLength);
+        return super.computePixelShift(params, targetWaveLength, reference);
     }
 
     @Override
