@@ -153,7 +153,7 @@ public class BackgroundRemoval {
      * @param image the image to process
      * @return the background model
      */
-    public static ImageWrapper32 backgroundModel(ImageWrapper32 image, int degree) {
+    public static ImageWrapper32 backgroundModel(ImageWrapper32 image, int degree, double sigma) {
         var data = image.data();
         int height = image.height();
         int width = image.width();
@@ -175,14 +175,18 @@ public class BackgroundRemoval {
             }
         }
 
-        // Filter samples using 2 sigma
+        // Filter samples using sigma
         var mean = yVector.stream().mapToDouble(Double::doubleValue).average().orElse(0);
-        var sigma = Math.sqrt(yVector.stream().mapToDouble(v -> (v - mean) * (v - mean)).sum() / yVector.size());
-        var threshold = 2 * sigma;
+        var stddev = Math.sqrt(yVector.stream()
+                                   .mapToDouble(v -> (v - mean) * (v - mean))
+                                   .sum() / (yVector.size() - 1));
+        var hiThreshold = mean + stddev * sigma;
+        var loThreshold = mean - stddev * sigma;
         List<double[]> filteredX = new ArrayList<>();
         List<Double> filteredY = new ArrayList<>();
         for (int i = 0; i < yVector.size(); i++) {
-            if (Math.abs(yVector.get(i) - mean) < threshold) {
+            var v = yVector.get(i);
+            if (v < hiThreshold && v > loThreshold) {
                 filteredX.add(xMatrix.get(i));
                 filteredY.add(yVector.get(i));
             }

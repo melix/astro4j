@@ -63,6 +63,7 @@ import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -324,19 +325,11 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
                     return new ImageWithAverage(img, avg);
                 })
                 .toList();
-            // compute average of the averages
-            var average = list.stream()
-                .filter(img -> Double.isFinite(img.average()))
-                .mapToDouble(ImageWithAverage::average).average().orElse(0);
-            // keep only the images which are above the average
             samples = list.stream()
-                .filter(img -> Double.isFinite(img.average()))
-                .filter(img -> img.average() > average)
+                .sorted(Comparator.comparingDouble(ImageWithAverage::average).reversed())
                 .map(ImageWithAverage::image)
+                .limit((long) Math.ceil(list.size() / 5d))
                 .toList();
-            if (samples.isEmpty()) {
-                samples = list.stream().map(ImageWithAverage::image).toList();
-            }
         }
         return (ImageWrapper32) functionCall(BuiltinFunction.MEDIAN, List.of(samples));
     }
@@ -379,7 +372,7 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
         }
         var dispersion = computeDispersion(params, lambda0);
         // round to 2 digits
-        return Math.round(100d * angstroms / dispersion.angstromsPerPixel())/100d;
+        return Math.round(100d * angstroms / dispersion.angstromsPerPixel()) / 100d;
     }
 
     public Object pixelsToAngstroms(List<Object> arguments) {
@@ -393,7 +386,7 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
             lambda0 = toWavelength(arguments.get(1));
         }
         var dispersion = computeDispersion(params, lambda0);
-        return Math.round(100d * pixels * dispersion.angstromsPerPixel())/100d;
+        return Math.round(100d * pixels * dispersion.angstromsPerPixel()) / 100d;
     }
 
     private static Dispersion computeDispersion(ProcessParams params, Wavelen lambda0) {
@@ -410,7 +403,7 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
             instrument,
             lambda0,
             pixelSize * binning
-            );
+        );
     }
 
     protected double computePixelShift(ProcessParams params, Wavelen targetWaveLength, Wavelen referenceWavelength) {

@@ -5,6 +5,7 @@
 - Introduction de la nouvelle fonction `BG_MODEL` pour modéliser l'arrière-plan de l'image
 - Ajout de `A2PX` et `PX2A` pour convertir d'Angströms en pixels et vice versa, basé sur la dispersion spectrale calculée
 - Ajout d'un paramètre optionnel à `FIND_SHIFT` correspondant à la longueur d'onde de référence
+- Amélioration de la fiabilité de la fonction `CONTINUUM` et par conséquent de l'extraction de la raie Hélium
 
 ## Nouveautés de la version 2.11.2
 

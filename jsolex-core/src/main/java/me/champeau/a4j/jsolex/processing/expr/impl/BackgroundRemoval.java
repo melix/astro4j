@@ -98,7 +98,7 @@ public class BackgroundRemoval extends AbstractFunctionImpl {
     }
 
     public Object backgroundModel(List<Object> arguments) {
-        assertExpectedArgCount(arguments, "backgroundModel takes 1 or 2 arguments (image(s), order)", 1, 2);
+        assertExpectedArgCount(arguments, "backgroundModel takes 1 to 3 arguments (image(s), order, sigma)", 1, 3);
         var arg = arguments.get(0);
         if (arg instanceof List<?>) {
             return expandToImageList("backgroundModel", arguments, this::backgroundModel);
@@ -108,10 +108,11 @@ public class BackgroundRemoval extends AbstractFunctionImpl {
             if (ellipse.isEmpty()) {
                 throw new IllegalArgumentException("Cannot perform background neutralization because ellipse isn't found");
             }
-            int order = arguments.size() == 2 ? intArg(arguments, 1) : 2;
-            return monoToMonoImageTransformer("backgroundModel", 2, arguments, src -> {
+            int order = arguments.size() >= 2 ? intArg(arguments, 1) : 2;
+            double sigma = arguments.size() >= 3 ? doubleArg(arguments, 2) : 2.5;
+            return monoToMonoImageTransformer("backgroundModel", 3, arguments, src -> {
                 if (src instanceof ImageWrapper32 image) {
-                    var model = me.champeau.a4j.jsolex.processing.sun.BackgroundRemoval.backgroundModel(image, order).data();
+                    var model = me.champeau.a4j.jsolex.processing.sun.BackgroundRemoval.backgroundModel(image, order, sigma).data();
                     for (int y = 0; y < image.height(); y++) {
                         System.arraycopy(model[y], 0, image.data()[y], 0, image.width());
                     }
