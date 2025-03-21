@@ -32,6 +32,14 @@ public record ImageWrapper32(
         float[][] data,
         Map<Class<?>, Object> metadata
 ) implements ImageWrapper {
+    public ImageWrapper32 {
+        if (data.length != height) {
+            throw new IllegalArgumentException("Inconsistent image height");
+        }
+        if (data.length>0 && data[0].length != width) {
+            throw new IllegalArgumentException("Inconsistent image width");
+        }
+    }
 
     /**
      * Returns a new image whose dimensions are 0x0 with mutable metadata.

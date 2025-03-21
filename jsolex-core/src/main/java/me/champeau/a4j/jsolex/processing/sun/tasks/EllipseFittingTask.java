@@ -35,6 +35,7 @@ import me.champeau.a4j.math.image.Kernel;
 import me.champeau.a4j.math.image.Kernel33;
 import me.champeau.a4j.math.regression.Ellipse;
 import me.champeau.a4j.math.regression.EllipseRegression;
+import me.champeau.a4j.math.tuples.DoubleSextuplet;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -101,6 +102,9 @@ public class EllipseFittingTask extends AbstractTask<EllipseFittingTask.Result> 
         tmp = imageMath.convolve(tmp, Kernel33.GAUSSIAN_BLUR);
         var height = image.height();
         var width = image.width();
+        if (height==0 || width==0) {
+            return new Result(Ellipse.ofCartesian(new DoubleSextuplet(0, 0, 0, 0, 0, 0)), List.of());
+        }
         for (int y = 0; y < height; y++) {
             for (int x = 0; x < width; x++) {
                 var v = data[y][x] / Constants.MAX_PIXEL_VALUE;

@@ -167,7 +167,7 @@ public class BackgroundRemoval {
         for (int y = 0; y < height; y += step) {
             for (int x = 0; x < width; x += step) {
                 if (ellipse == null || !ellipse.isWithin(x, y)) {
-                    double z = data[x][y];
+                    double z = data[y][x];
                     var terms = generatePolynomialTerms(x, y, width, height, degree);
                     xMatrix.add(terms);
                     yVector.add(z);
@@ -194,9 +194,11 @@ public class BackgroundRemoval {
         xMatrix = filteredX;
         yVector = filteredY;
 
+        var background = new float[height][width];
         // Check for sufficient samples
         if (xMatrix.size() < numTerms) {
-            throw new IllegalStateException("Insufficient samples: " + xMatrix.size() + " < " + numTerms);
+            LOGGER.error("Insufficient samples: {} < {} for background model", xMatrix.size(), numTerms);
+            return new ImageWrapper32(width, height, background, new HashMap<>(image.metadata()));
         }
 
         var mX = MatrixUtils.createRealMatrix(xMatrix.toArray(new double[0][]));
@@ -214,7 +216,6 @@ public class BackgroundRemoval {
         var coefficients = solver.solve(mXty);
 
         // Generate background using the coefficients
-        var background = new float[width][height];
         IntStream.range(0, height).parallel().forEach(y -> {
             for (int x = 0; x < width; x++) {
                 double[] terms = generatePolynomialTerms(x, y, width, height, degree);
@@ -222,7 +223,7 @@ public class BackgroundRemoval {
                 for (int i = 0; i < terms.length; i++) {
                     bgValue += coefficients.getEntry(i) * terms[i];
                 }
-                background[x][y] = (float) Math.clamp(bgValue, 0, Constants.MAX_PIXEL_VALUE);
+                background[y][x] = (float) Math.clamp(bgValue, 0, Constants.MAX_PIXEL_VALUE);
             }
         });
 
