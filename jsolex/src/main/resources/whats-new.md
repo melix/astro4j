@@ -7,6 +7,7 @@
 - Added `A2PX` and `PX2A` to convert from Angstroms to pixels and vice versa, based on the computed spectral dispersion
 - Added an optional parameter to `FIND_SHIFT` corresponding to the reference wavelength
 - Improve reliability of the `CONTINUUM` function and as a result of the Helium line extraction
+- Fixed bug where the detected ellipse wasn't reused when computing images at different shifts, which could cause disks or images of different sizes
 
 ## What's New in Version 2.11.2
 

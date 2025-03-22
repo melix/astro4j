@@ -7,6 +7,7 @@
 - Ajout de `A2PX` et `PX2A` pour convertir d'Angströms en pixels et vice versa, basé sur la dispersion spectrale calculée
 - Ajout d'un paramètre optionnel à `FIND_SHIFT` correspondant à la longueur d'onde de référence
 - Amélioration de la fiabilité de la fonction `CONTINUUM` et par conséquent de l'extraction de la raie Hélium
+- Correction d'un bug avec lequel l'ellipse détectée n'était pas réutilisée lors du calcul d'images à des décalages différents, ce qui pouvait causer des disques ou des images de tailles différentes
 
 ## Nouveautés de la version 2.11.2
 

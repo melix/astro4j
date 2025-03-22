@@ -173,6 +173,7 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
     private final Map<Double, ImageWrapper> shiftImages;
     private int width;
     private int height;
+    private Ellipse mainEllipse;
 
     private final AtomicInteger cropCount = new AtomicInteger();
     private final AtomicInteger animCount = new AtomicInteger();
@@ -663,6 +664,7 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
         scriptExecutionContext = prepareExecutionContext(payload);
         shiftImages.putAll(payload.shiftImages());
         pixelShiftRange = payload.pixelShiftRange();
+        mainEllipse = payload.mainEllipse();
         imageScriptExecutor = new JSolExScriptExecutor(
             shift -> {
                 var minShift = shiftImages.keySet().stream().mapToDouble(d -> d).min().orElse(0d);
@@ -821,6 +823,9 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
             }
         });
         solexVideoProcessor.setForceDetectActiveRegions(params.requestedImages().isEnabled(GeneratedImageKind.ACTIVE_REGIONS));
+        if (mainEllipse != null) {
+            solexVideoProcessor.setCachedEllipse(mainEllipse);
+        }
         solexVideoProcessor.process();
     }
 
