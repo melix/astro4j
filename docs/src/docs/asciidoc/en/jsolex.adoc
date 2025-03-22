@@ -448,6 +448,7 @@ Analysis functions:
 - `a2px` converts Angström to pixel. The first parameter is the number of Angström. The second one is optional, the reference wavelength. In case it's not specified, the reference wavelength is the detected spectral ray. For example: `a2px(1.5, 6562.8)`.
 - `px2a` converts pixels to Angström. The first parameter is the number of pixels. The second one is optional, the reference wavelength. In case it's not specified, the reference wavelength is the detected spectral ray. For example: `px2a(10, 6562.8)`.
 - `continuum` is a function without parameters which automatically determines a "continuum" image which can for example be subtracted from another image. This function differs from the classic continuum image in the sense that it is not a single image calculated from a fixed pixel difference of 15 pixels, but an image calculated from the median of a set of images. Usage: `continuum()`.
+- `wavelen` returns the computed wavelength of an image, based on its pixel shift, the computed dispersion and the reference wavelength. For example: `wavelen(img(0))`.
 
 Filtering:
 

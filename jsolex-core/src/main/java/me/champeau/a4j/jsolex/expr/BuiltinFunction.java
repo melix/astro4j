@@ -95,6 +95,7 @@ public enum BuiltinFunction {
     VFLIP,
     FILTER,
     VIDEO_DATETIME,
+    WAVELEN,
     WORKDIR(true);
 
     private final boolean hasSideEffect;

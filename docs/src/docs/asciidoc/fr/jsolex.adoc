@@ -396,6 +396,7 @@ Fonctions d'analyse :
 - `a2px` convertit des Angströms en pixels. Le premier paramètre est le nombre d'Angströms. Le second est optionnel, la longueur d'onde de référence. Par exemple : `a2px(1.5, 6562.8)`.
 - `px2a` convertit des pixels en Angströms. Le premier paramètre est le nombre de pixels. Le second est optionnel, la longueur d'onde de référence. Par exemple : `px2a(10, 6562.8)`.
 - `continuum` est une fonction sans paramètre qui détermine automatiquement une image de type "continuum" qui peut par exemple être soustraite d'une autre image. Cette fonction diffère de l'image continuum classique au sens où il ne s'agit pas d'une image unique calculée à la différence de pixels fixe de 15 pixels, mais d'une image calculée à partir de la médiane d'un ensemble d'images. Utilisation : `continuum()`.
+- `wavelen` renvoie la longueur d'onde calculée d'une image, en fonction de la dispersion calculée et de la longueur d'onde de référence. Par exemple : `wavelen(img(0))`.
 
 Filtrage:
 
