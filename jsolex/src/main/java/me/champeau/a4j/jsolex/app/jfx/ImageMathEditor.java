@@ -147,6 +147,7 @@ public class ImageMathEditor {
                     selectionModel.selectIndices(oldValue.intValue());
                 }
             }
+            scriptTextArea.setIncludesDir(items.isEmpty() || newValue.intValue() < 0 ? null : items.get(newValue.intValue()).scriptFile().getParentFile().toPath());
         });
         scriptTextArea.textProperty().addListener((obj, oldValue, newValue) -> {
             if (updatingText.get()) {
@@ -230,7 +231,7 @@ public class ImageMathEditor {
     private void ok() {
         if (doesNotHaveStaleChanges()) {
             params = new ImageMathParams(
-                    scriptsToApply.getItems().stream().map(ImageMathEntry::scriptFile).toList()
+                scriptsToApply.getItems().stream().map(ImageMathEntry::scriptFile).toList()
             );
             requestClose();
         }
@@ -305,8 +306,8 @@ public class ImageMathEditor {
             alert.setTitle(I18N.string(JSolEx.class, "imagemath-editor", "unsaved.changes"));
             alert.getButtonTypes().clear();
             alert.getButtonTypes().addAll(
-                    BACK,
-                    PROCEED
+                BACK,
+                PROCEED
             );
             var buttonType = alert.showAndWait();
             return buttonType.map(type -> type.equals(PROCEED)).orElse(false);
@@ -361,7 +362,7 @@ public class ImageMathEditor {
     }
 
     public record ImageMathConfiguration(
-            List<File> scriptFiles
+        List<File> scriptFiles
     ) {
 
     }

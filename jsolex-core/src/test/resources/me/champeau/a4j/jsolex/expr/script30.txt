@@ -1,0 +1,7 @@
+[outputs]
+[include "script29.txt"]
+
+[[batch]]
+foo=img(0)
+
+[include "script29.txt"]

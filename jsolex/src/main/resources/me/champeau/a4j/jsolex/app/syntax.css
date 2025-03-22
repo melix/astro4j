@@ -2,11 +2,15 @@
     -fx-fill: #999999;
     -fx-font-weight: bold;
 }
-.variable {
+.variable_def {
+    -fx-fill: #8944ff;
+    -fx-font-weight: bold;
+}
+.identifier {
     -fx-fill: green;
     -fx-font-weight: bold;
 }
-.section {
+.sectionheader {
     -fx-fill: blue;
     -fx-font-weight: bold;
 }
@@ -28,6 +32,11 @@
 
 .token_variable {
     -fx-fill: black;
+}
+
+.keyword {
+    -fx-fill: #dd5f00;
+    -fx-font-weight: bold;
 }
 
 .underline_error {

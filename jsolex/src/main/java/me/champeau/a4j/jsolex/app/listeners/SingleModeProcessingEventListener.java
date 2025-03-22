@@ -215,7 +215,7 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
         var buffer = new byte[3 * width * height];
         var reconstructionView = blockingUntilResultAvailable(() -> owner.getImagesViewer().addImage(this,
             message("image.reconstruction"), baseName,
-            GeneratedImageKind.RECONSTRUCTION,  null,null, null, params, popupViews, new PixelShift(pixelShift),
+            GeneratedImageKind.RECONSTRUCTION, null, null, null, params, popupViews, new PixelShift(pixelShift),
             viewer -> {
                 var parentWidth = owner.getImagesViewer().widthProperty();
                 viewer.getImageView().getScrollPane().maxWidthProperty().bind(parentWidth);
@@ -736,14 +736,12 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
 
     @Override
     public void onProgress(ProgressEvent e) {
-        BatchOperations.submitOneOfAKind("progress", () -> {
-            if (e.getPayload().progress() == SpectrumAnalyzer.DEFAULT_ORDER) {
-                owner.hideProgress();
-            } else {
-                owner.showProgress();
-                owner.updateProgress(e.getPayload().progress(), e.getPayload().task());
-            }
-        });
+        if (e.getPayload().progress() == 1) {
+            owner.hideProgress();
+        } else {
+            owner.showProgress();
+            owner.updateProgress(e.getPayload().progress(), e.getPayload().task());
+        }
     }
 
     @Override
@@ -756,6 +754,11 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
         if (e.getPayload() instanceof ApplyUserRotation params) {
             owner.applyUserRotation(params);
         }
+    }
+
+    @Override
+    public void setIncludesDir(Path includesDir) {
+        imageScriptExecutor.setIncludesDir(includesDir);
     }
 
     @Override

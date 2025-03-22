@@ -1,28 +1,20 @@
 package me.champeau.a4j.jsolex.expr
 
-import me.champeau.a4j.expr.ImageMathParser
+
 import spock.lang.Specification
+
+import java.nio.file.Path
 
 class ImageMathParserTest extends Specification {
     def "parses valid scripts"() {
         def parser = new ImageMathParser(script)
+        parser.includeDir = Path.of("src/test/resources/me/champeau/a4j/jsolex/expr")
+
         when:
-        parser.Root()
-        def root = parser.rootNode()
+        def root = parser.parseAndInlineIncludes()
 
         then:
         root.dump()
-        and:
-        {
-            root.descendantsOfType(me.champeau.a4j.expr.ast.Section).each {
-                println "Section ${it.name()}"
-            }
-
-            root.descendantsOfType(me.champeau.a4j.expr.ast.FunctionCall).each {
-                println "Fun call: ${it.functionName}"
-                println "Fun args: ${it.arguments}"
-            }
-        }
 
         where:
         script << buildSamples()

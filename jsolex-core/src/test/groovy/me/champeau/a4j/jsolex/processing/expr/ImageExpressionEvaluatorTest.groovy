@@ -48,8 +48,8 @@ class ImageExpressionEvaluatorTest extends Specification {
 
         when:
         evaluator.clearShifts()
-        evaluator.putVariable("a", "5")
-        evaluator.putVariable("b", "6")
+        evaluator.putVariable("a", 5)
+        evaluator.putVariable("b", 6)
         evaluator.evaluate("max(img(a), img(b))")
 
         then:

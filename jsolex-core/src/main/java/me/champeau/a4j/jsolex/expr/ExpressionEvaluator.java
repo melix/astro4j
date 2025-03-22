@@ -15,51 +15,106 @@
  */
 package me.champeau.a4j.jsolex.expr;
 
+import me.champeau.a4j.jsolex.expr.ast.Argument;
+import me.champeau.a4j.jsolex.expr.ast.Assignment;
+import me.champeau.a4j.jsolex.expr.ast.BinaryExpression;
+import me.champeau.a4j.jsolex.expr.ast.Expression;
+import me.champeau.a4j.jsolex.expr.ast.FunctionCall;
+import me.champeau.a4j.jsolex.expr.ast.Identifier;
+import me.champeau.a4j.jsolex.expr.ast.ImageMathScript;
+import me.champeau.a4j.jsolex.expr.ast.NumericalLiteral;
+import me.champeau.a4j.jsolex.expr.ast.Section;
+import me.champeau.a4j.jsolex.expr.ast.StringLiteral;
+import me.champeau.a4j.jsolex.expr.ast.UnaryExpression;
+
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
 public abstract class ExpressionEvaluator {
-    private final Map<String, Expression> variables = new HashMap<>();
+    private final Map<String, Object> variables = new HashMap<>();
+    private final Map<String, UserFunction> userFunctions = new HashMap<>();
 
-    private final ExpressionParser parser = new ExpressionParser();
-
-    public void putVariable(String name, String expression) {
-        variables.put(name, parser.parseExpression(expression));
+    public void putVariable(String name, Object value) {
+        variables.put(name, value);
     }
 
-    public Object evaluate(String expression) {
-        return doEvaluate(parser.parseExpression(expression));
+    public void putFunction(String name, UserFunction function) {
+        userFunctions.put(name, function);
     }
 
-    protected Object doEvaluate(Expression expression) {
-        if (expression instanceof Literal literal) {
-            return literal.value();
+    public Map<String, Object> getVariables() {
+        return Collections.unmodifiableMap(variables);
+    }
+
+    public final Object evaluate(Expression expression) {
+        return doEvaluate(expression);
+    }
+
+    protected Object doEvaluate(Node expression) {
+        if (expression instanceof StringLiteral literal) {
+            return literal.toString();
         }
-        if (expression instanceof Addition add) {
-            return plus(doEvaluate(add.left()), doEvaluate(add.right()));
+        if (expression instanceof NumericalLiteral number) {
+            return Double.parseDouble(number.toString());
         }
-        if (expression instanceof Substraction sub) {
-            return minus(doEvaluate(sub.left()), doEvaluate(sub.right()));
+        if (expression instanceof BinaryExpression binary) {
+            var left = doEvaluate(binary.left());
+            var right = doEvaluate(binary.right());
+            return switch (binary.operator().toString()) {
+                case "+" -> plus(left, right);
+                case "-" -> minus(left, right);
+                case "*" -> mul(left, right);
+                case "/" -> div(left, right);
+                default -> throw new UnsupportedOperationException("Unknown operator " + binary.operator());
+            };
         }
-        if (expression instanceof Multiplication mul) {
-            return mul(doEvaluate(mul.left()), doEvaluate(mul.right()));
-        }
-        if (expression instanceof Division div) {
-            return div(doEvaluate(div.left()), doEvaluate(div.right()));
-        }
-        if (expression instanceof Variable v) {
-            var name = v.name();
-            var e = variables.get(name);
-            if (e != null) {
-                return doEvaluate(e);
+        if (expression instanceof UnaryExpression unary) {
+            var operand = doEvaluate(unary.operand());
+            var operator = unary.operator();
+            if (operator != null && operator.toString().equals("-")) {
+                return minus(0, operand);
             }
-            return variable(v.name());
+            return operand;
         }
-        if (expression instanceof FunctionCall fun) {
-            return functionCall(fun.function(), fun.operands().stream().map(this::doEvaluate).toList());
+        if (expression instanceof Assignment assignment) {
+            var value = doEvaluate(assignment.expression());
+            assignment.variableName().ifPresent(name -> variables.put(name, value));
+            return value;
         }
-        throw new UnsupportedOperationException("Unexpected expression type " + expression);
+        if (expression instanceof Identifier) {
+            return variable(expression.toString());
+        }
+        if (expression instanceof FunctionCall functionCall) {
+            if (functionCall.getBuiltinFunction().isPresent()) {
+                var fun = functionCall.getBuiltinFunction().get();
+                return functionCall(fun, functionCall.getArguments().stream().map(this::doEvaluate).toList());
+            } else {
+                var fun = userFunctions.get(functionCall.getFunctionName());
+                if (fun != null) {
+                    return userFunctionCall(fun, functionCall.getArguments().stream().map(this::doEvaluate).toArray());
+                }
+            }
+            throw new UnsupportedOperationException("Unknown function " + functionCall.getFunctionName());
+        }
+        if (expression instanceof ImageMathScript) {
+            var sections = expression.childrenOfType(Section.class);
+            if (sections.size() == 1) {
+                return doEvaluate(sections.getFirst());
+            }
+        }
+        if (expression instanceof Section || expression instanceof Expression || expression instanceof Argument) {
+            var children = expression.children().stream().filter(Expression.class::isInstance).toList();
+            if (children.size() == 1) {
+                return doEvaluate(children.getFirst());
+            }
+            var ids = expression.childrenOfType(Identifier.class);
+            if (ids.size() == 1) {
+                return variable(ids.getFirst().toString());
+            }
+        }
+        throw new UnsupportedOperationException("Unexpected expression type '" + expression + "'");
     }
 
     protected abstract Object plus(Object left, Object right);
@@ -67,9 +122,15 @@ public abstract class ExpressionEvaluator {
     protected abstract Object mul(Object left, Object right);
     protected abstract Object div(Object left, Object right);
     protected Object variable(String name) {
+        if (variables.containsKey(name)) {
+            return variables.get(name);
+        }
         throw new IllegalStateException("Undefined variable '" + name + "'");
     }
 
     protected abstract Object functionCall(BuiltinFunction function, List<Object> arguments);
 
+    protected Object userFunctionCall(UserFunction function, Object[] arguments) {
+        return function.invoke(arguments);
+    }
 }

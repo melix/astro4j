@@ -1,0 +1,5 @@
+[fun:deco img]
+result=draw_solar_params(draw_obs_details(img))
+
+[outputs]
+deco(img(0))

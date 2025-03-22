@@ -636,9 +636,11 @@ public class JSolEx extends Application implements JSolExInterface {
     }
 
     public void hideProgress() {
-        progressBar.setProgress(0);
-        progressLabel.setText("");
-        progressBar.setVisible(false);
+        Platform.runLater(() -> {
+            progressBar.setProgress(0);
+            progressLabel.setText("");
+            progressBar.setVisible(false);
+        });
     }
 
     public void showProgress() {
@@ -646,8 +648,15 @@ public class JSolEx extends Application implements JSolExInterface {
     }
 
     public void updateProgress(double progress, String message) {
-        progressBar.setProgress(progress);
-        progressLabel.setText(message);
+        Platform.runLater(() -> {
+            if (progress == 1) {
+                progressBar.setVisible(false);
+            } else {
+                progressBar.setVisible(true);
+                progressBar.setProgress(progress);
+                progressLabel.setText(message);
+            }
+        });
     }
 
     @Override
@@ -658,6 +667,7 @@ public class JSolEx extends Application implements JSolExInterface {
             if (clearImagesCheckbox.isSelected()) {
                 Platform.runLater(this::newSession);
             }
+            config.findLastOpenDirectory(Configuration.DirectoryKind.IMAGE_MATH).ifPresent(executor::setIncludesDir);
             BackgroundOperations.async(() -> executor.execute(text, ImageMathScriptExecutor.SectionKind.SINGLE));
         });
         imageMathSave.setDisable(true);
@@ -684,6 +694,7 @@ public class JSolEx extends Application implements JSolExInterface {
                 }
                 try {
                     FilesUtils.writeString(imageMathScript.getText(), file.toPath());
+                    imageMathScript.setIncludesDir(file.getParentFile().toPath());
                     imageMathSave.setDisable(true);
                     config.rememberDirectoryFor(file.toPath(), Configuration.DirectoryKind.IMAGE_MATH);
                 } catch (IOException e) {
@@ -702,6 +713,7 @@ public class JSolEx extends Application implements JSolExInterface {
             config.rememberDirectoryFor(file.toPath(), Configuration.DirectoryKind.IMAGE_MATH);
             var script = String.join(System.lineSeparator(), FilesUtils.readAllLines(file.toPath()));
             Platform.runLater(() -> {
+                imageMathScript.setIncludesDir(file.getParentFile().toPath());
                 imageMathScript.setText(script);
                 imageMathSave.setDisable(true);
             });

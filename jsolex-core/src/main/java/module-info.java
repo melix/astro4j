@@ -28,6 +28,7 @@ module me.champeau.a4j.jsolex.core {
     requires jcodec;
     requires org.apache.commons.compress;
     exports me.champeau.a4j.jsolex.expr;
+    exports me.champeau.a4j.jsolex.expr.ast;
     exports me.champeau.a4j.jsolex.processing.color;
     exports me.champeau.a4j.jsolex.processing.expr;
     exports me.champeau.a4j.jsolex.processing.expr.impl;
