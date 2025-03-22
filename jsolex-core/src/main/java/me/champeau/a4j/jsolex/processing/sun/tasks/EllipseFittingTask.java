@@ -125,9 +125,6 @@ public class EllipseFittingTask extends AbstractTask<EllipseFittingTask.Result> 
         var fittingEllipseMessage = message("fitting.ellipse");
         broadcaster.broadcast(ProgressEvent.of(0, fittingEllipseMessage));
         if (notEnoughSamples(samples)) {
-            var template = message("ellipse.not.enough.samples").replace("{}", "%s");
-            var message = String.format(template, samples.size(), MINIMUM_SAMPLES);
-            broadcaster.broadcast(new NotificationEvent(new Notification(Notification.AlertType.ERROR, message("not.enough.samples.title"), "", message)));
             return null;
         }
         var ellipse = new EllipseRegression(samples).solve();

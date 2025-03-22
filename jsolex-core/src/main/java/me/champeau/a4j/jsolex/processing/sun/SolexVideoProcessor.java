@@ -147,6 +147,7 @@ public class SolexVideoProcessor implements Broadcaster {
     private PixelShiftRange pixelShiftRange;
     private boolean ignoreIncompleteShifts;
     private boolean forceDetectActiveRegions;
+    private EllipseFittingTask.Result cachedEllipse;
 
     public SolexVideoProcessor(File serFile,
                                Path outputDirectory,
@@ -162,6 +163,10 @@ public class SolexVideoProcessor implements Broadcaster {
         this.processingDate = processingDate;
         this.batchMode = batchMode;
         this.memoryRestrictionMultiplier = memoryRestrictionMultiplier;
+    }
+
+    public void setCachedEllipse(Ellipse cachedEllipse) {
+        this.cachedEllipse = new EllipseFittingTask.Result(cachedEllipse, List.of());
     }
 
     public void setIgnoreIncompleteShifts(boolean ignoreIncompleteShifts) {
@@ -240,7 +245,7 @@ public class SolexVideoProcessor implements Broadcaster {
 
     private boolean tryReadMetadata() {
         var md = CaptureSoftwareMetadataHelper.readSharpcapMetadata(serFile)
-            .or(() -> CaptureSoftwareMetadataHelper.readFireCaptureMetadata(serFile));
+                .or(() -> CaptureSoftwareMetadataHelper.readFireCaptureMetadata(serFile));
         if (md.isPresent()) {
             var obsDetails = processParams.observationDetails();
             if (!obsDetails.forceCamera()) {
@@ -293,10 +298,10 @@ public class SolexVideoProcessor implements Broadcaster {
             if (forcedPolynomialString.isPresent()) {
                 var forcedPolynomial = DoubleQuadruplet.parsePolynomial(forcedPolynomialString.get());
                 forcedPolynomial.ifPresentOrElse(doubleQuadruplet -> {
-                        polynomial = doubleQuadruplet.asPolynomial();
-                        LOGGER.info(message("forced.polynomial"));
-                    },
-                    () -> LOGGER.error(message("invalid.forced.polynomial"), forcedPolynomialString.get()));
+                            polynomial = doubleQuadruplet.asPolynomial();
+                            LOGGER.info(message("forced.polynomial"));
+                        },
+                        () -> LOGGER.error(message("invalid.forced.polynomial"), forcedPolynomialString.get()));
             }
         }
         var maybePolynomial = Optional.ofNullable(polynomial).or(analysis::distortionPolynomial);
@@ -345,8 +350,8 @@ public class SolexVideoProcessor implements Broadcaster {
                     }
                 }
                 var map = candidates
-                    .stream()
-                    .collect(Collectors.toMap(d -> d, details -> SpectrumAnalyzer.computeDataPoints(details, polynomial, 0, width, width, height, averageImage)));
+                        .stream()
+                        .collect(Collectors.toMap(d -> d, details -> SpectrumAnalyzer.computeDataPoints(details, polynomial, 0, width, width, height, averageImage)));
                 var bestMatch = SpectrumAnalyzer.findBestMatch(map);
                 LOGGER.info(String.format(Locale.US, message("auto.detected.spectral.line"), bestMatch.line(), bestMatch.binning(), bestMatch.pixelSize()));
                 var spectrumParams = processParams.spectrumParams();
@@ -433,21 +438,25 @@ public class SolexVideoProcessor implements Broadcaster {
                 var mathImages = processParams.requestedImages().mathImages();
                 var missingShiftLock = new ReentrantLock();
                 generateImageMaths(imageNamingStrategy, baseName, imageList, mathImages,
-                    shift -> computeMissingImageShift(converter, header, fps, serFile, 0, end, shift, missingShiftLock, width, newHeight, geometry, height, polynomial, imageNamingStrategy, baseName),
-                    minShift, maxShift,
-                    header);
+                        shift -> computeMissingImageShift(converter, header, fps, serFile, 0, end, shift, missingShiftLock, width, newHeight, geometry, height, polynomial, imageNamingStrategy, baseName),
+                        minShift, maxShift,
+                        header);
             });
             runnables.stream()
-                .parallel()
-                .forEach(Runnable::run);
+                    .parallel()
+                    .forEach(Runnable::run);
         } else {
             LOGGER.error(message("unable.find.spectral.line"));
         }
+        EllipseFittingTask.Result mainEllipse = null;
         Ellipse ellipse = null;
         ImageStats imageStats = null;
         var images = new HashMap<Double, ImageWrapper>();
         for (WorkflowState workflowState : imageList) {
             var result = workflowState.findResult(WorkflowResults.GEOMETRY_CORRECTION);
+            if (mainEllipse == null) {
+                mainEllipse = (EllipseFittingTask.Result) workflowState.findResult(WorkflowResults.MAIN_ELLIPSE_FITTING).orElse(null);
+            }
             if (result.isPresent() && result.get() instanceof GeometryCorrector.Result geo) {
                 images.put(workflowState.pixelShift(), FileBackedImage.wrap(geo.corrected()));
                 ellipse = geo.correctedCircle();
@@ -459,66 +468,67 @@ public class SolexVideoProcessor implements Broadcaster {
         }
         if (!JSOLEX_RECORDER.equals(header.fileId()) && maybePolynomial.isPresent()) {
             imageList.stream()
-                .flatMap(workflowState -> workflowState.findResult(WorkflowResults.GEOMETRY_CORRECTION).stream())
-                .findFirst()
-                .ifPresent(result -> {
-                    if (result instanceof GeometryCorrector.Result geo) {
-                        var boundingBox = geo.originalEllipse().boundingBox();
-                        var x1 = boundingBox.a();
-                        var y1 = boundingBox.c();
-                        var x2 = boundingBox.b();
-                        var y2 = boundingBox.d();
-                        // Fix the bounding box according to the left rotaton which happened
-                        // before geometry correction
-                        var firstFrame = (int) (newHeight - x2);
-                        var lastFrame = (int) (newHeight - x1);
-                        var marginFrames = 10 * (lastFrame - firstFrame) / 100;
-                        var marginWidth = 10 * (y2 - y1) / 100;
-                        var lambda0 = processParams.spectrumParams().ray().wavelength();
-                        var observationDetails = processParams.observationDetails();
-                        var instrument = observationDetails.instrument();
-                        var dispersion = SpectrumAnalyzer.computeSpectralDispersion(
-                            instrument,
-                            lambda0,
-                            observationDetails.pixelSize() * observationDetails.binning()
-                        );
-                        broadcast(TrimmingParametersDeterminedEvent.of(
-                            serFile,
-                            Math.max(0, firstFrame - marginFrames),
-                            Math.min(lastFrame + marginFrames, newHeight - 1),
-                            (int) Math.abs(pixelShiftRange.minPixelShift()),
-                            (int) Math.abs(pixelShiftRange.maxPixelShift()),
-                            (int) Math.max(0, y1 - marginWidth),
-                            (int) Math.min(y2 + marginWidth, width - 1),
-                            maybePolynomial.get(),
-                            processParams.geometryParams().isSpectrumVFlip(),
-                            newHeight,
-                            width,
-                            dispersion
-                        ));
-                    }
-                });
+                    .flatMap(workflowState -> workflowState.findResult(WorkflowResults.GEOMETRY_CORRECTION).stream())
+                    .findFirst()
+                    .ifPresent(result -> {
+                        if (result instanceof GeometryCorrector.Result geo) {
+                            var boundingBox = geo.originalEllipse().boundingBox();
+                            var x1 = boundingBox.a();
+                            var y1 = boundingBox.c();
+                            var x2 = boundingBox.b();
+                            var y2 = boundingBox.d();
+                            // Fix the bounding box according to the left rotaton which happened
+                            // before geometry correction
+                            var firstFrame = (int) (newHeight - x2);
+                            var lastFrame = (int) (newHeight - x1);
+                            var marginFrames = 10 * (lastFrame - firstFrame) / 100;
+                            var marginWidth = 10 * (y2 - y1) / 100;
+                            var lambda0 = processParams.spectrumParams().ray().wavelength();
+                            var observationDetails = processParams.observationDetails();
+                            var instrument = observationDetails.instrument();
+                            var dispersion = SpectrumAnalyzer.computeSpectralDispersion(
+                                    instrument,
+                                    lambda0,
+                                    observationDetails.pixelSize() * observationDetails.binning()
+                            );
+                            broadcast(TrimmingParametersDeterminedEvent.of(
+                                    serFile,
+                                    Math.max(0, firstFrame - marginFrames),
+                                    Math.min(lastFrame + marginFrames, newHeight - 1),
+                                    (int) Math.abs(pixelShiftRange.minPixelShift()),
+                                    (int) Math.abs(pixelShiftRange.maxPixelShift()),
+                                    (int) Math.max(0, y1 - marginWidth),
+                                    (int) Math.min(y2 + marginWidth, width - 1),
+                                    maybePolynomial.get(),
+                                    processParams.geometryParams().isSpectrumVFlip(),
+                                    newHeight,
+                                    width,
+                                    dispersion
+                            ));
+                        }
+                    });
 
         }
         broadcast(ProcessingDoneEvent.of(System.nanoTime(),
-            images,
-            createCustomImageEmitter(imageNamingStrategy, baseName),
-            ellipse,
-            imageStats,
-            redshifts == null ? Collections.emptyList() : redshifts.redshifts(),
-            polynomial,
-            averageImage,
-            processParams,
-            pixelShiftRange,
-            activeRegions == null ? 0 : activeRegions.regionList().size()
+                images,
+                createCustomImageEmitter(imageNamingStrategy, baseName),
+                mainEllipse == null ? null : mainEllipse.ellipse(),
+                ellipse,
+                imageStats,
+                redshifts == null ? Collections.emptyList() : redshifts.redshifts(),
+                polynomial,
+                averageImage,
+                processParams,
+                pixelShiftRange,
+                activeRegions == null ? 0 : activeRegions.regionList().size()
         ));
     }
 
     private ProcessAwareImageEmitterFactory createImageEmitterFactory(List<WorkflowState> imageList, FileNamingStrategy imageNamingStrategy, String baseName) {
         var ref = imageList.stream()
-            .filter(i -> i.pixelShift() == processParams.spectrumParams().pixelShift())
-            .findFirst()
-            .orElse(imageList.getFirst());
+                .filter(i -> i.pixelShift() == processParams.spectrumParams().pixelShift())
+                .findFirst()
+                .orElse(imageList.getFirst());
         return new ProcessAwareImageEmitterFactory(ref, imageNamingStrategy, baseName);
     }
 
@@ -636,11 +646,11 @@ public class SolexVideoProcessor implements Broadcaster {
             return null;
         }
         var pixelShift = SpectrumAnalyzer.computePixelShift(
-            pixelSize,
-            binning,
-            processParams.spectrumParams().ray().wavelength(),
-            SpectralRay.HELIUM_D3.wavelength(),
-            processParams.observationDetails().instrument()
+                pixelSize,
+                binning,
+                processParams.spectrumParams().ray().wavelength(),
+                SpectralRay.HELIUM_D3.wavelength(),
+                processParams.observationDetails().instrument()
         );
         return pixelShift;
     }
@@ -657,9 +667,9 @@ public class SolexVideoProcessor implements Broadcaster {
             var lambda0 = processParams.spectrumParams().ray().wavelength();
             var instrument = processParams.observationDetails().instrument();
             var implicitPixelShifts = processParams.requestedImages().requestedWaveLengths().stream()
-                .mapToDouble(wavelength -> SpectrumAnalyzer.computePixelShift(finalPS, binning, lambda0, Wavelen.ofAngstroms(wavelength), instrument))
-                .boxed()
-                .toList();
+                    .mapToDouble(wavelength -> SpectrumAnalyzer.computePixelShift(finalPS, binning, lambda0, Wavelen.ofAngstroms(wavelength), instrument))
+                    .boxed()
+                    .toList();
             var explicit = processParams.requestedImages().pixelShifts();
             var internal = processParams.requestedImages().internalPixelShifts();
             for (Double implicitPixelShift : implicitPixelShifts) {
@@ -709,7 +719,7 @@ public class SolexVideoProcessor implements Broadcaster {
         try {
             var path = TemporaryFolder.tempDir();
             var freespace = Files.getFileStore(path)
-                .getUsableSpace();
+                    .getUsableSpace();
             if (freespace < requiredDiskSpace) {
                 throw new ProcessingException(String.format(message("not.enough.disk.space"), path, String.format("%.2f", requiredDiskSpace), unit));
             }
@@ -728,8 +738,8 @@ public class SolexVideoProcessor implements Broadcaster {
         }
         int fullChunks = (size - 1) / length;
         return IntStream.range(0, fullChunks + 1)
-            .mapToObj(n -> source.subList(n * length, n == fullChunks ? size : (n + 1) * length))
-            .toList();
+                .mapToObj(n -> source.subList(n * length, n == fullChunks ? size : (n + 1) * length))
+                .toList();
     }
 
     private void maybeProduceRedshiftDetectionImages(List<RedshiftArea> redshifts,
@@ -743,10 +753,10 @@ public class SolexVideoProcessor implements Broadcaster {
                                                      String baseName) {
         if (redshifts != null && !redshifts.isEmpty() && processParams.requestedImages().isEnabled(GeneratedImageKind.REDSHIFT)) {
             var analyzer = new SpectrumFrameAnalyzer(
-                width,
-                height,
-                reader.header().isJSolexTrimmedSer(),
-                null
+                    width,
+                    height,
+                    reader.header().isJSolexTrimmedSer(),
+                    null
             );
             var reversed = redshifts.reversed();
             for (var redshift : reversed) {
@@ -788,13 +798,13 @@ public class SolexVideoProcessor implements Broadcaster {
                 });
                 var targetFile = outputDirectory.resolve(fileNamingStrategy.render(sequenceNumber, "redshift", Constants.TYPE_PROCESSED, "redshift", baseName + "_" + redshift.id()));
                 broadcast(new ImageGeneratedEvent(
-                    new GeneratedImage(
-                        GeneratedImageKind.REDSHIFT,
-                        "Redshift %s (%.2f km/s)".formatted(redshift.id(), speed),
-                        targetFile,
-                        FileBackedImage.wrap(image),
-                        message("individual.redshift.image.description")
-                    )
+                        new GeneratedImage(
+                                GeneratedImageKind.REDSHIFT,
+                                "Redshift %s (%.2f km/s)".formatted(redshift.id(), speed),
+                                targetFile,
+                                FileBackedImage.wrap(image),
+                                message("individual.redshift.image.description")
+                        )
                 ));
                 LOGGER.info(message("found.speed"), String.format("%.2f km/s", speed), redshift.x1(), redshift.y1(), redshift.x2(), redshift.y2(), redshift.relPixelShift());
             }
@@ -898,19 +908,24 @@ public class SolexVideoProcessor implements Broadcaster {
     }
 
     private EllipseFittingTask.Result performEllipseFitting(List<WorkflowState> imageList, ImageEmitterFactory imageEmitterFactory) {
+        if (cachedEllipse != null) {
+            return cachedEllipse;
+        }
         var selected = imageList.stream().sorted(Comparator.comparing(WorkflowState::pixelShift)).map(state -> {
             var ellipseFittingTask = new EllipseFittingTask(this, state::image, processParams, imageEmitterFactory.newEmitter(this, outputDirectory));
             try {
-                return Optional.of(ellipseFittingTask.call());
+                return Optional.ofNullable(ellipseFittingTask.call());
             } catch (Exception e) {
                 return Optional.<EllipseFittingTask.Result>empty();
             }
         }).filter(Optional::isPresent).map(Optional::get).findFirst();
         if (selected.isEmpty()) {
-            LOGGER.error("Unable to perform ellipse regression");
+            LOGGER.error(message("ellipse.fitting.failed"));
             return null;
         }
-        return selected.get();
+        EllipseFittingTask.Result result = selected.get();
+        cachedEllipse = result;
+        return result;
     }
 
     private void maybePerformFlips(ImageWrapper32 rotated) {
@@ -930,33 +945,33 @@ public class SolexVideoProcessor implements Broadcaster {
             }
             rotated.findMetadata(Redshifts.class).ifPresent(redshifts -> {
                 var rotatedRedshifts = redshifts.redshifts().stream()
-                    .map(area -> {
-                            var x1 = area.x1();
-                            var x2 = area.x2();
-                            var y1 = area.y1();
-                            var y2 = area.y2();
-                            var maxX = area.maxX();
-                            var maxY = area.maxY();
-                            var pixelShift = area.pixelShift();
-                            var relPixelShift = area.relPixelShift();
-                            var kmPerSec = area.kmPerSec();
-                            if (hflip) {
-                                var tempX1 = width - x1 - 1;
-                                var tempX2 = width - x2 - 1;
-                                x1 = Math.min(tempX1, tempX2);
-                                x2 = Math.max(tempX1, tempX2);
-                                maxX = width - maxX - 1;
-                            }
-                            if (vflip) {
-                                var tempY1 = height - y1 - 1;
-                                var tempY2 = height - y2 - 1;
-                                y1 = Math.min(tempY1, tempY2);
-                                y2 = Math.max(tempY1, tempY2);
-                                maxY = height - maxY - 1;
-                            }
-                            return new RedshiftArea(area.id(), pixelShift, relPixelShift, kmPerSec, x1, y1, x2, y2, maxX, maxY);
-                        }
-                    ).toList();
+                        .map(area -> {
+                                    var x1 = area.x1();
+                                    var x2 = area.x2();
+                                    var y1 = area.y1();
+                                    var y2 = area.y2();
+                                    var maxX = area.maxX();
+                                    var maxY = area.maxY();
+                                    var pixelShift = area.pixelShift();
+                                    var relPixelShift = area.relPixelShift();
+                                    var kmPerSec = area.kmPerSec();
+                                    if (hflip) {
+                                        var tempX1 = width - x1 - 1;
+                                        var tempX2 = width - x2 - 1;
+                                        x1 = Math.min(tempX1, tempX2);
+                                        x2 = Math.max(tempX1, tempX2);
+                                        maxX = width - maxX - 1;
+                                    }
+                                    if (vflip) {
+                                        var tempY1 = height - y1 - 1;
+                                        var tempY2 = height - y2 - 1;
+                                        y1 = Math.min(tempY1, tempY2);
+                                        y2 = Math.max(tempY1, tempY2);
+                                        maxY = height - maxY - 1;
+                                    }
+                                    return new RedshiftArea(area.id(), pixelShift, relPixelShift, kmPerSec, x1, y1, x2, y2, maxX, maxY);
+                                }
+                        ).toList();
                 redshifts = new Redshifts(rotatedRedshifts);
                 rotated.metadata().put(Redshifts.class, redshifts);
             });
@@ -1009,9 +1024,9 @@ public class SolexVideoProcessor implements Broadcaster {
         var observationDetails = processParams.observationDetails();
         var instrument = observationDetails.instrument();
         var dispersion = SpectrumAnalyzer.computeSpectralDispersion(
-            instrument,
-            lambda0,
-            observationDetails.pixelSize() * observationDetails.binning()
+                instrument,
+                lambda0,
+                observationDetails.pixelSize() * observationDetails.binning()
         );
         var phenomenaDetector = new PhenomenaDetector(dispersion, lambda0, width);
         var hasRedshifts = new AtomicBoolean();
@@ -1040,7 +1055,7 @@ public class SolexVideoProcessor implements Broadcaster {
                                 var buffer = reconstructedImages[idx];
                                 processSingleFrame(state.isInternal(), width, height, buffer, y, original, polynomial, state.pixelShift(), totalLines, jSolexSer);
                                 phenomenaDetector.setDetectRedshifts(
-                                    state.pixelShift() == 0 && processParams.spectrumParams().ray().label().equalsIgnoreCase(SpectralRay.H_ALPHA.label()) && processParams.requestedImages().isEnabled(GeneratedImageKind.REDSHIFT)
+                                        state.pixelShift() == 0 && processParams.spectrumParams().ray().label().equalsIgnoreCase(SpectralRay.H_ALPHA.label()) && processParams.requestedImages().isEnabled(GeneratedImageKind.REDSHIFT)
                                 );
                                 phenomenaDetector.setDetectActiveRegions(forceDetectActiveRegions || processParams.requestedImages().isEnabled(GeneratedImageKind.ACTIVE_REGIONS));
                                 phenomenaDetector.performDetection(frameId, width, height, original, polynomial, reader.header());
@@ -1075,8 +1090,8 @@ public class SolexVideoProcessor implements Broadcaster {
         }
 
         return new ReconstructionOutputs(
-            hasRedshifts.get() ? phenomenaDetector.getMaxRedshiftAreas(5) : null,
-            hasActiveRegions.get() ? phenomenaDetector.getActiveRegions() : null
+                hasRedshifts.get() ? phenomenaDetector.getMaxRedshiftAreas(5) : null,
+                hasActiveRegions.get() ? phenomenaDetector.getActiveRegions() : null
         );
     }
 
@@ -1086,8 +1101,8 @@ public class SolexVideoProcessor implements Broadcaster {
         var result = analyzer.analyze(averageImage);
         if (processParams.extraParams().generateDebugImages()) {
             var emitter = new DiscardNonRequiredImages(
-                new NamingStrategyAwareImageEmitter(new DefaultImageEmitter(this, outputDirectory.toFile()), imageNamingStrategy, 0, serFile.getName().substring(0, serFile.getName().lastIndexOf("."))),
-                processParams.requestedImages().images());
+                    new NamingStrategyAwareImageEmitter(new DefaultImageEmitter(this, outputDirectory.toFile()), imageNamingStrategy, 0, serFile.getName().substring(0, serFile.getName().lastIndexOf("."))),
+                    processParams.requestedImages().images());
             emitter.newColorImage(GeneratedImageKind.DEBUG, null, message("average"), "average", message("average.image.description"), width, height, MutableMap.of(), () -> {
                 var rgb = new SpectralLineFrameImageCreator(analyzer, averageImage, width, height).generateDebugImage();
                 return new float[][][]{rgb.r(), rgb.g(), rgb.b()};
@@ -1108,51 +1123,51 @@ public class SolexVideoProcessor implements Broadcaster {
                                     boolean isJolexSer) {
         double[] line = new double[width];
         IntStream.iterate(0, x -> x < width, x -> x + BATCH_LINES)
-            .parallel()
-            .forEach(batchStart -> {
-                int batchEnd = Math.min(batchStart + BATCH_LINES, width);
-                // interpolation is NOT needed if the processed file is a Jolex SER truncated file,
-                // because it has already been interpolated when the file was trimmed
-                double range = isJolexSer ? 0 : 1;
-                for (int x = batchStart; x < batchEnd; x++) {
-                    double value = 0;
-                    double weightSum = 0;
+                .parallel()
+                .forEach(batchStart -> {
+                    int batchEnd = Math.min(batchStart + BATCH_LINES, width);
+                    // interpolation is NOT needed if the processed file is a Jolex SER truncated file,
+                    // because it has already been interpolated when the file was trimmed
+                    double range = isJolexSer ? 0 : 1;
+                    for (int x = batchStart; x < batchEnd; x++) {
+                        double value = 0;
+                        double weightSum = 0;
 
-                    for (double dy = -range; dy <= range; dy += 0.5) {
-                        double yd = p.applyAsDouble(x) + pixelShift + dy;
+                        for (double dy = -range; dy <= range; dy += 0.5) {
+                            double yd = p.applyAsDouble(x) + pixelShift + dy;
 
-                        int y1 = (int) Math.floor(yd);
-                        int y2 = y1 + 1;
+                            int y1 = (int) Math.floor(yd);
+                            int y2 = y1 + 1;
 
-                        double frac = yd - y1;
+                            double frac = yd - y1;
 
-                        double weight = Math.exp(-0.5 * dy * dy);  // Gaussian decay
+                            double weight = Math.exp(-0.5 * dy * dy);  // Gaussian decay
 
-                        if (y1 >= 0 && y1 < height && y2 >= 0 && y2 < height) {
-                            double yValue = (1 - frac) * source[y1][x] + frac * source[y2][x];
-                            value += weight * yValue;
-                            weightSum += weight;
+                            if (y1 >= 0 && y1 < height && y2 >= 0 && y2 < height) {
+                                double yValue = (1 - frac) * source[y1][x] + frac * source[y2][x];
+                                value += weight * yValue;
+                                weightSum += weight;
+                            }
                         }
+
+                        if (weightSum > 0) {
+                            value /= weightSum;
+                        }
+
+                        outputBuffer[y][x] = (float) value;
+                        line[x] = (float) value;
                     }
 
-                    if (weightSum > 0) {
-                        value /= weightSum;
-                    }
-
-                    outputBuffer[y][x] = (float) value;
-                    line[x] = (float) value;
-                }
-
-            });
+                });
 
         if (!internal) {
             var copy = ImageWrapper.copyData(source);
             var imageLine = new ImageLine(pixelShift,
-                y,
-                totalLines,
-                line,
-                processParams.extraParams().generateDebugImages() || processParams.requestedImages().isEnabled(GeneratedImageKind.RECONSTRUCTION),
-                new Image(width, height, copy)
+                    y,
+                    totalLines,
+                    line,
+                    processParams.extraParams().generateDebugImages() || processParams.requestedImages().isEnabled(GeneratedImageKind.RECONSTRUCTION),
+                    new Image(width, height, copy)
             );
             broadcast(new PartialReconstructionEvent(imageLine));
         }
@@ -1219,8 +1234,8 @@ public class SolexVideoProcessor implements Broadcaster {
     }
 
     private record ReconstructionOutputs(
-        List<RedshiftArea> redshifts,
-        ActiveRegions activeRegions
+            List<RedshiftArea> redshifts,
+            ActiveRegions activeRegions
     ) {
 
     }

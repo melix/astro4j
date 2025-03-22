@@ -17,6 +17,7 @@ package me.champeau.a4j.jsolex.processing.event;
 
 import me.champeau.a4j.jsolex.processing.params.ProcessParams;
 import me.champeau.a4j.jsolex.processing.sun.detection.RedshiftArea;
+import me.champeau.a4j.jsolex.processing.sun.tasks.EllipseFittingTask;
 import me.champeau.a4j.jsolex.processing.sun.workflow.ImageEmitter;
 import me.champeau.a4j.jsolex.processing.sun.workflow.ImageStats;
 import me.champeau.a4j.jsolex.processing.sun.workflow.PixelShiftRange;
@@ -37,6 +38,7 @@ public final class ProcessingDoneEvent extends ProcessingEvent<ProcessingDoneEve
         long timestamp,
         Map<Double, ImageWrapper> shiftImages,
         ImageEmitter customImageEmitter,
+        Ellipse mainEllipse,
         Ellipse ellipse,
         ImageStats imageStats,
         List<RedshiftArea> redshifts,
@@ -51,6 +53,7 @@ public final class ProcessingDoneEvent extends ProcessingEvent<ProcessingDoneEve
     public static ProcessingDoneEvent of(long timestamp,
                                          Map<Double, ImageWrapper> images,
                                          ImageEmitter customImageEmitter,
+                                         Ellipse mainEllipse,
                                          Ellipse ellipse,
                                          ImageStats imageStats,
                                          List<RedshiftArea> redshifts,
@@ -59,6 +62,6 @@ public final class ProcessingDoneEvent extends ProcessingEvent<ProcessingDoneEve
                                          ProcessParams processParams,
                                          PixelShiftRange pixelShiftRange,
                                          int detectedActiveRegions) {
-        return new ProcessingDoneEvent(new Outcome(timestamp, Collections.unmodifiableMap(images), customImageEmitter, ellipse, imageStats, redshifts, polynomial, averageImage, processParams, pixelShiftRange, detectedActiveRegions));
+        return new ProcessingDoneEvent(new Outcome(timestamp, Collections.unmodifiableMap(images), customImageEmitter, mainEllipse, ellipse, imageStats, redshifts, polynomial, averageImage, processParams, pixelShiftRange, detectedActiveRegions));
     }
 }
