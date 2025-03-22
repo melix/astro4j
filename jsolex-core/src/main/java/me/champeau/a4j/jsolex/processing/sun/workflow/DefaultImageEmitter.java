@@ -138,7 +138,7 @@ public class DefaultImageEmitter implements ImageEmitter {
         prepareOutput(name);
         new WriteRGBImageTask(broadcaster,
             () -> {
-                var image = new ImageWrapper32(width, height, new float[0][], new HashMap<>(metadata));
+                var image = new ImageWrapper32(width, height, new float[height][width], new HashMap<>(metadata));
                 storeMetadata(kind, title, name, image);
                 return image;
             },

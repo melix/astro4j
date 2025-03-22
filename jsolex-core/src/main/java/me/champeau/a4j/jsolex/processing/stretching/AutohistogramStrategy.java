@@ -15,7 +15,7 @@
  */
 package me.champeau.a4j.jsolex.processing.stretching;
 
-import me.champeau.a4j.jsolex.processing.sun.tasks.ImageAnalysis;
+import me.champeau.a4j.jsolex.processing.sun.BackgroundRemoval;
 import me.champeau.a4j.jsolex.processing.util.Histogram;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 import me.champeau.a4j.math.regression.Ellipse;
@@ -66,20 +66,17 @@ public final class AutohistogramStrategy implements StretchingStrategy {
     public void stretch(ImageWrapper32 image) {
         var disk = image.copy();
         var diskData = disk.data();
-        // Neutralize offset
-        var stats = ImageAnalysis.of(diskData);
-        var min = stats.min();
         var height = image.height();
         var width = image.width();
-        for (int y = 0; y < height; y++) {
-            for (int x = 0; x < width; x++) {
-                diskData[y][x] -= min;
+        var model = BackgroundRemoval.backgroundModel(image, 2, 2.5).data();
+        for (int y = 0; y < image.height(); y++) {
+            for (int x = 0; x < image.width(); x++) {
+                diskData[y][x] = Math.clamp(diskData[y][x] - 0.9f*model[y][x], 0, MAX_PIXEL_VALUE);
             }
         }
         var ellipse = image.findMetadata(Ellipse.class);
         if (ellipse.isPresent()) {
             var e = ellipse.get();
-            diskData = disk.data();
             var cx = e.center().a();
             var cy = e.center().b();
             var semiAxis = e.semiAxis();
@@ -142,7 +139,7 @@ public final class AutohistogramStrategy implements StretchingStrategy {
         var height = image.height();
         for (int y = 0; y < height; y++) {
             for (int x = 0; x < width; x++) {
-                diskData[y][x] = (float) (0.75 * diskData[y][x] + 0.25 * claheData[y][x]);
+                diskData[y][x] = (float) (0.9 * diskData[y][x] + 0.1 * claheData[y][x]);
             }
         }
     }

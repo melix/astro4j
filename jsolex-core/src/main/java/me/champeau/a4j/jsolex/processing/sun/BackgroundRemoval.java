@@ -186,7 +186,7 @@ public class BackgroundRemoval {
         List<Double> filteredY = new ArrayList<>();
         for (int i = 0; i < yVector.size(); i++) {
             var v = yVector.get(i);
-            if (v < hiThreshold && v > loThreshold) {
+            if (v>0 && v < hiThreshold && v > loThreshold) {
                 filteredX.add(xMatrix.get(i));
                 filteredY.add(yVector.get(i));
             }
