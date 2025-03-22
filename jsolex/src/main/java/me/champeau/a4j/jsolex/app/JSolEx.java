@@ -368,7 +368,7 @@ public class JSolEx extends Application implements JSolExInterface {
             Thread.startVirtualThread(() -> UpdateChecker.findLatestRelease().ifPresent(this::maybeWarnAboutNewRelease));
             LOGGER.info("Java runtime version {}", System.getProperty("java.version"));
             LOGGER.info("Vector API support is {} and {}", VectorApiSupport.isPresent() ? "available" : "missing",
-                VectorApiSupport.isEnabled() ? "enabled (disable by setting " + VectorApiSupport.VECTOR_API_ENV_VAR + " environment variable to false)" : "disabled");
+                    VectorApiSupport.isEnabled() ? "enabled (disable by setting " + VectorApiSupport.VECTOR_API_ENV_VAR + " environment variable to false)" : "disabled");
             maybeShowWelcomeMessage(rootScene);
             if (config.isAutoStartServer()) {
                 server.start(config.getAutoStartServerPort());
@@ -969,8 +969,8 @@ public class JSolEx extends Application implements JSolExInterface {
     private ProcessingEventListener delegatingListener(SingleModeProcessingEventListener singleModeProcessingEventListener) {
         if (server.isStarted()) {
             List<ProcessingEventListener> listeners = Stream.concat(
-                Stream.of(singleModeProcessingEventListener),
-                server.getListeners().stream()
+                    Stream.of(singleModeProcessingEventListener),
+                    server.getListeners().stream()
             ).toList();
             return new DelegatingProcessingEventListener(listeners);
         }
@@ -1049,7 +1049,7 @@ public class JSolEx extends Application implements JSolExInterface {
         console.clear();
         var interruptButton = addInterruptButton();
         var processingThread =
-            new Thread(() -> processSingleFile(params, selectedFile, false, 0, selectedFile, firstHeader, () -> Platform.runLater(() -> workButtons.getChildren().remove(interruptButton))));
+                new Thread(() -> processSingleFile(params, selectedFile, false, 0, selectedFile, firstHeader, () -> Platform.runLater(() -> workButtons.getChildren().remove(interruptButton))));
         interruptButton.setOnAction(e -> {
             Platform.runLater(() -> {
                 updateProgress(0, message("interrupted"));
@@ -1070,9 +1070,9 @@ public class JSolEx extends Application implements JSolExInterface {
     public void prepareForRedshiftImages(RedshiftImagesProcessor processor) {
         var redshifts = processor.getRedshifts();
         var maxSize = redshifts.stream()
-            .mapToDouble(RedshiftArea::size)
-            .max()
-            .orElse(0);
+                .mapToDouble(RedshiftArea::size)
+                .max()
+                .orElse(0);
         var power = highestPowerOfTwoGreaterOrEqualTo(processor.getSunRadius().map(r -> r / 10d).orElse(maxSize));
         int boxSize = (int) Math.pow(2, power);
         Platform.runLater(() -> {
@@ -1154,39 +1154,39 @@ public class JSolEx extends Application implements JSolExInterface {
                 Platform.runLater(() -> {
                     date.setText(message("file.date") + " " + processParams.observationDetails().date().format(GONG.FORMATTER));
                     optionalURL.ifPresentOrElse(
-                        url -> {
-                            imageView.setImage(new Image(url.toExternalForm()));
-                            // add context menu to image
-                            var contextMenu = new ContextMenu();
-                            var save = new MenuItem(message("save.gong.image"));
-                            save.setOnAction(ev -> {
-                                var fileChooser = new FileChooser();
-                                fileChooser.getExtensionFilters().add(IMAGE_FILES_EXTENSIONS);
-                                var file = fileChooser.showSaveDialog(rootStage);
-                                if (file != null) {
-                                    BackgroundOperations.async(() -> {
-                                        var image = imageView.getImage();
-                                        try {
-                                            var outputFile = file;
-                                            var extIndex = outputFile.getName().lastIndexOf(".");
-                                            if (extIndex == -1) {
-                                                outputFile = new File(file.getParent(), file.getName() + ".png");
+                            url -> {
+                                imageView.setImage(new Image(url.toExternalForm()));
+                                // add context menu to image
+                                var contextMenu = new ContextMenu();
+                                var save = new MenuItem(message("save.gong.image"));
+                                save.setOnAction(ev -> {
+                                    var fileChooser = new FileChooser();
+                                    fileChooser.getExtensionFilters().add(IMAGE_FILES_EXTENSIONS);
+                                    var file = fileChooser.showSaveDialog(rootStage);
+                                    if (file != null) {
+                                        BackgroundOperations.async(() -> {
+                                            var image = imageView.getImage();
+                                            try {
+                                                var outputFile = file;
+                                                var extIndex = outputFile.getName().lastIndexOf(".");
+                                                if (extIndex == -1) {
+                                                    outputFile = new File(file.getParent(), file.getName() + ".png");
+                                                }
+                                                ImageIO.write(SwingFXUtils.fromFXImage(image, null), outputFile.getName().substring(outputFile.getName().lastIndexOf(".") + 1), outputFile);
+                                            } catch (IOException ex) {
+                                                LOGGER.error("Cannot save image", e);
                                             }
-                                            ImageIO.write(SwingFXUtils.fromFXImage(image, null), outputFile.getName().substring(outputFile.getName().lastIndexOf(".") + 1), outputFile);
-                                        } catch (IOException ex) {
-                                            LOGGER.error("Cannot save image", e);
-                                        }
-                                    });
-                                }
+                                        });
+                                    }
+                                });
+                                contextMenu.getItems().add(save);
+                                imageView.setOnContextMenuRequested(ev -> contextMenu.show(imageView, ev.getScreenX(), ev.getScreenY()));
+                                vbox.getChildren().remove(button);
+                            },
+                            () -> {
+                                date.setText(message("no.image.available"));
+                                button.setDisable(false);
                             });
-                            contextMenu.getItems().add(save);
-                            imageView.setOnContextMenuRequested(ev -> contextMenu.show(imageView, ev.getScreenX(), ev.getScreenY()));
-                            vbox.getChildren().remove(button);
-                        },
-                        () -> {
-                            date.setText(message("no.image.available"));
-                            button.setDisable(false);
-                        });
                 });
             });
         });
@@ -1257,8 +1257,8 @@ public class JSolEx extends Application implements JSolExInterface {
 
             // Update newGeoparams with the computed transformations
             newGeoparams = newGeoparams.withHorizontalMirror(hasHorizontalFlip)
-                .withVerticalMirror(hasVerticalFlip)
-                .withRotation(finalRotation);
+                    .withVerticalMirror(hasVerticalFlip)
+                    .withRotation(finalRotation);
             ProcessParamsIO.saveDefaults(lastExecutionProcessParams.withGeometryParams(newGeoparams));
         }
     }
@@ -1266,9 +1266,9 @@ public class JSolEx extends Application implements JSolExInterface {
     @Override
     public void showImages() {
         mainPane.getTabs().stream().filter(tab -> tab.getContent() == multipleImagesViewer)
-            .findFirst()
-            .ifPresent(tab -> Platform.runLater(() -> mainPane.getSelectionModel().select(tab))
-            );
+                .findFirst()
+                .ifPresent(tab -> Platform.runLater(() -> mainPane.getSelectionModel().select(tab))
+                );
     }
 
 
@@ -1328,7 +1328,7 @@ public class JSolEx extends Application implements JSolExInterface {
         for (int i = 0; i < selectedFiles.size(); i++) {
             var selectedFile = selectedFiles.get(i);
             batchItems.add(new BatchItem(i, selectedFile, new SimpleDoubleProperty(0), FXCollections.synchronizedObservableList(FXCollections.observableArrayList()), new SimpleStringProperty(message("batch.pending")), new SimpleIntegerProperty(),
-                new SimpleDoubleProperty(), new StringBuilder()));
+                    new SimpleDoubleProperty(), new StringBuilder()));
         }
         table.getItems().addAll(batchItems);
         var idColumn = new TableColumn<BatchItem, String>();
@@ -1356,10 +1356,10 @@ public class JSolEx extends Application implements JSolExInterface {
         maxRedshiftKmPerSec.setCellValueFactory(param -> param.getValue().maxRedshiftKmPerSec().asObject());
         maxRedshiftKmPerSec.setCellFactory(new RedshiftCellFactory());
         var firstColumnsWidth = idColumn.widthProperty()
-            .add(fnColumn.widthProperty()
-                .add(progressColumn.widthProperty()))
-            .add(statusColumn.widthProperty())
-            .add(20);
+                .add(fnColumn.widthProperty()
+                        .add(progressColumn.widthProperty()))
+                .add(statusColumn.widthProperty())
+                .add(20);
         if (params.requestedImages().isEnabled(GeneratedImageKind.ACTIVE_REGIONS)) {
             firstColumnsWidth = firstColumnsWidth.add(detectedActiveRegions.widthProperty());
         }
@@ -1380,54 +1380,58 @@ public class JSolEx extends Application implements JSolExInterface {
         mainPane.getTabs().addFirst(tab);
         mainPane.getSelectionModel().select(0);
         var interruptButton = addInterruptButton();
+        var interrupted = new AtomicBoolean();
         var batchThread = new Thread(() -> {
             try {
                 var batchContext = new BatchProcessingContext(
-                    batchItems,
-                    Collections.synchronizedSet(new HashSet<>()),
-                    Collections.synchronizedSet(new HashSet<>()),
-                    new AtomicBoolean(),
-                    selectedFiles.getFirst().getParentFile(),
-                    LocalDateTime.now(),
-                    Collections.synchronizedMap(new HashMap<>()),
-                    Collections.synchronizedMap(new HashMap<>()),
-                    Collections.synchronizedMap(new HashMap<>()),
-                    Collections.synchronizedMap(new HashMap<>()),
-                    Collections.synchronizedMap(new HashMap<>()),
-                    header);
+                        batchItems,
+                        Collections.synchronizedSet(new HashSet<>()),
+                        Collections.synchronizedSet(new HashSet<>()),
+                        new AtomicBoolean(),
+                        selectedFiles.getFirst().getParentFile(),
+                        LocalDateTime.now(),
+                        Collections.synchronizedMap(new HashMap<>()),
+                        Collections.synchronizedMap(new HashMap<>()),
+                        Collections.synchronizedMap(new HashMap<>()),
+                        Collections.synchronizedMap(new HashMap<>()),
+                        Collections.synchronizedMap(new HashMap<>()),
+                        header);
                 for (int fileIdx = 0; fileIdx < selectedFiles.size(); fileIdx++) {
+                    if (Thread.currentThread().isInterrupted() || interrupted.get()) {
+                        Thread.currentThread().interrupt();
+                        interrupted.set(true);
+                        break;
+                    }
                     var selectedFile = selectedFiles.get(fileIdx);
                     processSingleFile(params, selectedFile, true, fileIdx, batchContext, header, () -> {
-                        if (autoTrimSerFile) {
+                        if (autoTrimSerFile && !interrupted.get()) {
                             var outputFile = toTrimmedFile(trimmingParameters.serFile());
                             SerFileTrimmer.trimFile(
-                                trimmingParameters.serFile(),
-                                outputFile,
-                                trimmingParameters.firstFrame(),
-                                trimmingParameters.lastFrame(),
-                                trimmingParameters.pixelsUp(),
-                                trimmingParameters.pixelsDown(),
-                                trimmingParameters.minX(),
-                                trimmingParameters.maxX(),
-                                trimmingParameters.polynomial(),
-                                trimmingParameters.verticalFlip(),
-                                progress -> Platform.runLater(() -> updateProgress(
-                                    progress,
-                                    I18N.string(JSolEx.class, "ser-trimmer", "trimming")
-                                ))
+                                    trimmingParameters.serFile(),
+                                    outputFile,
+                                    trimmingParameters.firstFrame(),
+                                    trimmingParameters.lastFrame(),
+                                    trimmingParameters.pixelsUp(),
+                                    trimmingParameters.pixelsDown(),
+                                    trimmingParameters.minX(),
+                                    trimmingParameters.maxX(),
+                                    trimmingParameters.polynomial(),
+                                    trimmingParameters.verticalFlip(),
+                                    progress -> Platform.runLater(() -> updateProgress(
+                                            progress,
+                                            I18N.string(JSolEx.class, "ser-trimmer", "trimming")
+                                    ))
                             );
                             SerFileTrimmerController.maybeCopyMetadata(trimmingParameters.serFile());
                         }
                     });
-                    if (Thread.currentThread().isInterrupted()) {
-                        break;
-                    }
                 }
             } finally {
                 Platform.runLater(() -> workButtons.getChildren().remove(interruptButton));
             }
         });
         interruptButton.setOnAction(e -> {
+            interrupted.set(true);
             interruptButton.setDisable(true);
             BackgroundOperations.interrupt();
             batchThread.interrupt();
@@ -1488,30 +1492,30 @@ public class JSolEx extends Application implements JSolExInterface {
         Platform.runLater(() -> {
             var stage = newStage();
             SerFileTrimmerController.create(stage,
-                trimmingParameters,
-                this::showProgress,
-                this::updateProgress,
-                trimmedFile -> {
-                    hideProgress();
-                    if (trimmedFile != null) {
-                        long initialSize = trimmingParameters.serFile().length();
-                        long finalSize = trimmedFile.length();
-                        double initialSizeMb = initialSize / (1024.0 * 1024.0);
-                        double finalSizeMb = finalSize / (1024.0 * 1024.0);
-                        double reduction = 100.0 - (100.0 * finalSize / initialSize);
-                        var alert = AlertFactory.confirmation(
-                            String.format(message("trimming.success"), trimmedFile.getName(), initialSizeMb, finalSizeMb, reduction)
-                        );
-                        alert.setHeaderText(message("trimming.success.title"));
-                        alert.showAndWait().ifPresent(button -> {
-                            if (button == ButtonType.OK) {
-                                doOpen(trimmedFile, false, lastExecutionProcessParams);
-                            }
-                        });
-                    } else {
-                        AlertFactory.error(message("trimming.failure"));
+                    trimmingParameters,
+                    this::showProgress,
+                    this::updateProgress,
+                    trimmedFile -> {
+                        hideProgress();
+                        if (trimmedFile != null) {
+                            long initialSize = trimmingParameters.serFile().length();
+                            long finalSize = trimmedFile.length();
+                            double initialSizeMb = initialSize / (1024.0 * 1024.0);
+                            double finalSizeMb = finalSize / (1024.0 * 1024.0);
+                            double reduction = 100.0 - (100.0 * finalSize / initialSize);
+                            var alert = AlertFactory.confirmation(
+                                    String.format(message("trimming.success"), trimmedFile.getName(), initialSizeMb, finalSizeMb, reduction)
+                            );
+                            alert.setHeaderText(message("trimming.success.title"));
+                            alert.showAndWait().ifPresent(button -> {
+                                if (button == ButtonType.OK) {
+                                    doOpen(trimmedFile, false, lastExecutionProcessParams);
+                                }
+                            });
+                        } else {
+                            AlertFactory.error(message("trimming.failure"));
+                        }
                     }
-                }
             );
         });
     }
@@ -1537,8 +1541,8 @@ public class JSolEx extends Application implements JSolExInterface {
             var controller = (ProcessParamsController) loader.getController();
             var scene = new Scene(content);
             var md = CaptureSoftwareMetadataHelper.readSharpcapMetadata(serFile)
-                .or(() -> CaptureSoftwareMetadataHelper.readFireCaptureMetadata(serFile))
-                .orElse(null);
+                    .or(() -> CaptureSoftwareMetadataHelper.readFireCaptureMetadata(serFile))
+                    .orElse(null);
             controller.setup(dialog, serFile, serFileReader.header(), md, batchMode, getHostServices());
             dialog.setScene(scene);
             dialog.initOwner(rootStage);

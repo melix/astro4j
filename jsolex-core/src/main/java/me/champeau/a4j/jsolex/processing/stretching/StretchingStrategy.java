@@ -61,7 +61,7 @@ public sealed interface StretchingStrategy permits
                 rescaledL[y][x] = lightness[y][x] * 65535f;
             }
         }
-        stretch(new ImageWrapper32(image.width(), image.height(), rescaledL, image.metadata()));
+        stretch(new ImageWrapper32(width, height, rescaledL, image.metadata()));
         for (int y = 0; y < height; y++) {
             for (int x = 0; x < width; x++) {
                 lightness[y][x] = rescaledL[y][x] / 65535f;
@@ -69,9 +69,9 @@ public sealed interface StretchingStrategy permits
         }
         ImageUtils.fromHSLtoRGB(hsl, rgb);
 
-        stretch(new ImageWrapper32(image.width(), image.height(), r, image.metadata()));
-        stretch(new ImageWrapper32(image.width(), image.height(), g, image.metadata()));
-        stretch(new ImageWrapper32(image.width(), image.height(), b, image.metadata()));
+        stretch(new ImageWrapper32(width, height, r, image.metadata()));
+        stretch(new ImageWrapper32(width, height, g, image.metadata()));
+        stretch(new ImageWrapper32(width, height, b, image.metadata()));
     }
 
 }

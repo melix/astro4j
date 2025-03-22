@@ -2,6 +2,7 @@
 
 # What's New in Version 2.12.0
 
+- Add background neutralization to the automatic contrast enhancement image to remove residual reflections
 - Introduced new `BG_MODEL` function to model the background of the image
 - Added `A2PX` and `PX2A` to convert from Angstroms to pixels and vice versa, based on the computed spectral dispersion
 - Added an optional parameter to `FIND_SHIFT` corresponding to the reference wavelength
