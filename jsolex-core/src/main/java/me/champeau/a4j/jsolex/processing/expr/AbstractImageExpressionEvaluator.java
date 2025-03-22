@@ -291,6 +291,7 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
             case AR_OVERLAY -> imageDraw.activeRegionsOverlay(arguments);
             case VFLIP -> rotate.vflip(arguments);
             case VIDEO_DATETIME -> utilities.videoDateTime(arguments);
+            case WAVELEN -> wavelenthOfImage(arguments);
             case WORKDIR -> setWorkDir(arguments);
         };
     }
@@ -360,6 +361,26 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
         return Wavelen.ofAngstroms(targetWaveLength);
     }
 
+    private Object wavelenthOfImage(List<Object> arguments) {
+        if (arguments.size() != 1) {
+            throw new IllegalArgumentException("wavelength() accepts a single argument (image)");
+        }
+        Object first = arguments.getFirst();
+        if (first instanceof List<?>) {
+            return utilities.expandToImageList("wavelen", arguments, this::wavelenthOfImage);
+        }
+        var image = asImage(first);
+        var metadata = image.metadata();
+        var pixelShift = (PixelShift) metadata.get(PixelShift.class);
+        if (pixelShift == null) {
+            throw new IllegalArgumentException("Image must have a pixel shift metadata");
+        }
+        var params = (ProcessParams) context.get(ProcessParams.class);
+        var lambda0 = params.spectrumParams().ray().wavelength();
+        var dispersion = computeDispersion(params, lambda0);
+        return round2digits(lambda0.plus(pixelShift.pixelShift(), dispersion).angstroms());
+    }
+
     public Object angstromsToPixels(List<Object> arguments) {
         if (arguments.size() != 1 && arguments.size() != 2) {
             throw new IllegalArgumentException("a2px() accepts 1 or 2 argument (angstroms, [reference wavelength angstroms])");
@@ -371,8 +392,7 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
             lambda0 = toWavelength(arguments.get(1));
         }
         var dispersion = computeDispersion(params, lambda0);
-        // round to 2 digits
-        return Math.round(100d * angstroms / dispersion.angstromsPerPixel()) / 100d;
+        return round2digits(angstroms / dispersion.angstromsPerPixel());
     }
 
     public Object pixelsToAngstroms(List<Object> arguments) {
@@ -386,7 +406,12 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
             lambda0 = toWavelength(arguments.get(1));
         }
         var dispersion = computeDispersion(params, lambda0);
-        return Math.round(100d * pixels * dispersion.angstromsPerPixel()) / 100d;
+        double v = pixels * dispersion.angstromsPerPixel();
+        return round2digits(v);
+    }
+
+    private static double round2digits(double v) {
+        return Math.round(100d * v) / 100d;
     }
 
     private static Dispersion computeDispersion(ProcessParams params, Wavelen lambda0) {
