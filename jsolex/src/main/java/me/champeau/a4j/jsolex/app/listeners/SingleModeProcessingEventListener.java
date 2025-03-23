@@ -162,7 +162,6 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
     private ProcessParams params;
     private ProcessParams adjustedParams;
     private Header header;
-    private BarChart<String, Number> histogramChart;
     private PixelShiftRange pixelShiftRange;
     private DoubleUnaryOperator polynomial;
     private Map<Class, Object> scriptExecutionContext;
@@ -215,16 +214,16 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
     private ReconstructionView createImageView(double pixelShift) {
         var buffer = new byte[3 * width * height];
         var reconstructionView = blockingUntilResultAvailable(() -> owner.getImagesViewer().addImage(this,
-            message("image.reconstruction"), baseName,
-            GeneratedImageKind.RECONSTRUCTION,  null,null, null, params, popupViews, new PixelShift(pixelShift),
-            viewer -> {
-                var parentWidth = owner.getImagesViewer().widthProperty();
-                viewer.getImageView().getScrollPane().maxWidthProperty().bind(parentWidth);
-                return new ReconstructionView(viewer.getImageView(), buffer, parentWidth);
-            },
-            viewer -> {
+                message("image.reconstruction"), baseName,
+                GeneratedImageKind.RECONSTRUCTION, null, null, null, params, popupViews, new PixelShift(pixelShift),
+                viewer -> {
+                    var parentWidth = owner.getImagesViewer().widthProperty();
+                    viewer.getImageView().getScrollPane().maxWidthProperty().bind(parentWidth);
+                    return new ReconstructionView(viewer.getImageView(), buffer, parentWidth);
+                },
+                viewer -> {
 
-            }));
+                }));
         var imageView = reconstructionView.getSolarView();
         var image = new WritableImage(width, height);
         imageView.setImage(image);
@@ -274,20 +273,20 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
                 Platform.runLater(() -> {
                     try {
                         spectrumImage.getPixelWriter().setPixels(
-                            0, 0,
-                            spectrum.width(), spectrum.height(),
-                            pixelformat,
-                            spectrumBuffer,
-                            0,
-                            3 * spectrum.width()
+                                0, 0,
+                                spectrum.width(), spectrum.height(),
+                                pixelformat,
+                                spectrumBuffer,
+                                0,
+                                3 * spectrum.width()
                         );
                         image.getPixelWriter().setPixels(
-                            0, 0,
-                            width, y,
-                            pixelformat,
-                            rgb,
-                            0,
-                            3 * width
+                                0, 0,
+                                width, y,
+                                pixelformat,
+                                rgb,
+                                0,
+                                3 * width
                         );
                     } finally {
                         lock.release();
@@ -422,20 +421,20 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
             var imageWrapper = payload.image();
             var pixelShift = imageWrapper.findMetadata(PixelShift.class);
             var addedImageViewer = owner.getImagesViewer().addImage(this,
-                title,
-                baseName,
-                generatedImageKind,
-                payload.description(),
-                imageWrapper,
-                payload.path().toAbsolutePath().toFile(),
-                adjustedParams != null ? adjustedParams : params,
-                popupViews,
-                pixelShift.orElse(null),
-                viewer -> viewer,
-                viewer -> {
-                    showHistogram(viewer.getStretchedImage());
-                    showMetadata(imageWrapper.metadata());
-                });
+                    title,
+                    baseName,
+                    generatedImageKind,
+                    payload.description(),
+                    imageWrapper,
+                    payload.path().toAbsolutePath().toFile(),
+                    adjustedParams != null ? adjustedParams : params,
+                    popupViews,
+                    pixelShift.orElse(null),
+                    viewer -> viewer,
+                    viewer -> {
+                        statsTab.setContent(showHistogram(viewer.getStretchedImage()));
+                        showMetadata(imageWrapper.metadata());
+                    });
             addedImageViewer.getImageView().setRectangleSelectionListener(new RectangleSelectionListener() {
                 @Override
                 public boolean supports(ActionKind kind) {
@@ -482,16 +481,16 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
 
                 private void createAnimationOrPanel(int x, int y, int width, int height) {
                     var redshiftProcessor = new RedshiftImagesProcessor(
-                        shiftImages,
-                        adjustedParams,
-                        serFile,
-                        outputDirectory,
-                        owner,
-                        SingleModeProcessingEventListener.this,
-                        imageEmitter,
-                        List.of(),
-                        polynomial,
-                        averageImage
+                            shiftImages,
+                            adjustedParams,
+                            serFile,
+                            outputDirectory,
+                            owner,
+                            SingleModeProcessingEventListener.this,
+                            imageEmitter,
+                            List.of(),
+                            polynomial,
+                            averageImage
                     );
                     Platform.runLater(() -> {
                         var fxmlLoader = I18N.fxmlLoader(JSolEx.class, "custom-anim-panel");
@@ -505,7 +504,7 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
                         var stage = new Stage();
                         stage.setScene(new Scene(node));
                         controller.setup(stage, adjustedParams, imageWrapper.findMetadata(PixelShiftRange.class).orElse(new PixelShiftRange(-15, 15, .25)), imageWrapper.width(), imageWrapper.height(), x, y, width, height, redshiftProcessor,
-                            animCount.getAndIncrement());
+                                animCount.getAndIncrement());
                         stage.setTitle(I18N.string(JSolEx.class, "custom-anim-panel", "frame.title"));
                         stage.showAndWait();
                     });
@@ -520,16 +519,16 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
                             var imageName = "cropped-" + id;
                             var title = String.format(message("cropped.image"), id);
                             var path = adjustedParams != null
-                                ? outputDirectory.resolve(createNamingStrategy().render(0, null, Constants.TYPE_CUSTOM, imageName, computeSerFileBasename(serFile)))
-                                : event.getPayload().path().getParent().resolve("cropped-" + id);
+                                    ? outputDirectory.resolve(createNamingStrategy().render(0, null, Constants.TYPE_CUSTOM, imageName, computeSerFileBasename(serFile)))
+                                    : event.getPayload().path().getParent().resolve("cropped-" + id);
                             broadcast(new ImageGeneratedEvent(
-                                new GeneratedImage(
-                                    GeneratedImageKind.CROPPED,
-                                    title,
-                                    path,
-                                    croppedImage,
-                                    null
-                                )
+                                    new GeneratedImage(
+                                            GeneratedImageKind.CROPPED,
+                                            title,
+                                            path,
+                                            croppedImage,
+                                            null
+                                    )
                             ));
                         }
                     });
@@ -553,20 +552,20 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
         view.setEditable(false);
         view.setWrapText(true);
         view.setText(metadata.entrySet().stream()
-            .sorted(Map.Entry.comparingByKey(new MetadataComparator()))
-            .map(e -> MetadataSupport.render(e.getKey(), e.getValue()))
-            .filter(Optional::isPresent)
-            .map(Optional::get)
-            .collect(Collectors.joining("\n")));
+                .sorted(Map.Entry.comparingByKey(new MetadataComparator()))
+                .map(e -> MetadataSupport.render(e.getKey(), e.getValue()))
+                .filter(Optional::isPresent)
+                .map(Optional::get)
+                .collect(Collectors.joining("\n")));
         metadataContent.setContent(view);
     }
 
-    private void showHistogram(ImageWrapper imageWrapper) {
-        prepareHistogram();
+    private BarChart<String, Number> showHistogram(ImageWrapper imageWrapper) {
+        var histogram = prepareHistogram(imageWrapper);
         var histograms = cachedHistograms.computeIfAbsent(imageWrapper, unused -> {
             if (imageWrapper instanceof ImageWrapper32 mono) {
                 return List.of(new CachedHistogram(Histogram.of(
-                    new Image(mono.width(), mono.height(), mono.data()), BINS
+                        new Image(mono.width(), mono.height(), mono.data()), BINS
                 ), "grey"));
             } else if (imageWrapper instanceof RGBImage rgbImage) {
                 var rgb = new float[][][]{rgbImage.r(), rgbImage.g(), rgbImage.b()};
@@ -574,33 +573,36 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
                 for (int i = 0; i < rgb.length; i++) {
                     float[][] channel = rgb[i];
                     result.add(new CachedHistogram(Histogram.of(
-                        new Image(rgbImage.width(), rgbImage.height(), channel), BINS
+                            new Image(rgbImage.width(), rgbImage.height(), channel), BINS
                     ), RGB_COLORS[i]));
                 }
                 return result;
             }
             return List.of();
         });
-        histograms.forEach(c -> addSeries(c.histogram, c.color));
+        histograms.forEach(c -> addSeries(histogram, c.histogram, c.color));
+        return histogram;
     }
 
-    private void prepareHistogram() {
-        if (histogramChart == null) {
-            var xAxis = new CategoryAxis();
-            var yAxis = new NumberAxis();
-            xAxis.setLabel(message("pixel.value"));
-            yAxis.setLabel(message("pixel.count"));
-            histogramChart = new BarChart<>(xAxis, yAxis);
-            histogramChart.setTitle(message("image.histogram"));
-            histogramChart.setBarGap(0);
-            statsTab.setContent(histogramChart);
-            histogramChart.setLegendVisible(false);
-            registerSaveChartAction("histogram", histogramChart);
-        }
-        histogramChart.getData().clear();
+    private BarChart<String, Number> prepareHistogram(ImageWrapper imageWrapper) {
+        var histogram = createHistogramChart();
+        registerSaveChartAction("histogram", histogram, () -> showHistogram(imageWrapper));
+        return histogram;
     }
 
-    private void addSeries(Histogram histogram, String color) {
+    private static BarChart<String, Number> createHistogramChart() {
+        var xAxis = new CategoryAxis();
+        var yAxis = new NumberAxis();
+        xAxis.setLabel(message("pixel.value"));
+        yAxis.setLabel(message("pixel.count"));
+        var histogramChart = new BarChart<>(xAxis, yAxis);
+        histogramChart.setTitle(message("image.histogram"));
+        histogramChart.setBarGap(0);
+        histogramChart.setLegendVisible(false);
+        return histogramChart;
+    }
+
+    private static void addSeries(BarChart<String, Number> chart, Histogram histogram, String color) {
         var series = new XYChart.Series<String, Number>();
         for (int i = 0; i < histogram.values().length; i++) {
             var d = new XYChart.Data<String, Number>(String.valueOf(i), histogram.values()[i]);
@@ -608,7 +610,7 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
         }
 
         // Add the series to the bar chart
-        histogramChart.getData().add(series);
+        chart.getData().add(series);
         for (XYChart.Data<String, Number> d : series.getData()) {
             d.getNode().setStyle("-fx-bar-fill: " + color + ";");
         }
@@ -666,22 +668,22 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
         pixelShiftRange = payload.pixelShiftRange();
         mainEllipse = payload.mainEllipse();
         imageScriptExecutor = new JSolExScriptExecutor(
-            shift -> {
-                var minShift = shiftImages.keySet().stream().mapToDouble(d -> d).min().orElse(0d);
-                var maxShift = shiftImages.keySet().stream().mapToDouble(d -> d).max().orElse(0d);
-                double lookup = shift;
-                if (lookup < minShift) {
-                    LOGGER.warn(String.format(message("cropping.window.invalid.shift"), lookup, minShift));
-                    lookup = minShift;
-                } else if (lookup > maxShift) {
-                    LOGGER.warn(String.format(message("cropping.window.invalid.shift"), lookup, maxShift));
-                    lookup = maxShift;
-                }
-                return shiftImages.get(lookup);
-            },
-            new HashMap<>(scriptExecutionContext),
-            this,
-            null
+                shift -> {
+                    var minShift = shiftImages.keySet().stream().mapToDouble(d -> d).min().orElse(0d);
+                    var maxShift = shiftImages.keySet().stream().mapToDouble(d -> d).max().orElse(0d);
+                    double lookup = shift;
+                    if (lookup < minShift) {
+                        LOGGER.warn(String.format(message("cropping.window.invalid.shift"), lookup, minShift));
+                        lookup = minShift;
+                    } else if (lookup > maxShift) {
+                        LOGGER.warn(String.format(message("cropping.window.invalid.shift"), lookup, maxShift));
+                        lookup = maxShift;
+                    }
+                    return shiftImages.get(lookup);
+                },
+                new HashMap<>(scriptExecutionContext),
+                this,
+                null
         );
         ed = payload.timestamp();
         var duration = java.time.Duration.ofNanos(ed - sd);
@@ -707,16 +709,16 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
         var averageImage = payload.averageImage();
         var processParams = payload.processParams();
         owner.prepareForRedshiftImages(new RedshiftImagesProcessor(
-            shiftImages,
-            processParams,
-            serFile,
-            outputDirectory,
-            owner,
-            this,
-            imageEmitter,
-            redshifts,
-            polynomial,
-            averageImage
+                shiftImages,
+                processParams,
+                serFile,
+                outputDirectory,
+                owner,
+                this,
+                imageEmitter,
+                redshifts,
+                polynomial,
+                averageImage
         ));
         owner.prepareForGongImageDownload(processParams);
     }
@@ -774,13 +776,13 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
         var errorCount = invalidExpressions.size();
         if (errorCount > 0) {
             String message = invalidExpressions.stream()
-                .map(invalidExpression -> "Expression '" + invalidExpression.label() + "' (" + invalidExpression.expression() + ") : " + invalidExpression.error().getMessage())
-                .collect(Collectors.joining(System.lineSeparator()));
+                    .map(invalidExpression -> "Expression '" + invalidExpression.label() + "' (" + invalidExpression.expression() + ") : " + invalidExpression.error().getMessage())
+                    .collect(Collectors.joining(System.lineSeparator()));
             onNotification(new NotificationEvent(new Notification(
-                Notification.AlertType.ERROR,
-                message("error.processing.script"),
-                message("script.errors." + (errorCount == SpectrumAnalyzer.DEFAULT_ORDER ? "single" : "many")),
-                message
+                    Notification.AlertType.ERROR,
+                    message("error.processing.script"),
+                    message("script.errors." + (errorCount == SpectrumAnalyzer.DEFAULT_ORDER ? "single" : "many")),
+                    message
             )));
         }
         return result;
@@ -788,14 +790,14 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
 
     private void restartProcessForMissingShifts(Set<Double> missingShifts) {
         var outOfRange = missingShifts.stream()
-            .filter(s -> s > pixelShiftRange.maxPixelShift())
-            .findAny();
+                .filter(s -> s > pixelShiftRange.maxPixelShift())
+                .findAny();
         if (outOfRange.isPresent()) {
             missingShifts.add(pixelShiftRange.maxPixelShift());
         }
         outOfRange = missingShifts.stream()
-            .filter(s -> s < pixelShiftRange.minPixelShift())
-            .findAny();
+                .filter(s -> s < pixelShiftRange.minPixelShift())
+                .findAny();
         if (outOfRange.isPresent()) {
             missingShifts.add(pixelShiftRange.minPixelShift());
         }
@@ -803,12 +805,12 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
         LOGGER.warn(message("restarting.process.missing.shifts"), missingShifts.stream().map(d -> String.format("%.2f", d)).toList());
         // restart processing to include missing images
         var tmpParams = params.withRequestedImages(
-            new RequestedImages(Set.of(GeneratedImageKind.GEOMETRY_CORRECTED),
-                Stream.concat(params.requestedImages().pixelShifts().stream(), missingShifts.stream()).toList(),
-                missingShifts,
-                Set.of(),
-                ImageMathParams.NONE,
-                false)
+                new RequestedImages(Set.of(GeneratedImageKind.GEOMETRY_CORRECTED),
+                        Stream.concat(params.requestedImages().pixelShifts().stream(), missingShifts.stream()).toList(),
+                        missingShifts,
+                        Set.of(),
+                        ImageMathParams.NONE,
+                        false)
         ).withExtraParams(params.extraParams().withAutosave(false));
         var solexVideoProcessor = new SolexVideoProcessor(serFile, outputDirectory, 0, tmpParams, LocalDateTime.now(), false, Configuration.getInstance().getMemoryRestrictionMultiplier());
         solexVideoProcessor.addEventListener(new ProcessingEventListener() {
@@ -831,8 +833,8 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
 
     private Set<Double> determineShiftsRequiredInScript(String script) {
         var collectingExecutor = new DefaultImageScriptExecutor(
-            ShiftCollectingImageExpressionEvaluator.zeroImages(),
-            scriptExecutionContext
+                ShiftCollectingImageExpressionEvaluator.zeroImages(),
+                scriptExecutionContext
         );
         var shiftCollectionResult = collectingExecutor.execute(script, SectionKind.SINGLE);
         Set<Double> allShifts = new TreeSet<>();
@@ -874,11 +876,11 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
 
     private FileNamingStrategy createNamingStrategy() {
         return new FileNamingStrategy(
-            params.extraParams().fileNamePattern(),
-            params.extraParams().datetimeFormat(),
-            params.extraParams().dateFormat(),
-            processingDate,
-            header
+                params.extraParams().fileNamePattern(),
+                params.extraParams().datetimeFormat(),
+                params.extraParams().dateFormat(),
+                processingDate,
+                header
         );
     }
 
@@ -907,7 +909,7 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
             var binning = params.observationDetails().binning();
             var pixelSize = params.observationDetails().pixelSize();
             var canDrawReference = binning != null && pixelSize != null && lambda0.nanos() > 0 && pixelSize > 0 && binning > 0;
-            registerSaveChartAction("profile", lineChart);
+            registerSaveChartAction("profile", lineChart, profileGraphFactory);
             series.setName(formatLegend(params.observationDetails().instrument(), lambda0, binning, pixelSize));
             var dispersion = canDrawReference ? SpectrumAnalyzer.computeSpectralDispersion(params.observationDetails().instrument(), lambda0, pixelSize * binning) : null;
             var range = PixelShiftRange.computePixelShiftRange(start, end, height, polynomial);
@@ -977,9 +979,9 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
             menu.getItems().add(process);
             process.setOnAction(evt -> Thread.startVirtualThread(() -> {
                 var newParams = params.withSpectrumParams(
-                    params.spectrumParams().withPixelShift(dataPoint.pixelShift())
+                        params.spectrumParams().withPixelShift(dataPoint.pixelShift())
                 ).withRequestedImages(
-                    params.requestedImages().withPixelShifts(List.of(dataPoint.pixelShift()))
+                        params.requestedImages().withPixelShifts(List.of(dataPoint.pixelShift()))
                 );
                 var solexVideoProcessor = new SolexVideoProcessor(serFile, outputDirectory, 0, newParams, LocalDateTime.now(), false, Configuration.getInstance().getMemoryRestrictionMultiplier());
                 solexVideoProcessor.addEventListener(this);
@@ -1001,7 +1003,7 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
         });
     }
 
-    private void registerSaveChartAction(String name, XYChart<?, ?> chart) {
+    private <T extends XYChart<?, ?>> void registerSaveChartAction(String name, T chart, Supplier<T> chartFactory) {
         var menu = new ContextMenu();
         var saveToFile = new MenuItem(message("save.to.file"));
         saveToFile.setOnAction(evt -> {
@@ -1042,7 +1044,7 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
             newWindow.setTitle(message(message("profile")));
 
             var pane = new BorderPane();
-            pane.setCenter(profileGraphFactory.get());
+            pane.setCenter(chartFactory.get());
 
             var scene = new Scene(pane, 800, 600);
             newWindow.setScene(scene);
@@ -1080,8 +1082,8 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
     private static List<SpectrumAnalyzer.DataPoint> normalizeDatapoints(List<SpectrumAnalyzer.DataPoint> dataPoints) {
         var maxRef = dataPoints.stream().mapToDouble(SpectrumAnalyzer.DataPoint::intensity).max().orElse(0);
         return dataPoints.stream()
-            .map(dataPoint -> new SpectrumAnalyzer.DataPoint(dataPoint.wavelen(), dataPoint.pixelShift(), 100 * dataPoint.intensity() / maxRef))
-            .toList();
+                .map(dataPoint -> new SpectrumAnalyzer.DataPoint(dataPoint.wavelen(), dataPoint.pixelShift(), 100 * dataPoint.intensity() / maxRef))
+                .toList();
     }
 
     private record CachedHistogram(Histogram histogram, String color) {
