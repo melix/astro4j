@@ -9,6 +9,8 @@
 - Improve reliability of the `CONTINUUM` function and as a result of the Helium line extraction
 - Added `WAVELEN` function which returns the wavelength of an image, based on its pixel shift, dispersion and reference wavelength
 - Fixed bug where the detected ellipse wasn't reused when computing images at different shifts, which could cause disks or images of different sizes
+- Fixed histogram not opening correctly in a new window
+
 ## What's New in Version 2.11.2
 
 - Made SER file pixel depth detection more robust
