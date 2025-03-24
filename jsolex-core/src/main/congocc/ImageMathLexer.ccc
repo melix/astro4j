@@ -1,0 +1,87 @@
+DEFAULT_LEXICAL_STATE=IMAGEMATH;
+
+UNPARSED #Comment :
+  < MULTI_LINE_COMMENT : "/*" (~["*"])* "*" (~["*","/"] (~["*"])* "*" | "*")* "/">
+  |
+  < SINGLE_LINE_COMMENT : ("//" | "#") (~["\n"])* >
+;
+
+SKIP :
+   <WHITESPACE : ([" ", "\t", "\r", "\n"])+ > #Whitespace
+;
+
+TOKEN :
+  < INTEGER_LITERAL:["0"-"9"]((["0"-"9","_"])*["0"-"9"])? >
+  |
+  < FLOATING_POINT_LITERAL:
+        (<INTEGER_LITERAL> "." (<INTEGER_LITERAL>)?) | ("." <INTEGER_LITERAL>) >
+;
+
+TOKEN :
+  <SINGLE_QUOTE_STRING:
+      "'"
+      (
+          ~["'","\\"]
+          |
+          "\\\\"
+          |
+          "\\'"
+      )*
+       "'"
+  >
+  |
+  <DOUBLE_QUOTE_STRING:
+      '"'
+      (   (~['"',"\\"])
+          |
+          '\\"'
+          |
+          '\\\\'
+      )*
+      '"'
+  >
+  |
+  <MULTILINE_STRING:
+      '"""'
+      (~['\\'])*
+      '"""'
+  >
+;
+
+TOKEN #Operator :
+   <MUL : "*">
+   | <PLUS : "+">
+   | <MINUS : "-">
+   | <DIV : "/">
+   | <ASSIGNMENT : "=">
+;
+
+TOKEN #Delimiter :
+   <LBRACKET : "[">
+   |
+   <RBRACKET : "]">
+   |
+   <LPAREN : "(">
+   |
+   <RPAREN : ")">
+   |
+   <LBRACE : "{">
+   |
+   <RBRACE : "}">
+   |
+   <COMMA : ",">
+   |
+   <SEMICOLON : ";">
+   |
+    <COLON : ":">
+;
+
+TOKEN #Identifier:
+   <IDENTIFIER : ["a"-"z","A"-"Z","\u0080"-"\u00FF", "_"] (["a"-"z","A"-"Z","\u0080"-"\u00FF","0"-"9", "_"])*>
+;
+
+TOKEN #Keyword:
+    <FUNCTION: "fun">
+    |
+    <INCLUDE: "include">
+;

@@ -433,6 +433,103 @@ Fonctions diverses :
 - `sort` permet de trier une liste d'images. Elle accepte une liste d'images en premier argument et un critère de tri en second argument. Par exemple : `sort(images, "date")`. Le critère par défaut est `shift` pour le décalage en pixels.
 - `video_datetime` retourne la date et l'heure formatée d'une image. Elle accepte un ou deux paramètres : l'image et un format optionnel. Par exemple : `video_datetime(img(0))` ou `video_datetime(img(0), "yyyy-MM-dd HH:mm:ss")`
 
+[[custom-functions]]
+=== Fonctions personnalisées
+
+En plus des fonctions fournies par JSol'Ex, il est possible de définir vos propres fonctions, qui combinent des fonctions existantes.
+Par exemple, disons que vous souhaitiez dessiner le globe, les détails techniques et les paramètres solaires sur plus d'une image.
+Votre script pourrait ressembler à ceci :
+
+[source]
+----
+image1=draw_obs_details(draw_solar_params(draw_globe(img(0))))
+image2=draw_obs_details(draw_solar_params(draw_globe(auto_contrast(img(0);1.5))))
+----
+
+Au lieu de répéter les mêmes appels de fonction sur plusieurs images, nous pouvons déclarer une fonction :
+
+[source]
+----
+[fun:decorate img]                                              <1>
+   result=draw_obs_details(draw_solar_params(draw_globe(img)))  <2>
+
+[outputs]
+image1=decorate(img(0))                                         <3>
+image2=decorate(auto_contrast(img(0);1.5))                      <4>
+----
+<1> La déclaration de la fonction. Le nom de la fonction est `decorate`, et elle prend un seul argument, `img`.
+<2> La fonction doit se terminer par une affectation à la variable `result`.
+<3> La fonction est ensuite appelée avec l'image `img(0)`.
+<4> La fonction peut également être appelée avec l'image `auto_contrast(img(0);1.5)`.
+
+Les fonctions **doivent** être déclarées au début du script.
+Elles peuvent prendre n'importe quel nombre d'arguments, mais elles doivent toujours retourner une valeur dans la variable `result`.
+Si vous déclarez une fonction, vous **devez** avoir une section qui sépare les déclarations de fonctions de votre script principal (pour la section `[outputs]`).
+
+Une fonction peut avoir des expressions intermédiaires et peut appeler d'autres fonctions.
+Par exemple, créons une fonction qui affichera notre image avec un titre :
+
+[source]
+----
+[fun:titled img title]                                          <1>
+   decorated=decorate(img)                                      <2>
+   result=draw_text(decorated, 10, 10, title)
+
+[fun:decorate img]
+   result=draw_obs_details(draw_solar_params(draw_globe(img)))
+
+[outputs]
+image1=titled(img(0))                                         <3>
+image2=titled(auto_contrast(img(0);1.5))                      <4>
+----
+<1> La déclaration de la fonction `titled`. Elle prend 2 arguments : `img` et `title`.
+<2> La fonction `titled` appelle la fonction `decorate`, puis ajoute un titre à l'image.
+<3> La fonction `titled` est ensuite appelée avec l'image `img(0)`.
+<4> La fonction `titled` peut également être appelée avec l'image `auto_contrast(img(0);1.5)`.
+
+[NOTE]
+.Passer une liste à une fonction
+====
+Le premier argument d'une fonction est toujours traité différemment.
+Si une liste est utilisée, alors la fonction sera appelée pour chaque élément de la liste, puis les résultats seront collectés dans une liste.
+Par exemple, si nous appelons la fonction `decorate` ci-dessus avec une liste d'images, alors le résultat sera une liste d'images décorées.
+Si la fonction prend plus d'un argument, seul le premier argument se comporte de cette manière.
+====
+
+[[includes]]
+=== Inclure d'autres scripts
+
+Il est possible d'inclure d'autres scripts dans votre script.
+Cela peut être utile si vous avez un ensemble de fonctions que vous souhaitez réutiliser dans plusieurs scripts.
+Par exemple, nous pourrions extraire les définitions de fonctions de l'exemple précédent et les mettre dans un fichier séparé, `functions.math` :
+
+[source]
+.functions.math
+----
+[fun:decorate img]
+   result=draw_obs_details(draw_solar_params(draw_globe(img)))
+[fun:titled img title]
+   decorated=decorate(img)
+   result=draw_text(decorated, 10, 10, title)
+----
+
+Ensuite, il peut être inclus dans un autre script :
+
+[source]
+.myscript.math
+----
+[include "functions"]
+
+[outputs]
+image1=titled(img(0), "Ma première image")
+image2=titled(auto_contrast(img(0);1.5), "Ma deuxième image")
+----
+
+[CAUTION]
+====
+Les inclusions sont résolues par rapport au script qui les inclut.
+====
+
 === Scripts ImageMath
 
 Dans la section précédente, nous avons vu les "briques élémentaires" d'ImageMath, qui permettent de calculer des images.

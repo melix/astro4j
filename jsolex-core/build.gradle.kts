@@ -2,6 +2,7 @@ import me.champeau.astro4j.SpectrumFileConverter
 
 plugins {
     id("me.champeau.astro4j.library")
+    id("me.champeau.astro4j.congocc")
 }
 
 description = "Shared library for spectroheliographic video file processing"
@@ -42,6 +43,12 @@ tasks.withType<Javadoc>().configureEach {
     }
 }
 
+tasks {
+    generateParser {
+        grammarFile = "ImageMath.ccc"
+    }
+}
+
 val converter = tasks.register<SpectrumFileConverter>("convertSpectrumFile") {
     inputFile = file("src/bass2000/atlasvi.dat")
     outputFile = layout.buildDirectory.file("atlas/atlasvi.txt")
@@ -52,5 +59,11 @@ sourceSets {
         resources {
             srcDir(converter.map { it.outputFile.get().asFile.parentFile })
         }
+    }
+}
+
+spotless {
+    java {
+        targetExclude(fileTree("build/generated-sources"))
     }
 }

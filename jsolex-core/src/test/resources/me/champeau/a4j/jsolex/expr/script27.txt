@@ -1,0 +1,4 @@
+message="""This is a multiline message
+with a single quote: '
+and a double quote: "
+"""

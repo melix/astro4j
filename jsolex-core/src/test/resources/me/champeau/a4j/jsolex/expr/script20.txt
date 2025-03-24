@@ -1,0 +1,6 @@
+foo(
+    arg: 123
+)
+bar
+    (arg: 456, arg2:
+        baz())

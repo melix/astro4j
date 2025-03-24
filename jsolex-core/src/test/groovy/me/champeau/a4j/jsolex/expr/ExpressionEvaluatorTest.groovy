@@ -15,6 +15,7 @@
  */
 package me.champeau.a4j.jsolex.expr
 
+import me.champeau.a4j.jsolex.processing.expr.ImageMathScriptExecutor
 import spock.lang.Specification
 import spock.lang.Subject
 
@@ -27,29 +28,42 @@ class ExpressionEvaluatorTest extends Specification {
         evaluator = new SimpleMathEvaluator()
 
         expect:
-        evaluator.evaluate(expression) == result
+        eval(expression) == result
 
         where:
-        expression   | result
-        '1+1'        | 2.0
-        '2*3'        | 6.0
-        '8/2'        | 4.0
-        '1+2*5'      | 11.0
-        '(1-2)*5'    | -5.0
-        'max(1,3)*5' | 15.0
-        'min(1,3)*5' | 5.0
-        'avg(8,2)'   | 5.0
-        'pi/2'       | Math.PI / 2
+        expression    | result
+        '1+1'         | 2.0
+        '1+1+1'       | 3.0
+        '1+1+1+2'     | 5.0
+        '1-1'         | 0.0
+        '2*3'         | 6.0
+        '1+2*3'       | 7.0
+        '(1+2)*3'     | 9.0
+        '1+(2*3)'     | 7.0
+        '2*3+1'       | 7.0
+        '8/2'         | 4.0
+        '1+2*5'       | 11.0
+        '(1-2)*5'     | -5.0
+        '1+1+2*2'     | 6.0
+        '1+3*(1+2*2)' | 16.0
+        '2*3*4'       | 24.0
+        'max(1,3)*5'  | 15.0
+        'min(1,3)*5'  | 5.0
+        'avg(8,2)'    | 5.0
+        '+2'          | 2.0
+        '-2'          | -2.0
+        '-(2*3)'      | -6.0
+        'pi/2'        | Math.PI / 2
     }
 
     def "can evaluate math expressions with variables"() {
         given:
         evaluator = new SimpleMathEvaluator()
-        evaluator.putVariable('x', '5')
-        evaluator.putVariable('y', '6')
+        evaluator.putVariable('x', 5)
+        evaluator.putVariable('y', 6)
 
         expect:
-        evaluator.evaluate(expression) == result
+        eval(expression) == result
 
         where:
         expression | result
@@ -58,39 +72,12 @@ class ExpressionEvaluatorTest extends Specification {
         'x*x'      | 25.0
     }
 
-    def "variables can be other expressions"() {
-        given:
-        evaluator = new SimpleMathEvaluator()
-        evaluator.putVariable('x', '5')
-        evaluator.putVariable('y', 'x+2')
-
-        expect:
-        evaluator.evaluate(expression) == result
-
-        where:
-        expression | result
-        'y'        | 7.0
-        'x*y'      | 35.0
-    }
-
-    def "variables cannot reference themselves"() {
-        given:
-        evaluator = new SimpleMathEvaluator()
-        evaluator.putVariable('y', 'y+2')
-
-        when:
-        evaluator.evaluate('y')
-
-        then:
-        StackOverflowError ex = thrown()
-    }
-
     def "handles undefined variables"() {
         given:
         evaluator = new SimpleMathEvaluator()
 
         when:
-        evaluator.evaluate('unknown')
+        eval('unknown')
 
         then:
         IllegalStateException ex = thrown()
@@ -135,5 +122,10 @@ class ExpressionEvaluatorTest extends Specification {
                 case BuiltinFunction.AVG -> arguments.average()
             }
         }
+    }
+
+    private Object eval(String expr) {
+        var parser = new ImageMathParser(expr)
+        evaluator.evaluate(parser.parseAndInlineIncludes().findSections(ImageMathScriptExecutor.SectionKind.ALL).getFirst().children().getFirst())
     }
 }

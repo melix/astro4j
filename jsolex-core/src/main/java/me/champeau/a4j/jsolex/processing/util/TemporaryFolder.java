@@ -68,7 +68,9 @@ public class TemporaryFolder {
     }
 
     public static Path newTempFile(String prefix, String suffix) throws IOException {
-        Files.createDirectories(TEMP_DIR);
+        if (!Files.isDirectory(TEMP_DIR)) {
+            Files.createDirectories(TEMP_DIR);
+        }
         var tempFile = Files.createTempFile(TEMP_DIR, prefix, suffix);
         tempFile.toFile().deleteOnExit();
         return tempFile;

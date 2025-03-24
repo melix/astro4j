@@ -20,6 +20,7 @@ import javafx.animation.KeyFrame;
 import javafx.animation.PauseTransition;
 import javafx.animation.Timeline;
 import javafx.application.Application;
+import javafx.application.HostServices;
 import javafx.application.Platform;
 import javafx.beans.binding.Bindings;
 import javafx.beans.binding.BooleanBinding;
@@ -161,6 +162,7 @@ import java.util.Optional;
 import java.util.Scanner;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
@@ -172,7 +174,10 @@ import static me.champeau.a4j.jsolex.app.jfx.SerFileTrimmerController.toTrimmedF
 import static me.champeau.a4j.jsolex.processing.sun.CaptureSoftwareMetadataHelper.findMetadataFile;
 import static me.champeau.a4j.jsolex.processing.util.LoggingSupport.logError;
 
-public class JSolEx extends Application implements JSolExInterface {
+public class JSolEx implements JSolExInterface {
+    static {
+        System.setProperty("java.util.concurrent.ForkJoinPool.common.exceptionHandler", LoggingSupport.class.getName());
+    }
     private static final Logger LOGGER = LoggerFactory.getLogger(JSolEx.class);
     private static final String LOG_EXTENSION = ".log";
     private static final FileChooser.ExtensionFilter LOG_FILE_EXTENSION_FILTER = new FileChooser.ExtensionFilter("Log files (*" + LOG_EXTENSION + ")", "*" + LOG_EXTENSION);
@@ -295,6 +300,7 @@ public class JSolEx extends Application implements JSolExInterface {
     private Button interruptClearParamsButton;
     private final BooleanBinding reusedProcessParamsBinding = Bindings.createBooleanBinding(() -> reusedProcessParams == null);
     private TrimmingParameters trimmingParameters;
+    private HostServices hostServices;
 
     @Override
     public MultipleImagesViewer getImagesViewer() {
@@ -326,7 +332,6 @@ public class JSolEx extends Application implements JSolExInterface {
         return rootStage;
     }
 
-    @Override
     public void start(Stage stage) throws Exception {
         this.rootStage = stage;
         var fxmlLoader = I18N.fxmlLoader(getClass(), "app");
@@ -636,18 +641,27 @@ public class JSolEx extends Application implements JSolExInterface {
     }
 
     public void hideProgress() {
-        progressBar.setProgress(0);
-        progressLabel.setText("");
-        progressBar.setVisible(false);
+        Platform.runLater(() -> {
+            progressBar.setProgress(0);
+            progressLabel.setText("");
+            progressBar.setVisible(false);
+        });
     }
 
     public void showProgress() {
-        progressBar.setVisible(true);
+        Platform.runLater(() -> progressBar.setVisible(true));
     }
 
     public void updateProgress(double progress, String message) {
-        progressBar.setProgress(progress);
-        progressLabel.setText(message);
+        Platform.runLater(() -> {
+            if (progress == 1) {
+                progressBar.setVisible(false);
+            } else {
+                progressBar.setVisible(true);
+                progressBar.setProgress(progress);
+                progressLabel.setText(message);
+            }
+        });
     }
 
     @Override
@@ -658,6 +672,7 @@ public class JSolEx extends Application implements JSolExInterface {
             if (clearImagesCheckbox.isSelected()) {
                 Platform.runLater(this::newSession);
             }
+            config.findLastOpenDirectory(Configuration.DirectoryKind.IMAGE_MATH).ifPresent(executor::setIncludesDir);
             BackgroundOperations.async(() -> executor.execute(text, ImageMathScriptExecutor.SectionKind.SINGLE));
         });
         imageMathSave.setDisable(true);
@@ -684,6 +699,7 @@ public class JSolEx extends Application implements JSolExInterface {
                 }
                 try {
                     FilesUtils.writeString(imageMathScript.getText(), file.toPath());
+                    imageMathScript.setIncludesDir(file.getParentFile().toPath());
                     imageMathSave.setDisable(true);
                     config.rememberDirectoryFor(file.toPath(), Configuration.DirectoryKind.IMAGE_MATH);
                 } catch (IOException e) {
@@ -702,6 +718,7 @@ public class JSolEx extends Application implements JSolExInterface {
             config.rememberDirectoryFor(file.toPath(), Configuration.DirectoryKind.IMAGE_MATH);
             var script = String.join(System.lineSeparator(), FilesUtils.readAllLines(file.toPath()));
             Platform.runLater(() -> {
+                imageMathScript.setIncludesDir(file.getParentFile().toPath());
                 imageMathScript.setText(script);
                 imageMathSave.setDisable(true);
             });
@@ -1447,6 +1464,7 @@ public class JSolEx extends Application implements JSolExInterface {
     }
 
     private void processSingleFile(ProcessParams params, File selectedFile, boolean batchMode, int sequenceNumber, Object context, Header header, Runnable onComplete) {
+        Thread.currentThread().setUncaughtExceptionHandler((t, e) -> LoggingSupport.logError(e));
         lastExecutionProcessParams = params;
         LogbackConfigurer.recordThreadOwner(Thread.currentThread().getName(), sequenceNumber);
         var processingDate = context instanceof BatchProcessingContext batch ? batch.processingDate() : LocalDateTime.now();
@@ -1468,7 +1486,7 @@ public class JSolEx extends Application implements JSolExInterface {
         try {
             LOGGER.info("File {}", selectedFile.getName());
             processor.process();
-        } catch (Exception ex) {
+        } catch (Throwable ex) {
             LoggingSupport.logError(ex);
         } finally {
             onComplete.run();
@@ -1622,8 +1640,27 @@ public class JSolEx extends Application implements JSolExInterface {
         return message;
     }
 
+    public void setHostServices(HostServices hostServices) {
+        this.hostServices = hostServices;
+    }
+
+    @Override
+    public HostServices getHostServices() {
+        return hostServices;
+    }
+
+    public static class Launcher extends Application {
+
+        @Override
+        public void start(Stage stage) throws Exception {
+            var jsolex = new JSolEx();
+            jsolex.setHostServices(getHostServices());
+            jsolex.start(stage);
+        }
+    }
+
     public static void main(String[] args) {
-        launch();
+        Application.launch(Launcher.class, args);
     }
 
     private static class ProgressCellFactory implements Callback<TableColumn<BatchItem, Number>, TableCell<BatchItem, Number>> {

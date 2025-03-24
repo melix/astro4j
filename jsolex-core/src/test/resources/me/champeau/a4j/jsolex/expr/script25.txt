@@ -1,0 +1,6 @@
+[fun:custom img txt]
+decon=rl_decon(img)
+result=draw_text(decon, 10, 10, txt)
+
+[tmp]
+custom(img(0))

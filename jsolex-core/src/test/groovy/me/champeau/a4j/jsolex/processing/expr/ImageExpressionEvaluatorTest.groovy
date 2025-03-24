@@ -15,7 +15,7 @@
  */
 package me.champeau.a4j.jsolex.processing.expr
 
-
+import me.champeau.a4j.jsolex.expr.ImageMathParser
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32
 import me.champeau.a4j.math.regression.Ellipse
 import me.champeau.a4j.math.tuples.DoubleSextuplet
@@ -34,51 +34,51 @@ class ImageExpressionEvaluatorTest extends Specification {
         evaluator = new ShiftCollectingImageExpressionEvaluator(images::get)
 
         when:
-        evaluator.evaluate("img(0)")
+        eval("img(0)")
 
         then:
         evaluator.shifts ==~ [0d]
 
         when:
         evaluator.clearShifts()
-        evaluator.evaluate("(img(1) + img(-1))/2")
+        eval("(img(1) + img(-1))/2")
 
         then:
         evaluator.shifts ==~ [1d, -1d]
 
         when:
         evaluator.clearShifts()
-        evaluator.putVariable("a", "5")
-        evaluator.putVariable("b", "6")
-        evaluator.evaluate("max(img(a), img(b))")
+        evaluator.putVariable("a", 5)
+        evaluator.putVariable("b", 6)
+        eval("max(img(a), img(b))")
 
         then:
         evaluator.shifts ==~ [5d, 6d]
 
         when:
         evaluator.clearShifts()
-        evaluator.evaluate("range(-5, 5)")
+        eval("range(-5, 5)")
 
         then:
         evaluator.shifts ==~ [-5d, -4d, -3d, -2d, -1d, 0d, 1d, 2d, 3d, 4d, 5d]
 
         when:
         evaluator.clearShifts()
-        evaluator.evaluate("range(-6,6,3)")
+        eval("range(-6,6,3)")
 
         then:
         evaluator.shifts ==~ [-6d, -3d, 0d, 3d, 6d]
 
         when:
         evaluator.clearShifts()
-        evaluator.evaluate("range(-2,0) + range(0,2)")
+        eval("range(-2,0) + range(0,2)")
 
         then:
         evaluator.shifts ==~ [-2d, -1d, 0d, 1d, 2d]
 
         when:
         evaluator.clearShifts()
-        def list = evaluator.evaluate("range(-2,0) - range(0,2)")
+        def list = eval("range(-2,0) - range(0,2)")
 
         then:
         evaluator.shifts ==~ [-2d, -1d, 0d, 1d, 2d]
@@ -86,7 +86,7 @@ class ImageExpressionEvaluatorTest extends Specification {
 
         when:
         evaluator.clearShifts()
-        evaluator.evaluate("range(-1,1;.5)")
+        eval("range(-1,1;.5)")
 
         then:
         evaluator.shifts ==~ [-1d, -0.5d, 0d, 0.5d, 1d]
@@ -96,9 +96,8 @@ class ImageExpressionEvaluatorTest extends Specification {
         given:
         evaluator = new ShiftCollectingImageExpressionEvaluator(images::get)
         evaluator.putInContext(Ellipse, DUMMY_ELLIPSE)
-
         when:
-        var result = evaluator.evaluate("$function($parameters)")
+        var result = eval("$function($parameters)")
         resultType.isAssignableFrom(result.class)
 
         then:
@@ -121,5 +120,10 @@ class ImageExpressionEvaluatorTest extends Specification {
         "CLAHE"           | "range(0,1), 128, 512, 1.2" | List
         "ADJUST_CONTRAST" | "range(0,1), 0, 255"        | List
         "autocrop"        | "range(0,1)"                | List
+    }
+
+    private Object eval(String expr) {
+        var parser = new ImageMathParser(expr)
+        evaluator.evaluate(parser.parseAndInlineIncludes().findSections(ImageMathScriptExecutor.SectionKind.ALL).getFirst().children().getFirst())
     }
 }

@@ -141,7 +141,9 @@ public class ImageUtils {
 
     private static void createDirectoryFor(File outputFile) throws IOException {
         var path = outputFile.getParentFile().toPath();
-        Files.createDirectories(path);
+        if (!Files.isDirectory(path)) {
+            Files.createDirectories(path);
+        }
     }
 
     public static List<File> writeRgbImage(

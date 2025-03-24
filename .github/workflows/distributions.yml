@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - main
+      - cc/parser
     tags:
       - '*'
   workflow_dispatch:

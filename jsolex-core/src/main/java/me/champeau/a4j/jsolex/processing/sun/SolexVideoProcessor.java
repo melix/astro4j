@@ -38,6 +38,8 @@ import me.champeau.a4j.jsolex.processing.event.VideoMetadataEvent;
 import me.champeau.a4j.jsolex.processing.expr.DefaultImageScriptExecutor;
 import me.champeau.a4j.jsolex.processing.expr.ImageMathScriptExecutor;
 import me.champeau.a4j.jsolex.processing.expr.InvalidExpression;
+import me.champeau.a4j.jsolex.processing.expr.ShiftCollectingImageExpressionEvaluator;
+import me.champeau.a4j.jsolex.processing.expr.impl.GeometryCorrection;
 import me.champeau.a4j.jsolex.processing.expr.impl.ImageDraw;
 import me.champeau.a4j.jsolex.processing.file.FileNamingStrategy;
 import me.champeau.a4j.jsolex.processing.params.EnhancementParams;
@@ -99,16 +101,8 @@ import java.nio.ByteBuffer;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.Comparator;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Locale;
-import java.util.Map;
-import java.util.Optional;
-import java.util.Set;
+import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -363,6 +357,7 @@ public class SolexVideoProcessor implements Broadcaster {
             var canGenerateHeliumD3Images = isSodiumOrFe1() && heliumLineVisible(pixelShiftRange, heliumLineShift) && processParams.requestedImages().isEnabled(GeneratedImageKind.GEOMETRY_CORRECTED_PROCESSED);
             addPixelShiftsForRequestedByWavelength(width, newHeight, imageList);
             addPixelShiftsForAutoContinnum(canGenerateHeliumD3Images, width, newHeight, imageList, heliumLineShift);
+            addPixelShiftsDynamicallyRequiredByScripts(converter, header, fps, serFile, imageList, end, width, newHeight, geometry, height, polynomial, imageNamingStrategy, baseName);
             broadcast(new AverageImageComputedEvent(new AverageImageComputedEvent.AverageImage(avgImage, polynomial, analysis.leftBorder().orElse(0), analysis.rightBorder().orElse(width), processParams)));
             LOGGER.info(message("starting.reconstruction"));
             LOGGER.info(message("distortion.polynomial"), polynomial);
@@ -522,6 +517,39 @@ public class SolexVideoProcessor implements Broadcaster {
                 pixelShiftRange,
                 activeRegions == null ? 0 : activeRegions.regionList().size()
         ));
+    }
+
+    private void addPixelShiftsDynamicallyRequiredByScripts(ImageConverter<float[][]> converter, Header header, Double fps, File serFile, List<WorkflowState> imageList, int end, int width, int newHeight, ImageGeometry geometry, int height, DoubleUnaryOperator polynomial, FileNamingStrategy imageNamingStrategy, String baseName) {
+        List<File> scripts = processParams.requestedImages().mathImages().scriptFiles();
+        if (!scripts.isEmpty()) {
+            // add missing shifts
+            Map<Double, ImageWrapper> imageCache = new ConcurrentHashMap<>();
+            for (var state : imageList) {
+                state.findResult(WorkflowResults.GEOMETRY_CORRECTION).ifPresent(result -> imageCache.put(state.pixelShift(), ((GeometryCorrector.Result) result).corrected()));
+            }
+            var collectingExecutor = new DefaultImageScriptExecutor(
+                    imageCache::get,
+                    new HashMap<>(createMetadata(processParams, serFile.toPath(), pixelShiftRange, header))
+            );
+            var missingShifts = new TreeSet<Double>();
+            for (File scriptFile : scripts) {
+                try {
+                    var shiftCollectionResult = collectingExecutor.execute(scriptFile.toPath(), ImageMathScriptExecutor.SectionKind.SINGLE);
+                    missingShifts.addAll(shiftCollectionResult.outputShifts());
+                    missingShifts.addAll(shiftCollectionResult.internalShifts());
+                } catch (IOException e) {
+                    // ignore
+                }
+            }
+            imageList.stream().map(WorkflowState::pixelShift).toList().forEach(missingShifts::remove);
+            if (!missingShifts.isEmpty()) {
+                imageList.addAll(missingShifts.stream().map(s -> {
+                    var state = new WorkflowState(width, newHeight, s);
+                    state.setInternal(true);
+                    return state;
+                }).toList());
+            }
+        }
     }
 
     private ProcessAwareImageEmitterFactory createImageEmitterFactory(List<WorkflowState> imageList, FileNamingStrategy imageNamingStrategy, String baseName) {
@@ -825,8 +853,9 @@ public class SolexVideoProcessor implements Broadcaster {
             ImageStats imageStats = null;
             for (WorkflowState workflowState : imageList) {
                 var result = workflowState.findResult(WorkflowResults.GEOMETRY_CORRECTION);
+                double pixelShift = workflowState.pixelShift();
                 if (result.isPresent() && result.get() instanceof GeometryCorrector.Result geo) {
-                    images.put(workflowState.pixelShift(), geo.corrected());
+                    images.put(pixelShift, geo.corrected());
                     if (ellipse == null) {
                         ellipse = geo.correctedCircle();
                     }
@@ -835,7 +864,12 @@ public class SolexVideoProcessor implements Broadcaster {
                     }
                 } else {
                     Map<Class<?>, Object> metadata = ellipse != null ? MutableMap.of(Ellipse.class, ellipse) : MutableMap.of();
-                    images.put(workflowState.pixelShift(), new ImageWrapper32(workflowState.width(), workflowState.height(), workflowState.reconstructed().data(), metadata).wrap());
+                    var wrapper = new ImageWrapper32(workflowState.width(), workflowState.height(), workflowState.reconstructed().data(), metadata);
+                    images.put(pixelShift, wrapper.wrap());
+                    var rounded = Math.round(100d * pixelShift) / 100d;
+                    if (!images.containsKey(rounded)) {
+                        images.put(rounded, wrapper);
+                    }
                 }
             }
             var emitter = createCustomImageEmitter(imageNamingStrategy, baseName);
