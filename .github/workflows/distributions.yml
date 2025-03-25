@@ -4,7 +4,7 @@ on:
   push:
     branches:
       - main
-      - cc/parser
+      - v3-dev
     tags:
       - '*'
   workflow_dispatch:
