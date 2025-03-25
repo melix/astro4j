@@ -82,9 +82,9 @@ public class Stacking extends AbstractFunctionImpl {
      * Stacks a list of images, using a given tile size and sampling ratio.
      * The reference image is selected based on the given reference selection.
      *
-     * @param images the list of images to stack
-     * @param tileSize the size of the tiles to use
-     * @param sampling the sampling ratio
+     * @param images             the list of images to stack
+     * @param tileSize           the size of the tiles to use
+     * @param sampling           the sampling ratio
      * @param referenceSelection the reference selection
      * @return the stacked image
      */
@@ -98,7 +98,7 @@ public class Stacking extends AbstractFunctionImpl {
     /**
      * Chooses or generates a reference image from a list of images, based on the given reference selection.
      *
-     * @param images the list of images
+     * @param images             the list of images
      * @param referenceSelection the reference selection
      * @return the reference image
      */
@@ -117,17 +117,17 @@ public class Stacking extends AbstractFunctionImpl {
                 return list.get(0);
             }
             var images = list.stream()
-                .parallel()
-                .filter(ImageWrapper.class::isInstance)
-                .map(img -> {
-                    if (img instanceof FileBackedImage fbi) {
-                        return fbi.unwrapToMemory();
-                    }
-                    return img;
-                })
-                .filter(ImageWrapper32.class::isInstance)
-                .map(ImageWrapper32.class::cast)
-                .toList();
+                    .parallel()
+                    .filter(ImageWrapper.class::isInstance)
+                    .map(img -> {
+                        if (img instanceof FileBackedImage fbi) {
+                            return fbi.unwrapToMemory();
+                        }
+                        return img;
+                    })
+                    .filter(ImageWrapper32.class::isInstance)
+                    .map(ImageWrapper32.class::cast)
+                    .toList();
             if (images.size() == 1) {
                 return images.get(0);
             } else if (images.isEmpty()) {
@@ -160,17 +160,17 @@ public class Stacking extends AbstractFunctionImpl {
                 return list.get(0);
             }
             var images = list.stream()
-                .parallel()
-                .filter(ImageWrapper.class::isInstance)
-                .map(img -> {
-                    if (img instanceof FileBackedImage fbi) {
-                        return fbi.unwrapToMemory();
-                    }
-                    return img;
-                })
-                .filter(ImageWrapper32.class::isInstance)
-                .map(ImageWrapper32.class::cast)
-                .toList();
+                    .parallel()
+                    .filter(ImageWrapper.class::isInstance)
+                    .map(img -> {
+                        if (img instanceof FileBackedImage fbi) {
+                            return fbi.unwrapToMemory();
+                        }
+                        return img;
+                    })
+                    .filter(ImageWrapper32.class::isInstance)
+                    .map(ImageWrapper32.class::cast)
+                    .toList();
             if (images.size() == 1) {
                 return images.get(0);
             }
@@ -228,32 +228,35 @@ public class Stacking extends AbstractFunctionImpl {
             distorsions[i] = new DistorsionMap(width, height, tileSize, increment);
         }
         AtomicInteger progressCounter = new AtomicInteger();
+        var metadata = MutableMap.<Class<?>, Object>of();
         var displacementResult = measure(() -> {
+            var progressOperation = newOperation().createChild(FIND_CORRESP_MESSAGE);
             IntStream.iterate(0, y -> y < height, y -> y + increment)
-                .parallel()
-                .forEach(y -> {
-                    for (int x = 0; x < width; x += increment) {
-                        findDisplacement(sourceImages, tileSize, x, width, y, height, referenceData, distorsions, signal);
-                    }
-                    var progress = progressCounter.addAndGet(increment) / (double) height;
-                    broadcaster.broadcast(ProgressEvent.of(progress, FIND_CORRESP_MESSAGE));
-                });
-            broadcaster.broadcast(ProgressEvent.of(1.0, FIND_CORRESP_MESSAGE));
+                    .parallel()
+                    .forEach(y -> {
+                        for (int x = 0; x < width; x += increment) {
+                            findDisplacement(sourceImages, tileSize, x, width, y, height, referenceData, distorsions, signal);
+                        }
+                        var progress = progressCounter.addAndGet(increment) / (double) height;
+                        broadcaster.broadcast(progressOperation.update(progress));
+                    });
+            broadcaster.broadcast(progressOperation.complete());
             return null;
         });
-        var metadata = MutableMap.<Class<?>, Object>of();
         for (ImageWrapper32 image : sourceImages) {
             metadata.putAll(image.metadata());
         }
+
         var interpolationResult = measure(() -> {
-            broadcaster.broadcast(ProgressEvent.of(0.0, message("interpolating.models")));
+            var progressOperation = newOperation().createChild(message("interpolating.models"));
+            broadcaster.broadcast(progressOperation);
             progressCounter.set(0);
             Arrays.stream(distorsions).parallel().forEach(distorsionMap -> {
                 var progress = progressCounter.getAndIncrement() / (double) imageCount;
-                broadcaster.broadcast(ProgressEvent.of(progress, message("interpolating.models")));
+                broadcaster.broadcast(progressOperation.update(progress));
                 distorsionMap.computeInterpolators();
             });
-            broadcaster.broadcast(ProgressEvent.of(1.0, message("interpolating.models")));
+            broadcaster.broadcast(progressOperation.complete());
             return null;
         });
         ProcessParams params = (ProcessParams) metadata.get(ProcessParams.class);
@@ -291,15 +294,16 @@ public class Stacking extends AbstractFunctionImpl {
                                    ReferenceSelection referenceSelection) {
         if (context.get(ImageEmitter.class) instanceof ImageEmitter imageEmitter) {
             var progress = new AtomicInteger(0);
+            var progressOperation = newOperation().createChild(message("Generating stacking debug images"));
             var creator = new DistorsionDebugImageCreator(imageEmitter, scaling, imageDraw);
             IntStream.range(0, images.size())
-                .parallel()
-                .forEach(i -> {
-                    creator.createDebugImage(referenceImage, stacked, distorsions[i], images.get(i), tileSize, increment, i, dedistorted[i], referenceSelection);
-                    var pg = (double) progress.incrementAndGet() / images.size();
-                    broadcaster.broadcast(ProgressEvent.of(pg, "Generating stacking debug images"));
-                });
-            broadcaster.broadcast(ProgressEvent.of(1.0, "Generating stacking debug images"));
+                    .parallel()
+                    .forEach(i -> {
+                        creator.createDebugImage(referenceImage, stacked, distorsions[i], images.get(i), tileSize, increment, i, dedistorted[i], referenceSelection);
+                        var pg = (double) progress.incrementAndGet() / images.size();
+                        broadcaster.broadcast(progressOperation.update(pg));
+                    });
+            broadcaster.broadcast(progressOperation.complete());
         }
     }
 
@@ -309,43 +313,45 @@ public class Stacking extends AbstractFunctionImpl {
                                                                  double[] weights) {
         return switch (referenceSelection) {
             case FIRST -> images.getFirst();
-            case AVERAGE -> (ImageWrapper32) simpleFunctionCall.applyFunction("average", (List) images, DoubleStream::average);
-            case MEDIAN -> (ImageWrapper32) simpleFunctionCall.applyFunction("median", (List) images, AbstractImageExpressionEvaluator::median);
+            case AVERAGE ->
+                    (ImageWrapper32) simpleFunctionCall.applyFunction("average", (List) images, DoubleStream::average);
+            case MEDIAN ->
+                    (ImageWrapper32) simpleFunctionCall.applyFunction("median", (List) images, AbstractImageExpressionEvaluator::median);
             case ECCENTRICITY -> images.stream()
-                .map(img -> {
-                    var ecc = img.findMetadata(Ellipse.class).map(Ellipse::eccentricity).orElse(.99d);
-                    return new Object() {
-                        private final double eccentricity = ecc;
-                        private final ImageWrapper32 image = img;
-                    };
-                })
-                .min(Comparator.comparingDouble(a -> a.eccentricity))
-                .map(o -> o.image)
-                .orElseThrow();
+                    .map(img -> {
+                        var ecc = img.findMetadata(Ellipse.class).map(Ellipse::eccentricity).orElse(.99d);
+                        return new Object() {
+                            private final double eccentricity = ecc;
+                            private final ImageWrapper32 image = img;
+                        };
+                    })
+                    .min(Comparator.comparingDouble(a -> a.eccentricity))
+                    .map(o -> o.image)
+                    .orElseThrow();
             case SHARPNESS -> IntStream.range(0, images.size())
-                .parallel()
-                .mapToObj(i -> {
-                    var img = images.get(i);
-                    var v = imageMath.estimateSharpness(img.asImage());
-                    weights[i] = v;
-                    return new Object() {
-                        private final double sharpness = v;
-                        private final ImageWrapper32 image = img;
-                    };
-                })
-                .max(Comparator.comparingDouble(a -> a.sharpness))
-                .map(o -> o.image)
-                .orElseThrow();
+                    .parallel()
+                    .mapToObj(i -> {
+                        var img = images.get(i);
+                        var v = imageMath.estimateSharpness(img.asImage());
+                        weights[i] = v;
+                        return new Object() {
+                            private final double sharpness = v;
+                            private final ImageWrapper32 image = img;
+                        };
+                    })
+                    .max(Comparator.comparingDouble(a -> a.sharpness))
+                    .map(o -> o.image)
+                    .orElseThrow();
             case MANUAL -> {
                 if (bestImageSource == null) {
                     yield computeReferenceImageAndAdjustWeights(images, null, ReferenceSelection.SHARPNESS, weights);
                 }
                 yield images.stream()
-                .filter(i -> i.findMetadata(SourceInfo.class).map(bestImageSource::equals).orElse(false))
-                .findFirst()
-                .map(ImageWrapper::unwrapToMemory)
-                .map(ImageWrapper32.class::cast)
-                .orElseThrow();
+                        .filter(i -> i.findMetadata(SourceInfo.class).map(bestImageSource::equals).orElse(false))
+                        .findFirst()
+                        .map(ImageWrapper::unwrapToMemory)
+                        .map(ImageWrapper32.class::cast)
+                        .orElseThrow();
             }
         };
     }
@@ -358,15 +364,15 @@ public class Stacking extends AbstractFunctionImpl {
         }
         images2 = (List<ImageWrapper>) scaling.radiusRescale(List.of(images2));
         return images2.stream()
-            .map(img -> {
-                if (img instanceof FileBackedImage fbi) {
-                    return fbi.unwrapToMemory();
-                } else if (img instanceof ImageWrapper32 img32) {
-                    return img32;
-                }
-                throw new IllegalStateException("Unexpected image type: " + img.getClass());
-            })
-            .map(ImageWrapper32.class::cast).toList();
+                .map(img -> {
+                    if (img instanceof FileBackedImage fbi) {
+                        return fbi.unwrapToMemory();
+                    } else if (img instanceof ImageWrapper32 img32) {
+                        return img32;
+                    }
+                    throw new IllegalStateException("Unexpected image type: " + img.getClass());
+                })
+                .map(ImageWrapper32.class::cast).toList();
     }
 
     private void findDisplacement(List<ImageWrapper32> images,
@@ -414,41 +420,42 @@ public class Stacking extends AbstractFunctionImpl {
         var referenceIntegral = usePixelWeight ? imageMath.integralImage(referenceImage.asImage()) : null;
         var result = new float[height][width];
         var currentY = new AtomicInteger();
+        var progressOperation = newOperation().createChild(message(STACKING_MESSAGE));
         IntStream.range(0, height)
-            .parallel()
-            .forEach(y -> {
-                var progress = currentY.incrementAndGet() / (double) height;
-                broadcaster.broadcast(ProgressEvent.of(progress, STACKING_MESSAGE));
-                var line = result[y];
-                for (int x = 0; x < width; x++) {
-                    double sum = 0;
-                    double count = 0;
-                    for (int i = 0; i < images.size(); i++) {
-                        var w = usePixelWeight ? computeTileWeight(imageMath, referenceIntegral, integralImages.get(i), x, y, tileSize) : weights[i];
-                        var image = images.get(i).data();
-                        var displacement = distorsions[i].findDistorsion(x, y);
-                        var xx = x + displacement.dx();
-                        var yy = y + displacement.dy();
-                        if (xx >= 0 && xx < width && yy >= 0 && yy < height) {
-                            var interpolatedValue = Dedistort.bilinearInterpolation(image, xx, yy, width, height);
-                            var pixelDiff = heuristicWeight(image[y][x], interpolatedValue);
-                            if (usePixelWeight) {
-                                w = Math.min(w, pixelDiff);
-                            }
-                            sum += w * interpolatedValue;
-                            count += w;
-                            if (dedistorted != null) {
-                                dedistorted[i][y][x] = interpolatedValue;
+                .parallel()
+                .forEach(y -> {
+                    var progress = currentY.incrementAndGet() / (double) height;
+                    broadcaster.broadcast(progressOperation.update(progress));
+                    var line = result[y];
+                    for (int x = 0; x < width; x++) {
+                        double sum = 0;
+                        double count = 0;
+                        for (int i = 0; i < images.size(); i++) {
+                            var w = usePixelWeight ? computeTileWeight(imageMath, referenceIntegral, integralImages.get(i), x, y, tileSize) : weights[i];
+                            var image = images.get(i).data();
+                            var displacement = distorsions[i].findDistorsion(x, y);
+                            var xx = x + displacement.dx();
+                            var yy = y + displacement.dy();
+                            if (xx >= 0 && xx < width && yy >= 0 && yy < height) {
+                                var interpolatedValue = Dedistort.bilinearInterpolation(image, xx, yy, width, height);
+                                var pixelDiff = heuristicWeight(image[y][x], interpolatedValue);
+                                if (usePixelWeight) {
+                                    w = Math.min(w, pixelDiff);
+                                }
+                                sum += w * interpolatedValue;
+                                count += w;
+                                if (dedistorted != null) {
+                                    dedistorted[i][y][x] = interpolatedValue;
+                                }
                             }
                         }
-                    }
 
-                    if (count > 0) {
-                        line[x] = (float) (sum / count);
+                        if (count > 0) {
+                            line[x] = (float) (sum / count);
+                        }
                     }
-                }
-            });
-        broadcaster.broadcast(ProgressEvent.of(1.0, STACKING_MESSAGE));
+                });
+        broadcaster.broadcast(progressOperation.complete());
         return result;
     }
 

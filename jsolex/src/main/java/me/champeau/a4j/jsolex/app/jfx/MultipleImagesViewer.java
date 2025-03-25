@@ -32,6 +32,7 @@ import javafx.scene.media.MediaPlayer;
 import javafx.scene.media.MediaView;
 import me.champeau.a4j.jsolex.app.JSolEx;
 import me.champeau.a4j.jsolex.processing.event.ProcessingEventListener;
+import me.champeau.a4j.jsolex.processing.event.ProgressOperation;
 import me.champeau.a4j.jsolex.processing.params.ProcessParams;
 import me.champeau.a4j.jsolex.processing.sun.workflow.DisplayCategory;
 import me.champeau.a4j.jsolex.processing.sun.workflow.GeneratedImageKind;
@@ -124,6 +125,7 @@ public class MultipleImagesViewer extends Pane {
     }
 
     public <T extends WithRootNode> T addImage(ProcessingEventListener listener,
+                                               ProgressOperation operation,
                                                String title,
                                                String baseName,
                                                GeneratedImageKind kind,
@@ -140,6 +142,7 @@ public class MultipleImagesViewer extends Pane {
         var transformed = transformer.apply(viewer);
         viewer.setup(
             listener,
+            operation,
             title,
             baseName,
             kind,

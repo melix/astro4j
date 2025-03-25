@@ -16,6 +16,7 @@
 package me.champeau.a4j.jsolex.processing.expr.impl;
 
 import me.champeau.a4j.jsolex.processing.event.ProgressEvent;
+import me.champeau.a4j.jsolex.processing.event.ProgressOperation;
 import me.champeau.a4j.jsolex.processing.expr.FileOutput;
 import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
 import me.champeau.a4j.jsolex.processing.util.FileBackedImage;
@@ -69,15 +70,16 @@ public class Animate extends AbstractFunctionImpl {
             var tempFile = TemporaryFolder.newTempFile("video_jsolex", ".mp4");
             var frames = (List) arguments.get(0);
             if (FfmegEncoder.isAvailable()) {
-                if (encodeWithFfmpeg(broadcaster, frames, tempFile, (int) delay)) {
+                if (encodeWithFfmpeg(broadcaster, newOperation(), frames, tempFile, (int) delay)) {
                     return new FileOutput(tempFile);
                 }
             }
             var encoder = SequenceEncoder.createWithFps(NIOUtils.writableChannel(tempFile.toFile()),
                     new Rational((int) (1000 / delay), 1));
             double progress = 0;
+            var progressOperation = newOperation().createChild("Encoding frame");
             for (Object argument : frames) {
-                broadcaster.broadcast(ProgressEvent.of(progress/frames.size(), "Encoding frame " + (int) progress + "/" + frames.size()));
+                broadcaster.broadcast(progressOperation.update(progress/frames.size(), "Encoding frame " + (int) progress + "/" + frames.size()));
                 if (argument instanceof FileBackedImage fileBackedImage) {
                     argument = fileBackedImage.unwrapToMemory();
                 }
@@ -89,16 +91,16 @@ public class Animate extends AbstractFunctionImpl {
                 progress++;
             }
             encoder.finish();
-            broadcaster.broadcast(ProgressEvent.of(1, "Encoding finished"));
+            broadcaster.broadcast(progressOperation.complete());
             return new FileOutput(tempFile);
         } catch (IOException e) {
             throw new ProcessingException(e);
         }
     }
 
-    private static boolean encodeWithFfmpeg(Broadcaster broadcaster, List frames, Path tempFile, int delay) {
+    private static boolean encodeWithFfmpeg(Broadcaster broadcaster, ProgressOperation operation, List frames, Path tempFile, int delay) {
         try {
-            return FfmegEncoder.encode(broadcaster, frames, tempFile.toFile(), delay);
+            return FfmegEncoder.encode(broadcaster, operation, frames, tempFile.toFile(), delay);
         } catch (IOException e) {
             // fallback to jcodec
             LOGGER.info("Failed to encode video with ffmpeg, falling back to jcodec", e);

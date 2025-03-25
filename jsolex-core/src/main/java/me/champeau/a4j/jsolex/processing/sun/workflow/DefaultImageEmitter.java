@@ -16,6 +16,7 @@
 package me.champeau.a4j.jsolex.processing.sun.workflow;
 
 import me.champeau.a4j.jsolex.processing.event.FileGeneratedEvent;
+import me.champeau.a4j.jsolex.processing.event.ProgressOperation;
 import me.champeau.a4j.jsolex.processing.expr.impl.ImageDraw;
 import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
 import me.champeau.a4j.jsolex.processing.sun.tasks.WriteColorizedImageTask;
@@ -45,11 +46,14 @@ import java.util.function.Supplier;
  */
 public class DefaultImageEmitter implements ImageEmitter {
     private final Broadcaster broadcaster;
+    private final ProgressOperation operation;
     private final File outputDir;
 
     public DefaultImageEmitter(Broadcaster broadcaster,
+                               ProgressOperation operation,
                                File outputDir) {
         this.broadcaster = broadcaster;
+        this.operation = operation;
         this.outputDir = outputDir;
     }
 
@@ -58,12 +62,13 @@ public class DefaultImageEmitter implements ImageEmitter {
         prepareOutput(name);
         storeMetadata(kind, title, name, image);
         new WriteMonoImageTask(broadcaster,
-            () -> image,
-            outputDir,
-            title,
-            name,
-            description,
-            kind
+                operation,
+                () -> image,
+                outputDir,
+                title,
+                name,
+                description,
+                kind
         ) {
             @Override
             public void transform() {
@@ -93,12 +98,13 @@ public class DefaultImageEmitter implements ImageEmitter {
         prepareOutput(name);
         storeMetadata(kind, title, name, image);
         new WriteMonoImageTask(broadcaster,
-            () -> image,
-            outputDir,
-            title,
-            name,
-            description,
-            kind).get();
+                operation,
+                () -> image,
+                outputDir,
+                title,
+                name,
+                description,
+                kind).get();
     }
 
     @Override
@@ -106,13 +112,14 @@ public class DefaultImageEmitter implements ImageEmitter {
         prepareOutput(name);
         storeMetadata(kind, title, name, image);
         new WriteColorizedImageTask(broadcaster,
-            () -> image,
-            outputDir,
-            title,
-            name,
-            description,
-            kind,
-            rgbSupplier).get();
+                operation,
+                () -> image,
+                outputDir,
+                title,
+                name,
+                description,
+                kind,
+                rgbSupplier).get();
     }
 
     @Override
@@ -123,12 +130,12 @@ public class DefaultImageEmitter implements ImageEmitter {
             var g = rgb[1];
             var b = rgb[2];
             var copy = new RGBImage(
-                img.width(),
-                img.height(),
-                r,
-                g,
-                b,
-                new HashMap<>(image.metadata())
+                    img.width(),
+                    img.height(),
+                    r,
+                    g,
+                    b,
+                    new HashMap<>(image.metadata())
             );
             var draw = new ImageDraw(Map.of(), broadcaster);
             RGBImage color = (RGBImage) draw.drawOnImage(copy, painter);
@@ -140,17 +147,18 @@ public class DefaultImageEmitter implements ImageEmitter {
     public void newColorImage(GeneratedImageKind kind, String category, String title, String name, String description, int width, int height, Map<Class<?>, Object> metadata, Supplier<float[][][]> rgbSupplier) {
         prepareOutput(name);
         new WriteRGBImageTask(broadcaster,
-            () -> {
-                var image = new ImageWrapper32(width, height, new float[height][width], new HashMap<>(metadata));
-                storeMetadata(kind, title, name, image);
-                return image;
-            },
-            outputDir,
-            title,
-            name,
-            description,
-            kind,
-            rgbSupplier).get();
+                operation,
+                () -> {
+                    var image = new ImageWrapper32(width, height, new float[height][width], new HashMap<>(metadata));
+                    storeMetadata(kind, title, name, image);
+                    return image;
+                },
+                outputDir,
+                title,
+                name,
+                description,
+                kind,
+                rgbSupplier).get();
     }
 
     @Override

@@ -15,26 +15,7 @@
  */
 package me.champeau.a4j.jsolex.processing.sun;
 
-import me.champeau.a4j.jsolex.processing.event.AverageImageComputedEvent;
-import me.champeau.a4j.jsolex.processing.event.FileGeneratedEvent;
-import me.champeau.a4j.jsolex.processing.event.GeneratedImage;
-import me.champeau.a4j.jsolex.processing.event.GenericMessage;
-import me.champeau.a4j.jsolex.processing.event.ImageGeneratedEvent;
-import me.champeau.a4j.jsolex.processing.event.ImageLine;
-import me.champeau.a4j.jsolex.processing.event.Notification;
-import me.champeau.a4j.jsolex.processing.event.NotificationEvent;
-import me.champeau.a4j.jsolex.processing.event.OutputImageDimensionsDeterminedEvent;
-import me.champeau.a4j.jsolex.processing.event.PartialReconstructionEvent;
-import me.champeau.a4j.jsolex.processing.event.ProcessingDoneEvent;
-import me.champeau.a4j.jsolex.processing.event.ProcessingEvent;
-import me.champeau.a4j.jsolex.processing.event.ProcessingEventListener;
-import me.champeau.a4j.jsolex.processing.event.ProcessingStartEvent;
-import me.champeau.a4j.jsolex.processing.event.ProgressEvent;
-import me.champeau.a4j.jsolex.processing.event.ReconstructionDoneEvent;
-import me.champeau.a4j.jsolex.processing.event.ScriptExecutionResultEvent;
-import me.champeau.a4j.jsolex.processing.event.SuggestionEvent;
-import me.champeau.a4j.jsolex.processing.event.TrimmingParametersDeterminedEvent;
-import me.champeau.a4j.jsolex.processing.event.VideoMetadataEvent;
+import me.champeau.a4j.jsolex.processing.event.*;
 import me.champeau.a4j.jsolex.processing.expr.DefaultImageScriptExecutor;
 import me.champeau.a4j.jsolex.processing.expr.ImageMathScriptExecutor;
 import me.champeau.a4j.jsolex.processing.expr.InvalidExpression;
@@ -104,6 +85,7 @@ import java.time.LocalDateTime;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.Executors;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -131,6 +113,7 @@ public class SolexVideoProcessor implements Broadcaster {
     private final LocalDateTime processingDate;
     private final boolean batchMode;
     private final int memoryRestrictionMultiplier;
+    private final ProgressOperation rootOperation;
     private final Path outputDirectory;
     private ProcessParams processParams;
     private boolean binningIsReliable;
@@ -149,7 +132,8 @@ public class SolexVideoProcessor implements Broadcaster {
                                ProcessParams processParametersProvider,
                                LocalDateTime processingDate,
                                boolean batchMode,
-                               int memoryRestrictionMultiplier) {
+                               int memoryRestrictionMultiplier,
+                               ProgressOperation rootOperation) {
         this.serFile = serFile;
         this.outputDirectory = outputDirectory;
         this.sequenceNumber = sequenceNumber;
@@ -157,6 +141,7 @@ public class SolexVideoProcessor implements Broadcaster {
         this.processingDate = processingDate;
         this.batchMode = batchMode;
         this.memoryRestrictionMultiplier = memoryRestrictionMultiplier;
+        this.rootOperation = rootOperation;
     }
 
     public void setCachedEllipse(Ellipse cachedEllipse) {
@@ -201,7 +186,7 @@ public class SolexVideoProcessor implements Broadcaster {
         }
         broadcast(ProcessingStartEvent.of(System.nanoTime(), processParams));
         var converter = ImageUtils.createImageConverter(processParams.videoParams().colorMode(), processParams.geometryParams().isSpectrumVFlip());
-        var detector = new AverageImageCreator(converter, this);
+        var detector = new AverageImageCreator(converter, rootOperation, this);
         AtomicInteger frameCountRef = new AtomicInteger();
         AtomicReference<Header> headerRef = new AtomicReference<>();
         AtomicReference<Double> fpsRef = new AtomicReference<>();
@@ -413,6 +398,8 @@ public class SolexVideoProcessor implements Broadcaster {
             }
             LOGGER.info(message("processing.done.generate.images"));
             broadcast(ReconstructionDoneEvent.of(serFileReader.get()));
+            var generationOperation = rootOperation.createChild(message("generating.images"));
+            broadcast(generationOperation);
             startWorkflow(header, fps, imageList, imageNamingStrategy, baseName);
             var runnables = new ArrayList<Runnable>();
             if (!imageList.isEmpty() && processParams.requestedImages().isEnabled(GeneratedImageKind.DOPPLER) || processParams.requestedImages().isEnabled(GeneratedImageKind.DOPPLER_ECLIPSE)) {
@@ -425,7 +412,7 @@ public class SolexVideoProcessor implements Broadcaster {
             if (canGenerateHeliumD3Images) {
                 runnables.add(() -> {
                     var imageEmitterFactory = createImageEmitterFactory(imageList, imageNamingStrategy, baseName);
-                    var heliumLineProcessor = new HeliumLineProcessor(processParams, pixelShiftRange, imageList, heliumLineShift, imageEmitterFactory.newEmitter(this, outputDirectory), this);
+                    var heliumLineProcessor = new HeliumLineProcessor(processParams, rootOperation, pixelShiftRange, imageList, heliumLineShift, imageEmitterFactory.newEmitter(this, outputDirectory), this);
                     heliumLineProcessor.process();
                 });
             }
@@ -437,9 +424,17 @@ public class SolexVideoProcessor implements Broadcaster {
                         minShift, maxShift,
                         header);
             });
+            var progress = new AtomicInteger();
             runnables.stream()
                     .parallel()
-                    .forEach(Runnable::run);
+                    .forEach(task -> {
+                        broadcast(generationOperation.update(((double)progress.get())/runnables.size()));
+                        try {
+                            task.run();
+                        } finally {
+                            broadcast(generationOperation.update(((double)progress.incrementAndGet())/runnables.size()));
+                        }
+                    });
         } else {
             LOGGER.error(message("unable.find.spectral.line"));
         }
@@ -603,10 +598,23 @@ public class SolexVideoProcessor implements Broadcaster {
         }
     }
 
+    private ProgressOperation newOperation(String task) {
+        return rootOperation.createChild(task);
+    }
+
     private void startWorkflow(Header header, Double fps, List<WorkflowState> imageList, FileNamingStrategy imageNamingStrategy, String baseName) {
-        imageList.stream().parallel().forEach(i -> prepareImageForCorrections(i, header));
+        var prepareOperation = newOperation(message("preparing.for.corrections"));
+        broadcast(prepareOperation);
+        var progress = new AtomicInteger(0);
+        imageList.stream()
+                .parallel()
+                .forEach(i -> {
+                    double pg = ((double)progress.incrementAndGet())/imageList.size();
+                    prepareImageForCorrections(i, header);
+                    broadcast(prepareOperation.update(pg));
+                });
         var fitting = performEllipseFitting(imageList, (broadcaster, outputDirectory) -> {
-            ImageEmitter emitter = new DefaultImageEmitter(broadcaster, outputDirectory.toFile());
+            ImageEmitter emitter = new DefaultImageEmitter(broadcaster, rootOperation, outputDirectory.toFile());
             emitter = new NamingStrategyAwareImageEmitter(emitter, imageNamingStrategy, sequenceNumber, baseName);
             return new DiscardNonRequiredImages(emitter, processParams.requestedImages().images());
         });
@@ -617,16 +625,21 @@ public class SolexVideoProcessor implements Broadcaster {
         if (processParams.enhancementParams().artificialFlatCorrection()) {
             performFlatCorrection(imageList, fitting, processParams.enhancementParams());
         }
+        var generationOperation = newOperation(message("generating.images"));
+        progress.set(0);
         IntStream.range(0, imageList.size()).mapToObj(i -> new Object() {
             private final WorkflowState state = imageList.get(i);
             private final int step = i;
         }).parallel().forEach(o -> {
+            broadcast(generationOperation.update(((double) progress.get()) / imageList.size()));
             var state = o.state;
             var step = o.step;
             var imageEmitterFactory = new ProcessAwareImageEmitterFactory(state, imageNamingStrategy, baseName);
-            var workflow = new ProcessingWorkflow(this, outputDirectory, imageList, step, processParams, fps, imageEmitterFactory, serFile.toPath(), header);
+            var workflow = new ProcessingWorkflow(generationOperation, this, outputDirectory, imageList, step, processParams, fps, imageEmitterFactory, serFile.toPath(), header);
             workflow.start();
+            broadcast(generationOperation.update(((double) progress.incrementAndGet()) / imageList.size()));
         });
+        broadcast(generationOperation.complete());
     }
 
     private static void performFlatCorrection(List<WorkflowState> imageList, EllipseFittingTask.Result fitting, EnhancementParams enhancementParams) {
@@ -875,10 +888,12 @@ public class SolexVideoProcessor implements Broadcaster {
             var emitter = createCustomImageEmitter(imageNamingStrategy, baseName);
             var circle = ellipse;
             ImageStats finalImageStats = imageStats;
+            var scriptsOperation = newOperation(message("running.scripts"));
             mathImages.scriptFiles().stream().parallel().forEach(scriptFile -> {
-                broadcast(ProgressEvent.of(0, "Running script " + scriptFile.getName()));
+                broadcast(scriptsOperation.update(0, message("running.scripts") + " : " + scriptFile.getName()));
                 var context = createMetadata(processParams, serFile.toPath(), pixelShiftRange, header);
                 context.put(ImageEmitter.class, emitter);
+                context.put(ProgressOperation.class, scriptsOperation);
                 if (circle != null) {
                     context.put(Ellipse.class, circle);
                 }
@@ -918,7 +933,7 @@ public class SolexVideoProcessor implements Broadcaster {
                 } catch (IOException e) {
                     throw new ProcessingException(e);
                 } finally {
-                    broadcast(ProgressEvent.of(1.0, "Running script " + scriptFile.getName()));
+                    broadcast(scriptsOperation.update(1.0, "Running script " + scriptFile.getName()));
                 }
             });
         }
@@ -938,7 +953,7 @@ public class SolexVideoProcessor implements Broadcaster {
     }
 
     private ImageEmitter createCustomImageEmitter(FileNamingStrategy imageNamingStrategy, String baseName) {
-        return new NamingStrategyAwareImageEmitter(new DefaultImageEmitter(this, outputDirectory.toFile()), imageNamingStrategy, sequenceNumber, baseName);
+        return new NamingStrategyAwareImageEmitter(new DefaultImageEmitter(this, rootOperation, outputDirectory.toFile()), imageNamingStrategy, sequenceNumber, baseName);
     }
 
     private EllipseFittingTask.Result performEllipseFitting(List<WorkflowState> imageList, ImageEmitterFactory imageEmitterFactory) {
@@ -946,7 +961,7 @@ public class SolexVideoProcessor implements Broadcaster {
             return cachedEllipse;
         }
         var selected = imageList.stream().sorted(Comparator.comparing(WorkflowState::pixelShift)).map(state -> {
-            var ellipseFittingTask = new EllipseFittingTask(this, state::image, processParams, imageEmitterFactory.newEmitter(this, outputDirectory));
+            var ellipseFittingTask = new EllipseFittingTask(this, newOperation(message("ellipse.fitting")), state::image, processParams, imageEmitterFactory.newEmitter(this, outputDirectory));
             try {
                 return Optional.ofNullable(ellipseFittingTask.call());
             } catch (Exception e) {
@@ -1080,6 +1095,7 @@ public class SolexVideoProcessor implements Broadcaster {
                 int y = j;
                 int frameId = i;
                 executor.submit(() -> {
+                    var progressOperation = newOperation(message("reconstruction"));
                     try {
                         // The converter makes sure we only have a single channel
                         converter.convert(frameId, ByteBuffer.wrap(copy), geometry, original);
@@ -1096,12 +1112,13 @@ public class SolexVideoProcessor implements Broadcaster {
                                 hasRedshifts.set(hasRedshifts.get() || phenomenaDetector.isRedShiftDetectionEnabled());
                                 hasActiveRegions.set(hasActiveRegions.get() || phenomenaDetector.isActiveRegionsDetectionEnabled());
                             } finally {
-                                broadcast(ProgressEvent.of((double) processedCount.incrementAndGet() / totalCount, message("reconstruction")));
+                                broadcast(progressOperation.update(((double) processedCount.incrementAndGet()) / totalCount));
                             }
                         });
                     } finally {
                         semaphore.release();
                         latch.countDown();
+                        broadcast(progressOperation.complete());
                     }
                 });
             }
@@ -1135,7 +1152,7 @@ public class SolexVideoProcessor implements Broadcaster {
         var result = analyzer.analyze(averageImage);
         if (processParams.extraParams().generateDebugImages()) {
             var emitter = new DiscardNonRequiredImages(
-                    new NamingStrategyAwareImageEmitter(new DefaultImageEmitter(this, outputDirectory.toFile()), imageNamingStrategy, 0, serFile.getName().substring(0, serFile.getName().lastIndexOf("."))),
+                    new NamingStrategyAwareImageEmitter(new DefaultImageEmitter(this, rootOperation, outputDirectory.toFile()), imageNamingStrategy, 0, serFile.getName().substring(0, serFile.getName().lastIndexOf("."))),
                     processParams.requestedImages().images());
             emitter.newColorImage(GeneratedImageKind.DEBUG, null, message("average"), "average", message("average.image.description"), width, height, MutableMap.of(), () -> {
                 var rgb = new SpectralLineFrameImageCreator(analyzer, averageImage, width, height).generateDebugImage();
@@ -1195,15 +1212,17 @@ public class SolexVideoProcessor implements Broadcaster {
                 });
 
         if (!internal) {
-            var copy = ImageWrapper.copyData(source);
-            var imageLine = new ImageLine(pixelShift,
-                    y,
-                    totalLines,
-                    line,
-                    processParams.extraParams().generateDebugImages() || processParams.requestedImages().isEnabled(GeneratedImageKind.RECONSTRUCTION),
-                    new Image(width, height, copy)
-            );
-            broadcast(new PartialReconstructionEvent(imageLine));
+            boolean display = processParams.extraParams().generateDebugImages() || processParams.requestedImages().isEnabled(GeneratedImageKind.RECONSTRUCTION);
+            if (display) {
+                var imageLine = new ImageLine(pixelShift,
+                        y,
+                        totalLines,
+                        line,
+                        display,
+                        new Image(width, height, source)
+                );
+                broadcast(new PartialReconstructionEvent(imageLine));
+            }
         }
     }
 
@@ -1246,7 +1265,7 @@ public class SolexVideoProcessor implements Broadcaster {
             if (state.isInternal()) {
                 return new NoOpImageEmitter();
             }
-            ImageEmitter emitter = new DefaultImageEmitter(broadcaster, outputDirectory.toFile());
+            ImageEmitter emitter = new DefaultImageEmitter(broadcaster, rootOperation, outputDirectory.toFile());
             var shift = state.pixelShift();
 
             emitter = new NamingStrategyAwareImageEmitter(new RenamingImageEmitter(emitter, name -> {

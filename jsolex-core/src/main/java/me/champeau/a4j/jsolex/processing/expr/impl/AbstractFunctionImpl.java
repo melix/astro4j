@@ -16,6 +16,7 @@
 package me.champeau.a4j.jsolex.processing.expr.impl;
 
 import me.champeau.a4j.jsolex.processing.event.ProgressEvent;
+import me.champeau.a4j.jsolex.processing.event.ProgressOperation;
 import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
 import me.champeau.a4j.jsolex.processing.util.FileBackedImage;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
@@ -41,10 +42,24 @@ class AbstractFunctionImpl {
 
     protected final Map<Class<?>, Object> context;
     protected final Broadcaster broadcaster;
+    private final ProgressOperation operation;
 
     protected AbstractFunctionImpl(Map<Class<?>, Object> context, Broadcaster broadcaster) {
         this.context = context;
         this.broadcaster = broadcaster;
+        this.operation = newProgress("");
+    }
+
+    private ProgressOperation newProgress(String name) {
+        var parent = (ProgressOperation) context.get(ProgressOperation.class);
+        if (parent == null) {
+            return ProgressOperation.root(name, e -> {});
+        }
+        return parent.createChild(name);
+    }
+
+    protected ProgressOperation newOperation() {
+        return operation.createChild(operation.task());
     }
 
     protected Optional<Ellipse> getEllipse(List<Object> arguments, int index) {
@@ -126,6 +141,7 @@ class AbstractFunctionImpl {
             .mapToObj(i -> new IndexedObject(array[i], i))
             .toList();
         var progress = new AtomicInteger(0);
+        var parallelOperation = operation.createChild("ImageMath: " + currentFunction);
         var processed = itemsToProcess.stream()
             .parallel()
             .map(o -> {
@@ -135,7 +151,7 @@ class AbstractFunctionImpl {
                 allArgs.add(image);
                 allArgs.addAll(params);
                 var p = progress.incrementAndGet();
-                broadcaster.broadcast(ProgressEvent.of(p / (double) array.length, "ImageMath: " + currentFunction));
+                broadcaster.broadcast(parallelOperation.update(p / (double) array.length));
                 var result = function.apply(allArgs);
                 if (result instanceof ImageWrapper img) {
                     // save memory!
@@ -144,7 +160,7 @@ class AbstractFunctionImpl {
                 return new IndexedObject(result, idx);
             }).toList();
         // iterate on keys to preserve order
-        broadcaster.broadcast(ProgressEvent.of(1, currentFunction));
+        broadcaster.broadcast(parallelOperation.complete());
         return processed.stream().sorted(Comparator.comparingInt(IndexedObject::idx)).map(IndexedObject::image).toList();
     }
 

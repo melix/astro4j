@@ -16,6 +16,7 @@
 package me.champeau.a4j.jsolex.processing.sun.tasks;
 
 import me.champeau.a4j.jsolex.processing.event.ProgressEvent;
+import me.champeau.a4j.jsolex.processing.event.ProgressOperation;
 import me.champeau.a4j.jsolex.processing.params.BandingCorrectionParams;
 import me.champeau.a4j.jsolex.processing.sun.BandingReduction;
 import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
@@ -25,26 +26,33 @@ import me.champeau.a4j.math.regression.Ellipse;
 
 import java.util.function.Supplier;
 
+import static me.champeau.a4j.jsolex.processing.util.Constants.message;
+
 public class ImageBandingCorrector extends AbstractTask<ImageWrapper32> {
 
     private final Ellipse ellipse;
     private final BandingCorrectionParams params;
 
-    public ImageBandingCorrector(Broadcaster broadcaster, Supplier<ImageWrapper32> image, Ellipse ellipse, BandingCorrectionParams params) {
-        super(broadcaster, image);
+    public ImageBandingCorrector(Broadcaster broadcaster,
+                                 ProgressOperation operation,
+                                 Supplier<ImageWrapper32> image,
+                                 Ellipse ellipse,
+                                 BandingCorrectionParams params) {
+        super(broadcaster, operation, image);
         this.ellipse = ellipse;
         this.params = params;
     }
 
     @Override
     protected ImageWrapper32 doCall() throws Exception {
-        broadcaster.broadcast(ProgressEvent.of(0, "Banding reduction"));
+        broadcaster.broadcast(operation.update(0, message("banding.correction")));
         var passes = params.passes();
         var bandSize = params.width();
         for (int i = 0; i < passes; i++) {
             BandingReduction.reduceBanding(width, height, getBuffer(), bandSize, ellipse);
-            broadcaster.broadcast(ProgressEvent.of((i + 1d / passes), "Banding reduction"));
+            broadcaster.broadcast(operation.update((i + 1d / passes)));
         }
+        broadcaster.broadcast(operation.complete());
         TransformationHistory.recordTransform(workImage, "Banding reduction (band size: " + bandSize + " passes: " + passes + ")");
         return workImage;
     }

@@ -16,6 +16,7 @@
 package me.champeau.a4j.jsolex.processing.expr.impl;
 
 import me.champeau.a4j.jsolex.processing.event.ProgressEvent;
+import me.champeau.a4j.jsolex.processing.event.ProgressOperation;
 import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
 import me.champeau.a4j.jsolex.processing.sun.ImageUtils;
 import me.champeau.a4j.jsolex.processing.util.FileBackedImage;
@@ -46,6 +47,7 @@ public class FfmegEncoder {
     }
 
     public static boolean encode(Broadcaster broadcaster,
+                              ProgressOperation operation,
                               List<Object> images,
                               File outputFile,
                               int msBetweenFrames) throws IOException {
@@ -53,8 +55,9 @@ public class FfmegEncoder {
         // and each frame must be named with a sequence number, eg. frame-0001.png
         var tempDir = TemporaryFolder.newTempDir("jsolex-ffmpeg-");
         List<File> frames = null;
+        var progressOperation = operation.createChild("Exporting frames");
         try {
-            broadcaster.broadcast(ProgressEvent.of(0, "Exporting frames"));
+            broadcaster.broadcast(progressOperation);
             var progress = new AtomicInteger(0);
             frames = IntStream.range(0, images.size())
                 .parallel()
@@ -70,12 +73,12 @@ public class FfmegEncoder {
                     } else if (img instanceof RGBImage rgb) {
                         ImageUtils.writeRgbImage(rgb.width(), rgb.height(), rgb.r(), rgb.g(), rgb.b(), file, Set.of(ImageFormat.PNG));
                     }
-                    broadcaster.broadcast(ProgressEvent.of(progress.incrementAndGet() / (double) images.size(), "Exporting frames"));
+                    broadcaster.broadcast(progressOperation.update(progress.incrementAndGet() / (double) images.size()));
                     return file;
                 })
                 .toList();
-            broadcaster.broadcast(ProgressEvent.of(1, "Exporting frames"));
-            broadcaster.broadcast(ProgressEvent.of(0, "Encoding (FFMPEG)"));
+            broadcaster.broadcast(progressOperation.update(1, "Exporting frames"));
+            broadcaster.broadcast(progressOperation.update(0, "Encoding (FFMPEG)"));
             int framesPerSecond = 1000 / msBetweenFrames;
             // now we can use ffmpeg to encode the video
             var ffmpeg = new ProcessBuilder("ffmpeg",
@@ -98,7 +101,7 @@ public class FfmegEncoder {
             }
             LOGGER.debug("FFMPEG output: {}", sb);
             ffmpeg.waitFor(10, TimeUnit.MINUTES);
-            broadcaster.broadcast(ProgressEvent.of(1, "Encoding (FFMPEG)"));
+            broadcaster.broadcast(progressOperation.complete());
             if (ffmpeg.exitValue() != 0) {
                 return false;
             }

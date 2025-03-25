@@ -67,6 +67,7 @@ public class GeometryCorrection extends AbstractFunctionImpl {
         state.recordResult(WorkflowResults.RECONSTRUCTED, image);
         var task = new GeometryCorrector(
             getFromContext(Broadcaster.class).orElse(Broadcaster.NO_OP),
+            newOperation(),
             () -> image,
             image.findMetadata(Ellipse.class).orElse(null),
             null,

@@ -15,6 +15,7 @@
  */
 package me.champeau.a4j.jsolex.processing.sun.tasks;
 
+import me.champeau.a4j.jsolex.processing.event.ProgressOperation;
 import me.champeau.a4j.jsolex.processing.expr.impl.DiskFill;
 import me.champeau.a4j.jsolex.processing.stretching.ArcsinhStretchingStrategy;
 import me.champeau.a4j.jsolex.processing.sun.BackgroundRemoval;
@@ -29,10 +30,11 @@ public class CoronagraphTask extends AbstractTask<ImageWrapper32> {
     private final float blackPoint;
 
     public CoronagraphTask(Broadcaster broadcaster,
+                           ProgressOperation operation,
                            Supplier<ImageWrapper32> image,
                            Ellipse fitting,
                            float blackPoint) {
-        super(broadcaster, image);
+        super(broadcaster, operation, image);
         this.fitting = fitting;
         this.blackPoint = blackPoint;
     }

@@ -91,7 +91,10 @@ public class PhenomenaDetector {
         if (!detectRedshifts && !detectActiveRegions) {
             return;
         }
-        var bordersAnalysis = new SpectrumFrameAnalyzer(width, height, header.isJSolexTrimmedSer(), 20000d).analyze(original);
+        var spectrumFrameAnalyzer = new SpectrumFrameAnalyzer(width, height, header.isJSolexTrimmedSer(), 20000d);
+        // avoid expensive polynomial computation because we don't need it!
+        spectrumFrameAnalyzer.forcePolynomial(polynomial);
+        var bordersAnalysis = spectrumFrameAnalyzer.analyze(original);
         // 10 is to convert nm to angstrom
         int wingShiftInPixels = (int) Math.floor(0.5d / dispersion.angstromsPerPixel());
         var leftBorder = bordersAnalysis.leftBorder();

@@ -18,6 +18,7 @@ package me.champeau.a4j.jsolex.cli;
 import ch.qos.logback.classic.Level;
 import io.micronaut.configuration.picocli.PicocliRunner;
 import io.micronaut.core.annotation.ReflectiveAccess;
+import me.champeau.a4j.jsolex.processing.event.ProgressOperation;
 import me.champeau.a4j.jsolex.processing.params.BandingCorrectionParams;
 import me.champeau.a4j.jsolex.processing.params.ExtraParams;
 import me.champeau.a4j.jsolex.processing.params.GeometryParams;
@@ -127,7 +128,9 @@ public class Main implements Runnable {
                     processParams,
                     LocalDateTime.now(),
                     false,
-                4);
+                    4,
+                    ProgressOperation.root("cli", p -> {
+                    }));
             processor.addEventListener(new LoggingListener(processParams));
             processor.process();
         } catch (IOException e) {

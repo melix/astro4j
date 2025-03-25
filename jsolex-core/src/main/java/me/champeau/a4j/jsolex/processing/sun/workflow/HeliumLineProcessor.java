@@ -16,6 +16,7 @@
 package me.champeau.a4j.jsolex.processing.sun.workflow;
 
 import me.champeau.a4j.jsolex.expr.BuiltinFunction;
+import me.champeau.a4j.jsolex.processing.event.ProgressOperation;
 import me.champeau.a4j.jsolex.processing.expr.ImageExpressionEvaluator;
 import me.champeau.a4j.jsolex.processing.params.ProcessParams;
 import me.champeau.a4j.jsolex.processing.params.SpectralRay;
@@ -42,6 +43,7 @@ import static me.champeau.a4j.jsolex.processing.util.Constants.message;
  */
 public class HeliumLineProcessor {
     private final ProcessParams processParams;
+    private final ProgressOperation progressOperation;
     private final PixelShiftRange pixelShiftRange;
     private final Map<Double, WorkflowState> imageByPixelShift;
     private final double heliumLineShift;
@@ -49,12 +51,14 @@ public class HeliumLineProcessor {
     private final Broadcaster broadcaster;
 
     public HeliumLineProcessor(ProcessParams processParams,
+                               ProgressOperation progressOperation,
                                PixelShiftRange pixelShiftRange,
                                List<WorkflowState> imageList,
                                double heliumLineShift,
                                ImageEmitter imageEmitter,
                                Broadcaster broadcaster) {
         this.processParams = processParams;
+        this.progressOperation = progressOperation;
         this.pixelShiftRange = pixelShiftRange;
         this.imageByPixelShift = imageList.stream().collect(Collectors.toMap(WorkflowState::pixelShift, s -> s));
         this.heliumLineShift = heliumLineShift;
@@ -69,6 +73,7 @@ public class HeliumLineProcessor {
         }
 
         var evaluator = new ImageExpressionEvaluator(broadcaster, this::findEnhancedImage);
+        evaluator.putInContext(ProgressOperation.class, progressOperation);
         evaluator.putInContext(PixelShiftRange.class, pixelShiftRange);
         var colorProfile = SpectralRayIO.loadDefaults()
             .stream()

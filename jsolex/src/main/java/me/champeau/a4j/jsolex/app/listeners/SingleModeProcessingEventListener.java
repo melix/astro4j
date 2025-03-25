@@ -55,24 +55,7 @@ import me.champeau.a4j.jsolex.app.jfx.ReconstructionView;
 import me.champeau.a4j.jsolex.app.jfx.RectangleSelectionListener;
 import me.champeau.a4j.jsolex.app.jfx.ZoomableImageView;
 import me.champeau.a4j.jsolex.app.script.JSolExScriptExecutor;
-import me.champeau.a4j.jsolex.processing.event.AverageImageComputedEvent;
-import me.champeau.a4j.jsolex.processing.event.FileGeneratedEvent;
-import me.champeau.a4j.jsolex.processing.event.GeneratedImage;
-import me.champeau.a4j.jsolex.processing.event.GenericMessage;
-import me.champeau.a4j.jsolex.processing.event.ImageGeneratedEvent;
-import me.champeau.a4j.jsolex.processing.event.Notification;
-import me.champeau.a4j.jsolex.processing.event.NotificationEvent;
-import me.champeau.a4j.jsolex.processing.event.OutputImageDimensionsDeterminedEvent;
-import me.champeau.a4j.jsolex.processing.event.PartialReconstructionEvent;
-import me.champeau.a4j.jsolex.processing.event.ProcessingDoneEvent;
-import me.champeau.a4j.jsolex.processing.event.ProcessingEvent;
-import me.champeau.a4j.jsolex.processing.event.ProcessingEventListener;
-import me.champeau.a4j.jsolex.processing.event.ProcessingStartEvent;
-import me.champeau.a4j.jsolex.processing.event.ProgressEvent;
-import me.champeau.a4j.jsolex.processing.event.ReconstructionDoneEvent;
-import me.champeau.a4j.jsolex.processing.event.SuggestionEvent;
-import me.champeau.a4j.jsolex.processing.event.TrimmingParametersDeterminedEvent;
-import me.champeau.a4j.jsolex.processing.event.VideoMetadataEvent;
+import me.champeau.a4j.jsolex.processing.event.*;
 import me.champeau.a4j.jsolex.processing.expr.DefaultImageScriptExecutor;
 import me.champeau.a4j.jsolex.processing.expr.ImageMathScriptExecutor;
 import me.champeau.a4j.jsolex.processing.expr.ImageMathScriptResult;
@@ -147,6 +130,7 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
     private final Map<SuggestionEvent.SuggestionKind, String> suggestions = Collections.synchronizedMap(new LinkedHashMap<>());
     private final Map<Double, ReconstructionView> imageViews;
     private final JSolExInterface owner;
+    private final ProgressOperation rootOperation;
     private final String baseName;
     private final File serFile;
     private final Path outputDirectory;
@@ -173,6 +157,7 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
     private int width;
     private int height;
     private Ellipse mainEllipse;
+    private ProgressOperation reconstructionProgress;
 
     private final AtomicInteger cropCount = new AtomicInteger();
     private final AtomicInteger animCount = new AtomicInteger();
@@ -180,6 +165,7 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
     private Supplier<LineChart<?, ?>> profileGraphFactory;
 
     public SingleModeProcessingEventListener(JSolExInterface owner,
+                                             ProgressOperation rootOperation,
                                              String baseName,
                                              File serFile,
                                              Path outputDirectory,
@@ -187,6 +173,7 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
                                              LocalDateTime processingDate,
                                              Map<String, ImageViewer> popupViews) {
         this.owner = owner;
+        this.rootOperation = rootOperation;
         this.baseName = baseName;
         this.serFile = serFile;
         this.outputDirectory = outputDirectory;
@@ -214,14 +201,15 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
     private ReconstructionView createImageView(double pixelShift) {
         var buffer = new byte[3 * width * height];
         var reconstructionView = blockingUntilResultAvailable(() -> owner.getImagesViewer().addImage(this,
-            message("image.reconstruction"), baseName,
-            GeneratedImageKind.RECONSTRUCTION, null, null, null, params, popupViews, new PixelShift(pixelShift),
-            viewer -> {
-                var parentWidth = owner.getImagesViewer().widthProperty();
-                viewer.getImageView().getScrollPane().maxWidthProperty().bind(parentWidth);
-                return new ReconstructionView(viewer.getImageView(), buffer, parentWidth);
-            },
-            viewer -> {
+                rootOperation,
+                message("image.reconstruction"), baseName,
+                GeneratedImageKind.RECONSTRUCTION, null, null, null, params, popupViews, new PixelShift(pixelShift),
+                viewer -> {
+                    var parentWidth = owner.getImagesViewer().widthProperty();
+                    viewer.getImageView().getScrollPane().maxWidthProperty().bind(parentWidth);
+                    return new ReconstructionView(viewer.getImageView(), buffer, parentWidth);
+                },
+                viewer -> {
 
                 }));
         var imageView = reconstructionView.getSolarView();
@@ -234,7 +222,10 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
     public void onPartialReconstruction(PartialReconstructionEvent event) {
         var payload = event.getPayload();
         int y = payload.line();
-        onProgress(ProgressEvent.of((y + 1d) / height, message("reconstructing")));
+        if (reconstructionProgress == null) {
+            reconstructionProgress = rootOperation.createChild(message("reconstructing"));
+        }
+        onProgress(ProgressEvent.of(reconstructionProgress.update((y + 1d) / height, message("reconstructing"))));
 
         if (!payload.display()) {
             return;
@@ -303,6 +294,7 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
         var frameCount = serFileReader.header().frameCount();
         var converter = ImageUtils.createImageConverter(params.videoParams().colorMode(), params.geometryParams().isSpectrumVFlip());
         var pixelformat = PixelFormat.getByteRgbInstance();
+        reconstructionProgress = null;
         imageViews.entrySet().forEach(entry -> {
             var pixelShift = entry.getKey();
             var view = entry.getValue();
@@ -421,6 +413,7 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
             var imageWrapper = payload.image();
             var pixelShift = imageWrapper.findMetadata(PixelShift.class);
             var addedImageViewer = owner.getImagesViewer().addImage(this,
+                    rootOperation,
                     title,
                     baseName,
                     generatedImageKind,
@@ -490,7 +483,8 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
                             imageEmitter,
                             List.of(),
                             polynomial,
-                            averageImage
+                            averageImage,
+                            rootOperation
                     );
                     Platform.runLater(() -> {
                         var fxmlLoader = I18N.fxmlLoader(JSolEx.class, "custom-anim-panel");
@@ -695,15 +689,13 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
                 sb.append("    - ").append(suggestion).append("\n");
             }
         }
-        var finishedString = String.format(message("finished.in"), seconds);
         LOGGER.info(message("processing.done"));
+        var finishedString = String.format(message("finished.in"), seconds);
         LOGGER.info(finishedString);
-        owner.prepareForScriptExecution(this, params);
+        owner.prepareForScriptExecution(this, params, rootOperation);
         suggestions.clear();
-        Platform.runLater(() -> {
-            owner.updateProgress(1.0, finishedString);
-            System.gc();
-        });
+        System.gc();
+        broadcast(rootOperation.update(1, finishedString));
         var redshifts = payload.redshifts();
         var polynomial = payload.polynomial();
         var averageImage = payload.averageImage();
@@ -718,7 +710,8 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
                 imageEmitter,
                 redshifts,
                 polynomial,
-                averageImage
+                averageImage,
+                rootOperation
         ));
         owner.prepareForGongImageDownload(processParams);
     }
@@ -740,12 +733,7 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
 
     @Override
     public void onProgress(ProgressEvent e) {
-        if (e.getPayload().progress() == 1) {
-            owner.hideProgress();
-        } else {
-            owner.showProgress();
-            owner.updateProgress(e.getPayload().progress(), e.getPayload().task());
-        }
+        owner.updateProgress(e.getPayload().progress(), e.getPayload().task());
     }
 
     @Override
@@ -767,6 +755,7 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
 
     @Override
     public ImageMathScriptResult execute(String script, SectionKind kind) {
+        var sd = System.nanoTime();
         // perform a first pass just to check if they are missing image shifts
         Set<Double> missingShifts = determineShiftsRequiredInScript(script);
         missingShifts.removeAll(shiftImages.keySet());
@@ -788,6 +777,9 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
                     message
             )));
         }
+        var dur = java.time.Duration.ofNanos(System.nanoTime() - sd);
+        var secs = dur.toSeconds() + (dur.toMillisPart() / 1000d);
+        onProgress(ProgressEvent.of(rootOperation.complete(String.format(Constants.message("script.completed.in.format"), secs))));
         return result;
     }
 
@@ -815,7 +807,7 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
                         ImageMathParams.NONE,
                         false)
         ).withExtraParams(params.extraParams().withAutosave(false));
-        var solexVideoProcessor = new SolexVideoProcessor(serFile, outputDirectory, 0, tmpParams, LocalDateTime.now(), false, Configuration.getInstance().getMemoryRestrictionMultiplier());
+        var solexVideoProcessor = new SolexVideoProcessor(serFile, outputDirectory, 0, tmpParams, LocalDateTime.now(), false, Configuration.getInstance().getMemoryRestrictionMultiplier(), rootOperation);
         solexVideoProcessor.addEventListener(new ProcessingEventListener() {
             @Override
             public void onProcessingDone(ProcessingDoneEvent e) {
@@ -988,7 +980,7 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
                 ).withRequestedImages(
                         params.requestedImages().withPixelShifts(List.of(dataPoint.pixelShift()))
                 );
-                var solexVideoProcessor = new SolexVideoProcessor(serFile, outputDirectory, 0, newParams, LocalDateTime.now(), false, Configuration.getInstance().getMemoryRestrictionMultiplier());
+                var solexVideoProcessor = new SolexVideoProcessor(serFile, outputDirectory, 0, newParams, LocalDateTime.now(), false, Configuration.getInstance().getMemoryRestrictionMultiplier(), rootOperation);
                 solexVideoProcessor.addEventListener(this);
                 solexVideoProcessor.addEventListener(new ProcessingEventListener() {
                     @Override

@@ -26,6 +26,7 @@ import me.champeau.a4j.jsolex.expr.ast.FunctionCall;
 import me.champeau.a4j.jsolex.expr.ast.FunctionDef;
 import me.champeau.a4j.jsolex.expr.ast.ImageMathScript;
 import me.champeau.a4j.jsolex.processing.event.ProgressEvent;
+import me.champeau.a4j.jsolex.processing.event.ProgressOperation;
 import me.champeau.a4j.jsolex.processing.params.ProcessParams;
 import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
 import me.champeau.a4j.jsolex.processing.sun.workflow.ImageStats;
@@ -71,6 +72,7 @@ public class DefaultImageScriptExecutor implements ImageMathScriptExecutor {
     private final AtomicInteger executionCount = new AtomicInteger(0);
     private final Broadcaster broadcaster;
     private final Map<String, Object> variables = new LinkedHashMap<>();
+    private final ProgressOperation operation;
 
     private boolean isCollectingShifts = false;
     private Path includesDir;
@@ -82,6 +84,16 @@ public class DefaultImageScriptExecutor implements ImageMathScriptExecutor {
         this.imagesByShift = img -> isCollectingShifts ? ImageWrapper32.createEmpty() : imageSupplier.apply(img);
         this.context = context;
         this.broadcaster = broadcaster;
+        this.operation = createOperation(context);
+    }
+
+    private static ProgressOperation createOperation(Map<Class, Object> context) {
+        var progressOperation = (ProgressOperation) context.get(ProgressOperation.class);
+        if (progressOperation == null) {
+            progressOperation = ProgressOperation.root("ImageScript evaluation", unused -> {
+            });
+        }
+        return progressOperation;
     }
 
     public DefaultImageScriptExecutor(Function<Double, ImageWrapper> imagesByShift,
@@ -110,6 +122,7 @@ public class DefaultImageScriptExecutor implements ImageMathScriptExecutor {
     @Override
     public ImageMathScriptResult execute(String script, SectionKind kind) {
         long nanoTime = System.nanoTime();
+        var scriptOperation = operation.createChild("ImageScript");
         try {
             var index = executionCount.getAndIncrement();
             var evaluator = new MemoizingExpressionEvaluator(broadcaster);
@@ -121,6 +134,8 @@ public class DefaultImageScriptExecutor implements ImageMathScriptExecutor {
         } finally {
             var dur = java.time.Duration.ofNanos(System.nanoTime() - nanoTime);
             LOGGER.info(message("script.completed.in"), dur.toSeconds(), dur.toMillisPart() / 100);
+            var secs = dur.toSeconds() + (dur.toMillisPart() / 1000d);
+            broadcaster.broadcast(scriptOperation.complete(String.format(message("script.completed.in.format"), secs)));
         }
     }
 
@@ -158,12 +173,13 @@ public class DefaultImageScriptExecutor implements ImageMathScriptExecutor {
         var invalidExpressions = new ArrayList<InvalidExpression>();
         evaluator.clearShifts();
         evaluator.clearCache();
-        broadcaster.broadcast(ProgressEvent.of(0d, "ImageScript evaluation"));
+        var progressOperation = operation.createChild("ImageScript evaluation");
+        broadcaster.broadcast(progressOperation);
         double idx = 0;
         double size = preparedScript.expressions.size();
         for (var expression : preparedScript.expressions) {
             try {
-                broadcaster.broadcast(ProgressEvent.of(idx / size, "ImageScript : " + expression));
+                broadcaster.broadcast(progressOperation.update(idx / size, "ImageScript : " + expression));
                 evaluator.evaluate(expression);
             } catch (Exception ex) {
                 invalidExpressions.add(new InvalidExpression(
@@ -175,7 +191,6 @@ public class DefaultImageScriptExecutor implements ImageMathScriptExecutor {
                 idx++;
             }
         }
-        broadcaster.broadcast(ProgressEvent.of(1.0, "ImageScript evaluation"));
         var variables = evaluator.getVariables();
         this.variables.putAll(variables);
         for (var label : preparedScript.outputVariables) {
@@ -202,7 +217,7 @@ public class DefaultImageScriptExecutor implements ImageMathScriptExecutor {
                 }
             }
         }
-        broadcaster.broadcast(ProgressEvent.of(1.0, "ImageScript evaluation"));
+        broadcaster.broadcast(progressOperation.complete());
         var expressionShifts = new TreeSet<>(evaluator.getShifts());
         expressionShifts.removeAll(variableShifts);
         return new ImageMathScriptResult(producedImages, producedFiles, invalidExpressions, Collections.unmodifiableSet(variableShifts), Collections.unmodifiableSet(expressionShifts), evaluator.getAutoWavelenghts(), evaluator.usesAutoContinuum());
@@ -285,9 +300,10 @@ public class DefaultImageScriptExecutor implements ImageMathScriptExecutor {
         var collecting = isCollectingShifts;
         isCollectingShifts = true;
         var shiftCollectingEvaluator = new ShiftCollectingExpressionEvaluator(evaluator);
+        var progressOperation = operation.createChild("ImageScript evaluation");
         try {
             for (Expression expression : expressions) {
-                broadcaster.broadcast(ProgressEvent.of(0, "ImageScript evaluation " + expression));
+                broadcaster.broadcast(progressOperation.update(0, "ImageScript evaluation " + expression));
                 try {
                     shiftCollectingEvaluator.evaluate(expression);
                 } catch (Exception ex) {
@@ -295,7 +311,7 @@ public class DefaultImageScriptExecutor implements ImageMathScriptExecutor {
                 }
             }
         } finally {
-            broadcaster.broadcast(ProgressEvent.of(1.0d, "ImageScript evaluation"));
+            broadcaster.broadcast(progressOperation.complete());
             isCollectingShifts = collecting;
         }
     }
@@ -312,6 +328,7 @@ public class DefaultImageScriptExecutor implements ImageMathScriptExecutor {
             evaluator.putVariable(key, value);
         }
         evaluator.putInContext(Broadcaster.class, broadcaster);
+        evaluator.putInContext(ProgressOperation.class, operation);
     }
 
     public Optional<Object> getVariable(String result) {
@@ -402,7 +419,8 @@ public class DefaultImageScriptExecutor implements ImageMathScriptExecutor {
                 }
                 return o;
             }
-            broadcaster.broadcast(ProgressEvent.of(0, "Evaluating " + expression));
+            var progressOperation = operation.createChild("Evaluating " + expression);
+            broadcaster.broadcast(progressOperation);
             try {
                 var result = super.doEvaluate(expression);
                 if (result instanceof ImageWrapper image) {
@@ -420,7 +438,7 @@ public class DefaultImageScriptExecutor implements ImageMathScriptExecutor {
                 memoizeCache.put(cacheKey, result);
                 return result;
             } finally {
-                broadcaster.broadcast(ProgressEvent.of(1.0, "Evaluating " + expression));
+                broadcaster.broadcast(progressOperation.complete());
             }
         }
 

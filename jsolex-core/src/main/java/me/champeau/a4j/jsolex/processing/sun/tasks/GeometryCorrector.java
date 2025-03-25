@@ -16,6 +16,7 @@
 package me.champeau.a4j.jsolex.processing.sun.tasks;
 
 import me.champeau.a4j.jsolex.processing.event.ProgressEvent;
+import me.champeau.a4j.jsolex.processing.event.ProgressOperation;
 import me.champeau.a4j.jsolex.processing.expr.impl.Crop;
 import me.champeau.a4j.jsolex.processing.expr.impl.Rotate;
 import me.champeau.a4j.jsolex.processing.params.ProcessParams;
@@ -63,6 +64,7 @@ public class GeometryCorrector extends AbstractTask<GeometryCorrector.Result> {
     private final Header header;
 
     public GeometryCorrector(Broadcaster broadcaster,
+                             ProgressOperation operation,
                              Supplier<ImageWrapper32> image,
                              Ellipse ellipse,
                              Double forcedTilt,
@@ -73,7 +75,7 @@ public class GeometryCorrector extends AbstractTask<GeometryCorrector.Result> {
                              ImageEmitter imageEmitter,
                              WorkflowState state,
                              Header header) {
-        super(broadcaster, image);
+        super(broadcaster, operation, image);
         this.ellipse = ellipse;
         this.forcedTilt = forcedTilt;
         this.frameRate = frameRate;
@@ -87,7 +89,7 @@ public class GeometryCorrector extends AbstractTask<GeometryCorrector.Result> {
 
     @Override
     public Result doCall() throws Exception {
-        broadcaster.broadcast(ProgressEvent.of(0, message("correcting.geometry")));
+        broadcaster.broadcast(operation.update(0, message("correcting.geometry")));
         var theta = forcedTilt == null ? ellipse.rotationAngle() : forcedTilt;
         var m = Math.tan(-theta);
         var semiAxis = ellipse.semiAxis();
@@ -214,7 +216,7 @@ public class GeometryCorrector extends AbstractTask<GeometryCorrector.Result> {
             corrected.transformMetadata(ReferenceCoords.class, ReferenceCoords::geoCorrectionMarker);
             TransformationHistory.recordTransform(corrected, message("autocrop"));
         }
-        broadcaster.broadcast(ProgressEvent.of(1, message("correcting.geometry")));
+        broadcaster.broadcast(operation.complete());
         var wrapped = FileBackedImage.wrap(corrected);
         return new Result(wrapped, wrapped, ellipse, corrected.findMetadata(Ellipse.class).orElse(circle), blackPoint);
     }

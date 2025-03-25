@@ -20,6 +20,7 @@ import javafx.scene.control.Tab;
 import javafx.stage.Stage;
 import me.champeau.a4j.jsolex.app.jfx.ApplyUserRotation;
 import me.champeau.a4j.jsolex.app.jfx.MultipleImagesViewer;
+import me.champeau.a4j.jsolex.processing.event.ProgressOperation;
 import me.champeau.a4j.jsolex.processing.expr.ImageMathScriptExecutor;
 import me.champeau.a4j.jsolex.processing.params.ProcessParams;
 import me.champeau.a4j.jsolex.processing.sun.TrimmingParameters;
@@ -43,7 +44,7 @@ public interface JSolExInterface {
 
     void updateProgress(double progress, String text);
 
-    void prepareForScriptExecution(ImageMathScriptExecutor executor, ProcessParams params);
+    void prepareForScriptExecution(ImageMathScriptExecutor executor, ProcessParams params, ProgressOperation rootOperation);
 
     HostServices getHostServices();
 

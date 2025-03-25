@@ -15,17 +15,13 @@
  */
 package me.champeau.a4j.jsolex.processing.event;
 
-public final class ProgressEvent extends ProcessingEvent<ProgressEvent.Progress> {
+public final class ProgressEvent extends ProcessingEvent<ProgressOperation> {
 
-    private ProgressEvent(Progress payload) {
+    private ProgressEvent(ProgressOperation payload) {
         super(payload);
     }
 
-    public static ProgressEvent of(double progress, String task) {
-        return new ProgressEvent(new Progress(progress, task));
-    }
-
-    public record Progress(double progress, String task) {
-
+    public static ProgressEvent of(ProgressOperation payload) {
+        return new ProgressEvent(payload);
     }
 }

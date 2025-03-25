@@ -74,6 +74,10 @@ public interface ImageMathScriptExecutor {
 
     ImageMathScriptResult execute(String script, SectionKind kind);
 
+    default <T> void putInContext(Class<T> key, T value) {
+
+    }
+
     default void putVariable(String name, Object value) {
 
     }
