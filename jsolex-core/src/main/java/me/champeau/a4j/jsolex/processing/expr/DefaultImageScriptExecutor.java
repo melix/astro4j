@@ -15,16 +15,14 @@
  */
 package me.champeau.a4j.jsolex.processing.expr;
 
-import me.champeau.a4j.jsolex.expr.BuiltinFunction;
-import me.champeau.a4j.jsolex.expr.ExpressionEvaluator;
-import me.champeau.a4j.jsolex.expr.ImageMathParser;
-import me.champeau.a4j.jsolex.expr.Node;
-import me.champeau.a4j.jsolex.expr.UserFunction;
+import me.champeau.a4j.jsolex.expr.*;
 import me.champeau.a4j.jsolex.expr.ast.Assignment;
 import me.champeau.a4j.jsolex.expr.ast.Expression;
 import me.champeau.a4j.jsolex.expr.ast.FunctionCall;
 import me.champeau.a4j.jsolex.expr.ast.FunctionDef;
 import me.champeau.a4j.jsolex.expr.ast.ImageMathScript;
+import me.champeau.a4j.jsolex.processing.event.Notification;
+import me.champeau.a4j.jsolex.processing.event.NotificationEvent;
 import me.champeau.a4j.jsolex.processing.event.ProgressEvent;
 import me.champeau.a4j.jsolex.processing.event.ProgressOperation;
 import me.champeau.a4j.jsolex.processing.params.ProcessParams;
@@ -128,6 +126,18 @@ public class DefaultImageScriptExecutor implements ImageMathScriptExecutor {
             var evaluator = new MemoizingExpressionEvaluator(broadcaster);
             populateContext(evaluator);
             var outputs = prepareOutputExpressions(script, index, evaluator, kind);
+            if (outputs.error != null) {
+                broadcaster.broadcast(new NotificationEvent(
+                        new Notification(
+                                Notification.AlertType.ERROR,
+                                message("imagemath.parse.error"),
+                                message("imagemath.parse.error"),
+                                outputs.error
+                        )
+                ));
+                broadcaster.broadcast(scriptOperation.complete());
+                return ImageMathScriptResult.EMPTY;
+            }
             var producedImages = new HashMap<String, ImageWrapper>();
             var producedFiles = new HashMap<String, Path>();
             return outputs == null ? new ImageMathScriptResult(producedImages, producedFiles, List.of(), evaluator.getShifts(), Set.of(), evaluator.getAutoWavelenghts(), false) : executeScript(evaluator, outputs, producedImages, producedFiles);
@@ -143,7 +153,7 @@ public class DefaultImageScriptExecutor implements ImageMathScriptExecutor {
         var evaluator = new MemoizingExpressionEvaluator(broadcaster);
         context.forEach(evaluator::putInContext);
         return executeScript(evaluator,
-                new PreparedScript(Set.of("result"), expressions, userFunctions),
+                new PreparedScript(Set.of("result"), expressions, userFunctions, null),
                 new HashMap<>(),
                 new HashMap<>());
     }
@@ -233,13 +243,14 @@ public class DefaultImageScriptExecutor implements ImageMathScriptExecutor {
         ImageMathScript root = null;
         try {
             root = parser.parseAndInlineIncludes();
-        } catch (Exception ex) {
-            return new PreparedScript(Collections.emptySet(), List.of(), List.of());
+        } catch (ParseException ex) {
+            var error = ex.getMessage();
+            return new PreparedScript(Collections.emptySet(), List.of(), List.of(), error);
         }
         Set<String> outputVariables = new LinkedHashSet<>();
         var sections = root.findSections(kind);
         if (sections.isEmpty()) {
-            return new PreparedScript(Collections.emptySet(), List.of(), List.of());
+            return new PreparedScript(Collections.emptySet(), List.of(), List.of(), null);
         }
         var functions = readUserFunctions(root);
         var outputSection = sections.stream()
@@ -272,7 +283,7 @@ public class DefaultImageScriptExecutor implements ImageMathScriptExecutor {
             }
         }
         collectInternalShifts(evaluator, allExpressions);
-        return new PreparedScript(outputVariables, allExpressions, functions);
+        return new PreparedScript(outputVariables, allExpressions, functions, null);
     }
 
     private List<UserFunction> readUserFunctions(ImageMathScript scriptNode) {
@@ -457,7 +468,8 @@ public class DefaultImageScriptExecutor implements ImageMathScriptExecutor {
     private record PreparedScript(
             Set<String> outputVariables,
             List<Expression> expressions,
-            List<UserFunction> userFunctions
+            List<UserFunction> userFunctions,
+            String error
     ) {
     }
 

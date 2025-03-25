@@ -30,4 +30,13 @@ public record ImageMathScriptResult(
         Set<Double> outputShifts,
         Set<Double> requestedWavelenghts,
         boolean autoContinuum) {
+    public static final ImageMathScriptResult EMPTY = new ImageMathScriptResult(
+            Map.of(),
+            Map.of(),
+            List.of(),
+            Set.of(),
+            Set.of(),
+            Set.of(),
+            false
+    );
 }
