@@ -52,6 +52,7 @@ public class EllipseFit extends AbstractFunctionImpl {
     public ImageWrapper32 performEllipseFitting(ImageWrapper32 image) {
         var task = new EllipseFittingTask(
                 getFromContext(Broadcaster.class).orElse(Broadcaster.NO_OP),
+                newOperation(),
                 () -> image,
                 getFromContext(ProcessParams.class).orElse(null),
                 getFromContext(ImageEmitter.class).orElse(null)

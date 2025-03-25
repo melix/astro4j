@@ -38,6 +38,7 @@ import javafx.util.converter.DoubleStringConverter;
 import javafx.util.converter.IntegerStringConverter;
 import me.champeau.a4j.jsolex.app.AlertFactory;
 import me.champeau.a4j.jsolex.app.JSolEx;
+import me.champeau.a4j.jsolex.processing.event.ProgressOperation;
 import me.champeau.a4j.jsolex.processing.params.AutoStretchParams;
 import me.champeau.a4j.jsolex.processing.params.AutocropMode;
 import me.champeau.a4j.jsolex.processing.params.BandingCorrectionParams;
@@ -233,14 +234,16 @@ public class ProcessParamsController {
     private boolean forceCamera;
     private boolean showCoordinatesInDetails;
     private boolean autoTrimSerFileSelected;
+    private ProgressOperation progressOperation;
 
-    public void setup(Stage stage, File serFile, Header serFileHeader, CaptureSoftwareMetadataHelper.CaptureMetadata md, boolean batchMode, HostServices hostServices) {
+    public void setup(Stage stage, ProgressOperation progressOperation, File serFile, Header serFileHeader, CaptureSoftwareMetadataHelper.CaptureMetadata md, boolean batchMode, HostServices hostServices) {
         this.stage = stage;
         this.serFile = serFile;
         this.serFileHeader = serFileHeader;
         this.hostServices = hostServices;
         this.initialProcessParams = ProcessParams.loadDefaults();
         this.batchMode = batchMode;
+        this.progressOperation = progressOperation;
         accordion.setExpandedPane(accordion.getPanes().get(0));
 
         wavelength.getItems().addAll(FXCollections.observableList(SpectralRayIO.loadDefaults()));
@@ -557,7 +560,7 @@ public class ProcessParamsController {
 
     @FXML
     public void openVideoDebugger() {
-        var debugger = SpectralLineDebugger.open(serFile, polynomial -> forcedPolynomial.setText(polynomial));
+        var debugger = SpectralLineDebugger.open(serFile, progressOperation, polynomial -> forcedPolynomial.setText(polynomial));
         popups.add(debugger);
         debugger.setOnCloseRequest(e -> popups.remove(debugger));
     }

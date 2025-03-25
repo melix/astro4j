@@ -37,6 +37,7 @@ public class SpectrumFrameAnalyzer {
     private final boolean isReducedSerFile;
     private Result result;
     private float[][] data;
+    private DoubleUnaryOperator polynomial;
 
     public SpectrumFrameAnalyzer(int width,
                                  int height,
@@ -92,6 +93,14 @@ public class SpectrumFrameAnalyzer {
                 rightBorder = x;
             }
         }
+        if (polynomial != null) {
+            this.result = new Result(
+                    leftBorder,
+                    rightBorder,
+                    null,
+                    List.of()
+            );
+        }
         var distortionPolynomial = findDistortionPolynomial(leftBorder, rightBorder);
         this.result = distortionPolynomial;
         if (isReducedSerFile) {
@@ -110,8 +119,9 @@ public class SpectrumFrameAnalyzer {
             double lineAvg = 0;
             for (int y = 0; y < height; y++) {
                 double value = data[y][x];
-                lineAvg = lineAvg + (value - lineAvg) / (y + 1);
+                lineAvg += value;
             }
+            lineAvg /= height;
             if (lineAvg > sunDetectionThreshold) {
                 if (leftBorder == null) {
                     leftBorder = x;
@@ -240,6 +250,10 @@ public class SpectrumFrameAnalyzer {
         var stddev = Math.sqrt(samplePoints.stream().mapToDouble(p -> Math.pow(p.y() - avgY, 2)).sum() / samplePoints.size());
         // remove samples which are 2*sigma away from the average
         samplePoints.removeIf(p -> Math.abs(p.y() - avgY) > factor * stddev);
+    }
+
+    public void forcePolynomial(DoubleUnaryOperator polynomial) {
+        this.polynomial = polynomial;
     }
 
     public static class Result {

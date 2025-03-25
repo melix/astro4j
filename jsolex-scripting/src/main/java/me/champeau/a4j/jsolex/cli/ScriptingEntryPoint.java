@@ -18,10 +18,7 @@ package me.champeau.a4j.jsolex.cli;
 import ch.qos.logback.classic.Level;
 import io.micronaut.configuration.picocli.PicocliRunner;
 import io.micronaut.core.annotation.ReflectiveAccess;
-import me.champeau.a4j.jsolex.processing.event.GeneratedImage;
-import me.champeau.a4j.jsolex.processing.event.ImageGeneratedEvent;
-import me.champeau.a4j.jsolex.processing.event.ProcessingEvent;
-import me.champeau.a4j.jsolex.processing.event.ProgressEvent;
+import me.champeau.a4j.jsolex.processing.event.*;
 import me.champeau.a4j.jsolex.processing.expr.DefaultImageScriptExecutor;
 import me.champeau.a4j.jsolex.processing.expr.ImageMathScriptExecutor;
 import me.champeau.a4j.jsolex.processing.expr.ImageMathScriptResult;
@@ -57,7 +54,7 @@ import java.util.stream.Collectors;
 
 
 @Command(name = "jsolex", description = "Sol'Ex spectroheliograph video processing",
-    mixinStandardHelpOptions = true)
+        mixinStandardHelpOptions = true)
 @ReflectiveAccess
 public class ScriptingEntryPoint implements Runnable {
     private static final Logger LOGGER = LoggerFactory.getLogger(ScriptingEntryPoint.class);
@@ -114,9 +111,11 @@ public class ScriptingEntryPoint implements Runnable {
                     performSerProcessing(inputFile, i, processParams, generatedImages);
                 }
                 var scriptExecutor = new DefaultImageScriptExecutor(
-                    d -> { throw new RuntimeException("image not available in batch section. You can only reference images generated in the [outputs] section"); },
-                    Map.of(ProcessParams.class, processParams),
-                    createBroadcaster(new ImageSaver(CutoffStretchingStrategy.DEFAULT, processParams), outputDir)
+                        d -> {
+                            throw new RuntimeException("image not available in batch section. You can only reference images generated in the [outputs] section");
+                        },
+                        Map.of(ProcessParams.class, processParams),
+                        createBroadcaster(new ImageSaver(CutoffStretchingStrategy.DEFAULT, processParams), outputDir)
                 );
                 for (Map.Entry<String, List<ImageWrapper>> entry : generatedImages.entrySet()) {
                     scriptExecutor.putVariable(entry.getKey(), entry.getValue());
@@ -142,30 +141,32 @@ public class ScriptingEntryPoint implements Runnable {
 
     private void performSerProcessing(File inputFile, int idx, ProcessParams processParams, Map<String, List<ImageWrapper>> generatedImages) {
         var svp = new SolexVideoProcessor(
-            inputFile,
-            outputDir.toPath(),
-            idx,
-            processParams,
-            LocalDateTime.now(),
-            true,
-            1
+                inputFile,
+                outputDir.toPath(),
+                idx,
+                processParams,
+                LocalDateTime.now(),
+                true,
+                1,
+                ProgressOperation.root("cli", p -> {
+                })
         );
         var listener = new ScriptLoggingListener(processParams);
         svp.addEventListener(listener);
         svp.process();
         listener.getGeneratedImages().
-            forEach((key, value) -> generatedImages.computeIfAbsent(key, k -> new ArrayList<>())
-            .add(value));
+                forEach((key, value) -> generatedImages.computeIfAbsent(key, k -> new ArrayList<>())
+                        .add(value));
     }
 
     private void processSingle(ProcessParams processParams, ImageSaver saver) {
         var outputDirectory = outputDir == null ? new File(".") : outputDir;
         var scriptExecutor = new DefaultImageScriptExecutor(
-            d -> {
-                throw new IllegalStateException("image not available in standalone mode");
-            },
-            Map.of(ProcessParams.class, processParams),
-            createBroadcaster(saver, outputDirectory)
+                d -> {
+                    throw new IllegalStateException("image not available in standalone mode");
+                },
+                Map.of(ProcessParams.class, processParams),
+                createBroadcaster(saver, outputDirectory)
         );
         try {
             if (params != null) {
@@ -228,10 +229,10 @@ public class ScriptingEntryPoint implements Runnable {
             processParams = processParams.withRequestedImages(processParams.requestedImages().withImages(newImages));
         }
         processParams = processParams.withRequestedImages(
-            processParams.requestedImages().withMathImages(
-                new ImageMathParams(List.of(scriptPath)
+                processParams.requestedImages().withMathImages(
+                        new ImageMathParams(List.of(scriptPath)
+                        )
                 )
-            )
         );
         return processParams;
     }

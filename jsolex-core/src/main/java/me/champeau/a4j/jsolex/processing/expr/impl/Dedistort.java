@@ -350,14 +350,15 @@ public class Dedistort extends AbstractFunctionImpl {
         var referenceData = reference.data();
         var progressCounter = new AtomicInteger();
         var signal = backgroundThreshold != null ? backgroundThreshold.floatValue() : 1;
+        var progressOperation = newOperation().createChild(FIND_CORRESP_MESSAGE);
         for (int y = 0; y < height; y += increment) {
             for (int x = 0; x < width; x += increment) {
                 findDisplacement(referenceData, image, width, height, x, y, tileSize, signal, distorsionMap);
             }
             var progress = progressCounter.addAndGet(increment) / (double) height;
-            broadcaster.broadcast(ProgressEvent.of(progress, FIND_CORRESP_MESSAGE));
+            broadcaster.broadcast(progressOperation.update(progress));
         }
-        broadcaster.broadcast(ProgressEvent.of(1.0, FIND_CORRESP_MESSAGE));
+        broadcaster.broadcast(progressOperation.complete());
         return dedistortSingle(image, distorsionMap, height, width);
     }
 
@@ -371,9 +372,10 @@ public class Dedistort extends AbstractFunctionImpl {
         var currentY = new AtomicInteger();
         var imageData = image.data();
         var result = new float[height][width];
+        var progressOperation = newOperation().createChild(DEDISTORT);
         for (int y = 0; y < height; y++) {
             var progress = currentY.incrementAndGet() / (double) height;
-            broadcaster.broadcast(ProgressEvent.of(progress, DEDISTORT));
+            broadcaster.broadcast(progressOperation.update(progress));
             for (int x = 0; x < width; x++) {
                 var displacement = distorsionMap.findDistorsion(x, y);
                 var xx = x + displacement.dx();
@@ -384,6 +386,7 @@ public class Dedistort extends AbstractFunctionImpl {
                 }
             }
         }
+        broadcaster.broadcast(progressOperation.complete());
         metadata.put(DistorsionMap.class, distorsionMap);
         return new ImageWrapper32(width, height, result, metadata);
     }

@@ -17,6 +17,7 @@ package me.champeau.a4j.jsolex.processing.sun.tasks;
 
 import me.champeau.a4j.jsolex.processing.event.GeneratedImage;
 import me.champeau.a4j.jsolex.processing.event.ImageGeneratedEvent;
+import me.champeau.a4j.jsolex.processing.event.ProgressOperation;
 import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
 import me.champeau.a4j.jsolex.processing.sun.workflow.GeneratedImageKind;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
@@ -33,13 +34,14 @@ public abstract class AbstractImageWriterTask extends AbstractTask<Void> {
     private final String description;
 
     protected AbstractImageWriterTask(Broadcaster broadcaster,
+                                      ProgressOperation operation,
                                       Supplier<ImageWrapper32> image,
                                       File outputDirectory,
                                       String title,
                                       String name,
                                       String description,
                                       GeneratedImageKind kind) {
-        super(broadcaster, image);
+        super(broadcaster, operation, image);
         this.outputDirectory = outputDirectory;
         this.title = title;
         this.name = name;

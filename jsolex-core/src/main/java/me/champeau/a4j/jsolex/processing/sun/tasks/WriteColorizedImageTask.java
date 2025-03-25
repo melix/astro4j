@@ -15,6 +15,7 @@
  */
 package me.champeau.a4j.jsolex.processing.sun.tasks;
 
+import me.champeau.a4j.jsolex.processing.event.ProgressOperation;
 import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
 import me.champeau.a4j.jsolex.processing.sun.workflow.GeneratedImageKind;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
@@ -30,6 +31,7 @@ public class WriteColorizedImageTask extends AbstractImageWriterTask {
     private final Function<ImageWrapper32, float[][][]> converter;
 
     public WriteColorizedImageTask(Broadcaster broadcaster,
+                                   ProgressOperation operation,
                                    Supplier<ImageWrapper32> image,
                                    File outputDirectory,
                                    String title,
@@ -37,7 +39,7 @@ public class WriteColorizedImageTask extends AbstractImageWriterTask {
                                    String description,
                                    GeneratedImageKind kind,
                                    Function<ImageWrapper32, float[][][]> converter) {
-        super(broadcaster, image, outputDirectory, title, name, description, kind);
+        super(broadcaster, operation, image, outputDirectory, title, name, description, kind);
         this.mono = image;
         this.converter = converter;
     }

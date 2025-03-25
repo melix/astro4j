@@ -45,6 +45,7 @@ import me.champeau.a4j.jsolex.app.JSolEx;
 import me.champeau.a4j.jsolex.processing.event.GenericMessage;
 import me.champeau.a4j.jsolex.processing.event.ProcessingEventListener;
 import me.champeau.a4j.jsolex.processing.event.ProgressEvent;
+import me.champeau.a4j.jsolex.processing.event.ProgressOperation;
 import me.champeau.a4j.jsolex.processing.params.AutocropMode;
 import me.champeau.a4j.jsolex.processing.params.ProcessParams;
 import me.champeau.a4j.jsolex.processing.params.RotationKind;
@@ -86,6 +87,7 @@ public class ImageViewer implements WithRootNode {
     private File imageFile;
     private GeneratedImageKind kind;
     private ProcessingEventListener broadcaster;
+    private ProgressOperation operation;
     private ProcessParams processParams;
 
     private Label dimensions;
@@ -120,6 +122,7 @@ public class ImageViewer implements WithRootNode {
     }
 
     public void setup(ProcessingEventListener broadcaster,
+                      ProgressOperation operation,
                       String title,
                       String baseName,
                       GeneratedImageKind kind,
@@ -130,6 +133,7 @@ public class ImageViewer implements WithRootNode {
                       Map<String, ImageViewer> popupViews,
                       Set<ImageViewer> siblings) {
         this.broadcaster = broadcaster;
+        this.operation = operation;
         this.processParams = params;
         this.kind = kind;
         this.title = title;
@@ -159,7 +163,7 @@ public class ImageViewer implements WithRootNode {
                             var controller = (ImageViewer) fxmlLoader.getController();
                             controller.init(node);
                             controller.setup(new ProcessingEventListener() {
-                            }, title, baseName, kind, description, image, imageFile, processParams, popupViews, siblings);
+                            }, operation, title, baseName, kind, description, image, imageFile, processParams, popupViews, siblings);
                             var stage = new Stage();
                             var scene = new Scene((Parent) node);
                             controller.stage = stage;
@@ -210,8 +214,8 @@ public class ImageViewer implements WithRootNode {
         var image = applyTransformations(this.image);
         var files = new ImageSaver(new StretchingChain(stretchingStrategy, RangeExpansionStrategy.DEFAULT), processParams).save(image, imageFile);
         files.stream()
-            .findFirst()
-            .ifPresent(file -> imageView.setImagePathForOpeningInExplorer(file.toPath()));
+                .findFirst()
+                .ifPresent(file -> imageView.setImagePathForOpeningInExplorer(file.toPath()));
         Platform.runLater(() -> {
             saveButton.setDisable(true);
             imageView.fileSaved();
@@ -399,14 +403,9 @@ public class ImageViewer implements WithRootNode {
     }
 
     private ImageWrapper stretch(ImageWrapper image) {
-        broadcaster.onProgress(ProgressEvent.of(0, message("stretching") + " " + imageFile.getName()));
-        try {
-            var copy = image.copy();
-            new StretchingChain(stretchingStrategy, RangeExpansionStrategy.DEFAULT).stretch(copy);
-            return copy;
-        } finally {
-            broadcaster.onProgress(ProgressEvent.of(1, message("stretching") + " " + imageFile.getName()));
-        }
+        var copy = image.copy();
+        new StretchingChain(stretchingStrategy, RangeExpansionStrategy.DEFAULT).stretch(copy);
+        return copy;
     }
 
     void display() {
@@ -524,10 +523,10 @@ public class ImageViewer implements WithRootNode {
     }
 
     private record ImageState(
-        ProcessParams processParams,
-        String baseName,
-        ImageWrapper image,
-        File imageFile
+            ProcessParams processParams,
+            String baseName,
+            ImageWrapper image,
+            File imageFile
     ) {
 
     }

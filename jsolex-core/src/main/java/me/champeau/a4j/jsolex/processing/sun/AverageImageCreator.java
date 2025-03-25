@@ -16,6 +16,7 @@
 package me.champeau.a4j.jsolex.processing.sun;
 
 import me.champeau.a4j.jsolex.processing.event.ProgressEvent;
+import me.champeau.a4j.jsolex.processing.event.ProgressOperation;
 import me.champeau.a4j.jsolex.processing.util.ParallelExecutor;
 import me.champeau.a4j.jsolex.processing.util.ProcessingException;
 import me.champeau.a4j.math.image.ImageMath;
@@ -37,13 +38,16 @@ public class AverageImageCreator {
     private static final int IO_PARALLELISM = 4 * Runtime.getRuntime().availableProcessors();
 
     private final ImageConverter<float[][]> imageConverter;
+    private final ProgressOperation rootOperation;
     private final Broadcaster broadcaster;
 
     private float[][] averageImage;
 
     public AverageImageCreator(ImageConverter<float[][]> imageConverter,
+                               ProgressOperation rootOperation,
                                Broadcaster broadcaster) {
         this.imageConverter = imageConverter;
+        this.rootOperation = rootOperation;
         this.broadcaster = broadcaster;
     }
 
@@ -54,8 +58,9 @@ public class AverageImageCreator {
         var imageMath = ImageMath.newInstance();
         averageImage = new float[geometry.height()][geometry.width()];
         var counter = new AtomicInteger(0);
+        var progressOperation = rootOperation.createChild(limbDetectionMessage);
         // we start with sampling frames to find the one with the maximum intensity
-        var maxMean = findMaxMeanBySampling(reader, frameCount, limbDetectionMessage, geometry, imageMath);
+        var maxMean = findMaxMeanBySampling(reader, frameCount, progressOperation, geometry, imageMath);
         // We're going to ignore frames which are too dark
         var threshold = 0.5f * maxMean;
         try (var cpuExecutor = Executors.newFixedThreadPool(1)) {
@@ -63,7 +68,7 @@ public class AverageImageCreator {
                 reader.seekFrame(0);
                 for (int i = 0; i < frameCount; i++) {
                     int frameId = i;
-                    broadcaster.broadcast(ProgressEvent.of(frameId / (double) frameCount, limbDetectionMessage));
+                    broadcaster.broadcast(progressOperation.update(frameId / (double) frameCount));
                     // Because we're processing each frame concurrently we need
                     // to copy the frame buffer into a new array
                     var currentFrame = reader.currentFrame().data().array();
@@ -85,14 +90,16 @@ public class AverageImageCreator {
             }
         } catch (Exception ex) {
             throw ProcessingException.wrap(ex);
+        } finally {
+            broadcaster.broadcast(progressOperation.complete());
         }
     }
 
-    private float findMaxMeanBySampling(SerFileReader reader, int frameCount, String limbDetectionMessage, ImageGeometry geometry, ImageMath imageMath) {
+    private float findMaxMeanBySampling(SerFileReader reader, int frameCount, ProgressOperation progressOperation, ImageGeometry geometry, ImageMath imageMath) {
         var sampling = Math.max(10, frameCount / 100);
         var means = new float[1 + frameCount / sampling];
-        broadcaster.broadcast(ProgressEvent.of(0 / (double) frameCount, limbDetectionMessage));
-        try (var executor = ParallelExecutor.newExecutor(IO_PARALLELISM)) {
+        broadcaster.broadcast(progressOperation.update(0 / (double) frameCount));
+        try (var executor = Executors.newFixedThreadPool(IO_PARALLELISM)) {
             for (int i = 0; i < frameCount; i += sampling) {
                 reader.seekFrame(i);
                 var img = imageConverter.createBuffer(geometry);

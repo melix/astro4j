@@ -342,21 +342,22 @@ public class MosaicComposition extends AbstractFunctionImpl {
     private void computeMissingState(int tileSize, List<ImageWrapper32> corrected, float background, Map<ImageWrapper32, Set<Integer>> imageToTilesOverbackground, Map<ImageWrapper32, Image> integralImages) {
         var count = new AtomicInteger();
         var totalOperations = 2 * corrected.size();
+        var progressOperation = newOperation().createChild(message("computing.integral.images"));
         try {
             // add missing images to integral images map
-            corrected.stream().parallel().peek(img -> broadcaster.broadcast(ProgressEvent.of(count.getAndIncrement() / (double) totalOperations, message("computing.integral.images")))).filter(img -> !integralImages.containsKey(img))
-                .map(img -> new Object() {
-                    final ImageWrapper32 image = img;
-                    final Image integral = imageMath.integralImage(img.asImage());
-                }).forEachOrdered(o -> integralImages.put(o.image, o.integral));
+            corrected.stream().parallel().peek(img -> broadcaster.broadcast(progressOperation.update(count.getAndIncrement() / (double) totalOperations))).filter(img -> !integralImages.containsKey(img))
+                    .map(img -> new Object() {
+                        final ImageWrapper32 image = img;
+                        final Image integral = imageMath.integralImage(img.asImage());
+                    }).forEachOrdered(o -> integralImages.put(o.image, o.integral));
             // add tiles over background to map
-            corrected.stream().parallel().peek(img -> broadcaster.broadcast(ProgressEvent.of(count.getAndIncrement() / (double) totalOperations, message("computing.integral.images")))).filter(img -> !imageToTilesOverbackground.containsKey(img))
-                .map(img -> new Object() {
-                    final ImageWrapper32 image = img;
-                    final Set<Integer> tiles = computeTilesOverBackground(img, integralImages.get(img), background, tileSize);
-                }).forEachOrdered(o -> imageToTilesOverbackground.put(o.image, o.tiles));
+            corrected.stream().parallel().peek(img -> broadcaster.broadcast(progressOperation.update(count.getAndIncrement() / (double) totalOperations))).filter(img -> !imageToTilesOverbackground.containsKey(img))
+                    .map(img -> new Object() {
+                        final ImageWrapper32 image = img;
+                        final Set<Integer> tiles = computeTilesOverBackground(img, integralImages.get(img), background, tileSize);
+                    }).forEachOrdered(o -> imageToTilesOverbackground.put(o.image, o.tiles));
         } finally {
-            broadcaster.broadcast(ProgressEvent.of(1.0, message("computing.integral.images")));
+            broadcaster.broadcast(progressOperation.complete());
         }
     }
 
@@ -382,36 +383,41 @@ public class MosaicComposition extends AbstractFunctionImpl {
 
     private List<DistorsionSample> findBestMatches(Map<Point2D, Optional<DistorsionSample>> cache, ImageWrapper32 reference, Image referenceIntegral, List<Point2D> referencePoints, ImageWrapper32 other, Image otherIntegral, int tileSize, int step,
                                                    int refX, int refY, double maxDist) {
-        broadcaster.broadcast(ProgressEvent.of(0, FINDING_MATCHES_MESSAGE.formatted(step)));
+        var progressOperation = newOperation().createChild(FINDING_MATCHES_MESSAGE.formatted(step));
+        broadcaster.broadcast(progressOperation);
         var width = reference.width();
         var height = reference.height();
         var referenceData = reference.data();
         var maxLookupShift = tileSize / 2;
         var data = other.data();
         var maxDistSquared = maxDist * maxDist;
-        return referencePoints.stream().parallel().<DistorsionSample>mapMulti((referencePoint, consumer) -> {
-            int x = (int) referencePoint.x();
-            int y = (int) referencePoint.y();
-            var dx = x - refX;
-            var dy = y - refY;
-            if (dx * dx + dy * dy > maxDistSquared) {
-                return;
-            }
-            var distorsionSample = cache.computeIfAbsent(referencePoint, p -> {
-                var tiles = createTilesForComparison(tileSize, x, width, y, height, referenceData, data, 0);
-                var dxy = crossCorrelationShiftFFT(tiles.referenceTile(), tiles.dataTile());
-                var sy = y - dxy.a();
-                var sx = x - dxy.b();
-                var referenceAvg = imageMath.areaAverage(referenceIntegral, x, y, tileSize, tileSize);
-                var otherAvg = imageMath.areaAverage(otherIntegral, (int) sx, (int) sy, tileSize, tileSize);
-                if (withinTolerance(otherAvg, referenceAvg, 0.25)) {
-                    return Optional.of(new DistorsionSample(referencePoint, new Point2D(sx, sy), 0));
+        try {
+            return referencePoints.stream().parallel().<DistorsionSample>mapMulti((referencePoint, consumer) -> {
+                int x = (int) referencePoint.x();
+                int y = (int) referencePoint.y();
+                var dx = x - refX;
+                var dy = y - refY;
+                if (dx * dx + dy * dy > maxDistSquared) {
+                    return;
                 }
+                var distorsionSample = cache.computeIfAbsent(referencePoint, p -> {
+                    var tiles = createTilesForComparison(tileSize, x, width, y, height, referenceData, data, 0);
+                    var dxy = crossCorrelationShiftFFT(tiles.referenceTile(), tiles.dataTile());
+                    var sy = y - dxy.a();
+                    var sx = x - dxy.b();
+                    var referenceAvg = imageMath.areaAverage(referenceIntegral, x, y, tileSize, tileSize);
+                    var otherAvg = imageMath.areaAverage(otherIntegral, (int) sx, (int) sy, tileSize, tileSize);
+                    if (withinTolerance(otherAvg, referenceAvg, 0.25)) {
+                        return Optional.of(new DistorsionSample(referencePoint, new Point2D(sx, sy), 0));
+                    }
 
-                return Optional.empty();
-            });
-            distorsionSample.ifPresent(consumer);
-        }).sorted(Comparator.comparingDouble(DistorsionSample::error)).toList();
+                    return Optional.empty();
+                });
+                distorsionSample.ifPresent(consumer);
+            }).sorted(Comparator.comparingDouble(DistorsionSample::error)).toList();
+        } finally {
+            broadcaster.broadcast(progressOperation.complete());
+        }
     }
 
     /**
@@ -449,7 +455,8 @@ public class MosaicComposition extends AbstractFunctionImpl {
                 return count;
             }
         }
-        broadcaster.broadcast(ProgressEvent.of(0, message("normalizing.histograms")));
+        var progressOperation = newOperation().createChild(message("normalizing.histograms"));
+        broadcaster.broadcast(progressOperation);
         try {
             List<ImageWrapper32> adjusted = new ArrayList<>(images);
             var nImages = adjusted.size();
@@ -481,7 +488,7 @@ public class MosaicComposition extends AbstractFunctionImpl {
             var background = (float) (0.8 * averageBackground);
             return new HistogramNormalization(adjusted, background);
         } finally {
-            broadcaster.broadcast(ProgressEvent.of(1.0, message("normalizing.histograms")));
+            broadcaster.broadcast(progressOperation.complete());
         }
     }
 

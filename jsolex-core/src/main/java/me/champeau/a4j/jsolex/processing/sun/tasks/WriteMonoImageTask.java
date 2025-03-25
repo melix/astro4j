@@ -15,6 +15,7 @@
  */
 package me.champeau.a4j.jsolex.processing.sun.tasks;
 
+import me.champeau.a4j.jsolex.processing.event.ProgressOperation;
 import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
 import me.champeau.a4j.jsolex.processing.sun.workflow.GeneratedImageKind;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
@@ -24,8 +25,15 @@ import java.io.File;
 import java.util.function.Supplier;
 
 public class WriteMonoImageTask extends AbstractImageWriterTask {
-    public WriteMonoImageTask(Broadcaster broadcaster, Supplier<ImageWrapper32> image, File outputDirectory, String title, String name, String description, GeneratedImageKind kind) {
-        super(broadcaster, image, outputDirectory, title, name, description, kind);
+    public WriteMonoImageTask(Broadcaster broadcaster,
+                              ProgressOperation operation,
+                              Supplier<ImageWrapper32> image,
+                              File outputDirectory,
+                              String title,
+                              String name,
+                              String description,
+                              GeneratedImageKind kind) {
+        super(broadcaster, operation, image, outputDirectory, title, name, description, kind);
     }
 
     @Override

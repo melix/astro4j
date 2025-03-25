@@ -20,6 +20,7 @@ import me.champeau.a4j.jsolex.app.jfx.BatchOperations;
 import me.champeau.a4j.jsolex.processing.event.ProcessingDoneEvent;
 import me.champeau.a4j.jsolex.processing.event.ProcessingEventListener;
 import me.champeau.a4j.jsolex.processing.event.ProgressEvent;
+import me.champeau.a4j.jsolex.processing.event.ProgressOperation;
 import me.champeau.a4j.jsolex.processing.expr.FileOutput;
 import me.champeau.a4j.jsolex.processing.expr.impl.AdjustContrast;
 import me.champeau.a4j.jsolex.processing.expr.impl.Animate;
@@ -87,6 +88,7 @@ public class RedshiftImagesProcessor {
     private final List<RedshiftArea> redshifts;
     private final DoubleUnaryOperator polynomial;
     private final float[][] averageImage;
+    private final ProgressOperation operation;
     private final int imageWidth;
     private final int imageHeight;
 
@@ -99,7 +101,8 @@ public class RedshiftImagesProcessor {
                                    ImageEmitter imageEmitter,
                                    List<RedshiftArea> redshifts,
                                    DoubleUnaryOperator polynomial,
-                                   float[][] averageImage) {
+                                   float[][] averageImage,
+                                   ProgressOperation operation) {
         this.shiftImages = shiftImages;
         this.params = params;
         this.serFile = serFile;
@@ -110,6 +113,7 @@ public class RedshiftImagesProcessor {
         this.redshifts = redshifts;
         this.polynomial = polynomial;
         this.averageImage = averageImage;
+        this.operation = operation;
         var image = shiftImages.values().stream().findFirst();
         if (image.isPresent()) {
             imageWidth = image.get().width();
@@ -121,7 +125,7 @@ public class RedshiftImagesProcessor {
     }
 
     public RedshiftImagesProcessor withRedshifts(List<RedshiftArea> redshifts) {
-        return new RedshiftImagesProcessor(shiftImages, params, serFile, outputDirectory, owner, broadcaster, imageEmitter, redshifts, polynomial, averageImage);
+        return new RedshiftImagesProcessor(shiftImages, params, serFile, outputDirectory, owner, broadcaster, imageEmitter, redshifts, polynomial, averageImage, operation);
     }
 
     public Optional<Double> getSunRadius() {
@@ -141,7 +145,8 @@ public class RedshiftImagesProcessor {
         if (!missingShifts.isEmpty()) {
             restartProcessForMissingShifts(new LinkedHashSet<>(missingShifts));
         }
-        broadcaster.broadcast(ProgressEvent.of(0, "Producing redshift animations and panels"));
+        var progressOperation = operation.createChild("Producing redshift animations and panels");
+        broadcaster.broadcast(progressOperation);
         double progress = 0;
         var computedShifts = new TreeSet<>(shiftImages.keySet());
         var adjustedRedshifts = shiftImages.get(0d)
@@ -165,12 +170,12 @@ public class RedshiftImagesProcessor {
                 shiftToContrastAdjusted.put(range.get(i), (ImageWrapper) list.get(i));
             }
             for (var redshift : adjustedRedshifts) {
-                broadcaster.broadcast(ProgressEvent.of(progress / redshifts.size(), "Producing images for redshift " + redshift));
+                broadcaster.broadcast(progressOperation.update(progress / redshifts.size(), "Producing images for redshift " + redshift));
                 produceImagesForRedshift(redshift, kind, boxSize, useFullRangePanels, annotateAnimations, shiftToContrastAdjusted, annotationColor);
                 progress++;
             }
         }
-        broadcaster.broadcast(ProgressEvent.of(1, "Producing redshift animations and panels done"));
+        broadcaster.broadcast(progressOperation.complete());
     }
 
     private LinkedHashSet<Double> createRange(int margin, int pixelShift) {
@@ -283,7 +288,8 @@ public class RedshiftImagesProcessor {
             }
             var fontSize = finalWidth / 16f;
             var progress = new AtomicInteger(0);
-            broadcaster.broadcast(ProgressEvent.of(0, "Annotating frames"));
+            var progressOperation = operation.createChild("Annotating frames");
+            broadcaster.broadcast(progressOperation);
             double totalImages = list.size();
             frames = ((List<Object>)list).stream()
                 .parallel()
@@ -293,13 +299,13 @@ public class RedshiftImagesProcessor {
                     var angstroms = pixelShift * dispersion.angstromsPerPixel();
                     var legend = String.format(Locale.US, "%.2fÅ (%.2f km/s)", angstroms, Math.abs(PhenomenaDetector.speedOf(pixelShift, dispersion, lambda0)));
                     var annotated = (ImageWrapper) draw.drawText(frame, "*" + legend + "*", (int) fontSize, (int) (finalHeight - 2 * fontSize / 3), annotationColorHex, (int) fontSize);
-                    broadcaster.broadcast(ProgressEvent.of(progress.incrementAndGet() / totalImages, "Annotating frames"));
+                    broadcaster.broadcast(progressOperation.update(progress.incrementAndGet() / totalImages));
                     return annotated;
                 })
                 .map(FileBackedImage::wrap)
                 .map(ImageWrapper.class::cast)
                 .toList();
-            broadcaster.broadcast(ProgressEvent.of(1, "Annotating frames"));
+            broadcaster.broadcast(progressOperation.complete());
         } else {
             frames = (List<ImageWrapper>) cropped;
         }
@@ -474,7 +480,7 @@ public class RedshiftImagesProcessor {
                 ImageMathParams.NONE,
                 false)
         ).withExtraParams(params.extraParams().withAutosave(false));
-        var solexVideoProcessor = new SolexVideoProcessor(serFile, outputDirectory, 0, tmpParams, LocalDateTime.now(), false, Configuration.getInstance().getMemoryRestrictionMultiplier());
+        var solexVideoProcessor = new SolexVideoProcessor(serFile, outputDirectory, 0, tmpParams, LocalDateTime.now(), false, Configuration.getInstance().getMemoryRestrictionMultiplier(), operation);
         solexVideoProcessor.setRedshifts(new Redshifts(redshifts));
         solexVideoProcessor.setPolynomial(polynomial);
         solexVideoProcessor.setAverageImage(averageImage);

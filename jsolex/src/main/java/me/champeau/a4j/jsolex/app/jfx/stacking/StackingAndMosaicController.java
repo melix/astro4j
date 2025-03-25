@@ -39,6 +39,7 @@ import me.champeau.a4j.jsolex.app.jfx.ImageMathEditor;
 import me.champeau.a4j.jsolex.app.jfx.ImageViewer;
 import me.champeau.a4j.jsolex.app.listeners.JSolExInterface;
 import me.champeau.a4j.jsolex.app.listeners.SingleModeProcessingEventListener;
+import me.champeau.a4j.jsolex.processing.event.ProgressOperation;
 import me.champeau.a4j.jsolex.processing.expr.impl.MosaicComposition;
 import me.champeau.a4j.jsolex.processing.expr.impl.Stacking;
 import me.champeau.a4j.jsolex.processing.file.FileNamingStrategy;
@@ -71,6 +72,7 @@ public class StackingAndMosaicController {
 
     private Stage stage;
     private JSolExInterface owner;
+    private ProgressOperation rootOperation;
     private Map<String, ImageViewer> popupViewers;
 
     @FXML
@@ -127,9 +129,10 @@ public class StackingAndMosaicController {
     private File stackPostProcessingScriptFile;
     private File mosaicPostProcessingScriptFile;
 
-    public void setup(Stage stage, JSolExInterface owner, ProcessParams processParams, Map<String, ImageViewer> popupViewers) {
+    public void setup(Stage stage, JSolExInterface owner, ProgressOperation rootOperation, ProcessParams processParams, Map<String, ImageViewer> popupViewers) {
         this.stage = stage;
         this.owner = owner;
+        this.rootOperation = rootOperation;
         this.popupViewers = popupViewers;
         accordionParams.setExpandedPane(accordionParams.getPanes().get(0));
         var plusCard = new PlusCard(this);
@@ -288,6 +291,7 @@ public class StackingAndMosaicController {
         var outputDirectory = panels.stream().flatMap(p -> p.files().stream()).findFirst().map(File::getParentFile).orElseThrow();
         var broadcaster = new SingleModeProcessingEventListener(
             owner,
+            rootOperation,
             "",
             null,
             outputDirectory.toPath(),

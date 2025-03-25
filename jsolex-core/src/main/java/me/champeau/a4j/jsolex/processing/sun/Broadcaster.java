@@ -16,9 +16,15 @@
 package me.champeau.a4j.jsolex.processing.sun;
 
 import me.champeau.a4j.jsolex.processing.event.ProcessingEvent;
+import me.champeau.a4j.jsolex.processing.event.ProgressEvent;
+import me.champeau.a4j.jsolex.processing.event.ProgressOperation;
 
 public interface Broadcaster {
     Broadcaster NO_OP = e -> {};
+
+    default void broadcast(ProgressOperation operation) {
+        broadcast(ProgressEvent.of(operation));
+    }
 
     void broadcast(ProcessingEvent<?> event);
 }

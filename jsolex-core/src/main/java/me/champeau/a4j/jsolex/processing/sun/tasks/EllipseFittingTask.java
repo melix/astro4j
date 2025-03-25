@@ -18,6 +18,7 @@ package me.champeau.a4j.jsolex.processing.sun.tasks;
 import me.champeau.a4j.jsolex.processing.event.Notification;
 import me.champeau.a4j.jsolex.processing.event.NotificationEvent;
 import me.champeau.a4j.jsolex.processing.event.ProgressEvent;
+import me.champeau.a4j.jsolex.processing.event.ProgressOperation;
 import me.champeau.a4j.jsolex.processing.params.ProcessParams;
 import me.champeau.a4j.jsolex.processing.stretching.LinearStrechingStrategy;
 import me.champeau.a4j.jsolex.processing.sun.BackgroundRemoval;
@@ -67,10 +68,11 @@ public class EllipseFittingTask extends AbstractTask<EllipseFittingTask.Result> 
      * @param image the image to work with
      */
     public EllipseFittingTask(Broadcaster broadcaster,
+                              ProgressOperation operation,
                               Supplier<ImageWrapper32> image,
                               ProcessParams processParams,
                               ImageEmitter debugImagesEmitter) {
-        super(broadcaster, image);
+        super(broadcaster, operation, image);
         this.processParams = processParams;
         this.debugImagesEmitter = debugImagesEmitter;
     }
@@ -81,8 +83,9 @@ public class EllipseFittingTask extends AbstractTask<EllipseFittingTask.Result> 
      * @param image the image to work with
      */
     public EllipseFittingTask(Broadcaster broadcaster,
+                              ProgressOperation operation,
                               Supplier<ImageWrapper32> image) {
-        this(broadcaster, image, null, null);
+        this(broadcaster, operation, image, null, null);
     }
 
     @Override
@@ -93,8 +96,7 @@ public class EllipseFittingTask extends AbstractTask<EllipseFittingTask.Result> 
 
     @Override
     public EllipseFittingTask.Result doCall() throws Exception {
-        var analyzingDiskGeometryMsg = message("analyzing.disk.geometry");
-        broadcaster.broadcast(ProgressEvent.of(0, analyzingDiskGeometryMsg));
+        broadcaster.broadcast(operation.update(0, message("analyzing.disk.geometry")));
         var imageMath = ImageMath.newInstance();
         var tmp = truncate(image.copy());
         workImage = ImageWrapper32.fromImage(tmp);
@@ -122,14 +124,13 @@ public class EllipseFittingTask extends AbstractTask<EllipseFittingTask.Result> 
         LinearStrechingStrategy.DEFAULT.stretch(workImage);
         var magnitudes = workImage.data();
         var samples = findSamplesUsingDynamicSensitivity(magnitudes);
-        var fittingEllipseMessage = message("fitting.ellipse");
-        broadcaster.broadcast(ProgressEvent.of(0, fittingEllipseMessage));
+        broadcaster.broadcast(operation.update(0, message("fitting.ellipse")));
         if (notEnoughSamples(samples)) {
             return null;
         }
         var ellipse = new EllipseRegression(samples).solve();
         LOGGER.debug("{}", ellipse);
-        broadcaster.broadcast(ProgressEvent.of(1, fittingEllipseMessage));
+        broadcaster.broadcast(operation.complete());
         var result = new Result(ellipse, samples);
         if (processParams != null && processParams.extraParams().generateDebugImages()) {
             produceEdgeDetectionImage(result, workImage);

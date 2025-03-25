@@ -42,6 +42,7 @@ import javafx.util.Duration;
 import javafx.util.converter.IntegerStringConverter;
 import me.champeau.a4j.jsolex.app.JSolEx;
 import me.champeau.a4j.jsolex.processing.event.ProgressEvent;
+import me.champeau.a4j.jsolex.processing.event.ProgressOperation;
 import me.champeau.a4j.jsolex.processing.params.ProcessParams;
 import me.champeau.a4j.jsolex.processing.params.ProcessParamsIO;
 import me.champeau.a4j.jsolex.processing.params.SpectralRay;
@@ -146,8 +147,9 @@ public class SpectralLineDebugger {
     private ProcessParams processParams;
     private Consumer<? super String> onPolynomialComputed;
     private float[][] averageImage;
+    private ProgressOperation operation;
 
-    public static Stage open(File file, Consumer<? super String> onPolynomialComputed) {
+    public static Stage open(File file, ProgressOperation operation, Consumer<? super String> onPolynomialComputed) {
         var fxmlLoader = I18N.fxmlLoader(JSolEx.class, "frame-debugger");
         Object configWindow;
         try {
@@ -156,6 +158,7 @@ public class SpectralLineDebugger {
             throw new ProcessingException(e);
         }
         var controller = (SpectralLineDebugger) fxmlLoader.getController();
+        controller.operation =  operation;
         controller.onPolynomialComputed = onPolynomialComputed;
         var stage = newStage();
         Scene scene = new Scene((Parent) configWindow);
@@ -218,7 +221,9 @@ public class SpectralLineDebugger {
     private void prepareView(File file, ColorMode colorMode, Scene scene, Stage stage, ToggleGroup toggleGroup) {
         var converter = createImageConverter(colorMode);
         Platform.runLater(() -> progressBox.setVisible(true));
-        var detector = new AverageImageCreator(converter, event -> {
+        var detector = new AverageImageCreator(converter,
+                operation,
+                event -> {
             if (event instanceof ProgressEvent progress) {
                 BatchOperations.submitOneOfAKind("progress", () -> progressBar.setProgress(progress.getPayload().progress()));
             }

@@ -15,6 +15,7 @@
  */
 package me.champeau.a4j.jsolex.processing.sun.tasks;
 
+import me.champeau.a4j.jsolex.processing.event.ProgressOperation;
 import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 import me.champeau.a4j.jsolex.processing.util.ProcessingException;
@@ -24,6 +25,7 @@ import java.util.concurrent.Callable;
 import java.util.function.Supplier;
 
 public abstract class AbstractTask<T> implements Callable<T>, Supplier<T> {
+    protected final ProgressOperation operation;
     protected final Supplier<ImageWrapper32> workImageSupplier;
     protected final Broadcaster broadcaster;
     protected ImageWrapper32 workImage;
@@ -37,8 +39,10 @@ public abstract class AbstractTask<T> implements Callable<T>, Supplier<T> {
      * constructor, so that this task works with its own buffer
      */
     protected AbstractTask(Broadcaster broadcaster,
+                           ProgressOperation operation,
                            Supplier<ImageWrapper32> imageSupplier) {
         this.broadcaster = broadcaster;
+        this.operation = operation;
         this.workImageSupplier = imageSupplier;
     }
 

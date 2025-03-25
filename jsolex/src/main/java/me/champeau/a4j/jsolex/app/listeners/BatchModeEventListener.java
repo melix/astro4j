@@ -24,20 +24,7 @@ import me.champeau.a4j.jsolex.app.jfx.CandidateImageDescriptor;
 import me.champeau.a4j.jsolex.app.jfx.Corrector;
 import me.champeau.a4j.jsolex.app.jfx.ImageInspectorController;
 import me.champeau.a4j.jsolex.app.script.JSolExScriptExecutor;
-import me.champeau.a4j.jsolex.processing.event.AverageImageComputedEvent;
-import me.champeau.a4j.jsolex.processing.event.FileGeneratedEvent;
-import me.champeau.a4j.jsolex.processing.event.GeneratedImage;
-import me.champeau.a4j.jsolex.processing.event.ImageGeneratedEvent;
-import me.champeau.a4j.jsolex.processing.event.Notification;
-import me.champeau.a4j.jsolex.processing.event.NotificationEvent;
-import me.champeau.a4j.jsolex.processing.event.OutputImageDimensionsDeterminedEvent;
-import me.champeau.a4j.jsolex.processing.event.PartialReconstructionEvent;
-import me.champeau.a4j.jsolex.processing.event.ProcessingDoneEvent;
-import me.champeau.a4j.jsolex.processing.event.ProcessingEventListener;
-import me.champeau.a4j.jsolex.processing.event.ProcessingStartEvent;
-import me.champeau.a4j.jsolex.processing.event.ScriptExecutionResultEvent;
-import me.champeau.a4j.jsolex.processing.event.TrimmingParametersDeterminedEvent;
-import me.champeau.a4j.jsolex.processing.event.VideoMetadataEvent;
+import me.champeau.a4j.jsolex.processing.event.*;
 import me.champeau.a4j.jsolex.processing.expr.BestImages;
 import me.champeau.a4j.jsolex.processing.expr.DefaultImageScriptExecutor;
 import me.champeau.a4j.jsolex.processing.expr.ImageMathScriptExecutor;
@@ -98,6 +85,7 @@ public class BatchModeEventListener implements ProcessingEventListener, ImageMat
     private final File outputDirectory;
     private final LocalDateTime processingDate;
     private final AtomicBoolean hasCustomImages = new AtomicBoolean();
+    private final ProgressOperation rootOperation;
 
     private final Header referenceHeader;
 
@@ -114,11 +102,13 @@ public class BatchModeEventListener implements ProcessingEventListener, ImageMat
     private ProcessParams adjustedParams;
 
     public BatchModeEventListener(JSolExInterface owner,
+                                  ProgressOperation rootOperation,
                                   SingleModeProcessingEventListener delegate,
                                   int sequenceNumber,
                                   BatchProcessingContext context,
                                   ProcessParams processParams) {
         this.owner = owner;
+        this.rootOperation = rootOperation;
         this.delegate = delegate;
         this.processParams = processParams;
         this.completed = context.progress();
@@ -268,7 +258,7 @@ public class BatchModeEventListener implements ProcessingEventListener, ImageMat
                     alert.getButtonTypes().addAll(ButtonType.CANCEL, ButtonType.YES);
                     alert.showAndWait().ifPresent(response -> {
                         if (response == ButtonType.YES) {
-                            maybeFilterImages(this::executeBatchScriptExpressions);
+                            maybeFilterImages(r -> executeBatchScriptExpressions(r, rootOperation));
                         } else {
                             Platform.runLater(() -> owner.updateProgress(1, String.format(message("batch.finished"))));
                         }
@@ -282,7 +272,7 @@ public class BatchModeEventListener implements ProcessingEventListener, ImageMat
                     Platform.runLater(() -> owner.updateProgress(1, String.format(message("batch.finished"))));
                 });
             } else {
-                maybeFilterImages(this::executeBatchScriptExpressions);
+                maybeFilterImages(r -> executeBatchScriptExpressions(r, rootOperation));
             }
         }
     }
@@ -301,13 +291,13 @@ public class BatchModeEventListener implements ProcessingEventListener, ImageMat
         });
     }
 
-    private void executeBatchScriptExpressions(FilteringResult result) {
+    private void executeBatchScriptExpressions(FilteringResult result, ProgressOperation rootOperation) {
         try {
             var scriptFiles = processParams.requestedImages().mathImages().scriptFiles();
             if (scriptFiles.isEmpty() || result.discarded().size() == totalItems) {
                 return;
             }
-            var imageEmitter = new NamingStrategyAwareImageEmitter(new RenamingImageEmitter(new DefaultImageEmitter(delegate, outputDirectory), name -> name, name -> name), createNamingStrategy(), sequenceNumber, computeSerFileBasename(item.file()));
+            var imageEmitter = new NamingStrategyAwareImageEmitter(new RenamingImageEmitter(new DefaultImageEmitter(delegate, rootOperation, outputDirectory), name -> name, name -> name), createNamingStrategy(), sequenceNumber, computeSerFileBasename(item.file()));
             var ctx = new HashMap<Class, Object>();
             ctx.put(ImageEmitter.class, imageEmitter);
             batchScriptExecutor = new JSolExScriptExecutor(
@@ -338,7 +328,7 @@ public class BatchModeEventListener implements ProcessingEventListener, ImageMat
             boolean initial = true;
             for (File scriptFile : scriptFiles) {
                 if (initial) {
-                    owner.prepareForScriptExecution(this, processParams);
+                    owner.prepareForScriptExecution(this, processParams, rootOperation);
                     initial = false;
                 }
                 executeBatchScript(namingStrategy, scriptFile);
