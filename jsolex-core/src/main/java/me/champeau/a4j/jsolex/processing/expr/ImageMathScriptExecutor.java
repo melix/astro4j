@@ -65,7 +65,10 @@ public interface ImageMathScriptExecutor {
         }
     }
 
+    void setIncludesDir(Path includesDir);
+
     default ImageMathScriptResult execute(Path source, SectionKind kind) throws IOException {
+        setIncludesDir(source.getParent());
         return execute(FilesUtils.readString(source), kind);
     }
 

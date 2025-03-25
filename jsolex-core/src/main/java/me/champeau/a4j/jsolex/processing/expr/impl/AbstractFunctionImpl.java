@@ -61,7 +61,7 @@ class AbstractFunctionImpl {
         if (arguments.isEmpty()) {
             return Optional.empty();
         }
-        var first = arguments.get(0);
+        var first = arguments.getFirst();
         if (first instanceof ImageWrapper img) {
             return img.findMetadata(Ellipse.class);
         }
@@ -119,7 +119,7 @@ class AbstractFunctionImpl {
     public List<Object> expandToImageList(String currentFunction, List<Object> arguments, Function<List<Object>, Object> function) {
         record IndexedObject(Object image, int idx) {
         }
-        var listOfImages = (List) arguments.get(0);
+        var listOfImages = (List) arguments.getFirst();
         var params = arguments.subList(1, arguments.size());
         var array = listOfImages.toArray(new Object[0]);
         var itemsToProcess = IntStream.range(0, array.length)
@@ -175,11 +175,11 @@ class AbstractFunctionImpl {
         if (arguments.size() != 1) {
             throw new IllegalArgumentException(name + " takes 1 argument (image(s))");
         }
-        var arg = arguments.get(0);
+        var arg = arguments.getFirst();
         if (arg instanceof List<?>) {
             return expandToImageList(name, arguments, list -> applyUnary(list, name, function));
         }
-        var img = arguments.get(0);
+        var img = arguments.getFirst();
         return applyUnary(img, function);
     }
 
@@ -187,11 +187,11 @@ class AbstractFunctionImpl {
         if (arguments.size() != 1) {
             throw new IllegalArgumentException(name + " takes 1 argument (image(s))");
         }
-        var arg = arguments.get(0);
+        var arg = arguments.getFirst();
         if (arg instanceof List<?>) {
             return expandToImageList(name, arguments, list -> applyUnary(list, name, transformer));
         }
-        var img = arguments.get(0);
+        var img = arguments.getFirst();
         return applyUnary(img, transformer);
     }
 
@@ -199,11 +199,11 @@ class AbstractFunctionImpl {
         if (arguments.size() != 2) {
             throw new IllegalArgumentException(name + " takes 2 arguments (image(s), " + argName + ")");
         }
-        var arg = arguments.get(0);
+        var arg = arguments.getFirst();
         if (arg instanceof List<?>) {
             return expandToImageList(name, arguments, list -> applyBinary(list, name, argName, function));
         }
-        var img = arguments.get(0);
+        var img = arguments.getFirst();
         var argument = doubleArg(arguments, 1);
         var unary = (DoubleUnaryOperator) v -> function.applyAsDouble(v, argument);
         return applyUnary(img, unary);
@@ -223,6 +223,8 @@ class AbstractFunctionImpl {
             applyFunction(rgb.width(), rgb.height(), copy.g(), unary);
             applyFunction(rgb.width(), rgb.height(), copy.b(), unary);
             return copy;
+        } else if (img instanceof Number number) {
+            return unary.applyAsDouble(number.doubleValue());
         }
         throw new IllegalStateException("Unexpected image type " + img);
     }

@@ -67,6 +67,7 @@ import java.io.IOException;
 import java.io.StringWriter;
 import java.nio.charset.Charset;
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -478,6 +479,11 @@ public class BatchModeEventListener implements ProcessingEventListener, ImageMat
             updateProgressStatus(true);
             maybeExecuteEndOfBatch();
         }
+    }
+
+    @Override
+    public void setIncludesDir(Path includesDir) {
+        batchScriptExecutor.setIncludesDir(includesDir);
     }
 
     @Override

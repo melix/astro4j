@@ -79,7 +79,10 @@ public class DefaultImageEmitter implements ImageEmitter {
     private void prepareOutput(String name) {
         var file = outputDir.toPath().resolve(name);
         try {
-            Files.createDirectories(file.getParent());
+            Path parent = file.getParent();
+            if (!Files.isDirectory(parent)) {
+                Files.createDirectories(parent);
+            }
         } catch (IOException e) {
             throw new ProcessingException(e);
         }

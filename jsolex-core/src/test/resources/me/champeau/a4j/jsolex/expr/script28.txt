@@ -1,0 +1,4 @@
+[include "script29.txt"]
+
+[outputs]
+foo=img(0)

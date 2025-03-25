@@ -1,0 +1,391 @@
+DEFAULT_LEXICAL_STATE=IMAGEMATH;
+PARSER_PACKAGE="me.champeau.a4j.jsolex.expr";
+ENSURE_FINAL_EOL;
+FAULT_TOLERANT;
+FAULT_TOLERANT_DEFAULT=false;
+
+INJECT PARSER_CLASS:
+{
+    private Path includeDir = Path.of(".");
+
+    public void setIncludeDir(Path includeDir) {
+        this.includeDir = includeDir;
+    }
+
+    public void parse() {
+        Root();
+        var root = (ImageMathScript) rootNode();
+        root.setIncludeDir(includeDir);
+        root.resolveIncludes();
+    }
+
+    public ImageMathScript parseAndInlineIncludes() {
+        parse();
+        inlineIncludes();
+        return (ImageMathScript) rootNode();
+    }
+    public void inlineIncludes() {
+        var root = (ImageMathScript) rootNode();
+        root.inlineIncludes();
+    }
+}
+
+INCLUDE "ImageMathLexer.ccc"
+
+Root#ImageMathScript : (IncludeDef! | FunctionDef!)* (IncludeDef! | FirstSection!) ( IncludeDef! | SubsequentSection! )* <EOF>;
+
+INJECT ImageMathScript:
+import java.nio.file.Path;
+import java.nio.file.Files;
+import me.champeau.a4j.jsolex.processing.expr.ImageMathScriptExecutor;
+{
+
+    private Path includeDir = Path.of(".");
+
+    public void setIncludeDir(Path includeDir) {
+        this.includeDir = includeDir;
+    }
+
+    public void resolveIncludes() {
+        var nodes = children();
+        if (nodes.stream().anyMatch(node -> node instanceof IncludeDef)) {
+            for (var node: nodes) {
+                if (node instanceof IncludeDef include) {
+                    var path = include.firstChildOfType(StringLiteral.class).toString();
+                    try {
+                        var resolved = includeDir.resolve(path);
+                        if (!Files.exists(resolved)) {
+                            resolved = includeDir.resolve(path + ".math");
+                        }
+                        var script = new ImageMathParser(resolved);
+                        script.parse();
+                        include.setIncludedNodes(
+                            script.rootNode()
+                                .children()
+                                .stream()
+                                .filter(t -> !(t instanceof Token token && token.getType().isEOF()))
+                                .toList()
+                        );
+                        } catch (Exception e) {
+                        }
+                }
+            }
+        }
+    }
+
+    public void inlineIncludes() {
+        var nodes = children();
+        if (nodes.stream().anyMatch(node -> node instanceof IncludeDef)) {
+            var newNodes = new ArrayList<Node>();
+            for (var node : nodes) {
+                if (node instanceof IncludeDef include && !include.isUnresolved()) {
+                    newNodes.addAll(include.includedNodes());
+                } else {
+                    newNodes.add(node);
+                }
+            }
+            clear();
+            addAll(newNodes);
+        }
+    }
+
+    public List<Section> findSections(ImageMathScriptExecutor.SectionKind kind) {
+        var allSections = childrenOfType(Section.class);
+        if (kind == ImageMathScriptExecutor.SectionKind.ALL) {
+            return allSections;
+        }
+        var standardSections = new ArrayList<Section>(allSections.size());
+        var batchSections = new ArrayList<Section>(allSections.size());
+        boolean isInBatch = false;
+        for (var section : allSections) {
+            if (isInBatch) {
+                batchSections.add(section);
+            } else {
+                var header = section.childrenOfType(SectionHeader.class);
+                if (!header.isEmpty()) {
+                    var first = header.getFirst();
+                    if (first.isMajor() && "batch".equals(first.id())) {
+                        isInBatch = true;
+                        batchSections.add(section);
+                    } else {
+                        standardSections.add(section);
+                    }
+                } else {
+                    standardSections.add(section);
+                }
+            }
+        }
+        return Collections.unmodifiableList(kind == ImageMathScriptExecutor.SectionKind.SINGLE ? standardSections : batchSections);
+    }
+}
+
+FirstSection#Section : [SectionHeader] (Assignment!)*;
+
+SubsequentSection#Section : SectionHeader (Assignment!)* ;
+
+INJECT Section:
+
+import me.champeau.a4j.jsolex.processing.expr.ImageMathScriptExecutor;
+
+{
+    public java.util.Optional<String> name() {
+        return java.util.Optional.ofNullable(firstChildOfType(SectionHeader.class))
+                   .map(header -> header.firstChildOfType(Identifier.class).toString());
+    }
+
+}
+
+SectionHeader :
+(
+    <LBRACKET> (
+        (<LBRACKET> <IDENTIFIER> <RBRACKET> <RBRACKET>) { thisProduction.setMajor(true); }# |
+        <IDENTIFIER> <RBRACKET>
+    )
+);
+
+INJECT SectionHeader:
+{
+    private boolean major;
+
+    public boolean setMajor(boolean major) {
+        this.major = major;
+        return major;
+    }
+
+    public boolean isMajor() {
+        return major;
+    }
+
+    public String id() {
+        return firstChildOfType(Identifier.class).toString();
+    }
+}
+
+Expression: AdditiveExpression;
+
+AdditiveExpression#Expression :
+   MultiplicativeExpression
+   (
+     ( <PLUS> | <MINUS> ) MultiplicativeExpression
+     #BinaryExpression(3)
+   )*
+;
+
+MultiplicativeExpression#Expression :
+   UnaryExpression
+   (
+     ( <MUL> | <DIV> ) UnaryExpression
+     #BinaryExpression(3)
+   )*
+;
+
+UnaryExpression#void :
+  ((<PLUS>|<MINUS>) PrimaryExpression #UnaryExpression(2))
+  |
+  PrimaryExpression;
+
+INJECT UnaryExpression: extends Expression
+{
+    public Operator operator() {
+        return firstChildOfType(Operator.class);
+    }
+
+    public Expression operand() {
+        return firstChildOfType(Expression.class);
+    }
+}
+
+INJECT BinaryExpression: extends Expression
+{
+    public Operator operator() {
+        return firstChildOfType(Operator.class);
+    }
+
+    public Node left() {
+        return children().getFirst();
+    }
+
+    public Node right() {
+        return children().getLast();
+    }
+
+}
+
+PrimaryExpression#void:
+    FunctionCall! |
+    StringLiteral |
+    NumericalLiteral |
+    VariableExpression |
+    GroupedExpression!;
+
+GroupedExpression:
+    <LPAREN> Expression <RPAREN>;
+
+INJECT GroupedExpression: extends Expression;
+
+VariableExpression#VariableExpression :
+    <IDENTIFIER>;
+
+INJECT VariableExpression: extends Expression
+{
+    public Identifier id() {
+        return firstChildOfType(Identifier.class);
+    }
+}
+
+FunctionCall:
+    <IDENTIFIER> InvocationArguments =>|| ;
+
+INJECT FunctionCall: extends Expression;
+
+Assignment#Assignment :
+    (VariableExpression <ASSIGNMENT> Expression  =>||) | Expression ;
+
+INJECT Assignment: extends Expression
+{
+    private String variable;
+
+    public void setVariable(String variable) {
+        this.variable = variable;
+    }
+
+    public boolean isAnonymous() {
+        return variable().isEmpty();
+    }
+
+    public Optional<Identifier> variable() {
+        return Optional.ofNullable(firstChildOfType(VariableExpression.class)).map(VariableExpression::id);
+    }
+
+    public Optional<String> variableName() {
+        return variable().map(Object::toString).or(() -> Optional.ofNullable(variable));
+    }
+
+    public Expression expression() {
+        return childrenOfType(Expression.class).getLast();
+    }
+}
+
+INJECT UnaryExpression: extends Expression
+{
+    public Expression getExpression() {
+        return firstChildOfType(Expression.class);
+    }
+}
+
+StringLiteral#StringLiteral :
+   <SINGLE_QUOTE_STRING>
+   |
+   <DOUBLE_QUOTE_STRING>
+   |
+   <MULTILINE_STRING>
+;
+
+INJECT StringLiteral: extends Expression
+{
+
+    public String toString() {
+        var value = super.toString();
+        int dlen = 1;
+        if (value.startsWith("\"\"\"")) {
+            dlen = 3;
+        }
+        return value.substring(dlen, value.length() - dlen);
+    }
+}
+
+NumericalLiteral#NumericalLiteral :
+   <INTEGER_LITERAL>
+   |
+   <FLOATING_POINT_LITERAL>
+;
+
+INJECT NumericalLiteral: extends Expression;
+
+NamedArgument :
+    <IDENTIFIER> <COLON> Expression =>||;
+
+INJECT NamedArgument : extends Argument;
+
+Argument:
+    NamedArgument | Expression;
+
+InvocationArguments :
+    <LPAREN>
+    [ Argument#Argument ((<COMMA>|<SEMICOLON>) Argument#Argument)* ]
+    <RPAREN>
+;
+
+INJECT FunctionCall:
+    import me.champeau.a4j.jsolex.expr.BuiltinFunction;
+ {
+
+    public Identifier getFunction() {
+        return firstChildOfType(Identifier.class);
+    }
+
+    public String getFunctionName() {
+        return firstChildOfType(Identifier.class).toString();
+    }
+    public List<Argument> getArguments() {
+        var argList = firstChildOfType(InvocationArguments.class);
+        if (argList != null) {
+            return argList.childrenOfType(Argument.class);
+        }
+        return List.of();
+    }
+
+    public Optional<BuiltinFunction> getBuiltinFunction() {
+        var name = getFunctionName();
+        try {
+            return Optional.of(BuiltinFunction.valueOf(name.toUpperCase(Locale.US)));
+        } catch (IllegalArgumentException e) {
+            return Optional.empty();
+        }
+    }
+}
+
+FunctionDef:
+    <LBRACKET> <FUNCTION> <COLON> <IDENTIFIER> (FunctionParams#FunctionParams) <RBRACKET> (Assignment)* =>||;
+
+FunctionParams#void: (<IDENTIFIER>)*;
+
+INJECT FunctionDef:
+{
+
+    public String name() {
+        return ((Identifier) children().get(3)).toString();
+    }
+
+    public List<String> arguments() {
+        var params = firstChildOfType(FunctionParams.class);
+        if (params != null) {
+            return params.childrenOfType(Identifier.class).stream().map(Identifier::toString).toList();
+        }
+        return List.of();
+    }
+
+    public List<Expression> body() {
+        return childrenOfType(Assignment.class).stream().map(Expression.class::cast).toList();
+    }
+}
+
+IncludeDef:
+    <LBRACKET> <INCLUDE> StringLiteral <RBRACKET> =>||;
+
+INJECT IncludeDef:
+{
+    private List<Node> includedNodes;
+
+    public void setIncludedNodes(List<Node> includedNodes) {
+        this.includedNodes = includedNodes;
+    }
+
+    public List<Node> includedNodes() {
+        return includedNodes;
+    }
+
+    public boolean isUnresolved() {
+        return includedNodes == null;
+    }
+}

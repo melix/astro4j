@@ -29,6 +29,7 @@ import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.IntStream;
 
 public class Utilities extends AbstractFunctionImpl {
     private static final String DEFAULT_DATE_FORMAT = "yyyy/MM/dd HH:mm:ss [z]";
@@ -163,5 +164,63 @@ public class Utilities extends AbstractFunctionImpl {
                 .toList();
         }
         return arguments;
+    }
+
+    public Object weightedAverage(List<Object> arguments) {
+        assertExpectedArgCount(arguments, "weighted_average expects 2 arguments (images, weights)", 2, 2);
+        if (!(arguments.getFirst() instanceof List<?> images)) {
+            throw new IllegalArgumentException("weighted_average expects a list of images as first argument");
+        }
+        if (!(arguments.get(1) instanceof List<?> weights)) {
+            throw new IllegalArgumentException("weighted_average expects a list of weights as second argument");
+        }
+        if (images.size() != weights.size()) {
+            throw new IllegalArgumentException("weighted_average expects the same number of images and weights");
+        }
+        if (images.isEmpty()) {
+            return List.of();
+        }
+        var firstImage = (ImageWrapper) images.getFirst();
+        var width = firstImage.width();
+        var height = firstImage.height();
+        var data = new float[height][width];
+        var metadata = new HashMap<Class<?>, Object>();
+        double pixelShift = 0.0;
+        for (Object image : images) {
+            if (!(image instanceof ImageWrapper wrapper)) {
+                throw new IllegalArgumentException("weighted_average expects a list of images as first argument");
+            }
+            if (wrapper.width() != width || wrapper.height() != height) {
+                throw new IllegalArgumentException("All images must have the same dimensions");
+            }
+            if (!(wrapper.unwrapToMemory() instanceof ImageWrapper32 mono)) {
+                throw new IllegalArgumentException("weighted_average only supports mono images");
+            }
+            for (Map.Entry<Class<?>, Object> entry : mono.metadata().entrySet()) {
+                Class<?> metadataKey = entry.getKey();
+                Object metadataValue = entry.getValue();
+                if (!metadata.containsKey(metadataKey)) {
+                    metadata.put(metadataKey, metadataValue);
+                }
+                if (metadataKey == PixelShift.class) {
+                    pixelShift += ((PixelShift) metadataValue).pixelShift();
+                }
+            }
+            var pixels = mono.data();
+            var weight = ((Number) weights.get(images.indexOf(image))).doubleValue();
+            for (int y = 0; y < height; y++) {
+                for (int x = 0; x < width; x++) {
+                    data[y][x] += weight * pixels[y][x];
+                }
+            }
+        }
+        var totalWeight = weights.stream().mapToDouble(o -> ((Number)o).doubleValue()).sum();
+        for (int y = 0; y < height; y++) {
+            for (int x = 0; x < width; x++) {
+                data[y][x] /= totalWeight;
+            }
+        }
+        metadata.put(PixelShift.class, new PixelShift(pixelShift));
+        return new ImageWrapper32(width, height, data, metadata);
     }
 }

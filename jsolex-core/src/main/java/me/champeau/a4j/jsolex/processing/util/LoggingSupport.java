@@ -26,7 +26,7 @@ import java.util.concurrent.RejectedExecutionException;
 
 import static me.champeau.a4j.jsolex.processing.util.Constants.message;
 
-public class LoggingSupport {
+public class LoggingSupport implements Thread.UncaughtExceptionHandler {
     public static final Logger LOGGER = LoggerFactory.getLogger(LoggingSupport.class);
 
     public static String logError(Throwable ex) {
@@ -55,5 +55,10 @@ public class LoggingSupport {
             return isProcessingCancelled(pe.getCause());
         }
         return false;
+    }
+
+    @Override
+    public void uncaughtException(Thread t, Throwable e) {
+        logError(e);
     }
 }

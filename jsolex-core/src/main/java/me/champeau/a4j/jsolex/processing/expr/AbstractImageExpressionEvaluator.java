@@ -17,6 +17,7 @@ package me.champeau.a4j.jsolex.processing.expr;
 
 import me.champeau.a4j.jsolex.expr.BuiltinFunction;
 import me.champeau.a4j.jsolex.expr.ExpressionEvaluator;
+import me.champeau.a4j.jsolex.expr.UserFunction;
 import me.champeau.a4j.jsolex.processing.expr.impl.AdjustContrast;
 import me.champeau.a4j.jsolex.processing.expr.impl.Animate;
 import me.champeau.a4j.jsolex.processing.expr.impl.ArtifificialFlatCorrector;
@@ -73,6 +74,7 @@ import java.util.Optional;
 import java.util.OptionalDouble;
 import java.util.function.DoubleBinaryOperator;
 import java.util.stream.DoubleStream;
+import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
 import static me.champeau.a4j.jsolex.processing.util.Constants.message;
@@ -82,6 +84,8 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
 
     private final Map<Class<?>, Object> context = new HashMap<>();
     private final ImageMath imageMath = ImageMath.newInstance();
+    private final Broadcaster broadcaster;
+
     // Function implementations
     private final AdjustContrast adjustContrast;
     private final Animate animate;
@@ -111,6 +115,7 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
     private final Utilities utilities;
 
     protected AbstractImageExpressionEvaluator(Broadcaster broadcaster) {
+        this.broadcaster = broadcaster;
         this.adjustContrast = new AdjustContrast(context, broadcaster);
         this.animate = new Animate(context, broadcaster);
         this.bgRemoval = new BackgroundRemoval(context, broadcaster);
@@ -195,6 +200,13 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
 
     @Override
     public Object mul(Object left, Object right) {
+        if (left instanceof List<?> leftList && right instanceof List<?> rightList) {
+            if (leftList.size() == rightList.size()) {
+                return IntStream.range(0, leftList.size())
+                    .mapToObj(i -> mul(leftList.get(i), rightList.get(i)))
+                    .toList();
+            }
+        }
         var leftImage = asImage(left);
         var rightImage = asImage(right);
         var leftScalar = asScalar(left);
@@ -204,6 +216,13 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
 
     @Override
     public Object div(Object left, Object right) {
+        if (left instanceof List<?> leftList && right instanceof List<?> rightList) {
+            if (leftList.size() == rightList.size()) {
+                return IntStream.range(0, leftList.size())
+                    .mapToObj(i -> div(leftList.get(i), rightList.get(i)))
+                    .toList();
+            }
+        }
         var leftImage = asImage(left);
         var rightImage = asImage(right);
         var leftScalar = asScalar(left);
@@ -292,6 +311,7 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
             case VFLIP -> rotate.vflip(arguments);
             case VIDEO_DATETIME -> utilities.videoDateTime(arguments);
             case WAVELEN -> wavelenthOfImage(arguments);
+            case WEIGHTED_AVG -> utilities.weightedAverage(arguments);
             case WORKDIR -> setWorkDir(arguments);
         };
     }
@@ -335,11 +355,21 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
         return (ImageWrapper32) functionCall(BuiltinFunction.MEDIAN, List.of(samples));
     }
 
+    @Override
+    protected Object userFunctionCall(UserFunction function, Object[] arguments) {
+        function.prepare(this::findImage, new HashMap<>(context), d -> {}, broadcaster);
+        return super.userFunctionCall(function, arguments);
+    }
+
     public Object pixelShiftFor(List<Object> arguments) {
         if (arguments.size() != 1 && arguments.size() != 2) {
             throw new IllegalArgumentException("find_shift() accepts one or 2 arguments (wavelength in angstroms or spectral ray to find, wavelength or spectral ray of reference)");
         }
-        var target = toWavelength(arguments.getFirst());
+        var first = arguments.getFirst();
+        if (first instanceof List<?>) {
+            return utilities.expandToImageList("find_shift", arguments, this::pixelShiftFor);
+        }
+        var target = toWavelength(first);
         var reference = arguments.size() == 2 ? toWavelength(arguments.get(1)) : null;
         ProcessParams params = (ProcessParams) context.get(ProcessParams.class);
         return computePixelShift(params, target, reference);

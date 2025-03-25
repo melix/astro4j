@@ -134,6 +134,7 @@ public class ImageInspectorController {
             stage.setScene(scene);
             stage.initModality(Modality.APPLICATION_MODAL);
             stage.setMaximized(true);
+            stage.setAlwaysOnTop(true);
             stage.showAndWait();
         } catch (IOException e) {
             throw new ProcessingException(e);
@@ -638,6 +639,7 @@ public class ImageInspectorController {
                 stage.setTitle(I18N.string(JSolEx.class, "confirm-image-selection", "frame.title"));
                 stage.setScene(scene);
                 stage.initModality(Modality.APPLICATION_MODAL);
+                stage.setAlwaysOnTop(true);
                 stage.showAndWait();
                 return Optional.ofNullable(controller.options);
             } catch (IOException e) {

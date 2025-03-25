@@ -1,0 +1,59 @@
+#
+# Performs stacking of several images processed in batch mode
+#
+
+[params]
+# banding correction width and iterations
+bandingWidth=25
+bandingIterations=3
+# autocrop factor
+cropFactor=1.1
+# contrast adjustment
+gamma=1.5
+gamma2=1.05
+protus_stretch=12
+# doppler shift
+doppler_shift=7
+binning=1
+tile=64/binning
+sampling=.25
+conti_shift=40
+
+[outputs]
+corrected = median(range(-1;1;.5))
+blue=img(-doppler_shift)
+red=img(doppler_shift)
+conti=continuum()
+
+[[batch]]
+rescaled=radius_rescale(corrected)
+rescaled_conti=radius_rescale(conti)
+ref=stack_ref(rescaled; "manual")
+dedis_initial=dedistort(sharpen(linear_stretch(ref);7);sharpen(linear_stretch(rescaled);7);tile;sampling)
+new_ref=avg(dedis_initial)
+dedis_base=dedistort(new_ref; sharpen(linear_stretch(rescaled);7);tile;sampling)
+dedis=dedistort(rescaled;dedis_base)
+dedis_conti=dedistort(rescaled_conti;dedis_base)
+stacked=median(dedis)
+r_stack=median(dedistort(radius_rescale(red);dedis))
+b_stack=median(dedistort(radius_rescale(blue);dedis))
+
+[tmp]
+cst=rl_decon(stacked)
+negative=invert(cst)
+mask=blur(disk_mask(cst))
+masked_negative = auto_contrast(mask * negative;gamma)
+protus=asinh_stretch(disk_fill(cst);0;protus_stretch)
+
+[outputs]
+unstreched=cst
+stretch=auto_contrast(cst;gamma)
+continuum_=median(dedis_conti)
+ar=ar_overlay(continuum_)
+colorized=colorize(asinh_stretch(stretch;500;5);"H-alpha")
+protus_details=draw_text(asinh_stretch(disk_fill(stacked);0;30);48;128;"Protus";32)
+details=draw_globe(draw_obs_details(draw_solar_params(stretch)))
+doppler=saturate(rgb(b_stack;min(b_stack;r_stack);r_stack);1.01)
+doppler_eclipse=disk_fill(doppler)
+inverse=auto_contrast(protus + asinh_stretch(masked_negative;500;2);gamma2)
+ars=crop_ar(continuum_)

@@ -547,6 +547,103 @@ Last but not least, the `[outputs]` section declares the images we want to gener
 
 NOTE: Comments can be added either with the `#` or `//` prefix.
 
+[[custom-functions]]
+=== Custom functions
+
+In addition to the functions provided by JSol'Ex, it is possible to define your own functions, which combine existing functions.
+For example, let's say that you would like to draw the globe, technical details and solar parameters on more than one image.
+You script may look like this:
+
+[source]
+----
+image1=draw_obs_details(draw_solar_params(draw_globe(img(0))))
+image2=draw_obs_details(draw_solar_params(draw_globe(auto_contrast(img(0);1.5))))
+----
+
+Instead of repeating the same function calls on several images, we can declare a function which would do this for us:
+
+[source]
+----
+[fun:decorate img]                                              <1>
+   result=draw_obs_details(draw_solar_params(draw_globe(img)))  <2>
+
+[outputs]
+image1=decorate(img(0))                                         <3>
+image2=decorate(auto_contrast(img(0);1.5))                      <4>
+----
+<1> The function declaration. The name of the function is `decorate`, and it takes a single argument, `img`.
+<2> The function must end with an assignment to the `result` variable.
+<3> The function is then called with the `img(0)` image.
+<4> The function can also be called with the `auto_contrast(img(0);1.5)` image.
+
+Functions **must** be declared at the beginning of the script.
+They can take any number of arguments, but they must always return a value in the `result` variable.
+If you declare a function, you **must** have a section which separates the functions declarations from your main script (for the `[outputs]` section).
+
+A function can consist of intermediate expressions and can call other functions.
+For example, let's create a function which will display our image with a title:
+
+[source]
+----
+[fun:titled img title]                                          <1>
+   decorated=decorate(img)                                      <2>
+   result=draw_text(decorated, 10, 10, title)
+
+[fun:decorate img]
+   result=draw_obs_details(draw_solar_params(draw_globe(img)))
+
+[outputs]
+image1=titled(img(0))                                         <3>
+image2=titled(auto_contrast(img(0);1.5))                      <4>
+----
+<1> The `titled` function declaration. It takes 2 arguments: `img` and `title`.
+<2> The `titled` function calls the `decorate` function, then adds a title to the image.
+<3> The `titled` function is then called with the `img(0)` image.
+<4> The `titled` function can also be called with the `auto_contrast(img(0);1.5)` image.
+
+[NOTE]
+.Passing a list to a function
+====
+The first argument of a function is always treated differently.
+If it is passed a list, then the function will be called for each element of the list, then the results will be collected in a list.
+For example, if we call the `decorate` function above with a list of images, then the result will be a list of decorated images.
+If the function takes more than one argument, only the first argument behaves this way.
+====
+
+[[includes]]
+=== Including other scripts
+
+It is possible to include other scripts in your script.
+This can be useful if you have a set of functions which you want to reuse in several scripts.
+For example, we could extract the function definitions from the previous example and put them in a separate file, `functions.math`:
+
+[source]
+.functions.math
+----
+[fun:decorate img]
+   result=draw_obs_details(draw_solar_params(draw_globe(img)))
+[fun:titled img title]
+   decorated=decorate(img)
+   result=draw_text(decorated, 10, 10, title)
+----
+
+Then it can be included in another script:
+
+[source]
+.myscript.math
+----
+[include "functions"]
+
+[outputs]
+image1=titled(img(0), "My first image")
+image2=titled(auto_contrast(img(0);1.5), "My second image")
+----
+
+[CAUTION]
+====
+Includes are resolved relatively to the script which includes them.
+====
+
 [[batch-mode]]
 == Batch processing
 

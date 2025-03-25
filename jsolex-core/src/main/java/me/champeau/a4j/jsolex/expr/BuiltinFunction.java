@@ -96,6 +96,7 @@ public enum BuiltinFunction {
     FILTER,
     VIDEO_DATETIME,
     WAVELEN,
+    WEIGHTED_AVG,
     WORKDIR(true);
 
     private final boolean hasSideEffect;
