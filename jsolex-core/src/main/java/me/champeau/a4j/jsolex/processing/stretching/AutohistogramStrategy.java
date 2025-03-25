@@ -16,9 +16,12 @@
 package me.champeau.a4j.jsolex.processing.stretching;
 
 import me.champeau.a4j.jsolex.processing.sun.BackgroundRemoval;
+import me.champeau.a4j.jsolex.processing.sun.workflow.TransformationHistory;
 import me.champeau.a4j.jsolex.processing.util.Histogram;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 import me.champeau.a4j.math.regression.Ellipse;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -28,32 +31,25 @@ import static java.lang.Math.log;
 import static java.lang.Math.log1p;
 import static java.lang.Math.pow;
 import static java.lang.Math.sqrt;
+import static me.champeau.a4j.jsolex.processing.sun.ImageUtils.bilinearSmoothing;
 import static me.champeau.a4j.jsolex.processing.util.Constants.MAX_PIXEL_VALUE;
 
 public final class AutohistogramStrategy implements StretchingStrategy {
+    private static final Logger LOGGER = LoggerFactory.getLogger(AutohistogramStrategy.class);
+
+    private static final float BLEND_START = 1.0f;
+    private static final float BLEND_END = 1.025f;
     private static final int HISTOGRAM_BINS = 256;
     private static final double TARGET_PEAK = 0.4;
-    private static final double LOG_NORM = log(2);
 
-    public static final double DEFAULT_AMPLIFICATION_THRESHOLD = 0.97;
     public static final double DEFAULT_GAMMA = 1.5;
 
-
     private final double gamma;
-    private final double amplificationThreshold;
 
     public AutohistogramStrategy(double gamma) {
-        this(gamma, DEFAULT_AMPLIFICATION_THRESHOLD);
-    }
-
-    public AutohistogramStrategy(double gamma, double amplificationThreshold) {
         if (gamma < 1) {
             throw new IllegalArgumentException("Gamma must be greater than 1");
         }
-        if (amplificationThreshold < 0 || amplificationThreshold > 1) {
-            throw new IllegalArgumentException("Amplification threshold must be between 0 and 1");
-        }
-        this.amplificationThreshold = amplificationThreshold;
         this.gamma = gamma;
     }
 
@@ -65,15 +61,10 @@ public final class AutohistogramStrategy implements StretchingStrategy {
     @Override
     public void stretch(ImageWrapper32 image) {
         var disk = image.copy();
-        var diskData = disk.data();
         var height = image.height();
         var width = image.width();
-        var model = BackgroundRemoval.backgroundModel(image, 2, 2.5).data();
-        for (int y = 0; y < image.height(); y++) {
-            for (int x = 0; x < image.width(); x++) {
-                diskData[y][x] = Math.clamp(diskData[y][x] - 0.9f*model[y][x], 0, MAX_PIXEL_VALUE);
-            }
-        }
+        var diskData = disk.data();
+        var avg = neutralizeBg(disk, 3, 2.5, 0.9f);
         var ellipse = image.findMetadata(Ellipse.class);
         if (ellipse.isPresent()) {
             var e = ellipse.get();
@@ -81,13 +72,13 @@ public final class AutohistogramStrategy implements StretchingStrategy {
             var cy = e.center().b();
             var semiAxis = e.semiAxis();
             var radius = (semiAxis.a() + semiAxis.b()) / 2;
-            var amplificationThreshold = findAmplificationThreshold(diskData, width, height, e);
             float max = 1e-7f;
             for (int y = 0; y < height; y++) {
                 for (int x = 0; x < width; x++) {
                     max = Math.max(diskData[y][x], max);
                 }
             }
+            var asinh = new ArcsinhStretchingStrategy(0, 1.5f, 1.5f);
             for (int y = 0; y < height; y++) {
                 for (int x = 0; x < width; x++) {
                     var v = diskData[y][x];
@@ -95,14 +86,18 @@ public final class AutohistogramStrategy implements StretchingStrategy {
                     var dist = normalizedDistanceToCenter(x, y, cx, cy, radius);
                     var gammaCorrected = (float) pow(normalized, gamma) * MAX_PIXEL_VALUE;
                     var v1 = clamp(gammaCorrected, 0, MAX_PIXEL_VALUE);
-                    var v2 = clamp((float) (gammaCorrected + amplificationThreshold * Math.max(dist, 1.1) * log1p(gammaCorrected / amplificationThreshold) / LOG_NORM), 0, MAX_PIXEL_VALUE);
-                    if (dist <= 1) {
+
+                    if (dist <= BLEND_START) {
                         diskData[y][x] = v1;
+                    } else if (dist <= BLEND_END) {
+                        // Smooth transition using a cosine blend
+                        float alpha = (float) (0.5 * (1 + Math.cos(Math.PI * (dist - BLEND_START) / (BLEND_END - BLEND_START))));
+                        float prominenceValue = diskData[y][x] + asinh.stretchPixel(v);
+                        diskData[y][x] = alpha * v1 + (1 - alpha) * prominenceValue;
                     } else {
-                        float t = (float) Math.min(1, Math.max(0, (dist - 1) / 0.02));
-                        t = t * t * (3 - 2 * t);
-                        diskData[y][x] = (int) (v1 * (1 - t) + v2 * t);
+                        diskData[y][x] += asinh.stretchPixel(v);
                     }
+
                 }
             }
             for (int y = 0; y < height; y++) {
@@ -128,6 +123,21 @@ public final class AutohistogramStrategy implements StretchingStrategy {
         alignLeftHistogram(diskData);
         clamping(diskData, 0, .9998).stretch(image);
         RangeExpansionStrategy.DEFAULT.stretch(image);
+    }
+
+    private static double neutralizeBg(ImageWrapper32 disk, int degree, double sigma, float smoothing) {
+        var diskData = disk.data();
+        var model = BackgroundRemoval.backgroundModel(disk, degree, sigma).data();
+        double avg = 0;
+        for (int y = 0; y < disk.height(); y++) {
+            for (int x = 0; x < disk.width(); x++) {
+                float v = model[y][x];
+                avg += v;
+                diskData[y][x] = Math.clamp(diskData[y][x] - smoothing * v, 0, MAX_PIXEL_VALUE);
+            }
+        }
+        avg = avg / (disk.width() * disk.height());
+        return avg;
     }
 
     private static void mixInClahe(ImageWrapper32 image, float[][] diskData) {
@@ -176,19 +186,6 @@ public final class AutohistogramStrategy implements StretchingStrategy {
         var lo = cumulative.percentile(loPercentile);
         var hi = cumulative.percentile(hiPercentile);
         return new ContrastAdjustmentStrategy(lo, hi);
-    }
-
-    private double findAmplificationThreshold(float[][] diskData, int width, int height, Ellipse e) {
-        var builder = Histogram.builder(65536);
-        for (int y = 0; y < height; y++) {
-            for (int x = 0; x < width; x++) {
-                if (!e.isWithin(x, y)) {
-                    builder.record(diskData[y][x]);
-                }
-            }
-        }
-        var h = builder.build().cumulative();
-        return h.percentile(amplificationThreshold);
     }
 
     // computes the distance to the circle center, relative to the radius. A negative value
