@@ -28,13 +28,7 @@ import javafx.geometry.Pos;
 import javafx.scene.Node;
 import javafx.scene.Parent;
 import javafx.scene.Scene;
-import javafx.scene.control.Button;
-import javafx.scene.control.CheckBox;
-import javafx.scene.control.Label;
-import javafx.scene.control.MenuItem;
-import javafx.scene.control.Slider;
-import javafx.scene.control.TextArea;
-import javafx.scene.control.Tooltip;
+import javafx.scene.control.*;
 import javafx.scene.image.Image;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
@@ -89,6 +83,7 @@ public class ImageViewer implements WithRootNode {
     private ProcessingEventListener broadcaster;
     private ProgressOperation operation;
     private ProcessParams processParams;
+    private StretchingMode stretchingMode = StretchingMode.LINEAR;
 
     private Label dimensions;
     @FXML
@@ -227,11 +222,23 @@ public class ImageViewer implements WithRootNode {
             displayLock.lock();
 
             this.stretchingStrategy = ContrastAdjustmentStrategy.DEFAULT;
-            var line1 = new HBox(8);
-            line1.setAlignment(Pos.CENTER_LEFT);
             var line2 = new HBox(8);
             line2.setAlignment(Pos.CENTER_LEFT);
-            configureContrastAdjustment(line1);
+            var linearStretchParams = new HBox(8);
+            linearStretchParams.setAlignment(Pos.CENTER_LEFT);
+            configureContrastAdjustment(linearStretchParams);
+            configureHGrow(linearStretchParams.getChildren());
+            var strategySelector = new ChoiceBox<StretchingMode>();
+            strategySelector.getItems().addAll(StretchingMode.values());
+            strategySelector.getSelectionModel().select(stretchingMode);
+            strategySelector.getSelectionModel().selectedItemProperty().addListener((obj, oldValue, newValue) -> {
+                stretchingMode = newValue;
+                linearStretchParams.setDisable(stretchingMode == StretchingMode.NO_STRETCH);
+                stretchAndDisplay();
+            });
+            var line1 = new HBox(8);
+            line1.setAlignment(Pos.CENTER_LEFT);
+            line1.getChildren().addAll(new Label(message("stretching.label")), strategySelector, linearStretchParams);
             var reset = new Button(message("reset"));
             reset.setOnAction(event -> {
                 stretchingParams.getChildren().clear();
@@ -356,12 +363,16 @@ public class ImageViewer implements WithRootNode {
                 titleBox.setSpacing(4);
                 titleBox.setAlignment(Pos.CENTER_LEFT);
                 stretchingParams.getChildren().addAll(titleBox, line1, line2);
-                line1.getChildren().forEach(e -> HBox.setHgrow(e, Priority.ALWAYS));
-                line2.getChildren().stream().filter(e -> !(e instanceof Slider)).forEach(e -> HBox.setHgrow(e, Priority.ALWAYS));
+                configureHGrow(line1.getChildren());
+                configureHGrow(line2.getChildren().stream().filter(e -> !(e instanceof Slider)).toList());
             });
         } finally {
             displayLock.unlock();
         }
+    }
+
+    private static void configureHGrow(List<Node> nodes) {
+        nodes.forEach(e -> HBox.setHgrow(e, Priority.ALWAYS));
     }
 
     private static float linValueOf(double sliderValue) {
@@ -454,10 +465,14 @@ public class ImageViewer implements WithRootNode {
 
     private void stretchAndDisplay(boolean resetZoom) {
         displayImage = applyTransformations(this.image);
-        if (displayImage instanceof ImageWrapper32 mono) {
-            stretchedImage = stretch(mono);
-        } else if (displayImage instanceof RGBImage rgb) {
-            stretchedImage = stretch(rgb);
+        if (stretchingMode == StretchingMode.NO_STRETCH) {
+            stretchedImage = displayImage;
+        } else {
+            if (displayImage instanceof ImageWrapper32 mono) {
+                stretchedImage = stretch(mono);
+            } else if (displayImage instanceof RGBImage rgb) {
+                stretchedImage = stretch(rgb);
+            }
         }
         var writable = WritableImageSupport.asWritable(stretchedImage);
         Platform.runLater(() -> updateDisplay(writable, resetZoom));
@@ -531,4 +546,13 @@ public class ImageViewer implements WithRootNode {
 
     }
 
+    private enum StretchingMode {
+        LINEAR, NO_STRETCH;
+
+
+        @Override
+        public String toString() {
+            return message("stretching." + name().toLowerCase());
+        }
+    }
 }
