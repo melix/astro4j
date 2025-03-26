@@ -547,6 +547,22 @@ Last but not least, the `[outputs]` section declares the images we want to gener
 
 NOTE: Comments can be added either with the `#` or `//` prefix.
 
+[[special-variables]]
+=== Special variables
+
+This table summarizes the special variables which are exposed to ImageMath scripts:
+
+[%header,cols="25%,75%"]
+|===
+|Variable|Description
+|`blackPoint`|The computed black point of the image
+|`angleP`|The computed solar P angle (in radians)
+|`b0`|The computed B0 angle (in radians)
+|`l0`|The computed L0 angle (in radians)
+|`carrot`|The Carrington rotation number
+|`detectedWavelen`|The detected wavelength of the image (in Angström), corresponding to the image `img(0)`
+|===
+
 [[custom-functions]]
 === Custom functions
 

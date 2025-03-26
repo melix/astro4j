@@ -433,6 +433,22 @@ Fonctions diverses :
 - `sort` permet de trier une liste d'images. Elle accepte une liste d'images en premier argument et un critère de tri en second argument. Par exemple : `sort(images, "date")`. Le critère par défaut est `shift` pour le décalage en pixels.
 - `video_datetime` retourne la date et l'heure formatée d'une image. Elle accepte un ou deux paramètres : l'image et un format optionnel. Par exemple : `video_datetime(img(0))` ou `video_datetime(img(0), "yyyy-MM-dd HH:mm:ss")`
 
+[[special-variables]]
+=== Variables spéciales
+
+La table ci-dessous résume les variables spéciales exposées aux scripts ImageMath :
+
+[%header,cols="25%,75%"]
+|===
+|Variable|Description
+|`blackPoint`|La valeur du point noir détectée dans l'image
+|`angleP`|La valeur de l'angle P (en radians)
+|`b0`|La valeur de l'angle B0 (en radians)
+|`l0`|La valeur de l'angle L0 (en radians)
+|`carrot`|La rotation de Carrington
+|`detectedWavelen`|La valeur de la longueur d'onde détectée (en Angström), correspondant à l'image `img(0)`
+|===
+
 [[custom-functions]]
 === Fonctions personnalisées
 
