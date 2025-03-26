@@ -27,6 +27,7 @@ module me.champeau.a4j.jsolex.core {
     requires nom.tam.fits;
     requires jcodec;
     requires org.apache.commons.compress;
+    requires java.net.http;
     exports me.champeau.a4j.jsolex.expr;
     exports me.champeau.a4j.jsolex.expr.ast;
     exports me.champeau.a4j.jsolex.processing.color;

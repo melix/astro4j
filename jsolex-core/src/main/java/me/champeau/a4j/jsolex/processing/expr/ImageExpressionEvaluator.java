@@ -30,7 +30,7 @@ public class ImageExpressionEvaluator extends AbstractImageExpressionEvaluator {
         this.images = images;
     }
 
-    protected ImageWrapper findImage(double shift) {
+    public ImageWrapper findImage(double shift) {
         var image = images.apply(shift);
         if (image == null) {
             throw new IllegalArgumentException(String.format(message("missing.shift"), shift));

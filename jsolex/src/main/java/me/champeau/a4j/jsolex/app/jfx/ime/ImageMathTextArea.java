@@ -141,6 +141,7 @@ public class ImageMathTextArea extends BorderPane {
             parser.parse();
             root = parser.rootNode();
             parser = new ImageMathParser(text);
+            parser.setIncludeDir(includesDir);
             parser.parseAndInlineIncludes();
             inlined = parser.rootNode();
         } catch (ParseException e) {
@@ -160,6 +161,7 @@ public class ImageMathTextArea extends BorderPane {
         knownVariables.add(DefaultImageScriptExecutor.L0_VAR);
         knownVariables.add(DefaultImageScriptExecutor.CARROT_VAR);
         knownVariables.add(DefaultImageScriptExecutor.DETECTED_WAVELEN);
+        knownVariables.add(DefaultImageScriptExecutor.DETECTED_DISPERSION);
         knownVariables.addAll(this.knownVariables);
         var userFunctionNames = root.childrenOfType(FunctionDef.class)
             .stream()

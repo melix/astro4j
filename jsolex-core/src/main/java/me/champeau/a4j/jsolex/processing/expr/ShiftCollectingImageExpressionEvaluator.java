@@ -39,9 +39,13 @@ public class ShiftCollectingImageExpressionEvaluator extends ImageExpressionEval
     private final Map<Double, ImageWrapper> cache = new ConcurrentHashMap<>();
     private boolean autoContinuum = false;
 
+    public static boolean isShiftCollecting(Function<Double, ImageWrapper> function) {
+        return function instanceof ShiftCollectingFunction;
+    }
+
     public static Function<Double, ImageWrapper> zeroImages() {
         var map = new HashMap<Double, ImageWrapper>();
-        return (Double idx) -> map.computeIfAbsent(idx, unused -> ImageWrapper32.createEmpty());
+        return (ShiftCollectingFunction) idx -> map.computeIfAbsent(idx, unused -> ImageWrapper32.createEmpty());
     }
 
     public ShiftCollectingImageExpressionEvaluator(Broadcaster broadcaster) {
@@ -66,7 +70,7 @@ public class ShiftCollectingImageExpressionEvaluator extends ImageExpressionEval
         return super.functionCall(function, arguments);
     }
 
-    protected ImageWrapper findImage(double shift) {
+    public ImageWrapper findImage(double shift) {
         shifts.add(shift);
         return cache.computeIfAbsent(shift, s -> FileBackedImage.wrap(super.findImage(s)));
     }
@@ -91,5 +95,12 @@ public class ShiftCollectingImageExpressionEvaluator extends ImageExpressionEval
 
     public void clearCache() {
         cache.clear();
+    }
+
+    public void addShift(double shift) {
+        shifts.add(shift);
+    }
+
+    private interface ShiftCollectingFunction extends Function<Double, ImageWrapper> {
     }
 }

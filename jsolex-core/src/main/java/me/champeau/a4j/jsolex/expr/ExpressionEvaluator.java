@@ -15,17 +15,7 @@
  */
 package me.champeau.a4j.jsolex.expr;
 
-import me.champeau.a4j.jsolex.expr.ast.Argument;
-import me.champeau.a4j.jsolex.expr.ast.Assignment;
-import me.champeau.a4j.jsolex.expr.ast.BinaryExpression;
-import me.champeau.a4j.jsolex.expr.ast.Expression;
-import me.champeau.a4j.jsolex.expr.ast.FunctionCall;
-import me.champeau.a4j.jsolex.expr.ast.Identifier;
-import me.champeau.a4j.jsolex.expr.ast.ImageMathScript;
-import me.champeau.a4j.jsolex.expr.ast.NumericalLiteral;
-import me.champeau.a4j.jsolex.expr.ast.Section;
-import me.champeau.a4j.jsolex.expr.ast.StringLiteral;
-import me.champeau.a4j.jsolex.expr.ast.UnaryExpression;
+import me.champeau.a4j.jsolex.expr.ast.*;
 
 import java.util.Collections;
 import java.util.HashMap;
@@ -42,6 +32,10 @@ public abstract class ExpressionEvaluator {
 
     public void putFunction(String name, UserFunction function) {
         userFunctions.put(name, function);
+    }
+
+    public Map<String, UserFunction> getUserFunctions() {
+        return Collections.unmodifiableMap(userFunctions);
     }
 
     public Map<String, Object> getVariables() {
@@ -132,5 +126,11 @@ public abstract class ExpressionEvaluator {
 
     protected Object userFunctionCall(UserFunction function, Object[] arguments) {
         return function.invoke(arguments);
+    }
+
+    public record NestedInvocationResult(
+            Map<String, Object> variables
+    ) {
+
     }
 }
