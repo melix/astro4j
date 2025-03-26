@@ -16,42 +16,22 @@
 package me.champeau.a4j.jsolex.processing.expr;
 
 import me.champeau.a4j.jsolex.expr.*;
-import me.champeau.a4j.jsolex.expr.ast.Assignment;
-import me.champeau.a4j.jsolex.expr.ast.Expression;
-import me.champeau.a4j.jsolex.expr.ast.FunctionCall;
-import me.champeau.a4j.jsolex.expr.ast.FunctionDef;
-import me.champeau.a4j.jsolex.expr.ast.ImageMathScript;
-import me.champeau.a4j.jsolex.processing.event.Notification;
-import me.champeau.a4j.jsolex.processing.event.NotificationEvent;
-import me.champeau.a4j.jsolex.processing.event.ProgressEvent;
+import me.champeau.a4j.jsolex.expr.ast.*;
 import me.champeau.a4j.jsolex.processing.event.ProgressOperation;
 import me.champeau.a4j.jsolex.processing.params.ProcessParams;
 import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
 import me.champeau.a4j.jsolex.processing.sun.workflow.ImageStats;
 import me.champeau.a4j.jsolex.processing.sun.workflow.TransformationHistory;
-import me.champeau.a4j.jsolex.processing.util.FileBackedImage;
-import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
-import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
-import me.champeau.a4j.jsolex.processing.util.SolarParameters;
+import me.champeau.a4j.jsolex.processing.util.*;
 
 import java.nio.file.Path;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.LinkedHashMap;
-import java.util.LinkedHashSet;
-import java.util.List;
-import java.util.Locale;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Optional;
-import java.util.Set;
-import java.util.TreeSet;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
+import static me.champeau.a4j.jsolex.processing.expr.AbstractImageExpressionEvaluator.computeDispersion;
 import static me.champeau.a4j.jsolex.processing.util.Constants.message;
 import static me.champeau.a4j.jsolex.processing.util.LoggingSupport.LOGGER;
 
@@ -62,6 +42,7 @@ public class DefaultImageScriptExecutor implements ImageMathScriptExecutor {
     public static final String L0_VAR = "l0";
     public static final String CARROT_VAR = "carrot";
     public static final String DETECTED_WAVELEN = "detectedWavelen";
+    public static final String DETECTED_DISPERSION = "detectedDispersion";
 
     public static final String OUTPUTS_SECTION_NAME = "outputs";
 
@@ -72,17 +53,20 @@ public class DefaultImageScriptExecutor implements ImageMathScriptExecutor {
     private final Map<String, Object> variables = new LinkedHashMap<>();
     private final ProgressOperation operation;
 
-    private boolean isCollectingShifts = false;
     private Path includesDir;
     private boolean outputLogging = true;
 
     public DefaultImageScriptExecutor(Function<Double, ImageWrapper> imageSupplier,
                                       Map<Class, Object> context,
                                       Broadcaster broadcaster) {
-        this.imagesByShift = img -> isCollectingShifts ? ImageWrapper32.createEmpty() : imageSupplier.apply(img);
+        this.imagesByShift = imageSupplier;
         this.context = context;
         this.broadcaster = broadcaster;
         this.operation = createOperation(context);
+    }
+
+    public boolean isCollectingShifts() {
+        return ShiftCollectingImageExpressionEvaluator.isShiftCollecting(imagesByShift);
     }
 
     private static ProgressOperation createOperation(Map<Class, Object> context) {
@@ -113,10 +97,6 @@ public class DefaultImageScriptExecutor implements ImageMathScriptExecutor {
         variables.put(name, value);
     }
 
-    public void setCollectingShifts(boolean collectingShifts) {
-        isCollectingShifts = collectingShifts;
-    }
-
     @Override
     public ImageMathScriptResult execute(String script, SectionKind kind) {
         long nanoTime = System.nanoTime();
@@ -125,134 +105,102 @@ public class DefaultImageScriptExecutor implements ImageMathScriptExecutor {
             var index = executionCount.getAndIncrement();
             var evaluator = new MemoizingExpressionEvaluator(broadcaster);
             populateContext(evaluator);
-            var outputs = prepareOutputExpressions(script, index, evaluator, kind);
-            if (outputs.error != null) {
-                broadcaster.broadcast(new NotificationEvent(
-                        new Notification(
-                                Notification.AlertType.ERROR,
-                                message("imagemath.parse.error"),
-                                message("imagemath.parse.error"),
-                                outputs.error
-                        )
-                ));
-                broadcaster.broadcast(scriptOperation.complete());
-                return ImageMathScriptResult.EMPTY;
-            }
-            var producedImages = new HashMap<String, ImageWrapper>();
-            var producedFiles = new HashMap<String, Path>();
-            return outputs == null ? new ImageMathScriptResult(producedImages, producedFiles, List.of(), evaluator.getShifts(), Set.of(), evaluator.getAutoWavelenghts(), false) : executeScript(evaluator, outputs, producedImages, producedFiles);
+            var result = doExecuteScript(script, index, evaluator, kind);
+            evaluator.getVariables().forEach((key, value) -> {
+                if (!variables.containsKey(key)) {
+                    variables.put(key, value);
+                }
+            });
+            return result;
         } finally {
-            var dur = java.time.Duration.ofNanos(System.nanoTime() - nanoTime);
-            LOGGER.info(message("script.completed.in"), dur.toSeconds(), dur.toMillisPart() / 100);
-            var secs = dur.toSeconds() + (dur.toMillisPart() / 1000d);
-            broadcaster.broadcast(scriptOperation.complete(String.format(message("script.completed.in.format"), secs)));
+            if (!isCollectingShifts() && outputLogging) {
+                var dur = java.time.Duration.ofNanos(System.nanoTime() - nanoTime);
+                LOGGER.info(message("script.completed.in"), dur.toSeconds(), dur.toMillisPart() / 100);
+                var secs = dur.toSeconds() + (dur.toMillisPart() / 1000d);
+                broadcaster.broadcast(scriptOperation.complete(String.format(message("script.completed.in.format"), secs)));
+            }
         }
     }
 
     public ImageMathScriptResult execute(List<Expression> expressions, List<UserFunction> userFunctions) {
         var evaluator = new MemoizingExpressionEvaluator(broadcaster);
         context.forEach(evaluator::putInContext);
-        return executeScript(evaluator,
-                new PreparedScript(Set.of("result"), expressions, userFunctions, null),
-                new HashMap<>(),
-                new HashMap<>());
-    }
-
-    private ImageMathScriptResult executeScript(MemoizingExpressionEvaluator evaluator,
-                                                PreparedScript preparedScript,
-                                                Map<String, ImageWrapper> producedImages,
-                                                Map<String, Path> producedFiles) {
-        var imageStats = (ImageStats) context.get(ImageStats.class);
-        if (imageStats != null) {
-            evaluator.putVariable(BLACK_POINT_VAR, String.format(Locale.US, "%.3f", imageStats.blackpoint()));
-        }
-        var solarParams = (SolarParameters) context.get(SolarParameters.class);
-        if (solarParams != null) {
-            evaluator.putVariable(ANGLE_P_VAR, String.format(Locale.US, "%.4f", solarParams.p()));
-            evaluator.putVariable(B0_VAR, String.format(Locale.US, "%.4f", solarParams.b0()));
-            evaluator.putVariable(L0_VAR, String.format(Locale.US, "%.4f", solarParams.l0()));
-            evaluator.putVariable(CARROT_VAR, String.valueOf(solarParams.carringtonRotation()));
-        }
-        var processParams = (ProcessParams) context.get(ProcessParams.class);
-        evaluator.putVariable(DETECTED_WAVELEN, processParams == null ? 0 : processParams.spectrumParams().ray().wavelength().angstroms());
-        for (var entry : variables.entrySet()) {
-            evaluator.putVariable(entry.getKey(), entry.getValue());
-        }
-        var variableShifts = new TreeSet<>(evaluator.getShifts());
-        preparedScript.userFunctions.forEach(f -> evaluator.putFunction(f.name(), f.prepare(imagesByShift, context, variableShifts::add, broadcaster)));
+        variables.forEach(evaluator::putVariable);
+        userFunctions.forEach(fn -> {
+            var prep = fn.prepare(imagesByShift, context, evaluator::addShift, broadcaster);
+            evaluator.putFunction(fn.name(), prep);
+        });
+        var imagesByLabel = new LinkedHashMap<String, ImageWrapper>();
+        var filesByLabel = new LinkedHashMap<String, Path>();
         var invalidExpressions = new ArrayList<InvalidExpression>();
-        evaluator.clearShifts();
-        evaluator.clearCache();
-        var progressOperation = operation.createChild("ImageScript evaluation");
-        broadcaster.broadcast(progressOperation);
-        double idx = 0;
-        double size = preparedScript.expressions.size();
-        for (var expression : preparedScript.expressions) {
-            try {
-                broadcaster.broadcast(progressOperation.update(idx / size, "ImageScript : " + expression));
-                evaluator.evaluate(expression);
-            } catch (Exception ex) {
-                invalidExpressions.add(new InvalidExpression(
-                        expression.toString(),
-                        expression.toString(),
-                        ex
-                ));
-            } finally {
-                idx++;
+        executeExpressions(executionCount.getAndIncrement(), evaluator, expressions, true, 0, imagesByLabel, filesByLabel, invalidExpressions);
+        evaluator.getVariables().forEach((k, v) -> {
+            if (!variables.containsKey(k)) {
+                variables.put(k, v);
             }
-        }
-        var variables = evaluator.getVariables();
-        this.variables.putAll(variables);
-        for (var label : preparedScript.outputVariables) {
-            var result = variables.get(label);
-            switch (result) {
-                case ImageWrapper image -> producedImages.put(label, image);
-                case FileOutput(Path file) -> producedFiles.put(label, file);
-                case List<?> images -> {
-                    int img = 0;
-                    for (Object o : images) {
-                        if (o instanceof ImageWrapper image) {
-                            producedImages.put(label + "_" + img++, image);
-                        } else if (o instanceof FileOutput(Path file)) {
-                            producedFiles.put(label + "_" + img++, file);
-                        }
-                    }
-                }
-                case null -> {
-                }
-                default -> {
-                    if (!isCollectingShifts && outputLogging) {
-                        LOGGER.info(label + " = " + result);
-                    }
-                }
-            }
-        }
-        broadcaster.broadcast(progressOperation.complete());
-        var expressionShifts = new TreeSet<>(evaluator.getShifts());
-        expressionShifts.removeAll(variableShifts);
-        return new ImageMathScriptResult(producedImages, producedFiles, invalidExpressions, Collections.unmodifiableSet(variableShifts), Collections.unmodifiableSet(expressionShifts), evaluator.getAutoWavelenghts(), evaluator.usesAutoContinuum());
+        });
+        return new ImageMathScriptResult(
+                imagesByLabel,
+                filesByLabel,
+                invalidExpressions,
+                Collections.emptySet(),
+                evaluator.getShifts(),
+                evaluator.getAutoWavelenghts(),
+                evaluator.usesAutoContinuum()
+        );
     }
 
-    private PreparedScript prepareOutputExpressions(String script,
-                                                    int index,
-                                                    AbstractImageExpressionEvaluator evaluator,
-                                                    SectionKind kind) {
+    private void extractResults(Map<String, ImageWrapper> producedImages, Map<String, Path> producedFiles, String variableName, Object result) {
+        switch (result) {
+            case ImageWrapper image -> producedImages.put(variableName, image);
+            case FileOutput(Path file) -> producedFiles.put(variableName, file);
+            case List<?> images -> {
+                int img = 0;
+                for (Object o : images) {
+                    if (o instanceof ImageWrapper image) {
+                        producedImages.put(variableName + "_" + img++, image);
+                    } else if (o instanceof FileOutput(Path file)) {
+                        producedFiles.put(variableName + "_" + img++, file);
+                    }
+                }
+            }
+            case ExpressionEvaluator.NestedInvocationResult nestedResult -> {
+                nestedResult.variables().forEach((key, value) -> {
+                    extractResults(producedImages, producedFiles, key, value);
+                });
+            }
+            case null -> {
+            }
+            default -> {
+                if (outputLogging && !(result instanceof ExpressionEvaluator.NestedInvocationResult)) {
+                    LOGGER.info(variableName + " = " + result);
+                }
+            }
+        }
+    }
+
+    private ImageMathScriptResult doExecuteScript(String script,
+                                                  int index,
+                                                  MemoizingExpressionEvaluator evaluator,
+                                                  SectionKind kind) {
         int cpt = 0;
         var parser = new ImageMathParser(script);
         parser.setIncludeDir(includesDir);
-        ImageMathScript root = null;
+        ImageMathScript root;
         try {
             root = parser.parseAndInlineIncludes();
         } catch (ParseException ex) {
-            var error = ex.getMessage();
-            return new PreparedScript(Collections.emptySet(), List.of(), List.of(), error);
+            throw new ProcessingException(ex);
         }
-        Set<String> outputVariables = new LinkedHashSet<>();
         var sections = root.findSections(kind);
         if (sections.isEmpty()) {
-            return new PreparedScript(Collections.emptySet(), List.of(), List.of(), null);
+            return ImageMathScriptResult.EMPTY;
         }
         var functions = readUserFunctions(root);
+        functions.forEach(function -> {
+            var prep = function.prepare(imagesByShift, context, evaluator::addShift, broadcaster);
+            evaluator.putFunction(function.name(), prep);
+        });
         var outputSection = sections.stream()
                 .filter(section -> section.name().isPresent() && OUTPUTS_SECTION_NAME.equals(section.name().get()))
                 .findFirst()
@@ -263,12 +211,32 @@ public class DefaultImageScriptExecutor implements ImageMathScriptExecutor {
                         .filter(section -> kind == SectionKind.BATCH && section.name().isPresent() && "batch".equals(section.name().get()))
                         .findFirst())
                 .orElse(null);
-        var allExpressions = new ArrayList<Expression>();
-        for (var section : sections) {
-            var isOutputSection = section == outputSection;
-            var expressions = section.childrenOfType(Expression.class);
-            allExpressions.addAll(expressions);
-            for (var expression : expressions) {
+        Map<String, ImageWrapper> imagesByLabel = new LinkedHashMap<>();
+        Map<String, Path> filesByLabel = new LinkedHashMap<>();
+        List<InvalidExpression> invalidExpressions = new ArrayList<>();
+        var progressOperation = operation.createChild("ImageScript evaluation");
+        broadcaster.broadcast(progressOperation);
+        var internalShifts = new TreeSet<Double>();
+        try {
+            for (var section : sections) {
+                var isOutputSection = section == outputSection;
+                if (isOutputSection) {
+                    internalShifts.addAll(evaluator.getShifts());
+                    evaluator.clearShifts();
+                }
+                var expressions = section.childrenOfType(Expression.class);
+                cpt = executeExpressions(index, evaluator, expressions, isOutputSection, cpt, imagesByLabel, filesByLabel, invalidExpressions);
+            }
+            return new ImageMathScriptResult(imagesByLabel, filesByLabel, invalidExpressions, internalShifts, evaluator.getShifts(), Collections.emptySet(), evaluator.usesAutoContinuum());
+        } finally {
+            broadcaster.broadcast(progressOperation.complete());
+        }
+    }
+
+    private int executeExpressions(int index, MemoizingExpressionEvaluator evaluator, List<Expression> expressions, boolean isOutputSection, int cpt, Map<String, ImageWrapper> imagesByLabel, Map<String, Path> filesByLabel, List<InvalidExpression> invalidExpressions) {
+        for (var expression : expressions) {
+            try {
+                var result = evaluator.evaluate(expression);
                 if (expression instanceof Assignment assignment) {
                     if (assignment.isAnonymous() && isOutputSection) {
                         var dynamicVarName = "imagemath_" + index + "_" + cpt;
@@ -277,13 +245,19 @@ public class DefaultImageScriptExecutor implements ImageMathScriptExecutor {
                     }
                     if (isOutputSection && assignment.variableName().isPresent()) {
                         var variableName = assignment.variableName().get();
-                        outputVariables.add(variableName);
+                        extractResults(imagesByLabel, filesByLabel, variableName, result);
                     }
                 }
+            } catch (Exception ex) {
+                var invalidExpression = new InvalidExpression(
+                        expression.toString(),
+                        expression.toString(),
+                        ex
+                );
+                invalidExpressions.add(invalidExpression);
             }
         }
-        collectInternalShifts(evaluator, allExpressions);
-        return new PreparedScript(outputVariables, allExpressions, functions, null);
+        return cpt;
     }
 
     private List<UserFunction> readUserFunctions(ImageMathScript scriptNode) {
@@ -307,27 +281,24 @@ public class DefaultImageScriptExecutor implements ImageMathScriptExecutor {
         return Collections.unmodifiableList(userFunctions);
     }
 
-    private void collectInternalShifts(AbstractImageExpressionEvaluator evaluator, List<Expression> expressions) {
-        var collecting = isCollectingShifts;
-        isCollectingShifts = true;
-        var shiftCollectingEvaluator = new ShiftCollectingExpressionEvaluator(evaluator);
-        var progressOperation = operation.createChild("ImageScript evaluation");
-        try {
-            for (Expression expression : expressions) {
-                broadcaster.broadcast(progressOperation.update(0, "ImageScript evaluation " + expression));
-                try {
-                    shiftCollectingEvaluator.evaluate(expression);
-                } catch (Exception ex) {
-                    // ignore
-                }
-            }
-        } finally {
-            broadcaster.broadcast(progressOperation.complete());
-            isCollectingShifts = collecting;
+    protected void populateContext(AbstractImageExpressionEvaluator evaluator) {
+        var imageStats = (ImageStats) context.get(ImageStats.class);
+        if (imageStats != null) {
+            evaluator.putVariable(BLACK_POINT_VAR, String.format(Locale.US, "%.3f", imageStats.blackpoint()));
         }
-    }
-
-    private void populateContext(AbstractImageExpressionEvaluator evaluator) {
+        var solarParams = (SolarParameters) context.get(SolarParameters.class);
+        if (solarParams != null) {
+            evaluator.putVariable(ANGLE_P_VAR, String.format(Locale.US, "%.4f", solarParams.p()));
+            evaluator.putVariable(B0_VAR, String.format(Locale.US, "%.4f", solarParams.b0()));
+            evaluator.putVariable(L0_VAR, String.format(Locale.US, "%.4f", solarParams.l0()));
+            evaluator.putVariable(CARROT_VAR, String.valueOf(solarParams.carringtonRotation()));
+        }
+        var processParams = (ProcessParams) context.get(ProcessParams.class);
+        evaluator.putVariable(DETECTED_WAVELEN, processParams == null ? 0 : processParams.spectrumParams().ray().wavelength().angstroms());
+        evaluator.putVariable(DETECTED_DISPERSION, processParams == null ? 0 : computeDispersion(processParams, processParams.spectrumParams().ray().wavelength()).angstromsPerPixel());
+        for (var entry : variables.entrySet()) {
+            evaluator.putVariable(entry.getKey(), entry.getValue());
+        }
         for (Map.Entry<Class, Object> entry : context.entrySet()) {
             var key = entry.getKey();
             var value = entry.getValue();
@@ -350,48 +321,7 @@ public class DefaultImageScriptExecutor implements ImageMathScriptExecutor {
         outputLogging = false;
     }
 
-    /**
-     * This evaluator is used to handle some function calls when we're collecting shifts,
-     * so that it avoids doing the actual computation.
-     */
-    private static class ShiftCollectingExpressionEvaluator extends ExpressionEvaluator {
-        private final AbstractImageExpressionEvaluator evaluator;
-
-        public ShiftCollectingExpressionEvaluator(AbstractImageExpressionEvaluator evaluator) {
-            this.evaluator = evaluator;
-        }
-
-        @Override
-        protected Object plus(Object left, Object right) {
-            return evaluator.plus(left, right);
-        }
-
-        @Override
-        protected Object minus(Object left, Object right) {
-            return evaluator.minus(left, right);
-        }
-
-        @Override
-        protected Object mul(Object left, Object right) {
-            return evaluator.mul(left, right);
-        }
-
-        @Override
-        protected Object div(Object left, Object right) {
-            return evaluator.mul(left, right);
-        }
-
-        @Override
-        protected Object functionCall(BuiltinFunction function, List<Object> arguments) {
-            return switch (function) {
-                case LOAD -> ImageWrapper32.createEmpty();
-                case LOAD_MANY -> List.of(ImageWrapper32.createEmpty(), ImageWrapper32.createEmpty());
-                default -> evaluator.functionCall(function, arguments);
-            };
-        }
-    }
-
-    private class MemoizingExpressionEvaluator extends ShiftCollectingImageExpressionEvaluator {
+    public class MemoizingExpressionEvaluator extends ShiftCollectingImageExpressionEvaluator {
         private final Map<String, Object> memoizeCache = new ConcurrentHashMap<>();
 
         public MemoizingExpressionEvaluator(Broadcaster broadcaster) {
@@ -400,7 +330,7 @@ public class DefaultImageScriptExecutor implements ImageMathScriptExecutor {
 
         @Override
         protected Object doEvaluate(Node expression) {
-            if (isCollectingShifts && expression instanceof FunctionCall funCall) {
+            if (isCollectingShifts() && expression instanceof FunctionCall funCall) {
                 if (funCall.getBuiltinFunction().isPresent()) {
                     var fun = funCall.getBuiltinFunction().get();
                     if (fun == BuiltinFunction.LOAD || fun == BuiltinFunction.CHOOSE_FILE) {
@@ -459,18 +389,14 @@ public class DefaultImageScriptExecutor implements ImageMathScriptExecutor {
         }
     }
 
+    public Map<String, Object> getVariables() {
+        return Collections.unmodifiableMap(variables);
+    }
+
     public static class SyntaxError extends Exception {
         public SyntaxError(String message) {
             super(message);
         }
-    }
-
-    private record PreparedScript(
-            Set<String> outputVariables,
-            List<Expression> expressions,
-            List<UserFunction> userFunctions,
-            String error
-    ) {
     }
 
 }

@@ -16,17 +16,24 @@
 package me.champeau.a4j.jsolex.processing.util;
 
 import java.util.Deque;
-import java.util.concurrent.ConcurrentLinkedDeque;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
+import java.util.concurrent.*;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.ReentrantLock;
 
 import static me.champeau.a4j.jsolex.processing.util.LoggingSupport.logError;
 
 public final class BackgroundOperations {
 
-    private static final ExecutorService ASYNC = Executors.newCachedThreadPool();
+    private static final ExecutorService ASYNC = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors(), new ThreadFactory() {
+        private final AtomicInteger threadNumber = new AtomicInteger(0);
+
+        @Override
+        public Thread newThread(Runnable r) {
+            Thread t = new Thread(r);
+            t.setName("async-task-" + threadNumber.getAndIncrement());
+            return t;
+        }
+    });
     private static final ExecutorService IO_ASYNC = Executors.newVirtualThreadPerTaskExecutor();
     private static final ReentrantLock EXCLUSIVE_IO_LOCK = new ReentrantLock();
     private static final ExecutorService EXCLUSIVE_IO = Executors.newCachedThreadPool();

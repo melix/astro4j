@@ -831,7 +831,6 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
                 ShiftCollectingImageExpressionEvaluator.zeroImages(),
                 scriptExecutionContext
         );
-        collectingExecutor.setCollectingShifts(true);
         var shiftCollectionResult = collectingExecutor.execute(script, SectionKind.SINGLE);
         Set<Double> allShifts = new TreeSet<>();
         allShifts.addAll(shiftCollectionResult.outputShifts());

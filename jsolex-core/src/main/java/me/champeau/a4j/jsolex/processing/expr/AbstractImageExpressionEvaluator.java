@@ -15,63 +15,28 @@
  */
 package me.champeau.a4j.jsolex.processing.expr;
 
+import com.google.gson.*;
 import me.champeau.a4j.jsolex.expr.BuiltinFunction;
 import me.champeau.a4j.jsolex.expr.ExpressionEvaluator;
-import me.champeau.a4j.jsolex.expr.UserFunction;
-import me.champeau.a4j.jsolex.processing.expr.impl.AdjustContrast;
-import me.champeau.a4j.jsolex.processing.expr.impl.Animate;
-import me.champeau.a4j.jsolex.processing.expr.impl.ArtifificialFlatCorrector;
-import me.champeau.a4j.jsolex.processing.expr.impl.BackgroundRemoval;
-import me.champeau.a4j.jsolex.processing.expr.impl.Clahe;
-import me.champeau.a4j.jsolex.processing.expr.impl.Colorize;
-import me.champeau.a4j.jsolex.processing.expr.impl.Convolution;
-import me.champeau.a4j.jsolex.processing.expr.impl.Crop;
-import me.champeau.a4j.jsolex.processing.expr.impl.Dedistort;
-import me.champeau.a4j.jsolex.processing.expr.impl.DiskFill;
-import me.champeau.a4j.jsolex.processing.expr.impl.EllipseFit;
-import me.champeau.a4j.jsolex.processing.expr.impl.Filtering;
-import me.champeau.a4j.jsolex.processing.expr.impl.FixBanding;
-import me.champeau.a4j.jsolex.processing.expr.impl.GeometryCorrection;
-import me.champeau.a4j.jsolex.processing.expr.impl.ImageDraw;
-import me.champeau.a4j.jsolex.processing.expr.impl.Inverse;
-import me.champeau.a4j.jsolex.processing.expr.impl.Loader;
-import me.champeau.a4j.jsolex.processing.expr.impl.MathFunctions;
-import me.champeau.a4j.jsolex.processing.expr.impl.MosaicComposition;
-import me.champeau.a4j.jsolex.processing.expr.impl.RGBCombination;
-import me.champeau.a4j.jsolex.processing.expr.impl.Rotate;
-import me.champeau.a4j.jsolex.processing.expr.impl.Saturation;
-import me.champeau.a4j.jsolex.processing.expr.impl.Scaling;
-import me.champeau.a4j.jsolex.processing.expr.impl.SimpleFunctionCall;
-import me.champeau.a4j.jsolex.processing.expr.impl.Stacking;
-import me.champeau.a4j.jsolex.processing.expr.impl.Stretching;
-import me.champeau.a4j.jsolex.processing.expr.impl.Utilities;
+import me.champeau.a4j.jsolex.processing.event.ProgressOperation;
+import me.champeau.a4j.jsolex.processing.expr.impl.*;
 import me.champeau.a4j.jsolex.processing.params.ProcessParams;
+import me.champeau.a4j.jsolex.processing.params.ProcessParamsIO;
 import me.champeau.a4j.jsolex.processing.params.SpectralRayIO;
 import me.champeau.a4j.jsolex.processing.spectrum.SpectrumAnalyzer;
+import me.champeau.a4j.jsolex.processing.stretching.CutoffStretchingStrategy;
 import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
-import me.champeau.a4j.jsolex.processing.sun.workflow.PixelShift;
-import me.champeau.a4j.jsolex.processing.sun.workflow.PixelShiftRange;
-import me.champeau.a4j.jsolex.processing.util.Dispersion;
-import me.champeau.a4j.jsolex.processing.util.FileBackedImage;
-import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
-import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
-import me.champeau.a4j.jsolex.processing.util.Wavelen;
+import me.champeau.a4j.jsolex.processing.sun.workflow.*;
+import me.champeau.a4j.jsolex.processing.util.*;
 import me.champeau.a4j.math.image.ImageMath;
+import me.champeau.a4j.math.regression.Ellipse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.IOException;
+import java.lang.reflect.Type;
 import java.nio.file.Paths;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.Comparator;
-import java.util.HashMap;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Locale;
-import java.util.Map;
-import java.util.Optional;
-import java.util.OptionalDouble;
+import java.util.*;
 import java.util.function.DoubleBinaryOperator;
 import java.util.stream.DoubleStream;
 import java.util.stream.IntStream;
@@ -106,6 +71,7 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
     private final Loader loader;
     private final MathFunctions math;
     private final MosaicComposition mosaicComposition;
+    private final RemoteScriptGen remoteScriptGen;
     private final Rotate rotate;
     private final Saturation saturation;
     private final Scaling scaling;
@@ -134,6 +100,7 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
         this.inverse = new Inverse(context, broadcaster);
         this.loader = new Loader(context, broadcaster);
         this.math = new MathFunctions(context, broadcaster);
+        this.remoteScriptGen = new RemoteScriptGen(this, context, broadcaster);
         this.rotate = new Rotate(context, broadcaster);
         this.saturation = new Saturation(context, broadcaster);
         this.scaling = new Scaling(context, broadcaster, crop);
@@ -203,8 +170,8 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
         if (left instanceof List<?> leftList && right instanceof List<?> rightList) {
             if (leftList.size() == rightList.size()) {
                 return IntStream.range(0, leftList.size())
-                    .mapToObj(i -> mul(leftList.get(i), rightList.get(i)))
-                    .toList();
+                        .mapToObj(i -> mul(leftList.get(i), rightList.get(i)))
+                        .toList();
             }
         }
         var leftImage = asImage(left);
@@ -219,8 +186,8 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
         if (left instanceof List<?> leftList && right instanceof List<?> rightList) {
             if (leftList.size() == rightList.size()) {
                 return IntStream.range(0, leftList.size())
-                    .mapToObj(i -> div(leftList.get(i), rightList.get(i)))
-                    .toList();
+                        .mapToObj(i -> div(leftList.get(i), rightList.get(i)))
+                        .toList();
             }
         }
         var leftImage = asImage(left);
@@ -282,7 +249,8 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
             case LOAD_MANY -> loader.loadMany(arguments);
             case LOG -> math.log(arguments);
             case MAX -> simpleFunctionCall.applyFunction("max", arguments, DoubleStream::max);
-            case MEDIAN -> simpleFunctionCall.applyFunction("median", arguments, AbstractImageExpressionEvaluator::median);
+            case MEDIAN ->
+                    simpleFunctionCall.applyFunction("median", arguments, AbstractImageExpressionEvaluator::median);
             case MIN -> simpleFunctionCall.applyFunction("min", arguments, DoubleStream::min);
             case MONO -> utilities.toMono(arguments);
             case MOSAIC -> mosaicComposition.mosaic(arguments);
@@ -300,6 +268,7 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
             case ROTATE_RIGHT -> rotate.rotateRight(arguments);
             case ROTATE_DEG -> rotate.rotateDegrees(arguments);
             case ROTATE_RAD -> rotate.rotateRadians(arguments);
+            case REMOTE_SCRIPTGEN -> remoteScriptGen.callRemoteScriptGen(arguments);
             case RGB -> RGBCombination.combine(arguments);
             case SATURATE -> saturation.saturate(arguments);
             case SHARPEN -> convolution.sharpen(arguments);
@@ -330,35 +299,29 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
         int samplesSize = samples.size();
         if (samplesSize > 0) {
             var list = samples.stream()
-                .filter(image -> {
-                    var metadata = image.findMetadata(PixelShift.class);
-                    if (metadata.isPresent()) {
-                        var pixelShift = metadata.get().pixelShift();
-                        if (Math.abs(pixelShift) < 8) {
-                            return false;
+                    .filter(image -> {
+                        var metadata = image.findMetadata(PixelShift.class);
+                        if (metadata.isPresent()) {
+                            var pixelShift = metadata.get().pixelShift();
+                            if (Math.abs(pixelShift) < 8) {
+                                return false;
+                            }
                         }
-                    }
-                    return true;
-                })
-                .map(img -> {
-                    var data = ((ImageWrapper32) img.unwrapToMemory()).data();
-                    var avg = imageMath.averageOf(data);
-                    return new ImageWithAverage(img, avg);
-                })
-                .toList();
+                        return true;
+                    })
+                    .map(img -> {
+                        var data = ((ImageWrapper32) img.unwrapToMemory()).data();
+                        var avg = imageMath.averageOf(data);
+                        return new ImageWithAverage(img, avg);
+                    })
+                    .toList();
             samples = list.stream()
-                .sorted(Comparator.comparingDouble(ImageWithAverage::average).reversed())
-                .map(ImageWithAverage::image)
-                .limit((long) Math.ceil(list.size() / 5d))
-                .toList();
+                    .sorted(Comparator.comparingDouble(ImageWithAverage::average).reversed())
+                    .map(ImageWithAverage::image)
+                    .limit((long) Math.ceil(list.size() / 5d))
+                    .toList();
         }
         return (ImageWrapper32) functionCall(BuiltinFunction.MEDIAN, List.of(samples));
-    }
-
-    @Override
-    protected Object userFunctionCall(UserFunction function, Object[] arguments) {
-        function.prepare(this::findImage, new HashMap<>(context), d -> {}, broadcaster);
-        return super.userFunctionCall(function, arguments);
     }
 
     public Object pixelShiftFor(List<Object> arguments) {
@@ -379,9 +342,9 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
         double targetWaveLength = 0;
         if (firstArg instanceof String rayName) {
             var first = SpectralRayIO.loadDefaults()
-                .stream()
-                .filter(ray -> ray.label().equalsIgnoreCase(rayName))
-                .findFirst();
+                    .stream()
+                    .filter(ray -> ray.label().equalsIgnoreCase(rayName))
+                    .findFirst();
             if (first.isPresent()) {
                 targetWaveLength = first.get().wavelength().angstroms();
             }
@@ -444,7 +407,7 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
         return Math.round(100d * v) / 100d;
     }
 
-    private static Dispersion computeDispersion(ProcessParams params, Wavelen lambda0) {
+    static Dispersion computeDispersion(ProcessParams params, Wavelen lambda0) {
         var instrument = params.observationDetails().instrument();
         var pixelSize = params.observationDetails().pixelSize();
         var binning = params.observationDetails().binning();
@@ -455,9 +418,9 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
             binning = 1;
         }
         return SpectrumAnalyzer.computeSpectralDispersion(
-            instrument,
-            lambda0,
-            pixelSize * binning
+                instrument,
+                lambda0,
+                pixelSize * binning
         );
     }
 
@@ -503,7 +466,7 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
         return path;
     }
 
-    protected abstract ImageWrapper findImage(double shift);
+    public abstract ImageWrapper findImage(double shift);
 
     private ImageWrapper image(List<Object> arguments) {
         if (arguments.size() != 1) {
@@ -662,4 +625,110 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
         return Collections.unmodifiableList(images);
     }
 
+    public String exportAsJson() {
+        var gson = new Gson()
+                .newBuilder()
+                .setPrettyPrinting()
+                .registerTypeHierarchyAdapter(ImageWrapper.class, new ImageWrapperSerializer((ProcessParams) context.get(ProcessParams.class)))
+                .registerTypeAdapter(Ellipse.class, new EllipseSerializer())
+                .registerTypeAdapter(SourceInfo.class, new SourceInfoSerializer())
+                .registerTypeAdapter(ProcessParams.class, new ProcessParamsSerializer())
+                .addSerializationExclusionStrategy(new ExclusionStrategy() {
+                    @Override
+                    public boolean shouldSkipField(FieldAttributes fieldAttributes) {
+                        return false;
+                    }
+
+                    @Override
+                    public boolean shouldSkipClass(Class<?> aClass) {
+                        return ProgressOperation.class.isAssignableFrom(aClass) ||
+                                ReferenceCoords.class.isAssignableFrom(aClass) ||
+                                ImageEmitter.class.isAssignableFrom(aClass) ||
+                                Broadcaster.class.isAssignableFrom(aClass);
+                    }
+                })
+                .create();
+        Map<String, Object> root = new HashMap<>();
+        root.put("variables", getVariables());
+        root.put("params", context.get(ProcessParams.class));
+        try {
+            return gson.toJson(root);
+        } catch (Exception e) {
+            return gson.toJson(Map.of("error", e.getMessage()));
+        }
+    }
+
+    private static class ImageWrapperSerializer implements JsonSerializer<ImageWrapper> {
+
+        private final ProcessParams processParams;
+
+        private ImageWrapperSerializer(ProcessParams processParams) {
+            if (processParams == null) {
+                processParams = ProcessParamsIO.loadDefaults();
+            }
+            this.processParams = processParams.withExtraParams(
+                    processParams.extraParams().withImageFormats(Set.of(ImageFormat.FITS))
+            );
+        }
+
+        @Override
+        public JsonElement serialize(ImageWrapper imageWrapper, Type type, JsonSerializationContext jsonSerializationContext) {
+            var obj = new JsonObject();
+            obj.addProperty("type", "image");
+            var width = imageWrapper.width();
+            var height = imageWrapper.height();
+            obj.addProperty("width", width);
+            obj.addProperty("height", height);
+            if (width > 0 && height > 0) {
+                try {
+                    var tempFile = TemporaryFolder.newTempFile("image", ".fits");
+                    var files = new ImageSaver(CutoffStretchingStrategy.DEFAULT, processParams).save(imageWrapper, tempFile.toFile());
+                    obj.addProperty("file", files.getFirst().getAbsolutePath());
+                } catch (IOException e) {
+                    throw new RuntimeException(e);
+                }
+            }
+            var metadata = new LinkedHashMap<String, Object>();
+            imageWrapper.metadata().forEach((k, v) -> {
+                if (!ProcessParams.class.isAssignableFrom(v.getClass())) {
+                    var simpleName = k.getSimpleName();
+                    simpleName = Character.toLowerCase(simpleName.charAt(0)) + simpleName.substring(1);
+                    metadata.put(simpleName, v);
+                }
+            });
+            obj.add("metadata", jsonSerializationContext.serialize(metadata));
+            return obj;
+        }
+    }
+
+    private static class EllipseSerializer implements JsonSerializer<Ellipse> {
+
+        @Override
+        public JsonElement serialize(Ellipse ellipse, Type type, JsonSerializationContext jsonSerializationContext) {
+            var coefs = ellipse.getCartesianCoefficients();
+            return jsonSerializationContext.serialize(coefs);
+        }
+    }
+
+    private static class SourceInfoSerializer implements JsonSerializer<SourceInfo> {
+
+        @Override
+        public JsonElement serialize(SourceInfo sourceInfo, Type type, JsonSerializationContext jsonSerializationContext) {
+            var obj = new JsonObject();
+            obj.addProperty("serFileName", sourceInfo.serFileName());
+            obj.addProperty("parentDirName", sourceInfo.parentDirName());
+            obj.addProperty("dateTime", sourceInfo.dateTime().toString());
+            return obj;
+        }
+    }
+
+    private static class ProcessParamsSerializer implements JsonSerializer<ProcessParams> {
+
+        @Override
+        public JsonElement serialize(ProcessParams processParams, Type type, JsonSerializationContext jsonSerializationContext) {
+            // inefficient but we don't care
+            var jsonString = ProcessParamsIO.serializeToJson(processParams);
+            return JsonParser.parseString(jsonString);
+        }
+    }
 }

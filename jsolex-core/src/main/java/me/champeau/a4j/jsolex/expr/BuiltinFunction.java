@@ -78,6 +78,7 @@ public enum BuiltinFunction {
     RADIUS_RESCALE,
     RANGE,
     REMOVE_BG,
+    REMOTE_SCRIPTGEN,
     RESCALE_ABS,
     RESCALE_REL,
     RL_DECON,

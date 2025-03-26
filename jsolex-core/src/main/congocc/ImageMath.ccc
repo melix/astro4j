@@ -43,7 +43,7 @@ import me.champeau.a4j.jsolex.processing.expr.ImageMathScriptExecutor;
     private Path includeDir = Path.of(".");
 
     public void setIncludeDir(Path includeDir) {
-        this.includeDir = includeDir;
+        this.includeDir = includeDir == null ? Path.of(".") : includeDir;
     }
 
     public void resolveIncludes() {
@@ -58,6 +58,7 @@ import me.champeau.a4j.jsolex.processing.expr.ImageMathScriptExecutor;
                             resolved = includeDir.resolve(path + ".math");
                         }
                         var script = new ImageMathParser(resolved);
+                        script.setIncludeDir(includeDir);
                         script.parse();
                         include.setIncludedNodes(
                             script.rootNode()
@@ -67,6 +68,7 @@ import me.champeau.a4j.jsolex.processing.expr.ImageMathScriptExecutor;
                                 .toList()
                         );
                         } catch (Exception e) {
+                            // e.printStackTrace();
                         }
                 }
             }

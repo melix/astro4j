@@ -10,6 +10,7 @@
 - Added an optional parameter to `FIND_SHIFT` corresponding to the reference wavelength
 - Improve reliability of the `CONTINUUM` function and as a result of the Helium line extraction
 - Added `WAVELEN` function which returns the wavelength of an image, based on its pixel shift, dispersion and reference wavelength
+- Added `REMOTE_SCRIPTGEN` function for advanced scripting capabilities
 - Fixed bug where the detected ellipse wasn't reused when computing images at different shifts, which could cause disks or images of different sizes
 - Fixed histogram not opening correctly in a new window
 

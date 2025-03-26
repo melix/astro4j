@@ -432,7 +432,9 @@ Fonctions diverses :
 
 - `sort` permet de trier une liste d'images. Elle accepte une liste d'images en premier argument et un critère de tri en second argument. Par exemple : `sort(images, "date")`. Le critère par défaut est `shift` pour le décalage en pixels.
 - `video_datetime` retourne la date et l'heure formatée d'une image. Elle accepte un ou deux paramètres : l'image et un format optionnel. Par exemple : `video_datetime(img(0))` ou `video_datetime(img(0), "yyyy-MM-dd HH:mm:ss")`
+- `remote_scriptgen` est une fonction expérimentale et avancée qui est décrite spécifiquement dans <<#remote-scriptgen, cette section>>.
 
+[[batch-mode]]
 [[special-variables]]
 === Variables spéciales
 
@@ -544,6 +546,153 @@ image2=titled(auto_contrast(img(0);1.5), "Ma deuxième image")
 [CAUTION]
 ====
 Les inclusions sont résolues par rapport au script qui les inclut.
+====
+
+[[remote-scriptgen]]
+=== Génération de script à distance
+
+[WARNING]
+====
+Cette fonctionnalité est expérimentale et peut évoluer à l'avenir.
+Elle est conçue pour les utilisateurs avancés qui sont à l'aise avec la programmation.
+====
+
+ImageMath est un langage d'expression.
+Il ne prend pas en charge les structures de contrôle comme les boucles ou les conditions, ce qui peut parfois être limitant.
+De plus, il se peut que vous souhaitiez effectuer des opérations qui ne sont pas disponibles dans le langage lui-même.
+
+Pour prendre en charge ces cas d'utilisation avancés, une fonction spéciale nommée `remote_scriptgen` est disponible.
+Cette fonction appellera un service qui sera responsable de générer un script qui contribuera à de nouvelles variables dans le contexte actuel.
+
+La fonction accepte un seul argument, qui est une URL vers le service.
+JSol'Ex créera alors une requête `POST` à cette URL, avec une charge utile JSON contenant le contexte actuel, c'est-à-dire la liste des variables avec leurs valeurs au moment de l'appel, mais aussi le contexte comme les paramètres de traitement ou la longueur d'onde détectée.
+
+Le payload JSON a 2 entrées principales : `variables` et `params`.
+
+[source,json]
+----
+{
+  "variables": {
+     ... une clé par variable ...
+  },
+  "params": {
+    ... les paramètres du processus ...
+  }
+}
+----
+
+Les variables peuvent être des valeurs simples, comme des nombres ou des chaînes de caractères, mais aussi des tableaux ou des objets comme des images :
+
+[source,json]
+----
+{
+  "variables": {
+    "detectedWavelen": 6562.8099999999995,
+    "detectedDispersion": 0.10878780004221283,
+    "l0": "4.4165",
+    "src": {
+      "type": "image",
+      "width": 1424,
+      "height": 1424,
+      "file": "/tmp/jsolex/1960308/image9339121918435728514.fits",
+      "metadata": {
+        "sourceInfo": {
+          "serFileName": "12_08_34.ser",
+          "parentDirName": "christian",
+          "dateTime": "2021-09-05T10:08:34.806652200Z[UTC]"
+        },
+        "pixelShiftRange": {
+          "minPixelShift": -20.0,
+          "maxPixelShift": 40.0,
+          "step": 6.0
+        },
+        "solarParameters": {
+          "carringtonRotation": 2248,
+          "b0": 0.12636308214692193,
+          "l0": 4.416504789595021,
+          "p": 0.38650968395297775,
+          "apparentSize": 0.0091870061684479
+        },
+        "pixelShift": {
+          "pixelShift": 0.0
+        },
+        "transformationHistory": {
+          "transforms": [
+            "Rotation à gauche",
+            "Retournement",
+            "Réduction de bandes (taille de bande : 24 passes : 16)",
+            "Correction de géométrie",
+            "Recadrage automatique",
+            "ImageMath: img(0)",
+            "ImageMath: img(0)",
+            "ImageMath: img(0)",
+            "ImageMath: src=img(0)",
+            "ImageMath: range(-1;1;.5)",
+            "ImageMath: range(-1;1;.5)",
+            "ImageMath: range(-1;1;.5)",
+            "ImageMath: range(-1;1;.5)",
+            "ImageMath: img(0)",
+            "ImageMath: img(0)",
+            "ImageMath: img(0)",
+            "ImageMath: src=img(0)"
+          ]
+        },
+        "ellipse": {
+          "a": 0.7071067811865355,
+          "b": -1.1224941413357953E-13,
+          "c": 0.7071067811865596,
+          "d": -1006.9200564095466,
+          "e": -1006.9200564095809,
+          "f": 423490.4527558379
+        },
+        "generatedImageMetadata": {
+          "kind": "IMAGE_MATH",
+          "title": "src",
+          "name": "batch/2025-03-26T225606/src/0000_12_08_34_src"
+        }
+      }
+    },
+    "blackPoint": "283.533",
+    "angleP": "0.3865",
+    "some_var": 123.0,
+    "b0": "0.1264",
+    "carrot": "2248"
+  }
+}
+----
+
+Dans le cas d'une image, l'objet aura une clé `type` avec la valeur `image`.
+Le fichier sera disponible uniquement au format FITS.
+
+[IMPORTANT]
+====
+Le chemin du fichier est le chemin vers le fichier FITS, qui est un fichier temporaire, **sur l'hôte qui exécute JSol'Ex**.
+Par conséquent, vous ne pourrez accéder à ce fichier que depuis le même hôte !
+Cela peut également être utilisé pour générer de nouvelles images, qui peuvent être chargées dans JSol'Ex si le script retourné contient une opération `LOAD`.
+====
+
+Le service doit retourner un objet JSON contenant une clé `script`, avec le script à exécuter dans JSol'Ex.
+Il _peut_ aussi renvoyer un objet avec une clé `error`, qui sera affichée à l'utilisateur.
+
+Les scripts retournés par le serveur sont interprétés dans un contexte séparé, mais ils partagent les variables et fonctions utilisateur du script appelant.
+Seule la section **outputs** contribuera à de nouvelles variables dans le contexte.
+
+Par exemple, si un serveur retourne le script suivant :
+
+[source]
+----
+[tmp]
+base=auto_contrast(img(0);1.5)
+
+[outputs]
+final=draw_obs_details(draw_solar_params(draw_globe(base)))
+----
+
+Alors seule la variable `final` sera visible dans le script appelant après exécution.
+
+[NOTE]
+====
+Lorsqu'un script appelle la fonction `remote_scriptgen`, JSol'Ex contactera le serveur plusieurs fois avec des charges utiles différentes.
 ====
 
 === Scripts ImageMath

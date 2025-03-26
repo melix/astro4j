@@ -484,6 +484,7 @@ Miscellaneous functions:
 
 - `sort` sorts a list of images. It accepts a list of images as the first argument and a sort criteria as the second one. For example: `sort(images, "date")`. The default criteria is `shift` for the pixel shift. It is possible to reverse the order by using `desc`, for example `sort(images, "date desc")`.
 - `video_datetime` returns the formatted datetime of an image. It accepts one or two parameters: the image and an optional format. For example: `video_datetime(img(0))` or `video_datetime(img(0), "yyyy-MM-dd HH:mm:ss")`
+- `remote_scriptgen` is an experimental, advanced function which is described specifically in <<#remote-scriptgen, this section>>.
 
 === ImageMath scripts
 
@@ -658,6 +659,156 @@ image2=titled(auto_contrast(img(0);1.5), "My second image")
 [CAUTION]
 ====
 Includes are resolved relatively to the script which includes them.
+====
+
+[[remote-scriptgen]]
+=== Remote script generation
+
+[WARNING]
+====
+This feature is experimental and may change in the future.
+It is designed for advanced users who are comfortable with programming.
+====
+
+ImageMath is an expression language.
+It doesn't support control structures like loops or conditionals, which can sometimes be limiting.
+In addition, sometimes you may want to perform operations which are not available in the language itself.
+
+To support these advanced use cases, a special function named `remote_scriptgen` is available.
+This function will call a service which will be responsible for generating a script which will contribute new variables to the current context.
+
+The function accepts a single argument, which is a URL to the service.
+JSol'Ex will then create a `POST` request to this URL, with a JSON payload which contains the current context, that is to say the list of variables with their values at the time of the call, but also context like the processing parameters or the detected wavelength.
+
+The JSON payload consists of 2 top level keys:
+
+[source,json]
+----
+{
+  "variables": {
+     ... one key per variable ...
+  },
+  "params": {
+    ... the process parameters ...
+  }
+}
+----
+
+The variables can be simple values, like numbers or strings, but also arrays or objects like images:
+
+[source,json]
+----
+{
+  "variables": {
+    "detectedWavelen": 6562.8099999999995,
+    "detectedDispersion": 0.10878780004221283,
+    "l0": "4.4165",
+    "src": {
+      "type": "image",
+      "width": 1424,
+      "height": 1424,
+      "file": "/tmp/jsolex/1960308/image9339121918435728514.fits",
+      "metadata": {
+        "sourceInfo": {
+          "serFileName": "12_08_34.ser",
+          "parentDirName": "christian",
+          "dateTime": "2021-09-05T10:08:34.806652200Z[UTC]"
+        },
+        "pixelShiftRange": {
+          "minPixelShift": -20.0,
+          "maxPixelShift": 40.0,
+          "step": 6.0
+        },
+        "solarParameters": {
+          "carringtonRotation": 2248,
+          "b0": 0.12636308214692193,
+          "l0": 4.416504789595021,
+          "p": 0.38650968395297775,
+          "apparentSize": 0.0091870061684479
+        },
+        "pixelShift": {
+          "pixelShift": 0.0
+        },
+        "transformationHistory": {
+          "transforms": [
+            "Rotate left",
+            "Flipping",
+            "Banding reduction (band size: 24 passes: 16)",
+            "Geometry correction",
+            "Autocrop",
+            "ImageMath: img(0)",
+            "ImageMath: img(0)",
+            "ImageMath: img(0)",
+            "ImageMath: src\u003dimg(0)",
+            "ImageMath: range(-1;1;.5)",
+            "ImageMath: range(-1;1;.5)",
+            "ImageMath: range(-1;1;.5)",
+            "ImageMath: range(-1;1;.5)",
+            "ImageMath: img(0)",
+            "ImageMath: img(0)",
+            "ImageMath: img(0)",
+            "ImageMath: src\u003dimg(0)"
+          ]
+        },
+        "ellipse": {
+          "a": 0.7071067811865355,
+          "b": -1.1224941413357953E-13,
+          "c": 0.7071067811865596,
+          "d": -1006.9200564095466,
+          "e": -1006.9200564095809,
+          "f": 423490.4527558379
+        },
+        "generatedImageMetadata": {
+          "kind": "IMAGE_MATH",
+          "title": "src",
+          "name": "batch/2025-03-26T225606/src/0000_12_08_34_src"
+        }
+      }
+    },
+    "blackPoint": "283.533",
+    "angleP": "0.3865",
+    "some_var": 123.0,
+    "b0": "0.1264",
+    "carrot": "2248"
+  }
+}
+----
+
+In case of an image, the object will have a key of `type` with value `image`.
+The file will be available as a FITS file only.
+
+[IMPORTANT]
+====
+The file path is the path to the FITS file, which is a temporary file, **on the host which runs JSol'Ex**.
+Therefore, you will only be able to access this file from the same host!
+This can also be used to generate new images, which can be loaded in JSol'Ex if the script that is returned contains a `LOAD` operation.
+====
+
+The service must return a JSON object which contains a `script` key, with the script to execute in JSol'Ex.
+It _can_ also return an object with an `error` key, which will be displayed to the user.
+
+The scripts which are returned from the server are interpreted in a separate context, but they share the variables and user functions from the including script.
+The separation means that the script which is returned can itself be organized in sections, but **only the outputs section will contribute new variables to the context**.
+
+For example, if a server returns the following script:
+
+[source]
+----
+[tmp]
+base=auto_contrast(img(0);1.5)
+
+[outputs]
+final=draw_obs_details(draw_solar_params(draw_globe(base)))
+----
+
+Then only the `final` variable will be visible to the including script after execution.
+
+[NOTE]
+====
+When a script calls the `remote_scriptgen` function, JSol'Ex will call the server multiple times, with a different payload.
+The explanation lies in the fact that in order to improve performance, it must determine in advance which image shifts are going to be required for the script execution.
+To do this, JSol'Ex "fakes" a first run passing dummy images of size 0, which will not have the `file` property.
+You should simply be aware that the server will receive multiple calls, and that the first one will likely not contain the whole context, but you should still return a valid script.
 ====
 
 [[batch-mode]]
