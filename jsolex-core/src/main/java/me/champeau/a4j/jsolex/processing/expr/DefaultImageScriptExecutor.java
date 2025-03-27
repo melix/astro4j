@@ -201,6 +201,18 @@ public class DefaultImageScriptExecutor implements ImageMathScriptExecutor {
             var prep = function.prepare(imagesByShift, context, evaluator::addShift, broadcaster);
             evaluator.putFunction(function.name(), prep);
         });
+        int outputSectionCount = 0;
+        for (var section : sections) {
+            if (section.name().isPresent() && OUTPUTS_SECTION_NAME.equals(section.name().get())) {
+                outputSectionCount++;
+            }
+            if (section.name().isPresent() && section.name().get().equals("batch")) {
+                outputSectionCount = 0;
+            }
+        }
+        if (outputSectionCount > 1) {
+            throw new ProcessingException(new SyntaxError("Only one [outputs] section is allowed"));
+        }
         var outputSection = sections.stream()
                 .filter(section -> section.name().isPresent() && OUTPUTS_SECTION_NAME.equals(section.name().get()))
                 .findFirst()
