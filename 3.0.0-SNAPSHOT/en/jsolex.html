@@ -1446,6 +1446,9 @@ Stacking and mosaic functions:</p>
 <p><code>draw_earth</code> draws the Earth on the image, scaled accordingly to the solar disk. This function takes 3 parameters: the image and the coordinates (x,y) where to draw the Earth. For example: <code>draw_earth(img(0), 100, 100)</code>.</p>
 </li>
 <li>
+<p><code>transition</code> takes a list of images as a parameter, as well as a number of steps, and generates a new list of images by interpolating between the images in the list. For example: <code>transition(list(img(0), img(1)), 10)</code> generates 10 images between img(0) and img(1). It is possible to add an optional parameter to specify the type of transition: <code>linear</code>, <code>ease_in</code>, <code>ease_out</code> or <code>ease_in_out</code>. For example: <code>transition(list(img(0), img(1)), 10, "ease_in")</code>.</p>
+</li>
+<li>
 <p><code>stack</code> allows stacking images together. It will align images and compute the median value of each pixel. It accepts 1 to 4 parameters. The first one is the list of images to stack, for example: <code>stack(load_many("*.fits"))</code>. The 2d parameter is the tile size. The 3rd one is the sampling factor (&gt;0). For example, if the sampling factor is 0.5 and the tile size is 32 pixels, then a sample will be picked every 16 pixels. The 4th parameter is the reference selection method, which is one of <code>first</code> (first image of the list), <code>sharpness</code> (the sharpest image), <code>average</code> (computes the average of all images), <code>median</code> (computes the median of all images) or <code>eccentricity</code> (chooses the image which is closest to a circle). For example: <code>stack(load_many("\*.fits"), 32, 0.5, "sharpness")</code>. The default reference selection method is <code>sharpness</code>. An additional method, <code>manual</code>, is available in batch mode.</p>
 </li>
 <li>

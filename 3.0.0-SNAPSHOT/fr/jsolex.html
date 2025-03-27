@@ -1368,6 +1368,9 @@ Une variable spéciale nommée <code>angleP</code> contient la valeur calculée 
 <li>
 <p><code>draw_earth</code> dessine la Terre sur l&#8217;image, à l&#8217;échelle du disque solaire. Cette fonction prend 3 paramètres : l&#8217;image et les coordonnées (x,y) où dessigner la Terre. Par exemple: <code>draw_earth(img(0), 100, 100)</code>.</p>
 </li>
+<li>
+<p><code>transition</code> prend une liste d&#8217;images en paramètre, ainsi qu&#8217;un nombre d&#8217;étapes, et génère une nouvelle liste d&#8217;images en interpolant entre les images de la liste. Par exemple: <code>transition(list(img(0), img(1)), 10)</code> génère 10 images entre img(0) et img(1). Il est possible d&#8217;ajouter un paramètre optionnel pour spécifier le type de transition : <code>linear</code>, <code>ease_in</code>, <code>ease_out</code> ou <code>ease_in_out</code>. Par exemple: <code>transition(list(img(0), img(1)), 10, "ease_in")</code>.</p>
+</li>
 </ul>
 </div>
 <div class="paragraph">
