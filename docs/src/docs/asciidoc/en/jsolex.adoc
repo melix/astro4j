@@ -688,7 +688,7 @@ The JSON payload consists of 2 top level keys:
   "variables": {
      ... one key per variable ...
   },
-  "params": {
+  "context": {
     ... the process parameters ...
   }
 }

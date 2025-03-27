@@ -650,7 +650,16 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
                 .create();
         Map<String, Object> root = new HashMap<>();
         root.put("variables", getVariables());
-        root.put("params", context.get(ProcessParams.class));
+        Map<String, Object> exportedContext = new HashMap<>();
+        context.forEach((k, v) -> {
+            switch (k.getSimpleName()) {
+                case "ProcessParams" -> exportedContext.put("processParams", v);
+                case "PixelShiftRange" -> exportedContext.put("pixelShiftRange", v);
+                case "SourceInfo" -> exportedContext.put("sourceInfo", v);
+                case "SolarParameters" -> exportedContext.put("solarParams", v);
+            }
+        });
+        root.put("context", exportedContext);
         try {
             return gson.toJson(root);
         } catch (Exception e) {

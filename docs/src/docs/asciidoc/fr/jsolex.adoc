@@ -575,7 +575,7 @@ Le payload JSON a 2 entrées principales : `variables` et `params`.
   "variables": {
      ... une clé par variable ...
   },
-  "params": {
+  "context": {
     ... les paramètres du processus ...
   }
 }
