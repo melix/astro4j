@@ -292,7 +292,9 @@ INJECT StringLiteral: extends Expression
         if (value.startsWith("\"\"\"")) {
             dlen = 3;
         }
-        return value.substring(dlen, value.length() - dlen);
+        return value.substring(dlen, value.length() - dlen)
+            .replace("\\\\", "\\")
+            .replace("\\\"", "\"");
     }
 }
 
