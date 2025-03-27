@@ -28,6 +28,12 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.util.Comparator;
 import java.util.Map;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
+import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
@@ -36,6 +42,10 @@ import static me.champeau.a4j.jsolex.processing.util.Constants.message;
 @ServerWebSocket("/ws/live")
 public class MainWebSocket extends AbstractController implements StoreListener {
     private static final Logger LOGGER = LoggerFactory.getLogger(MainWebSocket.class);
+    private static final int DEBOUNCE_DELAY = 5;
+    private final ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor();
+    private final ReentrantLock lock = new ReentrantLock();
+    private ScheduledFuture<?> scheduledTask;
 
     private final WebSocketBroadcaster broadcaster;
     private final ApplicationContext context;
@@ -105,6 +115,18 @@ public class MainWebSocket extends AbstractController implements StoreListener {
 
     @Override
     public void imageAdded(ImagesStore store) {
+        lock.lock();
+        try {
+            if (scheduledTask != null) {
+                scheduledTask.cancel(false);
+            }
+            scheduledTask = scheduler.schedule(() -> sendImageBatch(store), DEBOUNCE_DELAY, TimeUnit.SECONDS);
+        } finally {
+            lock.unlock();
+        }
+    }
+
+    private void sendImageBatch(ImagesStore store) {
         try {
             sendAllImages(store);
         } catch (IOException e) {
