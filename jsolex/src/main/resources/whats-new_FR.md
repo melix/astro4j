@@ -11,6 +11,7 @@
 - Amélioration de la fiabilité de la fonction `CONTINUUM` et par conséquent de l'extraction de la raie Hélium
 - Ajout de la fonction `WAVELEN` qui retourne la longueur d'onde d'une image, basée sur son décalage de pixel, sa dispersion et la longueur d'onde de référence
 - Ajout de la fonction `REMOTE_SCRIPTGEN` pour des capacités de scripting avancées
+- Ajout de la fonction `TRANSITION` pour créer une transition entre deux ou plus images
 - Correction d'un bug avec lequel l'ellipse détectée n'était pas réutilisée lors du calcul d'images à des décalages différents, ce qui pouvait causer des disques ou des images de tailles différentes
 - Correction de l'histogramme ne s'ouvrant pas correctement dans une nouvelle fenêtre
 

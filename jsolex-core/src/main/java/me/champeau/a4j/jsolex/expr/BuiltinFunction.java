@@ -93,6 +93,7 @@ public enum BuiltinFunction {
     STACK_REF,
     AR_OVERLAY,
     SORT,
+    TRANSITION,
     VFLIP,
     FILTER,
     VIDEO_DATETIME,

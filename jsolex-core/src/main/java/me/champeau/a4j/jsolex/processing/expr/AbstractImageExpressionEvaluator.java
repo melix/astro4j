@@ -276,6 +276,7 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
             case STACK -> stacking.stack(arguments);
             case STACK_REF -> stacking.chooseReference(arguments);
             case SORT -> utilities.sort(arguments);
+            case TRANSITION -> animate.transition(arguments);
             case AR_OVERLAY -> imageDraw.activeRegionsOverlay(arguments);
             case VFLIP -> rotate.vflip(arguments);
             case VIDEO_DATETIME -> utilities.videoDateTime(arguments);
