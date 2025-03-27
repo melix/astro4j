@@ -36,8 +36,8 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.nio.file.Path;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
+import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
 import static me.champeau.a4j.ser.EightBitConversionSupport.to8BitImage;
@@ -177,6 +177,85 @@ public class Animate extends AbstractFunctionImpl {
             encoder.encodeNativeFrame(pic);
         } catch (IOException e) {
             e.printStackTrace();
+        }
+    }
+
+    /**
+     * This function interpolates between two images by blending 2 subsequent images together
+     * using a number of steps and a specific transition type.
+     *
+     * @param arguments
+     * @return
+     */
+    public Object transition(List<Object> arguments) {
+        assertExpectedArgCount(arguments, "transition accepts 2 to 3 arguments : (list of images, steps, [transition type])", 2, 3);
+        var images = arguments.getFirst();
+        if (!(images instanceof List<?> listOfImages)) {
+            throw new IllegalArgumentException("transition must use a list of images as first argument");
+        }
+        var steps = intArg(arguments, 1);
+        if (steps < 1) {
+            throw new IllegalArgumentException("transition must use a positive number of steps as second argument");
+        }
+        var transitionType = Transition.valueOf((arguments.size() == 3 ? (String) arguments.get(2) : "linear").toUpperCase(Locale.US));
+        var output = new ArrayList<ImageWrapper>();
+        for (int i = 0; i < listOfImages.size() - 1; i++) {
+            var first = ((ImageWrapper) listOfImages.get(i)).unwrapToMemory();
+            var second = ((ImageWrapper) listOfImages.get(i + 1)).unwrapToMemory();
+            if (first.width() != second.width() || first.height() != second.height()) {
+                throw new IllegalArgumentException("transition must use images of the same size");
+            }
+            if (!(first instanceof ImageWrapper32 mono1) || !(second instanceof ImageWrapper32 mono2)) {
+                throw new IllegalArgumentException("transition only supports mono images");
+            }
+            var firstData = mono1.data();
+            var secondData = mono2.data();
+            output.addAll(
+                    IntStream.range(0, steps)
+                            .parallel()
+                            .mapToObj(step -> {
+                                var data = new float[first.height()][first.width()];
+                                for (int y = 0; y < first.height(); y++) {
+                                    for (int x = 0; x < first.width(); x++) {
+                                        var coef = transitionType.coef(step, steps);
+                                        data[y][x] = (float) (firstData[y][x] * (1 - coef) + secondData[y][x] * coef);
+                                    }
+                                }
+                                return FileBackedImage.wrap(new ImageWrapper32(first.width(), first.height(), data, new HashMap<>(first.metadata())));
+                            })
+                            .toList()
+            );
+        }
+        return Collections.unmodifiableList(output);
+    }
+
+    enum Transition {
+        LINEAR,
+        EASE_IN,
+        EASE_OUT,
+        EASE_IN_OUT;
+
+        double coef(int step, int totalSteps) {
+            double t = (double) step / totalSteps;
+            switch (this) {
+                case LINEAR -> {
+                    return t;
+                }
+                case EASE_IN -> {
+                    return t * t;
+                }
+                case EASE_OUT -> {
+                    return 1 - Math.pow(1 - t, 2);
+                }
+                case EASE_IN_OUT -> {
+                    if (t < 0.5) {
+                        return 2 * t * t;
+                    } else {
+                        return 1 - Math.pow(-2 * t + 2, 2) / 2;
+                    }
+                }
+            }
+            throw new IllegalStateException("Unexpected value: " + this);
         }
     }
 }

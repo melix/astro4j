@@ -95,9 +95,9 @@ public class Scaling extends AbstractFunctionImpl {
                 throw new IllegalArgumentException("radius_rescale requires a non-empty list of images");
             }
             var filtered = list.stream()
-                .filter(ImageWrapper.class::isInstance)
-                .map(ImageWrapper.class::cast)
-                .toList();
+                    .filter(ImageWrapper.class::isInstance)
+                    .map(ImageWrapper.class::cast)
+                    .toList();
             return performRadiusRescale(filtered);
         } else {
             throw new IllegalArgumentException("radius_rescale requires a list of images");
@@ -106,19 +106,24 @@ public class Scaling extends AbstractFunctionImpl {
 
     List<ImageWrapper> performRadiusRescale(List<? extends ImageWrapper> filtered) {
         var fittings = filtered.stream()
-            .parallel()
-            .map(img -> {
-                ImageWrapper withEllipse = img;
-                var ellipse = img.findMetadata(Ellipse.class).orElse(null);
-                if (ellipse == null) {
-                    withEllipse = (ImageWrapper) ellipseFit.fit(List.of(img));
-                }
-                return withEllipse;
-            })
-            .collect(Collectors.toMap(img -> img, img -> {
-                var fit = img.findMetadata(Ellipse.class).orElse(null);
-                return radiusOf(fit);
-            }));
+                .parallel()
+                .map(img -> {
+                    ImageWrapper withEllipse = img;
+                    var ellipse = img.findMetadata(Ellipse.class).orElse(null);
+                    if (ellipse == null) {
+                        withEllipse = (ImageWrapper) ellipseFit.fit(List.of(img));
+                    }
+                    return withEllipse;
+                })
+                .collect(Collectors.toMap(
+                        img -> img,
+                        img -> {
+                            var fit = img.findMetadata(Ellipse.class).orElse(null);
+                            return radiusOf(fit);
+                        },
+                        (a, b) -> a, // Merge function (not used but required for toMap)
+                        LinkedHashMap::new  // Ensures insertion order is maintained
+                ));
         var targetRadius = fittings.values().stream().mapToDouble(Double::doubleValue).max();
         if (targetRadius.isPresent()) {
             List<ImageWrapper> result = new ArrayList<>();
@@ -155,22 +160,22 @@ public class Scaling extends AbstractFunctionImpl {
         }
         if (img instanceof ImageWrapper32 mono) {
             return ImageWrapper32.fromImage(
-                imageMath.rescale(mono.asImage(),
-                    width,
-                    height
-                ),
-                metadata);
+                    imageMath.rescale(mono.asImage(),
+                            width,
+                            height
+                    ),
+                    metadata);
         } else if (img instanceof RGBImage rgb) {
             var r = new Image(rgb.width(), rgb.height(), rgb.r());
             var g = new Image(rgb.width(), rgb.height(), rgb.g());
             var b = new Image(rgb.width(), rgb.height(), rgb.b());
             return new RGBImage(
-                width,
-                height,
-                imageMath.rescale(r, width, height).data(),
-                imageMath.rescale(g, width, height).data(),
-                imageMath.rescale(b, width, height).data(),
-                metadata
+                    width,
+                    height,
+                    imageMath.rescale(r, width, height).data(),
+                    imageMath.rescale(g, width, height).data(),
+                    imageMath.rescale(b, width, height).data(),
+                    metadata
             );
         }
         return null;
@@ -188,8 +193,8 @@ public class Scaling extends AbstractFunctionImpl {
             double sx = image.width() / width;
             double sy = image.height() / height;
             metadata.put(Redshifts.class, new Redshifts(redshifts.redshifts().stream()
-                .map(rs -> new RedshiftArea(rs.id(), rs.pixelShift(), rs.relPixelShift(), rs.kmPerSec(), (int) (rs.x1() / sx), (int) (rs.y1() / sy), (int) (rs.x2() / sx), (int) (rs.y2() / sy), (int) (rs.maxX() / sx), (int) (rs.maxY() / sy)))
-                .toList()));
+                    .map(rs -> new RedshiftArea(rs.id(), rs.pixelShift(), rs.relPixelShift(), rs.kmPerSec(), (int) (rs.x1() / sx), (int) (rs.y1() / sy), (int) (rs.x2() / sx), (int) (rs.y2() / sy), (int) (rs.maxX() / sx), (int) (rs.maxY() / sy)))
+                    .toList()));
         });
         image.findMetadata(ActiveRegions.class).ifPresent(activeRegions -> {
             double sx = image.width() / width;
