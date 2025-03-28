@@ -15,5 +15,5 @@
  */
 package me.champeau.a4j.jsolex.processing.sun.workflow;
 
-public record TruncatedImage(boolean truncated) {
+public record TruncatedDisk(boolean truncated) {
 }

@@ -106,6 +106,7 @@ import me.champeau.a4j.jsolex.processing.event.FileGeneratedEvent;
 import me.champeau.a4j.jsolex.processing.event.GeneratedImage;
 import me.champeau.a4j.jsolex.processing.event.ImageGeneratedEvent;
 import me.champeau.a4j.jsolex.processing.event.ProcessingEventListener;
+import me.champeau.a4j.jsolex.processing.event.ProgressEvent;
 import me.champeau.a4j.jsolex.processing.event.ProgressOperation;
 import me.champeau.a4j.jsolex.processing.expr.ImageMathScriptExecutor;
 import me.champeau.a4j.jsolex.processing.expr.ImageMathScriptResult;
@@ -179,6 +180,7 @@ public class JSolEx implements JSolExInterface {
     static {
         System.setProperty("java.util.concurrent.ForkJoinPool.common.exceptionHandler", LoggingSupport.class.getName());
     }
+
     private static final Logger LOGGER = LoggerFactory.getLogger(JSolEx.class);
     private static final String LOG_EXTENSION = ".log";
     private static final FileChooser.ExtensionFilter LOG_FILE_EXTENSION_FILTER = new FileChooser.ExtensionFilter("Log files (*" + LOG_EXTENSION + ")", "*" + LOG_EXTENSION);
@@ -391,7 +393,7 @@ public class JSolEx implements JSolExInterface {
                 server.start(config.getAutoStartServerPort());
             }
             updateServerStatus(false);
-            server.addStatusChangeListener(started -> updateServerStatus(started));
+            server.addStatusChangeListener(this::updateServerStatus);
         } catch (IOException exception) {
             throw new ProcessingException(exception);
         }
@@ -666,9 +668,9 @@ public class JSolEx implements JSolExInterface {
 
     public void updateProgress(double progress, String message) {
         Platform.runLater(() -> {
-                progressBar.setVisible(true);
-                progressBar.setProgress(progress);
-                progressLabel.setText(message);
+            progressBar.setVisible(true);
+            progressBar.setProgress(progress);
+            progressLabel.setText(message);
         });
     }
 
@@ -1360,10 +1362,10 @@ public class JSolEx implements JSolExInterface {
         return ProgressOperation.root(name, op -> {
             var parent = op.parent();
             if (parent == null || parent.hasNoChild()) {
-               hideProgress();
-           } else {
+                hideProgress();
+            } else {
                 parent.children().stream().findFirst().ifPresentOrElse(this::updateProgress, () -> updateProgress(parent));
-           }
+            }
         });
     }
 
@@ -1607,7 +1609,12 @@ public class JSolEx implements JSolExInterface {
             var md = CaptureSoftwareMetadataHelper.readSharpcapMetadata(serFile)
                     .or(() -> CaptureSoftwareMetadataHelper.readFireCaptureMetadata(serFile))
                     .orElse(null);
-            controller.setup(dialog, progressOperation, serFile, serFileReader.header(), md, batchMode, getHostServices());
+            controller.setup(dialog, progressOperation, evt -> {
+                        if (evt instanceof ProgressEvent pg) {
+                            updateProgress(pg.getPayload());
+                        }
+                    },
+                    serFile, serFileReader.header(), md, batchMode, getHostServices());
             dialog.setScene(scene);
             dialog.initOwner(rootStage);
             dialog.initModality(Modality.APPLICATION_MODAL);

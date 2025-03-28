@@ -109,7 +109,7 @@ public abstract class ProcessParamsIO {
                 createDefaultClaheParams(),
                 createDefaultAutoStretchParams(),
                 ContrastEnhancement.AUTOSTRETCH,
-                new EnhancementParams(false, FlatCorrection.DEFAULT_LO_PERCENTILE, FlatCorrection.DEFAULT_HI_PERCENTILE, FlatCorrection.DEFAULT_ORDER)
+                new EnhancementParams(false, FlatCorrection.DEFAULT_LO_PERCENTILE, FlatCorrection.DEFAULT_HI_PERCENTILE, FlatCorrection.DEFAULT_ORDER, null)
         );
     }
 
@@ -236,7 +236,7 @@ public abstract class ProcessParamsIO {
                 params = params.withContrastEnhancement(ContrastEnhancement.AUTOSTRETCH);
             }
             if (params.enhancementParams() == null) {
-                params = params.withEnhancementParams(new EnhancementParams(false, FlatCorrection.DEFAULT_LO_PERCENTILE, FlatCorrection.DEFAULT_HI_PERCENTILE, FlatCorrection.DEFAULT_ORDER));
+                params = params.withEnhancementParams(new EnhancementParams(false, FlatCorrection.DEFAULT_LO_PERCENTILE, FlatCorrection.DEFAULT_HI_PERCENTILE, FlatCorrection.DEFAULT_ORDER, null));
             }
             return params;
         }

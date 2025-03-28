@@ -101,7 +101,7 @@ public class FitsUtils {
         this.destination = destination;
     }
 
-    static void writeFitsFile(ImageWrapper image, File destination, ProcessParams params) {
+    public static void writeFitsFile(ImageWrapper image, File destination, ProcessParams params) {
         new FitsUtils(params, destination).write(image);
     }
 

@@ -40,11 +40,13 @@ import me.champeau.a4j.jsolex.processing.expr.DefaultImageScriptExecutor;
 import me.champeau.a4j.jsolex.processing.expr.ImageMathScriptExecutor;
 import me.champeau.a4j.jsolex.processing.expr.InvalidExpression;
 import me.champeau.a4j.jsolex.processing.expr.impl.ImageDraw;
+import me.champeau.a4j.jsolex.processing.expr.impl.Loader;
 import me.champeau.a4j.jsolex.processing.file.FileNamingStrategy;
 import me.champeau.a4j.jsolex.processing.params.EnhancementParams;
 import me.champeau.a4j.jsolex.processing.params.ImageMathParams;
 import me.champeau.a4j.jsolex.processing.params.ProcessParams;
 import me.champeau.a4j.jsolex.processing.params.SpectralRay;
+import me.champeau.a4j.jsolex.processing.spectrum.FlatCreator;
 import me.champeau.a4j.jsolex.processing.spectrum.SpectrumAnalyzer;
 import me.champeau.a4j.jsolex.processing.sun.detection.ActiveRegions;
 import me.champeau.a4j.jsolex.processing.sun.detection.PhenomenaDetector;
@@ -68,7 +70,7 @@ import me.champeau.a4j.jsolex.processing.sun.workflow.ReferenceCoords;
 import me.champeau.a4j.jsolex.processing.sun.workflow.RenamingImageEmitter;
 import me.champeau.a4j.jsolex.processing.sun.workflow.SourceInfo;
 import me.champeau.a4j.jsolex.processing.sun.workflow.TransformationHistory;
-import me.champeau.a4j.jsolex.processing.sun.workflow.TruncatedImage;
+import me.champeau.a4j.jsolex.processing.sun.workflow.TruncatedDisk;
 import me.champeau.a4j.jsolex.processing.sun.workflow.WorkflowResults;
 import me.champeau.a4j.jsolex.processing.util.Constants;
 import me.champeau.a4j.jsolex.processing.util.FileBackedImage;
@@ -125,6 +127,7 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
+import static me.champeau.a4j.jsolex.processing.spectrum.FlatCreator.prepareFlatFromAverage;
 import static me.champeau.a4j.jsolex.processing.util.Constants.MAX_PIXEL_VALUE;
 import static me.champeau.a4j.jsolex.processing.util.Constants.message;
 import static me.champeau.a4j.jsolex.processing.util.LoggingSupport.logError;
@@ -457,11 +460,11 @@ public class SolexVideoProcessor implements Broadcaster {
             runnables.stream()
                     .parallel()
                     .forEach(task -> {
-                        broadcast(generationOperation.update(((double)progress.get())/runnables.size()));
+                        broadcast(generationOperation.update(((double) progress.get()) / runnables.size()));
                         try {
                             task.run();
                         } finally {
-                            broadcast(generationOperation.update(((double)progress.incrementAndGet())/runnables.size()));
+                            broadcast(generationOperation.update(((double) progress.incrementAndGet()) / runnables.size()));
                         }
                     });
         } else {
@@ -638,7 +641,7 @@ public class SolexVideoProcessor implements Broadcaster {
         imageList.stream()
                 .parallel()
                 .forEach(i -> {
-                    double pg = ((double)progress.incrementAndGet())/imageList.size();
+                    double pg = ((double) progress.incrementAndGet()) / imageList.size();
                     prepareImageForCorrections(i, header);
                     broadcast(prepareOperation.update(pg));
                 });
@@ -650,6 +653,8 @@ public class SolexVideoProcessor implements Broadcaster {
         IntStream.range(0, imageList.size()).parallel().forEach(i -> {
             var state = imageList.get(i);
             state.recordResult(WorkflowResults.MAIN_ELLIPSE_FITTING, fitting);
+            // update metadata of images to determine if the ellipse crosses the truncation
+            updateTruncatedDiskMetadata(fitting, state);
         });
         if (processParams.enhancementParams().artificialFlatCorrection()) {
             performFlatCorrection(imageList, fitting, processParams.enhancementParams());
@@ -669,6 +674,23 @@ public class SolexVideoProcessor implements Broadcaster {
             broadcast(generationOperation.update(((double) progress.incrementAndGet()) / imageList.size()));
         });
         broadcast(generationOperation.complete());
+    }
+
+    private static void updateTruncatedDiskMetadata(EllipseFittingTask.Result fitting, WorkflowState state) {
+        var ellipse = fitting == null ? null : fitting.ellipse();
+        if (ellipse != null) {
+            var box = ellipse.boundingBox();
+            var truncationDetails = state.getTruncationDetails();
+            var min = truncationDetails.getMin();
+            var max = truncationDetails.getMax();
+            boolean truncated;
+            if (truncationDetails.isHorizontal()) {
+                truncated = box.a() < min || box.c() > max;
+            } else {
+                truncated = box.b() < min || box.d() > max;
+            }
+            state.image().metadata().put(TruncatedDisk.class, new TruncatedDisk(truncated));
+        }
     }
 
     private static void performFlatCorrection(List<WorkflowState> imageList, EllipseFittingTask.Result fitting, EnhancementParams enhancementParams) {
@@ -701,7 +723,39 @@ public class SolexVideoProcessor implements Broadcaster {
         rotated = ImageWrapper32.fromImage(rotateLeft, metadata);
         TransformationHistory.recordTransform(rotated, message("rotate.left"));
         maybePerformFlips(rotated);
+        updateTruncationDetails(state, rotated);
         state.setImage(rotated);
+    }
+
+    private void updateTruncationDetails(WorkflowState state, ImageWrapper32 rotated) {
+        var td = new TruncationDetails();
+        var hasHFlip = processParams.geometryParams().isHorizontalMirror();
+        var hasVFlip = processParams.geometryParams().isVerticalMirror();
+        td.setHorizontal(false); // rotate left
+        var min = state.getTruncationDetails().getMin();
+        if (min == null) {
+            min = -1;
+        }
+        var max = state.getTruncationDetails().getMax();
+        if (max == null) {
+            max = rotated.height();
+        }
+        if (hasHFlip) {
+            min = rotated.height() - min;
+            max = rotated.height() - max;
+        }
+        if (hasVFlip) {
+            min = rotated.width() - min;
+            max = rotated.width() - max;
+        }
+        if (min > max) {
+            var tmp = min;
+            min = max;
+            max = tmp;
+        }
+        td.setMin(min);
+        td.setMax(max);
+        state.setTruncationDetails(td);
     }
 
     private boolean heliumLineVisible(PixelShiftRange pixelShiftRange, Double heliumLineShift) {
@@ -1114,6 +1168,7 @@ public class SolexVideoProcessor implements Broadcaster {
         var latch = new CountDownLatch(end - start);
         var semaphore = new Semaphore(INMEMORY_BUFFERS_PER_CORE * Runtime.getRuntime().availableProcessors());
         var jSolexSer = reader.header().isJSolexTrimmedSer();
+        var flat = loadReadFlat(geometry.width(), geometry.height()).orElse(null);
         try (var executor = ParallelExecutor.newExecutor(Math.max(2, Runtime.getRuntime().availableProcessors()))) {
             var reconstructedImages = new float[images.length][totalLines][width];
             for (int i = start, j = 0; i < end; i++, j += 1) {
@@ -1130,12 +1185,15 @@ public class SolexVideoProcessor implements Broadcaster {
                     try {
                         // The converter makes sure we only have a single channel
                         converter.convert(frameId, ByteBuffer.wrap(copy), geometry, original);
+                        if (flat != null) {
+                            applyFlatCorrection(original, flat);
+                        }
                         IntStream.range(0, images.length).parallel().forEach(idx -> {
                             try {
                                 var state = images[idx];
                                 var buffer = reconstructedImages[idx];
-                                var truncated = new AtomicBoolean();
-                                processSingleFrame(state.isInternal(), width, height, buffer, y, original, polynomial, state.pixelShift(), totalLines, jSolexSer, truncated);
+                                var truncationDetails = new TruncationDetails();
+                                processSingleFrame(state.isInternal(), width, height, buffer, y, original, polynomial, state.pixelShift(), totalLines, jSolexSer, truncationDetails);
                                 phenomenaDetector.setDetectRedshifts(
                                         state.pixelShift() == 0 && processParams.spectrumParams().ray().label().equalsIgnoreCase(SpectralRay.H_ALPHA.label()) && processParams.requestedImages().isEnabled(GeneratedImageKind.REDSHIFT)
                                 );
@@ -1143,9 +1201,7 @@ public class SolexVideoProcessor implements Broadcaster {
                                 phenomenaDetector.performDetection(frameId, width, height, original, polynomial, reader.header());
                                 hasRedshifts.set(hasRedshifts.get() || phenomenaDetector.isRedShiftDetectionEnabled());
                                 hasActiveRegions.set(hasActiveRegions.get() || phenomenaDetector.isActiveRegionsDetectionEnabled());
-                                if (truncated.get()) {
-                                    state.setTruncatedImage(true);
-                                }
+                                state.setTruncationDetails(truncationDetails);
                             } finally {
                                 broadcast(progressOperation.update(((double) processedCount.incrementAndGet()) / totalCount));
                             }
@@ -1165,7 +1221,7 @@ public class SolexVideoProcessor implements Broadcaster {
             for (int i = 0; i < images.length; i++) {
                 var state = images[i];
                 var reconstructedImage = reconstructedImages[i];
-                var recon = new ImageWrapper32(width, totalLines, reconstructedImage, MutableMap.of(TruncatedImage.class, new TruncatedImage(state.isTruncatedImage())));
+                var recon = new ImageWrapper32(width, totalLines, reconstructedImage, MutableMap.of());
                 state.recordResult(WorkflowResults.RECONSTRUCTED, recon);
             }
         } catch (InterruptedException e) {
@@ -1179,6 +1235,46 @@ public class SolexVideoProcessor implements Broadcaster {
                 hasRedshifts.get() ? phenomenaDetector.getMaxRedshiftAreas(5) : null,
                 hasActiveRegions.get() ? phenomenaDetector.getActiveRegions() : null
         );
+    }
+
+    private static void applyFlatCorrection(float[][] original, float[] flat) {
+        for (var line : original) {
+            for (int xx = 0; xx < line.length; xx++) {
+                line[xx] /= flat[xx];
+            }
+        }
+    }
+
+    private Optional<float[]> loadReadFlat(int expectedWidth, int expectedHeight) {
+        var masterFlat = processParams.enhancementParams().masterFlatFile();
+        if (masterFlat == null) {
+            return Optional.empty();
+        }
+        if (!Files.exists(masterFlat)) {
+            LOGGER.error(message("master.flat.not.found") + " " + masterFlat);
+            return Optional.empty();
+        }
+        var loaded = Loader.loadImage(masterFlat.toFile()).unwrapToMemory();
+        if (!(loaded instanceof ImageWrapper32 flatImage)) {
+            LOGGER.error(message("invalid.master.flat.type"));
+            return Optional.empty();
+        }
+        if (flatImage.width() != expectedWidth || flatImage.height() != expectedHeight) {
+            LOGGER.error(message("invalid.master.flat.size"), flatImage.width(), flatImage.height(), expectedWidth, expectedHeight);
+            return Optional.empty();
+        }
+        var flat = prepareFlatFromAverage(flatImage.data(), flatImage.width(), flatImage.height(), FlatCreator.DEFAULT_CUTOFF);
+
+        // normalize to [0, 1] range
+        var max = 0f;
+        for (int xx = 0; xx < flatImage.width(); xx++) {
+            max = Math.max(max, flat[xx]);
+        }
+        for (int xx = 0; xx < flatImage.width(); xx++) {
+            flat[xx] /= max;
+        }
+
+        return Optional.of(flat);
     }
 
 
@@ -1207,8 +1303,9 @@ public class SolexVideoProcessor implements Broadcaster {
                                     double pixelShift,
                                     int totalLines,
                                     boolean isJolexSer,
-                                    AtomicBoolean truncated) {
+                                    TruncationDetails truncationDetails) {
         double[] line = new double[width];
+        var truncated = new boolean[width];
         IntStream.iterate(0, x -> x < width, x -> x + BATCH_LINES)
                 .parallel()
                 .forEach(batchStart -> {
@@ -1235,7 +1332,7 @@ public class SolexVideoProcessor implements Broadcaster {
                                 value += weight * yValue;
                                 weightSum += weight;
                             } else {
-                                truncated.set(true);
+                                truncated[x] = true;
                             }
                         }
 
@@ -1262,6 +1359,25 @@ public class SolexVideoProcessor implements Broadcaster {
                 broadcast(new PartialReconstructionEvent(imageLine));
             }
         }
+        if (truncated[0]) {
+            for (int x = 0; x < width; x++) {
+                if (truncated[x]) {
+                    truncationDetails.setMin(x);
+                } else {
+                    break;
+                }
+            }
+        }
+        if (truncated[width - 1]) {
+            for (int x = width - 1; x >= 0; x--) {
+                if (truncated[x]) {
+                    truncationDetails.setMax(x);
+                } else {
+                    break;
+                }
+            }
+        }
+
     }
 
     @Override
@@ -1330,4 +1446,5 @@ public class SolexVideoProcessor implements Broadcaster {
     ) {
 
     }
+
 }

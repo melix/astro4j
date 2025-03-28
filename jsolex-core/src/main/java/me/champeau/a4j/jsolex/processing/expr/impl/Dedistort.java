@@ -21,11 +21,9 @@ import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 import me.champeau.a4j.jsolex.processing.util.MutableMap;
+import me.champeau.a4j.math.fft.FFTSupport;
 import me.champeau.a4j.math.tuples.DoublePair;
 import org.apache.commons.math3.complex.Complex;
-import org.apache.commons.math3.transform.DftNormalization;
-import org.apache.commons.math3.transform.FastFourierTransformer;
-import org.apache.commons.math3.transform.TransformType;
 
 import java.util.HashMap;
 import java.util.List;
@@ -109,11 +107,11 @@ public class Dedistort extends AbstractFunctionImpl {
 
     public static DoublePair crossCorrelationShiftFFT(float[][] patchRef, float[][] patchDef) {
         // Step 1: Perform FFT on both reference and defined patches
-        var fftRef = fft2(patchRef);
-        var fftDef = fft2(patchDef);
+        var fftRef = FFTSupport.fft2(patchRef);
+        var fftDef = FFTSupport.fft2(patchDef);
 
         // Step 2: Compute cross-correlation in the frequency domain
-        var crossCorr = fftShift(crossCorrelation(fftRef, fftDef));
+        var crossCorr = fftShift(FFTSupport.crossCorrelation(fftRef, fftDef));
 
         // Step 3: Find the peak of the cross-correlation (the best shift)
         var maxIdx = findMaxIndex(crossCorr);
@@ -145,80 +143,6 @@ public class Dedistort extends AbstractFunctionImpl {
         shifts[1] += dxOffset;
 
         return new DoublePair(shifts[0], shifts[1]);
-    }
-
-    public static Complex[][] fft2(float[][] data) {
-        int rows = data.length;
-        int cols = data[0].length;
-        var result = new Complex[rows][cols];
-        var fft = new FastFourierTransformer(DftNormalization.STANDARD);
-
-        // Perform 1D FFT on rows
-        for (int i = 0; i < rows; i++) {
-            var row = new Complex[cols];
-            for (int j = 0; j < cols; j++) {
-                row[j] = new Complex(data[i][j], 0);
-            }
-            row = fft.transform(row, TransformType.FORWARD);
-            result[i] = row;
-        }
-
-        // Perform 1D FFT on columns
-        for (int j = 0; j < cols; j++) {
-            var column = new Complex[rows];
-            for (int i = 0; i < rows; i++) {
-                column[i] = result[i][j];
-            }
-            column = fft.transform(column, TransformType.FORWARD);
-            for (int i = 0; i < rows; i++) {
-                result[i][j] = column[i];
-            }
-        }
-
-        return result;
-    }
-
-    public static Complex[][] ifft2(Complex[][] data) {
-        int rows = data.length;
-        int cols = data[0].length;
-        var result = new Complex[rows][cols];
-        var fft = new FastFourierTransformer(DftNormalization.STANDARD);
-
-        // Perform 1D IFFT on rows
-        for (int i = 0; i < rows; i++) {
-            var row = data[i];
-            row = fft.transform(row, TransformType.INVERSE);
-            result[i] = row;
-        }
-
-        // Perform 1D IFFT on columns
-        for (int j = 0; j < cols; j++) {
-            var column = new Complex[rows];
-            for (int i = 0; i < rows; i++) {
-                column[i] = result[i][j];
-            }
-            column = fft.transform(column, TransformType.INVERSE);
-            for (int i = 0; i < rows; i++) {
-                result[i][j] = column[i];
-            }
-        }
-
-        return result;
-    }
-
-    // Compute the cross-correlation (inverse FFT of the product of the reference and defined FFT)
-    private static Complex[][] crossCorrelation(Complex[][] fftRef, Complex[][] fftDef) {
-        int rows = fftRef.length;
-        int cols = fftRef[0].length;
-        var result = new Complex[rows][cols];
-
-        for (int i = 0; i < rows; i++) {
-            for (int j = 0; j < cols; j++) {
-                result[i][j] = fftRef[i][j].multiply(fftDef[i][j].conjugate());
-            }
-        }
-
-        return ifft2(result);
     }
 
     // Find the index of the maximum value in the cross-correlation matrix

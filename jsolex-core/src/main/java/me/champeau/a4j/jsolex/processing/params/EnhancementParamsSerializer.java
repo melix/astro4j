@@ -25,6 +25,7 @@ import com.google.gson.JsonSerializer;
 import me.champeau.a4j.jsolex.processing.sun.FlatCorrection;
 
 import java.lang.reflect.Type;
+import java.nio.file.Path;
 
 class EnhancementParamsSerializer implements JsonSerializer<EnhancementParams>, JsonDeserializer<EnhancementParams> {
 
@@ -43,6 +44,11 @@ class EnhancementParamsSerializer implements JsonSerializer<EnhancementParams>, 
         return element == null ? null : element.getAsDouble();
     }
 
+    private static String getNullableString(JsonObject obj, String key) {
+        var element = obj.get(key);
+        return element == null ? null : element.getAsString();
+    }
+
     @Override
     public EnhancementParams deserialize(JsonElement json, Type typeOfT, JsonDeserializationContext context) throws JsonParseException {
         if (json instanceof JsonObject obj) {
@@ -59,7 +65,8 @@ class EnhancementParamsSerializer implements JsonSerializer<EnhancementParams>, 
             if (order == null) {
                 order = FlatCorrection.DEFAULT_ORDER;
             }
-            return new EnhancementParams(artificialFlatCorrection, loPercentile, hiPercentile, order);
+            var masterFlat = getNullableString(obj, "masterFlatFile");
+            return new EnhancementParams(artificialFlatCorrection, loPercentile, hiPercentile, order, masterFlat==null ? null : Path.of(masterFlat));
         }
         throw new IllegalAccessError("Unexpected JSON type " + json.getClass());
     }
@@ -71,6 +78,7 @@ class EnhancementParamsSerializer implements JsonSerializer<EnhancementParams>, 
         obj.addProperty("artificialFlatCorrectionLoPercentile", src.artificialFlatCorrectionLoPercentile());
         obj.addProperty("artificialFlatCorrectionHiPercentile", src.artificialFlatCorrectionHiPercentile());
         obj.addProperty("artificialFlatCorrectionOrder", src.artificialFlatCorrectionOrder());
+        obj.addProperty("masterFlatFile", src.masterFlatFile() == null ? null : src.masterFlatFile().toString());
         return obj;
     }
 }
