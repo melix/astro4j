@@ -28,7 +28,14 @@ import javafx.geometry.Pos;
 import javafx.scene.Node;
 import javafx.scene.Parent;
 import javafx.scene.Scene;
-import javafx.scene.control.*;
+import javafx.scene.control.Button;
+import javafx.scene.control.CheckBox;
+import javafx.scene.control.ChoiceBox;
+import javafx.scene.control.Label;
+import javafx.scene.control.MenuItem;
+import javafx.scene.control.Slider;
+import javafx.scene.control.TextArea;
+import javafx.scene.control.Tooltip;
 import javafx.scene.image.Image;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
@@ -38,7 +45,6 @@ import javafx.util.Duration;
 import me.champeau.a4j.jsolex.app.JSolEx;
 import me.champeau.a4j.jsolex.processing.event.GenericMessage;
 import me.champeau.a4j.jsolex.processing.event.ProcessingEventListener;
-import me.champeau.a4j.jsolex.processing.event.ProgressEvent;
 import me.champeau.a4j.jsolex.processing.event.ProgressOperation;
 import me.champeau.a4j.jsolex.processing.params.AutocropMode;
 import me.champeau.a4j.jsolex.processing.params.ProcessParams;
@@ -162,7 +168,6 @@ public class ImageViewer implements WithRootNode {
                             var stage = new Stage();
                             var scene = new Scene((Parent) node);
                             controller.stage = stage;
-                            controller.saveButton.setVisible(false);
                             controller.fitWidthProperty().bind(stage.widthProperty());
                             controller.updateTitle();
                             stage.setWidth(1024);
@@ -172,6 +177,7 @@ public class ImageViewer implements WithRootNode {
                             stage.show();
                             popupViews.put(title, controller);
                             controller.display();
+                            controller.saveButton.setVisible(false);
                         } catch (IOException ex) {
                             throw new ProcessingException(ex);
                         }
