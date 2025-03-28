@@ -15,9 +15,6 @@
  */
 package me.champeau.a4j.jsolex.processing.sun.tasks;
 
-import me.champeau.a4j.jsolex.processing.event.Notification;
-import me.champeau.a4j.jsolex.processing.event.NotificationEvent;
-import me.champeau.a4j.jsolex.processing.event.ProgressEvent;
 import me.champeau.a4j.jsolex.processing.event.ProgressOperation;
 import me.champeau.a4j.jsolex.processing.params.ProcessParams;
 import me.champeau.a4j.jsolex.processing.stretching.LinearStrechingStrategy;
@@ -104,7 +101,7 @@ public class EllipseFittingTask extends AbstractTask<EllipseFittingTask.Result> 
         tmp = imageMath.convolve(tmp, Kernel33.GAUSSIAN_BLUR);
         var height = image.height();
         var width = image.width();
-        if (height==0 || width==0) {
+        if (height == 0 || width == 0) {
             return new Result(Ellipse.ofCartesian(new DoubleSextuplet(0, 0, 0, 0, 0, 0)), List.of());
         }
         for (int y = 0; y < height; y++) {
@@ -118,13 +115,36 @@ public class EllipseFittingTask extends AbstractTask<EllipseFittingTask.Result> 
         // Perform background neutralization to reduce impact of reflections,
         // particularly visible close to UV. We perform multiple iterations
         // because some gradients are particularly difficult to remove
-        for (int i = 0; i < 8; i++) {
-            workImage = BackgroundRemoval.neutralizeBackground(workImage);
+        double bg = Constants.MAX_PIXEL_VALUE;
+        var blindBg = BackgroundRemoval.blindBackgroundNeutralization(workImage);
+        workImage = blindBg.neutralized();
+        int maxIterations = 16;
+        while (Math.abs(bg - blindBg.averageBackground()) / Math.max(bg, blindBg.averageBackground()) > 0.02 && maxIterations-- > 0) {
+            bg = blindBg.averageBackground();
+            blindBg = BackgroundRemoval.blindBackgroundNeutralization(workImage);
+            workImage = blindBg.neutralized();
+            LOGGER.debug("Background level was {}", blindBg.averageBackground());
         }
         LinearStrechingStrategy.DEFAULT.stretch(workImage);
+        return ellipseFitRun();
+    }
+
+    private Result ellipseFitRun() {
         var magnitudes = workImage.data();
-        var samples = findSamplesUsingDynamicSensitivity(magnitudes);
         broadcaster.broadcast(operation.update(0, message("fitting.ellipse")));
+        var samples = findSamplesUsingDynamicSensitivity(magnitudes);
+        int pSize = 0;
+        float f = 0.8f;
+        while (samples.size() != pSize) {
+            var prevSamples = List.copyOf(samples);
+            pSize = samples.size();
+            filterOutliersByDistanceToEllipse(samples, f);
+            f += 0.2f;
+            if (samples.size() < MINIMUM_SAMPLES) {
+                samples = prevSamples;
+                break;
+            }
+        }
         if (notEnoughSamples(samples)) {
             return null;
         }
@@ -153,31 +173,31 @@ public class EllipseFittingTask extends AbstractTask<EllipseFittingTask.Result> 
             return;
         }
         var avgDistanceToEllipse = samples.stream()
-            .filter(p -> initialEllipse.findY(p.x()).isPresent() || initialEllipse.findX(p.y()).isPresent())
-            .mapToDouble(p -> {
-                var maybeY = initialEllipse.findY(p.x());
-                if (maybeY.isEmpty()) {
-                    var doublePair = initialEllipse.findX(p.y()).get();
-                    return Math.min(Math.abs(p.x() - doublePair.a()), Math.abs(p.x() - doublePair.b()));
-                }
-                var doublePair = maybeY.get();
-                return Math.min(Math.abs(p.y() - doublePair.a()), Math.abs(p.y() - doublePair.b()));
-            })
-            .average()
-            .orElse(10);
+                .filter(p -> initialEllipse.findY(p.x()).isPresent() || initialEllipse.findX(p.y()).isPresent())
+                .mapToDouble(p -> {
+                    var maybeY = initialEllipse.findY(p.x());
+                    if (maybeY.isEmpty()) {
+                        var doublePair = initialEllipse.findX(p.y()).get();
+                        return Math.min(Math.abs(p.x() - doublePair.a()), Math.abs(p.x() - doublePair.b()));
+                    }
+                    var doublePair = maybeY.get();
+                    return Math.min(Math.abs(p.y() - doublePair.a()), Math.abs(p.y() - doublePair.b()));
+                })
+                .average()
+                .orElse(10);
         var stddev = samples.stream()
-            .filter(p -> initialEllipse.findY(p.x()).isPresent() || initialEllipse.findX(p.y()).isPresent())
-            .mapToDouble(p -> {
-                var maybeY = initialEllipse.findY(p.x());
-                if (maybeY.isEmpty()) {
-                    var doublePair = initialEllipse.findX(p.y()).get();
-                    return Math.min(Math.abs(p.x() - doublePair.a()), Math.abs(p.x() - doublePair.b()));
-                }
-                var doublePair = maybeY.get();
-                return Math.min(Math.abs(p.y() - doublePair.a()), Math.abs(p.y() - doublePair.b()));
-            })
-            .map(d -> (d - avgDistanceToEllipse) * (d - avgDistanceToEllipse))
-            .sum();
+                .filter(p -> initialEllipse.findY(p.x()).isPresent() || initialEllipse.findX(p.y()).isPresent())
+                .mapToDouble(p -> {
+                    var maybeY = initialEllipse.findY(p.x());
+                    if (maybeY.isEmpty()) {
+                        var doublePair = initialEllipse.findX(p.y()).get();
+                        return Math.min(Math.abs(p.x() - doublePair.a()), Math.abs(p.x() - doublePair.b()));
+                    }
+                    var doublePair = maybeY.get();
+                    return Math.min(Math.abs(p.y() - doublePair.a()), Math.abs(p.y() - doublePair.b()));
+                })
+                .map(d -> (d - avgDistanceToEllipse) * (d - avgDistanceToEllipse))
+                .sum();
         stddev = (float) Math.sqrt(stddev / samples.size());
         var threshold = 1.5 * (factor * stddev + avgDistanceToEllipse);
         samples.removeIf(p -> {
@@ -217,9 +237,9 @@ public class EllipseFittingTask extends AbstractTask<EllipseFittingTask.Result> 
     private void filterOutliersByDetectingLines(Set<Point2D> samples) {
         var restore = new ArrayList<>(samples);
         var byX = samples.stream()
-            .collect(Collectors.groupingBy(p -> (int) p.x()));
+                .collect(Collectors.groupingBy(p -> (int) p.x()));
         var byY = samples.stream()
-            .collect(Collectors.groupingBy(p -> (int) p.y()));
+                .collect(Collectors.groupingBy(p -> (int) p.y()));
         var sX = 8 + Math.sqrt(byX.size() / 2d);
         var sY = 8 + Math.sqrt(byY.size() / 2d);
         // remove samples when they are too many of them in a single column or row, because it usually means we have
@@ -247,8 +267,8 @@ public class EllipseFittingTask extends AbstractTask<EllipseFittingTask.Result> 
             if (size > 512) {
                 int step = size / 512;
                 IntStream.range(0, size)
-                    .filter(i -> (i % step) == 0)
-                    .forEach(i -> samples.add(restore.get(i)));
+                        .filter(i -> (i % step) == 0)
+                        .forEach(i -> samples.add(restore.get(i)));
             } else {
                 samples.addAll(restore);
             }
@@ -393,8 +413,8 @@ public class EllipseFittingTask extends AbstractTask<EllipseFittingTask.Result> 
     }
 
     public record Result(
-        Ellipse ellipse,
-        List<Point2D> samples
+            Ellipse ellipse,
+            List<Point2D> samples
     ) {
 
     }

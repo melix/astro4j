@@ -90,6 +90,10 @@ public class BackgroundRemoval {
      * @return the image with background neutralized
      */
     public static ImageWrapper32 neutralizeBackground(ImageWrapper32 image) {
+        return blindBackgroundNeutralization(image).neutralized();
+    }
+
+    public static BlindBackgroundNeutralizationResult blindBackgroundNeutralization(ImageWrapper32 image) {
         var copy = removeZeroPixels(image);
         var data = copy.data();
         var background = 0.8 * estimateBackgroundLevel(copy.data(), 64);
@@ -122,10 +126,11 @@ public class BackgroundRemoval {
 
         if (samples.size() < 16) {
             LOGGER.warn(message("cannot.perform.bg.neutralization"));
-            return copy;
+            return new BlindBackgroundNeutralizationResult(copy, background);
         }
 
         // Perform 2nd order fitting
+        double avgBackground = 0;
         try {
             var regression = new OLSMultipleLinearRegression();
             regression.newSampleData(values.stream().mapToDouble(Double::doubleValue).toArray(), samples.toArray(new double[0][]));
@@ -138,13 +143,15 @@ public class BackgroundRemoval {
                     var estimated = coefficients[0] + coefficients[1] * x + coefficients[2] * y
                                     + coefficients[3] * x * x + coefficients[4] * y * y
                                     + coefficients[5] * x * y;
+                    avgBackground += estimated;
                     data[y][x] = (float) Math.max(0, value - estimated);
                 }
             }
+            avgBackground /= (width * height);
         } catch (Exception ex) {
             LOGGER.warn(message("cannot.perform.bg.neutralization"));
         }
-        return copy;
+        return new BlindBackgroundNeutralizationResult(copy, avgBackground);
     }
 
     /**
@@ -271,5 +278,12 @@ public class BackgroundRemoval {
             }
         }
         return copy;
+    }
+
+    public record BlindBackgroundNeutralizationResult(
+            ImageWrapper32 neutralized,
+            double averageBackground
+    ) {
+
     }
 }
