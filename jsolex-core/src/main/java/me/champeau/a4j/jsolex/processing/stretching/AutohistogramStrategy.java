@@ -15,8 +15,8 @@
  */
 package me.champeau.a4j.jsolex.processing.stretching;
 
+import me.champeau.a4j.jsolex.processing.expr.impl.Utilities;
 import me.champeau.a4j.jsolex.processing.sun.BackgroundRemoval;
-import me.champeau.a4j.jsolex.processing.sun.workflow.TransformationHistory;
 import me.champeau.a4j.jsolex.processing.util.Histogram;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 import me.champeau.a4j.math.regression.Ellipse;
@@ -26,12 +26,7 @@ import org.slf4j.LoggerFactory;
 import java.util.ArrayList;
 import java.util.List;
 
-import static java.lang.Math.clamp;
-import static java.lang.Math.log;
-import static java.lang.Math.log1p;
-import static java.lang.Math.pow;
-import static java.lang.Math.sqrt;
-import static me.champeau.a4j.jsolex.processing.sun.ImageUtils.bilinearSmoothing;
+import static java.lang.Math.*;
 import static me.champeau.a4j.jsolex.processing.util.Constants.MAX_PIXEL_VALUE;
 
 public final class AutohistogramStrategy implements StretchingStrategy {
@@ -83,7 +78,7 @@ public final class AutohistogramStrategy implements StretchingStrategy {
                 for (int x = 0; x < width; x++) {
                     var v = diskData[y][x];
                     float normalized = v / max;
-                    var dist = normalizedDistanceToCenter(x, y, cx, cy, radius);
+                    var dist = Utilities.normalizedDistanceToCenter(x, y, cx, cy, radius);
                     var gammaCorrected = (float) pow(normalized, gamma) * MAX_PIXEL_VALUE;
                     var v1 = clamp(gammaCorrected, 0, MAX_PIXEL_VALUE);
 
@@ -186,17 +181,6 @@ public final class AutohistogramStrategy implements StretchingStrategy {
         var lo = cumulative.percentile(loPercentile);
         var hi = cumulative.percentile(hiPercentile);
         return new ContrastAdjustmentStrategy(lo, hi);
-    }
-
-    // computes the distance to the circle center, relative to the radius. A negative value
-    // means that the point is inside the circle, a positive value means that the point is outside
-    // the circle. The distance is normalized so that it is 0 at the circle border, and 1 at the
-    // circle center.
-    private static double normalizedDistanceToCenter(double x, double y, double cx, double cy, double radius) {
-        var dx = x - cx;
-        var dy = y - cy;
-        double distance = sqrt(dx * dx + dy * dy);
-        return distance / radius;
     }
 
     private static Histogram maskedHistogram(float[][] image, int width, int height, Ellipse ellipse) {

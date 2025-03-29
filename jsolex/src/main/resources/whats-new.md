@@ -7,6 +7,7 @@
 - Improve prominence stretching in automatic contrast enhancement
 - Introduced new `BG_MODEL` function to model the background of the image
 - Improved edge detection to better handle eclipse images
+- Improved Helium images
 - Added `A2PX` and `PX2A` to convert from Angstroms to pixels and vice versa, based on the computed spectral dispersion
 - Added an optional parameter to `FIND_SHIFT` corresponding to the reference wavelength
 - Improve reliability of the `CONTINUUM` function and as a result of the Helium line extraction

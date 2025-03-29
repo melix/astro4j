@@ -19,16 +19,21 @@ import me.champeau.a4j.jsolex.processing.sun.workflow.WorkflowResults;
 import me.champeau.a4j.jsolex.processing.util.FileBackedImage;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.EnumMap;
 import java.util.Optional;
 
 public final class WorkflowState {
+    private static final Logger LOGGER = LoggerFactory.getLogger(WorkflowState.class);
+
     private final double pixelShift;
     private final EnumMap<WorkflowResults, Object> outcomes = new EnumMap<>(WorkflowResults.class);
     private final int width;
     private final int height;
     private boolean internal;
+    private boolean truncatedImage;
 
     public WorkflowState(
             int width,
@@ -38,6 +43,14 @@ public final class WorkflowState {
         this.width = width;
         this.height = height;
         this.pixelShift = pixelShift;
+    }
+
+    public boolean isTruncatedImage() {
+        return truncatedImage;
+    }
+
+    public void setTruncatedImage(boolean truncatedImage) {
+        this.truncatedImage = truncatedImage;
     }
 
     public boolean isInternal() {

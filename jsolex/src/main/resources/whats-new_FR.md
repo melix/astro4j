@@ -6,6 +6,7 @@
 - Ajout de la neutralisation de fond dans l'algorithme d'amélioration du contraste pour supprimer les réflexions résiduelles
 - Amélioration de l'étirement des protubérances dans l'amélioration automatique du contraste
 - Amélioration de la détection des bords pour mieux gérer les images d'éclipse
+- Amélioration des images hélium
 - Introduction de la nouvelle fonction `BG_MODEL` pour modéliser l'arrière-plan de l'image
 - Ajout de `A2PX` et `PX2A` pour convertir d'Angströms en pixels et vice versa, basé sur la dispersion spectrale calculée
 - Ajout d'un paramètre optionnel à `FIND_SHIFT` correspondant à la longueur d'onde de référence

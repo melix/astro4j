@@ -23,19 +23,71 @@ import me.champeau.a4j.jsolex.processing.sun.workflow.SourceInfo;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 import me.champeau.a4j.jsolex.processing.util.RGBImage;
+import me.champeau.a4j.math.regression.Ellipse;
 
 import java.time.format.DateTimeFormatter;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.stream.IntStream;
+
+import static java.lang.Math.sqrt;
 
 public class Utilities extends AbstractFunctionImpl {
     private static final String DEFAULT_DATE_FORMAT = "yyyy/MM/dd HH:mm:ss [z]";
 
     public Utilities(Map<Class<?>, Object> context, Broadcaster broadcaster) {
         super(context, broadcaster);
+    }
+
+    // computes the distance to the circle center, relative to the radius. A negative value
+    // means that the point is inside the circle, a positive value means that the point is outside
+    // the circle. The distance is normalized so that it is 0 at the circle border, and 1 at the
+    // circle center.
+    public static double normalizedDistanceToCenter(double x, double y, double cx, double cy, double radius) {
+        var dx = x - cx;
+        var dy = y - cy;
+        double distance = sqrt(dx * dx + dy * dy);
+        return distance / radius;
+    }
+
+    /**
+     * Blends two images together, using a cosine function to interpolate between the two images.
+     * The blending is done in a circular region defined by the ellipse.
+     * @param disk the disk image
+     * @param protus the prominences image
+     * @param ellipse the ellipse defining the blending region
+     * @param start the start distance for blending
+     * @param end the end distance for blending
+     * @return the blended image
+     */
+    public static ImageWrapper32 blend(ImageWrapper32 disk, ImageWrapper32 protus, Ellipse ellipse, double start, double end) {
+        int height = protus.height();
+        int width = protus.width();
+        var diskData = disk.data();
+        var protusData = protus.data();
+        var cx = ellipse.center().a();
+        var cy = ellipse.center().b();
+        var radius = (ellipse.semiAxis().a() + ellipse.semiAxis().b()) / 2;
+        var result = disk.copy();
+        var outputData = result.data();
+        var range = end - start;
+        for (int y = 0; y < height; y++) {
+            for (int x = 0; x < width; x++) {
+                var d = diskData[y][x];
+                var p = protusData[y][x];
+                var dist = normalizedDistanceToCenter(x, y, cx, cy, radius);
+                if (dist <= start) {
+                    outputData[y][x] = d;
+                } else if (dist <= end) {
+                    var alpha = (float) (0.5 * (1 + Math.cos(Math.PI * (dist - start) / range)));
+                    outputData[y][x] = alpha * d + (1 - alpha) * p;
+                } else {
+                    outputData[y][x] = p;
+                }
+            }
+        }
+        return result;
     }
 
     public Object videoDateTime(List<Object> arguments) {

@@ -50,6 +50,7 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
     private final Map<Class<?>, Object> context = new HashMap<>();
     private final ImageMath imageMath = ImageMath.newInstance();
     private final Broadcaster broadcaster;
+    private final Set<Double> warnings = new HashSet<>();
 
     // Function implementations
     private final AdjustContrast adjustContrast;
@@ -308,6 +309,10 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
                                 return false;
                             }
                         }
+                        if (image.findMetadata(TruncatedImage.class).isPresent() && image.findMetadata(TruncatedImage.class).get().truncated()) {
+                            return false;
+                        }
+
                         return true;
                     })
                     .map(img -> {
@@ -475,7 +480,14 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
         }
         var arg = arguments.get(0);
         if (arg instanceof Number shift) {
-            return findImage(shift.doubleValue());
+            double pixelShift = shift.doubleValue();
+            var image = findImage(pixelShift);
+            if (image.findMetadata(TruncatedImage.class).isPresent() && image.findMetadata(TruncatedImage.class).get().truncated()) {
+                if (warnings.add(pixelShift)) {
+                    LOGGER.warn(String.format(message("warn.truncated.image"), pixelShift));
+                }
+            }
+            return image;
         }
         throw new IllegalArgumentException("img() argument must be a number representing an image shift");
 

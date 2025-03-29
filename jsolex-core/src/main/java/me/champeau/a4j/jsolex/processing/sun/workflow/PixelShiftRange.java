@@ -25,12 +25,12 @@ import java.util.function.DoubleUnaryOperator;
  *
  * @param minPixelShift the min pixel shift
  * @param maxPixelShift the max pixel shift
- * @param step the step to use when sampling in the range
+ * @param step          the step to use when sampling in the range
  */
 public record PixelShiftRange(
-    double minPixelShift,
-    double maxPixelShift,
-    double step
+        double minPixelShift,
+        double maxPixelShift,
+        double step
 ) {
     public static PixelShiftRange computePixelShiftRange(int start, int end, int height, DoubleUnaryOperator polynomial) {
         // determine the min and max pixel shifts
@@ -54,24 +54,25 @@ public record PixelShiftRange(
         var maxPixelShift = -Double.MAX_VALUE;
         var minPixelShift = Double.MAX_VALUE;
         for (int y = (int) range; y < height - range; y++) {
-            double cpt = 0;
+            boolean ok = false;
             for (int x = start; x < end; x++) {
                 var v = polynomial.applyAsDouble(x);
                 var shift = v - mid;
                 int ny = (int) Math.round(y + shift);
                 if (ny >= 0 && ny < height) {
-                    cpt++;
+                    ok = true;
+                    break;
                 }
             }
-            if (cpt > 0) {
+            if (ok) {
                 var pixelShift = y - mid;
                 minPixelShift = Math.min(minPixelShift, pixelShift);
                 maxPixelShift = Math.max(maxPixelShift, pixelShift);
             }
         }
         // round to a 1/10th
-        minPixelShift = Math.floor(minPixelShift / 10) * 10;
-        maxPixelShift = Math.ceil(maxPixelShift / 10) * 10;
+        minPixelShift = Math.floor(minPixelShift * 10) / 10;
+        maxPixelShift = Math.ceil(maxPixelShift * 10) / 10;
         return new PixelShiftRange(minPixelShift, maxPixelShift, (maxPixelShift - minPixelShift) / 10);
     }
 

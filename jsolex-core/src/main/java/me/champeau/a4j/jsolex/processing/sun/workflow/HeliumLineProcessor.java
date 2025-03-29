@@ -18,9 +18,12 @@ package me.champeau.a4j.jsolex.processing.sun.workflow;
 import me.champeau.a4j.jsolex.expr.BuiltinFunction;
 import me.champeau.a4j.jsolex.processing.event.ProgressOperation;
 import me.champeau.a4j.jsolex.processing.expr.ImageExpressionEvaluator;
+import me.champeau.a4j.jsolex.processing.expr.impl.Utilities;
 import me.champeau.a4j.jsolex.processing.params.ProcessParams;
 import me.champeau.a4j.jsolex.processing.params.SpectralRay;
 import me.champeau.a4j.jsolex.processing.params.SpectralRayIO;
+import me.champeau.a4j.jsolex.processing.stretching.ArcsinhStretchingStrategy;
+import me.champeau.a4j.jsolex.processing.stretching.AutohistogramStrategy;
 import me.champeau.a4j.jsolex.processing.stretching.LinearStrechingStrategy;
 import me.champeau.a4j.jsolex.processing.sun.BandingReduction;
 import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
@@ -36,6 +39,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+import static me.champeau.a4j.jsolex.processing.sun.BackgroundRemoval.backgroundModel;
 import static me.champeau.a4j.jsolex.processing.util.Constants.message;
 
 /**
@@ -88,14 +92,25 @@ public class HeliumLineProcessor {
                     message("helium.d3.direct.colorized"), "helium-direct-colorized", message("helium.direct.description"), colorized.width(), colorized.height(), new HashMap<>(colorized.metadata()), () -> new float[][][] { colorized.r(), colorized.g(), colorized.b() });
             }
         }
-        var continuum = evaluator.createContinuumImage();
+        var continuum = evaluator.functionCall(BuiltinFunction.ELLIPSE_FIT, List.of(evaluator.createContinuumImage()));
         var raw = evaluator.minus(source, continuum);
         if (raw instanceof ImageWrapper32 image) {
+            LinearStrechingStrategy.DEFAULT.stretch(image);
             var ellipse = image.findMetadata(Ellipse.class).orElse(null);
             for (int i = 0; i < 64; i++) {
                 BandingReduction.reduceBanding(image.width(), image.height(), image.data(), 8, ellipse);
             }
             LinearStrechingStrategy.DEFAULT.stretch(image);
+            var bgModel = backgroundModel(image, 2, 2.5);
+            bgModel = (ImageWrapper32) evaluator.mul(0.8, bgModel);
+            bgModel = (ImageWrapper32) evaluator.functionCall(BuiltinFunction.DISK_FILL, List.of(bgModel));
+            image = (ImageWrapper32) evaluator.minus(image, bgModel);
+            new AutohistogramStrategy(1).stretch(image);
+            var protus = (ImageWrapper32) evaluator.functionCall(BuiltinFunction.DISK_FILL, List.of(image));
+            new ArcsinhStretchingStrategy(0, 10, 10).stretch(protus);
+            if (ellipse != null) {
+                image = Utilities.blend(image, protus, ellipse, 0.975, 1.025);
+            }
             imageEmitter.newMonoImage(GeneratedImageKind.GEOMETRY_CORRECTED_PROCESSED, "helium", message("helium.d3.processed"), "helium-extracted", message("helium.extracted.description"), image);
             if (evaluator.functionCall(BuiltinFunction.COLORIZE, List.of(image, colorProfile)) instanceof RGBImage colorized) {
                 imageEmitter.newColorImage(GeneratedImageKind.COLORIZED, "helium",

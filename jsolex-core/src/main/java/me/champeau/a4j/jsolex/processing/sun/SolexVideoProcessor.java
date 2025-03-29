@@ -15,12 +15,30 @@
  */
 package me.champeau.a4j.jsolex.processing.sun;
 
-import me.champeau.a4j.jsolex.processing.event.*;
+import me.champeau.a4j.jsolex.processing.event.AverageImageComputedEvent;
+import me.champeau.a4j.jsolex.processing.event.FileGeneratedEvent;
+import me.champeau.a4j.jsolex.processing.event.GeneratedImage;
+import me.champeau.a4j.jsolex.processing.event.GenericMessage;
+import me.champeau.a4j.jsolex.processing.event.ImageGeneratedEvent;
+import me.champeau.a4j.jsolex.processing.event.ImageLine;
+import me.champeau.a4j.jsolex.processing.event.Notification;
+import me.champeau.a4j.jsolex.processing.event.NotificationEvent;
+import me.champeau.a4j.jsolex.processing.event.OutputImageDimensionsDeterminedEvent;
+import me.champeau.a4j.jsolex.processing.event.PartialReconstructionEvent;
+import me.champeau.a4j.jsolex.processing.event.ProcessingDoneEvent;
+import me.champeau.a4j.jsolex.processing.event.ProcessingEvent;
+import me.champeau.a4j.jsolex.processing.event.ProcessingEventListener;
+import me.champeau.a4j.jsolex.processing.event.ProcessingStartEvent;
+import me.champeau.a4j.jsolex.processing.event.ProgressEvent;
+import me.champeau.a4j.jsolex.processing.event.ProgressOperation;
+import me.champeau.a4j.jsolex.processing.event.ReconstructionDoneEvent;
+import me.champeau.a4j.jsolex.processing.event.ScriptExecutionResultEvent;
+import me.champeau.a4j.jsolex.processing.event.SuggestionEvent;
+import me.champeau.a4j.jsolex.processing.event.TrimmingParametersDeterminedEvent;
+import me.champeau.a4j.jsolex.processing.event.VideoMetadataEvent;
 import me.champeau.a4j.jsolex.processing.expr.DefaultImageScriptExecutor;
 import me.champeau.a4j.jsolex.processing.expr.ImageMathScriptExecutor;
 import me.champeau.a4j.jsolex.processing.expr.InvalidExpression;
-import me.champeau.a4j.jsolex.processing.expr.ShiftCollectingImageExpressionEvaluator;
-import me.champeau.a4j.jsolex.processing.expr.impl.GeometryCorrection;
 import me.champeau.a4j.jsolex.processing.expr.impl.ImageDraw;
 import me.champeau.a4j.jsolex.processing.file.FileNamingStrategy;
 import me.champeau.a4j.jsolex.processing.params.EnhancementParams;
@@ -50,6 +68,7 @@ import me.champeau.a4j.jsolex.processing.sun.workflow.ReferenceCoords;
 import me.champeau.a4j.jsolex.processing.sun.workflow.RenamingImageEmitter;
 import me.champeau.a4j.jsolex.processing.sun.workflow.SourceInfo;
 import me.champeau.a4j.jsolex.processing.sun.workflow.TransformationHistory;
+import me.champeau.a4j.jsolex.processing.sun.workflow.TruncatedImage;
 import me.champeau.a4j.jsolex.processing.sun.workflow.WorkflowResults;
 import me.champeau.a4j.jsolex.processing.util.Constants;
 import me.champeau.a4j.jsolex.processing.util.FileBackedImage;
@@ -82,10 +101,19 @@ import java.nio.ByteBuffer;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.LocalDateTime;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Locale;
+import java.util.Map;
+import java.util.Optional;
+import java.util.Set;
+import java.util.TreeSet;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.Executors;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -657,9 +685,11 @@ public class SolexVideoProcessor implements Broadcaster {
 
     private void prepareImageForCorrections(WorkflowState state, Header header) {
         ImageWrapper32 rotated;
-        var recon = state.reconstructed().asImage();
+        ImageWrapper32 reconstructed = state.reconstructed();
+        var recon = reconstructed.asImage();
         var rotateLeft = ImageMath.newInstance().rotateLeft(recon);
-        var metadata = new HashMap<>(createMetadata(processParams, serFile.toPath(), pixelShiftRange, header));
+        var metadata = new HashMap<>(reconstructed.metadata());
+        metadata.putAll(createMetadata(processParams, serFile.toPath(), pixelShiftRange, header));
         if (redshifts != null) {
             metadata.put(Redshifts.class, redshifts);
         }
@@ -1103,7 +1133,8 @@ public class SolexVideoProcessor implements Broadcaster {
                             try {
                                 var state = images[idx];
                                 var buffer = reconstructedImages[idx];
-                                processSingleFrame(state.isInternal(), width, height, buffer, y, original, polynomial, state.pixelShift(), totalLines, jSolexSer);
+                                var truncated = new AtomicBoolean();
+                                processSingleFrame(state.isInternal(), width, height, buffer, y, original, polynomial, state.pixelShift(), totalLines, jSolexSer, truncated);
                                 phenomenaDetector.setDetectRedshifts(
                                         state.pixelShift() == 0 && processParams.spectrumParams().ray().label().equalsIgnoreCase(SpectralRay.H_ALPHA.label()) && processParams.requestedImages().isEnabled(GeneratedImageKind.REDSHIFT)
                                 );
@@ -1111,6 +1142,9 @@ public class SolexVideoProcessor implements Broadcaster {
                                 phenomenaDetector.performDetection(frameId, width, height, original, polynomial, reader.header());
                                 hasRedshifts.set(hasRedshifts.get() || phenomenaDetector.isRedShiftDetectionEnabled());
                                 hasActiveRegions.set(hasActiveRegions.get() || phenomenaDetector.isActiveRegionsDetectionEnabled());
+                                if (truncated.get()) {
+                                    state.setTruncatedImage(true);
+                                }
                             } finally {
                                 broadcast(progressOperation.update(((double) processedCount.incrementAndGet()) / totalCount));
                             }
@@ -1130,7 +1164,7 @@ public class SolexVideoProcessor implements Broadcaster {
             for (int i = 0; i < images.length; i++) {
                 var state = images[i];
                 var reconstructedImage = reconstructedImages[i];
-                var recon = new ImageWrapper32(width, totalLines, reconstructedImage, MutableMap.of());
+                var recon = new ImageWrapper32(width, totalLines, reconstructedImage, MutableMap.of(TruncatedImage.class, new TruncatedImage(state.isTruncatedImage())));
                 state.recordResult(WorkflowResults.RECONSTRUCTED, recon);
             }
         } catch (InterruptedException e) {
@@ -1171,7 +1205,8 @@ public class SolexVideoProcessor implements Broadcaster {
                                     DoubleUnaryOperator p,
                                     double pixelShift,
                                     int totalLines,
-                                    boolean isJolexSer) {
+                                    boolean isJolexSer,
+                                    AtomicBoolean truncated) {
         double[] line = new double[width];
         IntStream.iterate(0, x -> x < width, x -> x + BATCH_LINES)
                 .parallel()
@@ -1198,6 +1233,8 @@ public class SolexVideoProcessor implements Broadcaster {
                                 double yValue = (1 - frac) * source[y1][x] + frac * source[y2][x];
                                 value += weight * yValue;
                                 weightSum += weight;
+                            } else {
+                                truncated.set(true);
                             }
                         }
 
