@@ -39,6 +39,7 @@ import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
@@ -129,18 +130,42 @@ public class EllipseFittingTask extends AbstractTask<EllipseFittingTask.Result> 
         return ellipseFitRun();
     }
 
+    /**
+     * Returns a list of points, sorted by their distance to the center of the
+     * image.
+     * @return
+     */
+    private List<Point2D> sortByDistanceToEdges(List<Point2D> points) {
+        var center = new Point2D(workImage.width() / 2d, workImage.height() / 2d);
+        points.sort(Comparator.<Point2D>comparingDouble(p -> p.distanceTo(center)).reversed());
+        return points;
+    }
+
+    /**
+     * Only keeps 80% of the points, sorted by their distance to the edges.
+     * This helps with eclipse images, where sample points can be found at the moon
+     * limb, which are not relevant for the ellipse fitting.
+     * @param points the initial list of points
+     * @return the decimated list of points
+     */
+    private List<Point2D> decimate(List<Point2D> points) {
+        return sortByDistanceToEdges(points)
+                .stream()
+                .limit((long) (0.8*points.size()))
+                .collect(Collectors.toList());
+    }
+
     private Result ellipseFitRun() {
         var magnitudes = workImage.data();
         broadcaster.broadcast(operation.update(0, message("fitting.ellipse")));
         var samples = findSamplesUsingDynamicSensitivity(magnitudes);
+        samples = decimate(samples);
+
         int pSize = 0;
-        float f = 0.8f;
         while (samples.size() != pSize) {
             var prevSamples = List.copyOf(samples);
             pSize = samples.size();
-            filterOutliersByDistanceToEllipse(samples, f);
-            f += 0.2f;
-            if (samples.size() < MINIMUM_SAMPLES) {
+            if (!filterOutliersByDistanceToEllipse(samples, 2.5f, 5) || samples.size() < MINIMUM_SAMPLES) {
                 samples = prevSamples;
                 break;
             }
@@ -164,57 +189,40 @@ public class EllipseFittingTask extends AbstractTask<EllipseFittingTask.Result> 
      *
      * @param samples the samples to be filtered
      */
-    private static void filterOutliersByDistanceToEllipse(Collection<Point2D> samples, double factor) {
+    private static boolean filterOutliersByDistanceToEllipse(Collection<Point2D> samples, double sigma, double cutoff) {
         Ellipse initialEllipse;
         try {
             initialEllipse = new EllipseRegression(samples.stream().toList()).solve();
         } catch (Exception e) {
             // ignore, this will be caught later
-            return;
+            return false;
         }
+        samples.removeIf(p -> initialEllipse.findY(p.x()).isEmpty() || initialEllipse.findX(p.y()).isEmpty());
         var avgDistanceToEllipse = samples.stream()
-                .filter(p -> initialEllipse.findY(p.x()).isPresent() || initialEllipse.findX(p.y()).isPresent())
-                .mapToDouble(p -> {
-                    var maybeY = initialEllipse.findY(p.x());
-                    if (maybeY.isEmpty()) {
-                        var doublePair = initialEllipse.findX(p.y()).get();
-                        return Math.min(Math.abs(p.x() - doublePair.a()), Math.abs(p.x() - doublePair.b()));
-                    }
-                    var doublePair = maybeY.get();
-                    return Math.min(Math.abs(p.y() - doublePair.a()), Math.abs(p.y() - doublePair.b()));
-                })
+                .mapToDouble(p -> distanceToEllipse(p, initialEllipse))
                 .average()
                 .orElse(10);
         var stddev = samples.stream()
-                .filter(p -> initialEllipse.findY(p.x()).isPresent() || initialEllipse.findX(p.y()).isPresent())
-                .mapToDouble(p -> {
-                    var maybeY = initialEllipse.findY(p.x());
-                    if (maybeY.isEmpty()) {
-                        var doublePair = initialEllipse.findX(p.y()).get();
-                        return Math.min(Math.abs(p.x() - doublePair.a()), Math.abs(p.x() - doublePair.b()));
-                    }
-                    var doublePair = maybeY.get();
-                    return Math.min(Math.abs(p.y() - doublePair.a()), Math.abs(p.y() - doublePair.b()));
-                })
+                .mapToDouble(p -> distanceToEllipse(p, initialEllipse))
                 .map(d -> (d - avgDistanceToEllipse) * (d - avgDistanceToEllipse))
                 .sum();
         stddev = (float) Math.sqrt(stddev / samples.size());
-        var threshold = 1.5 * (factor * stddev + avgDistanceToEllipse);
-        samples.removeIf(p -> {
-            var maybeY = initialEllipse.findY(p.x());
-            if (maybeY.isEmpty()) {
-                var maybeX = initialEllipse.findX(p.y());
-                if (maybeX.isEmpty()) {
-                    return true;
-                }
-                var doublePair = maybeX.get();
-                var dmin = Math.min(Math.abs(p.x() - doublePair.a()), Math.abs(p.x() - doublePair.b()));
-                return dmin > threshold;
-            }
-            var doublePair = maybeY.get();
-            var dmin = Math.min(Math.abs(p.y() - doublePair.a()), Math.abs(p.y() - doublePair.b()));
-            return dmin > threshold;
-        });
+        if (stddev < cutoff) {
+            return true;
+        }
+        var threshold = sigma * stddev + avgDistanceToEllipse;
+        samples.removeIf(p -> distanceToEllipse(p, initialEllipse) > threshold);
+        return true;
+    }
+
+    private static double distanceToEllipse(Point2D p, Ellipse initialEllipse) {
+        var maybeY = initialEllipse.findY(p.x());
+        if (maybeY.isEmpty()) {
+            var doublePair = initialEllipse.findX(p.y()).get();
+            return Math.min(Math.abs(p.x() - doublePair.a()), Math.abs(p.x() - doublePair.b()));
+        }
+        var doublePair = maybeY.get();
+        return Math.min(Math.abs(p.y() - doublePair.a()), Math.abs(p.y() - doublePair.b()));
     }
 
     private List<Point2D> findSamplesUsingDynamicSensitivity(float[][] magnitudes) {
