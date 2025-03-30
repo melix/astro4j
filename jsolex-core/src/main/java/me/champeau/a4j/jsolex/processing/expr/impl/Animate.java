@@ -15,7 +15,6 @@
  */
 package me.champeau.a4j.jsolex.processing.expr.impl;
 
-import me.champeau.a4j.jsolex.processing.event.ProgressEvent;
 import me.champeau.a4j.jsolex.processing.event.ProgressOperation;
 import me.champeau.a4j.jsolex.processing.expr.FileOutput;
 import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
@@ -36,7 +35,12 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.nio.file.Path;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Locale;
+import java.util.Map;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
@@ -215,9 +219,9 @@ public class Animate extends AbstractFunctionImpl {
                             .parallel()
                             .mapToObj(step -> {
                                 var data = new float[first.height()][first.width()];
+                                var coef = transitionType.coef(step, steps);
                                 for (int y = 0; y < first.height(); y++) {
                                     for (int x = 0; x < first.width(); x++) {
-                                        var coef = transitionType.coef(step, steps);
                                         data[y][x] = (float) (firstData[y][x] * (1 - coef) + secondData[y][x] * coef);
                                     }
                                 }
@@ -236,7 +240,7 @@ public class Animate extends AbstractFunctionImpl {
         EASE_IN_OUT;
 
         double coef(int step, int totalSteps) {
-            double t = (double) step / totalSteps;
+            double t = ((double) step) / totalSteps;
             switch (this) {
                 case LINEAR -> {
                     return t;
