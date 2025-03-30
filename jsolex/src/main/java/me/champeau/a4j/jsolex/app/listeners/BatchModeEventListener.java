@@ -356,6 +356,7 @@ public class BatchModeEventListener implements ProcessingEventListener, ImageMat
                     try {
                         Thread.sleep(25);
                     } catch (InterruptedException e) {
+                        Platform.runLater(() -> owner.updateProgress(1, String.format(message("executing.script"), scriptFile)));
                         Thread.currentThread().interrupt();
                     }
                 }
@@ -365,6 +366,7 @@ public class BatchModeEventListener implements ProcessingEventListener, ImageMat
         try {
             result = batchScriptExecutor.execute(scriptFile.toPath(), ImageMathScriptExecutor.SectionKind.BATCH);
         } catch (IOException e) {
+            progressThread.interrupt();
             throw new ProcessingException(e);
         }
         try {
