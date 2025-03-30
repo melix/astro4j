@@ -83,7 +83,6 @@ public interface ImageMathScriptExecutor {
     }
 
     enum SectionKind {
-        ALL,
         SINGLE,
         BATCH
     }

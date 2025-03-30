@@ -219,10 +219,13 @@ public class DefaultImageScriptExecutor implements ImageMathScriptExecutor {
                 .or(() -> sections.stream()
                         .filter(section -> section.name().isEmpty())
                         .findFirst())
-                .or(() -> sections.stream()
-                        .filter(section -> kind == SectionKind.BATCH && section.name().isPresent() && "batch".equals(section.name().get()))
-                        .findFirst())
-                .orElse(null);
+                .or(() -> {
+                    if (kind == SectionKind.BATCH && sections.size() == 1) {
+                        return Optional.of(sections.getFirst());
+                    }
+                    return Optional.empty();
+                })
+                .orElseThrow(() -> new ProcessingException(new SyntaxError("No [outputs] section found")));
         Map<String, ImageWrapper> imagesByLabel = new LinkedHashMap<>();
         Map<String, Path> filesByLabel = new LinkedHashMap<>();
         List<InvalidExpression> invalidExpressions = new ArrayList<>();
@@ -244,6 +247,7 @@ public class DefaultImageScriptExecutor implements ImageMathScriptExecutor {
             broadcaster.broadcast(progressOperation.complete());
         }
     }
+
 
     private int executeExpressions(int index, MemoizingExpressionEvaluator evaluator, List<Expression> expressions, boolean isOutputSection, int cpt, Map<String, ImageWrapper> imagesByLabel, Map<String, Path> filesByLabel, List<InvalidExpression> invalidExpressions) {
         for (var expression : expressions) {

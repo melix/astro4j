@@ -93,9 +93,6 @@ import me.champeau.a4j.jsolex.processing.expr.ImageMathScriptExecutor;
 
     public List<Section> findSections(ImageMathScriptExecutor.SectionKind kind) {
         var allSections = childrenOfType(Section.class);
-        if (kind == ImageMathScriptExecutor.SectionKind.ALL) {
-            return allSections;
-        }
         var standardSections = new ArrayList<Section>(allSections.size());
         var batchSections = new ArrayList<Section>(allSections.size());
         boolean isInBatch = false;
