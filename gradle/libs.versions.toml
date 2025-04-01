@@ -7,7 +7,7 @@ commons-math = "3.6.1"
 fits = "1.21.0"
 gson = "2.12.1"
 micronaut = "4.7.6"
-richtextfx = "0.11.4"
+richtextfx = "0.11.5"
 jcodec="0.2.5"
 ikonli="12.3.1"
 
