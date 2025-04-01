@@ -27,6 +27,7 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 
@@ -40,6 +41,21 @@ public final class FileBackedImage implements ImageWrapper {
     private static final Lock LOCK = new ReentrantLock();
     private static final byte MONO = 0;
     private static final byte RGB = 2;
+    private static final LinkedBlockingQueue<Runnable> WRITE_OPS = new LinkedBlockingQueue<>(2 * Runtime.getRuntime().availableProcessors());
+
+    static {
+        Thread.startVirtualThread(() -> {
+            while (!Thread.currentThread().isInterrupted()) {
+                try {
+                    var runnable = WRITE_OPS.take();
+                    runnable.run();
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    break;
+                }
+            }
+        });
+    }
 
     private final CountDownLatch latch = new CountDownLatch(1);
     private final Lock readLock = new ReentrantLock();
@@ -99,7 +115,7 @@ public final class FileBackedImage implements ImageWrapper {
             }
             if (wrapper instanceof RGBImage rgb) {
                 var fileBackedImage = new FileBackedImage(width, height, backingFile, rgb.metadata(), null, wrapper);
-                Thread.startVirtualThread(() -> {
+                WRITE_OPS.add(() -> {
                     var r = rgb.r();
                     var g = rgb.g();
                     var b = rgb.b();
