@@ -55,7 +55,25 @@ import me.champeau.a4j.jsolex.app.jfx.ReconstructionView;
 import me.champeau.a4j.jsolex.app.jfx.RectangleSelectionListener;
 import me.champeau.a4j.jsolex.app.jfx.ZoomableImageView;
 import me.champeau.a4j.jsolex.app.script.JSolExScriptExecutor;
-import me.champeau.a4j.jsolex.processing.event.*;
+import me.champeau.a4j.jsolex.processing.event.AverageImageComputedEvent;
+import me.champeau.a4j.jsolex.processing.event.FileGeneratedEvent;
+import me.champeau.a4j.jsolex.processing.event.GeneratedImage;
+import me.champeau.a4j.jsolex.processing.event.GenericMessage;
+import me.champeau.a4j.jsolex.processing.event.ImageGeneratedEvent;
+import me.champeau.a4j.jsolex.processing.event.Notification;
+import me.champeau.a4j.jsolex.processing.event.NotificationEvent;
+import me.champeau.a4j.jsolex.processing.event.OutputImageDimensionsDeterminedEvent;
+import me.champeau.a4j.jsolex.processing.event.PartialReconstructionEvent;
+import me.champeau.a4j.jsolex.processing.event.ProcessingDoneEvent;
+import me.champeau.a4j.jsolex.processing.event.ProcessingEvent;
+import me.champeau.a4j.jsolex.processing.event.ProcessingEventListener;
+import me.champeau.a4j.jsolex.processing.event.ProcessingStartEvent;
+import me.champeau.a4j.jsolex.processing.event.ProgressEvent;
+import me.champeau.a4j.jsolex.processing.event.ProgressOperation;
+import me.champeau.a4j.jsolex.processing.event.ReconstructionDoneEvent;
+import me.champeau.a4j.jsolex.processing.event.SuggestionEvent;
+import me.champeau.a4j.jsolex.processing.event.TrimmingParametersDeterminedEvent;
+import me.champeau.a4j.jsolex.processing.event.VideoMetadataEvent;
 import me.champeau.a4j.jsolex.processing.expr.DefaultImageScriptExecutor;
 import me.champeau.a4j.jsolex.processing.expr.ImageMathScriptExecutor;
 import me.champeau.a4j.jsolex.processing.expr.ImageMathScriptResult;
@@ -98,7 +116,6 @@ import org.slf4j.LoggerFactory;
 import javax.imageio.ImageIO;
 import java.io.File;
 import java.io.IOException;
-import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -121,6 +138,7 @@ import java.util.stream.Stream;
 import static me.champeau.a4j.jsolex.app.JSolEx.message;
 import static me.champeau.a4j.jsolex.app.jfx.BatchOperations.blockingUntilResultAvailable;
 import static me.champeau.a4j.jsolex.processing.sun.CaptureSoftwareMetadataHelper.computeSerFileBasename;
+import static me.champeau.a4j.jsolex.processing.util.FilesUtils.createDirectoriesIfNeeded;
 
 public class SingleModeProcessingEventListener implements ProcessingEventListener, ImageMathScriptExecutor, Broadcaster {
     private static final Logger LOGGER = LoggerFactory.getLogger(SingleModeProcessingEventListener.class);
@@ -507,7 +525,7 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
                 private void performCropping(ImageWrapper stretchedImage, int x, int y, int width, int height) {
                     BackgroundOperations.async(() -> {
                         var crop = new Crop(Map.of(), SingleModeProcessingEventListener.this);
-                        var cropped = crop.crop(List.of(stretchedImage, x, y, width, height));
+                        var cropped = crop.crop(Map.of("img", stretchedImage, "x", x, "y", y, "width", width, "height", height));
                         if (cropped instanceof ImageWrapper croppedImage) {
                             var id = cropCount.getAndIncrement();
                             var imageName = "cropped-" + id;
@@ -692,7 +710,7 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
         LOGGER.info(message("processing.done"));
         var finishedString = String.format(message("finished.in"), seconds);
         LOGGER.info(finishedString);
-        owner.prepareForScriptExecution(this, params, rootOperation);
+        owner.prepareForScriptExecution(this, params, rootOperation, SectionKind.SINGLE);
         suggestions.clear();
         System.gc();
         broadcast(rootOperation.update(1, finishedString));
@@ -1010,7 +1028,7 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
                 var namingStrategy = createNamingStrategy();
                 var outputFile = outputDirectory.resolve(namingStrategy.render(0, null, Constants.TYPE_DEBUG, name, baseName) + ".png");
                 var bufferedImage = SwingFXUtils.fromFXImage(writable, null);
-                Files.createDirectories(outputFile.getParent());
+                createDirectoriesIfNeeded(outputFile.getParent());
                 ImageIO.write(bufferedImage, "png", outputFile.toFile());
                 LOGGER.info(message("chart.saved"), outputFile);
                 var alert = AlertFactory.info();

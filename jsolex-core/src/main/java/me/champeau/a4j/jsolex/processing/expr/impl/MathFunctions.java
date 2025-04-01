@@ -15,9 +15,9 @@
  */
 package me.champeau.a4j.jsolex.processing.expr.impl;
 
+import me.champeau.a4j.jsolex.expr.BuiltinFunction;
 import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
 
-import java.util.List;
 import java.util.Map;
 
 public class MathFunctions extends AbstractFunctionImpl {
@@ -25,16 +25,19 @@ public class MathFunctions extends AbstractFunctionImpl {
         super(context, broadcaster);
     }
     
-    public Object pow(List<Object> arguments) {
-        return applyBinary(arguments, "pow", "exponent", Math::pow);
+    public Object pow(Map<String ,Object> arguments) {
+        BuiltinFunction.POW.validateArgs(arguments);
+        return applyBinary(arguments, "v", "exp", "pow", Math::pow);
     }
 
-    public Object log(List<Object> arguments) {
-        return applyBinary(arguments, "log", "base", (a, b) -> Math.log(a) / Math.log(b));
+    public Object log(Map<String ,Object> arguments) {
+        BuiltinFunction.LOG.validateArgs(arguments);
+        return applyBinary(arguments, "v", "exp", "log", (a, b) -> Math.log(a) / Math.log(b));
     }
 
-    public Object exp(List<Object> arguments) {
-        return applyUnary(arguments, "exp", Math::exp);
+    public Object exp(Map<String ,Object> arguments) {
+        BuiltinFunction.EXP.validateArgs(arguments);
+        return applyUnary(arguments, "v", "exp", Math::exp);
     }
 
 }

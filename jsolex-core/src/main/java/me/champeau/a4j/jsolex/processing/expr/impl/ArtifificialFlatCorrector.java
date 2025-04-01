@@ -15,6 +15,7 @@
  */
 package me.champeau.a4j.jsolex.processing.expr.impl;
 
+import me.champeau.a4j.jsolex.expr.BuiltinFunction;
 import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
 import me.champeau.a4j.jsolex.processing.sun.FlatCorrection;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
@@ -28,18 +29,19 @@ public class ArtifificialFlatCorrector extends AbstractFunctionImpl {
         super(context, broadcaster);
     }
 
-    public Object performFlatCorrection(List<Object> arguments) {
+    public Object performFlatCorrection(Map<String ,Object> arguments) {
+        BuiltinFunction.FLAT_CORRECTION.validateArgs(arguments);
         if (arguments.isEmpty() || arguments.size() > 4) {
             throw new IllegalArgumentException("flat_correction takes 1 to 4 arguments (image(s), [percentileLo], [percentileHi], [order])");
         }
-        if (arguments.getFirst() instanceof List) {
-            return expandToImageList("flat_correction", arguments, this::performFlatCorrection);
+        if (arguments.get("img") instanceof List) {
+            return expandToImageList("flat_correction", "img", arguments, this::performFlatCorrection);
         }
-        if (arguments.getFirst() instanceof ImageWrapper wrapper) {
+        if (arguments.get("img") instanceof ImageWrapper wrapper) {
             if (wrapper.unwrapToMemory() instanceof ImageWrapper32 mono) {
-                double loPercentile = arguments.size()>= 2 ? doubleArg(arguments, 1) : FlatCorrection.DEFAULT_LO_PERCENTILE;
-                double hiPercentile = arguments.size() >= 3 ? doubleArg(arguments, 2) : FlatCorrection.DEFAULT_HI_PERCENTILE;
-                int order = arguments.size() >= 4 ? intArg(arguments, 3) : FlatCorrection.DEFAULT_ORDER;
+                double loPercentile = doubleArg(arguments, "lo", FlatCorrection.DEFAULT_LO_PERCENTILE);
+                double hiPercentile = doubleArg(arguments, "hi", FlatCorrection.DEFAULT_HI_PERCENTILE);
+                int order = intArg(arguments, "order", FlatCorrection.DEFAULT_ORDER);
                 var corrector = new FlatCorrection(loPercentile, hiPercentile, order);
                 return corrector.correctImage(mono);
             }

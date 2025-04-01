@@ -27,6 +27,7 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.Executors;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
@@ -44,15 +45,20 @@ public final class FileBackedImage implements ImageWrapper {
     private static final LinkedBlockingQueue<Runnable> WRITE_OPS = new LinkedBlockingQueue<>(2 * Runtime.getRuntime().availableProcessors());
 
     static {
+        var executor = Executors.newCachedThreadPool();
         Thread.startVirtualThread(() -> {
-            while (!Thread.currentThread().isInterrupted()) {
-                try {
-                    var runnable = WRITE_OPS.take();
-                    runnable.run();
-                } catch (InterruptedException e) {
-                    Thread.currentThread().interrupt();
-                    break;
+            try {
+                while (!Thread.currentThread().isInterrupted()) {
+                    try {
+                        var runnable = WRITE_OPS.take();
+                        executor.submit(runnable);
+                    } catch (InterruptedException e) {
+                        Thread.currentThread().interrupt();
+                        break;
+                    }
                 }
+            } finally {
+                executor.shutdownNow();
             }
         });
     }

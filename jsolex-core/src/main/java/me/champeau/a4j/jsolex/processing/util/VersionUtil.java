@@ -21,6 +21,8 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Properties;
 
+import static me.champeau.a4j.jsolex.processing.util.FilesUtils.createDirectoriesIfNeeded;
+
 public class VersionUtil {
     private static Path TEMPORARY_HOME;
 
@@ -46,13 +48,13 @@ public class VersionUtil {
             if (Files.exists(origFile)) {
                 // copy the original directory to the new one
                 try {
-                    Files.createDirectories(path);
+                    createDirectoriesIfNeeded(path);
                     try (var walker = Files.walk(origFile)) {
                         walker.forEach(source -> {
                             try {
                                 var target = path.resolve(origFile.relativize(source));
                                 if (Files.isRegularFile(source)) {
-                                    Files.createDirectories(target.getParent());
+                                    createDirectoriesIfNeeded(target.getParent());
                                     Files.copy(source, target);
                                 }
                             } catch (IOException e) {

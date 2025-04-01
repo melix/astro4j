@@ -28,6 +28,8 @@ import java.util.List;
 import java.util.Locale;
 import java.util.stream.Stream;
 
+import static me.champeau.a4j.jsolex.processing.util.FilesUtils.createDirectoriesIfNeeded;
+
 public abstract class SetupsIO {
     private static final Setup SUNSCAN = new Setup("Sunscan by Staros", "Sunscan", 200, 25, "IMX477", 3.1, null, null, false, false, true);
 
@@ -38,7 +40,7 @@ public abstract class SetupsIO {
     private static Path resolveDefaultsFile() {
         var jsolexDir = VersionUtil.getJsolexDir();
         try {
-            Files.createDirectories(jsolexDir);
+            createDirectoriesIfNeeded(jsolexDir);
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
@@ -78,7 +80,7 @@ public abstract class SetupsIO {
 
     public static void saveTo(List<Setup> patterns, File destination) {
         try {
-            Files.createDirectories(destination.getParentFile().toPath());
+            createDirectoriesIfNeeded(destination.getParentFile().toPath());
             try (var writer = FilesUtils.newTextWriter(destination.toPath())) {
                 var gson = newGson();
                 writer.write(gson.toJson(patterns));

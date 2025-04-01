@@ -16,6 +16,7 @@
 package me.champeau.a4j.jsolex.processing.sun.tasks;
 
 import me.champeau.a4j.jsolex.processing.util.Histogram;
+import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 import me.champeau.a4j.math.regression.Ellipse;
 
 /**
@@ -27,6 +28,15 @@ import me.champeau.a4j.math.regression.Ellipse;
  * @param max the maximum value
  */
 public record ImageAnalysis(float avg, float stddev, float min, float max, Histogram histogram) {
+
+    public static ImageAnalysis of(ImageWrapper32 image, boolean useEllipse) {
+        var ellipse = useEllipse ? image.findMetadata(Ellipse.class).orElse(null) : null;
+        if (ellipse != null) {
+            return masked(image.data(), image.width(), image.height(), ellipse);
+        } else {
+            return of(image.data());
+        }
+    }
 
     public static ImageAnalysis of(float[][] array) {
         float min = Float.MAX_VALUE;

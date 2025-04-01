@@ -15,6 +15,7 @@
  */
 package me.champeau.a4j.jsolex.processing.expr.impl;
 
+import me.champeau.a4j.jsolex.expr.BuiltinFunction;
 import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
 import me.champeau.a4j.jsolex.processing.sun.workflow.AnalysisUtils;
 import me.champeau.a4j.jsolex.processing.util.FileBackedImage;
@@ -31,30 +32,22 @@ public class BackgroundRemoval extends AbstractFunctionImpl {
         super(context, broadcaster);
     }
 
-    public Object removeBackground(List<Object> arguments) {
-        assertExpectedArgCount(arguments, "remove_bg takes 1, 2 or 3 arguments (image(s), [tolerance], [fitting])", 1, 2);
-        var arg = arguments.get(0);
+    public Object removeBackground(Map<String ,Object> arguments) {
+        BuiltinFunction.REMOVE_BG.validateArgs(arguments);
+        var arg = arguments.get("img");
         if (arg instanceof List<?>) {
-            return expandToImageList("remove_bg", arguments, this::removeBackground);
+            return expandToImageList("remove_bg", "img", arguments, this::removeBackground);
         }
-        Optional<Ellipse> ellipse = getEllipse(arguments, 2);
+        Optional<Ellipse> ellipse = getEllipse(arguments, "ellipse");
         if (ellipse.isEmpty()) {
             throw new IllegalArgumentException("Cannot perform background removal because ellipse isn't found");
         }
-        double tolerance;
-        if (arguments.size() == 2) {
-            tolerance = doubleArg(arguments, 1);
-            if (tolerance < 0) {
-                throw new IllegalArgumentException("Tolerance should be greater than 0");
-            }
-        } else {
-            tolerance = .9;
-        }
+        double tolerance = doubleArg(arguments, "tolerance", .9);
         if (arg instanceof FileBackedImage fileBackedImage) {
             arg = fileBackedImage.unwrapToMemory();
         }
         if (arg instanceof ImageWrapper32 ref) {
-            return monoToMonoImageTransformer("remove_bg", 2, arguments, src -> {
+            return monoToMonoImageTransformer("remove_bg", "img", arguments, src -> {
                 if (src instanceof ImageWrapper32 image) {
                     var e = ellipse.get();
                     var background = AnalysisUtils.estimateBackground(ref, e);
@@ -70,19 +63,19 @@ public class BackgroundRemoval extends AbstractFunctionImpl {
         throw new IllegalArgumentException("remove_bg only supports mono images");
     }
 
-    public Object neutralizeBackground(List<Object> arguments) {
-        assertExpectedArgCount(arguments, "neutralize_bg takes 1 or 2 arguments (image(s), iterations)", 1, 2);
-        var arg = arguments.get(0);
+    public Object neutralizeBackground(Map<String ,Object> arguments) {
+        BuiltinFunction.NEUTRALIZE_BG.validateArgs(arguments);
+        var arg = arguments.get("img");
         if (arg instanceof List<?>) {
-            return expandToImageList("neutralize_bg", arguments, this::neutralizeBackground);
+            return expandToImageList("neutralize_bg", "img", arguments, this::neutralizeBackground);
         }
-        var iterations = arguments.size() == 2 ? intArg(arguments, 1) : 1;
+        var iterations = intArg(arguments, "iterations", 1);
         if (arg instanceof ImageWrapper target) {
             Optional<Ellipse> ellipse = target.findMetadata(Ellipse.class);
             if (ellipse.isEmpty()) {
                 throw new IllegalArgumentException("Cannot perform background neutralization because ellipse isn't found");
             }
-            return monoToMonoImageTransformer("neutralize_bg", 2, arguments, src -> {
+            return monoToMonoImageTransformer("neutralize_bg", "img", arguments, src -> {
                 if (src instanceof ImageWrapper32 image) {
                     var model = me.champeau.a4j.jsolex.processing.sun.BackgroundRemoval.neutralizeBackground(image, iterations).data();
                     for (int y = 0; y < image.height(); y++) {
@@ -97,20 +90,20 @@ public class BackgroundRemoval extends AbstractFunctionImpl {
         throw new IllegalArgumentException("neutralize_bg only supports mono images");
     }
 
-    public Object backgroundModel(List<Object> arguments) {
-        assertExpectedArgCount(arguments, "backgroundModel takes 1 to 3 arguments (image(s), order, sigma)", 1, 3);
-        var arg = arguments.get(0);
+    public Object backgroundModel(Map<String ,Object> arguments) {
+        BuiltinFunction.BG_MODEL.validateArgs(arguments);
+        var arg = arguments.get("img");
         if (arg instanceof List<?>) {
-            return expandToImageList("backgroundModel", arguments, this::backgroundModel);
+            return expandToImageList("backgroundModel", "img", arguments, this::backgroundModel);
         }
         if (arg instanceof ImageWrapper target) {
             Optional<Ellipse> ellipse = target.findMetadata(Ellipse.class);
             if (ellipse.isEmpty()) {
                 throw new IllegalArgumentException("Cannot perform background neutralization because ellipse isn't found");
             }
-            int order = arguments.size() >= 2 ? intArg(arguments, 1) : 2;
-            double sigma = arguments.size() >= 3 ? doubleArg(arguments, 2) : 2.5;
-            return monoToMonoImageTransformer("backgroundModel", 3, arguments, src -> {
+            int order = intArg(arguments, "order", 2);
+            double sigma = doubleArg(arguments, "sigma", 2.5);
+            return monoToMonoImageTransformer("backgroundModel", "img", arguments, src -> {
                 if (src instanceof ImageWrapper32 image) {
                     var model = me.champeau.a4j.jsolex.processing.sun.BackgroundRemoval.backgroundModel(image, order, sigma).data();
                     for (int y = 0; y < image.height(); y++) {

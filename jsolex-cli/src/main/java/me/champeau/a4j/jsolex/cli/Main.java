@@ -47,6 +47,8 @@ import java.time.ZonedDateTime;
 import java.util.ArrayList;
 import java.util.Set;
 
+import static me.champeau.a4j.jsolex.processing.util.FilesUtils.createDirectoriesIfNeeded;
+
 
 @Command(name = "jsolex", description = "Sol'Ex spectroheliograph video processing",
         mixinStandardHelpOptions = true)
@@ -120,7 +122,7 @@ public class Main implements Runnable {
             }
         }
         try (var ioExecutor = ForkJoinParallelExecutor.newExecutor(1)) {
-            Files.createDirectories(outputDir.toPath());
+            createDirectoriesIfNeeded(outputDir.toPath());
             var processor = new SolexVideoProcessor(
                     inputFile,
                     outputDir.toPath(),

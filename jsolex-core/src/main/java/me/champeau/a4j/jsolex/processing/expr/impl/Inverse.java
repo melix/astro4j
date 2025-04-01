@@ -15,10 +15,10 @@
  */
 package me.champeau.a4j.jsolex.processing.expr.impl;
 
+import me.champeau.a4j.jsolex.expr.BuiltinFunction;
 import me.champeau.a4j.jsolex.processing.stretching.NegativeImageStrategy;
 import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
 
-import java.util.List;
 import java.util.Map;
 
 public class Inverse extends AbstractFunctionImpl {
@@ -27,7 +27,8 @@ public class Inverse extends AbstractFunctionImpl {
         super(context, broadcaster);
     }
 
-    public Object invert(List<Object> arguments) {
-        return monoToMonoImageTransformer("invert", 1, arguments, NegativeImageStrategy.DEFAULT::stretch);
+    public Object invert(Map<String ,Object> arguments) {
+        BuiltinFunction.INVERT.validateArgs(arguments);
+        return monoToMonoImageTransformer("invert", "img", arguments, NegativeImageStrategy.DEFAULT::stretch);
     }
 }

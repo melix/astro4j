@@ -10,6 +10,10 @@
     -fx-fill: green;
     -fx-font-weight: bold;
 }
+.named_arg {
+    -fx-fill: #6ab321;
+    -fx-font-weight: bold;
+}
 .sectionheader {
     -fx-fill: blue;
     -fx-font-weight: bold;

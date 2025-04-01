@@ -25,12 +25,11 @@ import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 import me.champeau.a4j.jsolex.processing.util.MutableMap;
 import me.champeau.a4j.jsolex.processing.util.RGBImage;
 
-import java.awt.Color;
-import java.awt.GradientPaint;
+import java.awt.*;
 import java.util.Arrays;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 
 import static me.champeau.a4j.jsolex.processing.util.Constants.MAX_PIXEL_VALUE;
 
@@ -158,7 +157,7 @@ public class DistorsionDebugImageCreator {
                 }
             }
             double finalMaxAmplitude = maxAmplitude;
-            RGBImage image = (RGBImage) scaling.relativeRescale(List.of(imageDraw.drawOnImage(new RGBImage(heatmap[0][0].length, heatmap[0].length, heatmap[0], heatmap[1], heatmap[2], MutableMap.of()), (g, img) -> {
+            RGBImage image = (RGBImage) scaling.relativeRescale(Map.of("img", imageDraw.drawOnImage(new RGBImage(heatmap[0][0].length, heatmap[0].length, heatmap[0], heatmap[1], heatmap[2], MutableMap.of()), (g, img) -> {
                 g.setColor(Color.BLACK);
                 g.setFont(g.getFont().deriveFont(16f * (height / 384f)));
                 g.drawString("Displacement X", 2 * separator + width + width / 6, height + 1.5f * separator);
@@ -198,7 +197,7 @@ public class DistorsionDebugImageCreator {
                     g.drawString(String.format(Locale.US, "%.2fpx", pixels), (int) (2 * width + 2.5 * separator) + 15, y);
                 }
 
-            }), scale, scale));
+            }), "sx", scale, "sy", scale));
 
             return new float[][][]{image.r(), image.g(), image.b()};
         });

@@ -38,6 +38,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 
 import static me.champeau.a4j.jsolex.processing.util.Constants.message;
+import static me.champeau.a4j.jsolex.processing.util.FilesUtils.createDirectoriesIfNeeded;
 
 public class StackingParamsIO {
     private static final Logger LOGGER = LoggerFactory.getLogger(StackingParamsIO.class);
@@ -49,7 +50,7 @@ public class StackingParamsIO {
     private static Path resolveDefaultsFile() {
         var jsolexDir = VersionUtil.getJsolexDir();
         try {
-            Files.createDirectories(jsolexDir);
+            createDirectoriesIfNeeded(jsolexDir);
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
@@ -107,7 +108,7 @@ public class StackingParamsIO {
 
     public static void saveTo(StackingWorkflow.Parameters params, File destination) {
         try {
-            Files.createDirectories(destination.getParentFile().toPath());
+            createDirectoriesIfNeeded(destination.getParentFile().toPath());
             try (var writer = FilesUtils.newTextWriter(destination.toPath())) {
                 var gson = newGson();
                 writer.write(gson.toJson(params));

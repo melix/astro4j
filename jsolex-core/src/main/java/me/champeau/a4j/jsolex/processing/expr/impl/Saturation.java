@@ -15,6 +15,7 @@
  */
 package me.champeau.a4j.jsolex.processing.expr.impl;
 
+import me.champeau.a4j.jsolex.expr.BuiltinFunction;
 import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
 import me.champeau.a4j.jsolex.processing.sun.ImageUtils;
 import me.champeau.a4j.jsolex.processing.util.FileBackedImage;
@@ -29,15 +30,13 @@ public class Saturation extends AbstractFunctionImpl {
         super(context, broadcaster);
     }
 
-    public Object saturate(List<Object> arguments) {
-        if (arguments.size() != 2) {
-            throw new IllegalArgumentException("saturate takes 2 argument (image(s), saturation)");
-        }
-        var arg = arguments.get(0);
+    public Object saturate(Map<String ,Object> arguments) {
+        BuiltinFunction.SATURATE.validateArgs(arguments);
+        var arg = arguments.get("img");
         if (arg instanceof List) {
-            return expandToImageList("saturate", arguments, this::saturate);
+            return expandToImageList("saturate", "img", arguments, this::saturate);
         }
-        var saturation = doubleArg(arguments, 1);
+        var saturation = doubleArg(arguments, "saturation", 1);
         var exponent = Math.pow(2, -saturation);
         if (arg instanceof FileBackedImage fileBackedImage) {
             arg = fileBackedImage.unwrapToMemory();

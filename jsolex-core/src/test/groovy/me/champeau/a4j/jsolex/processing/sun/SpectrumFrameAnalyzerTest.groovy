@@ -101,7 +101,7 @@ class SpectrumFrameAnalyzerTest extends Specification {
         }
         var map = candidates
                 .stream()
-                .collect(Collectors.toMap(d -> d, details -> SpectrumAnalyzer.computeDataPoints(details, polynomial, leftBorder, rightBorder, width, height, data)));
+                .collect(Collectors.toMap(d -> d, details -> SpectrumAnalyzer.computeDataPoints(details, polynomial, leftBorder, rightBorder, width, height, data), (e1, e2) -> e1, LinkedHashMap::new));
 
         when:
         var bestMatch = SpectrumAnalyzer.findBestMatch(map)

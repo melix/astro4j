@@ -68,6 +68,7 @@ import java.util.function.Consumer;
 import java.util.stream.Stream;
 
 import static me.champeau.a4j.jsolex.processing.sun.CaptureSoftwareMetadataHelper.findMetadataFile;
+import static me.champeau.a4j.jsolex.processing.util.FilesUtils.createDirectoriesIfNeeded;
 
 public class ImageInspectorController {
     private static final Logger LOGGER = LoggerFactory.getLogger(ImageInspectorController.class);
@@ -245,7 +246,7 @@ public class ImageInspectorController {
             findMainImage(generatedImages).ifPresent(c -> {
                 var path = findImageFile(c);
                 if (path != null) {
-                    var loaded = (ImageWrapper) loader.load(List.of(path.toAbsolutePath().toString()));
+                    var loaded = (ImageWrapper) loader.load(Map.of("file", path.toAbsolutePath().toString()));
                     if (loaded instanceof RGBImage rgb) {
                         loaded = rgb.toMono();
                     }
@@ -470,7 +471,7 @@ public class ImageInspectorController {
                             try {
                                 var relativePath = outputDirectory.toPath().relativize(file.toPath());
                                 var destination = discardedDir.resolve(relativePath);
-                                Files.createDirectories(destination.getParent());
+                                createDirectoriesIfNeeded(destination.getParent());
                                 Files.move(file.toPath(), destination);
                                 deleteParentDirectories(file);
                                 movedFiles.put(file, destination.toFile());
@@ -495,7 +496,7 @@ public class ImageInspectorController {
                         } else if (options.serAction == DiscardAction.MOVE) {
                             try {
                                 var destination = discardedDir.resolve(metadataFile.getName());
-                                Files.createDirectories(destination.getParent());
+                                createDirectoriesIfNeeded(destination.getParent());
                                 Files.move(metadataFile.toPath(), destination);
                                 movedFiles.put(metadataFile, destination.toFile());
                             } catch (IOException e) {
@@ -508,7 +509,7 @@ public class ImageInspectorController {
                         deletedFiles.add(serFile);
                     } else if (options.serAction == DiscardAction.MOVE) {
                         var destination = discardedDir.resolve(serFile.getName());
-                        Files.createDirectories(destination.getParent());
+                        createDirectoriesIfNeeded(destination.getParent());
                         Files.move(serFile.toPath(), destination);
                         movedFiles.put(serFile, destination.toFile());
                     }

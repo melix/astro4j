@@ -35,6 +35,7 @@ import me.champeau.a4j.jsolex.processing.util.RGBImage;
 import me.champeau.a4j.math.regression.Ellipse;
 
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -64,7 +65,7 @@ public class HeliumLineProcessor {
         this.processParams = processParams;
         this.progressOperation = progressOperation;
         this.pixelShiftRange = pixelShiftRange;
-        this.imageByPixelShift = imageList.stream().collect(Collectors.toMap(WorkflowState::pixelShift, s -> s));
+        this.imageByPixelShift = imageList.stream().collect(Collectors.toMap(WorkflowState::pixelShift, s -> s, (e1, e2) -> e1, LinkedHashMap::new));
         this.heliumLineShift = heliumLineShift;
         this.imageEmitter = imageEmitter;
         this.broadcaster = broadcaster;
@@ -87,12 +88,12 @@ public class HeliumLineProcessor {
             .label();
         if (source.unwrapToMemory() instanceof ImageWrapper32 direct) {
             imageEmitter.newMonoImage(GeneratedImageKind.GEOMETRY_CORRECTED_PROCESSED, "helium", message("helium.d3.direct"), "helium-direct", message("helium.direct.description"), direct);
-            if (evaluator.functionCall(BuiltinFunction.COLORIZE, List.of(direct, colorProfile)) instanceof RGBImage colorized) {
+            if (evaluator.functionCall(BuiltinFunction.COLORIZE, Map.of("img", direct, "color", colorProfile)) instanceof RGBImage colorized) {
                 imageEmitter.newColorImage(GeneratedImageKind.COLORIZED, "helium",
                     message("helium.d3.direct.colorized"), "helium-direct-colorized", message("helium.direct.description"), colorized.width(), colorized.height(), new HashMap<>(colorized.metadata()), () -> new float[][][] { colorized.r(), colorized.g(), colorized.b() });
             }
         }
-        var continuum = evaluator.functionCall(BuiltinFunction.ELLIPSE_FIT, List.of(evaluator.createContinuumImage()));
+        var continuum = evaluator.functionCall(BuiltinFunction.ELLIPSE_FIT, Map.of("img", evaluator.createContinuumImage()));
         var raw = evaluator.minus(source, continuum);
         if (raw instanceof ImageWrapper32 image) {
             LinearStrechingStrategy.DEFAULT.stretch(image);
@@ -103,16 +104,16 @@ public class HeliumLineProcessor {
             LinearStrechingStrategy.DEFAULT.stretch(image);
             var bgModel = backgroundModel(image, 2, 2.5);
             bgModel = (ImageWrapper32) evaluator.mul(0.8, bgModel);
-            bgModel = (ImageWrapper32) evaluator.functionCall(BuiltinFunction.DISK_FILL, List.of(bgModel));
+            bgModel = (ImageWrapper32) evaluator.functionCall(BuiltinFunction.DISK_FILL, Map.of("img", bgModel));
             image = (ImageWrapper32) evaluator.minus(image, bgModel);
             new AutohistogramStrategy(1).stretch(image);
-            var protus = (ImageWrapper32) evaluator.functionCall(BuiltinFunction.DISK_FILL, List.of(image));
+            var protus = (ImageWrapper32) evaluator.functionCall(BuiltinFunction.DISK_FILL, Map.of("img", image));
             new ArcsinhStretchingStrategy(0, 10, 10).stretch(protus);
             if (ellipse != null) {
                 image = Utilities.blend(image, protus, ellipse, 0.975, 1.025);
             }
             imageEmitter.newMonoImage(GeneratedImageKind.GEOMETRY_CORRECTED_PROCESSED, "helium", message("helium.d3.processed"), "helium-extracted", message("helium.extracted.description"), image);
-            if (evaluator.functionCall(BuiltinFunction.COLORIZE, List.of(image, colorProfile)) instanceof RGBImage colorized) {
+            if (evaluator.functionCall(BuiltinFunction.COLORIZE, Map.of("img", image, "color", colorProfile)) instanceof RGBImage colorized) {
                 imageEmitter.newColorImage(GeneratedImageKind.COLORIZED, "helium",
                     message("helium.d3.processed.colorized"), "helium-extracted-colorized", message("helium.extracted.description"), image.width(), image.height(), new HashMap<>(image.metadata()), () -> new float[][][] { colorized.r(), colorized.g(), colorized.b() });
             }

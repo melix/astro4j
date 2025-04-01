@@ -30,6 +30,8 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 
+import static me.champeau.a4j.jsolex.processing.util.FilesUtils.createDirectoriesIfNeeded;
+
 public abstract class SpectralRayIO {
     private static final Logger LOGGER = LoggerFactory.getLogger(SpectralRayIO.class);
     private static final String SCHEMA_KEY = "spectral-ray";
@@ -42,7 +44,7 @@ public abstract class SpectralRayIO {
     private static Path resolveDefaultsFile() {
         var jsolexDir = VersionUtil.getJsolexDir();
         try {
-            Files.createDirectories(jsolexDir);
+            createDirectoriesIfNeeded(jsolexDir);
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
@@ -114,7 +116,7 @@ public abstract class SpectralRayIO {
 
     public static void saveTo(List<SpectralRay> rays, File destination) {
         try {
-            Files.createDirectories(destination.getParentFile().toPath());
+            createDirectoriesIfNeeded(destination.getParentFile().toPath());
             try (var writer = FilesUtils.newTextWriter(destination.toPath())) {
                 var gson = newGson();
                 writer.write(gson.toJson(rays));

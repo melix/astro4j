@@ -15,24 +15,26 @@
  */
 package me.champeau.a4j.jsolex.processing.expr.impl;
 
+import me.champeau.a4j.jsolex.expr.BuiltinFunction;
 import me.champeau.a4j.jsolex.processing.util.FileBackedImage;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 import me.champeau.a4j.jsolex.processing.util.RGBImage;
 
-import java.util.List;
+import java.util.Map;
 
 public class RGBCombination {
     private RGBCombination() {
 
     }
 
-    public static Object combine(List<Object> arguments) {
+    public static Object combine(Map<String ,Object> arguments) {
+        BuiltinFunction.RGB.validateArgs(arguments);
         if (arguments.size() != 3) {
             throw new IllegalArgumentException("rgb takes 3 arguments (red image, green image, blue image)");
         }
-        var ra = arguments.get(0);
-        var ga = arguments.get(1);
-        var ba = arguments.get(2);
+        var ra = arguments.get("r");
+        var ga = arguments.get("g");
+        var ba = arguments.get("b");
         if (ra instanceof FileBackedImage fileBackedImage) {
             ra = fileBackedImage.unwrapToMemory();
         }

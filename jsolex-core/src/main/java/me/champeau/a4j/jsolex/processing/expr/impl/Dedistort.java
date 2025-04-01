@@ -15,7 +15,7 @@
  */
 package me.champeau.a4j.jsolex.processing.expr.impl;
 
-import me.champeau.a4j.jsolex.processing.event.ProgressEvent;
+import me.champeau.a4j.jsolex.expr.BuiltinFunction;
 import me.champeau.a4j.jsolex.processing.expr.stacking.DistorsionMap;
 import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
@@ -27,7 +27,7 @@ import org.apache.commons.math3.transform.DftNormalization;
 import org.apache.commons.math3.transform.FastFourierTransformer;
 import org.apache.commons.math3.transform.TransformType;
 
-import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -283,38 +283,33 @@ public class Dedistort extends AbstractFunctionImpl {
         return (float) linearInterpolation(i0, i1, yy - y0); // interpolate between the results on the y-axis
     }
 
-    public Object dedistort(List<Object> arguments) {
-        assertExpectedArgCount(arguments, "dedistort takes 2 to 5 arguments (reference, image(s), [tile size], [sampling], [threshold])", 2, 5);
-        var arg = arguments.get(0);
+    public Object dedistort(Map<String ,Object> arguments) {
+        BuiltinFunction.DEDISTORT.validateArgs(arguments);
+        var arg = arguments.get("ref");
         if (arg instanceof ImageWrapper wrapper) {
             var reference = wrapper.unwrapToMemory();
             if (!(reference instanceof ImageWrapper32 mono)) {
                 throw new IllegalArgumentException("dedistort only supports mono images");
             }
-            var target = arguments.get(1);
+            var target = arguments.get("img");
             if (target instanceof List<?> listOfImages) {
                 return listOfImages.stream()
                     .parallel()
                     .map(img -> {
-                        var newArgs = new ArrayList<Object>();
-                        newArgs.add(arg);
-                        newArgs.add(img);
-                        for (int i = 2; i < arguments.size(); i++) {
-                            newArgs.add(arguments.get(i));
-                        }
+                        var newArgs = new HashMap<>(arguments);
+                        newArgs.put("img", img);
                         return dedistort(newArgs);
                     })
                     .toList();
             } else if (target instanceof ImageWrapper w && w.unwrapToMemory() instanceof ImageWrapper32 image) {
-                var tileSize = arguments.size() >= 3 ? intArg(arguments, 2) : Stacking.DEFAULT_TILE_SIZE;
-                var sampling = arguments.size() >= 4 ? doubleArg(arguments, 3) : Stacking.DEFAULT_SAMPLING;
-                var threshold = arguments.size() >= 5 ? doubleArg(arguments, 4) : null;
-                return dedistort(mono, image, tileSize, sampling, threshold);
+                var tileSize = intArg(arguments, "ts", Stacking.DEFAULT_TILE_SIZE);
+                var sampling = doubleArg(arguments, "sampling", Stacking.DEFAULT_SAMPLING);
+                var threshold = doubleArg(arguments, "threshold", -1);
+                return dedistort(mono, image, tileSize, sampling, threshold == -1 ? null : threshold);
             }
             throw new IllegalArgumentException("dedistort 2d argument must be a mono image");
         } else if (arg instanceof List<?> imageList) {
-            assertExpectedArgCount(arguments, "dedistort takes 2 arguments (images, dedistorted)", 2, 2);
-            var reference = arguments.get(1);
+            var reference = arguments.get("ref");
             if (reference instanceof List<?> referenceList) {
                 var images = asMonoImages(imageList);
                 var references = asMonoImages(referenceList);

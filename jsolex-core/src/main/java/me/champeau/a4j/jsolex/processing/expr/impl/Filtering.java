@@ -15,6 +15,7 @@
  */
 package me.champeau.a4j.jsolex.processing.expr.impl;
 
+import me.champeau.a4j.jsolex.expr.BuiltinFunction;
 import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
 import me.champeau.a4j.jsolex.processing.sun.workflow.PixelShift;
 import me.champeau.a4j.jsolex.processing.sun.workflow.SourceInfo;
@@ -32,16 +33,16 @@ public class Filtering extends AbstractFunctionImpl {
         super(context, broadcaster);
     }
 
-    public Object filter(List<Object> arguments) {
-        assertExpectedArgCount(arguments, "filter takes 4 arguments (images, subject, function, value)", 4, 4);
-        var arg = arguments.get(0);
+    public Object filter(Map<String ,Object> arguments) {
+        BuiltinFunction.FILTER.validateArgs(arguments);
+        var arg = arguments.get("img");
         if (arg instanceof List<?>) {
-            return expandToImageList("filter", arguments, this::filter).stream().filter(Objects::nonNull).toList();
+            return expandToImageList("filter", "img", arguments, this::filter).stream().filter(Objects::nonNull).toList();
         }
-        var image = getArgument(ImageWrapper.class, arguments, 0).get();
-        var subject = stringArg(arguments, 1);
-        var function = stringArg(arguments, 2);
-        var value = stringArg(arguments, 3);
+        var image = getArgument(ImageWrapper.class, arguments, "img").get();
+        var subject = stringArg(arguments, "subject", null);
+        var function = stringArg(arguments, "function", null);
+        var value = stringArg(arguments, "value", null);
         if (test(image, subject, function, value)) {
             return image;
         }

@@ -15,6 +15,7 @@
  */
 package me.champeau.a4j.jsolex.processing.expr.impl;
 
+import me.champeau.a4j.jsolex.expr.BuiltinFunction;
 import me.champeau.a4j.jsolex.processing.params.ProcessParams;
 import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
 import me.champeau.a4j.jsolex.processing.sun.WorkflowState;
@@ -42,10 +43,11 @@ public class GeometryCorrection extends AbstractFunctionImpl {
         this.ellipseFit = ellipseFit;
     }
 
-    public Object fixGeometry(List<Object> arguments) {
-        var arg = arguments.get(0);
+    public Object fixGeometry(Map<String, Object> arguments) {
+        BuiltinFunction.FIX_GEOMETRY.validateArgs(arguments);
+        var arg = arguments.get("img");
         if (arg instanceof List<?>) {
-            return expandToImageList("fix_geometry", arguments, this::fixGeometry);
+            return expandToImageList("fix_geometry", "img", arguments, this::fixGeometry);
         }
         if (arg instanceof FileBackedImage fbi) {
             arg = fbi.unwrapToMemory();
@@ -66,18 +68,18 @@ public class GeometryCorrection extends AbstractFunctionImpl {
         var state = new WorkflowState(image.width(), image.height(), 0);
         state.recordResult(WorkflowResults.RECONSTRUCTED, image);
         var task = new GeometryCorrector(
-            getFromContext(Broadcaster.class).orElse(Broadcaster.NO_OP),
-            newOperation(),
-            () -> image,
-            image.findMetadata(Ellipse.class).orElse(null),
-            null,
-            null,
-            null,
-            0,
-            getFromContext(ProcessParams.class).orElse(ProcessParams.loadDefaults()),
-            getFromContext(ImageEmitter.class).orElse(null),
-            state,
-            null
+                getFromContext(Broadcaster.class).orElse(Broadcaster.NO_OP),
+                newOperation(),
+                () -> image,
+                image.findMetadata(Ellipse.class).orElse(null),
+                null,
+                null,
+                null,
+                0,
+                getFromContext(ProcessParams.class).orElse(ProcessParams.loadDefaults()),
+                getFromContext(ImageEmitter.class).orElse(null),
+                state,
+                null
         );
         try {
             return (ImageWrapper32) task.get().corrected().unwrapToMemory();

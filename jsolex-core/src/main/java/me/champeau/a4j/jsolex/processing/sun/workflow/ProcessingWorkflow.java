@@ -39,14 +39,18 @@ import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
 import me.champeau.a4j.jsolex.processing.sun.ImageUtils;
 import me.champeau.a4j.jsolex.processing.sun.SolexVideoProcessor;
 import me.champeau.a4j.jsolex.processing.sun.WorkflowState;
+import me.champeau.a4j.jsolex.processing.sun.detection.ActiveRegions;
 import me.champeau.a4j.jsolex.processing.sun.detection.RedshiftArea;
 import me.champeau.a4j.jsolex.processing.sun.detection.Redshifts;
-import me.champeau.a4j.jsolex.processing.sun.detection.ActiveRegions;
 import me.champeau.a4j.jsolex.processing.sun.tasks.CoronagraphTask;
 import me.champeau.a4j.jsolex.processing.sun.tasks.EllipseFittingTask;
 import me.champeau.a4j.jsolex.processing.sun.tasks.GeometryCorrector;
 import me.champeau.a4j.jsolex.processing.sun.tasks.ImageBandingCorrector;
-import me.champeau.a4j.jsolex.processing.util.*;
+import me.champeau.a4j.jsolex.processing.util.Constants;
+import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
+import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
+import me.champeau.a4j.jsolex.processing.util.MutableMap;
+import me.champeau.a4j.jsolex.processing.util.RGBImage;
 import me.champeau.a4j.math.Point2D;
 import me.champeau.a4j.math.image.Deconvolution;
 import me.champeau.a4j.math.image.ImageMath;
@@ -56,14 +60,14 @@ import me.champeau.a4j.ser.Header;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.awt.BasicStroke;
-import java.awt.Color;
+import java.awt.*;
 import java.nio.file.Path;
 import java.text.MessageFormat;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.function.Supplier;
 
 import static me.champeau.a4j.jsolex.processing.sun.ImageUtils.bilinearSmoothing;
@@ -406,15 +410,15 @@ public class ProcessingWorkflow {
         var rotation = processParams.geometryParams().rotation();
         if (rotation.angle() != 0) {
             details = switch (rotation) {
-                case LEFT -> (ImageWrapper32) rotate.rotateRadians(List.of(details, -Math.PI / 2d, -1, 1));
-                case RIGHT -> (ImageWrapper32) rotate.rotateRadians(List.of(details, Math.PI / 2d, -1, 1));
+                case LEFT -> (ImageWrapper32) rotate.rotateRadians(Map.of("img", details, "angle", -Math.PI / 2d, "bp", -1, "resize", 1));
+                case RIGHT -> (ImageWrapper32) rotate.rotateRadians(Map.of("img", details, "angle", Math.PI / 2d, "bp", -1, "resize", 1));
                 case NONE -> details;
             };
         }
-        var cropped = crop.autocrop2(List.of(details, 1.2d));
-        var decorated = (ImageWrapper32) draw.drawSolarParameters(List.of(
-                draw.drawObservationDetails(List.of(
-                        draw.drawGlobe(List.of(cropped))
+        var cropped = crop.autocrop2(Map.of("img", details, "factor", 1.2d));
+        var decorated = (ImageWrapper32) draw.drawSolarParameters(Map.of(
+                "img", draw.drawObservationDetails(Map.of(
+                        "img", draw.drawGlobe(Map.of("img", cropped))
                 ))
         ));
         decorated.metadata().put(RotationKind.class, RotationKind.NONE);

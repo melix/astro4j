@@ -26,7 +26,7 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.util.HashMap;
-import java.util.List;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -39,11 +39,8 @@ public class RemoteScriptGen extends AbstractFunctionImpl {
         this.evaluator = evaluator;
     }
 
-    public Object callRemoteScriptGen(List<Object> arguments) {
-        if (arguments.size() != 1) {
-            throw new IllegalArgumentException("remote_scriptgen() accept a single argument (remote url)");
-        }
-        var scriptUrl = arguments.getFirst().toString();
+    public Object callRemoteScriptGen(Map<String ,Object> arguments) {
+        var scriptUrl = stringArg(arguments, "url", null);
         try (var client = HttpClient.newHttpClient()) {
             var request = HttpRequest.newBuilder()
                     .uri(java.net.URI.create(scriptUrl))
@@ -83,7 +80,7 @@ public class RemoteScriptGen extends AbstractFunctionImpl {
                                 .entrySet()
                                 .stream()
                                 .filter(e -> keys.contains(e.getKey()))
-                                .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
+                                .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue, (e1, e2) -> e1, LinkedHashMap::new));
                         return new ExpressionEvaluator.NestedInvocationResult(collectedVariables);
                     }
                 }

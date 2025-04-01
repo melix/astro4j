@@ -15,6 +15,7 @@
  */
 package me.champeau.a4j.jsolex.processing.expr.impl;
 
+import me.champeau.a4j.jsolex.expr.BuiltinFunction;
 import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
 import me.champeau.a4j.jsolex.processing.sun.workflow.ImageStats;
 import me.champeau.a4j.jsolex.processing.util.FileBackedImage;
@@ -32,17 +33,17 @@ public class DiskFill extends AbstractFunctionImpl {
         super(context, broadcaster);
     }
 
-    public Object fill(List<Object> arguments) {
-        assertExpectedArgCount(arguments, "disk_fill takes 1, 2 or 3 arguments (image(s), [fillColor], [ellipse])", 1, 3);
-        var arg = arguments.get(0);
+    public Object fill(Map<String ,Object> arguments) {
+        BuiltinFunction.DISK_FILL.validateArgs(arguments);
+        var arg = arguments.get("img");
         if (arg instanceof List<?>) {
-            return expandToImageList("disk_fill", arguments, this::fill);
+            return expandToImageList("disk_fill", "img", arguments, this::fill);
         }
-        var img = arguments.get(0);
-        var ellipse = getEllipse(arguments, 2);
+        var img = arguments.get("img");
+        var ellipse = getEllipse(arguments, "ellipse");
         if (ellipse.isPresent()) {
             var blackpoint = getFromContext(ImageStats.class).map(ImageStats::blackpoint).orElse(0f);
-            var fill = arguments.size() == 2 ? floatArg(arguments, 1) : blackpoint;
+            var fill = floatArg(arguments, "color", blackpoint);
             return doFillAnyImageKind(img, ellipse.get(), fill, null);
         }
         throw new IllegalArgumentException("Ellipse fitting not found, cannot perform fill");
@@ -68,20 +69,20 @@ public class DiskFill extends AbstractFunctionImpl {
         return null;
     }
 
-    public Object mask(List<Object> arguments) {
-        assertExpectedArgCount(arguments, "disk_mask takes 1 or 2 arguments (image(s), [invert])", 1, 2);
-        var arg = arguments.get(0);
+    public Object mask(Map<String ,Object> arguments) {
+        BuiltinFunction.DISK_MASK.validateArgs(arguments);
+        var arg = arguments.get("img");
         if (arg instanceof List<?>) {
-            return expandToImageList("disk_mask", arguments, this::mask);
+            return expandToImageList("disk_mask", "img", arguments, this::mask);
         }
-        var img = arguments.getFirst();
+        var img = arguments.get("img");
         if (img instanceof ImageWrapper wrapper) {
             var ellipse = wrapper.findMetadata(Ellipse.class);
             if (ellipse.isPresent()) {
                 float insideFill = 1;
                 float outsideFill = 0;
                 if (arguments.size() == 2) {
-                    int mode = intArg(arguments, 1);
+                    int mode = intArg(arguments, "invert", 0);
                     if (mode == 1) {
                         insideFill = 0;
                         outsideFill = 1;

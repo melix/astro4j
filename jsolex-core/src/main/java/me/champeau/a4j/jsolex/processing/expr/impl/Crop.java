@@ -15,6 +15,7 @@
  */
 package me.champeau.a4j.jsolex.processing.expr.impl;
 
+import me.champeau.a4j.jsolex.expr.BuiltinFunction;
 import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
 import me.champeau.a4j.jsolex.processing.sun.crop.Cropper;
 import me.champeau.a4j.jsolex.processing.sun.detection.RedshiftArea;
@@ -48,19 +49,17 @@ public class Crop extends AbstractFunctionImpl {
         super(context, broadcaster);
     }
 
-    public Object crop(List<Object> arguments) {
-        if (arguments.size() != 5) {
-            throw new IllegalArgumentException("crop takes 5 arguments (image(s), left, top, width, height)");
-        }
-        var arg = arguments.get(0);
+    public Object crop(Map<String, Object> arguments) {
+        BuiltinFunction.CROP.validateArgs(arguments);
+        var arg = arguments.get("img");
         if (arg instanceof List<?>) {
-            return expandToImageList("crop", arguments, this::crop);
+            return expandToImageList("crop", "img", arguments, this::crop);
         }
-        var img = arguments.get(0);
-        var left = intArg(arguments, 1);
-        var top = intArg(arguments, 2);
-        var width = intArg(arguments, 3);
-        var height = intArg(arguments, 4);
+        var img = arguments.get("img");
+        var left = intArg(arguments, "left", 0);
+        var top = intArg(arguments, "top", 0);
+        var width = intArg(arguments, "width", 0);
+        var height = intArg(arguments, "height", 0);
         if (left < 0 || top < 0) {
             throw new IllegalArgumentException("top and left values must be >=0");
         }
@@ -74,28 +73,28 @@ public class Crop extends AbstractFunctionImpl {
             var gi = cropMonoImage(left, top, width, height, new ImageWrapper32(rgb.width(), rgb.height(), rgb.g(), rgb.metadata()));
             var bi = cropMonoImage(left, top, width, height, new ImageWrapper32(rgb.width(), rgb.height(), rgb.b(), rgb.metadata()));
             return new RGBImage(width, height,
-                ri.data(),
-                gi.data(),
-                bi.data(),
-                ri.metadata()
+                    ri.data(),
+                    gi.data(),
+                    bi.data(),
+                    ri.metadata()
             );
         }
         throw new IllegalStateException("Unexpected image type " + img);
     }
 
-    public Object cropToRect(List<Object> arguments) {
-        assertExpectedArgCount(arguments, "crop_rect takes 3 or 4 arguments (image(s), width, height, [ellipse])", 3, 4);
-        var arg = arguments.get(0);
+    public Object cropToRect(Map<String, Object> arguments) {
+        BuiltinFunction.CROP_RECT.validateArgs(arguments);
+        var arg = arguments.get("img");
         if (arg instanceof List<?>) {
-            return expandToImageList("crop_rect", arguments, this::cropToRect);
+            return expandToImageList("crop_rect", "img", arguments, this::cropToRect);
         }
-        var img = arguments.get(0);
-        var width = intArg(arguments, 1);
-        var height = intArg(arguments, 2);
+        var img = arguments.get("img");
+        var width = intArg(arguments, "width", 0);
+        var height = intArg(arguments, "height", 0);
         if (width < 0 || height < 0) {
             throw new IllegalArgumentException("width and height values must be >=0");
         }
-        var ellipse = getEllipse(arguments, 3);
+        var ellipse = getEllipse(arguments, "ellipse");
         if (ellipse.isPresent()) {
             var sunDisk = ellipse.get();
             float blackPoint = getFromContext(ImageStats.class).map(ImageStats::blackpoint).orElse(0f);
@@ -109,10 +108,10 @@ public class Crop extends AbstractFunctionImpl {
                 var gi = cropToRectMonoImage(width, height, new ImageWrapper32(rgb.width(), rgb.height(), rgb.g(), rgb.metadata()), sunDisk, blackPoint);
                 var bi = cropToRectMonoImage(width, height, new ImageWrapper32(rgb.width(), rgb.height(), rgb.b(), rgb.metadata()), sunDisk, blackPoint);
                 return new RGBImage(width, height,
-                    ri.data(),
-                    gi.data(),
-                    bi.data(),
-                    ri.metadata()
+                        ri.data(),
+                        gi.data(),
+                        bi.data(),
+                        ri.metadata()
                 );
             }
             throw new IllegalStateException("Unexpected image type " + img);
@@ -144,47 +143,41 @@ public class Crop extends AbstractFunctionImpl {
         return ImageWrapper32.fromImage(cropResult.cropped(), metadata);
     }
 
-    public Object autocrop(List<Object> arguments) {
-        assertExpectedArgCount(arguments, "autocrop takes 1 or 2 arguments (image(s), [ellipse])", 1, 2);
-        var arg = arguments.get(0);
+    public Object autocrop(Map<String, Object> arguments) {
+        BuiltinFunction.AUTOCROP.validateArgs(arguments);
+        var arg = arguments.get("img");
         if (arg instanceof List<?>) {
-            return expandToImageList("autocrop", arguments, this::autocrop);
+            return expandToImageList("autocrop", "img", arguments, this::autocrop);
         }
-        var ellipse = getEllipse(arguments, 1);
+        var ellipse = getEllipse(arguments, "ellipse");
         return doAutocrop(arg, ellipse, null, null);
     }
 
-    public Object autocrop2(List<Object> arguments) {
-        assertExpectedArgCount(arguments, "autocrop2 takes 1 to 4 arguments (image(s), [factor], [rounding], [ellipse])", 1, 4);
-        if (arguments.size() == 1 && !(arguments.get(0) instanceof List)) {
-            throw new IllegalArgumentException("autocrop2 takes 2, 3 or 4 arguments (image(s), [factor], [rounding], [ellipse])");
-        }
-        var arg = arguments.get(0);
+    public Object autocrop2(Map<String, Object> arguments) {
+        BuiltinFunction.AUTOCROP2.validateArgs(arguments);
+        var arg = arguments.get("img");
         if (arg instanceof List<?> list) {
             if (arguments.size() == 1) {
                 // collect all image dimensions and compute the rounding factor
                 var images = list.stream()
-                    .filter(ImageWrapper.class::isInstance)
-                    .map(ImageWrapper.class::cast)
-                    .toList();
+                        .filter(ImageWrapper.class::isInstance)
+                        .map(ImageWrapper.class::cast)
+                        .toList();
                 var maxDimension = images.stream()
-                    .mapToInt(img -> Math.max(img.width(), img.height()))
-                    .max()
-                    .orElse(0);
+                        .mapToInt(img -> Math.max(img.width(), img.height()))
+                        .max()
+                        .orElse(0);
                 maxDimension = (int) Math.ceil(maxDimension / 16d) * 16;
-                return expandToImageList("autocrop2", List.of(images, maxDimension, maxDimension), this::cropToRect);
+                return expandToImageList("autocrop2", "img", Map.of("img", images, "width", maxDimension, "height", maxDimension), this::cropToRect);
             }
-            return expandToImageList("autocrop2", arguments, this::autocrop2);
+            return expandToImageList("autocrop2", "img", arguments, this::autocrop2);
         }
-        var factor = doubleArg(arguments, 1);
-        int rounding = 16;
-        if (arguments.size() == 3) {
-            rounding = intArg(arguments, 2);
-            if (rounding % 2 == 1) {
-                throw new IllegalArgumentException("Rounding must be a factor of 2");
-            }
+        var factor = doubleArg(arguments, "factor", 1.1);
+        int rounding = intArg(arguments, "rounding", 16);
+        if (rounding % 2 == 1) {
+            throw new IllegalArgumentException("Rounding must be a factor of 2");
         }
-        var ellipse = getEllipse(arguments, 3);
+        var ellipse = getEllipse(arguments, "ellipse");
         return doAutocrop(arg, ellipse, factor, rounding);
     }
 
@@ -233,20 +226,20 @@ public class Crop extends AbstractFunctionImpl {
         img.findMetadata(Ellipse.class).ifPresent(circle -> metadata.put(Ellipse.class, circle.translate(-left, -top)));
         img.findMetadata(Redshifts.class).ifPresent(redshifts -> {
             metadata.put(Redshifts.class, new Redshifts(
-                redshifts.redshifts().stream()
-                    .map(rs -> new RedshiftArea(
-                        rs.id(),
-                        rs.pixelShift(),
-                        rs.relPixelShift(),
-                        rs.kmPerSec(),
-                        (int) (rs.x1() - left),
-                        (int) (rs.y1() - top),
-                        (int) (rs.x2() - left),
-                        (int) (rs.y2() - top),
-                        (int) (rs.maxX() - left),
-                        (int) (rs.maxY() - top)
-                    ))
-                    .toList()
+                    redshifts.redshifts().stream()
+                            .map(rs -> new RedshiftArea(
+                                    rs.id(),
+                                    rs.pixelShift(),
+                                    rs.relPixelShift(),
+                                    rs.kmPerSec(),
+                                    (int) (rs.x1() - left),
+                                    (int) (rs.y1() - top),
+                                    (int) (rs.x2() - left),
+                                    (int) (rs.y2() - top),
+                                    (int) (rs.maxX() - left),
+                                    (int) (rs.maxY() - top)
+                            ))
+                            .toList()
             ));
         });
         img.findMetadata(ActiveRegions.class).ifPresent(activeRegions -> metadata.put(ActiveRegions.class, activeRegions.translate(-left, -top)));
@@ -260,38 +253,38 @@ public class Crop extends AbstractFunctionImpl {
      * @param arguments an image or list of images
      * @return the cropped images
      */
-    public Object cropActiveRegions(List<Object> arguments) {
-        assertExpectedArgCount(arguments, "crop_ar takes 1 to 3 arguments (image(s), [min size], [margin%])", 1, 3);
-        var arg = arguments.get(0);
+    public Object cropActiveRegions(Map<String, Object> arguments) {
+        BuiltinFunction.CROP_AR.validateArgs(arguments);
+        var arg = arguments.get("img");
         if (arg instanceof List<?>) {
-            return expandToImageList("crop_ar", arguments, this::cropActiveRegions);
+            return expandToImageList("crop_ar", "img", arguments, this::cropActiveRegions);
         }
         if (arg instanceof ImageWrapper wrapper) {
-            int minSize = arguments.size() >= 2 ? intArg(arguments, 1) : DEFAULT_AR_SIZE;
-            double margin = (arguments.size() >= 3 ? doubleArg(arguments, 2) : 10)/100d;
+            int minSize = intArg(arguments, "ms", DEFAULT_AR_SIZE);
+            double margin = doubleArg(arguments, "margin", 10) / 100d;
             var img = wrapper.unwrapToMemory();
             var activeRegions = img.findMetadata(ActiveRegions.class).orElse(null);
             if (activeRegions == null) {
                 return List.of();
             }
             var list = activeRegions.regionList().stream()
-                .map(activeRegion -> {
-                    var left = (int) activeRegion.topLeft().x();
-                    var top = (int) activeRegion.topLeft().y();
-                    var width = (int) activeRegion.width();
-                    var height = (int) activeRegion.height();
-                    if (width >= minSize && height >= minSize) {
-                        // expand the crop area by 10%
-                        var cropWidth = (int) (width * (1 + margin));
-                        var cropHeight = (int) (height * (1 + margin));
-                        var cropLeft = left - (cropWidth - width) / 2;
-                        var cropTop = top - (cropHeight - height) / 2;
-                        return crop(List.of(img, cropLeft, cropTop, cropWidth, cropHeight));
-                    }
-                    return null;
-                })
-                .filter(Objects::nonNull)
-                .toList();
+                    .map(activeRegion -> {
+                        var left = (int) activeRegion.topLeft().x();
+                        var top = (int) activeRegion.topLeft().y();
+                        var width = (int) activeRegion.width();
+                        var height = (int) activeRegion.height();
+                        if (width >= minSize && height >= minSize) {
+                            // expand the crop area by 10%
+                            var cropWidth = (int) (width * (1 + margin));
+                            var cropHeight = (int) (height * (1 + margin));
+                            var cropLeft = left - (cropWidth - width) / 2;
+                            var cropTop = top - (cropHeight - height) / 2;
+                            return crop(Map.of("img", img, "left", cropLeft, "top", cropTop, "width", cropWidth, "height", cropHeight));
+                        }
+                        return null;
+                    })
+                    .filter(Objects::nonNull)
+                    .toList();
             if (list.isEmpty()) {
                 LOGGER.info("No active region larger than {}x{} found", minSize, minSize);
             }

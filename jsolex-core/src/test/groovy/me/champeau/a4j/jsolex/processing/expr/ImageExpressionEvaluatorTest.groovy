@@ -116,7 +116,6 @@ class ImageExpressionEvaluatorTest extends Specification {
         "fix_banding"     | "range(0,1), 10, 1"         | List
         "linear_stretch"  | "range(0,1)"                | List
         "ASINH_STRETCH"   | "range(0,1), 0, 10"         | List
-        "CLAHE"           | "range(0,1), 1.2"           | List
         "CLAHE"           | "range(0,1), 128, 512, 1.2" | List
         "ADJUST_CONTRAST" | "range(0,1), 0, 255"        | List
         "autocrop"        | "range(0,1)"                | List
@@ -124,6 +123,6 @@ class ImageExpressionEvaluatorTest extends Specification {
 
     private Object eval(String expr) {
         var parser = new ImageMathParser(expr)
-        evaluator.evaluate(parser.parseAndInlineIncludes().findSections(ImageMathScriptExecutor.SectionKind.ALL).getFirst().children().getFirst())
+        evaluator.evaluate(parser.parseAndInlineIncludes().findSections(ImageMathScriptExecutor.SectionKind.SINGLE).getFirst().children().getFirst())
     }
 }

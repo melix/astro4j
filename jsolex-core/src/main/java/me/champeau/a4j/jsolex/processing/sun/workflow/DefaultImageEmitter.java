@@ -40,6 +40,8 @@ import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
 
+import static me.champeau.a4j.jsolex.processing.util.FilesUtils.createDirectoriesIfNeeded;
+
 /**
  * An image emitter is a utility tool to generate
  * mono or color images with transformations.
@@ -85,9 +87,7 @@ public class DefaultImageEmitter implements ImageEmitter {
         var file = outputDir.toPath().resolve(name);
         try {
             Path parent = file.getParent();
-            if (!Files.isDirectory(parent)) {
-                Files.createDirectories(parent);
-            }
+            createDirectoriesIfNeeded(parent);
         } catch (IOException e) {
             throw new ProcessingException(e);
         }

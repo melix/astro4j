@@ -32,6 +32,7 @@ import me.champeau.a4j.jsolex.expr.ast.FunctionParams;
 import me.champeau.a4j.jsolex.expr.ast.Identifier;
 import me.champeau.a4j.jsolex.expr.ast.IncludeDef;
 import me.champeau.a4j.jsolex.expr.ast.Keyword;
+import me.champeau.a4j.jsolex.expr.ast.NamedArgument;
 import me.champeau.a4j.jsolex.expr.ast.NumericalLiteral;
 import me.champeau.a4j.jsolex.expr.ast.Section;
 import me.champeau.a4j.jsolex.expr.ast.SectionHeader;
@@ -44,7 +45,14 @@ import org.fxmisc.richtext.model.StyleSpansBuilder;
 
 import java.nio.file.Path;
 import java.time.Duration;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Comparator;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Locale;
+import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -283,8 +291,43 @@ public class ImageMathTextArea extends BorderPane {
                         if (variables.contains(token.toString())) {
                             styles.add("variable");
                             spansBuilder.add(styles, tokenLength);
+                        } else if (token.getParent() instanceof NamedArgument namedArgument) {
+                            parent = namedArgument;
+                            while (parent != null && !(parent instanceof FunctionCall)) {
+                                parent = parent.getParent();
+                            }
+                            if (parent instanceof FunctionCall call) {
+                                styles.add("named_arg");
+                                if (call.getBuiltinFunction().isPresent()) {
+                                    if (call.getBuiltinFunction().get().getAllParameterNames().contains(token.toString())) {
+                                        spansBuilder.add(styles, tokenLength);
+                                    } else {
+                                        styles.add("named_arg");
+                                        spansBuilder.add(styles, tokenLength);
+                                    }
+                                } else {
+                                    // find a user function with the same name
+                                    var functionName = call.getFunctionName();
+                                    var functionDef = root.childrenOfType(FunctionDef.class)
+                                            .stream()
+                                            .filter(f -> f.name().equals(functionName))
+                                            .findFirst();
+                                    if (functionDef.isPresent()) {
+                                        var args = functionDef.get().arguments();
+                                        if (args.contains(token.toString())) {
+                                            spansBuilder.add(styles, tokenLength);
+                                        } else {
+                                            styles.add("underline_error");
+                                            spansBuilder.add(styles, tokenLength);
+                                        }
+                                    } else {
+                                        styles.add("underline_error");
+                                        spansBuilder.add(styles, tokenLength);
+                                    }
+                                }
+                            }
                         } else {
-                            styles.addAll(List.of("underline_error", "variable"));
+                            styles.addAll(List.of("underline_error", "identifier"));
                             spansBuilder.add(styles, tokenLength);
                         }
                     }

@@ -46,50 +46,49 @@ public class SimpleFunctionCall extends AbstractFunctionImpl {
         super(context, broadcaster);
     }
 
-    public Object applyFunction(String name, List<Object> arguments, Function<DoubleStream, OptionalDouble> operator) {
-        if (arguments.size() == 1) {
-            if (arguments.get(0) instanceof List<?> list) {
-                // unwrap
-                //noinspection unchecked
-                return applyFunction(name, (List<Object>) list, operator);
-            }
-        }
-        if (arguments.stream().allMatch(i -> i instanceof List<?>)) {
-            // make sure that all lists have the same size
-            if (arguments.stream().map(List.class::cast).map(List::size).distinct().count() == 1) {
-                List<Object> result = new ArrayList<>();
-                var size = ((List<?>) arguments.getFirst()).size();
-                for (int i = 0; i < size; i++) {
-                    List<Object> args = new ArrayList<>();
-                    for (Object argument : arguments) {
-                        args.add(((List<?>) argument).get(i));
+    public Object applyFunction(String name, Map<String ,Object> arguments, Function<DoubleStream, OptionalDouble> operator) {
+        var list = (List<?>) arguments.get("list");
+        if (list.stream().allMatch(i -> i instanceof List<?>)) {
+            // either the list size is 1 or all lists have the same size
+            if (list.size() == 1) {
+                list = (List<?>) list.getFirst();
+            } else {
+                // make sure that all lists have the same size
+                if (list.stream().map(List.class::cast).map(List::size).distinct().count() == 1) {
+                    List<Object> result = new ArrayList<>();
+                    var size = ((List<?>) list.getFirst()).size();
+                    for (int i = 0; i < size; i++) {
+                        List<Object> args = new ArrayList<>();
+                        for (Object argument : list) {
+                            args.add(((List<?>) argument).get(i));
+                        }
+                        result.add(applyFunction(name, Map.of("list", args), operator));
                     }
-                    result.add(applyFunction(name, args, operator));
+                    return result;
                 }
-                return result;
             }
         }
         if (arguments.isEmpty()) {
             throw new IllegalArgumentException("'" + name + "' must have at least one argument");
         }
-        var types = arguments.stream().map(Object::getClass).distinct().toList();
+        var types = list.stream().map(Object::getClass).distinct().toList();
         if (types.size() > 1) {
             throw new IllegalArgumentException("'" + name + "' only works on arguments of the same type");
         }
-        var type = types.get(0);
+        var type = types.getFirst();
         if (Number.class.isAssignableFrom(type)) {
-            return operator.apply(arguments.stream()
+            return operator.apply(list.stream()
                     .map(Number.class::cast)
                     .mapToDouble(Number::doubleValue))
                 .orElse(0);
         }
         if (ImageWrapper32.class.isAssignableFrom(type) || FileBackedImage.class.isAssignableFrom(type)) {
-            var images = arguments
+            var images = list
                 .stream()
                 .map(i -> i instanceof FileBackedImage fbi ? fbi.unwrapToMemory() : i)
                 .map(ImageWrapper32.class::cast)
                 .toList();
-            var first = images.get(0);
+            var first = images.getFirst();
             var width = first.width();
             var height = first.height();
             var length = first.data().length;
