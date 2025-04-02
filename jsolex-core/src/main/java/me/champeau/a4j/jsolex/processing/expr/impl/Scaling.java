@@ -15,6 +15,7 @@
  */
 package me.champeau.a4j.jsolex.processing.expr.impl;
 
+import me.champeau.a4j.jsolex.expr.BuiltinFunction;
 import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
 import me.champeau.a4j.jsolex.processing.sun.detection.RedshiftArea;
 import me.champeau.a4j.jsolex.processing.sun.detection.Redshifts;
@@ -45,14 +46,14 @@ public class Scaling extends AbstractFunctionImpl {
         ellipseFit = new EllipseFit(context, broadcaster);
     }
 
-    public Object relativeRescale(List<Object> arguments) {
-        assertExpectedArgCount(arguments, "rescale_rel takes 3 arguments (image(s), scaleX, scaleY)", 3, 3);
-        var arg = arguments.get(0);
+    public Object relativeRescale(Map<String, Object> arguments) {
+        BuiltinFunction.RESCALE_REL.validateArgs(arguments);
+        var arg = arguments.get("img");
         if (arg instanceof List<?>) {
-            return expandToImageList("rescale_rel", arguments, this::relativeRescale);
+            return expandToImageList("rescale_rel", "img", arguments, this::relativeRescale);
         }
-        double scaleX = doubleArg(arguments, 1);
-        double scaleY = doubleArg(arguments, 2);
+        double scaleX = doubleArg(arguments, "sx", 1);
+        double scaleY = doubleArg(arguments, "sy", 1);
         if (scaleX < 0 || scaleY < 0) {
             throw new IllegalArgumentException("scaleX and scaleY must be > 0");
         }
@@ -67,14 +68,14 @@ public class Scaling extends AbstractFunctionImpl {
         throw new IllegalArgumentException("Unsupported image type");
     }
 
-    public Object absoluteRescale(List<Object> arguments) {
-        assertExpectedArgCount(arguments, "rescale_abs takes 3 arguments (image(s), width, height)", 3, 3);
-        var arg = arguments.get(0);
+    public Object absoluteRescale(Map<String, Object> arguments) {
+        BuiltinFunction.RESCALE_ABS.validateArgs(arguments);
+        var arg = arguments.get("img");
         if (arg instanceof List<?>) {
-            return expandToImageList("rescale_abs", arguments, this::absoluteRescale);
+            return expandToImageList("rescale_abs", "img", arguments, this::absoluteRescale);
         }
-        int width = intArg(arguments, 1);
-        int height = intArg(arguments, 2);
+        int width = intArg(arguments, "width", 0);
+        int height = intArg(arguments, "height", 0);
         if (width < 0 || height < 0) {
             throw new IllegalArgumentException("Width and height must be >= 0");
         }
@@ -87,9 +88,9 @@ public class Scaling extends AbstractFunctionImpl {
         throw new IllegalArgumentException("Unsupported image type");
     }
 
-    public Object radiusRescale(List<Object> arguments) {
-        assertExpectedArgCount(arguments, "radius_rescale takes 1 arguments (image(s))", 1, 1);
-        var arg = arguments.get(0);
+    public Object radiusRescale(Map<String, Object> arguments) {
+        BuiltinFunction.RADIUS_RESCALE.validateArgs(arguments);
+        var arg = arguments.get("images");
         if (arg instanceof List<?> list) {
             if (list.isEmpty()) {
                 throw new IllegalArgumentException("radius_rescale requires a non-empty list of images");
@@ -111,7 +112,7 @@ public class Scaling extends AbstractFunctionImpl {
                     ImageWrapper withEllipse = img;
                     var ellipse = img.findMetadata(Ellipse.class).orElse(null);
                     if (ellipse == null) {
-                        withEllipse = (ImageWrapper) ellipseFit.fit(List.of(img));
+                        withEllipse = (ImageWrapper) ellipseFit.fit(Map.of("img", img));
                     }
                     return withEllipse;
                 })
@@ -141,7 +142,7 @@ public class Scaling extends AbstractFunctionImpl {
             var minWidth = result.stream().mapToInt(ImageWrapper::width).min().orElse(0);
             var minHeight = result.stream().mapToInt(ImageWrapper::height).min().orElse(0);
             //noinspection unchecked
-            result = (List<ImageWrapper>) crop.cropToRect(List.of(result, minWidth, minHeight));
+            result = (List<ImageWrapper>) crop.cropToRect(Map.of("img", result, "width", minWidth, "height", minHeight));
             return result;
         }
         throw new IllegalArgumentException("Unable to determine max radius of images");

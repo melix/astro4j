@@ -15,7 +15,6 @@
  */
 package me.champeau.a4j.jsolex.processing.expr.impl;
 
-import me.champeau.a4j.jsolex.processing.event.ProgressEvent;
 import me.champeau.a4j.jsolex.processing.event.ProgressOperation;
 import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
 import me.champeau.a4j.jsolex.processing.util.FileBackedImage;
@@ -26,8 +25,8 @@ import me.champeau.a4j.math.regression.Ellipse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -53,7 +52,8 @@ class AbstractFunctionImpl {
     private ProgressOperation newProgress(String name) {
         var parent = (ProgressOperation) context.get(ProgressOperation.class);
         if (parent == null) {
-            return ProgressOperation.root(name, e -> {});
+            return ProgressOperation.root(name, e -> {
+            });
         }
         return parent.createChild(name);
     }
@@ -62,21 +62,14 @@ class AbstractFunctionImpl {
         return operation.createChild(operation.task());
     }
 
-    protected Optional<Ellipse> getEllipse(List<Object> arguments, int index) {
-        if (index >= 0) {
-            return getArgument(Ellipse.class, arguments, index)
+    protected Optional<Ellipse> getEllipse(Map<String, Object> arguments, String key) {
+        return getArgument(Ellipse.class, arguments, key)
                 .or(() -> findEllipseInArguments(arguments))
                 .or(() -> getFromContext(Ellipse.class));
-        }
-        return findEllipseInArguments(arguments)
-            .or(() -> getFromContext(Ellipse.class));
     }
 
-    private static Optional<Ellipse> findEllipseInArguments(List<Object> arguments) {
-        if (arguments.isEmpty()) {
-            return Optional.empty();
-        }
-        var first = arguments.getFirst();
+    private static Optional<Ellipse> findEllipseInArguments(Map<String, Object> arguments) {
+        var first = arguments.get("img");
         if (first instanceof ImageWrapper img) {
             return img.findMetadata(Ellipse.class);
         }
@@ -87,78 +80,78 @@ class AbstractFunctionImpl {
         return (Optional<T>) Optional.ofNullable(context.get(type));
     }
 
-    protected void assertExpectedArgCount(List<Object> arguments, String help, int min, int max) {
-        var size = arguments.size();
-        if (size < min || size > max) {
-            throw new IllegalArgumentException(help);
+    protected <T> Optional<T> getArgument(Class<T> clazz, Map<String, Object> args, String key) {
+        return Optional.ofNullable((T) args.get(key));
+    }
+
+    protected double doubleArg(Map<String, Object> arguments, String key, double defaultValue) {
+        if (!arguments.containsKey(key)) {
+            return defaultValue;
         }
+        return getAsNumber(arguments, key).doubleValue();
     }
 
-    protected <T> Optional<T> getArgument(Class<T> clazz, List<Object> args, int position) {
-        if (position < args.size()) {
-            return Optional.of((T) args.get(position));
+    protected float floatArg(Map<String, Object> arguments, String key, float defaultValue) {
+        if (!arguments.containsKey(key)) {
+            return defaultValue;
         }
-        return Optional.empty();
+        return getAsNumber(arguments, key).floatValue();
     }
 
-    protected double doubleArg(List<Object> arguments, int position) {
-        return getAsNumber(arguments, position).doubleValue();
-    }
-
-    protected float floatArg(List<Object> arguments, int position) {
-        return getAsNumber(arguments, position).floatValue();
-    }
-
-    protected int intArg(List<Object> arguments, int position) {
-        return getAsNumber(arguments, position).intValue();
-    }
-
-    protected String stringArg(List<Object> arguments, int position) {
-        return getArgument(String.class, arguments, position).orElseThrow();
-    }
-
-    protected Number getAsNumber(List<Object> arguments, int position) {
-        if (position < arguments.size()) {
-            var obj = arguments.get(position);
-            if (obj instanceof Number num) {
-                return num;
-            } else if (obj instanceof CharSequence str) {
-                return Double.parseDouble(str.toString());
-            }
-            throw new IllegalStateException("Expected to find a number argument at position " + position + " but it as a " + obj.getClass());
+    protected int intArg(Map<String, Object> arguments, String key, int defaultValue) {
+        if (!arguments.containsKey(key)) {
+            return defaultValue;
         }
-        throw new IllegalStateException("Not enough arguments to select a number at position " + position);
+        return getAsNumber(arguments, key).intValue();
+    }
+
+    protected String stringArg(Map<String, Object> arguments, String key, String defaultValue) {
+        if (!arguments.containsKey(key)) {
+            return defaultValue;
+        }
+        return getArgument(String.class, arguments, key).orElseThrow();
+    }
+
+    protected Number getAsNumber(Map<String, Object> arguments, String key) {
+        var obj = arguments.get(key);
+        if (obj instanceof Number num) {
+            return num;
+        } else if (obj instanceof CharSequence str) {
+            return Double.parseDouble(str.toString());
+        }
+        throw new IllegalStateException("Expected to find a number argument for argument " + key + " but it as a " + obj.getClass());
     }
 
     @SuppressWarnings("unchecked")
-    public List<Object> expandToImageList(String currentFunction, List<Object> arguments, Function<List<Object>, Object> function) {
+    public List<Object> expandToImageList(String currentFunction,
+                                          String key,
+                                          Map<String, Object> arguments,
+                                          Function<Map<String, Object>, Object> function) {
         record IndexedObject(Object image, int idx) {
         }
-        var listOfImages = (List) arguments.getFirst();
-        var params = arguments.subList(1, arguments.size());
+        var listOfImages = (List) arguments.get(key);
         var array = listOfImages.toArray(new Object[0]);
         var itemsToProcess = IntStream.range(0, array.length)
-            .mapToObj(i -> new IndexedObject(array[i], i))
-            .toList();
+                .mapToObj(i -> new IndexedObject(array[i], i))
+                .toList();
         var progress = new AtomicInteger(0);
         var parallelOperation = operation.createChild("ImageMath: " + currentFunction);
         var processed = itemsToProcess.stream()
-            .parallel()
-            .map(o -> {
-                var idx = o.idx;
-                var image = o.image;
-                var allArgs = new ArrayList<>();
-                allArgs.add(image);
-                allArgs.addAll(params);
-                var p = progress.incrementAndGet();
-                broadcaster.broadcast(parallelOperation.update(p / (double) array.length));
-                var result = function.apply(allArgs);
-                if (result instanceof ImageWrapper img) {
-                    // save memory!
-                    result = FileBackedImage.wrap(img);
-                }
-                return new IndexedObject(result, idx);
-            }).toList();
+                .parallel()
+                .map(o -> {
+                    var idx = o.idx;
+                    var image = o.image;
+                    var allArgs = new HashMap<>(arguments);
+                    allArgs.put(key, image);
+                    var p = progress.incrementAndGet();
+                    broadcaster.broadcast(parallelOperation.update(p / (double) array.length));
+                    var result = function.apply(allArgs);
+                    if (result instanceof ImageWrapper img) {
+                        // save memory!
+                        result = FileBackedImage.wrap(img);
+                    }
+                    return new IndexedObject(result, idx);
+                }).toList();
         // iterate on keys to preserve order
         broadcaster.broadcast(parallelOperation.complete());
         return processed.stream().sorted(Comparator.comparingInt(IndexedObject::idx)).map(IndexedObject::image).toList();
@@ -172,13 +165,10 @@ class AbstractFunctionImpl {
         }
     }
 
-    public Object monoToMonoImageTransformer(String name, int maxArgCount, List<Object> arguments, ImageConsumer consumer) {
-        if (arguments.size() > maxArgCount) {
-            throw new IllegalArgumentException("Invalid number of arguments on '" + name + "' call");
-        }
-        var arg = arguments.getFirst();
+    public Object monoToMonoImageTransformer(String name, String key, Map<String, Object> arguments, ImageConsumer consumer) {
+        var arg = arguments.get(key);
         if (arg instanceof List<?>) {
-            return expandToImageList(name, arguments, e -> monoToMonoImageTransformer(name, maxArgCount, e, consumer));
+            return expandToImageList(name, key, arguments, e -> monoToMonoImageTransformer(name, key, e, consumer));
         } else if (arg instanceof ImageWrapper image) {
             var copy = image.unwrapToMemory().copy();
             consumer.accept(copy);
@@ -187,40 +177,34 @@ class AbstractFunctionImpl {
         throw new IllegalArgumentException(name + " first argument must be a mono image or a list of images");
     }
 
-    protected Object applyUnary(List<Object> arguments, String name, DoubleUnaryOperator function) {
+    protected Object applyUnary(Map<String, Object> arguments, String name, String key, DoubleUnaryOperator function) {
         if (arguments.size() != 1) {
             throw new IllegalArgumentException(name + " takes 1 argument (image(s))");
         }
-        var arg = arguments.getFirst();
+        var arg = arguments.get(key);
         if (arg instanceof List<?>) {
-            return expandToImageList(name, arguments, list -> applyUnary(list, name, function));
+            return expandToImageList(name, key, arguments, list -> applyUnary(list, name, key, function));
         }
-        var img = arguments.getFirst();
+        var img = arguments.get(key);
         return applyUnary(img, function);
     }
 
-    protected Object applyUnary(List<Object> arguments, String name, MonoImageTransformer transformer) {
-        if (arguments.size() != 1) {
-            throw new IllegalArgumentException(name + " takes 1 argument (image(s))");
-        }
-        var arg = arguments.getFirst();
+    protected Object applyUnary(Map<String, Object> arguments, String name, String key, MonoImageTransformer transformer) {
+        var arg = arguments.get(key);
         if (arg instanceof List<?>) {
-            return expandToImageList(name, arguments, list -> applyUnary(list, name, transformer));
+            return expandToImageList(name, key, arguments, list -> applyUnary(list, name, key, transformer));
         }
-        var img = arguments.getFirst();
+        var img = arguments.get(key);
         return applyUnary(img, transformer);
     }
 
-    protected Object applyBinary(List<Object> arguments, String name, String argName, DoubleBinaryOperator function) {
-        if (arguments.size() != 2) {
-            throw new IllegalArgumentException(name + " takes 2 arguments (image(s), " + argName + ")");
-        }
-        var arg = arguments.getFirst();
+    protected Object applyBinary(Map<String, Object> arguments, String left, String right, String name, DoubleBinaryOperator function) {
+        var arg = arguments.get(left);
         if (arg instanceof List<?>) {
-            return expandToImageList(name, arguments, list -> applyBinary(list, name, argName, function));
+            return expandToImageList(name, left, arguments, list -> applyBinary(list, left, right, name, function));
         }
-        var img = arguments.getFirst();
-        var argument = doubleArg(arguments, 1);
+        var img = arguments.get(left);
+        var argument = doubleArg(arguments, right, 0);
         var unary = (DoubleUnaryOperator) v -> function.applyAsDouble(v, argument);
         return applyUnary(img, unary);
     }

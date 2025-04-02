@@ -130,7 +130,7 @@ public class StackingWorkflow {
     }
 
     private ImageWrapper32 performStitching(Parameters parameters, File outputDirectory, List<ImageWrapper32> stackedImages) {
-        var cropped = crop.autocrop2(List.of(stackedImages));
+        var cropped = crop.autocrop2(Map.of("img", stackedImages));
         if (cropped instanceof List<?> list) {
             var croppedImages = list.stream()
                 .filter(ImageWrapper.class::isInstance)

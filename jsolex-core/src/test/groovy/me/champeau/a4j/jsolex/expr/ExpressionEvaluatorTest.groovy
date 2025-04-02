@@ -115,17 +115,17 @@ class ExpressionEvaluatorTest extends Specification {
         }
 
         @Override
-        protected Object functionCall(BuiltinFunction fun, List<Object> arguments) {
+        protected Object functionCall(BuiltinFunction fun, Map<String, Object> arguments) {
             return switch (fun) {
-                case BuiltinFunction.MIN -> arguments.min()
-                case BuiltinFunction.MAX -> arguments.max()
-                case BuiltinFunction.AVG -> arguments.average()
+                case BuiltinFunction.MIN -> arguments["list"].min()
+                case BuiltinFunction.MAX -> arguments["list"].max()
+                case BuiltinFunction.AVG -> arguments["list"].average()
             }
         }
     }
 
     private Object eval(String expr) {
         var parser = new ImageMathParser(expr)
-        evaluator.evaluate(parser.parseAndInlineIncludes().findSections(ImageMathScriptExecutor.SectionKind.ALL).getFirst().children().getFirst())
+        evaluator.evaluate(parser.parseAndInlineIncludes().findSections(ImageMathScriptExecutor.SectionKind.SINGLE).getFirst().children().getFirst())
     }
 }

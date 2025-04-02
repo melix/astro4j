@@ -31,6 +31,7 @@ import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.Collections;
 import java.util.Comparator;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -120,7 +121,7 @@ public class ImagesStore implements ProcessingEventListener {
         return getDisplayCategories().stream()
             .collect(Collectors.toMap(
                 dc -> dc,
-                images::get
+                images::get, (e1, e2) -> e1, LinkedHashMap::new
             ));
     }
 }

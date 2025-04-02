@@ -34,12 +34,12 @@ import java.awt.image.BufferedImage;
 import java.awt.image.DataBufferUShort;
 import java.io.File;
 import java.io.IOException;
-import java.nio.file.Files;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
 
+import static me.champeau.a4j.jsolex.processing.util.FilesUtils.createDirectoriesIfNeeded;
 import static me.champeau.a4j.ser.bayer.BayerMatrixSupport.GREEN;
 
 public class ImageUtils {
@@ -52,11 +52,11 @@ public class ImageUtils {
     }
 
     public static List<File> writeMonoImage(
-        int width,
-        int height,
-        float[][] data,
-        File outputFile,
-        Set<ImageFormat> imageFormats) {
+            int width,
+            int height,
+            float[][] data,
+            File outputFile,
+            Set<ImageFormat> imageFormats) {
         var image = new BufferedImage(width, height, BufferedImage.TYPE_USHORT_GRAY);
         short[] converted = ((DataBufferUShort) image.getRaster().getDataBuffer()).getData();
         for (int y = 0; y < height; y++) {
@@ -72,27 +72,27 @@ public class ImageUtils {
             createDirectoryFor(outputFile);
             var baseName = baseNameOf(outputFile);
             return imageFormats.stream()
-                .parallel()
-                .map(format -> {
-                    if (format.equals(ImageFormat.FITS)) {
-                        return null;
-                    }
-                    var output = new File(outputFile.getParentFile(), baseName + format.extension());
-                    var formatName = format.name().toLowerCase();
-                    var img = image;
-                    if (isJpegFormat(formatName) && is16BitGreyscale(img)) {
-                        img = convertToRGB(img);
-                    }
-                    try {
-                        ImageIO.write(img, formatName, output);
-                        LOGGER.debug("Wrote {}", output);
-                    } catch (IOException ex) {
-                        throw new ProcessingException(ex);
-                    }
-                    return output;
-                })
-                .filter(Objects::nonNull)
-                .toList();
+                    .parallel()
+                    .map(format -> {
+                        if (format.equals(ImageFormat.FITS)) {
+                            return null;
+                        }
+                        var output = new File(outputFile.getParentFile(), baseName + format.extension());
+                        var formatName = format.name().toLowerCase();
+                        var img = image;
+                        if (isJpegFormat(formatName) && is16BitGreyscale(img)) {
+                            img = convertToRGB(img);
+                        }
+                        try {
+                            ImageIO.write(img, formatName, output);
+                            LOGGER.debug("Wrote {}", output);
+                        } catch (IOException ex) {
+                            throw new ProcessingException(ex);
+                        }
+                        return output;
+                    })
+                    .filter(Objects::nonNull)
+                    .toList();
         } catch (IOException e) {
             throw new ProcessingException(e);
         }
@@ -141,19 +141,17 @@ public class ImageUtils {
 
     private static void createDirectoryFor(File outputFile) throws IOException {
         var path = outputFile.getParentFile().toPath();
-        if (!Files.isDirectory(path)) {
-            Files.createDirectories(path);
-        }
+        createDirectoriesIfNeeded(path);
     }
 
     public static List<File> writeRgbImage(
-        int width,
-        int height,
-        float[][] r,
-        float[][] g,
-        float[][] b,
-        File outputFile,
-        Set<ImageFormat> imageFormats
+            int width,
+            int height,
+            float[][] r,
+            float[][] g,
+            float[][] b,
+            File outputFile,
+            Set<ImageFormat> imageFormats
     ) {
         var image = new BufferedImage(width, height, BufferedImage.TYPE_INT_RGB);
         int[] rgb = new int[width * height];
@@ -174,13 +172,13 @@ public class ImageUtils {
 
     public static ImageConverter<float[][]> createImageConverter(ColorMode colorMode, boolean vflip) {
         var converter = new FloatPrecisionImageConverter(
-            new ChannelExtractingConverter(
-                new DemosaicingRGBImageConverter(
-                    new BilinearDemosaicingStrategy(),
-                    colorMode
-                ),
-                GREEN
-            )
+                new ChannelExtractingConverter(
+                        new DemosaicingRGBImageConverter(
+                                new BilinearDemosaicingStrategy(),
+                                colorMode
+                        ),
+                        GREEN
+                )
         );
         if (vflip) {
             return new VerticalMirrorConverter(converter);
@@ -194,7 +192,7 @@ public class ImageUtils {
 
     public static float[][][] convertToRGB(ColorCurve curve, float[][] mono) {
         var height = mono.length;
-        var width = height==0 ? 0 : mono[0].length;
+        var width = height == 0 ? 0 : mono[0].length;
         float[][] r = new float[height][width];
         float[][] g = new float[height][width];
         float[][] b = new float[height][width];
@@ -219,7 +217,7 @@ public class ImageUtils {
             int y = (int) Math.round(p.y());
             if (x > 0 && x < width - 1 && y > 0 && y < height - 1) {
                 data[y][x] = (data[y][(x - 1)] + data[y][x + 1]
-                                          + data[y - 1][x] + data[y + 1][x]) / 4;
+                        + data[y - 1][x] + data[y + 1][x]) / 4;
             }
         }
     }

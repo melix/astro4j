@@ -163,7 +163,7 @@ public class RedshiftImagesProcessor {
         var range = createMinMaxRange(min, max, .25).stream().sorted().toList();
         var contrast = new AdjustContrast(Map.of(), broadcaster);
         var initialImages = range.stream().map(shiftImages::get).toList();
-        var constrastAdjusted = contrast.autoContrast(List.of(initialImages, params.autoStretchParams().gamma()));
+        var constrastAdjusted = contrast.autoContrast(Map.of("img", initialImages, "gamma", params.autoStretchParams().gamma()));
         if (constrastAdjusted instanceof List list) {
             var shiftToContrastAdjusted = new HashMap<Double, ImageWrapper>();
             for (int i = 0; i < range.size(); i++) {
@@ -216,7 +216,7 @@ public class RedshiftImagesProcessor {
         var crop = new Crop(Map.of(), broadcaster);
         var constrastAdjusted = shiftToContrastAdjusted.keySet().stream().sorted().map(shiftToContrastAdjusted::get).toList();
         var animate = new Animate(Map.of(), broadcaster);
-        var cropped = crop.crop(List.of(constrastAdjusted, x1, y1, boxSize, boxSize));
+        var cropped = crop.crop(Map.of("img", constrastAdjusted, "x", x1, "y", y1, "width", boxSize, "height", boxSize));
         if (kind == RedshiftCreatorKind.ANIMATION || kind == RedshiftCreatorKind.ALL) {
             var annotationColorHex = toHex(annotationColor);
             generateAnim(redshift, animate, cropped, annotateAnimations, boxSize, boxSize, new Scaling(Map.of(), broadcaster, crop), annotationColorHex);
@@ -249,12 +249,12 @@ public class RedshiftImagesProcessor {
         // make sure that x+width <= maxWidth and y+height <= maxHeight
         var cropWidth = Math.min(width, maxWidth - x);
         var cropHeight = Math.min(height, maxHeight - y);
-        var constrastAdjusted = contrast.autoContrast(List.of(initialImages, params.autoStretchParams().gamma()));
-        var cropped = crop.crop(List.of(constrastAdjusted, x, y, cropWidth, cropHeight));
+        var constrastAdjusted = contrast.autoContrast(Map.of("img", initialImages, "gamma", params.autoStretchParams().gamma()));
+        var cropped = crop.crop(Map.of("img", constrastAdjusted, "x", x, "y", y, "width", cropWidth, "height", cropHeight));
         var scaling = new Scaling(Map.of(), broadcaster, crop);
         var annotationColorHex = toHex(annotationColor);
         List<ImageWrapper> frames = createFrames(cropWidth, cropHeight, annotate, cropped, scaling, annotationColorHex);
-        var anim = (FileOutput) animate.createAnimation(List.of(frames, delay));
+        var anim = (FileOutput) animate.createAnimation(Map.of("images", frames, "delay", delay));
         imageEmitter.newGenericFile(
             GeneratedImageKind.CROPPED,
             null, title,
@@ -279,7 +279,7 @@ public class RedshiftImagesProcessor {
             if (width < 128) {
                 // rescale so that drawing text is readable
                 var scale = 128d / width;
-                list = (List) scaling.relativeRescale(List.of(list, scale, scale));
+                list = (List) scaling.relativeRescale(Map.of("img", list, "sx", scale, "sy", scale));
                 finalWidth = 128;
                 finalHeight = (int) (height * scale);
             } else {
@@ -321,11 +321,11 @@ public class RedshiftImagesProcessor {
             restartProcessForMissingShifts(new LinkedHashSet<>(missingShifts));
         }
         var initialImages = range.stream().map(shiftImages::get).toList();
-        var constrastAdjusted = contrast.autoContrast(List.of(initialImages, params.autoStretchParams().gamma()));
+        var constrastAdjusted = contrast.autoContrast(Map.of("img", initialImages, "gamma", params.autoStretchParams().gamma()));
         // make sure that x+width <= maxWidth and y+height <= maxHeight
         var cropWidth = Math.min(width, initialImages.stream().mapToInt(ImageWrapper::width).max().orElse(0) - x);
         var cropHeight = Math.min(height, initialImages.stream().mapToInt(ImageWrapper::height).max().orElse(0) - y);
-        var cropped = crop.crop(List.of(constrastAdjusted, x, y, cropWidth, cropHeight));
+        var cropped = crop.crop(Map.of("img", constrastAdjusted, "x", x, "y", y, "width", cropWidth, "height", cropHeight));
         // compute individual width/height so that the final image width doesn't exceed 7680 pixels
         var maxWidth = MAX_PANEL_SIZE / Math.sqrt(initialImages.size());
         var maxHeight = MAX_PANEL_SIZE / Math.sqrt(initialImages.size());
@@ -337,13 +337,13 @@ public class RedshiftImagesProcessor {
             // rescale so that drawing text is readable and final image not too big
             var scaling = new Scaling(Map.of(), broadcaster, crop);
             var scale = 128d / cropWidth;
-            frames = (List<ImageWrapper>) scaling.relativeRescale(List.of(cropped, scale, scale));
+            frames = (List<ImageWrapper>) scaling.relativeRescale(Map.of("img", cropped, "sx", scale, "sy", scale));
             finalWidth = 128;
             finalHeight = (int) (cropHeight * scale);
         } else if (cropWidth > maxBoxSize || cropHeight > maxBoxSize) {
             // rescale so that the final image doesn't exceed 7680 pixels
             var scale = Math.min(maxBoxSize / (double) cropWidth, maxBoxSize / (double) cropHeight);
-            frames = (List<ImageWrapper>) new Scaling(Map.of(), broadcaster, crop).relativeRescale(List.of(cropped, scale, scale));
+            frames = (List<ImageWrapper>) new Scaling(Map.of(), broadcaster, crop).relativeRescale(Map.of("img", cropped, "sx", scale, "sy", scale));
             finalWidth = (int) (cropWidth * scale);
             finalHeight = (int) (cropHeight * scale);
         } else {
@@ -357,7 +357,7 @@ public class RedshiftImagesProcessor {
 
     private void generateAnim(RedshiftArea redshift, Animate animate, Object cropped, boolean annotateAnimations, int width, int height, Scaling scaling, String annotationColorHex) {
         var frames = createFrames(width, height, annotateAnimations, cropped, scaling, annotationColorHex);
-        var anim = (FileOutput) animate.createAnimation(List.of(frames, 25));
+        var anim = (FileOutput) animate.createAnimation(Map.of("images", frames, "delay", 25));
         imageEmitter.newGenericFile(
             GeneratedImageKind.REDSHIFT,
             null, String.format("Panel %s (%.2f km/s)", redshift.id(), redshift.kmPerSec()),
@@ -371,7 +371,7 @@ public class RedshiftImagesProcessor {
         if (boxSize <= 128) {
             // this is a bit small to display the text, so we're going to scale by a factor of 2
             var scaling = new Scaling(Map.of(), broadcaster, crop);
-            snapshots = (List<ImageWrapper>) scaling.relativeRescale(List.of(snapshots, 2, 2));
+            snapshots = (List<ImageWrapper>) scaling.relativeRescale(Map.of("img", snapshots, "sx", 2, "sy", 2));
             boxSize *= 2;
         }
         // snaphots are at pixel shifts n, n+0.25, n+0.5, n+0.75

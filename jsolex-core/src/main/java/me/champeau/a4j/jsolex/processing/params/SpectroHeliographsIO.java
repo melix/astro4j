@@ -29,6 +29,7 @@ import java.nio.file.Path;
 import java.util.List;
 
 import static me.champeau.a4j.jsolex.processing.util.Constants.message;
+import static me.champeau.a4j.jsolex.processing.util.FilesUtils.createDirectoriesIfNeeded;
 
 public class SpectroHeliographsIO {
     private static final Logger LOGGER = LoggerFactory.getLogger(SpectroHeliographsIO.class);
@@ -40,7 +41,7 @@ public class SpectroHeliographsIO {
     private static Path resolveDefaultsFile() {
         var jsolexDir = VersionUtil.getJsolexDir();
         try {
-            Files.createDirectories(jsolexDir);
+            createDirectoriesIfNeeded(jsolexDir);
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
@@ -100,7 +101,7 @@ public class SpectroHeliographsIO {
 
     public static void saveTo(List<SpectroHeliograph> shgs, File destination) {
         try {
-            Files.createDirectories(destination.getParentFile().toPath());
+            createDirectoriesIfNeeded(destination.getParentFile().toPath());
             try (var writer = FilesUtils.newTextWriter(destination.toPath())) {
                 var gson = newGson();
                 writer.write(gson.toJson(shgs));

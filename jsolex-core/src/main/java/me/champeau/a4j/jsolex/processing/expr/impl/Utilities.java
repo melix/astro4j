@@ -15,6 +15,7 @@
  */
 package me.champeau.a4j.jsolex.processing.expr.impl;
 
+import me.champeau.a4j.jsolex.expr.BuiltinFunction;
 import me.champeau.a4j.jsolex.processing.params.ProcessParams;
 import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
 import me.champeau.a4j.jsolex.processing.sun.workflow.MetadataTable;
@@ -90,35 +91,28 @@ public class Utilities extends AbstractFunctionImpl {
         return result;
     }
 
-    public Object videoDateTime(List<Object> arguments) {
-        if (arguments.size() > 2) {
-            throw new IllegalArgumentException("video_datetime() accepts one or two arguments (image, [format])");
+    public Object videoDateTime(Map<String ,Object> arguments) {
+        BuiltinFunction.VIDEO_DATETIME.validateArgs(arguments);
+        if (arguments.get("img") instanceof List) {
+            return expandToImageList("video_datetime", "img", arguments, this::videoDateTime);
         }
-        if (arguments.getFirst() instanceof List) {
-            return expandToImageList("video_datetime", arguments, this::videoDateTime);
-        }
-        if (arguments.getFirst() instanceof ImageWrapper image) {
+        if (arguments.get("img") instanceof ImageWrapper image) {
             var params = image.findMetadata(ProcessParams.class).orElse((ProcessParams) context.get(ProcessParams.class));
             if (params == null) {
                 return "Unknown date";
             }
             var date = params.observationDetails().date();
-            if (arguments.size() == 1) {
-                return date.format(DateTimeFormatter.ofPattern(DEFAULT_DATE_FORMAT));
-            }
-            return date.format(DateTimeFormatter.ofPattern(stringArg(arguments, 1)));
+            return date.format(DateTimeFormatter.ofPattern(stringArg(arguments, "format", DEFAULT_DATE_FORMAT)));
         }
         return "Unknown date";
     }
 
-    public List<Object> sort(List<Object> arguments) {
-        if (arguments.size() > 2) {
+    public List<Object> sort(Map<String ,Object> arguments) {
+        BuiltinFunction.SORT.validateArgs(arguments);
+        if (!(arguments.get("images") instanceof List list)) {
             throw new IllegalArgumentException("sort() accepts two arguments (images, [sort order])");
         }
-        if (!(arguments.getFirst() instanceof List list)) {
-            throw new IllegalArgumentException("sort() accepts two arguments (images, [sort order])");
-        }
-        var ordering = arguments.size() == 2 ? stringArg(arguments, 1) : "shift";
+        var ordering = stringArg(arguments, "order", "shift");
         boolean reverse = ordering.endsWith(" desc");
         if (reverse) {
             ordering = ordering.substring(0, ordering.length() - 5);
@@ -145,14 +139,11 @@ public class Utilities extends AbstractFunctionImpl {
             .toList();
     }
 
-    public Object extractChannel(List<Object> arguments, int channel) {
-        if (arguments.size() != 1) {
-            throw new IllegalArgumentException("extract_channel accepts a single argument");
+    public Object extractChannel(Map<String ,Object> arguments, int channel) {
+        if (arguments.get("img") instanceof List) {
+            return expandToImageList("extractChannel", "img", arguments, args -> extractChannel(args, channel));
         }
-        if (arguments.getFirst() instanceof List) {
-            return expandToImageList("extractChannel", arguments, args -> extractChannel(args, channel));
-        }
-        var image = arguments.getFirst();
+        var image = arguments.get("img");
         if (image instanceof ImageWrapper wrapper) {
             wrapper = wrapper.unwrapToMemory();
             if (wrapper instanceof ImageWrapper32 mono) {
@@ -171,14 +162,12 @@ public class Utilities extends AbstractFunctionImpl {
         throw new IllegalArgumentException("Unexpected argument type: " + image.getClass());
     }
 
-    public Object toMono(List<Object> arguments) {
-        if (arguments.size() != 1) {
-            throw new IllegalArgumentException("toMono accepts a single argument");
+    public Object toMono(Map<String ,Object> arguments) {
+        BuiltinFunction.MONO.validateArgs(arguments);
+        if (arguments.get("img") instanceof List) {
+            return expandToImageList("toMono", "img", arguments, this::toMono);
         }
-        if (arguments.getFirst() instanceof List) {
-            return expandToImageList("toMono", arguments, this::toMono);
-        }
-        var image = arguments.getFirst();
+        var image = arguments.get("img");
         if (image instanceof ImageWrapper wrapper) {
             wrapper = wrapper.unwrapToMemory();
             if (wrapper instanceof ImageWrapper32 mono) {
@@ -191,15 +180,15 @@ public class Utilities extends AbstractFunctionImpl {
         throw new IllegalArgumentException("Unexpected argument type: " + image.getClass());
     }
 
-    public Object doGetAt(List<Object> arguments) {
-        assertExpectedArgCount(arguments, "get_at expects 2 arguments (images, index)", 2, 2);
-        if (!(arguments.getFirst() instanceof List list)) {
+    public Object doGetAt(Map<String ,Object> arguments) {
+        BuiltinFunction.GET_AT.validateArgs(arguments);
+        if (!(arguments.get("img") instanceof List list)) {
             throw new IllegalArgumentException("get_at expects a list of images as first argument");
         }
         if (!list.isEmpty() && list.getFirst() instanceof List) {
-            return expandToImageList("get_at", arguments, this::doGetAt);
+            return expandToImageList("get_at", "img", arguments, this::doGetAt);
         }
-        var index = intArg(arguments, 1);
+        var index = intArg(arguments, "index", -1);
         return list.get(index);
     }
 
@@ -208,9 +197,11 @@ public class Utilities extends AbstractFunctionImpl {
      * @param arguments the list of lists to concatenate
      * @return a single list
      */
-    public Object concat(List<Object> arguments) {
-        if (arguments.stream().allMatch(i -> i instanceof List<?>)) {
-            return arguments.stream()
+    public Object concat(Map<String ,Object> arguments) {
+        BuiltinFunction.CONCAT.validateArgs(arguments);
+        var list = (List<?>) arguments.get("list");
+        if (list.stream().allMatch(i -> i instanceof List<?>)) {
+            return list.stream()
                 .map(List.class::cast)
                 .flatMap(List::stream)
                 .toList();
@@ -218,12 +209,12 @@ public class Utilities extends AbstractFunctionImpl {
         return arguments;
     }
 
-    public Object weightedAverage(List<Object> arguments) {
-        assertExpectedArgCount(arguments, "weighted_average expects 2 arguments (images, weights)", 2, 2);
-        if (!(arguments.getFirst() instanceof List<?> images)) {
+    public Object weightedAverage(Map<String ,Object> arguments) {
+        BuiltinFunction.WEIGHTED_AVG.validateArgs(arguments);
+        if (!(arguments.get("images") instanceof List<?> images)) {
             throw new IllegalArgumentException("weighted_average expects a list of images as first argument");
         }
-        if (!(arguments.get(1) instanceof List<?> weights)) {
+        if (!(arguments.get("weights") instanceof List<?> weights)) {
             throw new IllegalArgumentException("weighted_average expects a list of weights as second argument");
         }
         if (images.size() != weights.size()) {

@@ -15,10 +15,10 @@
  */
 package me.champeau.a4j.jsolex.processing.expr.impl;
 
+import me.champeau.a4j.jsolex.expr.BuiltinFunction;
 import me.champeau.a4j.jsolex.processing.stretching.ClaheStrategy;
 import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
 
-import java.util.List;
 import java.util.Map;
 
 public class Clahe extends AbstractFunctionImpl {
@@ -27,21 +27,14 @@ public class Clahe extends AbstractFunctionImpl {
         super(context, broadcaster);
     }
 
-    public Object clahe(List<Object> arguments) {
-        if (arguments.size() != 4 && arguments.size() != 2) {
-            throw new IllegalArgumentException("clahe takes either 2 or 4 arguments (image(s), [tile_size, bins], clip)");
-        }
-        if (arguments.size() == 2) {
-            double clip = doubleArg(arguments, 1);
-            return monoToMonoImageTransformer("clahe", 2, arguments, image -> new ClaheStrategy(ClaheStrategy.DEFAULT_TILE_SIZE, ClaheStrategy.DEFAULT_BINS, clip).stretch(image));
-
-        }
-        int tileSize = intArg(arguments, 1);
-        int bins = intArg(arguments, 2);
-        double clip = doubleArg(arguments, 3);
+    public Object clahe(Map<String ,Object> arguments) {
+        BuiltinFunction.CLAHE.validateArgs(arguments);
+        int tileSize = intArg(arguments, "ts", ClaheStrategy.DEFAULT_TILE_SIZE);
+        int bins = intArg(arguments, "bins", ClaheStrategy.DEFAULT_BINS);
+        double clip = doubleArg(arguments, "clip", 1.0);
         if (tileSize * tileSize / (double) bins < 1.0) {
             throw new IllegalArgumentException("The number of bins is too high given the size of the tiles. Either reduce the bin count or increase the tile size");
         }
-        return monoToMonoImageTransformer("clahe", 4, arguments, image -> new ClaheStrategy(tileSize, bins, clip).stretch(image));
+        return monoToMonoImageTransformer("clahe", "img", arguments, image -> new ClaheStrategy(tileSize, bins, clip).stretch(image));
     }
 }

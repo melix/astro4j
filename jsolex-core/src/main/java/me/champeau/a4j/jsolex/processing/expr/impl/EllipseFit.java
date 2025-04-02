@@ -15,6 +15,7 @@
  */
 package me.champeau.a4j.jsolex.processing.expr.impl;
 
+import me.champeau.a4j.jsolex.expr.BuiltinFunction;
 import me.champeau.a4j.jsolex.processing.params.ProcessParams;
 import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
 import me.champeau.a4j.jsolex.processing.sun.tasks.EllipseFittingTask;
@@ -32,13 +33,11 @@ public class EllipseFit extends AbstractFunctionImpl {
         super(context, broadcaster);
     }
 
-    public Object fit(List<Object> arguments) {
-        if (arguments.size() != 1) {
-            throw new IllegalArgumentException("ellipse_fit takes 1 arguments (image(s))");
-        }
-        var arg = arguments.get(0);
+    public Object fit(Map<String ,Object> arguments) {
+        BuiltinFunction.ELLIPSE_FIT.validateArgs(arguments);
+        var arg = arguments.get("img");
         if (arg instanceof List<?>) {
-            return expandToImageList("ellipse_fit", arguments, this::fit);
+            return expandToImageList("ellipse_fit", "img", arguments, this::fit);
         }
         if (arg instanceof FileBackedImage fileBackedImage) {
             arg = fileBackedImage.unwrapToMemory();

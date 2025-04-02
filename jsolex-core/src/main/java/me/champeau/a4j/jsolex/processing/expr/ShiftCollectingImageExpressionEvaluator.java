@@ -25,7 +25,6 @@ import me.champeau.a4j.jsolex.processing.util.Wavelen;
 
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeSet;
@@ -63,7 +62,7 @@ public class ShiftCollectingImageExpressionEvaluator extends ImageExpressionEval
     }
 
     @Override
-    public Object functionCall(BuiltinFunction function, List<Object> arguments) {
+    public Object functionCall(BuiltinFunction function, Map<String, Object> arguments) {
         if (function == BuiltinFunction.CONTINUUM) {
             autoContinuum = true;
         }

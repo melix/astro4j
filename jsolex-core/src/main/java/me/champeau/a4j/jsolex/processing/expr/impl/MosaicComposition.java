@@ -15,9 +15,9 @@
  */
 package me.champeau.a4j.jsolex.processing.expr.impl;
 
+import me.champeau.a4j.jsolex.expr.BuiltinFunction;
 import me.champeau.a4j.jsolex.processing.event.GeneratedImage;
 import me.champeau.a4j.jsolex.processing.event.ImageGeneratedEvent;
-import me.champeau.a4j.jsolex.processing.event.ProgressEvent;
 import me.champeau.a4j.jsolex.processing.sun.BackgroundRemoval;
 import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
 import me.champeau.a4j.jsolex.processing.sun.workflow.GeneratedImageKind;
@@ -36,7 +36,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.imageio.ImageIO;
-import java.awt.Color;
+import java.awt.*;
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
@@ -89,9 +89,9 @@ public class MosaicComposition extends AbstractFunctionImpl {
         return doMosaic(stackedImages, tileSize, sampling);
     }
 
-    public Object mosaic(List<Object> arguments) {
-        assertExpectedArgCount(arguments, "mosaic takes 1, 2, or 3 arguments (image(s), [tile size], [sampling])", 1, 3);
-        var arg = arguments.get(0);
+    public Object mosaic(Map<String ,Object> arguments) {
+        BuiltinFunction.MOSAIC.validateArgs(arguments);
+        var arg = arguments.get("images");
         if (arg instanceof List<?> list) {
             var images = list.stream().filter(ImageWrapper.class::isInstance).map(img -> {
                 if (img instanceof FileBackedImage fbi) {
@@ -103,13 +103,13 @@ public class MosaicComposition extends AbstractFunctionImpl {
                 return List.of();
             }
             if (images.size() == 1) {
-                return images.get(0);
+                return images.getFirst();
             }
-            var tileSize = arguments.size() >= 2 ? intArg(arguments, 1) : DEFAULT_TILE_SIZE;
+            var tileSize = intArg(arguments, "ts", DEFAULT_TILE_SIZE);
             if (tileSize < 16) {
                 throw new IllegalArgumentException("tile size must be at least 16");
             }
-            var sampling = arguments.size() >= 3 ? floatArg(arguments, 2) : DEFAULT_SAMPLING;
+            var sampling = floatArg(arguments, "sampling", DEFAULT_SAMPLING);
             if (sampling <= 0) {
                 throw new IllegalArgumentException("sampling must be greater than 0");
             }
@@ -162,7 +162,7 @@ public class MosaicComposition extends AbstractFunctionImpl {
             var tileOverlap = placeMostOverlappingImagesFirst(corrected, imageToTilesOverbackground, imageCount);
             if (tileOverlap != null && tileOverlap.overlappingTiles() == 0) {
                 LOGGER.warn("Cannot find overlapping tiles between images, falling back to addition");
-                return (ImageWrapper32) new SimpleFunctionCall(Map.of(), broadcaster).applyFunction("max", List.of(corrected), DoubleStream::max);
+                return (ImageWrapper32) new SimpleFunctionCall(Map.of(), broadcaster).applyFunction("max", Map.of("list", corrected), DoubleStream::max);
             }
             int maxSteps = 2 * (height / distorsionGridSize);
             int step = 0;

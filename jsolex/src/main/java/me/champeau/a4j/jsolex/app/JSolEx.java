@@ -102,7 +102,11 @@ import me.champeau.a4j.jsolex.app.listeners.JSolExInterface;
 import me.champeau.a4j.jsolex.app.listeners.RedshiftImagesProcessor;
 import me.champeau.a4j.jsolex.app.listeners.SingleModeProcessingEventListener;
 import me.champeau.a4j.jsolex.app.script.JSolExScriptExecutor;
-import me.champeau.a4j.jsolex.processing.event.*;
+import me.champeau.a4j.jsolex.processing.event.FileGeneratedEvent;
+import me.champeau.a4j.jsolex.processing.event.GeneratedImage;
+import me.champeau.a4j.jsolex.processing.event.ImageGeneratedEvent;
+import me.champeau.a4j.jsolex.processing.event.ProcessingEventListener;
+import me.champeau.a4j.jsolex.processing.event.ProgressOperation;
 import me.champeau.a4j.jsolex.processing.expr.ImageMathScriptExecutor;
 import me.champeau.a4j.jsolex.processing.expr.ImageMathScriptResult;
 import me.champeau.a4j.jsolex.processing.expr.InvalidExpression;
@@ -168,6 +172,7 @@ import static java.nio.file.StandardWatchEventKinds.OVERFLOW;
 import static me.champeau.a4j.jsolex.app.jfx.FXUtils.newStage;
 import static me.champeau.a4j.jsolex.app.jfx.SerFileTrimmerController.toTrimmedFile;
 import static me.champeau.a4j.jsolex.processing.sun.CaptureSoftwareMetadataHelper.findMetadataFile;
+import static me.champeau.a4j.jsolex.processing.util.FilesUtils.createDirectoriesIfNeeded;
 import static me.champeau.a4j.jsolex.processing.util.LoggingSupport.logError;
 
 public class JSolEx implements JSolExInterface {
@@ -297,6 +302,7 @@ public class JSolEx implements JSolExInterface {
     private final BooleanBinding reusedProcessParamsBinding = Bindings.createBooleanBinding(() -> reusedProcessParams == null);
     private TrimmingParameters trimmingParameters;
     private HostServices hostServices;
+    private Tab imagesViewerTab;
 
     @Override
     public MultipleImagesViewer getImagesViewer() {
@@ -321,6 +327,16 @@ public class JSolEx implements JSolExInterface {
     @Override
     public Tab getRedshiftTab() {
         return redshiftTab;
+    }
+
+    @Override
+    public Tab getImagesViewerTab() {
+        return imagesViewerTab;
+    }
+
+    @Override
+    public TabPane getTabs() {
+        return mainPane;
     }
 
     @Override
@@ -661,7 +677,7 @@ public class JSolEx implements JSolExInterface {
     }
 
     @Override
-    public void prepareForScriptExecution(ImageMathScriptExecutor executor, ProcessParams params, ProgressOperation rootOperation) {
+    public void prepareForScriptExecution(ImageMathScriptExecutor executor, ProcessParams params, ProgressOperation rootOperation, ImageMathScriptExecutor.SectionKind sectionKind) {
         imageMathPane.setDisable(false);
         imageMathRun.setOnAction(evt -> {
             var text = imageMathScript.getText();
@@ -672,7 +688,7 @@ public class JSolEx implements JSolExInterface {
             BackgroundOperations.async(() -> {
                 var operation = rootOperation.createChild("ImageMath Script");
                 executor.putInContext(ProgressOperation.class, operation);
-                executor.execute(text, ImageMathScriptExecutor.SectionKind.SINGLE);
+                executor.execute(text, sectionKind);
             });
         });
         imageMathSave.setDisable(true);
@@ -960,7 +976,7 @@ public class JSolEx implements JSolExInterface {
                             var fileName = entry.getValue().toFile().getName();
                             var ext = fileName.substring(fileName.lastIndexOf("."));
                             var targetPath = new File(outputDirectory, name + ext).toPath();
-                            Files.createDirectories(targetPath.getParent());
+                            createDirectoriesIfNeeded(targetPath.getParent());
                             Files.move(entry.getValue(), targetPath, StandardCopyOption.REPLACE_EXISTING);
                             listener.onFileGenerated(FileGeneratedEvent.of(GeneratedImageKind.IMAGE_MATH, entry.getKey(), targetPath));
                         } catch (IOException e) {
@@ -978,7 +994,7 @@ public class JSolEx implements JSolExInterface {
                 } catch (IOException e) {
                     throw new ProcessingException(e);
                 }
-                prepareForScriptExecution(imageScriptExecutor, params, rootOperation);
+                prepareForScriptExecution(imageScriptExecutor, params, rootOperation, ImageMathScriptExecutor.SectionKind.SINGLE);
             }
         });
     }
@@ -1080,8 +1096,10 @@ public class JSolEx implements JSolExInterface {
 
     public void newSession() {
         mainPane.getTabs().clear();
-        mainPane.getTabs().add(new Tab(message("images"), multipleImagesViewer));
+        imagesViewerTab = new Tab(message("images"), multipleImagesViewer);
+        mainPane.getTabs().add(imagesViewerTab);
         multipleImagesViewer.clear();
+        hideTabHeaderWhenSingleTab(mainPane);
     }
 
     @Override
@@ -1407,7 +1425,9 @@ public class JSolEx implements JSolExInterface {
         }
         columns.add(statusColumn);
         tab.setContent(table);
-        mainPane.getTabs().addFirst(tab);
+        var tabs = mainPane.getTabs();
+        tabs.clear();
+        tabs.add(tab);
         mainPane.getSelectionModel().select(0);
         var interruptButton = addInterruptButton();
         var interrupted = new AtomicBoolean();

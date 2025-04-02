@@ -15,12 +15,25 @@
  */
 package me.champeau.a4j.jsolex.expr;
 
-import me.champeau.a4j.jsolex.expr.ast.*;
+import me.champeau.a4j.jsolex.expr.ast.Argument;
+import me.champeau.a4j.jsolex.expr.ast.Assignment;
+import me.champeau.a4j.jsolex.expr.ast.BinaryExpression;
+import me.champeau.a4j.jsolex.expr.ast.Expression;
+import me.champeau.a4j.jsolex.expr.ast.FunctionCall;
+import me.champeau.a4j.jsolex.expr.ast.Identifier;
+import me.champeau.a4j.jsolex.expr.ast.ImageMathScript;
+import me.champeau.a4j.jsolex.expr.ast.NamedArgument;
+import me.champeau.a4j.jsolex.expr.ast.NumericalLiteral;
+import me.champeau.a4j.jsolex.expr.ast.Section;
+import me.champeau.a4j.jsolex.expr.ast.StringLiteral;
+import me.champeau.a4j.jsolex.expr.ast.UnaryExpression;
 
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.List;
+import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 public abstract class ExpressionEvaluator {
     private final Map<String, Object> variables = new HashMap<>();
@@ -83,11 +96,47 @@ public abstract class ExpressionEvaluator {
         if (expression instanceof FunctionCall functionCall) {
             if (functionCall.getBuiltinFunction().isPresent()) {
                 var fun = functionCall.getBuiltinFunction().get();
-                return functionCall(fun, functionCall.getArguments().stream().map(this::doEvaluate).toList());
+                var args = functionCall.getArguments();
+                if (args.stream().allMatch(arg -> arg.getFirst() instanceof Expression)) {
+                    // all arguments are expressions
+                    return functionCall(fun, fun.mapPositionalArguments(args.stream().map(this::doEvaluate).toList()));
+                }
+                if (args.stream().allMatch(arg -> arg.getFirst() instanceof NamedArgument)) {
+                    var map = args.stream()
+                            .map(arg -> (NamedArgument) arg.getFirst())
+                            .map(namedArg -> new Object() {
+                                private final String name = namedArg.children().getFirst().toString();
+                                private final Object value = doEvaluate(namedArg.children().getLast());
+                            })
+                            .collect(Collectors.toMap(o -> o.name, o -> o.value, (e1, e2) -> e1, LinkedHashMap::new));
+                    return functionCall(fun, map);
+                }
+                throw new RuntimeException("Mixing named and positional arguments is not supported");
             } else {
                 var fun = userFunctions.get(functionCall.getFunctionName());
                 if (fun != null) {
-                    return userFunctionCall(fun, functionCall.getArguments().stream().map(this::doEvaluate).toArray());
+                    var args = functionCall.getArguments();
+                    if (args.stream().allMatch(arg -> arg.getFirst() instanceof Expression)) {
+                        var arguments = fun.arguments();
+                        var params = IntStream.range(0, arguments.size())
+                                .mapToObj(i -> new Object() {
+                                    private final String name = arguments.get(i);
+                                    private final Object value = doEvaluate(args.get(i));
+                                })
+                                .collect(Collectors.toMap(o -> o.name, o -> o.value, (e1, e2) -> e1, LinkedHashMap::new));
+                        return userFunctionCall(fun, params);
+                    }
+                    if (args.stream().allMatch(arg -> arg.getFirst() instanceof NamedArgument)) {
+                        var map = args.stream()
+                                .map(arg -> (NamedArgument) arg.getFirst())
+                                .map(namedArg -> new Object() {
+                                    private final String name = namedArg.children().getFirst().toString();
+                                    private final Object value = doEvaluate(namedArg.children().getLast());
+                                })
+                                .collect(Collectors.toMap(o -> o.name, o -> o.value, (e1, e2) -> e1, LinkedHashMap::new));
+                        return userFunctionCall(fun, map);
+                    }
+                    throw new RuntimeException("Mixing named and positional arguments is not supported");
                 }
             }
             throw new UnsupportedOperationException("Unknown function " + functionCall.getFunctionName());
@@ -112,9 +161,13 @@ public abstract class ExpressionEvaluator {
     }
 
     protected abstract Object plus(Object left, Object right);
+
     protected abstract Object minus(Object left, Object right);
+
     protected abstract Object mul(Object left, Object right);
+
     protected abstract Object div(Object left, Object right);
+
     protected Object variable(String name) {
         if (variables.containsKey(name)) {
             return variables.get(name);
@@ -122,9 +175,9 @@ public abstract class ExpressionEvaluator {
         throw new IllegalStateException("Undefined variable '" + name + "'");
     }
 
-    protected abstract Object functionCall(BuiltinFunction function, List<Object> arguments);
+    protected abstract Object functionCall(BuiltinFunction function, Map<String, Object> arguments);
 
-    protected Object userFunctionCall(UserFunction function, Object[] arguments) {
+    protected Object userFunctionCall(UserFunction function, Map<String, Object> arguments) {
         return function.invoke(arguments);
     }
 

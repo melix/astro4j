@@ -15,6 +15,7 @@
  */
 package me.champeau.a4j.jsolex.processing.expr.impl;
 
+import me.champeau.a4j.jsolex.expr.BuiltinFunction;
 import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
 import me.champeau.a4j.jsolex.processing.sun.detection.RedshiftArea;
 import me.champeau.a4j.jsolex.processing.sun.detection.Redshifts;
@@ -41,31 +42,31 @@ public class Rotate extends AbstractFunctionImpl {
         super(context, broadcaster);
     }
 
-    public Object rotateLeft(List<Object> arguments) {
-        assertExpectedArgCount(arguments, "rotate_left takes 1 arguments (image(s))", 1, 1);
+    public Object rotateLeft(Map<String ,Object> arguments) {
+        BuiltinFunction.ROTATE_LEFT.validateArgs(arguments);
         return doRotate("rotate_left", arguments, -Math.PI / 2);
     }
 
-    public Object rotateRight(List<Object> arguments) {
-        assertExpectedArgCount(arguments, "rotate_right takes 1 arguments (image(s))", 1, 1);
+    public Object rotateRight(Map<String ,Object> arguments) {
+        BuiltinFunction.ROTATE_RIGHT.validateArgs(arguments);
         return doRotate("rotate_right", arguments, Math.PI / 2);
     }
 
-    public Object rotateDegrees(List<Object> arguments) {
-        assertExpectedArgCount(arguments, "rotate_deg takes 2 to 4 arguments (image(s), angle, [blackPoint], [resize])", 1, 4);
-        var angle = Math.toRadians(doubleArg(arguments, 1));
+    public Object rotateDegrees(Map<String ,Object> arguments) {
+        BuiltinFunction.ROTATE_DEG.validateArgs(arguments);
+        var angle = Math.toRadians(doubleArg(arguments, "angle", 0));
         return doRotate("rotate_deg", arguments, angle);
     }
 
-    public Object rotateRadians(List<Object> arguments) {
-        assertExpectedArgCount(arguments, "rotate_rad takes 2 to 4 arguments (image(s), angle, [blackPoint], [resize])", 1, 4);
-        var angle = doubleArg(arguments, 1);
+    public Object rotateRadians(Map<String ,Object> arguments) {
+        BuiltinFunction.ROTATE_RAD.validateArgs(arguments);
+        var angle = doubleArg(arguments, "angle", 0);
         return doRotate("rotate_rad", arguments, angle);
     }
 
-    public Object hflip(List<Object> arguments) {
-        assertExpectedArgCount(arguments, "hflip takes 1 arguments (image(s))", 1, 1);
-        return applyUnary(arguments, "hflip", (width, height, data) -> {
+    public Object hflip(Map<String ,Object> arguments) {
+        BuiltinFunction.HFLIP.validateArgs(arguments);
+        return applyUnary(arguments, "hflip", "img", (width, height, data) -> {
             var result = new float[height][width];
             for (var y = 0; y < height; y++) {
                 for (var x = 0; x < width; x++) {
@@ -76,33 +77,33 @@ public class Rotate extends AbstractFunctionImpl {
         });
     }
 
-    public Object vflip(List<Object> arguments) {
-        assertExpectedArgCount(arguments, "vflip takes 1 arguments (image(s))", 1, 1);
-        return applyUnary(arguments, "vflip", (width, height, data) -> {
-            var result = new float[width * height];
+    public Object vflip(Map<String ,Object> arguments) {
+        BuiltinFunction.VFLIP.validateArgs(arguments);
+        return applyUnary(arguments, "vflip", "img", (width, height, data) -> {
+            var result = new float[height][width];
             for (var y = 0; y < height; y++) {
-                System.arraycopy(data, (height - y - 1) * width, result, y * width, width);
+                System.arraycopy(data[y], 0, result[height - y - 1], 0, width);
             }
             System.arraycopy(result, 0, data, 0, result.length);
         });
     }
 
-    private Image arbitraryRotation(List<Object> arguments, Image image, double angle) {
-        var blackpoint = getArgument(Number.class, arguments, 2)
+    private Image arbitraryRotation(Map<String ,Object> arguments, Image image, double angle) {
+        var blackpoint = getArgument(Number.class, arguments, "bp")
             .map(Number::floatValue)
             .or(() -> getFromContext(ImageStats.class).map(ImageStats::blackpoint))
             .orElse(0f);
-        var resize = getArgument(Number.class, arguments, 3)
+        var resize = getArgument(Number.class, arguments, "resize")
             .map(Number::intValue)
             .map(i -> i == 1)
             .orElse(false);
         return imageMath.rotate(image, angle, blackpoint, resize);
     }
 
-    private Object doRotate(String functionName, List<Object> arguments, double angle) {
-        var arg = arguments.get(0);
+    private Object doRotate(String functionName, Map<String ,Object> arguments, double angle) {
+        var arg = arguments.get("img");
         if (arg instanceof List<?>) {
-            return expandToImageList(functionName, arguments, this::rotateRadians);
+            return expandToImageList(functionName, "img", arguments, this::rotateRadians);
         }
         if (arg instanceof FileBackedImage fileBackedImage) {
             arg = fileBackedImage.unwrapToMemory();

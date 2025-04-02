@@ -24,7 +24,21 @@ import me.champeau.a4j.jsolex.app.jfx.CandidateImageDescriptor;
 import me.champeau.a4j.jsolex.app.jfx.Corrector;
 import me.champeau.a4j.jsolex.app.jfx.ImageInspectorController;
 import me.champeau.a4j.jsolex.app.script.JSolExScriptExecutor;
-import me.champeau.a4j.jsolex.processing.event.*;
+import me.champeau.a4j.jsolex.processing.event.AverageImageComputedEvent;
+import me.champeau.a4j.jsolex.processing.event.FileGeneratedEvent;
+import me.champeau.a4j.jsolex.processing.event.GeneratedImage;
+import me.champeau.a4j.jsolex.processing.event.ImageGeneratedEvent;
+import me.champeau.a4j.jsolex.processing.event.Notification;
+import me.champeau.a4j.jsolex.processing.event.NotificationEvent;
+import me.champeau.a4j.jsolex.processing.event.OutputImageDimensionsDeterminedEvent;
+import me.champeau.a4j.jsolex.processing.event.PartialReconstructionEvent;
+import me.champeau.a4j.jsolex.processing.event.ProcessingDoneEvent;
+import me.champeau.a4j.jsolex.processing.event.ProcessingEventListener;
+import me.champeau.a4j.jsolex.processing.event.ProcessingStartEvent;
+import me.champeau.a4j.jsolex.processing.event.ProgressOperation;
+import me.champeau.a4j.jsolex.processing.event.ScriptExecutionResultEvent;
+import me.champeau.a4j.jsolex.processing.event.TrimmingParametersDeterminedEvent;
+import me.champeau.a4j.jsolex.processing.event.VideoMetadataEvent;
 import me.champeau.a4j.jsolex.processing.expr.BestImages;
 import me.champeau.a4j.jsolex.processing.expr.DefaultImageScriptExecutor;
 import me.champeau.a4j.jsolex.processing.expr.ImageMathScriptExecutor;
@@ -64,12 +78,12 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
 import static me.champeau.a4j.jsolex.app.JSolEx.message;
 import static me.champeau.a4j.jsolex.processing.sun.CaptureSoftwareMetadataHelper.computeSerFileBasename;
+import static me.champeau.a4j.jsolex.processing.util.FilesUtils.createDirectoriesIfNeeded;
 import static me.champeau.a4j.jsolex.processing.util.LoggingSupport.LOGGER;
 
 public class BatchModeEventListener implements ProcessingEventListener, ImageMathScriptExecutor {
@@ -328,7 +342,7 @@ public class BatchModeEventListener implements ProcessingEventListener, ImageMat
             boolean initial = true;
             for (File scriptFile : scriptFiles) {
                 if (initial) {
-                    owner.prepareForScriptExecution(this, processParams, rootOperation);
+                    owner.prepareForScriptExecution(this, processParams, rootOperation, ImageMathScriptExecutor.SectionKind.BATCH);
                     initial = false;
                 }
                 executeBatchScript(namingStrategy, scriptFile);
@@ -345,40 +359,28 @@ public class BatchModeEventListener implements ProcessingEventListener, ImageMat
     private void executeBatchScript(FileNamingStrategy namingStrategy, File scriptFile) {
         Platform.runLater(() -> owner.updateProgress(0, String.format(message("executing.script"), scriptFile)));
         ImageMathScriptResult result;
-        var progressThread = new Thread() {
-            private final AtomicInteger step = new AtomicInteger();
-
-            @Override
-            public void run() {
-                while (!Thread.currentThread().isInterrupted()) {
-                    var pg = Math.abs(Math.sin(Math.PI * step.incrementAndGet() / 50));
-                    Platform.runLater(() -> owner.updateProgress(pg, String.format(message("executing.script"), scriptFile)));
-                    try {
-                        Thread.sleep(25);
-                    } catch (InterruptedException e) {
-                        Platform.runLater(() -> owner.updateProgress(1, String.format(message("executing.script"), scriptFile)));
-                        Thread.currentThread().interrupt();
-                    }
-                }
-            }
-        };
-        progressThread.start();
         try {
             result = batchScriptExecutor.execute(scriptFile.toPath(), ImageMathScriptExecutor.SectionKind.BATCH);
         } catch (IOException e) {
-            progressThread.interrupt();
             throw new ProcessingException(e);
         }
         try {
             processScriptErrors(result);
             renderBatchOutputs(namingStrategy, result);
         } finally {
-            progressThread.interrupt();
             Platform.runLater(() -> owner.updateProgress(1, String.format(message("executing.script"), scriptFile)));
         }
     }
 
     private void renderBatchOutputs(FileNamingStrategy namingStrategy, ImageMathScriptResult result) {
+        if (result.imagesByLabel().isEmpty() && result.filesByLabel().isEmpty()) {
+            return;
+        }
+        Platform.runLater(() -> {
+            var tabPane = owner.getTabs();
+            tabPane.getTabs().add(owner.getImagesViewerTab());
+            tabPane.getSelectionModel().select(owner.getImagesViewerTab());
+        });
         result.imagesByLabel().entrySet().stream().parallel().forEach(entry -> {
             var name = namingStrategy.render(0, null, Constants.TYPE_PROCESSED, entry.getKey(), "batch");
             var outputFile = new File(outputDirectory, name);
@@ -393,7 +395,7 @@ public class BatchModeEventListener implements ProcessingEventListener, ImageMat
                 var fileName = entry.getValue().toFile().getName();
                 var ext = fileName.substring(fileName.lastIndexOf("."));
                 var targetPath = new File(outputDirectory, name + ext).toPath();
-                Files.createDirectories(targetPath.getParent());
+                createDirectoriesIfNeeded(targetPath.getParent());
                 Files.move(entry.getValue(), targetPath, StandardCopyOption.REPLACE_EXISTING);
                 delegate.onFileGenerated(FileGeneratedEvent.of(GeneratedImageKind.IMAGE_MATH, entry.getKey(), targetPath));
             } catch (IOException e) {

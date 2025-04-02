@@ -15,9 +15,11 @@
  */
 package me.champeau.a4j.jsolex.processing.expr.impl;
 
+import me.champeau.a4j.jsolex.expr.BuiltinFunction;
 import me.champeau.a4j.jsolex.processing.event.ProgressOperation;
 import me.champeau.a4j.jsolex.processing.expr.FileOutput;
 import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
+import me.champeau.a4j.jsolex.processing.sun.workflow.SourceInfo;
 import me.champeau.a4j.jsolex.processing.util.FileBackedImage;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
@@ -35,6 +37,7 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.nio.file.Path;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -55,11 +58,9 @@ public class Animate extends AbstractFunctionImpl {
         super(context, broadcaster);
     }
 
-    public Object createAnimation(List<Object> arguments) {
-        if (arguments.size() > 2) {
-            throw new IllegalArgumentException("anim takes 1 or 2 arguments (images, delay)");
-        }
-        var images = arguments.getFirst();
+    public Object createAnimation(Map<String ,Object> arguments) {
+        BuiltinFunction.ANIM.validateArgs(arguments);
+        var images = arguments.get("images");
         if (!(images instanceof List<?> listOfImages)) {
             throw new IllegalArgumentException("anim must use a list of images as first argument");
         }
@@ -67,12 +68,12 @@ public class Animate extends AbstractFunctionImpl {
             throw new IllegalArgumentException("anim must use a non-empty list of images as first argument");
         }
         if (listOfImages.getFirst() instanceof List) {
-            return expandToImageList("anim", arguments, this::createAnimation);
+            return expandToImageList("anim", "images", arguments, this::createAnimation);
         }
-        var delay = arguments.size() == 1 ? DEFAULT_DELAY : doubleArg(arguments, 1);
+        var delay = doubleArg(arguments, "delay", DEFAULT_DELAY);
         try {
             var tempFile = TemporaryFolder.newTempFile("video_jsolex", ".mp4");
-            var frames = (List) arguments.get(0);
+            var frames = (List) images;
             if (FfmegEncoder.isAvailable()) {
                 if (encodeWithFfmpeg(broadcaster, newOperation(), frames, tempFile, (int) delay)) {
                     return new FileOutput(tempFile);
@@ -191,17 +192,22 @@ public class Animate extends AbstractFunctionImpl {
      * @param arguments
      * @return
      */
-    public Object transition(List<Object> arguments) {
-        assertExpectedArgCount(arguments, "transition accepts 2 to 3 arguments : (list of images, steps, [transition type])", 2, 3);
-        var images = arguments.getFirst();
+    public Object transition(Map<String ,Object> arguments) {
+        BuiltinFunction.TRANSITION.validateArgs(arguments);
+        var images = arguments.get("images");
         if (!(images instanceof List<?> listOfImages)) {
             throw new IllegalArgumentException("transition must use a list of images as first argument");
         }
-        var steps = intArg(arguments, 1);
+        var steps = intArg(arguments, "steps", 10);
         if (steps < 1) {
             throw new IllegalArgumentException("transition must use a positive number of steps as second argument");
         }
-        var transitionType = Transition.valueOf((arguments.size() == 3 ? (String) arguments.get(2) : "linear").toUpperCase(Locale.US));
+        var transitionType = Transition.valueOf(stringArg(arguments, "type", "linear").toUpperCase(Locale.US));
+        var unit = stringArg(arguments, "unit", null);
+        boolean requiresTimestamps = unit != null;
+        if (listOfImages.size() < 2) {
+            return listOfImages;
+        }
         var output = new ArrayList<ImageWrapper>();
         for (int i = 0; i < listOfImages.size() - 1; i++) {
             var first = ((ImageWrapper) listOfImages.get(i)).unwrapToMemory();
@@ -214,12 +220,29 @@ public class Animate extends AbstractFunctionImpl {
             }
             var firstData = mono1.data();
             var secondData = mono2.data();
+            int scaledSteps = steps;
+            if (requiresTimestamps) {
+                var ts1 = mono1.findMetadata(SourceInfo.class).map(SourceInfo::dateTime).orElse(null);
+                var ts2 = mono2.findMetadata(SourceInfo.class).map(SourceInfo::dateTime).orElse(null);
+                if (ts1 == null || ts2 == null) {
+                    throw new IllegalArgumentException("transition requires timestamps to be set on both images");
+                }
+                var secondsBetweenImages = ChronoUnit.SECONDS.between(ts1, ts2);
+                // if steps = 10 and unit = "ips", then it means we want 10 images per second
+                scaledSteps = Math.max(1, switch (unit) {
+                    case "ips" -> Math.round(secondsBetweenImages * steps);
+                    case "ipm" -> Math.round(secondsBetweenImages * steps / 60);
+                    case "iph" -> Math.round(secondsBetweenImages * steps / 3600);
+                    default -> throw new IllegalArgumentException("Unsupported unit '" + unit + "'");
+                });
+            }
+            int finalSteps = scaledSteps;
             output.addAll(
-                    IntStream.range(0, steps)
+                    IntStream.range(0, finalSteps)
                             .parallel()
                             .mapToObj(step -> {
                                 var data = new float[first.height()][first.width()];
-                                var coef = transitionType.coef(step, steps);
+                                var coef = transitionType.coef(step, finalSteps);
                                 for (int y = 0; y < first.height(); y++) {
                                     for (int x = 0; x < first.width(); x++) {
                                         data[y][x] = (float) (firstData[y][x] * (1 - coef) + secondData[y][x] * coef);

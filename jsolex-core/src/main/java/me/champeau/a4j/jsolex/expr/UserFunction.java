@@ -20,6 +20,8 @@ import me.champeau.a4j.jsolex.processing.expr.DefaultImageScriptExecutor;
 import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
 
+import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Consumer;
@@ -60,6 +62,10 @@ public class UserFunction {
         return name;
     }
 
+    public List<String> arguments() {
+        return Collections.unmodifiableList(arguments);
+    }
+
     public UserFunction prepare(
         Function<Double, ImageWrapper> imageSupplier,
         Map<Class, Object> context,
@@ -78,20 +84,34 @@ public class UserFunction {
         );
     }
 
-    public Object invoke(Object... args) {
-        if (args.length != arity) {
-            throw new IllegalArgumentException("Invalid number of arguments for function " + name + ": expected " + arity + ", got " + args.length);
-        }
-        if (args.length>0 && args[0] instanceof List<?> list) {
-            var newArgs = new Object[args.length];
-            return list.stream()
-                    .parallel()
-                    .map(f -> {
-                        newArgs[0] = f;
-                        System.arraycopy(args, 1, newArgs, 1, args.length - 1);
-                        return invoke(newArgs);
-                    })
-                    .toList();
+    public Object invoke(Map<String, Object> args) {
+        validateFunctionArguments(args);
+        if (!args.isEmpty()) {
+            var first = args.entrySet().iterator().next();
+            var firstArg = first.getValue();
+
+            if (firstArg instanceof List<?> list) {
+                return list.stream()
+                        .parallel()
+                        .map(f -> {
+                            var newArgs = new LinkedHashMap<>(args);
+                            newArgs.put(first.getKey(), f);
+                            return invoke(newArgs);
+                        })
+                        .toList();
+            } else if (firstArg instanceof Map<?, ?> map) {
+                if (map.size() == 1 && map.containsKey("list")) {
+                    var list = (List<?>) map.get("list");
+                    return list.stream()
+                            .parallel()
+                            .map(f -> {
+                                var newArgs = new LinkedHashMap<>(args);
+                                newArgs.put(first.getKey(), f);
+                                return invoke(newArgs);
+                            })
+                            .toList();
+                }
+            }
         }
         var evaluator = new DefaultImageScriptExecutor(
             imageSupplier,
@@ -99,8 +119,9 @@ public class UserFunction {
             broadcaster
         );
         evaluator.disableOutputLogging();
-        for (int i = 0; i < args.length; i++) {
-            evaluator.putVariable(arguments.get(i), args[i]);
+        for (var entry : args.entrySet()) {
+            evaluator.putVariable(entry.getKey(), entry.getValue());
+
         }
         var scriptResult = evaluator.execute(body, userFunctions);
         if (scriptResult.invalidExpressions().isEmpty()) {
@@ -113,5 +134,12 @@ public class UserFunction {
             throw new IllegalStateException("No result variable found in function " + name);
         }
         throw new IllegalStateException("Invalid expressions in function " + name + ": " + scriptResult.invalidExpressions());
+    }
+
+    private void validateFunctionArguments(Map<String, Object> args) {
+        var argNames = args.keySet();
+        if (argNames.size() != arity) {
+            throw new IllegalArgumentException("Function " + name + " expects " + arity + " arguments, but got " + argNames.size());
+        }
     }
 }

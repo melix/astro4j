@@ -15,7 +15,6 @@
  */
 package me.champeau.a4j.jsolex.processing.sun.tasks;
 
-import me.champeau.a4j.jsolex.processing.event.ProgressEvent;
 import me.champeau.a4j.jsolex.processing.event.ProgressOperation;
 import me.champeau.a4j.jsolex.processing.expr.impl.Crop;
 import me.champeau.a4j.jsolex.processing.expr.impl.Rotate;
@@ -44,7 +43,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.HashMap;
-import java.util.List;
+import java.util.Map;
 import java.util.function.Supplier;
 import java.util.stream.IntStream;
 
@@ -153,16 +152,16 @@ public class GeometryCorrector extends AbstractTask<GeometryCorrector.Result> {
         if (redshifts != null) {
             // correct redshifts
             redshifts = new Redshifts(redshifts.redshifts().stream()
-                .map(r -> {
-                    var x1 = r.x1() - shift + r.y1() * shear;
-                    var y1 = r.y1();
-                    var x2 = r.x2() - shift + r.y2() * shear;
-                    var y2 = r.y2();
-                    var maxX = r.maxX() - shift + r.maxY() * shear;
-                    var maxY = r.maxY();
-                    return new RedshiftArea(r.id(), r.pixelShift(), r.relPixelShift(), r.kmPerSec(), (int) (x1 * sx), (int) (y1 * finalSy), (int) (x2 *sx), (int) (y2 * finalSy), (int) (maxX * sx), (int) (maxY * finalSy));
-                })
-                .toList());
+                    .map(r -> {
+                        var x1 = r.x1() - shift + r.y1() * shear;
+                        var y1 = r.y1();
+                        var x2 = r.x2() - shift + r.y2() * shear;
+                        var y2 = r.y2();
+                        var maxX = r.maxX() - shift + r.maxY() * shear;
+                        var maxY = r.maxY();
+                        return new RedshiftArea(r.id(), r.pixelShift(), r.relPixelShift(), r.kmPerSec(), (int) (x1 * sx), (int) (y1 * finalSy), (int) (x2 * sx), (int) (y2 * finalSy), (int) (maxX * sx), (int) (maxY * finalSy));
+                    })
+                    .toList());
             metadata.put(Redshifts.class, redshifts);
         }
         ActiveRegions activeRegions = (ActiveRegions) metadata.get(ActiveRegions.class);
@@ -180,13 +179,13 @@ public class GeometryCorrector extends AbstractTask<GeometryCorrector.Result> {
             var coordinates = processParams.observationDetails().coordinates();
             if (coordinates != null) {
                 double angle = SolarParametersUtils.computeParallacticAngleRad(
-                    processParams.observationDetails().date(),
-                    coordinates.a(),
-                    coordinates.b()
+                        processParams.observationDetails().date(),
+                        coordinates.a(),
+                        coordinates.b()
                 );
                 LOGGER.info(String.format(message("parallactic.angle"), Math.toDegrees(angle)));
-                var rotated = new Rotate(MutableMap.of(Ellipse.class, ellipse),broadcaster).rotateRadians(
-                    List.of(corrected, angle, 0, 1)
+                var rotated = new Rotate(MutableMap.of(Ellipse.class, ellipse), broadcaster).rotateRadians(
+                        Map.of("img", corrected, "angle", angle, "bp", 0, "resize", 1)
                 );
                 corrected = (ImageWrapper32) rotated;
             }
@@ -195,9 +194,9 @@ public class GeometryCorrector extends AbstractTask<GeometryCorrector.Result> {
         if (autocropMode != null) {
             var cropping = new Crop(MutableMap.of(Ellipse.class, ellipse), broadcaster);
             corrected = switch (autocropMode) {
-                case RADIUS_1_1 -> (ImageWrapper32) cropping.autocrop2(List.of(corrected, 1.1));
-                case RADIUS_1_2 -> (ImageWrapper32) cropping.autocrop2(List.of(corrected, 1.2));
-                case RADIUS_1_5 -> (ImageWrapper32) cropping.autocrop2(List.of(corrected, 1.5));
+                case RADIUS_1_1 -> (ImageWrapper32) cropping.autocrop2(Map.of("img", corrected, "factor", 1.1));
+                case RADIUS_1_2 -> (ImageWrapper32) cropping.autocrop2(Map.of("img", corrected, "factor", 1.2));
+                case RADIUS_1_5 -> (ImageWrapper32) cropping.autocrop2(Map.of("img", corrected, "factor", 1.5));
                 case SOURCE_WIDTH -> {
                     var targetWidth = header == null ? width : header.geometry().width();
                     var center = circle.center();
@@ -205,7 +204,7 @@ public class GeometryCorrector extends AbstractTask<GeometryCorrector.Result> {
                     var cx = center.a();
                     var cy = center.b();
                     if (cx - halfWidth >= 0 && (cy - halfWidth >= 0) && (cx + halfWidth <= targetWidth) && (cy + halfWidth <= targetWidth)) {
-                        yield (ImageWrapper32) cropping.cropToRect(List.of(corrected, targetWidth, targetWidth, circle));
+                        yield (ImageWrapper32) cropping.cropToRect(Map.of("img", corrected, "width", targetWidth, "height", targetWidth, "ellipse", circle));
                     } else {
                         LOGGER.warn(message("destructive.cannot.crop"));
                         yield corrected;
@@ -228,8 +227,8 @@ public class GeometryCorrector extends AbstractTask<GeometryCorrector.Result> {
      *
      * @param shear the shear value
      * @param shift pixel shifting to avoid negative number overflow
-     * @param sx the x correction ratio
-     * @param sy the y correction ratio
+     * @param sx    the x correction ratio
+     * @param sy    the y correction ratio
      * @return a circle, if detected, or null.
      */
     private Ellipse computeCorrectedCircle(double shear, double shift, double sx, double sy) {
@@ -237,13 +236,13 @@ public class GeometryCorrector extends AbstractTask<GeometryCorrector.Result> {
         while (samples < 1024) {
             int finalSamples = samples;
             var newSamples = IntStream.range(0, samples)
-                .mapToDouble(i -> 2 * i * Math.PI / finalSamples)
-                .mapToObj(ellipse::toCartesian)
-                .map(p -> {
-                    var newX = (p.x() - shift + p.y() * shear);
-                    return new Point2D(newX * sx, p.y() * sy);
-                })
-                .toList();
+                    .mapToDouble(i -> 2 * i * Math.PI / finalSamples)
+                    .mapToObj(ellipse::toCartesian)
+                    .map(p -> {
+                        var newX = (p.x() - shift + p.y() * shear);
+                        return new Point2D(newX * sx, p.y() * sy);
+                    })
+                    .toList();
             try {
                 return new EllipseRegression(newSamples).solve();
             } catch (Exception ex) {
@@ -254,11 +253,11 @@ public class GeometryCorrector extends AbstractTask<GeometryCorrector.Result> {
     }
 
     public record Result(
-        ImageWrapper corrected,
-        ImageWrapper enhanced,
-        Ellipse originalEllipse,
-        Ellipse correctedCircle,
-        float blackpoint
+            ImageWrapper corrected,
+            ImageWrapper enhanced,
+            Ellipse originalEllipse,
+            Ellipse correctedCircle,
+            float blackpoint
     ) {
         public Result withEnhanced(ImageWrapper32 enhanced) {
             return new Result(FileBackedImage.wrap(corrected), FileBackedImage.wrap(enhanced), originalEllipse, correctedCircle, blackpoint);

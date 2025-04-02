@@ -39,6 +39,7 @@ import java.util.concurrent.locks.ReentrantLock;
 import java.util.zip.GZIPInputStream;
 
 import static me.champeau.a4j.jsolex.processing.util.Constants.message;
+import static me.champeau.a4j.jsolex.processing.util.FilesUtils.createDirectoriesIfNeeded;
 
 public class NOAARegions {
 
@@ -120,7 +121,7 @@ public class NOAARegions {
         var srsFile = srsDir.resolve(year + String.format("%02d", month) + String.format("%02d", day) + "SRS.txt");
         if (!Files.exists(srsFile)) {
             try {
-                Files.createDirectories(srsDir);
+                createDirectoriesIfNeeded(srsDir);
                 downloadSRSData(targetFolder, utcDate, year, month, day);
             } catch (Exception ex) {
                 LOGGER.warn(String.format(message("download.srs.failed"), year, month, day), ex);
@@ -165,9 +166,9 @@ public class NOAARegions {
             while ((entry = tarArchiveInputStream.getNextEntry()) != null) {
                 var entryPath = targetFolder.resolve(entry.getName());
                 if (entry.isDirectory()) {
-                    Files.createDirectories(entryPath);
+                    createDirectoriesIfNeeded(entryPath);
                 } else {
-                    Files.createDirectories(entryPath.getParent());
+                    createDirectoriesIfNeeded(entryPath.getParent());
                     Files.copy(tarArchiveInputStream, entryPath);
                 }
             }
@@ -179,7 +180,7 @@ public class NOAARegions {
         var conn = new URI(url).toURL().openConnection();
         conn.connect();
         var yearFolder = targetFolder.resolve(String.valueOf(year) + "_SRS");
-        Files.createDirectories(yearFolder);
+        createDirectoriesIfNeeded(yearFolder);
         try (var in = conn.getInputStream()) {
             var target = yearFolder.resolve(String.format("%02d%02d%02dSRS.txt", year, month, day));
             Files.copy(in, target, StandardCopyOption.REPLACE_EXISTING);
@@ -191,7 +192,7 @@ public class NOAARegions {
         var conn = new URI(url).toURL().openConnection();
         conn.connect();
         var yearFolder = targetFolder.resolve(year + "_SRS");
-        Files.createDirectories(yearFolder);
+        createDirectoriesIfNeeded(yearFolder);
         try (var in = conn.getInputStream()) {
             var target = yearFolder.resolve(String.format("%02d%02d%02dSRS.txt", year, month, day));
             Files.copy(in, target, StandardCopyOption.REPLACE_EXISTING);

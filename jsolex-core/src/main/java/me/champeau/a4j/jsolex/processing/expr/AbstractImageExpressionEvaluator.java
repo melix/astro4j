@@ -199,7 +199,7 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
     }
 
     @Override
-    public Object functionCall(BuiltinFunction function, List<Object> arguments) {
+    public Object functionCall(BuiltinFunction function, Map<String, Object> arguments) {
         return switch (function) {
             case A2PX -> angstromsToPixels(arguments);
             case ADJUST_CONTRAST -> adjustContrast.adjustContrast(arguments);
@@ -211,7 +211,6 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
             case AUTOCROP2 -> crop.autocrop2(arguments);
             case AVG -> simpleFunctionCall.applyFunction("avg", arguments, DoubleStream::average);
             case BG_MODEL -> bgRemoval.backgroundModel(arguments);
-            case GET_B -> utilities.extractChannel(arguments, 2);
             case BLUR -> convolution.blur(arguments);
             case CLAHE -> clahe.clahe(arguments);
             case CHOOSE_FILE -> loader.chooseFile(arguments);
@@ -234,6 +233,7 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
             case DRAW_TEXT -> imageDraw.drawText(arguments);
             case DRAW_EARTH -> imageDraw.drawEarth(arguments);
             case ELLIPSE_FIT -> ellipseFit.fit(arguments);
+            case EQUALIZE -> adjustContrast.equalize(arguments);
             case EXP -> math.exp(arguments);
             case FILTER -> filtering.filter(arguments);
             case FIX_BANDING -> fixBanding.fixBanding(arguments);
@@ -241,7 +241,18 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
             case FLAT_CORRECTION -> flatCorrector.performFlatCorrection(arguments);
             case HFLIP -> rotate.hflip(arguments);
             case GET_AT -> utilities.doGetAt(arguments);
-            case GET_G -> utilities.extractChannel(arguments, 1);
+            case GET_B -> {
+                BuiltinFunction.GET_B.validateArgs(arguments);
+                yield utilities.extractChannel(arguments, 2);
+            }
+            case GET_G -> {
+                BuiltinFunction.GET_G.validateArgs(arguments);
+                yield utilities.extractChannel(arguments, 1);
+            }
+            case GET_R -> {
+                BuiltinFunction.GET_R.validateArgs(arguments);
+                yield utilities.extractChannel(arguments, 0);
+            }
             case IMG -> image(arguments);
             case INVERT -> inverse.invert(arguments);
             case LINEAR_STRETCH -> stretching.linearStretch(arguments);
@@ -258,7 +269,6 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
             case NEUTRALIZE_BG -> bgRemoval.neutralizeBackground(arguments);
             case POW -> math.pow(arguments);
             case PX2A -> pixelsToAngstroms(arguments);
-            case GET_R -> utilities.extractChannel(arguments, 0);
             case RADIUS_RESCALE -> scaling.radiusRescale(arguments);
             case RANGE -> createRange(arguments);
             case REMOVE_BG -> bgRemoval.removeBackground(arguments);
@@ -293,9 +303,16 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
         var fullRange = (PixelShiftRange) context.get(PixelShiftRange.class);
         List<ImageWrapper> samples;
         if (fullRange != null) {
-            samples = createRange(List.of(fullRange.minPixelShift(), fullRange.maxPixelShift(), fullRange.step()));
+            samples = createRange(Map.of(
+                    "from", fullRange.minPixelShift(),
+                    "to", fullRange.maxPixelShift(),
+                    "step", fullRange.step()));
         } else {
-            samples = createRange(List.of(-15, 15, 3));
+            samples = createRange(Map.of(
+                    "from", -15,
+                    "to", 15,
+                    "step", 3)
+            );
         }
         // remove the samples which are too close to the studied line
         int samplesSize = samples.size();
@@ -327,19 +344,17 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
                     .limit((long) Math.ceil(list.size() / 5d))
                     .toList();
         }
-        return (ImageWrapper32) functionCall(BuiltinFunction.MEDIAN, List.of(samples));
+        return (ImageWrapper32) functionCall(BuiltinFunction.MEDIAN, Map.of("list", samples));
     }
 
-    public Object pixelShiftFor(List<Object> arguments) {
-        if (arguments.size() != 1 && arguments.size() != 2) {
-            throw new IllegalArgumentException("find_shift() accepts one or 2 arguments (wavelength in angstroms or spectral ray to find, wavelength or spectral ray of reference)");
-        }
-        var first = arguments.getFirst();
+    public Object pixelShiftFor(Map<String, Object> arguments) {
+        BuiltinFunction.FIND_SHIFT.validateArgs(arguments);
+        var first = arguments.get("wl");
         if (first instanceof List<?>) {
-            return utilities.expandToImageList("find_shift", arguments, this::pixelShiftFor);
+            return utilities.expandToImageList("find_shift", "wl", arguments, this::pixelShiftFor);
         }
         var target = toWavelength(first);
-        var reference = arguments.size() == 2 ? toWavelength(arguments.get(1)) : null;
+        var reference = arguments.containsKey("ref") ? toWavelength(arguments.get("ref")) : null;
         ProcessParams params = (ProcessParams) context.get(ProcessParams.class);
         return computePixelShift(params, target, reference);
     }
@@ -360,13 +375,11 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
         return Wavelen.ofAngstroms(targetWaveLength);
     }
 
-    private Object wavelenthOfImage(List<Object> arguments) {
-        if (arguments.size() != 1) {
-            throw new IllegalArgumentException("wavelength() accepts a single argument (image)");
-        }
-        Object first = arguments.getFirst();
+    private Object wavelenthOfImage(Map<String, Object> arguments) {
+        BuiltinFunction.WAVELEN.validateArgs(arguments);
+        Object first = arguments.get("img");
         if (first instanceof List<?>) {
-            return utilities.expandToImageList("wavelen", arguments, this::wavelenthOfImage);
+            return utilities.expandToImageList("wavelen", "img", arguments, this::wavelenthOfImage);
         }
         var image = asImage(first);
         var metadata = image.metadata();
@@ -380,29 +393,23 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
         return round2digits(lambda0.plus(pixelShift.pixelShift(), dispersion).angstroms());
     }
 
-    public Object angstromsToPixels(List<Object> arguments) {
-        if (arguments.size() != 1 && arguments.size() != 2) {
-            throw new IllegalArgumentException("a2px() accepts 1 or 2 argument (angstroms, [reference wavelength angstroms])");
-        }
-        double angstroms = asScalar(arguments.getFirst()).doubleValue();
+    public Object angstromsToPixels(Map<String, Object> arguments) {
+        double angstroms = asScalar(arguments.get("a")).doubleValue();
         var params = (ProcessParams) context.get(ProcessParams.class);
         var lambda0 = params.spectrumParams().ray().wavelength();
-        if (arguments.size() == 2) {
-            lambda0 = toWavelength(arguments.get(1));
+        if (arguments.containsKey("ref")) {
+            lambda0 = toWavelength(arguments.get("ref"));
         }
         var dispersion = computeDispersion(params, lambda0);
         return round2digits(angstroms / dispersion.angstromsPerPixel());
     }
 
-    public Object pixelsToAngstroms(List<Object> arguments) {
-        if (arguments.size() != 1 && arguments.size() != 2) {
-            throw new IllegalArgumentException("px2a() accepts 1 or 2 arguments (pixels, [reference wavelength angstroms])");
-        }
-        double pixels = asScalar(arguments.getFirst()).doubleValue();
+    public Object pixelsToAngstroms(Map<String, Object> arguments) {
+        double pixels = asScalar(arguments.get("px")).doubleValue();
         var params = (ProcessParams) context.get(ProcessParams.class);
         var lambda0 = params.spectrumParams().ray().wavelength();
-        if (arguments.size() == 2) {
-            lambda0 = toWavelength(arguments.get(1));
+        if (arguments.containsKey("ref")) {
+            lambda0 = toWavelength(arguments.get("ref"));
         }
         var dispersion = computeDispersion(params, lambda0);
         double v = pixels * dispersion.angstromsPerPixel();
@@ -463,22 +470,17 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
         return OptionalDouble.of(median);
     }
 
-    private Object setWorkDir(List<Object> arguments) {
-        if (arguments.size() != 1) {
-            throw new IllegalStateException("workdir accepts a single argument: path to directory");
-        }
-        var path = arguments.get(0).toString();
+    private Object setWorkDir(Map<String, Object> arguments) {
+        var path = arguments.get("dir").toString();
         loader.setWorkingDirectory(Paths.get(path));
         return path;
     }
 
     public abstract ImageWrapper findImage(double shift);
 
-    private ImageWrapper image(List<Object> arguments) {
-        if (arguments.size() != 1) {
-            throw new IllegalArgumentException("img() call must have a single argument (image shift)");
-        }
-        var arg = arguments.get(0);
+    private ImageWrapper image(Map<String, Object> arguments) {
+        BuiltinFunction.IMG.validateArgs(arguments);
+        var arg = arguments.get("ps");
         if (arg instanceof Number shift) {
             double pixelShift = shift.doubleValue();
             var image = findImage(pixelShift);
@@ -527,7 +529,6 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
         if (leftImage != null && rightScalar != null) {
             var scalar = rightScalar.doubleValue();
             var leftData = leftImage.data();
-            var length = leftData.length;
             var width = leftImage.width();
             var height = leftImage.height();
             float[][] result = new float[height][width];
@@ -598,15 +599,13 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
         return null;
     }
 
-    private List<ImageWrapper> createRange(List<Object> arguments) {
-        if (arguments.size() < 2) {
-            return List.of();
-        }
-        Number from = asScalar(arguments.get(0));
-        Number to = asScalar(arguments.get(1));
+    private List<ImageWrapper> createRange(Map<String, Object> arguments) {
+        BuiltinFunction.RANGE.validateArgs(arguments);
+        Number from = asScalar(arguments.get("from"));
+        Number to = asScalar(arguments.get("to"));
         Number step = 1;
-        if (arguments.size() == 3) {
-            step = asScalar(arguments.get(2));
+        if (arguments.containsKey("step")) {
+            step = asScalar(arguments.get("step"));
             if (step == null) {
                 step = 1;
             }

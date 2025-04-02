@@ -15,12 +15,12 @@
  */
 package me.champeau.a4j.jsolex.processing.expr.impl;
 
+import me.champeau.a4j.jsolex.expr.BuiltinFunction;
 import me.champeau.a4j.jsolex.processing.sun.BandingReduction;
 import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 import me.champeau.a4j.jsolex.processing.util.ProcessingException;
 
-import java.util.List;
 import java.util.Map;
 
 public class FixBanding extends AbstractFunctionImpl {
@@ -28,12 +28,12 @@ public class FixBanding extends AbstractFunctionImpl {
         super(context, broadcaster);
     }
 
-    public Object fixBanding(List<Object> arguments) {
-        assertExpectedArgCount(arguments, "fix_banding takes 3 or 4 arguments (image, band size, passes, [ellipse])", 3, 4);
-        var ellipse = getEllipse(arguments, 3);
-        int bandSize = intArg(arguments, 1);
-        int passes = intArg(arguments, 2);
-        return monoToMonoImageTransformer( "fix_banding", 3, arguments, src -> {
+    public Object fixBanding(Map<String ,Object> arguments) {
+        BuiltinFunction.FIX_BANDING.validateArgs(arguments);
+        var ellipse = getEllipse(arguments, "ellipse");
+        int bandSize = intArg(arguments, "bs", 32);
+        int passes = intArg(arguments, "passes", 1);
+        return monoToMonoImageTransformer( "fix_banding", "img", arguments, src -> {
             if (src instanceof ImageWrapper32 image) {
                 var width = image.width();
                 var height = image.height();

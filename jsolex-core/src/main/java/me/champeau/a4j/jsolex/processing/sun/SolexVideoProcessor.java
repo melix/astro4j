@@ -106,6 +106,7 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -358,7 +359,7 @@ public class SolexVideoProcessor implements Broadcaster {
                 }
                 var map = candidates
                         .stream()
-                        .collect(Collectors.toMap(d -> d, details -> SpectrumAnalyzer.computeDataPoints(details, polynomial, 0, width, width, height, averageImage)));
+                        .collect(Collectors.toMap(d -> d, details -> SpectrumAnalyzer.computeDataPoints(details, polynomial, 0, width, width, height, averageImage), (e1, e2) -> e1, LinkedHashMap::new));
                 var bestMatch = SpectrumAnalyzer.findBestMatch(map);
                 LOGGER.info(String.format(Locale.US, message("auto.detected.spectral.line"), bestMatch.line(), bestMatch.binning(), bestMatch.pixelSize()));
                 var spectrumParams = processParams.spectrumParams();

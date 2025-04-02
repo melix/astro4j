@@ -17,6 +17,7 @@ package me.champeau.a4j.jsolex.app.listeners;
 
 import javafx.application.HostServices;
 import javafx.scene.control.Tab;
+import javafx.scene.control.TabPane;
 import javafx.stage.Stage;
 import me.champeau.a4j.jsolex.app.jfx.ApplyUserRotation;
 import me.champeau.a4j.jsolex.app.jfx.MultipleImagesViewer;
@@ -38,13 +39,17 @@ public interface JSolExInterface {
 
     Tab getRedshiftTab();
 
+    Tab getImagesViewerTab();
+
+    TabPane getTabs();
+
     void showProgress();
 
     void hideProgress();
 
     void updateProgress(double progress, String text);
 
-    void prepareForScriptExecution(ImageMathScriptExecutor executor, ProcessParams params, ProgressOperation rootOperation);
+    void prepareForScriptExecution(ImageMathScriptExecutor executor, ProcessParams params, ProgressOperation rootOperation, ImageMathScriptExecutor.SectionKind sectionKind);
 
     HostServices getHostServices();
 
@@ -59,4 +64,5 @@ public interface JSolExInterface {
     void showImages();
 
     void setTrimmingParameters(TrimmingParameters payload);
+
 }

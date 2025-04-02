@@ -15,6 +15,7 @@
  */
 package me.champeau.a4j.jsolex.processing.expr.impl;
 
+import me.champeau.a4j.jsolex.expr.BuiltinFunction;
 import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
 import me.champeau.a4j.jsolex.processing.sun.ImageUtils;
 import me.champeau.a4j.jsolex.processing.util.FileBackedImage;
@@ -39,24 +40,21 @@ public class Convolution extends AbstractFunctionImpl {
         super(context, broadcaster);
     }
 
-    public Object sharpen(List<Object> arguments) {
+    public Object sharpen(Map<String ,Object> arguments) {
         return applyConvolution(arguments, SharpenKernel::of, "sharpen");
     }
 
-    public Object blur(List<Object> arguments) {
+    public Object blur(Map<String ,Object> arguments) {
         return applyConvolution(arguments, BlurKernel::of, "blur");
     }
 
-    private Object applyConvolution(List<Object> arguments, KernelFactory kernelFactory, String functionName) {
-        if (arguments.size() > 2) {
-            throw new IllegalArgumentException(functionName + " takes 1 or 2 arguments (image(s). [kernel size])");
-        }
-        var arg = arguments.get(0);
+    private Object applyConvolution(Map<String ,Object> arguments, KernelFactory kernelFactory, String functionName) {
+        var arg = arguments.get("img");
         if (arg instanceof List<?>) {
-            return expandToImageList(functionName, arguments, a -> applyConvolution(a, kernelFactory, functionName));
+            return expandToImageList(functionName, "img", arguments, a -> applyConvolution(a, kernelFactory, functionName));
         }
         if (arg instanceof ImageWrapper image) {
-            int kernelSize = arguments.size() > 1 ? intArg(arguments, 1) : 3;
+            var kernelSize = intArg(arguments, "kernel", 3);
             return convolve(image, kernelFactory.create(kernelSize));
         }
         throw new IllegalArgumentException(functionName + " doesn't support argument " + arg);
@@ -77,19 +75,19 @@ public class Convolution extends AbstractFunctionImpl {
         throw new IllegalArgumentException("Unsupported image type " + image);
     }
 
-    public Object richardsonLucy(List<Object> arguments) {
-        assertExpectedArgCount(arguments, "rl_decon takes 1 to 4 arguments (image(s), [radius], [sigma], [iterations])", 1, 4);
-        var arg = arguments.get(0);
+    public Object richardsonLucy(Map<String ,Object> arguments) {
+        BuiltinFunction.RL_DECON.validateArgs(arguments);
+        var arg = arguments.get("img");
         if (arg instanceof List<?>) {
-            return expandToImageList("rl_decon", arguments, this::richardsonLucy);
+            return expandToImageList("rl_decon", "img", arguments, this::richardsonLucy);
         }
         if (arg instanceof ImageWrapper image) {
             if (image instanceof FileBackedImage fileBackedImage) {
                 image = fileBackedImage.unwrapToMemory();
             }
-            var radius = arguments.size() > 1 ? floatArg(arguments, 1) : Deconvolution.DEFAULT_RADIUS;
-            var sigma = arguments.size() > 2 ? floatArg(arguments, 2) : Deconvolution.DEFAULT_SIGMA;
-            var iterations = arguments.size() > 3 ? intArg(arguments, 3) : (int) Deconvolution.DEFAULT_ITERATIONS;
+            var radius = floatArg(arguments, "radius", (float) Deconvolution.DEFAULT_RADIUS);
+            var sigma = floatArg(arguments, "sigma", (float) Deconvolution.DEFAULT_SIGMA);
+            var iterations = intArg(arguments, "iterations", Deconvolution.DEFAULT_ITERATIONS);
             if (image instanceof ImageWrapper32 mono) {
                 var psf = Deconvolution.generateGaussianPSF(radius, sigma);
                 var decon = deconvolution.richardsonLucy(mono.asImage(), psf, iterations);

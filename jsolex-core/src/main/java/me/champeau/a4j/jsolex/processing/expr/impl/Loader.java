@@ -15,6 +15,7 @@
  */
 package me.champeau.a4j.jsolex.processing.expr.impl;
 
+import me.champeau.a4j.jsolex.expr.BuiltinFunction;
 import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
 import me.champeau.a4j.jsolex.processing.sun.workflow.MetadataTable;
 import me.champeau.a4j.jsolex.processing.util.FitsUtils;
@@ -58,13 +59,11 @@ public class Loader extends AbstractFunctionImpl {
 
     private Path workingDirectory = new File(".").getAbsoluteFile().toPath();
 
-    public Object load(List<Object> arguments) {
-        if (arguments.size() != 1) {
-            throw new IllegalArgumentException("load takes 1 arguments (image file(s))");
-        }
-        var arg = arguments.get(0);
+    public Object load(Map<String ,Object> arguments) {
+        BuiltinFunction.LOAD.validateArgs(arguments);
+        var arg = arguments.get("file");
         if (arg instanceof List<?>) {
-            return expandToImageList("load", arguments, this::load);
+            return expandToImageList("load", "file", arguments, this::load);
         }
         if (arg instanceof String path) {
             var file = workingDirectory.resolve(path).toFile();
@@ -142,12 +141,10 @@ public class Loader extends AbstractFunctionImpl {
         }
     }
 
-    public List<ImageWrapper> loadMany(List<Object> arguments) {
-        if (arguments.size() > 2) {
-            throw new IllegalArgumentException("loadMany takes 1 or 2 arguments (directory, [pattern])");
-        }
-        var directory = (String) arguments.get(0);
-        var pattern = Pattern.compile(arguments.size() == 2 ? (String) arguments.get(1) : ".*");
+    public List<ImageWrapper> loadMany(Map<String ,Object> arguments) {
+        BuiltinFunction.LOAD_MANY.validateArgs(arguments);
+        var directory = (String) arguments.get("dir");
+        var pattern = Pattern.compile(stringArg(arguments, "pattern", ".*"));
         var lookupDir = workingDirectory.resolve(directory);
         if (Files.isDirectory(lookupDir)) {
             try (var stream = Files.list(lookupDir)) {
@@ -182,12 +179,10 @@ public class Loader extends AbstractFunctionImpl {
         this.workingDirectory = workingDirectory;
     }
 
-    public Object chooseFile(List<Object> arguments) {
-        if (arguments.size() != 2) {
-            throw new IllegalArgumentException("choose_file takes 1 arguments (id, message)");
-        }
-        var id = stringArg(arguments, 0);
-        var message = stringArg(arguments, 1);
+    public Object chooseFile(Map<String ,Object> arguments) {
+        BuiltinFunction.CHOOSE_FILES.validateArgs(arguments);
+        var id = stringArg(arguments, "id", null);
+        var message = stringArg(arguments, "message", null);
         var chooser = (FileSelector) context.get(FileSelector.class);
         if (chooser == null) {
             chooser = new FileSelector() {
@@ -206,12 +201,10 @@ public class Loader extends AbstractFunctionImpl {
         return file.map(Loader::loadImage).orElse(ImageWrapper32.createEmpty());
     }
 
-    public Object chooseFiles(List<Object> arguments) {
-        if (arguments.size() != 2) {
-            throw new IllegalArgumentException("choose_files takes 1 arguments (id, message)");
-        }
-        var id = stringArg(arguments, 0);
-        var message = stringArg(arguments, 1);
+    public Object chooseFiles(Map<String ,Object> arguments) {
+        BuiltinFunction.CHOOSE_FILES.validateArgs(arguments);
+        var id = stringArg(arguments, "id", null);
+        var message = stringArg(arguments, "message", null);
         var chooser = (FileSelector) context.get(FileSelector.class);
         if (chooser == null) {
             throw new IllegalStateException("No file selector registered");

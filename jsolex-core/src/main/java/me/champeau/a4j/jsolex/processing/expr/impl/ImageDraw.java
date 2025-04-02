@@ -15,6 +15,7 @@
  */
 package me.champeau.a4j.jsolex.processing.expr.impl;
 
+import me.champeau.a4j.jsolex.expr.BuiltinFunction;
 import me.champeau.a4j.jsolex.processing.params.ProcessParams;
 import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
 import me.champeau.a4j.jsolex.processing.sun.detection.ActiveRegion;
@@ -87,19 +88,19 @@ public class ImageDraw extends AbstractFunctionImpl {
         }
     }
 
-    public Object drawObservationDetails(List<Object> arguments) {
-        assertExpectedArgCount(arguments, "draw_obs_details takes 1, 2, or 3 (image(s), [x], [y])", 1, 3);
-        var arg = arguments.get(0);
+    public Object drawObservationDetails(Map<String ,Object> arguments) {
+        BuiltinFunction.DRAW_OBS_DETAILS.validateArgs(arguments);
+        var arg = arguments.get("img");
         if (arg instanceof List<?>) {
-            return expandToImageList("draw_obs_details", arguments, this::drawObservationDetails);
+            return expandToImageList("draw_obs_details", "img", arguments, this::drawObservationDetails);
         }
-        var x = getArgument(Number.class, arguments, 1).map(Number::intValue).orElse(50);
-        var y = getArgument(Number.class, arguments, 2).map(Number::intValue).orElse(50);
+        var x = getArgument(Number.class, arguments, "x").map(Number::intValue).orElse(50);
+        var y = getArgument(Number.class, arguments, "y").map(Number::intValue).orElse(50);
         if (arg instanceof ImageWrapper img) {
             var processParams = findProcessParams(img);
             if (processParams.isPresent()) {
                 return drawOnImage(img, (g, image) -> {
-                    getEllipse(arguments, 3).ifPresent(ellipse -> {
+                    getEllipse(arguments, "ellipse").ifPresent(ellipse -> {
                         var semiAxis = ellipse.semiAxis();
                         var radius = (semiAxis.a() + semiAxis.b()) / 2;
                         autoScaleFont(g, 1.2d, radius);
@@ -137,17 +138,17 @@ public class ImageDraw extends AbstractFunctionImpl {
         throw new IllegalArgumentException("Unexpected image type: " + arg);
     }
 
-    public Object drawText(List<Object> arguments) {
-        assertExpectedArgCount(arguments, "draw_text takes 4 to 6 arguments (image(s), x, y, text, [font size], [color])", 4, 6);
-        var arg = arguments.get(0);
+    public Object drawText(Map<String ,Object> arguments) {
+        BuiltinFunction.DRAW_TEXT.validateArgs(arguments);
+        var arg = arguments.get("img");
         if (arg instanceof List<?>) {
-            return expandToImageList("draw_text", arguments, this::drawText);
+            return expandToImageList("draw_text", "img", arguments, this::drawText);
         }
-        var x = getArgument(Number.class, arguments, 1).map(Number::intValue).orElseThrow();
-        var y = getArgument(Number.class, arguments, 2).map(Number::intValue).orElseThrow();
-        var text = getArgument(String.class, arguments, 3).orElseThrow();
-        var fontSize = getArgument(Number.class, arguments, 4).map(Number::intValue).orElse(-1);
-        var color = getArgument(String.class, arguments, 5).orElse(null);
+        var x = getArgument(Number.class, arguments, "x").map(Number::intValue).orElseThrow();
+        var y = getArgument(Number.class, arguments, "y").map(Number::intValue).orElseThrow();
+        var text = getArgument(String.class, arguments, "text").orElseThrow();
+        var fontSize = getArgument(Number.class, arguments, "fs").map(Number::intValue).orElse(-1);
+        var color = getArgument(String.class, arguments, "color").orElse(null);
         if (arg instanceof ImageWrapper img) {
             return drawText(img, text, x, y, color, fontSize);
         } else {
@@ -200,18 +201,18 @@ public class ImageDraw extends AbstractFunctionImpl {
         }
     }
 
-    public Object drawArrow(List<Object> arguments) {
-        assertExpectedArgCount(arguments, "draw_arrow takes 5 to 7 arguments (image(s), x1, y1, x2, y2, [thickness], [color])", 5, 7);
-        var arg = arguments.get(0);
+    public Object drawArrow(Map<String ,Object> arguments) {
+        BuiltinFunction.DRAW_ARROW.validateArgs(arguments);
+        var arg = arguments.get("img");
         if (arg instanceof List<?>) {
-            return expandToImageList("draw_arrow", arguments, this::drawArrow);
+            return expandToImageList("draw_arrow", "img", arguments, this::drawArrow);
         }
-        var x1 = getArgument(Number.class, arguments, 1).map(Number::intValue).orElseThrow();
-        var y1 = getArgument(Number.class, arguments, 2).map(Number::intValue).orElseThrow();
-        var x2 = getArgument(Number.class, arguments, 3).map(Number::intValue).orElseThrow();
-        var y2 = getArgument(Number.class, arguments, 4).map(Number::intValue).orElseThrow();
-        var thickness = getArgument(Number.class, arguments, 5).map(Number::intValue).orElse(1);
-        var color = getArgument(String.class, arguments, 6).orElse(null);
+        var x1 = getArgument(Number.class, arguments, "x1").map(Number::intValue).orElseThrow();
+        var y1 = getArgument(Number.class, arguments, "y1").map(Number::intValue).orElseThrow();
+        var x2 = getArgument(Number.class, arguments, "x2").map(Number::intValue).orElseThrow();
+        var y2 = getArgument(Number.class, arguments, "y2").map(Number::intValue).orElseThrow();
+        var thickness = getArgument(Number.class, arguments, "thickness").map(Number::intValue).orElse(1);
+        var color = getArgument(String.class, arguments, "color").orElse(null);
         if (arg instanceof ImageWrapper img) {
             return drawArrow(img, x1, y1, x2, y2, color, thickness);
         } else {
@@ -269,17 +270,17 @@ public class ImageDraw extends AbstractFunctionImpl {
         });
     }
 
-    public Object drawCircle(List<Object> arguments) {
-        assertExpectedArgCount(arguments, "draw_circle takes 4 to 6 arguments (image(s), cx, cy, radius, [color], [thickness])", 4, 6);
-        var arg = arguments.get(0);
+    public Object drawCircle(Map<String ,Object> arguments) {
+        BuiltinFunction.DRAW_CIRCLE.validateArgs(arguments);
+        var arg = arguments.get("img");
         if (arg instanceof List<?>) {
-            return expandToImageList("draw_circle", arguments, this::drawCircle);
+            return expandToImageList("draw_circle", "img", arguments, this::drawCircle);
         }
-        var cx = getArgument(Number.class, arguments, 1).map(Number::intValue).orElseThrow();
-        var cy = getArgument(Number.class, arguments, 2).map(Number::intValue).orElseThrow();
-        var radius = getArgument(Number.class, arguments, 3).map(Number::intValue).orElseThrow();
-        var thickness = getArgument(Number.class, arguments, 4).map(Number::intValue).orElse(1);
-        var color = getArgument(String.class, arguments, 5).orElse(null);
+        var cx = getArgument(Number.class, arguments, "cx").map(Number::intValue).orElseThrow();
+        var cy = getArgument(Number.class, arguments, "cy").map(Number::intValue).orElseThrow();
+        var radius = getArgument(Number.class, arguments, "radius").map(Number::intValue).orElseThrow();
+        var thickness = getArgument(Number.class, arguments, "thickness").map(Number::intValue).orElse(1);
+        var color = getArgument(String.class, arguments, "color").orElse(null);
         if (arg instanceof ImageWrapper img) {
             return drawCircle(img, cx, cy, radius, thickness, color);
         } else {
@@ -287,18 +288,18 @@ public class ImageDraw extends AbstractFunctionImpl {
         }
     }
 
-    public Object drawRectangle(List<Object> arguments) {
-        assertExpectedArgCount(arguments, "draw_rect takes 5 to 7 arguments (image(s), x1, y1, width, height, [thickness], [color])", 5, 7);
-        var arg = arguments.get(0);
+    public Object drawRectangle(Map<String ,Object> arguments) {
+        BuiltinFunction.DRAW_RECT.validateArgs(arguments);
+        var arg = arguments.get("img");
         if (arg instanceof List<?>) {
-            return expandToImageList("draw_rect", arguments, this::drawRectangle);
+            return expandToImageList("draw_rect", "img", arguments, this::drawRectangle);
         }
-        var x1 = getArgument(Number.class, arguments, 1).map(Number::intValue).orElseThrow();
-        var y1 = getArgument(Number.class, arguments, 2).map(Number::intValue).orElseThrow();
-        var width = getArgument(Number.class, arguments, 3).map(Number::intValue).orElseThrow();
-        var height = getArgument(Number.class, arguments, 4).map(Number::intValue).orElseThrow();
-        var thickness = getArgument(Number.class, arguments, 5).map(Number::intValue).orElse(1);
-        var color = getArgument(String.class, arguments, 6).orElse(null);
+        var x1 = getArgument(Number.class, arguments, "x").map(Number::intValue).orElseThrow();
+        var y1 = getArgument(Number.class, arguments, "y").map(Number::intValue).orElseThrow();
+        var width = getArgument(Number.class, arguments, "width").map(Number::intValue).orElseThrow();
+        var height = getArgument(Number.class, arguments, "height").map(Number::intValue).orElseThrow();
+        var thickness = getArgument(Number.class, arguments, "thickness").map(Number::intValue).orElse(1);
+        var color = getArgument(String.class, arguments, "color").orElse(null);
         if (arg instanceof ImageWrapper img) {
             return drawRectangle(img, x1, y1, width, height, color, thickness);
         } else {
@@ -323,19 +324,19 @@ public class ImageDraw extends AbstractFunctionImpl {
     }
 
 
-    public Object drawSolarParameters(List<Object> arguments) {
-        assertExpectedArgCount(arguments, "draw_solar_params takes 1, 2, or 3 (image(s), [x], [y])", 1, 3);
-        var arg = arguments.get(0);
+    public Object drawSolarParameters(Map<String ,Object> arguments) {
+        BuiltinFunction.DRAW_SOLAR_PARAMS.validateArgs(arguments);
+        var arg = arguments.get("img");
         if (arg instanceof List<?>) {
-            return expandToImageList("draw_solar_params", arguments, this::drawSolarParameters);
+            return expandToImageList("draw_solar_params", "img", arguments, this::drawSolarParameters);
         }
         if (arg instanceof ImageWrapper img) {
-            var x = getArgument(Number.class, arguments, 1).map(Number::intValue).orElse(-1);
-            var y = getArgument(Number.class, arguments, 2).map(Number::intValue).orElse(50);
+            var x = getArgument(Number.class, arguments, "x").map(Number::intValue).orElse(-1);
+            var y = getArgument(Number.class, arguments, "y").map(Number::intValue).orElse(50);
             var processParams = findProcessParams(img);
             if (processParams.isPresent()) {
                 return drawOnImage(img, (g, image) -> {
-                    getEllipse(arguments, 3).ifPresent(ellipse -> {
+                    getEllipse(arguments, "ellipse").ifPresent(ellipse -> {
                         var semiAxis = ellipse.semiAxis();
                         var radius = (semiAxis.a() + semiAxis.b()) / 2;
                         autoScaleFont(g, 1.2d, radius);
@@ -379,17 +380,17 @@ public class ImageDraw extends AbstractFunctionImpl {
     }
 
 
-    public Object drawGlobe(List<Object> arguments) {
-        assertExpectedArgCount(arguments, "draw_globe takes 1, 2, 3 or 4 arguments (image(s), [angleP], [b0], [ellipse])", 1, 4);
-        var arg = arguments.get(0);
+    public Object drawGlobe(Map<String ,Object> arguments) {
+        BuiltinFunction.DRAW_GLOBE.validateArgs(arguments);
+        var arg = arguments.get("img");
         if (arg instanceof List<?>) {
-            return expandToImageList("draw_globe", arguments, this::drawGlobe);
+            return expandToImageList("draw_globe", "img", arguments, this::drawGlobe);
         }
-        var img = arguments.get(0);
+        var img = arguments.get("img");
         if (img instanceof ImageWrapper image) {
-            var angleP = getArgument(Number.class, arguments, 1).map(Number::doubleValue).or(() -> findSolarParams(image).map(SolarParameters::p)).orElse(0d);
-            var b0 = getArgument(Number.class, arguments, 2).map(Number::doubleValue).or(() -> findSolarParams(image).map(SolarParameters::b0)).orElse(0d);
-            var ellipse = getEllipse(arguments, 3).orElseThrow(() -> new IllegalArgumentException("Ellipse not defined"));
+            var angleP = getArgument(Number.class, arguments, "angleP").map(Number::doubleValue).or(() -> findSolarParams(image).map(SolarParameters::p)).orElse(0d);
+            var b0 = getArgument(Number.class, arguments, "b0").map(Number::doubleValue).or(() -> findSolarParams(image).map(SolarParameters::b0)).orElse(0d);
+            var ellipse = getEllipse(arguments, "ellipse").orElseThrow(() -> new IllegalArgumentException("Ellipse not defined"));
             return doDrawGlobe(image, ellipse, angleP, b0);
         }
         throw new IllegalArgumentException("Unexpected image type: " + img);
@@ -621,14 +622,14 @@ public class ImageDraw extends AbstractFunctionImpl {
         return new double[]{cos(angle) * a - sin(angle) * b, sin(angle) * a + cos(angle) * b};
     }
 
-    public Object drawEarth(List<Object> arguments) {
-        assertExpectedArgCount(arguments, "draw_earth takes 3 arguments (image(s), x, y)", 3, 3);
-        var arg = arguments.get(0);
+    public Object drawEarth(Map<String ,Object> arguments) {
+        BuiltinFunction.DRAW_EARTH.validateArgs(arguments);
+        var arg = arguments.get("img");
         if (arg instanceof List<?>) {
-            return expandToImageList("draw_earth", arguments, this::drawEarth);
+            return expandToImageList("draw_earth", "img", arguments, this::drawEarth);
         }
-        int x = intArg(arguments, 1);
-        int y = intArg(arguments, 2);
+        int x = intArg(arguments, "x", 0);
+        int y = intArg(arguments, "y", 0);
         if (arg instanceof ImageWrapper wrapper) {
             return drawOnImage(wrapper, (g, image) -> {
                 var ellipse = image.findMetadata(Ellipse.class);
@@ -651,16 +652,16 @@ public class ImageDraw extends AbstractFunctionImpl {
         return arg;
     }
 
-    public Object activeRegionsOverlay(List<Object> arguments) {
-        assertExpectedArgCount(arguments, "ar_overlay takes 2 arguments (image(s), [show labels])", 1, 2);
-        var arg = arguments.get(0);
+    public Object activeRegionsOverlay(Map<String ,Object> arguments) {
+        BuiltinFunction.AR_OVERLAY.validateArgs(arguments);
+        var arg = arguments.get("img");
         if (arg instanceof List<?>) {
-            return expandToImageList("ar_overlay", arguments, this::activeRegionsOverlay);
+            return expandToImageList("ar_overlay", "img", arguments, this::activeRegionsOverlay);
         }
         if (arg instanceof ImageWrapper wrapper) {
             var metadata = wrapper.findMetadata(ActiveRegions.class);
             if (metadata.isPresent()) {
-                int displayParams = arguments.size() > 1 ? intArg(arguments, 1) : 1;
+                int displayParams = intArg(arguments, "labels", 1);
                 boolean showLabels = displayParams > 0;
                 boolean fillRegions = displayParams == 0 || displayParams == 1;
                 var activeRegions = metadata.get();

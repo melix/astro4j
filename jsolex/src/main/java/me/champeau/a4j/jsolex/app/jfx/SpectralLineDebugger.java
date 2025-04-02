@@ -74,6 +74,7 @@ import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.EnumSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Objects;
@@ -386,7 +387,7 @@ public class SpectralLineDebugger {
                 int rightBorder = analysis.rightBorder().orElse(width);
                 var map = candidates
                     .stream()
-                    .collect(Collectors.toMap(d -> d, details -> SpectrumAnalyzer.computeDataPoints(details, polynomial, leftBorder, rightBorder, width, height, buffer)));
+                    .collect(Collectors.toMap(d -> d, details -> SpectrumAnalyzer.computeDataPoints(details, polynomial, leftBorder, rightBorder, width, height, buffer), (e1, e2) -> e1, LinkedHashMap::new));
                 spectralRayDetectionResult = SpectrumAnalyzer.findBestMatch(map);
             }
         });

@@ -19,6 +19,8 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 
+import static me.champeau.a4j.jsolex.processing.util.FilesUtils.createDirectoriesIfNeeded;
+
 public class TemporaryFolder {
     private static final Path TEMP_DIR = tempDir(ProcessHandle.current().pid());
     private static final String JSOLEX_PREFIX = "jsolex";
@@ -68,9 +70,7 @@ public class TemporaryFolder {
     }
 
     public static Path newTempFile(String prefix, String suffix) throws IOException {
-        if (!Files.isDirectory(TEMP_DIR)) {
-            Files.createDirectories(TEMP_DIR);
-        }
+        createDirectoriesIfNeeded(TEMP_DIR);
         var tempFile = Files.createTempFile(TEMP_DIR, prefix, suffix);
         tempFile.toFile().deleteOnExit();
         return tempFile;
@@ -95,7 +95,7 @@ public class TemporaryFolder {
     public static Path newTempDir(String dirName) throws IOException {
         var tempDir = TEMP_DIR.resolve(dirName);
         tempDir.toFile().deleteOnExit();
-        Files.createDirectories(tempDir);
+        createDirectoriesIfNeeded(tempDir);
         return tempDir;
     }
 }

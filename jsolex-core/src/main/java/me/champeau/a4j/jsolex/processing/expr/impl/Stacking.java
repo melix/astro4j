@@ -15,7 +15,7 @@
  */
 package me.champeau.a4j.jsolex.processing.expr.impl;
 
-import me.champeau.a4j.jsolex.processing.event.ProgressEvent;
+import me.champeau.a4j.jsolex.expr.BuiltinFunction;
 import me.champeau.a4j.jsolex.processing.expr.AbstractImageExpressionEvaluator;
 import me.champeau.a4j.jsolex.processing.expr.BestImages;
 import me.champeau.a4j.jsolex.processing.expr.stacking.DistorsionDebugImageCreator;
@@ -109,12 +109,12 @@ public class Stacking extends AbstractFunctionImpl {
     /**
      * Chooses or generates a reference image from a list of images, based on the given reference selection.
      */
-    public Object chooseReference(List<Object> arguments) {
-        assertExpectedArgCount(arguments, "choose_reference takes 1 or 2 arguments (image(s), [reference selection])", 1, 2);
-        var arg = arguments.get(0);
+    public Object chooseReference(Map<String ,Object> arguments) {
+        BuiltinFunction.STACK_REF.validateArgs(arguments);
+        var arg = arguments.get("images");
         if (arg instanceof List<?> list) {
             if (list.size() == 1) {
-                return list.get(0);
+                return list.getFirst();
             }
             var images = list.stream()
                     .parallel()
@@ -129,11 +129,11 @@ public class Stacking extends AbstractFunctionImpl {
                     .map(ImageWrapper32.class::cast)
                     .toList();
             if (images.size() == 1) {
-                return images.get(0);
+                return images.getFirst();
             } else if (images.isEmpty()) {
                 return List.of();
             }
-            var referenceSelection = arguments.size() == 2 ? ReferenceSelection.valueOf(stringArg(arguments, 1).toUpperCase(Locale.US)) : ReferenceSelection.SHARPNESS;
+            var referenceSelection = ReferenceSelection.valueOf(stringArg(arguments, "select", ReferenceSelection.SHARPNESS.toString()).toUpperCase(Locale.US));
             var bestSource = referenceSelection == ReferenceSelection.MANUAL ? bestSourceInfo() : null;
             return chooseReference(images, bestSource, referenceSelection);
         } else {
@@ -152,12 +152,12 @@ public class Stacking extends AbstractFunctionImpl {
     /**
      * Stacks a list of images, using a given tile size and sampling ratio.
      */
-    public Object stack(List<Object> arguments) {
-        assertExpectedArgCount(arguments, "stack takes 1, to 4 arguments (image(s), [tile size], [sampling], [reference selection])", 1, 4);
-        var arg = arguments.get(0);
+    public Object stack(Map<String ,Object> arguments) {
+        BuiltinFunction.STACK.validateArgs(arguments);
+        var arg = arguments.get("images");
         if (arg instanceof List<?> list) {
             if (list.size() == 1) {
-                return list.get(0);
+                return list.getFirst();
             }
             var images = list.stream()
                     .parallel()
@@ -172,20 +172,20 @@ public class Stacking extends AbstractFunctionImpl {
                     .map(ImageWrapper32.class::cast)
                     .toList();
             if (images.size() == 1) {
-                return images.get(0);
+                return images.getFirst();
             }
             if (images.isEmpty()) {
                 return List.of();
             }
-            var tileSize = arguments.size() >= 2 ? intArg(arguments, 1) : DEFAULT_TILE_SIZE;
+            var tileSize = intArg(arguments, "ts", DEFAULT_TILE_SIZE);
             if (tileSize < 4) {
                 throw new IllegalArgumentException("tile size must be at least 4");
             }
             if (!FFTSupport.isPowerOf2(tileSize)) {
                 throw new IllegalArgumentException("tile size must be a power of 2");
             }
-            var sampling = arguments.size() == 3 ? doubleArg(arguments, 2) : DEFAULT_SAMPLING;
-            var referenceSelection = arguments.size() == 4 ? ReferenceSelection.valueOf(stringArg(arguments, 3).toUpperCase(Locale.US)) : ReferenceSelection.SHARPNESS;
+            var sampling = doubleArg(arguments, "sampling", DEFAULT_SAMPLING);
+            var referenceSelection = ReferenceSelection.valueOf(stringArg(arguments, "select", ReferenceSelection.SHARPNESS.toString()).toUpperCase(Locale.US));
             return doStack(images, tileSize, null, sampling, referenceSelection);
         } else {
             throw new IllegalArgumentException("stack first argument must be a list of images");
@@ -314,9 +314,9 @@ public class Stacking extends AbstractFunctionImpl {
         return switch (referenceSelection) {
             case FIRST -> images.getFirst();
             case AVERAGE ->
-                    (ImageWrapper32) simpleFunctionCall.applyFunction("average", (List) images, DoubleStream::average);
+                    (ImageWrapper32) simpleFunctionCall.applyFunction("avg", Map.of("list", images), DoubleStream::average);
             case MEDIAN ->
-                    (ImageWrapper32) simpleFunctionCall.applyFunction("median", (List) images, AbstractImageExpressionEvaluator::median);
+                    (ImageWrapper32) simpleFunctionCall.applyFunction("median", Map.of("list", images), AbstractImageExpressionEvaluator::median);
             case ECCENTRICITY -> images.stream()
                     .map(img -> {
                         var ecc = img.findMetadata(Ellipse.class).map(Ellipse::eccentricity).orElse(.99d);
@@ -360,9 +360,9 @@ public class Stacking extends AbstractFunctionImpl {
         List<ImageWrapper> images2 = images.stream().map(ImageWrapper.class::cast).toList();
         if (widths.length > 1 || heights.length > 1 || widths[0] != heights[0]) {
             // perform cropping
-            images2 = (List<ImageWrapper>) crop.autocrop2(List.of(images2));
+            images2 = (List<ImageWrapper>) crop.autocrop2(Map.of("img", images2));
         }
-        images2 = (List<ImageWrapper>) scaling.radiusRescale(List.of(images2));
+        images2 = (List<ImageWrapper>) scaling.radiusRescale(Map.of("images", images2));
         return images2.stream()
                 .map(img -> {
                     if (img instanceof FileBackedImage fbi) {

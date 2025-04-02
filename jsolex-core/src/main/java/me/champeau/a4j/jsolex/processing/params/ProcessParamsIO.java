@@ -43,6 +43,7 @@ import java.util.Set;
 import static me.champeau.a4j.jsolex.processing.sun.BandingReduction.DEFAULT_BAND_SIZE;
 import static me.champeau.a4j.jsolex.processing.sun.BandingReduction.DEFAULT_PASS_COUNT;
 import static me.champeau.a4j.jsolex.processing.util.Constants.message;
+import static me.champeau.a4j.jsolex.processing.util.FilesUtils.createDirectoriesIfNeeded;
 
 public abstract class ProcessParamsIO {
     private static final Logger LOGGER = LoggerFactory.getLogger(ProcessParamsIO.class);
@@ -54,7 +55,7 @@ public abstract class ProcessParamsIO {
     private static Path resolveDefaultsFile() {
         var jsolexDir = VersionUtil.getJsolexDir();
         try {
-            Files.createDirectories(jsolexDir);
+            createDirectoriesIfNeeded(jsolexDir);
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
@@ -84,31 +85,31 @@ public abstract class ProcessParamsIO {
 
     public static ProcessParams createNewDefaults() {
         return new ProcessParams(
-            new SpectrumParams(SpectralRay.AUTO, 0, 3, Constants.DEFAULT_CONTINUUM_SHIFT, false),
-            new ObservationDetails(
-                null,
-                null,
-                SpectroHeliograph.SOLEX,
-                null,
-                null,
-                null,
-                null,
-                LocalDateTime.now().atZone(ZoneId.of("UTC")),
-                "",
-                1,
-                2.4,
-                false,
-                false,
-                false),
-            new ExtraParams(false, true, EnumSet.of(ImageFormat.PNG), FileNamingStrategy.DEFAULT_TEMPLATE, FileNamingStrategy.DEFAULT_DATETIME_FORMAT, FileNamingStrategy.DEFAULT_DATE_FORMAT, false),
-            new VideoParams(ColorMode.MONO),
-            new GeometryParams(null, null, false, false, false, false, true, RotationKind.NONE, AutocropMode.RADIUS_1_2, DeconvolutionMode.NONE, null, false, null, false),
-            new BandingCorrectionParams(DEFAULT_BAND_SIZE, DEFAULT_PASS_COUNT),
-            new RequestedImages(RequestedImages.FULL_MODE, List.of(0d), Set.of(), Set.of(), ImageMathParams.NONE, false),
-            createDefaultClaheParams(),
-            createDefaultAutoStretchParams(),
-            ContrastEnhancement.AUTOSTRETCH,
-            new EnhancementParams(false, FlatCorrection.DEFAULT_LO_PERCENTILE, FlatCorrection.DEFAULT_HI_PERCENTILE, FlatCorrection.DEFAULT_ORDER)
+                new SpectrumParams(SpectralRay.AUTO, 0, 3, Constants.DEFAULT_CONTINUUM_SHIFT, false),
+                new ObservationDetails(
+                        null,
+                        null,
+                        SpectroHeliograph.SOLEX,
+                        null,
+                        null,
+                        null,
+                        null,
+                        LocalDateTime.now().atZone(ZoneId.of("UTC")),
+                        "",
+                        1,
+                        2.4,
+                        false,
+                        false,
+                        false),
+                new ExtraParams(false, true, EnumSet.of(ImageFormat.PNG), FileNamingStrategy.DEFAULT_TEMPLATE, FileNamingStrategy.DEFAULT_DATETIME_FORMAT, FileNamingStrategy.DEFAULT_DATE_FORMAT, false),
+                new VideoParams(ColorMode.MONO),
+                new GeometryParams(null, null, false, false, false, false, true, RotationKind.NONE, AutocropMode.RADIUS_1_2, DeconvolutionMode.NONE, null, false, null, false),
+                new BandingCorrectionParams(DEFAULT_BAND_SIZE, DEFAULT_PASS_COUNT),
+                new RequestedImages(RequestedImages.FULL_MODE, List.of(0d), Set.of(), Set.of(), ImageMathParams.NONE, false),
+                createDefaultClaheParams(),
+                createDefaultAutoStretchParams(),
+                ContrastEnhancement.AUTOSTRETCH,
+                new EnhancementParams(false, FlatCorrection.DEFAULT_LO_PERCENTILE, FlatCorrection.DEFAULT_HI_PERCENTILE, FlatCorrection.DEFAULT_ORDER)
         );
     }
 
@@ -133,90 +134,90 @@ public abstract class ProcessParamsIO {
             if (params.videoParams() == null) {
                 // happens if loading an old config file
                 params = new ProcessParams(
-                    params.spectrumParams(),
-                    params.observationDetails(),
-                    params.extraParams(),
-                    new VideoParams(ColorMode.MONO),
-                    params.geometryParams(),
-                    params.bandingCorrectionParams(),
-                    params.requestedImages(),
-                    params.claheParams(),
-                    params.autoStretchParams(),
-                    params.contrastEnhancement(),
-                    params.enhancementParams()
+                        params.spectrumParams(),
+                        params.observationDetails(),
+                        params.extraParams(),
+                        new VideoParams(ColorMode.MONO),
+                        params.geometryParams(),
+                        params.bandingCorrectionParams(),
+                        params.requestedImages(),
+                        params.claheParams(),
+                        params.autoStretchParams(),
+                        params.contrastEnhancement(),
+                        params.enhancementParams()
                 );
             }
             if (params.geometryParams() == null) {
                 params = new ProcessParams(
-                    params.spectrumParams(),
-                    params.observationDetails(),
-                    params.extraParams(),
-                    params.videoParams(),
-                    new GeometryParams(
-                        null,
-                        null,
-                        false,
-                        false,
-                        false,
-                        false,
-                        true,
-                        RotationKind.NONE,
-                        AutocropMode.OFF,
-                        DeconvolutionMode.NONE,
-                        null,
-                        false,
-                        null,
-                        false),
-                    params.bandingCorrectionParams(),
-                    params.requestedImages(),
-                    params.claheParams(),
-                    params.autoStretchParams(),
-                    params.contrastEnhancement(),
-                    params.enhancementParams()
+                        params.spectrumParams(),
+                        params.observationDetails(),
+                        params.extraParams(),
+                        params.videoParams(),
+                        new GeometryParams(
+                                null,
+                                null,
+                                false,
+                                false,
+                                false,
+                                false,
+                                true,
+                                RotationKind.NONE,
+                                AutocropMode.OFF,
+                                DeconvolutionMode.NONE,
+                                null,
+                                false,
+                                null,
+                                false),
+                        params.bandingCorrectionParams(),
+                        params.requestedImages(),
+                        params.claheParams(),
+                        params.autoStretchParams(),
+                        params.contrastEnhancement(),
+                        params.enhancementParams()
                 );
             }
             if (params.bandingCorrectionParams() == null) {
                 params = new ProcessParams(
-                    params.spectrumParams(),
-                    params.observationDetails(),
-                    params.extraParams(),
-                    params.videoParams(),
-                    params.geometryParams(),
-                    new BandingCorrectionParams(
-                        DEFAULT_BAND_SIZE,
-                        DEFAULT_PASS_COUNT
-                    ),
-                    params.requestedImages(),
-                    params.claheParams(),
-                    params.autoStretchParams(),
-                    params.contrastEnhancement(),
-                    params.enhancementParams()
+                        params.spectrumParams(),
+                        params.observationDetails(),
+                        params.extraParams(),
+                        params.videoParams(),
+                        params.geometryParams(),
+                        new BandingCorrectionParams(
+                                DEFAULT_BAND_SIZE,
+                                DEFAULT_PASS_COUNT
+                        ),
+                        params.requestedImages(),
+                        params.claheParams(),
+                        params.autoStretchParams(),
+                        params.contrastEnhancement(),
+                        params.enhancementParams()
                 );
             }
             if (params.requestedImages() == null) {
                 params = new ProcessParams(
-                    params.spectrumParams(),
-                    params.observationDetails(),
-                    params.extraParams(),
-                    params.videoParams(),
-                    params.geometryParams(),
-                    params.bandingCorrectionParams(),
-                    new RequestedImages(RequestedImages.FULL_MODE, List.of(0d), Set.of(), Set.of(), ImageMathParams.NONE, false),
-                    params.claheParams(),
-                    params.autoStretchParams(),
-                    params.contrastEnhancement(),
-                    params.enhancementParams()
+                        params.spectrumParams(),
+                        params.observationDetails(),
+                        params.extraParams(),
+                        params.videoParams(),
+                        params.geometryParams(),
+                        params.bandingCorrectionParams(),
+                        new RequestedImages(RequestedImages.FULL_MODE, List.of(0d), Set.of(), Set.of(), ImageMathParams.NONE, false),
+                        params.claheParams(),
+                        params.autoStretchParams(),
+                        params.contrastEnhancement(),
+                        params.enhancementParams()
                 );
             }
             if (params.extraParams() == null) {
                 params = params.withExtraParams(new ExtraParams(
-                    false,
-                    true,
-                    EnumSet.of(ImageFormat.PNG),
-                    FileNamingStrategy.DEFAULT_TEMPLATE,
-                    FileNamingStrategy.DEFAULT_DATETIME_FORMAT,
-                    FileNamingStrategy.DEFAULT_DATE_FORMAT,
-                    false
+                        false,
+                        true,
+                        EnumSet.of(ImageFormat.PNG),
+                        FileNamingStrategy.DEFAULT_TEMPLATE,
+                        FileNamingStrategy.DEFAULT_DATETIME_FORMAT,
+                        FileNamingStrategy.DEFAULT_DATE_FORMAT,
+                        false
                 ));
             }
             if (params.extraParams().datetimeFormat() == null) {
@@ -257,7 +258,8 @@ public abstract class ProcessParamsIO {
 
     public static void saveTo(ProcessParams params, File destination) {
         try {
-            Files.createDirectories(destination.getParentFile().toPath());
+            var parent = destination.getParentFile().toPath();
+            createDirectoriesIfNeeded(parent);
             try (var writer = FilesUtils.newTextWriter(destination.toPath())) {
                 var gson = newGson();
                 writer.write(gson.toJson(params));

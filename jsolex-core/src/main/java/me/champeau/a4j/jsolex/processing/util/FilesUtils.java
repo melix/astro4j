@@ -39,6 +39,17 @@ public class FilesUtils {
             StandardCharsets.UTF_16
     );
 
+    /**
+     * Creates the directories in the given path if they do not exist.
+     * This is not strictly needed to perform a check, but it avoids
+     * an internal exception which is annoying when debugging.
+     */
+    public static void createDirectoriesIfNeeded(Path dir) throws IOException {
+        if (!Files.exists(dir)) {
+            Files.createDirectories(dir);
+        }
+    }
+
     private static <T> T withCharsetDetection(Producer<Charset, T> producer) {
         for (Charset charset : STANDARD_CHARSETS) {
             try {
