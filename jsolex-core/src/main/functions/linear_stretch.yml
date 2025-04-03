@@ -1,0 +1,28 @@
+name: LINEAR_STRETCH
+category: ENHANCEMENT
+description:
+  fr: "Etire l'histogramme d'une image pour qu'il occupe toute la plage de valeurs possibles.
+  Cette fonction peut aussi être utilisée pour compresser les valeurs d'une image dans la plage de valeurs
+  possibles (par exemple après un calcul exponentiel)."
+  en: "Stretches the histogram of an image to occupy the entire range of possible values.
+  This function can also be used to compress the values of an image into the range of possible values
+  (for example after an exponential calculation)."
+arguments:
+  - name: img
+    description: Image(s)
+  - name: lo
+    optional: true
+    default: 0
+    description:
+      fr: "Valeur minimale de l'histogramme à étirer."
+      en: "Minimum value of the histogram to stretch."
+  - name:  hi
+    optional: true
+    default: 65535
+    description:
+      fr: "Valeur maximale de l'histogramme à étirer."
+      en: "Maximum value of the histogram to stretch."
+examples:
+  - "linear_stretch(img(0))"
+  - "linear_stretch(img(0), 10000, 48000)"
+  - "linear_stretch(img: img(0), hi: 48000)"

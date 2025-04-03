@@ -1,0 +1,13 @@
+name: LOAD
+category: UTILS
+description:
+  fr: "Charge une image depuis un fichier."
+  en: "Loads an image from a file."
+arguments:
+  - name: file
+    description:
+      fr: Chemin du fichier
+      en: File path
+examples:
+  - "load('image.fits')"
+  - "load(file: '/path/to/image.fits')"

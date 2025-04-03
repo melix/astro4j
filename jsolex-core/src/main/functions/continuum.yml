@@ -1,0 +1,9 @@
+name: CONTINUUM
+category: ANALYSIS
+description:
+  fr: "Génère une image du continuum autour de la raie étudiée.
+  Cette fonction diffère de l’image continuum classique au sens où il ne s’agit pas d’une image unique calculée à la différence de pixels fixe de 15 pixels, mais d’une image calculée à partir de la médiane d’un ensemble d’images."
+  en: "Generates a continuum image around the studied line.
+  This function differs from the classic continuum image in that it is not a single image calculated by the difference of fixed pixels of 15 pixels, but an image calculated from the median of a set of images."
+examples:
+  - "continuum()"

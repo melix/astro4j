@@ -1,0 +1,23 @@
+name: CROP_AR
+category: CROP
+description:
+  fr: "Génère une liste d’images correspondant aux taches solaires détectées."
+  en: "Generates a list of images corresponding to the detected sunspots."
+arguments:
+  - name: img
+    description: Image(s)
+  - name: ms
+    default: 32
+    optional: true
+    description:
+      fr: "Taille minimale de la tache."
+      en: "Minimum size of the spot."
+  - name: margin
+    default: 10
+    optional: true
+    description:
+      fr: "Marge autour de la tache (en %)."
+      en: "Margin around the spot (in %)."
+examples:
+  - "crop_ar(continuum))"
+  - "crop_ar(img:img(0), margin: 15)"

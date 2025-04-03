@@ -1,0 +1,23 @@
+name: BG_MODEL
+category: BACKGROUND
+description:
+  fr: "Crée un modèle de fond de ciel à partir d’une image, qui peut par exemple être soustraite de l’image d’origine."
+  en: "Creates a BACKGROUND model from an image, which can be used to subtract the BACKGROUND from the original image. "
+arguments:
+  - name: img
+    description: Image(s)
+  - name: order
+    optional: true
+    default: 2
+    description:
+      fr: "Ordre du polynôme. Une valeur supérieure à 3 n'est pas recommandée."
+      en: "Polynomial order. A value higher than 3 is not recommended."
+  - name: sigma
+    optional: true
+    default: 2.5
+    description:
+      fr: Nombre de sigmas pour la sélection des échantillons.
+      en: Number of sigmas for sample selection.
+examples:
+  - "bg_model(img(0); 2.5; 3)"
+  - "bg_model(img: img(0); sigma: 3)"

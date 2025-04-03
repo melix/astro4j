@@ -1,5 +1,12 @@
+import me.champeau.astro4j.BuiltinFunctionAsciidocGenerator
+
 plugins {
     id("me.champeau.astro4j.docs")
+}
+
+val generateBuiltinFunctions = tasks.register<BuiltinFunctionAsciidocGenerator>("builtinFunctionGenerator") {
+    yamlDirectory = file("../jsolex-core/src/main/functions")
+    generatedDocsDirectory = layout.buildDirectory.dir("generated-docs/functions")
 }
 
 tasks {
@@ -23,7 +30,8 @@ tasks {
             "highlightjs-theme" to "equilibrium-light",
             "highlightjsdir" to "highlight",
             "version" to downloadVersion,
-            "prefixName" to prefixName
+            "prefixName" to prefixName,
+            "generated-funs" to generateBuiltinFunctions.get().generatedDocsDirectory.get().asFile.absolutePath,
         ))
         resources(delegateClosureOf<CopySpec> {
             from("src/docs/asciidoc") {

@@ -1,0 +1,19 @@
+name: LOAD_MANY
+category: UTILS
+description:
+  fr: "Charge des images depuis un dossier."
+  en: "Loads many images from a directory."
+arguments:
+  - name: dir
+    description:
+      fr: Chemin du dossier
+      en: Directory path
+  - name:  pattern
+    optional: true
+    default: ".*"
+    description:
+      fr: "Expression régulière pour filtrer les fichiers"
+      en: "Regular expression to filter files"
+examples:
+  - "load_many(\"/chemin/vers/dossier\")"
+  - 'load_many(dir: "/chemin/vers/dossier", pattern:".*cropped.*")'

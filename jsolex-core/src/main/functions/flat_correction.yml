@@ -1,0 +1,40 @@
+name: FLAT_CORRECTION
+category: ENHANCEMENT
+description:
+  en: "Computes an artificial flat field image to correct the image then applies the correction."
+  fr: "Calcule une image de flat artificielle pour corriger l'image puis applique la correction."
+arguments:
+  - name: img
+    description: Image(s)
+  - name: lo
+    optional: true
+    default: 0.1
+    description:
+      fr: "Valeur du percentile bas"
+      en: "Low percentile value"
+  - name:  hi
+    optional: true
+    default: 0.95
+    description:
+      fr: "Valeur du percentile haut"
+      en: "High percentile value"
+  - name: order
+    description:
+      fr: "Ordre du polynome"
+      en: "Polynomial order"
+    default: 2
+    optional: true
+examples:
+  - "flat_correction(img(0))"
+  - "flat_correction(img: img(0), order: 3)"
+extraDocs:
+  fr: "[NOTE]
+.Expérimental
+====
+La correction par flat artificiel permet de corriger un éventuel vignettage. Elle calcule un modèle à partir des pixels du disque. Les pixels considérés sont ceux dont la valeur est comprise entre un percentile bas et un percentile haut. Par exemple, si vous entrez 0.1 et 0.9, les pixels dont la valeur est comprise entre le 10ème et le 90ème percentile seront utilisés pour calculer le modèle. Enfin, un polynome d'ordre spécifié est ajusté sur les valeurs du modèle pour corriger l'image.
+===="
+  en: "[NOTE]
+.Experimental
+====
+The artificial flat correction allows to correct a possible vignetting. It computes a model from the disk pixels. The pixels considered are those whose value is between a low and a high percentile. For example, if you enter 0.1 and 0.9, the pixels whose value is between the 10th and 90th percentile will be used to compute the model. Finally, a polynomial of the specified order is adjusted on the model values to correct the image.
+===="

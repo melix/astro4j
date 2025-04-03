@@ -1,3 +1,4 @@
+import me.champeau.astro4j.BuiltinFunctionCodeGenerator
 import me.champeau.astro4j.SpectrumFileConverter
 
 plugins {
@@ -54,8 +55,16 @@ val converter = tasks.register<SpectrumFileConverter>("convertSpectrumFile") {
     outputFile = layout.buildDirectory.file("atlas/atlasvi.txt")
 }
 
+val generateBuiltinFunctions = tasks.register<BuiltinFunctionCodeGenerator>("builtinFunctionGenerator") {
+    yamlDirectory = file("src/main/functions")
+    generatedSourcesDirectory = layout.buildDirectory.dir("generated-sources/astro4j-functions")
+}
+
 sourceSets {
     main {
+        java {
+            srcDir(generateBuiltinFunctions.flatMap { it.generatedSourcesDirectory })
+        }
         resources {
             srcDir(converter.map { it.outputFile.get().asFile.parentFile })
         }

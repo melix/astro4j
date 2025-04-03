@@ -1,0 +1,11 @@
+name: HFLIP
+category: ROTATION
+description:
+  fr: "Inverse horizontalement une image."
+  en: "Flips an image horizontally."
+arguments:
+  - name: img
+    description: Image(s)
+examples:
+  - "hflip(some_image)"
+  - "hflip(img: img(0))"

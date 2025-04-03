@@ -1,0 +1,37 @@
+name: COLORIZE2
+category: ENHANCEMENT
+description:
+  fr: "Colorise une image en utilisant une modélisation des courbes de couleur.
+  Les courbes sont définies par 2 points de contrôle: la valeur d'entrée et la valeur de sortie."
+  en: "Applies a colorization to an image using curve modeling.
+  The curves are defined by 2 control points: the input value and the output value."
+arguments:
+  - name: img
+    description: Image(s)
+  - name: rIn
+    description:
+      fr: "Valeur d'entrée pour le rouge (0-255)"
+      en: "Input value for red (0-255)"
+  - name: rOut
+    description:
+      fr: "Valeur de sortie pour le rouge (0-255)"
+      en: "Output value for red (0-255)"
+  - name:  gIn
+    description:
+      fr: "Valeur d'entrée pour le vert (0-255)"
+      en: "Input value for green (0-255)"
+  - name:  gOut
+    description:
+      fr: "Valeur de sortie pour le vert (0-255)"
+      en: "Output value for green (0-255)"
+  - name:  bIn
+    description:
+      fr: "Valeur d'entrée pour le bleu (0-255)"
+      en: "Input value for blue (0-255)"
+  - name:   bOut
+    description:
+      fr: "Valeur de sortie pour le bleu (0-255)"
+      en: "Output value for blue (0-255)"
+examples:
+  - "colorize(img: img(0), profile: \"H-alpha\")"
+  - "colorize(range(-1, 1), \"Calcium (K)\")"

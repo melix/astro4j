@@ -1,0 +1,15 @@
+name: ADJUST_GAMMA
+category: ENHANCEMENT
+description:
+  fr: "Applique une modification gamma à une image."
+  en: "Applies a gamma correction to an image."
+arguments:
+  - name: img
+    description: Image(s)
+    required: true
+  - name: gamma
+    required: true
+    description: Gamma
+examples:
+  - "adjust_gamma(img: img(0), gamma: 2.2)"
+  - "adjust_gamma(img(0), 1.5)"

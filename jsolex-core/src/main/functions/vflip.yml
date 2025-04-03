@@ -1,0 +1,11 @@
+name: VFLIP
+category: ROTATION
+description:
+  fr: "Inverse verticalement une image."
+  en: "Flips an image vertically."
+arguments:
+  - name: img
+    description: Image(s)
+examples:
+  - "vflip(some_image)"
+  - "vflip(img: img(0))"

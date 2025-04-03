@@ -1,0 +1,19 @@
+name: NEUTRALIZE_BG
+category: BACKGROUND
+description:
+  fr: "C'est une fonction similaire à `remove_bg` qui utilise une modélisation polynomiale du fond pour supprimer les gradients.
+  Cette fonction est utilisable sur des images sans information d'ellipse (disque solaire)"
+  en: "This is a function similar to `remove_bg` that uses a polynomial modeling of the background to remove gradients.
+  This function can be used on images without ellipse information (solar disk)."
+arguments:
+  - name: img
+    description: Image(s)
+  - name: iterations
+    optional: true
+    default: 1
+    description:
+      fr: "Nombre d'itérations de l'algorithme."
+      en: "Number of iterations of the algorithm."
+examples:
+  - "neutralize_bg(some_image)"
+  - "neutralize_bg(img: img(0), iterations: 5)"

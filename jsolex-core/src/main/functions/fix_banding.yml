@@ -1,0 +1,19 @@
+name: FIX_BANDING
+category: ENHANCEMENT
+description:
+  fr: "Applique une correction de bandes sur l'image"
+  en: "Applies a banding correction to the image"
+arguments:
+  - name: img
+    description: Image(s)
+  - name: bs
+    description:
+      fr: "Largeur de la bande"
+      en: "Band size"
+  - name: passes
+    description:
+      fr: "Nombre de passes"
+      en: "Number of passes"
+examples:
+  - "fix_banding(img(0), 64, 3)"
+  - "fix_banding(img: img(0), bs: 48, passes: 10)"

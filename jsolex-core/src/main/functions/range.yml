@@ -1,0 +1,24 @@
+name: RANGE
+category: RECONSTRUCTION
+description:
+  fr: "Renvoie des images reconstruites aux décalages de pixel spécifiés par l'intervalle."
+  en: "Returns the reconstructed image at the pixel offsets represented by the interval."
+arguments:
+  - name: from
+    description:
+      - fr: "Début de l'intervalle (inclusif)"
+      - en: "Start of the interval (inclusive)"
+  - name: to
+    description:
+      fr: "Fin de l'intervalle (inclusif)"
+      en: "End of the interval (inclusive)"
+  - name:  step
+    description:
+      fr: "Pas de l'intervalle"
+      en: "Step of the interval"
+    default: 1
+    optional: true
+examples:
+  - "range(-1;1)"
+  - "range(-1;1;0.5))"
+  - "range(from: -10; to: 10; step: 2)"

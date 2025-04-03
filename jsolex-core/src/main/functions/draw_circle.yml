@@ -1,0 +1,30 @@
+name: DRAW_CIRCLE
+category: DRAW
+description:
+  fr: "Dessine un cercle sur l'image."
+  en: "Draws a circle on the image."
+arguments:
+  - name: img
+    description: Image(s)
+  - name: cx
+    description:
+      fr: "Coordonnéee X du centre du cercle"
+      en: "X coordinate of the center of the circle"
+  - name: cy
+    description:
+      fr: "Coordonnée Y du centre du cercle"
+      en: "Y coordinate of the center of the circle"
+  - name: thickness
+    optional: true
+    default: 1
+    description:
+      fr: "Épaisseur de la flèche"
+      en: "Thickness of the arrow"
+  - name: color
+    optional: true
+    description:
+      fr: "Couleur de la flèche"
+      en: "Color of the arrow"
+examples:
+  - "draw_circle(img(0), 100, 100, 2)"
+  - "draw_circle(img:img(0), cx:100, cy:100, color: \"ff0000\")"

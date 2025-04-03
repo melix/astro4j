@@ -1,0 +1,22 @@
+name: FIND_SHIFT
+category: ANALYSIS
+description:
+  fr: "Calculee un décalage en pixels par rapport à la raie détectée.
+    La distance est déterminée en calculant la dispersion, qui ne sera correcte que si vous avez bien renseigné
+    la taille des pixels de la caméra, ainsi que votre spectrohéliographe."
+  en: "Computes a pixel offset relative to the detected line.
+    The distance is determined by calculating the dispersion, which will only be correct if you have correctly specified
+    the pixel size of the camera, as well as your spectroheliograph."
+arguments:
+  - name: wl
+    description:
+      fr: Longueur d'onde recherchée en Angstroms ou nom de la raie
+      en: Wavelength to search for in Angstroms or line name
+  - name: ref
+    optional: true
+    description:
+      fr: Longueur d'onde de référence en Angstroms
+      en: Reference wavelength in Angstroms
+examples:
+  - "find_shift(5875.62)"
+  - "find_shift(wl: 5875.62, ref: 5895.92)"

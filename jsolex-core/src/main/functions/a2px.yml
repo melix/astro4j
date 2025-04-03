@@ -1,0 +1,20 @@
+name: A2PX
+category: ANALYSIS
+description:
+  fr: "Calcule le nombre de pixels correspondant à une distance en Angstroms.
+    La distance est déterminée en calculant la dispersion, qui ne sera correcte que si vous avez bien renseigné
+    la taille des pixels de la caméra, ainsi que votre spectrohéliographe."
+  en: "Computes the number of pixels corresponding to a distance in Angstroms.
+    The distance is determined by calculating the dispersion, which will only be correct if you have correctly specified
+    the pixel size of the camera, as well as your spectroheliograph."
+arguments:
+  - name: a
+    description: Angstroms
+  - name: ref
+    optional: true
+    description:
+       fr: Longueur d'onde de référence en Angstroms
+       en: Reference wavelength in Angstroms
+examples:
+  - "a2px(1.2)"
+  - "a2px(a: 1.2, ref: 6328)"

@@ -1,0 +1,23 @@
+name: ROTATE_DEG
+category: ROTATION
+description:
+  fr: "Applique une rotation à une image, en degrés."
+  en: "Applies a rotation to an image, in degrees."
+arguments:
+  - name: img
+    description: Image(s)
+  - name: angle
+    description: Angle
+  - name: bp
+    optional: true
+    description:
+      fr: "Valeur de remplissage pour les pixels en dehors de l'image."
+      en: "Fill value for pixels outside of the image."
+  - name: resize
+    optional: true
+    description:
+      fr: "Redimensionner l'image pour s'adapter à la rotation."
+      en: "Resize the image to fit the rotation."
+examples:
+  - "rotate_deg(img(0); 30)"
+  - "rotate_deg(img: img(0); angle: 30)"

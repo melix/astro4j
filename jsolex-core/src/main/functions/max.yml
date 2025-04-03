@@ -1,0 +1,13 @@
+name: MAX
+category: MATHS
+description:
+  fr: "Calcule le maximum de ses arguments. Si les arguments sont des images, le maximum est calculée pixel par pixel."
+  en: "Computes the maximum of its arguments. If the arguments are images, the maximum is computed pixel-wise."
+spreadList: true
+arguments:
+  - name: list
+    description: Arguments
+    required: true
+examples:
+  - "max(range(-1;1))"
+  - "max(img(0); img(1))"

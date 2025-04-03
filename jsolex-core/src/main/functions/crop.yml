@@ -1,0 +1,27 @@
+name: CROP
+category: CROP
+description:
+  fr: "Rogne une image aux coordonnées et dimensions spécifiées."
+  en: "Crops an image to the specified coordinates and dimensions."
+arguments:
+  - name: img
+    description: Image(s)
+  - name: left
+    description:
+      fr: "Coordonnée X du coin supérieur gauche de la zone de rognage."
+      en: "X coordinate of the top left corner of the cropping area."
+  - name: top
+    description:
+      fr: "Coordonnée Y du coin supérieur gauche de la zone de rognage."
+      en: "Y coordinate of the top left corner of the cropping area."
+  - name:  width
+    description:
+      fr: "Largeur de la zone de rognage."
+      en: "Width of the cropping area."
+  - name:  height
+    description:
+      fr: "Hauteur de la zone de rognage."
+      en: "Height of the cropping area."
+examples:
+  - "crop(img(0), 10, 20, 100, 200)"
+  - "crop(img: img(0), left: 10, top: 20, width: 100, height: 200)"

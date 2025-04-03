@@ -1,0 +1,12 @@
+name: CONCAT
+category: MATHS
+description:
+  fr: "Concatène des listes d'arguments."
+  en: "Concatenates argument lists."
+spreadList: true
+arguments:
+  - name: list
+    description: Arguments
+    required: true
+examples:
+  - "concat(list(img(0));range(-1;1))"

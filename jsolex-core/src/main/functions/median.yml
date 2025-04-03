@@ -1,0 +1,13 @@
+name: MEDIAN
+category: MATHS
+description:
+  fr: "Calcule la médiane de ses arguments. Si les arguments sont des images, la médiane est calculée pixel par pixel."
+  en: "Computes the median of its arguments. If the arguments are images, the median is computed pixel-wise."
+spreadList: true
+arguments:
+  - name: list
+    description: Arguments
+    required: true
+examples:
+  - "median(range(-1;1))"
+  - "median(img(0); img(1))"

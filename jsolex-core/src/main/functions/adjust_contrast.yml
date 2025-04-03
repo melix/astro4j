@@ -1,0 +1,19 @@
+name: ADJUST_CONTRAST
+category: ENHANCEMENT
+description:
+  fr: "Permet d’appliquer un ajustement très simple du contraste, en coupant les pixels sous une limite minimale ou au-dessus de la limite maximale."
+  en: "Applies simple contrast adjustment by clipping values under the minimal value or above the maximal value."
+arguments:
+  - name: img
+    description: Image(s)
+  - name: min
+    description:
+      fr: Valeur minimum
+      en: Minimum value
+  - name: max
+    description:
+      fr: Valeur maximum
+      en: Maximum value
+examples:
+  - "adjust_contrast(img: img(0), min: 10, max: 200)"
+  - "adjust_contrast(img(0), 10, 200)"

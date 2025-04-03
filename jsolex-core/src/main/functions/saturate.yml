@@ -1,0 +1,13 @@
+name: SATURATE
+category: ENHANCEMENT
+description:
+  fr: "Sature les couleurs d'une image."
+  en: "Saturates the colors of an image."
+arguments:
+  - name: img
+    description: Image(s)
+  - name: factor
+    description: Saturation
+examples:
+  - "saturate(img(0);1.5)"
+  - "saturate(img: img(0); factor: 1.5)"

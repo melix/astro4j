@@ -1,0 +1,19 @@
+name: POW
+category: MATHS
+description:
+  fr: "Calcule une puissance"
+  en: "Computes a power"
+arguments:
+  - name: v
+    description:
+      fr: Valeur
+      en: Value
+  - name: exp
+    description:
+      fr: Exposant
+      en: Exponent
+examples:
+  - "pow(img(0); 1.5)"
+  - "pow(v:img(0), exp: 2)"
+  - "pow(2, 3)"
+  - "pow(v:2, exp: 3)"

@@ -1,0 +1,11 @@
+name: GET_G
+category: UTILS
+description:
+  fr: "Extraie le canal vert d'une image."
+  en: "Extracts the green channel from an image."
+arguments:
+  - name: img
+    description: Image(s)
+examples:
+  - "get_g(some_image)"
+  - "get_g(img: some_image)"

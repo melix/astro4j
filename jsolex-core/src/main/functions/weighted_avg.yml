@@ -1,0 +1,15 @@
+name: WEIGHTED_AVG
+category: MATHS
+description:
+  fr: "Calcule une moyenne pondérée d'images"
+  en: "Computes a weighted average of images"
+arguments:
+  - name: images
+    description: Images
+  - name: weights
+    description:
+      fr: Poids
+      en: Weights
+examples:
+  - "weighted_avg(range(-1;1);list(.5;1;.5))"
+  - "weighted_avg(images: range(-1;1); weights: list(.5;1;.5)))"

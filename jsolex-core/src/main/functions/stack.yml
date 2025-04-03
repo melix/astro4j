@@ -1,0 +1,33 @@
+name: STACK
+category: STACKING
+description:
+  fr: "Empile plusieurs images."
+  en: "Stacks multiple images."
+arguments:
+  - name: images
+    description:
+      fr: "Images à empiler."
+      en: "Images to be stacked."
+  - name: ts
+    optional: true
+    default: 32
+    description:
+      fr: "Taille des tuiles"
+      en: "Tile size"
+  - name: sampling
+    optional: true
+    default: 0.5
+    description:
+      fr: "Facteur d'échantillonnage"
+      en: "Sampling factor"
+  - name: select
+    optional: true
+    default: sharpness
+    description:
+      fr: "Méthode de sélection de la meilleure image. Peut-être `sharpness` (image la plus nette), `average` (moyenne de toutes les images), `median` (médiane de toutes les images) ou `eccentricity` (image du soleil le plus rond). En mode batch, un mode `manual` est aussi disponible."
+      en: "Method for selecting the best image. Can be `sharpness` (sharpest image), `average` (average of all images), `median` (median of all images) or `eccentricity` (roundest sun image). In batch mode, a `manual` mode is also available."
+examples:
+  - "stack(some_images)"
+  - "stack(some_images, 64; .5; \"eccentricity\")"
+  - "stack(images: some_images, ts: 128, sampling: 0.5, select: \"sharpness\")"
+

@@ -1,0 +1,14 @@
+name: WORKDIR
+category: UTILS
+description:
+  fr: "Change le dossier de travail dans lequel les images sont chargées par les fonctions LOAD et LOAD_MANY."
+  en: "Changes the working directory in which images are loaded by the LOAD and LOAD_MANY functions."
+hasSideEffect: true
+arguments:
+  - name: dir
+    description:
+      fr: Dossier de travail
+      en: Working directory
+examples:
+  - "workdir('/path/to/dir')"
+  - "workdir(dir: '/path/to/dir')"

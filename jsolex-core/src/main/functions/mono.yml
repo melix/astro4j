@@ -1,0 +1,11 @@
+name: MONO
+category: UTILS
+description:
+  fr: "Convertit une image couleur en niveaux de gris."
+  en: "Converts a color image to grayscale."
+arguments:
+  - name: img
+    description: Image(s)
+examples:
+  - "mono(some_image)"
+  - "mono(img: some_image)"

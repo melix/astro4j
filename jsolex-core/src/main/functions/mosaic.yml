@@ -1,0 +1,26 @@
+name: MOSAIC
+category: STACKING
+description:
+  fr: "Permet de créer une mosaïque d’images."
+  en: "Creates a mosaic of images."
+arguments:
+  - name: images
+    description:
+      fr: "Images à assembler."
+      en: "Images to be assembled."
+  - name: ts
+    optional: true
+    default: 64
+    description:
+      fr: "Taille des tuiles"
+      en: "Tile size"
+  - name: sampling
+    optional: true
+    default: 0.25
+    description:
+      fr: "Facteur d'échantillonnage"
+      en: "Sampling factor"
+examples:
+  - "mosaic(some_images)"
+  - "mosaic(images: some_images, ts: 128)"
+

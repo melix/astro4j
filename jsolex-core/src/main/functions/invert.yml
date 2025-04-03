@@ -1,0 +1,11 @@
+name: INVERT
+category: ENHANCEMENT
+description:
+  fr: "Inverse les couleurs d'une image."
+  en: "Inverts the colors of an image."
+arguments:
+  - name: img
+    description: Image(s)
+examples:
+  - "invert(img(0))"
+  - "invert(img: img(0))"

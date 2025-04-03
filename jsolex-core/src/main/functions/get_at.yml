@@ -1,0 +1,17 @@
+name: GET_AT
+category: UTILS
+description:
+  fr: "Renvoie la valeur d'un élément d'une liste à la position spécifiée."
+  en: "Returns the value of an element in a list at the specified position."
+arguments:
+  - name: list
+    description:
+      fr: Liste
+      en: List
+  - name: index
+    description:
+      fr: Index
+      en: Index
+examples:
+  - "get_at(list; 0)"
+  - "get_at(list: some_list; index: 1)"

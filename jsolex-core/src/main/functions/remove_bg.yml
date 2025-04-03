@@ -1,0 +1,19 @@
+name: REMOVE_BG
+category: BACKGROUND
+description:
+  fr: "Supprime le fond d'une image.
+  Cela peut être utilisé lorsque le contraste est très faible (par exemple dans le traitement de l'hélium) et que l'étirement de l'image étire également l'arrière-plan.
+  Ce processus calcule la valeur moyenne des pixels en dehors du disque, puis utilise cela pour effectuer une suppression adaptative en fonction de la distance par rapport au limbe, afin de préserver les structures lumineuses autour du limbe."
+  en: "Performs background removal on an image.
+  This can be used when the contrast is very low (e.g in helium processing) and that stretching the image also stretches the background.
+  This process computes the average value of pixels outside the disk, then uses that to perform an adaptative suppression depending on the distance from the limb, in order to preserve light structures around the limb."
+arguments:
+  - name: img
+    description: Image(s)
+  - name: tolerance
+    optional: true
+    default: 0.9
+    description: Tolerance
+examples:
+  - "remove_bg(some_image)"
+  - "remove_bg(img: img(0), tolerance: .5)"

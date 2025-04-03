@@ -1,0 +1,23 @@
+name: DRAW_SOLAR_PARAMS
+category: DRAW
+description:
+  fr: "Affiche sur l’image les paramètres solaires"
+  en: "Displays solar parameters on the image"
+arguments:
+  - name: img
+    description: Image(s)
+  - name: x
+    optional: true
+    default: top right
+    description:
+      fr: "Coordonnée X"
+      en: "X coordinate"
+  - name: y
+    optional: true
+    default: top right
+    description:
+      fr: "Coordonnée Y"
+      en: "Y coordinate"
+examples:
+  - "draw_solar_params(img(0), 100, 100)"
+  - "draw_solar_params(img:img(0), x:100, y:100)"

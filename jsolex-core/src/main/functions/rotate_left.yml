@@ -1,0 +1,11 @@
+name: ROTATE_LEFT
+category: ROTATION
+description:
+  fr: "Applique une rotation à gauche."
+  en: "Applies a left rotation to an image"
+arguments:
+  - name: img
+    description: Image(s)
+examples:
+  - "rotate_left(img(0))"
+  - "rotate_left(img: img(0))"

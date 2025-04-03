@@ -1,0 +1,19 @@
+name: RESCALE_ABS
+category: ROTATION
+description:
+  fr: "Redimensionne une image aux dimensions absolues spécifiées."
+  en: "Rescales an image to the specified absolute dimensions."
+arguments:
+  - name: img
+    description: Image(s)
+  - name: width
+    description:
+      fr: "Largeur de l'image"
+      en: "Width of the image"
+  - name: height
+    description:
+      fr: "Hauteur de l'image"
+      en: "Height of the image"
+examples:
+  - "rescale_abs(img(0), 100, 100)"
+  - "rescale_abs(img: img(0), width: 100, height: 100)"

@@ -1,0 +1,11 @@
+name: ELLIPSE_FIT
+category: UTILS
+description:
+  fr: "Force une nouvelle détection de la forme du disque solaire."
+  en: "Triggers a new detection of the shape of the solar disk."
+arguments:
+  - name: img
+    description: Image(s)
+examples:
+  - "ellipse_fit(img(0))"
+  - "ellipse_fit(img:range(0;1))"

@@ -1,0 +1,23 @@
+name: DRAW_GLOBE
+category: DRAW
+description:
+  fr: "Dessine un globe dont l’orientation et le diamètre correspond aux paramètres solaires détectés."
+  en: "Draws a globe whose orientation and diameter correspond to the detected solar parameters."
+arguments:
+  - name: img
+    description: Image(s)
+  - name: angleP
+    default: angle P
+    optional: true
+    description:
+      fr: "angle P"
+      en: "P angle"
+  - name: b0
+    default: b0
+    optional: true
+    description:
+      fr: "Angle b0"
+      en: "b0 angle"
+examples:
+  - "draw_globe(img(0))"
+  - "draw_globe(img:img(0), angleP: 0)"
