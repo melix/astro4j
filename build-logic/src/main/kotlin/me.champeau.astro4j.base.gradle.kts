@@ -56,6 +56,7 @@ tasks.rat {
     excludes.add("**/*.js")
     excludes.add("**/*.jar")
     excludes.add("**/*.ccc")
+    excludes.add("**/*.yml")
     excludes.add("**/javadoc.options")
 }
 

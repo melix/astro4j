@@ -1,0 +1,38 @@
+name: TRANSITION
+category: ANIMATION
+description:
+  fr: "Interpole des images entre elles.
+  Par défaut, l'interpolation est linéaire et elle créera exactement le nombre d'images spécifié.
+  Cependant, si une unité est spécifiée, alors le comportement sera différent: le nombre d'étapes correspond au
+  nombre d'images à créer, pour une unité de temps donnée, pour le temps écoulé entre les deux images.
+  Par exemple, si une image a été prise à 10:00 et l'autre à 10:02, et que l'unité est `ipm`, que le nombre
+  d'étapes est 10, alors 20 images seront créées. Cela permet de créer des transitions plus douces lorsque les fichiers
+  SER n'ont pas été enregistrés à intervalles réguliers."
+  en: "Interpolates images between them.
+   By default, the interpolation is linear and it will create exactly the specified number of images.
+   However, if a unit is specified, then the behavior will be different: the number of steps corresponds to the
+   number of images to create, for a given time unit, for the time elapsed between the two images.
+   For example, if one image was taken at 10:00 and the other at 10:02, and the unit is `ipm`, that the number
+   of steps is 10, then 20 images will be created. This allows creating smoother transitions when SER files
+   were not recorded at regular intervals."
+arguments:
+  - name: images
+    description: Image(s)
+  - name: steps
+    description:
+      fr: "Nombre d'images intermédiaires à générer."
+      en: "Number of intermediate images to generate."
+  - name: type
+    description:
+      fr: "Type d'interpolation: `linear`, `ease_in`, `ease_out` ou `ease_in_out`."
+      en: "Interpolation type: `linear`, `ease_in`, `ease_out` or `ease_in_out`."
+    default: linear
+    optional: true
+  - name: unit
+    description:
+      fr: "Unité de l'interpolation: `ips` (images par seconde), `ipm` (images par minute) ou `iph` (images par heure)."
+      en: "Interpolation unit: `ips` (images per second), `ipm` (images per minute) or `iph` (images per hour)."
+    optional: true
+examples:
+  - "transition(list(img(0), img(1)), 10)"
+  - "transition(images: my_imges, steps: 10, type: ease_in, unit: ipm)"

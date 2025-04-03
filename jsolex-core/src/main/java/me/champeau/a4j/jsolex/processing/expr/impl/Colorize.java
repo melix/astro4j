@@ -15,6 +15,7 @@
  */
 package me.champeau.a4j.jsolex.processing.expr.impl;
 
+import me.champeau.a4j.jsolex.expr.BuiltinFunction;
 import me.champeau.a4j.jsolex.processing.color.ColorCurve;
 import me.champeau.a4j.jsolex.processing.params.SpectralRay;
 import me.champeau.a4j.jsolex.processing.params.SpectralRayIO;
@@ -29,6 +30,7 @@ import me.champeau.a4j.jsolex.processing.util.RGBImage;
 
 import java.util.List;
 import java.util.Map;
+import java.util.function.Function;
 
 public class Colorize extends AbstractFunctionImpl {
 
@@ -37,13 +39,21 @@ public class Colorize extends AbstractFunctionImpl {
     }
 
     public Object colorize(Map<String ,Object> arguments) {
-        //BuiltinFunction.COLORIZE.validateArgs(arguments);
+        BuiltinFunction.COLORIZE.validateArgs(arguments);
+        return doColorize(arguments, this::colorize);
+    }
+    public Object colorize2(Map<String ,Object> arguments) {
+        BuiltinFunction.COLORIZE2.validateArgs(arguments);
+        return doColorize(arguments, this::colorize2);
+    }
+
+    private Object doColorize(Map<String, Object> arguments, Function<Map<String, Object>, Object> function) {
         var arg = arguments.get("img");
         if (arg instanceof List<?>) {
-            return expandToImageList("colorize", "img", arguments, this::colorize);
+            return expandToImageList("colorize", "img", arguments, function);
         }
-        var color = stringArg(arguments, "color", null);
-        if (color == null) {
+        var profile = stringArg(arguments, "profile", null);
+        if (profile == null) {
             int rIn = intArg(arguments, "rIn", 0);
             int rOut = intArg(arguments, "rOut", 255);
             int gIn = intArg(arguments, "gIn", 0);
@@ -65,7 +75,7 @@ public class Colorize extends AbstractFunctionImpl {
             }
             var rays = SpectralRayIO.loadDefaults();
             for (SpectralRay ray : rays) {
-                if (ray.label().equalsIgnoreCase(color) && (arg instanceof ImageWrapper32 mono)) {
+                if (ray.label().equalsIgnoreCase(profile) && (arg instanceof ImageWrapper32 mono)) {
                     var curve = ray.colorCurve();
                     if (curve != null) {
                         return RGBImage.fromMono(mono, data -> doColorize(mono.width(), mono.height(), data.data(), curve));
@@ -75,7 +85,7 @@ public class Colorize extends AbstractFunctionImpl {
                     }
                 }
             }
-            throw new IllegalArgumentException("Cannot find color profile '" + color + "'");
+            throw new IllegalArgumentException("Cannot find color profile '" + profile + "'");
         }
         throw new IllegalArgumentException("colorize first argument must be an image or a list of images");
     }

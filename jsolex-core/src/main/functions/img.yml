@@ -1,0 +1,14 @@
+name: IMG
+category: RECONSTRUCTION
+description:
+  fr: "Renvoie l'image reconstruite au décalage de pixel spécifié."
+  en: "Returns the reconstructed image at the specified pixel offset."
+arguments:
+  - name: ps
+    description:
+      fr: Décalage de pixel
+      en: Pixel shift
+examples:
+  - "img(0)"
+  - "img(ps: 1)"
+  - "img(ps: a2px(1)) // 1 Å pixel shift"

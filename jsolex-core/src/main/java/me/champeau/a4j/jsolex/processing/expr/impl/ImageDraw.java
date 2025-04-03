@@ -294,8 +294,8 @@ public class ImageDraw extends AbstractFunctionImpl {
         if (arg instanceof List<?>) {
             return expandToImageList("draw_rect", "img", arguments, this::drawRectangle);
         }
-        var x1 = getArgument(Number.class, arguments, "x").map(Number::intValue).orElseThrow();
-        var y1 = getArgument(Number.class, arguments, "y").map(Number::intValue).orElseThrow();
+        var x1 = getArgument(Number.class, arguments, "left").map(Number::intValue).orElseThrow();
+        var y1 = getArgument(Number.class, arguments, "top").map(Number::intValue).orElseThrow();
         var width = getArgument(Number.class, arguments, "width").map(Number::intValue).orElseThrow();
         var height = getArgument(Number.class, arguments, "height").map(Number::intValue).orElseThrow();
         var thickness = getArgument(Number.class, arguments, "thickness").map(Number::intValue).orElse(1);

@@ -1,0 +1,21 @@
+name: RGB
+category: UTILS
+description:
+  fr: "Crée une image RGB à partir de trois images mono."
+  en: "Creates an RGB image from three mono images."
+arguments:
+  - name: r
+    description:
+      fr: "Image rouge"
+      en: "Red image"
+  - name: g
+    description:
+      fr: "Image verte"
+      en: "Green image"
+  - name:  b
+    description:
+      fr: "Image bleue"
+      en: "Blue image"
+examples:
+  - "rgb(img(-1);img(0);img(1))"
+  - "rgb(r: redWing; g: avg(redWing;blueWing); b: blueWing)"

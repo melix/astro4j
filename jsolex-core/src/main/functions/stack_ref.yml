@@ -1,0 +1,21 @@
+name: STACK_REF
+category: STACKING
+description:
+  fr: "Sélectionne une image de référence pour le stacking."
+  en: "Selects a reference image for stacking."
+arguments:
+  - name: images
+    description:
+      fr: "Images à empiler."
+      en: "Images to be stacked."
+  - name: select
+    optional: true
+    default: sharpness
+    description:
+      fr: "Méthode de sélection de la meilleure image. Peut-être `sharpness` (image la plus nette), `average` (moyenne de toutes les images), `median` (médiane de toutes les images) ou `eccentricity` (image du soleil le plus rond). En mode batch, un mode `manual` est aussi disponible."
+      en: "Method for selecting the best image. Can be `sharpness` (sharpest image), `average` (average of all images), `median` (median of all images) or `eccentricity` (roundest sun image). In batch mode, a `manual` mode is also available."
+examples:
+  - "stack_ref(some_images)"
+  - "stack_ref(some_images, \"eccentricity\")"
+  - "stack_Ref(images: some_images, select: \"sharpness\")"
+

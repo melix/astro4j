@@ -1,0 +1,11 @@
+name: GET_B
+category: UTILS
+description:
+  fr: "Extraie le canal bleu d'une image."
+  en: "Extracts the blue channel from an image."
+arguments:
+  - name: img
+    description: Image(s)
+examples:
+  - "get_b(some_image)"
+  - "get_b(img: some_image)"

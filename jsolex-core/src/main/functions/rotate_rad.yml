@@ -1,0 +1,23 @@
+name: ROTATE_RAD
+category: ROTATION
+description:
+  fr: "Applique une rotation à une image, en radians."
+  en: "Applies a rotation to an image, in radians."
+arguments:
+  - name: img
+    description: Image(s)
+  - name: angle
+    description: Angle
+  - name: bp
+    optional: true
+    description:
+      fr: "Valeur de remplissage pour les pixels en dehors de l'image."
+      en: "Fill value for pixels outside of the image."
+  - name: resize
+    optional: true
+    description:
+      fr: "Redimensionner l'image pour s'adapter à la rotation."
+      en: "Resize the image to fit the rotation."
+examples:
+  - "rotate_rad(img(0); 2.1)"
+  - "rotate_rad(img: img(0); angle: 2.1)"

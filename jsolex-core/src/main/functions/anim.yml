@@ -1,0 +1,17 @@
+name: ANIM
+category: ANIMATION
+description:
+  fr: "Crée une animation à partir d'une série d'images."
+  en: "Creates an animation from a series of images."
+arguments:
+  - name: images
+    description: The list of images
+  - name: delay
+    optional: true
+    default: 250
+    description:
+      fr: Délai entre chaque trame (en ms)
+      en: Delay between each frame (in ms)
+examples:
+  - "anim(range(0,10))"
+  - "anim(images: range(0,10), delay: 100)"

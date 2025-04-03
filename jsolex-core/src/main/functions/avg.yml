@@ -1,0 +1,13 @@
+name: AVG
+category: MATHS
+description:
+  fr: "Calcule la moyenne de ses arguments. Si les arguments sont des images, la moyenne est calculée pixel par pixel."
+  en: "Computes the average of its arguments. If the arguments are images, the average is computed pixel-wise."
+spreadList: true
+arguments:
+  - name: list
+    description: Arguments
+    required: true
+examples:
+  - "avg(range(-1;1))"
+  - "avg(img(0); img(1))"

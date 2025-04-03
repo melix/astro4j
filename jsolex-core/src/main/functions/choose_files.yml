@@ -1,0 +1,16 @@
+name: CHOOSE_FILES
+category: UTILS
+description:
+  fr: "Ouvre une boîte de dialogue pour choisir des fichiers image."
+  en: "Opens a dialog box to choose multiple image files."
+arguments:
+  - name: id
+    description: "An ID for the file chooser.
+    The next time the function is called with the same ID, the directory where the file chooser was opened will be used as the starting point."
+  - name: message
+    description:
+      fr: "Titre de la boîte de dialogue"
+      en: "Title of the dialog box"
+examples:
+  - "choose_files(\"my_id\", \"Choose a file\")"
+  - "choose_files(id: \"my_id\", title: \"Choose a file\")"

@@ -1,0 +1,11 @@
+name: ROTATE_RIGHT
+category: ROTATION
+description:
+  fr: "Applique une rotation à droite."
+  en: "Applies a right rotation to an image"
+arguments:
+  - name: img
+    description: Image(s)
+examples:
+  - "rotate_right(img(0))"
+  - "rotate_right(img: img(0))"

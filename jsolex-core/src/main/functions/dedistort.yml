@@ -1,0 +1,42 @@
+name: DEDISTORT
+category: STACKING
+description:
+  fr: "Permet de corriger la distorsion d’une image. Elle dispose de 2 modes d’utilisation distincts.
+  Dans le premier mode, on lui fournit une image de référence et une image à corriger, ainsi que 3 paramètres optionnels : la taille des tuiles, l’échantillonnage et la valeur du fond de ciel.
+  L’image renvoyée sera corrigée en s’approchant au possible de l’image de référence, la rendant par exemple utilisable pour du stacking.
+  Dans le second mode, on lui fournit une liste d’images à corriger (1er paramètre) et une liste d’images déja corrigées, auquel cas les paramètres de correction de chaque image est pris en utilisant l’image de même index dans la liste des images déja corrigées.
+  Ceci peut-être utile par exemple lorsqu’on calcule la distorsion sur le centre de la raie (décalage 0) et qu’on souhaite appliquer les mêmes corrections à des images de décalage différent."
+  en: "Allows to correct the distortion of an image. It has 2 distinct modes of use.
+  In the first mode, it takes a reference image and an image to correct, as well as 3 optional parameters: the tile size, the sampling, and the sky background value.
+   The returned image will be corrected as closely as possible to the reference image, making it usable for stacking, for example.
+   In the second mode, it takes a list of images to correct and a list of already corrected images, in which case the correction parameters for each image are taken using the same index image in the list of already corrected images.
+   This can be useful, for example, when calculating the distortion at the center of the line (shift 0) and wanting to apply the same corrections to images with different shifts."
+arguments:
+  - name: ref
+    description:
+      fr: Image(s) de référence
+      en: Reference image(s)
+  - name: img
+    description:
+      fr: "Images à corriger."
+      en: "Images to correct."
+  - name: ts
+    optional: true
+    default: 32
+    description:
+      fr: "Taille des tuiles."
+      en: "Tile size"
+  - name:  sampling
+    optional: true
+    default: 0.5
+    description:
+      fr: "Echantillonnage. Une valeur de 0.5 pour une taille de tuile de 32 pixels signifie qu'il y aura un échantillon tous les 16 pixels."
+      en: "Sampling. A value of 0.5 for a tile size of 32 pixels means that there will be a sample every 16 pixels."
+  - name: threshold
+    optional: true
+    description:
+      fr: "Valeur du fond de ciel."
+      en: "Sky background value."
+examples:
+  - "crop_rect(img(0), 1024, 1024)"
+  - "crop_rect(img: img(0), width: 200, height: 200)"

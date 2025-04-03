@@ -1,0 +1,23 @@
+name: DRAW_OBS_DETAILS
+category: DRAW
+description:
+  fr: "Affiche sur l’image les données d’observation"
+  en: "Displays observation details on the image"
+arguments:
+  - name: img
+    description: Image(s)
+  - name: x
+    optional: true
+    default: 50
+    description:
+      fr: "Coordonnée X"
+      en: "X coordinate"
+  - name: y
+    optional: true
+    default: 50
+    description:
+      fr: "Coordonnée Y"
+      en: "Y coordinate"
+examples:
+  - "draw_obs_details(img(0), 100, 100)"
+  - "draw_obs_details(img:img(0), x:100, y:100)"

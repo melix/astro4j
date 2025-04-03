@@ -1,0 +1,34 @@
+name: DRAW_TEXT
+category: DRAW
+description:
+  fr: "Ecrit du texte sur l’image"
+  en: "Draws text on the image."
+arguments:
+  - name: img
+    description: Image(s)
+  - name: x
+    description:
+      fr: "Coordonnéee X"
+      en: "X coordinate"
+  - name: y
+    description:
+      fr: "Coordonnée Y"
+      en: "Y coordinate"
+  - name:  text
+    description:
+      fr: "Texte à écrire"
+      en: "Text to write"
+  - name: fs
+    optional: true
+    default: auto
+    description:
+      fr: "Taille de la police"
+      en: "Font size"
+  - name: color
+    optional: true
+    description:
+      fr: "Couleur de la flèche"
+      en: "Color of the arrow"
+examples:
+  - "draw_circle(img(0), 100, 100, 2)"
+  - "draw_circle(img:img(0), cx:100, cy:100, color: \"ff0000\")"

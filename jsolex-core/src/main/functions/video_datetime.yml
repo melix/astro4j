@@ -1,0 +1,16 @@
+name: VIDEO_DATETIME
+category: UTILS
+description:
+  fr: "Renvoie la date/heure à laquelle une vidéo a été enregistrée."
+  en: "Returns the datetime when a video was recorded."
+arguments:
+  - name: img
+    description: Image(s)
+  - name: format
+    optional: true
+    description:
+      fr: "Format de la date."
+      en: "Date format."
+examples:
+  - "video_datetime(img(0))"
+  - 'video_datetime(img: img(0), format:"yyyy-MM-dd HH:mm:ss")'

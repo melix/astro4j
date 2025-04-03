@@ -1,0 +1,16 @@
+name: AUTOCROP
+category: CROP
+description:
+  fr: "Rogne automatiquement une image autour du disque solaire.
+  Les dimensions de la zone de rognage sont déterminées par l'ellipse mais aussi les dimensions de l'image.
+  Il est préférable d'utiliser la fonction `autocrop2` qui garantit un rognage centré et carré."
+  en: "Automatically crops an image around the solar disk.
+  The dimensions of the cropping area are determined by the ellipse but also by the dimensions of the image.
+  It is better to use the `autocrop2` function which guarantees a centered and square crop."
+arguments:
+  - name: img
+    description: Image(s)
+    required: true
+examples:
+  - "autocrop(img: img(0))"
+  - "autocrop(img(0))"

@@ -1,0 +1,11 @@
+name: RADIUS_RESCALE
+category: ROTATION
+description:
+  fr: "Méthode de redimensionnement relative qui peut être utile pour faciliter les mosaïques d’images. Elle sera donc typiquement utilisée en traitement par lots. Elle permet de redimensionner un ensemble d’images pour que toutes aient le même rayon solaire. Elle procède à une recherche du disque pour chaque image, trouve celle qui a le disque le plus grand, et redimensionne toutes les autres images pour qu’elles aient le même rayon solaire. "
+  en: "Relative scaling method which can facilitate mosaic composition. It will therefore most likely be used in batch mode. It allows rescaling a set of images so that they all have the same solar disk radius (in pixels). In order to do so, it will perform an ellipse regression against each image to compute their solar disk, then will rescale all images to match the radius of the largest one."
+arguments:
+  - name: images
+    description: Image(s)
+examples:
+  - "radius_rescale(some_image)"
+  - "radius_rescale(images: my_list)"

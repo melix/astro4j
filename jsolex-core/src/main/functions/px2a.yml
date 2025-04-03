@@ -1,0 +1,20 @@
+name: PX2A
+category: ANALYSIS
+description:
+  fr: "Calcule le nombre d'angstroms correspondant à une distance en pixels.
+    La distance est déterminée en calculant la dispersion, qui ne sera correcte que si vous avez bien renseigné
+    la taille des pixels de la caméra, ainsi que votre spectrohéliographe."
+  en: "Computes the number of angstroms corresponding to a distance in pixels.
+    The distance is determined by calculating the dispersion, which will only be correct if you have correctly specified
+    the pixel size of the camera, as well as your spectroheliograph."
+arguments:
+  - name: px
+    description: pixels
+  - name: ref
+    optional: true
+    description:
+       fr: Longueur d'onde de référence en Angstroms
+       en: Reference wavelength in Angstroms
+examples:
+  - "px2a(24)"
+  - "px2a(px: 24, ref: 6328)"

@@ -1,0 +1,22 @@
+name: ASINH_STRETCH
+category: ENHANCEMENT
+description:
+  fr: "Permet d’appliquer la fonction d’étirement par arcsinus hyperbolique. "
+  en: "Applies the inverse arcsin hyperbolic transformation to increase contrast."
+arguments:
+  - name: img
+    description: Image(s)
+    required: true
+  - name: bp
+    required: true
+    description:
+      fr: "Point noir"
+      en: "Black point"
+  - name: stretch
+    required: true
+    description:
+      fr: "Facteur d’étirement"
+      en: "Stretch factor"
+examples:
+  - "asinh_stretch(img: img(0), bp: 500, stretch: 2.5)"
+  - "asinh_stretch(img(0), 0, 10)"

@@ -1,0 +1,23 @@
+name: AR_OVERLAY
+category: UTILS
+description:
+  fr: "Génère une image avec les taches solaires détectées.
+  Cette fonction ne fonctionnera que si la génération d’images de taches solaires a été sélectionnée. "
+  en: "Generates an overlay of the detected active regions.
+  This feature will only work if active region image generation has been selected."
+arguments:
+  - name: img
+    description: Image(s)
+  - name: labels
+    optional: true
+    default: 1
+    description:
+      fr: "0 : ne pas afficher
+      1 : afficher les zones et les labels
+      2 : affichier uniquement les labels"
+      en: "0 : do not display
+      1 : display the regions and the labels
+      2 : display only the labels"
+examples:
+  - "ar_overlay(continuum())"
+  - "ar_overlay(img: img(0); labels: 2)"

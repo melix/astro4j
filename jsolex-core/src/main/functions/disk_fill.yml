@@ -1,0 +1,17 @@
+name: DISK_FILL
+category: ENHANCEMENT
+description:
+  fr: "Remplit le disque solaire détecté avec une valeur donnée (par défault, celle du point noir détecté)."
+  en: "Fills the detected solar disk with a given value (default is the value of the detected black point)."
+arguments:
+  - name: img
+    description: Image(s)
+  - name: fill
+    optional: true
+    default: detected black point value
+    description:
+      fr: Valeur de remplissage
+      en: Fill value
+examples:
+  - "disk_fill(img(0))"
+  - "disk_fill(img: img(0), fill: 200)"

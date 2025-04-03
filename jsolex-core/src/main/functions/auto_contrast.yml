@@ -1,0 +1,16 @@
+name: AUTO_CONTRAST
+category: ENHANCEMENT
+description:
+  fr: "C'est une fonction d’amélioration du contraste crée spécifiquement pour les images de spectrohéliographes.
+  Elle combine plusieurs techniques pour améliorer l’image."
+  en: "This function is a contrast enhancement function specifically designed for spectroheliograph images."
+arguments:
+  - name: img
+    description: Image(s)
+    required: true
+  - name: gamma
+    required: true
+    description: Gamma
+examples:
+  - "auto_contrast(img: img(0), gamma: 1.5)"
+  - "auto_contrast(img(0), 1.5)"

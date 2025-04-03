@@ -1,0 +1,11 @@
+name: WAVELEN
+category: UTILS
+description:
+  fr: "Renvoie la longueur d'onde d'une image."
+  en: "Returns the wavelength of an image."
+arguments:
+  - name: img
+    description: Image(s)
+examples:
+  - "wavelen(img(0))"
+  - "wavelen(img: img(0))"

@@ -43,7 +43,7 @@ public class DiskFill extends AbstractFunctionImpl {
         var ellipse = getEllipse(arguments, "ellipse");
         if (ellipse.isPresent()) {
             var blackpoint = getFromContext(ImageStats.class).map(ImageStats::blackpoint).orElse(0f);
-            var fill = floatArg(arguments, "color", blackpoint);
+            var fill = floatArg(arguments, "fill", blackpoint);
             return doFillAnyImageKind(img, ellipse.get(), fill, null);
         }
         throw new IllegalArgumentException("Ellipse fitting not found, cannot perform fill");

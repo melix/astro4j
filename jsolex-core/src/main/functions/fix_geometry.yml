@@ -1,0 +1,11 @@
+name: FIX_GEOMETRY
+category: ENHANCEMENT
+description:
+  fr: "Corrige la géométrie de l'image en fonction de l'ellipse calculée"
+  en: "Applies geometric correction to the image based on the calculated ellipse"
+arguments:
+  - name: img
+    description: Image(s)
+examples:
+  - "fix_geometry(img(0))"
+  - "fix_geometry(img: img(0))"

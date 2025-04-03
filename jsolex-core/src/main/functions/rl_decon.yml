@@ -1,0 +1,26 @@
+name: RL_DECON
+category: ENHANCEMENT
+description:
+  fr: "Applique l'algorithme de déconvolution de Richardson-Lucy à l'image."
+  en: "Applies the Richardson-Lucy deconvolution algorithm to the image."
+arguments:
+  - name: img
+    description: Image(s)
+  - name: radius
+    optional: true
+    default: 2.5
+    description:
+      fr: Rayon de la gaussienne
+      en: Gaussian radius
+  - name: sigma
+    optional: true
+    description: Sigma
+    default: 2.5
+  - name: iterations
+    optional: true
+    description:
+      fr: Nombre d'itérations
+      en: Number of iterations
+    default: 5
+examples:
+  - "rl_decon(img(0))"

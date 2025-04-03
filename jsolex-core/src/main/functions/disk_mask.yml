@@ -1,0 +1,19 @@
+name: DISK_MASK
+category: ENHANCEMENT
+description:
+  fr: "Crée un masque du disque solaire, où les pixels à l’intérieur du disque auront la valeur 1, contre 0 pour ceux à l’extérieur du disque.
+  Il est possible d’inverser (0 à l’intérieur, 1 à l’extérieur) en passant 1 comme 2d paramètre de la fonction."
+  en: "Creates a mask of the solar disk, where pixels inside the disk will have the value 1, against 0 for those outside the disk.
+  It is possible to invert (0 inside, 1 outside) by passing 1 as the 2nd parameter of the function."
+arguments:
+  - name: img
+    description: Image(s)
+  - name: invert
+    optional: true
+    default: 0
+    description:
+      fr: Inversion du masque (1 signifie valeur 0 à l’intérieur, 1 à l’extérieur)
+      en: Inversion of the mask (1 means value 0 inside, 1 outside)
+examples:
+  - "disk_mask(img(0))"
+  - "disk_mask(img: img(0), invert: 1)"

@@ -1,0 +1,19 @@
+name: DRAW_EARTH
+category: DRAW
+description:
+  fr: "Dessine la Terre sur l’image, à l’échelle du disque solaire"
+  en: "Draws the Earth on the image, to the scale of the solar disk"
+arguments:
+  - name: img
+    description: Image(s)
+  - name: x
+    description:
+      fr: "Coordonnée X du centre de la Terre"
+      en: "X coordinate of the center of the Earth"
+  - name: y
+    description:
+      fr: "Coordonnée Y du centre de la Terre"
+      en: "Y coordinate of the center of the Earth"
+examples:
+  - "draw_earth(img(0), 100, 100)"
+  - "draw_earth(img:img(0), x:100, y:100)"

@@ -1,0 +1,38 @@
+name: DRAW_RECT
+category: DRAW
+description:
+  fr: "Dessine un rectangle sur l'image."
+  en: "Draws a rectangle on the image."
+arguments:
+  - name: img
+    description: Image(s)
+  - name: left
+    description:
+      fr: "Coordonnéee X du coin supérieur gauche du rectangle"
+      en: "X coordinate of the top left corner of the rectangle"
+  - name: top
+    description:
+      fr: "Coordonnée Y du coin supérieur gauche du rectangle"
+      en: "Y coordinate of the top left corner of the rectangle"
+  - name:  width
+    description:
+      fr: "Largeur du rectangle"
+      en: "Width of the rectangle"
+  - name:  height
+    description:
+      fr: "Hauteur du rectangle"
+      en: "Height of the rectangle"
+  - name: thickness
+    optional: true
+    default: 1
+    description:
+      fr: "Épaisseur du trait"
+      en: "Thickness of the line"
+  - name: color
+    optional: true
+    description:
+      fr: "Couleur de la ligne"
+      en: "Color of the line"
+examples:
+  - "draw_rect(img(0), 100, 100, 300, 200)"
+  - "draw_rect(img:img(0), left:100, top:100, color: \"ff0000\")"

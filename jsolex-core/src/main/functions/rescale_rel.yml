@@ -1,0 +1,19 @@
+name: RESCALE_REL
+category: ROTATION
+description:
+  fr: "Redimensionne une image en appliquant un facteur de redimensionnement."
+  en: "Rescales an image by applying a rescaling factor."
+arguments:
+  - name: img
+    description: Image(s)
+  - name: sx
+    description:
+      fr: "Facteur de redimensionnement horizontal"
+      en: "Horizontal rescaling factor"
+  - name: sy
+    description:
+      fr: "Facteur de redimensionnement vertical"
+      en: "Vertical rescaling factor"
+examples:
+  - "rescale_rel(img(0), .5, .5)"
+  - "rescale_rel(img: img(0), sx: 0.5, sy: 0.5)"

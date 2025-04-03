@@ -1,0 +1,18 @@
+name: BLUR
+category: ENHANCEMENT
+description:
+  fr: "Applique un flou gaussien à une image."
+  en: "Applies a Gaussian blur to an image."
+arguments:
+  - name: img
+    description: Image(s)
+  - name: kernel
+    optional: true
+    default: 3
+    description:
+      fr: "Taille du noyau"
+      en: "Kernel size"
+examples:
+  - "blur(img(0))"
+  - "blur(img(0), 7)"
+  - "blur(img: img(0), kernel:7)"

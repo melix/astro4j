@@ -1,0 +1,38 @@
+name: DRAW_ARROW
+category: DRAW
+description:
+  fr: "Dessine une flèche sur l'image."
+  en: "Draws an arrow on the image."
+arguments:
+  - name: img
+    description: Image(s)
+  - name: x1
+    description:
+      fr: "Début de la flèche (coordonnée X)"
+      en: "Start of the arrow (X coordinate)"
+  - name: y1
+    description:
+      fr: "Début de la flèche (coordonnée Y)"
+      en: "Start of the arrow (Y coordinate)"
+  - name: x2
+    description:
+      fr: "Fin de la flèche (coordonnée X)"
+      en: "End of the arrow (X coordinate)"
+  - name: y2
+    description:
+      fr: "Fin de la flèche (coordonnée Y)"
+      en: "End of the arrow (Y coordinate)"
+  - name: thickness
+    optional: true
+    default: 1
+    description:
+      fr: "Épaisseur de la flèche"
+      en: "Thickness of the arrow"
+  - name: color
+    optional: true
+    description:
+      fr: "Couleur de la flèche"
+      en: "Color of the arrow"
+examples:
+  - "draw_arrow(img(0), 100, 100, 200, 200, 2, \"ff0000\")"
+  - "draw_arrow(img:img(0), x1:100, y1:100, x2:200, y2:200, color: \"ff0000\")"

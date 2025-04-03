@@ -1,0 +1,13 @@
+name: REMOTE_SCRIPTGEN
+category: UTILS
+description:
+  fr: "Fonction expérimentale et avancée qui est décrite spécifiquement dans <<#remote-scriptgen, cette section>>."
+  en: "Experimental, advanced function which is described specifically in <<#remote-scriptgen, this section>>."
+arguments:
+  - name: url
+    description:
+      fr: URL du service à invoquer
+      en: URL of the service to invoke
+examples:
+  - "remote_scriptgen(\"http://localhost:8080/jsolex/remote\")"
+  - "remote_scriptgen(url: \"http://localhost:8080/jsolex/remote\")"

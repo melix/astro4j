@@ -1,0 +1,13 @@
+name: MIN
+category: MATHS
+description:
+  fr: "Calcule le minimum de ses arguments. Si les arguments sont des images, le minimum est calculée pixel par pixel."
+  en: "Computes the minimum of its arguments. If the arguments are images, the minimum is computed pixel-wise."
+spreadList: true
+arguments:
+  - name: list
+    description: Arguments
+    required: true
+examples:
+  - "min(range(-1;1))"
+  - "min(img(0); img(1))"

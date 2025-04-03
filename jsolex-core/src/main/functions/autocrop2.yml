@@ -1,0 +1,19 @@
+name: AUTOCROP2
+category: CROP
+description:
+  fr: "Crée une image centrée et carrée autour du disque solaire."
+  en: "Crops an image to a centered and square area around the solar disk."
+arguments:
+  - name: img
+    description: Image(s)
+  - name: factor
+    description:
+      fr: "La largeur de l'image sera le diamètre du disque solaire multiplié par ce facteur."
+      en: "The width of the image will be the diameter of the solar disk multiplied by this factor."
+  - name: rounding
+    description:
+      fr: "La largeur de l'image sera arrondie à ce multiple. Doit être un multiple de 2."
+      en: "The width of the image will be rounded to this multiple. Must be a multiple of 2."
+examples:
+  - "autocrop2(img: img(0))"
+  - "autocrop2(img(0))"

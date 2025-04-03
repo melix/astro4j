@@ -1,0 +1,13 @@
+name: EQUALIZE
+category: ENHANCEMENT
+description:
+  fr: "Egalise l'histogramme des images en paramètre pour qu'elles aient toutes à peu près la même luminosité."
+  en: "Equalizes the histogram of the images in parameter so that they all have about the same brightness."
+arguments:
+  - name: list
+    description:
+      fr: "Liste d'images à égaliser."
+      en: "List of images to equalize."
+examples:
+  - "equalize(range(-1;1))"
+  - "equalize(list: some_images)"

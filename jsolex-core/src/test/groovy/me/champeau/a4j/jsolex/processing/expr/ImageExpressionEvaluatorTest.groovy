@@ -109,7 +109,7 @@ class ImageExpressionEvaluatorTest extends Specification {
         "min"             | "range(0,1)"                | ImageWrapper32
         "max"             | "range(0,1)"                | ImageWrapper32
         "colorize"        | "range(0,1), \"h-alpha\""   | List
-        "colorize"        | "range(0,1),0,0,0,0,0,0"    | List
+        "colorize2"       | "range(0,1),0,0,0,0,0,0"    | List
         "remove_bg"       | "range(0,1)"                | List
         "remove_bg"       | "range(0,1),0.5"            | List
         "invert"          | "range(0,1)"                | List

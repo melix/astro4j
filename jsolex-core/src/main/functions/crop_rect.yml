@@ -1,0 +1,21 @@
+name: CROP_RECT
+category: CROP
+description:
+  fr: "Réduit l’image aux dimensions indiquées, en garantissant que le centre du disque solaire sera au centre de l’image.
+  Il n’y a pas de changement d’échelle : si le disque solaire n’entre pas dans les dimensions cibles, il sera tronqué."
+  en: "Reduces the image to the specified dimensions, ensuring that the center of the solar disk will be at the center of the image.
+  There is no scaling: if the solar disk does not fit within the target dimensions, it will be cropped."
+arguments:
+  - name: img
+    description: Image(s)
+  - name:  width
+    description:
+      fr: "Largeur de la zone de rognage."
+      en: "Width of the cropping area."
+  - name:  height
+    description:
+      fr: "Hauteur de la zone de rognage."
+      en: "Height of the cropping area."
+examples:
+  - "crop_rect(img(0), 1024, 1024)"
+  - "crop_rect(img: img(0), width: 200, height: 200)"

@@ -1,0 +1,11 @@
+name: GET_R
+category: UTILS
+description:
+  fr: "Extraie le canal rouge d'une image."
+  en: "Extracts the red channel from an image."
+arguments:
+  - name: img
+    description: Image(s)
+examples:
+  - "get_r(some_image)"
+  - "get_r(img: some_image)"

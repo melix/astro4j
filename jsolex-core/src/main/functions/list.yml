@@ -1,0 +1,14 @@
+name: LIST
+category: UTILS
+description:
+  fr: "Crée une liste à partir des paramètres."
+  en: "Creates a list from the parameters."
+spreadList: true
+arguments:
+  - name: list
+    description:
+      fr: Liste
+      en: List
+examples:
+  - "list(img(-3), img(3))"
+  - "list(list: img(-3), img(3))"

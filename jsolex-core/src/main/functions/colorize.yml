@@ -1,0 +1,15 @@
+name: COLORIZE
+category: ENHANCEMENT
+description:
+  fr: "Colorise une image en utilisant un profil de couleur lié à la longueur d'onde."
+  en: "Applies a colorization to an image using a color profile related to the wavelength."
+arguments:
+  - name: img
+    description: Image(s)
+  - name: profile
+    description:
+      fr: "Nom du profil (voir éditeur de raies spectrales)"
+      en: "Color profile (see spectral lines editor)"
+examples:
+  - "colorize(img: img(0), profile: \"H-alpha\")"
+  - "colorize(range(-1, 1), \"Calcium (K)\")"

@@ -1,0 +1,18 @@
+name: SHARPEN
+category: ENHANCEMENT
+description:
+  fr: "Applique un filtre de netteté à une image."
+  en: "Applies a sharpening filter to an image."
+arguments:
+  - name: img
+    description: Image(s)
+  - name: kernel
+    optional: true
+    default: 3
+    description:
+      fr: "Taille du noyau"
+      en: "Kernel size"
+examples:
+  - "sharpen(img(0))"
+  - "sharpen(img(0), 7)"
+  - "sharpen(img: img(0), kernel:7)"

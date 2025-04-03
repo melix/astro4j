@@ -1,0 +1,23 @@
+name: CLAHE
+category: ENHANCEMENT
+description:
+  fr: "Applique une transformation CLAHE (Contrast Limited Adaptive Histogram Equalization) à une image."
+  en: "Applies CLAHE (Contrast Limited Adaptive Histogram Equalization) transformation to an image."
+arguments:
+  - name: img
+    description: Image(s)
+  - name: ts
+    description:
+      fr: "Taille de la tuile"
+      en: "Tile size"
+  - name: bins
+    description:
+      fr: "Nombre de paniers"
+      en: "Bin count"
+  - name:  clip
+    description:
+      fr: "Valeur de coupure"
+      en: "Clip limit"
+examples:
+  - "clahe(img: img(0), ts: 16, bins: 128, clip: 1.1)"
+  - "clahe(img(0), 16, 128, 1.1)"
