@@ -30,6 +30,7 @@ import me.champeau.a4j.jsolex.processing.util.RGBImage;
 
 import java.util.List;
 import java.util.Map;
+import java.util.function.Function;
 
 public class Colorize extends AbstractFunctionImpl {
 
@@ -39,17 +40,17 @@ public class Colorize extends AbstractFunctionImpl {
 
     public Object colorize(Map<String ,Object> arguments) {
         BuiltinFunction.COLORIZE.validateArgs(arguments);
-        return doColorize(arguments);
+        return doColorize(arguments, this::colorize);
     }
     public Object colorize2(Map<String ,Object> arguments) {
         BuiltinFunction.COLORIZE2.validateArgs(arguments);
-        return doColorize(arguments);
+        return doColorize(arguments, this::colorize2);
     }
 
-    private Object doColorize(Map<String, Object> arguments) {
+    private Object doColorize(Map<String, Object> arguments, Function<Map<String, Object>, Object> function) {
         var arg = arguments.get("img");
         if (arg instanceof List<?>) {
-            return expandToImageList("colorize", "img", arguments, this::colorize);
+            return expandToImageList("colorize", "img", arguments, function);
         }
         var profile = stringArg(arguments, "profile", null);
         if (profile == null) {
