@@ -7,10 +7,14 @@ arguments:
   - name: img
     description: Image(s)
   - name: factor
+    optional: true
+    default: 1.1
     description:
       fr: "La largeur de l'image sera le diamètre du disque solaire multiplié par ce facteur."
       en: "The width of the image will be the diameter of the solar disk multiplied by this factor."
   - name: rounding
+    optional: true
+    default: 16
     description:
       fr: "La largeur de l'image sera arrondie à ce multiple. Doit être un multiple de 2."
       en: "The width of the image will be rounded to this multiple. Must be a multiple of 2."
