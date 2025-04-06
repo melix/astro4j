@@ -168,6 +168,7 @@ public class Configuration {
 
     public enum DirectoryKind {
         SER_FILE(null),
+        FLAT_FILE("flat"),
         IMAGE_MATH("image.math"),
         SPECTRUM_IDENTIFICATION("spectrum.identification");
 

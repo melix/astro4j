@@ -39,6 +39,8 @@ import java.util.Locale;
 import java.util.Optional;
 import java.util.function.Consumer;
 
+import static me.champeau.a4j.jsolex.app.Configuration.DirectoryKind.FLAT_FILE;
+
 public class FlatSelectionController {
     private static final FileChooser.ExtensionFilter FLAT_EXTENSIONS = new FileChooser.ExtensionFilter("Flats", "*.fits", "*.ser");
 
@@ -95,10 +97,10 @@ public class FlatSelectionController {
     @FXML
     public void selectFlat() {
         var fileChooser = new FileChooser();
-        configuration.findLastOpenDirectory().ifPresent(dir -> fileChooser.setInitialDirectory(dir.toFile()));
+        configuration.findLastOpenDirectory(FLAT_FILE).ifPresent(dir -> fileChooser.setInitialDirectory(dir.toFile()));
         fileChooser.getExtensionFilters().add(FLAT_EXTENSIONS);
         Optional.ofNullable(fileChooser.showOpenDialog(stage)).ifPresent(selectedFlat -> {
-            configuration.updateLastOpenDirectory(selectedFlat.getParentFile().toPath());
+            configuration.updateLastOpenDirectory(selectedFlat.getParentFile().toPath(), FLAT_FILE);
             var extension = selectedFlat.getName().substring(selectedFlat.getName().lastIndexOf('.') + 1).toLowerCase(Locale.US);
             if ("fits".equals(extension)) {
                 stage.close();
