@@ -16,6 +16,7 @@
 package me.champeau.a4j.jsolex.processing.sun;
 
 import me.champeau.a4j.jsolex.processing.color.ColorCurve;
+import me.champeau.a4j.jsolex.processing.ser.FastImageConverter;
 import me.champeau.a4j.jsolex.processing.util.ImageFormat;
 import me.champeau.a4j.jsolex.processing.util.ProcessingException;
 import me.champeau.a4j.math.regression.Ellipse;
@@ -171,6 +172,9 @@ public class ImageUtils {
     }
 
     public static ImageConverter<float[][]> createImageConverter(ColorMode colorMode, boolean vflip) {
+        if (colorMode == ColorMode.MONO) {
+            return new FastImageConverter(vflip);
+        }
         var converter = new FloatPrecisionImageConverter(
                 new ChannelExtractingConverter(
                         new DemosaicingRGBImageConverter(
