@@ -11,6 +11,7 @@ val generateBuiltinFunctions = tasks.register<BuiltinFunctionAsciidocGenerator>(
 
 tasks {
     asciidoctor {
+        dependsOn(generateBuiltinFunctions)
         val downloadVersion = if (version.toString().contains("-SNAPSHOT")) {
             version.toString().substringBefore("-SNAPSHOT")
         } else {
@@ -31,7 +32,7 @@ tasks {
             "highlightjsdir" to "highlight",
             "version" to downloadVersion,
             "prefixName" to prefixName,
-            "generated-funs" to generateBuiltinFunctions.get().generatedDocsDirectory.get().asFile.absolutePath,
+            "generated-funs" to layout.projectDirectory.asFile.toPath().resolve("src/docs/asciidoc").relativize(generateBuiltinFunctions.get().generatedDocsDirectory.get().asFile.toPath()),
         ))
         resources(delegateClosureOf<CopySpec> {
             from("src/docs/asciidoc") {
