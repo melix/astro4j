@@ -15,7 +15,6 @@
  */
 package me.champeau.a4j.jsolex.processing.sun.tasks;
 
-import me.champeau.a4j.jsolex.processing.event.ProgressEvent;
 import me.champeau.a4j.jsolex.processing.event.ProgressOperation;
 import me.champeau.a4j.jsolex.processing.params.BandingCorrectionParams;
 import me.champeau.a4j.jsolex.processing.sun.BandingReduction;
@@ -45,6 +44,9 @@ public class ImageBandingCorrector extends AbstractTask<ImageWrapper32> {
 
     @Override
     protected ImageWrapper32 doCall() throws Exception {
+//        if (true) {
+//            return workImage;
+//        }
         broadcaster.broadcast(operation.update(0, message("banding.correction")));
         var passes = params.passes();
         var bandSize = params.width();

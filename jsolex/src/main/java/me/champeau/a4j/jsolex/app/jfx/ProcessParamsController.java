@@ -23,6 +23,7 @@ import javafx.scene.Parent;
 import javafx.scene.Scene;
 import javafx.scene.control.Accordion;
 import javafx.scene.control.Button;
+import javafx.scene.control.ButtonBar;
 import javafx.scene.control.ButtonType;
 import javafx.scene.control.CheckBox;
 import javafx.scene.control.ChoiceBox;
@@ -31,12 +32,15 @@ import javafx.scene.control.Slider;
 import javafx.scene.control.TextField;
 import javafx.scene.control.TextFormatter;
 import javafx.scene.layout.GridPane;
+import javafx.scene.layout.HBox;
 import javafx.scene.layout.Pane;
 import javafx.stage.Stage;
+import javafx.stage.StageStyle;
 import javafx.util.StringConverter;
 import javafx.util.converter.DoubleStringConverter;
 import javafx.util.converter.IntegerStringConverter;
 import me.champeau.a4j.jsolex.app.AlertFactory;
+import me.champeau.a4j.jsolex.app.Configuration;
 import me.champeau.a4j.jsolex.app.JSolEx;
 import me.champeau.a4j.jsolex.processing.event.ProgressOperation;
 import me.champeau.a4j.jsolex.processing.params.AutoStretchParams;
@@ -64,6 +68,7 @@ import me.champeau.a4j.jsolex.processing.params.SpectrumParams;
 import me.champeau.a4j.jsolex.processing.params.VideoParams;
 import me.champeau.a4j.jsolex.processing.stretching.AutohistogramStrategy;
 import me.champeau.a4j.jsolex.processing.stretching.ClaheStrategy;
+import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
 import me.champeau.a4j.jsolex.processing.sun.CaptureSoftwareMetadataHelper;
 import me.champeau.a4j.jsolex.processing.sun.FlatCorrection;
 import me.champeau.a4j.jsolex.processing.sun.workflow.GeneratedImageKind;
@@ -76,9 +81,11 @@ import me.champeau.a4j.ser.Header;
 
 import java.io.File;
 import java.io.IOException;
+import java.nio.file.Path;
 import java.time.ZonedDateTime;
 import java.util.EnumSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
@@ -203,19 +210,21 @@ public class ProcessParamsController {
     @FXML
     private Button forcePolynomialOpen;
     @FXML
-    private CheckBox artificialFlatCorrection;
+    private ChoiceBox<FlatMode> flatMode;
     @FXML
-    private Label flatLoPercentileLabel;
+    private HBox artificialFlatParams;
     @FXML
     private TextField flatLoPercentile;
     @FXML
-    private Label flatHiPercentileLabel;
-    @FXML
     private TextField flatHiPercentile;
     @FXML
-    private Label flatOrderLabel;
-    @FXML
     private TextField flatOrder;
+    @FXML
+    private ButtonBar flatParams;
+    @FXML
+    private TextField flatFilePath;
+    @FXML
+    private Label flatModeHelp;
     @FXML
     private CheckBox spectrumVFlip;
     @FXML
@@ -227,6 +236,7 @@ public class ProcessParamsController {
 
     private final List<Stage> popups = new CopyOnWriteArrayList<>();
     private Stage stage;
+    private Broadcaster broadcaster;
     private File serFile;
     private Header serFileHeader;
     private ProcessParams initialProcessParams;
@@ -235,9 +245,18 @@ public class ProcessParamsController {
     private boolean showCoordinatesInDetails;
     private boolean autoTrimSerFileSelected;
     private ProgressOperation progressOperation;
+    private Path selectedFlatFilePath;
 
-    public void setup(Stage stage, ProgressOperation progressOperation, File serFile, Header serFileHeader, CaptureSoftwareMetadataHelper.CaptureMetadata md, boolean batchMode, HostServices hostServices) {
+    public void setup(Stage stage,
+                      ProgressOperation progressOperation,
+                      Broadcaster broadcaster,
+                      File serFile,
+                      Header serFileHeader,
+                      CaptureSoftwareMetadataHelper.CaptureMetadata md,
+                      boolean batchMode,
+                      HostServices hostServices) {
         this.stage = stage;
+        this.broadcaster = broadcaster;
         this.serFile = serFile;
         this.serFileHeader = serFileHeader;
         this.hostServices = hostServices;
@@ -259,7 +278,7 @@ public class ProcessParamsController {
         var instruments = SpectroHeliographsIO.loadDefaults();
         instrument.getItems().addAll(instruments);
         instruments.stream().filter(i -> initialProcessParams.observationDetails().instrument().label().equals(i.label())).findFirst()
-            .ifPresentOrElse(instrument.getSelectionModel()::select, () -> instrument.getSelectionModel().selectFirst());
+                .ifPresentOrElse(instrument.getSelectionModel()::select, () -> instrument.getSelectionModel().selectFirst());
         telescope.textProperty().setValue(initialProcessParams.observationDetails().telescope());
         camera.textProperty().setValue(initialProcessParams.observationDetails().camera());
         generateDebugImages.setSelected(initialProcessParams.extraParams().generateDebugImages());
@@ -353,7 +372,7 @@ public class ProcessParamsController {
             }
         });
         claheTileSize.getItems().addAll(
-            8, 16, 32, 64, 128, 256, 512, 1024
+                8, 16, 32, 64, 128, 256, 512, 1024
         );
         claheTileSize.valueProperty().addListener((obs, oldValue, newValue) -> {
             var bins = claheBins.getValue();
@@ -363,7 +382,7 @@ public class ProcessParamsController {
         });
         claheTileSize.getSelectionModel().select(Integer.valueOf(initialProcessParams.claheParams().tileSize()));
         claheBins.getItems().addAll(
-            32, 64, 128, 256, 512, 1024
+                32, 64, 128, 256, 512, 1024
         );
         claheBins.valueProperty().addListener((obs, oldValue, newValue) -> {
             var tileSize = claheTileSize.getValue();
@@ -388,9 +407,9 @@ public class ProcessParamsController {
             var pattern = initialProcessParams.extraParams().fileNamePattern();
             if (pattern != null) {
                 patterns.stream()
-                    .filter(p -> p.pattern().equals(pattern))
-                    .findFirst()
-                    .ifPresent(e -> namingPattern.getSelectionModel().select(e));
+                        .filter(p -> p.pattern().equals(pattern))
+                        .findFirst()
+                        .ifPresent(e -> namingPattern.getSelectionModel().select(e));
             }
 
         }
@@ -484,13 +503,12 @@ public class ProcessParamsController {
         forcePolynomial.setSelected(initialProcessParams.geometryParams().isForcePolynomial());
         forcePolynomialOpen.disableProperty().bind(forcePolynomial.selectedProperty().not());
         forcedPolynomial.setText(initialProcessParams.geometryParams().forcedPolynomial().orElse(null));
-        artificialFlatCorrection.setSelected(initialProcessParams.enhancementParams().artificialFlatCorrection());
-        flatLoPercentileLabel.disableProperty().bind(artificialFlatCorrection.selectedProperty().not());
-        flatLoPercentile.disableProperty().bind(artificialFlatCorrection.selectedProperty().not());
-        flatHiPercentileLabel.disableProperty().bind(artificialFlatCorrection.selectedProperty().not());
-        flatHiPercentile.disableProperty().bind(artificialFlatCorrection.selectedProperty().not());
-        flatOrderLabel.disableProperty().bind(artificialFlatCorrection.selectedProperty().not());
-        flatOrder.disableProperty().bind(artificialFlatCorrection.selectedProperty().not());
+        flatParams.visibleProperty().bind(flatMode.getSelectionModel().selectedItemProperty().isEqualTo(FlatMode.REAL));
+        flatParams.managedProperty().bind(flatMode.getSelectionModel().selectedItemProperty().isEqualTo(FlatMode.REAL));
+        flatModeHelp.managedProperty().bind(flatMode.getSelectionModel().selectedItemProperty().isEqualTo(FlatMode.NONE));
+        flatModeHelp.visibleProperty().bind(flatMode.getSelectionModel().selectedItemProperty().isEqualTo(FlatMode.NONE));
+        artificialFlatParams.visibleProperty().bind(flatMode.getSelectionModel().selectedItemProperty().isEqualTo(FlatMode.ARTIFICIAL));
+        artificialFlatParams.managedProperty().bind(flatMode.getSelectionModel().selectedItemProperty().isEqualTo(FlatMode.ARTIFICIAL));
         flatLoPercentile.setTextFormatter(createPercentileFormatter());
         flatHiPercentile.setTextFormatter(createPercentileFormatter());
         flatOrder.setTextFormatter(createOrderFormatter());
@@ -502,6 +520,16 @@ public class ProcessParamsController {
         autoTrimSerFile.setVisible(batchMode);
         reviewImagesAfterBatch.setVisible(batchMode);
         reviewImagesAfterBatch.setSelected(initialProcessParams.extraParams().reviewImagesAfterBatch());
+        flatMode.getItems().addAll(FlatMode.values());
+        if (initialProcessParams.enhancementParams().artificialFlatCorrection()) {
+            flatMode.getSelectionModel().select(FlatMode.ARTIFICIAL);
+        } else if (initialProcessParams.enhancementParams().masterFlatFile() != null) {
+            flatMode.getSelectionModel().select(FlatMode.REAL);
+            flatFilePath.setText(initialProcessParams.enhancementParams().masterFlatFile().toFile().getName());
+            selectedFlatFilePath = initialProcessParams.enhancementParams().masterFlatFile();
+        } else {
+            flatMode.getSelectionModel().select(FlatMode.NONE);
+        }
     }
 
     private static TextFormatter<Integer> createOrderFormatter() {
@@ -549,12 +577,12 @@ public class ProcessParamsController {
     @FXML
     public void openInstrumentEditor() {
         SpectroHeliographEditor.openEditor(stage, editor ->
-            Platform.runLater(() ->
-                editor.getSelected().ifPresent(s -> {
-                    instrument.getItems().setAll(editor.getItems());
-                    instrument.getSelectionModel().select(s);
-                })
-            )
+                Platform.runLater(() ->
+                        editor.getSelected().ifPresent(s -> {
+                            instrument.getItems().setAll(editor.getItems());
+                            instrument.getSelectionModel().select(s);
+                        })
+                )
         );
     }
 
@@ -568,20 +596,20 @@ public class ProcessParamsController {
     @FXML
     public void openSetupEditor() {
         SetupEditor.openEditor(stage, editor ->
-            Platform.runLater(() ->
-                editor.getSelected().ifPresent(s -> {
-                    telescope.setText(nullable(s.telescope(), String::valueOf));
-                    focalLength.setText(nullable(s.focalLength(), String::valueOf));
-                    aperture.setText(nullable(s.aperture(), String::valueOf));
-                    latitude.setText(nullable(s.latitude(), String::valueOf));
-                    longitude.setText(nullable(s.longitude(), String::valueOf));
-                    camera.setText(nullable(s.camera(), String::valueOf));
-                    pixelSize.setText(nullable(s.pixelSize(), String::valueOf));
-                    forceCamera = s.forceCamera();
-                    showCoordinatesInDetails = s.showCoordinatesInDetails();
-                    altAzMode.setSelected(s.altAzMode());
-                })
-            )
+                Platform.runLater(() ->
+                        editor.getSelected().ifPresent(s -> {
+                            telescope.setText(nullable(s.telescope(), String::valueOf));
+                            focalLength.setText(nullable(s.focalLength(), String::valueOf));
+                            aperture.setText(nullable(s.aperture(), String::valueOf));
+                            latitude.setText(nullable(s.latitude(), String::valueOf));
+                            longitude.setText(nullable(s.longitude(), String::valueOf));
+                            camera.setText(nullable(s.camera(), String::valueOf));
+                            pixelSize.setText(nullable(s.pixelSize(), String::valueOf));
+                            forceCamera = s.forceCamera();
+                            showCoordinatesInDetails = s.showCoordinatesInDetails();
+                            altAzMode.setSelected(s.altAzMode());
+                        })
+                )
         );
     }
 
@@ -595,12 +623,12 @@ public class ProcessParamsController {
         double dopplerShift = Double.parseDouble(dopplerShifting.getText());
         double continuumShift = Double.parseDouble(continuumShifting.getText());
         doProcess(new RequestedImages(
-            generateDebugImages.isSelected() ? RequestedImages.FULL_MODE_WITH_DEBUG : RequestedImages.FULL_MODE,
-            List.of(getPixelShiftAsDouble(), dopplerShift, -dopplerShift, continuumShift),
-            Set.of(-dopplerShift, dopplerShift),
-            Set.of(),
-            ImageMathParams.NONE,
-            false
+                generateDebugImages.isSelected() ? RequestedImages.FULL_MODE_WITH_DEBUG : RequestedImages.FULL_MODE,
+                List.of(getPixelShiftAsDouble(), dopplerShift, -dopplerShift, continuumShift),
+                Set.of(-dopplerShift, dopplerShift),
+                Set.of(),
+                ImageMathParams.NONE,
+                false
         ));
     }
 
@@ -611,15 +639,15 @@ public class ProcessParamsController {
             var node = (Parent) fxmlLoader.load();
             var controller = (ImageSelector) fxmlLoader.getController();
             controller.setup(
-                stage,
-                initialProcessParams.requestedImages().images(),
-                generateDebugImages.isSelected(),
-                List.of(getPixelShiftAsDouble()),
-                Double.parseDouble(dopplerShifting.getText()),
-                Double.parseDouble(continuumShifting.getText()),
-                initialProcessParams.requestedImages().mathImages(),
-                hostServices,
-                batchMode
+                    stage,
+                    initialProcessParams.requestedImages().images(),
+                    generateDebugImages.isSelected(),
+                    List.of(getPixelShiftAsDouble()),
+                    Double.parseDouble(dopplerShifting.getText()),
+                    Double.parseDouble(continuumShifting.getText()),
+                    initialProcessParams.requestedImages().mathImages(),
+                    hostServices,
+                    batchMode
             );
             Scene scene = new Scene(node);
             var currentScene = stage.getScene();
@@ -701,61 +729,63 @@ public class ProcessParamsController {
             imageFormats.add(ImageFormat.PNG);
         }
         var namingStrategy = namingPattern.getSelectionModel().getSelectedItem();
+        var artificialFlat = flatMode.getSelectionModel().getSelectedItem() == FlatMode.ARTIFICIAL;
+        var enhancementParams = new EnhancementParams(artificialFlat, Double.parseDouble(flatLoPercentile.getText()), Double.parseDouble(flatHiPercentile.getText()), Integer.parseInt(flatOrder.getText()), flatMode.getSelectionModel().getSelectedItem() == FlatMode.REAL ? selectedFlatFilePath : null);
         processParams = new ProcessParams(
-            new SpectrumParams(wavelength.getValue(), getPixelShiftAsDouble(), Double.parseDouble(dopplerShifting.getText()), Double.parseDouble(continuumShifting.getText()), switchRedBlueChannels.isSelected()),
-            new ObservationDetails(
-                observerName.getText(),
-                email.getText(),
-                instrument.getSelectionModel().getSelectedItem(),
-                telescope.getText(),
-                focalLength.isEmpty() ? null : Integer.parseInt(focalLength),
-                aperture.isEmpty() ? null : Integer.parseInt(aperture),
-                geo,
-                ZonedDateTime.parse(observationDate.getText()),
-                camera.getText(),
-                binning.getValue(),
-                getPixelSizeAsDouble(),
-                forceCamera,
-                showCoordinatesInDetails,
-                altAzMode.isSelected()
-            ),
-            new ExtraParams(generateDebugImages.isSelected() || debugImagesRequested, autoSave.isSelected(), imageFormats, namingStrategy.pattern(), namingStrategy.datetimeFormat(), namingStrategy.dateFormat(), reviewImagesAfterBatch.isSelected()),
-            new VideoParams(assumeMonoVideo.isSelected() ? ColorMode.MONO : null),
-            new GeometryParams(
-                forceTilt.isSelected() ? Double.parseDouble(tiltValue.getText()) : null,
-                forceXYRatio.isSelected() ? Double.parseDouble(xyRatioValue.getText()) : null,
-                horizontalMirror.isSelected(),
-                verticalMirror.isSelected(),
-                sharpen.isSelected(),
-                disallowDownsampling.isSelected(),
-                autocorrectAngleP.isSelected(),
-                rotation.getValue(),
-                autocrop.getValue(),
-                deconvolutionMode.getValue(),
-                new RichardsonLucyDeconvolutionParams(
-                    Double.parseDouble(rlRadius.getText()),
-                    Double.parseDouble(rlSigma.getText()),
-                    Integer.parseInt(rlIterations.getText())
+                new SpectrumParams(wavelength.getValue(), getPixelShiftAsDouble(), Double.parseDouble(dopplerShifting.getText()), Double.parseDouble(continuumShifting.getText()), switchRedBlueChannels.isSelected()),
+                new ObservationDetails(
+                        observerName.getText(),
+                        email.getText(),
+                        instrument.getSelectionModel().getSelectedItem(),
+                        telescope.getText(),
+                        focalLength.isEmpty() ? null : Integer.parseInt(focalLength),
+                        aperture.isEmpty() ? null : Integer.parseInt(aperture),
+                        geo,
+                        ZonedDateTime.parse(observationDate.getText()),
+                        camera.getText(),
+                        binning.getValue(),
+                        getPixelSizeAsDouble(),
+                        forceCamera,
+                        showCoordinatesInDetails,
+                        altAzMode.isSelected()
                 ),
-                forcePolynomial.isSelected(),
-                forcedPolynomial.getText(),
-                spectrumVFlip.isSelected()
-            ),
-            new BandingCorrectionParams(
-                (int) Math.round(bandingCorrectionWidth.getValue()),
-                (int) Math.round(bandingCorrectionPasses.getValue())
-            ),
-            requestedImages,
-            new ClaheParams(
-                claheTileSize.getValue(),
-                claheBins.getValue(),
-                Double.parseDouble(claheClipping.getText())
-            ),
-            new AutoStretchParams(
-                Double.parseDouble(autostretchGamma.getText())
-            ),
-            contrastEnhancementTechnique.getValue(),
-            new EnhancementParams(artificialFlatCorrection.isSelected(), Double.parseDouble(flatLoPercentile.getText()), Double.parseDouble(flatHiPercentile.getText()), Integer.parseInt(flatOrder.getText()))
+                new ExtraParams(generateDebugImages.isSelected() || debugImagesRequested, autoSave.isSelected(), imageFormats, namingStrategy.pattern(), namingStrategy.datetimeFormat(), namingStrategy.dateFormat(), reviewImagesAfterBatch.isSelected()),
+                new VideoParams(assumeMonoVideo.isSelected() ? ColorMode.MONO : null),
+                new GeometryParams(
+                        forceTilt.isSelected() ? Double.parseDouble(tiltValue.getText()) : null,
+                        forceXYRatio.isSelected() ? Double.parseDouble(xyRatioValue.getText()) : null,
+                        horizontalMirror.isSelected(),
+                        verticalMirror.isSelected(),
+                        sharpen.isSelected(),
+                        disallowDownsampling.isSelected(),
+                        autocorrectAngleP.isSelected(),
+                        rotation.getValue(),
+                        autocrop.getValue(),
+                        deconvolutionMode.getValue(),
+                        new RichardsonLucyDeconvolutionParams(
+                                Double.parseDouble(rlRadius.getText()),
+                                Double.parseDouble(rlSigma.getText()),
+                                Integer.parseInt(rlIterations.getText())
+                        ),
+                        forcePolynomial.isSelected(),
+                        forcedPolynomial.getText(),
+                        spectrumVFlip.isSelected()
+                ),
+                new BandingCorrectionParams(
+                        (int) Math.round(bandingCorrectionWidth.getValue()),
+                        (int) Math.round(bandingCorrectionPasses.getValue())
+                ),
+                requestedImages,
+                new ClaheParams(
+                        claheTileSize.getValue(),
+                        claheBins.getValue(),
+                        Double.parseDouble(claheClipping.getText())
+                ),
+                new AutoStretchParams(
+                        Double.parseDouble(autostretchGamma.getText())
+                ),
+                contrastEnhancementTechnique.getValue(),
+                enhancementParams
         );
         ProcessParams.saveDefaults(processParams);
         autoTrimSerFileSelected = autoTrimSerFile.isSelected();
@@ -788,12 +818,12 @@ public class ProcessParamsController {
     @FXML
     public void quickProcess() {
         doProcess(new RequestedImages(
-            generateDebugImages.isSelected() ? RequestedImages.QUICK_MODE_WITH_DEBUG : RequestedImages.QUICK_MODE,
-            List.of(getPixelShiftAsDouble()),
-            Set.of(),
-            Set.of(),
-            ImageMathParams.NONE,
-            false
+                generateDebugImages.isSelected() ? RequestedImages.QUICK_MODE_WITH_DEBUG : RequestedImages.QUICK_MODE,
+                List.of(getPixelShiftAsDouble()),
+                Set.of(),
+                Set.of(),
+                ImageMathParams.NONE,
+                false
         ));
     }
 
@@ -860,7 +890,7 @@ public class ProcessParamsController {
     }
 
     private void configureArtificialFlatDefaults() {
-        artificialFlatCorrection.setSelected(false);
+        flatMode.getSelectionModel().select(FlatMode.NONE);
         flatLoPercentile.setText(String.valueOf(FlatCorrection.DEFAULT_LO_PERCENTILE));
         flatHiPercentile.setText(String.valueOf(FlatCorrection.DEFAULT_HI_PERCENTILE));
         flatOrder.setText(String.valueOf(FlatCorrection.DEFAULT_ORDER));
@@ -875,5 +905,29 @@ public class ProcessParamsController {
         claheTileSize.setValue(ClaheStrategy.DEFAULT_TILE_SIZE);
         claheBins.setValue(ClaheStrategy.DEFAULT_BINS);
         claheClipping.setText("" + ClaheStrategy.DEFAULT_CLIP);
+    }
+
+    @FXML
+    private void selectFlatFile() {
+        var stage = new Stage(StageStyle.UTILITY);
+        FlatSelectionController.open(stage,
+                broadcaster,
+                progressOperation,
+                Configuration.getInstance(),
+                ProcessParams.loadDefaults(),
+                path -> path.ifPresent(p -> {
+                    selectedFlatFilePath = p;
+                    Platform.runLater(() -> flatFilePath.setText(p.toFile().getName()));
+                }));
+    }
+
+    private enum FlatMode {
+        NONE,
+        ARTIFICIAL,
+        REAL;
+
+        public String toString() {
+            return I18N.string(JSolEx.class, "process-params", "flatmode." + name().toLowerCase(Locale.US));
+        }
     }
 }

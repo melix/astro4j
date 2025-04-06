@@ -65,7 +65,7 @@ import me.champeau.a4j.jsolex.processing.sun.workflow.PixelShift;
 import me.champeau.a4j.jsolex.processing.sun.workflow.PixelShiftRange;
 import me.champeau.a4j.jsolex.processing.sun.workflow.ReferenceCoords;
 import me.champeau.a4j.jsolex.processing.sun.workflow.SourceInfo;
-import me.champeau.a4j.jsolex.processing.sun.workflow.TruncatedImage;
+import me.champeau.a4j.jsolex.processing.sun.workflow.TruncatedDisk;
 import me.champeau.a4j.jsolex.processing.util.Dispersion;
 import me.champeau.a4j.jsolex.processing.util.FileBackedImage;
 import me.champeau.a4j.jsolex.processing.util.ImageFormat;
@@ -385,7 +385,7 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
                                 return false;
                             }
                         }
-                        if (image.findMetadata(TruncatedImage.class).isPresent() && image.findMetadata(TruncatedImage.class).get().truncated()) {
+                        if (image.findMetadata(TruncatedDisk.class).isPresent() && image.findMetadata(TruncatedDisk.class).get().truncated()) {
                             return false;
                         }
 
@@ -543,11 +543,11 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
         if (arg instanceof Number shift) {
             double pixelShift = shift.doubleValue();
             var image = findImage(pixelShift);
-            if (image.findMetadata(TruncatedImage.class).isPresent() && image.findMetadata(TruncatedImage.class).get().truncated()) {
-                if (warnings.add(pixelShift)) {
-                    LOGGER.warn(String.format(message("warn.truncated.image"), pixelShift));
-                }
-            }
+//            if (image.findMetadata(TruncatedImage.class).isPresent() && image.findMetadata(TruncatedImage.class).get().truncated()) {
+//                if (warnings.add(pixelShift)) {
+//                    LOGGER.warn(String.format(message("warn.truncated.image"), pixelShift));
+//                }
+//            }
             return image;
         }
         throw new IllegalArgumentException("img() argument must be a number representing an image shift");

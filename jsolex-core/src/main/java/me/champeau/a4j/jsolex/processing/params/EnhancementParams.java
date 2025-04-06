@@ -15,10 +15,13 @@
  */
 package me.champeau.a4j.jsolex.processing.params;
 
+import java.nio.file.Path;
+
 public record EnhancementParams(
     boolean artificialFlatCorrection,
     double artificialFlatCorrectionLoPercentile,
     double artificialFlatCorrectionHiPercentile,
-    int artificialFlatCorrectionOrder
+    int artificialFlatCorrectionOrder,
+    Path masterFlatFile
 ) {
 }

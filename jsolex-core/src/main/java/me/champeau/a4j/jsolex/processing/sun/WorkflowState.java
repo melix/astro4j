@@ -33,7 +33,7 @@ public final class WorkflowState {
     private final int width;
     private final int height;
     private boolean internal;
-    private boolean truncatedImage;
+    private TruncationDetails truncationDetails = new TruncationDetails();
 
     public WorkflowState(
             int width,
@@ -45,12 +45,12 @@ public final class WorkflowState {
         this.pixelShift = pixelShift;
     }
 
-    public boolean isTruncatedImage() {
-        return truncatedImage;
+    public void setTruncationDetails(TruncationDetails details) {
+        this.truncationDetails = details;
     }
 
-    public void setTruncatedImage(boolean truncatedImage) {
-        this.truncatedImage = truncatedImage;
+    public TruncationDetails getTruncationDetails() {
+        return truncationDetails;
     }
 
     public boolean isInternal() {
