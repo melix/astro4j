@@ -232,10 +232,11 @@ public class Dedistort extends AbstractFunctionImpl {
                 return dedistort(mono, image, tileSize, sampling, threshold == -1 ? null : threshold);
             }
             throw new IllegalArgumentException("dedistort 2d argument must be a mono image");
-        } else if (arg instanceof List<?> imageList) {
+        } else if (arg instanceof List<?>) {
             var reference = arguments.get("ref");
-            if (reference instanceof List<?> referenceList) {
-                var images = asMonoImages(imageList);
+            var target = arguments.get("img");
+            if (reference instanceof List<?> referenceList && target instanceof List<?> targetList) {
+                var images = asMonoImages(targetList);
                 var references = asMonoImages(referenceList);
                 var distorsions = references.stream()
                     .map(img -> img.findMetadata(DistorsionMap.class).orElseThrow(() -> new IllegalArgumentException("No distorsion map found in reference image")))
