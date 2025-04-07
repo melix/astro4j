@@ -130,24 +130,28 @@ public class ImageMathEditor {
         var selectionModel = scriptsToApply.getSelectionModel();
         var updating = new AtomicBoolean();
         selectionModel.selectedIndexProperty().addListener((observable, oldValue, newValue) -> {
-            if (items.isEmpty()) {
-                return;
-            }
-            if (doesNotHaveStaleChanges()) {
-                if (updating.compareAndSet(false, true)) {
-                    var index = newValue.intValue();
-                    if (index >= 0) {
-                        var item = items.get(index);
-                        loadScriptFile(item.scriptFile());
+            if (updating.compareAndSet(false, true)) {
+                try {
+                    if (items.isEmpty()) {
+                        return;
                     }
-                }
-                updating.set(false);
-            } else {
-                if (oldValue != null) {
-                    selectionModel.selectIndices(oldValue.intValue());
+                    if (doesNotHaveStaleChanges()) {
+                        var index = newValue.intValue();
+                        if (index >= 0) {
+                            var item = items.get(index);
+                            loadScriptFile(item.scriptFile());
+                        }
+                    } else {
+                        if (oldValue != null) {
+                            selectionModel.selectIndices(oldValue.intValue());
+                        }
+                    }
+                    scriptTextArea.setIncludesDir(items.isEmpty() || newValue.intValue() < 0 ? null : items.get(newValue.intValue()).scriptFile().getParentFile().toPath());
+                } finally {
+                    updating.set(false);
                 }
             }
-            scriptTextArea.setIncludesDir(items.isEmpty() || newValue.intValue() < 0 ? null : items.get(newValue.intValue()).scriptFile().getParentFile().toPath());
+
         });
         scriptTextArea.textProperty().addListener((obj, oldValue, newValue) -> {
             if (updatingText.get()) {
@@ -231,7 +235,7 @@ public class ImageMathEditor {
     private void ok() {
         if (doesNotHaveStaleChanges()) {
             params = new ImageMathParams(
-                scriptsToApply.getItems().stream().map(ImageMathEntry::scriptFile).toList()
+                    scriptsToApply.getItems().stream().map(ImageMathEntry::scriptFile).toList()
             );
             requestClose();
         }
@@ -306,8 +310,8 @@ public class ImageMathEditor {
             alert.setTitle(I18N.string(JSolEx.class, "imagemath-editor", "unsaved.changes"));
             alert.getButtonTypes().clear();
             alert.getButtonTypes().addAll(
-                BACK,
-                PROCEED
+                    BACK,
+                    PROCEED
             );
             var buttonType = alert.showAndWait();
             return buttonType.map(type -> type.equals(PROCEED)).orElse(false);
@@ -362,7 +366,7 @@ public class ImageMathEditor {
     }
 
     public record ImageMathConfiguration(
-        List<File> scriptFiles
+            List<File> scriptFiles
     ) {
 
     }
