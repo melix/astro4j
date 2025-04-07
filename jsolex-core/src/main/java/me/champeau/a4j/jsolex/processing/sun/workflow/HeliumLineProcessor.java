@@ -18,7 +18,6 @@ package me.champeau.a4j.jsolex.processing.sun.workflow;
 import me.champeau.a4j.jsolex.expr.BuiltinFunction;
 import me.champeau.a4j.jsolex.processing.event.ProgressOperation;
 import me.champeau.a4j.jsolex.processing.expr.ImageExpressionEvaluator;
-import me.champeau.a4j.jsolex.processing.expr.impl.Utilities;
 import me.champeau.a4j.jsolex.processing.params.ProcessParams;
 import me.champeau.a4j.jsolex.processing.params.SpectralRay;
 import me.champeau.a4j.jsolex.processing.params.SpectralRayIO;
@@ -32,6 +31,8 @@ import me.champeau.a4j.jsolex.processing.sun.tasks.GeometryCorrector;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 import me.champeau.a4j.jsolex.processing.util.RGBImage;
+import me.champeau.a4j.math.image.ImageMath;
+import me.champeau.a4j.math.image.Kernel33;
 import me.champeau.a4j.math.regression.Ellipse;
 
 import java.util.HashMap;
@@ -98,19 +99,24 @@ public class HeliumLineProcessor {
         if (raw instanceof ImageWrapper32 image) {
             LinearStrechingStrategy.DEFAULT.stretch(image);
             var ellipse = image.findMetadata(Ellipse.class).orElse(null);
-            for (int i = 0; i < 64; i++) {
-                BandingReduction.reduceBanding(image.width(), image.height(), image.data(), 8, ellipse);
-            }
-            LinearStrechingStrategy.DEFAULT.stretch(image);
             var bgModel = backgroundModel(image, 2, 2.5);
             bgModel = (ImageWrapper32) evaluator.mul(0.8, bgModel);
             bgModel = (ImageWrapper32) evaluator.functionCall(BuiltinFunction.DISK_FILL, Map.of("img", bgModel));
             image = (ImageWrapper32) evaluator.minus(image, bgModel);
-            new AutohistogramStrategy(1).stretch(image);
-            var protus = (ImageWrapper32) evaluator.functionCall(BuiltinFunction.DISK_FILL, Map.of("img", image));
+            var protus = image.copy();
+            protus = (ImageWrapper32) evaluator.functionCall(BuiltinFunction.DISK_FILL, Map.of("img", protus, "fill", 0));
             new ArcsinhStretchingStrategy(0, 10, 10).stretch(protus);
+            new AutohistogramStrategy(1).stretch(protus);
+            image = (ImageWrapper32) evaluator.functionCall(BuiltinFunction.POW, Map.of("v", image, "exp", 2));
+            LinearStrechingStrategy.DEFAULT.stretch(image);
+            new AutohistogramStrategy(1).stretch(image);
+            var blurred = ImageMath.newInstance().convolve(image.asImage(), Kernel33.GAUSSIAN_BLUR);
             if (ellipse != null) {
-                image = Utilities.blend(image, protus, ellipse, 0.975, 1.025);
+               image =  (ImageWrapper32) evaluator.functionCall(BuiltinFunction.MAX, Map.of("list", List.of(protus, ImageWrapper32.fromImage(blurred))));
+               var bandSize = (ellipse.semiAxis().a() + ellipse.semiAxis().b()) / 16;
+                for (int i = 0; i < 6; i++) {
+                    BandingReduction.reduceBanding(image.width(), image.height(), image.data(), (int) bandSize, ellipse);
+                }
             }
             imageEmitter.newMonoImage(GeneratedImageKind.GEOMETRY_CORRECTED_PROCESSED, "helium", message("helium.d3.processed"), "helium-extracted", message("helium.extracted.description"), image);
             if (evaluator.functionCall(BuiltinFunction.COLORIZE, Map.of("img", image, "profile", colorProfile)) instanceof RGBImage colorized) {

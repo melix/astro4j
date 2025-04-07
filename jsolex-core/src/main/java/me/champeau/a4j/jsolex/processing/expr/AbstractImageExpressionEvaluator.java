@@ -66,6 +66,7 @@ import me.champeau.a4j.jsolex.processing.sun.workflow.PixelShiftRange;
 import me.champeau.a4j.jsolex.processing.sun.workflow.ReferenceCoords;
 import me.champeau.a4j.jsolex.processing.sun.workflow.SourceInfo;
 import me.champeau.a4j.jsolex.processing.sun.workflow.TruncatedDisk;
+import me.champeau.a4j.jsolex.processing.util.Constants;
 import me.champeau.a4j.jsolex.processing.util.Dispersion;
 import me.champeau.a4j.jsolex.processing.util.FileBackedImage;
 import me.champeau.a4j.jsolex.processing.util.ImageFormat;
@@ -377,6 +378,7 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
         int samplesSize = samples.size();
         if (samplesSize > 0) {
             var list = samples.stream()
+                    .map(img -> ((ImageWrapper32) img.unwrapToMemory()))
                     .filter(image -> {
                         var metadata = image.findMetadata(PixelShift.class);
                         if (metadata.isPresent()) {
@@ -388,20 +390,34 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
                         if (image.findMetadata(TruncatedDisk.class).isPresent() && image.findMetadata(TruncatedDisk.class).get().truncated()) {
                             return false;
                         }
-
+                        // check if there are too many saturated pixels
+                        int count = 0;
+                        var limit = image.width() * image.height() / 8;
+                        for (int y=0; y < image.height(); y++) {
+                            for (int x = 0; x < image.width(); x++) {
+                                if (image.data()[y][x] == Constants.MAX_PIXEL_VALUE) {
+                                    count++;
+                                }
+                                if (count == limit) {
+                                    return false;
+                                }
+                            }
+                        }
                         return true;
                     })
                     .map(img -> {
-                        var data = ((ImageWrapper32) img.unwrapToMemory()).data();
+                        var data = img.data();
                         var avg = imageMath.averageOf(data);
                         return new ImageWithAverage(img, avg);
                     })
-                    .toList();
-            samples = list.stream()
                     .sorted(Comparator.comparingDouble(ImageWithAverage::average).reversed())
                     .map(ImageWithAverage::image)
-                    .limit((long) Math.ceil(list.size() / 5d))
+                    .limit((long) (0.8*samplesSize))
                     .toList();
+            if (!list.isEmpty()) {
+                return (ImageWrapper32) functionCall(BuiltinFunction.MEDIAN, Map.of("list", list));
+            }
+
         }
         return (ImageWrapper32) functionCall(BuiltinFunction.MEDIAN, Map.of("list", samples));
     }

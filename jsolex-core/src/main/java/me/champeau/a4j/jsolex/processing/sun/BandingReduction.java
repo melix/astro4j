@@ -20,6 +20,8 @@ import me.champeau.a4j.math.image.Image;
 import me.champeau.a4j.math.image.ImageMath;
 import me.champeau.a4j.math.regression.Ellipse;
 
+import java.util.stream.IntStream;
+
 import static me.champeau.a4j.jsolex.processing.sun.ImageUtils.bilinearSmoothing;
 
 public class BandingReduction {
@@ -31,12 +33,16 @@ public class BandingReduction {
 
     public static void reduceBanding(int width, int height, float[][] data, int bandSize, Ellipse ellipse) {
         double[] lineAverages = lineAverages(width, height, data, ellipse);
+        double[] bandAverages = IntStream.range(0, height)
+                .parallel()
+                .mapToDouble(y -> computeAverageForBand(height, lineAverages, bandSize, y))
+                .toArray();
         for (int y = 0; y < height; y++) {
-            double bandAverage = computeAverageForBand(height, lineAverages, bandSize, y);
+            double bandAverage = bandAverages[y];
             double currentLineAverage = lineAverages[y];
             if (currentLineAverage < bandAverage) {
-                Double correction = bandAverage / currentLineAverage;
-                if (!correction.isInfinite() && !correction.isNaN()) {
+                var correction = bandAverage / currentLineAverage;
+                if (!Double.isInfinite(correction) && !Double.isNaN(correction)) {
                     for (int x = 0; x < width; x++) {
                         if (ellipse == null || ellipse.isWithin(x, y)) {
                             data[y][x] *= correction;
@@ -73,11 +79,10 @@ public class BandingReduction {
         if (ellipse == null) {
             return ImageMath.newInstance().lineAverages(new Image(width, height, data));
         }
-        double[] averages = new double[height];
-        for (int y = 0; y < height; y++) {
-            averages[y] = lineAverage(width, y, data, ellipse);
-        }
-        return averages;
+        return IntStream.range(0, height)
+                .parallel()
+                .mapToDouble(y -> lineAverage(width, y, data, ellipse))
+                .toArray();
     }
 
     private static double lineAverage(int width, int y, float[][] data, Ellipse ellipse) {
