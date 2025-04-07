@@ -88,7 +88,7 @@ public class HeliumLineProcessor {
             .label();
         if (source.unwrapToMemory() instanceof ImageWrapper32 direct) {
             imageEmitter.newMonoImage(GeneratedImageKind.GEOMETRY_CORRECTED_PROCESSED, "helium", message("helium.d3.direct"), "helium-direct", message("helium.direct.description"), direct);
-            if (evaluator.functionCall(BuiltinFunction.COLORIZE, Map.of("img", direct, "color", colorProfile)) instanceof RGBImage colorized) {
+            if (evaluator.functionCall(BuiltinFunction.COLORIZE, Map.of("img", direct, "profile", colorProfile)) instanceof RGBImage colorized) {
                 imageEmitter.newColorImage(GeneratedImageKind.COLORIZED, "helium",
                     message("helium.d3.direct.colorized"), "helium-direct-colorized", message("helium.direct.description"), colorized.width(), colorized.height(), new HashMap<>(colorized.metadata()), () -> new float[][][] { colorized.r(), colorized.g(), colorized.b() });
             }
@@ -113,7 +113,7 @@ public class HeliumLineProcessor {
                 image = Utilities.blend(image, protus, ellipse, 0.975, 1.025);
             }
             imageEmitter.newMonoImage(GeneratedImageKind.GEOMETRY_CORRECTED_PROCESSED, "helium", message("helium.d3.processed"), "helium-extracted", message("helium.extracted.description"), image);
-            if (evaluator.functionCall(BuiltinFunction.COLORIZE, Map.of("img", image, "color", colorProfile)) instanceof RGBImage colorized) {
+            if (evaluator.functionCall(BuiltinFunction.COLORIZE, Map.of("img", image, "profile", colorProfile)) instanceof RGBImage colorized) {
                 imageEmitter.newColorImage(GeneratedImageKind.COLORIZED, "helium",
                     message("helium.d3.processed.colorized"), "helium-extracted-colorized", message("helium.extracted.description"), image.width(), image.height(), new HashMap<>(image.metadata()), () -> new float[][][] { colorized.r(), colorized.g(), colorized.b() });
             }
