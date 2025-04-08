@@ -15,22 +15,19 @@
  */
 package me.champeau.a4j.jsolex.processing.sun;
 
-import me.champeau.a4j.jsolex.processing.util.Constants;
 import me.champeau.a4j.math.Point2D;
 import me.champeau.a4j.math.regression.LinearRegression;
 import me.champeau.a4j.math.tuples.DoubleQuadruplet;
 import me.champeau.a4j.math.tuples.IntPair;
 
 import java.util.ArrayList;
-import java.util.HashMap;
+import java.util.Comparator;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 import java.util.function.DoubleUnaryOperator;
-import java.util.stream.IntStream;
 
 public class SpectrumFrameAnalyzer {
-    public static final int MAX_DEVIATION = 8;
+    public static final int MAX_DEVIATION = 5;
     private final int width;
     private final int height;
     private final Double sunDetectionThreshold;
@@ -136,120 +133,117 @@ public class SpectrumFrameAnalyzer {
         result = null;
     }
 
-    private int findYAtMinimalValue(float[][] data, int x) {
-        int minY = 0;
-        double min = Double.MAX_VALUE;
-        var margin = Math.min(height, 1);
-        for (int y = margin; y < height - margin; y++) {
-            double value = data[y][x];
-            if (value < min) {
-                minY = y;
-                min = value;
-            }
-        }
-        // If frame is overexposed, ignore match
-        if (min < 0.95 * Constants.MAX_PIXEL_VALUE) {
-            return minY;
-        }
-        return -1;
-    }
-
     private Result findDistortionPolynomial(Integer leftBorder, Integer rightBorder) {
         var samplePoints = new ArrayList<Point2D>(width);
-        int l = 0;
-        int r = width;
-        if (leftBorder != null) {
-            l = leftBorder;
+
+        int l = leftBorder != null ? leftBorder : 0;
+        int r = rightBorder != null ? rightBorder + 1 : width;
+        int mid = (l + r) / 2;
+        double previousY = -1;
+
+        var centerY = findLocalMinimum(mid, data);
+        if (centerY > 0) {
+            samplePoints.add(new Point2D(mid, centerY));
+            previousY = centerY;
         }
-        if (rightBorder != null) {
-            r = rightBorder + 1;
-        }
-        int limit = (int) (0.75d * (r - l) / 2);
-        // in the first pass we restrict samples to 50% of the spectrum
-        int step = 4;
-        for (int x = l + limit; x < r - limit; x += step) {
-            var y = findYAtMinimalValue(data, x);
-            if (y >= 0) {
+
+        for (int x = mid - 1; x >= l; x--) {
+            var y = findLocalMinimumClosestTo(x, data, previousY);
+            if (y > 0) {
                 samplePoints.add(new Point2D(x, y));
+                previousY = y;
             }
         }
-        removeOutliersByStdDev(samplePoints, 2);
+        previousY = centerY;
+        for (int x = mid + 1; x < r; x++) {
+            var y = findLocalMinimumClosestTo(x, data, previousY);
+            if (y > 0) {
+                samplePoints.add(new Point2D(x, y));
+                previousY = y;
+            }
+        }
+        var fallback = new ArrayList<>(samplePoints);
+        if (samplePoints.size() < 3) {
+            samplePoints = fallback;
+        }
 
-        if (samplePoints.size() > 2) {
-            var polynomial = LinearRegression.secondOrderRegression(samplePoints.toArray(new Point2D[0])).asPolynomial();
-            var minY = IntStream.range(l, r).mapToDouble(polynomial::applyAsDouble).min().orElse(0);
-            var maxY = IntStream.range(l, r).mapToDouble(polynomial::applyAsDouble).max().orElse(0);
-            var range = Math.max(16, 2 * (1 + maxY - minY));
-            // In the 2d pass we consider all points but only keep those which are close enough to the first polynomial
-            var sampleToValue = new HashMap<Point2D, Float>();
-            for (int x = l; x < r; x += step) {
-                var y = findYAtMinimalValue(data, x);
-                if (y >= 0) {
-                    var yy = polynomial.applyAsDouble(x);
-                    if (Math.abs(yy - y) <= range) {
-                        sampleToValue.put(new Point2D(x, y), data[y][x]);
-                    }
+        var regression = LinearRegression.secondOrderRegression(samplePoints.toArray(new Point2D[0]));
+        return new Result(leftBorder, rightBorder, new DoubleQuadruplet(
+                0,
+                regression.a(),
+                regression.b(),
+                regression.c()
+        ), samplePoints);
+    }
+
+    private double findLocalMinimumClosestTo(int column, float[][] data, double targetY) {
+        record Minimum(double y, float value) {
+        }
+        var minima = new ArrayList<Minimum>();
+
+        int height = data.length;
+        int y = 0;
+        while (y < height - 1) {
+            float v = data[y][column];
+
+            int start = y;
+            while (y + 1 < height && data[y + 1][column] == v) {
+                y++;
+            }
+            int end = y;
+
+            if (start > 0 && end < height - 1) {
+                float prev = data[start - 1][column];
+                float next = data[end + 1][column];
+                if (v < prev && v < next) {
+                    var center = (start + end) / 2d;
+                    minima.add(new Minimum(center, v));
                 }
             }
-            samplePoints = keepDarkestSamples(sampleToValue);
-            samplePoints = filterByMinMaxY(samplePoints);
-            removeOutliersByStdDev(samplePoints, 3);
-            var regression = LinearRegression.thirdOrderRegression(samplePoints.toArray(new Point2D[0]));
-            return new Result(leftBorder, rightBorder, regression, samplePoints);
-        } else {
-            // Not enough sample points, we have to include the whole width
-            samplePoints.clear();
-            for (int x = l; x < r; x += step) {
-                var y = findYAtMinimalValue(data, x);
-                if (y >= 0) {
-                    samplePoints.add(new Point2D(x, y));
+
+            y++;
+        }
+
+        return minima.stream()
+                .filter(m -> targetY < 0 || Math.abs(m.y() - targetY) <= MAX_DEVIATION)
+                .min(Comparator.comparingDouble(Minimum::value))
+                .map(Minimum::y)
+                .orElse(-1d);
+    }
+
+
+    private double findLocalMinimum(int column, float[][] data) {
+        record Minimum(double y, float value) {
+        }
+        var minima = new ArrayList<Minimum>();
+
+        int height = data.length;
+        int margin = Math.max(1, height / 10);
+        int y = margin + 1;
+        while (y < height - margin - 1) {
+            float v = data[y][column];
+
+            int start = y;
+            while (y + 1 < height && data[y + 1][column] == v) {
+                y++;
+            }
+            int end = y;
+
+            if (start > 0 && end < height - 1) {
+                float prev = data[start - 1][column];
+                float next = data[end + 1][column];
+                if (v < prev && v < next) {
+                    var center = (start + end) / 2d;
+                    minima.add(new Minimum(center, v));
                 }
             }
-            if (samplePoints.size() > 2) {
-                var regression = LinearRegression.secondOrderRegression(samplePoints.toArray(new Point2D[0]));
-                return new Result(leftBorder, rightBorder, new DoubleQuadruplet(0, regression.a(), regression.b(), regression.c()), samplePoints);
-            }
-        }
-        return new Result(leftBorder, rightBorder, null, samplePoints);
-    }
 
-    private static ArrayList<Point2D> keepDarkestSamples(Map<Point2D, Float> sampleToValue) {
-        long limit = (long) (sampleToValue.size() * 0.8);
-        return sampleToValue.entrySet().stream()
-            .sorted((e1, e2) -> Float.compare(e1.getValue(), e2.getValue()))
-            .limit(limit)
-            .map(Map.Entry::getKey)
-            .collect(ArrayList::new, ArrayList::add, ArrayList::addAll);
-    }
-
-    private static ArrayList<Point2D> filterByMinMaxY(ArrayList<Point2D> samplePoints) {
-        var minY = samplePoints.stream().mapToDouble(Point2D::y).min().orElse(0);
-        var maxY = samplePoints.stream().mapToDouble(Point2D::y).max().orElse(0);
-        // compute 2 groups, based on whether a point is closer to the min or max
-        var minGroup = new ArrayList<Point2D>();
-        var maxGroup = new ArrayList<Point2D>();
-        for (var point : samplePoints) {
-            if (Math.abs(point.y() - minY) < Math.abs(point.y() - maxY)) {
-                minGroup.add(point);
-            } else {
-                maxGroup.add(point);
-            }
+            y++;
         }
-        // keep only the group with the maximum number of points
-        var minSize = minGroup.size();
-        var maxSize = maxGroup.size();
-        if (minSize > 3 * maxSize / 2 || maxSize > 3 * minSize / 2) {
-            return minSize > maxSize ? minGroup : maxGroup;
-        }
-        return samplePoints;
-    }
-
-    private static void removeOutliersByStdDev(ArrayList<Point2D> samplePoints, double factor) {
-        // compute average y value and stddev
-        var avgY = samplePoints.stream().mapToDouble(Point2D::y).average().orElse(0);
-        var stddev = Math.sqrt(samplePoints.stream().mapToDouble(p -> Math.pow(p.y() - avgY, 2)).sum() / samplePoints.size());
-        // remove samples which are 2*sigma away from the average
-        samplePoints.removeIf(p -> Math.abs(p.y() - avgY) > factor * stddev);
+        return minima.stream()
+                .min(Comparator.comparingDouble(Minimum::value))
+                .map(Minimum::y)
+                .orElse(-1d);
     }
 
     public void forcePolynomial(DoubleUnaryOperator polynomial) {

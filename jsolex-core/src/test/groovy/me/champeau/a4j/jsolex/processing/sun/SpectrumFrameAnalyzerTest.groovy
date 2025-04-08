@@ -57,9 +57,8 @@ class SpectrumFrameAnalyzerTest extends Specification {
         def polynomial = result.distortionPolynomial()
         polynomial.present
         def samples = result.samplePoints
-        samples.size() == 204
-        samples[120].x() == 1170
-        samples[120].y() == 17
+        samples[120].x() == 837
+        samples[120].y() == 17.5d
 
         def p = polynomial.get()
         for (int x = 0; x < image.width; x++) {

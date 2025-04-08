@@ -116,6 +116,9 @@ public class PhenomenaDetector {
                 columnsAverages[x] = columnAvg;
                 avgOfColumnAverages += columnAvg;
                 var y = (int) Math.round(polynomial.applyAsDouble(x));
+                if (y < 0 || y >= height) {
+                    continue;
+                }
                 double v = original[y][x];
                 avgCenterLine += v;
                 avgCenterCount++;
