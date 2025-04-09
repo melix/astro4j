@@ -105,10 +105,13 @@ public class BackgroundRemoval extends AbstractFunctionImpl {
             double sigma = doubleArg(arguments, "sigma", 2.5);
             return monoToMonoImageTransformer("backgroundModel", "img", arguments, src -> {
                 if (src instanceof ImageWrapper32 image) {
-                    var model = me.champeau.a4j.jsolex.processing.sun.BackgroundRemoval.backgroundModel(image, order, sigma).data();
-                    for (int y = 0; y < image.height(); y++) {
-                        System.arraycopy(model[y], 0, image.data()[y], 0, image.width());
-                    }
+                    Optional<ImageWrapper32> optionalModel = me.champeau.a4j.jsolex.processing.sun.BackgroundRemoval.backgroundModel(image, order, sigma);
+                    optionalModel.ifPresent(model -> {
+                        var data = model.data();
+                        for (int y = 0; y < image.height(); y++) {
+                            System.arraycopy(data[y], 0, image.data()[y], 0, image.width());
+                        }
+                    });
                 } else {
                     throw new IllegalArgumentException("backgroundModel only supports mono images");
                 }

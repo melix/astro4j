@@ -15,7 +15,6 @@
  */
 package me.champeau.a4j.jsolex.processing.stretching;
 
-import me.champeau.a4j.jsolex.processing.expr.impl.AdjustContrast;
 import me.champeau.a4j.jsolex.processing.expr.impl.Utilities;
 import me.champeau.a4j.jsolex.processing.sun.BackgroundRemoval;
 import me.champeau.a4j.jsolex.processing.sun.tasks.ImageAnalysis;
@@ -30,6 +29,7 @@ import java.util.Map;
 
 import static java.lang.Math.clamp;
 import static java.lang.Math.pow;
+import static me.champeau.a4j.jsolex.processing.expr.impl.AdjustContrast.equalize;
 import static me.champeau.a4j.jsolex.processing.util.Constants.MAX_PIXEL_VALUE;
 
 public final class AutohistogramStrategy implements StretchingStrategy {
@@ -95,32 +95,38 @@ public final class AutohistogramStrategy implements StretchingStrategy {
                     if (dist <= BLEND_START) {
                         diskData[y][x] = v1;
                     } else {
-                        protus[y][x] = v1 + asinh.stretchPixel(v);
+                        protus[y][x] = asinh.stretchPixel(v);
                     }
                 }
             }
 
             var analysis = ImageAnalysis.of(disk, true);
-            AdjustContrast.equalize(disk, analysis, 12000, 8000);
-            for (int y=0; y<height; y++) {
-                for (int x=0; x<width; x++) {
+            equalize(disk, analysis, 10000, 8000);
+            for (int y = 0; y < height; y++) {
+                for (int x = 0; x < width; x++) {
                     diskData[y][x] = backgroundMask[y][x] ? blackPoint : diskData[y][x];
                 }
             }
             var protusImage = new ImageWrapper32(width, height, protus, Map.of());
-            clamping(protus, 0.0002, .9998).stretch(protusImage);
-            RangeExpansionStrategy.DEFAULT.stretch(protusImage);
-            neutralizeBg(protusImage, 2, 2.5, 0.9f);
+            var stats = ImageAnalysis.of(protusImage, false);
+            while (stats.avg() / stats.stddev()>0.12) {
+                if (neutralizeBg(protusImage, 2, 2.5, 1f) == 0) {
+                    break;
+                }
+                stats = ImageAnalysis.of(protusImage, false);
+            }
+            clamping(protus, 0, .9998).stretch(protusImage);
+            LinearStrechingStrategy.DEFAULT.stretch(protusImage);
             for (int y = 0; y < height; y++) {
                 for (int x = 0; x < width; x++) {
                     var dist = Utilities.normalizedDistanceToCenter(x, y, cx, cy, radius);
                     if (dist >= BLEND_START && dist <= BLEND_END) {
                         // Smooth transition using a cosine blend
                         var alpha = (0.5 * (1 + Math.cos(Math.PI * (dist - BLEND_START) / (BLEND_END - BLEND_START))));
-                        var prominenceValue = protus[y][x];
+                        var prominenceValue = 0.8f * protus[y][x];
                         diskData[y][x] = (float) (alpha * diskData[y][x] + (1 - alpha) * prominenceValue);
                     } else if (dist > BLEND_END) {
-                        diskData[y][x] = protus[y][x];
+                        diskData[y][x] = 0.8f * protus[y][x];
                     }
                 }
             }
@@ -141,17 +147,21 @@ public final class AutohistogramStrategy implements StretchingStrategy {
 
     public static double neutralizeBg(ImageWrapper32 disk, int degree, double sigma, float smoothing) {
         var diskData = disk.data();
-        var model = BackgroundRemoval.backgroundModel(disk, degree, sigma).data();
-        double avg = 0;
-        for (int y = 0; y < disk.height(); y++) {
-            for (int x = 0; x < disk.width(); x++) {
-                float v = model[y][x];
-                avg += v;
-                diskData[y][x] = Math.clamp(diskData[y][x] - smoothing * v, 0, MAX_PIXEL_VALUE);
+        var optionalModel = BackgroundRemoval.backgroundModel(disk, degree, sigma);
+        if (optionalModel.isPresent()) {
+            var data = optionalModel.get().data();
+            double avg = 0;
+            for (int y = 0; y < disk.height(); y++) {
+                for (int x = 0; x < disk.width(); x++) {
+                    float v = data[y][x];
+                    avg += v;
+                    diskData[y][x] = Math.clamp(diskData[y][x] - smoothing * v, 0, MAX_PIXEL_VALUE);
+                }
             }
+            avg = avg / (disk.width() * disk.height());
+            return avg;
         }
-        avg = avg / (disk.width() * disk.height());
-        return avg;
+        return 0;
     }
 
     private static void mixInClahe(ImageWrapper32 image, float[][] diskData) {

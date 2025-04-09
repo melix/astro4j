@@ -82,16 +82,16 @@ public class HeliumLineProcessor {
         evaluator.putInContext(ProgressOperation.class, progressOperation);
         evaluator.putInContext(PixelShiftRange.class, pixelShiftRange);
         var colorProfile = SpectralRayIO.loadDefaults()
-            .stream()
-            .filter(r -> SpectralRay.HELIUM_D3.label().equals(r.label()))
-            .findFirst()
-            .orElse(SpectralRay.HELIUM_D3)
-            .label();
+                .stream()
+                .filter(r -> SpectralRay.HELIUM_D3.label().equals(r.label()))
+                .findFirst()
+                .orElse(SpectralRay.HELIUM_D3)
+                .label();
         if (source.unwrapToMemory() instanceof ImageWrapper32 direct) {
             imageEmitter.newMonoImage(GeneratedImageKind.GEOMETRY_CORRECTED_PROCESSED, "helium", message("helium.d3.direct"), "helium-direct", message("helium.direct.description"), direct);
             if (evaluator.functionCall(BuiltinFunction.COLORIZE, Map.of("img", direct, "profile", colorProfile)) instanceof RGBImage colorized) {
                 imageEmitter.newColorImage(GeneratedImageKind.COLORIZED, "helium",
-                    message("helium.d3.direct.colorized"), "helium-direct-colorized", message("helium.direct.description"), colorized.width(), colorized.height(), new HashMap<>(colorized.metadata()), () -> new float[][][] { colorized.r(), colorized.g(), colorized.b() });
+                        message("helium.d3.direct.colorized"), "helium-direct-colorized", message("helium.direct.description"), colorized.width(), colorized.height(), new HashMap<>(colorized.metadata()), () -> new float[][][]{colorized.r(), colorized.g(), colorized.b()});
             }
         }
         var continuum = evaluator.functionCall(BuiltinFunction.ELLIPSE_FIT, Map.of("img", evaluator.createContinuumImage()));
@@ -99,29 +99,33 @@ public class HeliumLineProcessor {
         if (raw instanceof ImageWrapper32 image) {
             LinearStrechingStrategy.DEFAULT.stretch(image);
             var ellipse = image.findMetadata(Ellipse.class).orElse(null);
-            var bgModel = backgroundModel(image, 2, 2.5);
+            var bgModel = backgroundModel(image, 2, 2.5).orElse(null);
+            if (bgModel == null) {
+                // create dummy model
+                bgModel = new ImageWrapper32(image.width(), image.height(), new float[image.height()][image.width()], Map.of());
+            }
             bgModel = (ImageWrapper32) evaluator.mul(0.8, bgModel);
             bgModel = (ImageWrapper32) evaluator.functionCall(BuiltinFunction.DISK_FILL, Map.of("img", bgModel));
             image = (ImageWrapper32) evaluator.minus(image, bgModel);
-            var protus = image.copy();
-            protus = (ImageWrapper32) evaluator.functionCall(BuiltinFunction.DISK_FILL, Map.of("img", protus, "fill", 0));
-            new ArcsinhStretchingStrategy(0, 10, 10).stretch(protus);
-            new AutohistogramStrategy(1).stretch(protus);
-            image = (ImageWrapper32) evaluator.functionCall(BuiltinFunction.POW, Map.of("v", image, "exp", 2));
-            LinearStrechingStrategy.DEFAULT.stretch(image);
-            new AutohistogramStrategy(1).stretch(image);
-            var blurred = ImageMath.newInstance().convolve(image.asImage(), Kernel33.GAUSSIAN_BLUR);
             if (ellipse != null) {
-               image =  (ImageWrapper32) evaluator.functionCall(BuiltinFunction.MAX, Map.of("list", List.of(protus, ImageWrapper32.fromImage(blurred))));
-               var bandSize = (ellipse.semiAxis().a() + ellipse.semiAxis().b()) / 16;
+                var bandSize = (ellipse.semiAxis().a() + ellipse.semiAxis().b()) / 16;
                 for (int i = 0; i < 6; i++) {
                     BandingReduction.reduceBanding(image.width(), image.height(), image.data(), (int) bandSize, ellipse);
                 }
             }
+            var protus = image.copy();
+            protus = (ImageWrapper32) evaluator.functionCall(BuiltinFunction.DISK_FILL, Map.of("img", protus, "fill", 0));
+            new ArcsinhStretchingStrategy(0, 10, 10).stretch(protus);
+            image = (ImageWrapper32) evaluator.functionCall(BuiltinFunction.POW, Map.of("v", image, "exp", 2));
+            LinearStrechingStrategy.DEFAULT.stretch(image);
+            new AutohistogramStrategy(1).stretch(image);
+            new ArcsinhStretchingStrategy(0, 3, 3).stretch(image);
+            var blurred = ImageMath.newInstance().convolve(image.asImage(), Kernel33.GAUSSIAN_BLUR);
+            image = (ImageWrapper32) evaluator.functionCall(BuiltinFunction.MAX, Map.of("list", List.of(protus, ImageWrapper32.fromImage(blurred))));
             imageEmitter.newMonoImage(GeneratedImageKind.GEOMETRY_CORRECTED_PROCESSED, "helium", message("helium.d3.processed"), "helium-extracted", message("helium.extracted.description"), image);
             if (evaluator.functionCall(BuiltinFunction.COLORIZE, Map.of("img", image, "profile", colorProfile)) instanceof RGBImage colorized) {
                 imageEmitter.newColorImage(GeneratedImageKind.COLORIZED, "helium",
-                    message("helium.d3.processed.colorized"), "helium-extracted-colorized", message("helium.extracted.description"), image.width(), image.height(), new HashMap<>(image.metadata()), () -> new float[][][] { colorized.r(), colorized.g(), colorized.b() });
+                        message("helium.d3.processed.colorized"), "helium-extracted-colorized", message("helium.extracted.description"), image.width(), image.height(), new HashMap<>(image.metadata()), () -> new float[][][]{colorized.r(), colorized.g(), colorized.b()});
             }
         }
     }

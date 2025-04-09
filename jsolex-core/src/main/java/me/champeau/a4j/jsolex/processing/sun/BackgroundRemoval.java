@@ -27,6 +27,7 @@ import org.slf4j.LoggerFactory;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.IntStream;
 
 import static me.champeau.a4j.jsolex.processing.sun.ImageUtils.bilinearSmoothing;
@@ -160,7 +161,7 @@ public class BackgroundRemoval {
      * @param image the image to process
      * @return the background model
      */
-    public static ImageWrapper32 backgroundModel(ImageWrapper32 image, int degree, double sigma) {
+    public static Optional<ImageWrapper32> backgroundModel(ImageWrapper32 image, int degree, double sigma) {
         var data = image.data();
         int height = image.height();
         int width = image.width();
@@ -204,8 +205,8 @@ public class BackgroundRemoval {
         var background = new float[height][width];
         // Check for sufficient samples
         if (xMatrix.size() < numTerms) {
-            LOGGER.error("Insufficient samples: {} < {} for background model", xMatrix.size(), numTerms);
-            return new ImageWrapper32(width, height, background, new HashMap<>(image.metadata()));
+            LOGGER.debug("Insufficient samples: {} < {} for background model", xMatrix.size(), numTerms);
+            return Optional.empty();
         }
 
         var mX = MatrixUtils.createRealMatrix(xMatrix.toArray(new double[0][]));
@@ -233,23 +234,25 @@ public class BackgroundRemoval {
                 background[y][x] = (float) Math.clamp(bgValue, 0, Constants.MAX_PIXEL_VALUE);
             }
         });
-
-        return new ImageWrapper32(width, height, background, new HashMap<>(image.metadata()));
+        return Optional.of(new ImageWrapper32(width, height, background, new HashMap<>(image.metadata())));
     }
 
     private static double[] generatePolynomialTerms(double x, double y, int width, int height, int degree) {
-        List<Double> terms = new ArrayList<>();
+        int termCount = (degree + 1) * (degree + 2) / 2;
+        var terms = new double[termCount];
         double xNorm = x / (width - 1);
         double yNorm = y / (height - 1);
+
+        int index = 0;
         for (int s = 0; s <= degree; s++) {
             for (int i = s; i >= 0; i--) {
                 int j = s - i;
-                terms.add(Math.pow(xNorm, i) * Math.pow(yNorm, j));
+                terms[index++] = Math.pow(xNorm, i) * Math.pow(yNorm, j);
             }
         }
-        return terms.stream().mapToDouble(Double::doubleValue).toArray();
-    }
 
+        return terms;
+    }
 
     /**
      * This method replaces all pixels which have a value of 0 with the
