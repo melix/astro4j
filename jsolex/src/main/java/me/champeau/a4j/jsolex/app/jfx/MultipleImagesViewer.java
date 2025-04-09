@@ -157,13 +157,9 @@ public class MultipleImagesViewer extends Pane {
         try {
             lock.lock();
 
-            System.out.println("Adding image " + title + " file " + file);
             var category = getOrCreateCategory(kind);
-            System.out.println("category = " + category);
             var viewer = newImageViewer();
-            System.out.println("viewer = " + viewer);
             var transformed = transformer.apply(viewer);
-            System.out.println("transformed = " + transformed);
             viewer.setup(
                     listener,
                     operation,
