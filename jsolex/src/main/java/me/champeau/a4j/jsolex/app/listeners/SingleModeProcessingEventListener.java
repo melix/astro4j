@@ -525,7 +525,7 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
                 private void performCropping(ImageWrapper stretchedImage, int x, int y, int width, int height) {
                     BackgroundOperations.async(() -> {
                         var crop = new Crop(Map.of(), SingleModeProcessingEventListener.this);
-                        var cropped = crop.crop(Map.of("img", stretchedImage, "x", x, "y", y, "width", width, "height", height));
+                        var cropped = crop.crop(Map.of("img", stretchedImage, "left", x, "top", y, "width", width, "height", height));
                         if (cropped instanceof ImageWrapper croppedImage) {
                             var id = cropCount.getAndIncrement();
                             var imageName = "cropped-" + id;

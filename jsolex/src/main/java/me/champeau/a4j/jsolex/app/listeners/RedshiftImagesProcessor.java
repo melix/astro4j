@@ -216,7 +216,7 @@ public class RedshiftImagesProcessor {
         var crop = new Crop(Map.of(), broadcaster);
         var constrastAdjusted = shiftToContrastAdjusted.keySet().stream().sorted().map(shiftToContrastAdjusted::get).toList();
         var animate = new Animate(Map.of(), broadcaster);
-        var cropped = crop.crop(Map.of("img", constrastAdjusted, "x", x1, "y", y1, "width", boxSize, "height", boxSize));
+        var cropped = crop.crop(Map.of("img", constrastAdjusted, "left", x1, "top", y1, "width", boxSize, "height", boxSize));
         if (kind == RedshiftCreatorKind.ANIMATION || kind == RedshiftCreatorKind.ALL) {
             var annotationColorHex = toHex(annotationColor);
             generateAnim(redshift, animate, cropped, annotateAnimations, boxSize, boxSize, new Scaling(Map.of(), broadcaster, crop), annotationColorHex);
@@ -250,7 +250,7 @@ public class RedshiftImagesProcessor {
         var cropWidth = Math.min(width, maxWidth - x);
         var cropHeight = Math.min(height, maxHeight - y);
         var constrastAdjusted = contrast.autoContrast(Map.of("img", initialImages, "gamma", params.autoStretchParams().gamma()));
-        var cropped = crop.crop(Map.of("img", constrastAdjusted, "x", x, "y", y, "width", cropWidth, "height", cropHeight));
+        var cropped = crop.crop(Map.of("img", constrastAdjusted, "left", x, "top", y, "width", cropWidth, "height", cropHeight));
         var scaling = new Scaling(Map.of(), broadcaster, crop);
         var annotationColorHex = toHex(annotationColor);
         List<ImageWrapper> frames = createFrames(cropWidth, cropHeight, annotate, cropped, scaling, annotationColorHex);
@@ -325,7 +325,7 @@ public class RedshiftImagesProcessor {
         // make sure that x+width <= maxWidth and y+height <= maxHeight
         var cropWidth = Math.min(width, initialImages.stream().mapToInt(ImageWrapper::width).max().orElse(0) - x);
         var cropHeight = Math.min(height, initialImages.stream().mapToInt(ImageWrapper::height).max().orElse(0) - y);
-        var cropped = crop.crop(Map.of("img", constrastAdjusted, "x", x, "y", y, "width", cropWidth, "height", cropHeight));
+        var cropped = crop.crop(Map.of("img", constrastAdjusted, "left", x, "top", y, "width", cropWidth, "height", cropHeight));
         // compute individual width/height so that the final image width doesn't exceed 7680 pixels
         var maxWidth = MAX_PANEL_SIZE / Math.sqrt(initialImages.size());
         var maxHeight = MAX_PANEL_SIZE / Math.sqrt(initialImages.size());
