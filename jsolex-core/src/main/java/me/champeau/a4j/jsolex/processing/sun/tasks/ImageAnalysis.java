@@ -74,8 +74,8 @@ public record ImageAnalysis(float avg, float stddev, float min, float max, Histo
         for (int y = 0; y < height; y++) {
             for (int x = 0; x < width; x++) {
                 if (e.isWithin(x, y)) {
-                    n++;
                     var v = array[y][x];
+                    n++;
                     sum += v;
                     min = Math.min(min, v);
                     max = Math.max(max, v);

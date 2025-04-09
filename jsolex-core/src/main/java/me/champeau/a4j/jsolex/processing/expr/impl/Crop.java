@@ -21,6 +21,7 @@ import me.champeau.a4j.jsolex.processing.sun.crop.Cropper;
 import me.champeau.a4j.jsolex.processing.sun.detection.RedshiftArea;
 import me.champeau.a4j.jsolex.processing.sun.detection.Redshifts;
 import me.champeau.a4j.jsolex.processing.sun.detection.ActiveRegions;
+import me.champeau.a4j.jsolex.processing.sun.workflow.AnalysisUtils;
 import me.champeau.a4j.jsolex.processing.sun.workflow.ImageStats;
 import me.champeau.a4j.jsolex.processing.sun.workflow.ReferenceCoords;
 import me.champeau.a4j.jsolex.processing.util.FileBackedImage;
@@ -185,6 +186,9 @@ public class Crop extends AbstractFunctionImpl {
         Object finalArg = arg;
         var blackpoint = getFromContext(ImageStats.class).map(ImageStats::blackpoint).orElseGet(() -> {
             if (finalArg instanceof ImageWrapper wrapper && wrapper.unwrapToMemory() instanceof ImageWrapper32 mono) {
+                if (ellipse.isPresent()) {
+                    return (float) AnalysisUtils.estimateBlackPoint(mono, ellipse.get()) * 1.2f;
+                }
                 var histo = Histogram.builder(65536);
                 for (float[] line : mono.data()) {
                     for (float v : line) {

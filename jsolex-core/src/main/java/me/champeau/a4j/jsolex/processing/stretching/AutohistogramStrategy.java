@@ -15,27 +15,28 @@
  */
 package me.champeau.a4j.jsolex.processing.stretching;
 
+import me.champeau.a4j.jsolex.processing.expr.impl.AdjustContrast;
 import me.champeau.a4j.jsolex.processing.expr.impl.Utilities;
 import me.champeau.a4j.jsolex.processing.sun.BackgroundRemoval;
+import me.champeau.a4j.jsolex.processing.sun.tasks.ImageAnalysis;
+import me.champeau.a4j.jsolex.processing.sun.workflow.AnalysisUtils;
 import me.champeau.a4j.jsolex.processing.util.Histogram;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 import me.champeau.a4j.math.regression.Ellipse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.ArrayList;
-import java.util.List;
+import java.util.Map;
 
-import static java.lang.Math.*;
+import static java.lang.Math.clamp;
+import static java.lang.Math.pow;
 import static me.champeau.a4j.jsolex.processing.util.Constants.MAX_PIXEL_VALUE;
 
 public final class AutohistogramStrategy implements StretchingStrategy {
     private static final Logger LOGGER = LoggerFactory.getLogger(AutohistogramStrategy.class);
 
     private static final float BLEND_START = 1.0f;
-    private static final float BLEND_END = 1.025f;
-    private static final int HISTOGRAM_BINS = 256;
-    private static final double TARGET_PEAK = 0.4;
+    private static final float BLEND_END = 1.05f;
 
     public static final double DEFAULT_GAMMA = 1.5;
 
@@ -55,6 +56,7 @@ public final class AutohistogramStrategy implements StretchingStrategy {
      */
     @Override
     public void stretch(ImageWrapper32 image) {
+        var origAnalysis = ImageAnalysis.of(image, true);
         var disk = image.copy();
         var height = image.height();
         var width = image.width();
@@ -63,6 +65,13 @@ public final class AutohistogramStrategy implements StretchingStrategy {
         var ellipse = image.findMetadata(Ellipse.class);
         if (ellipse.isPresent()) {
             var e = ellipse.get();
+            var blackPoint = (float) AnalysisUtils.estimateBlackPoint(disk, e) * 1.2f;
+            var backgroundMask = new boolean[height][width];
+            for (int y = 0; y < height; y++) {
+                for (int x = 0; x < width; x++) {
+                    backgroundMask[y][x] = diskData[y][x] < blackPoint;
+                }
+            }
             var cx = e.center().a();
             var cy = e.center().b();
             var semiAxis = e.semiAxis();
@@ -73,7 +82,8 @@ public final class AutohistogramStrategy implements StretchingStrategy {
                     max = Math.max(diskData[y][x], max);
                 }
             }
-            var asinh = new ArcsinhStretchingStrategy(0, 1.5f, 1.5f);
+            var protus = new float[height][width];
+            var asinh = new ArcsinhStretchingStrategy(0, 1.2f, 1.5f);
             for (int y = 0; y < height; y++) {
                 for (int x = 0; x < width; x++) {
                     var v = diskData[y][x];
@@ -84,15 +94,34 @@ public final class AutohistogramStrategy implements StretchingStrategy {
 
                     if (dist <= BLEND_START) {
                         diskData[y][x] = v1;
-                    } else if (dist <= BLEND_END) {
-                        // Smooth transition using a cosine blend
-                        float alpha = (float) (0.5 * (1 + Math.cos(Math.PI * (dist - BLEND_START) / (BLEND_END - BLEND_START))));
-                        float prominenceValue = diskData[y][x] + asinh.stretchPixel(v);
-                        diskData[y][x] = alpha * v1 + (1 - alpha) * prominenceValue;
                     } else {
-                        diskData[y][x] += asinh.stretchPixel(v);
+                        protus[y][x] = v1 + asinh.stretchPixel(v);
                     }
+                }
+            }
 
+            var analysis = ImageAnalysis.of(disk, true);
+            AdjustContrast.equalize(disk, analysis, 12000, 8000);
+            for (int y=0; y<height; y++) {
+                for (int x=0; x<width; x++) {
+                    diskData[y][x] = backgroundMask[y][x] ? blackPoint : diskData[y][x];
+                }
+            }
+            var protusImage = new ImageWrapper32(width, height, protus, Map.of());
+            clamping(protus, 0.0002, .9998).stretch(protusImage);
+            RangeExpansionStrategy.DEFAULT.stretch(protusImage);
+            neutralizeBg(protusImage, 2, 2.5, 0.9f);
+            for (int y = 0; y < height; y++) {
+                for (int x = 0; x < width; x++) {
+                    var dist = Utilities.normalizedDistanceToCenter(x, y, cx, cy, radius);
+                    if (dist >= BLEND_START && dist <= BLEND_END) {
+                        // Smooth transition using a cosine blend
+                        var alpha = (0.5 * (1 + Math.cos(Math.PI * (dist - BLEND_START) / (BLEND_END - BLEND_START))));
+                        var prominenceValue = protus[y][x];
+                        diskData[y][x] = (float) (alpha * diskData[y][x] + (1 - alpha) * prominenceValue);
+                    } else if (dist > BLEND_END) {
+                        diskData[y][x] = protus[y][x];
+                    }
                 }
             }
             for (int y = 0; y < height; y++) {
@@ -105,22 +134,12 @@ public final class AutohistogramStrategy implements StretchingStrategy {
             }
         }
         diskData = image.data();
-        // for histogram transform, we will only consider pixels within 1.2 * radius of the center of the disk
-        LoHi lohi;
-        if (ellipse.isPresent()) {
-            var histo = maskedHistogram(diskData, width, height, ellipse.get());
-            lohi = findLoHi(histo);
-        } else {
-            lohi = findLoHi(diskData);
-        }
-        new DynamicStretchStrategy(lohi.hi(), TARGET_PEAK).stretch(image);
         mixInClahe(image, diskData);
-        alignLeftHistogram(diskData);
         clamping(diskData, 0, .9998).stretch(image);
         RangeExpansionStrategy.DEFAULT.stretch(image);
     }
 
-    private static double neutralizeBg(ImageWrapper32 disk, int degree, double sigma, float smoothing) {
+    public static double neutralizeBg(ImageWrapper32 disk, int degree, double sigma, float smoothing) {
         var diskData = disk.data();
         var model = BackgroundRemoval.backgroundModel(disk, degree, sigma).data();
         double avg = 0;
@@ -149,104 +168,11 @@ public final class AutohistogramStrategy implements StretchingStrategy {
         }
     }
 
-    private static void alignLeftHistogram(float[][] diskData) {
-        var histo = Histogram.of(diskData, 256);
-        var avg = 0;
-        for (int i = 0; i < 256; i++) {
-            avg += histo.get(i);
-        }
-        avg = avg / 256;
-        float stddev = 0;
-        for (int i = 0; i < 256; i++) {
-            var v = histo.get(i) - avg;
-            stddev += v * v;
-        }
-        stddev = (float) sqrt(stddev / 255);
-        for (int i = 0; i < 256; i++) {
-            if (histo.get(i) > 2 * stddev) {
-                var limit = 256 * i;
-                for (var line : diskData) {
-                    for (int k = 0; k < line.length; k++) {
-                        float v = line[k];
-                        line[k] = Math.max(0, v - limit);
-                    }
-                }
-                break;
-            }
-        }
-    }
-
     private static ContrastAdjustmentStrategy clamping(float[][] diskData, double loPercentile, double hiPercentile) {
         var cumulative = Histogram.of(diskData, 65536).cumulative();
         var lo = cumulative.percentile(loPercentile);
         var hi = cumulative.percentile(hiPercentile);
         return new ContrastAdjustmentStrategy(lo, hi);
-    }
-
-    private static Histogram maskedHistogram(float[][] image, int width, int height, Ellipse ellipse) {
-        var builder = Histogram.builder(HISTOGRAM_BINS);
-        for (int y = 0; y < height; y++) {
-            for (int x = 0; x < width; x++) {
-                if (ellipse.isWithin(x, y)) {
-                    builder.record(image[y][x]);
-                }
-            }
-        }
-        return builder.build();
-    }
-
-    private static LoHi findLoHi(float[][] image) {
-        var histo = Histogram.of(image, HISTOGRAM_BINS);
-        return findLoHi(histo);
-    }
-
-    private static LoHi findLoHi(Histogram histo) {
-        var values = StretchingUtils.performSmoothing(histo.values());
-        int peakIndex = findRightmostPeak(values);
-        float lo = 0;
-        float hi = peakIndex * HISTOGRAM_BINS;
-        double val = values[peakIndex];
-        double cutoff = val / 2;
-        for (int i = peakIndex + 1; i < HISTOGRAM_BINS; i++) {
-            if (values[i] <= cutoff) {
-                hi = i * HISTOGRAM_BINS;
-                break;
-            }
-        }
-
-        for (int i = peakIndex - 1; i >= 0; i--) {
-            if (values[i] <= cutoff) {
-                lo = i * HISTOGRAM_BINS;
-                break;
-            }
-        }
-        return new LoHi(lo, hi);
-    }
-
-    public static int findRightmostPeak(double[] values) {
-        List<Peak> peaks = new ArrayList<>();
-        // we intentionally ignore the 4 first bins, assuming they are not relevant
-        for (int i = 8; i < values.length - 1; i++) {
-            double previous = values[i - 1];
-            double value = values[i];
-            double next = values[i + 1];
-            if (value > previous && value > next) {
-                peaks.add(new Peak(i, value));
-            }
-        }
-        // remove peaks which are too low
-        var avgPeakValue = peaks.stream().mapToDouble(Peak::value).average().orElse(0);
-        peaks.removeIf(p -> p.value < 0.25 * avgPeakValue);
-        if (peaks.isEmpty()) {
-            return 0;
-        }
-        return peaks.getLast().index();
-    }
-
-    record Peak(int index, double value) {
-    }
-
-    private record LoHi(float lo, float hi) {
     }
 
 }

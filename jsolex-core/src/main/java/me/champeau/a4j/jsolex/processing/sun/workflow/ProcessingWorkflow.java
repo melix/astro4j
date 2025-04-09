@@ -70,6 +70,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.function.Supplier;
 
+import static me.champeau.a4j.jsolex.processing.stretching.AutohistogramStrategy.neutralizeBg;
 import static me.champeau.a4j.jsolex.processing.sun.ImageUtils.bilinearSmoothing;
 import static me.champeau.a4j.jsolex.processing.util.Constants.message;
 import static me.champeau.a4j.jsolex.processing.util.DebugImageHelper.maybeDisplayTiltImage;
@@ -455,7 +456,7 @@ public class ProcessingWorkflow {
                     float[][] mix = new float[height][width];
                     var coronaData = coronagraph.data();
                     var filtered = ImageWrapper.copyData(coronaData);
-                    prefilter(diskEllipse, filtered, width, height);
+                    neutralizeBg(new ImageWrapper32(width, height, filtered, Map.of()), 2, 3, 0.9f);
                     for (int y = 0; y < height; y++) {
                         for (int x = 0; x < width; x++) {
                             if (diskEllipse.isWithin(x, y)) {

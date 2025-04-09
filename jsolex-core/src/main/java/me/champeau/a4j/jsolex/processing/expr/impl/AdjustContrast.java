@@ -36,7 +36,7 @@ public class AdjustContrast extends AbstractFunctionImpl {
         super(context, broadcaster);
     }
 
-    public Object adjustContrast(Map<String ,Object> arguments) {
+    public Object adjustContrast(Map<String, Object> arguments) {
         BuiltinFunction.ADJUST_CONTRAST.validateArgs(arguments);
         int min = intArg(arguments, "min", 0);
         int max = intArg(arguments, "max", 255);
@@ -46,28 +46,28 @@ public class AdjustContrast extends AbstractFunctionImpl {
         if (max < 0 || max > 255) {
             throw new IllegalArgumentException("adjust_contrast max must be between 0 and 255");
         }
-        return monoToMonoImageTransformer( "adjust_contrast", "img", arguments, image -> new ContrastAdjustmentStrategy(min << 8, max << 8).stretch(image));
+        return monoToMonoImageTransformer("adjust_contrast", "img", arguments, image -> new ContrastAdjustmentStrategy(min << 8, max << 8).stretch(image));
     }
 
-    public Object adjustGamma(Map<String ,Object> arguments) {
+    public Object adjustGamma(Map<String, Object> arguments) {
         BuiltinFunction.ADJUST_GAMMA.validateArgs(arguments);
         double gamma = doubleArg(arguments, "gamma", 1);
         if (gamma <= 0) {
             throw new IllegalArgumentException("gamma must be positive");
         }
-        return monoToMonoImageTransformer( "adjust_gamma", "img", arguments, image -> new GammaStrategy(gamma).stretch(image));
+        return monoToMonoImageTransformer("adjust_gamma", "img", arguments, image -> new GammaStrategy(gamma).stretch(image));
     }
 
-    public Object autoContrast(Map<String ,Object> arguments) {
+    public Object autoContrast(Map<String, Object> arguments) {
         BuiltinFunction.AUTO_CONTRAST.validateArgs(arguments);
         double gamma = doubleArg(arguments, "gamma", 1);
         if (gamma < 1) {
             throw new IllegalArgumentException("gamma must be greater than 1");
         }
-        return monoToMonoImageTransformer( "auto_contrast", "img", arguments, image -> new AutohistogramStrategy(gamma).stretch(image));
+        return monoToMonoImageTransformer("auto_contrast", "img", arguments, image -> new AutohistogramStrategy(gamma).stretch(image));
     }
 
-    public Object equalize(Map<String ,Object> arguments) {
+    public Object equalize(Map<String, Object> arguments) {
         BuiltinFunction.EQUALIZE.validateArgs(arguments);
         if (!(arguments.get("list") instanceof List<?> topLevel) || topLevel.size() != 1) {
             throw new IllegalArgumentException("equalize requires a list of images");
@@ -82,7 +82,7 @@ public class AdjustContrast extends AbstractFunctionImpl {
         var stats = list.stream()
                 .parallel()
                 .map(i -> {
-                    var img = ((ImageWrapper)i).unwrapToMemory();
+                    var img = ((ImageWrapper) i).unwrapToMemory();
                     if (!(img instanceof ImageWrapper32 mono)) {
                         throw new IllegalArgumentException("equalize only supports mono images");
                     }
@@ -109,8 +109,8 @@ public class AdjustContrast extends AbstractFunctionImpl {
                     var image = e.getKey();
                     var analysis = e.getValue();
                     var data = image.data();
-                    for (int y=0; y < image.height(); y++) {
-                        for (int x=0; x < image.width(); x++) {
+                    for (int y = 0; y < image.height(); y++) {
+                        for (int x = 0; x < image.width(); x++) {
                             double v = data[y][x] - analysis.avg();
                             // scale by stddev
                             v = v * stddev / analysis.stddev();
@@ -126,8 +126,8 @@ public class AdjustContrast extends AbstractFunctionImpl {
 
     public static void equalize(ImageWrapper32 image, ImageAnalysis analysis, float average, float stddev) {
         var data = image.data();
-        for (int y=0; y < image.height(); y++) {
-            for (int x=0; x < image.width(); x++) {
+        for (int y = 0; y < image.height(); y++) {
+            for (int x = 0; x < image.width(); x++) {
                 double v = data[y][x] - analysis.avg();
                 // scale by stddev
                 v = v * stddev / analysis.stddev();
