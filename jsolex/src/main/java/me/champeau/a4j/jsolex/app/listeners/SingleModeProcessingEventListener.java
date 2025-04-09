@@ -424,12 +424,12 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
 
     @Override
     public void onImageGenerated(ImageGeneratedEvent event) {
+        var payload = event.getPayload();
+        var title = payload.title();
+        var generatedImageKind = payload.kind();
+        var imageWrapper = payload.image();
+        var pixelShift = imageWrapper.findMetadata(PixelShift.class);
         Platform.runLater(() -> {
-            var payload = event.getPayload();
-            var title = payload.title();
-            var generatedImageKind = payload.kind();
-            var imageWrapper = payload.image();
-            var pixelShift = imageWrapper.findMetadata(PixelShift.class);
             var addedImageViewer = owner.getImagesViewer().addImage(this,
                     rootOperation,
                     title,

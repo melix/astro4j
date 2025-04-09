@@ -61,8 +61,6 @@ public interface JSolExInterface {
 
     void applyUserRotation(ApplyUserRotation params);
 
-    void showImages();
-
     void setTrimmingParameters(TrimmingParameters payload);
 
 }

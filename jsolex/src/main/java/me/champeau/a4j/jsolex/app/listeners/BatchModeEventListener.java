@@ -349,9 +349,6 @@ public class BatchModeEventListener implements ProcessingEventListener, ImageMat
             }
         } finally {
             Platform.runLater(() -> owner.updateProgress(1, String.format(message("batch.finished"))));
-            if (hasCustomImages.get()) {
-                owner.showImages();
-            }
         }
     }
 
@@ -377,9 +374,10 @@ public class BatchModeEventListener implements ProcessingEventListener, ImageMat
             return;
         }
         Platform.runLater(() -> {
-            var tabPane = owner.getTabs();
-            tabPane.getTabs().add(owner.getImagesViewerTab());
-            tabPane.getSelectionModel().select(owner.getImagesViewerTab());
+                var tabPane = owner.getTabs();
+                var imagesViewerTab = owner.getImagesViewerTab();
+                tabPane.getTabs().add(imagesViewerTab);
+                tabPane.getSelectionModel().select(imagesViewerTab);
         });
         result.imagesByLabel().entrySet().stream().parallel().forEach(entry -> {
             var name = namingStrategy.render(0, null, Constants.TYPE_PROCESSED, entry.getKey(), "batch");

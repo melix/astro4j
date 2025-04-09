@@ -45,13 +45,13 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.stream.Stream;
@@ -61,22 +61,23 @@ import static me.champeau.a4j.jsolex.app.JSolEx.message;
 public class MultipleImagesViewer extends Pane {
     // Ordered list to determine the default image to show
     private static final List<GeneratedImageKind> DEFAULT_IMAGE_TO_SHOW = List.of(
-        GeneratedImageKind.IMAGE_MATH,
-        GeneratedImageKind.COMPOSITION,
-        GeneratedImageKind.GEOMETRY_CORRECTED_PROCESSED,
-        GeneratedImageKind.GEOMETRY_CORRECTED,
-        GeneratedImageKind.RAW,
-        GeneratedImageKind.MIXED,
-        GeneratedImageKind.COLORIZED,
-        GeneratedImageKind.CONTINUUM,
-        GeneratedImageKind.TECHNICAL_CARD
+            GeneratedImageKind.IMAGE_MATH,
+            GeneratedImageKind.COMPOSITION,
+            GeneratedImageKind.GEOMETRY_CORRECTED_PROCESSED,
+            GeneratedImageKind.GEOMETRY_CORRECTED,
+            GeneratedImageKind.RAW,
+            GeneratedImageKind.MIXED,
+            GeneratedImageKind.COLORIZED,
+            GeneratedImageKind.CONTINUUM,
+            GeneratedImageKind.TECHNICAL_CARD
     );
 
-    private final Set<ImageViewer> imageViews = Collections.synchronizedSet(new HashSet<>());
-    private final List<CategoryPane> safeCategories = Collections.synchronizedList(new ArrayList<>());
+    private final Set<ImageViewer> imageViews = new HashSet<>();
+    private final List<CategoryPane> safeCategories = new ArrayList<>();
     private final ObservableList<Node> categories;
     private final BorderPane borderPane;
-    private Map<Object, Runnable> onShowHooks = Collections.synchronizedMap(new HashMap<>());
+    private final ReentrantLock lock = new ReentrantLock();
+    private Map<Object, Runnable> onShowHooks = new HashMap<>();
     private Hyperlink selected = null;
     private GeneratedImageKind selectedKind = null;
     private Object selectedView;
@@ -96,32 +97,48 @@ public class MultipleImagesViewer extends Pane {
     }
 
     public void clear() {
-        Platform.runLater(() -> {
-            safeCategories.clear();
-            categories.clear();
-            borderPane.setCenter(null);
-            imageViews.clear();
-        });
-        selected = null;
-        selectedKind = null;
-        selectedView = null;
+        try {
+            lock.lock();
+            Platform.runLater(() -> {
+                safeCategories.clear();
+                categories.clear();
+                borderPane.setCenter(null);
+                imageViews.clear();
+            });
+            selected = null;
+            selectedKind = null;
+            selectedView = null;
+        } finally {
+            lock.unlock();
+        }
     }
 
     private ImageViewer newImageViewer() {
-        var fxmlLoader = I18N.fxmlLoader(JSolEx.class, "imageview");
         try {
-            var node = (Node) fxmlLoader.load();
-            var controller = (ImageViewer) fxmlLoader.getController();
-            controller.init(node);
-            imageViews.add(controller);
-            return controller;
-        } catch (IOException e) {
-            throw new RuntimeException(e);
+            lock.lock();
+
+            var fxmlLoader = I18N.fxmlLoader(JSolEx.class, "imageview");
+            try {
+                var node = (Node) fxmlLoader.load();
+                var controller = (ImageViewer) fxmlLoader.getController();
+                controller.init(node);
+                imageViews.add(controller);
+                return controller;
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
+        } finally {
+            lock.unlock();
         }
     }
 
     public void registerOnShowHook(Object view, Runnable action) {
-        onShowHooks.put(view, action);
+        try {
+            lock.lock();
+            onShowHooks.put(view, action);
+        } finally {
+            lock.unlock();
+        }
     }
 
     public <T extends WithRootNode> T addImage(ProcessingEventListener listener,
@@ -137,44 +154,54 @@ public class MultipleImagesViewer extends Pane {
                                                PixelShift pixelShift,
                                                Function<? super ImageViewer, T> transformer,
                                                Consumer<? super ImageViewer> onShow) {
-        var category = getOrCreateCategory(kind);
-        var viewer = newImageViewer();
-        var transformed = transformer.apply(viewer);
-        viewer.setup(
-            listener,
-            operation,
-            title,
-            baseName,
-            kind,
-            description,
-            imageWrapper,
-            file,
-            params,
-            popupViews,
-            imageViews
-        );
-        var hyperlink = category.addImage(title, pixelShift, link -> {
-            categories().forEach(CategoryPane::clearSelection);
-            Platform.runLater(() -> {
-                borderPane.setCenter(transformed.getRoot());
-                var hook = onShowHooks.get(transformed);
-                if (hook != null) {
-                    hook.run();
-                }
-            });
-            selected = link;
-            selectedKind = kind;
-            selectedView = viewer;
-            onShow.accept(viewer);
-            viewer.display();
-        }, this::onClose);
-        if (selected == null) {
-            category.selectFirst();
-            hyperlink.fire();
-        } else if (shouldSelectAutomatically(params, kind, pixelShift)) {
-            hyperlink.fire();
+        try {
+            lock.lock();
+
+            System.out.println("Adding image " + title + " file " + file);
+            var category = getOrCreateCategory(kind);
+            System.out.println("category = " + category);
+            var viewer = newImageViewer();
+            System.out.println("viewer = " + viewer);
+            var transformed = transformer.apply(viewer);
+            System.out.println("transformed = " + transformed);
+            viewer.setup(
+                    listener,
+                    operation,
+                    title,
+                    baseName,
+                    kind,
+                    description,
+                    imageWrapper,
+                    file,
+                    params,
+                    popupViews,
+                    imageViews
+            );
+            var hyperlink = category.addImage(title, pixelShift, link -> {
+                categories().forEach(CategoryPane::clearSelection);
+                Platform.runLater(() -> {
+                    borderPane.setCenter(transformed.getRoot());
+                    var hook = onShowHooks.get(transformed);
+                    if (hook != null) {
+                        hook.run();
+                    }
+                });
+                selected = link;
+                selectedKind = kind;
+                selectedView = viewer;
+                onShow.accept(viewer);
+                viewer.display();
+            }, this::onClose);
+            if (selected == null) {
+                category.selectFirst();
+                hyperlink.fire();
+            } else if (shouldSelectAutomatically(params, kind, pixelShift)) {
+                hyperlink.fire();
+            }
+            return transformed;
+        } finally {
+            lock.unlock();
         }
-        return transformed;
     }
 
     private void onClose(Hyperlink link) {
@@ -187,37 +214,43 @@ public class MultipleImagesViewer extends Pane {
     public MediaPlayer addVideo(GeneratedImageKind kind,
                                 String title,
                                 Path filePath) {
-        var category = getOrCreateCategory(kind);
-        var media = createMedia(filePath);
-        var mediaPlayer = new MediaPlayer(media);
-        var viewer = new MediaView(mediaPlayer);
-        // Create the buttons
-        var rewindButton = new Button("<<");
-        var playButton = new Button("Play");
-        var stopButton = new Button("Stop");
-        var openButton = new Button(message("open.in.files"));
-        openButton.setOnAction(e -> ExplorerSupport.openInExplorer(filePath));
-        mediaPlayer.setOnEndOfMedia(() -> mediaPlayer.seek(javafx.util.Duration.ZERO));
-        playButton.setOnAction(e -> mediaPlayer.play());
-        stopButton.setOnAction(e -> mediaPlayer.stop());
-        rewindButton.setOnAction(e -> {
-            mediaPlayer.stop();
-            mediaPlayer.seek(javafx.util.Duration.ZERO);
-        });
-        var buttonBox = new HBox(playButton, stopButton, rewindButton, openButton);
-        buttonBox.setSpacing(10);
-        var contentBox = new VBox(new ScrollPane(viewer), buttonBox);
-        contentBox.setAlignment(Pos.CENTER);
-        viewer.fitWidthProperty().bind(widthProperty());
-        viewer.fitHeightProperty().bind(heightProperty().subtract(buttonBox.heightProperty()));
-        var hyperlink = category.addVideo(title, link -> {
-            categories().forEach(CategoryPane::clearSelection);
-            borderPane.setCenter(contentBox);
-            selected = link;
-            selectedView = contentBox;
-        }, this::onClose);
-        hyperlink.fire();
-        return mediaPlayer;
+        try {
+            lock.lock();
+
+            var category = getOrCreateCategory(kind);
+            var media = createMedia(filePath);
+            var mediaPlayer = new MediaPlayer(media);
+            var viewer = new MediaView(mediaPlayer);
+            // Create the buttons
+            var rewindButton = new Button("<<");
+            var playButton = new Button("Play");
+            var stopButton = new Button("Stop");
+            var openButton = new Button(message("open.in.files"));
+            openButton.setOnAction(e -> ExplorerSupport.openInExplorer(filePath));
+            mediaPlayer.setOnEndOfMedia(() -> mediaPlayer.seek(javafx.util.Duration.ZERO));
+            playButton.setOnAction(e -> mediaPlayer.play());
+            stopButton.setOnAction(e -> mediaPlayer.stop());
+            rewindButton.setOnAction(e -> {
+                mediaPlayer.stop();
+                mediaPlayer.seek(javafx.util.Duration.ZERO);
+            });
+            var buttonBox = new HBox(playButton, stopButton, rewindButton, openButton);
+            buttonBox.setSpacing(10);
+            var contentBox = new VBox(new ScrollPane(viewer), buttonBox);
+            contentBox.setAlignment(Pos.CENTER);
+            viewer.fitWidthProperty().bind(widthProperty());
+            viewer.fitHeightProperty().bind(heightProperty().subtract(buttonBox.heightProperty()));
+            var hyperlink = category.addVideo(title, link -> {
+                categories().forEach(CategoryPane::clearSelection);
+                borderPane.setCenter(contentBox);
+                selected = link;
+                selectedView = contentBox;
+            }, this::onClose);
+            hyperlink.fire();
+            return mediaPlayer;
+        } finally {
+            lock.unlock();
+        }
     }
 
     private static Media createMedia(Path filePath) {
@@ -264,14 +297,13 @@ public class MultipleImagesViewer extends Pane {
     private CategoryPane getOrCreateCategory(GeneratedImageKind kind) {
         var category = kind.displayCategory();
         return categories()
-            .filter(t -> t.getProperties().get(DisplayCategory.class) == category)
-            .findFirst()
-            .orElseGet(() -> addCategory(category));
+                .filter(t -> t.getProperties().get(DisplayCategory.class) == category)
+                .findFirst()
+                .orElseGet(() -> addCategory(category));
     }
 
     private Stream<CategoryPane> categories() {
-        return safeCategories.stream()
-            .map(CategoryPane.class::cast);
+        return safeCategories.stream();
     }
 
     private CategoryPane addCategory(DisplayCategory category) {

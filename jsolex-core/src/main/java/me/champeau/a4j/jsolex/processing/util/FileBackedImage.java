@@ -23,12 +23,17 @@ import java.nio.MappedByteBuffer;
 import java.nio.channels.FileChannel;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
-import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executors;
 import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 
@@ -39,10 +44,11 @@ import java.util.concurrent.locks.ReentrantLock;
 public final class FileBackedImage implements ImageWrapper {
     private static final Cleaner CLEANER = Cleaner.create();
     private static final Map<Path, Integer> REF_COUNT = new HashMap<>();
+    private static final Map<Path, Status> STATUS = new ConcurrentHashMap<>();
     private static final Lock LOCK = new ReentrantLock();
     private static final byte MONO = 0;
     private static final byte RGB = 2;
-    private static final LinkedBlockingQueue<Runnable> WRITE_OPS = new LinkedBlockingQueue<>(2 * Runtime.getRuntime().availableProcessors());
+    private static final BlockingQueue<Runnable> WRITE_OPS = new LinkedBlockingQueue<>(1);
 
     static {
         var executor = Executors.newCachedThreadPool();
@@ -63,8 +69,8 @@ public final class FileBackedImage implements ImageWrapper {
         });
     }
 
-    private final CountDownLatch latch = new CountDownLatch(1);
-    private final Lock readLock = new ReentrantLock();
+    private final Status status;
+    private final Condition condition;
     private final int width;
     private final int height;
     private final Path backingFile;
@@ -73,12 +79,17 @@ public final class FileBackedImage implements ImageWrapper {
     private final WeakReference<ImageWrapper> unwrapped;
 
     private FileBackedImage(int width, int height, Path backingFile, Map<Class<?>, Object> metadata, Object keptInMemory, ImageWrapper source) {
+        if (source instanceof FileBackedImage) {
+            throw new IllegalArgumentException("Cannot wrap a FileBackedImage");
+        }
         this.width = width;
         this.height = height;
         this.backingFile = backingFile;
         this.metadata = metadata;
         this.keptInMemory = keptInMemory;
-        this.unwrapped = new WeakReference<>(source.unwrapToMemory());
+        this.unwrapped = new WeakReference<>(source);
+        this.status = STATUS.computeIfAbsent(backingFile, k -> new Status(new AtomicBoolean(false), new ReentrantLock(), new ArrayList<>()));
+        this.condition = status.newCondition();
         LOCK.lock();
         try {
             REF_COUNT.compute(backingFile, (k, v) -> v == null ? 1 : v + 1);
@@ -97,8 +108,8 @@ public final class FileBackedImage implements ImageWrapper {
         try {
             var backingFile = TemporaryFolder.newTempFile("jsolex", ".img");
             if (wrapper instanceof ImageWrapper32 mono) {
-                var result = new FileBackedImage(width, height, backingFile, mono.metadata(), null, wrapper);
-                Thread.startVirtualThread(() -> {
+                var result = new FileBackedImage(width, height, backingFile, mono.metadata(), null, mono);
+                WRITE_OPS.put(() -> {
                     var data = mono.data();
                     var length = mono.width() * mono.height();
                     MappedByteBuffer byteBuffer = null;
@@ -120,8 +131,8 @@ public final class FileBackedImage implements ImageWrapper {
                 return result;
             }
             if (wrapper instanceof RGBImage rgb) {
-                var fileBackedImage = new FileBackedImage(width, height, backingFile, rgb.metadata(), null, wrapper);
-                WRITE_OPS.add(() -> {
+                var fileBackedImage = new FileBackedImage(width, height, backingFile, rgb.metadata(), null, rgb);
+                WRITE_OPS.put(() -> {
                     var r = rgb.r();
                     var g = rgb.g();
                     var b = rgb.b();
@@ -149,6 +160,9 @@ public final class FileBackedImage implements ImageWrapper {
             throw new ProcessingException("Unexpected image type " + wrapper);
         } catch (IOException ex) {
             throw new ProcessingException(ex);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new ProcessingException(e);
         }
     }
 
@@ -157,16 +171,18 @@ public final class FileBackedImage implements ImageWrapper {
         if (cached != null) {
             return cached;
         }
-        try {
-            latch.await();
-        } catch (InterruptedException e) {
-            throw new RuntimeException(e);
+        while (!status.saved().get()) {
+            try {
+                status.lock().lock();
+                condition.await();
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                break;
+            } finally {
+                status.lock().unlock();
+            }
         }
-        readLock.lock();
-        cached = unwrapped.get();
-        if (cached != null) {
-            return cached;
-        }
+        // Now that the file is saved, proceed to re-read the image from disk.
         try (var raf = new RandomAccessFile(backingFile.toFile(), "r")) {
             var channel = raf.getChannel();
             var byteBuffer = channel.map(FileChannel.MapMode.READ_ONLY, 0, channel.size());
@@ -175,7 +191,6 @@ public final class FileBackedImage implements ImageWrapper {
             int width = byteBuffer.getInt();
             return switch (kind) {
                 case MONO -> {
-                    // Mono image
                     float[][] data = new float[height][width];
                     var floatBuffer = byteBuffer.asFloatBuffer();
                     for (int y = 0; y < height; y++) {
@@ -185,7 +200,6 @@ public final class FileBackedImage implements ImageWrapper {
                     yield new ImageWrapper32(width, height, data, metadata);
                 }
                 case RGB -> {
-                    // RGB image
                     float[][] r = new float[height][width];
                     float[][] g = new float[height][width];
                     float[][] b = new float[height][width];
@@ -204,8 +218,6 @@ public final class FileBackedImage implements ImageWrapper {
             };
         } catch (IOException ex) {
             throw new ProcessingException(ex);
-        } finally {
-            readLock.unlock();
         }
     }
 
@@ -226,12 +238,14 @@ public final class FileBackedImage implements ImageWrapper {
 
     @Override
     public ImageWrapper copy() {
-        return new FileBackedImage(width, height, backingFile, new LinkedHashMap<>(metadata), keptInMemory, this);
+        var source = unwrapped.get();
+        return new FileBackedImage(width, height, backingFile, new LinkedHashMap<>(metadata), keptInMemory, source == null ? null : source.copy());
     }
 
     private void fileSaved() {
-        latch.countDown();
+        status.fileSaved();
     }
+
 
     private static void clean(Path backingFile) {
         LOCK.lock();
@@ -245,11 +259,42 @@ public final class FileBackedImage implements ImageWrapper {
             if (refCount == 0) {
                 Files.delete(backingFile);
                 REF_COUNT.remove(backingFile);
+                STATUS.remove(backingFile);
             }
         } catch (IOException e) {
             // ignore
         } finally {
             LOCK.unlock();
+        }
+    }
+
+    private record Status(
+            AtomicBoolean saved,
+            Lock lock,
+            List<Condition> conditions
+    ) {
+        Condition newCondition() {
+            lock.lock();
+            try {
+                var condition = lock.newCondition();
+                conditions.add(condition);
+                return condition;
+            } finally {
+                lock.unlock();
+            }
+        }
+
+        void fileSaved() {
+            lock.lock();
+            try {
+                saved.set(true);
+                for (var condition : conditions) {
+                    condition.signalAll();
+                }
+                conditions.clear();
+            } finally {
+                lock.unlock();
+            }
         }
     }
 }
