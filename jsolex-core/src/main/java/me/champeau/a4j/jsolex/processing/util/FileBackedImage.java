@@ -48,10 +48,10 @@ public final class FileBackedImage implements ImageWrapper {
     private static final Lock LOCK = new ReentrantLock();
     private static final byte MONO = 0;
     private static final byte RGB = 2;
-    private static final BlockingQueue<Runnable> WRITE_OPS = new LinkedBlockingQueue<>(1);
+    private static final BlockingQueue<Runnable> WRITE_OPS = new LinkedBlockingQueue<>(Math.max(1, Runtime.getRuntime().availableProcessors() / 2));
 
     static {
-        var executor = Executors.newCachedThreadPool();
+        var executor = Executors.newFixedThreadPool(Math.max(1, Runtime.getRuntime().availableProcessors() / 2));
         Thread.startVirtualThread(() -> {
             try {
                 while (!Thread.currentThread().isInterrupted()) {
