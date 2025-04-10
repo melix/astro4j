@@ -844,6 +844,7 @@ public class ProcessParamsController {
         horizontalMirror.setSelected(false);
         rotation.getSelectionModel().select(RotationKind.NONE);
         autocorrectAngleP.setSelected(false);
+        autocrop.getSelectionModel().select(AutocropMode.RADIUS_1_2);
         forceTilt.setSelected(false);
         forceXYRatio.setSelected(false);
         disallowDownsampling.setSelected(false);
