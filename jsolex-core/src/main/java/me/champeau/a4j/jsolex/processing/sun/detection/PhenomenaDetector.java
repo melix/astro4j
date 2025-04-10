@@ -23,6 +23,8 @@ import me.champeau.a4j.math.regression.LinearRegression;
 import me.champeau.a4j.math.tuples.DoublePair;
 import me.champeau.a4j.math.tuples.IntPair;
 import me.champeau.a4j.ser.Header;
+import org.apache.commons.math3.linear.EigenDecomposition;
+import org.apache.commons.math3.linear.MatrixUtils;
 
 import java.util.ArrayList;
 import java.util.BitSet;
@@ -345,7 +347,17 @@ public class PhenomenaDetector {
             .map(ActiveRegion::of)
             .filter(s -> s.width() >= MIN_AR_AREA && s.height() >= MIN_AR_AREA)
             .toList();
-        return new ActiveRegions(clusterActiveRegions(activeRegionList));
+        var regionList = clusterActiveRegions(activeRegionList);
+        return new ActiveRegions(filterOutliers(regionList));
+    }
+
+    private List<ActiveRegion> filterOutliers(List<ActiveRegion> regionList) {
+        return regionList.stream()
+                .filter(ar -> {
+                    var aspectRatio = computeAspectRatio(ar);
+                    return aspectRatio <= 5;
+                })
+                .toList();
     }
 
     private List<ActiveRegion> clusterActiveRegions(List<ActiveRegion> activeRegionList) {
@@ -386,11 +398,18 @@ public class PhenomenaDetector {
     }
 
     private boolean shouldMerge(ActiveRegion a, ActiveRegion b) {
-        var aSize = sizeOf(a);
-        var bSize = sizeOf(b);
-        var centerA = new Point2D((a.topLeft().x() + a.bottomRight().x()) / 2, (a.topLeft().y() + a.bottomRight().y()) / 2);
-        var centerB = new Point2D((b.topLeft().x() + b.bottomRight().x()) / 2, (b.topLeft().y() + b.bottomRight().y()) / 2);
-        return centerA.distanceTo(centerB) < (aSize + bSize) / 2;
+        double centerAX = (a.topLeft().x() + a.bottomRight().x()) / 2.0;
+        double centerAY = (a.topLeft().y() + a.bottomRight().y()) / 2.0;
+        double centerBX = (b.topLeft().x() + b.bottomRight().x()) / 2.0;
+        double centerBY = (b.topLeft().y() + b.bottomRight().y()) / 2.0;
+
+        double horizontalDistance = Math.abs(centerAX - centerBX);
+        double verticalDistance = Math.abs(centerAY - centerBY);
+
+        double thresholdX = (a.width() + b.width()) / 2.0;
+        double thresholdY = (a.height() + b.height()) / 2.0;
+
+        return horizontalDistance < thresholdX && verticalDistance < thresholdY;
     }
 
     private ActiveRegion mergeActiveRegions(ActiveRegion a, ActiveRegion b) {
@@ -399,11 +418,6 @@ public class PhenomenaDetector {
                 .toList()
         );
     }
-
-    private static double sizeOf(ActiveRegion activeRegion) {
-        return Math.sqrt(activeRegion.width() * activeRegion.width() + activeRegion.height() * activeRegion.height());
-    }
-
 
     private static void dfs(Point2D start,
                             Set<Point2D> points,
@@ -567,6 +581,49 @@ public class PhenomenaDetector {
         return detectActiveRegions;
     }
 
+    private static double computeAspectRatio(ActiveRegion region) {
+        var points = region.points();
+
+        double sumX = 0;
+        double sumY = 0;
+        for (Point2D p : points) {
+            sumX += p.x();
+            sumY += p.y();
+        }
+        var meanX = sumX / points.size();
+        var meanY = sumY / points.size();
+
+        double varXX = 0;
+        double varYY = 0;
+        double covXY = 0;
+        for (var p : points) {
+            double dx = p.x() - meanX;
+            double dy = p.y() - meanY;
+            varXX += dx * dx;
+            varYY += dy * dy;
+            covXY += dx * dy;
+        }
+        int n = points.size();
+        varXX /= n;
+        varYY /= n;
+        covXY /= n;
+
+        var matrixData = new double[][] {
+                {varXX, covXY},
+                {covXY, varYY}
+        };
+        var covarianceMatrix = MatrixUtils.createRealMatrix(matrixData);
+
+        var eigenDecomposition = new EigenDecomposition(covarianceMatrix);
+        var eigenValue1 = eigenDecomposition.getRealEigenvalue(0);
+        var eigenValue2 = eigenDecomposition.getRealEigenvalue(1);
+
+        var s1 = Math.sqrt(Math.max(eigenValue1, eigenValue2));
+        var s2 = Math.sqrt(Math.min(eigenValue1, eigenValue2));
+
+        return s1 / s2;
+    }
+    
     private record Cluster(int x1, int y1, int x2, int y2, int pixelShift, List<RedshiftArea> areas) {
 
         public Cluster(RedshiftArea redshiftArea) {
