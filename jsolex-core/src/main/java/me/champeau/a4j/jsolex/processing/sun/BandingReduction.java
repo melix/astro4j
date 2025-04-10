@@ -25,7 +25,7 @@ import java.util.stream.IntStream;
 import static me.champeau.a4j.jsolex.processing.sun.ImageUtils.bilinearSmoothing;
 
 public class BandingReduction {
-    public static final int DEFAULT_PASS_COUNT = 16;
+    public static final int DEFAULT_PASS_COUNT = 4;
     public static final int DEFAULT_BAND_SIZE = 24;
 
     private BandingReduction() {
@@ -40,7 +40,6 @@ public class BandingReduction {
         for (int y = 0; y < height; y++) {
             double bandAverage = bandAverages[y];
             double currentLineAverage = lineAverages[y];
-            if (currentLineAverage < bandAverage) {
                 var correction = bandAverage / currentLineAverage;
                 if (!Double.isInfinite(correction) && !Double.isNaN(correction)) {
                     for (int x = 0; x < width; x++) {
@@ -49,7 +48,6 @@ public class BandingReduction {
                         }
                     }
                 }
-            }
         }
         if (ellipse != null) {
             bilinearSmoothing(ellipse, width, height, data);

@@ -22,6 +22,7 @@ import me.champeau.a4j.jsolex.processing.sun.workflow.AnalysisUtils;
 import me.champeau.a4j.jsolex.processing.util.Histogram;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 import me.champeau.a4j.math.regression.Ellipse;
+import me.champeau.a4j.math.tuples.FloatPair;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -56,7 +57,6 @@ public final class AutohistogramStrategy implements StretchingStrategy {
      */
     @Override
     public void stretch(ImageWrapper32 image) {
-        var origAnalysis = ImageAnalysis.of(image, true);
         var disk = image.copy();
         var height = image.height();
         var width = image.width();
@@ -66,12 +66,7 @@ public final class AutohistogramStrategy implements StretchingStrategy {
         if (ellipse.isPresent()) {
             var e = ellipse.get();
             var blackPoint = (float) AnalysisUtils.estimateBlackPoint(disk, e) * 1.2f;
-            var backgroundMask = new boolean[height][width];
-            for (int y = 0; y < height; y++) {
-                for (int x = 0; x < width; x++) {
-                    backgroundMask[y][x] = diskData[y][x] < blackPoint;
-                }
-            }
+            var backgroundMask = createBackgroundMask(height, width, diskData, blackPoint);
             var cx = e.center().a();
             var cy = e.center().b();
             var semiAxis = e.semiAxis();
@@ -83,7 +78,6 @@ public final class AutohistogramStrategy implements StretchingStrategy {
                 }
             }
             var protus = new float[height][width];
-            var asinh = new ArcsinhStretchingStrategy(0, 1.2f, 1.5f);
             for (int y = 0; y < height; y++) {
                 for (int x = 0; x < width; x++) {
                     var v = diskData[y][x];
@@ -95,38 +89,41 @@ public final class AutohistogramStrategy implements StretchingStrategy {
                     if (dist <= BLEND_START) {
                         diskData[y][x] = v1;
                     } else {
-                        protus[y][x] = asinh.stretchPixel(v);
+                        protus[y][x] = v;
                     }
                 }
             }
 
             var analysis = ImageAnalysis.of(disk, true);
-            equalize(disk, analysis, 10000, 8000);
+            equalize(disk, analysis, 12000, 8000);
             for (int y = 0; y < height; y++) {
                 for (int x = 0; x < width; x++) {
                     diskData[y][x] = backgroundMask[y][x] ? blackPoint : diskData[y][x];
                 }
             }
-            var protusImage = new ImageWrapper32(width, height, protus, Map.of());
+            // Grow ellipse by 1% to better estimate background
+            var rescaledEllipse = e.rescale(1.001, 1.001);
+            var protusImage = new ImageWrapper32(width, height, protus, Map.of(Ellipse.class, rescaledEllipse));
+            var limit = clampLimits(diskData, 0, 0.9998).b();
+            stretchProtus(protusImage, limit);
             var stats = ImageAnalysis.of(protusImage, false);
-            while (stats.avg() / stats.stddev()>0.12) {
-                if (neutralizeBg(protusImage, 2, 2.5, 1f) == 0) {
+            while (stats.avg() / stats.stddev() > 0.2) {
+                if (neutralizeBg(protusImage, 2, 1.5, 0.8f) == 0) {
                     break;
                 }
                 stats = ImageAnalysis.of(protusImage, false);
             }
-            clamping(protus, 0, .9998).stretch(protusImage);
-            LinearStrechingStrategy.DEFAULT.stretch(protusImage);
+
             for (int y = 0; y < height; y++) {
                 for (int x = 0; x < width; x++) {
                     var dist = Utilities.normalizedDistanceToCenter(x, y, cx, cy, radius);
                     if (dist >= BLEND_START && dist <= BLEND_END) {
                         // Smooth transition using a cosine blend
                         var alpha = (0.5 * (1 + Math.cos(Math.PI * (dist - BLEND_START) / (BLEND_END - BLEND_START))));
-                        var prominenceValue = 0.8f * protus[y][x];
+                        var prominenceValue = protus[y][x];
                         diskData[y][x] = (float) (alpha * diskData[y][x] + (1 - alpha) * prominenceValue);
                     } else if (dist > BLEND_END) {
-                        diskData[y][x] = 0.8f * protus[y][x];
+                        diskData[y][x] = protus[y][x];
                     }
                 }
             }
@@ -143,6 +140,31 @@ public final class AutohistogramStrategy implements StretchingStrategy {
         mixInClahe(image, diskData);
         clamping(diskData, 0, .9998).stretch(image);
         RangeExpansionStrategy.DEFAULT.stretch(image);
+    }
+
+    private void stretchProtus(ImageWrapper32 protusImage, float max) {
+        int height = protusImage.height();
+        int width = protusImage.width();
+
+        var protus = protusImage.data();
+        var asinh = new ArcsinhStretchingStrategy(0, 5f, 1.5f);
+        for (int y = 0; y < height; y++) {
+            for (int x = 0; x < width; x++) {
+                protus[y][x] = asinh.stretchPixel(protus[y][x]);
+            }
+        }
+        protusClamping(protusImage, 0, .9998).stretch(protusImage);
+        new LinearStrechingStrategy(0, 0.8f*max).stretch(protusImage);
+    }
+
+    private static boolean[][] createBackgroundMask(int height, int width, float[][] diskData, float blackPoint) {
+        var backgroundMask = new boolean[height][width];
+        for (int y = 0; y < height; y++) {
+            for (int x = 0; x < width; x++) {
+                backgroundMask[y][x] = diskData[y][x] < blackPoint;
+            }
+        }
+        return backgroundMask;
     }
 
     public static double neutralizeBg(ImageWrapper32 disk, int degree, double sigma, float smoothing) {
@@ -178,8 +200,29 @@ public final class AutohistogramStrategy implements StretchingStrategy {
         }
     }
 
-    private static ContrastAdjustmentStrategy clamping(float[][] diskData, double loPercentile, double hiPercentile) {
+    private static FloatPair clampLimits(float[][] diskData, double loPercentile, double hiPercentile) {
         var cumulative = Histogram.of(diskData, 65536).cumulative();
+        var lo = cumulative.percentile(loPercentile);
+        var hi = cumulative.percentile(hiPercentile);
+        return new FloatPair((float) lo, (float) hi);
+    }
+
+    private static ContrastAdjustmentStrategy clamping(float[][] diskData, double loPercentile, double hiPercentile) {
+        var limits = clampLimits(diskData, loPercentile, hiPercentile);
+        return new ContrastAdjustmentStrategy(limits.a(), limits.b());
+    }
+
+    private static ContrastAdjustmentStrategy protusClamping(ImageWrapper32 protusImage, double loPercentile, double hiPercentile) {
+        var builder = Histogram.builder(65536);
+        var ellipse = protusImage.findMetadata(Ellipse.class).get();
+        for (int y = 0; y < protusImage.height(); y++) {
+            for (int x = 0; x < protusImage.width(); x++) {
+                if (!ellipse.isWithin(x, y)) {
+                    builder.record(protusImage.data()[y][x]);
+                }
+            }
+        }
+        var cumulative = builder.build().cumulative();
         var lo = cumulative.percentile(loPercentile);
         var hi = cumulative.percentile(hiPercentile);
         return new ContrastAdjustmentStrategy(lo, hi);

@@ -109,7 +109,7 @@ public class HeliumLineProcessor {
             image = (ImageWrapper32) evaluator.minus(image, bgModel);
             if (ellipse != null) {
                 var bandSize = (ellipse.semiAxis().a() + ellipse.semiAxis().b()) / 16;
-                for (int i = 0; i < 6; i++) {
+                for (int i = 0; i < 2; i++) {
                     BandingReduction.reduceBanding(image.width(), image.height(), image.data(), (int) bandSize, ellipse);
                 }
             }

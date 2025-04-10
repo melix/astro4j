@@ -45,6 +45,7 @@ import me.champeau.a4j.jsolex.processing.sun.detection.Redshifts;
 import me.champeau.a4j.jsolex.processing.sun.tasks.CoronagraphTask;
 import me.champeau.a4j.jsolex.processing.sun.tasks.EllipseFittingTask;
 import me.champeau.a4j.jsolex.processing.sun.tasks.GeometryCorrector;
+import me.champeau.a4j.jsolex.processing.sun.tasks.ImageAnalysis;
 import me.champeau.a4j.jsolex.processing.sun.tasks.ImageBandingCorrector;
 import me.champeau.a4j.jsolex.processing.util.Constants;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
@@ -205,7 +206,7 @@ public class ProcessingWorkflow {
             runnables.add(() -> produceNegativeImage(enhanced));
         }
         if (isMainShift() && shouldProduce(GeneratedImageKind.COLORIZED)) {
-            runnables.add(() -> produceColorizedImage(blackPoint, stretched, processParams));
+            runnables.add(() -> produceColorizedImage(stretched, processParams));
         }
         if (isMainShift()) {
             runnables.add(() -> produceCoronagraph(blackPoint, enhanced));
@@ -359,12 +360,15 @@ public class ProcessingWorkflow {
         return angle;
     }
 
-    private void produceColorizedImage(float blackPoint, ImageWrapper32 corrected, ProcessParams params) {
+    private void produceColorizedImage(ImageWrapper32 corrected, ProcessParams params) {
         var ray = params.spectrumParams().ray();
         ray.getColorCurve().ifPresentOrElse(curve ->
                         imagesEmitter.newColorImage(GeneratedImageKind.COLORIZED, null, MessageFormat.format(message("colorized"), curve.ray()), "colorized", String.format(message("colorized.description"), state.pixelShift()), corrected, monoImage -> {
                             var mono = monoImage.data();
-                            createStretchingForColorization(blackPoint).stretch(new ImageWrapper32(corrected.width(), corrected.height(), mono, MutableMap.of()));
+                            var analysis = ImageAnalysis.of(monoImage, true);
+                            ImageWrapper32 image = new ImageWrapper32(corrected.width(), corrected.height(), mono, MutableMap.of());
+                            var bp = 0.5f*Math.max(0, analysis.avg() - analysis.stddev());
+                            createStretchingForColorization(bp).stretch(image);
                             return ImageUtils.convertToRGB(curve, mono);
                         })
                 , () -> {
@@ -372,6 +376,9 @@ public class ProcessingWorkflow {
                         imagesEmitter.newColorImage(GeneratedImageKind.COLORIZED, null, MessageFormat.format(message("colorized"), ray.label()), "colorized", String.format(message("colorized.description"), state.pixelShift()), corrected, monoImage -> {
                             var mono = monoImage.data();
                             var rgb = ray.toRGB();
+                            var analysis = ImageAnalysis.of(monoImage, true);
+                            var bp = 0.5f*Math.max(0, analysis.avg() - analysis.stddev());
+                            createStretchingForColorization(bp).stretch(new ImageWrapper32(corrected.width(), corrected.height(), mono, MutableMap.of()));
                             return Colorize.doColorize(corrected.width(), corrected.height(), mono, rgb);
                         });
                     }
@@ -379,7 +386,7 @@ public class ProcessingWorkflow {
     }
 
     private static StretchingStrategy createStretchingForColorization(float blackPoint) {
-        return new ArcsinhStretchingStrategy(blackPoint, 2, 2);
+        return new ArcsinhStretchingStrategy(blackPoint, 3, 3);
     }
 
     private ImageWrapper32 performBandingCorrection(Ellipse ellipse) {

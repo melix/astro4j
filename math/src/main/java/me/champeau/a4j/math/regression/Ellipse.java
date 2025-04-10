@@ -216,20 +216,28 @@ public class Ellipse {
     }
 
     public Ellipse rescale(double scaleX, double scaleY) {
-        var a = cart.a();
-        var b = cart.b();
-        var c = cart.c();
-        var d = cart.d();
-        var e = cart.e();
-        var f = cart.f();
-        return new Ellipse(new DoubleSextuplet(
-                a * scaleX * scaleX,
-                b * scaleX * scaleY,
-                c * scaleY * scaleY,
+        var cx = center().a();
+        var cy = center().b();
+        // translate(-cx, -cy);
+        var atOrigin = translate(-cx, -cy);
+        var a = atOrigin.cart.a();
+        var b = atOrigin.cart.b();
+        var c = atOrigin.cart.c();
+        var d = atOrigin.cart.d();
+        var e = atOrigin.cart.e();
+        var f = atOrigin.cart.f();
+        var scaleXSq = scaleX * scaleX;
+        var scaleYSq = scaleY * scaleY;
+        var scaleXY = scaleX * scaleY;
+        var rescaled = new Ellipse(new DoubleSextuplet(
+                a * scaleYSq,
+                b * scaleXY,
+                c * scaleXSq,
                 d * scaleX,
                 e * scaleY,
-                f
+                f * scaleXSq * scaleYSq
         ));
+        return rescaled.translate(cx, cy);
     }
 
     /**

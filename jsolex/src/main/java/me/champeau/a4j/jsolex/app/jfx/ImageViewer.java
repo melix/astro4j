@@ -164,7 +164,7 @@ public class ImageViewer implements WithRootNode {
                             var controller = (ImageViewer) fxmlLoader.getController();
                             controller.init(node);
                             controller.setup(new ProcessingEventListener() {
-                            }, operation, title, baseName, kind, description, image, imageFile, processParams, popupViews, siblings);
+                            }, operation, title, baseName, kind, description, image, imageName, processParams, popupViews, siblings);
                             var stage = new Stage();
                             var scene = new Scene((Parent) node);
                             controller.stage = stage;
