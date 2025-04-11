@@ -397,7 +397,7 @@ public class ProcessingWorkflow {
         var stretched = geometryFixed.copy();
         switch (contrastEnhancement) {
             case AUTOSTRETCH -> {
-                var autohistogramStrategy = new AutohistogramStrategy(autoStretchParams.gamma());
+                var autohistogramStrategy = new AutohistogramStrategy(autoStretchParams.gamma(), true);
                 autohistogramStrategy.stretch(stretched);
                 TransformationHistory.recordTransform(stretched, "AutoStretch (gamma: " + autoStretchParams.gamma() + ")");
             }

@@ -23,6 +23,7 @@ import me.champeau.a4j.jsolex.processing.util.RGBImage;
 public sealed interface StretchingStrategy permits
     ArcsinhStretchingStrategy,
     CutoffStretchingStrategy,
+    CurveTransformStrategy,
     LinearStrechingStrategy,
     NegativeImageStrategy,
     RangeExpansionStrategy,

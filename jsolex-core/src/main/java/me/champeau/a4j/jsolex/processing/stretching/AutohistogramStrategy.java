@@ -15,6 +15,7 @@
  */
 package me.champeau.a4j.jsolex.processing.stretching;
 
+import me.champeau.a4j.jsolex.processing.color.ColorCurve;
 import me.champeau.a4j.jsolex.processing.expr.impl.Utilities;
 import me.champeau.a4j.jsolex.processing.sun.BackgroundRemoval;
 import me.champeau.a4j.jsolex.processing.sun.tasks.ImageAnalysis;
@@ -27,6 +28,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.Map;
+import java.util.function.DoubleUnaryOperator;
 
 import static java.lang.Math.clamp;
 import static java.lang.Math.pow;
@@ -36,18 +38,22 @@ import static me.champeau.a4j.jsolex.processing.util.Constants.MAX_PIXEL_VALUE;
 public final class AutohistogramStrategy implements StretchingStrategy {
     private static final Logger LOGGER = LoggerFactory.getLogger(AutohistogramStrategy.class);
 
-    private static final float BLEND_START = 1.0f;
+    private static final float BLEND_START = 1f;
     private static final float BLEND_END = 1.05f;
+    private static final int TARGET_AVG = 12000;
+    private static final DoubleUnaryOperator BRIGHTNESS_ENHANCE = ColorCurve.cachedPolynomial(100, 128);
 
     public static final double DEFAULT_GAMMA = 1.5;
 
     private final double gamma;
+    private final boolean adjustBrightness;
 
-    public AutohistogramStrategy(double gamma) {
+    public AutohistogramStrategy(double gamma, boolean adjustBrightness) {
         if (gamma < 1) {
             throw new IllegalArgumentException("Gamma must be greater than 1");
         }
         this.gamma = gamma;
+        this.adjustBrightness = adjustBrightness;
     }
 
     /**
@@ -85,17 +91,17 @@ public final class AutohistogramStrategy implements StretchingStrategy {
                     var dist = Utilities.normalizedDistanceToCenter(x, y, cx, cy, radius);
                     var gammaCorrected = (float) pow(normalized, gamma) * MAX_PIXEL_VALUE;
                     var v1 = clamp(gammaCorrected, 0, MAX_PIXEL_VALUE);
-
                     if (dist <= BLEND_START) {
                         diskData[y][x] = v1;
                     } else {
+                        diskData[y][x] = 0;
                         protus[y][x] = v;
                     }
                 }
             }
 
             var analysis = ImageAnalysis.of(disk, true);
-            equalize(disk, analysis, 12000, 8000);
+            equalize(disk, analysis, TARGET_AVG, 8000);
             for (int y = 0; y < height; y++) {
                 for (int x = 0; x < width; x++) {
                     diskData[y][x] = backgroundMask[y][x] ? blackPoint : diskData[y][x];
@@ -105,7 +111,7 @@ public final class AutohistogramStrategy implements StretchingStrategy {
             var rescaledEllipse = e.rescale(1.001, 1.001);
             var protusImage = new ImageWrapper32(width, height, protus, Map.of(Ellipse.class, rescaledEllipse));
             var limit = clampLimits(diskData, 0, 0.9998).b();
-            stretchProtus(protusImage, limit);
+            stretchProtus(protusImage, blackPoint, limit);
             var stats = ImageAnalysis.of(protusImage, false);
             while (stats.avg() / stats.stddev() > 0.2) {
                 if (neutralizeBg(protusImage, 2, 1.5, 0.8f) == 0) {
@@ -137,24 +143,38 @@ public final class AutohistogramStrategy implements StretchingStrategy {
             }
         }
         diskData = image.data();
-        mixInClahe(image, diskData);
         clamping(diskData, 0, .9998).stretch(image);
-        RangeExpansionStrategy.DEFAULT.stretch(image);
+        LinearStrechingStrategy.DEFAULT.stretch(image);
+        maybeAdjustBrightness(image, height, width, diskData);
     }
 
-    private void stretchProtus(ImageWrapper32 protusImage, float max) {
+    private void maybeAdjustBrightness(ImageWrapper32 image, int height, int width, float[][] diskData) {
+        if (adjustBrightness) {
+            var stats = ImageAnalysis.of(image, true);
+            while (stats.histogram().cumulative().percentile(0.25f) < TARGET_AVG) {
+                for (int y = 0; y < height; y++) {
+                    for (int x = 0; x < width; x++) {
+                        diskData[y][x] = (float) Math.clamp(BRIGHTNESS_ENHANCE.applyAsDouble(diskData[y][x]), 0, MAX_PIXEL_VALUE);
+                    }
+                }
+                stats = ImageAnalysis.of(image, true);
+            }
+        }
+    }
+
+    private void stretchProtus(ImageWrapper32 protusImage, float blackPoint, float max) {
         int height = protusImage.height();
         int width = protusImage.width();
 
         var protus = protusImage.data();
-        var asinh = new ArcsinhStretchingStrategy(0, 5f, 1.5f);
+        var asinh = new ArcsinhStretchingStrategy(blackPoint, 5f, 1.5f);
         for (int y = 0; y < height; y++) {
             for (int x = 0; x < width; x++) {
                 protus[y][x] = asinh.stretchPixel(protus[y][x]);
             }
         }
         protusClamping(protusImage, 0, .9998).stretch(protusImage);
-        new LinearStrechingStrategy(0, 0.8f*max).stretch(protusImage);
+        new LinearStrechingStrategy(0, 0.8f * max).stretch(protusImage);
     }
 
     private static boolean[][] createBackgroundMask(int height, int width, float[][] diskData, float blackPoint) {
@@ -184,20 +204,6 @@ public final class AutohistogramStrategy implements StretchingStrategy {
             return avg;
         }
         return 0;
-    }
-
-    private static void mixInClahe(ImageWrapper32 image, float[][] diskData) {
-        var clahe = image.copy();
-        new ClaheStrategy(8, 64, 1.0).stretch(clahe);
-        // combine CLAHE with image
-        var claheData = clahe.data();
-        var width = image.width();
-        var height = image.height();
-        for (int y = 0; y < height; y++) {
-            for (int x = 0; x < width; x++) {
-                diskData[y][x] = (float) (0.9 * diskData[y][x] + 0.1 * claheData[y][x]);
-            }
-        }
     }
 
     private static FloatPair clampLimits(float[][] diskData, double loPercentile, double hiPercentile) {

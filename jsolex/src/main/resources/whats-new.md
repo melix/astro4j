@@ -15,6 +15,7 @@
 - Added `WAVELEN` function which returns the wavelength of an image, based on its pixel shift, dispersion and reference wavelength
 - Added `REMOTE_SCRIPTGEN` function for advanced scripting capabilities
 - Added `TRANSITION` function to create a transition between two or more images
+- Added `CURVE_TRANSFORM` function to apply a transformation to the image based on a curve
 - Fixed bug where the detected ellipse wasn't reused when computing images at different shifts, which could cause disks or images of different sizes
 - Fixed histogram not opening correctly in a new window
 
