@@ -17,6 +17,7 @@ package me.champeau.a4j.jsolex.processing.expr.impl;
 
 import me.champeau.a4j.jsolex.expr.BuiltinFunction;
 import me.champeau.a4j.jsolex.processing.stretching.ArcsinhStretchingStrategy;
+import me.champeau.a4j.jsolex.processing.stretching.CurveTransformStrategy;
 import me.champeau.a4j.jsolex.processing.stretching.LinearStrechingStrategy;
 import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
 import me.champeau.a4j.jsolex.processing.util.Constants;
@@ -41,5 +42,18 @@ public class Stretching extends AbstractFunctionImpl {
         float lo = Math.clamp(floatArg(arguments, "lo", 0), 0, Constants.MAX_PIXEL_VALUE);
         float hi = Math.clamp(floatArg(arguments, "hi", Constants.MAX_PIXEL_VALUE), 0, Constants.MAX_PIXEL_VALUE);
         return monoToMonoImageTransformer("linear_stretch", "img", arguments, image -> new LinearStrechingStrategy(lo, hi).stretch(image));
+    }
+
+    public Object curveTransform(Map<String, Object> arguments) {
+        BuiltinFunction.CURVE_TRANSFORM.validateArgs(arguments);
+        int in = intArg(arguments, "in", 0);
+        int out = intArg(arguments, "out", 255);
+        if (in < 0 || in > 255) {
+            throw new IllegalArgumentException("curve_transform in must be between 0 and 255");
+        }
+        if (out < 0 || out > 255) {
+            throw new IllegalArgumentException("curve_transform out must be between 0 and 255");
+        }
+        return monoToMonoImageTransformer("curve_transform", "img", arguments, image -> new CurveTransformStrategy(in << 8, out << 8).stretch(image));
     }
 }

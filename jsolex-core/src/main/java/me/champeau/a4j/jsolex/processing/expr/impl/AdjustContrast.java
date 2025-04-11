@@ -64,7 +64,7 @@ public class AdjustContrast extends AbstractFunctionImpl {
         if (gamma < 1) {
             throw new IllegalArgumentException("gamma must be greater than 1");
         }
-        return monoToMonoImageTransformer("auto_contrast", "img", arguments, image -> new AutohistogramStrategy(gamma).stretch(image));
+        return monoToMonoImageTransformer("auto_contrast", "img", arguments, image -> new AutohistogramStrategy(gamma, true).stretch(image));
     }
 
     public Object equalize(Map<String, Object> arguments) {

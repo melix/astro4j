@@ -1,0 +1,22 @@
+name: CURVE_TRANSFORM
+category: ENHANCEMENT
+description:
+  fr: "Applique une transformation de courbe à une image. La transformation interpole un polynôme de degré 2 passant par trois points: le point d'origine (0,0), le point de la courbe (in, out) et le point extrême (255,255)."
+  en: "Applies a curve transformation to an image. The transformation interpolates a polynomial of degree 2 passing through three points: the origin point (0,0), the curve point (in, out), and the extreme point (255,255)."
+arguments:
+  - name: img
+    description: Image(s)
+    required: true
+  - name: in
+    required: true
+    description:
+      fr: "Valeur d'entrée de la courbe (0-255)"
+      en: "Input value of the curve (0-255)"
+  - name:  out
+    required: true
+    description:
+      fr: "Valeur de sortie de la courbe (0-255)"
+      en: "Output value of the curve (0-255)"
+examples:
+  - "curve_transform(img(0), 100, 120)"
+  - "curve_transform(img: img(0), in:50, out: 200)"
