@@ -6,6 +6,7 @@
 - Ajout de la neutralisation de fond dans l'algorithme d'amélioration du contraste pour supprimer les réflexions résiduelles
 - Ajout de la correction par flat physique
 - Ajout d'une fonction de mesure de distances
+- Ajout de l'étirement par courbe dans l'affichage des images
 - Amélioration de l'étirement des protubérances dans l'amélioration automatique du contraste
 - Amélioration de la détection des bords pour mieux gérer les images d'éclipse
 - Amélioration des images hélium
