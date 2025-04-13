@@ -1,25 +1,91 @@
 # Welcome to JSol'Ex {{version}}!
 
-# What's New in Version 3.0.0
+## What's New in Version 3.0.0
 
-- Add ability to disable stretching in image display
-- Add background neutralization to the automatic contrast enhancement image to remove residual reflections
-- Added physical flat correction
-- Added a feature to measure distances
-- Added curve stretching to image display
-- Improve prominence stretching in automatic contrast enhancement
-- Introduced new `BG_MODEL` function to model the background of the image
-- Improved edge detection to better handle eclipse images
-- Improved Helium images
-- Added `A2PX` and `PX2A` to convert from Angstroms to pixels and vice versa, based on the computed spectral dispersion
-- Added an optional parameter to `FIND_SHIFT` corresponding to the reference wavelength
-- Improve reliability of the `CONTINUUM` function and as a result of the Helium line extraction
-- Added `WAVELEN` function which returns the wavelength of an image, based on its pixel shift, dispersion and reference wavelength
-- Added `REMOTE_SCRIPTGEN` function for advanced scripting capabilities
-- Added `TRANSITION` function to create a transition between two or more images
-- Added `CURVE_TRANSFORM` function to apply a transformation to the image based on a curve
-- Fixed bug where the detected ellipse wasn't reused when computing images at different shifts, which could cause disks or images of different sizes
-- Fixed histogram not opening correctly in a new window
+- [Image Improvements](#image-improvements)
+- [New Image Stretching Modes](#new-image-stretching-modes)
+- [Physical Flat Correction](#physical-flat-correction)
+- [Distance Measurement](#distance-measurement)
+- [ImageMath Improvements](#imagemath-improvements)
+- [Bug Fixes](#bug-fixes)
+
+## Image Improvements
+
+Image quality has been improved thanks to several changes:
+
+- added background neutralization, which helps remove gradients caused by light reflections
+- better enhancement of prominences
+- more stable image brightness
+- improved automatic extraction algorithm for the Helium line
+
+The sky background calculation algorithm is also available in scripts via the `bg_model` function.
+
+## New Image Stretching Modes
+
+When an image is displayed, you can now choose between several stretching modes:
+
+- linear mode, the default, is the one used before this version
+- curve mode, new in this version, allows applying a nonlinear transformation: by providing 2 input and output values, the algorithm computes a second-degree polynomial passing through the points (0,0), (in,out), and (255,255), and applies this polynomial to each pixel
+- no transformation, which allows displaying the image without any stretching
+
+## Physical Flat Correction
+
+This feature is particularly useful for spectroheliographs using long slits (7mm or more) or long focal lengths (500mm and above).  
+In these cases, it's common to observe darkening at the solar poles, which is undesirable.  
+JSol'Ex previously offered a mathematical solution, which sometimes has its limitations.  
+This version introduces a new possibility: using physical flats.  
+This involves taking a series of images of the sun, with a light diffuser in front of the instrument (such as tracing paper).  
+The software will automatically compute a solar illumination model, which can then be applied to correct your images.
+
+Note that this solution may also be useful for Sol'Ex, at certain wavelengths where diffusion is especially visible, such as sodium or H-beta.
+
+## Distance Measurement
+
+This version includes a new distance measurement tool.  
+It allows you to estimate, for example, the size of prominences or filaments.  
+To do this, simply click the measurement button, or right-click on the image.  
+A new window will open, showing the solar grid. You can then click on points in the image, to create a path along a filament for example.  
+The software will calculate the distance, taking into account the curvature of the sun (for points on the solar disk).  
+For points outside the disk, a simple linear measurement is used.
+
+Note that the distances are approximate: it is not possible to precisely know the height of the observed features, so measurements use an average solar radius value.
+
+## ImageMath Improvements
+
+This new version has significantly improved the ImageMath module and its documentation.  
+You can now:
+
+- create your own functions
+- import scripts into another script
+- call an external web service to generate a script or images
+- write function calls across multiple lines
+- use named parameters
+
+New functions have also been added:
+
+- `bg_model`: background sky modeling
+- `a2px` and `px2a`: conversion between pixels and Angstroms
+- `wavelen`: returns the wavelength of an image, based on its pixel shift, dispersion, and reference wavelength
+- `remote_scriptgen`: allows calling an external web service to generate a script or images
+- `transition`: creates a transition between two or more images
+- `curve_transform`: applies a transformation to the image based on a curve
+
+And others have been improved:
+
+- `find_shift`: added an optional parameter for the reference wavelength
+- `continuum`: improved function reliability, enhancing Helium line extraction
+
+⚠️ Note: Some breaking changes compared to previous versions:
+
+- variables defined in the "simple" part of a script are no longer available in the `[[batch]]` section: they must be redefined.
+- the `dedistort` function has reversed the position of the reference parameter and the image list when reusing previously calculated distortions, to be consistent with the simple use case:
+
+## Bug Fixes
+
+This version fixes several bugs:
+
+- Fixed a bug where the detected ellipse was not reused when computing images at different offsets, which could cause disks or images of varying sizes
+- Fixed histogram not opening properly in a new window
 
 ## Message to US citizen and far right supporters
 
