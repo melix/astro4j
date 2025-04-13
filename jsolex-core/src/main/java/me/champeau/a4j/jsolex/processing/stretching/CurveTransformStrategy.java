@@ -28,6 +28,14 @@ public final class CurveTransformStrategy implements StretchingStrategy {
         this.out = out;
     }
 
+    public double getIn() {
+        return in;
+    }
+
+    public double getOut() {
+        return out;
+    }
+
     @Override
     public void stretch(ImageWrapper32 image) {
         var curve = ColorCurve.cachedPolynomial((int) in, (int) out);

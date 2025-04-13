@@ -55,6 +55,7 @@ import me.champeau.a4j.jsolex.processing.params.AutocropMode;
 import me.champeau.a4j.jsolex.processing.params.ProcessParams;
 import me.champeau.a4j.jsolex.processing.params.RotationKind;
 import me.champeau.a4j.jsolex.processing.stretching.ContrastAdjustmentStrategy;
+import me.champeau.a4j.jsolex.processing.stretching.CurveTransformStrategy;
 import me.champeau.a4j.jsolex.processing.stretching.CutoffStretchingStrategy;
 import me.champeau.a4j.jsolex.processing.stretching.RangeExpansionStrategy;
 import me.champeau.a4j.jsolex.processing.stretching.StretchingChain;
@@ -91,7 +92,8 @@ public class ImageViewer implements WithRootNode {
     private final Lock displayLock = new ReentrantLock();
     private Node root;
     private Stage stage;
-    private ContrastAdjustmentStrategy stretchingStrategy = ContrastAdjustmentStrategy.DEFAULT;
+    private ContrastAdjustmentStrategy contrastAdjustStrategy = ContrastAdjustmentStrategy.DEFAULT;
+    private CurveTransformStrategy curveTransformStrategy = new CurveTransformStrategy(32768, 32768);
     private ImageWrapper image;
     private ImageWrapper displayImage;
     private ImageWrapper stretchedImage;
@@ -271,7 +273,7 @@ public class ImageViewer implements WithRootNode {
 
     private void saveImage() {
         var image = applyTransformations(this.image);
-        var files = new ImageSaver(new StretchingChain(stretchingStrategy, RangeExpansionStrategy.DEFAULT), processParams).save(image, imageFile);
+        var files = new ImageSaver(new StretchingChain(contrastAdjustStrategy, RangeExpansionStrategy.DEFAULT), processParams).save(image, imageFile);
         files.stream()
                 .findFirst()
                 .ifPresent(file -> imageView.setImagePathForOpeningInExplorer(file.toPath()));
@@ -285,24 +287,31 @@ public class ImageViewer implements WithRootNode {
         try {
             displayLock.lock();
 
-            this.stretchingStrategy = ContrastAdjustmentStrategy.DEFAULT;
+            this.contrastAdjustStrategy = ContrastAdjustmentStrategy.DEFAULT;
+            this.curveTransformStrategy = new CurveTransformStrategy(32768, 32768);
             var line2 = new HBox(8);
             line2.setAlignment(Pos.CENTER_LEFT);
             var linearStretchParams = new HBox(8);
             linearStretchParams.setAlignment(Pos.CENTER_LEFT);
             configureContrastAdjustment(linearStretchParams);
             configureHGrow(linearStretchParams.getChildren());
+            var curveStretchParams = createCurveAdjustment();
             var strategySelector = new ChoiceBox<StretchingMode>();
             strategySelector.getItems().addAll(StretchingMode.values());
             strategySelector.getSelectionModel().select(stretchingMode);
             strategySelector.getSelectionModel().selectedItemProperty().addListener((obj, oldValue, newValue) -> {
                 stretchingMode = newValue;
-                linearStretchParams.setDisable(stretchingMode == StretchingMode.NO_STRETCH);
+                linearStretchParams.setDisable(stretchingMode != StretchingMode.LINEAR);
+                curveStretchParams.setDisable(stretchingMode != StretchingMode.CURVE);
                 stretchAndDisplay();
             });
+            linearStretchParams.visibleProperty().bind(strategySelector.getSelectionModel().selectedItemProperty().isEqualTo(StretchingMode.LINEAR));
+            linearStretchParams.managedProperty().bind(strategySelector.getSelectionModel().selectedItemProperty().isEqualTo(StretchingMode.LINEAR));
+            curveStretchParams.visibleProperty().bind(strategySelector.getSelectionModel().selectedItemProperty().isEqualTo(StretchingMode.CURVE));
+            curveStretchParams.managedProperty().bind(strategySelector.getSelectionModel().selectedItemProperty().isEqualTo(StretchingMode.CURVE));
             var line1 = new HBox(8);
             line1.setAlignment(Pos.CENTER_LEFT);
-            line1.getChildren().addAll(new Label(message("stretching.label")), strategySelector, linearStretchParams);
+            line1.getChildren().addAll(new Label(message("stretching.label")), strategySelector, linearStretchParams, curveStretchParams);
             var reset = new Button(message("reset"));
             reset.setOnAction(event -> {
                 stretchingParams.getChildren().clear();
@@ -454,8 +463,8 @@ public class ImageViewer implements WithRootNode {
     }
 
     private void configureContrastAdjustment(HBox container) {
-        int lo = (int) stretchingStrategy.getMin() >> 8;
-        int hi = (int) stretchingStrategy.getMax() >> 8;
+        int lo = (int) contrastAdjustStrategy.getMin() >> 8;
+        int hi = (int) contrastAdjustStrategy.getMax() >> 8;
         var loSlider = new Slider(0, 255, lo);
         var hiSlider = new Slider(0, 255, hi);
         var loValueLabel = new Label("" + lo);
@@ -468,7 +477,7 @@ public class ImageViewer implements WithRootNode {
         loSlider.valueProperty().addListener((observable, oldValue, newValue) -> {
             double value = (Double) newValue;
             pause.setOnFinished(e -> {
-                stretchingStrategy = stretchingStrategy.withRange(linValueOf(loSlider.getValue()), linValueOf(hiSlider.getValue()));
+                contrastAdjustStrategy = contrastAdjustStrategy.withRange(linValueOf(loSlider.getValue()), linValueOf(hiSlider.getValue()));
                 stretchAndDisplay();
                 loValueLabel.setText("" + (int) (value));
             });
@@ -477,7 +486,7 @@ public class ImageViewer implements WithRootNode {
         hiSlider.valueProperty().addListener((observable, oldValue, newValue) -> {
             double value = (Double) newValue;
             pause.setOnFinished(e -> {
-                stretchingStrategy = stretchingStrategy.withRange(linValueOf(loSlider.getValue()), linValueOf(hiSlider.getValue()));
+                contrastAdjustStrategy = contrastAdjustStrategy.withRange(linValueOf(loSlider.getValue()), linValueOf(hiSlider.getValue()));
                 stretchAndDisplay();
                 hiValueLabel.setText("" + (int) (value));
             });
@@ -486,9 +495,47 @@ public class ImageViewer implements WithRootNode {
         container.getChildren().addAll(List.of(loLabel, loSlider, loValueLabel, hiLabel, hiSlider, hiValueLabel));
     }
 
+    private HBox createCurveAdjustment() {
+        var container = new HBox(8);
+        container.setAlignment(Pos.CENTER_LEFT);
+        int lo = (int) curveTransformStrategy.getIn() >> 8;
+        int hi = (int) curveTransformStrategy.getOut() >> 8;
+        var loSlider = new Slider(0, 255, lo);
+        var hiSlider = new Slider(0, 255, hi);
+        var inValueLabel = new Label("" + lo);
+        var outValueLabel = new Label("" + hi);
+        var loLabel = new Label(message("in") + " ");
+        var hiLabel = new Label(message("out") + " ");
+        loSlider.setBlockIncrement(10);
+        hiSlider.setBlockIncrement(10);
+        var pause = new PauseTransition(Duration.millis(500));
+        loSlider.valueProperty().addListener((observable, oldValue, newValue) -> {
+            double value = (Double) newValue;
+            pause.setOnFinished(e -> {
+                curveTransformStrategy = new CurveTransformStrategy(linValueOf(loSlider.getValue()), linValueOf(hiSlider.getValue()));
+                stretchAndDisplay();
+                inValueLabel.setText("" + (int) (value));
+            });
+            pause.playFromStart();
+        });
+        hiSlider.valueProperty().addListener((observable, oldValue, newValue) -> {
+            double value = (Double) newValue;
+            pause.setOnFinished(e -> {
+                curveTransformStrategy = new CurveTransformStrategy(linValueOf(loSlider.getValue()), linValueOf(hiSlider.getValue()));
+                stretchAndDisplay();
+                outValueLabel.setText("" + (int) (value));
+            });
+            pause.playFromStart();
+        });
+        container.getChildren().addAll(List.of(loLabel, loSlider, inValueLabel, hiLabel, hiSlider, outValueLabel));
+        configureHGrow(container.getChildren());
+        return container;
+    }
+
     private ImageWrapper stretch(ImageWrapper image) {
         var copy = image.copy();
-        new StretchingChain(stretchingStrategy, RangeExpansionStrategy.DEFAULT).stretch(copy);
+        var strategy = stretchingMode == StretchingMode.CURVE ? curveTransformStrategy : contrastAdjustStrategy;
+        new StretchingChain(strategy, RangeExpansionStrategy.DEFAULT).stretch(copy);
         return copy;
     }
 
@@ -620,7 +667,7 @@ public class ImageViewer implements WithRootNode {
     }
 
     private enum StretchingMode {
-        LINEAR, NO_STRETCH;
+        LINEAR, CURVE, NO_STRETCH;
 
 
         @Override
