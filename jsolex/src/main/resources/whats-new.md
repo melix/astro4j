@@ -5,6 +5,7 @@
 - Add ability to disable stretching in image display
 - Add background neutralization to the automatic contrast enhancement image to remove residual reflections
 - Added physical flat correction
+- Added a feature to measure distances
 - Improve prominence stretching in automatic contrast enhancement
 - Introduced new `BG_MODEL` function to model the background of the image
 - Improved edge detection to better handle eclipse images

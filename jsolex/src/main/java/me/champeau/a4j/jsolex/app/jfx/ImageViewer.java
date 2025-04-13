@@ -23,6 +23,9 @@ import javafx.beans.property.ListProperty;
 import javafx.beans.property.SimpleIntegerProperty;
 import javafx.beans.property.SimpleListProperty;
 import javafx.collections.FXCollections;
+import javafx.event.ActionEvent;
+import javafx.event.EventHandler;
+import javafx.event.EventTarget;
 import javafx.fxml.FXML;
 import javafx.geometry.Pos;
 import javafx.scene.Node;
@@ -45,13 +48,17 @@ import javafx.util.Duration;
 import me.champeau.a4j.jsolex.app.JSolEx;
 import me.champeau.a4j.jsolex.processing.event.GenericMessage;
 import me.champeau.a4j.jsolex.processing.event.ProcessingEventListener;
+import me.champeau.a4j.jsolex.processing.event.ProgressEvent;
 import me.champeau.a4j.jsolex.processing.event.ProgressOperation;
+import me.champeau.a4j.jsolex.processing.expr.impl.ImageDraw;
 import me.champeau.a4j.jsolex.processing.params.AutocropMode;
 import me.champeau.a4j.jsolex.processing.params.ProcessParams;
 import me.champeau.a4j.jsolex.processing.params.RotationKind;
 import me.champeau.a4j.jsolex.processing.stretching.ContrastAdjustmentStrategy;
+import me.champeau.a4j.jsolex.processing.stretching.CutoffStretchingStrategy;
 import me.champeau.a4j.jsolex.processing.stretching.RangeExpansionStrategy;
 import me.champeau.a4j.jsolex.processing.stretching.StretchingChain;
+import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
 import me.champeau.a4j.jsolex.processing.sun.workflow.GeneratedImageKind;
 import me.champeau.a4j.jsolex.processing.util.BackgroundOperations;
 import me.champeau.a4j.jsolex.processing.util.FileBackedImage;
@@ -61,9 +68,12 @@ import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 import me.champeau.a4j.jsolex.processing.util.ProcessingException;
 import me.champeau.a4j.jsolex.processing.util.RGBImage;
+import me.champeau.a4j.jsolex.processing.util.SolarParameters;
 import me.champeau.a4j.jsolex.processing.util.SolarParametersUtils;
+import me.champeau.a4j.jsolex.processing.util.TemporaryFolder;
 import me.champeau.a4j.math.regression.Ellipse;
 
+import java.awt.*;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Path;
@@ -73,6 +83,7 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
+import java.util.function.Supplier;
 
 import static me.champeau.a4j.jsolex.app.JSolEx.message;
 
@@ -185,7 +196,54 @@ public class ImageViewer implements WithRootNode {
                     Platform.runLater(() -> imageView.getCtxMenu().getItems().add(openInNewWindow));
                 }
             });
+            maybeAddMeasurementTool(() -> {
+                var measureDistance = new MenuItem(I18N.string(JSolEx.class, "measures", "measure.distance"));
+                imageView.getCtxMenu().getItems().add(measureDistance);
+                return measureDistance;
+            });
         }
+    }
+
+    private void maybeAddMeasurementTool(Supplier<EventTarget> target) {
+        image.findMetadata(Ellipse.class).ifPresent(ellipse -> {
+            image.findMetadata(SolarParameters.class).ifPresent(solarParameters -> {
+                EventHandler<ActionEvent> handler = e -> BackgroundOperations.async(() -> {
+                    var withGlobe = image.copy();
+                    if (withGlobe.unwrapToMemory() instanceof ImageWrapper32 mono) {
+                        withGlobe = RGBImage.toRGB(mono);
+                    }
+                    var op = operation.createChild(I18N.string(JSolEx.class, "measures", "preparing.measure.distance"));
+                    broadcaster.onProgress(ProgressEvent.of(op));
+                    withGlobe = new ImageDraw(Map.of(), Broadcaster.NO_OP)
+                            .doDrawGlobe(withGlobe, ellipse, correctAngleP.isSelected() ? 0 : solarParameters.p(), solarParameters.b0(), new Color(1, 1, 0, .25f), false);
+                    try {
+                        var globeFile = TemporaryFolder.newTempFile("globe", ".png").toFile();
+                        var pp = processParams.withExtraParams(
+                                processParams.extraParams().withImageFormats(Set.of(ImageFormat.PNG))
+                        );
+                        new ImageSaver(CutoffStretchingStrategy.DEFAULT, pp).save(withGlobe, globeFile);
+                        var distanceMeasurementPane = new DistanceMeasurementPane(new Image(globeFile.toURI().toString()), ellipse, solarParameters);
+                        Platform.runLater(() -> {
+                            var stage = new Stage();
+                            stage.setTitle(I18N.string(JSolEx.class, "measures", "measure.distance"));
+                            var scene = new Scene(distanceMeasurementPane);
+                            stage.setScene(scene);
+                            stage.showAndWait();
+                        });
+                    } catch (IOException ex) {
+                        throw new RuntimeException(ex);
+                    } finally {
+                        broadcaster.onProgress(ProgressEvent.of(op.complete()));
+                    }
+                });
+                var targetNode = target.get();
+                if (targetNode instanceof MenuItem menuItem) {
+                    menuItem.setOnAction(handler);
+                } else if (targetNode instanceof Button button) {
+                    button.setOnAction(handler);
+                }
+            });
+        });
     }
 
     public ZoomableImageView getImageView() {
@@ -349,8 +407,16 @@ public class ImageViewer implements WithRootNode {
             });
             applyNextTime.setTooltip(new Tooltip(message("apply.next.time")));
             applyNextTime.setDisable(true);
+            var measureButton = new Button("⚖");
+            measureButton.setTooltip(new Tooltip(message("measure.button.tooltip")));
+            measureButton.setStyle("-fx-padding: 2; -fx-font-size: 18");
+            measureButton.setDisable(true);
+            maybeAddMeasurementTool(() -> {
+                measureButton.setDisable(false);
+                return measureButton;
+            });
             line1.getChildren().addAll(reset, saveButton, prevButton, nextButton);
-            line2.getChildren().addAll(correctAngleP, zoomLabel, zoomMinus, zoomPlus, fitButton, fitToCenter, oneToOneFit, leftRotate, rightRotate, verticalMirror, horizontalMirror, applyNextTime, dimensions, coordinatesLabel);
+            line2.getChildren().addAll(correctAngleP, zoomLabel, zoomMinus, zoomPlus, fitButton, fitToCenter, oneToOneFit, leftRotate, rightRotate, verticalMirror, horizontalMirror, applyNextTime, measureButton, dimensions, coordinatesLabel);
             var titleLabel = new Label(title);
             titleLabel.setStyle("-fx-font-weight: bold");
             var alignButton = new Button("⌖");
@@ -363,6 +429,7 @@ public class ImageViewer implements WithRootNode {
                     }
                 }
             });
+
             Platform.runLater(() -> {
                 alignButton.setTooltip(new Tooltip(message("align.images")));
                 var titleBox = new HBox(alignButton, titleLabel, new Label("(" + imageFile.getName() + ")"));
