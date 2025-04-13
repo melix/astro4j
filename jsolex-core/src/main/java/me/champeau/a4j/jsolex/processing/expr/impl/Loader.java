@@ -103,7 +103,6 @@ public class Loader extends AbstractFunctionImpl {
         var width = image.getWidth();
         var height = image.getHeight();
         var colorModel = image.getColorModel();
-        var size = width * height;
         if (colorModel.getNumComponents() >= 3) {
             var r = new float[height][width];
             var g = new float[height][width];

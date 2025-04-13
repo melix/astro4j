@@ -391,7 +391,7 @@ public class ImageDraw extends AbstractFunctionImpl {
             var angleP = getArgument(Number.class, arguments, "angleP").map(Number::doubleValue).or(() -> findSolarParams(image).map(SolarParameters::p)).orElse(0d);
             var b0 = getArgument(Number.class, arguments, "b0").map(Number::doubleValue).or(() -> findSolarParams(image).map(SolarParameters::b0)).orElse(0d);
             var ellipse = getEllipse(arguments, "ellipse").orElseThrow(() -> new IllegalArgumentException("Ellipse not defined"));
-            return doDrawGlobe(image, ellipse, angleP, b0);
+            return doDrawGlobe(image, ellipse, angleP, b0, null, true);
         }
         throw new IllegalArgumentException("Unexpected image type: " + img);
     }
@@ -430,10 +430,19 @@ public class ImageDraw extends AbstractFunctionImpl {
         return (int) max >> 8;
     }
 
-    private ImageWrapper doDrawGlobe(ImageWrapper wrapper, Ellipse ellipse, double angleP, double b0) {
+    public ImageWrapper doDrawGlobe(ImageWrapper wrapper,
+                                    Ellipse ellipse,
+                                    double angleP,
+                                    double b0,
+                                    Color color,
+                                    boolean maybeDrawSunspots) {
         return drawOnImage(wrapper, (g, image) -> {
+            if (color != null) {
+                g.setColor(color);
+            }
             var font = g.getFont();
             g.setFont(font.deriveFont(AffineTransform.getRotateInstance(-angleP)));
+
             double centerX = ellipse.center().a();
             double centerY = ellipse.center().b();
             double radius = (ellipse.semiAxis().a() + ellipse.semiAxis().b()) / 2d;
@@ -462,7 +471,7 @@ public class ImageDraw extends AbstractFunctionImpl {
             g.setFont(font);
             var processParams = findProcessParams(image);
             var detectedRegions = image.findMetadata(ActiveRegions.class).map(ActiveRegions::regionList).orElse(List.of());
-            if (processParams.isPresent() && !detectedRegions.isEmpty()) {
+            if (maybeDrawSunspots && processParams.isPresent() && !detectedRegions.isEmpty()) {
                 // Draw each region with label
                 var date = processParams.get().observationDetails().date();
                 var regions = NOAARegions.findActiveRegions(date);
