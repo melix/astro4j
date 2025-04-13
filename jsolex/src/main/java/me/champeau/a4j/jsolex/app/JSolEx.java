@@ -353,7 +353,7 @@ public class JSolEx implements JSolExInterface {
         configureMemoryStatus();
         try {
             var root = (Parent) fxmlLoader.load();
-            imageMathPane.setDisable(true);
+            configureIsolatedScriptExecution();
             imageMathScript.setPrefHeight(10000);
             var preferredDimensions = config.getPreferredDimensions();
             Scene rootScene = new Scene(root, preferredDimensions.a(), preferredDimensions.b());
@@ -397,6 +397,25 @@ public class JSolEx implements JSolExInterface {
         } catch (IOException exception) {
             throw new ProcessingException(exception);
         }
+    }
+
+    private void configureIsolatedScriptExecution() {
+        var standalone = createRootOperation("standalone");
+        var defaultParams = ProcessParams.loadDefaults();
+        prepareForScriptExecution(
+                createNewStandaloneExecutor(defaultParams, standalone, config.findLastOpenDirectory().orElseGet(() -> Path.of(System.getProperty("java.io.tmpdir"))).toFile()),
+                defaultParams,
+                standalone,
+                ImageMathScriptExecutor.SectionKind.SINGLE
+                );
+        var firstRun = new AtomicBoolean(true);
+        var prevHandler = imageMathRun.getOnAction();
+        imageMathRun.setOnAction(event -> {
+            if (firstRun.compareAndSet(true, false)) {
+                Platform.runLater(this::newSession);
+            }
+            prevHandler.handle(event);
+        });
     }
 
     private void updateServerStatus(boolean started) {
@@ -680,7 +699,6 @@ public class JSolEx implements JSolExInterface {
 
     @Override
     public void prepareForScriptExecution(ImageMathScriptExecutor executor, ProcessParams params, ProgressOperation rootOperation, ImageMathScriptExecutor.SectionKind sectionKind) {
-        imageMathPane.setDisable(false);
         imageMathRun.setOnAction(evt -> {
             var text = imageMathScript.getText();
             if (clearImagesCheckbox.isSelected()) {
@@ -952,44 +970,7 @@ public class JSolEx implements JSolExInterface {
         var scriptFile = scriptFiles.stream().findFirst();
         scriptFile.ifPresent(script -> {
             var outputDirectory = script.getParentFile();
-            var processingDate = LocalDateTime.now();
-            var listener = delegatingListener(new SingleModeProcessingEventListener(this, rootOperation, "", null, outputDirectory.toPath(), params, processingDate, popupViewers));
-            var namingStrategy = new FileNamingStrategy(params.extraParams().fileNamePattern(), params.extraParams().datetimeFormat(), params.extraParams().dateFormat(), processingDate, createFakeHeader(processingDate));
-            var imageScriptExecutor = new JSolExScriptExecutor(img -> {
-                throw new ProcessingException("img() is not available in standalone image math scripts. Use load or load_many to load images");
-            }, MutableMap.of(), (Broadcaster) listener, null) {
-                @Override
-                public ImageMathScriptResult execute(String script, SectionKind kind) {
-                    var result = super.execute(script, kind);
-                    processResult(result);
-                    return result;
-                }
-
-                private void processResult(ImageMathScriptResult result) {
-                    result.imagesByLabel().entrySet().stream().parallel().forEach(entry -> {
-                        var name = namingStrategy.render(0, null, Constants.TYPE_PROCESSED, entry.getKey(), "standalone");
-                        var outputFile = new File(outputDirectory, name);
-                        listener.onImageGenerated(new ImageGeneratedEvent(new GeneratedImage(GeneratedImageKind.IMAGE_MATH, entry.getKey(), outputFile.toPath(), entry.getValue(), null)));
-
-                    });
-                    result.filesByLabel().entrySet().stream().parallel().forEach(entry -> {
-                        var name = namingStrategy.render(0, null, Constants.TYPE_PROCESSED, entry.getKey(), "standalone");
-                        try {
-                            var fileName = entry.getValue().toFile().getName();
-                            var ext = fileName.substring(fileName.lastIndexOf("."));
-                            var targetPath = new File(outputDirectory, name + ext).toPath();
-                            createDirectoriesIfNeeded(targetPath.getParent());
-                            Files.move(entry.getValue(), targetPath, StandardCopyOption.REPLACE_EXISTING);
-                            listener.onFileGenerated(FileGeneratedEvent.of(GeneratedImageKind.IMAGE_MATH, entry.getKey(), targetPath));
-                        } catch (IOException e) {
-                            throw new ProcessingException(e);
-                        }
-                    });
-                    for (InvalidExpression expression : result.invalidExpressions()) {
-                        LOGGER.error("Found invalid expression {} ({}): {}", expression.label(), expression.expression(), expression.error().getMessage());
-                    }
-                }
-            };
+            var imageScriptExecutor = createNewStandaloneExecutor(params, rootOperation, outputDirectory);
             for (File file : scriptFiles) {
                 try {
                     imageScriptExecutor.execute(file.toPath(), ImageMathScriptExecutor.SectionKind.SINGLE);
@@ -999,6 +980,48 @@ public class JSolEx implements JSolExInterface {
                 prepareForScriptExecution(imageScriptExecutor, params, rootOperation, ImageMathScriptExecutor.SectionKind.SINGLE);
             }
         });
+    }
+
+    private JSolExScriptExecutor createNewStandaloneExecutor(ProcessParams params, ProgressOperation rootOperation, File outputDirectory) {
+        var processingDate = LocalDateTime.now();
+        var listener = delegatingListener(new SingleModeProcessingEventListener(this, rootOperation, "", null, outputDirectory.toPath(), params, processingDate, popupViewers));
+        var namingStrategy = new FileNamingStrategy(params.extraParams().fileNamePattern(), params.extraParams().datetimeFormat(), params.extraParams().dateFormat(), processingDate, createFakeHeader(processingDate));
+        var imageScriptExecutor = new JSolExScriptExecutor(img -> {
+            throw new ProcessingException("img() is not available in standalone image math scripts. Use load or load_many to load images");
+        }, MutableMap.of(), (Broadcaster) listener, null) {
+            @Override
+            public ImageMathScriptResult execute(String script, SectionKind kind) {
+                var result = super.execute(script, kind);
+                processResult(result);
+                return result;
+            }
+
+            private void processResult(ImageMathScriptResult result) {
+                result.imagesByLabel().entrySet().stream().parallel().forEach(entry -> {
+                    var name = namingStrategy.render(0, null, Constants.TYPE_PROCESSED, entry.getKey(), "standalone");
+                    var outputFile = new File(outputDirectory, name);
+                    listener.onImageGenerated(new ImageGeneratedEvent(new GeneratedImage(GeneratedImageKind.IMAGE_MATH, entry.getKey(), outputFile.toPath(), entry.getValue(), null)));
+
+                });
+                result.filesByLabel().entrySet().stream().parallel().forEach(entry -> {
+                    var name = namingStrategy.render(0, null, Constants.TYPE_PROCESSED, entry.getKey(), "standalone");
+                    try {
+                        var fileName = entry.getValue().toFile().getName();
+                        var ext = fileName.substring(fileName.lastIndexOf("."));
+                        var targetPath = new File(outputDirectory, name + ext).toPath();
+                        createDirectoriesIfNeeded(targetPath.getParent());
+                        Files.move(entry.getValue(), targetPath, StandardCopyOption.REPLACE_EXISTING);
+                        listener.onFileGenerated(FileGeneratedEvent.of(GeneratedImageKind.IMAGE_MATH, entry.getKey(), targetPath));
+                    } catch (IOException e) {
+                        throw new ProcessingException(e);
+                    }
+                });
+                for (InvalidExpression expression : result.invalidExpressions()) {
+                    LOGGER.error("Found invalid expression {} ({}): {}", expression.label(), expression.expression(), expression.error().getMessage());
+                }
+            }
+        };
+        return imageScriptExecutor;
     }
 
     private ProcessingEventListener delegatingListener(SingleModeProcessingEventListener singleModeProcessingEventListener) {
@@ -1049,7 +1072,6 @@ public class JSolEx implements JSolExInterface {
     }
 
     private void doOpen(File selectedFile, boolean rememberProcessParams, ProcessParams forcedParams) {
-        imageMathPane.setDisable(true);
         config.loadedSerFile(selectedFile.toPath());
         configureThreadExceptionHandler();
         Platform.runLater(this::refreshRecentItemsMenu);
@@ -1325,7 +1347,6 @@ public class JSolEx implements JSolExInterface {
     }
 
     private void doOpenMany(List<File> selectedFiles) {
-        imageMathPane.setDisable(true);
         configureThreadExceptionHandler();
         Optional<ProcessParams> processParams = Optional.empty();
         Optional<Boolean> autoTrim = Optional.empty();
