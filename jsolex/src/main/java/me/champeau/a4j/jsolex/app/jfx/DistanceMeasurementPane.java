@@ -127,9 +127,15 @@ public class DistanceMeasurementPane extends BorderPane {
         if (!event.isControlDown()) {
             return;
         }
-        double zoomFactor = (event.getDeltaY() > 0) ? 1.1 : 0.9;
-        zoom *= zoomFactor;
-        zoom = Math.max(0.1, Math.min(zoom, 10));
+        var deltaY = event.getDeltaY();
+        if (deltaY != 0) {
+            double zoomFactor = 1.05;
+            if (deltaY < 0) {
+                zoom /= zoomFactor;
+            } else {
+                zoom *= zoomFactor;
+            }
+        }
         applyZoom();
         updateCurrentMeasurementPaths();
         event.consume();
