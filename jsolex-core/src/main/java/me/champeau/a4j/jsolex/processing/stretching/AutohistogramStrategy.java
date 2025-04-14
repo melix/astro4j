@@ -107,7 +107,7 @@ public final class AutohistogramStrategy implements StretchingStrategy {
             var rescaledEllipse = e.rescale(1.01, 1.01);
             var protusImage = new ImageWrapper32(width, height, protus, Map.of(Ellipse.class, rescaledEllipse));
             var stats = ImageAnalysis.of(protusImage, false);
-            while (stats.avg() / stats.stddev() > 0.2) {
+            while (stats.avg() / stats.stddev() > 0.5) {
                 if (neutralizeBg(protusImage, 2, 1.5, 0.8f) == 0) {
                     break;
                 }

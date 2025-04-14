@@ -69,6 +69,7 @@ New functions have also been added:
 - `remote_scriptgen`: allows calling an external web service to generate a script or images
 - `transition`: creates a transition between two or more images
 - `curve_transform`: applies a transformation to the image based on a curve
+- `equalize`: equalizes the histograms of a series of images so that they look similar in brightness and contrast
 
 And others have been improved:
 

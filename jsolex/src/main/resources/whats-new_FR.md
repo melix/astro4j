@@ -3,7 +3,7 @@
 ## Nouveautés de la version 3.0.0
 
 - [Améliorations des images](#améliorations-des-images)
-- [Nouveaux modes de stetching d'image](#nouveaux-modes-de-stetching-d'image)
+- [Nouveaux modes de stretching d'image](#nouveaux-modes-de-stretching-d'image)
 - [Correction par flat physique](#correction-par-flat-physique)
 - [Mesure de distances](#mesure-de-distances)
 - [Améliorations de ImageMath](#améliorations-de-imagemath)
@@ -20,9 +20,9 @@ La qualité des images a été améliorée grâce à plusieurs modifications :
 
 L'algorithme de calcul de fond de ciel est aussi disponble dans les scripts avec la fonction `bg_model`.
 
-## Nouveaux modes de stetching d'image
+## Nouveaux modes de stretching d'image
 
-Lorsqu'une imge est affichée, il est désormais possible de choisir entre plusieurs modes d'étirement :
+Lorsqu'une image est affichée, il est désormais possible de choisir entre plusieurs modes d'étirement :
 
 - le mode linéaire, par défaut, est celui qui était utilisé avant cette version
 - le mode courbe, nouveauté de cette version, permet d'appliquer une transformation non linéaire : en fournissant 2 valeurs d'entrée et sortie, l'algorithme calcule un polynôme de second degré qui passe par les points (0,0), (in,out) et (255, 255), puis applique ce polynôme à chaque pixel
@@ -69,6 +69,7 @@ De nouvelles fonctions ont aussi été ajoutées :
 - `remote_scriptgen` : permet d'appeler un service web externe pour générer un script ou des images
 - `transition` : permet de créer une transition entre deux ou plusieurs images
 - `curve_transform` : permet d'appliquer une transformation à l'image basée sur une courbe
+- `equalize` : égalise les histogrammes d'une série d'images pour qu'elles se ressemblent en luminosité et contraste
 
 Et d'autres ont été améliorées :
 
