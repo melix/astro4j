@@ -228,8 +228,10 @@ public class ImageViewer implements WithRootNode {
                         Platform.runLater(() -> {
                             var stage = new Stage();
                             stage.setTitle(I18N.string(JSolEx.class, "measures", "measure.distance"));
-                            var scene = new Scene(distanceMeasurementPane);
+                            var scene = new Scene(distanceMeasurementPane, 1024, 768);
                             stage.setScene(scene);
+                            stage.setMaximized(true);
+                            stage.setOnShowing(evt -> distanceMeasurementPane.fitToContainer());
                             stage.showAndWait();
                         });
                     } catch (IOException ex) {

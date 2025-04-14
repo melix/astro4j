@@ -118,7 +118,6 @@ public class DistanceMeasurementPane extends BorderPane {
         this.cy = ellipse.center().b();
         imageView.boundsInParentProperty().addListener((obs, oldVal, newVal) -> redrawLines());
         container.setOnScroll(this::handleScroll);
-        applyZoom();
     }
 
     private void handleScroll(ScrollEvent event) {
@@ -131,6 +130,15 @@ public class DistanceMeasurementPane extends BorderPane {
         applyZoom();
         updateCurrentMeasurementPaths();
         event.consume();
+    }
+
+    void fitToContainer() {
+        double width = image.getWidth();
+        double height = image.getHeight();
+        double containerWidth = getWidth();
+        double containerHeight = getHeight();
+        zoom = Math.max(containerWidth/width, containerHeight/height);
+        applyZoom();
     }
 
     private void applyZoom() {
@@ -381,7 +389,7 @@ public class DistanceMeasurementPane extends BorderPane {
     private String toFormattedDistance() {
         var solarDistanceKms = getSolarDistanceKms();
         solarDistanceKms = Math.round(solarDistanceKms / 50) * 50;
-        return String.format("%.0f km", solarDistanceKms);
+        return String.format("%,d", (long) solarDistanceKms).replaceAll("[^0-9]+", " ") + " km";
     }
 
     private void repositionFinalLabel(Measurement measurement) {
@@ -462,7 +470,7 @@ public class DistanceMeasurementPane extends BorderPane {
         private boolean isDiskMeasurementMode;
         public Measurement() {
             distanceLabel = new Label();
-            distanceLabel.setStyle("-fx-text-fill: red; -fx-font-weight: bold; -fx-background-color: white; -fx-border-color: red;");
+            distanceLabel.setStyle("-fx-text-fill: red; -fx-font-weight: bold; -fx-background-color: white; -fx-border-color: red; -fx-padding: 2;");
         }
     }
 }
