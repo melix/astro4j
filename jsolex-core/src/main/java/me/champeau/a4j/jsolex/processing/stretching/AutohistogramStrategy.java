@@ -37,6 +37,7 @@ import static me.champeau.a4j.jsolex.processing.util.Constants.MAX_PIXEL_VALUE;
 
 public final class AutohistogramStrategy implements StretchingStrategy {
     private static final Logger LOGGER = LoggerFactory.getLogger(AutohistogramStrategy.class);
+    public static final double DEFAULT_BACKGROUND_THRESHOLD = 0.25;
 
     private static final float BLEND_START = 1.01f;
     private static final float BLEND_END = 1.015f;
@@ -47,11 +48,16 @@ public final class AutohistogramStrategy implements StretchingStrategy {
 
     private final double gamma;
     private final boolean adjustBrightness;
+    private final double backgroundThreshold;
 
-    public AutohistogramStrategy(double gamma, boolean adjustBrightness) {
+    public AutohistogramStrategy(double gamma, boolean adjustBrightness, double backgroundThreshold) {
         if (gamma < 1) {
             throw new IllegalArgumentException("Gamma must be greater than 1");
         }
+        if (backgroundThreshold<=0 || backgroundThreshold > 1) {
+            throw new IllegalArgumentException("Background threshold must be in the range (0, 1]");
+        }
+        this.backgroundThreshold = backgroundThreshold;
         this.gamma = gamma;
         this.adjustBrightness = adjustBrightness;
     }
@@ -104,11 +110,11 @@ public final class AutohistogramStrategy implements StretchingStrategy {
                 }
             }
             // Grow ellipse by 1% to better estimate background
-            var rescaledEllipse = e.rescale(1.01, 1.01);
+            var rescaledEllipse = e.rescale(1.05, 1.05);
             var protusImage = new ImageWrapper32(width, height, protus, Map.of(Ellipse.class, rescaledEllipse));
             var stats = ImageAnalysis.of(protusImage, false);
-            while (stats.avg() / stats.stddev() > 0.5) {
-                if (neutralizeBg(protusImage, 2, 1.5, 0.8f) == 0) {
+            while (stats.avg() / stats.stddev() > backgroundThreshold) {
+                if (neutralizeBg(protusImage, 2, 1.5, 0.9f) == 0) {
                     break;
                 }
                 stats = ImageAnalysis.of(protusImage, false);

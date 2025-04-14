@@ -130,6 +130,8 @@ public class ProcessParamsController {
     @FXML
     private TextField autostretchGamma;
     @FXML
+    private TextField bgThreshold;
+    @FXML
     private TextField dopplerShifting;
     @FXML
     private TextField continuumShifting;
@@ -438,6 +440,18 @@ public class ProcessParamsController {
 
         }));
         autostretchGamma.setText(String.valueOf(initialProcessParams.autoStretchParams().gamma()));
+        bgThreshold.setTextFormatter(new TextFormatter<>(new DoubleStringConverter() {
+            @Override
+            public Double fromString(String value) {
+                var v = super.fromString(value);
+                if (v != null && (v <= 0 || v > 1)) {
+                    return AutohistogramStrategy.DEFAULT_BACKGROUND_THRESHOLD;
+                }
+                return v;
+            }
+
+        }));
+        bgThreshold.setText(String.valueOf(initialProcessParams.autoStretchParams().bgThreshold()));
         claheParamsPane.disableProperty().bind(contrastEnhancementTechnique.getSelectionModel().selectedItemProperty().isNotEqualTo(ContrastEnhancement.CLAHE));
         autostretchParamsPane.disableProperty().bind(contrastEnhancementTechnique.getSelectionModel().selectedItemProperty().isNotEqualTo(ContrastEnhancement.AUTOSTRETCH));
         if (batchMode) {
@@ -782,7 +796,8 @@ public class ProcessParamsController {
                         Double.parseDouble(claheClipping.getText())
                 ),
                 new AutoStretchParams(
-                        Double.parseDouble(autostretchGamma.getText())
+                        Double.parseDouble(autostretchGamma.getText()),
+                        Double.parseDouble(bgThreshold.getText())
                 ),
                 contrastEnhancementTechnique.getValue(),
                 enhancementParams
@@ -885,6 +900,7 @@ public class ProcessParamsController {
         sharpen.setSelected(false);
         configureArtificialFlatDefaults();
         autostretchGamma.setText(String.valueOf(AutohistogramStrategy.DEFAULT_GAMMA));
+        bgThreshold.setText(String.valueOf(AutohistogramStrategy.DEFAULT_BACKGROUND_THRESHOLD));
         configureRichardsonLucyDefaults();
         configureClaheDefaults();
         configureBandingCorrectionDefaults();

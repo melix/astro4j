@@ -11,6 +11,11 @@ arguments:
   - name: gamma
     required: true
     description: Gamma
+  - name: bg
+    required: false
+    description:
+      fr: "Aggressivité de la correction du fond entre 0 et 1. 1 = pas de correction, 0 = correction maximale."
+      en: "Background correction aggressiveness between 0 and 1. 1 = no correction, 0 = maximum correction."
 examples:
   - "auto_contrast(img: img(0), gamma: 1.5)"
   - "auto_contrast(img(0), 1.5)"
