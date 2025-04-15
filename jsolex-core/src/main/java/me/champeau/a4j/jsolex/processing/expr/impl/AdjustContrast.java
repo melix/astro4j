@@ -65,7 +65,8 @@ public class AdjustContrast extends AbstractFunctionImpl {
             throw new IllegalArgumentException("gamma must be greater than 1");
         }
         double bgThreshold = doubleArg(arguments, "bg", AutohistogramStrategy.DEFAULT_BACKGROUND_THRESHOLD);
-        return monoToMonoImageTransformer("auto_contrast", "img", arguments, image -> new AutohistogramStrategy(gamma, true, bgThreshold).stretch(image));
+        double protusStretch = doubleArg(arguments, "protusStretch", AutohistogramStrategy.DEFAULT_PROM_STRETCH);
+        return monoToMonoImageTransformer("auto_contrast", "img", arguments, image -> new AutohistogramStrategy(gamma, true, bgThreshold, protusStretch).stretch(image));
     }
 
     public Object equalize(Map<String, Object> arguments) {

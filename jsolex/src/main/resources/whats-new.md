@@ -1,5 +1,10 @@
 # Welcome to JSol'Ex {{version}}!
 
+## What's New in Version 3.0.1
+
+- Disabled enhancement of prominences by default, there is now a parameter to enable it
+- Fixed typos in translations
+
 ## What's New in Version 3.0.0
 
 - [Image Improvements](#image-improvements)

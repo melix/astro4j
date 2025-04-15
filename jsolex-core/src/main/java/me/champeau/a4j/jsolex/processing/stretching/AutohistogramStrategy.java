@@ -38,9 +38,10 @@ import static me.champeau.a4j.jsolex.processing.util.Constants.MAX_PIXEL_VALUE;
 public final class AutohistogramStrategy implements StretchingStrategy {
     private static final Logger LOGGER = LoggerFactory.getLogger(AutohistogramStrategy.class);
     public static final double DEFAULT_BACKGROUND_THRESHOLD = 0.25;
+    public static final double DEFAULT_PROM_STRETCH = 0;
 
-    private static final float BLEND_START = 1.01f;
-    private static final float BLEND_END = 1.015f;
+    private static final float BLEND_START = 1.00f;
+    private static final float BLEND_END = 1.05f;
     private static final int TARGET_AVG = 12000;
     private static final DoubleUnaryOperator BRIGHTNESS_ENHANCE = ColorCurve.cachedPolynomial(100, 128);
 
@@ -49,17 +50,22 @@ public final class AutohistogramStrategy implements StretchingStrategy {
     private final double gamma;
     private final boolean adjustBrightness;
     private final double backgroundThreshold;
+    private final double protusStretch;
 
-    public AutohistogramStrategy(double gamma, boolean adjustBrightness, double backgroundThreshold) {
+    public AutohistogramStrategy(double gamma, boolean adjustBrightness, double backgroundThreshold, double protusStretch) {
         if (gamma < 1) {
             throw new IllegalArgumentException("Gamma must be greater than 1");
         }
-        if (backgroundThreshold<=0 || backgroundThreshold > 1) {
+        if (backgroundThreshold <= 0 || backgroundThreshold > 1) {
             throw new IllegalArgumentException("Background threshold must be in the range (0, 1]");
+        }
+        if (protusStretch < 0) {
+            throw new IllegalArgumentException("Protus stretch must be greater than 1");
         }
         this.backgroundThreshold = backgroundThreshold;
         this.gamma = gamma;
         this.adjustBrightness = adjustBrightness;
+        this.protusStretch = protusStretch;
     }
 
     /**
@@ -89,18 +95,18 @@ public final class AutohistogramStrategy implements StretchingStrategy {
                 for (int x = 0; x < width; x++) {
                     var v = diskData[y][x];
                     var dist = Utilities.normalizedDistanceToCenter(x, y, cx, cy, radius);
+                    var stretch = stretch(v, max);
                     if (dist >= BLEND_START && dist <= BLEND_END) {
                         protus[y][x] = v;
-                        diskData[y][x] = stretch(v, max);
+                        diskData[y][x] = stretch;
                     } else if (dist <= BLEND_END) {
-                        diskData[y][x] = stretch(v, max);
+                        diskData[y][x] = stretch;
                     } else {
                         diskData[y][x] = stretchedBp;
                         protus[y][x] = v;
                     }
                 }
             }
-
             analysis = ImageAnalysis.of(disk, true);
             equalize(disk, analysis, TARGET_AVG, 8000);
             analysis = ImageAnalysis.of(disk, true);
@@ -119,7 +125,9 @@ public final class AutohistogramStrategy implements StretchingStrategy {
                 }
                 stats = ImageAnalysis.of(protusImage, false);
             }
-            stretchProtus(protusImage, blackPoint);
+            if (protusStretch > 0) {
+                stretchProtus(protusImage, blackPoint);
+            }
             for (int y = 0; y < height; y++) {
                 for (int x = 0; x < width; x++) {
                     var dist = Utilities.normalizedDistanceToCenter(x, y, cx, cy, radius);
@@ -127,7 +135,7 @@ public final class AutohistogramStrategy implements StretchingStrategy {
                         // Smooth transition using a cosine blend
                         var alpha = Math.pow(0.5 * (1 + Math.cos(Math.PI * (dist * dist - BLEND_START) / (BLEND_END - BLEND_START))), 2);
                         var prominenceValue = protus[y][x];
-                        diskData[y][x] = (float) (alpha * diskData[y][x] + (1 - alpha) * prominenceValue);
+                        diskData[y][x] = (float) (0.6 * prominenceValue + 0.4 * (alpha * diskData[y][x] + (1 - alpha) * prominenceValue));
                     } else if (dist >= BLEND_END) {
                         diskData[y][x] = protus[y][x];
                     }
@@ -174,7 +182,7 @@ public final class AutohistogramStrategy implements StretchingStrategy {
         int width = protusImage.width();
 
         var protus = protusImage.data();
-        var asinh = new ArcsinhStretchingStrategy(blackPoint, 4f, 8f);
+        var asinh = new ArcsinhStretchingStrategy(blackPoint, (float) protusStretch, protusStretch);
         for (int y = 0; y < height; y++) {
             for (int x = 0; x < width; x++) {
                 protus[y][x] = asinh.stretchPixel(protus[y][x]);

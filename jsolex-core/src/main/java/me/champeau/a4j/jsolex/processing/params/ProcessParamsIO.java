@@ -248,7 +248,7 @@ public abstract class ProcessParamsIO {
     }
 
     private static AutoStretchParams createDefaultAutoStretchParams() {
-        return new AutoStretchParams(AutohistogramStrategy.DEFAULT_GAMMA, AutohistogramStrategy.DEFAULT_BACKGROUND_THRESHOLD);
+        return new AutoStretchParams(AutohistogramStrategy.DEFAULT_GAMMA, AutohistogramStrategy.DEFAULT_BACKGROUND_THRESHOLD, AutohistogramStrategy.DEFAULT_PROM_STRETCH);
     }
 
     public static String serializeToJson(ProcessParams params) {

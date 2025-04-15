@@ -118,7 +118,7 @@ public class HeliumLineProcessor {
             new ArcsinhStretchingStrategy(0, 10, 10).stretch(protus);
             image = (ImageWrapper32) evaluator.functionCall(BuiltinFunction.POW, Map.of("v", image, "exp", 2));
             LinearStrechingStrategy.DEFAULT.stretch(image);
-            new AutohistogramStrategy(1, false, AutohistogramStrategy.DEFAULT_BACKGROUND_THRESHOLD).stretch(image);
+            new AutohistogramStrategy(1, false, AutohistogramStrategy.DEFAULT_BACKGROUND_THRESHOLD, AutohistogramStrategy.DEFAULT_PROM_STRETCH).stretch(image);
             new ArcsinhStretchingStrategy(0, 3, 3).stretch(image);
             var blurred = ImageMath.newInstance().convolve(image.asImage(), Kernel33.GAUSSIAN_BLUR);
             image = (ImageWrapper32) evaluator.functionCall(BuiltinFunction.MAX, Map.of("list", List.of(protus, ImageWrapper32.fromImage(blurred))));
