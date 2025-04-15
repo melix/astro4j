@@ -60,7 +60,7 @@ public final class AutohistogramStrategy implements StretchingStrategy {
             throw new IllegalArgumentException("Background threshold must be in the range (0, 1]");
         }
         if (protusStretch < 0) {
-            throw new IllegalArgumentException("Protus stretch must be greater than 1");
+            throw new IllegalArgumentException("Protus stretch must be non-negative");
         }
         this.backgroundThreshold = backgroundThreshold;
         this.gamma = gamma;
