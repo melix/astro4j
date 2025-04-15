@@ -4,6 +4,7 @@
 
 - Disabled enhancement of prominences by default, there is now a parameter to enable it
 - Fixed typos in translations
+- Make darkest line detection more robust
 
 ## What's New in Version 3.0.0
 
