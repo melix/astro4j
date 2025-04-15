@@ -131,13 +131,13 @@ public final class AutohistogramStrategy implements StretchingStrategy {
             for (int y = 0; y < height; y++) {
                 for (int x = 0; x < width; x++) {
                     var dist = Utilities.normalizedDistanceToCenter(x, y, cx, cy, radius);
+                    var prominenceValue = protusStretch>0 ? protus[y][x] : diskData[y][x];
                     if (dist >= BLEND_START && dist <= BLEND_END) {
                         // Smooth transition using a cosine blend
                         var alpha = Math.pow(0.5 * (1 + Math.cos(Math.PI * (dist * dist - BLEND_START) / (BLEND_END - BLEND_START))), 2);
-                        var prominenceValue = protus[y][x];
                         diskData[y][x] = (float) (0.6 * prominenceValue + 0.4 * (alpha * diskData[y][x] + (1 - alpha) * prominenceValue));
                     } else if (dist >= BLEND_END) {
-                        diskData[y][x] = protus[y][x];
+                        diskData[y][x] = prominenceValue;
                     }
                 }
             }

@@ -371,7 +371,7 @@ public class SolexVideoProcessor implements Broadcaster {
                 processParams = processParams.withObservationDetails(obsDetails.withBinning(bestMatch.binning()));
             }
             var heliumLineShift = computeHeliumLineShift();
-            var canGenerateHeliumD3Images = isSodiumOrFe1() && heliumLineVisible(pixelShiftRange, heliumLineShift) && processParams.requestedImages().isEnabled(GeneratedImageKind.GEOMETRY_CORRECTED_PROCESSED);
+            var canGenerateHeliumD3Images = heliumLineVisible(pixelShiftRange, heliumLineShift) && processParams.requestedImages().isEnabled(GeneratedImageKind.GEOMETRY_CORRECTED_PROCESSED);
             addPixelShiftsForRequestedByWavelength(width, newHeight, imageList);
             addPixelShiftsForAutoContinnum(canGenerateHeliumD3Images, width, newHeight, imageList, heliumLineShift);
             addPixelShiftsDynamicallyRequiredByScripts(converter, header, fps, serFile, imageList, end, width, newHeight, geometry, height, polynomial, imageNamingStrategy, baseName);
