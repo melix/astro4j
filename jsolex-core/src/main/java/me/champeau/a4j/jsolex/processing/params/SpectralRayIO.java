@@ -76,10 +76,12 @@ public abstract class SpectralRayIO {
         if (version == null || (int) version < SCHEMA_VERSION) {
             LOGGER.info("Updating spectral rays file using latest data");
             List<SpectralRay> newRays = new ArrayList<>();
+            var foundRays = new ArrayList<SpectralRay>();
             for (SpectralRay ray : SpectralRay.predefined()) {
                 var found = rays.stream().filter(r -> r.equals(ray)).findFirst();
                 if (found.isPresent()) {
                     var current = found.get();
+                    foundRays.add(current);
                     if (current.label().equals(SpectralRay.HELIUM_D3.label())) {
                         current = new SpectralRay(current.label(), SpectralRay.HELIUM_D3.colorCurve(), SpectralRay.HELIUM_D3.wavelength(), true);
                     }
@@ -88,6 +90,11 @@ public abstract class SpectralRayIO {
                     }
                     newRays.add(current);
                 } else {
+                    newRays.add(ray);
+                }
+            }
+            for (var ray : rays) {
+                if (!foundRays.contains(ray)) {
                     newRays.add(ray);
                 }
             }
