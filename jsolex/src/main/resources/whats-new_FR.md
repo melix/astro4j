@@ -1,5 +1,10 @@
 # Bienvenue dans JSol'Ex {{version}} !
 
+## Nouveautés de la version 3.0.1
+
+- Désactivation de l'amplification des protubérances par défaut, il y a maintenant un paramètre pour l'activer
+- Correction de fautes de frappe dans les traductions
+
 ## Nouveautés de la version 3.0.0
 
 - [Améliorations des images](#améliorations-des-images)

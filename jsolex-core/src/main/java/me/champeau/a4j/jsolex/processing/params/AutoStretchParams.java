@@ -21,6 +21,7 @@ package me.champeau.a4j.jsolex.processing.params;
  */
 public record AutoStretchParams(
     double gamma,
-    double bgThreshold
+    double bgThreshold,
+    double protusStretch
 ) {
 }

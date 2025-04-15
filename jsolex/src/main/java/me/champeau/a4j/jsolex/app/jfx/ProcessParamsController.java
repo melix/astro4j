@@ -132,6 +132,10 @@ public class ProcessParamsController {
     @FXML
     private TextField bgThreshold;
     @FXML
+    private CheckBox stretchProtus;
+    @FXML
+    private TextField protusStretchValue;
+    @FXML
     private TextField dopplerShifting;
     @FXML
     private TextField continuumShifting;
@@ -452,6 +456,18 @@ public class ProcessParamsController {
 
         }));
         bgThreshold.setText(String.valueOf(initialProcessParams.autoStretchParams().bgThreshold()));
+        protusStretchValue.setTextFormatter(new TextFormatter<>(new DoubleStringConverter() {
+            @Override
+            public Double fromString(String value) {
+                var v = super.fromString(value);
+                if (v != null && v < 0) {
+                    return AutohistogramStrategy.DEFAULT_PROM_STRETCH;
+                }
+                return v;
+            }
+
+        }));
+        protusStretchValue.setText(String.valueOf(initialProcessParams.autoStretchParams().protusStretch()));
         claheParamsPane.disableProperty().bind(contrastEnhancementTechnique.getSelectionModel().selectedItemProperty().isNotEqualTo(ContrastEnhancement.CLAHE));
         autostretchParamsPane.disableProperty().bind(contrastEnhancementTechnique.getSelectionModel().selectedItemProperty().isNotEqualTo(ContrastEnhancement.AUTOSTRETCH));
         if (batchMode) {
@@ -797,7 +813,8 @@ public class ProcessParamsController {
                 ),
                 new AutoStretchParams(
                         Double.parseDouble(autostretchGamma.getText()),
-                        Double.parseDouble(bgThreshold.getText())
+                        Double.parseDouble(bgThreshold.getText()),
+                        Double.parseDouble(protusStretchValue.getText())
                 ),
                 contrastEnhancementTechnique.getValue(),
                 enhancementParams
@@ -901,6 +918,7 @@ public class ProcessParamsController {
         configureArtificialFlatDefaults();
         autostretchGamma.setText(String.valueOf(AutohistogramStrategy.DEFAULT_GAMMA));
         bgThreshold.setText(String.valueOf(AutohistogramStrategy.DEFAULT_BACKGROUND_THRESHOLD));
+        protusStretchValue.setText(String.valueOf(AutohistogramStrategy.DEFAULT_PROM_STRETCH));
         configureRichardsonLucyDefaults();
         configureClaheDefaults();
         configureBandingCorrectionDefaults();
