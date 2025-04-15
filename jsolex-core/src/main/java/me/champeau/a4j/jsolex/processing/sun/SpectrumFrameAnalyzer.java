@@ -27,7 +27,7 @@ import java.util.Optional;
 import java.util.function.DoubleUnaryOperator;
 
 public class SpectrumFrameAnalyzer {
-    public static final int MAX_DEVIATION = 5;
+    public static final int MAX_DEVIATION = 4;
     private final int width;
     private final int height;
     private final Double sunDetectionThreshold;
@@ -134,14 +134,45 @@ public class SpectrumFrameAnalyzer {
     }
 
     private Result findDistortionPolynomial(Integer leftBorder, Integer rightBorder) {
-        var samplePoints = new ArrayList<Point2D>(width);
 
         int l = leftBorder != null ? leftBorder : 0;
         int r = rightBorder != null ? rightBorder + 1 : width;
         int mid = (l + r) / 2;
         double previousY = -1;
 
-        var centerY = findLocalMinimum(mid, data);
+        var p1 = findPolynomialAround(leftBorder, rightBorder, findLocalMinimum(mid, data, 0), mid, previousY, l, r);
+        var p2 = findPolynomialAround(leftBorder, rightBorder, findLocalMinimum(mid, data, 1), mid, previousY, l, r);
+        // keep polynomial with the lowest average value
+        var avg1 = averageFor(p1);
+        var avg2 = averageFor(p2);
+        if (avg1 < avg2) {
+            return p1;
+        } else {
+            return p2;
+        }
+    }
+
+    private double averageFor(Result r) {
+        if (r.distortionPolynomial().isPresent()) {
+            var polynomial = r.distortionPolynomial().get();
+            double sum = 0;
+            int left = r.leftBorder().orElse(0);
+            int right = r.rightBorder().orElse(width);
+            for (int x = left; x < right; x++) {
+                int y = (int) Math.round(polynomial.applyAsDouble(x));
+                if (y < 0 || y >= height) {
+                    continue;
+                }
+                sum += data[y][x];
+            }
+            return sum / (right - left);
+        } else {
+            return Double.MAX_VALUE;
+        }
+    }
+
+    private Result findPolynomialAround(Integer leftBorder, Integer rightBorder, double centerY, int mid, double previousY, int l, int r) {
+        var samplePoints = new ArrayList<Point2D>(width);
         if (centerY > 0) {
             samplePoints.add(new Point2D(mid, centerY));
             previousY = centerY;
@@ -212,7 +243,7 @@ public class SpectrumFrameAnalyzer {
     }
 
 
-    private double findLocalMinimum(int column, float[][] data) {
+    private double findLocalMinimum(int column, float[][] data, int skip) {
         record Minimum(double y, float value) {
         }
         var minima = new ArrayList<Minimum>();
@@ -241,7 +272,9 @@ public class SpectrumFrameAnalyzer {
             y++;
         }
         return minima.stream()
-                .min(Comparator.comparingDouble(Minimum::value))
+                .sorted(Comparator.comparingDouble(Minimum::value))
+                .skip(skip)
+                .findFirst()
                 .map(Minimum::y)
                 .orElse(-1d);
     }

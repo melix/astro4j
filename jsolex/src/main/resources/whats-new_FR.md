@@ -4,6 +4,7 @@
 
 - Désactivation de l'amplification des protubérances par défaut, il y a maintenant un paramètre pour l'activer
 - Correction de fautes de frappe dans les traductions
+- Détection de la ligne la plus sombre plus robuste
 
 ## Nouveautés de la version 3.0.0
 
