@@ -35,4 +35,4 @@ arguments:
     optional: true
 examples:
   - "transition(list(img(0), img(1)), 10)"
-  - "transition(images: my_imges, steps: 10, type: ease_in, unit: ipm)"
+  - "transition(images: my_imges, steps: 10, type: ease_in, unit: 'ipm')"
