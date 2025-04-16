@@ -41,7 +41,7 @@ public final class AutohistogramStrategy implements StretchingStrategy {
     public static final double DEFAULT_PROM_STRETCH = 0;
 
     private static final float BLEND_START = 1.00f;
-    private static final float BLEND_END = 1.05f;
+    private static final float BLEND_END = 1.02f;
     private static final int TARGET_AVG = 12000;
     private static final DoubleUnaryOperator BRIGHTNESS_ENHANCE = ColorCurve.cachedPolynomial(100, 128);
 
@@ -102,7 +102,7 @@ public final class AutohistogramStrategy implements StretchingStrategy {
                     } else if (dist <= BLEND_END) {
                         diskData[y][x] = stretch;
                     } else {
-                        diskData[y][x] = stretchedBp;
+                        diskData[y][x] = stretch;
                         protus[y][x] = v;
                     }
                 }
@@ -120,6 +120,7 @@ public final class AutohistogramStrategy implements StretchingStrategy {
             var protusImage = new ImageWrapper32(width, height, protus, Map.of(Ellipse.class, rescaledEllipse));
             var stats = ImageAnalysis.of(protusImage, false);
             while (stats.avg() / stats.stddev() > backgroundThreshold) {
+                neutralizeBg(disk, 2, 1.5, 0.9f);
                 if (neutralizeBg(protusImage, 2, 1.5, 0.9f) == 0) {
                     break;
                 }
@@ -131,11 +132,11 @@ public final class AutohistogramStrategy implements StretchingStrategy {
             for (int y = 0; y < height; y++) {
                 for (int x = 0; x < width; x++) {
                     var dist = Utilities.normalizedDistanceToCenter(x, y, cx, cy, radius);
-                    var prominenceValue = protusStretch>0 ? protus[y][x] : diskData[y][x];
+                    var prominenceValue = protus[y][x];
                     if (dist >= BLEND_START && dist <= BLEND_END) {
                         // Smooth transition using a cosine blend
-                        var alpha = Math.pow(0.5 * (1 + Math.cos(Math.PI * (dist * dist - BLEND_START) / (BLEND_END - BLEND_START))), 2);
-                        diskData[y][x] = (float) (0.6 * prominenceValue + 0.4 * (alpha * diskData[y][x] + (1 - alpha) * prominenceValue));
+                        var alpha = Math.pow(0.5 * (1 + Math.cos(Math.PI * (dist - BLEND_START) / (BLEND_END - BLEND_START))),2);
+                        diskData[y][x] = (float) (alpha * diskData[y][x] + (1 - alpha) * prominenceValue);
                     } else if (dist >= BLEND_END) {
                         diskData[y][x] = prominenceValue;
                     }

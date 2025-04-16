@@ -1,5 +1,9 @@
 # Welcome to JSol'Ex {{version}}!
 
+## What's New in Version 3.0.2
+
+- Fixed incorrect image being saved: the displayed image would have a different stretch than what was shown in the preview
+
 ## What's New in Version 3.0.1
 
 - Disabled enhancement of prominences by default, there is now a parameter to enable it

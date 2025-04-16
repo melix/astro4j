@@ -1,5 +1,9 @@
 # Bienvenue dans JSol'Ex {{version}} !
 
+## Nouveautés de la version 3.0.2
+
+- Correction de l'image incorrecte enregistrée : l'image affichée avait un étirement différent de celui montré dans l'aperçu
+
 ## Nouveautés de la version 3.0.1
 
 - Désactivation de l'amplification des protubérances par défaut, il y a maintenant un paramètre pour l'activer

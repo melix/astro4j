@@ -59,6 +59,7 @@ import me.champeau.a4j.jsolex.processing.stretching.CurveTransformStrategy;
 import me.champeau.a4j.jsolex.processing.stretching.CutoffStretchingStrategy;
 import me.champeau.a4j.jsolex.processing.stretching.RangeExpansionStrategy;
 import me.champeau.a4j.jsolex.processing.stretching.StretchingChain;
+import me.champeau.a4j.jsolex.processing.stretching.StretchingStrategy;
 import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
 import me.champeau.a4j.jsolex.processing.sun.workflow.GeneratedImageKind;
 import me.champeau.a4j.jsolex.processing.util.BackgroundOperations;
@@ -275,7 +276,8 @@ public class ImageViewer implements WithRootNode {
 
     private void saveImage() {
         var image = applyTransformations(this.image);
-        var files = new ImageSaver(new StretchingChain(contrastAdjustStrategy, RangeExpansionStrategy.DEFAULT), processParams).save(image, imageFile);
+        var strategy = determineStrategy();
+        var files = new ImageSaver(strategy, processParams).save(image, imageFile);
         files.stream()
                 .findFirst()
                 .ifPresent(file -> imageView.setImagePathForOpeningInExplorer(file.toPath()));
@@ -285,10 +287,17 @@ public class ImageViewer implements WithRootNode {
         });
     }
 
+    private StretchingStrategy determineStrategy() {
+        return switch (stretchingMode) {
+            case NO_STRETCH -> CutoffStretchingStrategy.DEFAULT;
+            case LINEAR -> new StretchingChain(contrastAdjustStrategy, RangeExpansionStrategy.DEFAULT);
+            case CURVE -> curveTransformStrategy;
+        };
+    }
+
     private void configureStretching() {
         try {
             displayLock.lock();
-
             this.contrastAdjustStrategy = ContrastAdjustmentStrategy.DEFAULT;
             this.curveTransformStrategy = new CurveTransformStrategy(32768, 32768);
             var line2 = new HBox(8);
@@ -536,8 +545,8 @@ public class ImageViewer implements WithRootNode {
 
     private ImageWrapper stretch(ImageWrapper image) {
         var copy = image.copy();
-        var strategy = stretchingMode == StretchingMode.CURVE ? curveTransformStrategy : contrastAdjustStrategy;
-        new StretchingChain(strategy, RangeExpansionStrategy.DEFAULT).stretch(copy);
+        var strategy = determineStrategy();
+        new StretchingChain(strategy).stretch(copy);
         return copy;
     }
 
