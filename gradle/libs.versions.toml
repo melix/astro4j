@@ -9,7 +9,7 @@ gson = "2.12.1"
 micronaut = "4.7.6"
 richtextfx = "0.11.5"
 jcodec="0.2.5"
-ikonli="12.3.1"
+ikonli="12.4.0"
 
 [libraries]
 slf4j-api = { module = "org.slf4j:slf4j-api", version.ref = "slf4j-api" }
