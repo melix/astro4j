@@ -211,21 +211,24 @@ public class ImageViewer implements WithRootNode {
         image.findMetadata(Ellipse.class).ifPresent(ellipse -> {
             image.findMetadata(SolarParameters.class).ifPresent(solarParameters -> {
                 EventHandler<ActionEvent> handler = e -> BackgroundOperations.async(() -> {
-                    var withGlobe = image.copy();
-                    if (withGlobe.unwrapToMemory() instanceof ImageWrapper32 mono) {
-                        withGlobe = RGBImage.toRGB(mono);
+                    var prepared = applyTransformations(image.copy());
+                    if (prepared.unwrapToMemory() instanceof ImageWrapper32 mono) {
+                        prepared = RGBImage.toRGB(mono);
                     }
                     var op = operation.createChild(I18N.string(JSolEx.class, "measures", "preparing.measure.distance"));
                     broadcaster.onProgress(ProgressEvent.of(op));
-                    withGlobe = new ImageDraw(Map.of(), Broadcaster.NO_OP)
-                            .doDrawGlobe(withGlobe, ellipse, correctAngleP.isSelected() ? 0 : solarParameters.p(), solarParameters.b0(), new Color(1, 1, 0, .25f), false);
+                    var withGlobe = new ImageDraw(Map.of(), Broadcaster.NO_OP)
+                            .doDrawGlobe(prepared, ellipse, correctAngleP.isSelected() ? 0 : solarParameters.p(), solarParameters.b0(), new Color(1, 1, 0, .25f), false);
                     try {
+                        var preparedFile = TemporaryFolder.newTempFile("prepared", ".png").toFile();
                         var globeFile = TemporaryFolder.newTempFile("globe", ".png").toFile();
                         var pp = processParams.withExtraParams(
                                 processParams.extraParams().withImageFormats(Set.of(ImageFormat.PNG))
                         );
-                        new ImageSaver(CutoffStretchingStrategy.DEFAULT, pp).save(withGlobe, globeFile);
-                        var distanceMeasurementPane = new DistanceMeasurementPane(new Image(globeFile.toURI().toString()), ellipse, solarParameters);
+                        var imageSaver = new ImageSaver(determineStrategy(), pp);
+                        imageSaver.save(prepared, preparedFile);
+                        imageSaver.save(withGlobe, globeFile);
+                        var distanceMeasurementPane = new DistanceMeasurementPane(new Image(preparedFile.toURI().toString()), new Image(globeFile.toURI().toString()), ellipse, solarParameters);
                         Platform.runLater(() -> {
                             var stage = new Stage();
                             stage.setTitle(I18N.string(JSolEx.class, "measures", "measure.distance"));

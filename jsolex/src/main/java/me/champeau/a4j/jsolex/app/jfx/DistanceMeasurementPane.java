@@ -58,6 +58,7 @@ public class DistanceMeasurementPane extends BorderPane {
     private final ImageView imageView;
     private final Label distanceLabel;
     private final ObservableList<Measurement> allMeasurements = FXCollections.observableArrayList();
+    private final ObservableList<Measurement> redoStack = FXCollections.observableArrayList();
     private Measurement currentMeasurement = new Measurement();
     private final double cx;
     private final double cy;
@@ -69,12 +70,14 @@ public class DistanceMeasurementPane extends BorderPane {
     private double zoom = 1.0;
     private final Pane container;
 
-    public DistanceMeasurementPane(Image image,
-                                   Ellipse ellipse,
-                                   SolarParameters solarParams) {
-        this.image = image;
+    public DistanceMeasurementPane(
+            Image withoutGlobe,
+            Image withGlobe,
+            Ellipse ellipse,
+            SolarParameters solarParams) {
+        this.image = withGlobe;
         this.solarParams = solarParams;
-        imageView = new ImageView(image);
+        imageView = new ImageView(withGlobe);
         imageView.setPreserveRatio(true);
         overlayLayer = new Pane();
         overlayLayer.setPickOnBounds(false);
@@ -96,17 +99,54 @@ public class DistanceMeasurementPane extends BorderPane {
         distanceBar.getChildren().add(distanceLabel);
         distanceBar.setAlignment(Pos.CENTER);
         topBar.getChildren().add(distanceBar);
+
+        var toggleImageButton = new Button(I18N.string(JSolEx.class, "measures", "show.without.globe"));
+        toggleImageButton.setOnAction(e -> {
+            if (imageView.getImage() == withGlobe) {
+                imageView.setImage(withoutGlobe);
+                toggleImageButton.setText(I18N.string(JSolEx.class, "measures", "show.with.globe"));
+            } else {
+                imageView.setImage(withGlobe);
+                toggleImageButton.setText(I18N.string(JSolEx.class, "measures", "show.without.globe"));
+            }
+        });
+
+        var undoButton = new Button(I18N.string(JSolEx.class, "measures", "undo"));
+        undoButton.setOnAction(e -> {
+            if (!allMeasurements.isEmpty()) {
+                var measurement = allMeasurements.removeLast();
+                redoStack.add(measurement);
+                overlayLayer.getChildren().removeAll(measurement.drawnPaths);
+                overlayLayer.getChildren().remove(measurement.distanceLabel);
+            }
+        });
+        undoButton.disableProperty().bind(Bindings.isEmpty(allMeasurements));
+
+        var redoButton = new Button(I18N.string(JSolEx.class, "measures", "redo"));
+        redoButton.setOnAction(e -> {
+            if (!redoStack.isEmpty()) {
+                var measurement = redoStack.removeLast();
+                allMeasurements.add(measurement);
+                overlayLayer.getChildren().addAll(measurement.drawnPaths);
+                overlayLayer.getChildren().add(measurement.distanceLabel);
+            }
+        });
+        redoButton.disableProperty().bind(Bindings.isEmpty(redoStack));
+
         var clearMeasurementsButton = new Button(I18N.string(JSolEx.class, "measures", "measure.distance.clear"));
         clearMeasurementsButton.setOnMouseClicked(event -> {
             allMeasurements.clear();
+            redoStack.clear();
             overlayLayer.getChildren().clear();
             currentMeasurement = new Measurement();
             distanceLabel.setText("");
         });
         clearMeasurementsButton.disableProperty().bind(Bindings.size(allMeasurements).isEqualTo(0));
+
         var saveButton = new Button(I18N.string(JSolEx.class, "measures", "measure.distance.save"));
         saveButton.setOnMouseClicked(event -> saveImage(container));
-        var buttonBar = new HBox(clearMeasurementsButton, saveButton);
+
+        var buttonBar = new HBox(toggleImageButton, undoButton, redoButton, clearMeasurementsButton, saveButton);
         buttonBar.setAlignment(Pos.CENTER);
         buttonBar.setPadding(new Insets(8));
         buttonBar.setSpacing(10);
@@ -146,7 +186,7 @@ public class DistanceMeasurementPane extends BorderPane {
         double height = image.getHeight();
         double containerWidth = getWidth();
         double containerHeight = getHeight();
-        zoom = Math.max(containerWidth/width, containerHeight/height);
+        zoom = Math.max(containerWidth / width, containerHeight / height);
         applyZoom();
     }
 
@@ -158,10 +198,8 @@ public class DistanceMeasurementPane extends BorderPane {
     }
 
     private void updateCurrentMeasurementPaths() {
-        // Remove existing paths for current measurement
         currentMeasurement.drawnPaths.forEach(path -> overlayLayer.getChildren().remove(path));
         currentMeasurement.drawnPaths.clear();
-        // Rebuild paths from fixed points
         if (!currentMeasurement.fixedPoints.isEmpty()) {
             for (int i = 1; i < currentMeasurement.fixedPoints.size(); i++) {
                 var start = currentMeasurement.fixedPoints.get(i - 1);
@@ -172,7 +210,6 @@ public class DistanceMeasurementPane extends BorderPane {
                 currentMeasurement.drawnPaths.add(path);
                 overlayLayer.getChildren().add(path);
             }
-            // Update preview path if exists
             if (previewPath != null) {
                 overlayLayer.getChildren().remove(previewPath);
                 previewPath = null;
@@ -479,9 +516,11 @@ public class DistanceMeasurementPane extends BorderPane {
         distanceLabel.setText("");
         removePreview();
         allMeasurements.add(currentMeasurement);
+        redoStack.clear();
     }
 
-    private record Point3D(double x, double y, double z) {}
+    private record Point3D(double x, double y, double z) {
+    }
 
     private static class Measurement {
         private final List<Point2D> fixedPoints = new ArrayList<>();
@@ -489,6 +528,7 @@ public class DistanceMeasurementPane extends BorderPane {
         private final Label distanceLabel;
         private boolean completed;
         private boolean isDiskMeasurementMode;
+
         public Measurement() {
             distanceLabel = new Label();
             distanceLabel.setStyle("-fx-text-fill: red; -fx-font-weight: bold; -fx-background-color: white; -fx-border-color: red; -fx-padding: 2;");

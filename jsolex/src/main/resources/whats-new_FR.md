@@ -3,6 +3,9 @@
 ## Nouveautés de la version 3.0.3
 
 - Correction d'un bug lors du redimensionnement d'une image, causant des désalignements, ce qui pouvait entraîner de mauvais résultats de stacking ou un masquage incorrect du disque
+- Possibilité d'afficher le globe ou non dans la fenêtre de mesure
+- Ajout d'un historique dans la fenêtre de mesure
+- Correction des retournements et rotations non appliqués à la fenêtre de mesure
 
 ## Nouveautés de la version 3.0.2
 
