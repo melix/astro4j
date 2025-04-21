@@ -58,9 +58,12 @@ public class Animate extends AbstractFunctionImpl {
         super(context, broadcaster);
     }
 
-    public Object createAnimation(Map<String ,Object> arguments) {
+    public Object createAnimation(Map<String, Object> arguments) {
         BuiltinFunction.ANIM.validateArgs(arguments);
         var images = arguments.get("images");
+        if (images instanceof Map map) {
+            images = map.get("list");
+        }
         if (!(images instanceof List<?> listOfImages)) {
             throw new IllegalArgumentException("anim must use a list of images as first argument");
         }
@@ -84,7 +87,7 @@ public class Animate extends AbstractFunctionImpl {
             double progress = 0;
             var progressOperation = newOperation().createChild("Encoding frame");
             for (Object argument : frames) {
-                broadcaster.broadcast(progressOperation.update(progress/frames.size(), "Encoding frame " + (int) progress + "/" + frames.size()));
+                broadcaster.broadcast(progressOperation.update(progress / frames.size(), "Encoding frame " + (int) progress + "/" + frames.size()));
                 if (argument instanceof FileBackedImage fileBackedImage) {
                     argument = fileBackedImage.unwrapToMemory();
                 }
@@ -192,7 +195,7 @@ public class Animate extends AbstractFunctionImpl {
      * @param arguments
      * @return
      */
-    public Object transition(Map<String ,Object> arguments) {
+    public Object transition(Map<String, Object> arguments) {
         BuiltinFunction.TRANSITION.validateArgs(arguments);
         var images = arguments.get("images");
         if (!(images instanceof List<?> listOfImages)) {

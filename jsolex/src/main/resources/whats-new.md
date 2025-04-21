@@ -1,5 +1,9 @@
 # Welcome to JSol'Ex {{version}}!
 
+## What's New in Version 3.0.3
+
+- Fixed a bug when an image is rescaled, causing misalignments, which could lead to bad stacking results, or incorrect masking of the disk
+
 ## What's New in Version 3.0.2
 
 - Fixed incorrect image being saved: the displayed image would have a different stretch than what was shown in the preview

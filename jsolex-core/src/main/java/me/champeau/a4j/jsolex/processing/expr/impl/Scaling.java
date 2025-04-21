@@ -185,8 +185,8 @@ public class Scaling extends AbstractFunctionImpl {
     private static Map<Class<?>, Object> fixMetadata(ImageWrapper image, double width, double height) {
         var metadata = new LinkedHashMap<>(image.metadata());
         image.findMetadata(Ellipse.class).ifPresent(ellipse -> {
-            double sx = image.width() / width;
-            double sy = image.height() / height;
+            double sx = width / image.width();
+            double sy = height/ image.height();
             var rescaled = ellipse.rescale(sx, sy);
             metadata.put(Ellipse.class, rescaled);
         });
