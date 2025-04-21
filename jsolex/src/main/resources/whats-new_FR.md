@@ -1,5 +1,9 @@
 # Bienvenue dans JSol'Ex {{version}} !
 
+## Nouveautés de la version 3.0.3
+
+- Correction d'un bug lors du redimensionnement d'une image, causant des désalignements, ce qui pouvait entraîner de mauvais résultats de stacking ou un masquage incorrect du disque
+
 ## Nouveautés de la version 3.0.2
 
 - Correction de l'image incorrecte enregistrée : l'image affichée avait un étirement différent de celui montré dans l'aperçu
