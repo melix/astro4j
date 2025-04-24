@@ -126,6 +126,16 @@ public class SpectrumFrameAnalyzer {
                 rightBorder = x;
             }
         }
+        if (this.polynomial != null) {
+            // polynomial was forced
+            this.result = new Result(
+                    leftBorder,
+                    rightBorder,
+                    null,
+                    List.of()
+            );
+            return;
+        }
         this.result = findDistortionPolynomial(leftBorder, rightBorder);
     }
 
