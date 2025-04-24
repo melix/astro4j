@@ -15,6 +15,7 @@
 
 - Fixed a performance issue when redshift measurement was enabled
 - Fixed position of active areas when rotation is applied
+- Fixed non-deterministic redshift/active area detection
 
 ### 3.0.3
 

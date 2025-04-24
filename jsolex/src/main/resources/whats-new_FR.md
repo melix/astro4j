@@ -15,6 +15,7 @@
 
 - Correction d'un problème de performance lorsque la mesure des décalages vers le rouge était activée
 - Correction de la position des zones actives lorsqu'une rotation est appliquée
+- Correction de la détection non déterministe des décalages vers le rouge et des zones actives
 
 ### 3.0.3
 
