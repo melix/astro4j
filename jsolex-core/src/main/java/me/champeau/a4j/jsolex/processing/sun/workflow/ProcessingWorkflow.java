@@ -22,7 +22,6 @@ import me.champeau.a4j.jsolex.processing.event.SuggestionEvent;
 import me.champeau.a4j.jsolex.processing.expr.impl.Colorize;
 import me.champeau.a4j.jsolex.processing.expr.impl.Crop;
 import me.champeau.a4j.jsolex.processing.expr.impl.ImageDraw;
-import me.champeau.a4j.jsolex.processing.expr.impl.Rotate;
 import me.champeau.a4j.jsolex.processing.params.AutoStretchParams;
 import me.champeau.a4j.jsolex.processing.params.ClaheParams;
 import me.champeau.a4j.jsolex.processing.params.ContrastEnhancement;
@@ -390,7 +389,7 @@ public class ProcessingWorkflow {
     }
 
     private ImageWrapper32 performBandingCorrection(Ellipse ellipse) {
-        return new ImageBandingCorrector(broadcaster, newOperation(message("banding.correction")), imageSupplier(WorkflowResults.ROTATED), ellipse, processParams.bandingCorrectionParams()).get();
+        return new ImageBandingCorrector(broadcaster, newOperation(message("banding.correction")), imageSupplier(WorkflowResults.ROTATED), ellipse, processParams.bandingCorrectionParams(), processParams.geometryParams().rotation()).get();
     }
 
     private ImageWrapper32 produceStretchedImage(ImageWrapper32 geometryFixed, ClaheParams claheParams, AutoStretchParams autoStretchParams, ContrastEnhancement contrastEnhancement) {
@@ -412,17 +411,8 @@ public class ProcessingWorkflow {
     private void produceTechnicalCard(ImageWrapper32 clahe) {
         var details = clahe.copy();
         var context = SolexVideoProcessor.createMetadata(processParams, serFile, null, header);
-        var rotate = new Rotate(context, broadcaster);
         var crop = new Crop(context, broadcaster);
         var draw = new ImageDraw(context, broadcaster);
-        var rotation = processParams.geometryParams().rotation();
-        if (rotation.angle() != 0) {
-            details = switch (rotation) {
-                case LEFT -> (ImageWrapper32) rotate.rotateRadians(Map.of("img", details, "angle", -Math.PI / 2d, "bp", -1, "resize", 1));
-                case RIGHT -> (ImageWrapper32) rotate.rotateRadians(Map.of("img", details, "angle", Math.PI / 2d, "bp", -1, "resize", 1));
-                case NONE -> details;
-            };
-        }
         var cropped = crop.autocrop2(Map.of("img", details, "factor", 1.2d));
         var decorated = (ImageWrapper32) draw.drawSolarParameters(Map.of(
                 "img", draw.drawObservationDetails(Map.of(
