@@ -1283,13 +1283,15 @@ public class SolexVideoProcessor implements Broadcaster {
                                 var buffer = reconstructedImages[idx];
                                 var truncationDetails = new TruncationDetails();
                                 processSingleFrame(state.isInternal(), width, height, buffer, y, original, polynomial, state.pixelShift(), totalLines, jSolexSer, truncationDetails);
-                                phenomenaDetector.setDetectRedshifts(
-                                        state.pixelShift() == 0 && processParams.spectrumParams().ray().label().equalsIgnoreCase(SpectralRay.H_ALPHA.label()) && processParams.requestedImages().isEnabled(GeneratedImageKind.REDSHIFT)
-                                );
-                                phenomenaDetector.setDetectActiveRegions(forceDetectActiveRegions || processParams.requestedImages().isEnabled(GeneratedImageKind.ACTIVE_REGIONS));
-                                phenomenaDetector.performDetection(frameId, width, height, original, polynomial, reader.header());
-                                hasRedshifts.set(hasRedshifts.get() || phenomenaDetector.isRedShiftDetectionEnabled());
-                                hasActiveRegions.set(hasActiveRegions.get() || phenomenaDetector.isActiveRegionsDetectionEnabled());
+                                if (state.pixelShift()== 0) {
+                                    phenomenaDetector.setDetectRedshifts(
+                                            processParams.spectrumParams().ray().label().equalsIgnoreCase(SpectralRay.H_ALPHA.label()) && processParams.requestedImages().isEnabled(GeneratedImageKind.REDSHIFT)
+                                    );
+                                    phenomenaDetector.setDetectActiveRegions(forceDetectActiveRegions || processParams.requestedImages().isEnabled(GeneratedImageKind.ACTIVE_REGIONS));
+                                    phenomenaDetector.performDetection(frameId, width, height, original, polynomial, reader.header());
+                                    hasRedshifts.set(hasRedshifts.get() || phenomenaDetector.isRedShiftDetectionEnabled());
+                                    hasActiveRegions.set(hasActiveRegions.get() || phenomenaDetector.isActiveRegionsDetectionEnabled());
+                                }
                                 state.setTruncationDetails(truncationDetails);
                             } finally {
                                 broadcast(progressOperation.update(((double) processedCount.incrementAndGet()) / totalCount));
