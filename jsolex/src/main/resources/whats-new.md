@@ -14,6 +14,7 @@
 ### 3.0.4
 
 - Fixed a performance issue when redshift measurement was enabled
+- Fixed position of active areas when rotation is applied
 
 ### 3.0.3
 

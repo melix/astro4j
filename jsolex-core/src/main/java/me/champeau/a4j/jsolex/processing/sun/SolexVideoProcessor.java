@@ -45,6 +45,7 @@ import me.champeau.a4j.jsolex.processing.file.FileNamingStrategy;
 import me.champeau.a4j.jsolex.processing.params.EnhancementParams;
 import me.champeau.a4j.jsolex.processing.params.ImageMathParams;
 import me.champeau.a4j.jsolex.processing.params.ProcessParams;
+import me.champeau.a4j.jsolex.processing.params.RotationKind;
 import me.champeau.a4j.jsolex.processing.params.SpectralRay;
 import me.champeau.a4j.jsolex.processing.spectrum.FlatCreator;
 import me.champeau.a4j.jsolex.processing.spectrum.SpectrumAnalyzer;
@@ -723,6 +724,7 @@ public class SolexVideoProcessor implements Broadcaster {
         rotated = ImageWrapper32.fromImage(rotateLeft, metadata);
         TransformationHistory.recordTransform(rotated, message("rotate.left"));
         maybePerformFlips(rotated);
+        rotated = maybePerformRotation(rotated, processParams.geometryParams().rotation());
         updateTruncationDetails(state, rotated);
         state.setImage(rotated);
     }
@@ -1127,6 +1129,93 @@ public class SolexVideoProcessor implements Broadcaster {
             TransformationHistory.recordTransform(rotated, message("flip"));
         }
     }
+
+    private ImageWrapper32 maybePerformRotation(ImageWrapper32 rotated, RotationKind kind) {
+        if (kind == RotationKind.NONE) {
+            return rotated;
+        }
+
+        var original = rotated.data();
+        var width = rotated.width();
+        var height = rotated.height();
+        var newWidth = height;
+        var newHeight = width;
+        float[][] newData = new float[newHeight][newWidth];
+
+        for (int y = 0; y < height; y++) {
+            for (int x = 0; x < width; x++) {
+                if (kind == RotationKind.LEFT) {
+                    newData[width - x - 1][y] = original[y][x];
+                } else {
+                    newData[x][height - y - 1] = original[y][x];
+                }
+            }
+        }
+
+        var newMetadata = new HashMap<>(rotated.metadata());
+
+        rotated.findMetadata(Redshifts.class).ifPresent(redshifts -> {
+            var rotatedRedshifts = redshifts.redshifts().stream()
+                    .map(area -> {
+                        int x1 = area.x1(), x2 = area.x2();
+                        int y1 = area.y1(), y2 = area.y2();
+
+                        int nx1, nx2, ny1, ny2, nMaxX, nMaxY;
+                        if (kind == RotationKind.LEFT) {
+                            int tX1 = y1, tY1 = width - x1 - 1;
+                            int tX2 = y2, tY2 = width - x2 - 1;
+
+                            nx1 = Math.min(tX1, tX2);
+                            nx2 = Math.max(tX1, tX2);
+                            ny1 = Math.min(tY1, tY2);
+                            ny2 = Math.max(tY1, tY2);
+
+                            nMaxX = area.maxY();
+                            nMaxY = width - area.maxX() - 1;
+                        } else {
+                            int tX1 = height - y1 - 1, tY1 = x1;
+                            int tX2 = height - y2 - 1, tY2 = x2;
+
+                            nx1 = Math.min(tX1, tX2);
+                            nx2 = Math.max(tX1, tX2);
+                            ny1 = Math.min(tY1, tY2);
+                            ny2 = Math.max(tY1, tY2);
+
+                            nMaxX = height - area.maxY() - 1;
+                            nMaxY = area.maxX();
+                        }
+
+                        return new RedshiftArea(
+                                area.id(),
+                                area.pixelShift(),
+                                area.relPixelShift(),
+                                area.kmPerSec(),
+                                nx1, ny1, nx2, ny2,
+                                nMaxX, nMaxY
+                        );
+                    })
+                    .toList();
+
+            newMetadata.put(Redshifts.class, new Redshifts(rotatedRedshifts));
+        });
+
+        rotated.findMetadata(ActiveRegions.class).ifPresent(activeRegions -> {
+            var rotatedActiveRegions = activeRegions.transform(p -> {
+                var x = p.x();
+                var y = p.y();
+                return kind == RotationKind.LEFT
+                        ? new Point2D(y, width - x - 1)
+                        : new Point2D(height - y - 1, x);
+            });
+            newMetadata.put(ActiveRegions.class, rotatedActiveRegions);
+        });
+
+
+        var newImage = new ImageWrapper32(newWidth, newHeight, newData, newMetadata);
+        TransformationHistory.recordTransform(newImage, message("rotate." + kind.name().toLowerCase()));
+        return newImage;
+    }
+
 
     private void createWorkflowStateSteps(List<WorkflowState> imageList, int width, int newHeight) {
         var list = processParams.requestedImages().pixelShifts().stream().map(i -> WorkflowState.prepare(width, newHeight, i)).toList();

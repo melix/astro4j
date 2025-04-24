@@ -46,7 +46,6 @@ import me.champeau.a4j.jsolex.processing.expr.ImageMathScriptResult;
 import me.champeau.a4j.jsolex.processing.file.FileNamingStrategy;
 import me.champeau.a4j.jsolex.processing.params.AutocropMode;
 import me.champeau.a4j.jsolex.processing.params.ProcessParams;
-import me.champeau.a4j.jsolex.processing.params.RotationKind;
 import me.champeau.a4j.jsolex.processing.stretching.RangeExpansionStrategy;
 import me.champeau.a4j.jsolex.processing.sun.detection.RedshiftArea;
 import me.champeau.a4j.jsolex.processing.sun.workflow.DefaultImageEmitter;
@@ -157,7 +156,6 @@ public class BatchModeEventListener implements ProcessingEventListener, ImageMat
         var img = image;
         double correction = 0;
         if (!kind.cannotPerformManualRotation()) {
-            correction = image.findMetadata(RotationKind.class).orElseGet(() -> params.geometryParams().rotation()).angle();
             if (params.geometryParams().isAutocorrectAngleP()) {
                 correction += SolarParametersUtils.computeSolarParams(params.observationDetails().date().toLocalDateTime()).p();
             }
