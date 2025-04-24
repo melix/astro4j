@@ -1,30 +1,36 @@
 # Bienvenue dans JSol'Ex {{version}} !
 
-## Nouveautés de la version 3.0.3
+## Nouveautés de la version 3
 
-- Correction d'un bug lors du redimensionnement d'une image, causant des désalignements, ce qui pouvait entraîner de mauvais résultats de stacking ou un masquage incorrect du disque
-- Possibilité d'afficher le globe ou non dans la fenêtre de mesure
-- Ajout d'un historique dans la fenêtre de mesure
-- Correction des retournements et rotations non appliqués à la fenêtre de mesure
-
-## Nouveautés de la version 3.0.2
-
-- Correction de l'image incorrecte enregistrée : l'image affichée avait un étirement différent de celui montré dans l'aperçu
-
-## Nouveautés de la version 3.0.1
-
-- Désactivation de l'amplification des protubérances par défaut, il y a maintenant un paramètre pour l'activer
-- Correction de fautes de frappe dans les traductions
-- Détection de la ligne la plus sombre plus robuste
-
-## Nouveautés de la version 3.0.0
-
+- [Changements depuis la 3.0.0](#changements-depuis-la-3.0.0)
 - [Améliorations des images](#améliorations-des-images)
 - [Nouveaux modes de stretching d'image](#nouveaux-modes-de-stretching-d'image)
 - [Correction par flat physique](#correction-par-flat-physique)
 - [Mesure de distances](#mesure-de-distances)
 - [Améliorations de ImageMath](#améliorations-de-imagemath)
 - [Corrections de bugs](#corrections-de-bugs)
+
+## Changements depuis la 3.0.0
+### 3.0.4
+
+- Correction d'un problème de performance lorsque la mesure des décalages vers le rouge était activée
+
+### 3.0.3
+
+- Correction d'un bug lors du redimensionnement d'une image, causant des désalignements, ce qui pouvait entraîner de mauvais résultats de stacking ou un masquage incorrect du disque
+- Possibilité d'afficher le globe ou non dans la fenêtre de mesure
+- Ajout d'un historique dans la fenêtre de mesure
+- Correction des retournements et rotations non appliqués à la fenêtre de mesure
+
+### 3.0.2
+
+- Correction de l'image incorrecte enregistrée : l'image affichée avait un étirement différent de celui montré dans l'aperçu
+
+### 3.0.1
+
+- Désactivation de l'amplification des protubérances par défaut, il y a maintenant un paramètre pour l'activer
+- Correction de fautes de frappe dans les traductions
+- Détection de la ligne la plus sombre plus robuste
 
 ## Améliorations des images
 

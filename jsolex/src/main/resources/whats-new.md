@@ -1,30 +1,36 @@
 # Welcome to JSol'Ex {{version}}!
 
-## What's New in Version 3.0.3
+## What's New in Version 3
 
-- Fixed a bug when an image is rescaled, causing misalignments, which could lead to bad stacking results, or incorrect masking of the disk
-- Make it possible to show the globe or not in the measurement window
-- Add undo/redo in the measurement window
-- fix flips and rotations not applied to the measurement window
-
-## What's New in Version 3.0.2
-
-- Fixed incorrect image being saved: the displayed image would have a different stretch than what was shown in the preview
-
-## What's New in Version 3.0.1
-
-- Disabled enhancement of prominences by default, there is now a parameter to enable it
-- Fixed typos in translations
-- Make darkest line detection more robust
-
-## What's New in Version 3.0.0
-
+- [Changes since 3.0.0](#changes-since-3.0.0)
 - [Image Improvements](#image-improvements)
 - [New Image Stretching Modes](#new-image-stretching-modes)
 - [Physical Flat Correction](#physical-flat-correction)
 - [Distance Measurement](#distance-measurement)
 - [ImageMath Improvements](#imagemath-improvements)
 - [Bug Fixes](#bug-fixes)
+
+## Changes since 3.0.0
+### 3.0.4
+
+- Fixed a performance issue when redshift measurement was enabled
+
+### 3.0.3
+
+- Fixed a bug when an image is rescaled, causing misalignments, which could lead to bad stacking results, or incorrect masking of the disk
+- Make it possible to show the globe or not in the measurement window
+- Add undo/redo in the measurement window
+- fix flips and rotations not applied to the measurement window
+
+### 3.0.2
+
+- Fixed incorrect image being saved: the displayed image would have a different stretch than what was shown in the preview
+
+### 3.0.1
+
+- Disabled enhancement of prominences by default, there is now a parameter to enable it
+- Fixed typos in translations
+- Make darkest line detection more robust
 
 ## Image Improvements
 
