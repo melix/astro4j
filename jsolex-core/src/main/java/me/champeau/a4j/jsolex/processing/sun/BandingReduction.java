@@ -40,14 +40,14 @@ public class BandingReduction {
         for (int y = 0; y < height; y++) {
             double bandAverage = bandAverages[y];
             double currentLineAverage = lineAverages[y];
-                var correction = bandAverage / currentLineAverage;
-                if (!Double.isInfinite(correction) && !Double.isNaN(correction)) {
-                    for (int x = 0; x < width; x++) {
-                        if (ellipse == null || ellipse.isWithin(x, y)) {
-                            data[y][x] *= correction;
-                        }
+            var correction = bandAverage / currentLineAverage;
+            if (!Double.isInfinite(correction) && !Double.isNaN(correction)) {
+                for (int x = 0; x < width; x++) {
+                    if (ellipse == null || ellipse.isWithin(x, y)) {
+                        data[y][x] *= correction;
                     }
                 }
+            }
         }
         if (ellipse != null) {
             bilinearSmoothing(ellipse, width, height, data);
@@ -66,7 +66,11 @@ public class BandingReduction {
         int count = 0;
         for (int k = Math.max(0, y - halfSize); k < Math.min(y + halfSize + 1, height); k++) {
             if (k != y) {
-                sum += lineAverages[k];
+                double lineAverage = lineAverages[k];
+                if (Double.isNaN(lineAverage)) {
+                    continue;
+                }
+                sum += lineAverage;
                 count++;
             }
         }
@@ -91,6 +95,9 @@ public class BandingReduction {
                 sum += data[y][x];
                 count++;
             }
+        }
+        if (count == 0) {
+            return Double.NaN;
         }
         return sum / count;
     }
