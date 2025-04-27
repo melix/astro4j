@@ -36,7 +36,7 @@ public class Saturation extends AbstractFunctionImpl {
         if (arg instanceof List) {
             return expandToImageList("saturate", "img", arguments, this::saturate);
         }
-        var saturation = doubleArg(arguments, "saturation", 1);
+        var saturation = doubleArg(arguments, "factor", 1);
         var exponent = Math.pow(2, -saturation);
         if (arg instanceof FileBackedImage fileBackedImage) {
             arg = fileBackedImage.unwrapToMemory();
