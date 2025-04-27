@@ -11,6 +11,12 @@
 - [Bug Fixes](#bug-fixes)
 
 ## Changes since 3.0.0
+
+### 3.0.5
+
+- Fixed the `saturate` function that no longer used the chosen value
+- Fixed banding correction on edges
+
 ### 3.0.4
 
 - Fixed a performance issue when redshift measurement was enabled

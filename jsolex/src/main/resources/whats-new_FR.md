@@ -11,6 +11,12 @@
 - [Corrections de bugs](#corrections-de-bugs)
 
 ## Changements depuis la 3.0.0
+
+### 3.0.5
+
+- Correction de la fonction `saturate` qui n'utilisait plus la valeur choisie
+- Correction de la correction de bandes sur les bords solaires (bandes plus claires)
+
 ### 3.0.4
 
 - Correction d'un problème de performance lorsque la mesure des décalages vers le rouge était activée
