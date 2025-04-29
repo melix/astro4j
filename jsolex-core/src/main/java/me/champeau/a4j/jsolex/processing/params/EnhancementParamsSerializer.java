@@ -23,6 +23,7 @@ import com.google.gson.JsonParseException;
 import com.google.gson.JsonSerializationContext;
 import com.google.gson.JsonSerializer;
 import me.champeau.a4j.jsolex.processing.sun.FlatCorrection;
+import me.champeau.a4j.jsolex.processing.sun.workflow.JaggingCorrection;
 
 import java.lang.reflect.Type;
 import java.nio.file.Path;
@@ -66,10 +67,18 @@ class EnhancementParamsSerializer implements JsonSerializer<EnhancementParams>, 
                 order = FlatCorrection.DEFAULT_ORDER;
             }
             var masterFlat = getNullableString(obj, "masterFlatFile");
-            return new EnhancementParams(artificialFlatCorrection, loPercentile, hiPercentile, order, masterFlat==null ? null : Path.of(masterFlat));
+            var jaggingCorrectionParams = obj.getAsJsonObject("jaggingCorrectionParams");
+            JaggingCorrectionParams jaggingCorrection = new JaggingCorrectionParams(false, JaggingCorrection.DEFAULT_SIGMA);
+            if (jaggingCorrectionParams != null) {
+                var enabled = getNullableBoolean(jaggingCorrectionParams, "enabled");
+                var sigma = getNullableDouble(jaggingCorrectionParams, "sigma");
+                jaggingCorrection = new JaggingCorrectionParams(enabled, sigma == null ? JaggingCorrection.DEFAULT_SIGMA : sigma);
+            }
+            return new EnhancementParams(artificialFlatCorrection, loPercentile, hiPercentile, order, masterFlat==null ? null : Path.of(masterFlat), jaggingCorrection);
         }
         throw new IllegalAccessError("Unexpected JSON type " + json.getClass());
     }
+
 
     @Override
     public JsonElement serialize(EnhancementParams src, Type typeOfSrc, JsonSerializationContext context) {
@@ -79,6 +88,10 @@ class EnhancementParamsSerializer implements JsonSerializer<EnhancementParams>, 
         obj.addProperty("artificialFlatCorrectionHiPercentile", src.artificialFlatCorrectionHiPercentile());
         obj.addProperty("artificialFlatCorrectionOrder", src.artificialFlatCorrectionOrder());
         obj.addProperty("masterFlatFile", src.masterFlatFile() == null ? null : src.masterFlatFile().toString());
+        var jaggingCorrectionParams = new JsonObject();
+        jaggingCorrectionParams.addProperty("enabled", src.jaggingCorrectionParams().enabled());
+        jaggingCorrectionParams.addProperty("sigma", src.jaggingCorrectionParams().sigma());
+        obj.add("jaggingCorrectionParams", jaggingCorrectionParams);
         return obj;
     }
 }

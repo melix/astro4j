@@ -4,7 +4,7 @@ on:
   push:
     branches:
       - main
-      - v3-dev
+      - cc/antijag
     tags:
       - '*'
   workflow_dispatch:

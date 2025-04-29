@@ -12,8 +12,9 @@
 
 ## Changes since 3.0.0
 
-### 3.0.5
+### 3.1.0
 
+- Added experimental jagged edges correction 
 - Fixed the `saturate` function that no longer used the chosen value
 - Fixed banding correction on edges
 

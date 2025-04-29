@@ -28,7 +28,6 @@ import javafx.scene.control.ButtonType;
 import javafx.scene.control.CheckBox;
 import javafx.scene.control.ChoiceBox;
 import javafx.scene.control.Label;
-import javafx.scene.control.Slider;
 import javafx.scene.control.TextField;
 import javafx.scene.control.TextFormatter;
 import javafx.scene.layout.GridPane;
@@ -54,6 +53,7 @@ import me.champeau.a4j.jsolex.processing.params.ExtraParams;
 import me.champeau.a4j.jsolex.processing.params.FileNamingPatternsIO;
 import me.champeau.a4j.jsolex.processing.params.GeometryParams;
 import me.champeau.a4j.jsolex.processing.params.ImageMathParams;
+import me.champeau.a4j.jsolex.processing.params.JaggingCorrectionParams;
 import me.champeau.a4j.jsolex.processing.params.NamedPattern;
 import me.champeau.a4j.jsolex.processing.params.ObservationDetails;
 import me.champeau.a4j.jsolex.processing.params.ProcessParams;
@@ -72,6 +72,7 @@ import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
 import me.champeau.a4j.jsolex.processing.sun.CaptureSoftwareMetadataHelper;
 import me.champeau.a4j.jsolex.processing.sun.FlatCorrection;
 import me.champeau.a4j.jsolex.processing.sun.workflow.GeneratedImageKind;
+import me.champeau.a4j.jsolex.processing.sun.workflow.JaggingCorrection;
 import me.champeau.a4j.jsolex.processing.util.Constants;
 import me.champeau.a4j.jsolex.processing.util.ImageFormat;
 import me.champeau.a4j.math.image.Deconvolution;
@@ -112,9 +113,9 @@ public class ProcessParamsController {
     @FXML
     private GridPane autostretchParamsPane;
     @FXML
-    private Slider bandingCorrectionPasses;
+    private TextField bandingCorrectionPasses;
     @FXML
-    private Slider bandingCorrectionWidth;
+    private TextField bandingCorrectionWidth;
     @FXML
     private TextField camera;
     @FXML
@@ -239,6 +240,10 @@ public class ProcessParamsController {
     private CheckBox autoTrimSerFile;
     @FXML
     private CheckBox reviewImagesAfterBatch;
+    @FXML
+    private CheckBox jaggingCorrection;
+    @FXML
+    private TextField jaggingCorrectionSigma;
 
     private final List<Stage> popups = new CopyOnWriteArrayList<>();
     private Stage stage;
@@ -331,8 +336,28 @@ public class ProcessParamsController {
         xyRatioValue.setText(Double.toString(initialProcessParams.geometryParams().xyRatio().orElse(1.0d)));
         xyRatioValue.setDisable(true);
         forceXYRatio.selectedProperty().addListener((observable, oldValue, newValue) -> xyRatioValue.setDisable(!newValue));
-        bandingCorrectionWidth.setValue(initialProcessParams.bandingCorrectionParams().width());
-        bandingCorrectionPasses.setValue(initialProcessParams.bandingCorrectionParams().passes());
+        bandingCorrectionWidth.setTextFormatter(new TextFormatter<>(new IntegerStringConverter() {
+            @Override
+            public Integer fromString(String s) {
+                Integer v = super.fromString(s);
+                if (v != null && v < 1) {
+                    return DEFAULT_BAND_SIZE;
+                }
+                return v;
+            }
+        }));
+        bandingCorrectionPasses.setTextFormatter(new TextFormatter<>(new IntegerStringConverter() {
+            @Override
+            public Integer fromString(String s) {
+                Integer v = super.fromString(s);
+                if (v != null && v < 0) {
+                    return DEFAULT_PASS_COUNT;
+                }
+                return v;
+            }
+        }));
+        bandingCorrectionWidth.setText("" + initialProcessParams.bandingCorrectionParams().width());
+        bandingCorrectionPasses.setText("" + initialProcessParams.bandingCorrectionParams().passes());
         horizontalMirror.setSelected(initialProcessParams.geometryParams().isHorizontalMirror());
         verticalMirror.setSelected(initialProcessParams.geometryParams().isVerticalMirror());
         sharpen.setSelected(initialProcessParams.geometryParams().isSharpen());
@@ -560,6 +585,18 @@ public class ProcessParamsController {
         } else {
             flatMode.getSelectionModel().select(FlatMode.NONE);
         }
+        jaggingCorrection.setSelected(initialProcessParams.enhancementParams().jaggingCorrectionParams().enabled());
+        jaggingCorrectionSigma.setTextFormatter(new TextFormatter<>(new DoubleStringConverter() {
+            @Override
+            public Double fromString(String value) {
+                var v = super.fromString(value);
+                if (v != null && v < 0) {
+                    return JaggingCorrection.DEFAULT_SIGMA;
+                }
+                return v;
+            }
+        }));
+        jaggingCorrectionSigma.setText(String.valueOf(initialProcessParams.enhancementParams().jaggingCorrectionParams().sigma()));
     }
 
     private static TextFormatter<Integer> createOrderFormatter() {
@@ -760,7 +797,11 @@ public class ProcessParamsController {
         }
         var namingStrategy = namingPattern.getSelectionModel().getSelectedItem();
         var artificialFlat = flatMode.getSelectionModel().getSelectedItem() == FlatMode.ARTIFICIAL;
-        var enhancementParams = new EnhancementParams(artificialFlat, Double.parseDouble(flatLoPercentile.getText()), Double.parseDouble(flatHiPercentile.getText()), Integer.parseInt(flatOrder.getText()), flatMode.getSelectionModel().getSelectedItem() == FlatMode.REAL ? selectedFlatFilePath : null);
+        var jaggingCorrectionParams = new JaggingCorrectionParams(
+                jaggingCorrection.isSelected(),
+                Double.parseDouble(jaggingCorrectionSigma.getText())
+        );
+        var enhancementParams = new EnhancementParams(artificialFlat, Double.parseDouble(flatLoPercentile.getText()), Double.parseDouble(flatHiPercentile.getText()), Integer.parseInt(flatOrder.getText()), flatMode.getSelectionModel().getSelectedItem() == FlatMode.REAL ? selectedFlatFilePath : null, jaggingCorrectionParams);
         processParams = new ProcessParams(
                 new SpectrumParams(wavelength.getValue(), getPixelShiftAsDouble(), Double.parseDouble(dopplerShifting.getText()), Double.parseDouble(continuumShifting.getText()), switchRedBlueChannels.isSelected()),
                 new ObservationDetails(
@@ -802,8 +843,8 @@ public class ProcessParamsController {
                         spectrumVFlip.isSelected()
                 ),
                 new BandingCorrectionParams(
-                        (int) Math.round(bandingCorrectionWidth.getValue()),
-                        (int) Math.round(bandingCorrectionPasses.getValue())
+                        Integer.parseInt(bandingCorrectionWidth.getText()),
+                        Integer.parseInt(bandingCorrectionPasses.getText())
                 ),
                 requestedImages,
                 new ClaheParams(
@@ -922,6 +963,12 @@ public class ProcessParamsController {
         configureRichardsonLucyDefaults();
         configureClaheDefaults();
         configureBandingCorrectionDefaults();
+        configureJaggingCorrectionDefaults();
+    }
+
+    private void configureJaggingCorrectionDefaults() {
+        jaggingCorrection.setSelected(false);
+        jaggingCorrectionSigma.setText(String.valueOf(JaggingCorrection.DEFAULT_SIGMA));
     }
 
     private void configureArtificialFlatDefaults() {
@@ -932,8 +979,8 @@ public class ProcessParamsController {
     }
 
     private void configureBandingCorrectionDefaults() {
-        bandingCorrectionWidth.setValue(DEFAULT_BAND_SIZE);
-        bandingCorrectionPasses.setValue(DEFAULT_PASS_COUNT);
+        bandingCorrectionWidth.setText("" + DEFAULT_BAND_SIZE);
+        bandingCorrectionPasses.setText("" + DEFAULT_PASS_COUNT);
     }
 
     private void configureClaheDefaults() {

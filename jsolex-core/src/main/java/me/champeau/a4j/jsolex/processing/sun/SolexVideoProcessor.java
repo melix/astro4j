@@ -63,6 +63,7 @@ import me.champeau.a4j.jsolex.processing.sun.workflow.HeliumLineProcessor;
 import me.champeau.a4j.jsolex.processing.sun.workflow.ImageEmitter;
 import me.champeau.a4j.jsolex.processing.sun.workflow.ImageEmitterFactory;
 import me.champeau.a4j.jsolex.processing.sun.workflow.ImageStats;
+import me.champeau.a4j.jsolex.processing.sun.workflow.JaggingCorrection;
 import me.champeau.a4j.jsolex.processing.sun.workflow.NamingStrategyAwareImageEmitter;
 import me.champeau.a4j.jsolex.processing.sun.workflow.NoOpImageEmitter;
 import me.champeau.a4j.jsolex.processing.sun.workflow.PixelShiftRange;
@@ -639,18 +640,16 @@ public class SolexVideoProcessor implements Broadcaster {
         var prepareOperation = newOperation(message("preparing.for.corrections"));
         broadcast(prepareOperation);
         var progress = new AtomicInteger(0);
+        var imageEmitterFactory = createImageEmitterFactory(imageList, imageNamingStrategy, baseName);
+        var initialFit = performInitialEllipseFit(imageList);
         imageList.stream()
                 .parallel()
                 .forEach(i -> {
                     double pg = ((double) progress.incrementAndGet()) / imageList.size();
-                    prepareImageForCorrections(i, header);
+                    prepareImageForCorrections(i, header, initialFit.orElse(null), imageEmitterFactory.newEmitter(this, outputDirectory));
                     broadcast(prepareOperation.update(pg));
                 });
-        var fitting = performEllipseFitting(imageList, (broadcaster, outputDirectory) -> {
-            ImageEmitter emitter = new DefaultImageEmitter(broadcaster, rootOperation, outputDirectory.toFile());
-            emitter = new NamingStrategyAwareImageEmitter(emitter, imageNamingStrategy, sequenceNumber, baseName);
-            return new DiscardNonRequiredImages(emitter, processParams.requestedImages().images());
-        });
+        var fitting = performEllipseFitting(imageList, imageEmitterFactory);
         IntStream.range(0, imageList.size()).parallel().forEach(i -> {
             var state = imageList.get(i);
             state.recordResult(WorkflowResults.MAIN_ELLIPSE_FITTING, fitting);
@@ -669,12 +668,35 @@ public class SolexVideoProcessor implements Broadcaster {
             broadcast(generationOperation.update(((double) progress.get()) / imageList.size()));
             var state = o.state;
             var step = o.step;
-            var imageEmitterFactory = new ProcessAwareImageEmitterFactory(state, imageNamingStrategy, baseName);
-            var workflow = new ProcessingWorkflow(generationOperation, this, outputDirectory, imageList, step, processParams, fps, imageEmitterFactory, serFile.toPath(), header);
+            var ief = new ProcessAwareImageEmitterFactory(state, imageNamingStrategy, baseName);
+            var workflow = new ProcessingWorkflow(generationOperation, this, outputDirectory, imageList, step, processParams, fps, ief, serFile.toPath(), header);
             workflow.start();
             broadcast(generationOperation.update(((double) progress.incrementAndGet()) / imageList.size()));
         });
         broadcast(generationOperation.complete());
+    }
+
+    private Optional<Ellipse> performInitialEllipseFit(List<WorkflowState> imageList) {
+        var operation = rootOperation.createChild(message("ellipse.fitting"));
+        return imageList.stream()
+                .sorted(Comparator.comparingDouble(WorkflowState::pixelShift))
+                .map(state -> {
+                    var task = new EllipseFittingTask(
+                            this,
+                            operation,
+                            state::reconstructed,
+                            processParams,
+                            ImageEmitter.NO_OP
+                    );
+                    var result = task.get();
+                    if (result != null) {
+                        return Optional.of(result.ellipse());
+                    }
+                    return Optional.<Ellipse>empty();
+                })
+                .filter(Optional::isPresent)
+                .map(Optional::get)
+                .findFirst();
     }
 
     private static void updateTruncatedDiskMetadata(EllipseFittingTask.Result fitting, WorkflowState state) {
@@ -707,9 +729,14 @@ public class SolexVideoProcessor implements Broadcaster {
         });
     }
 
-    private void prepareImageForCorrections(WorkflowState state, Header header) {
+    private void prepareImageForCorrections(WorkflowState state, Header header, Ellipse ellipse, ImageEmitter emitter) {
         ImageWrapper32 rotated;
-        ImageWrapper32 reconstructed = state.reconstructed();
+        ImageWrapper32 reconstructed = state.reconstructed().copy();
+        performBandingCorrection(reconstructed, ellipse);
+        if (ellipse != null) {
+            var jaggingCorrection = new JaggingCorrection(state, processParams, emitter);
+            jaggingCorrection.maybePerformJaggedEdgesCorrection(reconstructed, ellipse);
+        }
         var recon = reconstructed.asImage();
         var rotateLeft = ImageMath.newInstance().rotateLeft(recon);
         var metadata = new HashMap<>(reconstructed.metadata());
@@ -723,10 +750,36 @@ public class SolexVideoProcessor implements Broadcaster {
         }
         rotated = ImageWrapper32.fromImage(rotateLeft, metadata);
         TransformationHistory.recordTransform(rotated, message("rotate.left"));
+
         maybePerformFlips(rotated);
         rotated = maybePerformRotation(rotated, processParams.geometryParams().rotation());
         updateTruncationDetails(state, rotated);
         state.setImage(rotated);
+    }
+
+    private void performBandingCorrection(ImageWrapper32 reconstructed, Ellipse e) {
+        var operation = rootOperation.createChild(message("banding.correction"));
+        broadcast(operation);
+        // banding correction works horizontally, so we need to temporarily rotate the image
+        var imageMath = ImageMath.newInstance();
+        var rotated = imageMath.rotateLeft(reconstructed.asImage());
+        var passes = processParams.bandingCorrectionParams().passes();
+        var bandSize = processParams.bandingCorrectionParams().width();
+        var width = rotated.width();
+        var height = rotated.height();
+        var buffer = rotated.data();
+        var ellipse = e != null ? e.rotate(-Math.PI/2, reconstructed.width(), reconstructed.height(), width, height) : null;
+        for (int i = 0; i < passes; i++) {
+            BandingReduction.reduceBanding(width, height, buffer, bandSize, ellipse);
+            broadcast(operation.update((i + 1d / passes)));
+        }
+        broadcast(operation.complete());
+        // rotate back to original orientation
+        rotated = imageMath.rotateRight(rotated);
+        for (int y = 0; y < reconstructed.height(); y++) {
+            System.arraycopy(rotated.data()[y], 0, reconstructed.data()[y], 0, reconstructed.width());
+        }
+        TransformationHistory.recordTransform(reconstructed, "Banding reduction (band size: " + bandSize + " passes: " + passes + ")");
     }
 
     private void updateTruncationDetails(WorkflowState state, ImageWrapper32 rotated) {
@@ -781,11 +834,6 @@ public class SolexVideoProcessor implements Broadcaster {
                 processParams.observationDetails().instrument()
         );
         return pixelShift;
-    }
-
-    private boolean isSodiumOrFe1() {
-        var observedLine = processParams.spectrumParams().ray().label();
-        return observedLine.equals(SpectralRay.SODIUM_D2.label()) || observedLine.equals(SpectralRay.IRON_FE1.label());
     }
 
     private void addPixelShiftsForRequestedByWavelength(int width, int newHeight, List<WorkflowState> imageList) {
@@ -1283,7 +1331,8 @@ public class SolexVideoProcessor implements Broadcaster {
                                 var buffer = reconstructedImages[idx];
                                 var truncationDetails = new TruncationDetails();
                                 processSingleFrame(state.isInternal(), width, height, buffer, y, original, polynomial, state.pixelShift(), totalLines, jSolexSer, truncationDetails);
-                                if (state.pixelShift()== 0) {
+                                if (state.pixelShift() == 0) {
+                                    phenomenaDetector.setDetectBorders(processParams.enhancementParams().jaggingCorrectionParams().enabled());
                                     phenomenaDetector.setDetectRedshifts(
                                             processParams.spectrumParams().ray().label().equalsIgnoreCase(SpectralRay.H_ALPHA.label()) && processParams.requestedImages().isEnabled(GeneratedImageKind.REDSHIFT)
                                     );
@@ -1309,11 +1358,13 @@ public class SolexVideoProcessor implements Broadcaster {
             if (hasRedshifts.get() && !phenomenaDetector.hasRedshifts()) {
                 LOGGER.warn(message("no.redshifts.detected"));
             }
+            var borders = phenomenaDetector.getBorderDetection();
             for (int i = 0; i < images.length; i++) {
                 var state = images[i];
                 var reconstructedImage = reconstructedImages[i];
                 var recon = new ImageWrapper32(width, totalLines, reconstructedImage, MutableMap.of());
                 state.recordResult(WorkflowResults.RECONSTRUCTED, recon);
+                state.recordResult(WorkflowResults.BORDERS, borders);
             }
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();

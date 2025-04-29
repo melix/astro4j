@@ -45,7 +45,6 @@ import me.champeau.a4j.jsolex.processing.sun.tasks.CoronagraphTask;
 import me.champeau.a4j.jsolex.processing.sun.tasks.EllipseFittingTask;
 import me.champeau.a4j.jsolex.processing.sun.tasks.GeometryCorrector;
 import me.champeau.a4j.jsolex.processing.sun.tasks.ImageAnalysis;
-import me.champeau.a4j.jsolex.processing.sun.tasks.ImageBandingCorrector;
 import me.champeau.a4j.jsolex.processing.util.Constants;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
@@ -123,10 +122,7 @@ public class ProcessingWorkflow {
         var existingFitting = state.findResult(WorkflowResults.MAIN_ELLIPSE_FITTING);
         if (existingFitting.isPresent()) {
             EllipseFittingTask.Result r = (EllipseFittingTask.Result) existingFitting.get();
-            var ellipse = r.ellipse();
-            var bandingFixed = performBandingCorrection(ellipse);
-            state.recordResult(WorkflowResults.BANDING_CORRECTION, bandingFixed);
-            geometryCorrection(r, bandingFixed);
+            geometryCorrection(r, state.image());
         } else {
             var clahe = state.image().copy();
             var claheParams = processParams.claheParams();
@@ -178,7 +174,7 @@ public class ProcessingWorkflow {
             LOGGER.info(message("overriding.tilt"), String.format("%.2f", geometryParams.tilt().getAsDouble()));
         }
         Double ratio = geometryParams.xyRatio().isPresent() ? geometryParams.xyRatio().getAsDouble() : null;
-        var g = new GeometryCorrector(broadcaster, newOperation(message("geometry.correction")), imageSupplier(WorkflowResults.BANDING_CORRECTION), ellipse, forcedTilt, fps, ratio, blackPoint, processParams, imagesEmitter, state, header).get();
+        var g = new GeometryCorrector(broadcaster, newOperation(message("geometry.correction")), imageSupplier(WorkflowResults.ROTATED), ellipse, forcedTilt, fps, ratio, blackPoint, processParams, imagesEmitter, state, header).get();
         var kind = GeneratedImageKind.GEOMETRY_CORRECTED;
         var geometryFixed = (ImageWrapper32) g.corrected().unwrapToMemory();
         if (state.pixelShift() == processParams.spectrumParams().continuumShift()) {
@@ -366,7 +362,7 @@ public class ProcessingWorkflow {
                             var mono = monoImage.data();
                             var analysis = ImageAnalysis.of(monoImage, true);
                             ImageWrapper32 image = new ImageWrapper32(corrected.width(), corrected.height(), mono, MutableMap.of());
-                            var bp = 0.5f*Math.max(0, analysis.avg() - analysis.stddev());
+                            var bp = 0.5f * Math.max(0, analysis.avg() - analysis.stddev());
                             createStretchingForColorization(bp).stretch(image);
                             return ImageUtils.convertToRGB(curve, mono);
                         })
@@ -376,7 +372,7 @@ public class ProcessingWorkflow {
                             var mono = monoImage.data();
                             var rgb = ray.toRGB();
                             var analysis = ImageAnalysis.of(monoImage, true);
-                            var bp = 0.5f*Math.max(0, analysis.avg() - analysis.stddev());
+                            var bp = 0.5f * Math.max(0, analysis.avg() - analysis.stddev());
                             createStretchingForColorization(bp).stretch(new ImageWrapper32(corrected.width(), corrected.height(), mono, MutableMap.of()));
                             return Colorize.doColorize(corrected.width(), corrected.height(), mono, rgb);
                         });
@@ -386,10 +382,6 @@ public class ProcessingWorkflow {
 
     private static StretchingStrategy createStretchingForColorization(float blackPoint) {
         return new ArcsinhStretchingStrategy(blackPoint, 3, 3);
-    }
-
-    private ImageWrapper32 performBandingCorrection(Ellipse ellipse) {
-        return new ImageBandingCorrector(broadcaster, newOperation(message("banding.correction")), imageSupplier(WorkflowResults.ROTATED), ellipse, processParams.bandingCorrectionParams(), processParams.geometryParams().rotation()).get();
     }
 
     private ImageWrapper32 produceStretchedImage(ImageWrapper32 geometryFixed, ClaheParams claheParams, AutoStretchParams autoStretchParams, ContrastEnhancement contrastEnhancement) {
@@ -496,30 +488,4 @@ public class ProcessingWorkflow {
     private boolean shouldProduce(GeneratedImageKind kind) {
         return processParams.requestedImages().isEnabled(kind);
     }
-
-    /**
-     * The farther we are from the center, and outside of the sun
-     * disk, the most likely it's either a protuberance or an artifact.
-     * This reduces artifacts by decreasing pixel values for pixels
-     * far from the limb.
-     *
-     * @param ellipse the circle representing the sun disk
-     */
-    private void prefilter(Ellipse ellipse, float[][] filtered, int width, int height) {
-        var center = ellipse.center();
-        var cx = center.a();
-        var cy = center.b();
-        var radius = ellipse.semiAxis().a();
-        for (int y = 0; y < height; y++) {
-            for (int x = 0; x < width; x++) {
-                if (!ellipse.isWithin(x, y)) {
-                    var dist = Math.sqrt((x - cx) * (x - cx) + (y - cy) * (y - cy));
-                    // compute distance to circle
-                    var scale = Math.pow(Math.log(0.99 + dist / radius) / Math.log(2), 10);
-                    filtered[y][x] /= scale;
-                }
-            }
-        }
-    }
-
 }

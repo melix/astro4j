@@ -20,6 +20,7 @@ import me.champeau.a4j.jsolex.processing.file.FileNamingStrategy;
 import me.champeau.a4j.jsolex.processing.stretching.AutohistogramStrategy;
 import me.champeau.a4j.jsolex.processing.stretching.ClaheStrategy;
 import me.champeau.a4j.jsolex.processing.sun.FlatCorrection;
+import me.champeau.a4j.jsolex.processing.sun.workflow.JaggingCorrection;
 import me.champeau.a4j.jsolex.processing.util.Constants;
 import me.champeau.a4j.jsolex.processing.util.FilesUtils;
 import me.champeau.a4j.jsolex.processing.util.ImageFormat;
@@ -70,6 +71,7 @@ public abstract class ProcessParamsIO {
         builder.registerTypeAdapter(GeometryParams.class, new GeometryParamsSerializer());
         builder.registerTypeAdapter(ImageMathParams.class, new ImageMathParamsSerializer());
         builder.registerTypeAdapter(EnhancementParams.class, new EnhancementParamsSerializer());
+        builder.registerTypeAdapter(AutoStretchParams.class, new AutoStretchParamsSerializer());
         return builder.create();
     }
 
@@ -109,7 +111,7 @@ public abstract class ProcessParamsIO {
                 createDefaultClaheParams(),
                 createDefaultAutoStretchParams(),
                 ContrastEnhancement.AUTOSTRETCH,
-                new EnhancementParams(false, FlatCorrection.DEFAULT_LO_PERCENTILE, FlatCorrection.DEFAULT_HI_PERCENTILE, FlatCorrection.DEFAULT_ORDER, null)
+                new EnhancementParams(false, FlatCorrection.DEFAULT_LO_PERCENTILE, FlatCorrection.DEFAULT_HI_PERCENTILE, FlatCorrection.DEFAULT_ORDER, null, new JaggingCorrectionParams(false, JaggingCorrection.DEFAULT_SIGMA))
         );
     }
 
@@ -236,7 +238,7 @@ public abstract class ProcessParamsIO {
                 params = params.withContrastEnhancement(ContrastEnhancement.AUTOSTRETCH);
             }
             if (params.enhancementParams() == null) {
-                params = params.withEnhancementParams(new EnhancementParams(false, FlatCorrection.DEFAULT_LO_PERCENTILE, FlatCorrection.DEFAULT_HI_PERCENTILE, FlatCorrection.DEFAULT_ORDER, null));
+                params = params.withEnhancementParams(new EnhancementParams(false, FlatCorrection.DEFAULT_LO_PERCENTILE, FlatCorrection.DEFAULT_HI_PERCENTILE, FlatCorrection.DEFAULT_ORDER, null, new JaggingCorrectionParams(false, JaggingCorrection.DEFAULT_SIGMA)));
             }
             return params;
         }

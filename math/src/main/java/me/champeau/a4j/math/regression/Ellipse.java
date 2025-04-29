@@ -150,28 +150,38 @@ public class Ellipse {
         };
     }
 
+    public Optional<DoublePair> findX(double y) {
+        var a = cart.a();
+        var b = cart.b() * y + cart.d();
+        var c = cart.c() * y * y + cart.e() * y + cart.f();
+        var disc = b * b - 4 * a * c;
+        if (disc >= 0 && a != 0) {
+            var sqrt = Math.sqrt(disc);
+            var x1 = (-b + sqrt) / (2 * a);
+            var x2 = (-b - sqrt) / (2 * a);
+            return Optional.of(new DoublePair(x1, x2));
+        }
+        if (a == 0 && b != 0) {
+            var x = -c / b;
+            return Optional.of(new DoublePair(x, Double.NaN));
+        }
+        return Optional.empty();
+    }
+
     public Optional<DoublePair> findY(double x) {
         var a = cart.c();
         var b = cart.b() * x + cart.e();
         var c = cart.a() * x * x + cart.d() * x + cart.f();
         var disc = b * b - 4 * a * c;
-        if (disc >= 0 && 2 * a != 0) {
-            var y1 = (-b + Math.sqrt(disc)) / (2 * a);
-            var y2 = (-b - Math.sqrt(disc)) / (2 * a);
+        if (disc >= 0 && a != 0) {
+            var sqrt = Math.sqrt(disc);
+            var y1 = (-b + sqrt) / (2 * a);
+            var y2 = (-b - sqrt) / (2 * a);
             return Optional.of(new DoublePair(y1, y2));
         }
-        return Optional.empty();
-    }
-
-    public Optional<DoublePair> findX(double y) {
-        var a = cart.c();
-        var b = cart.d() * y + cart.f();
-        var c = cart.a() * y * y + cart.b() * y + cart.e();
-        var disc = b * b - 4 * a * c;
-        if (disc >= 0 && 2 * a != 0) {
-            var x1 = (-b + Math.sqrt(disc)) / (2 * a);
-            var x2 = (-b - Math.sqrt(disc)) / (2 * a);
-            return Optional.of(new DoublePair(x1, x2));
+        if (a == 0 && b != 0) {
+            var y = -c / b;
+            return Optional.of(new DoublePair(y, Double.NaN));
         }
         return Optional.empty();
     }
@@ -299,6 +309,52 @@ public class Ellipse {
             x0 - w, x0 + w,
             y0 - h, y0 + h
         );
+    }
+
+    public Ellipse rotate(double angle, int srcWidth, int srcHeight, int newWidth, int newHeight) {
+        var sx = srcWidth / 2d;
+        var sy = srcHeight / 2d;
+        var rotated = rotate(-angle, new Point2D(sx, sy));
+        sx = (newWidth - srcWidth) / 2d;
+        sy = (newHeight - srcHeight) / 2d;
+        if (sx != 0 || sy != 0) {
+            rotated = rotated.translate(sx, sy);
+        }
+        return rotated;
+    }
+
+    public Ellipse vflip(double height) {
+        var a = cart.a();
+        var b = cart.b();
+        var c = cart.c();
+        var d = cart.d();
+        var e = cart.e();
+        var f = cart.f();
+        return new Ellipse(new DoubleSextuplet(
+                a,
+                -b,
+                c,
+                b * height + d,
+                -2 * c * height - e,
+                c * height * height + e * height + f
+        ));
+    }
+
+    public Ellipse hflip(double width) {
+        var a = cart.a();
+        var b = cart.b();
+        var c = cart.c();
+        var d = cart.d();
+        var e = cart.e();
+        var f = cart.f();
+        return new Ellipse(new DoubleSextuplet(
+                a,
+                -b,
+                c,
+                -2 * a * width - d,
+                b * width + e,
+                a * width * width + d * width + f
+        ));
     }
 
     @Override

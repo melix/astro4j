@@ -12,8 +12,9 @@
 
 ## Changements depuis la 3.0.0
 
-### 3.0.5
+### 3.1.0
 
+- Ajout d'une correction des bords dentelés (expérimental)
 - Correction de la fonction `saturate` qui n'utilisait plus la valeur choisie
 - Correction de la correction de bandes sur les bords solaires (bandes plus claires)
 
