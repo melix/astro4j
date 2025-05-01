@@ -33,5 +33,5 @@ arguments:
       fr: "Valeur de sortie pour le bleu (0-255)"
       en: "Output value for blue (0-255)"
 examples:
-  - "colorize(img: img(0), profile: \"H-alpha\")"
-  - "colorize(range(-1, 1), \"Calcium (K)\")"
+  - "colorize2(img: img(0), rIn: 50, rOut: 200, gIn: 50, gOut: 200, bIn: 50, bOut: 200)"
+  - "colorize2(img(0), 50, 200, 50, 200, 50, 200)"
