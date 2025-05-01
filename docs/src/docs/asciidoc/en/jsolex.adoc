@@ -101,11 +101,25 @@ For the Richardson-Lucy deconvolution, you can choose the size of the synthetic 
 
 Finally, you can choose to apply a detail enhancement filter at the end of the processing by checking the "sharpen images" box.
 
-[NOTE]
-.Experimental
-====
-The artificial flat correction allows to correct a possible vignetting. It computes a model from the disk pixels. The pixels considered are those whose value is between a low and a high percentile. For example, if you enter 0.1 and 0.9, the pixels whose value is between the 10th and 90th percentile will be used to compute the model. Finally, a polynomial of the specified order is adjusted on the model values to correct the image.
-====
+Flat correction can be applied to images, in order to correct for vignetting or other artifacts.
+There are 3 modes available:
+- No correction: no correction is applied (this is the default)
+- Artificial flat correction: the software will compute a model of the flat field from the image itself, by looking at the pixels which are between a low and a high percentile. The model is then used to correct the image. This can be used to correct for reasonable vignetting.
+- Physical flat correction: the software can use a flat field which is either a SER file containing a few frames, or a pre-computed flat field. This is the preferred method for strong vignetting.
+
+=== Jagged Edges Correction
+
+This is an experimental feature available since JSol'Ex 3.1.0.
+It enables the correction of jagged edges which can appear on images.
+These jagged edges are common on images captured with a spectroheliograph and come from different causes:
+
+- atmospheric turbulence
+- wind
+- a mount that is not perfectly balanced or that is resonating
+
+Jagged edges correction can reduce these defects dramatically.
+It only requires a single parameter: a "sigma" value which lets you adjust the number of points taken into account in the correction model.
+A value of sigma close to 0 will be very restrictive and will only correct small defects, while a higher sigma value will correct larger defects, at the risk of distorting prominences, for example.
 
 == Observation parameters
 

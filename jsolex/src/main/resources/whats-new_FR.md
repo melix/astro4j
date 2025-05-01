@@ -14,7 +14,7 @@
 
 ### 3.1.0
 
-- Ajout d'une correction des bords dentelés (expérimental)
+- Ajout d'une [correction des bords dentelés](#correction-des-bords-denteles) (expérimental)
 - Correction de la fonction `saturate` qui n'utilisait plus la valeur choisie
 - Correction de la correction de bandes sur les bords solaires (bandes plus claires)
 
@@ -40,6 +40,15 @@
 - Désactivation de l'amplification des protubérances par défaut, il y a maintenant un paramètre pour l'activer
 - Correction de fautes de frappe dans les traductions
 - Détection de la ligne la plus sombre plus robuste
+
+## Correction des bords dentelés
+
+Cette fonctionnalité est expérimentale et peut ne pas fonctionner parfaitement.
+Les images capturées avec un spectrohéliographe montrent souvent des "bords dentelés" au limbe solaire : ceux-ci sont dus à plusieurs causes : turbulence atmosphérique, vent ou suivi imparfait.
+JSol'Ex 3.1 introduit une nouvelle fonctionnalité pour corriger ces bords dentelés, qui réduira également le désalignement des caractéristiques sur le disque solaire.
+Pour activer la correction, vous devez cocher l'option "correction des bords dentelés" dans les paramètres d'amélioration de l'image.
+La valeur sigma peut être utilisée pour ajuster la correction : plus la valeur est élevée, moins les échantillons utilisés pour calculer la correction seront restrictifs.
+
 
 ## Améliorations des images
 

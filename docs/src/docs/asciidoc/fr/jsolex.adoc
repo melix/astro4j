@@ -98,13 +98,28 @@ Par défaut, aucune déconvolution n'est appliquée, mais vous pouvez choisir l'
 
 Pour la déconvolution de Richardson-Lucy, vous pouvez choisir la taille du PSF synthétique, le facteur sigma et le nombre d'itérations.
 
-Enfin, vous pouvez choisir d'appliquer un filtre d'amélioration des détails à la fin du traitement en cochant la case "aiguiser les images".
+Vous pouvez choisir d'appliquer un filtre d'amélioration des détails à la fin du traitement en cochant la case "aiguiser les images".
 
-[NOTE]
-.Expérimental
-====
-La correction par flat artificiel permet de corriger un éventuel vignettage. Elle calcule un modèle à partir des pixels du disque. Les pixels considérés sont ceux dont la valeur est comprise entre un percentile bas et un percentile haut. Par exemple, si vous entrez 0.1 et 0.9, les pixels dont la valeur est comprise entre le 10ème et le 90ème percentile seront utilisés pour calculer le modèle. Enfin, un polynome d'ordre spécifié est ajusté sur les valeurs du modèle pour corriger l'image.
-====
+Il est aussi possible d'appliquer une correction de vignettage.
+3 modes de correction sont disponibles:
+
+- Aucune correction : pas de correction appliquée
+- Flat artificiel : un modèle d'illumination du disque est calculé automatiquement, en sélectionnant des pixels en excluant des percentiles haut/bas. Cette correction fonctionne bien pour des vignétages raisonnables.
+- Flat physique : le logiciel est capable d'utiliser un fichier SER contenant un petit nombre d'images, ou bien un flat préenregistré. Il appliquera alors la correction en fonction.
+
+=== Correction des bords dentelés
+
+Ceci est une fonctionnalité expérimentale disponible depuis JSol'Ex 3.1.0.
+Elle permet de corriger les bords dentelés qui peuvent apparaître sur les images.
+Ces bords dentelés sont fréquents sur les images capturées avec un spectrohéliographe et proviennent de différentes causes :
+
+- la turbulence atmosphérique
+- le vent
+- une monture qui n'est pas parfaitement équilibrée ou qui se trouve en résonance
+
+La correction de bords dentelés peut améliorer ces défauts de manière spectaculaire.
+Elle ne nécessite qu'un paramètre : une valeur "sigma" qui permet d'adjuster le nombre de points pris en compte dans le modèle de correction.
+Une valeur de sigma proche de 0 sera très restrictive et ne corrigera que les petits défauts, tandis qu'une valeur de sigma plus élevée corrigera des défauts plus importants, au risque de déformer des protubérances par exemple.
 
 == Paramètres d'observation
 
