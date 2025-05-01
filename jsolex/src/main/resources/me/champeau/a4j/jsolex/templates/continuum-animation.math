@@ -5,18 +5,19 @@
 [params]
 # the animation will be created with images from [-shift;+shift]
 shift=5
-# banding correction width and iterations
-bandingWidth=25
-bandingIterations=3
 # autocrop factor
 cropFactor=1.1
 # contrast adjustment
-clip=0.8
+gamma=1.2
+# interpolation steps
+steps=5
+# delay between frames
+delay=20
 
 [tmp]
-continuum_fixed=fix_banding(range(-shift,shift);bandingWidth;bandingIterations)
-cropped=autocrop2(continuum_fixed;cropFactor)
-contrast_adjusted=clahe(cropped;clip)
+continuum=transition(range(-shift,shift);steps)
+cropped=autocrop2(continuum;cropFactor)
+contrast_adjusted=auto_contrast(cropped;gamma)
 
 [outputs]
-continuum_anim = anim(contrast_adjusted)
+continuum_anim = anim(contrast_adjusted;delay)

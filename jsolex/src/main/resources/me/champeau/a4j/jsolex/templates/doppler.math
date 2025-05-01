@@ -3,21 +3,18 @@
 #
 
 [params]
-# Doppler shift (in pixels)
-dopplerShift=3
-# banding correction width and iterations
-bandingWidth=25
-bandingIterations=3
+# Doppler shift (in Angstroms)
+dopplerShift=0.5
 # autocrop factor
 cropFactor=1.1
 # contrast and saturation adjustment
-clip=0.8
+gamma=1.2
 saturation=1
 
 [tmp]
-red=clahe(fix_banding(img(dopplerShift);bandingWidth;bandingIterations);clip)
-blue=clahe(fix_banding(img(-dopplerShift);bandingWidth;bandingIterations);clip)
-green=avg(red,blue)
+red=auto_contrast(img(a2px(dopplerShift));gamma)
+blue=auto_contrast(img(-a2px(dopplerShift));gamma)
+green=min(red,blue)
 doppler_raw=rgb(red,green,blue)
 cropped=autocrop2(doppler_raw;cropFactor)
 

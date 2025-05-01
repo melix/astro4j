@@ -2,20 +2,21 @@
 # Performs stacking of several images processed in batch mode
 #
 
-[params]
-# banding correction width and iterations
-bandingWidth=25
-bandingIterations=3
-# autocrop factor
-cropFactor=1.1
-# contrast adjustment
-clip=1.1
-
 [tmp]
-corrected = fix_banding(img(0);bandingWidth;bandingIterations)
+denoised = avg(range(-1;1))
 
 [outputs]
-decon=rl_decon(corrected)
+decon=rl_decon(denoised)
 
 [[batch]]
-stacked=stack(decon)
+[params]
+# contrast adjustment
+gamma=1.5
+# tile size
+tileSize=32
+# sampling
+sampling=0.25
+
+
+[outputs]
+stacked=auto_contrast(stack(decon;tileSize;sampling);gamma)

@@ -766,11 +766,11 @@ bandingIterations=3
 # autocrop factor
 cropFactor=1.1
 # contrast adjustment
-clip=.8
+gamma=1.2
 
 [tmp]
 corrected = fix_banding(img(0);bandingWidth;bandingIterations) # <1>
-contrast_fixed = clahe(corrected;clip)                         # <2>
+contrast_fixed = auto_contrast(corrected;gamma)                # <2>
 
 [outputs]
 cropped = autocrop2(contrast_fixed;cropFactor;32)              # <3>
@@ -1034,3 +1034,4 @@ image::embedded-server-2-en.jpg[]
 - Jean-François Pittet for his bug reports, test videos, and geometric correction formulas
 - Sylvain Weiller for his intensive beta-testing, valuable feedback, and processing ideas
 - Ken M. Harrison for improved exposure time calculations
+- Minh Trong Nguyen for his suggestions of improvements and his work on the SHG 700

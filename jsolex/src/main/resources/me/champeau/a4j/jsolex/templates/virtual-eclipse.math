@@ -6,10 +6,10 @@
 # autocrop factor
 cropFactor=1.1
 # contrast adjustment
-clip=10
+gamma=1.5
 
 [tmp]
-eclipse_raw = remove_bg(disk_fill(clahe(img(0);clip)))
+eclipse_raw = remove_bg(disk_fill(auto_contrast(img(0);gamma)))
 
 [outputs]
 eclipse = autocrop2(eclipse_raw;cropFactor)

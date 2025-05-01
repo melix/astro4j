@@ -3,12 +3,12 @@
 #
 
 [params]
-contrast=1.0
+gamma=1.5
 cropFactor=1.2
 
 [tmp]
-_clahe=sharpen(clahe(img(0);contrast))
-cropped=autocrop2(_clahe;cropFactor)
+contrast=sharpen(auto_contrast(img(0);gamma))
+cropped=autocrop2(contrast;cropFactor)
 globe=draw_globe(cropped)
 
 [outputs]
