@@ -193,10 +193,18 @@ public class JaggingCorrection {
     private void performCorrectionForSingleLine(float[] line, List<Correction> samples, boolean debug, float[] debugR, float[] debugG, float[] debugB) {
         List<Point2D> points = new ArrayList<>();
         for (var sample : samples) {
+            var dx = 1.5 * (sample.x2() - sample.x1());
+            if (sample.x1() - dx > 0 && sample.x2() + dx < line.length) {
+                // this makes the correction more robust when the sample points are close to each other
+                points.add(new Point2D(sample.x1() - dx, sample.x1() - dx));
+                points.add(new Point2D(sample.x2() + dx, sample.x2() + dx));
+            }
             points.add(new Point2D(sample.cx1(), sample.x1()));
             points.add(new Point2D(sample.cx2(), sample.x2()));
         }
-        var poly = LinearRegression.firstOrderRegression(points.toArray(new Point2D[0])).asPolynomial();
+        var poly = samples.size() == 4 ?
+                LinearRegression.secondOrderRegression(points.toArray(new Point2D[0])).asPolynomial() :
+                LinearRegression.firstOrderRegression(points.toArray(new Point2D[0])).asPolynomial();
         var corrected = new float[line.length];
 
         for (int x = 0; x < line.length; x++) {
@@ -252,7 +260,7 @@ public class JaggingCorrection {
 
         boolean isValid(double limit) {
             return Math.abs(dx1()) <= limit && Math.abs(dx2()) <= limit
-                    && (x2-x1)/(cx2-cx1) > 0.9;
+                    && (x2 - x1) / (cx2 - cx1) > 0.9;
         }
 
     }
