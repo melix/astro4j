@@ -66,6 +66,7 @@ import me.champeau.a4j.jsolex.processing.sun.workflow.ImageStats;
 import me.champeau.a4j.jsolex.processing.sun.workflow.JaggingCorrection;
 import me.champeau.a4j.jsolex.processing.sun.workflow.NamingStrategyAwareImageEmitter;
 import me.champeau.a4j.jsolex.processing.sun.workflow.NoOpImageEmitter;
+import me.champeau.a4j.jsolex.processing.sun.workflow.PixelShift;
 import me.champeau.a4j.jsolex.processing.sun.workflow.PixelShiftRange;
 import me.champeau.a4j.jsolex.processing.sun.workflow.ProcessingWorkflow;
 import me.champeau.a4j.jsolex.processing.sun.workflow.ReferenceCoords;
@@ -687,10 +688,22 @@ public class SolexVideoProcessor implements Broadcaster {
                             state::reconstructed,
                             processParams,
                             ImageEmitter.NO_OP
-                    );
-                    var result = task.get();
-                    if (result != null) {
-                        return Optional.of(result.ellipse());
+                    ) {
+                        @Override
+                        protected Image prepareForDetection(Image source, ImageMath imageMath) {
+                            int width = source.width();
+                            int height = source.height();
+                            var downsampled = imageMath.rescale(source, width / 8, height / 8);
+                            return imageMath.rescale(downsampled, width, height);
+                        }
+                    };
+                    try {
+                        var result = task.get();
+                        if (result != null) {
+                            return Optional.of(result.ellipse());
+                        }
+                    } catch (ProcessingException | IllegalArgumentException ex) {
+                        // ignore
                     }
                     return Optional.<Ellipse>empty();
                 })
@@ -732,6 +745,7 @@ public class SolexVideoProcessor implements Broadcaster {
     private void prepareImageForCorrections(WorkflowState state, Header header, Ellipse ellipse, ImageEmitter emitter) {
         ImageWrapper32 rotated;
         ImageWrapper32 reconstructed = state.reconstructed().copy();
+        reconstructed.metadata().put(PixelShift.class, new PixelShift(state.pixelShift()));
         performBandingCorrection(reconstructed, ellipse);
         if (ellipse != null) {
             var jaggingCorrection = new JaggingCorrection(state, processParams, emitter);

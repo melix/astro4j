@@ -92,6 +92,10 @@ public class EllipseFittingTask extends AbstractTask<EllipseFittingTask.Result> 
         this.image = workImage.asImage();
     }
 
+    protected Image prepareForDetection(Image source, ImageMath imageMath) {
+        return imageMath.convolve(source, BLUR_8);
+    }
+
     @Override
     public EllipseFittingTask.Result doCall() throws Exception {
         broadcaster.broadcast(operation.update(0, message("analyzing.disk.geometry")));
@@ -111,7 +115,7 @@ public class EllipseFittingTask extends AbstractTask<EllipseFittingTask.Result> 
                 data[y][x] = v * v * Constants.MAX_PIXEL_VALUE;
             }
         }
-        tmp = imageMath.convolve(tmp, BLUR_8);
+        tmp = prepareForDetection(tmp, imageMath);
         workImage = ImageWrapper32.fromImage(tmp);
         // Perform background neutralization to reduce impact of reflections,
         // particularly visible close to UV. We perform multiple iterations

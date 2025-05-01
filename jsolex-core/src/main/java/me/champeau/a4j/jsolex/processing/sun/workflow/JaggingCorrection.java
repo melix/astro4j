@@ -27,12 +27,11 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.function.DoubleUnaryOperator;
 import java.util.stream.Collectors;
 
 public class JaggingCorrection {
-    private static final double DEBUG_MAX_SHIFT = 8;
-    public static final double DEFAULT_SIGMA = 1.5;
+    public static final double DEFAULT_SIGMA = 2.5;
+
     private final WorkflowState state;
     private final ProcessParams processParams;
     private final ImageEmitter imageEmitter;
@@ -68,10 +67,28 @@ public class JaggingCorrection {
                         left = right;
                         right = tmp;
                     }
+                    if (left < 0) {
+                        left = 0;
+                    }
+                    if (right >= image.width()) {
+                        right = image.width() - 1;
+                    }
                     var detectedX1 = borders.left()[line];
                     var detectedX2 = borders.right()[line];
                     if (detectedX1 >= 0 && detectedX2 >= 0) {
                         var c = new Correction(line, detectedX1, detectedX2, left, right);
+                        if (c.isValid(limit)) {
+                            measurements.add(c);
+                        }
+                    } else if (detectedX1 < 0 && detectedX2 >= 0) {
+                        // left border not detected
+                        var c = new Correction(line, left, detectedX2, left, right);
+                        if (c.isValid(limit)) {
+                            measurements.add(c);
+                        }
+                    } else if (detectedX1 >= 0) {
+                        // right border not detected
+                        var c = new Correction(line, detectedX1, right, left, right);
                         if (c.isValid(limit)) {
                             measurements.add(c);
                         }
@@ -86,7 +103,7 @@ public class JaggingCorrection {
                 var stddevDx2 = Math.sqrt(measurements.stream().mapToDouble(c -> Math.pow(c.dx2() - avgDx2, 2)).sum() / measurements.size());
                 var filtered = measurements.stream()
                         .filter(p ->
-                                Math.abs(p.dx1() - avgDx1) < sigma * stddevDx1 && Math.abs(p.dx2() - avgDx2) < sigma * stddevDx2
+                                Math.abs(p.dx1() - avgDx1) < sigma * stddevDx1 || Math.abs(p.dx2() - avgDx2) < sigma * stddevDx2
                         )
                         .collect(Collectors.toMap(Correction::y, c -> c));
                 // correct all images
@@ -97,12 +114,11 @@ public class JaggingCorrection {
                 boolean debug = false;
                 if (processParams.requestedImages().isEnabled(GeneratedImageKind.DEBUG)) {
                     debug = true;
-                    // we're going to generate a color image which shows the jagging correction
-                    // by coloring the pixels that are corrected, more blue with more negative correction
-                    // and more red with more positive correction
-                    debugR = new float[data.length][data[0].length];
-                    debugG = new float[data.length][data[0].length];
-                    debugB = new float[data.length][data[0].length];
+                    var w = 2 * image.width();
+                    var h = image.height();
+                    debugR = new float[h][w];
+                    debugG = new float[h][w];
+                    debugB = new float[h][w];
                 } else {
                     debugB = null;
                     debugG = null;
@@ -115,7 +131,7 @@ public class JaggingCorrection {
                     float[] debugLineG = debug ? debugG[y] : null;
                     float[] debugLuneB = debug ? debugB[y] : null;
                     if (mid != null) {
-                        performCorrectionLine(line, List.of(mid), debug, debugLineR, debugLineG, debugLuneB);
+                        performCorrectionForSingleLine(line, List.of(mid), debug, debugLineR, debugLineG, debugLuneB);
                     } else {
                         // interpolate between the two closest points
                         int finalY = y;
@@ -129,12 +145,15 @@ public class JaggingCorrection {
                             var leftCorrection = left.map(Map.Entry::getValue).orElse(null);
                             var rightCorrection = right.map(Map.Entry::getValue).orElse(null);
                             if (leftCorrection != null && rightCorrection != null) {
-                                performCorrectionLine(line, List.of(leftCorrection, rightCorrection), debug, debugLineR, debugLineG, debugLuneB);
+                                performCorrectionForSingleLine(line, List.of(leftCorrection, rightCorrection), debug, debugLineR, debugLineG, debugLuneB);
                             } else if (leftCorrection != null) {
-                                performCorrectionLine(line, List.of(leftCorrection), debug, debugLineR, debugLineG, debugLuneB);
+                                performCorrectionForSingleLine(line, List.of(leftCorrection), debug, debugLineR, debugLineG, debugLuneB);
                             } else {
-                                performCorrectionLine(line, List.of(rightCorrection), debug, debugLineR, debugLineG, debugLuneB);
+                                performCorrectionForSingleLine(line, List.of(rightCorrection), debug, debugLineR, debugLineG, debugLuneB);
                             }
+                        }
+                        if (left.isEmpty() && right.isPresent()) {
+                            y = right.get().getKey() - 1;
                         }
                     }
                 }
@@ -145,7 +164,7 @@ public class JaggingCorrection {
                             "Jagging correction",
                             "jagging-correction",
                             "Jagging correction",
-                            image.width(),
+                            2 * image.width(),
                             image.height(),
                             image.metadata(),
                             () -> new float[][][]{debugR, debugG, debugB}
@@ -171,38 +190,29 @@ public class JaggingCorrection {
         return (float) (sum / wsum);
     }
 
-    private void performCorrectionLine(float[] line, List<Correction> samples, boolean debug, float[] debugR, float[] debugG, float[] debugB) {
-        var polynomials = new DoubleUnaryOperator[samples.size()];
-        for (int i = 0; i < samples.size(); i++) {
-            var sample = samples.get(i);
-            var fun = LinearRegression.firstOrderRegression(
-                    new Point2D[]{
-                            new Point2D(sample.cx1(), sample.x1()),
-                            new Point2D(sample.cx2(), sample.x2()),
-                    }
-            ).asPolynomial();
-            polynomials[i] = fun;
+    private void performCorrectionForSingleLine(float[] line, List<Correction> samples, boolean debug, float[] debugR, float[] debugG, float[] debugB) {
+        List<Point2D> points = new ArrayList<>();
+        for (var sample : samples) {
+            points.add(new Point2D(sample.cx1(), sample.x1()));
+            points.add(new Point2D(sample.cx2(), sample.x2()));
         }
+        var poly = LinearRegression.firstOrderRegression(points.toArray(new Point2D[0])).asPolynomial();
         var corrected = new float[line.length];
 
         for (int x = 0; x < line.length; x++) {
-            // compute source coordinate
-            double srcX = 0;
-            for (var poly : polynomials) {
-                srcX += poly.applyAsDouble(x);
-            }
-            srcX /= polynomials.length;
-
-            float value = lanczos(line, srcX, 3);
+            double srcX = poly.applyAsDouble(x);
+            float value = srcX == x ? line[x] : lanczos(line, srcX, 3);
             corrected[x] = value;
 
             if (debug) {
+                var w = line.length;
                 var orig = line[x];
-                var diff = value - orig;
-                var abs = Math.abs(diff);
-                debugR[x] = diff < 0 ? orig : abs;
-                debugG[x] = 0;
-                debugB[x] = diff > 0 ? orig : abs;
+                debugR[x] = orig;
+                debugG[x] = orig;
+                debugB[x] = orig;
+                debugR[w + x] = value;
+                debugG[w + x] = value;
+                debugB[w + x] = value;
             }
         }
 
@@ -241,7 +251,8 @@ public class JaggingCorrection {
         }
 
         boolean isValid(double limit) {
-            return Math.abs(dx1()) <= limit && Math.abs(dx2()) <= limit;
+            return Math.abs(dx1()) <= limit && Math.abs(dx2()) <= limit
+                    && (x2-x1)/(cx2-cx1) > 0.9;
         }
 
     }

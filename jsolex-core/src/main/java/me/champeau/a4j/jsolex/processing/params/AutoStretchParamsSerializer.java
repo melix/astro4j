@@ -28,24 +28,9 @@ import java.lang.reflect.Type;
 
 class AutoStretchParamsSerializer implements JsonSerializer<AutoStretchParams>, JsonDeserializer<AutoStretchParams> {
 
-    private static boolean getNullableBoolean(JsonObject obj, String key) {
-        var element = obj.get(key);
-        return element != null && element.getAsBoolean();
-    }
-
-    private static Integer getNullableInt(JsonObject obj, String key) {
-        var element = obj.get(key);
-        return element == null ? null : element.getAsInt();
-    }
-
     private static Double getNullableDouble(JsonObject obj, String key) {
         var element = obj.get(key);
         return element == null ? null : element.getAsDouble();
-    }
-
-    private static String getNullableString(JsonObject obj, String key) {
-        var element = obj.get(key);
-        return element == null ? null : element.getAsString();
     }
 
     @Override
