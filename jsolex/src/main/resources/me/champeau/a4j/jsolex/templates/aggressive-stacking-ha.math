@@ -1,0 +1,42 @@
+# This script can be used to stack images of the Sun in H-alpha
+# and performs an aggressive processing to enhance details
+# TIP: Update the parameters in the main and [[batch]] sections
+# to adapt to your own images (in particular for brightness and contrast)
+
+[params]
+# Change this in case you want off-band processing
+shift_angstroms=0
+
+[outputs]
+denoised=median(range(a2px(shift_angstroms)-1;a2px(shift_angstroms)+1;.5))
+conti=continuum()
+
+[[batch]]
+[params]
+tileSize=32
+sampling=0.25
+gamma=1.4
+# Increase this value if the image is too dark, reduce if too bright
+hiValue=180
+protusStretch=10
+
+[tmp]
+rescaled=radius_rescale(denoised)
+ref=stack_ref(rescaled;"manual")
+# Perform dedistortion using a contrasted image to better catch the details
+dedis0=dedistort(ref;auto_contrast(rescaled;1.2);tileSize;sampling)
+# Then apply the same dedistortion to the whole stack
+dedis=dedistort(dedis0;rescaled)
+# Stack the dedistorted images using a median
+stack_=median(dedis)
+# Stack the continuum images using a median
+stack_conti=median(dedistort(dedis;radius_rescale(conti)))
+cst=linear_stretch(adjust_contrast(sharpen(linear_stretch(pow(rl_decon(stack_);gamma));7);0;hiValue))
+
+[outputs]
+protus=asinh_stretch(disk_fill(stack_);0;protusStretch)
+Ha=draw_obs_details(sharpen(protus+disk_mask(cst)*cst))
+Ha_color=colorize(curve_transform(protus+cst;64;112);"H-alpha")
+Ha_cont=draw_obs_details(linear_stretch(pow(rl_decon(stack_conti);gamma)))
+inverse=draw_obs_details(linear_stretch(disk_mask(blur(Ha;12))*sharpen(linear_stretch(pow(invert(rl_decon(stack_));3));7))+protus)
+ar=ar_overlay(Ha_cont)

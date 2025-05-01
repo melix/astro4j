@@ -1,0 +1,25 @@
+# A stacking script for aggressive processing of solar images in Calcium (K or H) line
+
+[params]
+# Change from 0 to 1 for example to be offband by 1Å
+offset=a2px(0)
+
+[outputs]
+denoise=avg(range(offset-1;offset+1;.5))
+base=denoise-bg_model(denoise)
+
+[[batch]]
+[params]
+# Increase this value if the image is too bright, reduce if too dark
+hiValue=60
+
+[tmp]
+
+stack=stack(sharpen(base;7);32;.25;"manual")
+cleaned=linear_stretch(rl_decon(stack;4;2.5))
+Ca=adjust_contrast(curve_transform(cleaned;50;180);0;hiValue)
+Ca2=auto_contrast(cleaned;1.1)
+Ca_eclipse=disk_fill(invert(disk_fill(Ca)))
+[outputs]
+Ca_combined=curve_transform(max(Ca2;Ca_eclipse);128;178)
+details=draw_obs_details(Ca_combined)

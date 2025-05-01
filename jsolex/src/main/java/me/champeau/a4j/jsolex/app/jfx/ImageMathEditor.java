@@ -178,6 +178,8 @@ public class ImageMathEditor {
         loadPredefinedScript("enhanced-invert");
         if (batchMode) {
             loadPredefinedScript("stacking");
+            loadPredefinedScript("aggressive-stacking-ha");
+            loadPredefinedScript("aggressive-stacking-ca");
         }
         predefinedScripts.getSelectionModel().selectedItemProperty().addListener((o, oldValue, newValue) -> {
             if (doesNotHaveStaleChanges()) {
