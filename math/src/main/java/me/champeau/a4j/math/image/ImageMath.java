@@ -46,6 +46,20 @@ public interface ImageMath {
         return new Image(height, width, output);
     }
 
+    default Image rotateRight(Image image) {
+        var data = image.data();
+        var width = image.width();
+        var height = image.height();
+        float[][] output = new float[width][height];
+
+        for (int y = 0; y < height; y++) {
+            for (int x = 0; x < width; x++) {
+                output[x][height - y - 1] = data[y][x];
+            }
+        }
+        return new Image(height, width, output);
+    }
+
     default double[] lineAverages(Image image) {
         var height = image.height();
         double[] result = new double[height];

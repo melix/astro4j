@@ -27,6 +27,7 @@ import org.apache.commons.math3.linear.EigenDecomposition;
 import org.apache.commons.math3.linear.MatrixUtils;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.BitSet;
 import java.util.Collections;
 import java.util.Comparator;
@@ -50,6 +51,7 @@ public class PhenomenaDetector {
     private static final double SPEED_OF_LIGHT = 299792.458d;
     private final Map<Integer, List<Redshift>> redshiftsPerFrame = new ConcurrentHashMap<>();
     private final Map<Integer, BitSet> activeRegionsPerFrame = new ConcurrentHashMap<>();
+    private BorderDetection borderDetection;
     private final Lock lock = new ReentrantLock();
     private final Dispersion dispersion;
     private final Wavelen lambda0;
@@ -58,6 +60,7 @@ public class PhenomenaDetector {
     private PhenomenaListener detectionListener;
     private boolean detectActiveRegions = true;
     private boolean detectRedshifts = true;
+    private boolean findBorders = true;
 
     public PhenomenaDetector(Dispersion dispersion, Wavelen lambda0, int reconstructedWidth) {
         this.dispersion = dispersion;
@@ -71,6 +74,10 @@ public class PhenomenaDetector {
 
     public void setDetectRedshifts(boolean detectRedshifts) {
         this.detectRedshifts = detectRedshifts;
+    }
+
+    public void setDetectBorders(boolean findBorders) {
+        this.findBorders = findBorders;
     }
 
     public void setDetectionListener(PhenomenaListener detectionListener) {
@@ -89,31 +96,50 @@ public class PhenomenaDetector {
         return redshiftsPerFrame;
     }
 
+    public BorderDetection getBorderDetection() {
+        return borderDetection;
+    }
+
     public void performDetection(int frameId, int width, int height, float[][] original, DoubleUnaryOperator polynomial, Header header) {
-        if (!detectRedshifts && !detectActiveRegions) {
+        if (!detectRedshifts && !detectActiveRegions && !findBorders) {
             return;
         }
         var spectrumFrameAnalyzer = new SpectrumFrameAnalyzer(width, height, header.isJSolexTrimmedSer(), 20000d);
-        // avoid expensive polynomial computation because we don't need it!
-        spectrumFrameAnalyzer.forcePolynomial(polynomial);
-        var bordersAnalysis = spectrumFrameAnalyzer.analyze(original);
+        var bordersAnalysis = spectrumFrameAnalyzer.findBorders(original);
         // 10 is to convert nm to angstrom
         int wingShiftInPixels = (int) Math.floor(0.5d / dispersion.angstromsPerPixel());
-        var leftBorder = bordersAnalysis.leftBorder();
-        var rightBorder = bordersAnalysis.rightBorder();
-        var avgOfColumnAverages = 0d;
-        if (leftBorder.isPresent() && rightBorder.isPresent()) {
+        lock.lock();
+        try {
+            if (borderDetection == null) {
+                borderDetection = BorderDetection.create(header.frameCount());
+            }
+        } finally {
+            lock.unlock();
+        }
+        new SpectrumFrameAnalyzer(width, height, header.isJSolexTrimmedSer(), 10000d)
+                .findBorders(original)
+                .ifPresent(borders -> {
+                    var left = borders.a();
+                    var right = borders.b();
+                    borderDetection.left()[frameId] = left;
+                    borderDetection.right()[frameId] = right;
+                });
+        if (!detectRedshifts && !detectActiveRegions) {
+            return;
+        }
+        bordersAnalysis.ifPresent(borders -> {
+            var left = borders.a();
+            var right = borders.b();
+            var avgOfColumnAverages = 0d;
             var activeRegionsMask = new BitSet(width);
-            int leftLimit = leftBorder.get();
-            int rightLimit = rightBorder.get();
-            var range = rightLimit - leftLimit;
-            leftLimit += (int) (range / 40d);
-            rightLimit -= (int) (range / 40d);
+            var range = right - left;
+            left += (int) (range / 40d);
+            right -= (int) (range / 40d);
             var avgCenterLine = 0d;
             var avgCenterCount = 0;
             var columnsAverages = new double[width];
             var columnsStddevs = new double[width];
-            for (int x = leftLimit; x < rightLimit; x++) {
+            for (int x = left; x < right; x++) {
                 var columnAvg = columnAverage(x, height, original);
                 columnsAverages[x] = columnAvg;
                 avgOfColumnAverages += columnAvg;
@@ -127,7 +153,7 @@ public class PhenomenaDetector {
             }
             var avgPoints = new ArrayList<Point2D>();
             var stddevPoints = new ArrayList<Point2D>();
-            for (int x = leftLimit; x < rightLimit; x++) {
+            for (int x = left; x < right; x++) {
                 var avg = columnsAverages[x];
                 avgPoints.add(new Point2D(x, avg));
                 double stddev = 0;
@@ -146,16 +172,16 @@ public class PhenomenaDetector {
             var collector = new ArrayList<Redshift>();
             double finalAvgCenterLine = avgCenterLine;
             double finalAvgOfColumnAverages = avgOfColumnAverages;
-            IntStream.range(leftLimit, rightLimit)
-                .parallel()
-                .forEach(x -> analyzeColumn(frameId, x, width, height, original, polynomial, wingShiftInPixels, collector, finalAvgCenterLine, finalAvgOfColumnAverages, columnsAverages, columnsStddevs, avgModel, stddevModel, activeRegionsMask));
+            IntStream.range(left, right)
+                    .parallel()
+                    .forEach(x -> analyzeColumn(frameId, x, width, height, original, polynomial, wingShiftInPixels, collector, finalAvgCenterLine, finalAvgOfColumnAverages, columnsAverages, columnsStddevs, avgModel, stddevModel, activeRegionsMask));
             if (!collector.isEmpty()) {
                 redshiftsPerFrame.put(frameId, Collections.unmodifiableList(collector));
             }
             if (activeRegionsMask.cardinality() > 0) {
                 activeRegionsPerFrame.put(frameId, activeRegionsMask);
             }
-        }
+        });
     }
 
     private static double stddev(float[][] data, int width, int height, int startX, int endX) {
@@ -325,10 +351,10 @@ public class PhenomenaDetector {
     public ActiveRegions getActiveRegions() {
         var points = new Stack<Point2D>();
         points.addAll(activeRegionsPerFrame.entrySet()
-            .stream()
-            .filter(entry -> !entry.getValue().isEmpty())
-            .flatMap(entry -> entry.getValue().stream().mapToObj(x -> new Point2D(x, entry.getKey())))
-            .toList());
+                .stream()
+                .filter(entry -> !entry.getValue().isEmpty())
+                .flatMap(entry -> entry.getValue().stream().mapToObj(x -> new Point2D(x, entry.getKey())))
+                .toList());
         Set<Point2D> pointsAsSet = new HashSet<>(points);
         Set<Point2D> visited = new HashSet<>();
         List<List<Point2D>> activeRegions = new ArrayList<>();
@@ -343,10 +369,10 @@ public class PhenomenaDetector {
             activeRegions.add(area);
         }
         var activeRegionList = activeRegions.stream()
-            .sorted(Comparator.<List<Point2D>>comparingInt(List::size).reversed())
-            .map(ActiveRegion::of)
-            .filter(s -> s.width() >= MIN_AR_AREA && s.height() >= MIN_AR_AREA)
-            .toList();
+                .sorted(Comparator.<List<Point2D>>comparingInt(List::size).reversed())
+                .map(ActiveRegion::of)
+                .filter(s -> s.width() >= MIN_AR_AREA && s.height() >= MIN_AR_AREA)
+                .toList();
         var regionList = clusterActiveRegions(activeRegionList);
         return new ActiveRegions(filterOutliers(regionList));
     }
@@ -363,8 +389,8 @@ public class PhenomenaDetector {
     private List<ActiveRegion> clusterActiveRegions(List<ActiveRegion> activeRegionList) {
         activeRegionList = new ArrayList<>(activeRegionList); // make mutable
         activeRegionList.sort(
-            Comparator.<ActiveRegion>comparingDouble(s -> s.topLeft().x())
-                .thenComparingDouble(s -> s.topLeft().y())
+                Comparator.<ActiveRegion>comparingDouble(s -> s.topLeft().x())
+                        .thenComparingDouble(s -> s.topLeft().y())
         );
 
         var deleted = new BitSet(activeRegionList.size());
@@ -414,8 +440,8 @@ public class PhenomenaDetector {
 
     private ActiveRegion mergeActiveRegions(ActiveRegion a, ActiveRegion b) {
         return ActiveRegion.of(
-            Stream.concat(a.points().stream(), b.points().stream())
-                .toList()
+                Stream.concat(a.points().stream(), b.points().stream())
+                        .toList()
         );
     }
 
@@ -456,13 +482,13 @@ public class PhenomenaDetector {
 
     public List<RedshiftArea> getMaxRedshiftAreas(int limit) {
         var anonynous = computeAreas()
-            .stream()
-            .sorted(
-                Comparator.comparingInt(RedshiftArea::pixelShift).reversed().thenComparing(
-                    Comparator.comparingInt(RedshiftArea::area)
-                )
-            ).limit(limit)
-            .toList();
+                .stream()
+                .sorted(
+                        Comparator.comparingInt(RedshiftArea::pixelShift).reversed().thenComparing(
+                                Comparator.comparingInt(RedshiftArea::area)
+                        )
+                ).limit(limit)
+                .toList();
         var withId = new ArrayList<RedshiftArea>(limit);
         // provide an id to areas, starting from A to Z. If there's more than 26 areas, we'll use a numbered suffix, e.g A2
         char letter = 'A';
@@ -508,12 +534,12 @@ public class PhenomenaDetector {
 
     private List<RedshiftArea> computeAreas() {
         var allRedshifts = redshiftsPerFrame.values()
-            .stream()
-            .flatMap(List::stream)
-            .sorted(Comparator.comparingInt(Redshift::pixelShift).reversed())
-            .limit(4096)
-            .map(Redshift::toArea)
-            .toList();
+                .stream()
+                .flatMap(List::stream)
+                .sorted(Comparator.comparingInt(Redshift::pixelShift).reversed())
+                .limit(4096)
+                .map(Redshift::toArea)
+                .toList();
         var deleted = new BitSet(allRedshifts.size());
         var clusters = new ArrayList<Cluster>();
         for (int i = 0; i < allRedshifts.size(); i++) {
@@ -608,7 +634,7 @@ public class PhenomenaDetector {
         varYY /= n;
         covXY /= n;
 
-        var matrixData = new double[][] {
+        var matrixData = new double[][]{
                 {varXX, covXY},
                 {covXY, varYY}
         };
@@ -623,11 +649,24 @@ public class PhenomenaDetector {
 
         return s1 / s2;
     }
-    
+
     private record Cluster(int x1, int y1, int x2, int y2, int pixelShift, List<RedshiftArea> areas) {
 
         public Cluster(RedshiftArea redshiftArea) {
             this(redshiftArea.x1(), redshiftArea.y1(), redshiftArea.x2(), redshiftArea.y2(), redshiftArea.pixelShift(), List.of(redshiftArea));
+        }
+    }
+
+    public record BorderDetection(
+            int[] left,
+            int[] right
+    ) {
+        private static BorderDetection create(int height) {
+            var left = new int[height];
+            var right = new int[height];
+            Arrays.fill(left, -1);
+            Arrays.fill(right, -1);
+            return new BorderDetection(left, right);
         }
     }
 }

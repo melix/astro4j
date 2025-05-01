@@ -61,7 +61,40 @@ public class SpectrumFrameAnalyzer {
         return result;
     }
 
+    public Optional<IntPair> findBorders(float[][] data) {
+        var borders = sunDetectionThreshold != null ? findBordersExplicit(data) : findBordersAuto(data);
+        var leftBorder = borders.left();
+        var rightBorder = borders.right();
+        if (leftBorder == null || rightBorder == null) {
+            return Optional.empty();
+        }
+        return Optional.of(new IntPair(leftBorder, rightBorder));
+    }
+
     private void performAutomaticDetection() {
+        var borders = findBordersAuto(data);
+        var leftBorder = borders.left();
+        var rightBorder = borders.right();
+        if (polynomial != null) {
+            this.result = new Result(
+                    leftBorder,
+                    rightBorder,
+                    null,
+                    List.of()
+            );
+        }
+        var distortionPolynomial = findDistortionPolynomial(leftBorder, rightBorder);
+        this.result = distortionPolynomial;
+        if (isReducedSerFile) {
+            var doubleQuadruplet = distortionPolynomial.distortionQuadruplet();
+            if (doubleQuadruplet.isPresent()) {
+                var polynomial = doubleQuadruplet.get();
+                this.result = new Result(leftBorder, rightBorder, new DoubleQuadruplet(0, 0, 0, Math.round(polynomial.d())), result.samplePoints);
+            }
+        }
+    }
+
+    private Borders findBordersAuto(float[][] data) {
         Integer leftBorder = null;
         Integer rightBorder = null;
         var columnAverages = new double[width];
@@ -90,26 +123,17 @@ public class SpectrumFrameAnalyzer {
                 rightBorder = x;
             }
         }
-        if (polynomial != null) {
-            this.result = new Result(
-                    leftBorder,
-                    rightBorder,
-                    null,
-                    List.of()
-            );
-        }
-        var distortionPolynomial = findDistortionPolynomial(leftBorder, rightBorder);
-        this.result = distortionPolynomial;
-        if (isReducedSerFile) {
-            var doubleQuadruplet = distortionPolynomial.distortionQuadruplet();
-            if (doubleQuadruplet.isPresent()) {
-                var polynomial = doubleQuadruplet.get();
-                this.result = new Result(leftBorder, rightBorder, new DoubleQuadruplet(0, 0, 0, Math.round(polynomial.d())), result.samplePoints);
-            }
-        }
+        return new Borders(leftBorder, rightBorder);
     }
 
     private void performDetectionUsingExplicitThreshold() {
+        var borders = findBordersExplicit(data);
+        var leftBorder = borders.left();
+        var rightBorder = borders.right();
+        this.result = findDistortionPolynomial(leftBorder, rightBorder);
+    }
+
+    private Borders findBordersExplicit(float[][] data) {
         Integer leftBorder = null;
         Integer rightBorder = null;
         for (int x = 0; x < width; x++) {
@@ -126,17 +150,7 @@ public class SpectrumFrameAnalyzer {
                 rightBorder = x;
             }
         }
-        if (this.polynomial != null) {
-            // polynomial was forced
-            this.result = new Result(
-                    leftBorder,
-                    rightBorder,
-                    null,
-                    List.of()
-            );
-            return;
-        }
-        this.result = findDistortionPolynomial(leftBorder, rightBorder);
+        return new Borders(leftBorder, rightBorder);
     }
 
     private void reset() {
@@ -329,5 +343,8 @@ public class SpectrumFrameAnalyzer {
         public List<Point2D> getSamplePoints() {
             return samplePoints;
         }
+    }
+
+    public record Borders(Integer left, Integer right) {
     }
 }

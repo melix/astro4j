@@ -27,6 +27,38 @@ import java.util.function.Function;
 import java.util.function.Supplier;
 
 public interface ImageEmitter {
+    ImageEmitter NO_OP = new ImageEmitter() {
+        @Override
+        public void newMonoImage(GeneratedImageKind kind, String category, String title, String name, String description, ImageWrapper32 image, Consumer<? super float[][]> bufferConsumer) {
+
+        }
+
+        @Override
+        public void newMonoImage(GeneratedImageKind kind, String category, String title, String name, String description, ImageWrapper32 image) {
+
+        }
+
+        @Override
+        public void newColorImage(GeneratedImageKind kind, String category, String title, String name, String description, ImageWrapper32 image, Function<ImageWrapper32, float[][][]> rgbSupplier) {
+
+        }
+
+        @Override
+        public void newColorImage(GeneratedImageKind kind, String category, String title, String name, String description, ImageWrapper32 image, Function<ImageWrapper32, float[][][]> rgbSupplier, BiConsumer<Graphics2D, ? super ImageWrapper> painter) {
+
+        }
+
+        @Override
+        public void newColorImage(GeneratedImageKind kind, String category, String title, String name, String description, int width, int height, Map<Class<?>, Object> metadata, Supplier<float[][][]> rgbSupplier) {
+
+        }
+
+        @Override
+        public void newGenericFile(GeneratedImageKind kind, String category, String title, String name, String description, Path file) {
+
+        }
+    };
+
     void newMonoImage(GeneratedImageKind kind, String category, String title, String name, String description, ImageWrapper32 image, Consumer<? super float[][]> bufferConsumer);
 
     void newMonoImage(GeneratedImageKind kind, String category, String title, String name, String description, ImageWrapper32 image);

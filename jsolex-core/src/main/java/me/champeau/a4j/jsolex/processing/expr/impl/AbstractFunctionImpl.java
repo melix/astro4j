@@ -236,12 +236,14 @@ class AbstractFunctionImpl {
         if (img instanceof ImageWrapper32 mono) {
             var copy = mono.copy();
             transformer.transform(mono.width(), mono.height(), copy.data());
+            transformer.postProcess(copy);
             return copy;
         } else if (img instanceof RGBImage rgb) {
             var copy = rgb.copy();
             transformer.transform(rgb.width(), rgb.height(), copy.r());
             transformer.transform(rgb.width(), rgb.height(), copy.g());
             transformer.transform(rgb.width(), rgb.height(), copy.b());
+            transformer.postProcess(copy);
             return copy;
         }
         throw new IllegalStateException("Unexpected image type " + img);
@@ -255,5 +257,9 @@ class AbstractFunctionImpl {
     @FunctionalInterface
     public interface MonoImageTransformer {
         void transform(int width, int height, float[][] data);
+
+        default void postProcess(ImageWrapper image) {
+
+        }
     }
 }

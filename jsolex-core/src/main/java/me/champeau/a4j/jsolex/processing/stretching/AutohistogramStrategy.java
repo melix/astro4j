@@ -37,7 +37,7 @@ import static me.champeau.a4j.jsolex.processing.util.Constants.MAX_PIXEL_VALUE;
 
 public final class AutohistogramStrategy implements StretchingStrategy {
     private static final Logger LOGGER = LoggerFactory.getLogger(AutohistogramStrategy.class);
-    public static final double DEFAULT_BACKGROUND_THRESHOLD = 0.25;
+    public static final double DEFAULT_BACKGROUND_THRESHOLD = 0.5;
     public static final double DEFAULT_PROM_STRETCH = 0;
 
     private static final float BLEND_START = 1.00f;
@@ -120,8 +120,8 @@ public final class AutohistogramStrategy implements StretchingStrategy {
             var protusImage = new ImageWrapper32(width, height, protus, Map.of(Ellipse.class, rescaledEllipse));
             var stats = ImageAnalysis.of(protusImage, false);
             while (stats.avg() / stats.stddev() > backgroundThreshold) {
-                neutralizeBg(disk, 2, 1.5, 0.9f);
-                if (neutralizeBg(protusImage, 2, 1.5, 0.9f) == 0) {
+                neutralizeBg(disk, 2, 1.5, 0.8f);
+                if (neutralizeBg(protusImage, 2, 1.5, 0.8f) == 0) {
                     break;
                 }
                 stats = ImageAnalysis.of(protusImage, false);

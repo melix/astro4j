@@ -12,8 +12,9 @@
 
 ## Changes since 3.0.0
 
-### 3.0.5
+### 3.1.0
 
+- Added experimental [jagged edges correction](#jagged-edges-correction)
 - Fixed the `saturate` function that no longer used the chosen value
 - Fixed banding correction on edges
 
@@ -39,6 +40,14 @@
 - Disabled enhancement of prominences by default, there is now a parameter to enable it
 - Fixed typos in translations
 - Make darkest line detection more robust
+
+## Jagged Edges Correction
+
+This feature is experimental and may not work perfectly.
+Images captured using a spectroheliograph will often show so-called "jagged edges" at the solar limb: these are due to multiple causes: atmospheric turbulence, wind or imperfect tracking.
+JSol'Ex 3.1 introduces a new feature to correct these jagged edges, which will also reduce the mislalignment of features on the solar disk.
+To enable the correction, you have to check the "jagged edges correction" option in the image enhancement settings.
+The sigma value can be used to adjust the correction: the higher the value, the less restrictive will be the samples used to compute the correction.
 
 ## Image Improvements
 

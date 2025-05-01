@@ -42,65 +42,81 @@ public class Rotate extends AbstractFunctionImpl {
         super(context, broadcaster);
     }
 
-    public Object rotateLeft(Map<String ,Object> arguments) {
+    public Object rotateLeft(Map<String, Object> arguments) {
         BuiltinFunction.ROTATE_LEFT.validateArgs(arguments);
         return doRotate("rotate_left", arguments, -Math.PI / 2);
     }
 
-    public Object rotateRight(Map<String ,Object> arguments) {
+    public Object rotateRight(Map<String, Object> arguments) {
         BuiltinFunction.ROTATE_RIGHT.validateArgs(arguments);
         return doRotate("rotate_right", arguments, Math.PI / 2);
     }
 
-    public Object rotateDegrees(Map<String ,Object> arguments) {
+    public Object rotateDegrees(Map<String, Object> arguments) {
         BuiltinFunction.ROTATE_DEG.validateArgs(arguments);
         var angle = Math.toRadians(doubleArg(arguments, "angle", 0));
         return doRotate("rotate_deg", arguments, angle);
     }
 
-    public Object rotateRadians(Map<String ,Object> arguments) {
+    public Object rotateRadians(Map<String, Object> arguments) {
         BuiltinFunction.ROTATE_RAD.validateArgs(arguments);
         var angle = doubleArg(arguments, "angle", 0);
         return doRotate("rotate_rad", arguments, angle);
     }
 
-    public Object hflip(Map<String ,Object> arguments) {
+    public Object hflip(Map<String, Object> arguments) {
         BuiltinFunction.HFLIP.validateArgs(arguments);
-        return applyUnary(arguments, "hflip", "img", (width, height, data) -> {
-            var result = new float[height][width];
-            for (var y = 0; y < height; y++) {
-                for (var x = 0; x < width; x++) {
-                    result[y][x] = data[y][width - x - 1];
+        return applyUnary(arguments, "hflip", "img", new MonoImageTransformer() {
+            @Override
+            public void transform(int width, int height, float[][] data) {
+                var result = new float[height][width];
+                for (var y = 0; y < height; y++) {
+                    for (var x = 0; x < width; x++) {
+                        result[y][x] = data[y][width - x - 1];
+                    }
                 }
+                System.arraycopy(result, 0, data, 0, result.length);
             }
-            System.arraycopy(result, 0, data, 0, result.length);
+
+            @Override
+            public void postProcess(ImageWrapper image) {
+                fixMetadataForFlipping(image, true);
+            }
         });
     }
 
-    public Object vflip(Map<String ,Object> arguments) {
+    public Object vflip(Map<String, Object> arguments) {
         BuiltinFunction.VFLIP.validateArgs(arguments);
-        return applyUnary(arguments, "vflip", "img", (width, height, data) -> {
-            var result = new float[height][width];
-            for (var y = 0; y < height; y++) {
-                System.arraycopy(data[y], 0, result[height - y - 1], 0, width);
+        return applyUnary(arguments, "vflip", "img", new MonoImageTransformer() {
+            @Override
+            public void transform(int width, int height, float[][] data) {
+                var result = new float[height][width];
+                for (var y = 0; y < height; y++) {
+                    System.arraycopy(data[y], 0, result[height - y - 1], 0, width);
+                }
+                System.arraycopy(result, 0, data, 0, result.length);
             }
-            System.arraycopy(result, 0, data, 0, result.length);
+
+            @Override
+            public void postProcess(ImageWrapper image) {
+                fixMetadataForFlipping(image, false);
+            }
         });
     }
 
-    private Image arbitraryRotation(Map<String ,Object> arguments, Image image, double angle) {
+    private Image arbitraryRotation(Map<String, Object> arguments, Image image, double angle) {
         var blackpoint = getArgument(Number.class, arguments, "bp")
-            .map(Number::floatValue)
-            .or(() -> getFromContext(ImageStats.class).map(ImageStats::blackpoint))
-            .orElse(0f);
+                .map(Number::floatValue)
+                .or(() -> getFromContext(ImageStats.class).map(ImageStats::blackpoint))
+                .orElse(0f);
         var resize = getArgument(Number.class, arguments, "resize")
-            .map(Number::intValue)
-            .map(i -> i == 1)
-            .orElse(false);
+                .map(Number::intValue)
+                .map(i -> i == 1)
+                .orElse(false);
         return imageMath.rotate(image, angle, blackpoint, resize);
     }
 
-    private Object doRotate(String functionName, Map<String ,Object> arguments, double angle) {
+    private Object doRotate(String functionName, Map<String, Object> arguments, double angle) {
         var arg = arguments.get("img");
         if (arg instanceof List<?>) {
             return expandToImageList(functionName, "img", arguments, this::rotateRadians);
@@ -128,41 +144,34 @@ public class Rotate extends AbstractFunctionImpl {
         var origWidth = wrapper.width();
         var origHeight = wrapper.height();
         wrapper.findMetadata(Ellipse.class).ifPresent(ellipse -> {
-            var sx = origWidth / 2;
-            var sy = origHeight / 2;
-            var rotated = ellipse.rotate(-angle, new Point2D(sx, sy));
-            sx = (newWidth - origWidth) / 2;
-            sy = (newHeight - origHeight) / 2;
-            if (sx != 0 || sy != 0) {
-                rotated = rotated.translate(sx, sy);
-            }
+            var rotated = ellipse.rotate(angle, origWidth, origHeight, newWidth, newHeight);
             metadata.put(Ellipse.class, rotated);
         });
         wrapper.findMetadata(Redshifts.class).ifPresent(redshifts -> {
             var rotated = redshifts.redshifts().stream()
-                .map(rs -> {
-                    var x1 = rs.x1();
-                    var y1 = rs.y1();
-                    var x2 = rs.x2();
-                    var y2 = rs.y2();
-                    var maxX = rs.maxX();
-                    var maxY = rs.maxY();
-                    var cx = origWidth / 2;
-                    var cy = origHeight / 2;
-                    var sx = cx + (newWidth - origWidth) / 2;
-                    var sy = cy + (newHeight - origHeight) / 2;
-                    // apply rotation and scale to each coordinate
-                    var cosAlpha = Math.cos(angle);
-                    var sinAlpha = Math.sin(angle);
-                    var x1p = (int) (sx + Math.round((x1 - cx) * cosAlpha - (y1 - cy) * sinAlpha));
-                    var y1p = (int) (sy + Math.round((x1 - cx) * sinAlpha + (y1 - cy) * cosAlpha));
-                    var x2p = (int) (sx + Math.round((x2 - cx) * cosAlpha - (y2 - cy) * sinAlpha));
-                    var y2p = (int) (sy + Math.round((x2 - cx) * sinAlpha + (y2 - cy) * cosAlpha));
-                    var maxXP = (int) (sx + Math.round((maxX - cx) * cosAlpha - (maxY - cy) * sinAlpha));
-                    var maxYP = (int) (sy + Math.round((maxX - cx) * sinAlpha + (maxY - cy) * cosAlpha));
-                    return new RedshiftArea(rs.id(), rs.pixelShift(), rs.relPixelShift(), rs.kmPerSec(), x1p, y1p, x2p, y2p, maxXP, maxYP);
-                })
-                .toList();
+                    .map(rs -> {
+                        var x1 = rs.x1();
+                        var y1 = rs.y1();
+                        var x2 = rs.x2();
+                        var y2 = rs.y2();
+                        var maxX = rs.maxX();
+                        var maxY = rs.maxY();
+                        var cx = origWidth / 2;
+                        var cy = origHeight / 2;
+                        var sx = cx + (newWidth - origWidth) / 2;
+                        var sy = cy + (newHeight - origHeight) / 2;
+                        // apply rotation and scale to each coordinate
+                        var cosAlpha = Math.cos(angle);
+                        var sinAlpha = Math.sin(angle);
+                        var x1p = (int) (sx + Math.round((x1 - cx) * cosAlpha - (y1 - cy) * sinAlpha));
+                        var y1p = (int) (sy + Math.round((x1 - cx) * sinAlpha + (y1 - cy) * cosAlpha));
+                        var x2p = (int) (sx + Math.round((x2 - cx) * cosAlpha - (y2 - cy) * sinAlpha));
+                        var y2p = (int) (sy + Math.round((x2 - cx) * sinAlpha + (y2 - cy) * cosAlpha));
+                        var maxXP = (int) (sx + Math.round((maxX - cx) * cosAlpha - (maxY - cy) * sinAlpha));
+                        var maxYP = (int) (sy + Math.round((maxX - cx) * sinAlpha + (maxY - cy) * cosAlpha));
+                        return new RedshiftArea(rs.id(), rs.pixelShift(), rs.relPixelShift(), rs.kmPerSec(), x1p, y1p, x2p, y2p, maxXP, maxYP);
+                    })
+                    .toList();
             metadata.put(Redshifts.class, new Redshifts(rotated));
         });
         wrapper.findMetadata(ActiveRegions.class).ifPresent(activeRegions -> {
@@ -184,4 +193,50 @@ public class Rotate extends AbstractFunctionImpl {
         wrapper.findMetadata(ReferenceCoords.class).ifPresent(coords -> coords.addRotation(angle));
         return metadata;
     }
+
+    public static void fixMetadataForFlipping(ImageWrapper wrapper, boolean hflip) {
+        var metadata = wrapper.metadata();
+        var width = wrapper.width();
+        var height = wrapper.height();
+        wrapper.findMetadata(Ellipse.class).ifPresent(e -> {
+            var flipped = hflip ? e.hflip(width) : e.vflip(height);
+            metadata.put(Ellipse.class, flipped);
+        });
+        wrapper.findMetadata(Redshifts.class).ifPresent(rs -> {
+            var areas = rs.redshifts().stream().map(a -> {
+                if (hflip) {
+                    return new RedshiftArea(
+                            a.id(), a.pixelShift(), a.relPixelShift(), a.kmPerSec(),
+                            width - a.x2(), a.y1(), width - a.x1(), a.y2(),
+                            width - a.maxX(), a.maxY()
+                    );
+                } else {
+                    return new RedshiftArea(
+                            a.id(), a.pixelShift(), a.relPixelShift(), a.kmPerSec(),
+                            a.x1(), height - a.y2(), a.x2(), height - a.y1(),
+                            a.maxX(), height - a.maxY()
+                    );
+                }
+            }).toList();
+            metadata.put(Redshifts.class, new Redshifts(areas));
+        });
+        wrapper.findMetadata(ActiveRegions.class).ifPresent(ar -> {
+            var flipped = ar.transform(p ->
+                    new Point2D(
+                            hflip ? width - p.x() : p.x(),
+                            hflip ? p.y() : height - p.y()
+                    )
+            );
+            metadata.put(ActiveRegions.class, flipped);
+        });
+        wrapper.findMetadata(ReferenceCoords.class).ifPresent(rc -> {
+            if (hflip) {
+                rc.addVFlip(wrapper.height());
+            } else {
+                rc.addHFlip(wrapper.width());
+            }
+            metadata.put(ReferenceCoords.class, rc);
+        });
+    }
+
 }
