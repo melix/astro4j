@@ -367,7 +367,7 @@ image::imagemath-2-fr.jpg[]
 
 For now we've only used one function called `range`, which let us generate about 20 images, but there are many others available.
 
-include::{generated-funs}/en/functions.adoc[leveloffset=+2]
+Please refer to link:imagemath.html[this page] for the complete list of functions available in ImageMath.
 
 === ImageMath scripts
 

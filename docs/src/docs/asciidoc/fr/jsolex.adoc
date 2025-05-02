@@ -315,7 +315,7 @@ image::imagemath-2-fr.jpg[]
 
 Nous avons utilisé ici une seule fonction, `range`, qui a permis de générer en une seule instruction une vingtaine d'images, mais il existe de nombreuses fonctions.
 
-include::{generated-funs}/fr/functions.adoc[leveloffset=+2]
+Veuillez vous référer à link:imagemath.html[cette page] pour une liste complète des fonctions disponibles.
 
 [[custom-functions]]
 === Fonctions personnalisées

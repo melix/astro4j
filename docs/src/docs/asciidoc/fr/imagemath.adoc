@@ -1,0 +1,8 @@
+= Fonctions ImageMath
+Cédric Champeau
+:icons: font
+:docinfo: shared
+
+Cette page décrit les fonctions disponibles dans les scripts ImageMath.
+
+include::{generated-funs}/fr/functions.adoc[]
