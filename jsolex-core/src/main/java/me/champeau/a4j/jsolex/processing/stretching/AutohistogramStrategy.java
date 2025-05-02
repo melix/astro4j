@@ -108,7 +108,7 @@ public final class AutohistogramStrategy implements StretchingStrategy {
                 }
             }
             analysis = ImageAnalysis.of(disk, true);
-            equalize(disk, analysis, TARGET_AVG, 8000);
+            equalize(disk, analysis, TARGET_AVG, 2000);
             analysis = ImageAnalysis.of(disk, true);
             for (int y = 0; y < height; y++) {
                 for (int x = 0; x < width; x++) {
@@ -119,9 +119,12 @@ public final class AutohistogramStrategy implements StretchingStrategy {
             var rescaledEllipse = e.rescale(1.05, 1.05);
             var protusImage = new ImageWrapper32(width, height, protus, Map.of(Ellipse.class, rescaledEllipse));
             var stats = ImageAnalysis.of(protusImage, false);
+            Ellipse bgEllipse = e;
             while (stats.avg() / stats.stddev() > backgroundThreshold) {
-                neutralizeBg(disk, 2, 1.5, 0.8f);
-                if (neutralizeBg(protusImage, 2, 1.5, 0.8f) == 0) {
+                // only remove from disk for the first iteration!
+                neutralizeBg(disk, 2, 1.5, 0.8f, bgEllipse);
+                bgEllipse = null;
+                if (neutralizeBg(protusImage, 2, 1.5, 0.8f, null) == 0) {
                     break;
                 }
                 stats = ImageAnalysis.of(protusImage, false);
@@ -202,7 +205,7 @@ public final class AutohistogramStrategy implements StretchingStrategy {
         }
     }
 
-    public static double neutralizeBg(ImageWrapper32 disk, int degree, double sigma, float smoothing) {
+    public static double neutralizeBg(ImageWrapper32 disk, int degree, double sigma, float smoothing, Ellipse e) {
         var diskData = disk.data();
         var optionalModel = BackgroundRemoval.backgroundModel(disk, degree, sigma);
         if (optionalModel.isPresent()) {
@@ -212,7 +215,9 @@ public final class AutohistogramStrategy implements StretchingStrategy {
                 for (int x = 0; x < disk.width(); x++) {
                     float v = data[y][x];
                     avg += v;
-                    diskData[y][x] = Math.clamp(diskData[y][x] - smoothing * v, 0, MAX_PIXEL_VALUE);
+                    if (e == null || !e.isWithin(x, y)) {
+                        diskData[y][x] = Math.clamp(diskData[y][x] - smoothing * v, 0, MAX_PIXEL_VALUE);
+                    }
                 }
             }
             avg = avg / (disk.width() * disk.height());

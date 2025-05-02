@@ -85,9 +85,12 @@ public record ImageAnalysis(float avg, float stddev, float min, float max, Histo
         }
         float average = sum / n;
         float stddev = 0;
-        for (float[] line : array) {
-            for (float v : line) {
-                stddev += (v - average) * (v - average);
+        for (int y = 0; y < height; y++) {
+            for (int x = 0; x < width; x++) {
+                if (e.isWithin(x, y)) {
+                    var v = array[y][x];
+                    stddev += (v - average) * (v - average);
+                }
             }
         }
         stddev = (float) Math.sqrt(stddev / (n - 1));

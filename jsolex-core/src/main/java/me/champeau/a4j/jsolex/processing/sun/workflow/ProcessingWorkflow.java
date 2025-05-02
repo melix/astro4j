@@ -445,7 +445,7 @@ public class ProcessingWorkflow {
                     float[][] mix = new float[height][width];
                     var coronaData = coronagraph.data();
                     var filtered = ImageWrapper.copyData(coronaData);
-                    neutralizeBg(new ImageWrapper32(width, height, filtered, Map.of()), 2, 3, 0.9f);
+                    neutralizeBg(new ImageWrapper32(width, height, filtered, Map.of()), 2, 3, 0.9f, null);
                     for (int y = 0; y < height; y++) {
                         for (int x = 0; x < width; x++) {
                             if (diskEllipse.isWithin(x, y)) {
