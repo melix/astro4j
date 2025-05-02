@@ -37,7 +37,7 @@ import static me.champeau.a4j.jsolex.processing.util.Constants.MAX_PIXEL_VALUE;
 
 public final class AutohistogramStrategy implements StretchingStrategy {
     private static final Logger LOGGER = LoggerFactory.getLogger(AutohistogramStrategy.class);
-    public static final double DEFAULT_BACKGROUND_THRESHOLD = 0.5;
+    public static final double DEFAULT_BACKGROUND_THRESHOLD = 0.25;
     public static final double DEFAULT_PROM_STRETCH = 0;
 
     private static final float BLEND_START = 1.00f;
@@ -161,19 +161,30 @@ public final class AutohistogramStrategy implements StretchingStrategy {
     private float stretch(float v, float max) {
         float normalized = v / max;
         var gammaCorrected = (float) pow(normalized, gamma) * MAX_PIXEL_VALUE;
+        if (Float.isNaN(gammaCorrected)) {
+            return 0;
+        }
         return clamp(gammaCorrected, 0, MAX_PIXEL_VALUE);
     }
 
     private void maybeAdjustBrightness(ImageWrapper32 image, int height, int width, float[][] diskData) {
         if (adjustBrightness) {
+            var backup = image.copy();
             var stats = ImageAnalysis.of(image, true);
-            while (stats.histogram().cumulative().percentile(0.75f) < TARGET_AVG) {
+            int maxIterations = 10;
+            while (stats.histogram().cumulative().percentile(0.75f) < TARGET_AVG && maxIterations-- > 0) {
                 for (int y = 0; y < height; y++) {
                     for (int x = 0; x < width; x++) {
                         diskData[y][x] = (float) Math.clamp(BRIGHTNESS_ENHANCE.applyAsDouble(diskData[y][x]), 0, MAX_PIXEL_VALUE);
                     }
                 }
                 stats = ImageAnalysis.of(image, true);
+            }
+            if (maxIterations == -1) {
+                LOGGER.warn("Could not reach target average after 10 iterations. Skipping brightness adjustment.");
+                for (int y = 0; y < height; y++) {
+                    System.arraycopy(backup.data()[y], 0, diskData[y], 0, width);
+                }
             }
         }
     }

@@ -104,7 +104,8 @@ public class SpectrumFrameAnalyzer {
                 double value = data[y][x];
                 colSum += value;
             }
-            columnAverages[x] = colSum / height;
+            // square the average to increase sensitivity
+            columnAverages[x] = (colSum / height) * (colSum / height);
         }
         double min = Double.MAX_VALUE;
         double max = 0;
@@ -116,7 +117,7 @@ public class SpectrumFrameAnalyzer {
             columnAverages[i] = (columnAverages[i] - min) / (max - min);
         }
         for (int x = 0; x < width; x++) {
-            if (columnAverages[x] > 0.2) {
+            if (columnAverages[x] > 0.05) {
                 if (leftBorder == null) {
                     leftBorder = x;
                 }

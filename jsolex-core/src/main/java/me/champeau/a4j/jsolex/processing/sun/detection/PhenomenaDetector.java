@@ -116,7 +116,7 @@ public class PhenomenaDetector {
         } finally {
             lock.unlock();
         }
-        new SpectrumFrameAnalyzer(width, height, header.isJSolexTrimmedSer(), 10000d)
+        new SpectrumFrameAnalyzer(width, height, header.isJSolexTrimmedSer(), null)
                 .findBorders(original)
                 .ifPresent(borders -> {
                     var left = borders.a();
