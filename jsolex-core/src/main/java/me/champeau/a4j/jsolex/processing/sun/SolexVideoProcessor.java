@@ -131,6 +131,7 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 import static me.champeau.a4j.jsolex.processing.spectrum.FlatCreator.prepareFlatFromAverage;
+import static me.champeau.a4j.jsolex.processing.sun.BackgroundRemoval.removeZeroPixels;
 import static me.champeau.a4j.jsolex.processing.util.Constants.MAX_PIXEL_VALUE;
 import static me.champeau.a4j.jsolex.processing.util.Constants.message;
 import static me.champeau.a4j.jsolex.processing.util.LoggingSupport.logError;
@@ -744,7 +745,9 @@ public class SolexVideoProcessor implements Broadcaster {
 
     private void prepareImageForCorrections(WorkflowState state, Header header, Ellipse ellipse, ImageEmitter emitter) {
         ImageWrapper32 rotated;
-        ImageWrapper32 reconstructed = state.reconstructed().copy();
+        ImageWrapper32 reconstructed = maybeRemoveZeroPixels(state.reconstructed());
+        state.recordResult(WorkflowResults.RECONSTRUCTED, reconstructed);
+        reconstructed = state.reconstructed().copy();
         reconstructed.metadata().put(PixelShift.class, new PixelShift(state.pixelShift()));
         performBandingCorrection(reconstructed, ellipse);
         if (ellipse != null) {
@@ -769,6 +772,18 @@ public class SolexVideoProcessor implements Broadcaster {
         rotated = maybePerformRotation(rotated, processParams.geometryParams().rotation());
         updateTruncationDetails(state, rotated);
         state.setImage(rotated);
+    }
+
+    private ImageWrapper32 maybeRemoveZeroPixels(ImageWrapper32 reconstructed) {
+        for (var line : reconstructed.data()) {
+            for (float v : line) {
+                if (v == 0) {
+                    LOGGER.warn(message("zero.pixel.warning"));
+                    return removeZeroPixels(reconstructed);
+                }
+            }
+        }
+        return reconstructed;
     }
 
     private void performBandingCorrection(ImageWrapper32 reconstructed, Ellipse e) {

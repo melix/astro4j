@@ -16,6 +16,7 @@
 
 - Improvements to jagging edges correction
 - Fixed banding correction possibly causing white artifacts at the extremes of the poles
+- Fixed ellipse detection when the image contains bands where the value of pixels is truncated to 0
 
 ### 3.1.0
 

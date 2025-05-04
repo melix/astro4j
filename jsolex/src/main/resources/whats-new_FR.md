@@ -16,6 +16,7 @@
 
 - Améliorations de la correction des bords dentelés
 - Correction de la correction de bandes qui pouvait causer des artefacts blancs aux extrêmités des pôles
+- Correction de la détection d'ellipse lorsque l'image contient des bandes où la valeur des pixels est tronquée à 0
 
 ### 3.1.0
 
