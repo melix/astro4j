@@ -95,9 +95,19 @@ public class BackgroundRemoval {
     }
 
     public static BlindBackgroundNeutralizationResult blindBackgroundNeutralization(ImageWrapper32 image) {
+        int bins = 64;
+        var neut = blindBackgroundNeutralization2(image, bins);
+        while (neut.isEmpty() && bins < 1024) {
+            bins *= 2;
+            neut = blindBackgroundNeutralization2(image, bins);
+        }
+        return neut.orElse(new BlindBackgroundNeutralizationResult(image, 0));
+    }
+
+    private static Optional<BlindBackgroundNeutralizationResult> blindBackgroundNeutralization2(ImageWrapper32 image, int bins) {
         var copy = removeZeroPixels(image);
         var data = copy.data();
-        var background = 0.8 * estimateBackgroundLevel(copy.data(), 64);
+        var background = 0.8 * estimateBackgroundLevel(copy.data(), bins);
         LOGGER.debug("Background neutralization level: {}", background);
         var ellipse = image.findMetadata(Ellipse.class).orElse(null);
         if (ellipse != null) {
@@ -127,7 +137,7 @@ public class BackgroundRemoval {
 
         if (samples.size() < 16) {
             LOGGER.warn(message("cannot.perform.bg.neutralization"));
-            return new BlindBackgroundNeutralizationResult(copy, background);
+            return Optional.of(new BlindBackgroundNeutralizationResult(copy, background));
         }
 
         // Perform 2nd order fitting
@@ -152,7 +162,11 @@ public class BackgroundRemoval {
         } catch (Exception ex) {
             LOGGER.warn(message("cannot.perform.bg.neutralization"));
         }
-        return new BlindBackgroundNeutralizationResult(copy, avgBackground);
+        if (avgBackground > 8 * background) {
+            // something went very wrong, probably bad estimate of the background
+            return Optional.empty();
+        }
+        return Optional.of(new BlindBackgroundNeutralizationResult(copy, avgBackground));
     }
 
     /**

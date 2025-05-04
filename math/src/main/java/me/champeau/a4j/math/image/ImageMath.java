@@ -36,28 +36,32 @@ public interface ImageMath {
         var data = image.data();
         var width = image.width();
         var height = image.height();
-        float[][] output = new float[width][height];
+        var newWidth = height;
+        var newHeight = width;
+        float[][] output = new float[newHeight][newWidth];
 
         for (int y = 0; y < height; y++) {
             for (int x = 0; x < width; x++) {
                 output[width - x - 1][y] = data[y][x];
             }
         }
-        return new Image(height, width, output);
+        return new Image(newWidth, newHeight, output);
     }
 
     default Image rotateRight(Image image) {
         var data = image.data();
         var width = image.width();
         var height = image.height();
-        float[][] output = new float[width][height];
+        var newWidth = height;
+        var newHeight = width;
+        float[][] output = new float[newHeight][newWidth];
 
         for (int y = 0; y < height; y++) {
             for (int x = 0; x < width; x++) {
                 output[x][height - y - 1] = data[y][x];
             }
         }
-        return new Image(height, width, output);
+        return new Image(newWidth, newHeight, output);
     }
 
     default double[] lineAverages(Image image) {
