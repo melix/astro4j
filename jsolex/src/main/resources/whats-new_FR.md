@@ -15,6 +15,7 @@
 ### 3.1.1
 
 - Améliorations de la correction des bords dentelés
+- Correction de la correction de bandes qui pouvait causer des artefacts blancs aux extrêmités des pôles
 
 ### 3.1.0
 

@@ -15,6 +15,7 @@
 ### 3.1.1
 
 - Improvements to jagging edges correction
+- Fixed banding correction possibly causing white artifacts at the extremes of the poles
 
 ### 3.1.0
 

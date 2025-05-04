@@ -68,7 +68,7 @@ public class BandingReduction {
             if (k != y) {
                 double lineAverage = lineAverages[k];
                 if (Double.isNaN(lineAverage)) {
-                    continue;
+                    return Double.NaN;
                 }
                 sum += lineAverage;
                 count++;
