@@ -747,7 +747,7 @@ public class SolexVideoProcessor implements Broadcaster {
         ImageWrapper32 rotated;
         ImageWrapper32 reconstructed = maybeRemoveZeroPixels(state.reconstructed());
         state.recordResult(WorkflowResults.RECONSTRUCTED, reconstructed);
-        reconstructed = state.reconstructed().copy();
+        reconstructed = reconstructed.copy();
         reconstructed.metadata().put(PixelShift.class, new PixelShift(state.pixelShift()));
         performBandingCorrection(reconstructed, ellipse);
         if (ellipse != null) {
