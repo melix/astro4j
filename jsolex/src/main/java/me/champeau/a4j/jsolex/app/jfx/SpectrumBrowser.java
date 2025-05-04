@@ -187,7 +187,8 @@ public class SpectrumBrowser extends BorderPane {
         stackPane.addEventFilter(MouseEvent.MOUSE_CLICKED, event -> {
             if (event.getClickCount() == 2) {
                 double y = event.getY();
-                double wavelength = currentMinWavelength + y * (visibleRangeAngstroms.get() / canvas.getHeight());
+                var idx = flipSpectrumCheckBox.isSelected() ? canvas.getHeight() - y : y;
+                double wavelength = currentMinWavelength + idx * (visibleRangeAngstroms.get() / canvas.getHeight());
                 userDefinedLines.add(new IdentifiedLine(Wavelen.ofAngstroms(wavelength), null, -1));
                 drawSpectrum();
             }
@@ -620,33 +621,27 @@ public class SpectrumBrowser extends BorderPane {
     }
 
     private void drawIdentifiedLines(GraphicsContext gc, double spectrumWidth, double step, IdentifiedLine[] lines, Color color) {
-        double previousPosition = -1;
+        double previousY = -1;
         var height = canvas.getHeight();
-        var sortedByWavelen = Arrays.stream(lines).sorted(Comparator.comparingDouble(i -> i.wavelength().angstroms())).toList();
-
+        var sortedByWavelen = Arrays.stream(lines).sorted(Comparator.comparingDouble(i ->
+                flipSpectrumCheckBox.isSelected() ? -i.wavelength().angstroms() : i.wavelength().angstroms()))
+                .toList();
         for (var identifiedLine : sortedByWavelen) {
             var identifiedWavelength = identifiedLine.wavelength().angstroms();
             if (identifiedWavelength >= currentMinWavelength && identifiedWavelength <= currentMaxWavelength) {
-                // Calculate position and handle flipping
-                var position = calculatePosition((identifiedWavelength - currentMinWavelength) / step, height);
-
-                // Ensure labels are spaced out properly
-                if (Math.abs(position - previousPosition) < 18) {
-                    position = flipSpectrumCheckBox.isSelected()
-                        ? previousPosition - 18
-                        : previousPosition + 18;
+                var position1 = calculatePosition((identifiedWavelength - currentMinWavelength) / step, height);
+                var position2 = position1;
+                if (position1 - previousY < 18) {
+                    position2 = previousY + 18;
                 }
-
-                previousPosition = position;
-
-                // Draw line and label
+                previousY = position2;
                 gc.setStroke(color);
                 gc.setLineDashes(5);
                 gc.setLineCap(StrokeLineCap.BUTT);
-                gc.strokeLine(SPECTRUM_OFFSET + spectrumWidth + 5, position, SPECTRUM_OFFSET + spectrumWidth + 50, position);
+                gc.strokeLine(SPECTRUM_OFFSET + spectrumWidth + 5, position1, SPECTRUM_OFFSET + spectrumWidth + 50, position2);
                 gc.setLineDashes(0);
                 gc.setFill(color);
-                gc.fillText(identifiedLine.toString(), SPECTRUM_OFFSET + spectrumWidth + 55, position + 5);
+                gc.fillText(identifiedLine.toString(), SPECTRUM_OFFSET + spectrumWidth + 55, position2 + 5);
             }
         }
     }
