@@ -12,6 +12,10 @@
 
 ## Changements depuis la 3.0.0
 
+### 3.1.1
+
+- Améliorations de la correction des bords dentelés
+
 ### 3.1.0
 
 - Ajout d'une [correction des bords dentelés](#correction-des-bords-denteles) (expérimental)

@@ -12,6 +12,10 @@
 
 ## Changes since 3.0.0
 
+### 3.1.1
+
+- Improvements to jagging edges correction
+
 ### 3.1.0
 
 - Added experimental [jagged edges correction](#jagged-edges-correction)

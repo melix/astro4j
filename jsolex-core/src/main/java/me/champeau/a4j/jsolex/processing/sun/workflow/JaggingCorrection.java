@@ -132,7 +132,7 @@ public class JaggingCorrection {
                     float[] debugLineG = debug ? debugG[y] : null;
                     float[] debugLuneB = debug ? debugB[y] : null;
                     if (mid != null) {
-                        performCorrectionForSingleLine(line, List.of(mid), debug, debugLineR, debugLineG, debugLuneB);
+                        performCorrectionForSingleLine(y, line, List.of(mid), debug, debugLineR, debugLineG, debugLuneB);
                     } else {
                         // interpolate between the two closest points
                         int finalY = y;
@@ -146,11 +146,7 @@ public class JaggingCorrection {
                             var leftCorrection = left.map(Map.Entry::getValue).orElse(null);
                             var rightCorrection = right.map(Map.Entry::getValue).orElse(null);
                             if (leftCorrection != null && rightCorrection != null) {
-                                performCorrectionForSingleLine(line, List.of(leftCorrection, rightCorrection), debug, debugLineR, debugLineG, debugLuneB);
-                            } else if (leftCorrection != null) {
-                                performCorrectionForSingleLine(line, List.of(leftCorrection), debug, debugLineR, debugLineG, debugLuneB);
-                            } else {
-                                performCorrectionForSingleLine(line, List.of(rightCorrection), debug, debugLineR, debugLineG, debugLuneB);
+                                performCorrectionForSingleLine(y, line, List.of(leftCorrection, rightCorrection), debug, debugLineR, debugLineG, debugLuneB);
                             }
                         }
                         if (left.isEmpty() && right.isPresent()) {
@@ -191,7 +187,7 @@ public class JaggingCorrection {
         return (float) (sum / wsum);
     }
 
-    private void performCorrectionForSingleLine(float[] line, List<Correction> samples, boolean debug, float[] debugR, float[] debugG, float[] debugB) {
+    private void performCorrectionForSingleLine(int y, float[] line, List<Correction> samples, boolean debug, float[] debugR, float[] debugG, float[] debugB) {
         List<Point2D> points = new ArrayList<>();
         for (var sample : samples) {
             var dx = 1.5 * (sample.x2() - sample.x1());
@@ -207,7 +203,6 @@ public class JaggingCorrection {
                 LinearRegression.secondOrderRegression(points.toArray(new Point2D[0])).asPolynomial() :
                 LinearRegression.firstOrderRegression(points.toArray(new Point2D[0])).asPolynomial();
         var corrected = new float[line.length];
-
         for (int x = 0; x < line.length; x++) {
             double srcX = poly.applyAsDouble(x);
             float value = srcX == x ? line[x] : lanczos(line, srcX, 3);
