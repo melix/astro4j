@@ -262,7 +262,10 @@ public class ImageInspectorController {
             imageSelection.setState(SelectionState.KEEP);
             selections.put(index, imageSelection);
         });
-        selections.get(bestIndex.get()).setState(SelectionState.BEST);
+        var imageSelection = selections.get(bestIndex.get());
+        if (imageSelection != null) {
+            imageSelection.setState(SelectionState.BEST);
+        }
         stage.setOnCloseRequest(e -> {
             try {
                 tempFile.delete();
