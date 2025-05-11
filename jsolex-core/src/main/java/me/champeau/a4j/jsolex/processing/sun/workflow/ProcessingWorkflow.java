@@ -406,9 +406,10 @@ public class ProcessingWorkflow {
         var crop = new Crop(context, broadcaster);
         var draw = new ImageDraw(context, broadcaster);
         var cropped = crop.autocrop2(Map.of("img", details, "factor", 1.2d));
+        Object withGlobe = draw.drawGlobe(Map.of("img", cropped, "correctAngleP", processParams.geometryParams().isAutocorrectAngleP() ? 1 : 0));
         var decorated = (ImageWrapper32) draw.drawSolarParameters(Map.of(
                 "img", draw.drawObservationDetails(Map.of(
-                        "img", draw.drawGlobe(Map.of("img", cropped))
+                        "img", withGlobe
                 ))
         ));
         decorated.metadata().put(RotationKind.class, RotationKind.NONE);

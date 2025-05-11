@@ -18,6 +18,18 @@ arguments:
     description:
       fr: "Angle b0"
       en: "b0 angle"
+  - name: style
+    default: equatorial_coords
+    optional: true
+    description:
+      fr: "Style du globe. Valeurs possibles : equatorial_coords (N/S E/W correspondant au N/S céleste), solar_coords (N/S E/W correspondant aux axes solaires)"
+      en: "Globe style. Possible values: equatorial_coords (N/S E/W corresponding to celestial N/S), solar_coords (N/S E/W corresponding to solar axes)"
+  - name: correctAngleP
+    default: 0
+    optional: true
+    description:
+      fr: "1 pour corriger l’angle P (l'axe passant par le point P vertical), 0 sinon"
+      en: "1 to correct the P angle (the axis passing through point P is vertical), 0 otherwise"
 examples:
   - "draw_globe(img(0))"
   - "draw_globe(img:img(0), angleP: 0)"

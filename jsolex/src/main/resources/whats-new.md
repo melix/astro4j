@@ -14,6 +14,7 @@
 
 ### 3.1.2
 
+- Added new "style" for drawing the globe, where the N label matches the celestial north and P the solar north. In addition, if the P angle is corrected, then the grid is also corrected.
 - Fixed error in mosaic composition
 - Fixed bug when using functions where an unknown pixel shift image would fail the scripts
 
