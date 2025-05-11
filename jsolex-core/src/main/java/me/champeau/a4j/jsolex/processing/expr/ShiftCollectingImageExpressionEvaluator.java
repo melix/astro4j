@@ -66,7 +66,15 @@ public class ShiftCollectingImageExpressionEvaluator extends ImageExpressionEval
         if (function == BuiltinFunction.CONTINUUM) {
             autoContinuum = true;
         }
-        return super.functionCall(function, arguments);
+        try {
+            return super.functionCall(function, arguments);
+        } catch (Exception ex) {
+            if (isShiftCollecting(images)) {
+                // return a dummy image
+                return zeroImages().apply(0.0);
+            }
+            throw ex;
+        }
     }
 
     public ImageWrapper findImage(double shift) {

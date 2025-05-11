@@ -15,6 +15,7 @@
 ### 3.1.2
 
 - Correction d'une erreur dans la création de mosaïque
+- Correction d'un bug lors de l'utilisation de fonctions où une image de décalage de pixel inconnu échouerait les scripts
 
 ### 3.1.1
 

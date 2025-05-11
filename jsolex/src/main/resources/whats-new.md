@@ -15,6 +15,7 @@
 ### 3.1.2
 
 - Fixed error in mosaic composition
+- Fixed bug when using functions where an unknown pixel shift image would fail the scripts
 
 ### 3.1.1
 

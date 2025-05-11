@@ -23,7 +23,7 @@ import java.util.function.Function;
 import static me.champeau.a4j.jsolex.processing.util.Constants.message;
 
 public class ImageExpressionEvaluator extends AbstractImageExpressionEvaluator {
-    private final Function<Double, ImageWrapper> images;
+    protected final Function<Double, ImageWrapper> images;
 
     public ImageExpressionEvaluator(Broadcaster broadcaster, Function<Double, ImageWrapper> images) {
         super(broadcaster);
