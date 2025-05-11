@@ -12,6 +12,10 @@
 
 ## Changements depuis la 3.0.0
 
+### 3.1.3
+
+- Correction de la fiche technique qui n'était pas orientée correctement lorsque l'angle P était corrigé
+
 ### 3.1.2
 
 - Ajout d'un nouveau style pour dessiner le globe, où le label N correspond au nord céleste et P au nord solaire. De plus si l'angle P est corrigé, alors la grille est aussi corrigée.

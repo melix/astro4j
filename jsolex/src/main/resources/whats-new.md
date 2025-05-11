@@ -12,6 +12,10 @@
 
 ## Changes since 3.0.0
 
+### 3.1.3
+
+- Fixed technical card not oriented properly when angle P is corrected
+
 ### 3.1.2
 
 - Added new "style" for drawing the globe, where the N label matches the celestial north and P the solar north. In addition, if the P angle is corrected, then the grid is also corrected.

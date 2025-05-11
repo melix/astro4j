@@ -22,6 +22,7 @@ import me.champeau.a4j.jsolex.processing.event.SuggestionEvent;
 import me.champeau.a4j.jsolex.processing.expr.impl.Colorize;
 import me.champeau.a4j.jsolex.processing.expr.impl.Crop;
 import me.champeau.a4j.jsolex.processing.expr.impl.ImageDraw;
+import me.champeau.a4j.jsolex.processing.expr.impl.Rotate;
 import me.champeau.a4j.jsolex.processing.params.AutoStretchParams;
 import me.champeau.a4j.jsolex.processing.params.ClaheParams;
 import me.champeau.a4j.jsolex.processing.params.ContrastEnhancement;
@@ -50,6 +51,7 @@ import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 import me.champeau.a4j.jsolex.processing.util.MutableMap;
 import me.champeau.a4j.jsolex.processing.util.RGBImage;
+import me.champeau.a4j.jsolex.processing.util.SolarParameters;
 import me.champeau.a4j.math.Point2D;
 import me.champeau.a4j.math.image.Deconvolution;
 import me.champeau.a4j.math.image.ImageMath;
@@ -404,8 +406,15 @@ public class ProcessingWorkflow {
         var details = clahe.copy();
         var context = SolexVideoProcessor.createMetadata(processParams, serFile, null, header);
         var crop = new Crop(context, broadcaster);
+        var rotate = new Rotate(context, broadcaster);
         var draw = new ImageDraw(context, broadcaster);
         var cropped = crop.autocrop2(Map.of("img", details, "factor", 1.2d));
+        if (processParams.geometryParams().isAutocorrectAngleP()) {
+            var solarParameters = clahe.findMetadata(SolarParameters.class).orElse(null);
+            if (solarParameters != null) {
+                cropped = rotate.rotateRadians(Map.of("img", cropped, "angle", solarParameters.p()));
+            }
+        }
         Object withGlobe = draw.drawGlobe(Map.of("img", cropped, "correctAngleP", processParams.geometryParams().isAutocorrectAngleP() ? 1 : 0));
         var decorated = (ImageWrapper32) draw.drawSolarParameters(Map.of(
                 "img", draw.drawObservationDetails(Map.of(
