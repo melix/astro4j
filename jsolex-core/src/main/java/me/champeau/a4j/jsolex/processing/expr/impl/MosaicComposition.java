@@ -61,6 +61,7 @@ import static me.champeau.a4j.jsolex.processing.expr.impl.Dedistort.createTilesF
 import static me.champeau.a4j.jsolex.processing.expr.impl.Dedistort.crossCorrelationShiftFFT;
 import static me.champeau.a4j.jsolex.processing.sun.workflow.AnalysisUtils.estimateBackgroundLevel;
 import static me.champeau.a4j.jsolex.processing.util.Constants.message;
+import static me.champeau.a4j.math.fft.FFTSupport.nextPowerOf2;
 import static me.champeau.a4j.math.regression.LinearRegression.firstOrderRegression;
 
 public class MosaicComposition extends AbstractFunctionImpl {
@@ -92,6 +93,9 @@ public class MosaicComposition extends AbstractFunctionImpl {
     public Object mosaic(Map<String ,Object> arguments) {
         BuiltinFunction.MOSAIC.validateArgs(arguments);
         var arg = arguments.get("images");
+        if (arg instanceof Map<?, ?> map && map.size()==1 && map.containsKey("list")) {
+            arg = map.get("list");
+        }
         if (arg instanceof List<?> list) {
             var images = list.stream().filter(ImageWrapper.class::isInstance).map(img -> {
                 if (img instanceof FileBackedImage fbi) {
@@ -156,7 +160,7 @@ public class MosaicComposition extends AbstractFunctionImpl {
             var first = corrected.iterator().next();
             var height = first.height();
             var width = first.width();
-            var distorsionGridSize = Math.max(width / 64, 64);
+            var distorsionGridSize = nextPowerOf2(Math.max(width / 64, 64));
             LOGGER.debug("Threshold: {}", background);
             computeMissingState(distorsionGridSize, corrected, background, imageToTilesOverbackground, integralImages);
             var tileOverlap = placeMostOverlappingImagesFirst(corrected, imageToTilesOverbackground, imageCount);

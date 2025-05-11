@@ -74,6 +74,9 @@ public class AdjustContrast extends AbstractFunctionImpl {
         if (!(arguments.get("list") instanceof List<?> topLevel) || topLevel.size() != 1) {
             throw new IllegalArgumentException("equalize requires a list of images");
         }
+        if (topLevel.getFirst() instanceof Map<?, ?> map && map.size()==1 && map.containsKey("list")) {
+            topLevel = List.of(map.get("list"));
+        }
         if (!(topLevel.getFirst() instanceof List<?> list)) {
             throw new IllegalArgumentException("equalize requires a list of images");
         }

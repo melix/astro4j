@@ -12,6 +12,10 @@
 
 ## Changements depuis la 3.0.0
 
+### 3.1.2
+
+- Correction d'une erreur dans la création de mosaïque
+
 ### 3.1.1
 
 - Améliorations de la correction des bords dentelés

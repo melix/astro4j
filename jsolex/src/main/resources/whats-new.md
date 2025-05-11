@@ -12,6 +12,10 @@
 
 ## Changes since 3.0.0
 
+### 3.1.2
+
+- Fixed error in mosaic composition
+
 ### 3.1.1
 
 - Improvements to jagging edges correction
