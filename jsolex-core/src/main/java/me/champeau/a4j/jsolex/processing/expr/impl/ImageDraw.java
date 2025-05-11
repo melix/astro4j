@@ -16,6 +16,7 @@
 package me.champeau.a4j.jsolex.processing.expr.impl;
 
 import me.champeau.a4j.jsolex.expr.BuiltinFunction;
+import me.champeau.a4j.jsolex.processing.params.GlobeStyle;
 import me.champeau.a4j.jsolex.processing.params.ProcessParams;
 import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
 import me.champeau.a4j.jsolex.processing.sun.detection.ActiveRegion;
@@ -88,7 +89,7 @@ public class ImageDraw extends AbstractFunctionImpl {
         }
     }
 
-    public Object drawObservationDetails(Map<String ,Object> arguments) {
+    public Object drawObservationDetails(Map<String, Object> arguments) {
         BuiltinFunction.DRAW_OBS_DETAILS.validateArgs(arguments);
         var arg = arguments.get("img");
         if (arg instanceof List<?>) {
@@ -138,7 +139,7 @@ public class ImageDraw extends AbstractFunctionImpl {
         throw new IllegalArgumentException("Unexpected image type: " + arg);
     }
 
-    public Object drawText(Map<String ,Object> arguments) {
+    public Object drawText(Map<String, Object> arguments) {
         BuiltinFunction.DRAW_TEXT.validateArgs(arguments);
         var arg = arguments.get("img");
         if (arg instanceof List<?>) {
@@ -201,7 +202,7 @@ public class ImageDraw extends AbstractFunctionImpl {
         }
     }
 
-    public Object drawArrow(Map<String ,Object> arguments) {
+    public Object drawArrow(Map<String, Object> arguments) {
         BuiltinFunction.DRAW_ARROW.validateArgs(arguments);
         var arg = arguments.get("img");
         if (arg instanceof List<?>) {
@@ -270,7 +271,7 @@ public class ImageDraw extends AbstractFunctionImpl {
         });
     }
 
-    public Object drawCircle(Map<String ,Object> arguments) {
+    public Object drawCircle(Map<String, Object> arguments) {
         BuiltinFunction.DRAW_CIRCLE.validateArgs(arguments);
         var arg = arguments.get("img");
         if (arg instanceof List<?>) {
@@ -288,7 +289,7 @@ public class ImageDraw extends AbstractFunctionImpl {
         }
     }
 
-    public Object drawRectangle(Map<String ,Object> arguments) {
+    public Object drawRectangle(Map<String, Object> arguments) {
         BuiltinFunction.DRAW_RECT.validateArgs(arguments);
         var arg = arguments.get("img");
         if (arg instanceof List<?>) {
@@ -324,7 +325,7 @@ public class ImageDraw extends AbstractFunctionImpl {
     }
 
 
-    public Object drawSolarParameters(Map<String ,Object> arguments) {
+    public Object drawSolarParameters(Map<String, Object> arguments) {
         BuiltinFunction.DRAW_SOLAR_PARAMS.validateArgs(arguments);
         var arg = arguments.get("img");
         if (arg instanceof List<?>) {
@@ -380,7 +381,7 @@ public class ImageDraw extends AbstractFunctionImpl {
     }
 
 
-    public Object drawGlobe(Map<String ,Object> arguments) {
+    public Object drawGlobe(Map<String, Object> arguments) {
         BuiltinFunction.DRAW_GLOBE.validateArgs(arguments);
         var arg = arguments.get("img");
         if (arg instanceof List<?>) {
@@ -391,7 +392,13 @@ public class ImageDraw extends AbstractFunctionImpl {
             var angleP = getArgument(Number.class, arguments, "angleP").map(Number::doubleValue).or(() -> findSolarParams(image).map(SolarParameters::p)).orElse(0d);
             var b0 = getArgument(Number.class, arguments, "b0").map(Number::doubleValue).or(() -> findSolarParams(image).map(SolarParameters::b0)).orElse(0d);
             var ellipse = getEllipse(arguments, "ellipse").orElseThrow(() -> new IllegalArgumentException("Ellipse not defined"));
-            return doDrawGlobe(image, ellipse, angleP, b0, null, true);
+            var style = getArgument(String.class, arguments, "style").orElse(null);
+            if (style == null) {
+                var processParams = findProcessParams(image);
+                style = processParams.map(params -> params.extraParams().globeStyle().name()).orElseGet(GlobeStyle.EQUATORIAL_COORDS::name);
+            }
+            var correctAngleP  = getArgument(Integer.class, arguments, "correctAngleP").orElse(0) != 0;
+            return doDrawGlobe(image, ellipse, angleP, b0, null, true, correctAngleP, GlobeStyle.valueOf(style.toUpperCase(Locale.US)));
         }
         throw new IllegalArgumentException("Unexpected image type: " + img);
     }
@@ -435,7 +442,9 @@ public class ImageDraw extends AbstractFunctionImpl {
                                     double angleP,
                                     double b0,
                                     Color color,
-                                    boolean maybeDrawSunspots) {
+                                    boolean maybeDrawSunspots,
+                                    boolean correctAngleP,
+                                    GlobeStyle style) {
         return drawOnImage(wrapper, (g, image) -> {
             if (color != null) {
                 g.setColor(color);
@@ -445,6 +454,9 @@ public class ImageDraw extends AbstractFunctionImpl {
 
             double centerX = ellipse.center().a();
             double centerY = ellipse.center().b();
+            if (correctAngleP) {
+                g.setTransform(AffineTransform.getRotateInstance(angleP, centerX, centerY));
+            }
             double radius = (ellipse.semiAxis().a() + ellipse.semiAxis().b()) / 2d;
             double resolution = 0.0002d;
             var diameter = (int) Math.round(2 * radius);
@@ -465,9 +477,24 @@ public class ImageDraw extends AbstractFunctionImpl {
                     }
                 }
             }
-            drawAngleLabels(angleP, geodesisInc, radius, g, centerX, centerY);
+            drawAngleLabels(angleP, geodesisInc, radius, g, centerX, centerY, style);
             drawRotationAxis(angleP, radius, g, centerX, centerY);
-            drawRotationAxis(0, radius, g, centerX, centerY);
+            if (style == GlobeStyle.SOLAR_COORDS) {
+                drawRotationAxis(0, radius, g, centerX, centerY);
+            } else if (style == GlobeStyle.EQUATORIAL_COORDS) {
+                g.setStroke(new BasicStroke(2));
+                g.drawLine((int) centerX, (int) (centerY - 1.1 * radius), (int) centerX, (int) (centerY - 1.02 * radius));
+                g.drawLine((int) centerX, (int) (centerY + 1.1 * radius), (int) centerX, (int) (centerY + 1.02 * radius));
+                g.drawLine((int) (centerX - 1.1 * radius), (int) centerY, (int) (centerX - 1.02 * radius), (int) centerY);
+                g.drawLine((int) (centerX + 1.1 * radius), (int) centerY, (int) (centerX + 1.02 * radius), (int) centerY);
+                g.setFont(g.getFont().deriveFont(AffineTransform.getRotateInstance(0)));
+                g.setFont(g.getFont().deriveFont(Font.BOLD));
+                var fs = g.getFont().getSize2D() / 2d;
+                g.drawString("N", (int) (centerX - fs), (int) (centerY - 1.12 * radius));
+                g.drawString("S", (int) (centerX - fs), (int) (centerY + fs + 1.12 * radius));
+                g.drawString("W", (int) (centerX + 1.12 * radius), (int) (centerY + fs));
+                g.drawString("E", (int) (centerX - 1.12 * radius), (int) (centerY + fs));
+            }
             g.setFont(font);
             var processParams = findProcessParams(image);
             var detectedRegions = image.findMetadata(ActiveRegions.class).map(ActiveRegions::regionList).orElse(List.of());
@@ -475,21 +502,21 @@ public class ImageDraw extends AbstractFunctionImpl {
                 // Draw each region with label
                 var date = processParams.get().observationDetails().date();
                 var regions = NOAARegions.findActiveRegions(date);
-                drawActiveRegionsLabels(detectedRegions, angleP, b0, g, radius, regions, centerX, centerY, false);
+                drawActiveRegionsLabels(detectedRegions, angleP, b0, g, radius, regions, centerX, centerY, correctAngleP);
             }
         });
     }
 
     private static void drawActiveRegionsLabels(
-        List<ActiveRegion> detectedRegions,
-        double angleP,
-        double b0,
-        Graphics2D g,
-        double radius,
-        List<NOAAActiveRegion> regions,
-        double centerX,
-        double centerY,
-        boolean rotateLabels) {
+            List<ActiveRegion> detectedRegions,
+            double angleP,
+            double b0,
+            Graphics2D g,
+            double radius,
+            List<NOAAActiveRegion> regions,
+            double centerX,
+            double centerY,
+            boolean rotateLabels) {
         autoScaleFont(g, 2.0d, radius);
         if (rotateLabels) {
             g.setFont(g.getFont().deriveFont(AffineTransform.getRotateInstance(-angleP)));
@@ -510,14 +537,14 @@ public class ImageDraw extends AbstractFunctionImpl {
                 int labelX = (int) round(centerX + regionCoords.x);
                 int labelY = (int) round(centerY + regionCoords.y);
                 var wasDetected = detectedRegions.stream()
-                    .anyMatch(s -> {
-                        var cx = s.topLeft().x() + s.width()/2;
-                        var cy = s.topLeft().y() + s.height()/2;
-                        // we have the radius of the sun and the width of the region
-                        // and we consider that the label matches if the center of the region is within a distance
-                        // of 10% of the sun radius
-                        return Math.hypot(cx - labelX, cy - labelY) < 0.1 * radius;
-                    });
+                        .anyMatch(s -> {
+                            var cx = s.topLeft().x() + s.width() / 2;
+                            var cy = s.topLeft().y() + s.height() / 2;
+                            // we have the radius of the sun and the width of the region
+                            // and we consider that the label matches if the center of the region is within a distance
+                            // of 10% of the sun radius
+                            return Math.hypot(cx - labelX, cy - labelY) < 0.1 * radius;
+                        });
                 if (wasDetected) {
                     g.setColor(Color.BLUE);
                     g.setFont(g.getFont().deriveFont(Font.BOLD));
@@ -546,7 +573,13 @@ public class ImageDraw extends AbstractFunctionImpl {
         g.drawLine((int) (centerX + p0[0]), (int) (centerY + p0[1]), (int) (centerX + p1[0]), (int) (centerY + p1[1]));
     }
 
-    private static void drawAngleLabels(double angleP, int geodesisInc, double radius, Graphics2D g, double centerX, double centerY) {
+    private static void drawAngleLabels(double angleP,
+                                        int geodesisInc,
+                                        double radius,
+                                        Graphics2D g,
+                                        double centerX,
+                                        double centerY,
+                                        GlobeStyle style) {
         for (int i = 0; i < 90; i += geodesisInc) {
             var angle = toRadians(i);
             if ((i % 90) != 0) {
@@ -561,11 +594,21 @@ public class ImageDraw extends AbstractFunctionImpl {
                 var p = rotate(0, radius * 1.05, -angleP);
                 var font = g.getFont();
                 g.setFont(font.deriveFont(Font.BOLD));
-                g.drawString("N", (int) (centerX - p[0]), (int) (centerY - p[1]));
-                g.drawString("S", (int) (centerX + p[0]), (int) (centerY + p[1]));
-                p = rotate(0, radius * 1.05, Math.PI / 2 - angleP);
-                g.drawString("W", (int) (centerX - p[0]), (int) (centerY - p[1]));
-                g.drawString("E", (int) (centerX + p[0]), (int) (centerY + p[1]));
+                switch (style) {
+                    case SOLAR_COORDS -> {
+                        g.drawString("N", (int) (centerX - p[0]), (int) (centerY - p[1]));
+                        g.drawString("S", (int) (centerX + p[0]), (int) (centerY + p[1]));
+                        p = rotate(0, radius * 1.05, Math.PI / 2 - angleP);
+                        g.drawString("W", (int) (centerX - p[0]), (int) (centerY - p[1]));
+                        g.drawString("E", (int) (centerX + p[0]), (int) (centerY + p[1]));
+                    }
+                    case EQUATORIAL_COORDS -> {
+                        g.drawString("P", (int) (centerX - p[0]), (int) (centerY - p[1]));
+                        p = rotate(0, radius * 1.05, Math.PI / 2 - angleP);
+                        g.drawString("0", (int) (centerX - p[0]), (int) (centerY - p[1]));
+                        g.drawString("0", (int) (centerX + p[0]), (int) (centerY + p[1]));
+                    }
+                }
                 g.setFont(font);
             }
         }
@@ -631,7 +674,7 @@ public class ImageDraw extends AbstractFunctionImpl {
         return new double[]{cos(angle) * a - sin(angle) * b, sin(angle) * a + cos(angle) * b};
     }
 
-    public Object drawEarth(Map<String ,Object> arguments) {
+    public Object drawEarth(Map<String, Object> arguments) {
         BuiltinFunction.DRAW_EARTH.validateArgs(arguments);
         var arg = arguments.get("img");
         if (arg instanceof List<?>) {
@@ -661,7 +704,7 @@ public class ImageDraw extends AbstractFunctionImpl {
         return arg;
     }
 
-    public Object activeRegionsOverlay(Map<String ,Object> arguments) {
+    public Object activeRegionsOverlay(Map<String, Object> arguments) {
         BuiltinFunction.AR_OVERLAY.validateArgs(arguments);
         var arg = arguments.get("img");
         if (arg instanceof List<?>) {
@@ -773,4 +816,5 @@ public class ImageDraw extends AbstractFunctionImpl {
             }
         }
     }
+
 }

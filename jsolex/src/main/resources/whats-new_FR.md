@@ -14,6 +14,7 @@
 
 ### 3.1.2
 
+- Ajout d'un nouveau style pour dessiner le globe, où le label N correspond au nord céleste et P au nord solaire. De plus si l'angle P est corrigé, alors la grille est aussi corrigée.
 - Correction d'une erreur dans la création de mosaïque
 - Correction d'un bug lors de l'utilisation de fonctions où une image de décalage de pixel inconnu échouerait les scripts
 

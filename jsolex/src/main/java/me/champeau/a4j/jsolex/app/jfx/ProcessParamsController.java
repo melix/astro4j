@@ -52,6 +52,7 @@ import me.champeau.a4j.jsolex.processing.params.EnhancementParams;
 import me.champeau.a4j.jsolex.processing.params.ExtraParams;
 import me.champeau.a4j.jsolex.processing.params.FileNamingPatternsIO;
 import me.champeau.a4j.jsolex.processing.params.GeometryParams;
+import me.champeau.a4j.jsolex.processing.params.GlobeStyle;
 import me.champeau.a4j.jsolex.processing.params.ImageMathParams;
 import me.champeau.a4j.jsolex.processing.params.JaggingCorrectionParams;
 import me.champeau.a4j.jsolex.processing.params.NamedPattern;
@@ -244,6 +245,8 @@ public class ProcessParamsController {
     private CheckBox jaggingCorrection;
     @FXML
     private TextField jaggingCorrectionSigma;
+    @FXML
+    private ChoiceBox<GlobeStyle> globeStyle;
 
     private final List<Stage> popups = new CopyOnWriteArrayList<>();
     private Stage stage;
@@ -597,6 +600,8 @@ public class ProcessParamsController {
             }
         }));
         jaggingCorrectionSigma.setText(String.valueOf(initialProcessParams.enhancementParams().jaggingCorrectionParams().sigma()));
+        globeStyle.getItems().addAll(GlobeStyle.values());
+        globeStyle.getSelectionModel().select(initialProcessParams.extraParams().globeStyle());
     }
 
     private static TextFormatter<Integer> createOrderFormatter() {
@@ -820,7 +825,7 @@ public class ProcessParamsController {
                         showCoordinatesInDetails,
                         altAzMode.isSelected()
                 ),
-                new ExtraParams(generateDebugImages.isSelected() || debugImagesRequested, autoSave.isSelected(), imageFormats, namingStrategy.pattern(), namingStrategy.datetimeFormat(), namingStrategy.dateFormat(), reviewImagesAfterBatch.isSelected()),
+                new ExtraParams(generateDebugImages.isSelected() || debugImagesRequested, autoSave.isSelected(), imageFormats, namingStrategy.pattern(), namingStrategy.datetimeFormat(), namingStrategy.dateFormat(), reviewImagesAfterBatch.isSelected(), globeStyle.getValue()),
                 new VideoParams(assumeMonoVideo.isSelected() ? ColorMode.MONO : null),
                 new GeometryParams(
                         forceTilt.isSelected() ? Double.parseDouble(tiltValue.getText()) : null,

@@ -52,6 +52,7 @@ import me.champeau.a4j.jsolex.processing.event.ProgressEvent;
 import me.champeau.a4j.jsolex.processing.event.ProgressOperation;
 import me.champeau.a4j.jsolex.processing.expr.impl.ImageDraw;
 import me.champeau.a4j.jsolex.processing.params.AutocropMode;
+import me.champeau.a4j.jsolex.processing.params.GlobeStyle;
 import me.champeau.a4j.jsolex.processing.params.ProcessParams;
 import me.champeau.a4j.jsolex.processing.stretching.ContrastAdjustmentStrategy;
 import me.champeau.a4j.jsolex.processing.stretching.CurveTransformStrategy;
@@ -217,7 +218,7 @@ public class ImageViewer implements WithRootNode {
                     var op = operation.createChild(I18N.string(JSolEx.class, "measures", "preparing.measure.distance"));
                     broadcaster.onProgress(ProgressEvent.of(op));
                     var withGlobe = new ImageDraw(Map.of(), Broadcaster.NO_OP)
-                            .doDrawGlobe(prepared, ellipse, correctAngleP.isSelected() ? 0 : solarParameters.p(), solarParameters.b0(), new Color(1, 1, 0, .25f), false);
+                            .doDrawGlobe(prepared, ellipse, correctAngleP.isSelected() ? 0 : solarParameters.p(), solarParameters.b0(), new Color(1, 1, 0, .25f), false, false, GlobeStyle.EQUATORIAL_COORDS);
                     try {
                         var preparedFile = TemporaryFolder.newTempFile("prepared", ".png").toFile();
                         var globeFile = TemporaryFolder.newTempFile("globe", ".png").toFile();
