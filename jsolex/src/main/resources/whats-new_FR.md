@@ -12,6 +12,10 @@
 
 ## Changements depuis la 3.0.0
 
+### 3.1.4
+
+- Ajustement des paramètres par défaut
+
 ### 3.1.3
 
 - Correction de la fiche technique qui n'était pas orientée correctement lorsque l'angle P était corrigé
