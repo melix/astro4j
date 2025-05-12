@@ -937,6 +937,7 @@ public class ProcessParamsController {
         autoSave.setSelected(true);
         generateFits.setSelected(true);
         reviewImagesAfterBatch.setSelected(false);
+        globeStyle.getSelectionModel().select(GlobeStyle.EQUATORIAL_COORDS);
     }
 
     @FXML

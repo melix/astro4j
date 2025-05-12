@@ -37,7 +37,7 @@ import static me.champeau.a4j.jsolex.processing.util.Constants.MAX_PIXEL_VALUE;
 
 public final class AutohistogramStrategy implements StretchingStrategy {
     private static final Logger LOGGER = LoggerFactory.getLogger(AutohistogramStrategy.class);
-    public static final double DEFAULT_BACKGROUND_THRESHOLD = 0.25;
+    public static final double DEFAULT_BACKGROUND_THRESHOLD = 0.5;
     public static final double DEFAULT_PROM_STRETCH = 0;
 
     private static final float BLEND_START = 1.00f;

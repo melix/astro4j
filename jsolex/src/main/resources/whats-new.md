@@ -12,6 +12,10 @@
 
 ## Changes since 3.0.0
 
+### 3.1.4
+
+- Adjusted default parameters
+
 ### 3.1.3
 
 - Fixed technical card not oriented properly when angle P is corrected
