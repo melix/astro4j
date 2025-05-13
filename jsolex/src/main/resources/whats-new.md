@@ -14,6 +14,7 @@
 
 ### 3.1.4
 
+- Improved capabilities of the `DRAW_TEXT` function
 - Adjusted default parameters
 
 ### 3.1.3
