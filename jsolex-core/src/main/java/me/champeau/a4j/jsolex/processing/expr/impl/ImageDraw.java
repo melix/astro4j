@@ -16,28 +16,26 @@
 package me.champeau.a4j.jsolex.processing.expr.impl;
 
 import me.champeau.a4j.jsolex.expr.BuiltinFunction;
+import me.champeau.a4j.jsolex.processing.expr.AbstractImageExpressionEvaluator;
 import me.champeau.a4j.jsolex.processing.params.GlobeStyle;
 import me.champeau.a4j.jsolex.processing.params.ProcessParams;
 import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
 import me.champeau.a4j.jsolex.processing.sun.detection.ActiveRegion;
 import me.champeau.a4j.jsolex.processing.sun.detection.ActiveRegions;
-import me.champeau.a4j.jsolex.processing.util.NOAAActiveRegion;
+import me.champeau.a4j.jsolex.processing.sun.workflow.PixelShift;
 import me.champeau.a4j.jsolex.processing.util.Constants;
 import me.champeau.a4j.jsolex.processing.util.FileBackedImage;
 import me.champeau.a4j.jsolex.processing.util.GeoCoordinates;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
+import me.champeau.a4j.jsolex.processing.util.NOAAActiveRegion;
 import me.champeau.a4j.jsolex.processing.util.NOAARegions;
 import me.champeau.a4j.jsolex.processing.util.RGBImage;
 import me.champeau.a4j.jsolex.processing.util.SolarParameters;
 import me.champeau.a4j.math.regression.Ellipse;
 
 import javax.imageio.ImageIO;
-import java.awt.BasicStroke;
-import java.awt.Color;
-import java.awt.Font;
-import java.awt.Graphics2D;
-import java.awt.RenderingHints;
+import java.awt.*;
 import java.awt.geom.AffineTransform;
 import java.awt.image.BufferedImage;
 import java.awt.image.DataBufferUShort;
@@ -52,10 +50,9 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BiConsumer;
 import java.util.regex.Pattern;
 
-import static java.lang.Math.cos;
-import static java.lang.Math.round;
-import static java.lang.Math.sin;
-import static java.lang.Math.toRadians;
+import static java.lang.Math.*;
+import static me.champeau.a4j.jsolex.processing.expr.AbstractImageExpressionEvaluator.computeDispersion;
+import static me.champeau.a4j.jsolex.processing.expr.AbstractImageExpressionEvaluator.round2digits;
 
 public class ImageDraw extends AbstractFunctionImpl {
     private static final Pattern HEXA_COLOR = Pattern.compile("[0-9a-fA-F]{6}");
@@ -185,8 +182,58 @@ public class ImageDraw extends AbstractFunctionImpl {
                 message = text.substring(1, text.length() - 1);
                 g.setFont(g.getFont().deriveFont(Font.ITALIC));
             }
-            g.drawString(message, x, y);
+            message = performSubstitutions(message, img);
+            var lines = message.split("\n");
+            double lineHeight = g.getFontMetrics().getHeight();
+            double curY = y;
+            for (var line : lines) {
+                g.drawString(line, x, (int) curY);
+                curY += lineHeight;
+            }
         });
+    }
+
+    private String performSubstitutions(String message, ImageWrapper image) {
+        if (!message.contains("%")) {
+            // fast exit path
+            return message;
+        }
+        var params = (ProcessParams) context.get(ProcessParams.class);
+        if (message.contains("%WAVELEN%")) {
+            var wl = AbstractImageExpressionEvaluator.determineWavelengthOf(context, image);
+            message = message.replace("%WAVELEN%", String.format(Locale.US, "%.2f", wl));
+        }
+        if (message.contains("%PIXELSHIFT%")) {
+            var ps = image.findMetadata(PixelShift.class);
+            if (ps.isPresent()) {
+                message = message.replace("%PIXELSHIFT%", String.format(Locale.US, "%.2f", ps.get().pixelShift()));
+            }
+        }
+        if (message.contains("%SHIFT%")) {
+            var ps = image.findMetadata(PixelShift.class);
+            if (ps.isPresent()) {
+                var lambda0 = params.spectrumParams().ray().wavelength();
+                var dispersion = computeDispersion(params, lambda0);
+                double v = ps.get().pixelShift() * dispersion.angstromsPerPixel();
+                message = message.replace("%SHIFT%", String.format(Locale.US, "%s%.2f", v > 0 ? "+" : "", round2digits(v)));
+            }
+        }
+        if (message.contains("%RAY%")) {
+            message = message.replace("%RAY%", params.spectrumParams().ray().label());
+        }
+        if (message.contains("%OBSERVER%")) {
+            var details = params.observationDetails();
+            message = message.replace("%OBSERVER%", details.observer());
+        }
+        if (message.contains("%INSTRUMENT%")) {
+            var details = params.observationDetails();
+            message = message.replace("%INSTRUMENT%", details.instrument().label());
+        }
+        if (message.contains("%TELESCOPE%")) {
+            var details = params.observationDetails();
+            message = message.replace("%TELESCOPE%", details.telescope());
+        }
+        return message;
     }
 
     private static void configureColor(String color, Graphics2D g) {
@@ -397,7 +444,7 @@ public class ImageDraw extends AbstractFunctionImpl {
                 var processParams = findProcessParams(image);
                 style = processParams.map(params -> params.extraParams().globeStyle().name()).orElseGet(GlobeStyle.EQUATORIAL_COORDS::name);
             }
-            var correctAngleP  = getArgument(Integer.class, arguments, "correctAngleP").orElse(0) != 0;
+            var correctAngleP = getArgument(Integer.class, arguments, "correctAngleP").orElse(0) != 0;
             return doDrawGlobe(image, ellipse, angleP, b0, null, true, correctAngleP, GlobeStyle.valueOf(style.toUpperCase(Locale.US)));
         }
         throw new IllegalArgumentException("Unexpected image type: " + img);

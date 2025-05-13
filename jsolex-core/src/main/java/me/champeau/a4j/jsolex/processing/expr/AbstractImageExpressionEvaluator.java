@@ -458,6 +458,10 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
             return utilities.expandToImageList("wavelen", "img", arguments, this::wavelenthOfImage);
         }
         var image = asImage(first);
+        return determineWavelengthOf(context, image);
+    }
+
+    public static double determineWavelengthOf(Map<Class<?>, Object> context, ImageWrapper image) {
         var metadata = image.metadata();
         var pixelShift = (PixelShift) metadata.get(PixelShift.class);
         if (pixelShift == null) {
@@ -492,11 +496,11 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
         return round2digits(v);
     }
 
-    private static double round2digits(double v) {
+    public static double round2digits(double v) {
         return Math.round(100d * v) / 100d;
     }
 
-    static Dispersion computeDispersion(ProcessParams params, Wavelen lambda0) {
+    public static Dispersion computeDispersion(ProcessParams params, Wavelen lambda0) {
         var instrument = params.observationDetails().instrument();
         var pixelSize = params.observationDetails().pixelSize();
         var binning = params.observationDetails().binning();

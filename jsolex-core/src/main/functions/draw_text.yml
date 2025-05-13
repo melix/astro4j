@@ -1,8 +1,24 @@
 name: DRAW_TEXT
 category: DRAW
 description:
-  fr: "Ecrit du texte sur l’image"
-  en: "Draws text on the image."
+  fr: "Ecrit du texte sur l’image. Le texte peut include les variables suivantes :\n
+\n  
+     * `%WAVELEN%` : longueur d’onde de l'image en Angström (inclus le décalage par rapport à la longueur d’onde de référence)\n
+     * `%PIXELSHIFT%` : décalage de pixels appliqué\n
+     * `%SHIFT%` : décalage appliqué (en Angström)\n
+     * `%RAY%` : le nom de la raie de référence observée\n
+     * `%OBSERVER%` : le nom de l’observateur\n
+     * `%INSTRUMENT%` : le nom de l’instrument\n
+     * `%TELESCOPE%` : le nom du télescope\n"
+  en: "Draws text on the image. The text can include the following variables:\n
+\n  
+     * `%WAVELEN%` : wavelength of the image in Angström (includes the shift from the reference wavelength)\n
+     * `%PIXELSHIFT%` : pixel shift applied\n
+     * `%SHIFT%` : shift applied (in Angström)\n
+     * `%RAY%` : name of the observed reference line\n
+     * `%OBSERVER%` : name of the observer\n
+     * `%INSTRUMENT%` : name of the instrument\n
+     * `%TELESCOPE%` : name of the telescope\n"
 arguments:
   - name: img
     description: Image(s)
@@ -27,8 +43,8 @@ arguments:
   - name: color
     optional: true
     description:
-      fr: "Couleur de la flèche"
-      en: "Color of the arrow"
+      fr: "Couleur du texte"
+      en: "Color of the text"
 examples:
-  - "draw_circle(img(0), 100, 100, 2)"
-  - "draw_circle(img:img(0), cx:100, cy:100, color: \"ff0000\")"
+  - 'draw_text(img(0), 100, 100, "Hello %OBSERVER%!")'
+  - 'draw_text(img:img(0), x:100, y:100, text:"Hello %OBSERVER%!", fs: 20)'
