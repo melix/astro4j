@@ -4836,7 +4836,32 @@ body.book #toc,body.book #preamble,body.book h1.sect0,body.book .sect1>h2{page-b
 <div class="sect2">
 <h3 id="_draw_text">DRAW_TEXT</h3>
 <div class="paragraph">
-<p>Ecrit du texte sur l’image</p>
+<p>Ecrit du texte sur l’image. Le texte peut include les variables suivantes :</p>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p><code>%WAVELEN%</code> : longueur d’onde de l&#8217;image en Angström (inclus le décalage par rapport à la longueur d’onde de référence)</p>
+</li>
+<li>
+<p><code>%PIXELSHIFT%</code> : décalage de pixels appliqué</p>
+</li>
+<li>
+<p><code>%SHIFT%</code> : décalage appliqué (en Angström)</p>
+</li>
+<li>
+<p><code>%RAY%</code> : le nom de la raie de référence observée</p>
+</li>
+<li>
+<p><code>%OBSERVER%</code> : le nom de l’observateur</p>
+</li>
+<li>
+<p><code>%INSTRUMENT%</code> : le nom de l’instrument</p>
+</li>
+<li>
+<p><code>%TELESCOPE%</code> : le nom du télescope</p>
+</li>
+</ul>
 </div>
 <table class="tableblock frame-all grid-all stretch">
 <colgroup>
@@ -4885,7 +4910,7 @@ body.book #toc,body.book #preamble,body.book h1.sect0,body.book .sect1>h2{page-b
 <tr>
 <td class="tableblock halign-left valign-top"><p class="tableblock"><code>color</code></p></td>
 <td class="tableblock halign-center valign-top"></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock">Couleur de la flèche</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Couleur du texte</p></td>
 <td class="tableblock halign-left valign-top"></td>
 </tr>
 <tr>
@@ -4898,12 +4923,12 @@ body.book #toc,body.book #preamble,body.book h1.sect0,body.book .sect1>h2{page-b
 </div>
 <div class="listingblock">
 <div class="content">
-<pre>draw_circle(img(0), 100, 100, 2)</pre>
+<pre>draw_text(img(0), 100, 100, "Hello %OBSERVER%!")</pre>
 </div>
 </div>
 <div class="listingblock">
 <div class="content">
-<pre>draw_circle(img:img(0), cx:100, cy:100, color: "ff0000")</pre>
+<pre>draw_text(img:img(0), x:100, y:100, text:"Hello %OBSERVER%!", fs: 20)</pre>
 </div>
 </div>
 </div>

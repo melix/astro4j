@@ -4838,7 +4838,32 @@ body.book #toc,body.book #preamble,body.book h1.sect0,body.book .sect1>h2{page-b
 <div class="sect2">
 <h3 id="_draw_text">DRAW_TEXT</h3>
 <div class="paragraph">
-<p>Draws text on the image.</p>
+<p>Draws text on the image. The text can include the following variables:</p>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p><code>%WAVELEN%</code> : wavelength of the image in Angström (includes the shift from the reference wavelength)</p>
+</li>
+<li>
+<p><code>%PIXELSHIFT%</code> : pixel shift applied</p>
+</li>
+<li>
+<p><code>%SHIFT%</code> : shift applied (in Angström)</p>
+</li>
+<li>
+<p><code>%RAY%</code> : name of the observed reference line</p>
+</li>
+<li>
+<p><code>%OBSERVER%</code> : name of the observer</p>
+</li>
+<li>
+<p><code>%INSTRUMENT%</code> : name of the instrument</p>
+</li>
+<li>
+<p><code>%TELESCOPE%</code> : name of the telescope</p>
+</li>
+</ul>
 </div>
 <table class="tableblock frame-all grid-all stretch">
 <colgroup>
@@ -4887,7 +4912,7 @@ body.book #toc,body.book #preamble,body.book h1.sect0,body.book .sect1>h2{page-b
 <tr>
 <td class="tableblock halign-left valign-top"><p class="tableblock"><code>color</code></p></td>
 <td class="tableblock halign-center valign-top"></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock">Color of the arrow</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Color of the text</p></td>
 <td class="tableblock halign-left valign-top"></td>
 </tr>
 <tr>
@@ -4900,12 +4925,12 @@ body.book #toc,body.book #preamble,body.book h1.sect0,body.book .sect1>h2{page-b
 </div>
 <div class="listingblock">
 <div class="content">
-<pre>draw_circle(img(0), 100, 100, 2)</pre>
+<pre>draw_text(img(0), 100, 100, "Hello %OBSERVER%!")</pre>
 </div>
 </div>
 <div class="listingblock">
 <div class="content">
-<pre>draw_circle(img:img(0), cx:100, cy:100, color: "ff0000")</pre>
+<pre>draw_text(img:img(0), x:100, y:100, text:"Hello %OBSERVER%!", fs: 20)</pre>
 </div>
 </div>
 </div>
