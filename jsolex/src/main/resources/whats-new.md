@@ -16,6 +16,7 @@
 
 - Improved capabilities of the `DRAW_TEXT` function
 - Adjusted default parameters
+- Fixed colorized image being too dark / truncated
 
 ### 3.1.3
 

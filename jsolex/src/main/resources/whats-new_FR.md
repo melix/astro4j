@@ -16,6 +16,7 @@
 
 - Amélioration des capacités de la fonction `DRAW_TEXT`
 - Ajustement des paramètres par défaut
+- Correction de l'image colorisée qui était trop sombre / tronquée
 
 ### 3.1.3
 
