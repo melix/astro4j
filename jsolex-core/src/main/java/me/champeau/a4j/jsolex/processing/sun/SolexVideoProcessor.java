@@ -50,6 +50,7 @@ import me.champeau.a4j.jsolex.processing.params.SpectralRay;
 import me.champeau.a4j.jsolex.processing.spectrum.FlatCreator;
 import me.champeau.a4j.jsolex.processing.spectrum.SpectrumAnalyzer;
 import me.champeau.a4j.jsolex.processing.sun.detection.ActiveRegions;
+import me.champeau.a4j.jsolex.processing.sun.detection.EllermanBombs;
 import me.champeau.a4j.jsolex.processing.sun.detection.PhenomenaDetector;
 import me.champeau.a4j.jsolex.processing.sun.detection.RedshiftArea;
 import me.champeau.a4j.jsolex.processing.sun.detection.Redshifts;
@@ -100,6 +101,7 @@ import me.champeau.a4j.ser.bayer.ImageConverter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.awt.*;
 import java.io.File;
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -130,6 +132,7 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
+import static me.champeau.a4j.jsolex.processing.expr.impl.ImageDraw.drawOnImage;
 import static me.champeau.a4j.jsolex.processing.spectrum.FlatCreator.prepareFlatFromAverage;
 import static me.champeau.a4j.jsolex.processing.sun.BackgroundRemoval.removeZeroPixels;
 import static me.champeau.a4j.jsolex.processing.util.Constants.MAX_PIXEL_VALUE;
@@ -155,6 +158,7 @@ public class SolexVideoProcessor implements Broadcaster {
     private boolean binningIsReliable;
     private Redshifts redshifts;
     private ActiveRegions activeRegions;
+    private EllermanBombs ellermanBombs;
     private DoubleUnaryOperator polynomial;
     private float[][] averageImage;
     private PixelShiftRange pixelShiftRange;
@@ -398,13 +402,16 @@ public class SolexVideoProcessor implements Broadcaster {
                 try (var reader = serFileReader.get() != null ? serFileReader.get().reopen() : SerFileReader.of(serFile)) {
                     long serFileSize = Files.size(serFile.toPath());
                     long unitSd = System.nanoTime();
-                    var outputs = performImageReconstruction(converter, reader, 0, end, geometry, width, height, polynomial, current, totalImages, batch.toArray(new WorkflowState[0]));
+                    var outputs = performImageReconstruction(converter, reader, 0, end, geometry, width, height, polynomial, current, totalImages, imageNamingStrategy, batch.toArray(new WorkflowState[0]));
                     maybeProduceRedshiftDetectionImages(outputs.redshifts, width, height, reader, converter, geometry, polynomial, imageNamingStrategy, baseName);
                     if (redshifts == null && outputs.redshifts != null) {
                         redshifts = new Redshifts(outputs.redshifts);
                     }
                     if (activeRegions == null && outputs.activeRegions != null) {
                         activeRegions = outputs.activeRegions;
+                    }
+                    if (ellermanBombs == null && outputs.ellermanBombs != null) {
+                        ellermanBombs = outputs.ellermanBombs;
                     }
                     serFileReader.set(reader);
                     // Compute megabytes processed per second
@@ -619,7 +626,7 @@ public class SolexVideoProcessor implements Broadcaster {
             var state = new WorkflowState(width, newHeight, shift);
             state.setInternal(true);
             var states = new WorkflowState[]{state};
-            var outputs = performImageReconstruction(converter, reader, start, end, geometry, width, height, polynomial, new AtomicInteger(), 1, states);
+            var outputs = performImageReconstruction(converter, reader, start, end, geometry, width, height, polynomial, new AtomicInteger(), 1, imageNamingStrategy, states);
             maybeProduceRedshiftDetectionImages(outputs.redshifts, width, height, reader, converter, geometry, polynomial, imageNamingStrategy, baseName);
             startWorkflow(header, fps, List.of(states), imageNamingStrategy, baseName);
             var result = state.findResult(WorkflowResults.GEOMETRY_CORRECTION);
@@ -765,6 +772,10 @@ public class SolexVideoProcessor implements Broadcaster {
             var width = recon.width();
             metadata.put(ActiveRegions.class, activeRegions.transform(p -> new Point2D(p.y(), width - p.x())));
         }
+        if (ellermanBombs != null) {
+            var width = recon.width();
+            metadata.put(EllermanBombs.class, ellermanBombs.transform(p -> new Point2D(p.y(), width - p.x())));
+        }
         rotated = ImageWrapper32.fromImage(rotateLeft, metadata);
         TransformationHistory.recordTransform(rotated, message("rotate.left"));
 
@@ -797,7 +808,7 @@ public class SolexVideoProcessor implements Broadcaster {
         var width = rotated.width();
         var height = rotated.height();
         var buffer = rotated.data();
-        var ellipse = e != null ? e.rotate(-Math.PI/2, reconstructed.width(), reconstructed.height(), width, height) : null;
+        var ellipse = e != null ? e.rotate(-Math.PI / 2, reconstructed.width(), reconstructed.height(), width, height) : null;
         for (int i = 0; i < passes; i++) {
             BandingReduction.reduceBanding(width, height, buffer, bandSize, ellipse);
             broadcast(operation.update((i + 1d / passes)));
@@ -992,7 +1003,7 @@ public class SolexVideoProcessor implements Broadcaster {
                     }
                     var draw = new ImageDraw(Map.of(), Broadcaster.NO_OP);
                     var copy = new RGBImage(w, 2 * h + spacing, rgb.r(), rgb.g(), rgb.b(), Map.of());
-                    RGBImage color = (RGBImage) draw.drawOnImage(copy, (g, img) -> {
+                    RGBImage color = (RGBImage) drawOnImage(copy, (g, img) -> {
                         g.setColor(java.awt.Color.GREEN);
                         g.setFont(g.getFont().deriveFont(16f));
                         g.drawString("Frame " + frameNb + " shift " + redshift.relPixelShift(), 16, img.height() - 16);
@@ -1202,6 +1213,20 @@ public class SolexVideoProcessor implements Broadcaster {
                 });
                 rotated.metadata().put(ActiveRegions.class, flippedActiveRegions);
             });
+            rotated.findMetadata(EllermanBombs.class).ifPresent(ellermanBombs -> {
+                var flippedBombs = ellermanBombs.transform(p -> {
+                    var x = p.x();
+                    var y = p.y();
+                    if (hflip) {
+                        x = width - x - 1;
+                    }
+                    if (vflip) {
+                        y = height - y - 1;
+                    }
+                    return new Point2D(x, y);
+                });
+                rotated.metadata().put(EllermanBombs.class, flippedBombs);
+            });
             System.arraycopy(flipped, 0, original, 0, original.length);
             TransformationHistory.recordTransform(rotated, message("flip"));
         }
@@ -1286,6 +1311,16 @@ public class SolexVideoProcessor implements Broadcaster {
             });
             newMetadata.put(ActiveRegions.class, rotatedActiveRegions);
         });
+        rotated.findMetadata(EllermanBombs.class).ifPresent(bombs -> {
+            var rotatedBombs = bombs.transform(p -> {
+                var x = p.x();
+                var y = p.y();
+                return kind == RotationKind.LEFT
+                        ? new Point2D(y, width - x - 1)
+                        : new Point2D(height - y - 1, x);
+            });
+            newMetadata.put(EllermanBombs.class, rotatedBombs);
+        });
 
 
         var newImage = new ImageWrapper32(newWidth, newHeight, newData, newMetadata);
@@ -1317,6 +1352,7 @@ public class SolexVideoProcessor implements Broadcaster {
                                                              DoubleUnaryOperator polynomial,
                                                              AtomicInteger processedCount,
                                                              int totalCount,
+                                                             FileNamingStrategy imageNamingStrategy,
                                                              WorkflowState... images) {
         reader.seekFrame(start);
         int totalLines = end - start;
@@ -1331,6 +1367,7 @@ public class SolexVideoProcessor implements Broadcaster {
         var phenomenaDetector = new PhenomenaDetector(dispersion, lambda0, width);
         var hasRedshifts = new AtomicBoolean();
         var hasActiveRegions = new AtomicBoolean();
+        var hasEllermanBombs = new AtomicBoolean();
         var latch = new CountDownLatch(end - start);
         var semaphore = new Semaphore(INMEMORY_BUFFERS_PER_CORE * Runtime.getRuntime().availableProcessors());
         var jSolexSer = reader.header().isJSolexTrimmedSer();
@@ -1365,10 +1402,14 @@ public class SolexVideoProcessor implements Broadcaster {
                                     phenomenaDetector.setDetectRedshifts(
                                             processParams.spectrumParams().ray().label().equalsIgnoreCase(SpectralRay.H_ALPHA.label()) && processParams.requestedImages().isEnabled(GeneratedImageKind.REDSHIFT)
                                     );
+                                    phenomenaDetector.setDetectEllermanBombs(
+                                            processParams.spectrumParams().ray().label().equalsIgnoreCase(SpectralRay.H_ALPHA.label()) && processParams.requestedImages().isEnabled(GeneratedImageKind.ELLERMAN_BOMBS)
+                                    );
                                     phenomenaDetector.setDetectActiveRegions(forceDetectActiveRegions || processParams.requestedImages().isEnabled(GeneratedImageKind.ACTIVE_REGIONS));
                                     phenomenaDetector.performDetection(frameId, width, height, original, polynomial, reader.header());
                                     hasRedshifts.set(hasRedshifts.get() || phenomenaDetector.isRedShiftDetectionEnabled());
                                     hasActiveRegions.set(hasActiveRegions.get() || phenomenaDetector.isActiveRegionsDetectionEnabled());
+                                    hasEllermanBombs.set(hasEllermanBombs.get() || phenomenaDetector.isEllermanBombsDetectionEnabled());
                                 }
                                 state.setTruncationDetails(truncationDetails);
                             } finally {
@@ -1395,6 +1436,9 @@ public class SolexVideoProcessor implements Broadcaster {
                 state.recordResult(WorkflowResults.RECONSTRUCTED, recon);
                 state.recordResult(WorkflowResults.BORDERS, borders);
             }
+            if (!phenomenaDetector.getEllermanBombs().bombs().isEmpty()) {
+                generateEllermanBombSpectrumImages(converter, reader, geometry, width, height, imageNamingStrategy, phenomenaDetector);
+            }
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
             throw new ProcessingException(e);
@@ -1404,8 +1448,65 @@ public class SolexVideoProcessor implements Broadcaster {
 
         return new ReconstructionOutputs(
                 hasRedshifts.get() ? phenomenaDetector.getMaxRedshiftAreas(5) : null,
-                hasActiveRegions.get() ? phenomenaDetector.getActiveRegions() : null
+                hasActiveRegions.get() ? phenomenaDetector.getActiveRegions() : null,
+                hasEllermanBombs.get() ? phenomenaDetector.getEllermanBombs() : null
         );
+    }
+
+    private void generateEllermanBombSpectrumImages(ImageConverter<float[][]> converter,
+                                                    SerFileReader reader,
+                                                    ImageGeometry geometry,
+                                                    int width,
+                                                    int height,
+                                                    FileNamingStrategy imageNamingStrategy,
+                                                    PhenomenaDetector phenomenaDetector) {
+        var bombs = phenomenaDetector.getEllermanBombs().bombs();
+        var imageEmitter = createDefaultImageEmitter(imageNamingStrategy);
+        int i = 0;
+        for (var ellermanBomb : bombs) {
+            i++;
+            var id = i;
+            LOGGER.info(message("ellerman.bomb.detected"), ellermanBomb);
+            reader.seekFrame(ellermanBomb.frameId());
+            var buffer = converter.createBuffer(geometry);
+            converter.convert(ellermanBomb.frameId(), reader.currentFrame().data(), geometry, buffer);
+            imageEmitter.newColorImage(GeneratedImageKind.ELLERMAN_BOMBS,
+                    "EB",
+                    message("ellerman.bomb") + " " + id,
+                    "EB" + id,
+                    message("ellerman.bomb.description"),
+                    width,
+                    height,
+                    MutableMap.of(),
+                    () -> {
+                        var r = new float[height][width];
+                        var g = new float[height][width];
+                        var b = new float[height][width];
+                        int margin = 6;
+                        for (int y = 0; y < height; y++) {
+                            System.arraycopy(buffer[y], 0, r[y], 0, width);
+                            System.arraycopy(buffer[y], 0, g[y], 0, width);
+                            System.arraycopy(buffer[y], 0, b[y], 0, width);
+                        }
+                        var rgb = (RGBImage) drawOnImage(new RGBImage(width, height, r, g, b, MutableMap.of()), (gc, img) -> {
+                            gc.setColor(Color.green);
+                            var font = gc.getFont();
+                            var size = height / 4f;
+                            gc.setFont(font.deriveFont(size));
+                            gc.drawString("Frame " + ellermanBomb.frameId(), 16, size);
+                            gc.drawString(String.format(Locale.US, "Score %.2f", ellermanBomb.score()), 16, 2*size);
+                            gc.setColor(Color.red);
+                            gc.setStroke(new BasicStroke(2));
+                            gc.drawRect(ellermanBomb.sourceX() - margin, 0, margin * 2 + 1, height - 1);
+                        });
+                        return new float[][][]{
+                                rgb.r(),
+                                rgb.g(),
+                                rgb.b()
+                        };
+                    }
+            );
+        }
     }
 
     private static void applyFlatCorrection(float[][] original, float[] flat) {
@@ -1453,15 +1554,19 @@ public class SolexVideoProcessor implements Broadcaster {
         SpectrumFrameAnalyzer analyzer = new SpectrumFrameAnalyzer(width, height, header.isJSolexTrimmedSer(), null);
         var result = analyzer.analyze(averageImage);
         if (processParams.extraParams().generateDebugImages()) {
-            var emitter = new DiscardNonRequiredImages(
-                    new NamingStrategyAwareImageEmitter(new DefaultImageEmitter(this, rootOperation, outputDirectory.toFile()), imageNamingStrategy, 0, serFile.getName().substring(0, serFile.getName().lastIndexOf("."))),
-                    processParams.requestedImages().images());
+            var emitter = createDefaultImageEmitter(imageNamingStrategy);
             emitter.newColorImage(GeneratedImageKind.DEBUG, null, message("average"), "average", message("average.image.description"), width, height, MutableMap.of(), () -> {
                 var rgb = new SpectralLineFrameImageCreator(analyzer, averageImage, width, height).generateDebugImage();
                 return new float[][][]{rgb.r(), rgb.g(), rgb.b()};
             });
         }
         return result;
+    }
+
+    private DiscardNonRequiredImages createDefaultImageEmitter(FileNamingStrategy imageNamingStrategy) {
+        return new DiscardNonRequiredImages(
+                new NamingStrategyAwareImageEmitter(new DefaultImageEmitter(this, rootOperation, outputDirectory.toFile()), imageNamingStrategy, sequenceNumber, serFile.getName().substring(0, serFile.getName().lastIndexOf("."))),
+                processParams.requestedImages().images());
     }
 
     private void processSingleFrame(boolean internal,
@@ -1613,7 +1718,8 @@ public class SolexVideoProcessor implements Broadcaster {
 
     private record ReconstructionOutputs(
             List<RedshiftArea> redshifts,
-            ActiveRegions activeRegions
+            ActiveRegions activeRegions,
+            EllermanBombs ellermanBombs
     ) {
 
     }

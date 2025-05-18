@@ -14,7 +14,7 @@
 <?import javafx.scene.layout.RowConstraints?>
 <?import javafx.scene.layout.VBox?>
 
-<BorderPane maxHeight="-Infinity" maxWidth="-Infinity" minHeight="-Infinity" minWidth="-Infinity" prefHeight="469.0" prefWidth="600.0" xmlns="http://javafx.com/javafx/19" xmlns:fx="http://javafx.com/fxml/1" fx:controller="me.champeau.a4j.jsolex.app.jfx.ImageSelector">
+<BorderPane maxHeight="-Infinity" maxWidth="-Infinity" minHeight="-Infinity" minWidth="-Infinity" prefHeight="469.0" prefWidth="768.0" xmlns="http://javafx.com/javafx/24" xmlns:fx="http://javafx.com/fxml/1" fx:controller="me.champeau.a4j.jsolex.app.jfx.ImageSelector">
     <bottom>
         <ButtonBar prefHeight="40.0" prefWidth="592.0" BorderPane.alignment="CENTER">
             <buttons>
@@ -33,64 +33,64 @@
         <Insets />
     </opaqueInsets>
     <center>
-        <GridPane BorderPane.alignment="CENTER">
+        <GridPane prefHeight="429.0" prefWidth="642.0" BorderPane.alignment="CENTER">
             <columnConstraints>
                 <ColumnConstraints hgrow="SOMETIMES" minWidth="10.0" prefWidth="100.0" />
                 <ColumnConstraints hgrow="SOMETIMES" minWidth="10.0" prefWidth="100.0" />
             </columnConstraints>
             <rowConstraints>
-            <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="NEVER" />
+                <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="NEVER" />
                 <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="NEVER" />
                 <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="NEVER" />
                 <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="SOMETIMES" />
+            <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="SOMETIMES" />
             </rowConstraints>
             <children>
                 <Label text="%pixel.shifts" GridPane.rowIndex="1" />
                 <TextField fx:id="pixelShifts" GridPane.columnIndex="1" GridPane.rowIndex="1" />
                 <Label text="%images.to.generate" GridPane.rowIndex="2" />
-                <VBox prefHeight="200.0" prefWidth="100.0" spacing="4.0" GridPane.rowIndex="3">
-                    <children>
-                        <CheckBox fx:id="reconstruction" mnemonicParsing="false" text="%reconstruction" />
-                        <CheckBox fx:id="raw" mnemonicParsing="false" text="%raw" />
-                        <CheckBox fx:id="geometryCorrected" mnemonicParsing="false" text="%geometry.corrected" />
-                        <CheckBox fx:id="geometryCorrectedStretched" mnemonicParsing="false" text="%geometry.corrected.stretched" />
-                        <CheckBox fx:id="colorized" mnemonicParsing="false" text="%colorized" />
-                        <CheckBox fx:id="virtualEclipse" mnemonicParsing="false" text="%eclipse" />
-                        <CheckBox fx:id="dopplerEclipse" mnemonicParsing="false" text="%doppler.eclipse" />
-                        <CheckBox fx:id="negative" mnemonicParsing="false" text="%negative.image" />
+                <VBox prefHeight="323.0" prefWidth="316.0" spacing="4.0" GridPane.rowIndex="3">
+                    <padding>
+                        <Insets top="4.0" />
+                    </padding>
+                    <CheckBox fx:id="reconstruction" mnemonicParsing="false" text="%reconstruction" />
+                    <CheckBox fx:id="raw" mnemonicParsing="false" text="%raw" />
+                    <CheckBox fx:id="geometryCorrected" mnemonicParsing="false" text="%geometry.corrected" />
+                    <CheckBox fx:id="geometryCorrectedStretched" mnemonicParsing="false" text="%geometry.corrected.stretched" />
+                    <CheckBox fx:id="colorized" mnemonicParsing="false" text="%colorized" />
+                    <CheckBox fx:id="virtualEclipse" mnemonicParsing="false" text="%eclipse" />
+                    <CheckBox fx:id="dopplerEclipse" mnemonicParsing="false" text="%doppler.eclipse" />
+                    <CheckBox fx:id="negative" mnemonicParsing="false" text="%negative.image" />
+                </VBox>
+                <VBox prefHeight="200.0" prefWidth="100.0" spacing="8.0" GridPane.columnIndex="1" GridPane.rowIndex="3">
+                    <VBox prefHeight="200.0" prefWidth="100.0" spacing="4.0">
                         <CheckBox fx:id="mixed" mnemonicParsing="false" text="%mixed.image" />
                         <CheckBox fx:id="doppler" mnemonicParsing="false" text="%doppler.image" />
                         <CheckBox fx:id="continuum" mnemonicParsing="false" text="%continuum" />
                         <CheckBox fx:id="technicalCard" mnemonicParsing="false" text="%technical.card" />
-                        <CheckBox fx:id="redshift" mnemonicParsing="false" text="%redshift" />
                         <CheckBox fx:id="activeRegions" mnemonicParsing="false" text="%activeregions" />
+                        <CheckBox fx:id="redshift" mnemonicParsing="false" text="%redshift" />
+                        <CheckBox fx:id="ellermanBombs" mnemonicParsing="false" text="%ellerman.bombs" />
                         <CheckBox fx:id="debug" mnemonicParsing="false" text="%debug.images" />
-                    </children>
-                    <padding>
-                        <Insets top="4.0" />
-                    </padding>
-                </VBox>
-                <VBox alignment="CENTER" prefHeight="200.0" prefWidth="100.0" spacing="8.0" GridPane.columnIndex="1" GridPane.rowIndex="3">
-                    <children>
-                        <Button mnemonicParsing="false" onAction="#selectAll" text="%select.all" />
-                        <Button mnemonicParsing="false" onAction="#unselectAll" text="%unselect.all" />
-                    </children>
+                    </VBox>
                 </VBox>
                 <Button fx:id="openImageMathButton" mnemonicParsing="false" onAction="#openImageMath" text="%open.imagemath" GridPane.columnIndex="1" />
-            <HBox alignment="CENTER_LEFT" prefHeight="100.0" prefWidth="200.0">
-               <children>
-                  <Label text="%mode">
-                     <padding>
-                        <Insets right="8.0" />
-                     </padding>
-                  </Label>
-                  <ChoiceBox fx:id="mode" prefHeight="24.0" prefWidth="242.0">
-                     <padding>
-                        <Insets left="8.0" />
-                     </padding>
-                  </ChoiceBox>
-               </children>
-            </HBox>
+                <HBox alignment="CENTER_LEFT" prefHeight="100.0" prefWidth="200.0">
+                    <Label text="%mode">
+                        <padding>
+                            <Insets right="8.0" />
+                        </padding>
+                    </Label>
+                    <ChoiceBox fx:id="mode" prefHeight="26.0" prefWidth="309.0">
+                        <padding>
+                            <Insets left="8.0" />
+                        </padding>
+                    </ChoiceBox>
+                </HBox>
+                 <VBox alignment="CENTER" spacing="4.0" GridPane.columnSpan="2" GridPane.rowIndex="4">
+                     <Button mnemonicParsing="false" onAction="#selectAll" text="%select.all" />
+                     <Button mnemonicParsing="false" onAction="#unselectAll" text="%unselect.all" />
+                 </VBox>
             </children>
             <padding>
                 <Insets bottom="8.0" left="8.0" right="8.0" top="8.0" />

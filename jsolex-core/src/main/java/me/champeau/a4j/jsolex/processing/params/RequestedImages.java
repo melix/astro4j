@@ -50,7 +50,8 @@ public record RequestedImages(
         GeneratedImageKind.TECHNICAL_CARD,
         GeneratedImageKind.COMPOSITION,
         GeneratedImageKind.REDSHIFT,
-        GeneratedImageKind.ACTIVE_REGIONS
+        GeneratedImageKind.ACTIVE_REGIONS,
+        GeneratedImageKind.ELLERMAN_BOMBS
     );
     public static final Set<GeneratedImageKind> FULL_MODE_WITH_DEBUG = EnumSet.of(
         GeneratedImageKind.DEBUG,
@@ -68,7 +69,8 @@ public record RequestedImages(
         GeneratedImageKind.TECHNICAL_CARD,
         GeneratedImageKind.COMPOSITION,
         GeneratedImageKind.REDSHIFT,
-        GeneratedImageKind.ACTIVE_REGIONS
+        GeneratedImageKind.ACTIVE_REGIONS,
+        GeneratedImageKind.ELLERMAN_BOMBS
     );
     public static final Set<GeneratedImageKind> QUICK_MODE = EnumSet.of(
         GeneratedImageKind.RECONSTRUCTION,

@@ -40,6 +40,8 @@ import me.champeau.a4j.jsolex.processing.sun.ImageUtils;
 import me.champeau.a4j.jsolex.processing.sun.SolexVideoProcessor;
 import me.champeau.a4j.jsolex.processing.sun.WorkflowState;
 import me.champeau.a4j.jsolex.processing.sun.detection.ActiveRegions;
+import me.champeau.a4j.jsolex.processing.sun.detection.EllermanBomb;
+import me.champeau.a4j.jsolex.processing.sun.detection.EllermanBombs;
 import me.champeau.a4j.jsolex.processing.sun.detection.RedshiftArea;
 import me.champeau.a4j.jsolex.processing.sun.detection.Redshifts;
 import me.champeau.a4j.jsolex.processing.sun.tasks.CoronagraphTask;
@@ -226,6 +228,13 @@ public class ProcessingWorkflow {
                 }
             });
         }
+        if (state.pixelShift() == processParams.spectrumParams().continuumShift() && shouldProduce(GeneratedImageKind.ELLERMAN_BOMBS)) {
+            geometryFixed.findMetadata(EllermanBombs.class).ifPresent(bombs -> {
+                if (!bombs.bombs().isEmpty()) {
+                    runnables.add(() -> produceEllermanBombsImage(geometryFixed, bombs.bombs()));
+                }
+            });
+        }
         runnables.stream()
                 .parallel()
                 .forEach(Runnable::run);
@@ -290,6 +299,34 @@ public class ProcessingWorkflow {
                         gr.setFont(gr.getFont().deriveFont(24f));
                         gr.drawString(String.format("%s (%.2f km/s)", redshift.id(), redshift.kmPerSec()), x2 + 8, y2);
                         gr.drawRect(x1, y1, x2 - x1 + 1, y2 - y1 + 1);
+                    }
+                });
+    }
+
+    private void produceEllermanBombsImage(ImageWrapper32 continuum, List<EllermanBomb> bombs) {
+        imagesEmitter.newColorImage(GeneratedImageKind.ELLERMAN_BOMBS,
+                null,
+                message("ellerman.bombs"),
+                "ellerman",
+                message("ellerman.bombs.description"),
+                continuum, mono -> {
+                    LinearStrechingStrategy.DEFAULT.stretch(mono);
+                    var data = mono.data();
+                    var r = ImageWrapper.copyData(data);
+                    var g = ImageWrapper.copyData(data);
+                    var b = ImageWrapper.copyData(data);
+                    return new float[][][]{r, g, b};
+                }, (gr, img) -> {
+                    int id = 0;
+                    for (var bomb : bombs) {
+                        id++;
+                        var x = bomb.x();
+                        var y = bomb.y();
+                        gr.setStroke(new BasicStroke(2));
+                        gr.setColor(Color.RED);
+                        gr.setFont(gr.getFont().deriveFont(24f));
+                        gr.drawString(String.format("EB %d", id), (int) (x + 16), (int) (y + 8));
+                        gr.drawRect((int) (x - 8), (int) (y - 8), 16, 16);
                     }
                 });
     }

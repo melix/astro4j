@@ -15,19 +15,28 @@
  */
 package me.champeau.a4j.jsolex.app.jfx;
 
+import javafx.application.Platform;
 import javafx.beans.property.ReadOnlyDoubleProperty;
 import javafx.geometry.Bounds;
 import javafx.geometry.Pos;
 import javafx.scene.Node;
 import javafx.scene.canvas.Canvas;
+import javafx.scene.control.ContextMenu;
 import javafx.scene.control.Label;
+import javafx.scene.control.MenuItem;
 import javafx.scene.control.ScrollPane;
 import javafx.scene.image.ImageView;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.Region;
 import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
+import javafx.stage.FileChooser;
+import me.champeau.a4j.jsolex.processing.sun.ImageUtils;
+import me.champeau.a4j.jsolex.processing.util.ImageFormat;
+import me.champeau.a4j.math.image.Image;
 
+import java.io.File;
+import java.util.Set;
 import java.util.concurrent.Semaphore;
 
 import static me.champeau.a4j.jsolex.app.JSolEx.message;
@@ -40,6 +49,7 @@ public class ReconstructionView extends BorderPane implements WithRootNode {
     private final Semaphore lock = new Semaphore(1);
 
     private final byte[] solarImageData;
+    private Image spectrumImage;
 
     public ReconstructionView(ZoomableImageView solarView, byte[] solarImageData, ReadOnlyDoubleProperty parentWidth) {
         this.spectrumView = new ImageView();
@@ -81,6 +91,24 @@ public class ReconstructionView extends BorderPane implements WithRootNode {
         box.getChildren().addAll(help, spectrumViewStack);
         setTop(box);
         setCenter(solarViewStack);
+        box.setOnContextMenuRequested(event -> {
+            var menu = new ContextMenu();
+            var save = new MenuItem(message("save.image"));
+            save.setOnAction(e -> Platform.runLater(() -> {
+                var fileChooser = new FileChooser();
+                fileChooser.setTitle(message("save.image"));
+                fileChooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("PNG", "*.png"));
+                var file = fileChooser.showSaveDialog(solarView.getScene().getWindow());
+                if (file != null) {
+                    if (!file.getName().toLowerCase().endsWith(".png")) {
+                        file = new File(file.getAbsolutePath() + ".png");
+                    }
+                    ImageUtils.writeMonoImage(spectrumImage.width(), spectrumImage.height(), spectrumImage.data(), file, Set.of(ImageFormat.PNG));
+                }
+            }));
+            menu.getItems().add(save);
+            menu.show(box, event.getScreenX(), event.getScreenY());
+        });
     }
 
     public Semaphore getLock() {
@@ -126,5 +154,9 @@ public class ReconstructionView extends BorderPane implements WithRootNode {
     @Override
     public Node getRoot() {
         return this;
+    }
+
+    public void setSpectrumImage(Image spectrumImage) {
+        this.spectrumImage = spectrumImage;
     }
 }

@@ -13,19 +13,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package me.champeau.a4j.jsolex.processing.sun.workflow;
+package me.champeau.a4j.jsolex.processing.sun.detection;
 
-/**
- * A category of images for display.
- */
-public enum DisplayCategory {
-    RECONSTRUCTION,
-    RAW,
-    DEBUG,
-    PROCESSED,
-    COLORIZED,
-    IMAGE_MATH,
-    MISC,
-    PHENOMENA,
-    REDSHIFT;
+public record EllermanBomb(
+        int frameId,
+        int sourceX,
+        double x,
+        double y,
+        double score
+) {
 }

@@ -332,9 +332,11 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
                 if (frameNb < 0 || frameNb >= frameCount) {
                     return;
                 }
+                var xIndex = (int) Math.round((evt.getX() + xOffset) / zoom);
                 gso.setFill(Color.RED);
                 gso.fillRect(0, evt.getY(), solarViewOverlay.getWidth(), 1);
                 gso.fillRect(evt.getX(), 0, 1, solarViewOverlay.getHeight());
+                gso.fillText(xIndex + "," + (int) Math.round(frameNb), evt.getX() + 20, evt.getY() + 20);
                 gso.setFill(Color.GREEN);
                 gso.setFont(Font.font(gso.getFont().getFamily(), FontWeight.BOLD, 24));
                 gso.fillText(String.format(Locale.US, "Frame %.0f", frameNb), 10, 30);
@@ -353,7 +355,9 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
                     var geometry = reader.header().geometry();
                     var buffer = converter.createBuffer(geometry);
                     converter.convert((int) frameNb, currentFrame, geometry, buffer);
-                    var imageBytes = convertSpectrumImage(new Image(geometry.width(), geometry.height(), buffer));
+                    var spectrum = new Image(geometry.width(), geometry.height(), buffer);
+                    var imageBytes = convertSpectrumImage(spectrum);
+                    view.setSpectrumImage(spectrum);
                     Platform.runLater(() -> {
                         var pixelWriter = ((WritableImage) view.getSpectrumView().getImage()).getPixelWriter();
                         pixelWriter.setPixels(0, 0, geometry.width(), geometry.height(), pixelformat, imageBytes, 0, 3 * geometry.width());
