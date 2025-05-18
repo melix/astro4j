@@ -12,8 +12,9 @@
 
 ## Changements depuis la 3.0.0
 
-### 3.1.4
+### 3.2.0
 
+- Ajout de la détection de [bombes d'Ellerman](#bombe-d-ellerman)
 - Amélioration des capacités de la fonction `DRAW_TEXT`
 - Ajustement des paramètres par défaut
 - Correction de l'image colorisée qui était trop sombre / tronquée
@@ -64,6 +65,23 @@
 - Désactivation de l'amplification des protubérances par défaut, il y a maintenant un paramètre pour l'activer
 - Correction de fautes de frappe dans les traductions
 - Détection de la ligne la plus sombre plus robuste
+
+## Bombes d'Ellerman
+
+Ellerman Bombs are small, transient brightenings that occur in the solar atmosphere, often associated with solar flares or active regions.
+Les bombes d'Ellerman sont de petites taches brillantes qui se produisent dans l'atmosphère solaire, souvent associées à des éruptions solaires ou à des régions actives.
+Elles s'observent typiquement dans les ailes de la raie H-alpha et peuvent être indicatives d'événements de reconnexion magnétique, avec un maximum autour de 1Å du centre de la raie H-alpha.
+De taille très modeste (~300km), elles sont souvent difficiles à détecter, d'autant plus qu'elles sont invisibles au centre de la raie.
+
+JSol'Ex 3.2 introduit une nouvelle fonctionnalité pour détecter automatiquement ces phénomènes.
+La détection est activée si vous choisissez le mode complet (ou que vous avez sélectionné la détection dans le mode personnalisé) et que vous travaillez sur la raie H-alpha.
+
+Si une détection est faite, au moins 2 images seront créées :
+
+- une image de spectre par bombe d'Ellerman détectée, où un carré rouge sera dessiné autour de la zone correspondante
+- une image du disque solaire dans le continuum, où toutes les bombes détectées seront entourées de carrés rouges
+
+Prenez garde, la détection est très sensible et peut détecter des phénomènes qui ne sont pas des bombes d'Ellerman (par exemple des artefacts de traitement) : la meilleure vérification est donc visuelle.
 
 ## Correction des bords dentelés
 

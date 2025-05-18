@@ -21,6 +21,8 @@ import me.champeau.a4j.jsolex.processing.params.ProcessParamsIO;
 import me.champeau.a4j.jsolex.processing.spectrum.SpectrumAnalyzer;
 import me.champeau.a4j.jsolex.processing.sun.detection.ActiveRegion;
 import me.champeau.a4j.jsolex.processing.sun.detection.ActiveRegions;
+import me.champeau.a4j.jsolex.processing.sun.detection.EllermanBomb;
+import me.champeau.a4j.jsolex.processing.sun.detection.EllermanBombs;
 import me.champeau.a4j.jsolex.processing.sun.detection.RedshiftArea;
 import me.champeau.a4j.jsolex.processing.sun.detection.Redshifts;
 import me.champeau.a4j.jsolex.processing.sun.workflow.MetadataTable;
@@ -78,6 +80,7 @@ public class FitsUtils {
     public static final String METADATA_TABLE_VALUE = "TMetadata";
     public static final String DISTORSION_MAP_VALUE = "DistorsionMap";
     public static final String ACTIVE_REGION_VALUE = "AR";
+    public static final String ELLERMAN_BOMB_VALUE = "EB";
 
     // INTI metadata
     public static final String CENTER_X = "CENTER_X";
@@ -321,6 +324,24 @@ public class FitsUtils {
                         }
                     }
                     metadata.put(ActiveRegions.class, new ActiveRegions(activeRegions));
+                } else if (ELLERMAN_BOMB_VALUE.equals(card.getValue())) {
+                    var binaryTable = binaryTableHdu.getData();
+                    var ellermanBombs = new ArrayList<EllermanBomb>();
+                    for (int i = 0; i < binaryTable.getNRows(); i++) {
+                        var row = binaryTable.getRow(i);
+                        var data = (byte[]) row[0];
+                        var dais = new DataInputStream(new ByteArrayInputStream(data));
+                        var bombCount = dais.readInt();
+                        for (int j = 0; j < bombCount; j++) {
+                            var frameId = dais.readInt();
+                            var sourceX = dais.readInt();
+                            var x = dais.readDouble();
+                            var y = dais.readDouble();
+                            var score = dais.readDouble();
+                            ellermanBombs.add(new EllermanBomb(frameId, sourceX, x, y, score));
+                        }
+                    }
+                    metadata.put(EllermanBombs.class, new EllermanBombs(ellermanBombs));
                 }
             }
         }
@@ -376,6 +397,7 @@ public class FitsUtils {
             writeMetadataTable(image, fits);
             writeDistorsionMap(image, fits);
             writeActiveRegions(image, fits);
+            writeEllermanBombs(image, fits);
         }
     }
 
@@ -413,6 +435,27 @@ public class FitsUtils {
             }
             table.addRow(new Object[]{baos.toByteArray()});
             writeBinaryTable(table, ACTIVE_REGION_VALUE, "Active regions", fits);
+        }
+    }
+
+    private static void writeEllermanBombs(ImageWrapper image, Fits fits) throws IOException {
+        var metadata = image.findMetadata(EllermanBombs.class);
+        if (metadata.isPresent()) {
+            var ellermanBombs = metadata.get();
+            var table = new BinaryTable();
+            var baos = new ByteArrayOutputStream();
+            var daos = new DataOutputStream(baos);
+            var bombs = ellermanBombs.bombs();
+            daos.writeInt(bombs.size());
+            for (var bomb : bombs) {
+                daos.writeInt(bomb.frameId());
+                daos.writeInt(bomb.sourceX());
+                daos.writeDouble(bomb.x());
+                daos.writeDouble(bomb.y());
+                daos.writeDouble(bomb.score());
+            }
+            table.addRow(new Object[]{baos.toByteArray()});
+            writeBinaryTable(table, ELLERMAN_BOMB_VALUE, "Ellerman Bombs", fits);
         }
     }
 

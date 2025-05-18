@@ -12,8 +12,9 @@
 
 ## Changes since 3.0.0
 
-### 3.1.4
+### 3.2.0
 
+- Added [Ellerman Bomb detection](#ellerman-bomb-detection)
 - Improved capabilities of the `DRAW_TEXT` function
 - Adjusted default parameters
 - Fixed colorized image being too dark / truncated
@@ -64,6 +65,22 @@
 - Disabled enhancement of prominences by default, there is now a parameter to enable it
 - Fixed typos in translations
 - Make darkest line detection more robust
+
+## Ellerman Bomb Detection
+
+Ellerman Bombs are small, transient brightenings that occur in the solar atmosphere, often associated with solar flares or active regions.
+They are typically observed in the wings of the H-alpha line and can be indicative of magnetic reconnection events, with a maximum around 1Å from the center of the H-alpha line.
+These are very small features, typically ~300km in size, and are often difficult to detect.
+
+JSol'Ex 3.2 introduces a new feature to detect these features automatically.
+If the detection is enabled (either by selecting the option in the custom images or by using full processing mode), and that you are processing an H-alpha image, then detection will happen.
+
+If a detection is made, at least 2 images will be created:
+
+- one spectrum image per detected Ellerman Bomb, where a red square will be drawn around the detected area
+- a disk image where the detected Ellerman Bombs will be shown as red squares
+
+You should always consider the results of detection with caution, as the algorithm is not perfect and may produce false positives or miss some features.
 
 ## Jagged Edges Correction
 

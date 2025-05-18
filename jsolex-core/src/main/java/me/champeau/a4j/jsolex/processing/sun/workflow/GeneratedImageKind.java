@@ -36,8 +36,10 @@ public enum GeneratedImageKind {
     IMAGE_MATH(DisplayCategory.IMAGE_MATH, DirectoryKind.CUSTOM),
     COMPOSITION(DisplayCategory.PROCESSED, DirectoryKind.PROCESSED),
     CROPPED(DisplayCategory.MISC, DirectoryKind.PROCESSED),
-    REDSHIFT(DisplayCategory.REDSHIFT, DirectoryKind.PROCESSED),
-    ACTIVE_REGIONS(DisplayCategory.COLORIZED, DirectoryKind.PROCESSED),;
+    REDSHIFT(DisplayCategory.PHENOMENA, DirectoryKind.PROCESSED),
+    ACTIVE_REGIONS(DisplayCategory.COLORIZED, DirectoryKind.PROCESSED),
+    ELLERMAN_BOMBS(DisplayCategory.PHENOMENA, DirectoryKind.PROCESSED),
+    ;
 
     private final DisplayCategory displayCategory;
     private final DirectoryKind directoryKind;

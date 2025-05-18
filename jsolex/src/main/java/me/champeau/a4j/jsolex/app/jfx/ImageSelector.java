@@ -84,6 +84,8 @@ public class ImageSelector {
     @FXML
     private CheckBox activeRegions;
     @FXML
+    private CheckBox ellermanBombs;
+    @FXML
     private Button openImageMathButton;
     @FXML
     private ChoiceBox<PixelShiftMode> mode;
@@ -161,6 +163,7 @@ public class ImageSelector {
                 case TECHNICAL_CARD -> technicalCard.setSelected(true);
                 case REDSHIFT -> redshift.setSelected(true);
                 case ACTIVE_REGIONS -> activeRegions.setSelected(true);
+                case ELLERMAN_BOMBS -> ellermanBombs.setSelected(true);
             }
         }
         this.debug.setSelected(debug);
@@ -299,6 +302,12 @@ public class ImageSelector {
             images.add(GeneratedImageKind.ACTIVE_REGIONS);
             makeDefaultShiftNonInternal();
         }
+        if (ellermanBombs.isSelected()) {
+            images.add(GeneratedImageKind.ELLERMAN_BOMBS);
+            if (internalPixelShifts != null) {
+                internalPixelShifts.add(continuumShift);
+            }
+        }
         var pixelShifts = readPixelShifts();
         requestedImages = new RequestedImages(
             images,
@@ -343,6 +352,7 @@ public class ImageSelector {
         debug.setSelected(selected);
         redshift.setSelected(selected);
         activeRegions.setSelected(selected);
+        ellermanBombs.setSelected(selected);
     }
 
     @FXML
