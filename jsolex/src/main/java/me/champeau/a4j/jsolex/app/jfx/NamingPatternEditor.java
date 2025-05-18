@@ -31,13 +31,16 @@ import me.champeau.a4j.jsolex.processing.file.FileNamingStrategy;
 import me.champeau.a4j.jsolex.processing.file.Token;
 import me.champeau.a4j.jsolex.processing.params.FileNamingPatternsIO;
 import me.champeau.a4j.jsolex.processing.params.NamedPattern;
+import me.champeau.a4j.jsolex.processing.sun.workflow.PixelShift;
 import me.champeau.a4j.jsolex.processing.util.Constants;
+import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 import me.champeau.a4j.ser.Header;
 
 import java.io.IOException;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
+import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
@@ -137,7 +140,8 @@ public class NamingPatternEditor {
 
     private void updateExampleText(Header header) {
         var namingStrategy = new FileNamingStrategy(pattern.getText(), datetimeFormat.getText(), dateFormat.getText(), LocalDateTime.now(), header);
-        example.setText(namingStrategy.render(24, null, Constants.TYPE_PROCESSED, "disk-1", "video_sun"));
+        var dummyImage = new ImageWrapper32(0,0,new float[0][], Map.of(PixelShift.class, new PixelShift(5)));
+        example.setText(namingStrategy.render(24, null, Constants.TYPE_PROCESSED, "disk-1", "video_sun", dummyImage));
     }
 
     private void prepareTokens() {
