@@ -24,7 +24,8 @@ public enum Token {
     VIDEO_DATE,
     VIDEO_DATETIME,
     SEQUENCE_NUMBER,
-    CATEGORY;
+    CATEGORY,
+    PIXEL_SHIFT;
 
 
     public String token() {

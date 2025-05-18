@@ -16,6 +16,8 @@
 package me.champeau.a4j.jsolex.processing.file;
 
 import me.champeau.a4j.jsolex.processing.params.NamedPattern;
+import me.champeau.a4j.jsolex.processing.sun.workflow.PixelShift;
+import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
 import me.champeau.a4j.ser.Header;
 
 import java.time.LocalDateTime;
@@ -24,6 +26,7 @@ import java.time.format.DateTimeFormatter;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.regex.Pattern;
 
@@ -61,6 +64,7 @@ public class FileNamingStrategy {
     }
 
     private Map<String, String> buildReplacementsMap(int sequenceNumber,
+                                                     ImageWrapper image,
                                                      String imageKind,
                                                      String imageLabel,
                                                      String category,
@@ -86,9 +90,24 @@ public class FileNamingStrategy {
                 case VIDEO_DATE -> serHeader.metadata().utcDateTime().format(DateTimeFormatter.ofPattern(dateFormat));
                 case VIDEO_DATETIME -> serHeader.metadata().utcDateTime().format(DateTimeFormatter.ofPattern(dateTimeFormat)).replace(':','-');
                 case SEQUENCE_NUMBER -> String.format("%04d", sequenceNumber);
+                case PIXEL_SHIFT -> pixelShiftOf(image);
             });
         }
         return Collections.unmodifiableMap(replacements);
+    }
+
+    private static String pixelShiftOf(ImageWrapper image) {
+        if (image != null) {
+            var ps = image.findMetadata(PixelShift.class);
+            if (ps.isPresent()) {
+                var shift = ps.get().pixelShift();
+                if ((int) shift == shift) {
+                    return String.format(Locale.US, "%d", (int) shift);
+                }
+                return String.format(Locale.US, "%.2f", shift);
+            }
+        }
+        return "unknown";
     }
 
     public String render(
@@ -96,10 +115,10 @@ public class FileNamingStrategy {
         String category,
         String imageKind,
         String imageLabel,
-        String serFileBasename
-
+        String serFileBasename,
+        ImageWrapper image
     ) {
-        var replacements = buildReplacementsMap(sequenceNumber, imageKind, imageLabel, category, serFileBasename);
+        var replacements = buildReplacementsMap(sequenceNumber, image, imageKind, imageLabel, category, serFileBasename);
         var result = pattern;
         for (Map.Entry<String, String> entry : replacements.entrySet()) {
             result = result.replaceAll(Pattern.quote(entry.getKey()), entry.getValue());

@@ -17,6 +17,7 @@
 - Improved capabilities of the `DRAW_TEXT` function
 - Adjusted default parameters
 - Fixed colorized image being too dark / truncated
+- Added `%PIXEL_SHIFT%` to file naming strategy
 
 ### 3.1.3
 

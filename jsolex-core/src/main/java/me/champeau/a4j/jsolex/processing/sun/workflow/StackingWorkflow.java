@@ -139,7 +139,7 @@ public class StackingWorkflow {
                 .filter(ImageWrapper32.class::isInstance)
                 .map(ImageWrapper32.class::cast)
                 .toList();
-            var fileName = namingStrategy.render(0, null, Constants.TYPE_PROCESSED, "mosaic", "standalone");
+            var fileName = namingStrategy.render(0, null, Constants.TYPE_PROCESSED, "mosaic", "standalone", null);
             var mosaic = mosaicComposition.mosaic(croppedImages, parameters.mosaicTileSize(), parameters.mosaicSampling());
             broadcaster.broadcast(new ImageGeneratedEvent(
                 new GeneratedImage(
@@ -160,8 +160,8 @@ public class StackingWorkflow {
     private void exportImages(String name, File outputDirectory, List<? extends ImageWrapper> stackedImages) {
         for (int i = 0; i < stackedImages.size(); i++) {
             var label = String.format("%02d_%s", i, name);
-            var fileName = namingStrategy.render(i, null, Constants.TYPE_PROCESSED, label, "standalone");
             var stackedImage = stackedImages.get(i);
+            var fileName = namingStrategy.render(i, null, Constants.TYPE_PROCESSED, label, "standalone", stackedImage);
             broadcaster.broadcast(new ImageGeneratedEvent(
                 new GeneratedImage(
                     GeneratedImageKind.COMPOSITION,

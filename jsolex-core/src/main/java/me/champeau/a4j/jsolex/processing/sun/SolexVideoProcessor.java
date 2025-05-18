@@ -1001,7 +1001,7 @@ public class SolexVideoProcessor implements Broadcaster {
                     System.arraycopy(color.g(), 0, rgb.g(), 0, color.g().length);
                     System.arraycopy(color.b(), 0, rgb.b(), 0, color.b().length);
                 });
-                var targetFile = outputDirectory.resolve(fileNamingStrategy.render(sequenceNumber, "redshift", Constants.TYPE_PROCESSED, "redshift", baseName + "_" + redshift.id()));
+                var targetFile = outputDirectory.resolve(fileNamingStrategy.render(sequenceNumber, "redshift", Constants.TYPE_PROCESSED, "redshift", baseName + "_" + redshift.id(), image));
                 broadcast(new ImageGeneratedEvent(
                         new GeneratedImage(
                                 GeneratedImageKind.REDSHIFT,
