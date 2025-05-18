@@ -18,6 +18,7 @@
 - Adjusted default parameters
 - Fixed colorized image being too dark / truncated
 - Added `%PIXEL_SHIFT%` to file naming strategy
+- Fixed overlapping process parameters text in batch mode
 
 ### 3.1.3
 

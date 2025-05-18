@@ -18,6 +18,7 @@
 - Ajustement des paramètres par défaut
 - Correction de l'image colorisée qui était trop sombre / tronquée
 - Ajout de `%PIXEL_SHIFT%` dans les variables de nommage de fichier
+- Correction des paramètres qui se superposaient en mode batch
 
 ### 3.1.3
 
