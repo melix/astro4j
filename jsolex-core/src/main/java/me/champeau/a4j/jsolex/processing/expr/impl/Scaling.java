@@ -17,7 +17,7 @@ package me.champeau.a4j.jsolex.processing.expr.impl;
 
 import me.champeau.a4j.jsolex.expr.BuiltinFunction;
 import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
-import me.champeau.a4j.jsolex.processing.sun.detection.EllermanBombs;
+import me.champeau.a4j.jsolex.processing.sun.detection.Flares;
 import me.champeau.a4j.jsolex.processing.sun.detection.RedshiftArea;
 import me.champeau.a4j.jsolex.processing.sun.detection.Redshifts;
 import me.champeau.a4j.jsolex.processing.sun.detection.ActiveRegions;
@@ -207,10 +207,10 @@ public class Scaling extends AbstractFunctionImpl {
                 return new Point2D(x, y);
             }));
         });
-        image.findMetadata(EllermanBombs.class).ifPresent(ellermanBombs -> {
+        image.findMetadata(Flares.class).ifPresent(ellermanBombs -> {
             double sx = image.width() / width;
             double sy = image.height() / height;
-            metadata.put(EllermanBombs.class, ellermanBombs.transform(p -> {
+            metadata.put(Flares.class, ellermanBombs.transform(p -> {
                 var x = (p.x() / sx);
                 var y = (p.y() / sy);
                 return new Point2D(x, y);

@@ -22,7 +22,7 @@ import me.champeau.a4j.jsolex.processing.params.ProcessParams;
 import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
 import me.champeau.a4j.jsolex.processing.sun.WorkflowState;
 import me.champeau.a4j.jsolex.processing.sun.detection.ActiveRegions;
-import me.champeau.a4j.jsolex.processing.sun.detection.EllermanBombs;
+import me.champeau.a4j.jsolex.processing.sun.detection.Flares;
 import me.champeau.a4j.jsolex.processing.sun.detection.RedshiftArea;
 import me.champeau.a4j.jsolex.processing.sun.detection.Redshifts;
 import me.champeau.a4j.jsolex.processing.sun.workflow.ImageEmitter;
@@ -174,14 +174,14 @@ public class GeometryCorrector extends AbstractTask<GeometryCorrector.Result> {
             });
             metadata.put(ActiveRegions.class, activeRegions);
         }
-        var ellermanBombs = (EllermanBombs) metadata.get(EllermanBombs.class);
-        if (ellermanBombs != null) {
-            ellermanBombs = ellermanBombs.transform(p -> {
+        var flares = (Flares) metadata.get(Flares.class);
+        if (flares != null) {
+            flares = flares.transform(p -> {
                 var x = p.x() - shift + p.y() * shear;
                 var y = p.y();
                 return new Point2D(x * sx, y * finalSy);
             });
-            metadata.put(EllermanBombs.class, ellermanBombs);
+            metadata.put(Flares.class, flares);
         }
         var corrected = ImageWrapper32.fromImage(rescaled, metadata);
         TransformationHistory.recordTransform(corrected, message("geometry.correction"));

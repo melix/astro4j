@@ -411,6 +411,7 @@ public class SpectralLineDebugger {
             var line = spectralRayDetectionResult.line();
             var dispersion = SpectrumAnalyzer.computeSpectralDispersion(instrument, line.wavelength(), spectralRayDetectionResult.pixelSize() * spectralRayDetectionResult.binning());
             var detector = new PhenomenaDetector(dispersion, line.wavelength(), 0);
+            detector.setDetectEllermanBombsOrFlares(false);
             detector.setDetectRedshifts(spectralRayDetectionResult.line().equals(SpectralRay.H_ALPHA));
             detector.setDetectionListener(new PhenomenaListener() {
                 @Override

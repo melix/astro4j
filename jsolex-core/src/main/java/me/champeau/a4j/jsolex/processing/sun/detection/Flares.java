@@ -20,22 +20,22 @@ import me.champeau.a4j.math.Point2D;
 import java.util.List;
 import java.util.function.Function;
 
-public record EllermanBombs(
-        List<EllermanBomb> bombs
+public record Flares(
+        List<Flare> flares
 ) {
-    public EllermanBombs transform(Function<? super Point2D, Point2D> transformer) {
-        return new EllermanBombs(
-                bombs.stream()
+    public Flares transform(Function<? super Point2D, Point2D> transformer) {
+        return new Flares(
+                flares.stream()
                         .map(b -> {
                             var p = new Point2D(b.x(), b.y());
                             var transformed = transformer.apply(p);
-                            return new EllermanBomb(b.frameId(), b.sourceX(), transformed.x(), transformed.y(), b.score());
+                            return new Flare(b.kind(), b.frameId(), b.sourceX(), transformed.x(), transformed.y(), b.score());
                         })
                         .toList()
         );
     }
 
-    public EllermanBombs translate(double dx, double dy) {
+    public Flares translate(double dx, double dy) {
         return transform(p -> p.translate(dx, dy));
     }
 }

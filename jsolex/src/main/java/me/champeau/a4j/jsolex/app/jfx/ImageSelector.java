@@ -304,6 +304,7 @@ public class ImageSelector {
         }
         if (ellermanBombs.isSelected()) {
             images.add(GeneratedImageKind.ELLERMAN_BOMBS);
+            images.add(GeneratedImageKind.FLARES);
             if (internalPixelShifts != null) {
                 internalPixelShifts.add(continuumShift);
             }

@@ -39,6 +39,7 @@ public enum GeneratedImageKind {
     REDSHIFT(DisplayCategory.PHENOMENA, DirectoryKind.PROCESSED),
     ACTIVE_REGIONS(DisplayCategory.COLORIZED, DirectoryKind.PROCESSED),
     ELLERMAN_BOMBS(DisplayCategory.PHENOMENA, DirectoryKind.PROCESSED),
+    FLARES(DisplayCategory.PHENOMENA, DirectoryKind.PROCESSED),
     ;
 
     private final DisplayCategory displayCategory;

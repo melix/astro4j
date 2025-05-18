@@ -17,7 +17,7 @@ package me.champeau.a4j.jsolex.processing.expr.impl;
 
 import me.champeau.a4j.jsolex.expr.BuiltinFunction;
 import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
-import me.champeau.a4j.jsolex.processing.sun.detection.EllermanBombs;
+import me.champeau.a4j.jsolex.processing.sun.detection.Flares;
 import me.champeau.a4j.jsolex.processing.sun.detection.RedshiftArea;
 import me.champeau.a4j.jsolex.processing.sun.detection.Redshifts;
 import me.champeau.a4j.jsolex.processing.sun.detection.ActiveRegions;
@@ -191,8 +191,8 @@ public class Rotate extends AbstractFunctionImpl {
             });
             metadata.put(ActiveRegions.class, rotated);
         });
-        wrapper.findMetadata(EllermanBombs.class).ifPresent(bombs -> {
-            var rotated = bombs.transform(p -> {
+        wrapper.findMetadata(Flares.class).ifPresent(flares -> {
+            var rotated = flares.transform(p -> {
                 var cx = origWidth / 2;
                 var cy = origHeight / 2;
                 var sx = cx + (newWidth - origWidth) / 2;
@@ -205,7 +205,7 @@ public class Rotate extends AbstractFunctionImpl {
                 var yp = (int) (sy + Math.round((x - cx) * sinAlpha + (y - cy) * cosAlpha));
                 return new Point2D(xp, yp);
             });
-            metadata.put(EllermanBombs.class, rotated);
+            metadata.put(Flares.class, rotated);
         });
         wrapper.findMetadata(ReferenceCoords.class).ifPresent(coords -> coords.addRotation(angle));
         return metadata;
@@ -246,14 +246,14 @@ public class Rotate extends AbstractFunctionImpl {
             );
             metadata.put(ActiveRegions.class, flipped);
         });
-        wrapper.findMetadata(EllermanBombs.class).ifPresent(ar -> {
+        wrapper.findMetadata(Flares.class).ifPresent(ar -> {
             var flipped = ar.transform(p ->
                     new Point2D(
                             hflip ? width - p.x() : p.x(),
                             hflip ? p.y() : height - p.y()
                     )
             );
-            metadata.put(EllermanBombs.class, flipped);
+            metadata.put(Flares.class, flipped);
         });
         wrapper.findMetadata(ReferenceCoords.class).ifPresent(rc -> {
             if (hflip) {

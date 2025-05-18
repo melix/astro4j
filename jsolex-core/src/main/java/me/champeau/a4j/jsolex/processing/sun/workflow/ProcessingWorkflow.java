@@ -40,8 +40,8 @@ import me.champeau.a4j.jsolex.processing.sun.ImageUtils;
 import me.champeau.a4j.jsolex.processing.sun.SolexVideoProcessor;
 import me.champeau.a4j.jsolex.processing.sun.WorkflowState;
 import me.champeau.a4j.jsolex.processing.sun.detection.ActiveRegions;
-import me.champeau.a4j.jsolex.processing.sun.detection.EllermanBomb;
-import me.champeau.a4j.jsolex.processing.sun.detection.EllermanBombs;
+import me.champeau.a4j.jsolex.processing.sun.detection.Flare;
+import me.champeau.a4j.jsolex.processing.sun.detection.Flares;
 import me.champeau.a4j.jsolex.processing.sun.detection.RedshiftArea;
 import me.champeau.a4j.jsolex.processing.sun.detection.Redshifts;
 import me.champeau.a4j.jsolex.processing.sun.tasks.CoronagraphTask;
@@ -229,9 +229,9 @@ public class ProcessingWorkflow {
             });
         }
         if (state.pixelShift() == processParams.spectrumParams().continuumShift() && shouldProduce(GeneratedImageKind.ELLERMAN_BOMBS)) {
-            geometryFixed.findMetadata(EllermanBombs.class).ifPresent(bombs -> {
-                if (!bombs.bombs().isEmpty()) {
-                    runnables.add(() -> produceEllermanBombsImage(geometryFixed, bombs.bombs()));
+            geometryFixed.findMetadata(Flares.class).ifPresent(flares -> {
+                if (!flares.flares().isEmpty()) {
+                    runnables.add(() -> produceEllermanBombsImage(geometryFixed, flares.flares()));
                 }
             });
         }
@@ -303,12 +303,31 @@ public class ProcessingWorkflow {
                 });
     }
 
-    private void produceEllermanBombsImage(ImageWrapper32 continuum, List<EllermanBomb> bombs) {
-        imagesEmitter.newColorImage(GeneratedImageKind.ELLERMAN_BOMBS,
+    private void produceEllermanBombsImage(ImageWrapper32 continuum, List<Flare> candidates) {
+        var flares = candidates.stream()
+                .filter(flare -> flare.kind() == Flare.Kind.FLARE)
+                .toList();
+        var bombs = candidates.stream()
+                .filter(flare -> flare.kind() == Flare.Kind.ELLERMAN_BOMB)
+                .toList();
+        produceFlaresOrEllermanBombsImage(continuum, bombs, Flare.Kind.ELLERMAN_BOMB);
+        produceFlaresOrEllermanBombsImage(continuum, flares, Flare.Kind.FLARE);
+    }
+
+    private void produceFlaresOrEllermanBombsImage(ImageWrapper32 continuum, List<Flare> candidates, Flare.Kind kind) {
+        if (candidates.isEmpty()) {
+            return;
+        }
+        var imageKind = kind == Flare.Kind.FLARE ? GeneratedImageKind.FLARES : GeneratedImageKind.ELLERMAN_BOMBS;
+        var title = kind == Flare.Kind.FLARE ? message("flares") : message("ellerman.bombs");
+        var name = kind == Flare.Kind.FLARE ? "flares" : "ellerman";
+        var desc = kind == Flare.Kind.FLARE ? message("flares.description") : message("ellerman.bombs.description");
+        var prefix = kind == Flare.Kind.FLARE ? "F" : "EB";
+        imagesEmitter.newColorImage(imageKind,
                 null,
-                message("ellerman.bombs"),
-                "ellerman",
-                message("ellerman.bombs.description"),
+                title,
+                name,
+                desc,
                 continuum, mono -> {
                     LinearStrechingStrategy.DEFAULT.stretch(mono);
                     var data = mono.data();
@@ -318,14 +337,14 @@ public class ProcessingWorkflow {
                     return new float[][][]{r, g, b};
                 }, (gr, img) -> {
                     int id = 0;
-                    for (var bomb : bombs) {
+                    for (var bomb : candidates) {
                         id++;
                         var x = bomb.x();
                         var y = bomb.y();
                         gr.setStroke(new BasicStroke(2));
                         gr.setColor(Color.RED);
                         gr.setFont(gr.getFont().deriveFont(24f));
-                        gr.drawString(String.format("EB %d", id), (int) (x + 16), (int) (y + 8));
+                        gr.drawString(String.format("%s %d", prefix, id), (int) (x + 16), (int) (y + 8));
                         gr.drawRect((int) (x - 8), (int) (y - 8), 16, 16);
                     }
                 });

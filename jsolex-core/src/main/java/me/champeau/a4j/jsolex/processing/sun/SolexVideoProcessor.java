@@ -50,7 +50,8 @@ import me.champeau.a4j.jsolex.processing.params.SpectralRay;
 import me.champeau.a4j.jsolex.processing.spectrum.FlatCreator;
 import me.champeau.a4j.jsolex.processing.spectrum.SpectrumAnalyzer;
 import me.champeau.a4j.jsolex.processing.sun.detection.ActiveRegions;
-import me.champeau.a4j.jsolex.processing.sun.detection.EllermanBombs;
+import me.champeau.a4j.jsolex.processing.sun.detection.Flare;
+import me.champeau.a4j.jsolex.processing.sun.detection.Flares;
 import me.champeau.a4j.jsolex.processing.sun.detection.PhenomenaDetector;
 import me.champeau.a4j.jsolex.processing.sun.detection.RedshiftArea;
 import me.champeau.a4j.jsolex.processing.sun.detection.Redshifts;
@@ -158,7 +159,7 @@ public class SolexVideoProcessor implements Broadcaster {
     private boolean binningIsReliable;
     private Redshifts redshifts;
     private ActiveRegions activeRegions;
-    private EllermanBombs ellermanBombs;
+    private Flares flares;
     private DoubleUnaryOperator polynomial;
     private float[][] averageImage;
     private PixelShiftRange pixelShiftRange;
@@ -410,8 +411,8 @@ public class SolexVideoProcessor implements Broadcaster {
                     if (activeRegions == null && outputs.activeRegions != null) {
                         activeRegions = outputs.activeRegions;
                     }
-                    if (ellermanBombs == null && outputs.ellermanBombs != null) {
-                        ellermanBombs = outputs.ellermanBombs;
+                    if (flares == null && outputs.flares != null) {
+                        flares = outputs.flares;
                     }
                     serFileReader.set(reader);
                     // Compute megabytes processed per second
@@ -772,9 +773,9 @@ public class SolexVideoProcessor implements Broadcaster {
             var width = recon.width();
             metadata.put(ActiveRegions.class, activeRegions.transform(p -> new Point2D(p.y(), width - p.x())));
         }
-        if (ellermanBombs != null) {
+        if (flares != null) {
             var width = recon.width();
-            metadata.put(EllermanBombs.class, ellermanBombs.transform(p -> new Point2D(p.y(), width - p.x())));
+            metadata.put(Flares.class, flares.transform(p -> new Point2D(p.y(), width - p.x())));
         }
         rotated = ImageWrapper32.fromImage(rotateLeft, metadata);
         TransformationHistory.recordTransform(rotated, message("rotate.left"));
@@ -1213,8 +1214,8 @@ public class SolexVideoProcessor implements Broadcaster {
                 });
                 rotated.metadata().put(ActiveRegions.class, flippedActiveRegions);
             });
-            rotated.findMetadata(EllermanBombs.class).ifPresent(ellermanBombs -> {
-                var flippedBombs = ellermanBombs.transform(p -> {
+            rotated.findMetadata(Flares.class).ifPresent(flares -> {
+                var flippedFlares = flares.transform(p -> {
                     var x = p.x();
                     var y = p.y();
                     if (hflip) {
@@ -1225,7 +1226,7 @@ public class SolexVideoProcessor implements Broadcaster {
                     }
                     return new Point2D(x, y);
                 });
-                rotated.metadata().put(EllermanBombs.class, flippedBombs);
+                rotated.metadata().put(Flares.class, flippedFlares);
             });
             System.arraycopy(flipped, 0, original, 0, original.length);
             TransformationHistory.recordTransform(rotated, message("flip"));
@@ -1311,15 +1312,15 @@ public class SolexVideoProcessor implements Broadcaster {
             });
             newMetadata.put(ActiveRegions.class, rotatedActiveRegions);
         });
-        rotated.findMetadata(EllermanBombs.class).ifPresent(bombs -> {
-            var rotatedBombs = bombs.transform(p -> {
+        rotated.findMetadata(Flares.class).ifPresent(flares -> {
+            var rotatedFlare = flares.transform(p -> {
                 var x = p.x();
                 var y = p.y();
                 return kind == RotationKind.LEFT
                         ? new Point2D(y, width - x - 1)
                         : new Point2D(height - y - 1, x);
             });
-            newMetadata.put(EllermanBombs.class, rotatedBombs);
+            newMetadata.put(Flares.class, rotatedFlare);
         });
 
 
@@ -1367,7 +1368,7 @@ public class SolexVideoProcessor implements Broadcaster {
         var phenomenaDetector = new PhenomenaDetector(dispersion, lambda0, width);
         var hasRedshifts = new AtomicBoolean();
         var hasActiveRegions = new AtomicBoolean();
-        var hasEllermanBombs = new AtomicBoolean();
+        var hasFlares = new AtomicBoolean();
         var latch = new CountDownLatch(end - start);
         var semaphore = new Semaphore(INMEMORY_BUFFERS_PER_CORE * Runtime.getRuntime().availableProcessors());
         var jSolexSer = reader.header().isJSolexTrimmedSer();
@@ -1402,14 +1403,14 @@ public class SolexVideoProcessor implements Broadcaster {
                                     phenomenaDetector.setDetectRedshifts(
                                             processParams.spectrumParams().ray().label().equalsIgnoreCase(SpectralRay.H_ALPHA.label()) && processParams.requestedImages().isEnabled(GeneratedImageKind.REDSHIFT)
                                     );
-                                    phenomenaDetector.setDetectEllermanBombs(
+                                    phenomenaDetector.setDetectEllermanBombsOrFlares(
                                             processParams.spectrumParams().ray().label().equalsIgnoreCase(SpectralRay.H_ALPHA.label()) && processParams.requestedImages().isEnabled(GeneratedImageKind.ELLERMAN_BOMBS)
                                     );
                                     phenomenaDetector.setDetectActiveRegions(forceDetectActiveRegions || processParams.requestedImages().isEnabled(GeneratedImageKind.ACTIVE_REGIONS));
                                     phenomenaDetector.performDetection(frameId, width, height, original, polynomial, reader.header());
                                     hasRedshifts.set(hasRedshifts.get() || phenomenaDetector.isRedShiftDetectionEnabled());
                                     hasActiveRegions.set(hasActiveRegions.get() || phenomenaDetector.isActiveRegionsDetectionEnabled());
-                                    hasEllermanBombs.set(hasEllermanBombs.get() || phenomenaDetector.isEllermanBombsDetectionEnabled());
+                                    hasFlares.set(hasFlares.get() || phenomenaDetector.isEllermanBombsDetectionEnabled());
                                 }
                                 state.setTruncationDetails(truncationDetails);
                             } finally {
@@ -1436,7 +1437,7 @@ public class SolexVideoProcessor implements Broadcaster {
                 state.recordResult(WorkflowResults.RECONSTRUCTED, recon);
                 state.recordResult(WorkflowResults.BORDERS, borders);
             }
-            if (!phenomenaDetector.getEllermanBombs().bombs().isEmpty()) {
+            if (!phenomenaDetector.getFlares().flares().isEmpty()) {
                 generateEllermanBombSpectrumImages(converter, reader, geometry, width, height, imageNamingStrategy, phenomenaDetector);
             }
         } catch (InterruptedException e) {
@@ -1449,7 +1450,7 @@ public class SolexVideoProcessor implements Broadcaster {
         return new ReconstructionOutputs(
                 hasRedshifts.get() ? phenomenaDetector.getMaxRedshiftAreas(5) : null,
                 hasActiveRegions.get() ? phenomenaDetector.getActiveRegions() : null,
-                hasEllermanBombs.get() ? phenomenaDetector.getEllermanBombs() : null
+                hasFlares.get() ? phenomenaDetector.getFlares() : null
         );
     }
 
@@ -1460,21 +1461,33 @@ public class SolexVideoProcessor implements Broadcaster {
                                                     int height,
                                                     FileNamingStrategy imageNamingStrategy,
                                                     PhenomenaDetector phenomenaDetector) {
-        var bombs = phenomenaDetector.getEllermanBombs().bombs();
+        var flares = phenomenaDetector.getFlares().flares();
         var imageEmitter = createDefaultImageEmitter(imageNamingStrategy);
-        int i = 0;
-        for (var ellermanBomb : bombs) {
-            i++;
-            var id = i;
-            LOGGER.info(message("ellerman.bomb.detected"), ellermanBomb);
-            reader.seekFrame(ellermanBomb.frameId());
+        int ebIdx = 0;
+        int flareIdx = 0;
+        for (var flare : flares) {
+            int id;
+            if (flare.kind() == Flare.Kind.ELLERMAN_BOMB) {
+                ebIdx++;
+                id = ebIdx;
+                LOGGER.info(message("ellerman.bomb.detected"), flare.frameId());
+            } else {
+                flareIdx++;
+                id=flareIdx;
+                LOGGER.info(message("flare.detected"), flare.frameId());
+            }
+            reader.seekFrame(flare.frameId());
             var buffer = converter.createBuffer(geometry);
-            converter.convert(ellermanBomb.frameId(), reader.currentFrame().data(), geometry, buffer);
-            imageEmitter.newColorImage(GeneratedImageKind.ELLERMAN_BOMBS,
-                    "EB",
-                    message("ellerman.bomb") + " " + id,
-                    "EB" + id,
-                    message("ellerman.bomb.description"),
+            converter.convert(flare.frameId(), reader.currentFrame().data(), geometry, buffer);
+            var title = flare.kind() == Flare.Kind.ELLERMAN_BOMB ? message("ellerman.bomb") : message("flare");
+            var desc = flare.kind() == Flare.Kind.ELLERMAN_BOMB ? message("ellerman.bomb.description") : message("flare.description");
+            var category = flare.kind() == Flare.Kind.ELLERMAN_BOMB ? "EB" : "flare";
+            var kind = flare.kind() == Flare.Kind.ELLERMAN_BOMB ? GeneratedImageKind.ELLERMAN_BOMBS : GeneratedImageKind.FLARES;
+            imageEmitter.newColorImage(kind,
+                    category,
+                    title + " " + id,
+                    category + id,
+                    desc,
                     width,
                     height,
                     MutableMap.of(),
@@ -1493,11 +1506,11 @@ public class SolexVideoProcessor implements Broadcaster {
                             var font = gc.getFont();
                             var size = height / 4f;
                             gc.setFont(font.deriveFont(size));
-                            gc.drawString("Frame " + ellermanBomb.frameId(), 16, size);
-                            gc.drawString(String.format(Locale.US, "Score %.2f", ellermanBomb.score()), 16, 2*size);
+                            gc.drawString("Frame " + flare.frameId(), 16, size);
+                            gc.drawString(String.format(Locale.US, "Score %.2f", flare.score()), 16, 2*size);
                             gc.setColor(Color.red);
                             gc.setStroke(new BasicStroke(2));
-                            gc.drawRect(ellermanBomb.sourceX() - margin, 0, margin * 2 + 1, height - 1);
+                            gc.drawRect(flare.sourceX() - margin, 0, margin * 2 + 1, height - 1);
                         });
                         return new float[][][]{
                                 rgb.r(),
@@ -1719,7 +1732,7 @@ public class SolexVideoProcessor implements Broadcaster {
     private record ReconstructionOutputs(
             List<RedshiftArea> redshifts,
             ActiveRegions activeRegions,
-            EllermanBombs ellermanBombs
+            Flares flares
     ) {
 
     }

@@ -18,7 +18,7 @@ package me.champeau.a4j.jsolex.processing.expr.impl;
 import me.champeau.a4j.jsolex.expr.BuiltinFunction;
 import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
 import me.champeau.a4j.jsolex.processing.sun.crop.Cropper;
-import me.champeau.a4j.jsolex.processing.sun.detection.EllermanBombs;
+import me.champeau.a4j.jsolex.processing.sun.detection.Flares;
 import me.champeau.a4j.jsolex.processing.sun.detection.RedshiftArea;
 import me.champeau.a4j.jsolex.processing.sun.detection.Redshifts;
 import me.champeau.a4j.jsolex.processing.sun.detection.ActiveRegions;
@@ -248,7 +248,7 @@ public class Crop extends AbstractFunctionImpl {
             ));
         });
         img.findMetadata(ActiveRegions.class).ifPresent(activeRegions -> metadata.put(ActiveRegions.class, activeRegions.translate(-left, -top)));
-        img.findMetadata(EllermanBombs.class).ifPresent(bombs -> metadata.put(EllermanBombs.class, bombs.translate(-left, -top)));
+        img.findMetadata(Flares.class).ifPresent(flares -> metadata.put(Flares.class, flares.translate(-left, -top)));
         img.findMetadata(ReferenceCoords.class).ifPresent(coords -> metadata.put(ReferenceCoords.class, coords.addOffsetX(left).addOffsetY(top)));
         return metadata;
     }

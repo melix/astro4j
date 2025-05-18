@@ -15,11 +15,16 @@
  */
 package me.champeau.a4j.jsolex.processing.sun.detection;
 
-public record EllermanBomb(
+public record Flare(
+        Kind kind,
         int frameId,
         int sourceX,
         double x,
         double y,
         double score
 ) {
+    public enum Kind {
+        ELLERMAN_BOMB,
+        FLARE
+    }
 }
