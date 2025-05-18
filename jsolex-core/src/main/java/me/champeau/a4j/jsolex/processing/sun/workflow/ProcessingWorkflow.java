@@ -203,7 +203,7 @@ public class ProcessingWorkflow {
             runnables.add(() -> produceNegativeImage(enhanced));
         }
         if (isMainShift() && shouldProduce(GeneratedImageKind.COLORIZED)) {
-            runnables.add(() -> produceColorizedImage(stretched, processParams));
+            runnables.add(() -> produceColorizedImage(blackPoint, stretched, processParams));
         }
         if (isMainShift()) {
             runnables.add(() -> produceCoronagraph(blackPoint, enhanced));
@@ -357,15 +357,13 @@ public class ProcessingWorkflow {
         return angle;
     }
 
-    private void produceColorizedImage(ImageWrapper32 corrected, ProcessParams params) {
+    private void produceColorizedImage(float blackPoint, ImageWrapper32 corrected, ProcessParams params) {
         var ray = params.spectrumParams().ray();
         ray.getColorCurve().ifPresentOrElse(curve ->
                         imagesEmitter.newColorImage(GeneratedImageKind.COLORIZED, null, MessageFormat.format(message("colorized"), curve.ray()), "colorized", String.format(message("colorized.description"), state.pixelShift()), corrected, monoImage -> {
                             var mono = monoImage.data();
-                            var analysis = ImageAnalysis.of(monoImage, true);
                             ImageWrapper32 image = new ImageWrapper32(corrected.width(), corrected.height(), mono, MutableMap.of());
-                            var bp = 0.5f * Math.max(0, analysis.avg() - analysis.stddev());
-                            createStretchingForColorization(bp).stretch(image);
+                            createStretchingForColorization(blackPoint).stretch(image);
                             return ImageUtils.convertToRGB(curve, mono);
                         })
                 , () -> {
