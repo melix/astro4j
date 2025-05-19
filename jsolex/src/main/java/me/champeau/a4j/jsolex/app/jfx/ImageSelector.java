@@ -33,6 +33,8 @@ import me.champeau.a4j.jsolex.processing.sun.workflow.GeneratedImageKind;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 import me.champeau.a4j.jsolex.processing.util.MutableMap;
 import me.champeau.a4j.jsolex.processing.util.ProcessingException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.io.IOException;
@@ -49,6 +51,8 @@ import java.util.TreeSet;
 import java.util.stream.Collectors;
 
 public class ImageSelector {
+    private static final Logger LOGGER = LoggerFactory.getLogger(ImageSelector.class);
+
     private boolean batchMode;
     private HostServices hostServices;
     @FXML
@@ -366,7 +370,12 @@ public class ImageSelector {
             controller -> {
             },
             controller -> controller.getConfiguration().ifPresent(params -> {
-                updatePixelShiftsWithSelectedImages(findPixelShifts(params));
+                try {
+                    updatePixelShiftsWithSelectedImages(findPixelShifts(params));
+                } catch (ProcessingException e) {
+                    LOGGER.warn("Error while executing image math script {}", e.getMessage());
+                    updatePixelShiftsWithSelectedImages(List.of(0d));
+                }
                 this.imageMathParams = params;
             }));
     }
