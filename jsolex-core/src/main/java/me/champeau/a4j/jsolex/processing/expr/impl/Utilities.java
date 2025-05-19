@@ -182,11 +182,11 @@ public class Utilities extends AbstractFunctionImpl {
 
     public Object doGetAt(Map<String ,Object> arguments) {
         BuiltinFunction.GET_AT.validateArgs(arguments);
-        if (!(arguments.get("img") instanceof List list)) {
+        if (!(arguments.get("list") instanceof List list)) {
             throw new IllegalArgumentException("get_at expects a list of images as first argument");
         }
         if (!list.isEmpty() && list.getFirst() instanceof List) {
-            return expandToImageList("get_at", "img", arguments, this::doGetAt);
+            return expandToImageList("get_at", "list", arguments, this::doGetAt);
         }
         var index = intArg(arguments, "index", -1);
         return list.get(index);
