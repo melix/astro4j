@@ -1390,7 +1390,7 @@ public class JSolEx implements JSolExInterface {
         for (int i = 0; i < selectedFiles.size(); i++) {
             var selectedFile = selectedFiles.get(i);
             batchItems.add(new BatchItem(i, selectedFile, new SimpleDoubleProperty(0), FXCollections.synchronizedObservableList(FXCollections.observableArrayList()), new SimpleStringProperty(message("batch.pending")), new SimpleIntegerProperty(),
-                    new SimpleDoubleProperty(), new StringBuilder()));
+                    new SimpleDoubleProperty(), new SimpleIntegerProperty(), new SimpleIntegerProperty(), new StringBuilder()));
         }
         table.getItems().addAll(batchItems);
         var idColumn = new TableColumn<BatchItem, String>();
@@ -1417,6 +1417,12 @@ public class JSolEx implements JSolExInterface {
         maxRedshiftKmPerSec.setText(message("max.redshift.km.per.sec"));
         maxRedshiftKmPerSec.setCellValueFactory(param -> param.getValue().maxRedshiftKmPerSec().asObject());
         maxRedshiftKmPerSec.setCellFactory(new RedshiftCellFactory());
+        var ellermanBombs = new TableColumn<BatchItem, Integer>();
+        ellermanBombs.setText(message("ellerman.bombs"));
+        ellermanBombs.setCellValueFactory(param -> param.getValue().ellermanBombs().asObject());
+        var flares = new TableColumn<BatchItem, Integer>();
+        flares.setText(message("flares"));
+        flares.setCellValueFactory(param -> param.getValue().flares().asObject());
         var firstColumnsWidth = idColumn.widthProperty()
                 .add(fnColumn.widthProperty()
                         .add(progressColumn.widthProperty()))
@@ -1428,6 +1434,12 @@ public class JSolEx implements JSolExInterface {
         if (params.requestedImages().isEnabled(GeneratedImageKind.REDSHIFT)) {
             firstColumnsWidth = firstColumnsWidth.add(maxRedshiftKmPerSec.widthProperty());
         }
+        if (params.requestedImages().isEnabled(GeneratedImageKind.ELLERMAN_BOMBS)) {
+            firstColumnsWidth = firstColumnsWidth.add(ellermanBombs.widthProperty());
+        }
+        if (params.requestedImages().isEnabled(GeneratedImageKind.FLARES)) {
+            firstColumnsWidth = firstColumnsWidth.add(flares.widthProperty());
+        }
         images.prefWidthProperty().bind(table.widthProperty().subtract(firstColumnsWidth));
         var columns = table.getColumns();
         columns.setAll(idColumn, fnColumn, progressColumn, images);
@@ -1436,6 +1448,12 @@ public class JSolEx implements JSolExInterface {
         }
         if (params.requestedImages().isEnabled(GeneratedImageKind.REDSHIFT)) {
             columns.add(maxRedshiftKmPerSec);
+        }
+        if (params.requestedImages().isEnabled(GeneratedImageKind.ELLERMAN_BOMBS)) {
+            columns.add(ellermanBombs);
+        }
+        if (params.requestedImages().isEnabled(GeneratedImageKind.FLARES)) {
+            columns.add(flares);
         }
         columns.add(statusColumn);
         tab.setContent(table);

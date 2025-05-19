@@ -30,6 +30,8 @@ public record BatchItem(
         SimpleStringProperty status,
         SimpleIntegerProperty detectedActiveRegions,
         SimpleDoubleProperty maxRedshiftKmPerSec,
+        SimpleIntegerProperty ellermanBombs,
+        SimpleIntegerProperty flares,
         StringBuilder log
 ) {
 }

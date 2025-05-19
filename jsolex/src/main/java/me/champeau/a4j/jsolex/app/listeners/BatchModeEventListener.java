@@ -219,6 +219,8 @@ public class BatchModeEventListener implements ProcessingEventListener, ImageMat
         maybeWriteLogs();
         item.detectedActiveRegions().set(e.getPayload().detectedActiveRegions());
         item.maxRedshiftKmPerSec().set(e.getPayload().redshifts().stream().map(RedshiftArea::kmPerSec).max(Double::compareTo).orElse(0.0));
+        item.ellermanBombs().set(e.getPayload().ellermanBombs());
+        item.flares().set(e.getPayload().flares());
         if (item.status().get().equals(message("batch.error"))) {
             return;
         }

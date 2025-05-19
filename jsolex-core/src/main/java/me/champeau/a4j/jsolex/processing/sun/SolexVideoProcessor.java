@@ -554,7 +554,9 @@ public class SolexVideoProcessor implements Broadcaster {
                 averageImage,
                 processParams,
                 pixelShiftRange,
-                activeRegions == null ? 0 : activeRegions.regionList().size()
+                activeRegions == null ? 0 : activeRegions.regionList().size(),
+                (int) (flares != null ? flares.flares().stream().filter(f -> f.kind() == Flare.Kind.ELLERMAN_BOMB).count() : 0),
+                (int) (flares != null ? flares.flares().stream().filter(f -> f.kind() == Flare.Kind.FLARE).count() : 0)
         ));
     }
 

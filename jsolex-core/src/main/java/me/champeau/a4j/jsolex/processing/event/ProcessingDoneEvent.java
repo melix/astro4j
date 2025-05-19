@@ -17,7 +17,6 @@ package me.champeau.a4j.jsolex.processing.event;
 
 import me.champeau.a4j.jsolex.processing.params.ProcessParams;
 import me.champeau.a4j.jsolex.processing.sun.detection.RedshiftArea;
-import me.champeau.a4j.jsolex.processing.sun.tasks.EllipseFittingTask;
 import me.champeau.a4j.jsolex.processing.sun.workflow.ImageEmitter;
 import me.champeau.a4j.jsolex.processing.sun.workflow.ImageStats;
 import me.champeau.a4j.jsolex.processing.sun.workflow.PixelShiftRange;
@@ -46,7 +45,9 @@ public final class ProcessingDoneEvent extends ProcessingEvent<ProcessingDoneEve
         float[][] averageImage,
         ProcessParams processParams,
         PixelShiftRange pixelShiftRange,
-        int detectedActiveRegions) {
+        int detectedActiveRegions,
+        int ellermanBombs,
+        int flares) {
 
     }
 
@@ -61,7 +62,9 @@ public final class ProcessingDoneEvent extends ProcessingEvent<ProcessingDoneEve
                                          float[][] averageImage,
                                          ProcessParams processParams,
                                          PixelShiftRange pixelShiftRange,
-                                         int detectedActiveRegions) {
-        return new ProcessingDoneEvent(new Outcome(timestamp, Collections.unmodifiableMap(images), customImageEmitter, mainEllipse, ellipse, imageStats, redshifts, polynomial, averageImage, processParams, pixelShiftRange, detectedActiveRegions));
+                                         int detectedActiveRegions,
+                                         int ellermanBombs,
+                                         int flares) {
+        return new ProcessingDoneEvent(new Outcome(timestamp, Collections.unmodifiableMap(images), customImageEmitter, mainEllipse, ellipse, imageStats, redshifts, polynomial, averageImage, processParams, pixelShiftRange, detectedActiveRegions, ellermanBombs, flares));
     }
 }
