@@ -60,9 +60,11 @@ public enum GeneratedImageKind {
 
     public boolean cannotPerformManualRotation() {
         return this == GeneratedImageKind.IMAGE_MATH
-               || this == GeneratedImageKind.DEBUG
-               || this == GeneratedImageKind.TECHNICAL_CARD
-               || this == GeneratedImageKind.CROPPED
-               || this == GeneratedImageKind.REDSHIFT;
+                || this == GeneratedImageKind.DEBUG
+                || this == GeneratedImageKind.TECHNICAL_CARD
+                || this == GeneratedImageKind.CROPPED
+                || this == GeneratedImageKind.REDSHIFT
+                || this == GeneratedImageKind.ELLERMAN_BOMBS
+                || this == GeneratedImageKind.FLARES;
     }
 }

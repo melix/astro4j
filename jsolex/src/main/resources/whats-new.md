@@ -12,6 +12,10 @@
 
 ## Changes since 3.0.0
 
+### 3.2.1
+
+- Fixed angle P correction being wrongly applied to spectrum images in flare/ellerman bombs detection
+
 ### 3.2.0
 
 - Added [Ellerman Bomb detection](#ellerman-bomb-detection)
