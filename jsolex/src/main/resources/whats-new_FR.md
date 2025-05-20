@@ -12,6 +12,10 @@
 
 ## Changements depuis la 3.0.0
 
+### 3.2.1
+
+- Correction de la rotation qui était appliquée aux images de spectre dans la détection d'éruption / bombes d'Ellerman si la correction d'angle P était activée
+
 ### 3.2.0
 
 - Ajout de la détection de [bombes d'Ellerman](#bombe-d-ellerman)
