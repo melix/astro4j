@@ -279,7 +279,7 @@ public class FitsUtils {
                     var values = new ArrayList<RedshiftArea>();
                     for (int i = 0; i < cpt; i++) {
                         var redshift = new RedshiftArea(
-                            binaryTable.getSize() == 10 ? binaryTable.getString(i, 9) : null,
+                            binaryTable.getNCols() == 10 ? binaryTable.getString(i, 9) : null,
                             binaryTable.getNumber(i, 0).intValue(),
                             binaryTable.getNumber(i, 1).intValue(),
                             binaryTable.getNumber(i, 2).doubleValue(),
