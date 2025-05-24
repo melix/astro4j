@@ -189,6 +189,9 @@ public class Scaling extends AbstractFunctionImpl {
             double sx = width / image.width();
             double sy = height/ image.height();
             var rescaled = ellipse.rescale(sx, sy);
+            var centerX = rescaled.center().a();
+            var centerY = rescaled.center().b();
+            rescaled = rescaled.centeredAt((int) (centerX * sx), (int) (centerY * sy));
             metadata.put(Ellipse.class, rescaled);
         });
         image.findMetadata(Redshifts.class).ifPresent(redshifts -> {
