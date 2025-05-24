@@ -69,6 +69,7 @@ import java.nio.charset.Charset;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
+import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -112,6 +113,7 @@ public class BatchModeEventListener implements ProcessingEventListener, ImageMat
     private final Map<Integer, List<CandidateImageDescriptor>> imagesByIndex;
     private final Map<Integer, List<File>> filesByIndex;
     private final Map<Integer, File> serFilesByIndex;
+    private final long sd = System.nanoTime();
     private ProcessParams adjustedParams;
 
     public BatchModeEventListener(JSolExInterface owner,
@@ -274,7 +276,7 @@ public class BatchModeEventListener implements ProcessingEventListener, ImageMat
                         if (response == ButtonType.YES) {
                             maybeFilterImages(r -> executeBatchScriptExpressions(r, rootOperation));
                         } else {
-                            Platform.runLater(() -> owner.updateProgress(1, String.format(message("batch.finished"))));
+                            batchFinished();
                         }
                     });
                 });
@@ -283,12 +285,29 @@ public class BatchModeEventListener implements ProcessingEventListener, ImageMat
                     var alert = AlertFactory.warning(message("incomplete.batch.error"));
                     alert.setTitle(message("incomplete.batch"));
                     alert.showAndWait();
-                    Platform.runLater(() -> owner.updateProgress(1, String.format(message("batch.finished"))));
+                    batchFinished();
                 });
             } else {
                 maybeFilterImages(r -> executeBatchScriptExpressions(r, rootOperation));
             }
         }
+    }
+
+    private void batchFinished() {
+        var ed = System.nanoTime();
+        var duration = Duration.ofNanos(ed - sd);
+        long hours = duration.toHours();
+        long minutes = duration.minusHours(hours).toMinutes();
+        long seconds = duration.minusHours(hours).minusMinutes(minutes).getSeconds();
+        var millis = duration.minusHours(hours).minusMinutes(minutes).minusSeconds(seconds).toMillis();
+        var sb = new StringBuffer();
+        if (hours > 0) {
+            sb.append(hours).append("h ");
+        }
+        sb.append(minutes).append("m ");
+        sb.append(seconds).append("s ");
+        sb.append(millis).append("ms");
+        Platform.runLater(() -> owner.updateProgress(1, String.format(message("batch.finished"), sb.toString())));
     }
 
     private boolean hasBatchScriptExpressions() {
@@ -348,7 +367,7 @@ public class BatchModeEventListener implements ProcessingEventListener, ImageMat
                 executeBatchScript(namingStrategy, scriptFile);
             }
         } finally {
-            Platform.runLater(() -> owner.updateProgress(1, String.format(message("batch.finished"))));
+            batchFinished();
         }
     }
 

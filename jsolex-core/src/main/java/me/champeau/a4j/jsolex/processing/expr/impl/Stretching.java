@@ -54,6 +54,8 @@ public class Stretching extends AbstractFunctionImpl {
         if (out < 0 || out > 255) {
             throw new IllegalArgumentException("curve_transform out must be between 0 and 255");
         }
-        return monoToMonoImageTransformer("curve_transform", "img", arguments, image -> new CurveTransformStrategy(in << 8, out << 8).stretch(image));
+        int protectLo = intArg(arguments, "protectLo", 0);
+        int protectHi = intArg(arguments, "protectHi", 255);
+        return monoToMonoImageTransformer("curve_transform", "img", arguments, image -> new CurveTransformStrategy(in << 8, out << 8, protectLo << 8, protectHi << 8).stretch(image));
     }
 }

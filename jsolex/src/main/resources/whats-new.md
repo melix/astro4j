@@ -14,7 +14,9 @@
 
 ### 3.2.1
 
+- Fixed autostretch to be less aggressive on prominences, providing a better transition between the disk and the prominences
 - Fixed angle P correction being wrongly applied to spectrum images in flare/ellerman bombs detection
+- Process 2 files in parallel in batch mode
 
 ### 3.2.0
 
