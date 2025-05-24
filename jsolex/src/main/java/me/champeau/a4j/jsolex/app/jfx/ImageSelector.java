@@ -312,6 +312,12 @@ public class ImageSelector {
             if (internalPixelShifts != null) {
                 internalPixelShifts.add(continuumShift);
             }
+            if (!continuum.isSelected()) {
+                if (internalPixelShifts == null) {
+                    internalPixelShifts = new TreeSet<>();
+                }
+                internalPixelShifts.add(continuumShift);
+            }
         }
         var pixelShifts = readPixelShifts();
         requestedImages = new RequestedImages(

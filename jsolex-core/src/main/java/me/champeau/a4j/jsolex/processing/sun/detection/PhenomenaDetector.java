@@ -22,6 +22,7 @@ import me.champeau.a4j.math.Point2D;
 import me.champeau.a4j.math.image.Image;
 import me.champeau.a4j.math.image.ImageMath;
 import me.champeau.a4j.math.image.Kernel33;
+import me.champeau.a4j.math.regression.EllipseRegression;
 import me.champeau.a4j.math.regression.LinearRegression;
 import me.champeau.a4j.math.tuples.DoublePair;
 import me.champeau.a4j.math.tuples.IntPair;
@@ -82,7 +83,7 @@ public class PhenomenaDetector {
     private boolean detectRedshifts = true;
     private boolean detectEllermanBombs = true;
     private boolean findBorders = true;
-    private int maxSpan = 0;
+    private final List<Point2D> borderPoints = new ArrayList<>();
 
     public PhenomenaDetector(Dispersion dispersion, Wavelen lambda0, int reconstructedWidth) {
         this.dispersion = dispersion;
@@ -210,9 +211,8 @@ public class PhenomenaDetector {
                     : Arrays.stream(columnStats).filter(Objects::nonNull).mapToDouble(c -> c.centerLineStats().average()).average().orElse(0);
             int leftBorder = left;
             int rightBorder = right;
-            if (rightBorder - leftBorder > maxSpan) {
-                maxSpan = rightBorder - leftBorder;
-            }
+            borderPoints.add(new Point2D(leftBorder, frameId));
+            borderPoints.add(new Point2D(rightBorder, frameId));
             IntStream.range(left, right)
                     .parallel()
                     .forEach(x -> analyzeColumn(frameId, x, width, height, original, polynomial, wingShiftInPixels, collector, finalAvgCenterLine, finalAvgOfColumnAverages, columnsAverages, columnsStddevs, avgModel, stddevModel, activeRegionsMask, columnStats, globalLineAvgForEllermanDetection, globalWingAvgForEllermanDetection, leftBorder, rightBorder));
@@ -525,6 +525,7 @@ public class PhenomenaDetector {
         if (flares != null) {
             return new Flares(flares);
         }
+        filterFlaresTooCloseToBorder();
         // remove candidate flares detected on too small spans
         candidateFlares.sort(Comparator.<CandidateFlare>comparingDouble(c -> c.flare().score()).reversed());
         if (!candidateFlares.isEmpty()) {
@@ -551,6 +552,31 @@ public class PhenomenaDetector {
             flares = Collections.emptyList();
         }
         return new Flares(flares);
+    }
+
+    private void filterFlaresTooCloseToBorder() {
+        try {
+            var ellipse = new EllipseRegression(borderPoints).solve();
+            var semiAxis = ellipse.semiAxis();
+            var maxDist = Math.max(semiAxis.a(), semiAxis.b());
+            var limit = 0.08d * maxDist;
+            candidateFlares.removeIf(c -> {
+                var flare = c.flare();
+                var frameId = c.frameId();
+                var sourceX = flare.sourceX();
+                var maybeBorders = ellipse.findX(frameId);
+                if (maybeBorders.isPresent()) {
+                    var borders = maybeBorders.get();
+                    var distToBorder = Math.min(Math.abs(sourceX - borders.a()), Math.abs(sourceX - borders.b()));
+                    if (flare.score() < 15 && distToBorder < limit) {
+                        return true;
+                    }
+                }
+                return false;
+            });
+        } catch (Exception e) {
+            // ignore, this is not a problem if the regression fails
+        }
     }
 
     private void detectActiveRegions(int x, double[] columnsAverages, double[] columnsStddevs, DoubleUnaryOperator avgModel, DoubleUnaryOperator stddevModel, BitSet activeRegionMask) {

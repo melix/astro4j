@@ -19,6 +19,7 @@
 - Process 2 files in parallel in batch mode
 - Fixed position of ellipse when image is rescaled
 - Fixed clipped disk when trimming SER files
+- Reduced false positives in Ellerman Bomb detection
 
 ### 3.2.0
 

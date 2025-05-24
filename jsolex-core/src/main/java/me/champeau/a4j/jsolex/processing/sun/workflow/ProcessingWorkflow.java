@@ -228,10 +228,12 @@ public class ProcessingWorkflow {
                 }
             });
         }
-        if (state.pixelShift() == processParams.spectrumParams().continuumShift() && shouldProduce(GeneratedImageKind.ELLERMAN_BOMBS)) {
+        if (state.pixelShift() == processParams.spectrumParams().continuumShift()
+                && (shouldProduce(GeneratedImageKind.ELLERMAN_BOMBS) || shouldProduce(GeneratedImageKind.FLARES))) {
             geometryFixed.findMetadata(Flares.class).ifPresent(flares -> {
-                if (!flares.flares().isEmpty()) {
-                    runnables.add(() -> produceEllermanBombsImage(geometryFixed, flares.flares()));
+                var flareList = flares.flares();
+                if (!flareList.isEmpty()) {
+                    runnables.add(() -> produceEllermanBombsImage(geometryFixed, flareList));
                 }
             });
         }

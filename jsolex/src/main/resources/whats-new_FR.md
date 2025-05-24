@@ -19,6 +19,7 @@
 - Traitement de 2 fichiers en parallèle en mode batch
 - Correction de la position de l'ellipse lorsque l'image est redimensionnée
 - Correction du disque tronqué lors de la réduction de fichiers SER
+- Réduction des faux positifs dans la détection de bombes d'Ellerman
 
 ### 3.2.0
 

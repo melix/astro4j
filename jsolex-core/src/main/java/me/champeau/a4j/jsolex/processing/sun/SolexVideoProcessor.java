@@ -371,7 +371,7 @@ public class SolexVideoProcessor implements Broadcaster {
                 }
                 var map = candidates
                         .stream()
-                        .collect(Collectors.toMap(d -> d, details -> SpectrumAnalyzer.computeDataPoints(details, polynomial, 0, width, width, height, averageImage), (e1, e2) -> e1, LinkedHashMap::new));
+                        .collect(Collectors.toMap(d -> d, details -> SpectrumAnalyzer.computeDataPoints(details, polynomial, 0, width, width, height, averageImage), (e1, _) -> e1, LinkedHashMap::new));
                 var bestMatch = SpectrumAnalyzer.findBestMatch(map);
                 LOGGER.info(String.format(Locale.US, message("auto.detected.spectral.line"), bestMatch.line(), bestMatch.binning(), bestMatch.pixelSize()));
                 var spectrumParams = processParams.spectrumParams();
@@ -383,7 +383,7 @@ public class SolexVideoProcessor implements Broadcaster {
             var canGenerateHeliumD3Images = heliumLineVisible(pixelShiftRange, heliumLineShift) && processParams.requestedImages().isEnabled(GeneratedImageKind.GEOMETRY_CORRECTED_PROCESSED);
             addPixelShiftsForRequestedByWavelength(width, newHeight, imageList);
             addPixelShiftsForAutoContinnum(canGenerateHeliumD3Images, width, newHeight, imageList, heliumLineShift);
-            addPixelShiftsDynamicallyRequiredByScripts(converter, header, fps, serFile, imageList, end, width, newHeight, geometry, height, polynomial, imageNamingStrategy, baseName);
+            addPixelShiftsDynamicallyRequiredByScripts(header, serFile, imageList, width, newHeight);
             broadcast(new AverageImageComputedEvent(new AverageImageComputedEvent.AverageImage(avgImage, polynomial, analysis.leftBorder().orElse(0), analysis.rightBorder().orElse(width), processParams)));
             LOGGER.info(message("starting.reconstruction"));
             LOGGER.info(message("distortion.polynomial"), polynomial);
@@ -405,6 +405,7 @@ public class SolexVideoProcessor implements Broadcaster {
                     long unitSd = System.nanoTime();
                     var outputs = performImageReconstruction(converter, reader, 0, end, geometry, width, height, polynomial, current, totalImages, imageNamingStrategy, batch.toArray(new WorkflowState[0]));
                     maybeProduceRedshiftDetectionImages(outputs.redshifts, width, height, reader, converter, geometry, polynomial, imageNamingStrategy, baseName);
+                    maybeGenerateEllermanBombSpectrumImages(converter, reader, geometry, width, height, imageNamingStrategy, outputs.flares);
                     if (redshifts == null && outputs.redshifts != null) {
                         redshifts = new Redshifts(outputs.redshifts);
                     }
@@ -558,7 +559,7 @@ public class SolexVideoProcessor implements Broadcaster {
         ));
     }
 
-    private void addPixelShiftsDynamicallyRequiredByScripts(ImageConverter<float[][]> converter, Header header, Double fps, File serFile, List<WorkflowState> imageList, int end, int width, int newHeight, ImageGeometry geometry, int height, DoubleUnaryOperator polynomial, FileNamingStrategy imageNamingStrategy, String baseName) {
+    private void addPixelShiftsDynamicallyRequiredByScripts(Header header, File serFile, List<WorkflowState> imageList, int width, int newHeight) {
         List<File> scripts = processParams.requestedImages().mathImages().scriptFiles();
         if (!scripts.isEmpty()) {
             // add missing shifts
@@ -1438,9 +1439,6 @@ public class SolexVideoProcessor implements Broadcaster {
                 state.recordResult(WorkflowResults.RECONSTRUCTED, recon);
                 state.recordResult(WorkflowResults.BORDERS, borders);
             }
-            if (!phenomenaDetector.getFlares().flares().isEmpty()) {
-                generateEllermanBombSpectrumImages(converter, reader, geometry, width, height, imageNamingStrategy, phenomenaDetector);
-            }
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
             throw new ProcessingException(e);
@@ -1455,18 +1453,24 @@ public class SolexVideoProcessor implements Broadcaster {
         );
     }
 
-    private void generateEllermanBombSpectrumImages(ImageConverter<float[][]> converter,
-                                                    SerFileReader reader,
-                                                    ImageGeometry geometry,
-                                                    int width,
-                                                    int height,
-                                                    FileNamingStrategy imageNamingStrategy,
-                                                    PhenomenaDetector phenomenaDetector) {
-        var flares = phenomenaDetector.getFlares().flares();
+    private void maybeGenerateEllermanBombSpectrumImages(ImageConverter<float[][]> converter,
+                                                         SerFileReader reader,
+                                                         ImageGeometry geometry,
+                                                         int width,
+                                                         int height,
+                                                         FileNamingStrategy imageNamingStrategy,
+                                                         Flares flares) {
+        if (flares == null) {
+            return;
+        }
+        var flareList = flares.flares();
+        if (flareList.isEmpty()) {
+            return;
+        }
         var imageEmitter = createDefaultImageEmitter(imageNamingStrategy);
         int ebIdx = 0;
         int flareIdx = 0;
-        for (var flare : flares) {
+        for (var flare : flareList) {
             int id;
             if (flare.kind() == Flare.Kind.ELLERMAN_BOMB) {
                 ebIdx++;
