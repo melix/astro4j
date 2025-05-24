@@ -18,6 +18,7 @@
 - Fixed angle P correction being wrongly applied to spectrum images in flare/ellerman bombs detection
 - Process 2 files in parallel in batch mode
 - Fixed position of ellipse when image is rescaled
+- Fixed clipped disk when trimming SER files
 
 ### 3.2.0
 

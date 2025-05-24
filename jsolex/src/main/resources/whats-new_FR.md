@@ -18,6 +18,7 @@
 - Correction de la rotation qui était appliquée aux images de spectre dans la détection d'éruption / bombes d'Ellerman si la correction d'angle P était activée
 - Traitement de 2 fichiers en parallèle en mode batch
 - Correction de la position de l'ellipse lorsque l'image est redimensionnée
+- Correction du disque tronqué lors de la réduction de fichiers SER
 
 ### 3.2.0
 

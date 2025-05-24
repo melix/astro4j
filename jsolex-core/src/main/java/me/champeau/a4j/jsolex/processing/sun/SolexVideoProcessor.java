@@ -502,21 +502,19 @@ public class SolexVideoProcessor implements Broadcaster {
         }
         if (!JSOLEX_RECORDER.equals(header.fileId()) && maybePolynomial.isPresent()) {
             imageList.stream()
-                    .flatMap(workflowState -> workflowState.findResult(WorkflowResults.GEOMETRY_CORRECTION).stream())
+                    .flatMap(workflowState -> workflowState.findResult(WorkflowResults.INITIAL_ELLIPSE_FITTING).stream())
                     .findFirst()
                     .ifPresent(result -> {
-                        if (result instanceof GeometryCorrector.Result geo) {
-                            var boundingBox = geo.originalEllipse().boundingBox();
+                        if (result instanceof Ellipse e) {
+                            var boundingBox = e.boundingBox();
                             var x1 = boundingBox.a();
                             var y1 = boundingBox.c();
                             var x2 = boundingBox.b();
                             var y2 = boundingBox.d();
-                            // Fix the bounding box according to the left rotaton which happened
-                            // before geometry correction
-                            var firstFrame = (int) (newHeight - x2);
-                            var lastFrame = (int) (newHeight - x1);
+                            var firstFrame = (int) y1;
+                            var lastFrame = (int) y2;
                             var marginFrames = 10 * (lastFrame - firstFrame) / 100;
-                            var marginWidth = 10 * (y2 - y1) / 100;
+                            var marginWidth = 10 * (x2 - x1) / 100;
                             var lambda0 = processParams.spectrumParams().ray().wavelength();
                             var observationDetails = processParams.observationDetails();
                             var instrument = observationDetails.instrument();
@@ -531,8 +529,8 @@ public class SolexVideoProcessor implements Broadcaster {
                                     Math.min(lastFrame + marginFrames, newHeight - 1),
                                     (int) Math.abs(pixelShiftRange.minPixelShift()),
                                     (int) Math.abs(pixelShiftRange.maxPixelShift()),
-                                    (int) Math.max(0, y1 - marginWidth),
-                                    (int) Math.min(y2 + marginWidth, width - 1),
+                                    (int) Math.max(0, x1 - marginWidth),
+                                    (int) Math.min(x2 + marginWidth, width - 1),
                                     maybePolynomial.get(),
                                     processParams.geometryParams().isSpectrumVFlip(),
                                     newHeight,
@@ -657,6 +655,7 @@ public class SolexVideoProcessor implements Broadcaster {
         imageList.stream()
                 .parallel()
                 .forEach(i -> {
+                    initialFit.ifPresent(e -> i.recordResult(WorkflowResults.INITIAL_ELLIPSE_FITTING, e));
                     double pg = ((double) progress.incrementAndGet()) / imageList.size();
                     prepareImageForCorrections(i, header, initialFit.orElse(null), imageEmitterFactory.newEmitter(this, outputDirectory));
                     broadcast(prepareOperation.update(pg));
