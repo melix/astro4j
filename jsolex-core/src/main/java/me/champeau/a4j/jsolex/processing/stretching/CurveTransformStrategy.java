@@ -22,10 +22,18 @@ import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 public final class CurveTransformStrategy implements StretchingStrategy {
     private final double in;
     private final double out;
+    private final double protectLo;
+    private final double protectHi;
 
     public CurveTransformStrategy(double in, double out) {
+        this(in, out, 0, Constants.MAX_PIXEL_VALUE);
+    }
+
+    public CurveTransformStrategy(double in, double out, double protectLo, double protectHi) {
         this.in = in;
         this.out = out;
+        this.protectLo = protectLo;
+        this.protectHi = protectHi;
     }
 
     public double getIn() {
@@ -46,7 +54,9 @@ public final class CurveTransformStrategy implements StretchingStrategy {
             var line = data[y];
             for (int x = 0; x < width; x++) {
                 var v = line[x];
-                line[x] = (float) Math.clamp(curve.applyAsDouble(v), 0, Constants.MAX_PIXEL_VALUE);
+                if (v>protectLo && v < protectHi) {
+                    line[x] = (float) Math.clamp(curve.applyAsDouble(v), 0, Constants.MAX_PIXEL_VALUE);
+                }
             }
         }
     }

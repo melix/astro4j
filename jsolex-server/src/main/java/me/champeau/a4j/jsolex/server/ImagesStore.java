@@ -19,7 +19,7 @@ import jakarta.inject.Singleton;
 import me.champeau.a4j.jsolex.processing.event.ImageGeneratedEvent;
 import me.champeau.a4j.jsolex.processing.event.ProcessingEventListener;
 import me.champeau.a4j.jsolex.processing.params.ProcessParams;
-import me.champeau.a4j.jsolex.processing.stretching.LinearStrechingStrategy;
+import me.champeau.a4j.jsolex.processing.stretching.RangeExpansionStrategy;
 import me.champeau.a4j.jsolex.processing.sun.workflow.DisplayCategory;
 import me.champeau.a4j.jsolex.processing.sun.workflow.GeneratedImageKind;
 import me.champeau.a4j.jsolex.processing.sun.workflow.SourceInfo;
@@ -55,7 +55,7 @@ public class ImagesStore implements ProcessingEventListener {
         this.listeners = listeners;
         var params = ProcessParams.loadDefaults();
         this.saver = new ImageSaver(
-            LinearStrechingStrategy.DEFAULT,
+            RangeExpansionStrategy.DEFAULT,
             params.withExtraParams(params.extraParams().withImageFormats(Set.of(ImageFormat.JPG)))
         );
     }

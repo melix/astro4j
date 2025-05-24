@@ -16,10 +16,8 @@
 package me.champeau.a4j.jsolex.processing.stretching;
 
 import me.champeau.a4j.jsolex.processing.color.ColorCurve;
-import me.champeau.a4j.jsolex.processing.expr.impl.Utilities;
 import me.champeau.a4j.jsolex.processing.sun.BackgroundRemoval;
 import me.champeau.a4j.jsolex.processing.sun.tasks.ImageAnalysis;
-import me.champeau.a4j.jsolex.processing.sun.workflow.AnalysisUtils;
 import me.champeau.a4j.jsolex.processing.util.Histogram;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 import me.champeau.a4j.math.regression.Ellipse;
@@ -30,9 +28,6 @@ import org.slf4j.LoggerFactory;
 import java.util.Map;
 import java.util.function.DoubleUnaryOperator;
 
-import static java.lang.Math.clamp;
-import static java.lang.Math.pow;
-import static me.champeau.a4j.jsolex.processing.expr.impl.AdjustContrast.equalize;
 import static me.champeau.a4j.jsolex.processing.util.Constants.MAX_PIXEL_VALUE;
 
 public final class AutohistogramStrategy implements StretchingStrategy {
@@ -40,10 +35,10 @@ public final class AutohistogramStrategy implements StretchingStrategy {
     public static final double DEFAULT_BACKGROUND_THRESHOLD = 0.5;
     public static final double DEFAULT_PROM_STRETCH = 0;
 
-    private static final float BLEND_START = 1.00f;
-    private static final float BLEND_END = 1.02f;
-    private static final int TARGET_AVG = 12000;
+    private static final int TARGET_AVG = 18000;
     private static final DoubleUnaryOperator BRIGHTNESS_ENHANCE = ColorCurve.cachedPolynomial(100, 128);
+    private static final ClaheStrategy CLAHE_STRATEGY = new ClaheStrategy(16, 64, 1.1);
+    private static final StretchingStrategy PROTUS_STRATEGY = new ClaheStrategy(8, 64, 0.8);
 
     public static final double DEFAULT_GAMMA = 1.5;
 
@@ -75,99 +70,103 @@ public final class AutohistogramStrategy implements StretchingStrategy {
      */
     @Override
     public void stretch(ImageWrapper32 image) {
-        var disk = image.copy();
         var height = image.height();
         var width = image.width();
-        var diskData = disk.data();
         var ellipse = image.findMetadata(Ellipse.class);
+        var output = image.data();
         if (ellipse.isPresent()) {
             var e = ellipse.get();
-            var blackPoint = (float) Math.min(AnalysisUtils.estimateBackgroundLevel(diskData, 1024), AnalysisUtils.estimateBlackPoint(disk, e));
-            var cx = e.center().a();
-            var cy = e.center().b();
-            var semiAxis = e.semiAxis();
-            var radius = (semiAxis.a() + semiAxis.b()) / 2;
-            var analysis = ImageAnalysis.of(disk, false);
-            var max = analysis.max();
-            var protus = new float[height][width];
-            var stretchedBp = stretch(blackPoint, max);
+            var bgNeutralized = iterativeBgNeutralize(image, e, width, height);
+            var clahe = bgNeutralized.copy();
+            CLAHE_STRATEGY.stretch(clahe);
+            var eclipse = createEclipse(bgNeutralized, e.rescale(1.005, 1.005), width, height);
+            PROTUS_STRATEGY.stretch(eclipse);
+            var eclipseData = eclipse.data();
+            var expand = ColorCurve.cachedPolynomial(16, (int) Math.clamp(16 * (1 + protusStretch), 16, 255));
             for (int y = 0; y < height; y++) {
                 for (int x = 0; x < width; x++) {
-                    var v = diskData[y][x];
-                    var dist = Utilities.normalizedDistanceToCenter(x, y, cx, cy, radius);
-                    var stretch = stretch(v, max);
-                    if (dist >= BLEND_START && dist <= BLEND_END) {
-                        protus[y][x] = v;
-                        diskData[y][x] = stretch;
-                    } else if (dist <= BLEND_END) {
-                        diskData[y][x] = stretch;
-                    } else {
-                        diskData[y][x] = stretch;
-                        protus[y][x] = v;
-                    }
+                    eclipseData[y][x] = (float) expand.applyAsDouble(eclipseData[y][x]);
                 }
             }
-            analysis = ImageAnalysis.of(disk, true);
-            equalize(disk, analysis, TARGET_AVG, 2000);
-            analysis = ImageAnalysis.of(disk, true);
+            var claheData = blend(clahe.data(), eclipseData, width, height, 0.6);
+            new GammaStrategy(gamma).stretch(bgNeutralized);
+            var blended = blend(bgNeutralized.data(), claheData, width, height, 0.8);
             for (int y = 0; y < height; y++) {
-                for (int x = 0; x < width; x++) {
-                    diskData[y][x] = diskData[y][x] - analysis.min();
-                }
-            }
-            // Grow ellipse by 1% to better estimate background
-            var rescaledEllipse = e.rescale(1.05, 1.05);
-            var protusImage = new ImageWrapper32(width, height, protus, Map.of(Ellipse.class, rescaledEllipse));
-            var stats = ImageAnalysis.of(protusImage, false);
-            Ellipse bgEllipse = e;
-            while (stats.avg() / stats.stddev() > backgroundThreshold) {
-                // only remove from disk for the first iteration!
-                neutralizeBg(disk, 2, 1.5, 0.8f, bgEllipse);
-                bgEllipse = null;
-                if (neutralizeBg(protusImage, 2, 1.5, 0.8f, null) == 0) {
-                    break;
-                }
-                stats = ImageAnalysis.of(protusImage, false);
-            }
-            if (protusStretch > 0) {
-                stretchProtus(protusImage, blackPoint);
-            }
-            for (int y = 0; y < height; y++) {
-                for (int x = 0; x < width; x++) {
-                    var dist = Utilities.normalizedDistanceToCenter(x, y, cx, cy, radius);
-                    var prominenceValue = protus[y][x];
-                    if (dist >= BLEND_START && dist <= BLEND_END) {
-                        // Smooth transition using a cosine blend
-                        var alpha = Math.pow(0.5 * (1 + Math.cos(Math.PI * (dist - BLEND_START) / (BLEND_END - BLEND_START))),2);
-                        diskData[y][x] = (float) (alpha * diskData[y][x] + (1 - alpha) * prominenceValue);
-                    } else if (dist >= BLEND_END) {
-                        diskData[y][x] = prominenceValue;
-                    }
-                }
-            }
-
-            for (int y = 0; y < height; y++) {
-                System.arraycopy(diskData[y], 0, image.data()[y], 0, width);
-            }
-        } else {
-            new GammaStrategy(gamma).stretch(disk);
-            for (int y = 0; y < height; y++) {
-                System.arraycopy(diskData[y], 0, image.data()[y], 0, width);
+                System.arraycopy(blended[y], 0, output[y], 0, width);
             }
         }
-        diskData = image.data();
-        clamping(diskData, 0, .9998).stretch(image);
-        LinearStrechingStrategy.DEFAULT.stretch(image);
-        maybeAdjustBrightness(image, height, width, diskData);
+        clamping(output, 0, .9998).stretch(image);
+        maybeAdjustBrightness(image, height, width, output);
+        RangeExpansionStrategy.DEFAULT.stretch(image);
     }
 
-    private float stretch(float v, float max) {
-        float normalized = v / max;
-        var gammaCorrected = (float) pow(normalized, gamma) * MAX_PIXEL_VALUE;
-        if (Float.isNaN(gammaCorrected)) {
-            return 0;
+    private static float[][] blend(float[][] img1, float[][] img2, int width, int height, double alpha) {
+        double beta = 1 - alpha;
+        var blended = new float[height][width];
+        for (int y = 0; y < height; y++) {
+            for (int x = 0; x < width; x++) {
+                var v1 = img1[y][x];
+                var v2 = img2[y][x];
+                blended[y][x] = (float) (alpha * v1 + beta * v2);
+            }
         }
-        return clamp(gammaCorrected, 0, MAX_PIXEL_VALUE);
+        return blended;
+    }
+
+    private static ImageWrapper32 createEclipse(ImageWrapper32 denoised, Ellipse e, int width, int height) {
+        var eclipse = denoised.copy();
+        var bb = e.boundingBox();
+        var minX = (int) Math.max(0, bb.a());
+        var maxX = (int) Math.min(width - 1, bb.b());
+        var minY = (int) Math.max(0, bb.c());
+        var maxY = (int) Math.min(height - 1, bb.d());
+        for (int y = minY; y < maxY; y++) {
+            for (int x = minX; x < maxX; x++) {
+                if (e.isWithin(x, y)) {
+                    eclipse.data()[y][x] = 0;
+                }
+            }
+        }
+        return eclipse;
+    }
+
+    private ImageWrapper32 iterativeBgNeutralize(ImageWrapper32 image, Ellipse e, int width, int height) {
+        var denoised = image.copy();
+        if (backgroundThreshold >= 1) {
+            return image;
+        }
+        var rescaledEllipse = e.rescale(1.05, 1.05);
+        denoised = new ImageWrapper32(width, height, denoised.data(), Map.of(Ellipse.class, rescaledEllipse));
+        var eclipse = createEclipse(denoised, rescaledEllipse, width, height);
+        var prevBg = Double.MAX_VALUE;
+        var smoothing = (float) (1 - backgroundThreshold);
+        var pedestral = -1d;
+        int maxIterations = 25;
+        boolean foundPedestral = false;
+        while (--maxIterations >= 0) {
+            var copy = denoised.copy();
+            neutralizeBg(copy, 2, 1.5, smoothing, null);
+            double bg = neutralizeBg(eclipse, 2, 1.5, smoothing, null);
+            if (bg == 0 || bg > prevBg) {
+                break;
+            }
+            LOGGER.debug("Background neutralization: {} -> {}", prevBg, bg);
+            prevBg = bg;
+            denoised = copy;
+            if (pedestral == -1 || (!foundPedestral && bg < 0.5 * pedestral)) {
+                pedestral = bg;
+            } else {
+                foundPedestral = true;
+            }
+        }
+        // Background neutralization can result in the image being clamped to 0, which is unnatural,
+        // so we're adding a pedestal to the image.
+        for (int y = 0; y < height; y++) {
+            for (int x = 0; x < width; x++) {
+                denoised.data()[y][x] += pedestral / 2;
+            }
+        }
+        return denoised;
     }
 
     private void maybeAdjustBrightness(ImageWrapper32 image, int height, int width, float[][] diskData) {
@@ -192,19 +191,6 @@ public final class AutohistogramStrategy implements StretchingStrategy {
         }
     }
 
-    private void stretchProtus(ImageWrapper32 protusImage, float blackPoint) {
-        int height = protusImage.height();
-        int width = protusImage.width();
-
-        var protus = protusImage.data();
-        var asinh = new ArcsinhStretchingStrategy(blackPoint, (float) protusStretch, protusStretch);
-        for (int y = 0; y < height; y++) {
-            for (int x = 0; x < width; x++) {
-                protus[y][x] = asinh.stretchPixel(protus[y][x]);
-            }
-        }
-    }
-
     public static double neutralizeBg(ImageWrapper32 disk, int degree, double sigma, float smoothing, Ellipse e) {
         var diskData = disk.data();
         var optionalModel = BackgroundRemoval.backgroundModel(disk, degree, sigma);
@@ -216,7 +202,8 @@ public final class AutohistogramStrategy implements StretchingStrategy {
                     float v = data[y][x];
                     avg += v;
                     if (e == null || !e.isWithin(x, y)) {
-                        diskData[y][x] = Math.clamp(diskData[y][x] - smoothing * v, 0, MAX_PIXEL_VALUE);
+                        float smoothed = smoothing * v;
+                        diskData[y][x] = Math.clamp(diskData[y][x] - smoothed, 0, MAX_PIXEL_VALUE);
                     }
                 }
             }

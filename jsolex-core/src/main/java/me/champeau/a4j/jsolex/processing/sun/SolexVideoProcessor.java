@@ -143,7 +143,7 @@ import static me.champeau.a4j.ser.SerFileReader.JSOLEX_RECORDER;
 
 public class SolexVideoProcessor implements Broadcaster {
     private static final Logger LOGGER = LoggerFactory.getLogger(SolexVideoProcessor.class);
-    public static final int INMEMORY_BUFFERS_PER_CORE = 16;
+    public static final int INMEMORY_BUFFERS_PER_CORE = 64;
     public static final int BATCH_LINES = 128;
 
     private final Set<ProcessingEventListener> progressEventListeners = new HashSet<>();

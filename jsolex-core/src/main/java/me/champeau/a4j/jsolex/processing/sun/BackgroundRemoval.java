@@ -251,7 +251,35 @@ public class BackgroundRemoval {
         return Optional.of(new ImageWrapper32(width, height, background, new HashMap<>(image.metadata())));
     }
 
+    private static double[] generatePolynomialTermsDeg1(double x, double y, int width, int height) {
+        double xNorm = x / (width - 1);
+        double yNorm = y / (height - 1);
+        return new double[] {
+                1.0,
+                xNorm,
+                yNorm
+        };
+    }
+
+    private static double[] generatePolynomialTermsDeg2(double x, double y, int width, int height) {
+        double xNorm = x / (width - 1);
+        double yNorm = y / (height - 1);
+        return new double[] {
+                1.0,
+                xNorm,
+                yNorm,
+                xNorm * xNorm,
+                xNorm * yNorm,
+                yNorm * yNorm
+        };
+    }
+
     private static double[] generatePolynomialTerms(double x, double y, int width, int height, int degree) {
+        if (degree == 1) {
+            return generatePolynomialTermsDeg1(x, y, width, height);
+        } else if (degree == 2) {
+            return generatePolynomialTermsDeg2(x, y, width, height);
+        }
         int termCount = (degree + 1) * (degree + 2) / 2;
         var terms = new double[termCount];
         double xNorm = x / (width - 1);

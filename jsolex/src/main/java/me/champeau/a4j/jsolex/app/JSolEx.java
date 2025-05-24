@@ -164,6 +164,7 @@ import java.util.Optional;
 import java.util.Scanner;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
@@ -1478,40 +1479,43 @@ public class JSolEx implements JSolExInterface {
                         Collections.synchronizedMap(new HashMap<>()),
                         Collections.synchronizedMap(new HashMap<>()),
                         header);
-                for (int fileIdx = 0; fileIdx < selectedFiles.size(); fileIdx++) {
-                    if (Thread.currentThread().isInterrupted() || interrupted.get()) {
-                        Thread.currentThread().interrupt();
-                        interrupted.set(true);
-                        break;
-                    }
-                    var selectedFile = selectedFiles.get(fileIdx);
-                    var singleOperation = progressOperation.createChild(selectedFile.getName());
-                    updateProgress(singleOperation);
-                    try {
-                        processSingleFile(params, singleOperation.update(((double) fileIdx) / selectedFiles.size()), selectedFile, true, fileIdx, batchContext, header, () -> {
-                            if (autoTrimSerFile && !interrupted.get()) {
-                                var outputFile = toTrimmedFile(trimmingParameters.serFile());
-                                SerFileTrimmer.trimFile(
-                                        trimmingParameters.serFile(),
-                                        outputFile,
-                                        trimmingParameters.firstFrame(),
-                                        trimmingParameters.lastFrame(),
-                                        trimmingParameters.pixelsUp(),
-                                        trimmingParameters.pixelsDown(),
-                                        trimmingParameters.minX(),
-                                        trimmingParameters.maxX(),
-                                        trimmingParameters.polynomial(),
-                                        trimmingParameters.verticalFlip(),
-                                        progress -> Platform.runLater(() -> updateProgress(
-                                                progress,
-                                                I18N.string(JSolEx.class, "ser-trimmer", "trimming")
-                                        ))
-                                );
-                                SerFileTrimmerController.maybeCopyMetadata(trimmingParameters.serFile());
-                            }
-                        });
-                    } finally {
-                        updateProgress(singleOperation.complete());
+                try (var executor = Executors.newFixedThreadPool(2)) {
+                    for (int fileIdx = 0; fileIdx < selectedFiles.size(); fileIdx++) {
+                        if (Thread.currentThread().isInterrupted() || interrupted.get()) {
+                            Thread.currentThread().interrupt();
+                            interrupted.set(true);
+                            break;
+                        }
+                        var selectedFile = selectedFiles.get(fileIdx);
+                        var singleOperation = progressOperation.createChild(selectedFile.getName());
+                        updateProgress(singleOperation);
+                        try {
+                            int finalFileIdx = fileIdx;
+                            executor.submit(() -> processSingleFile(params, singleOperation.update(((double) finalFileIdx) / selectedFiles.size()), selectedFile, true, finalFileIdx, batchContext, header, () -> {
+                                if (autoTrimSerFile && !interrupted.get()) {
+                                    var outputFile = toTrimmedFile(trimmingParameters.serFile());
+                                    SerFileTrimmer.trimFile(
+                                            trimmingParameters.serFile(),
+                                            outputFile,
+                                            trimmingParameters.firstFrame(),
+                                            trimmingParameters.lastFrame(),
+                                            trimmingParameters.pixelsUp(),
+                                            trimmingParameters.pixelsDown(),
+                                            trimmingParameters.minX(),
+                                            trimmingParameters.maxX(),
+                                            trimmingParameters.polynomial(),
+                                            trimmingParameters.verticalFlip(),
+                                            progress -> Platform.runLater(() -> updateProgress(
+                                                    progress,
+                                                    I18N.string(JSolEx.class, "ser-trimmer", "trimming")
+                                            ))
+                                    );
+                                    SerFileTrimmerController.maybeCopyMetadata(trimmingParameters.serFile());
+                                }
+                            }));
+                        } finally {
+                            updateProgress(singleOperation.complete());
+                        }
                     }
                 }
             } finally {

@@ -17,6 +17,16 @@ arguments:
     description:
       fr: "Valeur de sortie de la courbe (0-255)"
       en: "Output value of the curve (0-255)"
+  - name: protectLo
+    required: false
+    description:
+      fr: "Valeur de protection basse (0-255)"
+      en: "Low protection value (0-255)"
+  - name:  protectHi
+    required: false
+    description:
+      fr: "Valeur de protection haute (0-255)"
+      en: "High protection value (0-255)"
 examples:
   - "curve_transform(img(0), 100, 120)"
   - "curve_transform(img: img(0), in:50, out: 200)"
