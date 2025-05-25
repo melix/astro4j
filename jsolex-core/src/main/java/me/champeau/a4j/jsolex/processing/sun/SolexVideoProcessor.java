@@ -792,7 +792,7 @@ public class SolexVideoProcessor implements Broadcaster {
         for (var line : reconstructed.data()) {
             for (float v : line) {
                 if (v == 0) {
-                    LOGGER.warn(message("zero.pixel.warning"));
+                    LOGGER.debug(message("zero.pixel.warning"));
                     return removeZeroPixels(reconstructed);
                 }
             }
