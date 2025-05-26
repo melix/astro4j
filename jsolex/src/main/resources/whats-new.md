@@ -12,6 +12,10 @@
 
 ## Changes since 3.0.0
 
+### 3.2.2
+
+- Optimize performance in full processing mode
+
 ### 3.2.1
 
 - Fixed autostretch to be less aggressive on prominences, providing a better transition between the disk and the prominences

@@ -12,6 +12,10 @@
 
 ## Changements depuis la 3.0.0
 
+### 3.2.2
+
+- Optimisation des performances en mode traitement complet
+
 ### 3.2.1
 
 - Modification de l'autostretch pour être moins agressif sur les protubérances

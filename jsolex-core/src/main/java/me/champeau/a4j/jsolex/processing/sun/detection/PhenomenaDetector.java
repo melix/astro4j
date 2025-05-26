@@ -50,7 +50,6 @@ import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.DoubleUnaryOperator;
 import java.util.stream.Collectors;
-import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
 public class PhenomenaDetector {
@@ -76,6 +75,7 @@ public class PhenomenaDetector {
     private final Dispersion dispersion;
     private final Wavelen lambda0;
     private final int reconstructedWidth;
+    private final ImageMath imageMath = ImageMath.newInstance();
 
     private List<Flare> flares;
     private PhenomenaListener detectionListener;
@@ -168,9 +168,7 @@ public class PhenomenaDetector {
             var columnsAverages = new double[width];
             var columnsStddevs = new double[width];
             // reduce noise
-            var blurred = ImageMath.newInstance()
-                    .convolve(new Image(width, height, original), Kernel33.GAUSSIAN_BLUR)
-                    .data();
+            var blurred = imageMath.convolve(new Image(width, height, original), Kernel33.GAUSSIAN_BLUR).data();
             for (int x = left; x < right; x++) {
                 var columnAvg = columnAverage(x, height, original);
                 columnStats[x] = computeColumnStatsForEllermanDetection(frameId, x, height, blurred, polynomial);
@@ -184,21 +182,7 @@ public class PhenomenaDetector {
                 avgCenterLine += v;
                 avgCenterCount++;
             }
-            var avgPoints = new ArrayList<Point2D>();
-            var stddevPoints = new ArrayList<Point2D>();
-            for (int x = left; x < right; x++) {
-                var avg = columnsAverages[x];
-                avgPoints.add(new Point2D(x, avg));
-                double stddev = 0;
-                for (int y = 0; y < height; y++) {
-                    var delta = original[y][x] - avg;
-                    stddev += delta * delta;
-                }
-                columnsStddevs[x] = Math.sqrt(stddev / height);
-                stddevPoints.add(new Point2D(x, columnsStddevs[x]));
-            }
-            var avgModel = LinearRegression.thirdOrderRegression(avgPoints.toArray(Point2D[]::new)).asPolynomial();
-            var stddevModel = LinearRegression.thirdOrderRegression(stddevPoints.toArray(Point2D[]::new)).asPolynomial();
+            var models = computeColumnModels(height, original, left, right, columnsAverages, columnsStddevs);
             avgOfColumnAverages /= range;
             avgCenterLine /= avgCenterCount;
             // perform per column analysis
@@ -213,9 +197,9 @@ public class PhenomenaDetector {
             int rightBorder = right;
             borderPoints.add(new Point2D(leftBorder, frameId));
             borderPoints.add(new Point2D(rightBorder, frameId));
-            IntStream.range(left, right)
-                    .parallel()
-                    .forEach(x -> analyzeColumn(frameId, x, width, height, original, polynomial, wingShiftInPixels, collector, finalAvgCenterLine, finalAvgOfColumnAverages, columnsAverages, columnsStddevs, avgModel, stddevModel, activeRegionsMask, columnStats, globalLineAvgForEllermanDetection, globalWingAvgForEllermanDetection, leftBorder, rightBorder));
+            for (int x=left; x<=right; x++) {
+                analyzeColumn(frameId, x, width, height, original, polynomial, wingShiftInPixels, collector, finalAvgCenterLine, finalAvgOfColumnAverages, columnsAverages, columnsStddevs, models.avgModel(), models.stddevModel(), activeRegionsMask, columnStats, globalLineAvgForEllermanDetection, globalWingAvgForEllermanDetection, leftBorder, rightBorder);
+            }
             if (!collector.isEmpty()) {
                 redshiftsPerFrame.put(frameId, Collections.unmodifiableList(collector));
             }
@@ -223,6 +207,28 @@ public class PhenomenaDetector {
                 activeRegionsPerFrame.put(frameId, activeRegionsMask);
             }
         });
+    }
+
+    private static ColumnModels computeColumnModels(int height, float[][] original, int left, int right, double[] columnsAverages, double[] columnsStddevs) {
+        var avgPoints = new ArrayList<Point2D>(right-left);
+        var stddevPoints = new ArrayList<Point2D>(right-left);
+        for (int x = left; x < right; x++) {
+            var avg = columnsAverages[x];
+            avgPoints.add(new Point2D(x, avg));
+            double stddev = 0;
+            for (int y = 0; y < height; y++) {
+                var delta = original[y][x] - avg;
+                stddev += delta * delta;
+            }
+            columnsStddevs[x] = Math.sqrt(stddev / height);
+            stddevPoints.add(new Point2D(x, columnsStddevs[x]));
+        }
+        var avgModel = LinearRegression.thirdOrderRegression(avgPoints.toArray(Point2D[]::new)).asPolynomial();
+        var stddevModel = LinearRegression.thirdOrderRegression(stddevPoints.toArray(Point2D[]::new)).asPolynomial();
+        return new ColumnModels(avgModel, stddevModel);
+    }
+
+    private record ColumnModels(DoubleUnaryOperator avgModel, DoubleUnaryOperator stddevModel) {
     }
 
     private static double stddev(float[][] data, int width, int height, int startX, int endX) {

@@ -15,7 +15,6 @@
  */
 package me.champeau.a4j.jsolex.processing.sun;
 
-import me.champeau.a4j.jsolex.processing.event.ProgressEvent;
 import me.champeau.a4j.jsolex.processing.event.ProgressOperation;
 import me.champeau.a4j.jsolex.processing.util.ParallelExecutor;
 import me.champeau.a4j.jsolex.processing.util.ProcessingException;
@@ -99,7 +98,7 @@ public class AverageImageCreator {
         var sampling = Math.max(10, frameCount / 100);
         var means = new float[1 + frameCount / sampling];
         broadcaster.broadcast(progressOperation.update(0 / (double) frameCount));
-        try (var executor = Executors.newFixedThreadPool(IO_PARALLELISM)) {
+        try (var executor = Executors.newFixedThreadPool(IO_PARALLELISM); var averager = Executors.newWorkStealingPool()) {
             for (int i = 0; i < frameCount; i += sampling) {
                 reader.seekFrame(i);
                 var img = imageConverter.createBuffer(geometry);
@@ -109,7 +108,7 @@ public class AverageImageCreator {
                 int finalI = i;
                 executor.submit(() -> {
                     imageConverter.convert(finalI, ByteBuffer.wrap(copy), geometry, img);
-                    means[finalI/sampling] = imageMath.averageOf(img);
+                    averager.submit(() -> means[finalI/sampling] = imageMath.averageOf(img));
                 });
             }
         } catch (Exception e) {
