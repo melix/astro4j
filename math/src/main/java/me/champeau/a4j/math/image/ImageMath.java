@@ -148,9 +148,9 @@ public interface ImageMath {
                     var val21 = data[sourceY1][sourceX2];
                     var val22 = data[sourceY2][sourceX2];
                     var interpVal = (float) ((1 - fracX) * (1 - fracY) * val11 +
-                                             fracX * (1 - fracY) * val21 +
-                                             (1 - fracX) * fracY * val12 +
-                                             fracX * fracY * val22);
+                            fracX * (1 - fracY) * val21 +
+                            (1 - fracX) * fracY * val12 +
+                            fracX * fracY * val22);
                     output[y][x] = interpVal;
                 }
             }
@@ -196,9 +196,9 @@ public interface ImageMath {
                     var val21 = data[sourceY1][sourceX2];
                     var val22 = data[sourceY2][sourceX2];
                     var interpVal = (float) ((1 - fracX) * (1 - fracY) * val11 +
-                                             fracX * (1 - fracY) * val21 +
-                                             (1 - fracX) * fracY * val12 +
-                                             fracX * fracY * val22);
+                            fracX * (1 - fracY) * val21 +
+                            (1 - fracX) * fracY * val12 +
+                            fracX * fracY * val22);
                     output[y][x] = interpVal;
                 } else {
                     int prevSX = Math.min(Math.max(0, sourceX1), width - 1);
@@ -261,9 +261,9 @@ public interface ImageMath {
                     var val21 = data[sourceY1][sourceX2];
                     var val22 = data[sourceY2][sourceX2];
                     var interpVal = (float) ((1 - fracX) * (1 - fracY) * val11 +
-                                             fracX * (1 - fracY) * val21 +
-                                             (1 - fracX) * fracY * val12 +
-                                             fracX * fracY * val22);
+                            fracX * (1 - fracY) * val21 +
+                            (1 - fracX) * fracY * val12 +
+                            fracX * fracY * val22);
                     output[y][x] = interpVal;
                 }
             }
@@ -316,9 +316,9 @@ public interface ImageMath {
         for (int y = 1; y < height; y++) {
             for (int x = 1; x < width; x++) {
                 integral[y][x] = data[y][x]
-                                 + integral[y - 1][x]
-                                 + integral[y][x - 1]
-                                 - integral[y - 1][x - 1];
+                        + integral[y - 1][x]
+                        + integral[y][x - 1]
+                        - integral[y - 1][x - 1];
             }
         }
 
@@ -356,33 +356,38 @@ public interface ImageMath {
         var source = image.data();
         var height = image.height();
         var width = image.width();
-        var maxX = width - 1;
-        var maxY = height - 1;
-        float[][] convolved = new float[height][width];
-        for (int i = 0; i < convolved.length; i++) {
-            convolved[i] = new float[width];
-        }
-        float[][] krows = kernel.kernel();
-        int kcx = kernel.cols() / 2;
-        int kcy = kernel.rows() / 2;
+        var convolved = new float[height][width];
+
+        var krows = kernel.kernel();
+        var kHeight = krows.length;
+        var kWidth = krows[0].length;
+        var kcx = kWidth / 2;
+        var kcy = kHeight / 2;
+        var factor = kernel.factor();
+
         for (int y = 0; y < height; y++) {
             for (int x = 0; x < width; x++) {
                 float sum = 0;
-                for (int ky = 0; ky < krows.length; ky++) {
-                    float[] kernelRow = krows[ky];
-                    int cy = Math.min(Math.max(y + ky - kcy, 0), maxY);
-                    for (int kx = 0; kx < kernelRow.length; kx++) {
-                        float coef = kernelRow[kx];
-                        int cx = Math.min(Math.max(x + kx - kcx, 0), maxX);
-                        sum += coef * source[cy][cx];
+                for (int ky = 0; ky < kHeight; ky++) {
+                    int sy = y + ky - kcy;
+                    sy = Math.clamp(sy, 0, height - 1);
+                    var kernelRow = krows[ky];
+                    var sourceRow = source[sy];
+                    for (int kx = 0; kx < kWidth; kx++) {
+                        int sx = x + kx - kcx;
+                        sx = Math.clamp(sx, 0, width - 1);
+                        sum += kernelRow[kx] * sourceRow[sx];
                     }
                 }
-                var val = Math.min(Math.max(0, sum * kernel.factor()), MAX_VALUE);
-                convolved[y][x] = val;
+
+                var val = sum * factor;
+                convolved[y][x] = Math.clamp(val, 0, MAX_VALUE);
             }
         }
+
         return image.withData(convolved);
     }
+
 
     default Gradient gradientLT(Image image) {
         var gx = convolve(image, Kernel33.SOBEL_LEFT).data();

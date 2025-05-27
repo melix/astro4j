@@ -82,7 +82,6 @@ import me.champeau.a4j.jsolex.processing.util.FileBackedImage;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 import me.champeau.a4j.jsolex.processing.util.MutableMap;
-import me.champeau.a4j.jsolex.processing.util.ParallelExecutor;
 import me.champeau.a4j.jsolex.processing.util.ProcessingException;
 import me.champeau.a4j.jsolex.processing.util.RGBImage;
 import me.champeau.a4j.jsolex.processing.util.SolarParameters;
@@ -122,11 +121,13 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.TreeSet;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.Executors;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.concurrent.locks.Condition;
+import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.DoubleUnaryOperator;
 import java.util.function.Function;
@@ -143,8 +144,7 @@ import static me.champeau.a4j.ser.SerFileReader.JSOLEX_RECORDER;
 
 public class SolexVideoProcessor implements Broadcaster {
     private static final Logger LOGGER = LoggerFactory.getLogger(SolexVideoProcessor.class);
-    public static final int INMEMORY_BUFFERS_PER_CORE = 64;
-    public static final int BATCH_LINES = 128;
+    public static final int INMEMORY_BUFFERS_PER_CORE = 32;
 
     private final Set<ProcessingEventListener> progressEventListeners = new HashSet<>();
 
@@ -1371,73 +1371,87 @@ public class SolexVideoProcessor implements Broadcaster {
         var hasRedshifts = new AtomicBoolean();
         var hasActiveRegions = new AtomicBoolean();
         var hasFlares = new AtomicBoolean();
-        var latch = new CountDownLatch(end - start);
         var semaphore = new Semaphore(INMEMORY_BUFFERS_PER_CORE * Runtime.getRuntime().availableProcessors());
         var jSolexSer = reader.header().isJSolexTrimmedSer();
         var flat = loadReadFlat(geometry.width(), geometry.height()).orElse(null);
-        try (var executor = ParallelExecutor.newExecutor(Math.max(2, Runtime.getRuntime().availableProcessors()))) {
-            var reconstructedImages = new float[images.length][totalLines][width];
-            for (int i = start, j = 0; i < end; i++, j += 1) {
-                semaphore.acquire();
-                var currentFrame = reader.currentFrame().data().array();
-                byte[] copy = new byte[currentFrame.length];
-                System.arraycopy(currentFrame, 0, copy, 0, currentFrame.length);
-                reader.nextFrame();
-                var original = converter.createBuffer(geometry);
-                int y = j;
-                int frameId = i;
-                executor.submit(() -> {
-                    var progressOperation = newOperation(message("reconstruction"));
-                    try {
-                        // The converter makes sure we only have a single channel
-                        converter.convert(frameId, ByteBuffer.wrap(copy), geometry, original);
-                        if (flat != null) {
-                            applyFlatCorrection(original, flat);
-                        }
-                        IntStream.range(0, images.length).parallel().forEach(idx -> {
-                            try {
+        var detectRedshifts = processParams.spectrumParams().ray().label().equalsIgnoreCase(SpectralRay.H_ALPHA.label()) && processParams.requestedImages().isEnabled(GeneratedImageKind.REDSHIFT);
+        var detectEllermanBombs = processParams.spectrumParams().ray().label().equalsIgnoreCase(SpectralRay.H_ALPHA.label()) && processParams.requestedImages().isEnabled(GeneratedImageKind.ELLERMAN_BOMBS);
+        var detectActiveRegions = forceDetectActiveRegions || processParams.requestedImages().isEnabled(GeneratedImageKind.ACTIVE_REGIONS);
+        var detectBorders = processParams.enhancementParams().jaggingCorrectionParams().enabled();
+        var detectPhenomena = detectBorders || detectRedshifts || detectEllermanBombs || detectActiveRegions;
+        var ops = new TaskCoordinator();
+        int conversionProcs = Runtime.getRuntime().availableProcessors();
+        if (detectPhenomena) {
+            conversionProcs /= 2;
+        }
+        try (var detectionPool = Executors.newFixedThreadPool(Math.max(2, Runtime.getRuntime().availableProcessors()/2))) {
+            try (var conversionPool = Executors.newFixedThreadPool(Math.max(2, conversionProcs))) {
+                var reconstructedImages = new float[images.length][totalLines][width];
+                for (int i = start, j = 0; i < end; i++, j += 1) {
+                    semaphore.acquire();
+                    var currentFrame = reader.currentFrame().data().array();
+                    byte[] copy = new byte[currentFrame.length];
+                    System.arraycopy(currentFrame, 0, copy, 0, currentFrame.length);
+                    reader.nextFrame();
+                    var original = converter.createBuffer(geometry);
+                    int y = j;
+                    int frameId = i;
+                    ops.countUp();
+                    conversionPool.submit(() -> {
+                        var progressOperation = newOperation(message("reconstruction"));
+                        try {
+                            // The converter makes sure we only have a single channel
+                            converter.convert(frameId, ByteBuffer.wrap(copy), geometry, original);
+                            if (flat != null) {
+                                applyFlatCorrection(original, flat);
+                            }
+                            for (int idx = 0; idx < images.length; idx++) {
                                 var state = images[idx];
                                 var buffer = reconstructedImages[idx];
-                                var truncationDetails = new TruncationDetails();
-                                processSingleFrame(state.isInternal(), width, height, buffer, y, original, polynomial, state.pixelShift(), totalLines, jSolexSer, truncationDetails);
-                                if (state.pixelShift() == 0) {
-                                    phenomenaDetector.setDetectBorders(processParams.enhancementParams().jaggingCorrectionParams().enabled());
-                                    phenomenaDetector.setDetectRedshifts(
-                                            processParams.spectrumParams().ray().label().equalsIgnoreCase(SpectralRay.H_ALPHA.label()) && processParams.requestedImages().isEnabled(GeneratedImageKind.REDSHIFT)
-                                    );
-                                    phenomenaDetector.setDetectEllermanBombsOrFlares(
-                                            processParams.spectrumParams().ray().label().equalsIgnoreCase(SpectralRay.H_ALPHA.label()) && processParams.requestedImages().isEnabled(GeneratedImageKind.ELLERMAN_BOMBS)
-                                    );
-                                    phenomenaDetector.setDetectActiveRegions(forceDetectActiveRegions || processParams.requestedImages().isEnabled(GeneratedImageKind.ACTIVE_REGIONS));
-                                    phenomenaDetector.performDetection(frameId, width, height, original, polynomial, reader.header());
-                                    hasRedshifts.set(hasRedshifts.get() || phenomenaDetector.isRedShiftDetectionEnabled());
-                                    hasActiveRegions.set(hasActiveRegions.get() || phenomenaDetector.isActiveRegionsDetectionEnabled());
-                                    hasFlares.set(hasFlares.get() || phenomenaDetector.isEllermanBombsDetectionEnabled());
+                                try {
+                                    var truncationDetails = new TruncationDetails();
+                                    processSingleFrame(state.isInternal(), width, height, buffer, y, original, polynomial, state.pixelShift(), totalLines, jSolexSer, truncationDetails);
+                                    state.setTruncationDetails(truncationDetails);
+                                    if (detectPhenomena && state.pixelShift() == 0) {
+                                        ops.countUp();
+                                        detectionPool.submit(() -> {
+                                            try {
+                                                phenomenaDetector.setDetectBorders(detectBorders);
+                                                phenomenaDetector.setDetectRedshifts(detectRedshifts);
+                                                phenomenaDetector.setDetectEllermanBombsOrFlares(detectEllermanBombs);
+                                                phenomenaDetector.setDetectActiveRegions(detectActiveRegions);
+                                                phenomenaDetector.performDetection(frameId, width, height, original, polynomial, reader.header());
+                                                hasRedshifts.set(hasRedshifts.get() || phenomenaDetector.isRedShiftDetectionEnabled());
+                                                hasActiveRegions.set(hasActiveRegions.get() || phenomenaDetector.isActiveRegionsDetectionEnabled());
+                                                hasFlares.set(hasFlares.get() || phenomenaDetector.isEllermanBombsDetectionEnabled());
+                                            } finally {
+                                                ops.countDown();
+                                            }
+                                        });
+                                    }
+                                } finally {
+                                    broadcast(progressOperation.update(((double) processedCount.incrementAndGet()) / totalCount));
                                 }
-                                state.setTruncationDetails(truncationDetails);
-                            } finally {
-                                broadcast(progressOperation.update(((double) processedCount.incrementAndGet()) / totalCount));
                             }
-                        });
-                    } finally {
-                        semaphore.release();
-                        latch.countDown();
-                        broadcast(progressOperation.complete());
-                    }
-                });
-            }
-
-            latch.await(); // Ensure all tasks have completed
-            if (hasRedshifts.get() && !phenomenaDetector.hasRedshifts()) {
-                LOGGER.warn(message("no.redshifts.detected"));
-            }
-            var borders = phenomenaDetector.getBorderDetection();
-            for (int i = 0; i < images.length; i++) {
-                var state = images[i];
-                var reconstructedImage = reconstructedImages[i];
-                var recon = new ImageWrapper32(width, totalLines, reconstructedImage, MutableMap.of());
-                state.recordResult(WorkflowResults.RECONSTRUCTED, recon);
-                state.recordResult(WorkflowResults.BORDERS, borders);
+                        } finally {
+                            semaphore.release();
+                            broadcast(progressOperation.complete());
+                            ops.countDown();
+                        }
+                    });
+                }
+                ops.awaitZero();
+                if (hasRedshifts.get() && !phenomenaDetector.hasRedshifts()) {
+                    LOGGER.warn(message("no.redshifts.detected"));
+                }
+                var borders = phenomenaDetector.getBorderDetection();
+                for (int i = 0; i < images.length; i++) {
+                    var state = images[i];
+                    var reconstructedImage = reconstructedImages[i];
+                    var recon = new ImageWrapper32(width, totalLines, reconstructedImage, MutableMap.of());
+                    state.recordResult(WorkflowResults.RECONSTRUCTED, recon);
+                    state.recordResult(WorkflowResults.BORDERS, borders);
+                }
             }
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
@@ -1478,7 +1492,7 @@ public class SolexVideoProcessor implements Broadcaster {
                 LOGGER.info(message("ellerman.bomb.detected"), flare.frameId());
             } else {
                 flareIdx++;
-                id=flareIdx;
+                id = flareIdx;
                 LOGGER.info(message("flare.detected"), flare.frameId());
             }
             reader.seekFrame(flare.frameId());
@@ -1512,7 +1526,7 @@ public class SolexVideoProcessor implements Broadcaster {
                             var size = height / 4f;
                             gc.setFont(font.deriveFont(size));
                             gc.drawString("Frame " + flare.frameId(), 16, size);
-                            gc.drawString(String.format(Locale.US, "Score %.2f", flare.score()), 16, 2*size);
+                            gc.drawString(String.format(Locale.US, "Score %.2f", flare.score()), 16, 2 * size);
                             gc.setColor(Color.red);
                             gc.setStroke(new BasicStroke(2));
                             gc.drawRect(flare.sourceX() - margin, 0, margin * 2 + 1, height - 1);
@@ -1600,45 +1614,39 @@ public class SolexVideoProcessor implements Broadcaster {
                                     TruncationDetails truncationDetails) {
         double[] line = new double[width];
         var truncated = new boolean[width];
-        IntStream.iterate(0, x -> x < width, x -> x + BATCH_LINES)
-                .parallel()
-                .forEach(batchStart -> {
-                    int batchEnd = Math.min(batchStart + BATCH_LINES, width);
-                    // interpolation is NOT needed if the processed file is a Jolex SER truncated file,
-                    // because it has already been interpolated when the file was trimmed
-                    double range = isJolexSer ? 0 : 1;
-                    for (int x = batchStart; x < batchEnd; x++) {
-                        double value = 0;
-                        double weightSum = 0;
+        // interpolation is NOT needed if the processed file is a Jolex SER truncated file,
+        // because it has already been interpolated when the file was trimmed
+        double range = isJolexSer ? 0 : 1;
+        for (int x = 0; x < width; x++) {
+            double value = 0;
+            double weightSum = 0;
 
-                        for (double dy = -range; dy <= range; dy += 0.5) {
-                            double yd = p.applyAsDouble(x) + pixelShift + dy;
+            for (double dy = -range; dy <= range; dy += 0.5) {
+                double yd = p.applyAsDouble(x) + pixelShift + dy;
 
-                            int y1 = (int) Math.floor(yd);
-                            int y2 = y1 + 1;
+                int y1 = (int) Math.floor(yd);
+                int y2 = y1 + 1;
 
-                            double frac = yd - y1;
+                double frac = yd - y1;
 
-                            double weight = Math.exp(-0.5 * dy * dy);  // Gaussian decay
+                double weight = Math.exp(-0.5 * dy * dy);  // Gaussian decay
 
-                            if (y1 >= 0 && y1 < height && y2 >= 0 && y2 < height) {
-                                double yValue = (1 - frac) * source[y1][x] + frac * source[y2][x];
-                                value += weight * yValue;
-                                weightSum += weight;
-                            } else {
-                                truncated[x] = true;
-                            }
-                        }
+                if (y1 >= 0 && y1 < height && y2 >= 0 && y2 < height) {
+                    double yValue = (1 - frac) * source[y1][x] + frac * source[y2][x];
+                    value += weight * yValue;
+                    weightSum += weight;
+                } else {
+                    truncated[x] = true;
+                }
+            }
 
-                        if (weightSum > 0) {
-                            value /= weightSum;
-                        }
+            if (weightSum > 0) {
+                value /= weightSum;
+            }
 
-                        outputBuffer[y][x] = (float) value;
-                        line[x] = (float) value;
-                    }
-
-                });
+            outputBuffer[y][x] = (float) value;
+            line[x] = (float) value;
+        }
 
         if (!internal) {
             boolean display = processParams.extraParams().generateDebugImages() || processParams.requestedImages().isEnabled(GeneratedImageKind.RECONSTRUCTION);
@@ -1740,6 +1748,40 @@ public class SolexVideoProcessor implements Broadcaster {
             Flares flares
     ) {
 
+    }
+
+    private static class TaskCoordinator {
+        private final Lock lock = new ReentrantLock();
+        private final Condition condition = lock.newCondition();
+        private final AtomicInteger counter = new AtomicInteger();
+
+        public void countUp() {
+            counter.incrementAndGet();
+        }
+
+        public void countDown() {
+            counter.decrementAndGet();
+            lock.lock();
+            try {
+                condition.signalAll();
+            } finally {
+                lock.unlock();
+            }
+        }
+
+        public void awaitZero() {
+            lock.lock();
+            try {
+                while (counter.get() > 0) {
+                    condition.await();
+                }
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                throw new ProcessingException(e);
+            } finally {
+                lock.unlock();
+            }
+        }
     }
 
 }
