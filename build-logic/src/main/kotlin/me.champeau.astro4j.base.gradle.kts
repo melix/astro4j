@@ -27,7 +27,7 @@ repositories {
 
 dependencies {
     testImplementation("org.spockframework:spock-core:2.3-groovy-4.0")
-    testImplementation("org.apache.groovy:groovy:4.0.26")
+    testImplementation("org.apache.groovy:groovy:4.0.27")
 }
 
 tasks.withType<JavaCompile>().configureEach {
