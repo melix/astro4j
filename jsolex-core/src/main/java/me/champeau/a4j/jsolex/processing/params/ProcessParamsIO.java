@@ -244,6 +244,17 @@ public abstract class ProcessParamsIO {
             if (params.extraParams().globeStyle() == null) {
                 params = params.withExtraParams(params.extraParams().withGlobeStyle(GlobeStyle.EQUATORIAL_COORDS));
             }
+            if (params.requestedImages().mathImages() == null) {
+                // issue #615
+                params = params.withRequestedImages(new RequestedImages(
+                        params.requestedImages().images(),
+                        params.requestedImages().pixelShifts(),
+                        params.requestedImages().internalPixelShifts(),
+                        params.requestedImages().requestedWaveLengths(),
+                        ImageMathParams.NONE,
+                        params.requestedImages().autoContinuum()
+                ));
+            }
             return params;
         }
         return null;
