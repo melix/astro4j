@@ -15,6 +15,7 @@
 ### 3.2.2
 
 - Optimize performance in full processing mode
+- Fixed potential null pointer exception at startup
 
 ### 3.2.1
 
