@@ -180,11 +180,13 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
 
     private final AtomicInteger cropCount = new AtomicInteger();
     private final AtomicInteger animCount = new AtomicInteger();
-    
+
     private static final long MIN_UI_UPDATE_INTERVAL_MS = 50;
     private final AtomicLong lastUIUpdateTime = new AtomicLong(0);
 
     private Supplier<LineChart<?, ?>> profileGraphFactory;
+    private Integer currentColumn;
+    private float[][] currentSpectrumFrameData;
 
     public SingleModeProcessingEventListener(JSolExInterface owner,
                                              ProgressOperation rootOperation,
@@ -281,7 +283,7 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
 
         long currentTime = System.currentTimeMillis();
         long lastUpdate = lastUIUpdateTime.get();
-        
+
         if (currentTime - lastUpdate >= MIN_UI_UPDATE_INTERVAL_MS) {
             if (lastUIUpdateTime.compareAndSet(lastUpdate, currentTime)) {
                 var lock = reconstructionView.getLock();
@@ -326,11 +328,11 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
                         var solarImage = (WritableImage) solarView.getImage();
                         var spectrumView = reconstructionView.getSpectrumView();
                         var spectrumImage = (WritableImage) spectrumView.getImage();
-                        
+
                         if (solarImage != null && spectrumImage != null) {
                             var rgb = reconstructionView.getSolarImageData();
                             var pixelformat = PixelFormat.getByteRgbInstance();
-                            
+
                             // Force final solar image update with complete buffer
                             solarImage.getPixelWriter().setPixels(
                                     0, 0,
@@ -340,7 +342,7 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
                                     0,
                                     3 * width
                             );
-                            
+
                             // Force final spectrum image update if spectrum data is available
                             var spectrum = reconstructionView.getSpectrumView();
                             if (spectrum.getImage() != null) {
@@ -363,13 +365,13 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
         var converter = ImageUtils.createImageConverter(params.videoParams().colorMode(), params.geometryParams().isSpectrumVFlip());
         var pixelformat = PixelFormat.getByteRgbInstance();
         reconstructionProgress = null;
-        
+
         // Force final UI updates for all reconstruction views to ensure complete display
         imageViews.entrySet().forEach(entry -> {
             var view = entry.getValue();
             forceFinalUIUpdate(view);
         });
-        
+
         imageViews.entrySet().forEach(entry -> {
             var pixelShift = entry.getKey();
             var view = entry.getValue();
@@ -419,7 +421,15 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
                         var pixelWriter = ((WritableImage) view.getSpectrumView().getImage()).getPixelWriter();
                         pixelWriter.setPixels(0, 0, geometry.width(), geometry.height(), pixelformat, imageBytes, 0, 3 * geometry.width());
                     });
+                    if (polynomial != null) {
 
+                        // Store the clicked column and update the profile tab
+                        currentColumn = xIndex;
+                        currentSpectrumFrameData = spectrum.data();
+                        if (profileGraphFactory != null) {
+                            Platform.runLater(() -> profileTab.setContent(profileGraphFactory.get()));
+                        }
+                    }
                 } catch (Exception ex) {
                     throw new ProcessingException(ex);
                 }
@@ -462,12 +472,12 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
         int width = spectrum.width();
         int height = spectrum.height();
         var spectrumBuffer = new byte[3 * width * height];
-        
+
         // Single pass: find max and store normalized values
         int max = 0;
         double[] normalizedValues = new double[width * height];
         float[][] data = spectrum.data();
-        
+
         for (int yy = 0; yy < height; yy++) {
             float[] row = data[yy];
             for (int xx = 0; xx < width; xx++) {
@@ -479,7 +489,7 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
                 }
             }
         }
-        
+
         // Second pass: apply stretching and convert to RGB bytes
         double maxInverse = max > 0 ? 255.0 / max : 0.0;
         for (int i = 0; i < normalizedValues.length; i++) {
@@ -489,7 +499,7 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
             spectrumBuffer[offset + 1] = s;
             spectrumBuffer[offset + 2] = s;
         }
-        
+
         return spectrumBuffer;
     }
 
@@ -1029,18 +1039,97 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
                 }
             }
             lineChart.getData().add(series);
+
+            List<SpectrumAnalyzer.DataPoint> referenceDataPoints;
             if (canDrawReference) {
                 var referenceSeries = new XYChart.Series<String, Number>();
                 referenceSeries.setName(message("reference.intensity"));
                 lineChart.getData().add(referenceSeries);
-                var referenceDataPoints = normalizeDatapoints(SpectrumAnalyzer.findReferenceDatapoints(dataPoints));
+                referenceDataPoints = normalizeDatapoints(SpectrumAnalyzer.findReferenceDatapoints(dataPoints), null).dataPoints();
                 for (var dataPoint : referenceDataPoints) {
                     addDataPointToSeries(dataPoint, referenceSeries);
                 }
             }
-            for (var dataPoint : normalizeDatapoints(dataPoints)) {
+            var normalizedDataPoints = normalizeDatapoints(dataPoints, null);
+            for (var dataPoint : normalizedDataPoints.dataPoints()) {
                 addDataPointToSeries(dataPoint, series);
             }
+
+            if (currentColumn != null && currentColumn >= start && currentColumn < end) {
+                // Add frame profile curve - averaged across all columns for the current frame
+                var frameSeries = new XYChart.Series<String, Number>();
+                frameSeries.setName(message("frame.intensity"));
+                lineChart.getData().add(frameSeries);
+
+                var frameDataPoints = new ArrayList<SpectrumAnalyzer.DataPoint>();
+                for (var pixelShift = range.minPixelShift(); pixelShift < range.maxPixelShift(); pixelShift++) {
+                    double cpt = 0;
+                    double val = 0;
+                    for (int x = start; x < end; x++) {
+                        var v = polynomial.applyAsDouble(x);
+                        var exactNy = v + pixelShift;
+                        int lowerNy = (int) Math.floor(exactNy);
+                        int upperNy = (int) Math.ceil(exactNy);
+
+                        if (lowerNy >= 0 && upperNy < height) {
+                            var lowerValue = currentSpectrumFrameData[lowerNy][x];
+                            var upperValue = currentSpectrumFrameData[upperNy][x];
+                            var interpolatedValue = lowerValue + (upperValue - lowerValue) * (exactNy - lowerNy);
+
+                            val += interpolatedValue;
+                            cpt++;
+                        }
+                    }
+                    if (cpt > 0) {
+                        Wavelen wl = canDrawReference ? computeWavelength(pixelShift, lambda0, dispersion) : Wavelen.ofAngstroms(0);
+                        frameDataPoints.add(new SpectrumAnalyzer.DataPoint(wl, pixelShift, val / cpt));
+                    }
+                }
+
+                var lineDataPoints = new ArrayList<SpectrumAnalyzer.DataPoint>();
+                for (var pixelShift = range.minPixelShift(); pixelShift < range.maxPixelShift(); pixelShift++) {
+                    int x = currentColumn;
+                    var v = polynomial.applyAsDouble(x);
+                    var exactNy = v + pixelShift;
+                    int lowerNy = (int) Math.floor(exactNy);
+                    int upperNy = (int) Math.ceil(exactNy);
+
+                    if (lowerNy >= 0 && upperNy < height) {
+                        var lowerValue = currentSpectrumFrameData[lowerNy][x];
+                        var upperValue = currentSpectrumFrameData[upperNy][x];
+                        var interpolatedValue = lowerValue + (upperValue - lowerValue) * (exactNy - lowerNy);
+
+                        Wavelen wl = canDrawReference ? computeWavelength(pixelShift, lambda0, dispersion) : Wavelen.ofAngstroms(0);
+                        lineDataPoints.add(new SpectrumAnalyzer.DataPoint(wl, pixelShift, interpolatedValue));
+                    }
+                }
+
+                var normalizedFrameDataPoints = normalizeDatapoints(frameDataPoints, null);
+                for (var dataPoint : normalizedFrameDataPoints.dataPoints()) {
+                    addDataPointToSeries(dataPoint, frameSeries);
+                }
+
+                var lineSeries = new XYChart.Series<String, Number>();
+                // Compute wavelength for the clicked column
+                String lineLabel;
+                if (canDrawReference) {
+                    var columnPixelShift = polynomial.applyAsDouble(currentColumn);
+                    var wavelength = computeWavelength(columnPixelShift, lambda0, dispersion);
+                    lineLabel = message("line.intensity") + " (" + String.format(Locale.US, "%.2f Å", wavelength.angstroms()) + ")";
+                } else {
+                    lineLabel = message("line.intensity") + " (" + currentColumn + ")";
+                }
+                lineSeries.setName(lineLabel);
+                lineChart.getData().add(lineSeries);
+
+                // Normalize line data independently
+                var normalizedLineDataPoints = normalizeDatapoints(lineDataPoints, null);
+                for (var dataPoint : normalizedLineDataPoints.dataPoints()) {
+                    addDataPointToSeries(dataPoint, lineSeries);
+                }
+
+            }
+
             return lineChart;
         };
         Platform.runLater(() -> profileTab.setContent(profileGraphFactory.get()));
@@ -1171,14 +1260,20 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
         return message("intensity");
     }
 
-    private static List<SpectrumAnalyzer.DataPoint> normalizeDatapoints(List<SpectrumAnalyzer.DataPoint> dataPoints) {
-        var maxRef = dataPoints.stream().mapToDouble(SpectrumAnalyzer.DataPoint::intensity).max().orElse(0);
-        return dataPoints.stream()
+    private static NormalizedDataPoints normalizeDatapoints(List<SpectrumAnalyzer.DataPoint> dataPoints, Double maxIntensity) {
+        double maxSeriesIntensity = dataPoints.stream().mapToDouble(SpectrumAnalyzer.DataPoint::intensity).max().orElse(0);
+        double maxRef = maxIntensity != null ? maxIntensity : maxSeriesIntensity;
+        return new NormalizedDataPoints(dataPoints.stream()
                 .map(dataPoint -> new SpectrumAnalyzer.DataPoint(dataPoint.wavelen(), dataPoint.pixelShift(), 100 * dataPoint.intensity() / maxRef))
-                .toList();
+                .toList(),
+                maxSeriesIntensity);
     }
 
     private record CachedHistogram(Histogram histogram, String color) {
+    }
+
+    private record NormalizedDataPoints(List<SpectrumAnalyzer.DataPoint> dataPoints, double maxIntensity) {
+
     }
 
 }
