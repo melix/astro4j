@@ -518,7 +518,10 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
                     pixelShift.orElse(null),
                     viewer -> viewer,
                     viewer -> {
-                        statsTab.setContent(showHistogram(viewer.getStretchedImage()));
+                        BackgroundOperations.async(() -> {
+                            var histogram = showHistogram(viewer.getStretchedImage());
+                            Platform.runLater(() -> statsTab.setContent(histogram));
+                        });
                         showMetadata(imageWrapper.metadata());
                     });
             addedImageViewer.getImageView().setRectangleSelectionListener(new RectangleSelectionListener() {
