@@ -459,25 +459,37 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
     }
 
     private static byte[] convertSpectrumImage(Image spectrum) {
-        var spectrumBuffer = new byte[3 * spectrum.width() * spectrum.height()];
+        int width = spectrum.width();
+        int height = spectrum.height();
+        var spectrumBuffer = new byte[3 * width * height];
+        
+        // Single pass: find max and store normalized values
         int max = 0;
-        for (int yy = 0; yy < spectrum.height(); yy++) {
-            for (int xx = 0; xx < spectrum.width(); xx++) {
-                int v = (int) (255 * spectrum.data()[yy][xx] / Constants.MAX_PIXEL_VALUE);
-                max = Math.max(max, v);
+        double[] normalizedValues = new double[width * height];
+        float[][] data = spectrum.data();
+        
+        for (int yy = 0; yy < height; yy++) {
+            float[] row = data[yy];
+            for (int xx = 0; xx < width; xx++) {
+                double v = 255.0 * row[xx] / Constants.MAX_PIXEL_VALUE;
+                normalizedValues[yy * width + xx] = v;
+                int intV = (int) v;
+                if (intV > max) {
+                    max = intV;
+                }
             }
         }
-        // stretching
-        for (int yy = 0; yy < spectrum.height(); yy++) {
-            for (int xx = 0; xx < spectrum.width(); xx++) {
-                var offset = 3 * (yy * spectrum.width() + xx);
-                double v = 255 * spectrum.data()[yy][xx] / Constants.MAX_PIXEL_VALUE;
-                byte s = (byte) (255 * v / max);
-                spectrumBuffer[offset] = s;
-                spectrumBuffer[offset + 1] = s;
-                spectrumBuffer[offset + 2] = s;
-            }
+        
+        // Second pass: apply stretching and convert to RGB bytes
+        double maxInverse = max > 0 ? 255.0 / max : 0.0;
+        for (int i = 0; i < normalizedValues.length; i++) {
+            byte s = (byte) (normalizedValues[i] * maxInverse);
+            int offset = 3 * i;
+            spectrumBuffer[offset] = s;
+            spectrumBuffer[offset + 1] = s;
+            spectrumBuffer[offset + 2] = s;
         }
+        
         return spectrumBuffer;
     }
 
