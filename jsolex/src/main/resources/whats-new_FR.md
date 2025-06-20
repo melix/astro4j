@@ -16,6 +16,7 @@
 
 - Optimisation des performances en mode traitement complet
 - Correction d'une potentielle exception de pointeur nul au démarrage
+- Optimisation de la réactivité de l'interface utilisateur
 
 ### 3.2.1
 

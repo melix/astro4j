@@ -16,6 +16,7 @@
 
 - Optimize performance in full processing mode
 - Fixed potential null pointer exception at startup
+- Optimize UI responsiveness
 
 ### 3.2.1
 
