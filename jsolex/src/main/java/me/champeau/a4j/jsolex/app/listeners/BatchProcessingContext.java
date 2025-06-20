@@ -26,6 +26,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 public record BatchProcessingContext(
     List<BatchItem> items,
@@ -39,6 +40,7 @@ public record BatchProcessingContext(
     Map<Integer, List<CandidateImageDescriptor>> imagesByIndex,
     Map<Integer, List<File>> filesByIndex,
     Map<Integer, File> serFilesByIndex,
-    Header referenceHeader
+    Header referenceHeader,
+    ReentrantReadWriteLock dataLock
 ) {
 }
