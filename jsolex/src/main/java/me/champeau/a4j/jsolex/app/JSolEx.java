@@ -154,7 +154,6 @@ import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -166,6 +165,7 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -408,7 +408,7 @@ public class JSolEx implements JSolExInterface {
                 defaultParams,
                 standalone,
                 ImageMathScriptExecutor.SectionKind.SINGLE
-                );
+        );
         var firstRun = new AtomicBoolean(true);
         var prevHandler = imageMathRun.getOnAction();
         imageMathRun.setOnAction(event -> {
@@ -1468,17 +1468,18 @@ public class JSolEx implements JSolExInterface {
             try {
                 var batchContext = new BatchProcessingContext(
                         batchItems,
-                        Collections.synchronizedSet(new HashSet<>()),
-                        Collections.synchronizedSet(new HashSet<>()),
+                        new HashSet<>(),
+                        new HashSet<>(),
                         new AtomicBoolean(),
                         selectedFiles.getFirst().getParentFile(),
                         LocalDateTime.now(),
-                        Collections.synchronizedMap(new HashMap<>()),
-                        Collections.synchronizedMap(new HashMap<>()),
-                        Collections.synchronizedMap(new HashMap<>()),
-                        Collections.synchronizedMap(new HashMap<>()),
-                        Collections.synchronizedMap(new HashMap<>()),
-                        header);
+                        new HashMap<>(),
+                        new HashMap<>(),
+                        new HashMap<>(),
+                        new HashMap<>(),
+                        new HashMap<>(),
+                        header,
+                        new ReentrantReadWriteLock());
                 try (var executor = Executors.newFixedThreadPool(2)) {
                     for (int fileIdx = 0; fileIdx < selectedFiles.size(); fileIdx++) {
                         if (Thread.currentThread().isInterrupted() || interrupted.get()) {

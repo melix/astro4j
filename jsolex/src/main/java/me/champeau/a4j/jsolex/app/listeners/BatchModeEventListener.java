@@ -115,6 +115,7 @@ public class BatchModeEventListener implements ProcessingEventListener, ImageMat
     private final Map<Integer, File> serFilesByIndex;
     private final long sd = System.nanoTime();
     private ProcessParams adjustedParams;
+    private final java.util.concurrent.locks.ReentrantReadWriteLock dataLock;
 
     public BatchModeEventListener(JSolExInterface owner,
                                   ProgressOperation rootOperation,
@@ -141,6 +142,7 @@ public class BatchModeEventListener implements ProcessingEventListener, ImageMat
         this.totalItems = context.items().size();
         this.allItems = context.items();
         this.sequenceNumber = sequenceNumber;
+        this.dataLock = context.dataLock();
     }
 
     @Override
@@ -168,14 +170,24 @@ public class BatchModeEventListener implements ProcessingEventListener, ImageMat
         var saved = new ImageSaver(RangeExpansionStrategy.DEFAULT, params).save(img, target);
         for (var file : saved) {
             item.generatedFiles().add(file);
-            filesByIndex.computeIfAbsent(sequenceNumber, unused -> new ArrayList<>()).add(file);
+            dataLock.writeLock().lock();
+            try {
+                filesByIndex.computeIfAbsent(sequenceNumber, unused -> new ArrayList<>()).add(file);
+            } finally {
+                dataLock.writeLock().unlock();
+            }
         }
-        imagesByIndex.computeIfAbsent(sequenceNumber, unused -> new ArrayList<>()).add(new CandidateImageDescriptor(
-            payload.kind(),
-            payload.title(),
-            payload.path(),
-            payload.image().findMetadata(PixelShift.class).map(PixelShift::pixelShift).orElse(0d)
-        ));
+        dataLock.writeLock().lock();
+        try {
+            imagesByIndex.computeIfAbsent(sequenceNumber, unused -> new ArrayList<>()).add(new CandidateImageDescriptor(
+                payload.kind(),
+                payload.title(),
+                payload.path(),
+                payload.image().findMetadata(PixelShift.class).map(PixelShift::pixelShift).orElse(0d)
+            ));
+        } finally {
+            dataLock.writeLock().unlock();
+        }
     }
 
     @Override
@@ -212,7 +224,12 @@ public class BatchModeEventListener implements ProcessingEventListener, ImageMat
     public void onProcessingStart(ProcessingStartEvent e) {
         item.status().set(message("batch.started"));
         updateProgressStatus(false);
-        serFilesByIndex.put(sequenceNumber, item.file());
+        dataLock.writeLock().lock();
+        try {
+            serFilesByIndex.put(sequenceNumber, item.file());
+        } finally {
+            dataLock.writeLock().unlock();
+        }
     }
 
     @Override
@@ -232,7 +249,25 @@ public class BatchModeEventListener implements ProcessingEventListener, ImageMat
 
     private void maybeFilterImages(Consumer<? super FilteringResult> onClose) {
         if (processParams.extraParams().reviewImagesAfterBatch()) {
-            Platform.runLater(() -> ImageInspectorController.create(processParams, imagesByIndex, filesByIndex, serFilesByIndex, outputDirectory, controller -> {
+            // Create defensive copies of shared data under lock protection
+            Map<Integer, List<CandidateImageDescriptor>> imagesByIndexCopy;
+            Map<Integer, List<File>> filesByIndexCopy;
+            Map<Integer, File> serFilesByIndexCopy;
+            dataLock.readLock().lock();
+            try {
+                imagesByIndexCopy = new HashMap<>();
+                for (var entry : imagesByIndex.entrySet()) {
+                    imagesByIndexCopy.put(entry.getKey(), new ArrayList<>(entry.getValue()));
+                }
+                filesByIndexCopy = new HashMap<>();
+                for (var entry : filesByIndex.entrySet()) {
+                    filesByIndexCopy.put(entry.getKey(), new ArrayList<>(entry.getValue()));
+                }
+                serFilesByIndexCopy = new HashMap<>(serFilesByIndex);
+            } finally {
+                dataLock.readLock().unlock();
+            }
+            Platform.runLater(() -> ImageInspectorController.create(processParams, imagesByIndexCopy, filesByIndexCopy, serFilesByIndexCopy, outputDirectory, controller -> {
                 var deletedFiles = controller.getDeletedFiles();
                 var movedFiles = controller.getMovedFiles();
                 adjustDeletedAndMovedFilesList(deletedFiles, movedFiles);
@@ -264,9 +299,24 @@ public class BatchModeEventListener implements ProcessingEventListener, ImageMat
     }
 
     private void maybeExecuteEndOfBatch() {
-        if (completed.size() == totalItems && batchFinished.compareAndSet(false, true)) {
-            var success = completed.size() - errors.size();
-            if (success > 0 && !errors.isEmpty() && hasBatchScriptExpressions()) {
+        boolean shouldExecute;
+        int success;
+        dataLock.readLock().lock();
+        try {
+            shouldExecute = completed.size() == totalItems;
+            success = completed.size() - errors.size();
+        } finally {
+            dataLock.readLock().unlock();
+        }
+        if (shouldExecute && batchFinished.compareAndSet(false, true)) {
+            boolean hasErrors;
+            dataLock.readLock().lock();
+            try {
+                hasErrors = !errors.isEmpty();
+            } finally {
+                dataLock.readLock().unlock();
+            }
+            if (success > 0 && hasErrors && hasBatchScriptExpressions()) {
                 Platform.runLater(() -> {
                     var alert = AlertFactory.warning(message("incomplete.batch.message"));
                     alert.setTitle(message("incomplete.batch"));
@@ -280,7 +330,7 @@ public class BatchModeEventListener implements ProcessingEventListener, ImageMat
                         }
                     });
                 });
-            } else if (!errors.isEmpty()) {
+            } else if (hasErrors) {
                 Platform.runLater(() -> {
                     var alert = AlertFactory.warning(message("incomplete.batch.error"));
                     alert.setTitle(message("incomplete.batch"));
@@ -342,19 +392,40 @@ public class BatchModeEventListener implements ProcessingEventListener, ImageMat
                 null
             );
             var discarded = new HashSet<ImageWrapper>();
-            for (var index : result.discarded()) {
-                discarded.addAll(imageWrappersByIndex.get(index));
+            dataLock.readLock().lock();
+            try {
+                for (var index : result.discarded()) {
+                    var images = imageWrappersByIndex.get(index);
+                    if (images != null) {
+                        discarded.addAll(images);
+                    }
+                }
+            } finally {
+                dataLock.readLock().unlock();
             }
-            for (Map.Entry<String, List<ImageWrapper>> entry : imagesByLabel.entrySet()) {
-                var images = entry.getValue().stream().filter(img -> !discarded.contains(img)).toList();
-                batchScriptExecutor.putVariable(entry.getKey(), images);
+            dataLock.readLock().lock();
+            try {
+                for (Map.Entry<String, List<ImageWrapper>> entry : imagesByLabel.entrySet()) {
+                    var images = entry.getValue().stream().filter(img -> !discarded.contains(img)).toList();
+                    batchScriptExecutor.putVariable(entry.getKey(), images);
+                }
+            } finally {
+                dataLock.readLock().unlock();
             }
             if (result.best != null) {
-                var bestSource = imageWrappersByIndex.get(result.best)
-                    .stream()
-                    .findFirst()
-                    .flatMap(i -> i.findMetadata(SourceInfo.class))
-                    .orElse(null);
+                SourceInfo bestSource = null;
+                dataLock.readLock().lock();
+                try {
+                    var bestImages = imageWrappersByIndex.get(result.best);
+                    if (bestImages != null) {
+                        bestSource = bestImages.stream()
+                            .findFirst()
+                            .flatMap(i -> i.findMetadata(SourceInfo.class))
+                            .orElse(null);
+                    }
+                } finally {
+                    dataLock.readLock().unlock();
+                }
                 batchScriptExecutor.putInContext(BestImages.class, new BestImages(bestSource));
             }
             var namingStrategy = createNamingStrategy();
@@ -423,7 +494,8 @@ public class BatchModeEventListener implements ProcessingEventListener, ImageMat
 
     @Override
     public void onScriptExecutionResult(ScriptExecutionResultEvent e) {
-        synchronized (imagesByLabel) {
+        dataLock.writeLock().lock();
+        try {
             var images = e.getPayload().imagesByLabel();
             for (Map.Entry<String, ImageWrapper> entry : images.entrySet()) {
                 imagesByLabel.computeIfAbsent(entry.getKey(), unused -> new ArrayList<>())
@@ -431,6 +503,8 @@ public class BatchModeEventListener implements ProcessingEventListener, ImageMat
                 imageWrappersByIndex.computeIfAbsent(sequenceNumber, unused -> new ArrayList<>())
                     .add(entry.getValue());
             }
+        } finally {
+            dataLock.writeLock().unlock();
         }
     }
 
@@ -460,13 +534,19 @@ public class BatchModeEventListener implements ProcessingEventListener, ImageMat
     }
 
     private void updateProgressStatus(boolean increment) {
-        if (increment) {
-            completed.add(sequenceNumber);
+        int done;
+        dataLock.writeLock().lock();
+        try {
+            if (increment) {
+                completed.add(sequenceNumber);
+            }
+            done = completed.size();
+        } finally {
+            dataLock.writeLock().unlock();
         }
-        var done = completed.size();
         BatchOperations.submitOneOfAKind("progress", () -> {
             var prog = done / totalItems;
-            if (completed.size() == (int) totalItems) {
+            if (done == (int) totalItems) {
                 owner.showProgress();
             } else {
                 owner.showProgress();
@@ -486,7 +566,12 @@ public class BatchModeEventListener implements ProcessingEventListener, ImageMat
         }
         if (e.type() == Notification.AlertType.ERROR) {
             item.status().set(message("batch.error"));
-            errors.add(sequenceNumber);
+            dataLock.writeLock().lock();
+            try {
+                errors.add(sequenceNumber);
+            } finally {
+                dataLock.writeLock().unlock();
+            }
             updateProgressStatus(true);
             maybeExecuteEndOfBatch();
         }
