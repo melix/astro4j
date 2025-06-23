@@ -17,6 +17,8 @@
 - Optimize performance in full processing mode
 - Fixed potential null pointer exception at startup
 - Optimize UI responsiveness
+- Enhanced profile view: clicking on reconstruction now displays both frame average and spectral line intensity profiles, with wavelength information when available
+- Add ability to export the profile view as a CSV file
 
 ### 3.2.1
 

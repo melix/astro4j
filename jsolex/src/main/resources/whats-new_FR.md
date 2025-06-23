@@ -17,6 +17,8 @@
 - Optimisation des performances en mode traitement complet
 - Correction d'une potentielle exception de pointeur nul au démarrage
 - Optimisation de la réactivité de l'interface utilisateur
+- Amélioration de la vue de profil : cliquer sur la reconstruction affiche maintenant les profils d'intensité moyenne de la trame et de la raie spectrale, avec l'information de longueur d'onde quand disponible
+- Ajout d'un export CSV du profil spectral
 
 ### 3.2.1
 
