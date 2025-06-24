@@ -142,7 +142,7 @@ Voici les champs disponibles dans JSol'Ex:
 - Binning : le binning appliqué à la caméra lors de l'acquisition
 - Taille des pixels : la taille des pixels de la caméra, en microns
 - Inversement haut/bas du spectre : normalement, le spectre doit avoir l'aile bleue en haut et l'aile rouge en bas. Si c'est l'inverse, vous pouvez cocher cette case. C'est typiquement le cas si vous utilisez un Sunscan.
-- Mode altazimutal : cochez cette case si vous n'utilisez pas une monture équatoriale mais une monture altazimutale (typiquement le cas avec Sunscan).
+- Mode altazimutal : cochez cette case si vous n'utilisez pas une monture équatoriale mais une monture altazimutale et que vous constatez que l'orientation du disque est incorrecte.
 
 [IMPORTANT]
 .Mode altazimutal et correction de l'orientation des images

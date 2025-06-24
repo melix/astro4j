@@ -141,7 +141,7 @@ Here are the fields available in JSol'Ex:
 - Binning : the binning of pixels when the video was recorded
 - Pixel size : the size of the camera pixels in microns
 - Vertical flip of the spectrum : normally, the spectrum should have the blue wing at the top and the red wing at the bottom. If it's the opposite, you can check this box. This is typically the case if you are using a Sunscan.
-- Alt-Az mode : check this box if you are not using an equatorial mount but an alt-az mount.
+- Alt-Az mode : check this box if you are not using an equatorial mount but an alt-az mount and that you are seeing an incorrect orientation of the image.
 
 [IMPORTANT]
 .Alt-Az mode and image orientation correctness
