@@ -32,6 +32,8 @@ import me.champeau.a4j.math.image.SharpenKernel;
 import java.util.List;
 import java.util.Map;
 
+import static me.champeau.a4j.jsolex.processing.expr.AbstractImageExpressionEvaluator.applyOperator;
+
 public class Convolution extends AbstractFunctionImpl {
     private final ImageMath imageMath = ImageMath.newInstance();
     private final Deconvolution deconvolution = new Deconvolution(imageMath);
@@ -96,6 +98,27 @@ public class Convolution extends AbstractFunctionImpl {
             throw new IllegalArgumentException("rl_decon only supports mono images");
         }
         throw new IllegalArgumentException("rl_decon doesn't support argument " + arg);
+    }
+
+    public Object unsharpMask(Map<String, Object> arguments) {
+        BuiltinFunction.UNSHARP_MASK.validateArgs(arguments);
+        var arg = arguments.get("img");
+        if (arg instanceof List<?>) {
+            return expandToImageList("unsharp_mask", "img", arguments, this::unsharpMask);
+        }
+        if (arg instanceof ImageWrapper image) {
+            var strength = doubleArg(arguments, "strength", 1.0d);
+            var kernelSize = intArg(arguments, "kernel", 3);
+            var unwrapped = image.unwrapToMemory();
+            if (unwrapped instanceof ImageWrapper32 mono) {
+                var blurred = imageMath.convolve(mono.asImage(), BlurKernel.of(kernelSize));
+                var diff = (ImageWrapper32) applyOperator(mono, ImageWrapper32.fromImage(blurred), null, null, (a, b) -> a - b);
+                var strengthened = (ImageWrapper32) applyOperator(diff, null, null, strength, (a, b) -> a * b);
+                return applyOperator(mono, strengthened, null, null, Double::sum);
+            }
+            throw new IllegalArgumentException("unsharp_mask only supports mono images");
+        }
+        throw new IllegalArgumentException("Unsupported image type " + arg);
     }
 
     private interface KernelFactory {

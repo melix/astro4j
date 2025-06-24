@@ -14,6 +14,7 @@
 
 ### 3.2.2
 
+- Added an `unsharp_mask` function, which applies an unsharp mask to the image, enhancing details
 - Optimize performance in full processing mode
 - Fixed potential null pointer exception at startup
 - Optimize UI responsiveness
