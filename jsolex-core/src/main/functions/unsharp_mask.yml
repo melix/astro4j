@@ -1,0 +1,24 @@
+name: UNSHARP_MASK
+category: ENHANCEMENT
+description:
+  fr: "Applique un filtre de masque flou à une image."
+  en: "Applies an unsharp mask to an image."
+arguments:
+  - name: img
+    description: Image(s)
+  - name: strength
+    optional: true
+    default: 1.0
+    description:
+      fr: "Force du masque"
+      en: "Strength of the mask"
+  - name: kernel
+    optional: true
+    default: 3
+    description:
+      fr: "Taille du noyau"
+      en: "Kernel size"
+examples:
+  - "unsharp_mask(img(0))"
+  - "unsharp_mask(img(0), 1.5)"
+  - "unsharp_mask(img: img(0), kernel:7, strength: 1.5)"

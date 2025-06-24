@@ -198,7 +198,7 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
         var rightImage = asImage(right);
         var leftScalar = asScalar(left);
         var rightScalar = asScalar(right);
-        return apply(leftImage, rightImage, leftScalar, rightScalar, Double::sum);
+        return applyOperator(leftImage, rightImage, leftScalar, rightScalar, Double::sum);
     }
 
     private static String format(Object o) {
@@ -222,7 +222,7 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
         var rightImage = asImage(right);
         var leftScalar = asScalar(left);
         var rightScalar = asScalar(right);
-        return apply(leftImage, rightImage, leftScalar, rightScalar, (a, b) -> a - b);
+        return applyOperator(leftImage, rightImage, leftScalar, rightScalar, (a, b) -> a - b);
     }
 
     @Override
@@ -238,7 +238,7 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
         var rightImage = asImage(right);
         var leftScalar = asScalar(left);
         var rightScalar = asScalar(right);
-        return apply(leftImage, rightImage, leftScalar, rightScalar, (a, b) -> a * b);
+        return applyOperator(leftImage, rightImage, leftScalar, rightScalar, (a, b) -> a * b);
     }
 
     @Override
@@ -254,7 +254,7 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
         var rightImage = asImage(right);
         var leftScalar = asScalar(left);
         var rightScalar = asScalar(right);
-        return apply(leftImage, rightImage, leftScalar, rightScalar, (a, b) -> a / b);
+        return applyOperator(leftImage, rightImage, leftScalar, rightScalar, (a, b) -> a / b);
     }
 
     @Override
@@ -349,6 +349,7 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
             case STACK_REF -> stacking.chooseReference(arguments);
             case SORT -> utilities.sort(arguments);
             case TRANSITION -> animate.transition(arguments);
+            case UNSHARP_MASK -> convolution.unsharpMask(arguments);
             case AR_OVERLAY -> imageDraw.activeRegionsOverlay(arguments);
             case VFLIP -> rotate.vflip(arguments);
             case VIDEO_DATETIME -> utilities.videoDateTime(arguments);
@@ -575,11 +576,11 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
 
     }
 
-    private static Object apply(ImageWrapper32 leftImage,
-                                ImageWrapper32 rightImage,
-                                Number leftScalar,
-                                Number rightScalar,
-                                DoubleBinaryOperator operator) {
+    public static Object applyOperator(ImageWrapper32 leftImage,
+                                        ImageWrapper32 rightImage,
+                                        Number leftScalar,
+                                        Number rightScalar,
+                                        DoubleBinaryOperator operator) {
         if (leftImage != null && rightImage != null) {
             var leftData = leftImage.data();
             var rightData = rightImage.data();
