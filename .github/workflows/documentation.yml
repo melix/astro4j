@@ -20,9 +20,9 @@ jobs:
           distribution: 'graalvm'
           github-token: ${{ secrets.GITHUB_TOKEN }}
           native-image-job-reports: 'true'
-      - uses: gradle/wrapper-validation-action@v1
+      - uses: gradle/actions/wrapper-validation@v3
       - name: Setup Gradle
-        uses: gradle/gradle-build-action@v2
+        uses: gradle/actions/setup-gradle@v4
       - name: Setup git
         env:
           GIT_SSH_COMMAND: "ssh -o StrictHostKeyChecking=no"
@@ -39,6 +39,6 @@ jobs:
       - uses: actions/setup-java@v1
         with:
           java-version: 23
-      - uses: gradle/gradle-build-action@v2
+      - uses: gradle/actions/setup-gradle@v4
         with:
           arguments: :docs:gitPublishPush
