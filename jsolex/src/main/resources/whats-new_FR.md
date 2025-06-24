@@ -20,6 +20,7 @@
 - Optimisation de la réactivité de l'interface utilisateur
 - Amélioration de la vue de profil : cliquer sur la reconstruction affiche maintenant les profils d'intensité moyenne de la trame et de la raie spectrale, avec l'information de longueur d'onde quand disponible
 - Ajout d'un export CSV du profil spectral
+- Par défaut, le Sunscan ne devrait pas utiliser le mode AltAz
 
 ### 3.2.1
 
