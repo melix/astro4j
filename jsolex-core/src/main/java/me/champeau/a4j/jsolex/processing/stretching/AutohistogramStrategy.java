@@ -98,6 +98,7 @@ public final class AutohistogramStrategy implements StretchingStrategy {
         clamping(output, 0, .9998).stretch(image);
         maybeAdjustBrightness(image, height, width, output);
         RangeExpansionStrategy.DEFAULT.stretch(image);
+        CutoffStretchingStrategy.DEFAULT.stretch(image);
     }
 
     private static float[][] blend(float[][] img1, float[][] img2, int width, int height, double alpha) {
@@ -159,11 +160,13 @@ public final class AutohistogramStrategy implements StretchingStrategy {
                 foundPedestral = true;
             }
         }
-        // Background neutralization can result in the image being clamped to 0, which is unnatural,
-        // so we're adding a pedestal to the image.
-        for (int y = 0; y < height; y++) {
-            for (int x = 0; x < width; x++) {
-                denoised.data()[y][x] += pedestral / 2;
+        if (pedestral>0) {
+            // Background neutralization can result in the image being clamped to 0, which is unnatural,
+            // so we're adding a pedestal to the image.
+            for (int y = 0; y < height; y++) {
+                for (int x = 0; x < width; x++) {
+                    denoised.data()[y][x] += pedestral / 2;
+                }
             }
         }
         return denoised;
