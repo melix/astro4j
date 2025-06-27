@@ -12,6 +12,10 @@
 
 ## Changements depuis la 3.0.0
 
+### 3.2.3
+
+- Fix bug in auto contrast which could cause an array index out of bounds exception
+
 ### 3.2.2
 
 - Ajout de la fonction `unsharp_mask` pour appliquer un masque flou (amélioration de la netteté)

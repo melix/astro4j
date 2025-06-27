@@ -12,6 +12,10 @@
 
 ## Changes since 3.0.0
 
+### 3.2.3
+
+- Correction d'un bug dans le mode auto contrast qui pouvait provoquer une exception
+
 ### 3.2.2
 
 - Added an `unsharp_mask` function, which applies an unsharp mask to the image, enhancing details
