@@ -37,6 +37,17 @@ If you do, I kindly ask you to review your choices and turn to more positive val
 
 [<img src="https://discordapp.com/api/guilds/1305595962663768074/widget.png?style=banner2">](https://discord.gg/y9NCGaWzve)
 
+## Donations
+
+If you appreciate my work, I do not accept direct donations.
+However, I strongly encourage you to make a donation to the [STAROS association](https://www.helloasso.com/associations/single-tracking-astronomical-repository-for-open-spectroscopy/formulaires/3), which initiated the Sol'Ex and Sunscan projects and promotes spectrography using innovative projects with amateurs, schools and science collaborations: that will be my contribution to this project and will be greatly appreciated!
+
+Click on the image below to donate:
+
+[<img src="https://staros-projects.org/assets/img/backgrounds/STAROS_logo_text.png" height="150">](https://www.helloasso.com/associations/single-tracking-astronomical-repository-for-open-spectroscopy/formulaires/3)
+
+Of course, you can also send a message of encouragement or appreciation, it is always nice to receive them!
+
 ## Download links
 
 The following binaries are provided as a convenience and built from sources using GitHub Actions.

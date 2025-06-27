@@ -59,6 +59,7 @@
             <Menu text="%help">
                 <MenuItem onAction="#showHelp" text="%help"/>
                 <MenuItem onAction="#openDiscord" text="%discord"/>
+                <MenuItem onAction="#donate" text="%donate"/>
                 <MenuItem onAction="#about" text="%about"/>
             </Menu>
         </MenuBar>

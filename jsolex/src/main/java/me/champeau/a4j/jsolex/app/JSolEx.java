@@ -1072,6 +1072,12 @@ public class JSolEx implements JSolExInterface {
         getHostServices().showDocument(DISCORD_INVITE);
     }
 
+    @FXML
+    private void donate() {
+        var lang = "FR".equals(Locale.getDefault().getCountry()) ? "fr" : "en";
+        getHostServices().showDocument("https://melix.github.io/astro4j/latest/" + lang + "/jsolex.html#donate");
+    }
+
     private void doOpen(File selectedFile, boolean rememberProcessParams, ProcessParams forcedParams) {
         config.loadedSerFile(selectedFile.toPath());
         configureThreadExceptionHandler();

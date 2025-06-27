@@ -47,6 +47,20 @@ Vous pouvez nous rejoindre sur notre https://discord.gg/y9NCGaWzve[serveur Disco
 [link=https://discord.gg/y9NCGaWzve]
 image::https://discordapp.com/api/guilds/1305595962663768074/widget.png?style=banner2[]
 
+[[donate]]
+== Dons
+
+JSol'Ex est un logiciel gratuit, développé sur mon temps libre.
+Si vous appréciez mon travail, je n'accepte pas de dons directs.
+Cependant, je vous encourage fortement à soutenir l'https://www.helloasso.com/associations/single-tracking-astronomical-repository-for-open-spectroscopy/formulaires/3[association STAROS], qui a initié les projets Sol'Ex et Sunscan et promeut la spectrographie à travers des projets innovants avec des amateurs, des écoles et des collaborations scientifiques.
+Vos dons seront donc ma contribution à ce projet et seront grandement appréciés !
+
+Cliquez sur le lien ci-dessous pour faire un don :
+
+image::https://staros-projects.org/assets/img/backgrounds/STAROS_logo_text.png[link=https://www.helloasso.com/associations/single-tracking-astronomical-repository-for-open-spectroscopy/formulaires/3, height=200]
+
+Bien entendu, vous pouvez également envoyer un message d'encouragement ou d'appréciation, c'est toujours agréable à recevoir !
+
 == Traitement d'une vidéo
 
 JSol'Ex ne peut traiter que les fichiers SER, vous devez donc configurer votre logiciel de capture pour utiliser ce format.
