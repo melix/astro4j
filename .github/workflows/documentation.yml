@@ -40,5 +40,5 @@ jobs:
         with:
           java-version: 23
       - uses: gradle/actions/setup-gradle@v4
-        with:
-          arguments: :docs:gitPublishPush
+      - name: Publish documentation
+        run: ./gradlew :docs:gitPublishPush
