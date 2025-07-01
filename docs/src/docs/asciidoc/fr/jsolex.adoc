@@ -23,12 +23,23 @@ Je vous invite à ne pas céder aux sirènes de la haine et à vous tourner vers
 
 == Téléchargement
 
-Cliquez sur le bouton correspondant à votre système ci-dessous :
+Cliquez sur le bouton correspondant à votre système ci-dessous pour télécharger l'installeur de JSol'Ex :
 
 link:https://jsolex.s3.eu-west-3.amazonaws.com/jsolex-windows-latest/{prefixName}-{version}.msi[icon:windows[] JSol'Ex (Windows), role="badge"]
 link:https://jsolex.s3.eu-west-3.amazonaws.com/jsolex-ubuntu-latest/{prefixName}_{version}_amd64.deb[icon:linux[] JSol'Ex (Linux), role="badge"]
 link:https://jsolex.s3.eu-west-3.amazonaws.com/jsolex-macos-latest/{prefixName}-{version}.pkg[icon:apple[] JSol'Ex (Mac ARM64), role="badge"]
 link:https://jsolex.s3.eu-west-3.amazonaws.com/jsolex-macos-13/{prefixName}-{version}.pkg[icon:apple[] JSol'Ex (Mac Intel), role="badge"]
+
+=== Fichiers zips
+
+Certains utilisateurs préfèreront télécharger un fichier zip contenant les binaires: sans installeur, ils suffit de décompresser le fichier zip dans un répertoire de votre choix et de lancer l'application (dans le dossier `bin`, `jsolex.bat` sous Windows, `jsolex` sous Linux et MacOS).
+
+- link:https://jsolex.s3.eu-west-3.amazonaws.com/jsolex-windows-latest/{fullName}-{fullVersion}.zip[ZIP JSol'Ex (Windows)]
+- link:https://jsolex.s3.eu-west-3.amazonaws.com/jsolex-ubuntu-latest/{fullName}-{fullVersion}.zip[ZIP JSol'Ex (Linux)]
+- link:https://jsolex.s3.eu-west-3.amazonaws.com/jsolex-macos-latest/{fullName}-{fullVersion}.zip[ZIP JSol'Ex (Mac ARM64)]
+- link:https://jsolex.s3.eu-west-3.amazonaws.com/jsolex-macos-13/{fullName}-{fullVersion}.zip[ZIP JSol'Ex (Mac Intel)]
+
+=== Compilation depuis les sources
 
 JSol'Ex peut aussi être téléchargé ou installé depuis les sources sur https://github.com/melix/astro4j/releases[cette page].
 Des installateurs sont disponibles pour Linux, Windows et MacOS.

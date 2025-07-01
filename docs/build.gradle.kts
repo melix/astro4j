@@ -22,6 +22,8 @@ tasks {
         } else {
             "jsolex"
         }
+        var fullName = "jsolex"
+        var fullVersion = version.toString()
         attributes(mapOf(
             "reproducible" to "",
             "nofooter" to "",
@@ -32,6 +34,8 @@ tasks {
             "highlightjsdir" to "highlight",
             "version" to downloadVersion,
             "prefixName" to prefixName,
+            "fullName" to fullName,
+            "fullVersion" to fullVersion,
             "generated-funs" to layout.projectDirectory.asFile.toPath().resolve("src/docs/asciidoc").relativize(generateBuiltinFunctions.get().generatedDocsDirectory.get().asFile.toPath()),
         ))
         resources(delegateClosureOf<CopySpec> {
