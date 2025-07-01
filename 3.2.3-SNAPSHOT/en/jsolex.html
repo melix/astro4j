@@ -465,7 +465,12 @@ body.book #toc,body.book #preamble,body.book h1.sect0,body.book .sect1>h2{page-b
 <div id="toc" class="toc2">
 <div id="toctitle">Table of Contents</div>
 <ul class="sectlevel1">
-<li><a href="#_downloads">Downloads</a></li>
+<li><a href="#_downloads">Downloads</a>
+<ul class="sectlevel2">
+<li><a href="#_zip_files">Zip files</a></li>
+<li><a href="#_building_from_source">Building from source</a></li>
+</ul>
+</li>
 <li><a href="#_community">Community</a></li>
 <li><a href="#donate">Donations</a></li>
 <li><a href="#_processing_a_video_file">Processing a video file</a></li>
@@ -564,7 +569,7 @@ If you do, I kindly ask you to review your choices and turn to more positive val
 <h2 id="_downloads">Downloads</h2>
 <div class="sectionbody">
 <div class="paragraph">
-<p>Click on the button corresponding to your OS below:</p>
+<p>Click on the button corresponding to your OS below to download the JSol&#8217;Ex installer:</p>
 </div>
 <div class="paragraph">
 <p><a href="https://jsolex.s3.eu-west-3.amazonaws.com/jsolex-windows-latest/jsolex-devel-3.2.3.msi" class="badge"><span class="icon"><i class="fa fa-windows"></i></span> JSol&#8217;Ex (Windows)</a>
@@ -572,9 +577,33 @@ If you do, I kindly ask you to review your choices and turn to more positive val
 <a href="https://jsolex.s3.eu-west-3.amazonaws.com/jsolex-macos-latest/jsolex-devel-3.2.3.pkg" class="badge"><span class="icon"><i class="fa fa-apple"></i></span> JSol&#8217;Ex (Mac ARM64)</a>
 <a href="https://jsolex.s3.eu-west-3.amazonaws.com/jsolex-macos-13/jsolex-devel-3.2.3.pkg" class="badge"><span class="icon"><i class="fa fa-apple"></i></span> JSol&#8217;Ex (Mac Intel)</a></p>
 </div>
+<div class="sect2">
+<h3 id="_zip_files">Zip files</h3>
+<div class="paragraph">
+<p>Some users prefer to download a zip file containing the binaries: without installer, simply unzip the file in a directory of your choice and launch the application (in the <code>bin</code> folder, <code>jsolex.bat</code> on Windows, <code>jsolex</code> on Linux and MacOS).</p>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p><a href="https://jsolex.s3.eu-west-3.amazonaws.com/jsolex-windows-latest/jsolex-3.2.3-SNAPSHOT.zip">ZIP JSol&#8217;Ex (Windows)</a></p>
+</li>
+<li>
+<p><a href="https://jsolex.s3.eu-west-3.amazonaws.com/jsolex-ubuntu-latest/jsolex-3.2.3-SNAPSHOT.zip">ZIP JSol&#8217;Ex (Linux)</a></p>
+</li>
+<li>
+<p><a href="https://jsolex.s3.eu-west-3.amazonaws.com/jsolex-macos-latest/jsolex-3.2.3-SNAPSHOT.zip">ZIP JSol&#8217;Ex (Mac ARM64)</a></p>
+</li>
+<li>
+<p><a href="https://jsolex.s3.eu-west-3.amazonaws.com/jsolex-macos-13/jsolex-3.2.3-SNAPSHOT.zip">ZIP JSol&#8217;Ex (Mac Intel)</a></p>
+</li>
+</ul>
+</div>
+</div>
+<div class="sect2">
+<h3 id="_building_from_source">Building from source</h3>
 <div class="paragraph">
 <p>JSol&#8217;Ex can also be downloaded or built from source from <a href="https://github.com/melix/astro4j/releases">this page</a>.
-Installaters are available for Linux, Windows and MacOS.</p>
+Installers are available for Linux, Windows and MacOS.</p>
 </div>
 <div class="paragraph">
 <p>Alternatively, you may run JSol&#8217;Ex by checking out the sources and running the following command:</p>
@@ -582,6 +611,7 @@ Installaters are available for Linux, Windows and MacOS.</p>
 <div class="listingblock">
 <div class="content">
 <pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">./gradlew jsolex:run</code></pre>
+</div>
 </div>
 </div>
 </div>
