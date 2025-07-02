@@ -176,7 +176,7 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
     private ImageMathScriptExecutor imageScriptExecutor;
     private long sd;
     private long ed;
-    private final Map<Double, ImageWrapper> shiftImages;
+    private final Map<PixelShift, ImageWrapper> shiftImages;
     private int width;
     private int height;
     private Ellipse mainEllipse;
@@ -773,9 +773,9 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
         mainEllipse = payload.mainEllipse();
         imageScriptExecutor = new JSolExScriptExecutor(
                 shift -> {
-                    var minShift = shiftImages.keySet().stream().mapToDouble(d -> d).min().orElse(0d);
-                    var maxShift = shiftImages.keySet().stream().mapToDouble(d -> d).max().orElse(0d);
-                    double lookup = shift;
+                    var minShift = shiftImages.keySet().stream().mapToDouble(PixelShift::pixelShift).min().orElse(0d);
+                    var maxShift = shiftImages.keySet().stream().mapToDouble(PixelShift::pixelShift).max().orElse(0d);
+                    double lookup = shift.pixelShift();
                     if (lookup < minShift) {
                         LOGGER.warn(String.format(message("cropping.window.invalid.shift"), lookup, minShift));
                         lookup = minShift;
@@ -783,7 +783,7 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
                         LOGGER.warn(String.format(message("cropping.window.invalid.shift"), lookup, maxShift));
                         lookup = maxShift;
                     }
-                    return shiftImages.get(lookup);
+                    return shiftImages.get(new PixelShift(lookup));
                 },
                 new HashMap<>(scriptExecutionContext),
                 this,
@@ -868,7 +868,7 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
         var sd = System.nanoTime();
         // perform a first pass just to check if they are missing image shifts
         Set<Double> missingShifts = determineShiftsRequiredInScript(script);
-        missingShifts.removeAll(shiftImages.keySet());
+        shiftImages.keySet().stream().map(PixelShift::pixelShift).toList().forEach(missingShifts::remove);
         if (!missingShifts.isEmpty()) {
             restartProcessForMissingShifts(missingShifts);
         }

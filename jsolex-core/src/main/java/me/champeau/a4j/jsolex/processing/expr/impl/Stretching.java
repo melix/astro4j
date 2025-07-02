@@ -19,6 +19,8 @@ import me.champeau.a4j.jsolex.expr.BuiltinFunction;
 import me.champeau.a4j.jsolex.processing.stretching.ArcsinhStretchingStrategy;
 import me.champeau.a4j.jsolex.processing.stretching.CurveTransformStrategy;
 import me.champeau.a4j.jsolex.processing.stretching.LinearStrechingStrategy;
+import me.champeau.a4j.jsolex.processing.stretching.MidtoneTransferFunctionStrategy;
+import me.champeau.a4j.jsolex.processing.stretching.MidtoneTransferFunctionAutostretchStrategy;
 import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
 import me.champeau.a4j.jsolex.processing.util.Constants;
 
@@ -57,5 +59,26 @@ public class Stretching extends AbstractFunctionImpl {
         int protectLo = intArg(arguments, "protectLo", 0);
         int protectHi = intArg(arguments, "protectHi", 255);
         return monoToMonoImageTransformer("curve_transform", "img", arguments, image -> new CurveTransformStrategy(in << 8, out << 8, protectLo << 8, protectHi << 8).stretch(image));
+    }
+
+    public Object mtf(Map<String, Object> arguments) {
+        BuiltinFunction.MTF.validateArgs(arguments);
+        double shadows = doubleArg(arguments, "shadows", 0);
+        double midtones = doubleArg(arguments, "midtones", 1.0);
+        double highlights = doubleArg(arguments, "highlights", 255);
+        if (shadows < 0 || shadows > 255) {
+            throw new IllegalArgumentException("mtf shadows must be between 0 and 255");
+        }
+        if (highlights < 0 || highlights > 255) {
+            throw new IllegalArgumentException("mtf highlights must be between 0 and 255");
+        }
+        return monoToMonoImageTransformer("mtf", "img", arguments, image -> new MidtoneTransferFunctionStrategy(shadows, midtones, highlights).stretch(image));
+    }
+
+    public Object mtfAutostretch(Map<String, Object> arguments) {
+        BuiltinFunction.MTF_AUTOSTRETCH.validateArgs(arguments);
+        double shadowsClip = doubleArg(arguments, "shadows_clip", MidtoneTransferFunctionAutostretchStrategy.DEFAULT_SHADOWS_CLIP);
+        double targetBg = doubleArg(arguments, "target_bg", MidtoneTransferFunctionAutostretchStrategy.DEFAULT_TARGET_BG);
+        return monoToMonoImageTransformer("mtf_autostretch", "img", arguments, image -> new MidtoneTransferFunctionAutostretchStrategy(shadowsClip, targetBg).stretch(image));
     }
 }

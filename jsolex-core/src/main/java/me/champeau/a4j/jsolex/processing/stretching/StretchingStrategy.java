@@ -32,6 +32,8 @@ public sealed interface StretchingStrategy permits
     AutohistogramStrategy,
     ContrastAdjustmentStrategy,
     DynamicStretchStrategy,
+    MidtoneTransferFunctionStrategy,
+    MidtoneTransferFunctionAutostretchStrategy,
     StretchingChain {
 
     default void stretch(ImageWrapper image) {

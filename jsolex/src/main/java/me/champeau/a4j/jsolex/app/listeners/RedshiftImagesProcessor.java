@@ -78,7 +78,7 @@ public class RedshiftImagesProcessor {
     private static final int TMP_IMAGES_COUNT = 4;
     private static final int MAX_PANEL_SIZE = 7680;
 
-    private final Map<Double, ImageWrapper> shiftImages;
+    private final Map<PixelShift, ImageWrapper> shiftImages;
     private final ProcessParams params;
     private final File serFile;
     private final Path outputDirectory;
@@ -92,7 +92,7 @@ public class RedshiftImagesProcessor {
     private final int imageWidth;
     private final int imageHeight;
 
-    public RedshiftImagesProcessor(Map<Double, ImageWrapper> shiftImages,
+    public RedshiftImagesProcessor(Map<PixelShift, ImageWrapper> shiftImages,
                                    ProcessParams params,
                                    File serFile,
                                    Path outputDirectory,
@@ -158,8 +158,8 @@ public class RedshiftImagesProcessor {
                            .mapToDouble(RedshiftArea::pixelShift)
                            .max()
                            .orElse(0d) + margin;
-        var min = Math.max(-maxShift, computedShifts.first());
-        var max = Math.min(maxShift, computedShifts.last());
+        var min = Math.max(-maxShift, computedShifts.first().pixelShift());
+        var max = Math.min(maxShift, computedShifts.last().pixelShift());
         var range = createMinMaxRange(min, max, .25).stream().sorted().toList();
         var contrast = new AdjustContrast(Map.of(), broadcaster);
         var initialImages = range.stream().map(shiftImages::get).toList();

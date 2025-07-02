@@ -1,0 +1,26 @@
+name: MTF_AUTOSTRETCH
+category: ENHANCEMENT
+description:
+  fr: "Applique un algorithme d'auto-étirement utilisant une fonction de transfert des tons moyens (MTF) qui ajuste automatiquement le contraste basé sur l'analyse de l'histogramme. Utilise un écrêtage des ombres basé sur sigma et un niveau de fond cible."
+  en: "Applies an autostretch algorithm using Midtone Transfer Function (MTF) that automatically adjusts contrast based on histogram analysis. Uses sigma-based shadow clipping and target background level."
+arguments:
+  - name: img
+    description: Image(s)
+    required: true
+  - name: shadows_clip
+    optional: true
+    default: -2.8
+    description:
+      fr: "Point d'écrêtage des ombres mesuré en unités sigma depuis le pic de l'histogramme"
+      en: "Shadow clipping point measured in sigma units from histogram peak"
+  - name: target_bg
+    optional: true
+    default: 0.25
+    description:
+      fr: "Niveau de luminosité cible du fond (plage [0, 1])"
+      en: "Target background brightness level (range [0, 1])"
+examples:
+  - "mtf_autostretch(img: img(0))"
+  - "mtf_autostretch(img(0))"
+  - "mtf_autostretch(img: img(0), shadows_clip: -3.0, target_bg: 0.3)"
+  - "mtf_autostretch(img(0), -2.5, 0.2)"

@@ -14,7 +14,9 @@
 
 ### 3.2.3
 
-- Fix bug in auto contrast which could cause an array index out of bounds exception
+- Correction d'un bug dans le mode auto contrast qui pouvait provoquer une exception
+- Ajout de la fonction `mtf` inspirée de SIRIL qui applique une fonction de transfert des tons moyens (MTF) avec des paramètres configurables pour les ombres, tons moyens et hautes lumières (valeurs 8-bit 0-255)
+- Ajout de la fonction `mtf_autostretch` inspirée de SIRIL qui applique un étirement MTF automatique basé sur l'analyse de l'histogramme utilisant un écrêtage des ombres basé sur sigma et un niveau de fond cible
 
 ### 3.2.2
 

@@ -30,6 +30,7 @@ import me.champeau.a4j.jsolex.processing.expr.ImageMathScriptExecutor;
 import me.champeau.a4j.jsolex.processing.params.ImageMathParams;
 import me.champeau.a4j.jsolex.processing.params.RequestedImages;
 import me.champeau.a4j.jsolex.processing.sun.workflow.GeneratedImageKind;
+import me.champeau.a4j.jsolex.processing.sun.workflow.PixelShift;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 import me.champeau.a4j.jsolex.processing.util.MutableMap;
 import me.champeau.a4j.jsolex.processing.util.ProcessingException;
@@ -387,7 +388,7 @@ public class ImageSelector {
     }
 
     private DefaultImageScriptExecutor createScriptExecutor() {
-        var images = new HashMap<Double, ImageWrapper32>();
+        var images = new HashMap<PixelShift, ImageWrapper32>();
         return new JSolExScriptExecutor(
             i -> images.computeIfAbsent(i, unused -> ImageWrapper32.createEmpty()),
             MutableMap.of(),

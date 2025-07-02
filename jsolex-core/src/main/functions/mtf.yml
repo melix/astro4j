@@ -1,0 +1,32 @@
+name: MTF
+category: ENHANCEMENT
+description:
+  fr: "Applique une fonction de transfert des tons moyens (MTF) avec des paramètres configurables pour les ombres, tons moyens et hautes lumières. Permet un contrôle précis de la transformation tonale."
+  en: "Applies a Midtone Transfer Function (MTF) with configurable parameters for shadows, midtones and highlights. Allows precise control over tonal transformation."
+arguments:
+  - name: img
+    description: Image(s)
+    required: true
+  - name: shadows
+    optional: true
+    default: 0
+    description:
+      fr: "Point d'écrêtage des ombres (valeur 8-bit: 0-255)"
+      en: "Shadow clipping point (8-bit value: 0-255)"
+  - name: midtones
+    optional: true
+    default: 1.0
+    description:
+      fr: "Paramètre des tons moyens (valeur > 0)"
+      en: "Midtones parameter (value > 0)"
+  - name: highlights
+    optional: true
+    default: 255
+    description:
+      fr: "Point d'écrêtage des hautes lumières (valeur 8-bit: 0-255)"
+      en: "Highlight clipping point (8-bit value: 0-255)"
+examples:
+  - "mtf(img: img(0))"
+  - "mtf(img(0))"
+  - "mtf(img: img(0), shadows: 10, midtones: 1.5, highlights: 240)"
+  - "mtf(img(0), 20, 0.8, 220)"

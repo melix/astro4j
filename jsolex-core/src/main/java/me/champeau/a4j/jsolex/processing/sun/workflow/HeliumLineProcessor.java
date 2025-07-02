@@ -51,7 +51,7 @@ public class HeliumLineProcessor {
     private final ProcessParams processParams;
     private final ProgressOperation progressOperation;
     private final PixelShiftRange pixelShiftRange;
-    private final Map<Double, WorkflowState> imageByPixelShift;
+    private final Map<PixelShift, WorkflowState> imageByPixelShift;
     private final double heliumLineShift;
     private final ImageEmitter imageEmitter;
     private final Broadcaster broadcaster;
@@ -66,14 +66,14 @@ public class HeliumLineProcessor {
         this.processParams = processParams;
         this.progressOperation = progressOperation;
         this.pixelShiftRange = pixelShiftRange;
-        this.imageByPixelShift = imageList.stream().collect(Collectors.toMap(WorkflowState::pixelShift, s -> s, (e1, e2) -> e1, LinkedHashMap::new));
+        this.imageByPixelShift = imageList.stream().collect(Collectors.toMap(s -> new PixelShift(s.pixelShift()), s -> s, (e1, e2) -> e1, LinkedHashMap::new));
         this.heliumLineShift = heliumLineShift;
         this.imageEmitter = imageEmitter;
         this.broadcaster = broadcaster;
     }
 
     public void process() {
-        var source = findEnhancedImage(heliumLineShift);
+        var source = findEnhancedImage(new PixelShift(heliumLineShift));
         if (source == null) {
             return;
         }
@@ -130,7 +130,7 @@ public class HeliumLineProcessor {
         }
     }
 
-    private ImageWrapper findEnhancedImage(double shift) {
+    private ImageWrapper findEnhancedImage(PixelShift shift) {
         var workflowState = imageByPixelShift.get(shift);
         if (workflowState == null) {
             return null;
