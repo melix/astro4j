@@ -123,7 +123,11 @@ Par défaut, aucune déconvolution n'est appliquée, mais vous pouvez choisir l'
 
 Pour la déconvolution de Richardson-Lucy, vous pouvez choisir la taille du PSF synthétique, le facteur sigma et le nombre d'itérations.
 
-Vous pouvez choisir d'appliquer un filtre d'amélioration des détails à la fin du traitement en cochant la case "aiguiser les images".
+Enfin, vous pouvez choisir d'appliquer un filtre d'amélioration des détails à la fin du traitement. JSol'Ex propose trois options d'accentuation :
+
+- **Aucune** : Aucune accentuation n'est appliquée
+- **Aiguiser** : Accentuation traditionnelle utilisant un noyau de convolution. Vous pouvez ajuster la taille du noyau (doit être un nombre impair ≥ 3)
+- **Masque flou** : Technique d'amélioration plus sophistiquée qui crée un masque à partir de la différence entre l'original et une version floutée de l'image. Cette méthode produit généralement des résultats d'aspect plus naturel avec une meilleure préservation des contours. Vous pouvez ajuster à la fois la taille du noyau et la force de l'effet.
 
 Il est aussi possible d'appliquer une correction de vignettage.
 3 modes de correction sont disponibles:

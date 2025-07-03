@@ -33,6 +33,7 @@ import javafx.scene.control.TextFormatter;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Pane;
+import javafx.scene.layout.VBox;
 import javafx.stage.Stage;
 import javafx.stage.StageStyle;
 import javafx.util.StringConverter;
@@ -67,6 +68,8 @@ import me.champeau.a4j.jsolex.processing.params.SpectroHeliograph;
 import me.champeau.a4j.jsolex.processing.params.SpectroHeliographsIO;
 import me.champeau.a4j.jsolex.processing.params.SpectrumParams;
 import me.champeau.a4j.jsolex.processing.params.VideoParams;
+import me.champeau.a4j.jsolex.processing.params.SharpeningMethod;
+import me.champeau.a4j.jsolex.processing.params.SharpeningParams;
 import me.champeau.a4j.jsolex.processing.stretching.AutohistogramStrategy;
 import me.champeau.a4j.jsolex.processing.stretching.ClaheStrategy;
 import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
@@ -178,7 +181,27 @@ public class ProcessParamsController {
     @FXML
     private TextField pixelShifting;
     @FXML
-    private CheckBox sharpen;
+    private ChoiceBox<SharpeningMethod> sharpeningMethod;
+    @FXML
+    private VBox sharpeningParams;
+    @FXML
+    private Label autostretchParamsLabel;
+    @FXML
+    private HBox autostretchParamsContainer;
+    @FXML
+    private Label protusStretchLabel;
+    @FXML
+    private Label claheParamsLabel;
+    @FXML
+    private VBox claheParamsContainer;
+    @FXML
+    private Label kernelSizeLabel;
+    @FXML
+    private TextField kernelSize;
+    @FXML
+    private Label strengthLabel;
+    @FXML
+    private TextField unsharpStrength;
     @FXML
     private CheckBox disallowDownsampling;
     @FXML
@@ -363,7 +386,44 @@ public class ProcessParamsController {
         bandingCorrectionPasses.setText("" + initialProcessParams.bandingCorrectionParams().passes());
         horizontalMirror.setSelected(initialProcessParams.geometryParams().isHorizontalMirror());
         verticalMirror.setSelected(initialProcessParams.geometryParams().isVerticalMirror());
-        sharpen.setSelected(initialProcessParams.geometryParams().isSharpen());
+        // Initialize sharpening method choice box
+        sharpeningMethod.getItems().addAll(SharpeningMethod.values());
+        sharpeningMethod.setConverter(new StringConverter<>() {
+            @Override
+            public String toString(SharpeningMethod method) {
+                return method == null ? null : I18N.string(JSolEx.class, "process-params", "sharpeningmethod." + method.name().toLowerCase(Locale.US));
+            }
+
+            @Override
+            public SharpeningMethod fromString(String string) {
+                return null;
+            }
+        });
+        kernelSize.setTextFormatter(new TextFormatter<>(new IntegerStringConverter() {
+            @Override
+            public Integer fromString(String s) {
+                var v = super.fromString(s);
+                if (v != null) {
+                    if (v < 1) {
+                        return 1;
+                    } else if (v % 2 == 0) {
+                        return v + 1;
+                    }
+                }
+                return v;
+            }
+        }));
+        unsharpStrength.setTextFormatter(new TextFormatter<>(new DoubleStringConverter() {
+            @Override
+            public Double fromString(String s) {
+                var v = super.fromString(s);
+                if (v != null && v < 0) {
+                    return 0d;
+                }
+                return v;
+            }
+        }));
+        initializeSharpeningControls(initialProcessParams.enhancementParams().sharpeningParams());
         var patterns = FXCollections.observableList(FileNamingPatternsIO.loadDefaults());
         namingPattern.getItems().addAll(patterns);
         autocorrectAngleP.setSelected(initialProcessParams.geometryParams().isAutocorrectAngleP());
@@ -496,8 +556,17 @@ public class ProcessParamsController {
 
         }));
         protusStretchValue.setText(String.valueOf(initialProcessParams.autoStretchParams().protusStretch()));
-        claheParamsPane.disableProperty().bind(contrastEnhancementTechnique.getSelectionModel().selectedItemProperty().isNotEqualTo(ContrastEnhancement.CLAHE));
-        autostretchParamsPane.disableProperty().bind(contrastEnhancementTechnique.getSelectionModel().selectedItemProperty().isNotEqualTo(ContrastEnhancement.AUTOSTRETCH));
+        // Bind visibility for autostretch parameters
+        var isAutostretch = contrastEnhancementTechnique.getSelectionModel().selectedItemProperty().isEqualTo(ContrastEnhancement.AUTOSTRETCH);
+        autostretchParamsLabel.visibleProperty().bind(isAutostretch);
+        autostretchParamsContainer.visibleProperty().bind(isAutostretch);
+        protusStretchLabel.visibleProperty().bind(isAutostretch);
+        protusStretchValue.visibleProperty().bind(isAutostretch);
+        
+        // Bind visibility for CLAHE parameters  
+        var isClahe = contrastEnhancementTechnique.getSelectionModel().selectedItemProperty().isEqualTo(ContrastEnhancement.CLAHE);
+        claheParamsLabel.visibleProperty().bind(isClahe);
+        claheParamsContainer.visibleProperty().bind(isClahe);
         if (batchMode) {
             autoSave.setSelected(true);
             autoSave.setDisable(true);
@@ -536,7 +605,6 @@ public class ProcessParamsController {
         } else {
             configureRichardsonLucyDefaults();
         }
-        sharpen.setSelected(initialProcessParams.geometryParams().isSharpen());
         if (md != null) {
             camera.setText(md.camera());
             binning.setValue(md.binning());
@@ -806,7 +874,8 @@ public class ProcessParamsController {
                 jaggingCorrection.isSelected(),
                 Double.parseDouble(jaggingCorrectionSigma.getText())
         );
-        var enhancementParams = new EnhancementParams(artificialFlat, Double.parseDouble(flatLoPercentile.getText()), Double.parseDouble(flatHiPercentile.getText()), Integer.parseInt(flatOrder.getText()), flatMode.getSelectionModel().getSelectedItem() == FlatMode.REAL ? selectedFlatFilePath : null, jaggingCorrectionParams);
+        var sharpeningParams = createSharpeningParams();
+        var enhancementParams = new EnhancementParams(artificialFlat, Double.parseDouble(flatLoPercentile.getText()), Double.parseDouble(flatHiPercentile.getText()), Integer.parseInt(flatOrder.getText()), flatMode.getSelectionModel().getSelectedItem() == FlatMode.REAL ? selectedFlatFilePath : null, jaggingCorrectionParams, sharpeningParams);
         processParams = new ProcessParams(
                 new SpectrumParams(wavelength.getValue(), getPixelShiftAsDouble(), Double.parseDouble(dopplerShifting.getText()), Double.parseDouble(continuumShifting.getText()), switchRedBlueChannels.isSelected()),
                 new ObservationDetails(
@@ -832,7 +901,6 @@ public class ProcessParamsController {
                         forceXYRatio.isSelected() ? Double.parseDouble(xyRatioValue.getText()) : null,
                         horizontalMirror.isSelected(),
                         verticalMirror.isSelected(),
-                        sharpen.isSelected(),
                         disallowDownsampling.isSelected(),
                         autocorrectAngleP.isSelected(),
                         rotation.getValue(),
@@ -961,7 +1029,7 @@ public class ProcessParamsController {
     @FXML
     public void resetImageEnhancementsParams() {
         deconvolutionMode.getSelectionModel().select(DeconvolutionMode.NONE);
-        sharpen.setSelected(false);
+        initializeSharpeningControls(SharpeningParams.none());
         configureArtificialFlatDefaults();
         autostretchGamma.setText(String.valueOf(AutohistogramStrategy.DEFAULT_GAMMA));
         bgThreshold.setText(String.valueOf(AutohistogramStrategy.DEFAULT_BACKGROUND_THRESHOLD));
@@ -1007,6 +1075,87 @@ public class ProcessParamsController {
                     selectedFlatFilePath = p;
                     Platform.runLater(() -> flatFilePath.setText(p.toFile().getName()));
                 }));
+    }
+
+    private void initializeSharpeningControls(SharpeningParams params) {
+        switch (params) {
+            case SharpeningParams.None _ -> {
+                sharpeningMethod.getSelectionModel().select(SharpeningMethod.NONE);
+                updateSharpeningParametersVisibility(SharpeningMethod.NONE);
+            }
+            case SharpeningParams.Sharpen sharpen -> {
+                sharpeningMethod.getSelectionModel().select(SharpeningMethod.SHARPEN);
+                kernelSize.setText(String.valueOf(sharpen.kernelSize()));
+                updateSharpeningParametersVisibility(SharpeningMethod.SHARPEN);
+            }
+            case SharpeningParams.UnsharpMask unsharpMask -> {
+                sharpeningMethod.getSelectionModel().select(SharpeningMethod.UNSHARP_MASK);
+                kernelSize.setText(String.valueOf(unsharpMask.kernelSize()));
+                unsharpStrength.setText(String.valueOf(unsharpMask.strength()));
+                updateSharpeningParametersVisibility(SharpeningMethod.UNSHARP_MASK);
+            }
+        }
+        
+        // Set up listener for choice box changes
+        sharpeningMethod.getSelectionModel().selectedItemProperty().addListener((obs, oldVal, newVal) -> {
+            if (newVal != null) {
+                updateSharpeningParametersVisibility(newVal);
+            }
+        });
+    }
+    
+    private void updateSharpeningParametersVisibility(SharpeningMethod method) {
+        switch (method) {
+            case NONE -> {
+                sharpeningParams.setVisible(false);
+                sharpeningParams.setManaged(false);
+            }
+            case SHARPEN -> {
+                sharpeningParams.setVisible(true);
+                sharpeningParams.setManaged(true);
+                kernelSizeLabel.setVisible(true);
+                kernelSize.setVisible(true);
+                strengthLabel.setVisible(false);
+                unsharpStrength.setVisible(false);
+                if (kernelSize.getText().isEmpty()) {
+                    kernelSize.setText("3");
+                }
+            }
+            case UNSHARP_MASK -> {
+                sharpeningParams.setVisible(true);
+                sharpeningParams.setManaged(true);
+                kernelSizeLabel.setVisible(true);
+                kernelSize.setVisible(true);
+                strengthLabel.setVisible(true);
+                unsharpStrength.setVisible(true);
+                if (kernelSize.getText().isEmpty()) {
+                    kernelSize.setText("3");
+                }
+                if (unsharpStrength.getText().isEmpty()) {
+                    unsharpStrength.setText("1.0");
+                }
+            }
+        }
+    }
+    
+    private SharpeningParams createSharpeningParams() {
+        var selectedMethod = sharpeningMethod.getSelectionModel().getSelectedItem();
+        if (selectedMethod == null) {
+            return SharpeningParams.none();
+        }
+        
+        return switch (selectedMethod) {
+            case NONE -> SharpeningParams.none();
+            case SHARPEN -> {
+                var kernelSizeValue = kernelSize.getText().isEmpty() ? 3 : Integer.parseInt(kernelSize.getText());
+                yield SharpeningParams.sharpen(kernelSizeValue);
+            }
+            case UNSHARP_MASK -> {
+                var kernelSizeValue = kernelSize.getText().isEmpty() ? 3 : Integer.parseInt(kernelSize.getText());
+                var strengthValue = unsharpStrength.getText().isEmpty() ? 1.0 : Double.parseDouble(unsharpStrength.getText());
+                yield SharpeningParams.unsharpMask(kernelSizeValue, strengthValue);
+            }
+        };
     }
 
     private enum FlatMode {

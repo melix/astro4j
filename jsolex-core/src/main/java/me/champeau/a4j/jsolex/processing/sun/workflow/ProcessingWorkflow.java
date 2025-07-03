@@ -20,6 +20,7 @@ import me.champeau.a4j.jsolex.processing.event.ProgressEvent;
 import me.champeau.a4j.jsolex.processing.event.ProgressOperation;
 import me.champeau.a4j.jsolex.processing.event.SuggestionEvent;
 import me.champeau.a4j.jsolex.processing.expr.impl.Colorize;
+import me.champeau.a4j.jsolex.processing.expr.impl.Convolution;
 import me.champeau.a4j.jsolex.processing.expr.impl.Crop;
 import me.champeau.a4j.jsolex.processing.expr.impl.ImageDraw;
 import me.champeau.a4j.jsolex.processing.expr.impl.Rotate;
@@ -29,6 +30,7 @@ import me.champeau.a4j.jsolex.processing.params.ContrastEnhancement;
 import me.champeau.a4j.jsolex.processing.params.DeconvolutionMode;
 import me.champeau.a4j.jsolex.processing.params.ProcessParams;
 import me.champeau.a4j.jsolex.processing.params.RotationKind;
+import me.champeau.a4j.jsolex.processing.params.SharpeningParams;
 import me.champeau.a4j.jsolex.processing.stretching.ArcsinhStretchingStrategy;
 import me.champeau.a4j.jsolex.processing.stretching.AutohistogramStrategy;
 import me.champeau.a4j.jsolex.processing.stretching.ClaheStrategy;
@@ -57,7 +59,6 @@ import me.champeau.a4j.jsolex.processing.util.SolarParameters;
 import me.champeau.a4j.math.Point2D;
 import me.champeau.a4j.math.image.Deconvolution;
 import me.champeau.a4j.math.image.ImageMath;
-import me.champeau.a4j.math.image.Kernel33;
 import me.champeau.a4j.math.regression.Ellipse;
 import me.champeau.a4j.ser.Header;
 import org.slf4j.Logger;
@@ -377,9 +378,21 @@ public class ProcessingWorkflow {
                 broadcaster.broadcast(ProgressEvent.of(decon.update(1d, message("deconvolution"))));
             }
         }
-        if (processParams.geometryParams().isSharpen()) {
-            enhancements.add("Sharpening");
-            image = imageMath.convolve(image, Kernel33.SHARPEN2);
+        var sharpeningParams = processParams.enhancementParams().sharpeningParams();
+        switch (sharpeningParams) {
+            case SharpeningParams.None none -> {
+                // No sharpening
+            }
+            case SharpeningParams.Sharpen sharpen -> {
+                enhancements.add("Sharpening (kernel size: " + sharpen.kernelSize() + ")");
+                image = imageMath.convolve(image, me.champeau.a4j.math.image.SharpenKernel.of(sharpen.kernelSize()));
+            }
+            case SharpeningParams.UnsharpMask unsharpMask -> {
+                enhancements.add("Unsharp mask (kernel size: " + unsharpMask.kernelSize() + ", strength: " + unsharpMask.strength() + ")");
+                var convolution = new Convolution(Map.of(), Broadcaster.NO_OP);
+                var unsharp = (ImageWrapper32) convolution.unsharpMask(Map.of("img", ImageWrapper32.fromImage(image), "kernel", unsharpMask.kernelSize(), "strength", unsharpMask.strength()));
+                image = unsharp.asImage();
+            }
         }
         if (!enhancements.isEmpty()) {
             var metadata = new HashMap<>(corrected.metadata());

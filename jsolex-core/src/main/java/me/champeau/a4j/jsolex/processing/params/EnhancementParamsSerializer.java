@@ -74,7 +74,27 @@ class EnhancementParamsSerializer implements JsonSerializer<EnhancementParams>, 
                 var sigma = getNullableDouble(jaggingCorrectionParams, "sigma");
                 jaggingCorrection = new JaggingCorrectionParams(enabled, sigma == null ? JaggingCorrection.DEFAULT_SIGMA : sigma);
             }
-            return new EnhancementParams(artificialFlatCorrection, loPercentile, hiPercentile, order, masterFlat==null ? null : Path.of(masterFlat), jaggingCorrection);
+            SharpeningParams sharpeningParams = SharpeningParams.none();
+            var sharpening = obj.getAsJsonObject("sharpeningParams");
+            if (sharpening != null) {
+                var method = sharpening.get("method");
+                if (method != null) {
+                    var sharpeningMethod = SharpeningMethod.valueOf(method.getAsString());
+                    switch (sharpeningMethod) {
+                        case NONE -> sharpeningParams = SharpeningParams.none();
+                        case SHARPEN -> {
+                            var kernelSize = getNullableInt(sharpening, "kernelSize");
+                            sharpeningParams = SharpeningParams.sharpen(kernelSize == null ? 3 : kernelSize);
+                        }
+                        case UNSHARP_MASK -> {
+                            var kernelSize = getNullableInt(sharpening, "kernelSize");
+                            var strength = getNullableDouble(sharpening, "strength");
+                            sharpeningParams = SharpeningParams.unsharpMask(kernelSize == null ? 3 : kernelSize, strength == null ? 1.0 : strength);
+                        }
+                    }
+                }
+            }
+            return new EnhancementParams(artificialFlatCorrection, loPercentile, hiPercentile, order, masterFlat==null ? null : Path.of(masterFlat), jaggingCorrection, sharpeningParams);
         }
         throw new IllegalAccessError("Unexpected JSON type " + json.getClass());
     }
@@ -92,6 +112,22 @@ class EnhancementParamsSerializer implements JsonSerializer<EnhancementParams>, 
         jaggingCorrectionParams.addProperty("enabled", src.jaggingCorrectionParams().enabled());
         jaggingCorrectionParams.addProperty("sigma", src.jaggingCorrectionParams().sigma());
         obj.add("jaggingCorrectionParams", jaggingCorrectionParams);
+        var sharpeningParams = new JsonObject();
+        switch (src.sharpeningParams()) {
+            case SharpeningParams.None none -> {
+                sharpeningParams.addProperty("method", "NONE");
+            }
+            case SharpeningParams.Sharpen sharpen -> {
+                sharpeningParams.addProperty("method", "SHARPEN");
+                sharpeningParams.addProperty("kernelSize", sharpen.kernelSize());
+            }
+            case SharpeningParams.UnsharpMask unsharpMask -> {
+                sharpeningParams.addProperty("method", "UNSHARP_MASK");
+                sharpeningParams.addProperty("kernelSize", unsharpMask.kernelSize());
+                sharpeningParams.addProperty("strength", unsharpMask.strength());
+            }
+        }
+        obj.add("sharpeningParams", sharpeningParams);
         return obj;
     }
 }
