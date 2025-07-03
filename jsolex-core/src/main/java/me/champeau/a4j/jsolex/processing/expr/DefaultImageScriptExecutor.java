@@ -15,17 +15,39 @@
  */
 package me.champeau.a4j.jsolex.processing.expr;
 
-import me.champeau.a4j.jsolex.expr.*;
-import me.champeau.a4j.jsolex.expr.ast.*;
+import me.champeau.a4j.jsolex.expr.BuiltinFunction;
+import me.champeau.a4j.jsolex.expr.ExpressionEvaluator;
+import me.champeau.a4j.jsolex.expr.ImageMathParser;
+import me.champeau.a4j.jsolex.expr.Node;
+import me.champeau.a4j.jsolex.expr.ParseException;
+import me.champeau.a4j.jsolex.expr.UserFunction;
+import me.champeau.a4j.jsolex.expr.ast.Assignment;
+import me.champeau.a4j.jsolex.expr.ast.Expression;
+import me.champeau.a4j.jsolex.expr.ast.FunctionCall;
+import me.champeau.a4j.jsolex.expr.ast.FunctionDef;
+import me.champeau.a4j.jsolex.expr.ast.ImageMathScript;
 import me.champeau.a4j.jsolex.processing.event.ProgressOperation;
 import me.champeau.a4j.jsolex.processing.params.ProcessParams;
 import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
 import me.champeau.a4j.jsolex.processing.sun.workflow.ImageStats;
+import me.champeau.a4j.jsolex.processing.sun.workflow.PixelShift;
 import me.champeau.a4j.jsolex.processing.sun.workflow.TransformationHistory;
-import me.champeau.a4j.jsolex.processing.util.*;
+import me.champeau.a4j.jsolex.processing.util.FileBackedImage;
+import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
+import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
+import me.champeau.a4j.jsolex.processing.util.ProcessingException;
+import me.champeau.a4j.jsolex.processing.util.SolarParameters;
 
 import java.nio.file.Path;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Locale;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Optional;
+import java.util.TreeSet;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Function;
@@ -46,7 +68,7 @@ public class DefaultImageScriptExecutor implements ImageMathScriptExecutor {
 
     public static final String OUTPUTS_SECTION_NAME = "outputs";
 
-    private final Function<Double, ImageWrapper> imagesByShift;
+    private final Function<PixelShift, ImageWrapper> imagesByShift;
     private final Map<Class, Object> context;
     private final AtomicInteger executionCount = new AtomicInteger(0);
     private final Broadcaster broadcaster;
@@ -56,7 +78,7 @@ public class DefaultImageScriptExecutor implements ImageMathScriptExecutor {
     private Path includesDir;
     private boolean outputLogging = true;
 
-    public DefaultImageScriptExecutor(Function<Double, ImageWrapper> imageSupplier,
+    public DefaultImageScriptExecutor(Function<PixelShift, ImageWrapper> imageSupplier,
                                       Map<Class, Object> context,
                                       Broadcaster broadcaster) {
         this.imagesByShift = imageSupplier;
@@ -78,7 +100,7 @@ public class DefaultImageScriptExecutor implements ImageMathScriptExecutor {
         return progressOperation;
     }
 
-    public DefaultImageScriptExecutor(Function<Double, ImageWrapper> imagesByShift,
+    public DefaultImageScriptExecutor(Function<PixelShift, ImageWrapper> imagesByShift,
                                       Map<Class, Object> context) {
         this(imagesByShift, context, Broadcaster.NO_OP);
     }

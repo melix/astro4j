@@ -18,6 +18,7 @@ package me.champeau.a4j.jsolex.expr;
 import me.champeau.a4j.jsolex.expr.ast.Expression;
 import me.champeau.a4j.jsolex.processing.expr.DefaultImageScriptExecutor;
 import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
+import me.champeau.a4j.jsolex.processing.sun.workflow.PixelShift;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
 
 import java.util.Collections;
@@ -32,7 +33,7 @@ public class UserFunction {
     private final int arity;
     private final List<String> arguments;
     private final List<Expression> body;
-    private final Function<Double, ImageWrapper> imageSupplier;
+    private final Function<PixelShift, ImageWrapper> imageSupplier;
     private final Map<Class, Object> context;
     private final Consumer<? super Double> shiftCollector;
     private final Broadcaster broadcaster;
@@ -41,7 +42,7 @@ public class UserFunction {
     public UserFunction(String name,
                         List<String> arguments,
                         List<Expression> body,
-                        Function<Double, ImageWrapper> imageSupplier,
+                        Function<PixelShift, ImageWrapper> imageSupplier,
                         Map<Class, Object> context,
                         Consumer<? super Double> shiftCollector,
                         Broadcaster broadcaster,
@@ -67,7 +68,7 @@ public class UserFunction {
     }
 
     public UserFunction prepare(
-        Function<Double, ImageWrapper> imageSupplier,
+        Function<PixelShift, ImageWrapper> imageSupplier,
         Map<Class, Object> context,
         Consumer<? super Double> shiftCollector,
         Broadcaster broadcaster

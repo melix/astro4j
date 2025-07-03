@@ -18,6 +18,7 @@ package me.champeau.a4j.jsolex.processing.expr;
 import me.champeau.a4j.jsolex.expr.BuiltinFunction;
 import me.champeau.a4j.jsolex.processing.params.ProcessParams;
 import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
+import me.champeau.a4j.jsolex.processing.sun.workflow.PixelShift;
 import me.champeau.a4j.jsolex.processing.util.FileBackedImage;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
@@ -35,15 +36,15 @@ public class ShiftCollectingImageExpressionEvaluator extends ImageExpressionEval
 
     private final Set<Double> shifts = new TreeSet<>();
     private final Set<Double> autoWavelenghts = new TreeSet<>();
-    private final Map<Double, ImageWrapper> cache = new ConcurrentHashMap<>();
+    private final Map<PixelShift, ImageWrapper> cache = new ConcurrentHashMap<>();
     private boolean autoContinuum = false;
 
-    public static boolean isShiftCollecting(Function<Double, ImageWrapper> function) {
+    public static boolean isShiftCollecting(Function<PixelShift, ImageWrapper> function) {
         return function instanceof ShiftCollectingFunction;
     }
 
-    public static Function<Double, ImageWrapper> zeroImages() {
-        var map = new HashMap<Double, ImageWrapper>();
+    public static Function<PixelShift, ImageWrapper> zeroImages() {
+        var map = new HashMap<PixelShift, ImageWrapper>();
         return (ShiftCollectingFunction) idx -> map.computeIfAbsent(idx, unused -> ImageWrapper32.createEmpty());
     }
 
@@ -51,7 +52,7 @@ public class ShiftCollectingImageExpressionEvaluator extends ImageExpressionEval
         this(broadcaster, zeroImages());
     }
 
-    public ShiftCollectingImageExpressionEvaluator(Broadcaster broadcaster, Function<Double, ImageWrapper> imageFactory) {
+    public ShiftCollectingImageExpressionEvaluator(Broadcaster broadcaster, Function<PixelShift, ImageWrapper> imageFactory) {
         super(broadcaster, imageFactory);
     }
 
@@ -71,15 +72,15 @@ public class ShiftCollectingImageExpressionEvaluator extends ImageExpressionEval
         } catch (Exception ex) {
             if (isShiftCollecting(images)) {
                 // return a dummy image
-                return zeroImages().apply(0.0);
+                return zeroImages().apply(new PixelShift(0.0));
             }
             throw ex;
         }
     }
 
-    public ImageWrapper findImage(double shift) {
-        shifts.add(shift);
-        return cache.computeIfAbsent(shift, s -> FileBackedImage.wrap(super.findImage(s)));
+    public ImageWrapper findImage(PixelShift shift) {
+        shifts.add(shift.pixelShift());
+        return cache.computeIfAbsent(shift, s -> FileBackedImage.wrap(super.findImage(shift)));
     }
 
     public Set<Double> getShifts() {
@@ -108,6 +109,6 @@ public class ShiftCollectingImageExpressionEvaluator extends ImageExpressionEval
         shifts.add(shift);
     }
 
-    private interface ShiftCollectingFunction extends Function<Double, ImageWrapper> {
+    private interface ShiftCollectingFunction extends Function<PixelShift, ImageWrapper> {
     }
 }

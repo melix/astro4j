@@ -14,7 +14,9 @@
 
 ### 3.2.3
 
-- Correction d'un bug dans le mode auto contrast qui pouvait provoquer une exception
+- Fix bug in auto contrast which could cause an array index out of bounds exception
+- Added `mtf` function inspired by SIRIL, which applies a Midtone Transfer Function (MTF) with configurable shadows, midtones and highlights parameters (8-bit values 0-255)
+- Added `mtf_autostretch` function inspired by SIRIL, which applies automatic MTF stretching based on histogram analysis using sigma-based shadow clipping and target background level
 
 ### 3.2.2
 

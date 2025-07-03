@@ -344,6 +344,8 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
             case RGB -> RGBCombination.combine(arguments);
             case SATURATE -> saturation.saturate(arguments);
             case SHARPEN -> convolution.sharpen(arguments);
+            case MTF -> stretching.mtf(arguments);
+            case MTF_AUTOSTRETCH -> stretching.mtfAutostretch(arguments);
             case FIND_SHIFT -> pixelShiftFor(arguments);
             case STACK -> stacking.stack(arguments);
             case STACK_REF -> stacking.chooseReference(arguments);
@@ -557,14 +559,14 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
         return path;
     }
 
-    public abstract ImageWrapper findImage(double shift);
+    public abstract ImageWrapper findImage(PixelShift shift);
 
     private ImageWrapper image(Map<String, Object> arguments) {
         BuiltinFunction.IMG.validateArgs(arguments);
         var arg = arguments.get("ps");
         if (arg instanceof Number shift) {
             double pixelShift = shift.doubleValue();
-            var image = findImage(pixelShift);
+            var image = findImage(new PixelShift(pixelShift));
 //            if (image.findMetadata(TruncatedImage.class).isPresent() && image.findMetadata(TruncatedImage.class).get().truncated()) {
 //                if (warnings.add(pixelShift)) {
 //                    LOGGER.warn(String.format(message("warn.truncated.image"), pixelShift));
@@ -712,7 +714,7 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
                 toDouble = tmp;
             }
             for (double i = fromDouble; i <= toDouble; i += stepDouble) {
-                images.add(findImage(i));
+                images.add(findImage(new PixelShift(i)));
             }
         }
         return Collections.unmodifiableList(images);

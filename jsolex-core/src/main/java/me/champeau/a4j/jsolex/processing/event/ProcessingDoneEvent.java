@@ -19,6 +19,7 @@ import me.champeau.a4j.jsolex.processing.params.ProcessParams;
 import me.champeau.a4j.jsolex.processing.sun.detection.RedshiftArea;
 import me.champeau.a4j.jsolex.processing.sun.workflow.ImageEmitter;
 import me.champeau.a4j.jsolex.processing.sun.workflow.ImageStats;
+import me.champeau.a4j.jsolex.processing.sun.workflow.PixelShift;
 import me.champeau.a4j.jsolex.processing.sun.workflow.PixelShiftRange;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
 import me.champeau.a4j.math.regression.Ellipse;
@@ -35,7 +36,7 @@ public final class ProcessingDoneEvent extends ProcessingEvent<ProcessingDoneEve
 
     public record Outcome(
         long timestamp,
-        Map<Double, ImageWrapper> shiftImages,
+        Map<PixelShift, ImageWrapper> shiftImages,
         ImageEmitter customImageEmitter,
         Ellipse mainEllipse,
         Ellipse ellipse,
@@ -52,7 +53,7 @@ public final class ProcessingDoneEvent extends ProcessingEvent<ProcessingDoneEve
     }
 
     public static ProcessingDoneEvent of(long timestamp,
-                                         Map<Double, ImageWrapper> images,
+                                         Map<PixelShift, ImageWrapper> images,
                                          ImageEmitter customImageEmitter,
                                          Ellipse mainEllipse,
                                          Ellipse ellipse,

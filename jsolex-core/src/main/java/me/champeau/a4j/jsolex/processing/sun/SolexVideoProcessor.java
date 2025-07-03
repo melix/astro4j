@@ -119,8 +119,6 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
-import java.util.TreeSet;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -383,7 +381,6 @@ public class SolexVideoProcessor implements Broadcaster {
             var canGenerateHeliumD3Images = heliumLineVisible(pixelShiftRange, heliumLineShift) && processParams.requestedImages().isEnabled(GeneratedImageKind.GEOMETRY_CORRECTED_PROCESSED);
             addPixelShiftsForRequestedByWavelength(width, newHeight, imageList);
             addPixelShiftsForAutoContinnum(canGenerateHeliumD3Images, width, newHeight, imageList, heliumLineShift);
-            addPixelShiftsDynamicallyRequiredByScripts(header, serFile, imageList, width, newHeight);
             broadcast(new AverageImageComputedEvent(new AverageImageComputedEvent.AverageImage(avgImage, polynomial, analysis.leftBorder().orElse(0), analysis.rightBorder().orElse(width), processParams)));
             LOGGER.info(message("starting.reconstruction"));
             LOGGER.info(message("distortion.polynomial"), polynomial);
@@ -465,7 +462,7 @@ public class SolexVideoProcessor implements Broadcaster {
                 var mathImages = processParams.requestedImages().mathImages();
                 var missingShiftLock = new ReentrantLock();
                 generateImageMaths(imageNamingStrategy, baseName, imageList, mathImages,
-                        shift -> computeMissingImageShift(converter, header, fps, serFile, 0, end, shift, missingShiftLock, width, newHeight, geometry, height, polynomial, imageNamingStrategy, baseName),
+                        shift -> computeMissingImageShift(converter, header, fps, serFile, 0, end, shift, missingShiftLock, width, newHeight, geometry, height, polynomial, imageNamingStrategy, baseName, imageList),
                         minShift, maxShift,
                         header);
             });
@@ -486,19 +483,19 @@ public class SolexVideoProcessor implements Broadcaster {
         EllipseFittingTask.Result mainEllipse = null;
         Ellipse ellipse = null;
         ImageStats imageStats = null;
-        var images = new HashMap<Double, ImageWrapper>();
+        var images = new HashMap<PixelShift, ImageWrapper>();
         for (WorkflowState workflowState : imageList) {
             var result = workflowState.findResult(WorkflowResults.GEOMETRY_CORRECTION);
             if (mainEllipse == null) {
                 mainEllipse = (EllipseFittingTask.Result) workflowState.findResult(WorkflowResults.MAIN_ELLIPSE_FITTING).orElse(null);
             }
             if (result.isPresent() && result.get() instanceof GeometryCorrector.Result geo) {
-                images.put(workflowState.pixelShift(), FileBackedImage.wrap(geo.corrected()));
+                images.put(new PixelShift(workflowState.pixelShift()), FileBackedImage.wrap(geo.corrected()));
                 ellipse = geo.correctedCircle();
                 imageStats = new ImageStats(geo.blackpoint());
             } else {
                 Map<Class<?>, Object> metadata = ellipse != null ? MutableMap.of(Ellipse.class, ellipse) : MutableMap.of();
-                images.put(workflowState.pixelShift(), new ImageWrapper32(workflowState.width(), workflowState.height(), workflowState.reconstructed().data(), metadata).wrap());
+                images.put(new PixelShift(workflowState.pixelShift()), new ImageWrapper32(workflowState.width(), workflowState.height(), workflowState.reconstructed().data(), metadata).wrap());
             }
         }
         if (!JSOLEX_RECORDER.equals(header.fileId()) && maybePolynomial.isPresent()) {
@@ -559,39 +556,6 @@ public class SolexVideoProcessor implements Broadcaster {
         ));
     }
 
-    private void addPixelShiftsDynamicallyRequiredByScripts(Header header, File serFile, List<WorkflowState> imageList, int width, int newHeight) {
-        List<File> scripts = processParams.requestedImages().mathImages().scriptFiles();
-        if (!scripts.isEmpty()) {
-            // add missing shifts
-            Map<Double, ImageWrapper> imageCache = new ConcurrentHashMap<>();
-            for (var state : imageList) {
-                state.findResult(WorkflowResults.GEOMETRY_CORRECTION).ifPresent(result -> imageCache.put(state.pixelShift(), ((GeometryCorrector.Result) result).corrected()));
-            }
-            var collectingExecutor = new DefaultImageScriptExecutor(
-                    imageCache::get,
-                    new HashMap<>(createMetadata(processParams, serFile.toPath(), pixelShiftRange, header))
-            );
-            var missingShifts = new TreeSet<Double>();
-            for (File scriptFile : scripts) {
-                try {
-                    var shiftCollectionResult = collectingExecutor.execute(scriptFile.toPath(), ImageMathScriptExecutor.SectionKind.SINGLE);
-                    missingShifts.addAll(shiftCollectionResult.outputShifts());
-                    missingShifts.addAll(shiftCollectionResult.internalShifts());
-                } catch (IOException e) {
-                    // ignore
-                }
-            }
-            imageList.stream().map(WorkflowState::pixelShift).toList().forEach(missingShifts::remove);
-            if (!missingShifts.isEmpty()) {
-                imageList.addAll(missingShifts.stream().map(s -> {
-                    var state = new WorkflowState(width, newHeight, s);
-                    state.setInternal(true);
-                    return state;
-                }).toList());
-            }
-        }
-    }
-
     private ProcessAwareImageEmitterFactory createImageEmitterFactory(List<WorkflowState> imageList, FileNamingStrategy imageNamingStrategy, String baseName) {
         var ref = imageList.stream()
                 .filter(i -> i.pixelShift() == processParams.spectrumParams().pixelShift())
@@ -614,7 +578,7 @@ public class SolexVideoProcessor implements Broadcaster {
                                                   File serFile,
                                                   int start,
                                                   int end,
-                                                  Double shift,
+                                                  PixelShift shift,
                                                   ReentrantLock missingShiftLock,
                                                   int width,
                                                   int newHeight,
@@ -622,10 +586,12 @@ public class SolexVideoProcessor implements Broadcaster {
                                                   int height,
                                                   DoubleUnaryOperator polynomial,
                                                   FileNamingStrategy imageNamingStrategy,
-                                                  String baseName) {
+                                                  String baseName,
+                                                  List<WorkflowState> imageList) {
         missingShiftLock.lock();
         try (var reader = SerFileReader.of(serFile)) {
-            var state = new WorkflowState(width, newHeight, shift);
+            var state = new WorkflowState(width, newHeight, shift.pixelShift());
+            imageList.add(state);
             state.setInternal(true);
             var states = new WorkflowState[]{state};
             var outputs = performImageReconstruction(converter, reader, start, end, geometry, width, height, polynomial, new AtomicInteger(), 1, imageNamingStrategy, states);
@@ -1034,7 +1000,7 @@ public class SolexVideoProcessor implements Broadcaster {
                                     String baseName,
                                     List<WorkflowState> imageList,
                                     ImageMathParams mathImages,
-                                    Function<Double, ImageWrapper> missingShiftSupplier,
+                                    Function<PixelShift, ImageWrapper> missingShiftSupplier,
                                     double minShift,
                                     double maxShift,
                                     Header header) {
@@ -1079,7 +1045,7 @@ public class SolexVideoProcessor implements Broadcaster {
                     context.put(ImageStats.class, finalImageStats);
                 }
                 var scriptRunner = new DefaultImageScriptExecutor(shift -> {
-                    double lookup = shift;
+                    double lookup = shift.pixelShift();
                     if (lookup < minShift) {
                         LOGGER.warn("Cropping window doesn't allow use of shift {}, replacing with {}", lookup, minShift);
                         lookup = minShift;
@@ -1091,7 +1057,7 @@ public class SolexVideoProcessor implements Broadcaster {
                     if (img == null) {
                         // this can happen in situations where a shift is dynamic and cannot be computed
                         // in advance, for example with expression find_shift(5254) + 1
-                        img = missingShiftSupplier.apply(lookup);
+                        img = missingShiftSupplier.apply(new PixelShift(lookup));
                         images.put(lookup, img);
                     }
                     return img;

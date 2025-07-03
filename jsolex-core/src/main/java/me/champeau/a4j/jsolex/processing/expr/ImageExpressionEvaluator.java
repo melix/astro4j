@@ -16,6 +16,7 @@
 package me.champeau.a4j.jsolex.processing.expr;
 
 import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
+import me.champeau.a4j.jsolex.processing.sun.workflow.PixelShift;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
 
 import java.util.function.Function;
@@ -23,14 +24,14 @@ import java.util.function.Function;
 import static me.champeau.a4j.jsolex.processing.util.Constants.message;
 
 public class ImageExpressionEvaluator extends AbstractImageExpressionEvaluator {
-    protected final Function<Double, ImageWrapper> images;
+    protected final Function<PixelShift, ImageWrapper> images;
 
-    public ImageExpressionEvaluator(Broadcaster broadcaster, Function<Double, ImageWrapper> images) {
+    public ImageExpressionEvaluator(Broadcaster broadcaster, Function<PixelShift, ImageWrapper> images) {
         super(broadcaster);
         this.images = images;
     }
 
-    public ImageWrapper findImage(double shift) {
+    public ImageWrapper findImage(PixelShift shift) {
         var image = images.apply(shift);
         if (image == null) {
             throw new IllegalArgumentException(String.format(message("missing.shift"), shift));
