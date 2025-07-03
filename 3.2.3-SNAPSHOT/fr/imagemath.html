@@ -526,6 +526,8 @@ body.book #toc,body.book #preamble,body.book h1.sect0,body.book .sect1>h2{page-b
 <li><a href="#_flat_correction">FLAT_CORRECTION</a></li>
 <li><a href="#_invert">INVERT</a></li>
 <li><a href="#_linear_stretch">LINEAR_STRETCH</a></li>
+<li><a href="#_mtf">MTF</a></li>
+<li><a href="#_mtf_autostretch">MTF_AUTOSTRETCH</a></li>
 <li><a href="#_rl_decon">RL_DECON</a></li>
 <li><a href="#_saturate">SATURATE</a></li>
 <li><a href="#_sharpen">SHARPEN</a></li>
@@ -3117,6 +3119,144 @@ body.book #toc,body.book #preamble,body.book h1.sect0,body.book .sect1>h2{page-b
 <div class="listingblock">
 <div class="content">
 <pre>linear_stretch(img: img(0), hi: 48000)</pre>
+</div>
+</div>
+</div>
+<div class="sect2">
+<h3 id="_mtf">MTF</h3>
+<div class="paragraph">
+<p>Applique une fonction de transfert des tons moyens (MTF) avec des paramètres configurables pour les ombres, tons moyens et hautes lumières. Permet un contrôle précis de la transformation tonale.</p>
+</div>
+<table class="tableblock frame-all grid-all stretch">
+<colgroup>
+<col style="width: 13.6363%;">
+<col style="width: 13.6363%;">
+<col style="width: 59.0909%;">
+<col style="width: 13.6365%;">
+</colgroup>
+<tbody>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Argument</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Requis ?</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Description</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Valeur par défaut</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>img</code></p></td>
+<td class="tableblock halign-center valign-top"><p class="tableblock"><span class="icon"><i class="fa fa-check"></i></span></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Image(s)</p></td>
+<td class="tableblock halign-left valign-top"></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>shadows</code></p></td>
+<td class="tableblock halign-center valign-top"></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Point d&#8217;écrêtage des ombres (valeur 8-bit: 0-255)</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">0</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>midtones</code></p></td>
+<td class="tableblock halign-center valign-top"></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Paramètre des tons moyens (valeur &gt; 0)</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">1.0</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>highlights</code></p></td>
+<td class="tableblock halign-center valign-top"></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Point d&#8217;écrêtage des hautes lumières (valeur 8-bit: 0-255)</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">255</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top" colspan="4"><div class="content"></div></td>
+</tr>
+</tbody>
+</table>
+<div class="paragraph">
+<p><strong>Exemples</strong></p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre>mtf(img: img(0))</pre>
+</div>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre>mtf(img(0))</pre>
+</div>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre>mtf(img: img(0), shadows: 10, midtones: 1.5, highlights: 240)</pre>
+</div>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre>mtf(img(0), 20, 0.8, 220)</pre>
+</div>
+</div>
+</div>
+<div class="sect2">
+<h3 id="_mtf_autostretch">MTF_AUTOSTRETCH</h3>
+<div class="paragraph">
+<p>Applique un algorithme d&#8217;auto-étirement utilisant une fonction de transfert des tons moyens (MTF) qui ajuste automatiquement le contraste basé sur l&#8217;analyse de l&#8217;histogramme. Utilise un écrêtage des ombres basé sur sigma et un niveau de fond cible.</p>
+</div>
+<table class="tableblock frame-all grid-all stretch">
+<colgroup>
+<col style="width: 13.6363%;">
+<col style="width: 13.6363%;">
+<col style="width: 59.0909%;">
+<col style="width: 13.6365%;">
+</colgroup>
+<tbody>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Argument</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Requis ?</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Description</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Valeur par défaut</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>img</code></p></td>
+<td class="tableblock halign-center valign-top"><p class="tableblock"><span class="icon"><i class="fa fa-check"></i></span></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Image(s)</p></td>
+<td class="tableblock halign-left valign-top"></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>shadows_clip</code></p></td>
+<td class="tableblock halign-center valign-top"></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Point d&#8217;écrêtage des ombres mesuré en unités sigma depuis le pic de l&#8217;histogramme</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">-2.8</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>target_bg</code></p></td>
+<td class="tableblock halign-center valign-top"></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Niveau de luminosité cible du fond (plage [0, 1])</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">0.25</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top" colspan="4"><div class="content"></div></td>
+</tr>
+</tbody>
+</table>
+<div class="paragraph">
+<p><strong>Exemples</strong></p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre>mtf_autostretch(img: img(0))</pre>
+</div>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre>mtf_autostretch(img(0))</pre>
+</div>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre>mtf_autostretch(img: img(0), shadows_clip: -3.0, target_bg: 0.3)</pre>
+</div>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre>mtf_autostretch(img(0), -2.5, 0.2)</pre>
 </div>
 </div>
 </div>

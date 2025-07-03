@@ -779,7 +779,20 @@ By default, no deconvolution is applied, but you can choose the deconvolution al
 <p>For the Richardson-Lucy deconvolution, you can choose the size of the synthetic PSF, the sigma factor and the number of iterations.</p>
 </div>
 <div class="paragraph">
-<p>Finally, you can choose to apply a detail enhancement filter at the end of the processing by checking the "sharpen images" box.</p>
+<p>Finally, you can choose to apply a detail enhancement filter at the end of the processing. JSol&#8217;Ex provides three sharpening options:</p>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p><strong>None</strong>: No sharpening is applied</p>
+</li>
+<li>
+<p><strong>Sharpen</strong>: Traditional sharpening using a convolution kernel. You can adjust the kernel size (must be an odd number ≥ 3)</p>
+</li>
+<li>
+<p><strong>Unsharp Mask</strong>: More sophisticated enhancement technique that creates a mask from the difference between the original and a blurred version of the image. This method typically produces more natural-looking results with better edge preservation. You can adjust both the kernel size and the strength of the effect</p>
+</li>
+</ul>
 </div>
 <div class="paragraph">
 <p>Flat correction can be applied to images, in order to correct for vignetting or other artifacts.
