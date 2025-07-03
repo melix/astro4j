@@ -19,6 +19,7 @@
 - Ajout de la fonction `mtf_autostretch` inspirée de SIRIL qui applique un étirement MTF automatique basé sur l'analyse de l'histogramme utilisant un écrêtage des ombres basé sur sigma et un niveau de fond cible
 - Rend les variables `angleP`, `b0`, ... disponibles dans la section `[[batch]]` des scripts. Une valeur moyenne est calculée à partir des images de la série (approximation)
 - Possiblité de choisir le masque flou en méthode d'amélioration de la netteté
+- Ajout d'un script d'exemple pour extraire la couronne E
 
 ### 3.2.2
 

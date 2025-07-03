@@ -180,6 +180,7 @@ public class ImageMathEditor {
             loadPredefinedScript("stacking");
             loadPredefinedScript("aggressive-stacking-ha");
             loadPredefinedScript("aggressive-stacking-ca");
+            loadPredefinedScript("corona");
         }
         predefinedScripts.getSelectionModel().selectedItemProperty().addListener((o, oldValue, newValue) -> {
             if (doesNotHaveStaleChanges()) {

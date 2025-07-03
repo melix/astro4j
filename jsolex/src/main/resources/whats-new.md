@@ -19,6 +19,7 @@
 - Added `mtf_autostretch` function inspired by SIRIL, which applies automatic MTF stretching based on histogram analysis using sigma-based shadow clipping and target background level
 - Make `angleP`, `b0`, ... parameters available in the `[[batch]]` section of scripts. A average value is computed from the images in the batch, and can be used in the script for convenience.
 - Made it possible to select an unsharp mask as the sharpness method in the image enhancement settings
+- Add corona E extraction sample script
 
 ### 3.2.2
 
