@@ -57,7 +57,6 @@ public record ProcessParams(
                 xyRatio,
                 geometryParams().isHorizontalMirror(),
                 geometryParams().isVerticalMirror(),
-                geometryParams().isSharpen(),
                 geometryParams().isDisallowDownsampling(),
                 geometryParams().isAutocorrectAngleP(),
                 geometryParams().rotation(),

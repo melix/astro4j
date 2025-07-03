@@ -164,6 +164,10 @@ public class ImageViewer implements WithRootNode {
             this.image = image instanceof FileBackedImage fbi ? fbi.unwrapToMemory() : image;
             this.imageFile = new File(imageName.getParentFile(), baseName + "_" + imageName.getName() + imageDisplayExtension(params));
             recordImage(baseName, image);
+            // Initialize correctAngleP synchronously to avoid race conditions
+            correctAngleP = new CheckBox(message("correct.p.angle"));
+            correctAngleP.setSelected(processParams.geometryParams().isAutocorrectAngleP());
+            correctAngleP.setDisable(kind.cannotPerformManualRotation());
             BackgroundOperations.async(() -> {
                 configureStretching();
                 if (params.extraParams().autosave()) {
@@ -357,8 +361,6 @@ public class ImageViewer implements WithRootNode {
                 }
                 coordinatesLabel.setText("(" + xx + ", " + yy + extra + ")");
             });
-            correctAngleP = new CheckBox(message("correct.p.angle"));
-            correctAngleP.setSelected(processParams.geometryParams().isAutocorrectAngleP());
             var applyNextTime = new Button("✔");
             correctAngleP.selectedProperty().addListener((obj, oldValue, newValue) -> {
                 stretchAndDisplay();
@@ -366,7 +368,6 @@ public class ImageViewer implements WithRootNode {
                     applyNextTime.setDisable(false);
                 }
             });
-            correctAngleP.setDisable(kind.cannotPerformManualRotation());
             var prevButton = new Button(message("prev.image"));
             prevButton.disableProperty().bind(currentImage.isEqualTo(0));
             prevButton.visibleProperty().bind(imageHistory.sizeProperty().greaterThan(1));

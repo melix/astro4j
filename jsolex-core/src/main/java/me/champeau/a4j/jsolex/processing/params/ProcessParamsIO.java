@@ -105,13 +105,13 @@ public abstract class ProcessParamsIO {
                         false),
                 new ExtraParams(false, true, EnumSet.of(ImageFormat.PNG), FileNamingStrategy.DEFAULT_TEMPLATE, FileNamingStrategy.DEFAULT_DATETIME_FORMAT, FileNamingStrategy.DEFAULT_DATE_FORMAT, false, GlobeStyle.EQUATORIAL_COORDS),
                 new VideoParams(ColorMode.MONO),
-                new GeometryParams(null, null, false, false, false, false, false, RotationKind.NONE, AutocropMode.RADIUS_1_2, DeconvolutionMode.NONE, null, false, null, false),
+                new GeometryParams(null, null, false, false, false, false, RotationKind.NONE, AutocropMode.RADIUS_1_2, DeconvolutionMode.NONE, null, false, null, false),
                 new BandingCorrectionParams(DEFAULT_BAND_SIZE, DEFAULT_PASS_COUNT),
                 new RequestedImages(RequestedImages.FULL_MODE, List.of(0d), Set.of(), Set.of(), ImageMathParams.NONE, false),
                 createDefaultClaheParams(),
                 createDefaultAutoStretchParams(),
                 ContrastEnhancement.AUTOSTRETCH,
-                new EnhancementParams(false, FlatCorrection.DEFAULT_LO_PERCENTILE, FlatCorrection.DEFAULT_HI_PERCENTILE, FlatCorrection.DEFAULT_ORDER, null, new JaggingCorrectionParams(false, JaggingCorrection.DEFAULT_SIGMA))
+                new EnhancementParams(false, FlatCorrection.DEFAULT_LO_PERCENTILE, FlatCorrection.DEFAULT_HI_PERCENTILE, FlatCorrection.DEFAULT_ORDER, null, new JaggingCorrectionParams(false, JaggingCorrection.DEFAULT_SIGMA), SharpeningParams.none())
         );
     }
 
@@ -158,7 +158,6 @@ public abstract class ProcessParamsIO {
                         new GeometryParams(
                                 null,
                                 null,
-                                false,
                                 false,
                                 false,
                                 false,
@@ -239,7 +238,7 @@ public abstract class ProcessParamsIO {
                 params = params.withContrastEnhancement(ContrastEnhancement.AUTOSTRETCH);
             }
             if (params.enhancementParams() == null) {
-                params = params.withEnhancementParams(new EnhancementParams(false, FlatCorrection.DEFAULT_LO_PERCENTILE, FlatCorrection.DEFAULT_HI_PERCENTILE, FlatCorrection.DEFAULT_ORDER, null, new JaggingCorrectionParams(false, JaggingCorrection.DEFAULT_SIGMA)));
+                params = params.withEnhancementParams(new EnhancementParams(false, FlatCorrection.DEFAULT_LO_PERCENTILE, FlatCorrection.DEFAULT_HI_PERCENTILE, FlatCorrection.DEFAULT_ORDER, null, new JaggingCorrectionParams(false, JaggingCorrection.DEFAULT_SIGMA), SharpeningParams.none()));
             }
             if (params.extraParams().globeStyle() == null) {
                 params = params.withExtraParams(params.extraParams().withGlobeStyle(GlobeStyle.EQUATORIAL_COORDS));

@@ -219,35 +219,77 @@
                                                            prefWidth="316.0"/>
                                     </columnConstraints>
                                     <rowConstraints>
-                                        <RowConstraints maxHeight="50.0" minHeight="10.0" prefHeight="50.0"
+                                        <RowConstraints maxHeight="40.0" minHeight="10.0" prefHeight="35.0"
                                                         vgrow="SOMETIMES"/>
-                                        <RowConstraints maxHeight="50.0" minHeight="10.0" prefHeight="50.0"
+                                        <RowConstraints maxHeight="40.0" minHeight="10.0" prefHeight="35.0"
                                                         vgrow="ALWAYS"/>
-                                        <RowConstraints maxHeight="53.0" minHeight="10.0" prefHeight="51.0"
+                                        <RowConstraints maxHeight="35.0" minHeight="10.0" prefHeight="30.0"
                                                         vgrow="SOMETIMES"/>
-                                        <RowConstraints maxHeight="52.0" minHeight="10.0" prefHeight="49.0"
+                                        <RowConstraints maxHeight="35.0" minHeight="10.0" prefHeight="30.0"
                                                         vgrow="SOMETIMES"/>
-                                        <RowConstraints maxHeight="38.0" minHeight="10.0" prefHeight="32.0"
+                                        <RowConstraints maxHeight="35.0" minHeight="10.0" prefHeight="30.0"
                                                         vgrow="SOMETIMES"/>
-                                        <RowConstraints maxHeight="90.0" minHeight="10.0" prefHeight="28.0"
+                                        <RowConstraints maxHeight="40.0" minHeight="10.0" prefHeight="30.0"
                                                         vgrow="SOMETIMES"/>
-                                        <RowConstraints maxHeight="59.0" minHeight="10.0" prefHeight="34.0"
+                                        <RowConstraints maxHeight="35.0" minHeight="10.0" prefHeight="30.0"
                                                         vgrow="SOMETIMES"/>
-                                        <RowConstraints maxHeight="61.0" minHeight="10.0" prefHeight="29.0"
+                                        <RowConstraints maxHeight="50.0" minHeight="10.0" prefHeight="40.0"
                                                         vgrow="SOMETIMES"/>
-                                        <RowConstraints maxHeight="50.0" minHeight="10.0" prefHeight="31.0"
+                                        <RowConstraints maxHeight="35.0" minHeight="10.0" prefHeight="30.0"
                                                         vgrow="SOMETIMES"/>
-                                        <RowConstraints maxHeight="50.0" minHeight="10.0" prefHeight="31.0"
+                                        <RowConstraints maxHeight="35.0" minHeight="10.0" prefHeight="30.0"
+                                                        vgrow="SOMETIMES"/>
+                                        <RowConstraints maxHeight="35.0" minHeight="10.0" prefHeight="30.0"
                                                         vgrow="SOMETIMES"/>
                                     </rowConstraints>
                                     <children>
                                         <Label text="%deconvolution.mode" GridPane.rowIndex="4"/>
-                                        <CheckBox fx:id="sharpen" mnemonicParsing="false" text="%sharpen.images"
-                                                  GridPane.rowIndex="7">
+                                        <Label text="%sharpening.method" GridPane.rowIndex="7"/>
+                                        <ChoiceBox fx:id="sharpeningMethod" prefHeight="24.0" prefWidth="464.0"
+                                                   GridPane.columnIndex="1" GridPane.rowIndex="7">
                                             <tooltip>
-                                                <Tooltip text="%sharpen.images.tooltip"/>
+                                                <Tooltip text="%sharpening.method.tooltip"/>
                                             </tooltip>
-                                        </CheckBox>
+                                        </ChoiceBox>
+                                        <VBox prefHeight="100.0" prefWidth="100.0" spacing="2.0" GridPane.columnSpan="2"
+                                              GridPane.rowIndex="8">
+                                            <children>
+                                                <VBox fx:id="sharpeningParams">
+                                                    <GridPane>
+                                                        <columnConstraints>
+                                                            <ColumnConstraints hgrow="NEVER" minWidth="80.0"
+                                                                               prefWidth="120.0"/>
+                                                            <ColumnConstraints hgrow="NEVER" minWidth="60.0"
+                                                                               prefWidth="80.0"/>
+                                                            <ColumnConstraints hgrow="NEVER" minWidth="60.0"
+                                                                               prefWidth="80.0"/>
+                                                            <ColumnConstraints hgrow="SOMETIMES" minWidth="60.0"
+                                                                               prefWidth="80.0"/>
+                                                        </columnConstraints>
+                                                        <rowConstraints>
+                                                            <RowConstraints minHeight="10.0" prefHeight="30.0"
+                                                                            vgrow="SOMETIMES"/>
+                                                        </rowConstraints>
+                                                        <children>
+                                                            <Label fx:id="kernelSizeLabel" text="%sharpening.kernel.size" GridPane.halignment="RIGHT">
+                                                                <GridPane.margin>
+                                                                    <Insets right="4.0"/>
+                                                                </GridPane.margin>
+                                                            </Label>
+                                                            <TextField fx:id="kernelSize" prefHeight="24.0"
+                                                                       prefWidth="53.0" GridPane.columnIndex="1"/>
+                                                            <Label fx:id="strengthLabel" text="%sharpening.strength" GridPane.columnIndex="2"
+                                                                   GridPane.halignment="RIGHT">
+                                                                <GridPane.margin>
+                                                                    <Insets right="4.0"/>
+                                                                </GridPane.margin>
+                                                            </Label>
+                                                            <TextField fx:id="unsharpStrength" GridPane.columnIndex="3"/>
+                                                        </children>
+                                                    </GridPane>
+                                                </VBox>
+                                            </children>
+                                        </VBox>
                                         <ChoiceBox fx:id="deconvolutionMode" prefHeight="24.0" prefWidth="464.0"
                                                    GridPane.columnIndex="1" GridPane.rowIndex="4">
                                             <tooltip>
@@ -313,99 +355,57 @@
                                         <Button alignment="CENTER" contentDisplay="CENTER" mnemonicParsing="false"
                                                 onAction="#resetImageEnhancementsParams" text="%reset.to.defaults"
                                                 GridPane.columnIndex="1" GridPane.halignment="CENTER"
-                                                GridPane.rowIndex="9"/>
-                                        <Label text="%clahe.params" GridPane.rowIndex="2"/>
-                                        <GridPane fx:id="claheParamsPane" GridPane.columnIndex="1"
-                                                  GridPane.rowIndex="2">
-                                            <columnConstraints>
-                                                <ColumnConstraints hgrow="SOMETIMES" minWidth="10.0" prefWidth="100.0"/>
-                                                <ColumnConstraints hgrow="SOMETIMES" minWidth="10.0" prefWidth="100.0"/>
-                                                <ColumnConstraints hgrow="SOMETIMES" minWidth="10.0" prefWidth="100.0"/>
-                                            </columnConstraints>
-                                            <rowConstraints>
-                                                <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="SOMETIMES"/>
-                                                <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="SOMETIMES"/>
-                                            </rowConstraints>
-                                            <children>
-                                                <ChoiceBox fx:id="claheTileSize" prefWidth="150.0"
-                                                           GridPane.rowIndex="1">
-                                                    <GridPane.margin>
-                                                        <Insets bottom="2.0" left="2.0" right="2.0" top="2.0"/>
-                                                    </GridPane.margin>
-                                                </ChoiceBox>
-                                                <ChoiceBox fx:id="claheBins" prefWidth="150.0" GridPane.columnIndex="1"
-                                                           GridPane.rowIndex="1">
-                                                    <GridPane.margin>
-                                                        <Insets bottom="2.0" left="2.0" right="2.0" top="2.0"/>
-                                                    </GridPane.margin>
-                                                </ChoiceBox>
-                                                <TextField fx:id="claheClipping" GridPane.columnIndex="2"
-                                                           GridPane.rowIndex="1">
-                                                    <GridPane.margin>
-                                                        <Insets bottom="2.0" left="2.0" right="2.0" top="2.0"/>
-                                                    </GridPane.margin>
-                                                </TextField>
-                                                <Label text="%tile.size" GridPane.halignment="CENTER"/>
-                                                <Label text="%bins" GridPane.columnIndex="1"
-                                                       GridPane.halignment="CENTER"/>
-                                                <Label text="%clipping" GridPane.columnIndex="2"
-                                                       GridPane.halignment="CENTER"/>
-                                            </children>
-                                        </GridPane>
-                                        <Label text="%contrast.enhancement.technique"/>
+                                                GridPane.rowIndex="10"/>
+                                        <Label text="%contrast.enhancement.technique" GridPane.rowIndex="0"/>
                                         <ChoiceBox fx:id="contrastEnhancementTechnique" prefHeight="24.0"
-                                                   prefWidth="367.0" GridPane.columnIndex="1"/>
-                                        <Label text="%autostretch.params" GridPane.rowIndex="1"/>
-                                        <GridPane fx:id="autostretchParamsPane" GridPane.columnIndex="1"
-                                                  GridPane.rowIndex="1" GridPane.vgrow="ALWAYS">
-                                            <rowConstraints>
-                                                <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="SOMETIMES"/>
-                                                <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="SOMETIMES"/>
-                                            </rowConstraints>
-                                            <Label prefHeight="18.0" prefWidth="75.0" text="%gamma"/>
-                                            <TextField fx:id="autostretchGamma" prefWidth="60.0"
-                                                       GridPane.columnIndex="1"/>
-                                            <Label text="%background.threshold" GridPane.columnIndex="2"
-                                                   GridPane.halignment="RIGHT">
-                                                <tooltip>
-                                                    <Tooltip text="%background.threshold.tooltip"/>
-                                                </tooltip>
-                                                <GridPane.margin>
-                                                    <Insets left="8.0"/>
-                                                </GridPane.margin>
-                                            </Label>
-                                            <TextField fx:id="bgThreshold" prefHeight="26.0" prefWidth="80.0"
-                                                       GridPane.columnIndex="3" GridPane.halignment="RIGHT">
-                                                <GridPane.margin>
-                                                    <Insets left="8.0"/>
-                                                </GridPane.margin>
-                                                <tooltip>
-                                                    <Tooltip text="%background.threshold.tooltip"/>
-                                                </tooltip>
-                                            </TextField>
-                                            <Label text="%protus.stretch.value" GridPane.columnSpan="3"
-                                                   GridPane.halignment="RIGHT" GridPane.rowIndex="1">
-                                                <tooltip>
-                                                    <Tooltip text="%protus.stretch.value.tooltip"/>
-                                                </tooltip>
-                                            </Label>
-                                            <TextField fx:id="protusStretchValue" prefWidth="80.0"
-                                                       GridPane.columnIndex="3" GridPane.halignment="RIGHT"
-                                                       GridPane.rowIndex="1">
-                                                <tooltip>
-                                                    <Tooltip text="%protus.stretch.value.tooltip"/>
-                                                </tooltip>
-                                                <GridPane.margin>
-                                                    <Insets left="8.0"/>
-                                                </GridPane.margin>
-                                            </TextField>
-                                            <columnConstraints>
-                                                <ColumnConstraints/>
-                                                <ColumnConstraints/>
-                                                <ColumnConstraints halignment="RIGHT"/>
-                                                <ColumnConstraints halignment="RIGHT"/>
-                                            </columnConstraints>
-                                        </GridPane>
+                                                   prefWidth="367.0" GridPane.columnIndex="1" GridPane.rowIndex="0"/>
+                                        
+                                        <!-- Autostretch parameters -->
+                                        <Label fx:id="autostretchParamsLabel" text="%autostretch.params" GridPane.rowIndex="1"/>
+                                        <HBox fx:id="autostretchParamsContainer" alignment="CENTER_LEFT" spacing="8.0" 
+                                              GridPane.columnIndex="1" GridPane.rowIndex="1">
+                                            <children>
+                                                <Label text="%gamma"/>
+                                                <TextField fx:id="autostretchGamma" prefWidth="60.0"/>
+                                                <Label text="%background.threshold">
+                                                    <tooltip>
+                                                        <Tooltip text="%background.threshold.tooltip"/>
+                                                    </tooltip>
+                                                </Label>
+                                                <TextField fx:id="bgThreshold" prefWidth="80.0">
+                                                    <tooltip>
+                                                        <Tooltip text="%background.threshold.tooltip"/>
+                                                    </tooltip>
+                                                </TextField>
+                                            </children>
+                                        </HBox>
+                                        <Label fx:id="protusStretchLabel" text="%protus.stretch.value" GridPane.rowIndex="2"/>
+                                        <TextField fx:id="protusStretchValue" prefWidth="60.0" GridPane.columnIndex="1" GridPane.rowIndex="2">
+                                            <tooltip>
+                                                <Tooltip text="%protus.stretch.value.tooltip"/>
+                                            </tooltip>
+                                        </TextField>
+                                        
+                                        <!-- CLAHE parameters -->
+                                        <Label fx:id="claheParamsLabel" text="%clahe.params" GridPane.rowIndex="1"/>
+                                        <VBox fx:id="claheParamsContainer" GridPane.columnIndex="1" GridPane.rowIndex="1">
+                                            <children>
+                                                <HBox alignment="CENTER_LEFT" spacing="16.0">
+                                                    <children>
+                                                        <Label text="%tile.size" prefWidth="60.0"/>
+                                                        <Label text="%bins" prefWidth="60.0"/>
+                                                        <Label text="%clipping" prefWidth="60.0"/>
+                                                    </children>
+                                                </HBox>
+                                                <HBox alignment="CENTER_LEFT" spacing="16.0">
+                                                    <children>
+                                                        <ChoiceBox fx:id="claheTileSize" prefWidth="60.0"/>
+                                                        <ChoiceBox fx:id="claheBins" prefWidth="60.0"/>
+                                                        <TextField fx:id="claheClipping" prefWidth="60.0"/>
+                                                    </children>
+                                                </HBox>
+                                            </children>
+                                        </VBox>
                                         <HBox fx:id="artificialFlatParams" alignment="CENTER_LEFT" prefHeight="100.0"
                                               prefWidth="200.0" spacing="8" GridPane.columnIndex="1"
                                               GridPane.rowIndex="6">
@@ -457,28 +457,18 @@
                                                GridPane.rowIndex="6"/>
                                         <ChoiceBox fx:id="flatMode" prefHeight="26.0" prefWidth="275.0"
                                                    GridPane.rowIndex="6"/>
-                                        <GridPane GridPane.columnIndex="1" GridPane.rowIndex="3">
-                                            <columnConstraints>
-                                                <ColumnConstraints hgrow="SOMETIMES" minWidth="10.0" prefWidth="100.0"/>
-                                                <ColumnConstraints hgrow="SOMETIMES" minWidth="10.0" prefWidth="100.0"/>
-                                            </columnConstraints>
-                                            <rowConstraints>
-                                                <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="SOMETIMES"/>
-                                                <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="SOMETIMES"/>
-                                            </rowConstraints>
+                                        <HBox alignment="CENTER_LEFT" prefHeight="100.0" prefWidth="200.0" spacing="8.0"
+                                              GridPane.columnIndex="1" GridPane.rowIndex="3">
                                             <children>
-                                                <TextField fx:id="bandingCorrectionWidth" GridPane.rowIndex="1"/>
-                                                <TextField fx:id="bandingCorrectionPasses" GridPane.columnIndex="1"
-                                                           GridPane.rowIndex="1"/>
-                                                <Label text="%banding.correction.width" textAlignment="CENTER"
-                                                       GridPane.halignment="CENTER"/>
-                                                <Label text="%banding.correction.passes" textAlignment="CENTER"
-                                                       GridPane.columnIndex="1" GridPane.halignment="CENTER"/>
+                                                <Label text="%banding.correction.width"/>
+                                                <TextField fx:id="bandingCorrectionWidth" prefWidth="60.0"/>
+                                                <Label text="%banding.correction.passes"/>
+                                                <TextField fx:id="bandingCorrectionPasses" prefWidth="60.0"/>
                                             </children>
-                                        </GridPane>
+                                        </HBox>
                                         <Label text="%banding.correction" GridPane.rowIndex="3"/>
                                         <HBox alignment="CENTER_LEFT" prefHeight="100.0" prefWidth="200.0" spacing="8.0"
-                                              GridPane.columnSpan="2" GridPane.hgrow="ALWAYS" GridPane.rowIndex="8"
+                                              GridPane.columnSpan="2" GridPane.hgrow="ALWAYS" GridPane.rowIndex="9"
                                               GridPane.valignment="CENTER">
                                             <children>
                                                 <CheckBox fx:id="jaggingCorrection" mnemonicParsing="false"
