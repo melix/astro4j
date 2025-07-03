@@ -59,6 +59,7 @@ import me.champeau.a4j.jsolex.processing.util.Constants;
 import me.champeau.a4j.jsolex.processing.util.ImageSaver;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
 import me.champeau.a4j.jsolex.processing.util.ProcessingException;
+import me.champeau.a4j.jsolex.processing.util.SolarParameters;
 import me.champeau.a4j.jsolex.processing.util.SolarParametersUtils;
 import me.champeau.a4j.ser.Header;
 
@@ -113,6 +114,8 @@ public class BatchModeEventListener implements ProcessingEventListener, ImageMat
     private final Map<Integer, List<CandidateImageDescriptor>> imagesByIndex;
     private final Map<Integer, List<File>> filesByIndex;
     private final Map<Integer, File> serFilesByIndex;
+    private final Map<Integer, SolarParameters> solarParametersByIndex;
+    private final Map<Integer, ProcessParams> processParamsByIndex;
     private final long sd = System.nanoTime();
     private ProcessParams adjustedParams;
     private final java.util.concurrent.locks.ReentrantReadWriteLock dataLock;
@@ -137,12 +140,62 @@ public class BatchModeEventListener implements ProcessingEventListener, ImageMat
         this.imagesByIndex = context.imagesByIndex();
         this.filesByIndex = context.filesByIndex();
         this.serFilesByIndex = context.serFilesByIndex();
+        this.solarParametersByIndex = context.solarParametersByIndex();
+        this.processParamsByIndex = context.processParamsByIndex();
         this.referenceHeader = context.referenceHeader();
         this.item = context.items().stream().filter(batchItem -> batchItem.id() == sequenceNumber).findFirst().get();
         this.totalItems = context.items().size();
         this.allItems = context.items();
         this.sequenceNumber = sequenceNumber;
         this.dataLock = context.dataLock();
+    }
+    
+    private SolarParameters computeAverageSolarParameters() {
+        if (solarParametersByIndex.isEmpty()) {
+            return null;
+        }
+        
+        double sumB0 = 0.0;
+        double sumL0 = 0.0;
+        double sumP = 0.0;
+        double sumApparentSize = 0.0;
+        int sumCarringtonRotation = 0;
+        int count = 0;
+        
+        for (SolarParameters params : solarParametersByIndex.values()) {
+            if (params != null) {
+                sumB0 += params.b0();
+                sumL0 += params.l0();
+                sumP += params.p();
+                sumApparentSize += params.apparentSize();
+                sumCarringtonRotation += params.carringtonRotation();
+                count++;
+            }
+        }
+        
+        if (count == 0) {
+            return null;
+        }
+        
+        return new SolarParameters(
+            Math.round((float) sumCarringtonRotation / count),
+            sumB0 / count,
+            sumL0 / count,
+            sumP / count,
+            sumApparentSize / count
+        );
+    }
+    
+    private ProcessParams getFirstProcessParams() {
+        if (processParamsByIndex.isEmpty()) {
+            return null;
+        }
+        
+        // Find the first file's ProcessParams (lowest index)
+        return processParamsByIndex.entrySet().stream()
+            .min(Map.Entry.comparingByKey())
+            .map(Map.Entry::getValue)
+            .orElse(null);
     }
 
     @Override
@@ -227,6 +280,11 @@ public class BatchModeEventListener implements ProcessingEventListener, ImageMat
         dataLock.writeLock().lock();
         try {
             serFilesByIndex.put(sequenceNumber, item.file());
+            var params = adjustedParams != null ? adjustedParams : processParams;
+            var solarParams = SolarParametersUtils.computeSolarParams(params.observationDetails().date().toLocalDateTime());
+            solarParametersByIndex.put(sequenceNumber, solarParams);
+            // Store ProcessParams for this file
+            processParamsByIndex.put(sequenceNumber, params);
         } finally {
             dataLock.writeLock().unlock();
         }
@@ -383,6 +441,25 @@ public class BatchModeEventListener implements ProcessingEventListener, ImageMat
             var imageEmitter = new NamingStrategyAwareImageEmitter(new RenamingImageEmitter(new DefaultImageEmitter(delegate, rootOperation, outputDirectory), name -> name, name -> name), createNamingStrategy(), sequenceNumber, computeSerFileBasename(item.file()));
             var ctx = new HashMap<Class, Object>();
             ctx.put(ImageEmitter.class, imageEmitter);
+
+            dataLock.readLock().lock();
+            try {
+                // Add averaged solar parameters to batch script context.
+                // This is not accurate, but a convenience for example when processing
+                // a series of SER files which are "close" in time
+                var avgSolarParams = computeAverageSolarParameters();
+                if (avgSolarParams != null) {
+                    ctx.put(SolarParameters.class, avgSolarParams);
+                }
+                
+                // Add first file's ProcessParams to batch script context
+                var firstProcessParams = getFirstProcessParams();
+                if (firstProcessParams != null) {
+                    ctx.put(ProcessParams.class, firstProcessParams);
+                }
+            } finally {
+                dataLock.readLock().unlock();
+            }
             batchScriptExecutor = new JSolExScriptExecutor(
                 idx -> {
                     throw new IllegalStateException("Cannot call img() in batch outputs. Use variables to store images instead");

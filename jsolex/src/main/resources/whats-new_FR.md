@@ -17,6 +17,7 @@
 - Correction d'un bug dans le mode auto contrast qui pouvait provoquer une exception
 - Ajout de la fonction `mtf` inspirée de SIRIL qui applique une fonction de transfert des tons moyens (MTF) avec des paramètres configurables pour les ombres, tons moyens et hautes lumières (valeurs 8-bit 0-255)
 - Ajout de la fonction `mtf_autostretch` inspirée de SIRIL qui applique un étirement MTF automatique basé sur l'analyse de l'histogramme utilisant un écrêtage des ombres basé sur sigma et un niveau de fond cible
+- Rend les variables `angleP`, `b0`, ... disponibles dans la section `[[batch]]` des scripts. Une valeur moyenne est calculée à partir des images de la série (approximation)
 
 ### 3.2.2
 
