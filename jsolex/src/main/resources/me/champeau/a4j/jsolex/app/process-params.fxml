@@ -50,29 +50,25 @@
 <?import javafx.scene.layout.RowConstraints?>
 <?import javafx.scene.layout.VBox?>
 
-<BorderPane maxHeight="-Infinity" maxWidth="-Infinity" minHeight="-Infinity" minWidth="-Infinity" prefHeight="548.0"
-            prefWidth="650.0" xmlns="http://javafx.com/javafx/24" xmlns:fx="http://javafx.com/fxml/1"
-            fx:controller="me.champeau.a4j.jsolex.app.jfx.ProcessParamsController">
+<BorderPane maxHeight="-Infinity" maxWidth="-Infinity" minHeight="-Infinity" minWidth="-Infinity" prefHeight="548.0" prefWidth="650.0" xmlns="http://javafx.com/javafx/24" xmlns:fx="http://javafx.com/fxml/1" fx:controller="me.champeau.a4j.jsolex.app.jfx.ProcessParamsController">
     <bottom>
         <AnchorPane prefWidth="650.0">
             <children>
-                <Button layoutX="491.0" layoutY="8.0" mnemonicParsing="false" onAction="#process" text="%full.process"/>
-                <Button layoutX="31.0" layoutY="8.0" mnemonicParsing="false" onAction="#cancel" text="%cancel"/>
-                <Button layoutX="240.0" layoutY="8.0" mnemonicParsing="false" onAction="#customProcess"
-                        text="%custom.mode">
+                <Button layoutX="491.0" layoutY="8.0" mnemonicParsing="false" onAction="#process" text="%full.process" />
+                <Button layoutX="31.0" layoutY="8.0" mnemonicParsing="false" onAction="#cancel" text="%cancel" />
+                <Button layoutX="240.0" layoutY="8.0" mnemonicParsing="false" onAction="#customProcess" text="%custom.mode">
                     <tooltip>
-                        <Tooltip text="%custom.mode.tooltip"/>
+                        <Tooltip text="%custom.mode.tooltip" />
                     </tooltip>
                 </Button>
-                <Button layoutX="371.0" layoutY="8.0" mnemonicParsing="false" onAction="#quickProcess"
-                        text="%quick.mode">
+                <Button layoutX="371.0" layoutY="8.0" mnemonicParsing="false" onAction="#quickProcess" text="%quick.mode">
                     <tooltip>
-                        <Tooltip text="%quick.mode.tooltip"/>
+                        <Tooltip text="%quick.mode.tooltip" />
                     </tooltip>
                 </Button>
             </children>
             <padding>
-                <Insets bottom="8.0" left="8.0" right="8.0" top="8.0"/>
+                <Insets bottom="8.0" left="8.0" right="8.0" top="8.0" />
             </padding>
         </AnchorPane>
     </bottom>
@@ -83,122 +79,95 @@
                     <content>
                         <AnchorPane minHeight="0.0" minWidth="0.0">
                             <children>
-                                <GridPane layoutX="14.0" layoutY="40.0" prefHeight="303.0" prefWidth="598.0"
-                                          AnchorPane.bottomAnchor="0.0" AnchorPane.leftAnchor="0.0"
-                                          AnchorPane.rightAnchor="0.0" AnchorPane.topAnchor="0.0">
+                                <GridPane layoutX="14.0" layoutY="40.0" prefHeight="303.0" prefWidth="598.0" AnchorPane.bottomAnchor="0.0" AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="0.0" AnchorPane.topAnchor="0.0">
                                     <columnConstraints>
-                                        <ColumnConstraints hgrow="SOMETIMES" maxWidth="308.0" minWidth="10.0"
-                                                           prefWidth="261.0"/>
-                                        <ColumnConstraints hgrow="SOMETIMES" maxWidth="375.0" minWidth="10.0"
-                                                           prefWidth="367.0"/>
+                                        <ColumnConstraints hgrow="SOMETIMES" maxWidth="308.0" minWidth="10.0" prefWidth="261.0" />
+                                        <ColumnConstraints hgrow="SOMETIMES" maxWidth="375.0" minWidth="10.0" prefWidth="367.0" />
                                     </columnConstraints>
                                     <rowConstraints>
-                                        <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="SOMETIMES"/>
-                                        <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="SOMETIMES"/>
-                                        <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="SOMETIMES"/>
-                                        <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="SOMETIMES"/>
-                                        <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="SOMETIMES"/>
-                                        <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="SOMETIMES"/>
-                                        <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="SOMETIMES"/>
-                                        <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="SOMETIMES"/>
-                                        <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="SOMETIMES"/>
-                                        <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="SOMETIMES"/>
-                                        <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="SOMETIMES"/>
-                                        <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="SOMETIMES"/>
-                                        <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="SOMETIMES"/>
+                                        <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="SOMETIMES" />
+                                        <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="SOMETIMES" />
+                                        <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="SOMETIMES" />
+                                        <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="SOMETIMES" />
+                                        <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="SOMETIMES" />
+                                        <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="SOMETIMES" />
+                                        <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="SOMETIMES" />
+                                        <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="SOMETIMES" />
+                                        <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="SOMETIMES" />
+                                        <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="SOMETIMES" />
+                                        <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="SOMETIMES" />
+                                        <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="SOMETIMES" />
+                                        <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="SOMETIMES" />
                                     </rowConstraints>
                                     <children>
-                                        <Label text="%wavelength"/>
+                                        <Label text="%wavelength" />
                                         <HBox spacing="12.0" GridPane.columnIndex="1">
                                             <children>
                                                 <ChoiceBox fx:id="wavelength" prefHeight="24.0" prefWidth="237.0">
                                                     <tooltip>
-                                                        <Tooltip text="%wavelength.tooltip"/>
+                                                        <Tooltip text="%wavelength.tooltip" />
                                                     </tooltip>
                                                 </ChoiceBox>
-                                                <Button alignment="CENTER" mnemonicParsing="false"
-                                                        onAction="#openWavelengthEditor" prefHeight="24.0"
-                                                        prefWidth="47.0" text="..."/>
+                                                <Button alignment="CENTER" mnemonicParsing="false" onAction="#openWavelengthEditor" prefHeight="24.0" prefWidth="47.0" text="..." />
                                             </children>
                                         </HBox>
-                                        <Label text="%pixel.shifting" GridPane.rowIndex="1"/>
-                                        <TextField fx:id="pixelShifting" maxWidth="80" GridPane.columnIndex="1"
-                                                   GridPane.rowIndex="1">
+                                        <Label text="%pixel.shifting" GridPane.rowIndex="1" />
+                                        <TextField fx:id="pixelShifting" maxWidth="80" GridPane.columnIndex="1" GridPane.rowIndex="1">
                                             <tooltip>
-                                                <Tooltip text="%pixel.shifting.tooltip"/>
+                                                <Tooltip text="%pixel.shifting.tooltip" />
                                             </tooltip>
                                         </TextField>
-                                        <Button alignment="CENTER" contentDisplay="CENTER" mnemonicParsing="false"
-                                                onAction="#resetRayParams" text="%reset.to.defaults"
-                                                GridPane.columnIndex="1" GridPane.rowIndex="12"/>
-                                        <CheckBox fx:id="forceTilt" mnemonicParsing="false" text="%override.tilt"
-                                                  GridPane.rowIndex="7">
+                                        <Button alignment="CENTER" contentDisplay="CENTER" mnemonicParsing="false" onAction="#resetRayParams" text="%reset.to.defaults" GridPane.columnIndex="1" GridPane.rowIndex="12" />
+                                        <CheckBox fx:id="forceTilt" mnemonicParsing="false" text="%override.tilt" GridPane.rowIndex="7">
                                             <tooltip>
-                                                <Tooltip text="%override.tilt.tooltip"/>
+                                                <Tooltip text="%override.tilt.tooltip" />
                                             </tooltip>
                                         </CheckBox>
-                                        <CheckBox fx:id="forceXYRatio" mnemonicParsing="false" text="%override.xy"
-                                                  GridPane.rowIndex="8">
+                                        <CheckBox fx:id="forceXYRatio" mnemonicParsing="false" text="%override.xy" GridPane.rowIndex="8">
                                             <tooltip>
-                                                <Tooltip text="%override.xy.tooltip"/>
+                                                <Tooltip text="%override.xy.tooltip" />
                                             </tooltip>
                                         </CheckBox>
                                         <TextField fx:id="tiltValue" GridPane.columnIndex="1" GridPane.rowIndex="7">
                                             <tooltip>
-                                                <Tooltip text="%tilt.angle"/>
+                                                <Tooltip text="%tilt.angle" />
                                             </tooltip>
                                         </TextField>
                                         <TextField GridPane.columnIndex="1" GridPane.rowIndex="8" fx:id="xyRatioValue">
                                             <tooltip>
-                                                <Tooltip text="%xy.ratio.tooltip"/>
+                                                <Tooltip text="%xy.ratio.tooltip" />
                                             </tooltip>
                                         </TextField>
-                                        <Label text="%doppler.shifting" GridPane.rowIndex="2"/>
-                                        <TextField fx:id="dopplerShifting" maxWidth="80.0" text="3.0"
-                                                   GridPane.columnIndex="1" GridPane.rowIndex="2">
+                                        <Label text="%doppler.shifting" GridPane.rowIndex="2" />
+                                        <TextField fx:id="dopplerShifting" maxWidth="80.0" text="3.0" GridPane.columnIndex="1" GridPane.rowIndex="2">
                                             <tooltip>
-                                                <Tooltip text="%doppler.tooltip"/>
+                                                <Tooltip text="%doppler.tooltip" />
                                             </tooltip>
                                         </TextField>
-                                        <CheckBox fx:id="horizontalMirror" mnemonicParsing="false"
-                                                  text="%horizontal.flip" GridPane.columnIndex="0"
-                                                  GridPane.rowIndex="10"/>
-                                        <CheckBox fx:id="verticalMirror" mnemonicParsing="false" text="%vertical.flip"
-                                                  GridPane.columnIndex="1" GridPane.rowIndex="10"/>
-                                        <CheckBox fx:id="autocorrectAngleP" mnemonicParsing="false"
-                                                  text="%autocorrect.p.angle" GridPane.rowIndex="6">
+                                        <CheckBox fx:id="horizontalMirror" mnemonicParsing="false" text="%horizontal.flip" GridPane.columnIndex="0" GridPane.rowIndex="10" />
+                                        <CheckBox fx:id="verticalMirror" mnemonicParsing="false" text="%vertical.flip" GridPane.columnIndex="1" GridPane.rowIndex="10" />
+                                        <CheckBox fx:id="autocorrectAngleP" mnemonicParsing="false" text="%autocorrect.p.angle" GridPane.rowIndex="6">
                                             <tooltip>
-                                                <Tooltip text="%autocorrect.p.angle.tooltip"/>
+                                                <Tooltip text="%autocorrect.p.angle.tooltip" />
                                             </tooltip>
                                         </CheckBox>
-                                        <CheckBox fx:id="switchRedBlueChannels" mnemonicParsing="false"
-                                                  text="%doppler.switch.red.blue.channels" GridPane.columnIndex="1"
-                                                  GridPane.rowIndex="6">
+                                        <CheckBox fx:id="switchRedBlueChannels" mnemonicParsing="false" text="%doppler.switch.red.blue.channels" GridPane.columnIndex="1" GridPane.rowIndex="6">
                                             <tooltip>
-                                                <Tooltip text="%doppler.switch.red.blue.channels.tooltip"/>
+                                                <Tooltip text="%doppler.switch.red.blue.channels.tooltip" />
                                             </tooltip>
                                         </CheckBox>
-                                        <CheckBox fx:id="disallowDownsampling" mnemonicParsing="false"
-                                                  text="%disallow.downsampling" GridPane.columnSpan="2"
-                                                  GridPane.rowIndex="11"/>
-                                        <Label text="%rotation" GridPane.rowIndex="4"/>
-                                        <ChoiceBox fx:id="rotation" prefHeight="24.0" prefWidth="362.0"
-                                                   GridPane.columnIndex="1" GridPane.rowIndex="4"/>
-                                        <Label text="%autocrop" GridPane.rowIndex="5"/>
-                                        <ChoiceBox fx:id="autocrop" prefHeight="24.0" prefWidth="362.0"
-                                                   GridPane.columnIndex="1" GridPane.rowIndex="5"/>
-                                        <Label text="%continuum.shift" GridPane.rowIndex="3"/>
-                                        <TextField fx:id="continuumShifting" maxWidth="80.0" GridPane.columnIndex="1"
-                                                   GridPane.rowIndex="3"/>
-                                        <CheckBox fx:id="forcePolynomial" mnemonicParsing="false"
-                                                  text="%force.polynomial" GridPane.rowIndex="9"/>
-                                        <HBox prefHeight="100.0" prefWidth="200.0" spacing="16.0"
-                                              GridPane.columnIndex="1" GridPane.rowIndex="9">
+                                        <CheckBox fx:id="disallowDownsampling" mnemonicParsing="false" text="%disallow.downsampling" GridPane.columnSpan="2" GridPane.rowIndex="11" />
+                                        <Label text="%rotation" GridPane.rowIndex="4" />
+                                        <ChoiceBox fx:id="rotation" prefHeight="24.0" prefWidth="362.0" GridPane.columnIndex="1" GridPane.rowIndex="4" />
+                                        <Label text="%autocrop" GridPane.rowIndex="5" />
+                                        <ChoiceBox fx:id="autocrop" prefHeight="24.0" prefWidth="362.0" GridPane.columnIndex="1" GridPane.rowIndex="5" />
+                                        <Label text="%continuum.shift" GridPane.rowIndex="3" />
+                                        <TextField fx:id="continuumShifting" maxWidth="80.0" GridPane.columnIndex="1" GridPane.rowIndex="3" />
+                                        <CheckBox fx:id="forcePolynomial" mnemonicParsing="false" text="%force.polynomial" GridPane.rowIndex="9" />
+                                        <HBox prefHeight="100.0" prefWidth="200.0" spacing="16.0" GridPane.columnIndex="1" GridPane.rowIndex="9">
                                             <children>
-                                                <TextField fx:id="forcedPolynomial" prefHeight="24.0"
-                                                           prefWidth="328.0"/>
-                                                <Button fx:id="forcePolynomialOpen" mnemonicParsing="false"
-                                                        onAction="#openVideoDebugger" text="..."/>
+                                                <TextField fx:id="forcedPolynomial" prefHeight="24.0" prefWidth="328.0" />
+                                                <Button fx:id="forcePolynomialOpen" mnemonicParsing="false" onAction="#openVideoDebugger" text="..." />
                                             </children>
                                         </HBox>
                                     </children>
@@ -213,270 +182,222 @@
                             <children>
                                 <GridPane fx:id="enhancementsPane" layoutX="14.0">
                                     <columnConstraints>
-                                        <ColumnConstraints hgrow="SOMETIMES" maxWidth="293.0" minWidth="10.0"
-                                                           prefWidth="282.0"/>
-                                        <ColumnConstraints hgrow="SOMETIMES" maxWidth="439.0" minWidth="10.0"
-                                                           prefWidth="316.0"/>
+                                        <ColumnConstraints hgrow="SOMETIMES" maxWidth="293.0" minWidth="10.0" prefWidth="282.0" />
+                                        <ColumnConstraints hgrow="SOMETIMES" maxWidth="439.0" minWidth="10.0" prefWidth="316.0" />
                                     </columnConstraints>
                                     <rowConstraints>
-                                        <RowConstraints maxHeight="40.0" minHeight="10.0" prefHeight="35.0"
-                                                        vgrow="SOMETIMES"/>
-                                        <RowConstraints maxHeight="40.0" minHeight="10.0" prefHeight="35.0"
-                                                        vgrow="ALWAYS"/>
-                                        <RowConstraints maxHeight="35.0" minHeight="10.0" prefHeight="30.0"
-                                                        vgrow="SOMETIMES"/>
-                                        <RowConstraints maxHeight="35.0" minHeight="10.0" prefHeight="30.0"
-                                                        vgrow="SOMETIMES"/>
-                                        <RowConstraints maxHeight="35.0" minHeight="10.0" prefHeight="30.0"
-                                                        vgrow="SOMETIMES"/>
-                                        <RowConstraints maxHeight="40.0" minHeight="10.0" prefHeight="30.0"
-                                                        vgrow="SOMETIMES"/>
-                                        <RowConstraints maxHeight="35.0" minHeight="10.0" prefHeight="30.0"
-                                                        vgrow="SOMETIMES"/>
-                                        <RowConstraints maxHeight="50.0" minHeight="10.0" prefHeight="40.0"
-                                                        vgrow="SOMETIMES"/>
-                                        <RowConstraints maxHeight="35.0" minHeight="10.0" prefHeight="30.0"
-                                                        vgrow="SOMETIMES"/>
-                                        <RowConstraints maxHeight="35.0" minHeight="10.0" prefHeight="30.0"
-                                                        vgrow="SOMETIMES"/>
-                                        <RowConstraints maxHeight="35.0" minHeight="10.0" prefHeight="30.0"
-                                                        vgrow="SOMETIMES"/>
+                                        <RowConstraints maxHeight="40.0" minHeight="10.0" prefHeight="35.0" vgrow="SOMETIMES" />
+                                        <RowConstraints maxHeight="40.0" minHeight="10.0" prefHeight="35.0" vgrow="ALWAYS" />
+                                        <RowConstraints maxHeight="35.0" minHeight="10.0" prefHeight="30.0" vgrow="SOMETIMES" />
+                                        <RowConstraints maxHeight="35.0" minHeight="10.0" prefHeight="30.0" vgrow="SOMETIMES" />
+                                        <RowConstraints maxHeight="35.0" minHeight="10.0" prefHeight="30.0" vgrow="SOMETIMES" />
+                                        <RowConstraints maxHeight="40.0" minHeight="10.0" prefHeight="30.0" vgrow="SOMETIMES" />
+                                        <RowConstraints maxHeight="35.0" minHeight="10.0" prefHeight="30.0" vgrow="SOMETIMES" />
+                                        <RowConstraints maxHeight="50.0" minHeight="10.0" prefHeight="40.0" vgrow="SOMETIMES" />
+                                        <RowConstraints maxHeight="35.0" minHeight="10.0" prefHeight="30.0" vgrow="SOMETIMES" />
+                                        <RowConstraints maxHeight="35.0" minHeight="10.0" prefHeight="30.0" vgrow="SOMETIMES" />
+                                        <RowConstraints maxHeight="35.0" minHeight="10.0" prefHeight="30.0" vgrow="SOMETIMES" />
                                     </rowConstraints>
                                     <children>
-                                        <Label text="%deconvolution.mode" GridPane.rowIndex="4"/>
-                                        <Label text="%sharpening.method" GridPane.rowIndex="7"/>
-                                        <ChoiceBox fx:id="sharpeningMethod" prefHeight="24.0" prefWidth="464.0"
-                                                   GridPane.columnIndex="1" GridPane.rowIndex="7">
+                                        <Label text="%deconvolution.mode" GridPane.rowIndex="4" />
+                                        <Label text="%sharpening.method" GridPane.rowIndex="7" />
+                                        <ChoiceBox fx:id="sharpeningMethod" prefHeight="24.0" prefWidth="464.0" GridPane.columnIndex="1" GridPane.rowIndex="7">
                                             <tooltip>
-                                                <Tooltip text="%sharpening.method.tooltip"/>
+                                                <Tooltip text="%sharpening.method.tooltip" />
                                             </tooltip>
                                         </ChoiceBox>
-                                        <VBox prefHeight="100.0" prefWidth="100.0" spacing="2.0" GridPane.columnSpan="2"
-                                              GridPane.rowIndex="8">
+                                        <VBox prefHeight="100.0" prefWidth="100.0" spacing="2.0" GridPane.columnSpan="2" GridPane.rowIndex="8">
                                             <children>
                                                 <VBox fx:id="sharpeningParams">
                                                     <GridPane>
                                                         <columnConstraints>
-                                                            <ColumnConstraints hgrow="NEVER" minWidth="80.0"
-                                                                               prefWidth="120.0"/>
-                                                            <ColumnConstraints hgrow="NEVER" minWidth="60.0"
-                                                                               prefWidth="80.0"/>
-                                                            <ColumnConstraints hgrow="NEVER" minWidth="60.0"
-                                                                               prefWidth="80.0"/>
-                                                            <ColumnConstraints hgrow="SOMETIMES" minWidth="60.0"
-                                                                               prefWidth="80.0"/>
+                                                            <ColumnConstraints hgrow="NEVER" minWidth="80.0" prefWidth="120.0" />
+                                                            <ColumnConstraints hgrow="NEVER" minWidth="60.0" prefWidth="80.0" />
+                                                            <ColumnConstraints hgrow="NEVER" minWidth="60.0" prefWidth="80.0" />
+                                                            <ColumnConstraints hgrow="SOMETIMES" minWidth="60.0" prefWidth="80.0" />
                                                         </columnConstraints>
                                                         <rowConstraints>
-                                                            <RowConstraints minHeight="10.0" prefHeight="30.0"
-                                                                            vgrow="SOMETIMES"/>
+                                                            <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="SOMETIMES" />
                                                         </rowConstraints>
                                                         <children>
                                                             <Label fx:id="kernelSizeLabel" text="%sharpening.kernel.size" GridPane.halignment="RIGHT">
                                                                 <GridPane.margin>
-                                                                    <Insets right="4.0"/>
+                                                                    <Insets right="4.0" />
                                                                 </GridPane.margin>
                                                             </Label>
-                                                            <TextField fx:id="kernelSize" prefHeight="24.0"
-                                                                       prefWidth="53.0" GridPane.columnIndex="1"/>
-                                                            <Label fx:id="strengthLabel" text="%sharpening.strength" GridPane.columnIndex="2"
-                                                                   GridPane.halignment="RIGHT">
+                                                            <TextField fx:id="kernelSize" prefHeight="24.0" prefWidth="53.0" GridPane.columnIndex="1" />
+                                                            <Label fx:id="strengthLabel" text="%sharpening.strength" GridPane.columnIndex="2" GridPane.halignment="RIGHT">
                                                                 <GridPane.margin>
-                                                                    <Insets right="4.0"/>
+                                                                    <Insets right="4.0" />
                                                                 </GridPane.margin>
                                                             </Label>
-                                                            <TextField fx:id="unsharpStrength" GridPane.columnIndex="3"/>
+                                                            <TextField fx:id="unsharpStrength" GridPane.columnIndex="3" />
                                                         </children>
                                                     </GridPane>
                                                 </VBox>
                                             </children>
                                         </VBox>
-                                        <ChoiceBox fx:id="deconvolutionMode" prefHeight="24.0" prefWidth="464.0"
-                                                   GridPane.columnIndex="1" GridPane.rowIndex="4">
+                                        <ChoiceBox fx:id="deconvolutionMode" prefHeight="24.0" prefWidth="464.0" GridPane.columnIndex="1" GridPane.rowIndex="4">
                                             <tooltip>
-                                                <Tooltip text="%deconvolution.mode.tooltip"/>
+                                                <Tooltip text="%deconvolution.mode.tooltip" />
                                             </tooltip>
                                         </ChoiceBox>
-                                        <VBox prefHeight="200.0" prefWidth="100.0" spacing="4.0" GridPane.columnSpan="2"
-                                              GridPane.rowIndex="5">
+                                        <VBox prefHeight="200.0" prefWidth="100.0" spacing="4.0" GridPane.columnSpan="2" GridPane.rowIndex="5">
                                             <children>
                                                 <VBox fx:id="rlParams">
                                                     <GridPane>
                                                         <columnConstraints>
-                                                            <ColumnConstraints hgrow="SOMETIMES" minWidth="10.0"
-                                                                               prefWidth="100.0"/>
-                                                            <ColumnConstraints hgrow="SOMETIMES" minWidth="10.0"
-                                                                               prefWidth="100.0"/>
-                                                            <ColumnConstraints hgrow="SOMETIMES" minWidth="10.0"
-                                                                               prefWidth="100.0"/>
-                                                            <ColumnConstraints hgrow="SOMETIMES" minWidth="10.0"
-                                                                               prefWidth="100.0"/>
-                                                            <ColumnConstraints hgrow="SOMETIMES" minWidth="10.0"
-                                                                               prefWidth="100.0"/>
-                                                            <ColumnConstraints hgrow="SOMETIMES" minWidth="10.0"
-                                                                               prefWidth="100.0"/>
+                                                            <ColumnConstraints hgrow="SOMETIMES" minWidth="10.0" prefWidth="100.0" />
+                                                            <ColumnConstraints hgrow="SOMETIMES" minWidth="10.0" prefWidth="100.0" />
+                                                            <ColumnConstraints hgrow="SOMETIMES" minWidth="10.0" prefWidth="100.0" />
+                                                            <ColumnConstraints hgrow="SOMETIMES" minWidth="10.0" prefWidth="100.0" />
+                                                            <ColumnConstraints hgrow="SOMETIMES" minWidth="10.0" prefWidth="100.0" />
+                                                            <ColumnConstraints hgrow="SOMETIMES" minWidth="10.0" prefWidth="100.0" />
                                                         </columnConstraints>
                                                         <rowConstraints>
-                                                            <RowConstraints minHeight="10.0" prefHeight="30.0"
-                                                                            vgrow="SOMETIMES"/>
+                                                            <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="SOMETIMES" />
                                                         </rowConstraints>
                                                         <children>
-                                                            <TextField fx:id="rlIterations" GridPane.columnIndex="5"/>
-                                                            <TextField fx:id="rlRadius" prefHeight="24.0"
-                                                                       prefWidth="53.0" GridPane.columnIndex="1"/>
-                                                            <TextField fx:id="rlSigma" GridPane.columnIndex="3"/>
+                                                            <TextField fx:id="rlIterations" GridPane.columnIndex="5" />
+                                                            <TextField fx:id="rlRadius" prefHeight="24.0" prefWidth="53.0" GridPane.columnIndex="1" />
+                                                            <TextField fx:id="rlSigma" GridPane.columnIndex="3" />
                                                             <Label text="%rl.psf.radius" GridPane.halignment="RIGHT">
                                                                 <GridPane.margin>
-                                                                    <Insets right="4.0"/>
+                                                                    <Insets right="4.0" />
                                                                 </GridPane.margin>
                                                             </Label>
-                                                            <Label text="%rl.psf.sigma" GridPane.columnIndex="2"
-                                                                   GridPane.halignment="RIGHT">
+                                                            <Label text="%rl.psf.sigma" GridPane.columnIndex="2" GridPane.halignment="RIGHT">
                                                                 <GridPane.margin>
-                                                                    <Insets right="4.0"/>
+                                                                    <Insets right="4.0" />
                                                                 </GridPane.margin>
                                                             </Label>
-                                                            <Label text="%rl.iterations" GridPane.columnIndex="4"
-                                                                   GridPane.halignment="RIGHT">
+                                                            <Label text="%rl.iterations" GridPane.columnIndex="4" GridPane.halignment="RIGHT">
                                                                 <GridPane.margin>
-                                                                    <Insets right="4.0"/>
+                                                                    <Insets right="4.0" />
                                                                 </GridPane.margin>
                                                             </Label>
                                                         </children>
                                                     </GridPane>
                                                     <VBox.margin>
-                                                        <Insets left="50.0"/>
+                                                        <Insets left="50.0" />
                                                     </VBox.margin>
                                                 </VBox>
                                             </children>
                                             <GridPane.margin>
-                                                <Insets top="4.0"/>
+                                                <Insets top="4.0" />
                                             </GridPane.margin>
                                         </VBox>
-                                        <Button alignment="CENTER" contentDisplay="CENTER" mnemonicParsing="false"
-                                                onAction="#resetImageEnhancementsParams" text="%reset.to.defaults"
-                                                GridPane.columnIndex="1" GridPane.halignment="CENTER"
-                                                GridPane.rowIndex="10"/>
-                                        <Label text="%contrast.enhancement.technique" GridPane.rowIndex="0"/>
-                                        <ChoiceBox fx:id="contrastEnhancementTechnique" prefHeight="24.0"
-                                                   prefWidth="367.0" GridPane.columnIndex="1" GridPane.rowIndex="0"/>
+                                        <Button alignment="CENTER" contentDisplay="CENTER" mnemonicParsing="false" onAction="#resetImageEnhancementsParams" text="%reset.to.defaults" GridPane.columnIndex="1" GridPane.halignment="CENTER" GridPane.rowIndex="10" />
+                                        <Label text="%contrast.enhancement.technique" GridPane.rowIndex="0" />
+                                        <ChoiceBox fx:id="contrastEnhancementTechnique" prefHeight="24.0" prefWidth="367.0" GridPane.columnIndex="1" GridPane.rowIndex="0" />
                                         
                                         <!-- Autostretch parameters -->
-                                        <Label fx:id="autostretchParamsLabel" text="%autostretch.params" GridPane.rowIndex="1"/>
-                                        <HBox fx:id="autostretchParamsContainer" alignment="CENTER_LEFT" spacing="8.0" 
-                                              GridPane.columnIndex="1" GridPane.rowIndex="1">
+                                        <Label fx:id="autostretchParamsLabel" text="%autostretch.params" GridPane.rowIndex="1" />
+                                        <HBox fx:id="autostretchParamsContainer" alignment="CENTER_LEFT" spacing="8.0" GridPane.columnIndex="1" GridPane.rowIndex="1">
                                             <children>
-                                                <Label text="%gamma"/>
-                                                <TextField fx:id="autostretchGamma" prefWidth="60.0"/>
+                                                <Label text="%gamma" />
+                                                <TextField fx:id="autostretchGamma" prefWidth="60.0" />
                                                 <Label text="%background.threshold">
                                                     <tooltip>
-                                                        <Tooltip text="%background.threshold.tooltip"/>
+                                                        <Tooltip text="%background.threshold.tooltip" />
                                                     </tooltip>
                                                 </Label>
                                                 <TextField fx:id="bgThreshold" prefWidth="80.0">
                                                     <tooltip>
-                                                        <Tooltip text="%background.threshold.tooltip"/>
+                                                        <Tooltip text="%background.threshold.tooltip" />
                                                     </tooltip>
                                                 </TextField>
                                             </children>
                                         </HBox>
-                                        <Label fx:id="protusStretchLabel" text="%protus.stretch.value" GridPane.rowIndex="2"/>
-                                        <TextField fx:id="protusStretchValue" prefWidth="60.0" GridPane.columnIndex="1" GridPane.rowIndex="2">
-                                            <tooltip>
-                                                <Tooltip text="%protus.stretch.value.tooltip"/>
-                                            </tooltip>
-                                        </TextField>
+                                        <HBox alignment="CENTER_RIGHT" spacing="4.0" GridPane.columnIndex="1" GridPane.rowIndex="2">
+                                            <GridPane.margin>
+                                                <Insets top="4.0" />
+                                            </GridPane.margin>
+                                            <Label fx:id="protusStretchLabel" text="%protus.stretch.value" />
+                                            <TextField fx:id="protusStretchValue" maxWidth="-Infinity" prefHeight="26.0" prefWidth="67.0">
+                                                <tooltip>
+                                                    <Tooltip text="%protus.stretch.value.tooltip" />
+                                                </tooltip>
+                                            </TextField>
+                                        </HBox>
                                         
                                         <!-- CLAHE parameters -->
-                                        <Label fx:id="claheParamsLabel" text="%clahe.params" GridPane.rowIndex="1"/>
+                                        <Label fx:id="claheParamsLabel" text="%clahe.params" GridPane.rowIndex="1" />
                                         <VBox fx:id="claheParamsContainer" GridPane.columnIndex="1" GridPane.rowIndex="1">
                                             <children>
                                                 <HBox alignment="CENTER_LEFT" spacing="16.0">
                                                     <children>
-                                                        <Label text="%tile.size" prefWidth="60.0"/>
-                                                        <Label text="%bins" prefWidth="60.0"/>
-                                                        <Label text="%clipping" prefWidth="60.0"/>
+                                                        <Label prefWidth="60.0" text="%tile.size" />
+                                                        <Label prefWidth="60.0" text="%bins" />
+                                                        <Label prefWidth="60.0" text="%clipping" />
                                                     </children>
                                                 </HBox>
                                                 <HBox alignment="CENTER_LEFT" spacing="16.0">
                                                     <children>
-                                                        <ChoiceBox fx:id="claheTileSize" prefWidth="60.0"/>
-                                                        <ChoiceBox fx:id="claheBins" prefWidth="60.0"/>
-                                                        <TextField fx:id="claheClipping" prefWidth="60.0"/>
+                                                        <ChoiceBox fx:id="claheTileSize" prefWidth="60.0" />
+                                                        <ChoiceBox fx:id="claheBins" prefWidth="60.0" />
+                                                        <TextField fx:id="claheClipping" prefWidth="60.0" />
                                                     </children>
                                                 </HBox>
                                             </children>
                                         </VBox>
-                                        <HBox fx:id="artificialFlatParams" alignment="CENTER_LEFT" prefHeight="100.0"
-                                              prefWidth="200.0" spacing="8" GridPane.columnIndex="1"
-                                              GridPane.rowIndex="6">
-                                            <Label fx:id="flatLoPercentileLabel" text="%flat.percentile.lo"
-                                                   HBox.hgrow="ALWAYS">
+                                        <HBox fx:id="artificialFlatParams" alignment="CENTER_LEFT" prefHeight="100.0" prefWidth="200.0" spacing="8" GridPane.columnIndex="1" GridPane.rowIndex="6">
+                                            <Label fx:id="flatLoPercentileLabel" text="%flat.percentile.lo" HBox.hgrow="ALWAYS">
                                                 <tooltip>
-                                                    <Tooltip text="%flat.percentile.lo.tooltip"/>
+                                                    <Tooltip text="%flat.percentile.lo.tooltip" />
                                                 </tooltip>
                                             </Label>
-                                            <TextField fx:id="flatLoPercentile" minWidth="-Infinity" prefHeight="24.0"
-                                                       prefWidth="64.0">
+                                            <TextField fx:id="flatLoPercentile" minWidth="-Infinity" prefHeight="24.0" prefWidth="64.0">
                                                 <tooltip>
-                                                    <Tooltip text="%flat.percentile.lo.tooltip"/>
+                                                    <Tooltip text="%flat.percentile.lo.tooltip" />
                                                 </tooltip>
                                             </TextField>
                                             <Label fx:id="flatHiPercentileLabel" text="%flat.percentile.hi">
                                                 <tooltip>
-                                                    <Tooltip text="%flat.percentile.hi.tooltip"/>
+                                                    <Tooltip text="%flat.percentile.hi.tooltip" />
                                                 </tooltip>
                                             </Label>
-                                            <TextField fx:id="flatHiPercentile" minWidth="-Infinity" prefHeight="24.0"
-                                                       prefWidth="64.0">
+                                            <TextField fx:id="flatHiPercentile" minWidth="-Infinity" prefHeight="24.0" prefWidth="64.0">
                                                 <tooltip>
-                                                    <Tooltip text="%flat.percentile.hi.tooltip"/>
+                                                    <Tooltip text="%flat.percentile.hi.tooltip" />
                                                 </tooltip>
                                             </TextField>
                                             <Label fx:id="flatOrderLabel" text="%flat.percentile.order">
                                                 <tooltip>
-                                                    <Tooltip text="%flat.percentile.order.tooltip"/>
+                                                    <Tooltip text="%flat.percentile.order.tooltip" />
                                                 </tooltip>
                                             </Label>
-                                            <TextField fx:id="flatOrder" minWidth="-Infinity" prefHeight="24.0"
-                                                       prefWidth="64.0">
+                                            <TextField fx:id="flatOrder" minWidth="-Infinity" prefHeight="24.0" prefWidth="64.0">
                                                 <tooltip>
-                                                    <Tooltip text="%flat.percentile.order.tooltip"/>
+                                                    <Tooltip text="%flat.percentile.order.tooltip" />
                                                 </tooltip>
                                             </TextField>
                                         </HBox>
-                                        <ButtonBar fx:id="flatParams" prefHeight="100.0" prefWidth="200.0"
-                                                   GridPane.columnIndex="1" GridPane.rowIndex="6">
+                                        <ButtonBar fx:id="flatParams" prefHeight="100.0" prefWidth="200.0" GridPane.columnIndex="1" GridPane.rowIndex="6">
                                             <buttons>
-                                                <TextField fx:id="flatFilePath" disable="true" editable="false"
-                                                           HBox.hgrow="ALWAYS">
+                                                <TextField fx:id="flatFilePath" disable="true" editable="false" HBox.hgrow="ALWAYS">
                                                 </TextField>
-                                                <Button onAction="#selectFlatFile" text="%choose.flat.file"/>
+                                                <Button onAction="#selectFlatFile" text="%choose.flat.file" />
                                             </buttons>
                                         </ButtonBar>
-                                        <Label fx:id="flatModeHelp" text="%flat.mode.help" GridPane.columnIndex="1"
-                                               GridPane.rowIndex="6"/>
-                                        <ChoiceBox fx:id="flatMode" prefHeight="26.0" prefWidth="275.0"
-                                                   GridPane.rowIndex="6"/>
-                                        <HBox alignment="CENTER_LEFT" prefHeight="100.0" prefWidth="200.0" spacing="8.0"
-                                              GridPane.columnIndex="1" GridPane.rowIndex="3">
+                                        <Label fx:id="flatModeHelp" text="%flat.mode.help" GridPane.columnIndex="1" GridPane.rowIndex="6" />
+                                        <ChoiceBox fx:id="flatMode" prefHeight="26.0" prefWidth="275.0" GridPane.rowIndex="6" />
+                                        <HBox alignment="CENTER_LEFT" prefHeight="100.0" prefWidth="200.0" spacing="8.0" GridPane.columnIndex="1" GridPane.rowIndex="3">
                                             <children>
-                                                <Label text="%banding.correction.width"/>
-                                                <TextField fx:id="bandingCorrectionWidth" prefWidth="60.0"/>
-                                                <Label text="%banding.correction.passes"/>
-                                                <TextField fx:id="bandingCorrectionPasses" prefWidth="60.0"/>
+                                                <Label text="%banding.correction.width" />
+                                                <TextField fx:id="bandingCorrectionWidth" prefWidth="60.0" />
+                                                <Label text="%banding.correction.passes" />
+                                                <TextField fx:id="bandingCorrectionPasses" prefWidth="60.0" />
                                             </children>
                                         </HBox>
-                                        <Label text="%banding.correction" GridPane.rowIndex="3"/>
-                                        <HBox alignment="CENTER_LEFT" prefHeight="100.0" prefWidth="200.0" spacing="8.0"
-                                              GridPane.columnSpan="2" GridPane.hgrow="ALWAYS" GridPane.rowIndex="9"
-                                              GridPane.valignment="CENTER">
+                                        <Label text="%banding.correction" GridPane.rowIndex="3" />
+                                        <HBox alignment="CENTER_LEFT" prefHeight="100.0" prefWidth="200.0" spacing="8.0" GridPane.columnSpan="2" GridPane.hgrow="ALWAYS" GridPane.rowIndex="9" GridPane.valignment="CENTER">
                                             <children>
-                                                <CheckBox fx:id="jaggingCorrection" mnemonicParsing="false"
-                                                          text="%jagging.correction"/>
-                                                <Label text="%jagging.correction.sigma"/>
+                                                <CheckBox fx:id="jaggingCorrection" mnemonicParsing="false" text="%jagging.correction" />
+                                                <Label text="%jagging.correction.sigma" />
                                                 <TextField fx:id="jaggingCorrectionSigma" prefWidth="60.0">
                                                     <opaqueInsets>
-                                                        <Insets left="8.0" right="8.0"/>
+                                                        <Insets left="8.0" right="8.0" />
                                                     </opaqueInsets>
                                                 </TextField>
                                             </children>
@@ -491,103 +412,89 @@
                     <content>
                         <AnchorPane minHeight="0.0" minWidth="0.0" prefHeight="180.0" prefWidth="200.0">
                             <children>
-                                <GridPane hgap="8.0" layoutX="67.0" layoutY="71.0" prefHeight="303.0" prefWidth="598.0"
-                                          AnchorPane.bottomAnchor="0.0" AnchorPane.leftAnchor="0.0"
-                                          AnchorPane.rightAnchor="0.0" AnchorPane.topAnchor="0.0">
+                                <GridPane hgap="8.0" layoutX="67.0" layoutY="71.0" prefHeight="303.0" prefWidth="598.0" AnchorPane.bottomAnchor="0.0" AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="0.0" AnchorPane.topAnchor="0.0">
                                     <columnConstraints>
-                                        <ColumnConstraints hgrow="SOMETIMES" minWidth="10.0" prefWidth="100.0"/>
-                                        <ColumnConstraints hgrow="SOMETIMES" minWidth="10.0" prefWidth="100.0"/>
-                                        <ColumnConstraints hgrow="SOMETIMES" minWidth="10.0" prefWidth="100.0"/>
-                                        <ColumnConstraints hgrow="SOMETIMES" minWidth="10.0" prefWidth="100.0"/>
+                                        <ColumnConstraints hgrow="SOMETIMES" minWidth="10.0" prefWidth="100.0" />
+                                        <ColumnConstraints hgrow="SOMETIMES" minWidth="10.0" prefWidth="100.0" />
+                                        <ColumnConstraints hgrow="SOMETIMES" minWidth="10.0" prefWidth="100.0" />
+                                        <ColumnConstraints hgrow="SOMETIMES" minWidth="10.0" prefWidth="100.0" />
                                     </columnConstraints>
                                     <rowConstraints>
-                                        <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="SOMETIMES"/>
-                                        <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="SOMETIMES"/>
-                                        <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="SOMETIMES"/>
-                                        <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="SOMETIMES"/>
-                                        <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="SOMETIMES"/>
-                                        <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="SOMETIMES"/>
-                                        <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="SOMETIMES"/>
-                                        <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="SOMETIMES"/>
-                                        <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="SOMETIMES"/>
+                                        <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="SOMETIMES" />
+                                        <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="SOMETIMES" />
+                                        <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="SOMETIMES" />
+                                        <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="SOMETIMES" />
+                                        <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="SOMETIMES" />
+                                        <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="SOMETIMES" />
+                                        <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="SOMETIMES" />
+                                        <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="SOMETIMES" />
+                                        <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="SOMETIMES" />
                                     </rowConstraints>
                                     <children>
-                                        <Label text="%observer.name"/>
-                                        <Label text="%instrument" GridPane.rowIndex="2"/>
-                                        <Label text="%telescope" GridPane.rowIndex="3"/>
-                                        <Label text="%focal.length" GridPane.rowIndex="4"/>
-                                        <Label text="%utc.date" GridPane.columnIndex="2" GridPane.rowIndex="6"/>
-                                        <Label text="%camera" GridPane.rowIndex="6"/>
-                                        <TextField fx:id="observerName" GridPane.columnIndex="1"
-                                                   GridPane.columnSpan="3">
+                                        <Label text="%observer.name" />
+                                        <Label text="%instrument" GridPane.rowIndex="2" />
+                                        <Label text="%telescope" GridPane.rowIndex="3" />
+                                        <Label text="%focal.length" GridPane.rowIndex="4" />
+                                        <Label text="%utc.date" GridPane.columnIndex="2" GridPane.rowIndex="6" />
+                                        <Label text="%camera" GridPane.rowIndex="6" />
+                                        <TextField fx:id="observerName" GridPane.columnIndex="1" GridPane.columnSpan="3">
                                             <tooltip>
-                                                <Tooltip text="%observer.tooltip"/>
+                                                <Tooltip text="%observer.tooltip" />
                                             </tooltip>
                                         </TextField>
-                                        <ChoiceBox fx:id="instrument" prefWidth="300" GridPane.columnIndex="1"
-                                                   GridPane.columnSpan="2" GridPane.rowIndex="2">
+                                        <ChoiceBox fx:id="instrument" prefWidth="300" GridPane.columnIndex="1" GridPane.columnSpan="2" GridPane.rowIndex="2">
                                             <tooltip>
-                                                <Tooltip text="%instrument.tooltip"/>
+                                                <Tooltip text="%instrument.tooltip" />
                                             </tooltip>
                                         </ChoiceBox>
-                                        <Button onAction="#openInstrumentEditor" text="..." GridPane.columnIndex="3"
-                                                GridPane.rowIndex="2">
+                                        <Button onAction="#openInstrumentEditor" text="..." GridPane.columnIndex="3" GridPane.rowIndex="2">
                                             <GridPane.margin>
-                                                <Insets left="8.0"/>
+                                                <Insets left="8.0" />
                                             </GridPane.margin>
                                         </Button>
-                                        <TextField fx:id="telescope" GridPane.columnIndex="1" GridPane.columnSpan="2"
-                                                   GridPane.rowIndex="3">
+                                        <TextField fx:id="telescope" GridPane.columnIndex="1" GridPane.columnSpan="2" GridPane.rowIndex="3">
                                             <tooltip>
-                                                <Tooltip text="%telescope.tooltip"/>
+                                                <Tooltip text="%telescope.tooltip" />
                                             </tooltip>
                                         </TextField>
-                                        <TextField fx:id="observationDate" GridPane.columnIndex="3"
-                                                   GridPane.rowIndex="6">
+                                        <TextField fx:id="observationDate" GridPane.columnIndex="3" GridPane.rowIndex="6">
                                             <tooltip>
-                                                <Tooltip text="%utc.date.tooltip"/>
+                                                <Tooltip text="%utc.date.tooltip" />
                                             </tooltip>
                                         </TextField>
                                         <TextField fx:id="focalLength" GridPane.columnIndex="1" GridPane.rowIndex="4">
                                             <tooltip>
-                                                <Tooltip text="%focal.length.tooltip"/>
+                                                <Tooltip text="%focal.length.tooltip" />
                                             </tooltip>
                                         </TextField>
                                         <TextField fx:id="camera" GridPane.columnIndex="1" GridPane.rowIndex="6">
                                             <tooltip>
-                                                <Tooltip text="%camera.tooltip"/>
+                                                <Tooltip text="%camera.tooltip" />
                                             </tooltip>
                                         </TextField>
-                                        <Label text="%aperture" GridPane.columnIndex="2" GridPane.rowIndex="4"/>
-                                        <TextField fx:id="aperture" GridPane.columnIndex="3" GridPane.rowIndex="4"/>
-                                        <Label text="%latitude" GridPane.rowIndex="5"/>
-                                        <TextField fx:id="latitude" GridPane.columnIndex="1" GridPane.rowIndex="5"/>
-                                        <Label text="%longitude" GridPane.columnIndex="2" GridPane.rowIndex="5"/>
-                                        <TextField fx:id="longitude" GridPane.columnIndex="3" GridPane.rowIndex="5"/>
-                                        <Label text="%contact.email" GridPane.rowIndex="1"/>
-                                        <TextField fx:id="email" GridPane.columnIndex="1" GridPane.columnSpan="3"
-                                                   GridPane.rowIndex="1">
+                                        <Label text="%aperture" GridPane.columnIndex="2" GridPane.rowIndex="4" />
+                                        <TextField fx:id="aperture" GridPane.columnIndex="3" GridPane.rowIndex="4" />
+                                        <Label text="%latitude" GridPane.rowIndex="5" />
+                                        <TextField fx:id="latitude" GridPane.columnIndex="1" GridPane.rowIndex="5" />
+                                        <Label text="%longitude" GridPane.columnIndex="2" GridPane.rowIndex="5" />
+                                        <TextField fx:id="longitude" GridPane.columnIndex="3" GridPane.rowIndex="5" />
+                                        <Label text="%contact.email" GridPane.rowIndex="1" />
+                                        <TextField fx:id="email" GridPane.columnIndex="1" GridPane.columnSpan="3" GridPane.rowIndex="1">
                                             <tooltip>
-                                                <Tooltip text="%contact.email.tooltip"/>
+                                                <Tooltip text="%contact.email.tooltip" />
                                             </tooltip>
                                         </TextField>
-                                        <ChoiceBox fx:id="binning" prefWidth="150.0" GridPane.columnIndex="1"
-                                                   GridPane.rowIndex="7"/>
-                                        <TextField fx:id="pixelSize" GridPane.columnIndex="3" GridPane.rowIndex="7"/>
-                                        <Label text="%binning" GridPane.rowIndex="7"/>
-                                        <Label text="%pixel.size" GridPane.columnIndex="2" GridPane.rowIndex="7"/>
-                                        <Button mnemonicParsing="false" onAction="#openSetupEditor"
-                                                text="%select.equipment" GridPane.columnIndex="3"
-                                                GridPane.rowIndex="3"/>
-                                        <CheckBox fx:id="spectrumVFlip" mnemonicParsing="false" text="%spectrum.vflip"
-                                                  GridPane.columnSpan="2" GridPane.rowIndex="8">
+                                        <ChoiceBox fx:id="binning" prefWidth="150.0" GridPane.columnIndex="1" GridPane.rowIndex="7" />
+                                        <TextField fx:id="pixelSize" GridPane.columnIndex="3" GridPane.rowIndex="7" />
+                                        <Label text="%binning" GridPane.rowIndex="7" />
+                                        <Label text="%pixel.size" GridPane.columnIndex="2" GridPane.rowIndex="7" />
+                                        <Button mnemonicParsing="false" onAction="#openSetupEditor" text="%select.equipment" GridPane.columnIndex="3" GridPane.rowIndex="3" />
+                                        <CheckBox fx:id="spectrumVFlip" mnemonicParsing="false" text="%spectrum.vflip" GridPane.columnSpan="2" GridPane.rowIndex="8">
                                             <tooltip>
-                                                <Tooltip text="%spectrum.vflip.tooltip"/>
+                                                <Tooltip text="%spectrum.vflip.tooltip" />
                                             </tooltip>
                                         </CheckBox>
-                                        <CheckBox fx:id="altAzMode" mnemonicParsing="false" text="%altaz.mode"
-                                                  GridPane.columnIndex="2" GridPane.columnSpan="2"
-                                                  GridPane.rowIndex="8"/>
+                                        <CheckBox fx:id="altAzMode" mnemonicParsing="false" text="%altaz.mode" GridPane.columnIndex="2" GridPane.columnSpan="2" GridPane.rowIndex="8" />
                                     </children>
                                 </GridPane>
                             </children>
@@ -598,99 +505,78 @@
                     <content>
                         <AnchorPane minHeight="0.0" minWidth="0.0" prefHeight="180.0" prefWidth="200.0">
                             <children>
-                                <GridPane layoutX="33.0" layoutY="62.0" prefHeight="303.0" prefWidth="598.0"
-                                          AnchorPane.bottomAnchor="0.0" AnchorPane.leftAnchor="0.0"
-                                          AnchorPane.rightAnchor="0.0" AnchorPane.topAnchor="0.0">
+                                <GridPane layoutX="33.0" layoutY="62.0" prefHeight="303.0" prefWidth="598.0" AnchorPane.bottomAnchor="0.0" AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="0.0" AnchorPane.topAnchor="0.0">
                                     <columnConstraints>
-                                        <ColumnConstraints hgrow="SOMETIMES" maxWidth="308.0" minWidth="10.0"
-                                                           prefWidth="218.0"/>
-                                        <ColumnConstraints hgrow="SOMETIMES" maxWidth="410.0" minWidth="10.0"
-                                                           prefWidth="410.0"/>
+                                        <ColumnConstraints hgrow="SOMETIMES" maxWidth="308.0" minWidth="10.0" prefWidth="218.0" />
+                                        <ColumnConstraints hgrow="SOMETIMES" maxWidth="410.0" minWidth="10.0" prefWidth="410.0" />
                                     </columnConstraints>
                                     <rowConstraints>
-                                        <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="SOMETIMES"/>
-                                        <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="SOMETIMES"/>
-                                        <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="SOMETIMES"/>
-                                        <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="SOMETIMES"/>
-                                        <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="SOMETIMES"/>
-                                        <RowConstraints/>
+                                        <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="SOMETIMES" />
+                                        <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="SOMETIMES" />
+                                        <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="SOMETIMES" />
+                                        <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="SOMETIMES" />
+                                        <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="SOMETIMES" />
+                                        <RowConstraints />
+                              <RowConstraints />
                                     </rowConstraints>
                                     <children>
-                                        <CheckBox fx:id="generateDebugImages" mnemonicParsing="false"
-                                                  text="%generate.debug.images" GridPane.rowIndex="1">
+                                        <CheckBox fx:id="generateDebugImages" mnemonicParsing="false" text="%generate.debug.images" GridPane.rowIndex="1">
                                             <tooltip>
-                                                <Tooltip text="%generate.debug.images.tooltip"/>
+                                                <Tooltip text="%generate.debug.images.tooltip" />
                                             </tooltip>
                                         </CheckBox>
-                                        <CheckBox fx:id="assumeMonoVideo" mnemonicParsing="false"
-                                                  text="%assume.mono.images">
+                                        <CheckBox fx:id="assumeMonoVideo" mnemonicParsing="false" text="%assume.mono.images">
                                             <tooltip>
-                                                <Tooltip text="%assume.mono.images.tooltip"/>
+                                                <Tooltip text="%assume.mono.images.tooltip" />
                                             </tooltip>
                                         </CheckBox>
-                                        <Button mnemonicParsing="false" onAction="#resetMiscParams"
-                                                text="%reset.to.defaults" GridPane.columnIndex="1"
-                                                GridPane.rowIndex="6"/>
-                                        <CheckBox fx:id="autoSave" mnemonicParsing="false" text="%automatic.save.images"
-                                                  GridPane.columnIndex="1">
+                                        <Button mnemonicParsing="false" onAction="#resetMiscParams" text="%reset.to.defaults" GridPane.columnIndex="1" GridPane.rowIndex="6" />
+                                        <CheckBox fx:id="autoSave" mnemonicParsing="false" text="%automatic.save.images" GridPane.columnIndex="1">
                                             <tooltip>
-                                                <Tooltip text="%automatic.save.images.tooltip"/>
+                                                <Tooltip text="%automatic.save.images.tooltip" />
                                             </tooltip>
                                         </CheckBox>
                                         <GridPane GridPane.columnIndex="1" GridPane.rowIndex="1">
                                             <columnConstraints>
-                                                <ColumnConstraints hgrow="SOMETIMES" minWidth="10.0"/>
-                                                <ColumnConstraints hgrow="SOMETIMES" minWidth="10.0" prefWidth="100.0"/>
+                                                <ColumnConstraints hgrow="SOMETIMES" minWidth="10.0" />
+                                                <ColumnConstraints hgrow="SOMETIMES" minWidth="10.0" prefWidth="100.0" />
                                             </columnConstraints>
                                             <rowConstraints>
-                                                <RowConstraints minHeight="10.0" vgrow="SOMETIMES"/>
-                                                <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="SOMETIMES"/>
+                                                <RowConstraints minHeight="10.0" vgrow="SOMETIMES" />
+                                                <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="SOMETIMES" />
                                             </rowConstraints>
                                             <children>
-                                                <CheckBox fx:id="generateFits" mnemonicParsing="false"
-                                                          text="%generate.fits.files"/>
-                                                <CheckBox fx:id="generatePng" mnemonicParsing="false"
-                                                          text="%generate.png.files" GridPane.columnIndex="1"/>
-                                                <CheckBox fx:id="generateJpg" mnemonicParsing="false"
-                                                          text="%generate.jpg.files" GridPane.rowIndex="1"/>
-                                                <CheckBox fx:id="generateTif" mnemonicParsing="false"
-                                                          text="%generate.tif.files" GridPane.columnIndex="1"
-                                                          GridPane.rowIndex="1"/>
+                                                <CheckBox fx:id="generateFits" mnemonicParsing="false" text="%generate.fits.files" />
+                                                <CheckBox fx:id="generatePng" mnemonicParsing="false" text="%generate.png.files" GridPane.columnIndex="1" />
+                                                <CheckBox fx:id="generateJpg" mnemonicParsing="false" text="%generate.jpg.files" GridPane.rowIndex="1" />
+                                                <CheckBox fx:id="generateTif" mnemonicParsing="false" text="%generate.tif.files" GridPane.columnIndex="1" GridPane.rowIndex="1" />
                                             </children>
                                         </GridPane>
-                                        <Label text="%naming.pattern" GridPane.rowIndex="2"/>
-                                        <HBox alignment="CENTER" prefHeight="100.0" prefWidth="200.0"
-                                              GridPane.columnIndex="1" GridPane.rowIndex="2">
+                                        <Label text="%naming.pattern" GridPane.rowIndex="2" />
+                                        <HBox alignment="CENTER" prefHeight="100.0" prefWidth="200.0" GridPane.columnIndex="1" GridPane.rowIndex="2">
                                             <children>
-                                                <ChoiceBox fx:id="namingPattern" prefHeight="24.0" prefWidth="331.0"/>
-                                                <Button mnemonicParsing="false" onAction="#openNamingPatternEditor"
-                                                        prefHeight="24.0" prefWidth="20.0" text="...">
+                                                <ChoiceBox fx:id="namingPattern" prefHeight="24.0" prefWidth="331.0" />
+                                                <Button mnemonicParsing="false" onAction="#openNamingPatternEditor" prefHeight="24.0" prefWidth="20.0" text="...">
                                                     <HBox.margin>
-                                                        <Insets left="8.0"/>
+                                                        <Insets left="8.0" />
                                                     </HBox.margin>
                                                 </Button>
                                             </children>
                                         </HBox>
-                                        <CheckBox fx:id="autoTrimSerFile" mnemonicParsing="false"
-                                                  text="%auto.trim.ser.file" visible="false" GridPane.columnSpan="2"
-                                                  GridPane.rowIndex="4">
+                                        <CheckBox fx:id="autoTrimSerFile" mnemonicParsing="false" text="%auto.trim.ser.file" visible="false" GridPane.columnSpan="2" GridPane.rowIndex="4">
                                             <tooltip>
-                                                <Tooltip text="%auto.trim.ser.file.tooltip"/>
+                                                <Tooltip text="%auto.trim.ser.file.tooltip" />
                                             </tooltip>
                                         </CheckBox>
-                                        <CheckBox fx:id="reviewImagesAfterBatch" mnemonicParsing="false"
-                                                  text="%review.images.after.batch" visible="false"
-                                                  GridPane.columnSpan="2" GridPane.rowIndex="5">
+                                        <CheckBox fx:id="reviewImagesAfterBatch" mnemonicParsing="false" text="%review.images.after.batch" visible="false" GridPane.columnSpan="2" GridPane.rowIndex="5">
                                             <tooltip>
-                                                <Tooltip text="%review.images.after.batch.tooltip"/>
+                                                <Tooltip text="%review.images.after.batch.tooltip" />
                                             </tooltip>
                                         </CheckBox>
-                                        <Label text="%globestyle" GridPane.rowIndex="3"/>
-                                        <ChoiceBox fx:id="globeStyle" prefHeight="26.0" prefWidth="381.0"
-                                                   GridPane.columnIndex="1" GridPane.hgrow="ALWAYS"
-                                                   GridPane.rowIndex="3">
+                                        <Label text="%globestyle" GridPane.rowIndex="3" />
+                                        <ChoiceBox fx:id="globeStyle" prefHeight="26.0" prefWidth="381.0" GridPane.columnIndex="1" GridPane.hgrow="ALWAYS" GridPane.rowIndex="3">
                                             <GridPane.margin>
-                                                <Insets left="8.0" right="8.0"/>
+                                                <Insets left="8.0" right="8.0" />
                                             </GridPane.margin>
                                         </ChoiceBox>
                                     </children>
