@@ -17,6 +17,7 @@
 - Fix bug in auto contrast which could cause an array index out of bounds exception
 - Added `mtf` function inspired by SIRIL, which applies a Midtone Transfer Function (MTF) with configurable shadows, midtones and highlights parameters (8-bit values 0-255)
 - Added `mtf_autostretch` function inspired by SIRIL, which applies automatic MTF stretching based on histogram analysis using sigma-based shadow clipping and target background level
+- Make `angleP`, `b0`, ... parameters available in the `[[batch]]` section of scripts. A average value is computed from the images in the batch, and can be used in the script for convenience.
 
 ### 3.2.2
 

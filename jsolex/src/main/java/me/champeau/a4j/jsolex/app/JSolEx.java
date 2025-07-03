@@ -1485,6 +1485,8 @@ public class JSolEx implements JSolExInterface {
                         new HashMap<>(),
                         new HashMap<>(),
                         header,
+                        new HashMap<>(),
+                        new HashMap<>(),
                         new ReentrantReadWriteLock());
                 try (var executor = Executors.newFixedThreadPool(2)) {
                     for (int fileIdx = 0; fileIdx < selectedFiles.size(); fileIdx++) {

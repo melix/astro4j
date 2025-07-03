@@ -17,7 +17,9 @@ package me.champeau.a4j.jsolex.app.listeners;
 
 import me.champeau.a4j.jsolex.app.jfx.BatchItem;
 import me.champeau.a4j.jsolex.app.jfx.CandidateImageDescriptor;
+import me.champeau.a4j.jsolex.processing.params.ProcessParams;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
+import me.champeau.a4j.jsolex.processing.util.SolarParameters;
 import me.champeau.a4j.ser.Header;
 
 import java.io.File;
@@ -41,6 +43,8 @@ public record BatchProcessingContext(
     Map<Integer, List<File>> filesByIndex,
     Map<Integer, File> serFilesByIndex,
     Header referenceHeader,
+    Map<Integer, SolarParameters> solarParametersByIndex,
+    Map<Integer, ProcessParams> processParamsByIndex,
     ReentrantReadWriteLock dataLock
 ) {
 }

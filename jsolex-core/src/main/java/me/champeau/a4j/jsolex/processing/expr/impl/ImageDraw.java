@@ -233,6 +233,18 @@ public class ImageDraw extends AbstractFunctionImpl {
             var details = params.observationDetails();
             message = message.replace("%TELESCOPE%", details.telescope());
         }
+        if (message.contains("%DATE%")) {
+            var details = params.observationDetails();
+            message = message.replace("%DATE%", details.date().format(DateTimeFormatter.ofPattern("yyyy-MM-dd")));
+        }
+        if (message.contains("%TIME%")) {
+            var details = params.observationDetails();
+            message = message.replace("%TIME%", details.date().format(DateTimeFormatter.ofPattern("HH:mm:ss 'UTC'")));
+        }
+        if (message.contains("%DATETIME%")) {
+            var details = params.observationDetails();
+            message = message.replace("%DATETIME%", details.date().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss 'UTC'")));
+        }
         return message;
     }
 
