@@ -93,7 +93,13 @@ public record SpectralRay(String label, ColorCurve colorCurve, Wavelen wavelengt
 
     @Override
     public String toString() {
-        return label;
+        String extra = "";
+        var angstroms = wavelength.angstroms();
+        if (angstroms != 0) {
+            angstroms = Math.round(angstroms * 100.0) / 100.0;
+            extra = " (" + angstroms + "Å)";
+        }
+        return label + extra;
     }
 
     public int[] toRGB() {
