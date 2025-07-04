@@ -150,6 +150,12 @@ La correction de bords dentelés peut améliorer ces défauts de manière specta
 Elle ne nécessite qu'un paramètre : une valeur "sigma" qui permet d'adjuster le nombre de points pris en compte dans le modèle de correction.
 Une valeur de sigma proche de 0 sera très restrictive et ne corrigera que les petits défauts, tandis qu'une valeur de sigma plus élevée corrigera des défauts plus importants, au risque de déformer des protubérances par exemple.
 
+[NOTE]
+====
+La correction de bords dentelés peut avoir des effets de bord, tels que la déformation de protubérances. Il ne s'agit pas d'une correction parfaite de la turbulence atmosphérique : en effet, elle ne peut pas corriger les effets perpendiculaires à la direction du scan par exemple. Enfin, elle fonctionnera d'autant mieux sur la turbulence "basse fréquence", c'est-à-dire les mouvements lents de l'atmosphère, et moins bien sur les mouvements rapides.
+Dans tous les cas, il est recommandé de commencer sans correction et de vérifier le résultat dans tous les cas.
+====
+
 == Paramètres d'observation
 
 Les paramètres d'observation sont utilisés lorsque vous enregistrez vos images au format FITS, pour remplir certaines métadonnées.

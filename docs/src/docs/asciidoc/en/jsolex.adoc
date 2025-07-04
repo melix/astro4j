@@ -149,6 +149,12 @@ Jagged edges correction can reduce these defects dramatically.
 It only requires a single parameter: a "sigma" value which lets you adjust the number of points taken into account in the correction model.
 A value of sigma close to 0 will be very restrictive and will only correct small defects, while a higher sigma value will correct larger defects, at the risk of distorting prominences, for example.
 
+[NOTE]
+====
+Jagged edges correction may have side effects, such as distortion of prominences. It is not a perfect correction of atmospheric turbulence: indeed, it cannot correct effects perpendicular to the scan direction for example. Finally, it will work better on "low frequency" turbulence, that is, slow movements of the atmosphere, and less well on rapid movements.
+In all cases, it is recommended to start without correction and verify the result in all cases.
+====
+
 == Observation parameters
 
 Observation parameters are used to insert metadata into FITS files.
