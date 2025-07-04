@@ -57,13 +57,17 @@ They are provided as-is, without any warranty.
   - [JSol'Ex 3.2.2 (Linux, deb, AMD64)](https://jsolex.s3.eu-west-3.amazonaws.com/jsolex-ubuntu-latest/jsolex_3.2.2_amd64.deb)
   - [JSol'Ex 3.2.2 (Windows)](https://jsolex.s3.eu-west-3.amazonaws.com/jsolex-windows-latest/jsolex-3.2.2.msi)
   - [JSol'Ex 3.2.2 (MacOS)](https://jsolex.s3.eu-west-3.amazonaws.com/jsolex-macos-latest/jsolex-3.2.2.pkg)
-  - [JSol'Ex (Tarball)](https://jsolex.s3.eu-west-3.amazonaws.com/jsolex-macos-latest/jsolex-3.2.2.tar.gz)
-  - [JSol'Ex (Zip)](https://jsolex.s3.eu-west-3.amazonaws.com/jsolex-macos-latest/jsolex-3.2.2.zip)
+  - [JSol'Ex (Zip Windows)](https://jsolex.s3.eu-west-3.amazonaws.com/jsolex-windows-latest/jsolex-3.2.2.zip)
+  - [JSol'Ex (Zip Linux)](https://jsolex.s3.eu-west-3.amazonaws.com/jsolex-ubuntu-latest/jsolex-3.2.2.zip)
+  - [JSol'Ex (Zip MacOS ARM64)](https://jsolex.s3.eu-west-3.amazonaws.com/jsolex-macos-latest/jsolex-3.2.2.pkg)
+  - [JSol'Ex (Zip MacOS Intel)](https://jsolex.s3.eu-west-3.amazonaws.com/jsolex-macos-13/jsolex-3.2.2.pkg)
   - [Ser Player 3.2.2 (Linux, deb, AMD64)](https://jsolex.s3.eu-west-3.amazonaws.com/ser-player-ubuntu-latest/ser-player_3.2.2_amd64.deb)
   - [Ser Player 3.2.2 (Windows)](https://jsolex.s3.eu-west-3.amazonaws.com/ser-player-windows-latest/ser-player-3.2.2.msi)
   - [Ser Player 3.2.2 (MacOS)](https://jsolex.s3.eu-west-3.amazonaws.com/ser-player-macos-latest/ser-player-3.2.2.pkg)
-  - [Ser Player (Tarball)](https://jsolex.s3.eu-west-3.amazonaws.com/ser-player-macos-latest/ser-player-3.2.2.tar.gz)
-  - [Ser Player (Zip)](https://jsolex.s3.eu-west-3.amazonaws.com/ser-player-macos-latest/ser-player-3.2.2.zip)
+  - [Ser Player (Zip Windows)](https://jsolex.s3.eu-west-3.amazonaws.com/ser-player-windows-latest/ser-player-3.2.2.zip)
+  - [Ser Player (Zip Linux)](https://jsolex.s3.eu-west-3.amazonaws.com/ser-player-ubuntu-latest/ser-player-3.2.2.zip)
+  - [Ser Player (Zip MacOS ARM64)](https://jsolex.s3.eu-west-3.amazonaws.com/ser-player-macos-latest/ser-player-3.2.2.zip)
+  - [Ser Player (Zip MacOS Intel)](https://jsolex.s3.eu-west-3.amazonaws.com/ser-player-macos-13/ser-player-3.2.2.zip)
 
 You can also install the _development_ version of JSol'Ex as it can contain numerous bugfixes and improvements over the release versions.
 
@@ -73,12 +77,18 @@ You can also install the _development_ version of JSol'Ex as it can contain nume
   - [JSol'Ex (MacOS)](https://jsolex.s3.eu-west-3.amazonaws.com/jsolex-macos-latest/jsolex-devel-3.2.3.pkg)
   - [JSol'Ex (MacOS Intel)](https://jsolex.s3.eu-west-3.amazonaws.com/jsolex-macos-13/jsolex-devel-3.2.3.pkg)
   - [JSol'Ex (Tarball)](https://jsolex.s3.eu-west-3.amazonaws.com/jsolex-macos-latest/jsolex-3.2.3-SNAPSHOT.tar.gz)
-  - [JSol'Ex (Zip)](https://jsolex.s3.eu-west-3.amazonaws.com/jsolex-macos-latest/jsolex-3.2.3-SNAPSHOT.zip)
+  - [JSol'Ex (Zip Windows)](https://jsolex.s3.eu-west-3.amazonaws.com/jsolex-windows-latest/jsolex-3.2.3-SNAPSHOT.zip)
+  - [JSol'Ex (Zip Linux)](https://jsolex.s3.eu-west-3.amazonaws.com/jsolex-ubuntu-latest/jsolex-3.2.3-SNAPSHOT.zip)
+  - [JSol'Ex (Zip MacOS ARM64)](https://jsolex.s3.eu-west-3.amazonaws.com/jsolex-macos-latest/jsolex-3.2.3-SNAPSHOT.pkg)
+  - [JSol'Ex (Zip MacOS Intel)](https://jsolex.s3.eu-west-3.amazonaws.com/jsolex-macos-13/jsolex-3.2.3-SNAPSHOT.pkg)
   - [Ser Player (Linux, deb, AMD64)](https://jsolex.s3.eu-west-3.amazonaws.com/ser-player-ubuntu-latest/ser-player-devel_3.2.3_amd64.deb)
   - [Ser Player (Windows)](https://jsolex.s3.eu-west-3.amazonaws.com/ser-player-windows-latest/ser-player-devel-3.2.3.msi)
   - [Ser Player (MacOS)](https://jsolex.s3.eu-west-3.amazonaws.com/ser-player-macos-latest/ser-player-devel-3.2.3.pkg)
   - [Ser Player (Tarball)](https://jsolex.s3.eu-west-3.amazonaws.com/ser-player-macos-latest/ser-player-3.2.3-SNAPSHOT.tar.gz)
-  - [Ser Player (Zip)](https://jsolex.s3.eu-west-3.amazonaws.com/ser-player-macos-latest/ser-player-3.2.3-SNAPSHOT.zip)
+  - [Ser Player (Zip Windows)](https://jsolex.s3.eu-west-3.amazonaws.com/ser-player-windows-latest/ser-player-3.2.3-SNAPSHOT.zip)
+  - [Ser Player (Zip Linux)](https://jsolex.s3.eu-west-3.amazonaws.com/ser-player-ubuntu-latest/ser-player-3.2.3-SNAPSHOT.zip)
+  - [Ser Player (Zip MacOS ARM64)](https://jsolex.s3.eu-west-3.amazonaws.com/ser-player-macos-latest/ser-player-3.2.3-SNAPSHOT.zip)
+  - [Ser Player (Zip MacOS Intel)](https://jsolex.s3.eu-west-3.amazonaws.com/ser-player-macos-13/ser-player-3.2.3-SNAPSHOT.zip)
 
 Licensed under Apache License version 2.
 
