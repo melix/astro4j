@@ -110,11 +110,15 @@ public class ImageDraw extends AbstractFunctionImpl {
                     var date = details.date();
                     sb.append(date.format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss 'UTC'"))).append("\n");
                     var ray = params.spectrumParams().ray();
-                    String rayDetails = "";
-                    if (ray.wavelength().nanos() > 0) {
-                        rayDetails = " (" + String.format(Locale.US, "%.2fÅ", ray.wavelength().angstroms()) + ")";
-                    }
-                    appendLine(details.instrument().label() + " - " + ray + rayDetails, sb);
+                    appendLine(details.instrument().label() + " - " + ray, sb);
+                    img.findMetadata(PixelShift.class).ifPresent(ps -> {
+                        if (ps.pixelShift() != 0) {
+                            var pixels = ps.pixelShift();
+                            var dispersion = computeDispersion(params, ray.wavelength());
+                            var shift = dispersion.angstromsPerPixel() * pixels;
+                            appendLine(String.format(Locale.US, "Shift %.2f Å (%.2f px)", shift, pixels), sb);
+                        }
+                    });
                     appendLine(details.telescope(), sb);
                     if (details.focalLength() != null) {
                         appendLine("Focal length " + details.focalLength() + "mm", sb);
