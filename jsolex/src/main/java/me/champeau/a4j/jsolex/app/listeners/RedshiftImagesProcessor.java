@@ -141,7 +141,7 @@ public class RedshiftImagesProcessor {
 
     public void produceImages(RedshiftCreatorKind kind, int boxSize, int margin, boolean useFullRangePanels, boolean annotateAnimations, int[] annotationColor) {
         var requiredShifts = createRange(margin, redshifts.stream().mapToInt(RedshiftArea::pixelShift).max().orElse(0));
-        var missingShifts = requiredShifts.stream().filter(d -> !shiftImages.containsKey(d)).toList();
+        var missingShifts = requiredShifts.stream().filter(d -> !shiftImages.containsKey(new PixelShift(d))).toList();
         if (!missingShifts.isEmpty()) {
             restartProcessForMissingShifts(new LinkedHashSet<>(missingShifts));
         }
@@ -149,7 +149,7 @@ public class RedshiftImagesProcessor {
         broadcaster.broadcast(progressOperation);
         double progress = 0;
         var computedShifts = new TreeSet<>(shiftImages.keySet());
-        var adjustedRedshifts = shiftImages.get(0d)
+        var adjustedRedshifts = shiftImages.get(new PixelShift(0d))
             .findMetadata(Redshifts.class)
             .map(Redshifts::redshifts)
             .map(List::reversed)
@@ -162,7 +162,7 @@ public class RedshiftImagesProcessor {
         var max = Math.min(maxShift, computedShifts.last().pixelShift());
         var range = createMinMaxRange(min, max, .25).stream().sorted().toList();
         var contrast = new AdjustContrast(Map.of(), broadcaster);
-        var initialImages = range.stream().map(shiftImages::get).toList();
+        var initialImages = range.stream().map(s -> shiftImages.get(new PixelShift(s))).toList();
         var constrastAdjusted = contrast.autoContrast(Map.of("img", initialImages, "gamma", params.autoStretchParams().gamma()));
         if (constrastAdjusted instanceof List list) {
             var shiftToContrastAdjusted = new HashMap<Double, ImageWrapper>();
@@ -239,11 +239,11 @@ public class RedshiftImagesProcessor {
         var contrast = new AdjustContrast(Map.of(), broadcaster);
         var animate = new Animate(Map.of(), broadcaster);
         var range = createMinMaxRange(minShift, maxShift, .25);
-        var missingShifts = range.stream().filter(d -> !shiftImages.containsKey(d)).toList();
+        var missingShifts = range.stream().filter(d -> !shiftImages.containsKey(new PixelShift(d))).toList();
         if (!missingShifts.isEmpty()) {
             restartProcessForMissingShifts(new LinkedHashSet<>(missingShifts));
         }
-        var initialImages = range.stream().map(shiftImages::get).toList();
+        var initialImages = range.stream().map(s -> shiftImages.get(new PixelShift(s))).toList();
         var maxWidth = initialImages.stream().mapToInt(ImageWrapper::width).max().orElse(0);
         var maxHeight = initialImages.stream().mapToInt(ImageWrapper::height).max().orElse(0);
         // make sure that x+width <= maxWidth and y+height <= maxHeight
@@ -316,11 +316,11 @@ public class RedshiftImagesProcessor {
         var crop = new Crop(Map.of(), broadcaster);
         var contrast = new AdjustContrast(Map.of(), broadcaster);
         var range = createMinMaxRange(minShift, maxShift, 1);
-        var missingShifts = range.stream().filter(d -> !shiftImages.containsKey(d)).toList();
+        var missingShifts = range.stream().filter(d -> !shiftImages.containsKey(new PixelShift(d))).toList();
         if (!missingShifts.isEmpty()) {
             restartProcessForMissingShifts(new LinkedHashSet<>(missingShifts));
         }
-        var initialImages = range.stream().map(shiftImages::get).toList();
+        var initialImages = range.stream().map(s -> shiftImages.get(new PixelShift(s))).toList();
         var constrastAdjusted = contrast.autoContrast(Map.of("img", initialImages, "gamma", params.autoStretchParams().gamma()));
         // make sure that x+width <= maxWidth and y+height <= maxHeight
         var cropWidth = Math.min(width, initialImages.stream().mapToInt(ImageWrapper::width).max().orElse(0) - x);
