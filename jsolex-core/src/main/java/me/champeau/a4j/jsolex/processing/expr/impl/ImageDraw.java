@@ -58,7 +58,10 @@ public class ImageDraw extends AbstractFunctionImpl {
     private static final Pattern HEXA_COLOR = Pattern.compile("[0-9a-fA-F]{6}");
     private static final int DIVISIONS = 18;
     private static final double SUN_DIAMETER_KM = 1_391_400;
+    private static final double SUN_RADIUS_KM = SUN_DIAMETER_KM / 2;
     private static final double EARTH_DIAMETER_KM = 12_742;
+    private static final int PROMINENCE_SCALE_STEP_KM = 50000;
+    private static final int PROMS_CIRCLES = 5;
 
     public ImageDraw(Map<Class<?>, Object> context, Broadcaster broadcaster) {
         super(context, broadcaster);
@@ -460,8 +463,9 @@ public class ImageDraw extends AbstractFunctionImpl {
                 var processParams = findProcessParams(image);
                 style = processParams.map(params -> params.extraParams().globeStyle().name()).orElseGet(GlobeStyle.EQUATORIAL_COORDS::name);
             }
-            var correctAngleP = getArgument(Integer.class, arguments, "correctAngleP").orElse(0) != 0;
-            return doDrawGlobe(image, ellipse, angleP, b0, null, true, correctAngleP, GlobeStyle.valueOf(style.toUpperCase(Locale.US)));
+            var correctAngleP = getArgument(Number.class, arguments, "correctAngleP").map(Number::intValue).orElse(0) != 0;
+            var drawPromScale = getArgument(Number.class, arguments, "drawPromScale").map(Number::intValue).orElse(0) != 0;
+            return doDrawGlobe(image, ellipse, angleP, b0, null, true, correctAngleP, GlobeStyle.valueOf(style.toUpperCase(Locale.US)), drawPromScale);
         }
         throw new IllegalArgumentException("Unexpected image type: " + img);
     }
@@ -500,6 +504,71 @@ public class ImageDraw extends AbstractFunctionImpl {
         return (int) max >> 8;
     }
 
+    /**
+     * Draws distance scale for prominences outside the solar limb
+     * @param g the graphics context
+     * @param centerX the center X coordinate of the sun
+     * @param centerY the center Y coordinate of the sun
+     * @param radius the radius of the sun in pixels
+     */
+    private void drawProminenceDistanceScale(Graphics2D g,
+                                             double centerX,
+                                             double centerY,
+                                             double radius,
+                                             double labelAngleOffset) {
+        var originalFont      = g.getFont();
+        var originalColor     = g.getColor();
+        var originalStroke    = g.getStroke();
+        var originalTransform = g.getTransform();
+
+        g.setFont(originalFont);
+        autoScaleFont(g, 0.8d, radius);
+        g.setStroke(new BasicStroke(
+                1.0f,
+                BasicStroke.CAP_BUTT,
+                BasicStroke.JOIN_BEVEL,
+                0,
+                new float[]{5},
+                0
+        ));
+
+        var pixelsPerKm = radius / SUN_RADIUS_KM;
+
+        for (int i = 1; i <= PROMS_CIRCLES; i++) {
+            var distanceKm = i * PROMINENCE_SCALE_STEP_KM;
+            var circleRadius = radius + (distanceKm * pixelsPerKm);
+
+            var circleX = (int) (centerX - circleRadius);
+            var circleY = (int) (centerY - circleRadius);
+            var circleDiameter = (int) (2 * circleRadius);
+            g.drawOval(circleX, circleY, circleDiameter, circleDiameter);
+
+            for (int j = 0; j < 4; j++) {
+                var labelAngle = j * Math.PI / 2 + labelAngleOffset;
+                var distanceText = String.format("%,d km", distanceKm).replace(",", " ");
+                var labelX = centerX + Math.cos(labelAngle) * circleRadius;
+                var labelY = centerY + Math.sin(labelAngle) * circleRadius;
+                
+                var tangentAngle = labelAngle + Math.PI / 2;
+
+                var saved = g.getTransform();
+                var at = new AffineTransform();
+                at.translate(labelX, labelY);
+                at.rotate(tangentAngle);
+                g.setTransform(at);
+
+                g.drawString(distanceText, 0, 0);
+
+                g.setTransform(saved);
+            }
+        }
+
+        g.setFont(originalFont);
+        g.setColor(originalColor);
+        g.setStroke(originalStroke);
+        g.setTransform(originalTransform);
+    }
+
     public ImageWrapper doDrawGlobe(ImageWrapper wrapper,
                                     Ellipse ellipse,
                                     double angleP,
@@ -507,7 +576,8 @@ public class ImageDraw extends AbstractFunctionImpl {
                                     Color color,
                                     boolean maybeDrawSunspots,
                                     boolean correctAngleP,
-                                    GlobeStyle style) {
+                                    GlobeStyle style,
+                                    boolean drawProminenceScale) {
         return drawOnImage(wrapper, (g, image) -> {
             if (color != null) {
                 g.setColor(color);
@@ -526,6 +596,7 @@ public class ImageDraw extends AbstractFunctionImpl {
             autoScaleFont(g, 1.0d, radius);
             g.drawOval((int) (centerX - radius), (int) (centerY - radius), diameter, diameter);
             g.drawOval((int) (centerX - radius), (int) (centerY - radius), diameter - 1, diameter - 1);
+
             int geodesisInc = 180 / DIVISIONS;
             for (int i = -180; i <= 180; i += geodesisInc) {
                 var angle = toRadians(i);
@@ -566,6 +637,10 @@ public class ImageDraw extends AbstractFunctionImpl {
                 var date = processParams.get().observationDetails().date();
                 var regions = NOAARegions.findActiveRegions(date);
                 drawActiveRegionsLabels(detectedRegions, angleP, b0, g, radius, regions, centerX, centerY, correctAngleP);
+            }
+            // Draw the prominence distance scale if enabled
+            if (drawProminenceScale) {
+                drawProminenceDistanceScale(g, centerX, centerY, radius, Math.PI / 4);
             }
         });
     }
@@ -616,7 +691,7 @@ public class ImageDraw extends AbstractFunctionImpl {
                     g.setFont(g.getFont().deriveFont(Font.PLAIN));
                 }
                 // Draw the active region id (or other information) as a label
-                g.drawString(regionId, labelX + 5, labelY);  // Offset the label a bit to the right
+                g.drawString(regionId, labelX + PROMS_CIRCLES, labelY);  // Offset the label a bit to the right
             }
         }
     }

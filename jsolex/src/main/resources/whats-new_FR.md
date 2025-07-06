@@ -12,7 +12,7 @@
 
 ## Changements depuis la 3.0.0
 
-### 3.2.3
+### 3.3.0
 
 - Correction d'un bug dans le mode auto contrast qui pouvait provoquer une exception
 - Ajout de la fonction `mtf` inspirée de SIRIL qui applique une fonction de transfert des tons moyens (MTF) avec des paramètres configurables pour les ombres, tons moyens et hautes lumières (valeurs 8-bit 0-255)
@@ -20,6 +20,7 @@
 - Rend les variables `angleP`, `b0`, ... disponibles dans la section `[[batch]]` des scripts. Une valeur moyenne est calculée à partir des images de la série (approximation)
 - Possiblité de choisir le masque flou en méthode d'amélioration de la netteté
 - Ajout d'un script d'exemple pour extraire la couronne E
+- Affichage d'une échelle de distance des protubérances dans la fenêtre de mesure
 
 ### 3.2.2
 

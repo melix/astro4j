@@ -12,7 +12,7 @@
 
 ## Changes since 3.0.0
 
-### 3.2.3
+### 3.3.0
 
 - Fix bug in auto contrast which could cause an array index out of bounds exception
 - Added `mtf` function inspired by SIRIL, which applies a Midtone Transfer Function (MTF) with configurable shadows, midtones and highlights parameters (8-bit values 0-255)
@@ -21,6 +21,7 @@
 - Made it possible to select an unsharp mask as the sharpness method in the image enhancement settings
 - Add corona E extraction sample script
 - Display pixel shift in the technical card
+- Display prominence scales in measurement window
 
 ### 3.2.2
 
