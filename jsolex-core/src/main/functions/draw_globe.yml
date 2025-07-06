@@ -30,6 +30,12 @@ arguments:
     description:
       fr: "1 pour corriger l’angle P (l'axe passant par le point P vertical), 0 sinon"
       en: "1 to correct the P angle (the axis passing through point P is vertical), 0 otherwise"
+  - name: drawPromScale
+    default: 0
+    optional: true
+    description:
+      fr: "1 pour dessiner l’échelle de distance des protubérances, 0 sinon"
+      en: "1 to draw the prominences measurement scale, 0 otherwise"
 examples:
   - "draw_globe(img(0))"
   - "draw_globe(img:img(0), angleP: 0)"

@@ -222,7 +222,7 @@ public class ImageViewer implements WithRootNode {
                     var op = operation.createChild(I18N.string(JSolEx.class, "measures", "preparing.measure.distance"));
                     broadcaster.onProgress(ProgressEvent.of(op));
                     var withGlobe = new ImageDraw(Map.of(), Broadcaster.NO_OP)
-                            .doDrawGlobe(prepared, ellipse, correctAngleP.isSelected() ? 0 : solarParameters.p(), solarParameters.b0(), new Color(1, 1, 0, .25f), false, false, GlobeStyle.EQUATORIAL_COORDS);
+                            .doDrawGlobe(prepared, ellipse, correctAngleP.isSelected() ? 0 : solarParameters.p(), solarParameters.b0(), Color.YELLOW, false, false, GlobeStyle.EQUATORIAL_COORDS, true);
                     try {
                         var preparedFile = TemporaryFolder.newTempFile("prepared", ".png").toFile();
                         var globeFile = TemporaryFolder.newTempFile("globe", ".png").toFile();
