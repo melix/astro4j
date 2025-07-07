@@ -1,0 +1,2474 @@
+<!DOCTYPE html>
+<html lang="">
+<head>
+<meta charset="UTF-8">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="generator" content="Asciidoctor 2.0.18">
+<meta name="author" content="Cédric Champeau">
+<title>JSol&#8217;Ex</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Open+Sans:300,300italic,400,400italic,600,600italic%7CNoto+Serif:400,400italic,700,700italic%7CDroid+Sans+Mono:400,700">
+<style>
+/*! Asciidoctor default stylesheet | MIT License | https://asciidoctor.org */
+/* Uncomment the following line when using as a custom stylesheet */
+/* @import "https://fonts.googleapis.com/css?family=Open+Sans:300,300italic,400,400italic,600,600italic%7CNoto+Serif:400,400italic,700,700italic%7CDroid+Sans+Mono:400,700"; */
+html{font-family:sans-serif;-webkit-text-size-adjust:100%}
+a{background:none}
+a:focus{outline:thin dotted}
+a:active,a:hover{outline:0}
+h1{font-size:2em;margin:.67em 0}
+b,strong{font-weight:bold}
+abbr{font-size:.9em}
+abbr[title]{cursor:help;border-bottom:1px dotted #dddddf;text-decoration:none}
+dfn{font-style:italic}
+hr{height:0}
+mark{background:#ff0;color:#000}
+code,kbd,pre,samp{font-family:monospace;font-size:1em}
+pre{white-space:pre-wrap}
+q{quotes:"\201C" "\201D" "\2018" "\2019"}
+small{font-size:80%}
+sub,sup{font-size:75%;line-height:0;position:relative;vertical-align:baseline}
+sup{top:-.5em}
+sub{bottom:-.25em}
+img{border:0}
+svg:not(:root){overflow:hidden}
+figure{margin:0}
+audio,video{display:inline-block}
+audio:not([controls]){display:none;height:0}
+fieldset{border:1px solid silver;margin:0 2px;padding:.35em .625em .75em}
+legend{border:0;padding:0}
+button,input,select,textarea{font-family:inherit;font-size:100%;margin:0}
+button,input{line-height:normal}
+button,select{text-transform:none}
+button,html input[type=button],input[type=reset],input[type=submit]{-webkit-appearance:button;cursor:pointer}
+button[disabled],html input[disabled]{cursor:default}
+input[type=checkbox],input[type=radio]{padding:0}
+button::-moz-focus-inner,input::-moz-focus-inner{border:0;padding:0}
+textarea{overflow:auto;vertical-align:top}
+table{border-collapse:collapse;border-spacing:0}
+*,::before,::after{box-sizing:border-box}
+html,body{font-size:100%}
+body{background:#fff;color:rgba(0,0,0,.8);padding:0;margin:0;font-family:"Noto Serif","DejaVu Serif",serif;line-height:1;position:relative;cursor:auto;-moz-tab-size:4;-o-tab-size:4;tab-size:4;word-wrap:anywhere;-moz-osx-font-smoothing:grayscale;-webkit-font-smoothing:antialiased}
+a:hover{cursor:pointer}
+img,object,embed{max-width:100%;height:auto}
+object,embed{height:100%}
+img{-ms-interpolation-mode:bicubic}
+.left{float:left!important}
+.right{float:right!important}
+.text-left{text-align:left!important}
+.text-right{text-align:right!important}
+.text-center{text-align:center!important}
+.text-justify{text-align:justify!important}
+.hide{display:none}
+img,object,svg{display:inline-block;vertical-align:middle}
+textarea{height:auto;min-height:50px}
+select{width:100%}
+.subheader,.admonitionblock td.content>.title,.audioblock>.title,.exampleblock>.title,.imageblock>.title,.listingblock>.title,.literalblock>.title,.stemblock>.title,.openblock>.title,.paragraph>.title,.quoteblock>.title,table.tableblock>.title,.verseblock>.title,.videoblock>.title,.dlist>.title,.olist>.title,.ulist>.title,.qlist>.title,.hdlist>.title{line-height:1.45;color:#7a2518;font-weight:400;margin-top:0;margin-bottom:.25em}
+div,dl,dt,dd,ul,ol,li,h1,h2,h3,#toctitle,.sidebarblock>.content>.title,h4,h5,h6,pre,form,p,blockquote,th,td{margin:0;padding:0}
+a{color:#2156a5;text-decoration:underline;line-height:inherit}
+a:hover,a:focus{color:#1d4b8f}
+a img{border:0}
+p{line-height:1.6;margin-bottom:1.25em;text-rendering:optimizeLegibility}
+p aside{font-size:.875em;line-height:1.35;font-style:italic}
+h1,h2,h3,#toctitle,.sidebarblock>.content>.title,h4,h5,h6{font-family:"Open Sans","DejaVu Sans",sans-serif;font-weight:300;font-style:normal;color:#ba3925;text-rendering:optimizeLegibility;margin-top:1em;margin-bottom:.5em;line-height:1.0125em}
+h1 small,h2 small,h3 small,#toctitle small,.sidebarblock>.content>.title small,h4 small,h5 small,h6 small{font-size:60%;color:#e99b8f;line-height:0}
+h1{font-size:2.125em}
+h2{font-size:1.6875em}
+h3,#toctitle,.sidebarblock>.content>.title{font-size:1.375em}
+h4,h5{font-size:1.125em}
+h6{font-size:1em}
+hr{border:solid #dddddf;border-width:1px 0 0;clear:both;margin:1.25em 0 1.1875em}
+em,i{font-style:italic;line-height:inherit}
+strong,b{font-weight:bold;line-height:inherit}
+small{font-size:60%;line-height:inherit}
+code{font-family:"Droid Sans Mono","DejaVu Sans Mono",monospace;font-weight:400;color:rgba(0,0,0,.9)}
+ul,ol,dl{line-height:1.6;margin-bottom:1.25em;list-style-position:outside;font-family:inherit}
+ul,ol{margin-left:1.5em}
+ul li ul,ul li ol{margin-left:1.25em;margin-bottom:0}
+ul.circle{list-style-type:circle}
+ul.disc{list-style-type:disc}
+ul.square{list-style-type:square}
+ul.circle ul:not([class]),ul.disc ul:not([class]),ul.square ul:not([class]){list-style:inherit}
+ol li ul,ol li ol{margin-left:1.25em;margin-bottom:0}
+dl dt{margin-bottom:.3125em;font-weight:bold}
+dl dd{margin-bottom:1.25em}
+blockquote{margin:0 0 1.25em;padding:.5625em 1.25em 0 1.1875em;border-left:1px solid #ddd}
+blockquote,blockquote p{line-height:1.6;color:rgba(0,0,0,.85)}
+@media screen and (min-width:768px){h1,h2,h3,#toctitle,.sidebarblock>.content>.title,h4,h5,h6{line-height:1.2}
+h1{font-size:2.75em}
+h2{font-size:2.3125em}
+h3,#toctitle,.sidebarblock>.content>.title{font-size:1.6875em}
+h4{font-size:1.4375em}}
+table{background:#fff;margin-bottom:1.25em;border:1px solid #dedede;word-wrap:normal}
+table thead,table tfoot{background:#f7f8f7}
+table thead tr th,table thead tr td,table tfoot tr th,table tfoot tr td{padding:.5em .625em .625em;font-size:inherit;color:rgba(0,0,0,.8);text-align:left}
+table tr th,table tr td{padding:.5625em .625em;font-size:inherit;color:rgba(0,0,0,.8)}
+table tr.even,table tr.alt{background:#f8f8f7}
+table thead tr th,table tfoot tr th,table tbody tr td,table tr td,table tfoot tr td{line-height:1.6}
+h1,h2,h3,#toctitle,.sidebarblock>.content>.title,h4,h5,h6{line-height:1.2;word-spacing:-.05em}
+h1 strong,h2 strong,h3 strong,#toctitle strong,.sidebarblock>.content>.title strong,h4 strong,h5 strong,h6 strong{font-weight:400}
+.center{margin-left:auto;margin-right:auto}
+.stretch{width:100%}
+.clearfix::before,.clearfix::after,.float-group::before,.float-group::after{content:" ";display:table}
+.clearfix::after,.float-group::after{clear:both}
+:not(pre).nobreak{word-wrap:normal}
+:not(pre).nowrap{white-space:nowrap}
+:not(pre).pre-wrap{white-space:pre-wrap}
+:not(pre):not([class^=L])>code{font-size:.9375em;font-style:normal!important;letter-spacing:0;padding:.1em .5ex;word-spacing:-.15em;background:#f7f7f8;border-radius:4px;line-height:1.45;text-rendering:optimizeSpeed}
+pre{color:rgba(0,0,0,.9);font-family:"Droid Sans Mono","DejaVu Sans Mono",monospace;line-height:1.45;text-rendering:optimizeSpeed}
+pre code,pre pre{color:inherit;font-size:inherit;line-height:inherit}
+pre>code{display:block}
+pre.nowrap,pre.nowrap pre{white-space:pre;word-wrap:normal}
+em em{font-style:normal}
+strong strong{font-weight:400}
+.keyseq{color:rgba(51,51,51,.8)}
+kbd{font-family:"Droid Sans Mono","DejaVu Sans Mono",monospace;display:inline-block;color:rgba(0,0,0,.8);font-size:.65em;line-height:1.45;background:#f7f7f7;border:1px solid #ccc;border-radius:3px;box-shadow:0 1px 0 rgba(0,0,0,.2),inset 0 0 0 .1em #fff;margin:0 .15em;padding:.2em .5em;vertical-align:middle;position:relative;top:-.1em;white-space:nowrap}
+.keyseq kbd:first-child{margin-left:0}
+.keyseq kbd:last-child{margin-right:0}
+.menuseq,.menuref{color:#000}
+.menuseq b:not(.caret),.menuref{font-weight:inherit}
+.menuseq{word-spacing:-.02em}
+.menuseq b.caret{font-size:1.25em;line-height:.8}
+.menuseq i.caret{font-weight:bold;text-align:center;width:.45em}
+b.button::before,b.button::after{position:relative;top:-1px;font-weight:400}
+b.button::before{content:"[";padding:0 3px 0 2px}
+b.button::after{content:"]";padding:0 2px 0 3px}
+p a>code:hover{color:rgba(0,0,0,.9)}
+#header,#content,#footnotes,#footer{width:100%;margin:0 auto;max-width:62.5em;*zoom:1;position:relative;padding-left:.9375em;padding-right:.9375em}
+#header::before,#header::after,#content::before,#content::after,#footnotes::before,#footnotes::after,#footer::before,#footer::after{content:" ";display:table}
+#header::after,#content::after,#footnotes::after,#footer::after{clear:both}
+#content{margin-top:1.25em}
+#content::before{content:none}
+#header>h1:first-child{color:rgba(0,0,0,.85);margin-top:2.25rem;margin-bottom:0}
+#header>h1:first-child+#toc{margin-top:8px;border-top:1px solid #dddddf}
+#header>h1:only-child,body.toc2 #header>h1:nth-last-child(2){border-bottom:1px solid #dddddf;padding-bottom:8px}
+#header .details{border-bottom:1px solid #dddddf;line-height:1.45;padding-top:.25em;padding-bottom:.25em;padding-left:.25em;color:rgba(0,0,0,.6);display:flex;flex-flow:row wrap}
+#header .details span:first-child{margin-left:-.125em}
+#header .details span.email a{color:rgba(0,0,0,.85)}
+#header .details br{display:none}
+#header .details br+span::before{content:"\00a0\2013\00a0"}
+#header .details br+span.author::before{content:"\00a0\22c5\00a0";color:rgba(0,0,0,.85)}
+#header .details br+span#revremark::before{content:"\00a0|\00a0"}
+#header #revnumber{text-transform:capitalize}
+#header #revnumber::after{content:"\00a0"}
+#content>h1:first-child:not([class]){color:rgba(0,0,0,.85);border-bottom:1px solid #dddddf;padding-bottom:8px;margin-top:0;padding-top:1rem;margin-bottom:1.25rem}
+#toc{border-bottom:1px solid #e7e7e9;padding-bottom:.5em}
+#toc>ul{margin-left:.125em}
+#toc ul.sectlevel0>li>a{font-style:italic}
+#toc ul.sectlevel0 ul.sectlevel1{margin:.5em 0}
+#toc ul{font-family:"Open Sans","DejaVu Sans",sans-serif;list-style-type:none}
+#toc li{line-height:1.3334;margin-top:.3334em}
+#toc a{text-decoration:none}
+#toc a:active{text-decoration:underline}
+#toctitle{color:#7a2518;font-size:1.2em}
+@media screen and (min-width:768px){#toctitle{font-size:1.375em}
+body.toc2{padding-left:15em;padding-right:0}
+#toc.toc2{margin-top:0!important;background:#f8f8f7;position:fixed;width:15em;left:0;top:0;border-right:1px solid #e7e7e9;border-top-width:0!important;border-bottom-width:0!important;z-index:1000;padding:1.25em 1em;height:100%;overflow:auto}
+#toc.toc2 #toctitle{margin-top:0;margin-bottom:.8rem;font-size:1.2em}
+#toc.toc2>ul{font-size:.9em;margin-bottom:0}
+#toc.toc2 ul ul{margin-left:0;padding-left:1em}
+#toc.toc2 ul.sectlevel0 ul.sectlevel1{padding-left:0;margin-top:.5em;margin-bottom:.5em}
+body.toc2.toc-right{padding-left:0;padding-right:15em}
+body.toc2.toc-right #toc.toc2{border-right-width:0;border-left:1px solid #e7e7e9;left:auto;right:0}}
+@media screen and (min-width:1280px){body.toc2{padding-left:20em;padding-right:0}
+#toc.toc2{width:20em}
+#toc.toc2 #toctitle{font-size:1.375em}
+#toc.toc2>ul{font-size:.95em}
+#toc.toc2 ul ul{padding-left:1.25em}
+body.toc2.toc-right{padding-left:0;padding-right:20em}}
+#content #toc{border:1px solid #e0e0dc;margin-bottom:1.25em;padding:1.25em;background:#f8f8f7;border-radius:4px}
+#content #toc>:first-child{margin-top:0}
+#content #toc>:last-child{margin-bottom:0}
+#footer{max-width:none;background:rgba(0,0,0,.8);padding:1.25em}
+#footer-text{color:hsla(0,0%,100%,.8);line-height:1.44}
+#content{margin-bottom:.625em}
+.sect1{padding-bottom:.625em}
+@media screen and (min-width:768px){#content{margin-bottom:1.25em}
+.sect1{padding-bottom:1.25em}}
+.sect1:last-child{padding-bottom:0}
+.sect1+.sect1{border-top:1px solid #e7e7e9}
+#content h1>a.anchor,h2>a.anchor,h3>a.anchor,#toctitle>a.anchor,.sidebarblock>.content>.title>a.anchor,h4>a.anchor,h5>a.anchor,h6>a.anchor{position:absolute;z-index:1001;width:1.5ex;margin-left:-1.5ex;display:block;text-decoration:none!important;visibility:hidden;text-align:center;font-weight:400}
+#content h1>a.anchor::before,h2>a.anchor::before,h3>a.anchor::before,#toctitle>a.anchor::before,.sidebarblock>.content>.title>a.anchor::before,h4>a.anchor::before,h5>a.anchor::before,h6>a.anchor::before{content:"\00A7";font-size:.85em;display:block;padding-top:.1em}
+#content h1:hover>a.anchor,#content h1>a.anchor:hover,h2:hover>a.anchor,h2>a.anchor:hover,h3:hover>a.anchor,#toctitle:hover>a.anchor,.sidebarblock>.content>.title:hover>a.anchor,h3>a.anchor:hover,#toctitle>a.anchor:hover,.sidebarblock>.content>.title>a.anchor:hover,h4:hover>a.anchor,h4>a.anchor:hover,h5:hover>a.anchor,h5>a.anchor:hover,h6:hover>a.anchor,h6>a.anchor:hover{visibility:visible}
+#content h1>a.link,h2>a.link,h3>a.link,#toctitle>a.link,.sidebarblock>.content>.title>a.link,h4>a.link,h5>a.link,h6>a.link{color:#ba3925;text-decoration:none}
+#content h1>a.link:hover,h2>a.link:hover,h3>a.link:hover,#toctitle>a.link:hover,.sidebarblock>.content>.title>a.link:hover,h4>a.link:hover,h5>a.link:hover,h6>a.link:hover{color:#a53221}
+details,.audioblock,.imageblock,.literalblock,.listingblock,.stemblock,.videoblock{margin-bottom:1.25em}
+details{margin-left:1.25rem}
+details>summary{cursor:pointer;display:block;position:relative;line-height:1.6;margin-bottom:.625rem;outline:none;-webkit-tap-highlight-color:transparent}
+details>summary::-webkit-details-marker{display:none}
+details>summary::before{content:"";border:solid transparent;border-left:solid;border-width:.3em 0 .3em .5em;position:absolute;top:.5em;left:-1.25rem;transform:translateX(15%)}
+details[open]>summary::before{border:solid transparent;border-top:solid;border-width:.5em .3em 0;transform:translateY(15%)}
+details>summary::after{content:"";width:1.25rem;height:1em;position:absolute;top:.3em;left:-1.25rem}
+.admonitionblock td.content>.title,.audioblock>.title,.exampleblock>.title,.imageblock>.title,.listingblock>.title,.literalblock>.title,.stemblock>.title,.openblock>.title,.paragraph>.title,.quoteblock>.title,table.tableblock>.title,.verseblock>.title,.videoblock>.title,.dlist>.title,.olist>.title,.ulist>.title,.qlist>.title,.hdlist>.title{text-rendering:optimizeLegibility;text-align:left;font-family:"Noto Serif","DejaVu Serif",serif;font-size:1rem;font-style:italic}
+table.tableblock.fit-content>caption.title{white-space:nowrap;width:0}
+.paragraph.lead>p,#preamble>.sectionbody>[class=paragraph]:first-of-type p{font-size:1.21875em;line-height:1.6;color:rgba(0,0,0,.85)}
+.admonitionblock>table{border-collapse:separate;border:0;background:none;width:100%}
+.admonitionblock>table td.icon{text-align:center;width:80px}
+.admonitionblock>table td.icon img{max-width:none}
+.admonitionblock>table td.icon .title{font-weight:bold;font-family:"Open Sans","DejaVu Sans",sans-serif;text-transform:uppercase}
+.admonitionblock>table td.content{padding-left:1.125em;padding-right:1.25em;border-left:1px solid #dddddf;color:rgba(0,0,0,.6);word-wrap:anywhere}
+.admonitionblock>table td.content>:last-child>:last-child{margin-bottom:0}
+.exampleblock>.content{border:1px solid #e6e6e6;margin-bottom:1.25em;padding:1.25em;background:#fff;border-radius:4px}
+.exampleblock>.content>:first-child{margin-top:0}
+.exampleblock>.content>:last-child{margin-bottom:0}
+.sidebarblock{border:1px solid #dbdbd6;margin-bottom:1.25em;padding:1.25em;background:#f3f3f2;border-radius:4px}
+.sidebarblock>:first-child{margin-top:0}
+.sidebarblock>:last-child{margin-bottom:0}
+.sidebarblock>.content>.title{color:#7a2518;margin-top:0;text-align:center}
+.exampleblock>.content>:last-child>:last-child,.exampleblock>.content .olist>ol>li:last-child>:last-child,.exampleblock>.content .ulist>ul>li:last-child>:last-child,.exampleblock>.content .qlist>ol>li:last-child>:last-child,.sidebarblock>.content>:last-child>:last-child,.sidebarblock>.content .olist>ol>li:last-child>:last-child,.sidebarblock>.content .ulist>ul>li:last-child>:last-child,.sidebarblock>.content .qlist>ol>li:last-child>:last-child{margin-bottom:0}
+.literalblock pre,.listingblock>.content>pre{border-radius:4px;overflow-x:auto;padding:1em;font-size:.8125em}
+@media screen and (min-width:768px){.literalblock pre,.listingblock>.content>pre{font-size:.90625em}}
+@media screen and (min-width:1280px){.literalblock pre,.listingblock>.content>pre{font-size:1em}}
+.literalblock pre,.listingblock>.content>pre:not(.highlight),.listingblock>.content>pre[class=highlight],.listingblock>.content>pre[class^="highlight "]{background:#f7f7f8}
+.literalblock.output pre{color:#f7f7f8;background:rgba(0,0,0,.9)}
+.listingblock>.content{position:relative}
+.listingblock code[data-lang]::before{display:none;content:attr(data-lang);position:absolute;font-size:.75em;top:.425rem;right:.5rem;line-height:1;text-transform:uppercase;color:inherit;opacity:.5}
+.listingblock:hover code[data-lang]::before{display:block}
+.listingblock.terminal pre .command::before{content:attr(data-prompt);padding-right:.5em;color:inherit;opacity:.5}
+.listingblock.terminal pre .command:not([data-prompt])::before{content:"$"}
+.listingblock pre.highlightjs{padding:0}
+.listingblock pre.highlightjs>code{padding:1em;border-radius:4px}
+.listingblock pre.prettyprint{border-width:0}
+.prettyprint{background:#f7f7f8}
+pre.prettyprint .linenums{line-height:1.45;margin-left:2em}
+pre.prettyprint li{background:none;list-style-type:inherit;padding-left:0}
+pre.prettyprint li code[data-lang]::before{opacity:1}
+pre.prettyprint li:not(:first-child) code[data-lang]::before{display:none}
+table.linenotable{border-collapse:separate;border:0;margin-bottom:0;background:none}
+table.linenotable td[class]{color:inherit;vertical-align:top;padding:0;line-height:inherit;white-space:normal}
+table.linenotable td.code{padding-left:.75em}
+table.linenotable td.linenos,pre.pygments .linenos{border-right:1px solid;opacity:.35;padding-right:.5em;-webkit-user-select:none;-moz-user-select:none;-ms-user-select:none;user-select:none}
+pre.pygments span.linenos{display:inline-block;margin-right:.75em}
+.quoteblock{margin:0 1em 1.25em 1.5em;display:table}
+.quoteblock:not(.excerpt)>.title{margin-left:-1.5em;margin-bottom:.75em}
+.quoteblock blockquote,.quoteblock p{color:rgba(0,0,0,.85);font-size:1.15rem;line-height:1.75;word-spacing:.1em;letter-spacing:0;font-style:italic;text-align:justify}
+.quoteblock blockquote{margin:0;padding:0;border:0}
+.quoteblock blockquote::before{content:"\201c";float:left;font-size:2.75em;font-weight:bold;line-height:.6em;margin-left:-.6em;color:#7a2518;text-shadow:0 1px 2px rgba(0,0,0,.1)}
+.quoteblock blockquote>.paragraph:last-child p{margin-bottom:0}
+.quoteblock .attribution{margin-top:.75em;margin-right:.5ex;text-align:right}
+.verseblock{margin:0 1em 1.25em}
+.verseblock pre{font-family:"Open Sans","DejaVu Sans",sans-serif;font-size:1.15rem;color:rgba(0,0,0,.85);font-weight:300;text-rendering:optimizeLegibility}
+.verseblock pre strong{font-weight:400}
+.verseblock .attribution{margin-top:1.25rem;margin-left:.5ex}
+.quoteblock .attribution,.verseblock .attribution{font-size:.9375em;line-height:1.45;font-style:italic}
+.quoteblock .attribution br,.verseblock .attribution br{display:none}
+.quoteblock .attribution cite,.verseblock .attribution cite{display:block;letter-spacing:-.025em;color:rgba(0,0,0,.6)}
+.quoteblock.abstract blockquote::before,.quoteblock.excerpt blockquote::before,.quoteblock .quoteblock blockquote::before{display:none}
+.quoteblock.abstract blockquote,.quoteblock.abstract p,.quoteblock.excerpt blockquote,.quoteblock.excerpt p,.quoteblock .quoteblock blockquote,.quoteblock .quoteblock p{line-height:1.6;word-spacing:0}
+.quoteblock.abstract{margin:0 1em 1.25em;display:block}
+.quoteblock.abstract>.title{margin:0 0 .375em;font-size:1.15em;text-align:center}
+.quoteblock.excerpt>blockquote,.quoteblock .quoteblock{padding:0 0 .25em 1em;border-left:.25em solid #dddddf}
+.quoteblock.excerpt,.quoteblock .quoteblock{margin-left:0}
+.quoteblock.excerpt blockquote,.quoteblock.excerpt p,.quoteblock .quoteblock blockquote,.quoteblock .quoteblock p{color:inherit;font-size:1.0625rem}
+.quoteblock.excerpt .attribution,.quoteblock .quoteblock .attribution{color:inherit;font-size:.85rem;text-align:left;margin-right:0}
+p.tableblock:last-child{margin-bottom:0}
+td.tableblock>.content{margin-bottom:1.25em;word-wrap:anywhere}
+td.tableblock>.content>:last-child{margin-bottom:-1.25em}
+table.tableblock,th.tableblock,td.tableblock{border:0 solid #dedede}
+table.grid-all>*>tr>*{border-width:1px}
+table.grid-cols>*>tr>*{border-width:0 1px}
+table.grid-rows>*>tr>*{border-width:1px 0}
+table.frame-all{border-width:1px}
+table.frame-ends{border-width:1px 0}
+table.frame-sides{border-width:0 1px}
+table.frame-none>colgroup+*>:first-child>*,table.frame-sides>colgroup+*>:first-child>*{border-top-width:0}
+table.frame-none>:last-child>:last-child>*,table.frame-sides>:last-child>:last-child>*{border-bottom-width:0}
+table.frame-none>*>tr>:first-child,table.frame-ends>*>tr>:first-child{border-left-width:0}
+table.frame-none>*>tr>:last-child,table.frame-ends>*>tr>:last-child{border-right-width:0}
+table.stripes-all>*>tr,table.stripes-odd>*>tr:nth-of-type(odd),table.stripes-even>*>tr:nth-of-type(even),table.stripes-hover>*>tr:hover{background:#f8f8f7}
+th.halign-left,td.halign-left{text-align:left}
+th.halign-right,td.halign-right{text-align:right}
+th.halign-center,td.halign-center{text-align:center}
+th.valign-top,td.valign-top{vertical-align:top}
+th.valign-bottom,td.valign-bottom{vertical-align:bottom}
+th.valign-middle,td.valign-middle{vertical-align:middle}
+table thead th,table tfoot th{font-weight:bold}
+tbody tr th{background:#f7f8f7}
+tbody tr th,tbody tr th p,tfoot tr th,tfoot tr th p{color:rgba(0,0,0,.8);font-weight:bold}
+p.tableblock>code:only-child{background:none;padding:0}
+p.tableblock{font-size:1em}
+ol{margin-left:1.75em}
+ul li ol{margin-left:1.5em}
+dl dd{margin-left:1.125em}
+dl dd:last-child,dl dd:last-child>:last-child{margin-bottom:0}
+li p,ul dd,ol dd,.olist .olist,.ulist .ulist,.ulist .olist,.olist .ulist{margin-bottom:.625em}
+ul.checklist,ul.none,ol.none,ul.no-bullet,ol.no-bullet,ol.unnumbered,ul.unstyled,ol.unstyled{list-style-type:none}
+ul.no-bullet,ol.no-bullet,ol.unnumbered{margin-left:.625em}
+ul.unstyled,ol.unstyled{margin-left:0}
+li>p:empty:only-child::before{content:"";display:inline-block}
+ul.checklist>li>p:first-child{margin-left:-1em}
+ul.checklist>li>p:first-child>.fa-square-o:first-child,ul.checklist>li>p:first-child>.fa-check-square-o:first-child{width:1.25em;font-size:.8em;position:relative;bottom:.125em}
+ul.checklist>li>p:first-child>input[type=checkbox]:first-child{margin-right:.25em}
+ul.inline{display:flex;flex-flow:row wrap;list-style:none;margin:0 0 .625em -1.25em}
+ul.inline>li{margin-left:1.25em}
+.unstyled dl dt{font-weight:400;font-style:normal}
+ol.arabic{list-style-type:decimal}
+ol.decimal{list-style-type:decimal-leading-zero}
+ol.loweralpha{list-style-type:lower-alpha}
+ol.upperalpha{list-style-type:upper-alpha}
+ol.lowerroman{list-style-type:lower-roman}
+ol.upperroman{list-style-type:upper-roman}
+ol.lowergreek{list-style-type:lower-greek}
+.hdlist>table,.colist>table{border:0;background:none}
+.hdlist>table>tbody>tr,.colist>table>tbody>tr{background:none}
+td.hdlist1,td.hdlist2{vertical-align:top;padding:0 .625em}
+td.hdlist1{font-weight:bold;padding-bottom:1.25em}
+td.hdlist2{word-wrap:anywhere}
+.literalblock+.colist,.listingblock+.colist{margin-top:-.5em}
+.colist td:not([class]):first-child{padding:.4em .75em 0;line-height:1;vertical-align:top}
+.colist td:not([class]):first-child img{max-width:none}
+.colist td:not([class]):last-child{padding:.25em 0}
+.thumb,.th{line-height:0;display:inline-block;border:4px solid #fff;box-shadow:0 0 0 1px #ddd}
+.imageblock.left{margin:.25em .625em 1.25em 0}
+.imageblock.right{margin:.25em 0 1.25em .625em}
+.imageblock>.title{margin-bottom:0}
+.imageblock.thumb,.imageblock.th{border-width:6px}
+.imageblock.thumb>.title,.imageblock.th>.title{padding:0 .125em}
+.image.left,.image.right{margin-top:.25em;margin-bottom:.25em;display:inline-block;line-height:0}
+.image.left{margin-right:.625em}
+.image.right{margin-left:.625em}
+a.image{text-decoration:none;display:inline-block}
+a.image object{pointer-events:none}
+sup.footnote,sup.footnoteref{font-size:.875em;position:static;vertical-align:super}
+sup.footnote a,sup.footnoteref a{text-decoration:none}
+sup.footnote a:active,sup.footnoteref a:active{text-decoration:underline}
+#footnotes{padding-top:.75em;padding-bottom:.75em;margin-bottom:.625em}
+#footnotes hr{width:20%;min-width:6.25em;margin:-.25em 0 .75em;border-width:1px 0 0}
+#footnotes .footnote{padding:0 .375em 0 .225em;line-height:1.3334;font-size:.875em;margin-left:1.2em;margin-bottom:.2em}
+#footnotes .footnote a:first-of-type{font-weight:bold;text-decoration:none;margin-left:-1.05em}
+#footnotes .footnote:last-of-type{margin-bottom:0}
+#content #footnotes{margin-top:-.625em;margin-bottom:0;padding:.75em 0}
+div.unbreakable{page-break-inside:avoid}
+.big{font-size:larger}
+.small{font-size:smaller}
+.underline{text-decoration:underline}
+.overline{text-decoration:overline}
+.line-through{text-decoration:line-through}
+.aqua{color:#00bfbf}
+.aqua-background{background:#00fafa}
+.black{color:#000}
+.black-background{background:#000}
+.blue{color:#0000bf}
+.blue-background{background:#0000fa}
+.fuchsia{color:#bf00bf}
+.fuchsia-background{background:#fa00fa}
+.gray{color:#606060}
+.gray-background{background:#7d7d7d}
+.green{color:#006000}
+.green-background{background:#007d00}
+.lime{color:#00bf00}
+.lime-background{background:#00fa00}
+.maroon{color:#600000}
+.maroon-background{background:#7d0000}
+.navy{color:#000060}
+.navy-background{background:#00007d}
+.olive{color:#606000}
+.olive-background{background:#7d7d00}
+.purple{color:#600060}
+.purple-background{background:#7d007d}
+.red{color:#bf0000}
+.red-background{background:#fa0000}
+.silver{color:#909090}
+.silver-background{background:#bcbcbc}
+.teal{color:#006060}
+.teal-background{background:#007d7d}
+.white{color:#bfbfbf}
+.white-background{background:#fafafa}
+.yellow{color:#bfbf00}
+.yellow-background{background:#fafa00}
+span.icon>.fa{cursor:default}
+a span.icon>.fa{cursor:inherit}
+.admonitionblock td.icon [class^="fa icon-"]{font-size:2.5em;text-shadow:1px 1px 2px rgba(0,0,0,.5);cursor:default}
+.admonitionblock td.icon .icon-note::before{content:"\f05a";color:#19407c}
+.admonitionblock td.icon .icon-tip::before{content:"\f0eb";text-shadow:1px 1px 2px rgba(155,155,0,.8);color:#111}
+.admonitionblock td.icon .icon-warning::before{content:"\f071";color:#bf6900}
+.admonitionblock td.icon .icon-caution::before{content:"\f06d";color:#bf3400}
+.admonitionblock td.icon .icon-important::before{content:"\f06a";color:#bf0000}
+.conum[data-value]{display:inline-block;color:#fff!important;background:rgba(0,0,0,.8);border-radius:50%;text-align:center;font-size:.75em;width:1.67em;height:1.67em;line-height:1.67em;font-family:"Open Sans","DejaVu Sans",sans-serif;font-style:normal;font-weight:bold}
+.conum[data-value] *{color:#fff!important}
+.conum[data-value]+b{display:none}
+.conum[data-value]::after{content:attr(data-value)}
+pre .conum[data-value]{position:relative;top:-.125em}
+b.conum *{color:inherit!important}
+.conum:not([data-value]):empty{display:none}
+dt,th.tableblock,td.content,div.footnote{text-rendering:optimizeLegibility}
+h1,h2,p,td.content,span.alt,summary{letter-spacing:-.01em}
+p strong,td.content strong,div.footnote strong{letter-spacing:-.005em}
+p,blockquote,dt,td.content,span.alt,summary{font-size:1.0625rem}
+p{margin-bottom:1.25rem}
+.sidebarblock p,.sidebarblock dt,.sidebarblock td.content,p.tableblock{font-size:1em}
+.exampleblock>.content{background:#fffef7;border-color:#e0e0dc;box-shadow:0 1px 4px #e0e0dc}
+.print-only{display:none!important}
+@page{margin:1.25cm .75cm}
+@media print{*{box-shadow:none!important;text-shadow:none!important}
+html{font-size:80%}
+a{color:inherit!important;text-decoration:underline!important}
+a.bare,a[href^="#"],a[href^="mailto:"]{text-decoration:none!important}
+a[href^="http:"]:not(.bare)::after,a[href^="https:"]:not(.bare)::after{content:"(" attr(href) ")";display:inline-block;font-size:.875em;padding-left:.25em}
+abbr[title]{border-bottom:1px dotted}
+abbr[title]::after{content:" (" attr(title) ")"}
+pre,blockquote,tr,img,object,svg{page-break-inside:avoid}
+thead{display:table-header-group}
+svg{max-width:100%}
+p,blockquote,dt,td.content{font-size:1em;orphans:3;widows:3}
+h2,h3,#toctitle,.sidebarblock>.content>.title{page-break-after:avoid}
+#header,#content,#footnotes,#footer{max-width:none}
+#toc,.sidebarblock,.exampleblock>.content{background:none!important}
+#toc{border-bottom:1px solid #dddddf!important;padding-bottom:0!important}
+body.book #header{text-align:center}
+body.book #header>h1:first-child{border:0!important;margin:2.5em 0 1em}
+body.book #header .details{border:0!important;display:block;padding:0!important}
+body.book #header .details span:first-child{margin-left:0!important}
+body.book #header .details br{display:block}
+body.book #header .details br+span::before{content:none!important}
+body.book #toc{border:0!important;text-align:left!important;padding:0!important;margin:0!important}
+body.book #toc,body.book #preamble,body.book h1.sect0,body.book .sect1>h2{page-break-before:always}
+.listingblock code[data-lang]::before{display:block}
+#footer{padding:0 .9375em}
+.hide-on-print{display:none!important}
+.print-only{display:block!important}
+.hide-for-print{display:none!important}
+.show-for-print{display:inherit!important}}
+@media amzn-kf8,print{#header>h1:first-child{margin-top:1.25rem}
+.sect1{padding:0!important}
+.sect1+.sect1{border:0}
+#footer{background:none}
+#footer-text{color:rgba(0,0,0,.6);font-size:.9em}}
+@media amzn-kf8{#header,#content,#footnotes,#footer{padding:0}}
+</style>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
+<link rel="stylesheet" href="highlight/styles/equilibrium-light.min.css">
+<style>
+    .badge {
+        display: inline-block;
+        padding: 5px 10px;
+        font-size: 18px;
+        font-weight: bold;
+        color: #fff;
+        background-color: #007bff;
+        border-radius: 10px;
+        text-align: center;
+    }
+    a:link, .badge a:visited {
+        text-decoration: none;
+    }
+</style>
+<script defer data-domain="melix.github.io" src="https://analytics.champeau.me/js/script.js"></script>
+</head>
+<body class="article toc2 toc-left">
+<div id="header">
+<h1>JSol&#8217;Ex</h1>
+<div class="details">
+<span id="author" class="author">Cédric Champeau</span><br>
+<span id="revnumber">version 3.3.1</span>
+</div>
+<div id="toc" class="toc2">
+<div id="toctitle">Table of Contents</div>
+<ul class="sectlevel1">
+<li><a href="#_downloads">Downloads</a>
+<ul class="sectlevel2">
+<li><a href="#_zip_files">Zip files</a></li>
+<li><a href="#_building_from_source">Building from source</a></li>
+</ul>
+</li>
+<li><a href="#_community">Community</a></li>
+<li><a href="#donate">Donations</a></li>
+<li><a href="#_processing_a_video_file">Processing a video file</a></li>
+<li><a href="#_image_enhancement">Image enhancement</a>
+<ul class="sectlevel2">
+<li><a href="#_jagged_edges_correction">Jagged Edges Correction</a></li>
+</ul>
+</li>
+<li><a href="#_observation_parameters">Observation parameters</a></li>
+<li><a href="#_other_parameters">Other parameters</a></li>
+<li><a href="#force-polynomial">Force polynomial</a></li>
+<li><a href="#filename-templates">File naming patterns</a></li>
+<li><a href="#_process_start">Process start</a>
+<ul class="sectlevel2">
+<li><a href="#_image_display">Image display</a></li>
+</ul>
+</li>
+<li><a href="#_watching_a_directory_for_changes">Watching a directory for changes</a></li>
+<li><a href="#custom_images">Customization of generated images</a></li>
+<li><a href="#trimming-ser-files">Trimming SER files</a></li>
+<li><a href="#imagemath">ImageMath : images generation scripts</a>
+<ul class="sectlevel2">
+<li><a href="#_introduction_to_imagemath">Introduction to ImageMath</a></li>
+<li><a href="#_functions_available_in_imagemath">Functions available in ImageMath</a></li>
+<li><a href="#_imagemath_scripts">ImageMath scripts</a></li>
+<li><a href="#special-variables">Special variables</a></li>
+<li><a href="#custom-functions">Custom functions</a></li>
+<li><a href="#includes">Including other scripts</a></li>
+<li><a href="#remote-scriptgen">Remote script generation</a></li>
+</ul>
+</li>
+<li><a href="#batch-mode">Batch processing</a>
+<ul class="sectlevel2">
+<li><a href="#_reviewing_batch_processed_images">Reviewing batch processed images</a></li>
+<li><a href="#script-batch">ImageMath extensions available in batch mode</a></li>
+<li><a href="#_standalone_scripts">Standalone scripts</a></li>
+</ul>
+</li>
+<li><a href="#_measurements">Measurements</a>
+<ul class="sectlevel2">
+<li><a href="#_redshift_measurements">Redshift Measurements</a></li>
+<li><a href="#_measurements_thanks_to_the_video_analyzer">Measurements thanks to the video analyzer</a></li>
+<li><a href="#_example_of_application_to_determine_the_helium_ray_pixel_shift">Example of application to determine the helium ray pixel shift</a></li>
+</ul>
+</li>
+<li><a href="#stacking-and-mosaic">Stacking and mosaic composition</a></li>
+<li><a href="#_optimal_exposure_calculator">Optimal exposure calculator</a></li>
+<li><a href="#_spectrum_browser">Spectrum Browser</a>
+<ul class="sectlevel2">
+<li><a href="#_automatic_identification">Automatic Identification</a></li>
+</ul>
+</li>
+<li><a href="#_embedded_web_server">Embedded Web Server</a></li>
+<li><a href="#_acknowledgements">Acknowledgements</a></li>
+</ul>
+</div>
+</div>
+<div id="content">
+<div id="preamble">
+<div class="sectionbody">
+<div class="paragraph">
+<p>JSol&#8217;Ex is a solar images processing software for <a href="http://www.astrosurf.com/solex/sol-ex-presentation-en.html">Christian Buil&#8217;s Sol&#8217;Ex</a>.
+It is capable of processing SER files captured with this instrument in order to produce images of the solar disk, in a similar way to what <a href="http://valerie.desnoux.free.fr/inti/">INTI from Valérie Desnoux</a> is doing.
+It is primarily designed to process images for Sol&#8217;Ex, but it might work properly for other kinds of spectroheliographs.</p>
+</div>
+<div class="paragraph">
+<p>JSol&#8217;Ex is free software published under the Apache 2 software license.
+It is written in en Java and provided for free without any warranty.</p>
+</div>
+<div class="admonitionblock important">
+<table>
+<tr>
+<td class="icon">
+<i class="fa icon-important" title="Important"></i>
+</td>
+<td class="content">
+<div class="title">Note to US citizen and far right supporters</div>
+<div class="paragraph">
+<p><strong>If you support Trump or any other party close to the far right, I ask you not to use this software.</strong></p>
+</div>
+<div class="paragraph">
+<p>My values are fundamentally opposed to those of these parties, and I do not wish for my work, which I have developed during evenings and weekends, and despite it being open source, to be used by people who support these nauseating ideas.</p>
+</div>
+<div class="paragraph">
+<p>Solidarity, openness to others, ecology, fight against discrimination and inequality, respect for all religions, genders, and sexual orientations are the values that drive me.
+I do not accept that my work be used by people who are responsible for suffering and exclusion.
+If you do, I kindly ask you to review your choices and turn to more positive values, where your well-being does not come from the rejection of others.</p>
+</div>
+</td>
+</tr>
+</table>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_downloads">Downloads</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>Click on the button corresponding to your OS below to download the JSol&#8217;Ex installer:</p>
+</div>
+<div class="paragraph">
+<p><a href="https://jsolex.s3.eu-west-3.amazonaws.com/jsolex-windows-latest/jsolex-3.3.1.msi" class="badge"><span class="icon"><i class="fa fa-windows"></i></span> JSol&#8217;Ex (Windows)</a>
+<a href="https://jsolex.s3.eu-west-3.amazonaws.com/jsolex-ubuntu-latest/jsolex_3.3.1_amd64.deb" class="badge"><span class="icon"><i class="fa fa-linux"></i></span> JSol&#8217;Ex (Linux)</a>
+<a href="https://jsolex.s3.eu-west-3.amazonaws.com/jsolex-macos-latest/jsolex-3.3.1.pkg" class="badge"><span class="icon"><i class="fa fa-apple"></i></span> JSol&#8217;Ex (Mac ARM64)</a>
+<a href="https://jsolex.s3.eu-west-3.amazonaws.com/jsolex-macos-13/jsolex-3.3.1.pkg" class="badge"><span class="icon"><i class="fa fa-apple"></i></span> JSol&#8217;Ex (Mac Intel)</a></p>
+</div>
+<div class="sect2">
+<h3 id="_zip_files">Zip files</h3>
+<div class="paragraph">
+<p>Some users prefer to download a zip file containing the binaries: without installer, simply unzip the file in a directory of your choice and launch the application (in the <code>bin</code> folder, <code>jsolex.bat</code> on Windows, <code>jsolex</code> on Linux and MacOS).</p>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p><a href="https://jsolex.s3.eu-west-3.amazonaws.com/jsolex-windows-latest/jsolex-3.3.1.zip">ZIP JSol&#8217;Ex (Windows)</a></p>
+</li>
+<li>
+<p><a href="https://jsolex.s3.eu-west-3.amazonaws.com/jsolex-ubuntu-latest/jsolex-3.3.1.zip">ZIP JSol&#8217;Ex (Linux)</a></p>
+</li>
+<li>
+<p><a href="https://jsolex.s3.eu-west-3.amazonaws.com/jsolex-macos-latest/jsolex-3.3.1.zip">ZIP JSol&#8217;Ex (Mac ARM64)</a></p>
+</li>
+<li>
+<p><a href="https://jsolex.s3.eu-west-3.amazonaws.com/jsolex-macos-13/jsolex-3.3.1.zip">ZIP JSol&#8217;Ex (Mac Intel)</a></p>
+</li>
+</ul>
+</div>
+</div>
+<div class="sect2">
+<h3 id="_building_from_source">Building from source</h3>
+<div class="paragraph">
+<p>JSol&#8217;Ex can also be downloaded or built from source from <a href="https://github.com/melix/astro4j/releases">this page</a>.
+Installers are available for Linux, Windows and MacOS.</p>
+</div>
+<div class="paragraph">
+<p>Alternatively, you may run JSol&#8217;Ex by checking out the sources and running the following command:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">./gradlew jsolex:run</code></pre>
+</div>
+</div>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_community">Community</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>You can join the JSol&#8217;Ex community on the <a href="https://discord.gg/y9NCGaWzve">Discord server</a> to share your images, discuss JSol&#8217;Ex or ask for help.</p>
+</div>
+<div class="imageblock">
+<div class="content">
+<a class="image" href="https://discord.gg/y9NCGaWzve"><img src="https://discordapp.com/api/guilds/1305595962663768074/widget.png?style=banner2" alt="widget"></a>
+</div>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="donate">Donations</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>JSol&#8217;Ex is free software.
+If you appreciate my work, I do not accept direct donations.
+However, I strongly encourage you to make a donation to the <a href="https://www.helloasso.com/associations/single-tracking-astronomical-repository-for-open-spectroscopy/formulaires/3">STAROS association</a>, which initiated the Sol&#8217;Ex and Sunscan projects and promotes spectrography using innovative projects with amateurs, schools and science collaborations: that will be my contribution to this project and will be greatly appreciated!</p>
+</div>
+<div class="paragraph">
+<p>Click on the image below to donate:</p>
+</div>
+<div class="imageblock">
+<div class="content">
+<a class="image" href="https://www.helloasso.com/associations/single-tracking-astronomical-repository-for-open-spectroscopy/formulaires/3"><img src="https://staros-projects.org/assets/img/backgrounds/STAROS_logo_text.png" alt="STAROS logo text" height="200"></a>
+</div>
+</div>
+<div class="paragraph">
+<p>Of course, you can also send a message of encouragement or appreciation, it is always nice to receive them!</p>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_processing_a_video_file">Processing a video file</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>JSol&#8217;Ex only supports SER files, please make sure to configure your capture software to use this format.
+The main window looks like this:</p>
+</div>
+<div class="imageblock">
+<div class="content">
+<img src="main-window-fr.jpg" alt="main window fr">
+</div>
+</div>
+<div class="paragraph">
+<p>In the "File" menu, choose "Open SER File" and select a file.
+The following popup should open:</p>
+</div>
+<div class="imageblock">
+<div class="content">
+<img src="params-1-en.jpg" alt="params 1 en">
+</div>
+</div>
+<div class="paragraph">
+<p>This window is the main entry point for the process parameters.
+You can specify:</p>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p>the observation bandwidth: while it&#8217;s not mandatory to select that field, doing so will enable automatic colorization of the images. Should your observation bandwidth not be available in the list, you can add more by clicking on the "&#8230;&#8203;" button.</p>
+</li>
+<li>
+<p>Pixel shift : by default, the software will identify the darkest line in the image and model it as a second order polynomial. Then the image is reconstructed by picking the center of the line, which corresponds to a shift of 0. By using a different shift value, you can produce an image which is "off center", for example to produce images of the solar continuum or to select a different wavelength which isn&#8217;t the darkest, such as when observing in helium for example</p>
+</li>
+<li>
+<p>the Doppler shift is only used when you are observing in h-alpha. JSol&#8217;Ex will produce a couple more images shifted in one direction and the other in order to produce a Doppler image. By default, a shift of 3 pixels is used but you can override that parameter.</p>
+</li>
+<li>
+<p>Rotation : allows performing a left or right rotation (90 degrees) of the images. This can be useful for scans performed in declination, to fix the orientation. This parameter doesn&#8217;t affect images produced with ImageMath.</p>
+</li>
+<li>
+<p>Autocrop : allows automatic cropping of images after geometric transformation. There are multiple modes:</p>
+<div class="ulist">
+<ul>
+<li>
+<p>Off: no autocrop (this is the default)</p>
+</li>
+<li>
+<p>Original width: the image will be cropped to a square which width corresponds to the width of the original SER file. Ideal for full solar disks.</p>
+</li>
+<li>
+<p>Radius (x&#8230;&#8203;) : the image will be cropped or rescaled to a factor of the determined solar radius. This can be useful for example with truncated disks, if you want to "see" where it would be positioned.</p>
+</li>
+</ul>
+</div>
+</li>
+<li>
+<p>Autocorrect P angle: when checked, the solar angle P will be computed from the observation date (available in the SER file). The generated images will be automatically corrected so that the North is at the top. This parameter will not affect images generated via ImageMath, which need to perform their own correction.</p>
+</li>
+<li>
+<p>Force tilt: the software is fitting an ellipse around the solar disk which is reconstructed, and uses that information to perform geometric correction. It is possible that the tilt detection is wrong, in which case you can force a value.</p>
+</li>
+<li>
+<p>Force X/Y ratio: similarly, the X/Y ratio which is detected may be inaccurrate, in which case you can force it to a particular value.</p>
+</li>
+<li>
+<p>Force polynomial: this lets you override the detected spectral line, if for some reason it is not detected correctly. See the <a href="#force-polynomial">section about forcing the polynomial</a> for more information.</p>
+</li>
+<li>
+<p>Horizontal and vertical inversion let you mirror the image so that you match the North and East as expected in the output images.</p>
+</li>
+<li>
+<p>Rescale to full resolution: can be used if your video is oversampled, which typically happens if you are scanning at lower rates (e.g sideral) and that you want to resize the generated image to its full resolution.</p>
+</li>
+</ul>
+</div>
+<div class="admonitionblock warning">
+<table>
+<tr>
+<td class="icon">
+<i class="fa icon-warning" title="Warning"></i>
+</td>
+<td class="content">
+Enabling full resolution can lead in significantly larger images and very high memory pressure. It is not recommended to enable this flag.
+</td>
+</tr>
+</table>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_image_enhancement">Image enhancement</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>This section lets you configure the transformations which will be applied to images in order to improve their aesthetic aspect.</p>
+</div>
+<div class="imageblock">
+<div class="content">
+<img src="params-2-en.jpg" alt="params 2 en">
+</div>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p>CLAHE parameters : allows configuring the CLAHE contrast improvement algorithm.
+It is possible to configure the size of the tiles used to compute histograms, the histogram resolution and the clipping factor.</p>
+</li>
+</ul>
+</div>
+<div class="paragraph">
+<p>Next come the banding correction parameters, which allow to correct transversal bands which can appear on images, for example because of dust on the slit.</p>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p>Banding correction width: this is the width of the bands which are used in the transversallium correction algorithm. Bands are used to compute the average brightness of pixels in the band, then lines are corrected according the band they belong to.</p>
+</li>
+<li>
+<p>Banding correction passes: the more passes you&#8217;ll apply, the more lines should be corrected, at the cost of lower contrast images</p>
+</li>
+</ul>
+</div>
+<div class="paragraph">
+<p>Another section lets you configure image deconvolution.
+By default, no deconvolution is applied, but you can choose the deconvolution algorithm and its parameters.</p>
+</div>
+<div class="paragraph">
+<p>For the Richardson-Lucy deconvolution, you can choose the size of the synthetic PSF, the sigma factor and the number of iterations.</p>
+</div>
+<div class="paragraph">
+<p>Finally, you can choose to apply a detail enhancement filter at the end of the processing. JSol&#8217;Ex provides three sharpening options:</p>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p><strong>None</strong>: No sharpening is applied</p>
+</li>
+<li>
+<p><strong>Sharpen</strong>: Traditional sharpening using a convolution kernel. You can adjust the kernel size (must be an odd number ≥ 3)</p>
+</li>
+<li>
+<p><strong>Unsharp Mask</strong>: More sophisticated enhancement technique that creates a mask from the difference between the original and a blurred version of the image. This method typically produces more natural-looking results with better edge preservation. You can adjust both the kernel size and the strength of the effect</p>
+</li>
+</ul>
+</div>
+<div class="paragraph">
+<p>Flat correction can be applied to images, in order to correct for vignetting or other artifacts.
+There are 3 modes available:
+- No correction: no correction is applied (this is the default)
+- Artificial flat correction: the software will compute a model of the flat field from the image itself, by looking at the pixels which are between a low and a high percentile. The model is then used to correct the image. This can be used to correct for reasonable vignetting.
+- Physical flat correction: the software can use a flat field which is either a SER file containing a few frames, or a pre-computed flat field. This is the preferred method for strong vignetting.</p>
+</div>
+<div class="sect2">
+<h3 id="_jagged_edges_correction">Jagged Edges Correction</h3>
+<div class="paragraph">
+<p>This is an experimental feature available since JSol&#8217;Ex 3.1.0.
+It enables the correction of jagged edges which can appear on images.
+These jagged edges are common on images captured with a spectroheliograph and come from different causes:</p>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p>atmospheric turbulence</p>
+</li>
+<li>
+<p>wind</p>
+</li>
+<li>
+<p>a mount that is not perfectly balanced or that is resonating</p>
+</li>
+</ul>
+</div>
+<div class="paragraph">
+<p>Jagged edges correction can reduce these defects dramatically.
+It only requires a single parameter: a "sigma" value which lets you adjust the number of points taken into account in the correction model.
+A value of sigma close to 0 will be very restrictive and will only correct small defects, while a higher sigma value will correct larger defects, at the risk of distorting prominences, for example.</p>
+</div>
+<div class="admonitionblock note">
+<table>
+<tr>
+<td class="icon">
+<i class="fa icon-note" title="Note"></i>
+</td>
+<td class="content">
+<div class="paragraph">
+<p>Jagged edges correction may have side effects, such as distortion of prominences. It is not a perfect correction of atmospheric turbulence: indeed, it cannot correct effects perpendicular to the scan direction for example. Finally, it will work better on "low frequency" turbulence, that is, slow movements of the atmosphere, and less well on rapid movements.
+In all cases, it is recommended to start without correction and verify the result in all cases.</p>
+</div>
+</td>
+</tr>
+</table>
+</div>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_observation_parameters">Observation parameters</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>Observation parameters are used to insert metadata into FITS files.
+As of now, we do <em>not</em> recommend to publish images produced using JSol&#8217;Ex to the BASS2000 database because the FITS header that this software uses are not validated against what the database expects.</p>
+</div>
+<div class="imageblock">
+<div class="content">
+<img src="params-3-en.jpg" alt="params 3 en">
+</div>
+</div>
+<div class="paragraph">
+<p>Here are the fields available in JSol&#8217;Ex:</p>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p>Observer : the person who made the observation</p>
+</li>
+<li>
+<p>Email : the email address of the person who made the observation</p>
+</li>
+<li>
+<p>Instrument : pre-filled to "Sol&#8217;Ex"</p>
+</li>
+<li>
+<p>Telescope : your telescope or refractor used with the Sol&#8217;Ex instrument</p>
+</li>
+<li>
+<p>Focal length and aperture of the telescope</p>
+</li>
+<li>
+<p>Latitude and longitude of the observation site</p>
+</li>
+<li>
+<p>Camera</p>
+</li>
+<li>
+<p>Date : pre-filled with information from the SER file, expressed in the UTC timezone</p>
+</li>
+<li>
+<p>Binning : the binning of pixels when the video was recorded</p>
+</li>
+<li>
+<p>Pixel size : the size of the camera pixels in microns</p>
+</li>
+<li>
+<p>Vertical flip of the spectrum : normally, the spectrum should have the blue wing at the top and the red wing at the bottom. If it&#8217;s the opposite, you can check this box. This is typically the case if you are using a Sunscan.</p>
+</li>
+<li>
+<p>Alt-Az mode : check this box if you are not using an equatorial mount but an alt-az mount and that you are seeing an incorrect orientation of the image.</p>
+</li>
+</ul>
+</div>
+<div class="admonitionblock important">
+<table>
+<tr>
+<td class="icon">
+<i class="fa icon-important" title="Important"></i>
+</td>
+<td class="content">
+<div class="title">Alt-Az mode and image orientation correctness</div>
+<div class="paragraph">
+<p>It is important to understand that JSol&#8217;Ex is not capable of determining if an image is flipped vertically or horizontally, but it can compute the solar angle P from the observation date.
+However, the orientation grid that is generated will only be correct if you are using an equatorial mount.
+If you are using an alt-az mount, then the orientation grid will be incorrect, as well as the position of the labels of detected active regions.
+In order to fix this, you must check the "Alt-Az" box and enter your observation site coordinates: JSol&#8217;Ex will then compute the parallactic angle and perform correction automatically, resulting in a well oriented image.</p>
+</div>
+</td>
+</tr>
+</table>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_other_parameters">Other parameters</h2>
+<div class="sectionbody">
+<div class="imageblock">
+<div class="content">
+<img src="params-4-en.jpg" alt="params 4 en">
+</div>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p>Assume mono video : when checked, JSol&#8217;Ex will not try to perform demosaicing of the video, by assuming it&#8217;s a mono one. This can considerably speedup processing, and because most videos for Sol&#8217;Ex will be mono, it is better to leave this checked.</p>
+</li>
+<li>
+<p>Automatically save images : if checked, all images which are generated by the software will be saved to disk immediately. If unchecked, then it&#8217;s your responsibility to save them by clicking on the "save" button of each image tab.</p>
+</li>
+<li>
+<p>Generate debug images: when checked, additional images will be generated to highlight edge detection, tilt detection and average image. These can be useful to figure out what when wrong when the software doesn&#8217;t produce the expected results.</p>
+</li>
+<li>
+<p>Generate FITS files : in addition to PNG files, will also generate FITS files.</p>
+</li>
+</ul>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="force-polynomial">Force polynomial</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>JSol&#8217;Ex performs detection of the spectral line by looking for the darkest line in the image, then fitting a 3rd order polynomial to it.
+Sometimes, detection may be incorrect, in which case you can force a polynomial to be used.</p>
+</div>
+<div class="paragraph">
+<p>In order to do this, click on the "force polynomial" button, which will let you enter the polynomial coefficients.</p>
+</div>
+<div class="paragraph">
+<p>The format of the polynomial is a list of 4 numbers between curly braces, separated by commas, for example: <code>{1.3414109042116584E-10,3.889927699830093E-5,-0.056529799336687114,35.76051527062038}</code>.</p>
+</div>
+<div class="paragraph">
+<p>The easiest way to get the polynomial coefficients is to click on the "&#8230;&#8203;" button, which will open a window with the average image and the detected spectral line :</p>
+</div>
+<div class="imageblock">
+<div class="content">
+<img src="force-polynomial-1.jpg" alt="force polynomial 1">
+</div>
+</div>
+<div class="paragraph">
+<p>You can then press "CTRL" then click on the line to add measurement points: a red cross will be added for each point.
+When you have enough points, click on the "Compute polynomial" button, which will fit a 3rd order polynomial to the points and automatically fill the "force polynomial" field in the process parameters:</p>
+</div>
+<div class="imageblock">
+<div class="content">
+<img src="force-polynomial-2.jpg" alt="force polynomial 2">
+</div>
+</div>
+<div class="paragraph">
+<p>You can then close the popup and start processing.</p>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="filename-templates">File naming patterns</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>By default, JSol&#8217;Ex will output the generated images in a subfolder which name matches the name of the SER file (without extension). Then each kind of images is stored in a subdirectory of that folder (e.g raw, debug, processed, &#8230;&#8203;).
+If that naming convention doesn&#8217;t suit you, you can create your own naming patterns, by clicking the "&#8230;&#8203;" dots:</p>
+</div>
+<div class="imageblock">
+<div class="content">
+<img src="params-5-en.jpg" alt="params 5 en">
+</div>
+</div>
+<div class="paragraph">
+<p>A naming pattern consists of a label, but more importantly a pattern consisting of tokens delimited by the <code>%</code> character.</p>
+</div>
+<div class="paragraph">
+<p>Please find below the list of available tokens:</p>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p><code>%BASENAME%</code> is the SER file base name, that is to say the name without extension</p>
+</li>
+<li>
+<p><code>%KIND%</code> is the kind of images (raw, debug, processed, &#8230;&#8203;)</p>
+</li>
+<li>
+<p><code>%LABEL%</code> is the label of the produced images, e.g <code>recon</code>, <code>protus</code></p>
+</li>
+<li>
+<p><code>%CURRENT_DATETIME%</code> is the date and time of processing</p>
+</li>
+<li>
+<p><code>%CURRENT_DATE%</code> is the date of processing</p>
+</li>
+<li>
+<p><code>%VIDEO_DATETIME%</code> is the date and time of the video</p>
+</li>
+<li>
+<p><code>%VIDEO_DATE%</code> is the date of the video</p>
+</li>
+<li>
+<p><code>%SEQUENCE_NUMBER%</code> is the sequence number in case of batch processing (4 digits, eg. <code>0012</code>)</p>
+</li>
+</ul>
+</div>
+<div class="paragraph">
+<p>This for example would be a pattern which puts all generated files in a single folder:</p>
+</div>
+<div class="paragraph">
+<p><code>%BASENAME%/%SEQUENCE_NUMBER%_%LABEL%</code></p>
+</div>
+<div class="paragraph">
+<p>The "example" field shows you what the generated file names would look like.</p>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_process_start">Process start</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>JSol&#8217;Ex provides 3 processing modes: quick, full and custom.</p>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p>The "quick" mode will only produce a couple images: the raw reconstructed one, and a geometry corrected version. It is useful in your initial setup, when you&#8217;re still trying to figure out the tilt or exposure, for example. It is recommended to combine this mode with not saving images automatically, so that you don&#8217;t fill your disk with images that you will never use.</p>
+</li>
+<li>
+<p>The "full" mode will generate all images that JSol&#8217;Ex can automatically produce:</p>
+</li>
+<li>
+<p>the raw, reconstructed image</p>
+</li>
+<li>
+<p>a geometry corrected and color-stretched version</p>
+</li>
+<li>
+<p>a colorized image, if the bandwidth you have selected provides the required parameters</p>
+</li>
+<li>
+<p>a negative image version</p>
+</li>
+<li>
+<p>a virtual eclipse, to simulate a coronagraph</p>
+</li>
+<li>
+<p>a mixed image combining the colorized version with the virtual eclipse</p>
+</li>
+<li>
+<p>a Doppler image</p>
+</li>
+<li>
+<p>the "custom" mode will let you precisely pick which images you want to generate. It even provides a more advanced mode letting you script generated images, allowing the generation of images which weren&#8217;t designed initially (see the <a href="#custom_images">section about custom images</a>).</p>
+</li>
+</ul>
+</div>
+<div class="sect2">
+<h3 id="_image_display">Image display</h3>
+<div class="paragraph">
+<p>Once images are generated, they appear one after each other in tabs.
+These tabs provide you with the ability to tweak the contrast of images and save them, typically when you unchecked the automatic save option.</p>
+</div>
+<div class="imageblock">
+<div class="content">
+<img src="image-display-fr.jpg" alt="image display fr">
+</div>
+</div>
+<div class="paragraph">
+<p>It is possible to zoom into the images by using the mouse wheel.
+In addition, right-clicking the image will let you open it into your file explorer or in a separate window.</p>
+</div>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_watching_a_directory_for_changes">Watching a directory for changes</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>When trying to find the ideal focus, it can be useful to process video files quickly until we obtain a satisfying result.
+JSol&#8217;Ex offers an easy way to do this, by watching the changes in a directory : new videos which are saved in that directory will immediately be processed.</p>
+</div>
+<div class="paragraph">
+<p>To do this, in the file menu, choose "Watch directory" then select the directory where your SER files will be recorded (e.g the output directory of SharpCap).</p>
+</div>
+<div class="paragraph">
+<p>JSol&#8217;Ex will switch to watch mode, which you can interrupt by clicking the button which appeared in the bottom left of the interface.</p>
+</div>
+<div class="paragraph">
+<p>Now, open your capture software and record a new video.
+Once it&#8217;s done, switch to JSol&#8217;Ex : it will open the process parameters configuration window.
+Select your processing parameters then start the processing.</p>
+</div>
+<div class="paragraph">
+<p>Once you have the result, switch back to your capture software and acquire a new video.
+Once its done, switch back to JSol&#8217;Ex: this time, the process parameters window won&#8217;t open, because it&#8217;s going to reuse the parameters from the first video, allowing to process new videos very quickly!</p>
+</div>
+<div class="admonitionblock warning">
+<table>
+<tr>
+<td class="icon">
+<i class="fa icon-warning" title="Warning"></i>
+</td>
+<td class="content">
+Make sure that when you switch from your capture software to JSol&#8217;Ex that the recording is finished. If not, processing can start on an incomplete file and fail.
+</td>
+</tr>
+</table>
+</div>
+<div class="paragraph">
+<p>Once you&#8217;re happy with the result, click on the "Stop watching" button on the bottom left.</p>
+</div>
+<div class="admonitionblock tip">
+<table>
+<tr>
+<td class="icon">
+<i class="fa icon-tip" title="Tip"></i>
+</td>
+<td class="content">
+You can combine the watch mode with opening an image in a new window (by right-clicking on an image, you can open it in a new window). When a new SER file will be processed, the corresponding image will automatically replace the one in the external window. This can be useful in demonstrations, if you have for example a separate monitor where you would only show the result of processing.
+</td>
+</tr>
+</table>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="custom_images">Customization of generated images</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>When you click the "custom" mode instead of the quick or full ones, JSol&#8217;Ex provides you with an interface which will let you declare exactly what should be output.</p>
+</div>
+<div class="paragraph">
+<p>There are 2 modes available: the <em>simple</em> one and the <em>ImageMath</em> one.</p>
+</div>
+<div class="paragraph">
+<p>In the simple one, you can pick which images to generate by clicking the right boxes.
+It is also possible to ask for the creation, in parallel, of images at different pixel shifts.</p>
+</div>
+<div class="paragraph">
+<p>For example, should you want to generate images from the continuum to the observed ray, you can enter <code>-10;-9;-8;-7;-6;-5;-4;-3;-2;-1;0;1;2;3;4;5;6;7;8;9;10</code> which will have the consequence of generating 21 distinct images ranging from shift -10 to +10.
+This can be particularly useful if you want, for example, to generate an animation.</p>
+</div>
+<div class="paragraph">
+<p>It&#8217;s worth noting that if you check some images like "Doppler", some pixel shifts will be automatically added to the list (e.g -3 and +3).</p>
+</div>
+<div class="paragraph">
+<p>If this isn&#8217;t good enough for you, you can go even more advanced by enabling the "ImageMath" mode which is extremely powerful while relatively simple to grasp.</p>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="trimming-ser-files">Trimming SER files</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>It is not unsual to have SER files which contain a lot of empty frames at the beginning or at the end, because of how we usually capture videos: we start the capture, then we wait for the mount to stabilize, then we stop the capture.
+In addition, our cropping window may be a bit too large for what we actually want to study.</p>
+</div>
+<div class="paragraph">
+<p>As a consequence, SER files stored on disk are usually significantly larger than what they need to be.
+Since JSol&#8217;Ex 2.10, a new option is available at the end of the processing of a file.
+You can click on the "Trim SER file" button on the top right corner of the interface, which will open a new window:</p>
+</div>
+<div class="imageblock">
+<div class="content">
+<img src="trimming-en.jpg" alt="trimming en">
+</div>
+</div>
+<div class="paragraph">
+<p>This window is pre-filled with parameters which are deduced from the processed file.
+In particular, the start and end frames, as well as the mininum and maximum X values (width) are automatically determined from the detection of the solar disk in the video.
+A reasonable margin of 10% is added, which means that sometimes, the first and last frame may actually correspond to the full video if you actually have video where the sun appears quickly in the field of view.</p>
+</div>
+<div class="paragraph">
+<p>The "pixels up" and "pixels down" parameters correspond to how many pixels you want to keep in the target SER file.
+Again these are automatically determined from the correction of the "smile" (the curvature of the spectral line), but it may be particularly interesting to reduce, since it will have a large impact on the size of the file.
+However, reducing the number of pixels up/down will remove information from the video (you won&#8217;t be able to compute images with larger pixel shifts), so always be careful not to reduce it too much.</p>
+</div>
+<div class="paragraph">
+<p>Once you&#8217;re happy with the parameters, click on "Trim" and a new SER file will be created in the same directory as the original one, with the suffix <code>_trimmed</code>.</p>
+</div>
+<div class="paragraph">
+<p>It&#8217;s worth noting that the trimmed video will also have the smile correction applied, which means that the spectral line will be centered in the video and that each line will be perfectly horizontal.
+This information is used by JSol&#8217;Ex in case you decide to process the trimmed video, so that you don&#8217;t have to recompute the smile correction.</p>
+</div>
+<div class="admonitionblock important">
+<table>
+<tr>
+<td class="icon">
+<i class="fa icon-important" title="Important"></i>
+</td>
+<td class="content">
+<div class="paragraph">
+<p>It is important to understand that trimming is a destrutive operation: when you reduce the number of frames or the min x/max x values, then you are potentially truncating the solar disk or features like prominences.
+If you are selecting too low pixel up/down values, then you are reducing the bandwidth of observation, which means for example that you may not be able to generate a continuum image anymore.
+In both cases, the result of processing the trimmed video will be different from the original one.</p>
+</div>
+</td>
+</tr>
+</table>
+</div>
+<div class="paragraph">
+<p>Here&#8217;s an example of a video:</p>
+</div>
+<video width="100%" controls autoplay loop>
+  <source src="orig.webm" type="video/webm">
+  Your browser does not support the video tag.
+</video>
+<div class="paragraph">
+<p>And the result after trimming:</p>
+</div>
+<video width="100%" controls autoplay loop>
+  <source src="trimmed.webm" type="video/webm">
+  Your browser does not support the video tag.
+</video>
+</div>
+</div>
+<div class="sect1">
+<h2 id="imagemath">ImageMath : images generation scripts</h2>
+<div class="sectionbody">
+<div class="sect2">
+<h3 id="_introduction_to_imagemath">Introduction to ImageMath</h3>
+<div class="paragraph">
+<p>The "ImageMath" mode is a mode which will let you declare which images to generate by writing small scripts.
+It relies on a simple script language designed specifically for generating Sol&#8217;Ex images.</p>
+</div>
+<div class="paragraph">
+<p>Let&#8217;s illustrate this by going back to our previous example, where you wanted to generate images in the [-10;10] pixel shift range.
+In the "simple" mode, you had to manually enter all pixel shifts, which can be a little cumbersome.
+In the "ImageMath" mode, we have a language which will let us to this with a single instruction.</p>
+</div>
+<div class="paragraph">
+<p>First, select the <code>ImageMath</code> mode in the select box and click on "Open ImageMath".
+The following interface show up:</p>
+</div>
+<div class="imageblock">
+<div class="content">
+<img src="imagemath-1-fr.jpg" alt="imagemath 1 fr">
+</div>
+</div>
+<div class="paragraph">
+<p>On the left side, "Scripts to execute", you will find the list of all scripts which will be applied in your session.</p>
+</div>
+<div class="admonitionblock warning">
+<table>
+<tr>
+<td class="icon">
+<i class="fa icon-warning" title="Warning"></i>
+</td>
+<td class="content">
+This is really the list of scripts which are <em>applied</em> in that session, not the list of available scripts! Click on the "remove" button to remove scripts from execution in the session.
+</td>
+</tr>
+</table>
+</div>
+<div class="paragraph">
+<p>Scripts must be saved on your local disk and can be shared with other users.
+Their contents is editable in the rightmost part of the interface.</p>
+</div>
+<div class="paragraph">
+<p>Start with removing the contents of the sample script and replace it with:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-none hljs">range(-10;10)</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>Then click on "Save".
+Select a destination file and proceed: the script is now added to the list on the left, as being executed in this session.</p>
+</div>
+<div class="paragraph">
+<p>Click on "Ok" to close ImageMath and only keep the "geometry corrected (stretched)" images.
+Click on "Ok" to start processing, you will now have the 21 required images generated:</p>
+</div>
+<div class="imageblock">
+<div class="content">
+<img src="imagemath-2-fr.jpg" alt="imagemath 2 fr">
+</div>
+</div>
+</div>
+<div class="sect2">
+<h3 id="_functions_available_in_imagemath">Functions available in ImageMath</h3>
+<div class="paragraph">
+<p>For now we&#8217;ve only used one function called <code>range</code>, which let us generate about 20 images, but there are many others available.</p>
+</div>
+<div class="paragraph">
+<p>Please refer to <a href="imagemath.html">this page</a> for the complete list of functions available in ImageMath.</p>
+</div>
+</div>
+<div class="sect2">
+<h3 id="_imagemath_scripts">ImageMath scripts</h3>
+<div class="paragraph">
+<p>In the previous section, we have seen the building blocks of ImageMath, which permit computation of new images.
+Scripts go beyond this by combining these into a powerful tool to generate images.
+As an illustration, let&#8217;s look at this script which will let us generate an Helium image.
+Helium image processing is complicated, because the Helium ray is very dim and the software cannot find it in the image.
+Therefore, we can use a technique which consists of taking a larger capture window which includes a dark ray, then by determining by how many pixels the helium ray is shifted from that line, we can reconstruct an image.
+Even so, the work is not finished, since it&#8217;s an extremely low contrast ray, so we have to substract the continuum value.
+Producing such images is quite cumbersome but can be simplified to the extreme with ImageMath:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-none hljs">[params]
+# The shifting between the helium line and the detected line (in pixels)
+Line=5875.62
+HeliumShift=find_shift(Line)
+# Banding correction width and number of iterations
+BandWidth=25
+BandIterations=20
+# Contrast adjustment
+Gamma=1.5
+# Autocrop factor (of diameter)
+AutoCropFactor=1.1
+
+## Temporary variables
+[tmp]
+helium_raw = img(HeliumShift) - continuum()
+helium_fixed = fix_banding(helium_raw;BandWidth;BandIterations)
+cropped = autocrop2(auto_contrast(helium_fixed;Gamma);AutoCropFactor)
+
+## Let's produce the images now!
+[outputs]
+helium_mono = cropped
+helium_color = colorize(helium_mono, Line)</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>Our script consists of 3 different sections: <code>[params]</code>, <code>[tmp]</code> and <code>[outputs]</code>.
+The only mandatory section is the <code>[outputs]</code> one: it defines which images we want to have in the end.
+The name of all other sections is arbitrary, you can create as many sections as you want.</p>
+</div>
+<div class="paragraph">
+<p>Here, we defined a <code>[params]</code> section which highlights which parameters we want users to be able to tweak for their needs.
+This is where we find the value of our helium ray pixel shift (<code>HeliumShift=find_line(Line)</code>) which is computed from the <code>Line=5875.62</code> variable declaration.</p>
+</div>
+<div class="admonitionblock note">
+<table>
+<tr>
+<td class="icon">
+<i class="fa icon-note" title="Note"></i>
+</td>
+<td class="content">
+A variable can only contain ASCII characters, digits (except for the 1st character) or the <code>_</code> character. For example, <code>myVariable</code>, <code>MyVariable</code> or <code>MyVariable0</code> all all valid identifiers. <code>hélium</code> is invalid (because of the accent).
+</td>
+</tr>
+</table>
+</div>
+<div class="paragraph">
+<p>Variables can be used in other variables or function calls.</p>
+</div>
+<div class="admonitionblock important">
+<table>
+<tr>
+<td class="icon">
+<i class="fa icon-important" title="Important"></i>
+</td>
+<td class="content">
+Variables are case sensitive. <code>myVariable</code> et <code>MyVariable</code> are 2 distinct variables!
+</td>
+</tr>
+</table>
+</div>
+<div class="paragraph">
+<p>Our 2d section, <code>[tmp]</code>, defines intermediate images we want to work with, but for which we don&#8217;t care about seeing the result:</p>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p><code>helium_raw</code> is the Helium ray image, shifted from the detected ray and from which we have subtracted the continuum image.</p>
+</li>
+<li>
+<p><code>helium_fixed</code> is the <code>helium_raw</code> image to which we have applied the banding correction algorithm.</p>
+</li>
+<li>
+<p><code>cropped</code> is the <code>helium_fixed</code> image to which we have applied an autocrop and a contrast adjustment.</p>
+</li>
+</ul>
+</div>
+<div class="paragraph">
+<p>Last but not least, the <code>[outputs]</code> section declares the images we want to generate:</p>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p><code>helium_mono</code> is the <code>cropped</code> image as is, in black and white.</p>
+</li>
+<li>
+<p><code>helium_color</code> is the <code>helium_mono</code> image to which we have applied a colorization.</p>
+</li>
+</ul>
+</div>
+<div class="admonitionblock note">
+<table>
+<tr>
+<td class="icon">
+<i class="fa icon-note" title="Note"></i>
+</td>
+<td class="content">
+Comments can be added either with the <code>#</code> or <code>//</code> prefix.
+</td>
+</tr>
+</table>
+</div>
+</div>
+<div class="sect2">
+<h3 id="special-variables">Special variables</h3>
+<div class="paragraph">
+<p>This table summarizes the special variables which are exposed to ImageMath scripts:</p>
+</div>
+<table class="tableblock frame-all grid-all stretch">
+<colgroup>
+<col style="width: 25%;">
+<col style="width: 75%;">
+</colgroup>
+<thead>
+<tr>
+<th class="tableblock halign-left valign-top">Variable</th>
+<th class="tableblock halign-left valign-top">Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>blackPoint</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">The computed black point of the image</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>angleP</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">The computed solar P angle (in radians)</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>b0</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">The computed B0 angle (in radians)</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>l0</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">The computed L0 angle (in radians)</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>carrot</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">The Carrington rotation number</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>detectedWavelen</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">The detected wavelength of the image (in Angström), corresponding to the image <code>img(0)</code></p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="sect2">
+<h3 id="custom-functions">Custom functions</h3>
+<div class="paragraph">
+<p>In addition to the functions provided by JSol&#8217;Ex, it is possible to define your own functions, which combine existing functions.
+For example, let&#8217;s say that you would like to draw the globe, technical details and solar parameters on more than one image.
+You script may look like this:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-none hljs">image1=draw_obs_details(draw_solar_params(draw_globe(img(0))))
+image2=draw_obs_details(draw_solar_params(draw_globe(auto_contrast(img(0);1.5))))</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>Instead of repeating the same function calls on several images, we can declare a function which would do this for us:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-none hljs">[fun:decorate img]                                              <i class="conum" data-value="1"></i><b>(1)</b>
+   result=draw_obs_details(draw_solar_params(draw_globe(img)))  <i class="conum" data-value="2"></i><b>(2)</b>
+
+[outputs]
+image1=decorate(img(0))                                         <i class="conum" data-value="3"></i><b>(3)</b>
+image2=decorate(auto_contrast(img(0);1.5))                      <i class="conum" data-value="4"></i><b>(4)</b></code></pre>
+</div>
+</div>
+<div class="colist arabic">
+<table>
+<tr>
+<td><i class="conum" data-value="1"></i><b>1</b></td>
+<td>The function declaration. The name of the function is <code>decorate</code>, and it takes a single argument, <code>img</code>.</td>
+</tr>
+<tr>
+<td><i class="conum" data-value="2"></i><b>2</b></td>
+<td>The function must end with an assignment to the <code>result</code> variable.</td>
+</tr>
+<tr>
+<td><i class="conum" data-value="3"></i><b>3</b></td>
+<td>The function is then called with the <code>img(0)</code> image.</td>
+</tr>
+<tr>
+<td><i class="conum" data-value="4"></i><b>4</b></td>
+<td>The function can also be called with the <code>auto_contrast(img(0);1.5)</code> image.</td>
+</tr>
+</table>
+</div>
+<div class="paragraph">
+<p>Functions <strong>must</strong> be declared at the beginning of the script.
+They can take any number of arguments, but they must always return a value in the <code>result</code> variable.
+If you declare a function, you <strong>must</strong> have a section which separates the functions declarations from your main script (for the <code>[outputs]</code> section).</p>
+</div>
+<div class="paragraph">
+<p>A function can consist of intermediate expressions and can call other functions.
+For example, let&#8217;s create a function which will display our image with a title:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-none hljs">[fun:titled img title]                                          <i class="conum" data-value="1"></i><b>(1)</b>
+   decorated=decorate(img)                                      <i class="conum" data-value="2"></i><b>(2)</b>
+   result=draw_text(decorated, 10, 10, title)
+
+[fun:decorate img]
+   result=draw_obs_details(draw_solar_params(draw_globe(img)))
+
+[outputs]
+image1=titled(img(0))                                         <i class="conum" data-value="3"></i><b>(3)</b>
+image2=titled(auto_contrast(img(0);1.5))                      <i class="conum" data-value="4"></i><b>(4)</b></code></pre>
+</div>
+</div>
+<div class="colist arabic">
+<table>
+<tr>
+<td><i class="conum" data-value="1"></i><b>1</b></td>
+<td>The <code>titled</code> function declaration. It takes 2 arguments: <code>img</code> and <code>title</code>.</td>
+</tr>
+<tr>
+<td><i class="conum" data-value="2"></i><b>2</b></td>
+<td>The <code>titled</code> function calls the <code>decorate</code> function, then adds a title to the image.</td>
+</tr>
+<tr>
+<td><i class="conum" data-value="3"></i><b>3</b></td>
+<td>The <code>titled</code> function is then called with the <code>img(0)</code> image.</td>
+</tr>
+<tr>
+<td><i class="conum" data-value="4"></i><b>4</b></td>
+<td>The <code>titled</code> function can also be called with the <code>auto_contrast(img(0);1.5)</code> image.</td>
+</tr>
+</table>
+</div>
+<div class="admonitionblock note">
+<table>
+<tr>
+<td class="icon">
+<i class="fa icon-note" title="Note"></i>
+</td>
+<td class="content">
+<div class="title">Passing a list to a function</div>
+<div class="paragraph">
+<p>The first argument of a function is always treated differently.
+If it is passed a list, then the function will be called for each element of the list, then the results will be collected in a list.
+For example, if we call the <code>decorate</code> function above with a list of images, then the result will be a list of decorated images.
+If the function takes more than one argument, only the first argument behaves this way.</p>
+</div>
+</td>
+</tr>
+</table>
+</div>
+</div>
+<div class="sect2">
+<h3 id="includes">Including other scripts</h3>
+<div class="paragraph">
+<p>It is possible to include other scripts in your script.
+This can be useful if you have a set of functions which you want to reuse in several scripts.
+For example, we could extract the function definitions from the previous example and put them in a separate file, <code>functions.math</code>:</p>
+</div>
+<div class="listingblock">
+<div class="title">functions.math</div>
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-none hljs">[fun:decorate img]
+   result=draw_obs_details(draw_solar_params(draw_globe(img)))
+[fun:titled img title]
+   decorated=decorate(img)
+   result=draw_text(decorated, 10, 10, title)</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>Then it can be included in another script:</p>
+</div>
+<div class="listingblock">
+<div class="title">myscript.math</div>
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-none hljs">[include "functions"]
+
+[outputs]
+image1=titled(img(0), "My first image")
+image2=titled(auto_contrast(img(0);1.5), "My second image")</code></pre>
+</div>
+</div>
+<div class="admonitionblock caution">
+<table>
+<tr>
+<td class="icon">
+<i class="fa icon-caution" title="Caution"></i>
+</td>
+<td class="content">
+<div class="paragraph">
+<p>Includes are resolved relatively to the script which includes them.</p>
+</div>
+</td>
+</tr>
+</table>
+</div>
+</div>
+<div class="sect2">
+<h3 id="remote-scriptgen">Remote script generation</h3>
+<div class="admonitionblock warning">
+<table>
+<tr>
+<td class="icon">
+<i class="fa icon-warning" title="Warning"></i>
+</td>
+<td class="content">
+<div class="paragraph">
+<p>This feature is experimental and may change in the future.
+It is designed for advanced users who are comfortable with programming.</p>
+</div>
+</td>
+</tr>
+</table>
+</div>
+<div class="paragraph">
+<p>ImageMath is an expression language.
+It doesn&#8217;t support control structures like loops or conditionals, which can sometimes be limiting.
+In addition, sometimes you may want to perform operations which are not available in the language itself.</p>
+</div>
+<div class="paragraph">
+<p>To support these advanced use cases, a special function named <code>remote_scriptgen</code> is available.
+This function will call a service which will be responsible for generating a script which will contribute new variables to the current context.</p>
+</div>
+<div class="paragraph">
+<p>The function accepts a single argument, which is a URL to the service.
+JSol&#8217;Ex will then create a <code>POST</code> request to this URL, with a JSON payload which contains the current context, that is to say the list of variables with their values at the time of the call, but also context like the processing parameters or the detected wavelength.</p>
+</div>
+<div class="paragraph">
+<p>The JSON payload consists of 2 top level keys:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-json hljs" data-lang="json">{
+  "variables": {
+     ... one key per variable ...
+  },
+  "context": {
+    ... the process parameters ...
+  }
+}</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>The variables can be simple values, like numbers or strings, but also arrays or objects like images:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-json hljs" data-lang="json">{
+  "variables": {
+    "detectedWavelen": 6562.8099999999995,
+    "detectedDispersion": 0.10878780004221283,
+    "l0": "4.4165",
+    "src": {
+      "type": "image",
+      "width": 1424,
+      "height": 1424,
+      "file": "/tmp/jsolex/1960308/image9339121918435728514.fits",
+      "metadata": {
+        "sourceInfo": {
+          "serFileName": "12_08_34.ser",
+          "parentDirName": "christian",
+          "dateTime": "2021-09-05T10:08:34.806652200Z[UTC]"
+        },
+        "pixelShiftRange": {
+          "minPixelShift": -20.0,
+          "maxPixelShift": 40.0,
+          "step": 6.0
+        },
+        "solarParameters": {
+          "carringtonRotation": 2248,
+          "b0": 0.12636308214692193,
+          "l0": 4.416504789595021,
+          "p": 0.38650968395297775,
+          "apparentSize": 0.0091870061684479
+        },
+        "pixelShift": {
+          "pixelShift": 0.0
+        },
+        "transformationHistory": {
+          "transforms": [
+            "Rotate left",
+            "Flipping",
+            "Banding reduction (band size: 24 passes: 16)",
+            "Geometry correction",
+            "Autocrop",
+            "ImageMath: img(0)",
+            "ImageMath: img(0)",
+            "ImageMath: img(0)",
+            "ImageMath: src\u003dimg(0)",
+            "ImageMath: range(-1;1;.5)",
+            "ImageMath: range(-1;1;.5)",
+            "ImageMath: range(-1;1;.5)",
+            "ImageMath: range(-1;1;.5)",
+            "ImageMath: img(0)",
+            "ImageMath: img(0)",
+            "ImageMath: img(0)",
+            "ImageMath: src\u003dimg(0)"
+          ]
+        },
+        "ellipse": {
+          "a": 0.7071067811865355,
+          "b": -1.1224941413357953E-13,
+          "c": 0.7071067811865596,
+          "d": -1006.9200564095466,
+          "e": -1006.9200564095809,
+          "f": 423490.4527558379
+        },
+        "generatedImageMetadata": {
+          "kind": "IMAGE_MATH",
+          "title": "src",
+          "name": "batch/2025-03-26T225606/src/0000_12_08_34_src"
+        }
+      }
+    },
+    "blackPoint": "283.533",
+    "angleP": "0.3865",
+    "some_var": 123.0,
+    "b0": "0.1264",
+    "carrot": "2248"
+  }
+}</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>In case of an image, the object will have a key of <code>type</code> with value <code>image</code>.
+The file will be available as a FITS file only.</p>
+</div>
+<div class="admonitionblock important">
+<table>
+<tr>
+<td class="icon">
+<i class="fa icon-important" title="Important"></i>
+</td>
+<td class="content">
+<div class="paragraph">
+<p>The file path is the path to the FITS file, which is a temporary file, <strong>on the host which runs JSol&#8217;Ex</strong>.
+Therefore, you will only be able to access this file from the same host!
+This can also be used to generate new images, which can be loaded in JSol&#8217;Ex if the script that is returned contains a <code>LOAD</code> operation.</p>
+</div>
+</td>
+</tr>
+</table>
+</div>
+<div class="paragraph">
+<p>The service must return a JSON object which contains a <code>script</code> key, with the script to execute in JSol&#8217;Ex.
+It <em>can</em> also return an object with an <code>error</code> key, which will be displayed to the user.</p>
+</div>
+<div class="paragraph">
+<p>The scripts which are returned from the server are interpreted in a separate context, but they share the variables and user functions from the including script.
+The separation means that the script which is returned can itself be organized in sections, but <strong>only the outputs section will contribute new variables to the context</strong>.</p>
+</div>
+<div class="paragraph">
+<p>For example, if a server returns the following script:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-none hljs">[tmp]
+base=auto_contrast(img(0);1.5)
+
+[outputs]
+final=draw_obs_details(draw_solar_params(draw_globe(base)))</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>Then only the <code>final</code> variable will be visible to the including script after execution.</p>
+</div>
+<div class="admonitionblock note">
+<table>
+<tr>
+<td class="icon">
+<i class="fa icon-note" title="Note"></i>
+</td>
+<td class="content">
+<div class="paragraph">
+<p>When a script calls the <code>remote_scriptgen</code> function, JSol&#8217;Ex will call the server multiple times, with a different payload.
+The explanation lies in the fact that in order to improve performance, it must determine in advance which image shifts are going to be required for the script execution.
+To do this, JSol&#8217;Ex "fakes" a first run passing dummy images of size 0, which will not have the <code>file</code> property.
+You should simply be aware that the server will receive multiple calls, and that the first one will likely not contain the whole context, but you should still return a valid script.</p>
+</div>
+</td>
+</tr>
+</table>
+</div>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="batch-mode">Batch processing</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>In addition to single SER file processing, JSol&#8217;Ex provides a batch mode.
+In this mode, several videos are processed in parallel, which can be extremely useful if you want to generate many images to be used in external software like AutoStakkert!.</p>
+</div>
+<div class="paragraph">
+<p>To start a batch, in the file menu, choose "batch mode".
+Select all the files you want to process (they need to be in the same directory), then the same parameters window as in the single mode will pop up.
+This window will let you configure the batch processing, but there are subtle differences:</p>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p>you can only select a single ray for all videos, they must all be the same</p>
+</li>
+<li>
+<p>the "automatically save images" parameter is always set to <code>true</code></p>
+</li>
+<li>
+<p>images will not show up in the interface, but will be shown in a table instead</p>
+</li>
+</ul>
+</div>
+<div class="imageblock">
+<div class="content">
+<img src="batch-mode-fr.jpg" alt="batch mode fr">
+</div>
+</div>
+<div class="paragraph">
+<p>The file list for each SER file will include the log file for each video, as well as all generated images for that SER file.</p>
+</div>
+<div class="admonitionblock note">
+<table>
+<tr>
+<td class="icon">
+<i class="fa icon-note" title="Note"></i>
+</td>
+<td class="content">
+In batch mode, we recommend that you pick a custom <a href="#filename-templates">file name template</a> which will output all images in a single directory: using the sequence number, this will make it easier to import into 3rd party software.
+</td>
+</tr>
+</table>
+</div>
+<div class="sect2">
+<h3 id="_reviewing_batch_processed_images">Reviewing batch processed images</h3>
+<div class="paragraph">
+<p>Once a batch has been processed, it is possible to review the generated images.
+This will make it possible, for example, to keep only images with a cloudless disk, or images without distortions.</p>
+</div>
+<div class="paragraph">
+<p>In order to do so, in the processing options, in the "misc" tab, check the "Review images after batch processing" box:</p>
+</div>
+<div class="imageblock">
+<div class="content">
+<img src="image-filtering-3-en.jpg" alt="image filtering 3 en">
+</div>
+</div>
+<div class="paragraph">
+<p>Once processing is done, a new window will open, allowing you to review the processed images:</p>
+</div>
+<div class="imageblock">
+<div class="content">
+<img src="image-filtering-1-en.jpg" alt="image filtering 1 en">
+</div>
+</div>
+<div class="paragraph">
+<p>On the top right, you can choose to reject an image, keep it, or set it as the best image.
+The best image is then displayed on the left, and the current image on the right.
+You can then compare each image to the best image, and decide whether to keep it or not.</p>
+</div>
+<div class="paragraph">
+<p>On the left, you have the list of images generated for each SER file.
+On the bottom right, you can move to the next or previous image, and finish the process.</p>
+</div>
+<div class="paragraph">
+<p>Once you&#8217;re done, the following window will open:</p>
+</div>
+<div class="imageblock">
+<div class="content">
+<img src="image-filtering-2-en.jpg" alt="image filtering 2 en">
+</div>
+</div>
+<div class="paragraph">
+<p>This lets you choose what you want to do with the rejected images: keep them, delete them, or move them to a sub-folder (by default, they will be moved).
+Similarly, you can choose what you want to do with the SER files which were used to generate these rejected images: keep them, delete them, or move them to a subfolder.</p>
+</div>
+<div class="paragraph">
+<p>If you use a script in batch mode, the <code><a id="batch"></a></code> part of the script will only be executed for the images you have kept, which will allow, for example, stacking only the selected images.</p>
+</div>
+<div class="paragraph">
+<p>Note that in the <code>stack</code> and <code>stack_ref</code> functions, you will then have the possibility to specify the reference selection method <code>manual</code>, which will then choose the best image you have selected.</p>
+</div>
+</div>
+<div class="sect2">
+<h3 id="script-batch">ImageMath extensions available in batch mode</h3>
+<div class="paragraph">
+<p>When you are in batch mode, an additional section is available in <a href="#imagemath">ImageMath scripts</a>.
+This section allows making computations on the results of the processing of each individual image, in order to compose a final image for example (e.g stacking), or to create an animation of several images.</p>
+</div>
+<div class="paragraph">
+<p>This section must appear at the end of a script and is introduced by the <code>[[batch]]</code> delimiter:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-none hljs">#
+# Performs (simple) stacking of images in batch mode
+#
+
+[params]
+# banding correction width and iterations
+bandingWidth=25
+bandingIterations=3
+# autocrop factor
+cropFactor=1.1
+# contrast adjustment
+gamma=1.2
+
+[tmp]
+corrected = fix_banding(img(0);bandingWidth;bandingIterations) <i class="conum" data-value="1"></i><b>(1)</b>
+contrast_fixed = auto_contrast(corrected;gamma)                <i class="conum" data-value="2"></i><b>(2)</b>
+
+[outputs]
+cropped = autocrop2(contrast_fixed;cropFactor;32)              <i class="conum" data-value="3"></i><b>(3)</b>
+
+# This is where we stack images, simply using a median
+# and assuming all images will have the same output size
+[[batch]]                                                      <i class="conum" data-value="4"></i><b>(4)</b>
+[outputs]
+stacked=sharpen(median(cropped))                               <i class="conum" data-value="5"></i><b>(5)</b></code></pre>
+</div>
+</div>
+<div class="colist arabic">
+<table>
+<tr>
+<td><i class="conum" data-value="1"></i><b>1</b></td>
+<td>For each SER file, we compute an intermediate corrected image (not stored on disk)</td>
+</tr>
+<tr>
+<td><i class="conum" data-value="2"></i><b>2</b></td>
+<td>We perform contrast adjustment on the corrected images</td>
+</tr>
+<tr>
+<td><i class="conum" data-value="3"></i><b>3</b></td>
+<td>Important for stacking: we crop the image to a square centered on the solar disk. The square has a width rounded to the closest multiple of 32 pixels. This is the output of each individual SER file processing.</td>
+</tr>
+<tr>
+<td><i class="conum" data-value="4"></i><b>4</b></td>
+<td>We declare a <code>[[batch]]</code> section to describe the outputs of the batch itself</td>
+</tr>
+<tr>
+<td><i class="conum" data-value="5"></i><b>5</b></td>
+<td>An image called <code>stacked</code> will be calculated by using the median value of each individual <code>cropped</code> image</td>
+</tr>
+</table>
+</div>
+<div class="paragraph">
+<p>It is important to understand that only the images which appear in the <code>[outputs]</code> section of the individual file processing are available for use in the <code>[[batch]]</code> section.
+Therefore, the <code>cropped</code> image of a single SER file becomes a <em>list</em> of images in the <code>[[batch]]</code> section.
+Some functions, like <code>img</code> are not available in the <code>batch</code> mode.
+If you need individual images to be available in the batch processing section, then you must assign them to a variable in the <code>[outputs]</code> section:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-none hljs">[outputs]
+frame=img(0)       <i class="conum" data-value="1"></i><b>(1)</b>
+
+[[batch]]
+[outputs]
+video=anim(frame)  <i class="conum" data-value="2"></i><b>(2)</b></code></pre>
+</div>
+</div>
+<div class="colist arabic">
+<table>
+<tr>
+<td><i class="conum" data-value="1"></i><b>1</b></td>
+<td>In order to make the <code>img(0)</code> image visible to the batch section, we must assign it to a variable that we call <code>frame</code></td>
+</tr>
+<tr>
+<td><i class="conum" data-value="2"></i><b>2</b></td>
+<td>An animation is created using each <code>frame</code></td>
+</tr>
+</table>
+</div>
+</div>
+<div class="sect2">
+<h3 id="_standalone_scripts">Standalone scripts</h3>
+<div class="paragraph">
+<p>An additional way to benefit from scripting is to reuse the results of previous sessions (typically, images produced in one or many previous sessions) without having to process a new video.</p>
+</div>
+<div class="paragraph">
+<p>To do so, you must open the "Tools" menu and select "ImageMath editor".
+The interface which pops up is exactly the same as when you are processing a single video, or a batch of files.
+The main difference is how images are loaded.
+In this mode, you must use either the <code>load</code> or the <code>load_many</code> function to load images, instead of the <code>img</code> function.</p>
+</div>
+<div class="admonitionblock important">
+<table>
+<tr>
+<td class="icon">
+<i class="fa icon-important" title="Important"></i>
+</td>
+<td class="content">
+If you use this mode, it is important to load images saved in previous sessions with the FITS format. These files include metadata such as the detected ellipse (solar disk), process parameters, etc. which will permit applying the same functions as you do in a standard processing session.
+</td>
+</tr>
+</table>
+</div>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_measurements">Measurements</h2>
+<div class="sectionbody">
+<div class="sect2">
+<h3 id="_redshift_measurements">Redshift Measurements</h3>
+<div class="paragraph">
+<p>If you process an H-alpha image, JSol&#8217;Ex can automatically search within the image for regions where the <em>redshift</em> (red or blue shift) is particularly strong.</p>
+</div>
+<div class="paragraph">
+<p>To do this, you must either select the "complete" mode during processing or check the "Redshift Measurements" box in the custom image selection.</p>
+</div>
+<div class="paragraph">
+<p>The measurements will be valid <strong>only</strong> if the specified pixel size is correct <strong>and</strong> you are using a Sol&#8217;Ex (other spectroheliographs have different focal lengths).</p>
+</div>
+<div class="paragraph">
+<p>During processing, an additional image will be generated with the regions outlined in red and the associated speed.</p>
+</div>
+<div class="paragraph">
+<p>Additionally, if you select the debug images, the parts of the spectrum that allowed finding these regions will be displayed.</p>
+</div>
+<div class="paragraph">
+<p>Finally, once the detection is complete, you can generate 2 new types of renderings by going to the "Redshift" tab:</p>
+</div>
+<div class="imageblock">
+<div class="content">
+<img src="redshift-tab.jpg" alt="redshift tab">
+</div>
+</div>
+<div class="paragraph">
+<p>The size corresponds to the minimum size of the region to capture, in pixels.
+A small region will be centered around the detected filament, but it may be quite pixelated in some cases.
+The margin allows you to choose how many pixels to offset from what JSol&#8217;Ex detected.
+For example, JSol&#8217;Ex might find a maximum shift of 20 pixels, but you may wish to add 2 or 4 pixels of margin for an animation to clearly see the filament appear.</p>
+</div>
+<div class="paragraph">
+<p>Finally, select the type of rendering:</p>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p>Animation: generates a video where each frame is shifted by 0.25 pixels</p>
+</li>
+<li>
+<p>Panel: generates a single image, a panel where each cell corresponds to a different pixel shift</p>
+</li>
+</ul>
+</div>
+<div class="imageblock">
+<div class="content">
+<img src="pixel-shift-panel.jpg" alt="Example of panel">
+</div>
+</div>
+</div>
+<div class="sect2">
+<h3 id="_measurements_thanks_to_the_video_analyzer">Measurements thanks to the video analyzer</h3>
+<div class="paragraph">
+<p>JSol&#8217;Ex provides a tool which will let you see what the detected spectral line is for a particular video.
+This tool chan be used, for example, to efficiently determine the pixel shift to apply when processing an Helium video.</p>
+</div>
+<div class="paragraph">
+<p>To do this, open the "Video analyzer" in the "Tools" section.
+Select a video, the tool will compute the average image then show this window:</p>
+</div>
+<div class="imageblock">
+<div class="content">
+<img src="spectral-debug-1-fr.jpg" alt="spectral debug 1 fr">
+</div>
+</div>
+<div class="paragraph">
+<p>In the upper side you can see the reconstructed average image.
+The red line is the detected spectral ray, which is built by figuring out the darkest points of the lines.
+Below the violet line, you can see a <em>geometry corrected</em> version of the average image.
+If the line was properly detected, then the corrected image should show you perfectly horizontal lines.</p>
+</div>
+<div class="paragraph">
+<p>In the lower part of the interface, you can adjust several parameters:</p>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p>the "average"/"frames" radio buttons will let you choose between displaying the average image or the individual video frames</p>
+</li>
+<li>
+<p>the sun detection threshold is a parameter you should avoid changing, since the software is not designed to override it in any case. It is provided for advanced debugging in case of bad recognition.</p>
+</li>
+<li>
+<p>the "lock polynomial" checkbox will let us lock the current "red line" (a 2d order polynomial) as the one to use in all frames for display. We will use it in the helium ray spectral search below.</p>
+</li>
+<li>
+<p>the "contrast" slider does what it says</p>
+</li>
+</ul>
+</div>
+</div>
+<div class="sect2">
+<h3 id="_example_of_application_to_determine_the_helium_ray_pixel_shift">Example of application to determine the helium ray pixel shift</h3>
+<div class="paragraph">
+<p>We assume that we have a <em>single</em> SER file which window includes both the helium ray and another ray (e.g sodium) which is dark enough to be detected by JSol&#8217;Ex.</p>
+</div>
+<div class="paragraph">
+<p>We can then proceed by steps:</p>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p>first, lock the polynomial on the average image</p>
+</li>
+</ul>
+</div>
+<div class="imageblock">
+<div class="content">
+<img src="spectral-debug-2-fr.jpg" alt="spectral debug 2 fr">
+</div>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p>select the "Frames" mode</p>
+</li>
+</ul>
+</div>
+<div class="imageblock">
+<div class="content">
+<img src="spectral-debug-3-fr.jpg" alt="spectral debug 3 fr">
+</div>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p>Adjust contrast to make the spectrum very bright</p>
+</li>
+</ul>
+</div>
+<div class="imageblock">
+<div class="content">
+<img src="spectral-debug-4-fr.jpg" alt="spectral debug 4 fr">
+</div>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p>Select a frame which is close to the sun limb</p>
+</li>
+</ul>
+</div>
+<div class="imageblock">
+<div class="content">
+<img src="spectral-debug-5-fr.jpg" alt="spectral debug 5 fr">
+</div>
+</div>
+<div class="paragraph">
+<p>We can now perform measurements: when you are moving the mouse over the image, coordinates are displayed:</p>
+</div>
+<div class="imageblock">
+<div class="content">
+<img src="spectral-debug-6-fr.jpg" alt="spectral debug 6 fr">
+</div>
+</div>
+<div class="paragraph">
+<p>The first 2 numbers are the (x,y) coordinates of the point below the cursor.
+The 3rd one is the one we&#8217;re interested in: it&#8217;s the pixel shift between the cursor position and the detected spectral line (in red).
+The 4th number will let us increase our accuracy by computing an average value from samples.</p>
+</div>
+<div class="paragraph">
+<p>To add a sample, find a point on the helium line then click on it while holding the CTRL key.
+You can add as many sample points as you wish.</p>
+</div>
+<div class="imageblock">
+<div class="content">
+<img src="spectral-debug-7-fr.jpg" alt="spectral debug 7 fr">
+</div>
+</div>
+<div class="paragraph">
+<p>The 4th number is the average of distances and should be a good value to use in your ImageMath scripts.
+<strong>In this example we deduce that the pixel shift is -134</strong>.</p>
+</div>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="stacking-and-mosaic">Stacking and mosaic composition</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>JSol&#8217;Ex provides a tool to stack images and create mosaics.
+The 2 tools are very similar, but stacking is easier to use.
+Stacking consists of taking several images of a similar region of the sun and making a single image by aligning the details and averaging the pixels.
+Mosaics are similar, but they are used to create a single image from several images of different regions of the sun.</p>
+</div>
+<div class="paragraph">
+<p>The 2 tools are available in the "Tools" menu, then "Stacking and mosaic composition".</p>
+</div>
+<div class="paragraph">
+<p>The following window will show up:</p>
+</div>
+<div class="imageblock">
+<div class="content">
+<img src="stacking-1-en.jpg" alt="stacking 1 en">
+</div>
+</div>
+<div class="paragraph">
+<p>On the left, you can create image panels to stack.
+If you create a single panel, it will be a simple stacking.
+If you create several panels, each panel will be stacked, then a mosaic will be composed.
+A single panel can contain several images, which will be stacked together.
+To add a panel, click on the "+" button and select the images to stack.
+Alternatively you can drag and drop one or several images from your file explorer.</p>
+</div>
+<div class="imageblock">
+<div class="content">
+<img src="stacking-2-en.jpg" alt="stacking 2 en">
+</div>
+</div>
+<div class="paragraph">
+<p>In the image above, we have created 2 panels.
+The first one contains 3 images which will be stacked to make the north panel, and the second one contains 2 images which will be stacked to make the south panel.</p>
+</div>
+<div class="paragraph">
+<p>Stacking parameters are visible on the right.
+It is not recommended to change them, unless you know what you&#8217;re doing.
+The following options are available:</p>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p>the tile size allows to cut the image in tiles for stacking. The smaller the tile size, the more precise the stacking will be, but the longer it will take and the less likely it will be able to compensate for large shifts between images.</p>
+</li>
+<li>
+<p>the sampling factor determines where samples will be picked when computing the distorsion model. A sampling factor of 0.5 combined with a tile size of 32 means that a sample will be picked every 16 pixels.</p>
+</li>
+<li>
+<p>Forcing the computation of ellipses can be useful if the images you import come from another software or if the ellipses were badly detected. In that case, we will recompute them before stacking.</p>
+</li>
+<li>
+<p>Geometry correction should be applied on images which weren&#8217;t corrected before (e.g raw images).</p>
+</li>
+</ul>
+</div>
+<div class="paragraph">
+<p>The post-processing script is an <code>ImageMath</code> script that you can apply on each of the tiles after stacking.</p>
+</div>
+<div class="admonitionblock note">
+<table>
+<tr>
+<td class="icon">
+<i class="fa icon-note" title="Note"></i>
+</td>
+<td class="content">
+In a post-processing script, the stacked image is available as <code>image</code>. For example, you can create a script which will apply a deconvolution using the formula <code>rl_decon(image)</code>.
+</td>
+</tr>
+</table>
+</div>
+<div class="paragraph">
+<p>The other available options let you choose how files are saved.
+If you have created more than one panel, then the mosaic options become available.</p>
+</div>
+<div class="admonitionblock warning">
+<table>
+<tr>
+<td class="icon">
+<i class="fa icon-warning" title="Warning"></i>
+</td>
+<td class="content">
+For mosaic composition to work, it is recommended to use <code>raw</code> or <code>recon</code> images, not <code>stretched</code> ones. Indeed, stretched images are more difficult to align.
+</td>
+</tr>
+</table>
+</div>
+<div class="imageblock">
+<div class="content">
+<img src="stacking-3-en.jpg" alt="stacking 3 en">
+</div>
+</div>
+<div class="paragraph">
+<p>Should you only want to stack images without creating a mosaic, you can disable the "Create mosaic" option.
+In the other case, you can tweak some parameters, but it is strongly recommended not to change them unless the images you get after sticking are deformed or not reconstructed at all.</p>
+</div>
+<div class="paragraph">
+<p>Again, you can apply a post-processing script to the mosaic.</p>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_optimal_exposure_calculator">Optimal exposure calculator</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>In the "tools" menu, you will find the optimal exposure calculator.
+This calculator will determine the optimal exposure time, in order to achieve a perfectly circular sun disk and avoid undersampling.</p>
+</div>
+<div class="paragraph">
+<p>Enter the following parameters:</p>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p>the camera pixel size (in microns) and the binning</p>
+</li>
+<li>
+<p>the focal length of your instrument</p>
+</li>
+<li>
+<p>the scan speed (a multiple of sideral speed, e.g 2, 4, 8, &#8230;&#8203;)</p>
+</li>
+<li>
+<p>the observation date</p>
+</li>
+</ul>
+</div>
+<div class="paragraph">
+<p>The software will then automatically compute the recommended framerate and the optimal exposure time in milliseconds.</p>
+</div>
+<div class="paragraph">
+<p>Note that you can change the type of spectroheliograph used, which can change the calculation of the optimal exposure.</p>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_spectrum_browser">Spectrum Browser</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>The Spectrum browser is available in the "Tools" menu.
+It allows you to visualize the aspect of the spectrum as it would be seen in capture software such as SharpCap or FireCapture.</p>
+</div>
+<div class="imageblock">
+<div class="content">
+<img src="spectrum-browser-1.jpg" alt="spectrum browser 1">
+</div>
+</div>
+<div class="paragraph">
+<p>In the "Wavelength" box, you can enter a wavelength in Angstroms.
+By clicking "Go" or pressing enter, the spectrum will automatically center around this wavelength:</p>
+</div>
+<div class="imageblock">
+<div class="content">
+<img src="spectrum-browser-2.jpg" alt="spectrum browser 2">
+</div>
+</div>
+<div class="paragraph">
+<p>A blue dashed line is added, allowing you to clearly identify the line.</p>
+</div>
+<div class="paragraph">
+<p>Alternatively, you can directly search for a notable spectral line by selecting it in the box next to the "Go" button.</p>
+</div>
+<div class="paragraph">
+<p>When you click "Colorize", the spectrum is then colorized to give you an idea of where you are in the visible spectrum (however, we recommend staying in grayscale to precisely identify a line):</p>
+</div>
+<div class="imageblock">
+<div class="content">
+<img src="spectrum-browser-3.jpg" alt="spectrum browser 3">
+</div>
+</div>
+<div class="paragraph">
+<p>On the second line, you have the option to choose the spectroheliograph that is used (this will affect the calculated spectral dispersion), as well as to specify the pixel size (remember to multiply by the binning).</p>
+</div>
+<div class="paragraph">
+<p>If you check the "Adjust Dispersion" box, the spectrum&#8217;s dimension is automatically adjusted to precisely match the calculated dispersion per pixel.</p>
+</div>
+<div class="paragraph">
+<p>You can zoom either by clicking the "+" and "-" buttons, or more simply by pressing "CTRL" and scrolling your mouse wheel.
+If you zoom, the automatic adjustment is disabled (since it no longer corresponds to the exact dispersion per pixel).</p>
+</div>
+<div class="sect2">
+<h3 id="_automatic_identification">Automatic Identification</h3>
+<div class="paragraph">
+<p>Finally, JSol&#8217;Ex offers an experimental feature: you can click the "Identify" button to open a file selection window.</p>
+</div>
+<div class="paragraph">
+<p>Then choose an image of the spectrum, as captured by your software.
+JSol&#8217;Ex will then try to find out which part of the spectrum it is in:</p>
+</div>
+<div class="imageblock">
+<div class="content">
+<img src="spectrum-browser-4.jpg" alt="spectrum browser 4">
+</div>
+</div>
+<div class="paragraph">
+<p>If the identification works, your image will be displayed in transparency, overlaid on the spectrum, on the left side of the image, allowing you to easily verify if the identification was successful.</p>
+</div>
+<div class="paragraph">
+<p>You can hide the transparent image by clicking the "Hide" button.</p>
+</div>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_embedded_web_server">Embedded Web Server</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>In the "Tools" menu, you will find the option to start an embedded web server.
+This server allows you to view images processed by the software from other computers, by connecting to this server.</p>
+</div>
+<div class="paragraph">
+<p>This feature can be particularly useful during public presentations, with one computer using JSol&#8217;Ex for image acquisition and another computer on the same network for projection on a screen.</p>
+</div>
+<div class="imageblock">
+<div class="content">
+<img src="embedded-server-1-en.jpg" alt="embedded server 1 en">
+</div>
+</div>
+<div class="paragraph">
+<p>You can configure the port on which the server listens and have the option to start it automatically when the software starts.</p>
+</div>
+<div class="paragraph">
+<p>The web UI gives access to images being processed as well as their history, in case you process several images successively.</p>
+</div>
+<div class="imageblock">
+<div class="content">
+<img src="embedded-server-2-en.jpg" alt="embedded server 2 en">
+</div>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_acknowledgements">Acknowledgements</h2>
+<div class="sectionbody">
+<div class="ulist">
+<ul>
+<li>
+<p>Christian Buil for designing Sol&#8217;Ex and leading the community with great expertise</p>
+</li>
+<li>
+<p>Valérie Desnoux for her remarkable work on INTI</p>
+</li>
+<li>
+<p>Jean-François Pittet for his bug reports, test videos, and geometric correction formulas</p>
+</li>
+<li>
+<p>Sylvain Weiller for his intensive beta-testing, valuable feedback, and processing ideas</p>
+</li>
+<li>
+<p>Ken M. Harrison for improved exposure time calculations</p>
+</li>
+<li>
+<p>Minh Trong Nguyen for his suggestions of improvements and his work on the SHG 700</p>
+</li>
+</ul>
+</div>
+</div>
+</div>
+</div>
+<script src="highlight/highlight.min.js"></script>
+<script>
+if (!hljs.initHighlighting.called) {
+  hljs.initHighlighting.called = true
+  ;[].slice.call(document.querySelectorAll('pre.highlight > code[data-lang]')).forEach(function (el) { hljs.highlightBlock(el) })
+}
+</script>
+</body>
+</html>
