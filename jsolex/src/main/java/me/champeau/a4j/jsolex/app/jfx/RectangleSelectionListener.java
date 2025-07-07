@@ -26,7 +26,8 @@ public interface RectangleSelectionListener {
     enum ActionKind {
         CREATE_ANIM_OR_PANEL,
         CROP,
-        IMAGEMATH_CROP;
+        IMAGEMATH_CROP,
+        EXTRACT_SER_FRAMES;
 
         public boolean isCrop() {
             return this == CROP || this == IMAGEMATH_CROP;

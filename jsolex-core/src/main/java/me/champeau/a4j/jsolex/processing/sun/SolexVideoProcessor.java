@@ -734,6 +734,12 @@ public class SolexVideoProcessor implements Broadcaster {
         var rotateLeft = ImageMath.newInstance().rotateLeft(recon);
         var metadata = new HashMap<>(reconstructed.metadata());
         metadata.putAll(createMetadata(processParams, serFile.toPath(), pixelShiftRange, header));
+
+        var refCoords = metadata.get(ReferenceCoords.class);
+        if (refCoords instanceof ReferenceCoords coords) {
+            var originalWidth = recon.width();
+            metadata.put(ReferenceCoords.class, coords.addLeftRotation(originalWidth));
+        }
         if (redshifts != null) {
             metadata.put(Redshifts.class, redshifts);
         }
@@ -1293,6 +1299,16 @@ public class SolexVideoProcessor implements Broadcaster {
 
 
         var newImage = new ImageWrapper32(newWidth, newHeight, newData, newMetadata);
+        
+        // Add rotation to ReferenceCoords history
+        newImage.transformMetadata(ReferenceCoords.class, coords -> {
+            if (kind == RotationKind.LEFT) {
+                return coords.addLeftRotation(height);
+            } else {
+                return coords.addRightRotation(width);
+            }
+        });
+        
         TransformationHistory.recordTransform(newImage, message("rotate." + kind.name().toLowerCase()));
         return newImage;
     }

@@ -263,8 +263,13 @@ public class ZoomableImageView extends HBox {
             action3.setOnAction(e -> rectangleSelectionListener.onSelectRegion(RectangleSelectionListener.ActionKind.IMAGEMATH_CROP, finalSelectionX, finalSelectionY, finalSelectionWidth, finalSelectionHeight));
             items.add(action3);
         }
-        var action4 = new MenuItem(message("cancel"));
-        items.add(action4);
+        if (rectangleSelectionListener.supports(RectangleSelectionListener.ActionKind.EXTRACT_SER_FRAMES)) {
+            var action4 = new MenuItem(message("extract.ser.frames"));
+            action4.setOnAction(e -> rectangleSelectionListener.onSelectRegion(RectangleSelectionListener.ActionKind.EXTRACT_SER_FRAMES, finalSelectionX, finalSelectionY, finalSelectionWidth, finalSelectionHeight));
+            items.add(action4);
+        }
+        var action5 = new MenuItem(message("cancel"));
+        items.add(action5);
         rectangleSelectionMenu.show(ZoomableImageView.this, screenX, screenY);
     }
 
