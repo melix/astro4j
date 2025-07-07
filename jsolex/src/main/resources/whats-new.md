@@ -12,6 +12,10 @@
 
 ## Changes since 3.0.0
 
+### 3.3.1
+
+- Fixed bug in cropping or SER frames extraction
+
 ### 3.3.0
 
 - Fix bug in auto contrast which could cause an array index out of bounds exception

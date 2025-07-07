@@ -12,6 +12,10 @@
 
 ## Changements depuis la 3.0.0
 
+### 3.3.1
+
+- Correction d'une erreur lors de l'opération de rognage ou d'extraction de trames du fichier SER
+
 ### 3.3.0
 
 - Correction d'un bug dans le mode auto contrast qui pouvait provoquer une exception
