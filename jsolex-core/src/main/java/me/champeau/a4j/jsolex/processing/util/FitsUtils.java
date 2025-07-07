@@ -75,7 +75,8 @@ public class FitsUtils {
     public static final String TRANSFORMS_VALUE = "Transforms";
     public static final String PIXELSHIFT_VALUE = "PixelShift";
     public static final String REDSHIFTS_VALUE = "Redshifts";
-    public static final String REFCOORDS_VALUE = "RefCoords";
+    public static final String REFCOORDS2_VALUE = "RefCoords2";
+    public static final int REF_COORDS_VERSION = 1;
     public static final String SOURCEINFO_VALUE = "SourceInfo";
     public static final String METADATA_TABLE_VALUE = "TMetadata";
     public static final String DISTORSION_MAP_VALUE = "DistorsionMap";
@@ -257,14 +258,49 @@ public class FitsUtils {
                     var binaryTable = binaryTableHdu.getData();
                     var pixelShift = new PixelShift(binaryTable.getDouble(0, 0));
                     metadata.put(PixelShift.class, pixelShift);
-                } else if (REFCOORDS_VALUE.equals(card.getValue())) {
+                } else if (REFCOORDS2_VALUE.equals(card.getValue())) {
                     var binaryTable = binaryTableHdu.getData();
                     int cpt = binaryTable.getNRows();
                     var values = new ArrayList<ReferenceCoords.Operation>();
-                    for (int i = 0; i < cpt; i++) {
-                        var kind = binaryTable.getString(i, 0);
-                        var value = binaryTable.getDouble(i, 1);
-                        values.add(new ReferenceCoords.Operation(ReferenceCoords.OperationKind.valueOf(kind), value));
+                    
+                    // Check version number from first row (uses special index -1)
+                    int startIndex = 0;
+                    if (cpt > 0) {
+                        int firstIndex = binaryTable.getNumber(0, 0).intValue();
+                        if (firstIndex == -1) {
+                            int version = (int) binaryTable.getDouble(0, 1);
+                            
+                            // Handle different versions
+                            if (version == REF_COORDS_VERSION) {
+                                startIndex = 1; // Skip version row
+                            } else {
+                                throw new RuntimeException("Unsupported RefCoords version: " + version + ", expected: " + REF_COORDS_VERSION);
+                            }
+                        }
+                    }
+                    
+                    // Parse operations starting from startIndex
+                    for (int i = startIndex; i < cpt; i++) {
+                        int kindIndex = binaryTable.getNumber(i, 0).intValue();
+                        
+                        // Convert ordinal index back to OperationKind
+                        var operationKinds = ReferenceCoords.OperationKind.values();
+                        if (kindIndex < 0 || kindIndex >= operationKinds.length) {
+                            throw new RuntimeException("Invalid operation kind index: " + kindIndex);
+                        }
+                        var kind = operationKinds[kindIndex];
+                        
+                        // Read values from Double columns (max 3 values)
+                        var valuesList = new ArrayList<Double>();
+                        for (int col = 1; col <= 3; col++) {
+                            double val = binaryTable.getDouble(i, col);
+                            if (!Double.isNaN(val)) {
+                                valuesList.add(val);
+                            }
+                        }
+                        
+                        double[] operationValues = valuesList.stream().mapToDouble(Double::doubleValue).toArray();
+                        values.add(new ReferenceCoords.Operation(kind, operationValues));
                     }
                     metadata.put(ReferenceCoords.class, new ReferenceCoords(Collections.unmodifiableList(values)));
                 } else if (SOURCEINFO_VALUE.equals(card.getValue())) {
@@ -515,9 +551,26 @@ public class FitsUtils {
         if (metadata.isPresent()) {
             var referenceCoords = metadata.get();
             var table = new BinaryTable();
-            referenceCoords.operations().forEach(op -> table.addRow(new Object[]{op.kind().name(), op.value()}));
+            
+            // Add version number as first row to enable future format changes
+            // Use special negative index (-1) to indicate version row
+            table.addRow(new Object[]{-1, (double) REF_COORDS_VERSION, Double.NaN, Double.NaN});
+            
+            referenceCoords.operations().forEach(op -> {
+                // Store operation kind as ordinal index to avoid FITS string truncation
+                int kindIndex = op.kind().ordinal();
+                
+                // Store values as separate Double columns (max 3 values supported currently)
+                // Fill unused columns with NaN to indicate no value
+                double val1 = op.values().length > 0 ? op.values()[0] : Double.NaN;
+                double val2 = op.values().length > 1 ? op.values()[1] : Double.NaN;
+                double val3 = op.values().length > 2 ? op.values()[2] : Double.NaN;
+                
+                table.addRow(new Object[]{kindIndex, val1, val2, val3});
+            });
+            
             var binaryTableHDU = BinaryTableHDU.wrap(table);
-            binaryTableHDU.getHeader().addValue(JSOLEX_HEADER_KEY, REFCOORDS_VALUE, "Reference coordinate transforms");
+            binaryTableHDU.getHeader().addValue(JSOLEX_HEADER_KEY, REFCOORDS2_VALUE, "Reference coordinate transforms v2");
             fits.addHDU(binaryTableHDU);
         }
     }

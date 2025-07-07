@@ -21,6 +21,7 @@
 - Possiblité de choisir le masque flou en méthode d'amélioration de la netteté
 - Ajout d'un script d'exemple pour extraire la couronne E
 - Affichage d'une échelle de distance des protubérances dans la fenêtre de mesure
+- Ajout d'une option dans le menu pour extraire les trames correspondant à une sélection rectangulaire de l'utilisateur
 
 ### 3.2.2
 

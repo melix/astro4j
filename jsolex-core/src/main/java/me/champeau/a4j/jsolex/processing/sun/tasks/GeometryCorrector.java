@@ -184,6 +184,17 @@ public class GeometryCorrector extends AbstractTask<GeometryCorrector.Result> {
             metadata.put(Flares.class, flares);
         }
         var corrected = ImageWrapper32.fromImage(rescaled, metadata);
+        
+        // Record the geometry correction transformations in ReferenceCoords
+        final var finalShear = shear;
+        final var finalShift = shift;
+        final var finalSx = sx;
+        corrected.transformMetadata(ReferenceCoords.class, coords -> 
+            coords.addShearShiftCombined(finalShear, finalShift)
+                  .addScaleX(finalSx)
+                  .addScaleY(finalSy)
+        );
+        
         TransformationHistory.recordTransform(corrected, message("geometry.correction"));
         if (processParams.observationDetails().altAzMode()) {
             var coordinates = processParams.observationDetails().coordinates();

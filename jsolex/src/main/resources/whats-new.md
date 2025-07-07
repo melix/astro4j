@@ -22,6 +22,7 @@
 - Add corona E extraction sample script
 - Display pixel shift in the technical card
 - Display prominence scales in measurement window
+- Add menu item to extract frames which correspond to a rectangle user selection
 
 ### 3.2.2
 

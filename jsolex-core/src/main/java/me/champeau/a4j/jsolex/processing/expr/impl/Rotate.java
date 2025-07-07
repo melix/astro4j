@@ -207,7 +207,11 @@ public class Rotate extends AbstractFunctionImpl {
             });
             metadata.put(Flares.class, rotated);
         });
-        wrapper.findMetadata(ReferenceCoords.class).ifPresent(coords -> coords.addRotation(angle));
+        wrapper.findMetadata(ReferenceCoords.class).ifPresent(coords -> {
+            // Use the center of the original image as the rotation center
+            var rotationCenter = new Point2D(origWidth / 2.0, origHeight / 2.0);
+            metadata.put(ReferenceCoords.class, coords.addRotation(angle, rotationCenter));
+        });
         return metadata;
     }
 
@@ -257,11 +261,10 @@ public class Rotate extends AbstractFunctionImpl {
         });
         wrapper.findMetadata(ReferenceCoords.class).ifPresent(rc -> {
             if (hflip) {
-                rc.addVFlip(wrapper.height());
+                metadata.put(ReferenceCoords.class, rc.addHFlip(wrapper.width()));
             } else {
-                rc.addHFlip(wrapper.width());
+                metadata.put(ReferenceCoords.class, rc.addVFlip(wrapper.height()));
             }
-            metadata.put(ReferenceCoords.class, rc);
         });
     }
 

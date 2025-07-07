@@ -75,9 +75,11 @@ import me.champeau.a4j.jsolex.processing.event.SuggestionEvent;
 import me.champeau.a4j.jsolex.processing.event.TrimmingParametersDeterminedEvent;
 import me.champeau.a4j.jsolex.processing.event.VideoMetadataEvent;
 import me.champeau.a4j.jsolex.processing.expr.DefaultImageScriptExecutor;
+import me.champeau.a4j.jsolex.processing.expr.FileOutput;
 import me.champeau.a4j.jsolex.processing.expr.ImageMathScriptExecutor;
 import me.champeau.a4j.jsolex.processing.expr.ImageMathScriptResult;
 import me.champeau.a4j.jsolex.processing.expr.ShiftCollectingImageExpressionEvaluator;
+import me.champeau.a4j.jsolex.processing.expr.impl.Animate;
 import me.champeau.a4j.jsolex.processing.expr.impl.Crop;
 import me.champeau.a4j.jsolex.processing.file.FileNamingStrategy;
 import me.champeau.a4j.jsolex.processing.params.ImageMathParams;
@@ -110,6 +112,7 @@ import me.champeau.a4j.math.Point2D;
 import me.champeau.a4j.math.image.Image;
 import me.champeau.a4j.math.regression.Ellipse;
 import me.champeau.a4j.ser.Header;
+import me.champeau.a4j.ser.SerFileReader;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -119,6 +122,7 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -548,6 +552,11 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
                         }
                         return true;
                     }
+                    if (kind == ActionKind.EXTRACT_SER_FRAMES) {
+                        // Only available if we have reference coordinates and a SER file
+                        var stretchedImage = addedImageViewer.getStretchedImage();
+                        return stretchedImage.findMetadata(ReferenceCoords.class).isPresent() && serFile != null;
+                    }
                     if (adjustedParams == null) {
                         return false;
                     }
@@ -564,7 +573,7 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
                         stretchedImage.findMetadata(ReferenceCoords.class).ifPresentOrElse(coord -> {
                             var cx = x + width / 2d;
                             var cy = y + height / 2d;
-                            var orig = coord.determineOriginalCoordinates(new Point2D(cx, cy), new Point2D(stretchedImage.width() / 2d, stretchedImage.height() / 2d), ReferenceCoords.GEO_CORRECTION);
+                            var orig = coord.determineOriginalCoordinates(new Point2D(cx, cy), ReferenceCoords.GEO_CORRECTION);
                             int xx = Math.max(0, (int) orig.x() - width / 2);
                             int yy = Math.max(0, (int) orig.y() - height / 2);
                             if (kind == ActionKind.IMAGEMATH_CROP) {
@@ -573,6 +582,8 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
                                 performCropping(stretchedImage, x, y, width, height);
                             } else if (kind == ActionKind.CREATE_ANIM_OR_PANEL) {
                                 createAnimationOrPanel(xx, yy, width, height);
+                            } else if (kind == ActionKind.EXTRACT_SER_FRAMES) {
+                                extractSerFramesToMp4(x, y, width, height, coord);
                             }
                         }, () -> {
                             if (kind == ActionKind.CROP) {
@@ -634,6 +645,122 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
                                             null
                                     )
                             ));
+                        }
+                    });
+                }
+
+                private void extractSerFramesToMp4(int x, int y, int width, int height, ReferenceCoords coord) {
+                    BackgroundOperations.async(() -> {
+                        try {
+                            var topLeft = coord.determineOriginalCoordinates(new Point2D(x, y), ReferenceCoords.NO_LIMIT);
+                            var bottomRight = coord.determineOriginalCoordinates(new Point2D(x + width, y + height), ReferenceCoords.NO_LIMIT);
+                            
+                            try (var serReader = SerFileReader.of(serFile)) {
+                                var header = serReader.header();
+                                var originalWidth = header.geometry().width();
+                                var originalHeight = header.geometry().height();
+                                
+                                int totalFrames = header.frameCount();
+                                double minY = Math.min(topLeft.y(), bottomRight.y());
+                                double maxY = Math.max(topLeft.y(), bottomRight.y());
+                                double minX = Math.min(topLeft.x(), bottomRight.x());
+                                double maxX = Math.max(topLeft.x(), bottomRight.x());
+                                
+                                int startFrame = Math.max(0, (int) Math.round(minY));
+                                int endFrame = Math.min(totalFrames - 1, (int) Math.round(maxY));
+                                int frameCount = Math.max(1, endFrame - startFrame + 1);
+                                int cropLeft = Math.max(0, (int) Math.round(minX));
+                                int cropRight = Math.min(originalWidth - 1, (int) Math.round(maxX));
+                                
+                                if (cropLeft > cropRight) {
+                                    int temp = cropLeft;
+                                    cropLeft = cropRight;
+                                    cropRight = temp;
+                                }
+                                
+                                int cropWidth = Math.max(1, cropRight - cropLeft + 1);
+                                
+                                // Validate bounds
+                                if (startFrame >= totalFrames || endFrame < 0 || frameCount <= 0) {
+                                    LOGGER.error("Invalid frame bounds: startFrame={}, endFrame={}, totalFrames={}, frameCount={}", startFrame, endFrame, totalFrames, frameCount);
+                                    throw new IllegalArgumentException("Invalid frame selection bounds");
+                                }
+                                if (cropLeft >= originalWidth || cropRight < 0 || cropWidth <= 0) {
+                                    LOGGER.error("Invalid crop bounds: cropLeft={}, cropRight={}, originalWidth={}, cropWidth={}", cropLeft, cropRight, originalWidth, cropWidth);
+                                    throw new IllegalArgumentException("Invalid crop selection bounds");
+                                }
+
+                                // Create a list to hold the extracted frames
+                                var frames = new ArrayList<ImageWrapper>();
+
+                                // Extract frames from the selected frame range with width-only cropping (preserve full height)
+                                for (int frameIndex = startFrame; frameIndex <= endFrame; frameIndex++) {
+                                    serReader.seekFrame(frameIndex);
+                                    var frame = serReader.currentFrame();
+
+                                    // Convert frame data to ImageWrapper
+                                    var converter = ImageUtils.createImageConverter(header.geometry().colorMode());
+                                    var buffer = converter.createBuffer(header.geometry());
+                                    converter.convert(frameIndex, frame.data(), header.geometry(), buffer);
+                                    var frameImage = new ImageWrapper32(header.geometry().width(), originalHeight, buffer, Map.of());
+
+                                    // Crop the frame: width-only cropping, preserve full height
+                                    var cropFunction = new Crop(Map.of(), SingleModeProcessingEventListener.this);
+                                    var croppedFrame = (ImageWrapper) cropFunction.crop(Map.of(
+                                            "img", frameImage,
+                                            "left", cropLeft,
+                                            "top", 0,  // Start from top (preserve full height)
+                                            "width", cropWidth,
+                                            "height", originalHeight  // Use full height
+                                    ));
+                                    
+                                    frames.add(croppedFrame);
+
+                                    // Update progress
+                                    if ((frameIndex - startFrame) % 10 == 0) {
+                                        int totalFramesToExtract = endFrame - startFrame + 1;
+                                        int currentFrame = frameIndex - startFrame + 1;
+                                        var progressOp = rootOperation.createChild("Extracting frame " + currentFrame + "/" + totalFramesToExtract);
+                                        progressOp.update(currentFrame / (double) totalFramesToExtract, "Extracting frame " + currentFrame + "/" + totalFramesToExtract);
+                                        broadcast(progressOp);
+                                    }
+                                }
+
+                                if (frames.isEmpty()) {
+                                    throw new IllegalStateException("No frames were extracted - cannot create animation");
+                                }
+
+                                var animate = new Animate(Map.of(), SingleModeProcessingEventListener.this);
+                                Object animationResult;
+                                try {
+                                    animationResult = animate.createAnimation(Map.of("images", frames, "delay", 25));
+                                } catch (Exception e) {
+                                    throw new RuntimeException("Animation creation failed: " + e.getMessage(), e);
+                                }
+                                if (animationResult instanceof FileOutput fileOutput) {
+                                    // Generate output filename
+                                    var outputPath = outputDirectory.resolve(
+                                            createNamingStrategy().render(0, null, Constants.TYPE_CUSTOM,
+                                                    "ser-extract-" + System.currentTimeMillis(),
+                                                    computeSerFileBasename(serFile), null) + ".mp4");
+
+                                    Files.createDirectories(outputPath.getParent());
+                                    Files.move(fileOutput.file(), outputPath);
+
+                                    broadcast(FileGeneratedEvent.of(GeneratedImageKind.IMAGE_MATH, "SER Frame Extract", outputPath));
+                                } else {
+                                    throw new RuntimeException("Animation creation returned unexpected result type: " +
+                                            (animationResult != null ? animationResult.getClass().getName() : "null"));
+                                }
+                            }
+
+                        } catch (Exception e) {
+                            broadcast(new NotificationEvent(new Notification(
+                                    Notification.AlertType.ERROR,
+                                    "SER Frame Extraction Failed",
+                                    "Animation Creation Error",
+                                    "Failed to extract SER frames to MP4: " + e.getMessage()
+                            )));
                         }
                     });
                 }
@@ -1346,6 +1473,24 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
     }
 
     private record CachedHistogram(Histogram histogram, String color) {
+    }
+
+    private static Point2D applyRotation(Point2D point, Point2D center, double angle) {
+        var dx = point.x() - center.x();
+        var dy = point.y() - center.y();
+        var cos = Math.cos(angle);
+        var sin = Math.sin(angle);
+        return new Point2D(
+            center.x() + dx * cos - dy * sin,
+            center.y() + dx * sin + dy * cos
+        );
+    }
+
+    private static boolean isWithinImageBounds(Point2D topLeft, Point2D bottomRight, ImageWrapper image) {
+        return topLeft.x() >= 0 && topLeft.x() < image.width() &&
+               topLeft.y() >= 0 && topLeft.y() < image.height() &&
+               bottomRight.x() >= 0 && bottomRight.x() < image.width() &&
+               bottomRight.y() >= 0 && bottomRight.y() < image.height();
     }
 
     private record NormalizedDataPoints(List<SpectrumAnalyzer.DataPoint> dataPoints, double maxIntensity) {
