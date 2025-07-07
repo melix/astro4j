@@ -95,23 +95,6 @@ public record ReferenceCoords(
         );
     }
 
-    public ReferenceCoords addOffsetX(double value) {
-        return addOffset2D(value, 0);
-    }
-
-    public ReferenceCoords addOffsetY(double value) {
-        return addOffset2D(0, value);
-    }
-
-    public ReferenceCoords addRotation(double value) {
-        if (value != 0) {
-            return new ReferenceCoords(
-                Stream.concat(operations.stream(), Stream.of(new Operation(OperationKind.ROTATION, value))).toList()
-            );
-        }
-        return this;
-    }
-
     public ReferenceCoords addRotation(double value, Point2D rotationCenter) {
         if (value != 0) {
             return new ReferenceCoords(

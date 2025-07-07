@@ -52,7 +52,10 @@ public class Corrector {
             }
             throw new IllegalArgumentException("Unsupported image type");
         });
-        result.transformMetadata(ReferenceCoords.class, coords -> coords.addRotation(angle));
+        result.transformMetadata(ReferenceCoords.class, coords -> {
+            var rotationCenter = new me.champeau.a4j.math.Point2D(image.width() / 2.0, image.height() / 2.0);
+            return coords.addRotation(angle, rotationCenter);
+        });
         return result;
     }
 
