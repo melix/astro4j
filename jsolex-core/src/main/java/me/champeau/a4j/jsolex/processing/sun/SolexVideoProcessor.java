@@ -899,24 +899,30 @@ public class SolexVideoProcessor implements Broadcaster {
     }
 
     private static void checkAvailableDiskSpace(List<WorkflowState> imageList, long imageSizeInBytes) {
-        var requiredDiskSpaceBytes = (imageList.size() * 1.5 * imageSizeInBytes);
-        var requiredDiskSpace = requiredDiskSpaceBytes / 1024 / 1024;
-        String unit = "MB";
-        if (requiredDiskSpace > 1024) {
-            unit = "GB";
-            requiredDiskSpace /= 1024;
-        }
-        LOGGER.info(message("processing.disk.requirements"), String.format("%.2f", requiredDiskSpace), unit);
+        var requiredDiskSpaceBytes = (long) (imageList.size() * 1.5 * imageSizeInBytes);
+        var requiredDiskSpaceFormatted = formatDiskSpace(requiredDiskSpaceBytes);
+        LOGGER.info(message("processing.disk.requirements"), requiredDiskSpaceFormatted.value(), requiredDiskSpaceFormatted.unit());
         try {
             var path = TemporaryFolder.tempDir();
-            var freespace = Files.getFileStore(path)
+            var freespaceBytes = Files.getFileStore(path)
                     .getUsableSpace();
-            if (freespace < requiredDiskSpace) {
-                throw new ProcessingException(String.format(message("not.enough.disk.space"), path, String.format("%.2f", requiredDiskSpace), unit));
+            if (freespaceBytes < requiredDiskSpaceBytes) {
+                var availableDiskSpaceFormatted = formatDiskSpace(freespaceBytes);
+                throw new ProcessingException(String.format(message("not.enough.disk.space"), path, requiredDiskSpaceFormatted.value(), requiredDiskSpaceFormatted.unit(), availableDiskSpaceFormatted.value(), availableDiskSpaceFormatted.unit()));
             }
         } catch (IOException ex) {
             // ignore
         }
+    }
+
+    private static FormattedDiskSpace formatDiskSpace(long bytes) {
+        var diskSpace = bytes / 1024.0 / 1024.0;
+        var unit = "MB";
+        if (diskSpace > 1024) {
+            unit = "GB";
+            diskSpace /= 1024;
+        }
+        return new FormattedDiskSpace(String.format("%.2f", diskSpace), unit);
     }
 
     public static <T> List<List<T>> batches(List<T> source, int length) {
@@ -1299,7 +1305,7 @@ public class SolexVideoProcessor implements Broadcaster {
 
 
         var newImage = new ImageWrapper32(newWidth, newHeight, newData, newMetadata);
-        
+
         // Add rotation to ReferenceCoords history
         newImage.transformMetadata(ReferenceCoords.class, coords -> {
             if (kind == RotationKind.LEFT) {
@@ -1308,7 +1314,7 @@ public class SolexVideoProcessor implements Broadcaster {
                 return coords.addRightRotation(width);
             }
         });
-        
+
         TransformationHistory.recordTransform(newImage, message("rotate." + kind.name().toLowerCase()));
         return newImage;
     }
@@ -1366,7 +1372,7 @@ public class SolexVideoProcessor implements Broadcaster {
         if (detectPhenomena) {
             conversionProcs /= 2;
         }
-        try (var detectionPool = Executors.newFixedThreadPool(Math.max(2, Runtime.getRuntime().availableProcessors()/2))) {
+        try (var detectionPool = Executors.newFixedThreadPool(Math.max(2, Runtime.getRuntime().availableProcessors() / 2))) {
             try (var conversionPool = Executors.newFixedThreadPool(Math.max(2, conversionProcs))) {
                 var reconstructedImages = new float[images.length][totalLines][width];
                 for (int i = start, j = 0; i < end; i++, j += 1) {
@@ -1766,4 +1772,6 @@ public class SolexVideoProcessor implements Broadcaster {
         }
     }
 
+    private record FormattedDiskSpace(String value, String unit) {
+    }
 }
