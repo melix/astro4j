@@ -12,6 +12,10 @@
 
 ## Changements depuis la 3.0.0
 
+### 3.3.2
+
+- Correction de la détection de profondeur de pixels des fichiers SER
+
 ### 3.3.1
 
 - Correction d'une erreur lors de l'opération de rognage ou d'extraction de trames du fichier SER

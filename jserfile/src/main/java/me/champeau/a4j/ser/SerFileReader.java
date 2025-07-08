@@ -197,7 +197,7 @@ public class SerFileReader implements AutoCloseable {
                 var data = tmpReader.currentFrame().data();
                 var dataLen = width * height * numPlanes;
 
-                for (int j = 0; j < dataLen; j += 16) {
+                for (int j = 0; j < dataLen; j++) {
                     int pixelValue = readColor(data, bytesPerPixel, bitsToDiscard);
                     maxPixel = Math.max(maxPixel, pixelValue);
                     minPixel = Math.min(minPixel, pixelValue);
