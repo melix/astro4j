@@ -15,6 +15,7 @@
 ### 3.3.2
 
 - Fixed detection of bit depth in SER files
+- Improved corona E extraction script
 
 ### 3.3.1
 

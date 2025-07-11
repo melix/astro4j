@@ -13,31 +13,37 @@
 feI=5302.29
 # Corona-E line (in Å)
 feXIV=5302.86
-# Continuum shift 1 (pixels)
-c1=-7.5
-# Continuum shift 2 (pixels)
-c2=5
+# Continuum shift 1 (in Å)
+c1=5301.84
+# Continuum shift 2 (in Å)
+c2=5303.44
+# Fe XIV FWHM (in Å)
+feXIV_fwhm=0.2
 
 [tmp]
 shift=find_shift(feXIV, feI)
+rng=a2px(feXIV_fwhm)
 # Used to avoid negative values when doing continuum substraction
-offset=32000
+offset=12000
 # Denoised Fe XIV image
-fe_14=avg(range(shift-1;shift+1))
+fe_14=avg(range(shift-rng;shift+rng;rng/2))
 # Continuum image
-cont=avg(img(shift+c1);img(shift+c2))
+cont=avg(img(find_shift(feI;c1));img(find_shift(feI;c2)))
 # Difference between Fe image and continuum
-diff=offset+fe_14-cont
+diff=(offset+fe_14)-cont
 
 [outputs]
-masked=mtf_autostretch(linear_stretch(disk_fill(diff;offset)))
+masked=mtf_autostretch(disk_fill(diff;offset))
 
 [[batch]]
+# amplification
+expo=2
+
 [tmp]
 avg=avg(radius_rescale(equalize(masked)))
 
 [outputs]
-corona=disk_fill(linear_stretch(pow(avg,2)))
+corona=disk_fill(linear_stretch(pow(avg,expo)))
 corona_rot=rotate_rad(corona; angleP)
 legend=draw_text(corona_rot; 16;32;
    "%OBSERVER%
