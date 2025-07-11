@@ -117,6 +117,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.Executors;
@@ -1117,13 +1118,14 @@ public class SolexVideoProcessor implements Broadcaster {
             return cachedEllipse;
         }
         var selected = imageList.stream().sorted(Comparator.comparing(WorkflowState::pixelShift)).map(state -> {
-            var ellipseFittingTask = new EllipseFittingTask(this, newOperation(message("ellipse.fitting")), state::image, processParams, imageEmitterFactory.newEmitter(this, outputDirectory));
-            try {
-                return Optional.ofNullable(ellipseFittingTask.call());
-            } catch (Exception e) {
-                return Optional.<EllipseFittingTask.Result>empty();
-            }
-        }).filter(Optional::isPresent).map(Optional::get).findFirst();
+                    var ellipseFittingTask = new EllipseFittingTask(this, newOperation(message("ellipse.fitting")), state::image, processParams, imageEmitterFactory.newEmitter(this, outputDirectory));
+                    try {
+                        return ellipseFittingTask.call();
+                    } catch (Exception e) {
+                        return null;
+                    }
+                }).filter(Objects::nonNull)
+                .findFirst();
         if (selected.isEmpty()) {
             LOGGER.error(message("ellipse.fitting.failed"));
             return null;

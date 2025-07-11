@@ -177,7 +177,19 @@ public class EllipseFittingTask extends AbstractTask<EllipseFittingTask.Result> 
         if (notEnoughSamples(samples)) {
             return null;
         }
-        var ellipse = new EllipseRegression(samples).solve();
+        Ellipse ellipse = null;
+        while (ellipse == null) {
+            try {
+                ellipse = new EllipseRegression(samples).solve();
+            } catch (Exception e) {
+                if (samples.size() > 2 * MINIMUM_SAMPLES) {
+                    samples = decimate(new ArrayList<>(samples));
+                } else {
+                    // not enough samples, we cannot fit an ellipse
+                    return null;
+                }
+            }
+        }
         LOGGER.debug("{}", ellipse);
         broadcaster.broadcast(operation.complete());
         var result = new Result(ellipse, samples);
