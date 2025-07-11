@@ -15,6 +15,7 @@
 ### 3.3.2
 
 - Correction de la détection de profondeur de pixels des fichiers SER
+- Amélioration du script d'extraction de la couronne E
 
 ### 3.3.1
 
