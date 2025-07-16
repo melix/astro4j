@@ -1,0 +1,17 @@
+name: RADIUS_RESCALE2
+category: ROTATION
+description:
+  fr: "Redimensionne une image pour avoir un rayon solaire spécifique (en pixels) tout en conservant les dimensions finales spécifiées. Le disque solaire est centré dans l'image résultante."
+  en: "Rescales an image to have a specific solar radius (in pixels) while maintaining the specified final dimensions. The solar disk is centered in the resulting image."
+arguments:
+  - name: img
+    description: Image to rescale
+  - name: radius
+    description: Target radius in pixels
+  - name: width
+    description: Final image width
+  - name: height
+    description: Final image height
+examples:
+  - "radius_rescale2(img, 500, 1024, 1024)"
+  - "radius_rescale2(img: my_image, radius: 400, width: 800, height: 600)"

@@ -106,6 +106,60 @@ public class Scaling extends AbstractFunctionImpl {
         }
     }
 
+    public Object radiusRescale2(Map<String, Object> arguments) {
+        BuiltinFunction.RADIUS_RESCALE2.validateArgs(arguments);
+        var arg = arguments.get("img");
+        if (arg instanceof List<?>) {
+            return expandToImageList("radius_rescale2", "img", arguments, this::radiusRescale2);
+        }
+        int targetRadius = intArg(arguments, "radius", 0);
+        int width = intArg(arguments, "width", 0);
+        int height = intArg(arguments, "height", 0);
+        
+        if (targetRadius <= 0) {
+            throw new IllegalArgumentException("Target radius must be > 0");
+        }
+        if (width <= 0 || height <= 0) {
+            throw new IllegalArgumentException("Width and height must be > 0");
+        }
+        
+        if (arg instanceof ImageWrapper img) {
+            return performRadiusRescale2(img, targetRadius, width, height);
+        }
+        throw new IllegalArgumentException("Unsupported image type");
+    }
+
+    ImageWrapper performRadiusRescale2(ImageWrapper img, int targetRadius, int width, int height) {
+        ImageWrapper withEllipse = img;
+        var ellipse = img.findMetadata(Ellipse.class).orElse(null);
+        if (ellipse == null) {
+            withEllipse = (ImageWrapper) ellipseFit.fit(Map.of("img", img));
+            ellipse = withEllipse.findMetadata(Ellipse.class).orElse(null);
+        }
+        
+        if (ellipse == null) {
+            throw new IllegalArgumentException("Unable to determine ellipse fitting for the image");
+        }
+        
+        var currentRadius = radiusOf(ellipse);
+        var scale = targetRadius / currentRadius;
+        
+        var scaledWidth = (int) Math.round(img.width() * scale);
+        var scaledHeight = (int) Math.round(img.height() * scale);
+        
+        var scaledImage = doRescale(withEllipse, scaledWidth, scaledHeight);
+        
+        var centerX = width / 2;
+        var centerY = height / 2;
+        var scaledCenterX = scaledWidth / 2;
+        var scaledCenterY = scaledHeight / 2;
+        
+        var offsetX = centerX - scaledCenterX;
+        var offsetY = centerY - scaledCenterY;
+        
+        return centerImageInCanvas(scaledImage, width, height, offsetX, offsetY);
+    }
+
     List<ImageWrapper> performRadiusRescale(List<? extends ImageWrapper> filtered) {
         var fittings = filtered.stream()
                 .parallel()
@@ -153,6 +207,77 @@ public class Scaling extends AbstractFunctionImpl {
     private double radiusOf(Ellipse e) {
         var semiAxis = e.semiAxis();
         return (semiAxis.a() + semiAxis.b()) / 2d;
+    }
+
+    private ImageWrapper centerImageInCanvas(ImageWrapper img, int canvasWidth, int canvasHeight, int offsetX, int offsetY) {
+        var metadata = new LinkedHashMap<>(img.metadata());
+        
+        if (img instanceof ImageWrapper32 mono) {
+            var canvas = new float[canvasHeight][canvasWidth];
+            
+            for (int y = 0; y < img.height(); y++) {
+                for (int x = 0; x < img.width(); x++) {
+                    int canvasX = x + offsetX;
+                    int canvasY = y + offsetY;
+                    
+                    if (canvasX >= 0 && canvasX < canvasWidth && canvasY >= 0 && canvasY < canvasHeight) {
+                        canvas[canvasY][canvasX] = mono.data()[y][x];
+                    }
+                }
+            }
+            
+            updateMetadataForOffset(metadata, offsetX, offsetY);
+            return new ImageWrapper32(canvasWidth, canvasHeight, canvas, metadata);
+        } else if (img instanceof RGBImage rgb) {
+            var canvasR = new float[canvasHeight][canvasWidth];
+            var canvasG = new float[canvasHeight][canvasWidth];
+            var canvasB = new float[canvasHeight][canvasWidth];
+            
+            for (int y = 0; y < img.height(); y++) {
+                for (int x = 0; x < img.width(); x++) {
+                    int canvasX = x + offsetX;
+                    int canvasY = y + offsetY;
+                    
+                    if (canvasX >= 0 && canvasX < canvasWidth && canvasY >= 0 && canvasY < canvasHeight) {
+                        canvasR[canvasY][canvasX] = rgb.r()[y][x];
+                        canvasG[canvasY][canvasX] = rgb.g()[y][x];
+                        canvasB[canvasY][canvasX] = rgb.b()[y][x];
+                    }
+                }
+            }
+            
+            updateMetadataForOffset(metadata, offsetX, offsetY);
+            return new RGBImage(canvasWidth, canvasHeight, canvasR, canvasG, canvasB, metadata);
+        }
+        
+        throw new IllegalArgumentException("Unsupported image type for centering");
+    }
+
+    private void updateMetadataForOffset(Map<Class<?>, Object> metadata, int offsetX, int offsetY) {
+        var ellipse = (Ellipse) metadata.get(Ellipse.class);
+        if (ellipse != null) {
+            var newCenter = new Point2D(ellipse.center().a() + offsetX, ellipse.center().b() + offsetY);
+            metadata.put(Ellipse.class, ellipse.centeredAt((int) newCenter.x(), (int) newCenter.y()));
+        }
+        
+        var redshifts = (Redshifts) metadata.get(Redshifts.class);
+        if (redshifts != null) {
+            metadata.put(Redshifts.class, new Redshifts(redshifts.redshifts().stream()
+                    .map(rs -> new RedshiftArea(rs.id(), rs.pixelShift(), rs.relPixelShift(), rs.kmPerSec(), 
+                            rs.x1() + offsetX, rs.y1() + offsetY, rs.x2() + offsetX, rs.y2() + offsetY,
+                            rs.maxX() + offsetX, rs.maxY() + offsetY))
+                    .toList()));
+        }
+        
+        var activeRegions = (ActiveRegions) metadata.get(ActiveRegions.class);
+        if (activeRegions != null) {
+            metadata.put(ActiveRegions.class, activeRegions.transform(p -> new Point2D(p.x() + offsetX, p.y() + offsetY)));
+        }
+        
+        var flares = (Flares) metadata.get(Flares.class);
+        if (flares != null) {
+            metadata.put(Flares.class, flares.transform(p -> new Point2D(p.x() + offsetX, p.y() + offsetY)));
+        }
     }
 
     private ImageWrapper doRescale(ImageWrapper img, int width, int height) {

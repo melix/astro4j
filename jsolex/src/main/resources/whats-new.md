@@ -16,6 +16,7 @@
 
 - Fixed detection of bit depth in SER files
 - Improved corona E extraction script
+- Added `radius_rescale2` function which allows specifying both a target radius for the solar disk AND a fixed image width/height, which is useful for stacking externally
 
 ### 3.3.1
 

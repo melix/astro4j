@@ -16,6 +16,7 @@
 
 - Correction de la détection de profondeur de pixels des fichiers SER
 - Amélioration du script d'extraction de la couronne E
+- Ajout de la fonction `radius_rescale2` qui permet de redimenstionner les images en spécifiant à la fois le rayon en pixels et la taille finale de l'image (hauteur et largeur), ce qui est particulièrement utile pour le stacking avec des logiciels tiers
 
 ### 3.3.1
 
