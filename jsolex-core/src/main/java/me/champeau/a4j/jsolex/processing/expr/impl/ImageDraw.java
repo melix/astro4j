@@ -230,15 +230,15 @@ public class ImageDraw extends AbstractFunctionImpl {
         }
         if (message.contains("%OBSERVER%")) {
             var details = params.observationDetails();
-            message = message.replace("%OBSERVER%", details.observer());
+            message = message.replace("%OBSERVER%", emptyIfNull(details.observer()));
         }
         if (message.contains("%INSTRUMENT%")) {
             var details = params.observationDetails();
-            message = message.replace("%INSTRUMENT%", details.instrument().label());
+            message = message.replace("%INSTRUMENT%", emptyIfNull(details.instrument().label()));
         }
         if (message.contains("%TELESCOPE%")) {
             var details = params.observationDetails();
-            message = message.replace("%TELESCOPE%", details.telescope());
+            message = message.replace("%TELESCOPE%", emptyIfNull(details.telescope()));
         }
         if (message.contains("%DATE%")) {
             var details = params.observationDetails();
@@ -923,6 +923,10 @@ public class ImageDraw extends AbstractFunctionImpl {
                 }
             }
         }
+    }
+
+    private static String emptyIfNull(String value) {
+        return value == null ? "" : value;
     }
 
     private record Coordinates(double x, double y, double z) {

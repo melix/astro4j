@@ -10,27 +10,27 @@
 #
 
 # Reference (darkest line) of the scan (in Å)
-feI=5302.29
+refWl=5302.29
 # Corona-E line (in Å)
-feXIV=5302.86
+targetWl=5302.86
 # Continuum shift 1 (in Å)
-c1=5301.84
+c1=5301
 # Continuum shift 2 (in Å)
-c2=5303.44
+c2=5303.75
 # Fe XIV FWHM (in Å)
-feXIV_fwhm=0.2
+targetWl_fwhm=0.2
 
 [tmp]
-shift=find_shift(feXIV, feI)
-rng=a2px(feXIV_fwhm)
+shift=find_shift(targetWl, refWl)
+rng=a2px(targetWl_fwhm)
 # Used to avoid negative values when doing continuum substraction
 offset=12000
 # Denoised Fe XIV image
-fe_14=avg(range(shift-rng;shift+rng;rng/2))
+extractedLine=avg(range(shift-rng;shift+rng;rng/2))
 # Continuum image
-cont=avg(img(find_shift(feI;c1));img(find_shift(feI;c2)))
+cont=min(img(find_shift(c1;refWl));img(find_shift(c2;refWl)))
 # Difference between Fe image and continuum
-diff=(offset+fe_14)-cont
+diff=(offset+extractedLine)-cont
 
 [outputs]
 masked=mtf_autostretch(disk_fill(diff;offset))
