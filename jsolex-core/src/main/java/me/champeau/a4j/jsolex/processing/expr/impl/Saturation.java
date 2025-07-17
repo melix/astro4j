@@ -48,7 +48,7 @@ public class Saturation extends AbstractFunctionImpl {
             var hsl = ImageUtils.fromRGBtoHSL(new float[][][]{rgb.r(), rgb.g(), rgb.b()});
             var s = hsl[1];
             for (float[] line : s) {
-                for (int i = 0; i < s.length; i++) {
+                for (int i = 0; i < line.length; i++) {
                     var sat = Math.pow(line[i], exponent);
                     line[i] = (float) sat;
                 }
