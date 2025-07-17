@@ -74,7 +74,7 @@ public class Crop extends AbstractFunctionImpl {
             var ri = cropMonoImage(left, top, width, height, new ImageWrapper32(rgb.width(), rgb.height(), rgb.r(), rgb.metadata()));
             var gi = cropMonoImage(left, top, width, height, new ImageWrapper32(rgb.width(), rgb.height(), rgb.g(), rgb.metadata()));
             var bi = cropMonoImage(left, top, width, height, new ImageWrapper32(rgb.width(), rgb.height(), rgb.b(), rgb.metadata()));
-            return new RGBImage(width, height,
+            return new RGBImage(ri.width(), ri.height(),
                     ri.data(),
                     gi.data(),
                     bi.data(),
@@ -124,10 +124,10 @@ public class Crop extends AbstractFunctionImpl {
 
     private static ImageWrapper32 cropMonoImage(int left, int top, int width, int height, ImageWrapper32 mono) {
         if (left + width > mono.width()) {
-            throw new IllegalArgumentException("Crop width too large");
+            width = mono.width() - left;
         }
         if (top + height > mono.height()) {
-            throw new IllegalArgumentException("Crop height too large");
+            height = mono.height() - top;
         }
         float[][] cropped = new float[height][width];
         var sourceData = mono.data();

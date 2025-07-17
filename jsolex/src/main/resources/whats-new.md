@@ -15,6 +15,7 @@
 ### 3.3.2
 
 - Fixed detection of bit depth in SER files
+- Fixed `saturate` function not working on non-square images
 - Improved corona E extraction script
 - Added `radius_rescale2` function which allows specifying both a target radius for the solar disk AND a fixed image width/height, which is useful for stacking externally
 
