@@ -35,7 +35,7 @@ public class BandingReduction {
         double[] lineAverages = lineAverages(width, height, data, ellipse);
         double[] bandAverages = IntStream.range(0, height)
                 .parallel()
-                .mapToDouble(y -> computeAverageForBand(height, lineAverages, bandSize, y))
+                .mapToDouble(y -> computeAverageForBand(height, lineAverages, bandSize, y, ellipse))
                 .toArray();
         for (int y = 0; y < height; y++) {
             double bandAverage = bandAverages[y];
@@ -60,21 +60,56 @@ public class BandingReduction {
         }
     }
 
-    private static double computeAverageForBand(int height, double[] lineAverages, int bandSize, int y) {
-        int halfSize = bandSize / 2;
+    private static double computeAverageForBand(int height, double[] lineAverages, int bandSize, int y, Ellipse ellipse) {
+        int adaptiveBandSize = computeAdaptiveBandSize(bandSize, y, height, ellipse);
+        int halfSize = adaptiveBandSize / 2;
         double sum = 0;
-        int count = 0;
+        double weightSum = 0;
+        
         for (int k = Math.max(0, y - halfSize); k < Math.min(y + halfSize + 1, height); k++) {
             if (k != y) {
                 double lineAverage = lineAverages[k];
                 if (Double.isNaN(lineAverage)) {
                     return Double.NaN;
                 }
-                sum += lineAverage;
-                count++;
+                var weight = computeWeight(y, k, height, ellipse);
+                sum += lineAverage * weight;
+                weightSum += weight;
             }
         }
-        return sum / count;
+        
+        if (weightSum == 0) {
+            return Double.NaN;
+        }
+        return sum / weightSum;
+    }
+    
+    private static int computeAdaptiveBandSize(int baseBandSize, int y, int height, Ellipse ellipse) {
+        if (ellipse == null) {
+            return baseBandSize;
+        }
+        
+        var centerY = ellipse.center().b();
+        var poleDistance = Math.abs(y - centerY) / (height / 2.0);
+        var poleProximity = Math.pow(poleDistance, 0.8);
+        
+        var adaptiveSize = (int) (baseBandSize * (1.0 - 0.5 * poleProximity));
+        return Math.max(4, adaptiveSize);
+    }
+    
+    private static double computeWeight(int centerY, int sampleY, int height, Ellipse ellipse) {
+        var distance = Math.abs(centerY - sampleY);
+        var baseWeight = 1.0 / (1.0 + distance);
+        
+        if (ellipse == null) {
+            return baseWeight;
+        }
+        
+        var centerEllipseY = ellipse.center().b();
+        var poleFactor = Math.abs(centerY - centerEllipseY) / (height / 2.0);
+        var poleWeight = 1.0 - 0.3 * Math.pow(poleFactor, 2);
+        
+        return baseWeight * poleWeight;
     }
 
     private static double[] lineAverages(int width, int height, float[][] data, Ellipse ellipse) {
