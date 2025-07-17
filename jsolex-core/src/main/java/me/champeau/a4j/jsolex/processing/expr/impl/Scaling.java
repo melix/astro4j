@@ -115,14 +115,14 @@ public class Scaling extends AbstractFunctionImpl {
         int targetRadius = intArg(arguments, "radius", 0);
         int width = intArg(arguments, "width", 0);
         int height = intArg(arguments, "height", 0);
-        
+
         if (targetRadius <= 0) {
             throw new IllegalArgumentException("Target radius must be > 0");
         }
         if (width <= 0 || height <= 0) {
             throw new IllegalArgumentException("Width and height must be > 0");
         }
-        
+
         if (arg instanceof ImageWrapper img) {
             return performRadiusRescale2(img, targetRadius, width, height);
         }
@@ -136,28 +136,48 @@ public class Scaling extends AbstractFunctionImpl {
             withEllipse = (ImageWrapper) ellipseFit.fit(Map.of("img", img));
             ellipse = withEllipse.findMetadata(Ellipse.class).orElse(null);
         }
-        
+
         if (ellipse == null) {
             throw new IllegalArgumentException("Unable to determine ellipse fitting for the image");
         }
-        
+
         var currentRadius = radiusOf(ellipse);
         var scale = targetRadius / currentRadius;
-        
+
         var scaledWidth = (int) Math.round(img.width() * scale);
         var scaledHeight = (int) Math.round(img.height() * scale);
-        
+
         var scaledImage = doRescale(withEllipse, scaledWidth, scaledHeight);
-        
-        var centerX = width / 2;
-        var centerY = height / 2;
-        var scaledCenterX = scaledWidth / 2;
-        var scaledCenterY = scaledHeight / 2;
-        
-        var offsetX = centerX - scaledCenterX;
-        var offsetY = centerY - scaledCenterY;
-        
+
+        var scaledEllipse = scaledImage.findMetadata(Ellipse.class).orElse(null);
+        if (scaledEllipse == null) {
+            throw new IllegalArgumentException("Ellipse metadata lost during rescaling");
+        }
+
+        var targetCenterX = width / 2.0;
+        var targetCenterY = height / 2.0;
+        var currentEllipseCenterX = scaledEllipse.center().a();
+        var currentEllipseCenterY = scaledEllipse.center().b();
+
+        var offsetX = (int) Math.round(targetCenterX - currentEllipseCenterX);
+        var offsetY = (int) Math.round(targetCenterY - currentEllipseCenterY);
+
         return centerImageInCanvas(scaledImage, width, height, offsetX, offsetY);
+    }
+
+    /**
+     * Rescales an image to have a specific solar radius and final dimensions.
+     * This is a convenience method that directly calls the radius_rescale2 functionality
+     * without requiring script execution.
+     *
+     * @param image The image to rescale
+     * @param targetRadius The target solar radius in pixels
+     * @param width The final image width
+     * @param height The final image height
+     * @return The rescaled image with the specified radius and dimensions
+     */
+    public ImageWrapper rescaleToRadius(ImageWrapper image, int targetRadius, int width, int height) {
+        return performRadiusRescale2(image, targetRadius, width, height);
     }
 
     List<ImageWrapper> performRadiusRescale(List<? extends ImageWrapper> filtered) {
@@ -211,33 +231,33 @@ public class Scaling extends AbstractFunctionImpl {
 
     private ImageWrapper centerImageInCanvas(ImageWrapper img, int canvasWidth, int canvasHeight, int offsetX, int offsetY) {
         var metadata = new LinkedHashMap<>(img.metadata());
-        
+
         if (img instanceof ImageWrapper32 mono) {
             var canvas = new float[canvasHeight][canvasWidth];
-            
+
             for (int y = 0; y < img.height(); y++) {
                 for (int x = 0; x < img.width(); x++) {
                     int canvasX = x + offsetX;
                     int canvasY = y + offsetY;
-                    
+
                     if (canvasX >= 0 && canvasX < canvasWidth && canvasY >= 0 && canvasY < canvasHeight) {
                         canvas[canvasY][canvasX] = mono.data()[y][x];
                     }
                 }
             }
-            
+
             updateMetadataForOffset(metadata, offsetX, offsetY);
             return new ImageWrapper32(canvasWidth, canvasHeight, canvas, metadata);
         } else if (img instanceof RGBImage rgb) {
             var canvasR = new float[canvasHeight][canvasWidth];
             var canvasG = new float[canvasHeight][canvasWidth];
             var canvasB = new float[canvasHeight][canvasWidth];
-            
+
             for (int y = 0; y < img.height(); y++) {
                 for (int x = 0; x < img.width(); x++) {
                     int canvasX = x + offsetX;
                     int canvasY = y + offsetY;
-                    
+
                     if (canvasX >= 0 && canvasX < canvasWidth && canvasY >= 0 && canvasY < canvasHeight) {
                         canvasR[canvasY][canvasX] = rgb.r()[y][x];
                         canvasG[canvasY][canvasX] = rgb.g()[y][x];
@@ -245,11 +265,11 @@ public class Scaling extends AbstractFunctionImpl {
                     }
                 }
             }
-            
+
             updateMetadataForOffset(metadata, offsetX, offsetY);
             return new RGBImage(canvasWidth, canvasHeight, canvasR, canvasG, canvasB, metadata);
         }
-        
+
         throw new IllegalArgumentException("Unsupported image type for centering");
     }
 
@@ -259,21 +279,21 @@ public class Scaling extends AbstractFunctionImpl {
             var newCenter = new Point2D(ellipse.center().a() + offsetX, ellipse.center().b() + offsetY);
             metadata.put(Ellipse.class, ellipse.centeredAt((int) newCenter.x(), (int) newCenter.y()));
         }
-        
+
         var redshifts = (Redshifts) metadata.get(Redshifts.class);
         if (redshifts != null) {
             metadata.put(Redshifts.class, new Redshifts(redshifts.redshifts().stream()
-                    .map(rs -> new RedshiftArea(rs.id(), rs.pixelShift(), rs.relPixelShift(), rs.kmPerSec(), 
+                    .map(rs -> new RedshiftArea(rs.id(), rs.pixelShift(), rs.relPixelShift(), rs.kmPerSec(),
                             rs.x1() + offsetX, rs.y1() + offsetY, rs.x2() + offsetX, rs.y2() + offsetY,
                             rs.maxX() + offsetX, rs.maxY() + offsetY))
                     .toList()));
         }
-        
+
         var activeRegions = (ActiveRegions) metadata.get(ActiveRegions.class);
         if (activeRegions != null) {
             metadata.put(ActiveRegions.class, activeRegions.transform(p -> new Point2D(p.x() + offsetX, p.y() + offsetY)));
         }
-        
+
         var flares = (Flares) metadata.get(Flares.class);
         if (flares != null) {
             metadata.put(Flares.class, flares.transform(p -> new Point2D(p.x() + offsetX, p.y() + offsetY)));
