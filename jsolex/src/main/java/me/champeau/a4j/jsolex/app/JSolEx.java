@@ -75,6 +75,7 @@ import javafx.util.StringConverter;
 import javafx.util.converter.IntegerStringConverter;
 import me.champeau.a4j.jsolex.app.jfx.AdvancedParamsController;
 import me.champeau.a4j.jsolex.app.jfx.ApplyUserRotation;
+import me.champeau.a4j.jsolex.app.jfx.Bass2000SubmissionController;
 import me.champeau.a4j.jsolex.app.jfx.BatchItem;
 import me.champeau.a4j.jsolex.app.jfx.DocsHelper;
 import me.champeau.a4j.jsolex.app.jfx.EmbeddedServerController;
@@ -125,6 +126,7 @@ import me.champeau.a4j.jsolex.processing.sun.workflow.GeneratedImageKind;
 import me.champeau.a4j.jsolex.processing.util.BackgroundOperations;
 import me.champeau.a4j.jsolex.processing.util.Constants;
 import me.champeau.a4j.jsolex.processing.util.FilesUtils;
+import me.champeau.a4j.jsolex.processing.util.GONG;
 import me.champeau.a4j.jsolex.processing.util.LoggingSupport;
 import me.champeau.a4j.jsolex.processing.util.MutableMap;
 import me.champeau.a4j.jsolex.processing.util.ProcessingException;
@@ -150,6 +152,7 @@ import java.nio.file.StandardWatchEventKinds;
 import java.nio.file.WatchEvent;
 import java.nio.file.WatchKey;
 import java.nio.file.WatchService;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.ArrayList;
@@ -253,6 +256,12 @@ public class JSolEx implements JSolExInterface {
     private Tab referenceImageTab;
 
     @FXML
+    private Button bass2000Button;
+
+    private int bass2000ClickCount = 0;
+    private static final int BASS2000_REQUIRED_CLICKS = 5;
+
+    @FXML
     private ChoiceBox<Integer> redshiftBoxSize;
 
     @FXML
@@ -306,6 +315,8 @@ public class JSolEx implements JSolExInterface {
     private TrimmingParameters trimmingParameters;
     private HostServices hostServices;
     private Tab imagesViewerTab;
+    private ImageMathScriptExecutor scriptExecutor;
+    private Path outputDirectory;
 
     @Override
     public MultipleImagesViewer getImagesViewer() {
@@ -379,6 +390,7 @@ public class JSolEx implements JSolExInterface {
             addIcons(stage);
             hideTabHeaderWhenSingleTab(mainPane);
             configureRedshiftControls();
+            bass2000Button.setVisible(isBass2000Enabled());
             stage.show();
             refreshRecentItemsMenu();
             LogbackConfigurer.configureLogger(console);
@@ -700,6 +712,7 @@ public class JSolEx implements JSolExInterface {
 
     @Override
     public void prepareForScriptExecution(ImageMathScriptExecutor executor, ProcessParams params, ProgressOperation rootOperation, ImageMathScriptExecutor.SectionKind sectionKind) {
+        this.scriptExecutor = executor;
         imageMathRun.setOnAction(evt -> {
             var text = imageMathScript.getText();
             if (clearImagesCheckbox.isSelected()) {
@@ -966,6 +979,23 @@ public class JSolEx implements JSolExInterface {
         stage.show();
     }
 
+    @FXML
+    private void showBass2000Submission() {
+        var fxmlLoader = I18N.fxmlLoader(JSolEx.class, "bass2000-submission");
+        try {
+            var stage = newStage();
+            var node = (Parent) fxmlLoader.load();
+            var controller = (Bass2000SubmissionController) fxmlLoader.getController();
+            controller.setup(stage, this, outputDirectory.resolve("bass2000"));
+            Scene scene = new Scene(node);
+            stage.setTitle(I18N.string(JSolEx.class, "bass2000-submission", "wizard.header"));
+            stage.setScene(scene);
+            stage.show();
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
     private void executeStandaloneScripts(ProcessParams params, ProgressOperation rootOperation) {
         var scriptFiles = params.requestedImages().mathImages().scriptFiles();
         var scriptFile = scriptFiles.stream().findFirst();
@@ -1048,7 +1078,12 @@ public class JSolEx implements JSolExInterface {
         String version = VersionUtil.getVersion();
         alert.setTitle(I18N.string(getClass(), "about", "about.title"));
         alert.setHeaderText(I18N.string(getClass(), "about", "about.header") + ". Version " + version);
-        alert.setContentText(I18N.string(getClass(), "about", "about.message"));
+
+        var contentLabel = new Label(I18N.string(getClass(), "about", "about.message"));
+        contentLabel.setWrapText(true);
+        setupHiddenBass2000Feature(contentLabel);
+        alert.getDialogPane().setContent(contentLabel);
+
         var licenses = new TextArea();
         try {
             licenses.setText(new String(JSolEx.class.getResourceAsStream("/licenses.txt").readAllBytes(), "utf-8"));
@@ -1060,6 +1095,37 @@ public class JSolEx implements JSolExInterface {
         scroll.fitToWidthProperty().set(true);
         alert.getDialogPane().setExpandableContent(scroll);
         alert.showAndWait();
+    }
+
+    private void setupHiddenBass2000Feature(Label contentLabel) {
+        if (isBass2000Enabled()) {
+            bass2000Button.setVisible(true);
+            return;
+        }
+        bass2000Button.setVisible(false);
+
+        // Add click handler for hidden feature
+        contentLabel.setOnMouseClicked(e -> {
+            if (!bass2000Button.isVisible()) {
+                bass2000ClickCount++;
+                if (bass2000ClickCount >= BASS2000_REQUIRED_CLICKS) {
+                    bass2000Button.setVisible(true);
+                    // Show notification
+                    Platform.runLater(() -> {
+                        var notification = AlertFactory.info();
+                        notification.setTitle("Hidden Feature Unlocked!");
+                        notification.setHeaderText("BASS2000 submission feature is now available");
+                        notification.setContentText("Only use the BASS2000 submission feature from the main interface IF YOU HAVE BEEN APPROVED BY THE AUTHOR.");
+                        notification.showAndWait();
+                    });
+                }
+            }
+        });
+
+    }
+
+    private static boolean isBass2000Enabled() {
+        return LocalDate.now().isAfter(LocalDate.of(2025, 9, 5));
     }
 
     @FXML
@@ -1131,6 +1197,7 @@ public class JSolEx implements JSolExInterface {
         mainPane.getTabs().add(imagesViewerTab);
         multipleImagesViewer.clear();
         hideTabHeaderWhenSingleTab(mainPane);
+        bass2000Button.setDisable(true);
     }
 
     @Override
@@ -1144,6 +1211,8 @@ public class JSolEx implements JSolExInterface {
         int boxSize = (int) Math.pow(2, power);
         Platform.runLater(() -> {
             redshiftTab.setDisable(redshifts.isEmpty());
+            // Enable BASS2000 button when processing is complete
+            bass2000Button.setDisable(false);
             fullRangePanels.disableProperty().bind(redshiftCreatorKind.valueProperty().isEqualTo(RedshiftImagesProcessor.RedshiftCreatorKind.ANIMATION));
             fullRangePanelsLabel.disableProperty().bind(redshiftCreatorKind.valueProperty().isEqualTo(RedshiftImagesProcessor.RedshiftCreatorKind.ANIMATION));
             annotateAnimationsLabel.disableProperty().bind(redshiftCreatorKind.valueProperty().isEqualTo(RedshiftImagesProcessor.RedshiftCreatorKind.PANEL));
@@ -1561,6 +1630,7 @@ public class JSolEx implements JSolExInterface {
         var processingDate = context instanceof BatchProcessingContext batch ? batch.processingDate() : LocalDateTime.now();
         var namingStrategy = new FileNamingStrategy(params.extraParams().fileNamePattern(), params.extraParams().datetimeFormat(), params.extraParams().dateFormat(), processingDate, header);
         var outputDirectory = selectedFile.getParentFile();
+        this.outputDirectory = outputDirectory.toPath();
         var baseName = selectedFile.getName().substring(0, selectedFile.getName().lastIndexOf("."));
         var logFileName = namingStrategy.render(sequenceNumber, null, "log", "log", baseName, null) + LOG_EXTENSION;
         var logFile = new File(outputDirectory, logFileName);
@@ -1595,6 +1665,12 @@ public class JSolEx implements JSolExInterface {
         this.trimmingParameters = payload;
         trimSerFileButton.setDisable(false);
     }
+
+    @Override
+    public ImageMathScriptExecutor getScriptExecutor() {
+        return scriptExecutor;
+    }
+
 
     @FXML
     public void trimSerFile() {

@@ -20,6 +20,8 @@ import java.time.ZonedDateTime;
 public record SourceInfo(
     String serFileName,
     String parentDirName,
-    ZonedDateTime dateTime
+    ZonedDateTime dateTime,
+    int width,
+    int height
 ) {
 }

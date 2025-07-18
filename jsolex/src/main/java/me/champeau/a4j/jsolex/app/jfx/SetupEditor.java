@@ -60,6 +60,12 @@ public class SetupEditor {
     @FXML
     private TextField aperture;
     @FXML
+    private TextField stop;
+    @FXML
+    private TextField energyRejectionFilter;
+    @FXML
+    private TextField mount;
+    @FXML
     private TextField camera;
     @FXML
     private TextField pixelSize;
@@ -112,8 +118,11 @@ public class SetupEditor {
         formFields = List.of(
             label,
             telescope,
+            mount,
             focalLength,
             aperture,
+            stop,
+            energyRejectionFilter,
             camera,
             pixelSize,
             latitude,
@@ -138,6 +147,7 @@ public class SetupEditor {
         }));
         focalLength.setTextFormatter(createPositiveIntFormatter());
         aperture.setTextFormatter(createPositiveIntFormatter());
+        stop.setTextFormatter(createPositiveIntFormatter());
         pixelSize.setTextFormatter(new TextFormatter<>(new DoubleStringConverter()));
         this.stage = stage;
         var items = elements.getItems();
@@ -152,8 +162,11 @@ public class SetupEditor {
                 var item = items.get(index);
                 label.setText(nullable(item.label(), s -> s));
                 telescope.setText(nullable(item.telescope(), s -> s));
+                mount.setText(nullable(item.mount(), s -> s));
                 focalLength.setText(nullable(item, i -> String.valueOf(i.focalLength())));
                 aperture.setText(nullable(item.aperture(), String::valueOf));
+                stop.setText(nullable(item.stop(), String::valueOf));
+                energyRejectionFilter.setText(nullable(item.energyRejectionFilter(), s -> s));
                 camera.setText(nullable(item.camera(), s -> s));
                 pixelSize.setText(nullable(item.pixelSize(), String::valueOf));
                 latitude.setText(nullable(item.latitude(), String::valueOf));
@@ -168,8 +181,11 @@ public class SetupEditor {
             if (updating.compareAndSet(false, true)) {
                 var newLabel = label.getText();
                 var newTelescope = telescope.getText();
+                var newMount = mount.getText();
                 var newFocalLength = focalLength.getText();
                 var newAperture = aperture.getText();
+                var newStop = stop.getText();
+                var newEnergyRejectionFilter = energyRejectionFilter.getText();
                 var newCamera = camera.getText();
                 var newPixelSize = pixelSize.getText();
                 var newLatitude = latitude.getText();
@@ -185,10 +201,13 @@ public class SetupEditor {
                             newTelescope,
                             nullable(newFocalLength, Integer::valueOf),
                             nullable(newAperture, Integer::valueOf),
+                            nullable(newStop, Integer::valueOf),
+                            nullable(newEnergyRejectionFilter, s -> s.isEmpty() ? null : s),
                             newCamera,
                             nullable(newPixelSize, SetupEditor::safeParseDouble),
                             nullable(newLatitude, SetupEditor::safeParseDouble),
                             nullable(newLongitude, SetupEditor::safeParseDouble),
+                            newMount,
                             newForceCamera,
                             newShowInDetails,
                             altAz
@@ -312,10 +331,13 @@ public class SetupEditor {
                 selected.telescope(),
                 selected.focalLength(),
                 selected.aperture(),
+                selected.stop(),
+                selected.energyRejectionFilter(),
                 selected.camera(),
                 selected.pixelSize(),
                 selected.latitude(),
                 selected.longitude(),
+                selected.mount(),
                 selected.forceCamera(),
                 selected.showCoordinatesInDetails(),
                 selected.altAzMode()
@@ -323,6 +345,9 @@ public class SetupEditor {
         } else {
             newElement = new Setup(
                 DEFAULT_NAME + " " + getItems().size(),
+                null,
+                null,
+                null,
                 null,
                 null,
                 null,

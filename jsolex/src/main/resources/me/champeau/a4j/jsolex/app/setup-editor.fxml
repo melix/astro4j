@@ -32,6 +32,8 @@
                 <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="NEVER" />
                 <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="NEVER" />
                 <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="NEVER" />
+                <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="NEVER" />
+                <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="NEVER" />
             <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="NEVER" />
             </rowConstraints>
             <children>
@@ -48,20 +50,29 @@
                 <Label text="%aperture" GridPane.rowIndex="3" />
                 <TextField fx:id="aperture" GridPane.columnIndex="1" GridPane.rowIndex="3" />
 
-                <Label text="%camera" GridPane.rowIndex="4" />
-                <TextField fx:id="camera" GridPane.columnIndex="1" GridPane.rowIndex="4" />
+                <Label text="%stop" GridPane.rowIndex="4" />
+                <TextField fx:id="stop" GridPane.columnIndex="1" GridPane.rowIndex="4" />
 
-                <Label text="%pixel.size" GridPane.rowIndex="6" />
-                <TextField fx:id="pixelSize" GridPane.columnIndex="1" GridPane.rowIndex="6" />
+                <Label text="%erf" GridPane.rowIndex="5" />
+                <TextField fx:id="energyRejectionFilter" GridPane.columnIndex="1" GridPane.rowIndex="5" />
 
-                <Label text="%latitude" GridPane.rowIndex="7" />
-                <TextField fx:id="latitude" GridPane.columnIndex="1" GridPane.rowIndex="7" />
+                <Label text="%mount" GridPane.rowIndex="6" />
+                <TextField fx:id="mount" GridPane.columnIndex="1" GridPane.rowIndex="6" />
 
-                <Label text="%longitude" GridPane.rowIndex="8" />
-                <TextField fx:id="longitude" GridPane.columnIndex="1" GridPane.rowIndex="8" />
-                <CheckBox fx:id="forceCamera" mnemonicParsing="false" text="%force.camera" GridPane.columnIndex="1" GridPane.rowIndex="5" />
-                <CheckBox fx:id="showInDetails" mnemonicParsing="false" text="%show.in.details" GridPane.columnSpan="2" GridPane.rowIndex="9" />
-                <CheckBox fx:id="altAzMode" mnemonicParsing="false" text="%altaz.mode" GridPane.columnSpan="2" GridPane.rowIndex="10">
+                <Label text="%camera" GridPane.rowIndex="7" />
+                <TextField fx:id="camera" GridPane.columnIndex="1" GridPane.rowIndex="7" />
+
+                <Label text="%pixel.size" GridPane.rowIndex="9" />
+                <TextField fx:id="pixelSize" GridPane.columnIndex="1" GridPane.rowIndex="9" />
+
+                <Label text="%latitude" GridPane.rowIndex="10" />
+                <TextField fx:id="latitude" GridPane.columnIndex="1" GridPane.rowIndex="10" />
+
+                <Label text="%longitude" GridPane.rowIndex="11" />
+                <TextField fx:id="longitude" GridPane.columnIndex="1" GridPane.rowIndex="11" />
+                <CheckBox fx:id="forceCamera" mnemonicParsing="false" text="%force.camera" GridPane.columnIndex="1" GridPane.rowIndex="8" />
+                <CheckBox fx:id="showInDetails" mnemonicParsing="false" text="%show.in.details" GridPane.columnSpan="2" GridPane.rowIndex="12" />
+                <CheckBox fx:id="altAzMode" mnemonicParsing="false" text="%altaz.mode" GridPane.columnSpan="2" GridPane.rowIndex="13">
                     <Tooltip text="%altaz.mode.tooltip" />
                 </CheckBox>
             </children>

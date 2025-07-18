@@ -20,10 +20,13 @@ public record Setup(
     String telescope,
     Integer focalLength,
     Integer aperture,
+    Integer stop,
+    String energyRejectionFilter,
     String camera,
     Double pixelSize,
     Double latitude,
     Double longitude,
+    String mount,
     boolean forceCamera,
     boolean showCoordinatesInDetails,
     boolean altAzMode

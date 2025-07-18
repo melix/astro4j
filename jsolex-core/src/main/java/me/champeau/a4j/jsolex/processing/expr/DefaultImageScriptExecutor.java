@@ -351,8 +351,8 @@ public class DefaultImageScriptExecutor implements ImageMathScriptExecutor {
         evaluator.putInContext(ProgressOperation.class, operation);
     }
 
-    public Optional<Object> getVariable(String result) {
-        return Optional.ofNullable(variables.get(result));
+    public <T> Optional<T> getVariable(String result) {
+        return Optional.ofNullable((T) variables.get(result));
     }
 
     public void disableOutputLogging() {

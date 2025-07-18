@@ -109,6 +109,10 @@ public class ProcessParamsController {
     @FXML
     private TextField aperture;
     @FXML
+    private TextField stop;
+    @FXML
+    private TextField energyRejectionFilter;
+    @FXML
     private CheckBox assumeMonoVideo;
     @FXML
     private CheckBox autocorrectAngleP;
@@ -208,6 +212,8 @@ public class ProcessParamsController {
     private CheckBox switchRedBlueChannels;
     @FXML
     private TextField telescope;
+    @FXML
+    private TextField mount;
     @FXML
     private TextField tiltValue;
     @FXML
@@ -326,6 +332,7 @@ public class ProcessParamsController {
         autoSave.setSelected(initialProcessParams.extraParams().autosave());
         focalLength.setTextFormatter(new TextFormatter<>(new IntegerStringConverter()));
         aperture.setTextFormatter(new TextFormatter<>(new IntegerStringConverter()));
+        stop.setTextFormatter(new TextFormatter<>(new IntegerStringConverter()));
         var length = initialProcessParams.observationDetails().focalLength();
         if (length != null) {
             focalLength.textProperty().setValue(String.valueOf(length));
@@ -333,6 +340,10 @@ public class ProcessParamsController {
         var ap = initialProcessParams.observationDetails().aperture();
         if (ap != null) {
             aperture.textProperty().setValue(String.valueOf(ap));
+        }
+        var st = initialProcessParams.observationDetails().stop();
+        if (st != null) {
+            stop.textProperty().setValue(String.valueOf(st));
         }
         observationDate.setTextFormatter(new TextFormatter<>(new ZonedDateTimeStringConverter()));
         observationDate.textProperty().set(serFileHeader.metadata().utcDateTime().toString());
@@ -612,6 +623,7 @@ public class ProcessParamsController {
             camera.setText(md.camera());
             binning.setValue(md.binning());
         }
+        mount.setText(initialProcessParams.observationDetails().mount());
         instrument.setConverter(new StringConverter<>() {
             @Override
             public String toString(SpectroHeliograph instrument) {
@@ -742,8 +754,11 @@ public class ProcessParamsController {
                 Platform.runLater(() ->
                         editor.getSelected().ifPresent(s -> {
                             telescope.setText(nullable(s.telescope(), String::valueOf));
+                            mount.setText(nullable(s.mount(), String::valueOf));
                             focalLength.setText(nullable(s.focalLength(), String::valueOf));
                             aperture.setText(nullable(s.aperture(), String::valueOf));
+                            stop.setText(nullable(s.stop(), String::valueOf));
+                            energyRejectionFilter.setText(nullable(s.energyRejectionFilter(), String::valueOf));
                             latitude.setText(nullable(s.latitude(), String::valueOf));
                             longitude.setText(nullable(s.longitude(), String::valueOf));
                             camera.setText(nullable(s.camera(), String::valueOf));
@@ -850,6 +865,8 @@ public class ProcessParamsController {
         closePopups();
         var focalLength = this.focalLength.getText();
         var aperture = this.aperture.getText();
+        var stop = this.stop.getText();
+        var energyRejectionFilter = this.energyRejectionFilter.getText();
         var latitude = this.latitude.getText();
         var longitude = this.longitude.getText();
         var geo = toDoublePair(latitude, longitude);
@@ -886,8 +903,11 @@ public class ProcessParamsController {
                         email.getText(),
                         instrument.getSelectionModel().getSelectedItem(),
                         telescope.getText(),
-                        focalLength.isEmpty() ? null : Integer.parseInt(focalLength),
-                        aperture.isEmpty() ? null : Integer.parseInt(aperture),
+                        mount.getText(),
+                        isNullOrEmpty(focalLength) ? null : Integer.parseInt(focalLength),
+                        isNullOrEmpty(aperture) ? null : Integer.parseInt(aperture),
+                        isNullOrEmpty(stop) ? null : Integer.parseInt(stop),
+                        isNullOrEmpty(energyRejectionFilter) ? null : energyRejectionFilter,
                         geo,
                         ZonedDateTime.parse(observationDate.getText()),
                         camera.getText(),
@@ -939,6 +959,10 @@ public class ProcessParamsController {
         ProcessParams.saveDefaults(processParams);
         autoTrimSerFileSelected = autoTrimSerFile.isSelected();
         stage.close();
+    }
+
+    private static boolean isNullOrEmpty(String string) {
+        return string == null || string.trim().isEmpty();
     }
 
     private Double getPixelSizeAsDouble() {

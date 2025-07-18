@@ -77,6 +77,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
@@ -665,6 +666,11 @@ public class BatchModeEventListener implements ProcessingEventListener, ImageMat
         processScriptErrors(result);
         renderBatchOutputs(createNamingStrategy(), result);
         return result;
+    }
+
+    @Override
+    public <T> Optional<T> getVariable(String name) {
+        return batchScriptExecutor.getVariable(name);
     }
 
     private void processScriptErrors(ImageMathScriptResult result) {

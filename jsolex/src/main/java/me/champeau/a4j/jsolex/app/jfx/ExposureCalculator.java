@@ -144,7 +144,7 @@ public class ExposureCalculator {
     }
 
     private static Setup createDefaultSetup() {
-        return new Setup("Default", "Telescope", DEFAULT_FOCAL_LENGTH, 67, "Camera", DEFAULT_PIXEL_SIZE, null, null, false, false, false);
+        return new Setup("Default", "Telescope", DEFAULT_FOCAL_LENGTH, 67, null, null, "Camera", DEFAULT_PIXEL_SIZE, null, null, null, false, false, false);
     }
 
     private <T> ChangeListener<T> updateExposure() {
