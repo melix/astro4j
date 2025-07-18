@@ -223,6 +223,7 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
         height = 0;
     }
 
+
     @Override
     public void onOutputImageDimensionsDetermined(OutputImageDimensionsDeterminedEvent event) {
         LOGGER.info(message("dimensions.determined"), event.getLabel(), event.getWidth(), event.getHeight());
@@ -1061,6 +1062,11 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
             solexVideoProcessor.setCachedEllipse(mainEllipse);
         }
         solexVideoProcessor.process();
+    }
+
+    @Override
+    public <T> Optional<T> getVariable(String name) {
+        return imageScriptExecutor.getVariable(name);
     }
 
     private Set<Double> determineShiftsRequiredInScript(String script) {

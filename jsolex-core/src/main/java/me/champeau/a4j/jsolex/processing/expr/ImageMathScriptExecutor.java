@@ -26,6 +26,7 @@ import me.champeau.a4j.jsolex.processing.util.RGBImage;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.util.Map;
+import java.util.Optional;
 
 public interface ImageMathScriptExecutor {
     static void render(ImageMathScriptResult result, ImageEmitter emitter) {
@@ -73,6 +74,8 @@ public interface ImageMathScriptExecutor {
     }
 
     ImageMathScriptResult execute(String script, SectionKind kind);
+
+    <T> Optional<T> getVariable(String name);
 
     default <T> void putInContext(Class<T> key, T value) {
 

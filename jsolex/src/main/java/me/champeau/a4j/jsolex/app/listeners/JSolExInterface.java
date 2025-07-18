@@ -63,4 +63,6 @@ public interface JSolExInterface {
 
     void setTrimmingParameters(TrimmingParameters payload);
 
+    ImageMathScriptExecutor getScriptExecutor();
+
 }

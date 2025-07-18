@@ -39,6 +39,8 @@ public class Configuration {
     private static final String MEMORY_RESTRICTION = "memory.restriction.multiplier";
     private static final String AUTO_START_SERVER = "auto.start.server";
     private static final String AUTO_START_SERVER_PORT = "auto.start.server.port";
+    private static final String BASS2000_FTP_URL = "bass2000.ftp.url";
+    public static final String DEFAULT_SOLAP_URL = "ftp://ftp.obspm.fr/incoming/solap";
 
     private final Preferences prefs;
     private final List<Path> recentFiles;
@@ -164,6 +166,14 @@ public class Configuration {
 
     public void setWatchModeWaitTimeMilis(int time) {
         prefs.putInt("watch.mode.wait.time", Math.max(500, time));
+    }
+
+    public String getBass2000FtpUrl() {
+        return prefs.get(BASS2000_FTP_URL, DEFAULT_SOLAP_URL);
+    }
+
+    public void setBass2000FtpUrl(String url) {
+        prefs.put(BASS2000_FTP_URL, url);
     }
 
     public enum DirectoryKind {

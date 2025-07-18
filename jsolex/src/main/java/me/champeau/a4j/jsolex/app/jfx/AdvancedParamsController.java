@@ -16,6 +16,7 @@
 package me.champeau.a4j.jsolex.app.jfx;
 
 import javafx.fxml.FXML;
+import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.control.Slider;
 import javafx.scene.control.TextField;
@@ -36,6 +37,12 @@ public class AdvancedParamsController {
     @FXML
     private Label memoryRestrictionHelp;
 
+    @FXML
+    private TextField bass2000FtpUrl;
+
+    @FXML
+    private Button resetFtpUrlButton;
+
     private Stage stage;
 
     public void setup(Stage stage) {
@@ -54,6 +61,7 @@ public class AdvancedParamsController {
         var initialWaitTime = Configuration.getInstance().getWatchModeWaitTimeMilis();
         watchModeWaitTimeMillis.setText(String.valueOf(initialWaitTime));
         memoryRestrictionMultiplier.setValue(Configuration.getInstance().getMemoryRestrictionMultiplier());
+        bass2000FtpUrl.setText(Configuration.getInstance().getBass2000FtpUrl());
     }
 
     public static String computeMemoryUsageHelpLabel(Number value) {
@@ -72,6 +80,7 @@ public class AdvancedParamsController {
     public void close() {
         Configuration.getInstance().setWatchModeWaitTimeMilis(Integer.parseInt(watchModeWaitTimeMillis.getText()));
         Configuration.getInstance().setMemoryRestrictionMultiplier((int) memoryRestrictionMultiplier.getValue());
+        Configuration.getInstance().setBass2000FtpUrl(bass2000FtpUrl.getText());
         AlertFactory.info(I18N.string(JSolEx.class, "advanced-params", "must.restart"))
             .showAndWait();
         stage.close();
@@ -79,5 +88,9 @@ public class AdvancedParamsController {
 
     public void cancel() {
         stage.close();
+    }
+
+    public void resetFtpUrl() {
+        bass2000FtpUrl.setText(Configuration.DEFAULT_SOLAP_URL);
     }
 }
