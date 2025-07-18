@@ -17,6 +17,7 @@ package me.champeau.a4j.jsolex.processing.event;
 
 public abstract sealed class ProcessingEvent<T> permits
         AverageImageComputedEvent,
+        EllipseFittingDialogRequestEvent,
         ImageGeneratedEvent,
         FileGeneratedEvent,
         NotificationEvent,

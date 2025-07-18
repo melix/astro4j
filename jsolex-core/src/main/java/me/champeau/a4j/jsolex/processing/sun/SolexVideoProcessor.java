@@ -16,6 +16,7 @@
 package me.champeau.a4j.jsolex.processing.sun;
 
 import me.champeau.a4j.jsolex.processing.event.AverageImageComputedEvent;
+import me.champeau.a4j.jsolex.processing.event.EllipseFittingDialogRequestEvent;
 import me.champeau.a4j.jsolex.processing.event.FileGeneratedEvent;
 import me.champeau.a4j.jsolex.processing.event.GeneratedImage;
 import me.champeau.a4j.jsolex.processing.event.GenericMessage;
@@ -42,6 +43,7 @@ import me.champeau.a4j.jsolex.processing.expr.InvalidExpression;
 import me.champeau.a4j.jsolex.processing.expr.impl.ImageDraw;
 import me.champeau.a4j.jsolex.processing.expr.impl.Loader;
 import me.champeau.a4j.jsolex.processing.file.FileNamingStrategy;
+import me.champeau.a4j.jsolex.processing.params.EllipseFittingMode;
 import me.champeau.a4j.jsolex.processing.params.EnhancementParams;
 import me.champeau.a4j.jsolex.processing.params.ImageMathParams;
 import me.champeau.a4j.jsolex.processing.params.ProcessParams;
@@ -120,6 +122,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -1117,6 +1120,59 @@ public class SolexVideoProcessor implements Broadcaster {
         if (cachedEllipse != null) {
             return cachedEllipse;
         }
+        
+        // Check for manual ellipse fitting mode
+        var ellipseFittingMode = processParams.geometryParams().ellipseFittingMode();
+        if (ellipseFittingMode == EllipseFittingMode.MANUAL) {
+            // Check if user ellipse was provided
+            var userEllipse = processParams.geometryParams().userEllipse();
+            if (userEllipse.isPresent()) {
+                // Use the user-provided ellipse
+                var ellipse = userEllipse.get();
+                var result = new EllipseFittingTask.Result(ellipse, null);
+                cachedEllipse = result;
+                return result;
+            } else {
+                // No user ellipse provided - need to show manual ellipse fitting dialog
+                // Get the first image to show in the dialog
+                var firstImage = imageList.stream()
+                    .sorted(Comparator.comparing(WorkflowState::pixelShift))
+                    .findFirst();
+                
+                if (firstImage.isPresent()) {
+                    var image = firstImage.get().image();
+                    var future = new CompletableFuture<me.champeau.a4j.math.regression.Ellipse>();
+                    
+                    // First perform automatic ellipse detection to get initial ellipse
+                    var ellipseFittingTask = new EllipseFittingTask(this, newOperation(message("ellipse.fitting")), () -> image, processParams, imageEmitterFactory.newEmitter(this, outputDirectory));
+                    me.champeau.a4j.math.regression.Ellipse automaticEllipse = null;
+                    try {
+                        var automaticResult = ellipseFittingTask.call();
+                        if (automaticResult != null) {
+                            automaticEllipse = automaticResult.ellipse();
+                        }
+                    } catch (Exception ex) {
+                        LOGGER.warn("Automatic ellipse detection failed, using default ellipse", ex);
+                    }
+                    
+                    // Broadcast event to request ellipse fitting dialog with automatic result as initial
+                    broadcast(new EllipseFittingDialogRequestEvent(image, automaticEllipse, future));
+                    
+                    try {
+                        // Wait for user input
+                        var ellipse = future.get();
+                        if (ellipse != null) {
+                            var result = new EllipseFittingTask.Result(ellipse, null);
+                            cachedEllipse = result;
+                            return result;
+                        }
+                    } catch (Exception e) {
+                        LOGGER.error("Error waiting for ellipse fitting dialog result", e);
+                    }
+                }
+            }
+        }
+        
         var selected = imageList.stream().sorted(Comparator.comparing(WorkflowState::pixelShift)).map(state -> {
                     var ellipseFittingTask = new EllipseFittingTask(this, newOperation(message("ellipse.fitting")), state::image, processParams, imageEmitterFactory.newEmitter(this, outputDirectory));
                     try {
@@ -1691,6 +1747,7 @@ public class SolexVideoProcessor implements Broadcaster {
                 case AverageImageComputedEvent e -> listener.onAverageImageComputed(e);
                 case ReconstructionDoneEvent e -> listener.onReconstructionDone(e);
                 case TrimmingParametersDeterminedEvent e -> listener.onTrimmingParametersDetermined(e);
+                case EllipseFittingDialogRequestEvent e -> listener.onEllipseFittingDialogRequest(e);
             }
         }
     }

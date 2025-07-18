@@ -65,6 +65,7 @@ public class ZoomableImageView extends HBox {
     private BiConsumer<? super Double, ? super Double> onCoordinatesListener;
     private Consumer<? super Double> onZoomChanged;
     private Ellipse solardisk;
+    private InteractiveEllipseOverlay ellipseOverlay;
 
     private double zoom = 0;
     private Path imagePath;
@@ -133,7 +134,14 @@ public class ZoomableImageView extends HBox {
         selectionLabel.setTextFill(Color.RED);
         disableSelection();
 
+        // Initialize interactive ellipse overlay
+        ellipseOverlay = new InteractiveEllipseOverlay();
+        
         var pane = new Pane(imageView, selectionRectangle, selectionLabel);
+        pane.getChildren().addAll(ellipseOverlay.getNodes());
+        
+        // Ensure ellipse overlay is always on top
+        ellipseOverlay.getNodes().forEach(node -> node.toFront());
         scrollPane.setContent(pane);
         scrollPane.pannableProperty().bind(isSelectingRectangle.not());
         scrollPane.addEventFilter(ScrollEvent.ANY, event -> {
@@ -177,6 +185,11 @@ public class ZoomableImageView extends HBox {
     }
 
     private void handleMousePressed(MouseEvent event) {
+        // Don't handle mouse events if ellipse overlay is active
+        if (isInInteractiveEllipseMode()) {
+            return;
+        }
+        
         if (rectangleSelectionListener != null && event.getButton() == MouseButton.PRIMARY && event.isControlDown()) {
             isSelectingRectangle.set(true);
             startX = event.getX();
@@ -190,6 +203,11 @@ public class ZoomableImageView extends HBox {
     }
 
     private void handleMouseMoved(MouseEvent event) {
+        // Don't handle mouse events if ellipse overlay is active
+        if (isInInteractiveEllipseMode()) {
+            return;
+        }
+        
         if (event.isControlDown() && isSelectingRectangle.get()) {
             double endX = event.getX();
             double endY = event.getY();
@@ -210,6 +228,11 @@ public class ZoomableImageView extends HBox {
     }
 
     private void handleMouseReleased(MouseEvent event) {
+        // Don't handle mouse events if ellipse overlay is active
+        if (isInInteractiveEllipseMode()) {
+            return;
+        }
+        
         if (event.getButton() == MouseButton.PRIMARY && isSelectingRectangle.get()) {
             handleSelectionFinished(event.getScreenX(), event.getScreenY());
         }
@@ -302,6 +325,11 @@ public class ZoomableImageView extends HBox {
         imageView.setFitWidth(image.getWidth() * zoom);
         imageView.setFitHeight(image.getHeight() * zoom);
         adjustScrollPane();
+        
+        // Update ellipse overlay zoom
+        if (ellipseOverlay != null) {
+            ellipseOverlay.setZoom(zoom);
+        }
     }
 
     private void adjustScrollPane() {
@@ -487,5 +515,37 @@ public class ZoomableImageView extends HBox {
 
     public ObservableValue<Boolean> canFitToCenterProperty() {
         return canFitToCenter;
+    }
+
+    public void enableInteractiveEllipseMode(boolean enabled) {
+        if (ellipseOverlay != null) {
+            ellipseOverlay.setActive(enabled);
+            if (enabled) {
+                // Bring ellipse overlay to front when activated
+                ellipseOverlay.getNodes().forEach(node -> node.toFront());
+            }
+        }
+    }
+
+    public void setInteractiveEllipse(Ellipse ellipse) {
+        if (ellipseOverlay != null) {
+            ellipseOverlay.setEllipse(ellipse);
+            // Bring ellipse overlay to front when ellipse is set
+            ellipseOverlay.getNodes().forEach(node -> node.toFront());
+        }
+    }
+
+    public Ellipse getInteractiveEllipse() {
+        return ellipseOverlay != null ? ellipseOverlay.getEllipse() : null;
+    }
+
+    public void setOnEllipseChanged(Consumer<Ellipse> listener) {
+        if (ellipseOverlay != null) {
+            ellipseOverlay.setOnEllipseChanged(listener);
+        }
+    }
+
+    public boolean isInInteractiveEllipseMode() {
+        return ellipseOverlay != null && ellipseOverlay.isActive();
     }
 }
