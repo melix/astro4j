@@ -31,7 +31,7 @@ import java.util.stream.Stream;
 import static me.champeau.a4j.jsolex.processing.util.FilesUtils.createDirectoriesIfNeeded;
 
 public abstract class SetupsIO {
-    private static final Setup SUNSCAN = new Setup("Sunscan by Staros", "Sunscan", 200, 25, "IMX477", 3.1, null, null, false, false, false);
+    private static final Setup SUNSCAN = new Setup("Sunscan by Staros", "Sunscan", 200, 25, null, null, "IMX477", 3.1, null, null, null, false, false, false);
 
     private SetupsIO() {
 

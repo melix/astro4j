@@ -127,7 +127,16 @@ public class ImageDraw extends AbstractFunctionImpl {
                         appendLine("Focal length " + details.focalLength() + "mm", sb);
                     }
                     if (details.aperture() != null) {
-                        appendLine("Aperture " + details.aperture() + "mm", sb);
+                        var apertureLine = "Aperture " + details.aperture() + "mm";
+                        if (details.stop() != null) {
+                            apertureLine += " (stopped at " + details.stop() + "mm)";
+                        }
+                        appendLine(apertureLine, sb);
+                    } else if (details.stop() != null) {
+                        appendLine("Diaphragm " + details.stop() + "mm", sb);
+                    }
+                    if (details.energyRejectionFilter() != null) {
+                        appendLine("ERF " + details.energyRejectionFilter(), sb);
                     }
                     appendLine(details.camera(), sb);
                     if (details.showCoordinatesInDetails() && details.coordinates() != null) {

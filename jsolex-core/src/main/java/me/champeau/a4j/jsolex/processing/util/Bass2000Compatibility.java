@@ -13,15 +13,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package me.champeau.a4j.jsolex.processing.sun.workflow;
+package me.champeau.a4j.jsolex.processing.util;
 
-import java.time.ZonedDateTime;
-
-public record SourceInfo(
-    String serFileName,
-    String parentDirName,
-    ZonedDateTime dateTime,
-    int width,
-    int height
+/**
+ * This class is used specifically to ensure compatibility with the BASS2000
+ * database when saving FITS files.
+ */
+public record Bass2000Compatibility(
+        double forcedWavelengthAngstroms
 ) {
 }

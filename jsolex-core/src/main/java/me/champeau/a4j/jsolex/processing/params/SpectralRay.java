@@ -227,4 +227,8 @@ public record SpectralRay(String label, ColorCurve colorCurve, Wavelen wavelengt
     public static List<SpectralRay> predefined() {
         return PREDEFINED;
     }
+
+    public SpectralRay withWavelength(Wavelen wavelength) {
+        return new SpectralRay(label, colorCurve, wavelength, emission);
+    }
 }
