@@ -108,7 +108,6 @@ public class FitsUtils {
     public static final String BIN2 = "BIN2";
     public static final String DIAPH = "DIAPH";
     public static final String FEQUIV = "FEQUIV";
-    public static final String APERTURE = "APERTURE";
     public static final String CAMPIX = "CAMPIX";
     public static final String FCOL = "FCOL";
     public static final String FCAM = "FCAM";
@@ -169,14 +168,19 @@ public class FitsUtils {
                     if (kernel instanceof short[][] mono) {
                         rows = mono.length;
                         cols = rows == 0 ? 0 : mono[0].length;
-                        data = readChannel(mono, rows, cols, bzero);
+                        // JSol'Ex up to 3.3.x used to flip the Y axis
+                        boolean hasSpectroHeader = imageHdu.getHeader().containsKey(SPECTRO);
+                        boolean shouldFlipY = isJSolEx && !hasSpectroHeader;
+                        data = readChannel(mono, rows, cols, bzero, shouldFlipY);
                     } else if (kernel instanceof short[][][] channels) {
                         rgb = new float[3][][];
                         for (int i = 0; i < channels.length; i++) {
                             short[][] channel = channels[i];
                             rows = channel.length;
                             cols = rows == 0 ? 0 : channel[0].length;
-                            rgb[i] = readChannel(channel, rows, cols, bzero);
+                            boolean hasSpectroHeader = imageHdu.getHeader().containsKey(SPECTRO);
+                            boolean shouldFlipY = isJSolEx && !hasSpectroHeader;
+                            rgb[i] = readChannel(channel, rows, cols, bzero, shouldFlipY);
                         }
                     } else {
                         throw new UnsupportedOperationException("Unsupported FITS file format");
@@ -219,11 +223,12 @@ public class FitsUtils {
         }
     }
 
-    private static float[][] readChannel(short[][] mono, int rows, int cols, int bzero) {
+    private static float[][] readChannel(short[][] mono, int rows, int cols, int bzero, boolean flipY) {
         float[][] data = new float[rows][cols];
         for (int y = 0; y < rows; y++) {
             for (int x = 0; x < cols; x++) {
-                data[y][x] = mono[rows-y-1][x] + bzero;
+                int sourceY = flipY ? (rows - y - 1) : y;
+                data[y][x] = mono[sourceY][x] + bzero;
             }
         }
         return data;
