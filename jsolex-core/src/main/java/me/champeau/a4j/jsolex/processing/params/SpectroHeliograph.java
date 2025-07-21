@@ -18,15 +18,15 @@ package me.champeau.a4j.jsolex.processing.params;
 import java.util.Locale;
 
 public record SpectroHeliograph(
-    String label,
-    double totalAngleDegrees,
-    double focalLength,
-    double collimatorFocalLength,
-    int density,
-    int order,
-    double slitWidthMicrons,
-    double slitHeightMillimeters,
-    boolean spectrumVFlip
+        String label,
+        double totalAngleDegrees,
+        double focalLength,
+        double collimatorFocalLength,
+        int density,
+        int order,
+        double slitWidthMicrons,
+        double slitHeightMillimeters,
+        boolean spectrumVFlip
 ) {
     public static final SpectroHeliograph SOLEX = new SpectroHeliograph("Sol'Ex", 34, 125, 80, 2400, 1, 10, 4.5, false);
     public static final SpectroHeliograph SUNSCAN = new SpectroHeliograph("Sunscan", 34, 100, 75, 2400, 1, 10, 6, true);
@@ -73,7 +73,11 @@ public record SpectroHeliograph(
     }
 
     public String bass2000Id() {
-        var lc = label.toLowerCase(Locale.US);
+        return bass2000Id(label);
+    }
+
+    public static String bass2000Id(String label) {
+        var lc = label == null ? "" : label.trim().toLowerCase(Locale.US);
         if (lc.contains("sol'ex") || lc.contains("solex")) {
             return "SOLEX";
         }

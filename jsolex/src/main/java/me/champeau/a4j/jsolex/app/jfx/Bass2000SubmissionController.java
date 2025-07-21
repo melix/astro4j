@@ -32,6 +32,7 @@ import javafx.scene.control.ProgressBar;
 import javafx.scene.control.ScrollPane;
 import javafx.scene.control.Slider;
 import javafx.scene.control.TextField;
+import javafx.scene.control.Tooltip;
 import javafx.scene.image.Image;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.HBox;
@@ -127,7 +128,7 @@ public class Bass2000SubmissionController {
     );
 
     private static final double TOLERANCE_ANGSTROMS = 0.1;
-    private static final int IMAGE_VIEW_SIZE = 520;
+    private static final int IMAGE_VIEW_SIZE = 480;
 
     @FXML
     private ProgressBar wizardProgress;
@@ -169,6 +170,7 @@ public class Bass2000SubmissionController {
     private VBox blinkContainer;
     private HBox angleAdjustmentBox;
     private boolean showingUserImage = true;
+    private double blinkDurationMs = 500.0;
 
     private int rotation = 0;
     private boolean horizontalFlip = false;
@@ -507,7 +509,7 @@ public class Bass2000SubmissionController {
     }
 
     private VBox createFirstStepContent() {
-        var content = new VBox(20);
+        var content = new VBox(12);
 
         var headerLabel = new Label(message("requirements.title"));
         headerLabel.setStyle("-fx-font-weight: bold; -fx-font-size: 16px;");
@@ -589,7 +591,7 @@ public class Bass2000SubmissionController {
     }
 
     private VBox createStep2Content() {
-        var content = new VBox(10);
+        var content = new VBox(6);
 
         var headerLabel = new Label(message("orientation.title"));
         headerLabel.setStyle("-fx-font-weight: bold; -fx-font-size: 16px;");
@@ -609,7 +611,7 @@ public class Bass2000SubmissionController {
         var imageComparisonBox = new HBox(10);
         imageComparisonBox.setMaxHeight(IMAGE_VIEW_SIZE);
 
-        imageComparisonBox.setStyle("-fx-background-color: #f0f0f0; -fx-padding: 10;");
+        imageComparisonBox.setStyle("-fx-background-color: #f0f0f0; -fx-padding: 5;");
         this.originalImageComparisonBox = imageComparisonBox;
 
         var userImageContainer = new VBox(5);
@@ -681,15 +683,32 @@ public class Bass2000SubmissionController {
         };
         angleSlider.valueProperty().addListener(angleSliderListener);
 
-        angleAdjustmentBox = new HBox(10);
-        angleAdjustmentBox.setStyle("-fx-alignment: center; -fx-padding: 2;");
+        var blinkDurationSlider = new Slider(500.0, 5000.0, 500.0);
+        blinkDurationSlider.setShowTickLabels(true);
+        blinkDurationSlider.setShowTickMarks(true);
+        blinkDurationSlider.setMajorTickUnit(1000.0);
+        blinkDurationSlider.setMinorTickCount(4);
+        blinkDurationSlider.setPrefWidth(300);
+
+        var blinkDurationSliderListener = (ChangeListener<Number>) (observable, oldValue, newValue) -> {
+            blinkDurationMs = newValue.doubleValue();
+            if (blinkMode && blinkTimeline != null) {
+                restartBlinkAnimation();
+            }
+        };
+        blinkDurationSlider.valueProperty().addListener(blinkDurationSliderListener);
+
+        angleAdjustmentBox = new HBox(8);
+        angleAdjustmentBox.setStyle("-fx-alignment: center; -fx-padding: 1;");
         angleAdjustmentBox.setVisible(false);
         var angleLabel = new Label(message("fine.tilt.adjust"));
         angleLabel.setStyle("-fx-font-weight: bold;");
-        angleAdjustmentBox.getChildren().addAll(angleLabel, angleSlider);
+        var blinkDurationLabel = new Label(message("blink.duration"));
+        blinkDurationLabel.setStyle("-fx-font-weight: bold;");
+        angleAdjustmentBox.getChildren().addAll(angleLabel, angleSlider, blinkDurationLabel, blinkDurationSlider);
 
-        var controlsBox = new HBox(10);
-        controlsBox.setStyle("-fx-alignment: center; -fx-padding: 2;");
+        var controlsBox = new HBox(8);
+        controlsBox.setStyle("-fx-alignment: center; -fx-padding: 1;");
 
         var controlsLabel = new Label(message("orientation.controls.label"));
         controlsLabel.setStyle("-fx-font-weight: bold;");
@@ -728,8 +747,6 @@ public class Bass2000SubmissionController {
         }
         loadGongReferenceImage();
 
-        content.getChildren().addAll(headerLabel, instructionLabel, validationWarningLabel, imageComparisonBox, angleAdjustmentBox, controlsBox);
-
         var processParams = findProcessParams();
         if (processParams != null && processParams.spectrumParams().ray() != SpectralRay.H_ALPHA) {
             var tipLabel = new Label(message("orientation.tip.non.halpha"));
@@ -740,11 +757,13 @@ public class Bass2000SubmissionController {
             content.getChildren().add(tipLabel);
         }
 
+        content.getChildren().addAll(headerLabel, instructionLabel, validationWarningLabel, imageComparisonBox, angleAdjustmentBox, controlsBox);
+
         return content;
     }
 
     private VBox createStep3Content() {
-        var content = new VBox(15);
+        var content = new VBox(10);
 
         var headerLabel = new Label(message("metadata.title"));
         headerLabel.setStyle("-fx-font-weight: bold; -fx-font-size: 16px;");
@@ -755,9 +774,9 @@ public class Bass2000SubmissionController {
         var formGrid = createForm();
 
         var scrollPane = new ScrollPane();
-        var formContent = new VBox(20);
+        var formContent = new VBox(12);
         formContent.getChildren().addAll(headerLabel, instructionLabel, formGrid);
-        formContent.setStyle("-fx-padding: 10;");
+        formContent.setStyle("-fx-padding: 8;");
 
         scrollPane.setContent(formContent);
         scrollPane.setFitToWidth(true);
@@ -769,9 +788,9 @@ public class Bass2000SubmissionController {
 
     private GridPane createForm() {
         var formGrid = new GridPane();
-        formGrid.setHgap(20);
-        formGrid.setVgap(10);
-        formGrid.setStyle("-fx-padding: 10;");
+        formGrid.setHgap(15);
+        formGrid.setVgap(8);
+        formGrid.setStyle("-fx-padding: 5;");
 
         var row = 0;
 
@@ -804,27 +823,27 @@ public class Bass2000SubmissionController {
 
         mountNameField = new TextField();
         mountNameField.setPromptText(message("mount.name.prompt"));
-        addFormField(formGrid, message("mount.name.label"), mountNameField, 0, row++, true);
+        addFormField(formGrid, message("mount.name.label"), mountNameField, 0, row, true);
 
         telescopeNameField = new TextField();
         telescopeNameField.setPromptText(message("instrument.name.prompt"));
-        addFormField(formGrid, message("instrument.name.label"), telescopeNameField, 0, row, true);
+        addFormField(formGrid, message("instrument.name.label"), telescopeNameField, 1, row, true);
 
         telescopeFocalLengthField = new TextField();
         telescopeFocalLengthField.setPromptText("e.g., 1000");
-        addFormField(formGrid, "Telescope Focal Length (mm)", telescopeFocalLengthField, 1, row++, true);
+        addFormField(formGrid, "Telescope Focal Length (mm)", telescopeFocalLengthField, 2, row++, true);
 
         apertureField = new TextField();
         apertureField.setPromptText(message("instrument.aperture.prompt"));
-        addFormField(formGrid, message("instrument.aperture.label"), apertureField, 0, row++, true);
+        addFormField(formGrid, message("instrument.aperture.label"), apertureField, 0, row, true);
 
         stopField = new TextField();
         stopField.setPromptText(message("instrument.stop.prompt"));
-        addFormField(formGrid, message("instrument.stop.label"), stopField, 0, row, false);
+        addFormField(formGrid, message("instrument.stop.label"), stopField, 1, row, false);
 
         erfField = new TextField();
         erfField.setPromptText(message("instrument.erf.prompt"));
-        addFormField(formGrid, message("instrument.erf.label"), erfField, 1, row++, false);
+        addFormField(formGrid, message("instrument.erf.label"), erfField, 2, row++, false);
 
         cameraNameField = new TextField();
         cameraNameField.setPromptText(message("instrument.camera.name.prompt"));
@@ -832,14 +851,14 @@ public class Bass2000SubmissionController {
 
         pixelSizeField = new TextField();
         pixelSizeField.setPromptText(message("instrument.pixel.size.only.prompt"));
-        addFormField(formGrid, message("instrument.pixel.size.only.label"), pixelSizeField, 1, row++, true);
+        addFormField(formGrid, message("instrument.pixel.size.only.label"), pixelSizeField, 1, row, true);
         pixelSizeField.setDisable(true);
         pixelSizeField.setEditable(false);
 
         binningField = new ComboBox<>();
         binningField.getItems().addAll("1", "2", "3", "4");
         binningField.setPromptText(message("instrument.binning.prompt"));
-        addFormField(formGrid, message("instrument.binning.label"), binningField, 0, row++, true);
+        addFormField(formGrid, message("instrument.binning.label"), binningField, 2, row++, true);
         binningField.setDisable(true);
         binningField.setEditable(false);
 
@@ -847,15 +866,15 @@ public class Bass2000SubmissionController {
 
         spectrographNameField = new TextField();
         spectrographNameField.setPromptText(message("spectrograph.name.prompt"));
-        addFormField(formGrid, message("spectrograph.name.label"), spectrographNameField, 0, row++, true);
+        addFormField(formGrid, message("spectrograph.name.label"), spectrographNameField, 0, row, true);
 
         slitWidthField = new TextField();
         slitWidthField.setPromptText(message("spectrograph.slit.width.prompt"));
-        addFormField(formGrid, message("spectrograph.slit.width.label"), slitWidthField, 0, row, true);
+        addFormField(formGrid, message("spectrograph.slit.width.label"), slitWidthField, 1, row, true);
 
         slitHeightField = new TextField();
         slitHeightField.setPromptText(message("spectrograph.slit.height.prompt"));
-        addFormField(formGrid, message("spectrograph.slit.height.label"), slitHeightField, 1, row++, true);
+        addFormField(formGrid, message("spectrograph.slit.height.label"), slitHeightField, 2, row++, true);
 
         gratingDensityField = new TextField();
         gratingDensityField.setPromptText(message("spectrograph.grating.density.prompt"));
@@ -863,19 +882,19 @@ public class Bass2000SubmissionController {
 
         collimatorFocalLengthField = new TextField();
         collimatorFocalLengthField.setPromptText(message("spectrograph.collimator.focal.length.prompt"));
-        addFormField(formGrid, message("spectrograph.collimator.focal.length.label"), collimatorFocalLengthField, 1, row++, true);
+        addFormField(formGrid, message("spectrograph.collimator.focal.length.label"), collimatorFocalLengthField, 1, row, true);
 
         cameraLensFocalLengthField = new TextField();
         cameraLensFocalLengthField.setPromptText(message("spectrograph.camera.lens.focal.length.prompt"));
-        addFormField(formGrid, message("spectrograph.camera.lens.focal.length.label"), cameraLensFocalLengthField, 0, row, true);
+        addFormField(formGrid, message("spectrograph.camera.lens.focal.length.label"), cameraLensFocalLengthField, 2, row++, true);
 
         orderField = new TextField();
         orderField.setPromptText(message("spectrograph.order.prompt"));
-        addFormField(formGrid, message("spectrograph.order.label"), orderField, 1, row++, true);
+        addFormField(formGrid, message("spectrograph.order.label"), orderField, 0, row, true);
 
         totalAngleField = new TextField();
         totalAngleField.setPromptText(message("spectrograph.total.angle.prompt"));
-        addFormField(formGrid, message("spectrograph.total.angle.label"), totalAngleField, 0, row++, true);
+        addFormField(formGrid, message("spectrograph.total.angle.label"), totalAngleField, 1, row++, true);
 
         populateFormFromProcessParams();
 
@@ -884,8 +903,8 @@ public class Bass2000SubmissionController {
 
     private void addSectionHeader(GridPane grid, String title, int row) {
         var headerLabel = new Label(title);
-        headerLabel.setStyle("-fx-font-weight: bold; -fx-font-size: 14px; -fx-text-fill: #333; -fx-padding: 10 0 5 0;");
-        grid.add(headerLabel, 0, row, 2, 1);
+        headerLabel.setStyle("-fx-font-weight: bold; -fx-font-size: 14px; -fx-text-fill: #333; -fx-padding: 8 0 3 0;");
+        grid.add(headerLabel, 0, row, 3, 1);
     }
 
     private void addFormField(GridPane grid, String labelText, Node field, int column, int row, boolean required) {
@@ -900,7 +919,7 @@ public class Bass2000SubmissionController {
             region.setMaxWidth(Double.MAX_VALUE);
         }
         if (field instanceof TextField textField) {
-            textField.setPrefWidth(200);
+            textField.setPrefWidth(180);
 
             if (required) {
                 requiredFields.add(textField);
@@ -1092,12 +1111,14 @@ public class Bass2000SubmissionController {
             return text.trim().contains("@") && text.trim().contains(".");
         }
 
-        if (field == mountNameField || field == cameraNameField) {
+        if (field == mountNameField || field == cameraNameField || field == telescopeNameField) {
             if (text.trim().contains(" ")) {
                 var parts = text.trim().split("\\s+");
                 return Arrays.stream(parts).allMatch(s -> s.length()>=3);
             }
             return false;
+        } else if (field == spectrographNameField) {
+            return !"UNKNOWN".equals(SpectroHeliograph.bass2000Id(spectrographNameField.getText()));
         }
 
         return true;
@@ -1117,6 +1138,10 @@ public class Bass2000SubmissionController {
                 }
                 field.setStyle(currentStyle);
             }
+            // Remove validation tooltip when field becomes valid
+            if (field instanceof TextField textField) {
+                textField.setTooltip(null);
+            }
         } else {
             if (!currentStyle.contains("-fx-border-color: red")) {
                 if (!currentStyle.isEmpty() && !currentStyle.endsWith(";")) {
@@ -1125,12 +1150,26 @@ public class Bass2000SubmissionController {
                 currentStyle += "-fx-border-color: red; -fx-border-width: 2px;";
                 field.setStyle(currentStyle);
             }
+            if (field instanceof TextField textField) {
+                if (textField == mountNameField || textField == cameraNameField || textField == telescopeNameField) {
+                    var key = textField == mountNameField ? "mount" :
+                            textField == cameraNameField ? "camera" : "telescope";
+                    var tooltip = new Tooltip(message("validation.tooltip." + key));
+                    tooltip.setShowDelay(javafx.util.Duration.millis(100));
+                    textField.setTooltip(tooltip);
+                }
+                if (textField == spectrographNameField) {
+                    var tooltip = new Tooltip(message("validation.tooltip.spectrograph"));
+                    tooltip.setShowDelay(javafx.util.Duration.millis(100));
+                    textField.setTooltip(tooltip);
+                }
+            }
         }
     }
 
     private VBox createStep4Content() {
-        var content = new VBox(20);
-        content.setStyle("-fx-padding: 20;");
+        var content = new VBox(12);
+        content.setStyle("-fx-padding: 12;");
 
         var headerLabel = new Label(message("filename.title"));
         headerLabel.setStyle("-fx-font-weight: bold; -fx-font-size: 16px;");
@@ -1188,8 +1227,8 @@ public class Bass2000SubmissionController {
     }
 
     private VBox createStep5Content() {
-        var content = new VBox(20);
-        content.setStyle("-fx-padding: 20;");
+        var content = new VBox(12);
+        content.setStyle("-fx-padding: 12;");
 
         var headerLabel = new Label(message("upload.title"));
         headerLabel.setStyle("-fx-font-weight: bold; -fx-font-size: 16px;");
@@ -1211,7 +1250,7 @@ public class Bass2000SubmissionController {
     }
 
     private VBox createFileSavedSection() {
-        var section = new VBox(10);
+        var section = new VBox(8);
 
         var sectionHeader = new Label(message("upload.file.saved.title"));
         sectionHeader.setStyle("-fx-font-weight: bold; -fx-font-size: 14px;");
@@ -1247,8 +1286,8 @@ public class Bass2000SubmissionController {
     }
 
     private VBox createUploadSection() {
-        var section = new VBox(10);
-        section.setStyle("-fx-border-color: #2196F3; -fx-border-width: 1; -fx-border-radius: 5; -fx-padding: 15;");
+        var section = new VBox(8);
+        section.setStyle("-fx-border-color: #2196F3; -fx-border-width: 1; -fx-border-radius: 5; -fx-padding: 10;");
 
         var sectionHeader = new Label(message("upload.upload.title"));
         sectionHeader.setStyle("-fx-font-weight: bold; -fx-font-size: 14px; -fx-text-fill: #2196F3;");
@@ -1261,18 +1300,18 @@ public class Bass2000SubmissionController {
         uploadButton.setOnAction(e -> uploadToBass2000());
 
         var uploadButtonContainer = new HBox();
-        uploadButtonContainer.setStyle("-fx-alignment: center; -fx-padding: 10 0 0 0;");
+        uploadButtonContainer.setStyle("-fx-alignment: center; -fx-padding: 6 0 0 0;");
         uploadButtonContainer.getChildren().add(uploadButton);
 
         var uploadStatusLabel = new Label("");
         uploadStatusLabel.setId("uploadStatusLabel");
-        uploadStatusLabel.setStyle("-fx-font-weight: bold; -fx-padding: 10 0 0 0; -fx-alignment: center;");
+        uploadStatusLabel.setStyle("-fx-font-weight: bold; -fx-padding: 6 0 0 0; -fx-alignment: center;");
 
         var uploadProgressBar = new ProgressBar();
         uploadProgressBar.setId("uploadProgressBar");
         uploadProgressBar.setPrefWidth(300);
         uploadProgressBar.setVisible(false);
-        uploadProgressBar.setStyle("-fx-padding: 10 0 0 0;");
+        uploadProgressBar.setStyle("-fx-padding: 6 0 0 0;");
 
         var uploadProgressContainer = new HBox();
         uploadProgressContainer.setStyle("-fx-alignment: center;");
@@ -1751,7 +1790,7 @@ public class Bass2000SubmissionController {
         }
 
         blinkContainer = new VBox(5);
-        blinkContainer.setStyle("-fx-alignment: center; -fx-background-color: #f0f0f0; -fx-padding: 10;");
+        blinkContainer.setStyle("-fx-alignment: center; -fx-background-color: #f0f0f0; -fx-padding: 6;");
 
         var blinkLabel = new Label(message("blink.mode"));
         blinkLabel.setStyle("-fx-font-weight: bold; -fx-font-size: 14px;");
@@ -1809,7 +1848,7 @@ public class Bass2000SubmissionController {
         blinkImageView.resetZoom();
 
         blinkTimeline = new Timeline(
-                new KeyFrame(Duration.millis(500), e -> {
+                new KeyFrame(Duration.millis(blinkDurationMs), e -> {
                     if (showingUserImage) {
                         blinkImageView.setImage(gongDisplayImage);
                         showingUserImage = false;
@@ -1822,6 +1861,13 @@ public class Bass2000SubmissionController {
         );
         blinkTimeline.setCycleCount(Animation.INDEFINITE);
         blinkTimeline.play();
+    }
+
+    private void restartBlinkAnimation() {
+        if (blinkTimeline != null) {
+            blinkTimeline.stop();
+        }
+        startBlinkAnimation();
     }
 
     private void applyCurrentTransformations() {

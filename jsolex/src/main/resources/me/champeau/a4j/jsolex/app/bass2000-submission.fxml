@@ -9,20 +9,17 @@
 <?import javafx.scene.layout.StackPane?>
 <?import javafx.scene.layout.VBox?>
 
-<BorderPane maxHeight="-Infinity" maxWidth="-Infinity" minHeight="-Infinity" minWidth="-Infinity" prefHeight="900.0"
-            prefWidth="1200.0" xmlns="http://javafx.com/javafx/19" xmlns:fx="http://javafx.com/fxml/1"
+<BorderPane maxHeight="-Infinity" maxWidth="-Infinity" minHeight="-Infinity" minWidth="-Infinity" prefHeight="780.0"
+            prefWidth="1100.0" xmlns="http://javafx.com/javafx/19" xmlns:fx="http://javafx.com/fxml/1"
             fx:controller="me.champeau.a4j.jsolex.app.jfx.Bass2000SubmissionController">
     <top>
-        <VBox spacing="10.0" BorderPane.alignment="CENTER">
+        <HBox alignment="CENTER" spacing="10.0" BorderPane.alignment="CENTER">
             <padding>
                 <Insets bottom="10.0" left="10.0" right="10.0" top="10.0"/>
             </padding>
-            <Label text="%wizard.header" style="-fx-font-weight: bold; -fx-font-size: 18px;"/>
-            <HBox alignment="CENTER" spacing="10.0">
-                <Label fx:id="stepLabel" text="Step 1 of 4"/>
-                <ProgressBar fx:id="wizardProgress" prefWidth="200.0" progress="0.25"/>
-            </HBox>
-        </VBox>
+            <Label fx:id="stepLabel" text="Step 1 of 4"/>
+            <ProgressBar fx:id="wizardProgress" prefWidth="200.0" progress="0.25"/>
+        </HBox>
     </top>
     <center>
         <StackPane fx:id="contentPane" BorderPane.alignment="CENTER">
