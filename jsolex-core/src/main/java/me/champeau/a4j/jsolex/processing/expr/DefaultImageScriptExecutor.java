@@ -128,11 +128,7 @@ public class DefaultImageScriptExecutor implements ImageMathScriptExecutor {
             var evaluator = new MemoizingExpressionEvaluator(broadcaster);
             populateContext(evaluator);
             var result = doExecuteScript(script, index, evaluator, kind);
-            evaluator.getVariables().forEach((key, value) -> {
-                if (!variables.containsKey(key)) {
-                    variables.put(key, value);
-                }
-            });
+            variables.putAll(evaluator.getVariables());
             return result;
         } finally {
             if (!isCollectingShifts() && outputLogging) {
@@ -351,8 +347,8 @@ public class DefaultImageScriptExecutor implements ImageMathScriptExecutor {
         evaluator.putInContext(ProgressOperation.class, operation);
     }
 
-    public Optional<Object> getVariable(String result) {
-        return Optional.ofNullable(variables.get(result));
+    public <T> Optional<T> getVariable(String result) {
+        return Optional.ofNullable((T) variables.get(result));
     }
 
     public void disableOutputLogging() {

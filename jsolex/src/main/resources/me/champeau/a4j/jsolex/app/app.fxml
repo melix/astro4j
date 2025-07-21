@@ -88,6 +88,7 @@
                         </tooltip>
                     </Button>
                     <Button fx:id="serverStatus" onMouseClicked="#showEmbeddedServerMenu" alignment="BASELINE_CENTER"/>
+                    <Button fx:id="bass2000Button" onAction="#showBass2000Submission" text="%bass2000.submit" disable="true"/>
                 </HBox>
                 <SplitPane dividerPositions="0.5" orientation="VERTICAL">
                     <items>

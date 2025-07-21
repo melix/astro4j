@@ -1102,7 +1102,7 @@ public class SolexVideoProcessor implements Broadcaster {
         context.put(SolarParameters.class, SolarParametersUtils.computeSolarParams(processParams.observationDetails().date().toLocalDateTime()));
         context.put(ReferenceCoords.class, new ReferenceCoords(List.of()));
         var file = serFile.toFile();
-        context.put(SourceInfo.class, new SourceInfo(file.getName(), file.getParentFile().getName(), header.metadata().utcDateTime()));
+        context.put(SourceInfo.class, new SourceInfo(file.getName(), file.getParentFile().getName(), header.metadata().utcDateTime(), header.geometry().width(), header.frameCount()));
         if (pixelShiftRange != null) {
             context.put(PixelShiftRange.class, pixelShiftRange);
         }

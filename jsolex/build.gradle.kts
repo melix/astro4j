@@ -17,6 +17,7 @@ dependencies {
     implementation(libs.commonmark)
     implementation(libs.ikonli)
     implementation(libs.ikonli.fluentui)
+    implementation(libs.commons.net)
 }
 
 jlink {

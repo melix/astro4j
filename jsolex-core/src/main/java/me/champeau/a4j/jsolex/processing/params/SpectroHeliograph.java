@@ -15,6 +15,8 @@
  */
 package me.champeau.a4j.jsolex.processing.params;
 
+import java.util.Locale;
+
 public record SpectroHeliograph(
     String label,
     double totalAngleDegrees,
@@ -68,5 +70,16 @@ public record SpectroHeliograph(
 
     public SpectroHeliograph withSpectrumVFlip(boolean spectrumVFlip) {
         return new SpectroHeliograph(label, totalAngleDegrees, focalLength, collimatorFocalLength, density, order, slitWidthMicrons, slitHeightMillimeters, spectrumVFlip);
+    }
+
+    public String bass2000Id() {
+        var lc = label.toLowerCase(Locale.US);
+        if (lc.contains("sol'ex") || lc.contains("solex")) {
+            return "SOLEX";
+        }
+        if (lc.contains("shg") && lc.contains("700")) {
+            return "SHG700";
+        }
+        return "UNKNOWN";
     }
 }

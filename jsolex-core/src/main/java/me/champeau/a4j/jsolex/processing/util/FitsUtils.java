@@ -64,7 +64,10 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 
+import static nom.tam.fits.header.ObservationDescription.OBJNAME;
+import static nom.tam.fits.header.extra.MaxImDLExt.*;
 import static nom.tam.fits.header.extra.NOAOExt.CAMERA;
 
 public class FitsUtils {
@@ -96,6 +99,31 @@ public class FitsUtils {
     public static final String INTI_Y1 = "INTI_Y1";
     public static final String INTI_X2 = "INTI_X2";
     public static final String INTI_Y2 = "INTI_Y2";
+
+    // BASS2000 Specific
+    public static final String SPECTRO = "SPECTRO";
+    public static final String ERF = "ERF";
+    public static final String SOLAR_P = "SOLAR_P";
+    public static final String BIN1 = "BIN1";
+    public static final String BIN2 = "BIN2";
+    public static final String DIAPH = "DIAPH";
+    public static final String FEQUIV = "FEQUIV";
+    public static final String CAMPIX = "CAMPIX";
+    public static final String FCOL = "FCOL";
+    public static final String FCAM = "FCAM";
+    public static final String GROOVES = "GROOVES";
+    public static final String ORDER = "ORDER";
+    public static final String SHGANGLE = "SHGANGLE";
+    public static final String SLWIDTH = "SLWIDTH";
+    public static final String SLHEIGHT = "SLHEIGHT";
+    public static final String PHYSPARA = "PHYSPARA";
+    public static final String WAVEUNIT = "WAVEUNIT";
+    public static final String FILENAME = "FILENAME";
+    public static final String CONTACT = "CONTACT";
+    public static final String SEP_LAT = "SEP_LAT";
+    public static final String SEP_LON = "SEP_LON";
+    public static final String CAR_ROT = "CAR_ROT";
+    public static final String WAVEBAND = "WAVEBAND";
 
     private final ProcessParams params;
     private final File destination;
@@ -140,14 +168,19 @@ public class FitsUtils {
                     if (kernel instanceof short[][] mono) {
                         rows = mono.length;
                         cols = rows == 0 ? 0 : mono[0].length;
-                        data = readChannel(mono, rows, cols, bzero);
+                        // JSol'Ex up to 3.3.x used to flip the Y axis
+                        boolean hasSpectroHeader = imageHdu.getHeader().containsKey(SPECTRO);
+                        boolean shouldFlipY = isJSolEx && !hasSpectroHeader;
+                        data = readChannel(mono, rows, cols, bzero, shouldFlipY);
                     } else if (kernel instanceof short[][][] channels) {
                         rgb = new float[3][][];
                         for (int i = 0; i < channels.length; i++) {
                             short[][] channel = channels[i];
                             rows = channel.length;
                             cols = rows == 0 ? 0 : channel[0].length;
-                            rgb[i] = readChannel(channel, rows, cols, bzero);
+                            boolean hasSpectroHeader = imageHdu.getHeader().containsKey(SPECTRO);
+                            boolean shouldFlipY = isJSolEx && !hasSpectroHeader;
+                            rgb[i] = readChannel(channel, rows, cols, bzero, shouldFlipY);
                         }
                     } else {
                         throw new UnsupportedOperationException("Unsupported FITS file format");
@@ -179,22 +212,23 @@ public class FitsUtils {
             double solarR = header.getIntValue(SOLAR_R);
             // need to convert to Ellipse parameters
             var ellipse = Ellipse.ofCartesian(new DoubleSextuplet(
-                1,
-                0,
-                1,
-                -2d * centerX,
-                -2d * centerY,
-                centerX * centerX + centerY * centerY - solarR * solarR
+                    1,
+                    0,
+                    1,
+                    -2d * centerX,
+                    -2d * centerY,
+                    centerX * centerX + centerY * centerY - solarR * solarR
             ));
             metadata.putIfAbsent(Ellipse.class, ellipse);
         }
     }
 
-    private static float[][] readChannel(short[][] mono, int rows, int cols, int bzero) {
+    private static float[][] readChannel(short[][] mono, int rows, int cols, int bzero, boolean flipY) {
         float[][] data = new float[rows][cols];
         for (int y = 0; y < rows; y++) {
             for (int x = 0; x < cols; x++) {
-                data[y][x] = mono[y][x] + bzero;
+                int sourceY = flipY ? (rows - y - 1) : y;
+                data[y][x] = mono[sourceY][x] + bzero;
             }
         }
         return data;
@@ -223,12 +257,12 @@ public class FitsUtils {
                         cart[i] = binaryTable.getDouble(0, i);
                     }
                     metadata.put(Ellipse.class, Ellipse.ofCartesian(new DoubleSextuplet(
-                        cart[0],
-                        cart[1],
-                        cart[2],
-                        cart[3],
-                        cart[4],
-                        cart[5]
+                            cart[0],
+                            cart[1],
+                            cart[2],
+                            cart[3],
+                            cart[4],
+                            cart[5]
                     )));
                 } else if (PROCESS_PARAMS_VALUE.equals(card.getValue())) {
                     var bytes = (byte[]) binaryTableHdu.getData().get(0, 0);
@@ -238,11 +272,11 @@ public class FitsUtils {
                 } else if (SOLAR_PARAMS_VALUE.equals(card.getValue())) {
                     var binaryTable = binaryTableHdu.getData();
                     var sp = new SolarParameters(
-                        binaryTable.getNumber(0, 0).intValue(),
-                        binaryTable.getDouble(0, 1),
-                        binaryTable.getDouble(0, 2),
-                        binaryTable.getDouble(0, 3),
-                        binaryTable.getDouble(0, 4)
+                            binaryTable.getNumber(0, 0).intValue(),
+                            binaryTable.getDouble(0, 1),
+                            binaryTable.getDouble(0, 2),
+                            binaryTable.getDouble(0, 3),
+                            binaryTable.getDouble(0, 4)
                     );
                     metadata.put(SolarParameters.class, sp);
                 } else if (TRANSFORMS_VALUE.equals(card.getValue())) {
@@ -262,14 +296,14 @@ public class FitsUtils {
                     var binaryTable = binaryTableHdu.getData();
                     int cpt = binaryTable.getNRows();
                     var values = new ArrayList<ReferenceCoords.Operation>();
-                    
+
                     // Check version number from first row (uses special index -1)
                     int startIndex = 0;
                     if (cpt > 0) {
                         int firstIndex = binaryTable.getNumber(0, 0).intValue();
                         if (firstIndex == -1) {
                             int version = (int) binaryTable.getDouble(0, 1);
-                            
+
                             // Handle different versions
                             if (version == REF_COORDS_VERSION) {
                                 startIndex = 1; // Skip version row
@@ -278,18 +312,18 @@ public class FitsUtils {
                             }
                         }
                     }
-                    
+
                     // Parse operations starting from startIndex
                     for (int i = startIndex; i < cpt; i++) {
                         int kindIndex = binaryTable.getNumber(i, 0).intValue();
-                        
+
                         // Convert ordinal index back to OperationKind
                         var operationKinds = ReferenceCoords.OperationKind.values();
                         if (kindIndex < 0 || kindIndex >= operationKinds.length) {
                             throw new RuntimeException("Invalid operation kind index: " + kindIndex);
                         }
                         var kind = operationKinds[kindIndex];
-                        
+
                         // Read values from Double columns (max 3 values)
                         var valuesList = new ArrayList<Double>();
                         for (int col = 1; col <= 3; col++) {
@@ -298,7 +332,7 @@ public class FitsUtils {
                                 valuesList.add(val);
                             }
                         }
-                        
+
                         double[] operationValues = valuesList.stream().mapToDouble(Double::doubleValue).toArray();
                         values.add(new ReferenceCoords.Operation(kind, operationValues));
                     }
@@ -308,23 +342,29 @@ public class FitsUtils {
                     var fileName = (String) binaryTable.get(0, 0);
                     var parentName = (String) binaryTable.get(0, 1);
                     var date = ZonedDateTime.parse((String) binaryTable.get(0, 2));
-                    metadata.put(SourceInfo.class, new SourceInfo(fileName, parentName, date));
+                    int width = 0;
+                    int height = 0;
+                    if (binaryTable.getNCols()>3) {
+                        width = binaryTable.getNumber(0, 3).intValue();
+                        height = binaryTable.getNumber(0, 4).intValue();
+                    }
+                    metadata.put(SourceInfo.class, new SourceInfo(fileName, parentName, date, width, height));
                 } else if (REDSHIFTS_VALUE.equals(card.getValue())) {
                     var binaryTable = binaryTableHdu.getData();
                     int cpt = binaryTable.getNRows();
                     var values = new ArrayList<RedshiftArea>();
                     for (int i = 0; i < cpt; i++) {
                         var redshift = new RedshiftArea(
-                            binaryTable.getNCols() == 10 ? binaryTable.getString(i, 9) : null,
-                            binaryTable.getNumber(i, 0).intValue(),
-                            binaryTable.getNumber(i, 1).intValue(),
-                            binaryTable.getNumber(i, 2).doubleValue(),
-                            binaryTable.getNumber(i, 3).intValue(),
-                            binaryTable.getNumber(i, 4).intValue(),
-                            binaryTable.getNumber(i, 5).intValue(),
-                            binaryTable.getNumber(i, 6).intValue(),
-                            binaryTable.getNumber(i, 7).intValue(),
-                            binaryTable.getNumber(i, 8).intValue()
+                                binaryTable.getNCols() == 10 ? binaryTable.getString(i, 9) : null,
+                                binaryTable.getNumber(i, 0).intValue(),
+                                binaryTable.getNumber(i, 1).intValue(),
+                                binaryTable.getNumber(i, 2).doubleValue(),
+                                binaryTable.getNumber(i, 3).intValue(),
+                                binaryTable.getNumber(i, 4).intValue(),
+                                binaryTable.getNumber(i, 5).intValue(),
+                                binaryTable.getNumber(i, 6).intValue(),
+                                binaryTable.getNumber(i, 7).intValue(),
+                                binaryTable.getNumber(i, 8).intValue()
                         );
                         values.add(redshift);
                     }
@@ -519,16 +559,16 @@ public class FitsUtils {
         image.findMetadata(Redshifts.class).ifPresent(redshifts -> {
             var table = new BinaryTable();
             redshifts.redshifts().forEach(redshift -> table.addRow(new Object[]{
-                redshift.pixelShift(),
-                redshift.relPixelShift(),
-                redshift.kmPerSec(),
-                redshift.x1(),
-                redshift.y1(),
-                redshift.x2(),
-                redshift.y2(),
-                redshift.maxX(),
-                redshift.maxY(),
-                redshift.id()
+                    redshift.pixelShift(),
+                    redshift.relPixelShift(),
+                    redshift.kmPerSec(),
+                    redshift.x1(),
+                    redshift.y1(),
+                    redshift.x2(),
+                    redshift.y2(),
+                    redshift.maxX(),
+                    redshift.maxY(),
+                    redshift.id()
             }));
             writeBinaryTable(table, REDSHIFTS_VALUE, "Measured redshifts", fits);
         });
@@ -551,24 +591,24 @@ public class FitsUtils {
         if (metadata.isPresent()) {
             var referenceCoords = metadata.get();
             var table = new BinaryTable();
-            
+
             // Add version number as first row to enable future format changes
             // Use special negative index (-1) to indicate version row
             table.addRow(new Object[]{-1, (double) REF_COORDS_VERSION, Double.NaN, Double.NaN});
-            
+
             referenceCoords.operations().forEach(op -> {
                 // Store operation kind as ordinal index to avoid FITS string truncation
                 int kindIndex = op.kind().ordinal();
-                
+
                 // Store values as separate Double columns (max 3 values supported currently)
                 // Fill unused columns with NaN to indicate no value
                 double val1 = op.values().length > 0 ? op.values()[0] : Double.NaN;
                 double val2 = op.values().length > 1 ? op.values()[1] : Double.NaN;
                 double val3 = op.values().length > 2 ? op.values()[2] : Double.NaN;
-                
+
                 table.addRow(new Object[]{kindIndex, val1, val2, val3});
             });
-            
+
             var binaryTableHDU = BinaryTableHDU.wrap(table);
             binaryTableHDU.getHeader().addValue(JSOLEX_HEADER_KEY, REFCOORDS2_VALUE, "Reference coordinate transforms v2");
             fits.addHDU(binaryTableHDU);
@@ -580,7 +620,7 @@ public class FitsUtils {
         if (metadata.isPresent()) {
             var sourceInfo = metadata.get();
             var table = new BinaryTable();
-            table.addRow(new Object[]{sourceInfo.serFileName(), sourceInfo.parentDirName(), sourceInfo.dateTime().toString()});
+            table.addRow(new Object[]{sourceInfo.serFileName(), sourceInfo.parentDirName(), sourceInfo.dateTime().toString(), sourceInfo.width(), sourceInfo.height()});
             var binaryTableHDU = BinaryTableHDU.wrap(table);
             binaryTableHDU.getHeader().addValue(JSOLEX_HEADER_KEY, SOURCEINFO_VALUE, "Source file information");
             fits.addHDU(binaryTableHDU);
@@ -606,12 +646,12 @@ public class FitsUtils {
             var table = new BinaryTable();
             var cart = ellipse.getCartesianCoefficients();
             table.addRow(new Double[]{
-                cart.a(),
-                cart.b(),
-                cart.c(),
-                cart.d(),
-                cart.e(),
-                cart.f()
+                    cart.a(),
+                    cart.b(),
+                    cart.c(),
+                    cart.d(),
+                    cart.e(),
+                    cart.f()
             });
             var binaryTableHDU = BinaryTableHDU.wrap(table);
             binaryTableHDU.getHeader().addValue(JSOLEX_HEADER_KEY, ELLIPSE_VALUE, "Ellipse parameters");
@@ -625,11 +665,11 @@ public class FitsUtils {
             var sp = metadata.get();
             var table = new BinaryTable();
             table.addRow(new Object[]{
-                sp.carringtonRotation(),
-                sp.b0(),
-                sp.l0(),
-                sp.p(),
-                sp.apparentSize()
+                    sp.carringtonRotation(),
+                    sp.b0(),
+                    sp.l0(),
+                    sp.p(),
+                    sp.apparentSize()
             });
             var binaryTableHDU = BinaryTableHDU.wrap(table);
             binaryTableHDU.getHeader().addValue(JSOLEX_HEADER_KEY, SOLAR_PARAMS_VALUE, "Solar parameters");
@@ -652,6 +692,7 @@ public class FitsUtils {
 
     private void writeHeader(ImageWrapper image, Header header) throws HeaderCardException {
         int naxis = image instanceof RGBImage ? 3 : 2;
+        header.addValue(ROWORDER, ROWORDER_BOTTOM_UP);
         header.addValue(Standard.BITPIX, 16);
         header.addValue(Standard.NAXIS, naxis);
         header.addValue(Standard.NAXIS1, image.width());
@@ -662,44 +703,94 @@ public class FitsUtils {
         header.addValue(Standard.BSCALE, 1);
         header.addValue(Standard.BZERO, 32768);
         header.addValue(Standard.OBJECT, "Sun");
+        header.addValue(OBJNAME, "Sun");
         var obs = params.observationDetails();
         maybeAdd(header, Standard.OBSERVER, obs.observer());
         maybeAdd(header, Standard.INSTRUME, obs.instrument().label());
         maybeAdd(header, CAMERA, obs.camera());
         header.addValue(Standard.DATE_OBS, obs.date().format(
-            DateTimeFormatter.ISO_DATE_TIME
+                DateTimeFormatter.ISO_DATE_TIME
         ));
         var email = obs.email();
         if (notEmpty(email)) {
-            header.addValue("CONTACT", normalize(email), "Contact email");
+            header.addValue(CONTACT, normalize(email), "Contact email");
         }
         var coordinates = obs.coordinates();
         if (coordinates != null) {
             header.addValue(SBFitsExt.SITELAT, String.valueOf(coordinates.a()));
             header.addValue(SBFitsExt.SITELONG, String.valueOf(coordinates.b()));
         }
-        header.addValue(DataDescription.CREATOR, "JSol'Ex");
+        header.addValue(DataDescription.CREATOR, "JSol'Ex " + VersionUtil.getVersion());
+
+        header.addValue(PHYSPARA, "Intensity", "Physical parameter");
+        header.addValue(WAVEUNIT, -10, "Wavelength unit");
+
+        header.addValue(FILENAME, destination.getName(), "Original filename");
+
+        // Add solar parameters if available
+        image.findMetadata(SolarParameters.class).ifPresent(solarParams -> {
+            header.addValue(SEP_LAT, Math.toDegrees(solarParams.b0()), "Latitude of disk centre (B0 angle)");
+            header.addValue(SEP_LON, Math.toDegrees(solarParams.l0()), "Carrington longitude of central meridian");
+            header.addValue(CAR_ROT, solarParams.carringtonRotation(), "Carrington rotation number");
+            header.addValue(SOLAR_P, Math.toDegrees(solarParams.p()), "P angle (degrees)");
+        });
+
         var fl = obs.focalLength();
         if (fl != null) {
             header.addValue(SBFitsExt.FOCALLEN, fl.floatValue());
         }
-        var aperture = obs.aperture();
-        if (aperture != null) {
-            header.addValue(InstrumentDescription.APERTURE, String.valueOf(aperture));
+        int aperture = obs.aperture() != null ? obs.aperture() : 0;
+        header.addValue(InstrumentDescription.APERTURE, String.valueOf(aperture));
+
+        int stop = obs.stop() == null ? aperture : obs.stop();
+        header.addValue(DIAPH, stop, "Diaphragm diameter (mm)");
+        var erf = obs.energyRejectionFilter() == null ? "" : obs.energyRejectionFilter();
+        header.addValue(ERF, erf, "Energy Rejection Filter");
+
+        var instrument = obs.instrument();
+        header.addValue(SPECTRO, instrument.bass2000Id(), "BASS2000 spectroheliograph ID");
+        header.addValue(FEQUIV, fl != null ? fl.floatValue() : 0.0f, "Equivalent focal length of telescope (mm)");
+        header.addValue(CAMERA, obs.camera() != null ? obs.camera() : "Unknown");
+        header.addValue(CAMPIX, obs.pixelSize() != null ? obs.pixelSize().floatValue() / 1000.0f : 0.0f, "Pixel size of sensor (mm)");
+        header.addValue(FCOL, (float) instrument.collimatorFocalLength(), "Focal length of collimator (mm)");
+        header.addValue(FCAM, (float) instrument.focalLength(), "Focal length of camera lens (mm)");
+        header.addValue(GROOVES, instrument.density(), "Number of grooves/mm of grating");
+        header.addValue(ORDER, instrument.order(), "Interference order on grating");
+        header.addValue(SHGANGLE, (float) instrument.totalAngleDegrees(), "Angle between incident and diffracted rays (degrees)");
+        header.addValue(SLWIDTH, (float) (instrument.slitWidthMicrons() / 1000.0), "Slit width (mm)");
+        header.addValue(SLHEIGHT, (float) instrument.slitHeightMillimeters(), "Slit height (mm)");
+        header.addValue(BIN1, obs.binning() != null ? obs.binning() : 1, "Binning factor in X direction");
+        header.addValue(BIN2, obs.binning() != null ? obs.binning() : 1, "Binning factor in Y direction");
+        var declaredWavelength = params.spectrumParams().ray().wavelength();
+        var wavelength = declaredWavelength.nanos();
+        var pixelSize = obs.pixelSize();
+        var binning = obs.binning();
+        if (wavelength != 0 && pixelSize != null && pixelSize > 0 && binning != null && binning > 0) {
+            var dispersion = SpectrumAnalyzer.computeSpectralDispersion(instrument, Wavelen.ofNanos(wavelength), pixelSize * binning);
+            header.addValue(WAVEBAND, (float) dispersion.angstromsPerPixel(), "Spectral dispersion (Angstrom/pixel)");
+        } else {
+            header.addValue(WAVEBAND, 0.0f, "Spectral dispersion (Angstrom/pixel) - unknown");
         }
-        var wavelength = params.spectrumParams().ray().wavelength().nanos();
-        var obsParams = params.observationDetails();
-        // alter the wavelength according to the pixel shift
-        if (wavelength != 0) {
-            var pixelShift = image.findMetadata(PixelShift.class).map(PixelShift::pixelShift);
-            var pixelSize = obsParams.pixelSize();
-            var binning = obsParams.binning();
-            if (pixelShift.isPresent() && pixelSize != null && pixelSize > 0 && binning != null && binning > 0) {
-                var dispersion = SpectrumAnalyzer.computeSpectralDispersion(obsParams.instrument(), Wavelen.ofNanos(wavelength), pixelSize * binning);
-                wavelength += pixelShift.get() * dispersion.nanosPerPixel();
+        Optional<Bass2000Compatibility> bass2000Compatibility = image.findMetadata(Bass2000Compatibility.class);
+        if (bass2000Compatibility.isPresent()) {
+            header.addValue("WAVELNTH", bass2000Compatibility.get().forcedWavelengthAngstroms(), "Wavelength (Angstroms)");
+        } else {
+            wavelength = declaredWavelength.nanos();
+            // alter the wavelength according to the pixel shift
+            if (wavelength != 0) {
+                var pixelShift = image.findMetadata(PixelShift.class).map(PixelShift::pixelShift);
+                if (pixelShift.isPresent() && pixelSize != null && pixelSize > 0 && binning != null && binning > 0) {
+                    var dispersion = SpectrumAnalyzer.computeSpectralDispersion(obs.instrument(), Wavelen.ofNanos(wavelength), pixelSize * binning);
+                    wavelength += pixelShift.get() * dispersion.nanosPerPixel();
+                }
+                // convert to Angstroms
+                wavelength = 10 * wavelength;
+                // then round to 3 digits
+                wavelength = Math.round(wavelength * 1000.0) / 1000.0;
+                header.addValue("WAVELNTH", wavelength, "Wavelength (Angstroms)");
             }
-            header.addValue("WAVELNTH", wavelength, "Wavelength (nm)");
         }
+
         writeIntiCompatibleFields(image, header);
     }
 
@@ -735,8 +826,8 @@ public class FitsUtils {
 
     private static String normalize(String string) {
         return Normalizer.normalize(string, Normalizer.Form.NFKD)
-            .replaceAll("\\p{M}", "")
-            .replaceAll("[^\\x20-\\x7E]", "_");
+                .replaceAll("\\p{M}", "")
+                .replaceAll("[^\\x20-\\x7E]", "_");
     }
 
     private static boolean notEmpty(String str) {
@@ -748,7 +839,8 @@ public class FitsUtils {
         var result = new short[rowCount * width];
         for (int y = 0; y < rowCount; y++) {
             for (int x = 0; x < width; x++) {
-                int value = Math.round(data[y][x]);
+                // BASS2000 requires bottom-up order
+                int value = Math.round(data[rowCount - y - 1][x]);
                 if (value < 0) {
                     value = 0;
                 } else if (value > 65536) {

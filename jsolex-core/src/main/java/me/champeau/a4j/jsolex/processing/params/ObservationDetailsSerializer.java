@@ -54,10 +54,13 @@ class ObservationDetailsSerializer implements JsonSerializer<ObservationDetails>
         if (json instanceof JsonObject obj) {
             var observer = getNullableString(obj, "observer");
             var aperture = getNullableInt(obj, "aperture");
+            var stop = getNullableInt(obj, "stop");
+            var energyRejectionFilter = getNullableString(obj, "energyRejectionFilter");
             var binning = getNullableInt(obj,"binning");
             var camera = getNullableString(obj, "camera");
             var email = getNullableString(obj, "email");
             var telescope = getNullableString(obj, "telescope");
+            var mount = getNullableString(obj, "mount");
             var pixelSize = getNullableDouble(obj, "pixelSize");
             var date = (ZonedDateTime) context.deserialize(obj.get("date"), ZonedDateTime.class);
             var focalLength = getNullableInt(obj, "focalLength");
@@ -76,7 +79,7 @@ class ObservationDetailsSerializer implements JsonSerializer<ObservationDetails>
                     .orElse(SpectroHeliograph.SOLEX);
             }
             var coordinates = (DoublePair) context.deserialize(obj.get("coordinates"), DoublePair.class);
-            return new ObservationDetails(observer, email, instrument, telescope, focalLength, aperture, coordinates, date, camera, binning, pixelSize, forceCamera, showCoordinatesInDetails, altAzMode);
+            return new ObservationDetails(observer, email, instrument, telescope, mount, focalLength, aperture, stop, energyRejectionFilter, coordinates, date, camera, binning, pixelSize, forceCamera, showCoordinatesInDetails, altAzMode);
         }
         throw new IllegalAccessError("Unexpected JSON type " + json.getClass());
     }
@@ -86,10 +89,13 @@ class ObservationDetailsSerializer implements JsonSerializer<ObservationDetails>
         var obj = new JsonObject();
         obj.addProperty("observer", src.observer());
         obj.addProperty("aperture", src.aperture());
+        obj.addProperty("stop", src.stop());
+        obj.addProperty("energyRejectionFilter", src.energyRejectionFilter());
         obj.addProperty("binning", src.binning());
         obj.addProperty("camera", src.camera());
         obj.addProperty("email", src.email());
         obj.addProperty("telescope", src.telescope());
+        obj.addProperty("mount", src.mount());
         obj.addProperty("pixelSize", src.pixelSize());
         obj.addProperty("focalLength", src.focalLength());
         obj.add("date", context.serialize(src.date()));
