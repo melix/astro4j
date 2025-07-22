@@ -1211,8 +1211,9 @@ public class JSolEx implements JSolExInterface {
         int boxSize = (int) Math.pow(2, power);
         Platform.runLater(() -> {
             redshiftTab.setDisable(redshifts.isEmpty());
-            // Enable BASS2000 button when processing is complete
-            bass2000Button.setDisable(false);
+            if (lastExecutionProcessParams != null) {
+                bass2000Button.setDisable(!lastExecutionProcessParams.observationDetails().instrument().isSupportedByBass2000());
+            }
             fullRangePanels.disableProperty().bind(redshiftCreatorKind.valueProperty().isEqualTo(RedshiftImagesProcessor.RedshiftCreatorKind.ANIMATION));
             fullRangePanelsLabel.disableProperty().bind(redshiftCreatorKind.valueProperty().isEqualTo(RedshiftImagesProcessor.RedshiftCreatorKind.ANIMATION));
             annotateAnimationsLabel.disableProperty().bind(redshiftCreatorKind.valueProperty().isEqualTo(RedshiftImagesProcessor.RedshiftCreatorKind.PANEL));

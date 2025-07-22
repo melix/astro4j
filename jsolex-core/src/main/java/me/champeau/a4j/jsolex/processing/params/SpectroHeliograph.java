@@ -35,6 +35,7 @@ public record SpectroHeliograph(
     public static final SpectroHeliograph MLASTRO_SHG_700_OLD_75 = new SpectroHeliograph("MLAstro SHG 700", 34, 75, 75, 2400, 1, 7, 7, false);
     public static final SpectroHeliograph MLASTRO_SHG_700 = new SpectroHeliograph("MLAstro SHG 700", 34, 72, 72, 2400, 1, 7, 7, false);
     public static final SpectroHeliograph MLASTRO_SHG_400 = new SpectroHeliograph("MLAstro SHG 400", 34, 100, 100, 2400, 1, 7, 7, false);
+    public static final String UNKNOWN = "UNKNOWN";
 
     public double totalAngleRadians() {
         return Math.toRadians(totalAngleDegrees);
@@ -84,6 +85,10 @@ public record SpectroHeliograph(
         if (lc.contains("shg") && lc.contains("700")) {
             return "SHG700";
         }
-        return "UNKNOWN";
+        return UNKNOWN;
+    }
+
+    public boolean isSupportedByBass2000() {
+        return !bass2000Id().equals(UNKNOWN);
     }
 }

@@ -966,7 +966,7 @@ public class Bass2000SubmissionController {
             var closestRay = ACCEPTED_SPECTRAL_RAYS.keySet().stream()
                     .filter(ray -> Math.abs(ray.wavelength().angstroms() - wavelength) <= TOLERANCE_ANGSTROMS)
                     .min(Comparator.comparingDouble(a -> Math.abs(a.wavelength().angstroms() - wavelength)));
-            closestRay.ifPresent(wavelengthField::setValue);
+            closestRay.ifPresentOrElse(wavelengthField::setValue, () -> wavelengthField.setValue(BASS2000_HA));
         }
 
         var spectrograph = processParams.observationDetails().instrument();
