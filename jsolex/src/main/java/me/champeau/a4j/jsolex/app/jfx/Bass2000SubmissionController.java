@@ -17,6 +17,7 @@ package me.champeau.a4j.jsolex.app.jfx;
 
 import javafx.animation.Animation;
 import javafx.animation.KeyFrame;
+import javafx.animation.RotateTransition;
 import javafx.animation.Timeline;
 import javafx.application.Platform;
 import javafx.beans.value.ChangeListener;
@@ -1660,8 +1661,24 @@ public class Bass2000SubmissionController {
 
     private void showLoadingIndicator() {
         if (gongImageView != null && gongImageContainer != null) {
-            var loadingLabel = new Label(message("gong.loading"));
-            loadingLabel.setStyle("-fx-font-size: 14px; -fx-text-fill: gray;");
+            var loadingContainer = new VBox(10);
+            loadingContainer.setStyle("-fx-alignment: center;");
+            
+            var pendulum = new Label("●");
+            pendulum.setStyle("-fx-font-size: 24px; -fx-text-fill: #2196F3;");
+
+            // Create pendulum swing animation with a much larger arc
+            var pendulumSwing = new RotateTransition(Duration.seconds(1.2), pendulum);
+            pendulumSwing.setFromAngle(-45);
+            pendulumSwing.setToAngle(45);
+            pendulumSwing.setCycleCount(Animation.INDEFINITE);
+            pendulumSwing.setAutoReverse(true);
+            pendulumSwing.play();
+
+            var loadingTextLabel = new Label(message("gong.loading"));
+            loadingTextLabel.setStyle("-fx-font-size: 14px; -fx-text-fill: gray;");
+
+            loadingContainer.getChildren().addAll(pendulum, loadingTextLabel);
 
             var loadingWrapper = new HBox();
             loadingWrapper.setPrefWidth(IMAGE_VIEW_SIZE);
@@ -1671,7 +1688,7 @@ public class Bass2000SubmissionController {
             loadingWrapper.setMinWidth(IMAGE_VIEW_SIZE);
             loadingWrapper.setMinHeight(IMAGE_VIEW_SIZE);
             loadingWrapper.setStyle("-fx-border-color: gray; -fx-border-width: 1; -fx-alignment: center;");
-            loadingWrapper.getChildren().add(loadingLabel);
+            loadingWrapper.getChildren().add(loadingContainer);
 
             if (gongImageContainer.getChildren().size() > 1) {
                 gongImageContainer.getChildren().set(1, loadingWrapper);
