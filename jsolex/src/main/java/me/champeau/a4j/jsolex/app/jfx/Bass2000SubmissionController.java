@@ -116,9 +116,9 @@ public class Bass2000SubmissionController {
     );
 
     private static final Map<SpectralRay, String> RAY_TO_NAME = Map.of(
-        BASS2000_HA_WING, "Ha2cb",
-        BASS2000_CALCIUM_H_WING, "CaH1v",
-        BASS2000_CALCIUM_K_WING, "CaK1v"
+            BASS2000_HA_WING, "Ha2cb",
+            BASS2000_CALCIUM_H_WING, "CaH1v",
+            BASS2000_CALCIUM_K_WING, "CaK1v"
     );
 
     private static final Map<SpectralRay, SpectralRay> RAY_TO_WING = Map.of(
@@ -263,11 +263,11 @@ public class Bass2000SubmissionController {
                 }
 
                 createUpdatedProcessParams();
-                
+
                 // Generate wing image based on confirmed wavelength selection
                 var centerRay = wavelengthField.getValue();
                 var wingRay = RAY_TO_WING.get(centerRay);
-                
+
                 if (wingRay != null) {
                     // Show loading indicator and disable buttons
                     nextButton.setDisable(true);
@@ -278,37 +278,37 @@ public class Bass2000SubmissionController {
                     } catch (Exception e) {
                         nextButton.setText("Processing wing image...");
                     }
-                    
+
                     BackgroundOperations.async(() -> {
                         try {
                             var centerWavelength = centerRay.wavelength().angstroms();
                             var wingWavelength = wingRay.wavelength().angstroms();
                             var shift = centerWavelength - wingWavelength;
-                            
+
                             var originalOffBandImage = getGeometryCorrectedImage(shift);
                             if (originalOffBandImage != null) {
                                 this.originalOffBandImage = originalOffBandImage;
-                                
+
                                 var processParams = findProcessParams();
                                 var observationDate = processParams.observationDetails().date();
                                 var solarParams = SolarParametersUtils.computeSolarParams(observationDate.toLocalDateTime());
                                 var pAngle = solarParams.p();
-                                
+
                                 this.generatedOffBandImage = applyTransformationsToImage(originalOffBandImage, pAngle);
-                                
+
                                 var updatedProcessParams = processParams.withSpectrumParams(
-                                    processParams.spectrumParams().withRay(wingRay)
+                                        processParams.spectrumParams().withRay(wingRay)
                                 );
                                 generatedOffBandImage.metadata().put(ProcessParams.class, updatedProcessParams);
-                                generatedOffBandImage.metadata().put(Bass2000Compatibility.class, 
-                                    new Bass2000Compatibility(wingRay.wavelength().angstroms()));
+                                generatedOffBandImage.metadata().put(Bass2000Compatibility.class,
+                                        new Bass2000Compatibility(wingRay.wavelength().angstroms()));
                             }
-                            
+
                             Platform.runLater(() -> {
                                 // Reset progress and button state
                                 var progress = (double) (currentStep + 1) / TOTAL_STEPS;
                                 wizardProgress.setProgress(progress);
-                                
+
                                 var maybeFileName = generateFileName();
                                 if (maybeFileName.isEmpty()) {
                                     loadStep3();
@@ -317,7 +317,7 @@ public class Bass2000SubmissionController {
                                 }
                                 generatedFilename = maybeFileName.get();
                                 savedFilePath = null;
-                                
+
                                 // Continue to next step
                                 currentStep++;
                                 updateStepIndicator();
@@ -338,7 +338,7 @@ public class Bass2000SubmissionController {
                     });
                     return; // Exit early since we're processing asynchronously
                 }
-                
+
                 var maybeFileName = generateFileName();
                 if (maybeFileName.isEmpty()) {
                     loadStep3();
@@ -861,6 +861,7 @@ public class Bass2000SubmissionController {
         addFormField(formGrid, message("instrument.binning.label"), binningField, 2, row++, true);
         binningField.setDisable(true);
         binningField.setEditable(false);
+        formGrid.add(new Label(message("instrument.pixels.binning.note")), 0, row++, 3, 1);
 
         addSectionHeader(formGrid, message("spectrograph.section.title"), row++);
 
@@ -984,6 +985,9 @@ public class Bass2000SubmissionController {
         if (observationDetails.aperture() != null) {
             apertureField.setText(String.valueOf(observationDetails.aperture()));
         }
+        if (observationDetails.stop() != null) {
+            stopField.setText(String.valueOf(observationDetails.stop()));
+        }
         if (observationDetails.focalLength() != null) {
             telescopeFocalLengthField.setText(String.valueOf(observationDetails.focalLength()));
         }
@@ -1012,6 +1016,9 @@ public class Bass2000SubmissionController {
             var coords = observationDetails.coordinates();
             siteLatitudeField.setText(String.format(Locale.US, "%.4f", coords.a()));
             siteLongitudeField.setText(String.format(Locale.US, "%.4f", coords.b()));
+        }
+        if (observationDetails.energyRejectionFilter() != null) {
+            erfField.setText(observationDetails.energyRejectionFilter());
         }
     }
 
@@ -1114,7 +1121,7 @@ public class Bass2000SubmissionController {
         if (field == mountNameField || field == cameraNameField || field == telescopeNameField) {
             if (text.trim().contains(" ")) {
                 var parts = text.trim().split("\\s+");
-                return Arrays.stream(parts).allMatch(s -> s.length()>=3);
+                return Arrays.stream(parts).allMatch(s -> s.length() >= 3);
             }
             return false;
         } else if (field == spectrographNameField) {
@@ -1593,7 +1600,7 @@ public class Bass2000SubmissionController {
                     var alert = AlertFactory.error(message("error.image.generation.title"));
                     alert.setTitle(message("error.image.generation.title"));
                     alert.setHeaderText(message("error.image.generation.header"));
-                    alert.setContentText(MessageFormat.format(message( "error.image.generation.with.exception"), e.getMessage()));
+                    alert.setContentText(MessageFormat.format(message("error.image.generation.with.exception"), e.getMessage()));
                     alert.showAndWait();
                     if (currentStep == 3) {
                         validateForm();
@@ -1730,7 +1737,7 @@ public class Bass2000SubmissionController {
                         var alert = AlertFactory.error(message("error.image.display.title"));
                         alert.setTitle(message("error.image.display.title"));
                         alert.setHeaderText(message("error.image.display.header"));
-                        alert.setContentText(MessageFormat.format(message( "error.image.display.message"), e.getMessage()));
+                        alert.setContentText(MessageFormat.format(message("error.image.display.message"), e.getMessage()));
                         alert.showAndWait();
                     });
                 }
@@ -1899,7 +1906,7 @@ public class Bass2000SubmissionController {
                     var alert = AlertFactory.error(message("error.transformation.title"));
                     alert.setTitle(message("error.transformation.title"));
                     alert.setHeaderText(message("error.transformation.header"));
-                    alert.setContentText(MessageFormat.format(message( "error.transformation.message"), e.getMessage()));
+                    alert.setContentText(MessageFormat.format(message("error.transformation.message"), e.getMessage()));
                     alert.showAndWait();
                 });
             }
@@ -2076,7 +2083,7 @@ public class Bass2000SubmissionController {
             var offbandRay = RAY_TO_WING.get(updatedSpectrumParams.spectrumParams().ray());
             if (offbandRay != null) {
                 var updatedOffBandParams = updatedSpectrumParams.withSpectrumParams(
-                    updatedSpectrumParams.spectrumParams().withRay(offbandRay)
+                        updatedSpectrumParams.spectrumParams().withRay(offbandRay)
                 );
                 generatedOffBandImage.metadata().put(ProcessParams.class, updatedOffBandParams);
                 generatedOffBandImage.metadata().put(Bass2000Compatibility.class, new Bass2000Compatibility(offbandRay.wavelength().angstroms()));
@@ -2093,7 +2100,7 @@ public class Bass2000SubmissionController {
         static ValidationResult valid() {
             return new ValidationResult(true, null);
         }
-        
+
         static ValidationResult invalid(ValidationError error) {
             return new ValidationResult(false, error);
         }
@@ -2105,10 +2112,10 @@ public class Bass2000SubmissionController {
             if (!jaggingValidation.isValid()) {
                 return jaggingValidation;
             }
-            
+
             return validatePartialDisk();
         }
-        
+
         private ValidationResult validateJaggedEdgesCorrection() {
             var processParams = lineCenter.findMetadata(ProcessParams.class).orElse(null);
             if (processParams != null) {
@@ -2119,7 +2126,7 @@ public class Bass2000SubmissionController {
             }
             return ValidationResult.valid();
         }
-        
+
         private ValidationResult validatePartialDisk() {
             return lineCenter.findMetadata(Ellipse.class)
                     .map(e -> {
@@ -2147,7 +2154,7 @@ public class Bass2000SubmissionController {
                         var height = sourceInfo.height();
                         var isFullDisk = p1.x() >= 0 && p1.y() >= 0 && p1.x() < width && p2.x() < width &&
                                 p1.y() < height && p2.y() < height;
-                        
+
 //                        return isFullDisk ? ValidationResult.valid() : ValidationResult.invalid(ValidationError.PARTIAL_DISK);
                         // there seem to be some cases where the image is detected as partial disk, but it is actually full disk
                         // so disable the validation for now
