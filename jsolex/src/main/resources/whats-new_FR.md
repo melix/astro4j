@@ -12,6 +12,11 @@
 
 ## Changements depuis la 3.0.0
 
+### 3.4.0
+
+- Suppression de faux positifs dans la détection de bombes d'Ellerman sur le limbe solaire
+- Ajout de la monture et du filtre de rejet d'énergie et du diaphragme dans les paramètres d'observation
+
 ### 3.3.2
 
 - Correction de la détection de profondeur de pixels des fichiers SER
