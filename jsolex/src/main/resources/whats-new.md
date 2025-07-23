@@ -12,6 +12,11 @@
 
 ## Changes since 3.0.0
 
+### 3.4.0
+
+- Remove some false positives in Ellerman Bomb detection on solar limb
+- Added mount, ERF and stop in observation details
+
 ### 3.3.2
 
 - Fixed detection of bit depth in SER files

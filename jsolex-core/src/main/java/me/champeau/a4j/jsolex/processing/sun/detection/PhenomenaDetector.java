@@ -578,7 +578,7 @@ public class PhenomenaDetector {
                         return true;
                     }
                 }
-                return false;
+                return maybeBorders.isEmpty();
             });
         } catch (Exception e) {
             // ignore, this is not a problem if the regression fails
