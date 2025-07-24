@@ -45,6 +45,7 @@ class GeometryParamsSerializer implements JsonSerializer<GeometryParams>, JsonDe
         var forcePolynomial = o.get("forcePolynomial") != null ? o.get("forcePolynomial").getAsBoolean() : false;
         var forcedPolynomial = o.get("forcedPolynomial") != null ? o.get("forcedPolynomial").getAsString() : null;
         var spectrumVFlip = o.get("spectrumVFlip") != null ? o.get("spectrumVFlip").getAsBoolean() : false;
+        var ellipseFittingMode = o.get("ellipseFittingMode") != null ? EllipseFittingMode.valueOf(o.get("ellipseFittingMode").getAsString()) : EllipseFittingMode.AUTOMATIC;
         return new GeometryParams(
             tilt == null ? null : tilt.getAsDouble(),
             ratio == null ? null : ratio.getAsDouble(),
@@ -58,7 +59,8 @@ class GeometryParamsSerializer implements JsonSerializer<GeometryParams>, JsonDe
             richardsonLucyDeconvolutionParams,
             forcePolynomial,
             forcedPolynomial,
-            spectrumVFlip);
+            spectrumVFlip,
+            ellipseFittingMode);
     }
 
     private RichardsonLucyDeconvolutionParams readRichardsonLucyDeconvolutionParams(JsonElement params) {
@@ -92,6 +94,7 @@ class GeometryParamsSerializer implements JsonSerializer<GeometryParams>, JsonDe
         jsonObject.addProperty("forcePolynomial", src.isForcePolynomial());
         src.forcedPolynomial().ifPresent(forcedPolynomial -> jsonObject.addProperty("forcedPolynomial", forcedPolynomial));
         jsonObject.addProperty("spectrumVFlip", src.isSpectrumVFlip());
+        jsonObject.addProperty("ellipseFittingMode", src.ellipseFittingMode().toString());
         return jsonObject;
     }
 }

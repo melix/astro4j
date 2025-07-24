@@ -48,6 +48,10 @@ public interface ProcessingEventListener {
 
     }
 
+    default void onEllipseFittingRequest(EllipseFittingRequestEvent e) {
+
+    }
+
     default void onProgress(ProgressEvent e) {
 
     }

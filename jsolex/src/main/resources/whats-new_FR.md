@@ -16,6 +16,8 @@
 
 - Suppression de faux positifs dans la détection de bombes d'Ellerman sur le limbe solaire
 - Ajout de la monture et du filtre de rejet d'énergie et du diaphragme dans les paramètres d'observation
+- Ajout d'un mode de détection d'ellipse assistée par l'utilisateur, qui permet de dessiner une ellipse sur l'image et ainsi corriger les cas où la détection automatique échoue
+- Déplacement des paramètres de traitement avancés dans leur propre section
 
 ### 3.3.2
 

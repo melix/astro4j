@@ -25,6 +25,7 @@ import me.champeau.a4j.jsolex.app.jfx.Corrector;
 import me.champeau.a4j.jsolex.app.jfx.ImageInspectorController;
 import me.champeau.a4j.jsolex.app.script.JSolExScriptExecutor;
 import me.champeau.a4j.jsolex.processing.event.AverageImageComputedEvent;
+import me.champeau.a4j.jsolex.processing.event.EllipseFittingRequestEvent;
 import me.champeau.a4j.jsolex.processing.event.FileGeneratedEvent;
 import me.champeau.a4j.jsolex.processing.event.GeneratedImage;
 import me.champeau.a4j.jsolex.processing.event.ImageGeneratedEvent;
@@ -80,6 +81,8 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.locks.Condition;
+import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
@@ -89,6 +92,10 @@ import static me.champeau.a4j.jsolex.processing.util.FilesUtils.createDirectorie
 import static me.champeau.a4j.jsolex.processing.util.LoggingSupport.LOGGER;
 
 public class BatchModeEventListener implements ProcessingEventListener, ImageMathScriptExecutor {
+
+    private static final ReentrantLock ellipseFittingLock = new ReentrantLock();
+    private static final Condition ellipseFittingCondition = ellipseFittingLock.newCondition();
+    private static volatile boolean ellipseFittingInProgress = false;
 
     private final JSolExInterface owner;
     private final SingleModeProcessingEventListener delegate;
@@ -258,6 +265,65 @@ public class BatchModeEventListener implements ProcessingEventListener, ImageMat
     @Override
     public void onTrimmingParametersDetermined(TrimmingParametersDeterminedEvent e) {
         owner.setTrimmingParameters(e.getPayload());
+    }
+
+    @Override
+    public void onEllipseFittingRequest(EllipseFittingRequestEvent e) {
+        ellipseFittingLock.lock();
+        try {
+            // Wait if another ellipse fitting is in progress
+            while (ellipseFittingInProgress) {
+                try {
+                    ellipseFittingCondition.await();
+                } catch (InterruptedException ie) {
+                    Thread.currentThread().interrupt();
+                    e.resultFuture().completeExceptionally(ie);
+                    return;
+                }
+            }
+            
+            // Mark ellipse fitting as in progress
+            ellipseFittingInProgress = true;
+            
+            // Show dialog on FX thread
+            Platform.runLater(() -> {
+                owner.showEllipseFittingDialog(
+                    e.image(), 
+                    e.initialEllipse(),
+                    item.file().getName(),
+                    sequenceNumber + 1, // Display as 1-based
+                    (int) totalItems
+                ).thenAccept(result -> {
+                    // Complete the future with result
+                    e.resultFuture().complete(result);
+                    
+                    // Signal that ellipse fitting is done
+                    ellipseFittingLock.lock();
+                    try {
+                        ellipseFittingInProgress = false;
+                        ellipseFittingCondition.signalAll();
+                    } finally {
+                        ellipseFittingLock.unlock();
+                    }
+                }).exceptionally(throwable -> {
+                    // Handle error case
+                    e.resultFuture().completeExceptionally(throwable);
+                    
+                    // Signal that ellipse fitting is done
+                    ellipseFittingLock.lock();
+                    try {
+                        ellipseFittingInProgress = false;
+                        ellipseFittingCondition.signalAll();
+                    } finally {
+                        ellipseFittingLock.unlock();
+                    }
+                    return null;
+                });
+            });
+            
+        } finally {
+            ellipseFittingLock.unlock();
+        }
     }
 
     @Override

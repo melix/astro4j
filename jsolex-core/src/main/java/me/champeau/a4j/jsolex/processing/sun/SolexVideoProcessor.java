@@ -16,6 +16,7 @@
 package me.champeau.a4j.jsolex.processing.sun;
 
 import me.champeau.a4j.jsolex.processing.event.AverageImageComputedEvent;
+import me.champeau.a4j.jsolex.processing.event.EllipseFittingRequestEvent;
 import me.champeau.a4j.jsolex.processing.event.FileGeneratedEvent;
 import me.champeau.a4j.jsolex.processing.event.GeneratedImage;
 import me.champeau.a4j.jsolex.processing.event.GenericMessage;
@@ -42,6 +43,7 @@ import me.champeau.a4j.jsolex.processing.expr.InvalidExpression;
 import me.champeau.a4j.jsolex.processing.expr.impl.ImageDraw;
 import me.champeau.a4j.jsolex.processing.expr.impl.Loader;
 import me.champeau.a4j.jsolex.processing.file.FileNamingStrategy;
+import me.champeau.a4j.jsolex.processing.params.EllipseFittingMode;
 import me.champeau.a4j.jsolex.processing.params.EnhancementParams;
 import me.champeau.a4j.jsolex.processing.params.ImageMathParams;
 import me.champeau.a4j.jsolex.processing.params.ProcessParams;
@@ -120,6 +122,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -1117,6 +1120,14 @@ public class SolexVideoProcessor implements Broadcaster {
         if (cachedEllipse != null) {
             return cachedEllipse;
         }
+
+        // Check for manual ellipse fitting mode
+        var ellipseFittingMode = processParams.geometryParams().ellipseFittingMode();
+        if (ellipseFittingMode == EllipseFittingMode.MANUAL) {
+            EllipseFittingTask.Result result = performAssistedEllipseFitting(imageList, imageEmitterFactory);
+            if (result != null) return result;
+        }
+
         var selected = imageList.stream().sorted(Comparator.comparing(WorkflowState::pixelShift)).map(state -> {
                     var ellipseFittingTask = new EllipseFittingTask(this, newOperation(message("ellipse.fitting")), state::image, processParams, imageEmitterFactory.newEmitter(this, outputDirectory));
                     try {
@@ -1133,6 +1144,41 @@ public class SolexVideoProcessor implements Broadcaster {
         EllipseFittingTask.Result result = selected.get();
         cachedEllipse = result;
         return result;
+    }
+
+    private EllipseFittingTask.Result performAssistedEllipseFitting(List<WorkflowState> imageList, ImageEmitterFactory imageEmitterFactory) {
+
+        var firstImage = imageList.stream().min(Comparator.comparing(WorkflowState::pixelShift));
+
+        if (firstImage.isPresent()) {
+            var image = firstImage.get().image();
+            var future = new CompletableFuture<Ellipse>();
+
+            var ellipseFittingTask = new EllipseFittingTask(this, newOperation(message("ellipse.fitting")), () -> image, processParams, imageEmitterFactory.newEmitter(this, outputDirectory));
+            Ellipse automaticEllipse = null;
+            try {
+                var automaticResult = ellipseFittingTask.call();
+                if (automaticResult != null) {
+                    automaticEllipse = automaticResult.ellipse();
+                }
+            } catch (Exception ex) {
+                LOGGER.warn("Automatic ellipse detection failed, using default ellipse", ex);
+            }
+
+            broadcast(new EllipseFittingRequestEvent(image, automaticEllipse, future));
+
+            try {
+                var ellipse = future.get();
+                if (ellipse != null) {
+                    var result = new EllipseFittingTask.Result(ellipse, null);
+                    cachedEllipse = result;
+                    return result;
+                }
+            } catch (Exception e) {
+                LOGGER.error("Error waiting for ellipse fitting dialog result", e);
+            }
+        }
+        return null;
     }
 
     private void maybePerformFlips(ImageWrapper32 rotated) {
@@ -1691,6 +1737,7 @@ public class SolexVideoProcessor implements Broadcaster {
                 case AverageImageComputedEvent e -> listener.onAverageImageComputed(e);
                 case ReconstructionDoneEvent e -> listener.onReconstructionDone(e);
                 case TrimmingParametersDeterminedEvent e -> listener.onTrimmingParametersDetermined(e);
+                case EllipseFittingRequestEvent e -> listener.onEllipseFittingRequest(e);
             }
         }
     }
