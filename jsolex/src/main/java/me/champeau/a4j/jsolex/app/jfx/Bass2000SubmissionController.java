@@ -286,7 +286,7 @@ public class Bass2000SubmissionController {
                             var wingWavelength = wingRay.wavelength().angstroms();
                             var shift = centerWavelength - wingWavelength;
 
-                            var originalOffBandImage = getGeometryCorrectedImage(shift);
+                            var originalOffBandImage = getGeometryCorrectedImage(wavelengthField.getSelectionModel().getSelectedItem().wavelength().angstroms(), shift);
                             if (originalOffBandImage != null) {
                                 this.originalOffBandImage = originalOffBandImage;
 
@@ -1567,7 +1567,7 @@ public class Bass2000SubmissionController {
 
         BackgroundOperations.async(() -> {
             try {
-                var lineCenterImage = getGeometryCorrectedImage(0.0);
+                var lineCenterImage = getGeometryCorrectedImage(null, 0.0);
                 if (lineCenterImage != null) {
                     this.originalImage = lineCenterImage;
                     this.generatedBass2000Image = lineCenterImage.copy();
@@ -1663,7 +1663,7 @@ public class Bass2000SubmissionController {
         if (gongImageView != null && gongImageContainer != null) {
             var loadingContainer = new VBox(10);
             loadingContainer.setStyle("-fx-alignment: center;");
-            
+
             var pendulum = new Label("●");
             pendulum.setStyle("-fx-font-size: 24px; -fx-text-fill: #2196F3;");
 
@@ -1961,13 +1961,14 @@ public class Bass2000SubmissionController {
         stage.close();
     }
 
-    private ImageWrapper getGeometryCorrectedImage(double shift) {
+    private ImageWrapper getGeometryCorrectedImage(Double reference, double shift) {
         var executor = mainController.getScriptExecutor();
-        executor.execute(String.format("""
+        var ref = reference != null ? String.format(Locale.US, ", ref:%.3f", reference) : "";
+        executor.execute(String.format(Locale.US, """
                 [internal]
-                result=autocrop2(img(-a2px(%.3f));1.2)
+                result=autocrop2(img(-a2px(a: %.3f%s));1.2)
                 [outputs]
-                """, shift), ImageMathScriptExecutor.SectionKind.SINGLE);
+                """, shift, ref), ImageMathScriptExecutor.SectionKind.SINGLE);
         var result = executor.getVariable("result");
 
         if (result.isPresent() && result.get() instanceof ImageWrapper image) {
