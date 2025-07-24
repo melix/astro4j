@@ -49,6 +49,7 @@ import me.champeau.a4j.jsolex.processing.params.BandingCorrectionParams;
 import me.champeau.a4j.jsolex.processing.params.ClaheParams;
 import me.champeau.a4j.jsolex.processing.params.ContrastEnhancement;
 import me.champeau.a4j.jsolex.processing.params.DeconvolutionMode;
+import me.champeau.a4j.jsolex.processing.params.EllipseFittingMode;
 import me.champeau.a4j.jsolex.processing.params.EnhancementParams;
 import me.champeau.a4j.jsolex.processing.params.ExtraParams;
 import me.champeau.a4j.jsolex.processing.params.FileNamingPatternsIO;
@@ -62,14 +63,14 @@ import me.champeau.a4j.jsolex.processing.params.ProcessParams;
 import me.champeau.a4j.jsolex.processing.params.RequestedImages;
 import me.champeau.a4j.jsolex.processing.params.RichardsonLucyDeconvolutionParams;
 import me.champeau.a4j.jsolex.processing.params.RotationKind;
+import me.champeau.a4j.jsolex.processing.params.SharpeningMethod;
+import me.champeau.a4j.jsolex.processing.params.SharpeningParams;
 import me.champeau.a4j.jsolex.processing.params.SpectralRay;
 import me.champeau.a4j.jsolex.processing.params.SpectralRayIO;
 import me.champeau.a4j.jsolex.processing.params.SpectroHeliograph;
 import me.champeau.a4j.jsolex.processing.params.SpectroHeliographsIO;
 import me.champeau.a4j.jsolex.processing.params.SpectrumParams;
 import me.champeau.a4j.jsolex.processing.params.VideoParams;
-import me.champeau.a4j.jsolex.processing.params.SharpeningMethod;
-import me.champeau.a4j.jsolex.processing.params.SharpeningParams;
 import me.champeau.a4j.jsolex.processing.stretching.AutohistogramStrategy;
 import me.champeau.a4j.jsolex.processing.stretching.ClaheStrategy;
 import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
@@ -79,10 +80,15 @@ import me.champeau.a4j.jsolex.processing.sun.workflow.GeneratedImageKind;
 import me.champeau.a4j.jsolex.processing.sun.workflow.JaggingCorrection;
 import me.champeau.a4j.jsolex.processing.util.Constants;
 import me.champeau.a4j.jsolex.processing.util.ImageFormat;
+import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 import me.champeau.a4j.math.image.Deconvolution;
+import me.champeau.a4j.math.regression.Ellipse;
 import me.champeau.a4j.math.tuples.DoublePair;
 import me.champeau.a4j.ser.ColorMode;
 import me.champeau.a4j.ser.Header;
+import me.champeau.a4j.ser.SerFileReader;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.io.IOException;
@@ -91,6 +97,7 @@ import java.time.ZonedDateTime;
 import java.util.EnumSet;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
@@ -102,6 +109,8 @@ import static me.champeau.a4j.jsolex.processing.sun.BandingReduction.DEFAULT_BAN
 import static me.champeau.a4j.jsolex.processing.sun.BandingReduction.DEFAULT_PASS_COUNT;
 
 public class ProcessParamsController {
+    private static final Logger LOGGER = LoggerFactory.getLogger(ProcessParamsController.class);
+    
     private boolean batchMode;
     private HostServices hostServices;
     @FXML
@@ -226,6 +235,8 @@ public class ProcessParamsController {
     private ChoiceBox<RotationKind> rotation;
     @FXML
     private ChoiceBox<AutocropMode> autocrop;
+    @FXML
+    private ChoiceBox<EllipseFittingMode> ellipseFittingMode;
     @FXML
     private ChoiceBox<Integer> binning;
     @FXML
@@ -477,6 +488,19 @@ public class ProcessParamsController {
             @Override
             public AutocropMode fromString(String string) {
                 return AutocropMode.valueOf(string);
+            }
+        });
+        ellipseFittingMode.getItems().addAll(EllipseFittingMode.values());
+        ellipseFittingMode.getSelectionModel().select(initialProcessParams.geometryParams().ellipseFittingMode());
+        ellipseFittingMode.setConverter(new StringConverter<>() {
+            @Override
+            public String toString(EllipseFittingMode mode) {
+                return I18N.string(JSolEx.class, "process-params", "ellipse.fitting.mode." + mode.name().toLowerCase(Locale.US));
+            }
+
+            @Override
+            public EllipseFittingMode fromString(String string) {
+                return EllipseFittingMode.valueOf(string);
             }
         });
         claheTileSize.getItems().addAll(
@@ -896,6 +920,8 @@ public class ProcessParamsController {
         );
         var sharpeningParams = createSharpeningParams();
         var enhancementParams = new EnhancementParams(artificialFlat, Double.parseDouble(flatLoPercentile.getText()), Double.parseDouble(flatHiPercentile.getText()), Integer.parseInt(flatOrder.getText()), flatMode.getSelectionModel().getSelectedItem() == FlatMode.REAL ? selectedFlatFilePath : null, jaggingCorrectionParams, sharpeningParams);
+        
+        
         processParams = new ProcessParams(
                 new SpectrumParams(wavelength.getValue(), getPixelShiftAsDouble(), Double.parseDouble(dopplerShifting.getText()), Double.parseDouble(continuumShifting.getText()), switchRedBlueChannels.isSelected()),
                 new ObservationDetails(
@@ -936,7 +962,8 @@ public class ProcessParamsController {
                         ),
                         forcePolynomial.isSelected(),
                         forcedPolynomial.getText(),
-                        spectrumVFlip.isSelected()
+                        spectrumVFlip.isSelected(),
+                        ellipseFittingMode.getValue()
                 ),
                 new BandingCorrectionParams(
                         Integer.parseInt(bandingCorrectionWidth.getText()),
@@ -1023,6 +1050,18 @@ public class ProcessParamsController {
         disallowDownsampling.setSelected(false);
         forcePolynomial.setSelected(false);
         forcedPolynomial.setText(null);
+    }
+
+    @FXML
+    public void resetAdvancedParams() {
+        forceTilt.setSelected(false);
+        tiltValue.setText("");
+        forceXYRatio.setSelected(false);
+        xyRatioValue.setText("");
+        forcePolynomial.setSelected(false);
+        forcedPolynomial.setText("");
+        ellipseFittingMode.getSelectionModel().select(EllipseFittingMode.AUTOMATIC);
+        disallowDownsampling.setSelected(false);
     }
 
     @FXML
@@ -1183,6 +1222,56 @@ public class ProcessParamsController {
                 yield SharpeningParams.unsharpMask(kernelSizeValue, strengthValue);
             }
         };
+    }
+
+    /**
+     * Loads the first frame from the SER file for ellipse selection
+     */
+    private ImageWrapper32 loadFirstFrame() throws Exception {
+        try (var reader = SerFileReader.of(serFile)) {
+            var header = reader.header();
+            reader.seekFrame(0);
+            var frame = reader.currentFrame();
+            
+            var width = header.geometry().width();
+            var height = header.geometry().height();
+            var data = new float[height][width];
+            
+            // Convert frame data to float array
+            var frameData = frame.data();
+            frameData.rewind();
+            
+            if (header.geometry().getBytesPerPixel() == 1) {
+                // 8-bit data
+                for (int y = 0; y < height; y++) {
+                    for (int x = 0; x < width; x++) {
+                        data[y][x] = frameData.get() & 0xFF;
+                    }
+                }
+            } else {
+                // 16-bit data
+                for (int y = 0; y < height; y++) {
+                    for (int x = 0; x < width; x++) {
+                        data[y][x] = frameData.getShort() & 0xFFFF;
+                    }
+                }
+            }
+            
+            return new ImageWrapper32(width, height, data, Map.of());
+        }
+    }
+    
+    /**
+     * Shows the assisted ellipse fitting dialog
+     */
+    private Ellipse showAssistedEllipseFittingDialog(ImageWrapper32 imageWrapper) {
+        try {
+            var future = AssistedEllipseFittingController.showDialog(stage, imageWrapper, null);
+            return future.get(); // This will block until the dialog is closed
+        } catch (Exception e) {
+            LOGGER.error("Error showing assisted ellipse fitting dialog", e);
+            return null;
+        }
     }
 
     private enum FlatMode {

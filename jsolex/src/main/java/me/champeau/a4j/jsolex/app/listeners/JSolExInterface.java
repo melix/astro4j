@@ -25,6 +25,9 @@ import me.champeau.a4j.jsolex.processing.event.ProgressOperation;
 import me.champeau.a4j.jsolex.processing.expr.ImageMathScriptExecutor;
 import me.champeau.a4j.jsolex.processing.params.ProcessParams;
 import me.champeau.a4j.jsolex.processing.sun.TrimmingParameters;
+import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
+import me.champeau.a4j.math.regression.Ellipse;
+import java.util.concurrent.CompletableFuture;
 
 public interface JSolExInterface {
     MultipleImagesViewer getImagesViewer();
@@ -62,6 +65,10 @@ public interface JSolExInterface {
     void applyUserRotation(ApplyUserRotation params);
 
     void setTrimmingParameters(TrimmingParameters payload);
+
+    CompletableFuture<Ellipse> showEllipseFittingDialog(ImageWrapper32 image, Ellipse initialEllipse);
+
+    CompletableFuture<Ellipse> showEllipseFittingDialog(ImageWrapper32 image, Ellipse initialEllipse, String fileName, int currentFile, int totalFiles);
 
     ImageMathScriptExecutor getScriptExecutor();
 

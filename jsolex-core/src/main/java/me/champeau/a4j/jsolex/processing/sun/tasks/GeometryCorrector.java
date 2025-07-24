@@ -29,16 +29,13 @@ import me.champeau.a4j.jsolex.processing.sun.workflow.ImageEmitter;
 import me.champeau.a4j.jsolex.processing.sun.workflow.ReferenceCoords;
 import me.champeau.a4j.jsolex.processing.sun.workflow.TransformationHistory;
 import me.champeau.a4j.jsolex.processing.util.FileBackedImage;
+import me.champeau.a4j.jsolex.processing.util.GeometryUtils;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 import me.champeau.a4j.jsolex.processing.util.MutableMap;
-import me.champeau.a4j.jsolex.processing.util.ProcessingException;
 import me.champeau.a4j.jsolex.processing.util.SolarParametersUtils;
 import me.champeau.a4j.math.Point2D;
-import me.champeau.a4j.math.image.Image;
-import me.champeau.a4j.math.image.ImageMath;
 import me.champeau.a4j.math.regression.Ellipse;
-import me.champeau.a4j.math.regression.EllipseRegression;
 import me.champeau.a4j.ser.Header;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -46,7 +43,6 @@ import org.slf4j.LoggerFactory;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.function.Supplier;
-import java.util.stream.IntStream;
 
 import static me.champeau.a4j.jsolex.processing.util.Constants.message;
 
@@ -90,50 +86,41 @@ public class GeometryCorrector extends AbstractTask<GeometryCorrector.Result> {
     @Override
     public Result doCall() throws Exception {
         broadcaster.broadcast(operation.update(0, message("correcting.geometry")));
+        
         var theta = forcedTilt == null ? ellipse.rotationAngle() : forcedTilt;
-        var m = Math.tan(-theta);
         var semiAxis = ellipse.semiAxis();
         var a = semiAxis.a();
         var b = semiAxis.b();
+        LOGGER.debug("a = {}, b={}, theta={}", a, b, theta);
+        
+        if (xyRatio == null) {
+            var m = Math.tan(-theta);
+            var cos = Math.cos(theta);
+            var sin = Math.sin(theta);
+            var sy = Math.abs((a * b * Math.sqrt((a * a * m * m + b * b) / (a * a * sin * sin + b * b * cos * cos)) / (b * b * cos - a * a * m * sin)));
+            LOGGER.info(message("detected.xy.ratio"), String.format("%.2f", sy));
+        }
+        
+        // Apply core geometry correction using the utility method
+        var corrected = GeometryUtils.applyGeometryCorrection(
+            workImage,
+            ellipse,
+            forcedTilt,
+            xyRatio,
+            blackPoint,
+            processParams.geometryParams().isDisallowDownsampling()
+        );
+        
+        // Calculate transformation parameters for metadata correction
+        var m = Math.tan(-theta);
         var cos = Math.cos(theta);
         var sin = Math.sin(theta);
         var shear = (m * cos * a * a + sin * b * b) / (b * b * cos - a * a * m * sin);
-        LOGGER.debug("a = {}, b={}, theta={}", a, b, theta);
         var maxDx = height * shear;
         var shift = maxDx < 0 ? maxDx : 0;
-        float[][] newBuffer;
-        int extendedWidth;
-        var buffer = getBuffer();
-        extendedWidth = width + (int) Math.ceil(Math.abs(maxDx));
-        newBuffer = new float[height][extendedWidth];
-        for (int y = 0; y < height; y++) {
-            var dx = y * shear;
-            for (int x = 0; x < width; x++) {
-                var nx = x - shift + dx;
-                var x1 = (int) Math.floor(nx);
-                var x2 = x1 + 1;
-                var factor = nx - x1;
-                if (x1 >= 0 && x2 < extendedWidth) {
-                    newBuffer[y][x1] += (1 - factor) * buffer[y][x];
-                    newBuffer[y][x2] += factor * buffer[y][x];
-                }
-                // reduce transform artifacts by filling with same border color
-                if (x == 0) {
-                    for (int k = 0; k < nx; k++) {
-                        newBuffer[y][k] = buffer[y][x];
-                    }
-                } else if (x == width - 1) {
-                    for (int k = (int) nx; k < extendedWidth; k++) {
-                        newBuffer[y][k] = buffer[y][x];
-                    }
-                }
-            }
-        }
+        
         double sx;
         double sy = Math.abs((a * b * Math.sqrt((a * a * m * m + b * b) / (a * a * sin * sin + b * b * cos * cos)) / (b * b * cos - a * a * m * sin)));
-        if (xyRatio == null) {
-            LOGGER.info(message("detected.xy.ratio"), String.format("%.2f", sy));
-        }
         if (xyRatio != null) {
             sy = xyRatio;
         }
@@ -143,12 +130,12 @@ public class GeometryCorrector extends AbstractTask<GeometryCorrector.Result> {
         } else {
             sx = 1.0d;
         }
-        var imageMath = ImageMath.newInstance();
-        var rescaled = imageMath.rotateAndScale(new Image(extendedWidth, height, newBuffer), 0, blackPoint, sx, sy);
         double finalSy = sy;
-        var circle = computeCorrectedCircle(shear, shift, sx, finalSy);
+        
+        var circle = GeometryUtils.computeCorrectedCircle(ellipse, shear, shift, sx, finalSy);
         var metadata = new HashMap<>(getMetadata());
         metadata.put(Ellipse.class, circle);
+        
         Redshifts redshifts = (Redshifts) metadata.get(Redshifts.class);
         if (redshifts != null) {
             // correct redshifts
@@ -183,7 +170,7 @@ public class GeometryCorrector extends AbstractTask<GeometryCorrector.Result> {
             });
             metadata.put(Flares.class, flares);
         }
-        var corrected = ImageWrapper32.fromImage(rescaled, metadata);
+        corrected = new ImageWrapper32(corrected.width(), corrected.height(), corrected.data(), metadata);
         
         // Record the geometry correction transformations in ReferenceCoords
         final var finalShear = shear;
@@ -239,38 +226,6 @@ public class GeometryCorrector extends AbstractTask<GeometryCorrector.Result> {
         broadcaster.broadcast(operation.complete());
         var wrapped = FileBackedImage.wrap(corrected);
         return new Result(wrapped, wrapped, ellipse, corrected.findMetadata(Ellipse.class).orElse(circle), blackPoint);
-    }
-
-    /**
-     * Performs new ellipse regression, where sample points are taken from the
-     * original ellipse, but corrected in the same way as we correct the image,
-     * that is to say with a shear transform + x/y ratio correction.
-     *
-     * @param shear the shear value
-     * @param shift pixel shifting to avoid negative number overflow
-     * @param sx    the x correction ratio
-     * @param sy    the y correction ratio
-     * @return a circle, if detected, or null.
-     */
-    private Ellipse computeCorrectedCircle(double shear, double shift, double sx, double sy) {
-        int samples = 32;
-        while (samples < 1024) {
-            int finalSamples = samples;
-            var newSamples = IntStream.range(0, samples)
-                    .mapToDouble(i -> 2 * i * Math.PI / finalSamples)
-                    .mapToObj(ellipse::toCartesian)
-                    .map(p -> {
-                        var newX = (p.x() - shift + p.y() * shear);
-                        return new Point2D(newX * sx, p.y() * sy);
-                    })
-                    .toList();
-            try {
-                return new EllipseRegression(newSamples).solve();
-            } catch (Exception ex) {
-                samples *= 2;
-            }
-        }
-        throw new ProcessingException("Could not compute corrected ellipse");
     }
 
     public record Result(

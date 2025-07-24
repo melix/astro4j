@@ -174,6 +174,11 @@ public class ZoomableImageView extends HBox {
     }
 
     private void handleMousePressed(MouseEvent event) {
+        // Allow subclasses to control mouse event handling
+        if (!shouldHandleMouseEvent(event)) {
+            return;
+        }
+        
         if (rectangleSelectionListener != null && event.getButton() == MouseButton.PRIMARY && event.isControlDown()) {
             isSelectingRectangle.set(true);
             startX = event.getX();
@@ -187,6 +192,11 @@ public class ZoomableImageView extends HBox {
     }
 
     private void handleMouseMoved(MouseEvent event) {
+        // Allow subclasses to control mouse event handling
+        if (!shouldHandleMouseEvent(event)) {
+            return;
+        }
+        
         if (event.isControlDown() && isSelectingRectangle.get()) {
             double endX = event.getX();
             double endY = event.getY();
@@ -207,6 +217,11 @@ public class ZoomableImageView extends HBox {
     }
 
     private void handleMouseReleased(MouseEvent event) {
+        // Allow subclasses to control mouse event handling
+        if (!shouldHandleMouseEvent(event)) {
+            return;
+        }
+        
         if (event.getButton() == MouseButton.PRIMARY && isSelectingRectangle.get()) {
             handleSelectionFinished(event.getScreenX(), event.getScreenY());
         }
@@ -292,6 +307,7 @@ public class ZoomableImageView extends HBox {
         if (onZoomChanged != null) {
             onZoomChanged.accept(zoom);
         }
+        onZoomChanged(zoom);
     }
 
     private void applyZoom() {
@@ -299,6 +315,9 @@ public class ZoomableImageView extends HBox {
         imageView.setFitWidth(image.getWidth() * zoom);
         imageView.setFitHeight(image.getHeight() * zoom);
         adjustScrollPane();
+        
+        // Notify subclasses of zoom change
+        onZoomChanged(zoom);
     }
 
     private void adjustScrollPane() {
@@ -480,5 +499,13 @@ public class ZoomableImageView extends HBox {
 
     public ObservableValue<Boolean> canFitToCenterProperty() {
         return canFitToCenter;
+    }
+
+    protected boolean shouldHandleMouseEvent(MouseEvent event) {
+        return true;
+    }
+
+    protected void onZoomChanged(double zoom) {
+        // Extension point for subclasses
     }
 }

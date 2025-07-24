@@ -77,6 +77,7 @@ import javafx.util.converter.IntegerStringConverter;
 import me.champeau.a4j.jsolex.app.jfx.AdvancedParamsController;
 import me.champeau.a4j.jsolex.app.jfx.ApplyUserRotation;
 import me.champeau.a4j.jsolex.app.jfx.Bass2000SubmissionController;
+import me.champeau.a4j.jsolex.app.jfx.AssistedEllipseFittingController;
 import me.champeau.a4j.jsolex.app.jfx.BatchItem;
 import me.champeau.a4j.jsolex.app.jfx.DocsHelper;
 import me.champeau.a4j.jsolex.app.jfx.EmbeddedServerController;
@@ -131,9 +132,11 @@ import me.champeau.a4j.jsolex.processing.util.GONG;
 import me.champeau.a4j.jsolex.processing.util.LoggingSupport;
 import me.champeau.a4j.jsolex.processing.util.MutableMap;
 import me.champeau.a4j.jsolex.processing.util.ProcessingException;
+import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 import me.champeau.a4j.jsolex.processing.util.TemporaryFolder;
 import me.champeau.a4j.jsolex.processing.util.VersionUtil;
 import me.champeau.a4j.math.VectorApiSupport;
+import me.champeau.a4j.math.regression.Ellipse;
 import me.champeau.a4j.ser.Header;
 import me.champeau.a4j.ser.ImageMetadata;
 import me.champeau.a4j.ser.SerFileReader;
@@ -165,6 +168,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Scanner;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -1665,6 +1669,16 @@ public class JSolEx implements JSolExInterface {
     public void setTrimmingParameters(TrimmingParameters payload) {
         this.trimmingParameters = payload;
         trimSerFileButton.setDisable(false);
+    }
+
+    @Override
+    public CompletableFuture<Ellipse> showEllipseFittingDialog(ImageWrapper32 image, Ellipse initialEllipse) {
+        return AssistedEllipseFittingController.showDialog(rootStage, image, initialEllipse);
+    }
+
+    @Override
+    public CompletableFuture<Ellipse> showEllipseFittingDialog(ImageWrapper32 image, Ellipse initialEllipse, String fileName, int currentFile, int totalFiles) {
+        return AssistedEllipseFittingController.showDialog(rootStage, image, initialEllipse, fileName, currentFile, totalFiles);
     }
 
     @Override

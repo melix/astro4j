@@ -56,6 +56,7 @@ import me.champeau.a4j.jsolex.app.jfx.RectangleSelectionListener;
 import me.champeau.a4j.jsolex.app.jfx.ZoomableImageView;
 import me.champeau.a4j.jsolex.app.script.JSolExScriptExecutor;
 import me.champeau.a4j.jsolex.processing.event.AverageImageComputedEvent;
+import me.champeau.a4j.jsolex.processing.event.EllipseFittingRequestEvent;
 import me.champeau.a4j.jsolex.processing.event.FileGeneratedEvent;
 import me.champeau.a4j.jsolex.processing.event.GeneratedImage;
 import me.champeau.a4j.jsolex.processing.event.GenericMessage;
@@ -1311,6 +1312,16 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
     @Override
     public void onTrimmingParametersDetermined(TrimmingParametersDeterminedEvent e) {
         owner.setTrimmingParameters(e.getPayload());
+    }
+
+    @Override
+    public void onEllipseFittingRequest(EllipseFittingRequestEvent e) {
+        owner.showEllipseFittingDialog(e.image(), e.initialEllipse())
+                .thenAccept(result -> e.resultFuture().complete(result))
+                .exceptionally(throwable -> {
+                    e.resultFuture().completeExceptionally(throwable);
+                    return null;
+                });
     }
 
     private void addDataPointToSeries(SpectrumAnalyzer.DataPoint dataPoint, XYChart.Series<String, Number> series) {
