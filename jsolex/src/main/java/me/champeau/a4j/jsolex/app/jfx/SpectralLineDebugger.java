@@ -285,8 +285,8 @@ public class SpectralLineDebugger {
                             if (id < 0) {
                                 return 0;
                             }
-                            if (id > header.frameCount()) {
-                                return header.frameCount();
+                            if (id >= header.frameCount()) {
+                                return header.frameCount() - 1;
                             }
                         }
                         return id;
@@ -299,7 +299,7 @@ public class SpectralLineDebugger {
                 });
                 sunDetectionThreshold.textProperty().set("");
                 frameSlider.setMin(0);
-                frameSlider.setMax(header.frameCount());
+                frameSlider.setMax(header.frameCount() - 1);
                 frameSlider.setValue(current);
                 sunDetectionThreshold.textProperty().addListener((observable, oldValue, newValue) -> {
                     if (!newValue.trim().isEmpty()) {
