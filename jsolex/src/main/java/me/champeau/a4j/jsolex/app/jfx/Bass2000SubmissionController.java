@@ -112,14 +112,14 @@ public class Bass2000SubmissionController {
     private static final Map<SpectralRay, String> ACCEPTED_SPECTRAL_RAYS = Map.of(
             // Use official wavelengths from the BASS2000 documentation
             BASS2000_HA, "Ha",
-            BASS2000_CALCIUM_K, "CaK",
-            BASS2000_CALCIUM_H, "CaH"
+            BASS2000_CALCIUM_K, "Cak",
+            BASS2000_CALCIUM_H, "Cah"
     );
 
     private static final Map<SpectralRay, String> RAY_TO_NAME = Map.of(
             BASS2000_HA_WING, "Ha2cb",
-            BASS2000_CALCIUM_H_WING, "CaH1v",
-            BASS2000_CALCIUM_K_WING, "CaK1v"
+            BASS2000_CALCIUM_H_WING, "Cah1v",
+            BASS2000_CALCIUM_K_WING, "Cak1v"
     );
 
     private static final Map<SpectralRay, SpectralRay> RAY_TO_WING = Map.of(
