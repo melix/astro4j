@@ -23,6 +23,7 @@ import javafx.application.Platform;
 import javafx.beans.value.ChangeListener;
 import javafx.fxml.FXML;
 import javafx.scene.Node;
+import javafx.scene.Scene;
 import javafx.scene.control.Button;
 import javafx.scene.control.CheckBox;
 import javafx.scene.control.ChoiceBox;
@@ -98,6 +99,9 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.regex.Pattern;
+
+import static javafx.scene.input.KeyCode.ESCAPE;
+import static javafx.stage.Modality.APPLICATION_MODAL;
 
 public class Bass2000SubmissionController {
     private static final Logger LOGGER = LoggerFactory.getLogger(Bass2000SubmissionController.class);
@@ -212,9 +216,14 @@ public class Bass2000SubmissionController {
     private final List<TextField> requiredFields = new ArrayList<>();
     private final List<CheckBox> requiredCheckboxes = new ArrayList<>();
     private final List<ComboBox<String>> requiredComboBoxes = new ArrayList<>();
-    
+
     private CheckBox lineCenterUploadCheckbox;
     private CheckBox wingImageUploadCheckbox;
+
+    private Stage fullscreenStage;
+    private javafx.scene.image.ImageView fullscreenImageView;
+    private Timeline fullscreenBlinkTimeline;
+    private boolean fullscreenShowingUserImage = true;
 
     private Scaling scaling;
     private Path outputDirectory;
@@ -366,6 +375,9 @@ public class Bass2000SubmissionController {
     private void onCancel() {
         if (blinkMode) {
             exitBlinkMode();
+        }
+        if (fullscreenStage != null) {
+            closeFullscreenBlink();
         }
         stage.close();
     }
@@ -709,7 +721,11 @@ public class Bass2000SubmissionController {
         angleLabel.setStyle("-fx-font-weight: bold;");
         var blinkDurationLabel = new Label(message("blink.duration"));
         blinkDurationLabel.setStyle("-fx-font-weight: bold;");
-        angleAdjustmentBox.getChildren().addAll(angleLabel, angleSlider, blinkDurationLabel, blinkDurationSlider);
+        var fullscreenButton = new Button("🔍 Fullscreen");
+        fullscreenButton.setStyle("-fx-background-color: #4CAF50; -fx-text-fill: white; -fx-font-size: 11px;");
+        fullscreenButton.setOnAction(e -> openFullscreenBlink());
+
+        angleAdjustmentBox.getChildren().addAll(angleLabel, angleSlider, blinkDurationLabel, blinkDurationSlider, fullscreenButton);
 
         var controlsBox = new HBox(8);
         controlsBox.setStyle("-fx-alignment: center; -fx-padding: 1;");
@@ -1263,7 +1279,7 @@ public class Bass2000SubmissionController {
 
         if (savedFilePath != null) {
             var filesContainer = new VBox(3);
-            
+
             var lineCenterRow = new HBox(8);
             lineCenterRow.setStyle("-fx-alignment: center-left;");
             var lineCenterLabel = new Label(message("linecenter.file"));
@@ -1287,7 +1303,7 @@ public class Bass2000SubmissionController {
                 offBandRow.getChildren().addAll(offBandLabel, offBandFilePathLink);
                 filesContainer.getChildren().add(offBandRow);
             }
-            
+
             section.getChildren().add(filesContainer);
         } else {
             var savingLabel = new Label(message("saving.file"));
@@ -1398,7 +1414,7 @@ public class Bass2000SubmissionController {
     private void uploadToBass2000() {
         var uploadLineCenter = lineCenterUploadCheckbox != null && lineCenterUploadCheckbox.isSelected();
         var uploadWingImage = wingImageUploadCheckbox != null && wingImageUploadCheckbox.isSelected();
-        
+
         if (!uploadLineCenter && !uploadWingImage) {
             Platform.runLater(() -> {
                 var alert = AlertFactory.error("Please select at least one image to upload.");
@@ -1408,7 +1424,7 @@ public class Bass2000SubmissionController {
             });
             return;
         }
-        
+
         if (uploadLineCenter && savedFilePath == null) {
             Platform.runLater(() -> {
                 var alert = AlertFactory.error(message("upload.error.no.file.message"));
@@ -1418,7 +1434,7 @@ public class Bass2000SubmissionController {
             });
             return;
         }
-        
+
         if (uploadWingImage && savedOffBandFilePath == null) {
             Platform.runLater(() -> {
                 var alert = AlertFactory.error("Wing image file not available for upload.");
@@ -1446,7 +1462,7 @@ public class Bass2000SubmissionController {
                 var lineCenterSize = uploadLineCenter && savedFilePath != null ? savedFilePath.length() : 0;
                 var wingSize = uploadWingImage && savedOffBandFilePath != null ? savedOffBandFilePath.length() : 0;
                 final var totalBytes = lineCenterSize + wingSize;
-                
+
                 var bytesUploaded = 0L;
 
                 if (uploadLineCenter && savedFilePath != null) {
@@ -1844,6 +1860,10 @@ public class Bass2000SubmissionController {
                             blinkImageView.setImage(writableImage);
                             blinkImageView.resetZoom();
                         }
+
+                        if (fullscreenImageView != null && fullscreenShowingUserImage) {
+                            fullscreenImageView.setImage(writableImage);
+                        }
                     });
                 } catch (Exception e) {
                     Platform.runLater(() -> {
@@ -1990,6 +2010,172 @@ public class Bass2000SubmissionController {
         startBlinkAnimation();
     }
 
+    private void openFullscreenBlink() {
+        if (userDisplayImage == null || gongDisplayImage == null) {
+            return;
+        }
+
+        if (fullscreenStage != null) {
+            fullscreenStage.toFront();
+            return;
+        }
+
+        fullscreenStage = new Stage();
+        fullscreenStage.initModality(APPLICATION_MODAL);
+        fullscreenStage.setMaximized(true);
+
+        var root = new VBox(10);
+        root.setStyle("-fx-padding: 10; -fx-background-color: black;");
+
+        var centeringPane = new StackPane();
+        centeringPane.setStyle("-fx-alignment: center; -fx-background-color: black;");
+
+        var plainImageView = new javafx.scene.image.ImageView();
+        plainImageView.setPreserveRatio(true);
+        plainImageView.setSmooth(true);
+        plainImageView.fitWidthProperty().bind(centeringPane.widthProperty().multiply(0.9));
+        plainImageView.fitHeightProperty().bind(centeringPane.heightProperty().multiply(0.9));
+
+        centeringPane.getChildren().add(plainImageView);
+        VBox.setVgrow(centeringPane, javafx.scene.layout.Priority.ALWAYS);
+
+        var controlsPanel = createFullscreenControlsPanel();
+
+        root.getChildren().addAll(centeringPane, controlsPanel);
+
+        var scene = new Scene(root);
+        fullscreenStage.setScene(scene);
+
+        fullscreenStage.setOnCloseRequest(e -> {
+            e.consume();
+            closeFullscreenBlink();
+        });
+
+        scene.setOnKeyReleased(event -> {
+            if (event.getCode() == ESCAPE) {
+                event.consume();
+                closeFullscreenBlink();
+            }
+        });
+
+        fullscreenStage.setOnCloseRequest(e -> closeFullscreenBlink());
+        fullscreenStage.show();
+        Platform.runLater(() -> {
+            root.requestFocus();
+            fullscreenStage.toFront();
+        });
+
+        fullscreenImageView = plainImageView;
+        startFullscreenBlinkAnimation();
+    }
+
+    private HBox createFullscreenControlsPanel() {
+        var controlsPanel = new HBox(15);
+        controlsPanel.setStyle("-fx-alignment: center; -fx-padding: 10; -fx-background-color: #333;");
+
+        var closeButton = new Button("✕ Close Fullscreen");
+        closeButton.setStyle("-fx-background-color: #666; -fx-text-fill: white;");
+        closeButton.setOnAction(e -> closeFullscreenBlink());
+
+        var horizontalFlipButton = new Button("⇄ Horizontal Flip");
+        horizontalFlipButton.setStyle("-fx-background-color: #666; -fx-text-fill: white;");
+        horizontalFlipButton.setOnAction(e -> applyHorizontalFlip());
+
+        var verticalFlipButton = new Button("⇅ Vertical Flip");
+        verticalFlipButton.setStyle("-fx-background-color: #666; -fx-text-fill: white;");
+        verticalFlipButton.setOnAction(e -> applyVerticalFlip());
+
+        var rotateLeftButton = new Button("↶ Rotate Left");
+        rotateLeftButton.setStyle("-fx-background-color: #666; -fx-text-fill: white;");
+        rotateLeftButton.setOnAction(e -> applyRotation(-90));
+
+        var rotateRightButton = new Button("↷ Rotate Right");
+        rotateRightButton.setStyle("-fx-background-color: #666; -fx-text-fill: white;");
+        rotateRightButton.setOnAction(e -> applyRotation(90));
+
+        var resetButton = new Button("Reset");
+        resetButton.setStyle("-fx-background-color: #666; -fx-text-fill: white;");
+        resetButton.setOnAction(e -> {
+            resetTransformations();
+        });
+
+        var angleLabel = new Label("Fine Tilt Adjust:");
+        angleLabel.setStyle("-fx-text-fill: white; -fx-font-weight: bold;");
+
+        var angleSlider = new Slider(-2.0, 2.0, angleAdjustment);
+        angleSlider.setShowTickLabels(true);
+        angleSlider.setShowTickMarks(true);
+        angleSlider.setMajorTickUnit(1.0);
+        angleSlider.setMinorTickCount(4);
+        angleSlider.setPrefWidth(200);
+        angleSlider.valueProperty().addListener((observable, oldValue, newValue) -> {
+            angleAdjustment = newValue.doubleValue();
+            applyCurrentTransformations();
+        });
+
+        var blinkLabel = new Label("Blink Duration (ms):");
+        blinkLabel.setStyle("-fx-text-fill: white; -fx-font-weight: bold;");
+
+        var blinkSlider = new Slider(500.0, 5000.0, blinkDurationMs);
+        blinkSlider.setShowTickLabels(true);
+        blinkSlider.setShowTickMarks(true);
+        blinkSlider.setMajorTickUnit(1000.0);
+        blinkSlider.setMinorTickCount(4);
+        blinkSlider.setPrefWidth(200);
+        blinkSlider.valueProperty().addListener((observable, oldValue, newValue) -> {
+            blinkDurationMs = newValue.doubleValue();
+            if (fullscreenBlinkTimeline != null) {
+                restartFullscreenBlinkAnimation();
+            }
+        });
+
+        controlsPanel.getChildren().addAll(closeButton, horizontalFlipButton, verticalFlipButton, rotateLeftButton, rotateRightButton, resetButton, angleLabel, angleSlider, blinkLabel, blinkSlider);
+
+        return controlsPanel;
+    }
+
+    private void startFullscreenBlinkAnimation() {
+        if (fullscreenImageView == null) {
+            return;
+        }
+
+        fullscreenShowingUserImage = true;
+        fullscreenImageView.setImage(userDisplayImage);
+
+        fullscreenBlinkTimeline = new Timeline(new KeyFrame(Duration.millis(blinkDurationMs), e -> {
+            if (fullscreenShowingUserImage) {
+                fullscreenImageView.setImage(gongDisplayImage);
+                fullscreenShowingUserImage = false;
+            } else {
+                fullscreenImageView.setImage(userDisplayImage);
+                fullscreenShowingUserImage = true;
+            }
+        }));
+        fullscreenBlinkTimeline.setCycleCount(Animation.INDEFINITE);
+        fullscreenBlinkTimeline.play();
+    }
+
+    private void restartFullscreenBlinkAnimation() {
+        if (fullscreenBlinkTimeline != null) {
+            fullscreenBlinkTimeline.stop();
+        }
+        startFullscreenBlinkAnimation();
+    }
+
+    private void closeFullscreenBlink() {
+        if (fullscreenBlinkTimeline != null) {
+            fullscreenBlinkTimeline.stop();
+            fullscreenBlinkTimeline = null;
+        }
+
+        if (fullscreenStage != null) {
+            fullscreenStage.close();
+            fullscreenStage = null;
+        }
+
+        fullscreenImageView = null;
+    }
+
     private void applyCurrentTransformations() {
         if (originalImage == null) {
             return;
@@ -2054,6 +2240,9 @@ public class Bass2000SubmissionController {
         if (blinkMode) {
             exitBlinkMode();
         }
+        if (fullscreenStage != null) {
+            closeFullscreenBlink();
+        }
         stage.close();
     }
 
@@ -2061,10 +2250,10 @@ public class Bass2000SubmissionController {
         var executor = mainController.getScriptExecutor();
         var ref = reference != null ? String.format(Locale.US, ", ref:%.3f", reference) : "";
         executor.execute(String.format(Locale.US, """
-                [internal]
-                result=autocrop2(img(-a2px(a: %.3f%s));1.2)
-                [outputs]
-                """, shift, ref), ImageMathScriptExecutor.SectionKind.SINGLE);
+            [internal]
+            result=autocrop2(img(-a2px(a: %.3f%s));1.2)
+            [outputs]
+            """, shift, ref), ImageMathScriptExecutor.SectionKind.SINGLE);
         var result = executor.getVariable("result");
 
         if (result.isPresent() && result.get() instanceof ImageWrapper image) {
