@@ -212,6 +212,9 @@ public class Bass2000SubmissionController {
     private final List<TextField> requiredFields = new ArrayList<>();
     private final List<CheckBox> requiredCheckboxes = new ArrayList<>();
     private final List<ComboBox<String>> requiredComboBoxes = new ArrayList<>();
+    
+    private CheckBox lineCenterUploadCheckbox;
+    private CheckBox wingImageUploadCheckbox;
 
     private Scaling scaling;
     private Path outputDirectory;
@@ -1241,64 +1244,125 @@ public class Bass2000SubmissionController {
         var headerLabel = new Label(message("upload.title"));
         headerLabel.setStyle("-fx-font-weight: bold; -fx-font-size: 16px;");
 
-        var instructionLabel = new Label(message("upload.instruction"));
-        instructionLabel.setWrapText(true);
-        instructionLabel.setStyle("-fx-padding: 0 0 10 0;");
-
         var submissionWarningLabel = new Label(message("upload.submission.warning"));
         submissionWarningLabel.setWrapText(true);
+        submissionWarningLabel.setPrefWidth(Region.USE_COMPUTED_SIZE);
+        submissionWarningLabel.setMinHeight(Region.USE_PREF_SIZE);
         submissionWarningLabel.setStyle("-fx-text-fill: red; -fx-font-weight: bold; -fx-padding: 10; -fx-background-color: #ffebee; -fx-border-color: #c62828; -fx-border-width: 2; -fx-border-radius: 5; -fx-background-radius: 5;");
 
         var fileSavedBox = createFileSavedSection();
 
         var uploadBox = createUploadSection();
 
-        content.getChildren().addAll(headerLabel, instructionLabel, submissionWarningLabel, fileSavedBox, uploadBox);
+        content.getChildren().addAll(headerLabel, submissionWarningLabel, fileSavedBox, uploadBox);
         return content;
     }
 
     private VBox createFileSavedSection() {
-        var section = new VBox(8);
-
-        var sectionHeader = new Label(message("upload.file.saved.title"));
-        sectionHeader.setStyle("-fx-font-weight: bold; -fx-font-size: 14px;");
+        var section = new VBox(6);
 
         if (savedFilePath != null) {
+            var filesContainer = new VBox(3);
+            
+            var lineCenterRow = new HBox(8);
+            lineCenterRow.setStyle("-fx-alignment: center-left;");
             var lineCenterLabel = new Label(message("linecenter.file"));
             lineCenterLabel.setStyle("-fx-font-weight: bold; -fx-font-size: 12px;");
-
-            var lineCenterPathLabel = new Label(message("file.saved.to"));
-            var lineCenterFilePathLink = new Hyperlink(savedFilePath.getAbsolutePath());
-            lineCenterFilePathLink.setWrapText(true);
+            lineCenterLabel.setMinWidth(80);
+            var lineCenterFilePathLink = new Hyperlink(savedFilePath.getName());
+            lineCenterFilePathLink.setStyle("-fx-font-size: 12px;");
             lineCenterFilePathLink.setOnAction(e -> ExplorerSupport.openInExplorer(savedFilePath.toPath()));
-
-            section.getChildren().addAll(sectionHeader, lineCenterLabel, lineCenterPathLabel, lineCenterFilePathLink);
+            lineCenterRow.getChildren().addAll(lineCenterLabel, lineCenterFilePathLink);
+            filesContainer.getChildren().add(lineCenterRow);
 
             if (savedOffBandFilePath != null) {
+                var offBandRow = new HBox(8);
+                offBandRow.setStyle("-fx-alignment: center-left;");
                 var offBandLabel = new Label(message("offband.file"));
-                offBandLabel.setStyle("-fx-font-weight: bold; -fx-font-size: 12px; -fx-padding: 10 0 0 0;");
-
-                var offBandPathLabel = new Label(message("file.saved.to"));
-                var offBandFilePathLink = new Hyperlink(savedOffBandFilePath.getAbsolutePath());
-                offBandFilePathLink.setWrapText(true);
+                offBandLabel.setStyle("-fx-font-weight: bold; -fx-font-size: 12px;");
+                offBandLabel.setMinWidth(80);
+                var offBandFilePathLink = new Hyperlink(savedOffBandFilePath.getName());
+                offBandFilePathLink.setStyle("-fx-font-size: 12px;");
                 offBandFilePathLink.setOnAction(e -> ExplorerSupport.openInExplorer(savedOffBandFilePath.toPath()));
-
-                section.getChildren().addAll(offBandLabel, offBandPathLabel, offBandFilePathLink);
+                offBandRow.getChildren().addAll(offBandLabel, offBandFilePathLink);
+                filesContainer.getChildren().add(offBandRow);
             }
+            
+            section.getChildren().add(filesContainer);
         } else {
             var savingLabel = new Label(message("saving.file"));
-            section.getChildren().addAll(sectionHeader, savingLabel);
+            section.getChildren().add(savingLabel);
         }
 
         return section;
     }
 
+
+    private VBox createImagePreviewContainer(String title, ImageWrapper imageWrapper) {
+        var container = new VBox(8);
+        container.setStyle("-fx-alignment: center;");
+
+        var checkbox = new CheckBox(title);
+        checkbox.setSelected(true);
+
+        var imageView = new ZoomableImageView();
+        imageView.setPrefWidth(300);
+        imageView.setMaxHeight(Double.MAX_VALUE);
+        VBox.setVgrow(imageView, javafx.scene.layout.Priority.ALWAYS);
+        imageView.getScrollPane().setHbarPolicy(ScrollPane.ScrollBarPolicy.NEVER);
+        imageView.getScrollPane().setVbarPolicy(ScrollPane.ScrollBarPolicy.NEVER);
+        imageView.setStyle("-fx-border-color: gray; -fx-border-width: 1;");
+
+        BackgroundOperations.async(() -> {
+            try {
+                var displayImage = imageWrapper.copy();
+                displayImage = scaling.rescaleToRadius(displayImage, 150, 300, 400);
+                LinearStrechingStrategy.DEFAULT.stretch(displayImage);
+                if (displayImage instanceof ImageWrapper32 mono) {
+                    displayImage = RGBImage.toRGB(mono);
+                }
+                var writableImage = WritableImageSupport.asWritable(displayImage);
+                Platform.runLater(() -> {
+                    imageView.setImage(writableImage);
+                    imageView.resetZoom();
+                });
+            } catch (Exception e) {
+                LOGGER.error("Failed to create preview image", e);
+            }
+        });
+
+        container.getChildren().addAll(imageView, checkbox);
+        return container;
+    }
+    
+    private CheckBox getCheckboxFromContainer(VBox container) {
+        return container.getChildren().stream()
+                .filter(CheckBox.class::isInstance)
+                .map(CheckBox.class::cast)
+                .findFirst()
+                .orElse(null);
+    }
+
     private VBox createUploadSection() {
-        var section = new VBox(8);
+        var section = new VBox(6);
         section.setStyle("-fx-border-color: #2196F3; -fx-border-width: 1; -fx-border-radius: 5; -fx-padding: 10;");
 
-        var sectionHeader = new Label(message("upload.upload.title"));
+        var sectionHeader = new Label(message("image.preview.upload"));
         sectionHeader.setStyle("-fx-font-weight: bold; -fx-font-size: 14px; -fx-text-fill: #2196F3;");
+
+        var imagesContainer = new HBox(20);
+        imagesContainer.setStyle("-fx-alignment: center;");
+        VBox.setVgrow(imagesContainer, javafx.scene.layout.Priority.ALWAYS);
+
+        var lineCenterContainer = createImagePreviewContainer(message("upload.line.center"), generatedBass2000Image);
+        lineCenterUploadCheckbox = getCheckboxFromContainer(lineCenterContainer);
+        imagesContainer.getChildren().add(lineCenterContainer);
+
+        if (generatedOffBandImage != null) {
+            var wingContainer = createImagePreviewContainer(message("upload.wing.image"), generatedOffBandImage);
+            wingImageUploadCheckbox = getCheckboxFromContainer(wingContainer);
+            imagesContainer.getChildren().add(wingContainer);
+        }
 
         var uploadInfoLabel = new Label(message("upload.upload.info"));
         uploadInfoLabel.setWrapText(true);
@@ -1308,33 +1372,58 @@ public class Bass2000SubmissionController {
         uploadButton.setOnAction(e -> uploadToBass2000());
 
         var uploadButtonContainer = new HBox();
-        uploadButtonContainer.setStyle("-fx-alignment: center; -fx-padding: 6 0 0 0;");
+        uploadButtonContainer.setStyle("-fx-alignment: center;");
         uploadButtonContainer.getChildren().add(uploadButton);
 
         var uploadStatusLabel = new Label("");
         uploadStatusLabel.setId("uploadStatusLabel");
-        uploadStatusLabel.setStyle("-fx-font-weight: bold; -fx-padding: 6 0 0 0; -fx-alignment: center;");
+        uploadStatusLabel.setStyle("-fx-font-weight: bold; -fx-alignment: center;");
+        uploadStatusLabel.setVisible(false);
+        uploadStatusLabel.setManaged(false);
 
         var uploadProgressBar = new ProgressBar();
         uploadProgressBar.setId("uploadProgressBar");
         uploadProgressBar.setPrefWidth(300);
         uploadProgressBar.setVisible(false);
-        uploadProgressBar.setStyle("-fx-padding: 6 0 0 0;");
+        uploadProgressBar.setManaged(false);
 
         var uploadProgressContainer = new HBox();
         uploadProgressContainer.setStyle("-fx-alignment: center;");
         uploadProgressContainer.getChildren().add(uploadProgressBar);
 
-        section.getChildren().addAll(sectionHeader, uploadInfoLabel, uploadButtonContainer, uploadProgressContainer, uploadStatusLabel);
+        section.getChildren().addAll(sectionHeader, imagesContainer, uploadInfoLabel, uploadButtonContainer, uploadProgressContainer, uploadStatusLabel);
         return section;
     }
 
     private void uploadToBass2000() {
-        if (savedFilePath == null) {
+        var uploadLineCenter = lineCenterUploadCheckbox != null && lineCenterUploadCheckbox.isSelected();
+        var uploadWingImage = wingImageUploadCheckbox != null && wingImageUploadCheckbox.isSelected();
+        
+        if (!uploadLineCenter && !uploadWingImage) {
+            Platform.runLater(() -> {
+                var alert = AlertFactory.error("Please select at least one image to upload.");
+                alert.setTitle("No Images Selected");
+                alert.setHeaderText("Upload Error");
+                alert.showAndWait();
+            });
+            return;
+        }
+        
+        if (uploadLineCenter && savedFilePath == null) {
             Platform.runLater(() -> {
                 var alert = AlertFactory.error(message("upload.error.no.file.message"));
                 alert.setTitle(message("upload.error.no.file.title"));
                 alert.setHeaderText(message("upload.error.no.file.header"));
+                alert.showAndWait();
+            });
+            return;
+        }
+        
+        if (uploadWingImage && savedOffBandFilePath == null) {
+            Platform.runLater(() -> {
+                var alert = AlertFactory.error("Wing image file not available for upload.");
+                alert.setTitle("File Not Available");
+                alert.setHeaderText("Upload Error");
                 alert.showAndWait();
             });
             return;
@@ -1354,26 +1443,33 @@ public class Bass2000SubmissionController {
                     }
                 });
 
-                final var totalBytes = savedFilePath.length() + (savedOffBandFilePath != null ? savedOffBandFilePath.length() : 0);
+                var lineCenterSize = uploadLineCenter && savedFilePath != null ? savedFilePath.length() : 0;
+                var wingSize = uploadWingImage && savedOffBandFilePath != null ? savedOffBandFilePath.length() : 0;
+                final var totalBytes = lineCenterSize + wingSize;
+                
+                var bytesUploaded = 0L;
 
-                Platform.runLater(() -> {
-                    var uploadLabel = (Label) contentPane.lookup("#uploadStatusLabel");
-                    if (uploadLabel != null) {
-                        uploadLabel.setText("Uploading line center file...");
-                    }
-                });
-
-                uploadFileToFTP(savedFilePath, totalBytes, 0);
-
-                if (savedOffBandFilePath != null) {
+                if (uploadLineCenter && savedFilePath != null) {
                     Platform.runLater(() -> {
                         var uploadLabel = (Label) contentPane.lookup("#uploadStatusLabel");
                         if (uploadLabel != null) {
-                            uploadLabel.setText("Uploading off-band file...");
+                            uploadLabel.setText("Uploading line center file...");
                         }
                     });
 
-                    uploadFileToFTP(savedOffBandFilePath, totalBytes, savedFilePath.length());
+                    uploadFileToFTP(savedFilePath, totalBytes, bytesUploaded);
+                    bytesUploaded += savedFilePath.length();
+                }
+
+                if (uploadWingImage && savedOffBandFilePath != null) {
+                    Platform.runLater(() -> {
+                        var uploadLabel = (Label) contentPane.lookup("#uploadStatusLabel");
+                        if (uploadLabel != null) {
+                            uploadLabel.setText("Uploading wing image file...");
+                        }
+                    });
+
+                    uploadFileToFTP(savedOffBandFilePath, totalBytes, bytesUploaded);
                 }
 
                 Platform.runLater(() -> {
