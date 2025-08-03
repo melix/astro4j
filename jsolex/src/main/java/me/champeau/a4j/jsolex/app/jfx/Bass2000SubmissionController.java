@@ -107,9 +107,9 @@ public class Bass2000SubmissionController {
     private static final Logger LOGGER = LoggerFactory.getLogger(Bass2000SubmissionController.class);
     private static final SpectralRay BASS2000_HA = SpectralRay.H_ALPHA.withWavelength(Wavelen.ofAngstroms(6562.762));
     private static final SpectralRay BASS2000_CALCIUM_K = SpectralRay.CALCIUM_K.withWavelength(Wavelen.ofAngstroms(3933.663));
-    private static final SpectralRay BASS2000_CALCIUM_H = SpectralRay.CALCIUM_H.withWavelength(Wavelen.ofAngstroms(3968.468));
+    private static final SpectralRay BASS2000_CALCIUM_H = SpectralRay.CALCIUM_H.withWavelength(Wavelen.ofAngstroms(3968.469));
 
-    private static final SpectralRay BASS2000_HA_WING = SpectralRay.H_ALPHA.withWavelength(Wavelen.ofAngstroms(6561.232));
+    private static final SpectralRay BASS2000_HA_WING = SpectralRay.H_ALPHA.withWavelength(Wavelen.ofAngstroms(6561.262));
     private static final SpectralRay BASS2000_CALCIUM_K_WING = SpectralRay.CALCIUM_K.withWavelength(Wavelen.ofAngstroms(3932.163));
     private static final SpectralRay BASS2000_CALCIUM_H_WING = SpectralRay.CALCIUM_H.withWavelength(Wavelen.ofAngstroms(3966.968));
 
