@@ -24,4 +24,11 @@ public record ImageMathParams(
     public static final ImageMathParams NONE = new ImageMathParams(
             List.of()
     );
+
+    @Override
+    public List<File> scriptFiles() {
+        return scriptFiles.stream()
+            .filter(File::exists)
+            .toList();
+    }
 }
