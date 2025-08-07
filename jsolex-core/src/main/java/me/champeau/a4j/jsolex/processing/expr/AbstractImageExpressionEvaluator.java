@@ -709,13 +709,14 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
                 }
             }
             double stepDouble = step.doubleValue();
-            if (fromDouble > toDouble) {
-                double tmp = fromDouble;
-                fromDouble = toDouble;
-                toDouble = tmp;
-            }
-            for (double i = fromDouble; i <= toDouble; i += stepDouble) {
-                images.add(findImage(new PixelShift(i)));
+            if (stepDouble > 0) {
+                for (double i = fromDouble; i <= toDouble; i += stepDouble) {
+                    images.add(findImage(new PixelShift(i)));
+                }
+            } else if (stepDouble < 0) {
+                for (double i = fromDouble; i >= toDouble; i += stepDouble) {
+                    images.add(findImage(new PixelShift(i)));
+                }
             }
         }
         return Collections.unmodifiableList(images);
