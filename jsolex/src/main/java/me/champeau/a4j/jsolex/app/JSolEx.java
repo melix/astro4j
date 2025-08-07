@@ -1183,12 +1183,17 @@ public class JSolEx implements JSolExInterface {
         console.clear();
         var interruptButton = addInterruptButton();
         var rootOperation = createRootOperation(selectedFile.getName());
+        Platform.runLater(() -> imageMathRun.setDisable(true));
         var processingThread =
-                new Thread(() -> processSingleFile(params, rootOperation, selectedFile, false, 0, selectedFile, firstHeader, () -> Platform.runLater(() -> workButtons.getChildren().remove(interruptButton))));
+                new Thread(() -> processSingleFile(params, rootOperation, selectedFile, false, 0, selectedFile, firstHeader, () -> Platform.runLater(() -> {
+                    workButtons.getChildren().remove(interruptButton);
+                    imageMathRun.setDisable(false);
+                })));
         interruptButton.setOnAction(e -> {
             Platform.runLater(() -> {
                 updateProgress(0, message("interrupted"));
                 workButtons.getChildren().remove(interruptButton);
+                imageMathRun.setDisable(false);
             });
             processingThread.interrupt();
         });
@@ -1544,6 +1549,7 @@ public class JSolEx implements JSolExInterface {
         mainPane.getSelectionModel().select(0);
         var interruptButton = addInterruptButton();
         var interrupted = new AtomicBoolean();
+        Platform.runLater(() -> imageMathRun.setDisable(true));
         var batchThread = new Thread(() -> {
             try {
                 var batchContext = new BatchProcessingContext(
@@ -1602,7 +1608,10 @@ public class JSolEx implements JSolExInterface {
                     }
                 }
             } finally {
-                Platform.runLater(() -> workButtons.getChildren().remove(interruptButton));
+                Platform.runLater(() -> {
+                    workButtons.getChildren().remove(interruptButton);
+                    imageMathRun.setDisable(false);
+                });
             }
         });
         interruptButton.setOnAction(e -> {
@@ -1611,6 +1620,7 @@ public class JSolEx implements JSolExInterface {
             BackgroundOperations.interrupt();
             batchThread.interrupt();
             updateProgress(0, message("batch.interrupted"));
+            Platform.runLater(() -> imageMathRun.setDisable(false));
         });
         batchThread.start();
     }
