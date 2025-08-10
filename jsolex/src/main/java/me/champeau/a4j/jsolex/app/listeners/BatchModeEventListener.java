@@ -47,6 +47,7 @@ import me.champeau.a4j.jsolex.processing.expr.ImageMathScriptResult;
 import me.champeau.a4j.jsolex.processing.file.FileNamingStrategy;
 import me.champeau.a4j.jsolex.processing.params.AutocropMode;
 import me.champeau.a4j.jsolex.processing.params.ProcessParams;
+import me.champeau.a4j.jsolex.processing.stretching.CutoffStretchingStrategy;
 import me.champeau.a4j.jsolex.processing.stretching.RangeExpansionStrategy;
 import me.champeau.a4j.jsolex.processing.sun.detection.RedshiftArea;
 import me.champeau.a4j.jsolex.processing.sun.workflow.DefaultImageEmitter;
@@ -228,7 +229,8 @@ public class BatchModeEventListener implements ProcessingEventListener, ImageMat
         if (correction != 0) {
             img = Corrector.rotate(img, correction, params.geometryParams().autocropMode() == AutocropMode.OFF);
         }
-        var saved = new ImageSaver(RangeExpansionStrategy.DEFAULT, params).save(img, target);
+        var strategy = kind == GeneratedImageKind.IMAGE_MATH ? CutoffStretchingStrategy.DEFAULT : RangeExpansionStrategy.DEFAULT;
+        var saved = new ImageSaver(strategy, params).save(img, target);
         for (var file : saved) {
             item.generatedFiles().add(file);
             dataLock.writeLock().lock();
