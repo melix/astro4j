@@ -317,9 +317,11 @@ public class ProcessParamsController {
         this.initialProcessParams = ProcessParams.loadDefaults();
         this.batchMode = batchMode;
         this.progressOperation = progressOperation;
-        accordion.setExpandedPane(accordion.getPanes().get(0));
+        accordion.setExpandedPane(accordion.getPanes().getFirst());
 
-        wavelength.getItems().addAll(FXCollections.observableList(SpectralRayIO.loadDefaults()));
+        wavelength.getItems().addAll(FXCollections.observableList(
+            SpectralRayIO.loadDefaults().stream().filter(r -> !r.emission()).toList()
+        ));
         binning.getItems().addAll(1, 2, 3, 4);
         var ray = initialProcessParams.spectrumParams().ray();
         if (wavelength.getItems().contains(ray)) {

@@ -4,6 +4,7 @@
 <?import javafx.scene.control.Button?>
 <?import javafx.scene.control.ButtonBar?>
 <?import javafx.scene.control.CheckBox?>
+<?import javafx.scene.control.ChoiceBox?>
 <?import javafx.scene.control.Label?>
 <?import javafx.scene.control.ListView?>
 <?import javafx.scene.control.Slider?>
@@ -20,65 +21,59 @@
     <center>
         <GridPane vgap="4.0" BorderPane.alignment="CENTER">
             <columnConstraints>
-                <ColumnConstraints hgrow="SOMETIMES" minWidth="10.0" prefWidth="100.0" />
-                <ColumnConstraints hgrow="SOMETIMES" minWidth="10.0" prefWidth="100.0" />
+                <ColumnConstraints hgrow="SOMETIMES" minWidth="10.0" prefWidth="100.0"/>
+                <ColumnConstraints hgrow="SOMETIMES" minWidth="10.0" prefWidth="100.0"/>
             </columnConstraints>
             <rowConstraints>
-                <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="NEVER" />
-                <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="NEVER" />
-                <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="NEVER" />
-                <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="SOMETIMES" />
+                <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="NEVER"/>
+                <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="NEVER"/>
+                <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="NEVER"/>
+                <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="SOMETIMES"/>
             </rowConstraints>
-            <children>
-                <Label text="%label" />
-                <TextField fx:id="label" GridPane.columnIndex="1" />
-                <ImageView fx:id="sunPreview" fitHeight="221.0" fitWidth="240.0" pickOnBounds="true" preserveRatio="true" GridPane.columnIndex="1" GridPane.halignment="CENTER" GridPane.hgrow="SOMETIMES" GridPane.rowIndex="3">
-                    <image>
-                        <Image url="@img/sun512.png" />
-                    </image>
-                </ImageView>
-                <GridPane GridPane.rowIndex="3">
-                    <columnConstraints>
-                        <ColumnConstraints hgrow="SOMETIMES" minWidth="10.0" prefWidth="40.0" />
-                        <ColumnConstraints hgrow="SOMETIMES" minWidth="10.0" prefWidth="100.0" />
-                        <ColumnConstraints hgrow="SOMETIMES" minWidth="10.0" prefWidth="100.0" />
-                    </columnConstraints>
-                    <rowConstraints>
-                        <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="NEVER" />
-                        <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="SOMETIMES" />
-                        <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="SOMETIMES" />
-                        <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="SOMETIMES" />
-                    </rowConstraints>
-                    <children>
-                        <Label text="%in" GridPane.columnIndex="1" GridPane.halignment="CENTER" />
-                        <Label text="%out" GridPane.columnIndex="2" GridPane.halignment="CENTER" />
-                        <Label text="%red" GridPane.halignment="CENTER" GridPane.rowIndex="1" />
-                        <Label text="%green" GridPane.halignment="CENTER" GridPane.rowIndex="2" />
-                        <Label text="%blue" GridPane.halignment="CENTER" GridPane.rowIndex="3" />
-                        <Slider fx:id="rIn" blockIncrement="1" max="255.0" minorTickCount="10" showTickLabels="true" showTickMarks="true" GridPane.columnIndex="1" GridPane.rowIndex="1" />
-                        <Slider fx:id="rOut" blockIncrement="1" max="255.0" minorTickCount="10" showTickLabels="true" showTickMarks="true" GridPane.columnIndex="2" GridPane.rowIndex="1" />
-                        <Slider fx:id="gIn" blockIncrement="1" max="255.0" minorTickCount="10" showTickLabels="true" showTickMarks="true" GridPane.columnIndex="1" GridPane.rowIndex="2" />
-                        <Slider fx:id="gOut" blockIncrement="1" max="255.0" minorTickCount="10" showTickLabels="true" showTickMarks="true" GridPane.columnIndex="2" GridPane.rowIndex="2" />
-                        <Slider fx:id="bIn" blockIncrement="1" max="255.0" minorTickCount="10" showTickLabels="true" showTickMarks="true" GridPane.columnIndex="1" GridPane.rowIndex="3" />
-                        <Slider fx:id="bOut" blockIncrement="1" max="255.0" minorTickCount="10" showTickLabels="true" showTickMarks="true" GridPane.columnIndex="2" GridPane.rowIndex="3" />
-                    </children>
-                </GridPane>
-                <CheckBox fx:id="curveCheckbox" mnemonicParsing="false" text="%color.curve" GridPane.rowIndex="2" />
-                <Label text="%wavelength" GridPane.rowIndex="1" />
-                <TextField fx:id="wavelength" GridPane.columnIndex="1" GridPane.rowIndex="1" />
-            </children>
             <padding>
-                <Insets bottom="8.0" left="8.0" right="8.0" top="8.0" />
+                <Insets bottom="8.0" left="8.0" right="8.0" top="8.0"/>
             </padding>
+            <Label text="%label"/>
+            <TextField fx:id="label" GridPane.columnIndex="1"/>
+            <ImageView fx:id="sunPreview" fitHeight="221.0" fitWidth="240.0" pickOnBounds="true" preserveRatio="true" GridPane.columnIndex="1" GridPane.halignment="CENTER"
+                       GridPane.hgrow="SOMETIMES" GridPane.rowIndex="3">
+                <Image url="@img/sun512.png"/>
+            </ImageView>
+            <GridPane GridPane.rowIndex="3">
+                <columnConstraints>
+                    <ColumnConstraints hgrow="SOMETIMES" minWidth="10.0" prefWidth="40.0"/>
+                    <ColumnConstraints hgrow="SOMETIMES" minWidth="10.0" prefWidth="100.0"/>
+                    <ColumnConstraints hgrow="SOMETIMES" minWidth="10.0" prefWidth="100.0"/>
+                </columnConstraints>
+                <rowConstraints>
+                    <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="NEVER"/>
+                    <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="SOMETIMES"/>
+                    <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="SOMETIMES"/>
+                    <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="SOMETIMES"/>
+                </rowConstraints>
+                <Label text="%in" GridPane.columnIndex="1" GridPane.halignment="CENTER"/>
+                <Label text="%out" GridPane.columnIndex="2" GridPane.halignment="CENTER"/>
+                <Label text="%red" GridPane.halignment="CENTER" GridPane.rowIndex="1"/>
+                <Label text="%green" GridPane.halignment="CENTER" GridPane.rowIndex="2"/>
+                <Label text="%blue" GridPane.halignment="CENTER" GridPane.rowIndex="3"/>
+                <Slider fx:id="rIn" blockIncrement="1" max="255.0" minorTickCount="10" showTickLabels="true" showTickMarks="true" GridPane.columnIndex="1" GridPane.rowIndex="1"/>
+                <Slider fx:id="rOut" blockIncrement="1" max="255.0" minorTickCount="10" showTickLabels="true" showTickMarks="true" GridPane.columnIndex="2" GridPane.rowIndex="1"/>
+                <Slider fx:id="gIn" blockIncrement="1" max="255.0" minorTickCount="10" showTickLabels="true" showTickMarks="true" GridPane.columnIndex="1" GridPane.rowIndex="2"/>
+                <Slider fx:id="gOut" blockIncrement="1" max="255.0" minorTickCount="10" showTickLabels="true" showTickMarks="true" GridPane.columnIndex="2" GridPane.rowIndex="2"/>
+                <Slider fx:id="bIn" blockIncrement="1" max="255.0" minorTickCount="10" showTickLabels="true" showTickMarks="true" GridPane.columnIndex="1" GridPane.rowIndex="3"/>
+                <Slider fx:id="bOut" blockIncrement="1" max="255.0" minorTickCount="10" showTickLabels="true" showTickMarks="true" GridPane.columnIndex="2" GridPane.rowIndex="3"/>
+            </GridPane>
+            <CheckBox fx:id="curveCheckbox" mnemonicParsing="false" text="%color.curve" GridPane.rowIndex="2"/>
+            <ChoiceBox fx:id="emissionChoice" prefWidth="150.0" GridPane.columnIndex="1" GridPane.rowIndex="2"/>
+            <Label text="%wavelength" GridPane.rowIndex="1"/>
+            <TextField fx:id="wavelength" GridPane.columnIndex="1" GridPane.rowIndex="1"/>
         </GridPane>
     </center>
     <bottom>
         <AnchorPane prefHeight="37.0" prefWidth="600.0" BorderPane.alignment="CENTER">
-            <children>
-                <Button layoutX="641.0" layoutY="7.0" mnemonicParsing="false" onAction="#close" text="%ok" />
-            <Button layoutX="559.0" layoutY="7.0" mnemonicParsing="false" onAction="#cancel" text="%cancel" />
-            <Button layoutX="33.0" layoutY="7.0" mnemonicParsing="false" onAction="#reset" text="%reset.to.defaults" />
-            </children>
+            <Button layoutX="641.0" layoutY="7.0" mnemonicParsing="false" onAction="#close" text="%ok"/>
+            <Button layoutX="559.0" layoutY="7.0" mnemonicParsing="false" onAction="#cancel" text="%cancel"/>
+            <Button layoutX="33.0" layoutY="7.0" mnemonicParsing="false" onAction="#reset" text="%reset.to.defaults"/>
         </AnchorPane>
     </bottom>
    <left>
