@@ -20,6 +20,7 @@ import javafx.fxml.FXML;
 import javafx.scene.Parent;
 import javafx.scene.Scene;
 import javafx.scene.control.CheckBox;
+import javafx.scene.control.ChoiceBox;
 import javafx.scene.control.ListView;
 import javafx.scene.control.Slider;
 import javafx.scene.control.TextField;
@@ -28,6 +29,7 @@ import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.stage.Stage;
 import javafx.stage.WindowEvent;
+import javafx.util.StringConverter;
 import javafx.util.converter.DoubleStringConverter;
 import me.champeau.a4j.jsolex.app.JSolEx;
 import me.champeau.a4j.jsolex.processing.color.ColorCurve;
@@ -57,11 +59,32 @@ import java.util.function.Consumer;
 
 public class SpectralRayEditor {
     private static final ImageWrapper32 MONO_SUN_IMAGE = SunDiskColorPreview.getMono();
+    
+    private enum EmissionKind {
+        ABSORPTION(false),
+        EMISSION(true);
+        
+        private final boolean emission;
+        
+        EmissionKind(boolean emission) {
+            this.emission = emission;
+        }
+        
+        public boolean isEmission() {
+            return emission;
+        }
+        
+        public static EmissionKind fromBoolean(boolean emission) {
+            return emission ? EMISSION : ABSORPTION;
+        }
+    }
 
     @FXML
     public ListView<SpectralRay> elements;
     @FXML
     private CheckBox curveCheckbox;
+    @FXML
+    private ChoiceBox<EmissionKind> emissionChoice;
     @FXML
     private ImageView sunPreview;
     @FXML
@@ -118,6 +141,22 @@ public class SpectralRayEditor {
         var rays = SpectralRayIO.loadDefaults();
         this.stage = stage;
         wavelength.setTextFormatter(new TextFormatter<>(new DoubleStringConverter()));
+        emissionChoice.getItems().addAll(EmissionKind.values());
+        emissionChoice.setConverter(new StringConverter<>() {
+            @Override
+            public String toString(EmissionKind kind) {
+                if (kind == null) return "";
+                return switch (kind) {
+                    case ABSORPTION -> I18N.string(JSolEx.class, "spectral-ray-editor", "emission.kind.absorption");
+                    case EMISSION -> I18N.string(JSolEx.class, "spectral-ray-editor", "emission.kind.emission");
+                };
+            }
+            
+            @Override
+            public EmissionKind fromString(String string) {
+                return null;
+            }
+        });
         var items = elements.getItems();
         items.addAll(rays);
         var selectionModel = elements.getSelectionModel();
@@ -131,6 +170,7 @@ public class SpectralRayEditor {
                 var item = items.get(index);
                 label.setText(item.label());
                 wavelength.setText(String.format(Locale.US, "%.2f", item.wavelength().angstroms()));
+                emissionChoice.setValue(EmissionKind.fromBoolean(item.emission()));
                 var curve = item.colorCurve();
                 if (curve == null) {
                     curveCheckbox.setSelected(false);
@@ -158,6 +198,7 @@ public class SpectralRayEditor {
             if (updating.compareAndSet(false, true)) {
                 var newLabel = label.getText();
                 var newWavelen = toDoubleValue(wavelength.getText());
+                var isEmission = emissionChoice.getValue() != null && emissionChoice.getValue().isEmission();
                 var hasColor = curveCheckbox.isSelected();
                 var rInValue = rIn.valueProperty().intValue();
                 var rOutValue = rOut.valueProperty().intValue();
@@ -169,7 +210,7 @@ public class SpectralRayEditor {
                     newLabel,
                     hasColor ? new ColorCurve(newLabel, rInValue, rOutValue, gInValue, gOutValue, bInValue, bOutValue) : null,
                     Wavelen.ofAngstroms(newWavelen),
-                    false);
+                    isEmission);
                 updateEditableInOut(hasColor);
                 items.set(selectionModel.getSelectedIndex(), newRay);
                 updating.set(false);
@@ -178,6 +219,7 @@ public class SpectralRayEditor {
         };
         label.textProperty().addListener(updateValueListener);
         wavelength.textProperty().addListener(updateValueListener);
+        emissionChoice.valueProperty().addListener(updateValueListener);
         curveCheckbox.selectedProperty().addListener(updateValueListener);
         rIn.valueProperty().addListener(updateValueListener);
         rOut.valueProperty().addListener(updateValueListener);

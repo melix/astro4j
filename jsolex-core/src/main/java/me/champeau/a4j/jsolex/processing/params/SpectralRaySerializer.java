@@ -46,11 +46,12 @@ class SpectralRaySerializer implements JsonSerializer<SpectralRay>, JsonDeserial
             };
         } else if (json instanceof JsonObject obj) {
             ColorCurve curve = readColorCurve(obj);
+            var emission = obj.has("emission") && obj.get("emission").getAsBoolean();
             return new SpectralRay(
                     obj.get("label").getAsString(),
                     curve,
                     Wavelen.ofNanos(obj.get("wavelength").getAsDouble()),
-                false);
+                    emission);
         }
         throw new IllegalAccessError("Unexpected JSON type " + json.getClass());
     }
@@ -91,6 +92,7 @@ class SpectralRaySerializer implements JsonSerializer<SpectralRay>, JsonDeserial
         var obj = new JsonObject();
         obj.addProperty("label", src.label());
         obj.addProperty("wavelength", src.wavelength().nanos());
+        obj.addProperty("emission", src.emission());
         var curve = writeColorCurve(src.colorCurve());
         if (curve != null) {
             obj.add("colorCurve", curve);
