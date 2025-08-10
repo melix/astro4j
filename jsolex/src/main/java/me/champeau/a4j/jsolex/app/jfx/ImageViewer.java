@@ -154,6 +154,9 @@ public class ImageViewer implements WithRootNode {
         this.title = title;
         this.description = description;
         this.siblings = siblings;
+        if (kind == GeneratedImageKind.IMAGE_MATH) {
+            this.stretchingMode = StretchingMode.NO_STRETCH;
+        }
         this.descriptionArea.textProperty().addListener((obs, old, newValue) -> {
             var textElement = this.descriptionArea.lookup(".text");
             if (textElement != null) {

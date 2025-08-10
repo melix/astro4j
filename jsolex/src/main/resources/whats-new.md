@@ -18,6 +18,7 @@
 - Added mount, ERF and stop in observation details
 - Add an "assisted ellipse fitting" mode, which allows you to draw an ellipse around the disk, when detection fails
 - Moved advanced process parameters to their own section in the process settings
+- Images generated using scripts are no longer stretched by default (fixes issue 660)
 
 ### 3.3.2
 
