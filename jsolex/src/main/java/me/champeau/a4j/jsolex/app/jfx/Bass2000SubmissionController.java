@@ -36,8 +36,10 @@ import javafx.scene.control.Slider;
 import javafx.scene.control.TextField;
 import javafx.scene.control.Tooltip;
 import javafx.scene.image.Image;
+import javafx.scene.image.ImageView;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.HBox;
+import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
 import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
@@ -85,6 +87,7 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.FilterInputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.nio.file.Files;
@@ -221,7 +224,7 @@ public class Bass2000SubmissionController {
     private CheckBox wingImageUploadCheckbox;
 
     private Stage fullscreenStage;
-    private javafx.scene.image.ImageView fullscreenImageView;
+    private ImageView fullscreenImageView;
     private Timeline fullscreenBlinkTimeline;
     private boolean fullscreenShowingUserImage = true;
 
@@ -1182,12 +1185,12 @@ public class Bass2000SubmissionController {
                     var key = textField == mountNameField ? "mount" :
                             textField == cameraNameField ? "camera" : "telescope";
                     var tooltip = new Tooltip(message("validation.tooltip." + key));
-                    tooltip.setShowDelay(javafx.util.Duration.millis(100));
+                    tooltip.setShowDelay(Duration.millis(100));
                     textField.setTooltip(tooltip);
                 }
                 if (textField == spectrographNameField) {
                     var tooltip = new Tooltip(message("validation.tooltip.spectrograph"));
-                    tooltip.setShowDelay(javafx.util.Duration.millis(100));
+                    tooltip.setShowDelay(Duration.millis(100));
                     textField.setTooltip(tooltip);
                 }
             }
@@ -1321,13 +1324,12 @@ public class Bass2000SubmissionController {
         var checkbox = new CheckBox(title);
         checkbox.setSelected(true);
 
-        var imageView = new ZoomableImageView();
-        imageView.setPrefWidth(300);
-        imageView.setMaxHeight(Double.MAX_VALUE);
-        VBox.setVgrow(imageView, javafx.scene.layout.Priority.ALWAYS);
-        imageView.getScrollPane().setHbarPolicy(ScrollPane.ScrollBarPolicy.NEVER);
-        imageView.getScrollPane().setVbarPolicy(ScrollPane.ScrollBarPolicy.NEVER);
-        imageView.setStyle("-fx-border-color: gray; -fx-border-width: 1;");
+        var imageView = new ImageView();
+        imageView.setPreserveRatio(true);
+        imageView.setSmooth(true);
+        VBox.setVgrow(imageView, Priority.ALWAYS);
+        imageView.setFitWidth(300);
+        imageView.setFitHeight(300);
 
         BackgroundOperations.async(() -> {
             try {
@@ -1338,10 +1340,7 @@ public class Bass2000SubmissionController {
                     displayImage = RGBImage.toRGB(mono);
                 }
                 var writableImage = WritableImageSupport.asWritable(displayImage);
-                Platform.runLater(() -> {
-                    imageView.setImage(writableImage);
-                    imageView.resetZoom();
-                });
+                Platform.runLater(() -> imageView.setImage(writableImage));
             } catch (Exception e) {
                 LOGGER.error("Failed to create preview image", e);
             }
@@ -1368,7 +1367,7 @@ public class Bass2000SubmissionController {
 
         var imagesContainer = new HBox(20);
         imagesContainer.setStyle("-fx-alignment: center;");
-        VBox.setVgrow(imagesContainer, javafx.scene.layout.Priority.ALWAYS);
+        VBox.setVgrow(imagesContainer, Priority.ALWAYS);
 
         var lineCenterContainer = createImagePreviewContainer(message("upload.line.center"), generatedBass2000Image);
         lineCenterUploadCheckbox = getCheckboxFromContainer(lineCenterContainer);
@@ -1452,10 +1451,14 @@ public class Bass2000SubmissionController {
                     var uploadProgressBar = (ProgressBar) contentPane.lookup("#uploadProgressBar");
                     if (uploadLabel != null) {
                         uploadLabel.setText(message("upload.uploading"));
+                        uploadLabel.setVisible(true);
+                        uploadLabel.setManaged(true);
                     }
                     if (uploadProgressBar != null) {
                         uploadProgressBar.setVisible(true);
+                        uploadProgressBar.setManaged(true);
                         uploadProgressBar.setProgress(0.0);
+                        uploadProgressBar.setStyle("-fx-accent: #4CAF50;"); // Green progress bar
                     }
                 });
 
@@ -1496,6 +1499,7 @@ public class Bass2000SubmissionController {
                     }
                     if (uploadProgressBar != null) {
                         uploadProgressBar.setVisible(false);
+                        uploadProgressBar.setManaged(false);
                     }
 
                     var alert = AlertFactory.info();
@@ -1514,6 +1518,7 @@ public class Bass2000SubmissionController {
                     }
                     if (uploadProgressBar != null) {
                         uploadProgressBar.setVisible(false);
+                        uploadProgressBar.setManaged(false);
                     }
 
                     var alert = AlertFactory.error(MessageFormat.format(
@@ -2030,14 +2035,14 @@ public class Bass2000SubmissionController {
         var centeringPane = new StackPane();
         centeringPane.setStyle("-fx-alignment: center; -fx-background-color: black;");
 
-        var plainImageView = new javafx.scene.image.ImageView();
+        var plainImageView = new ImageView();
         plainImageView.setPreserveRatio(true);
         plainImageView.setSmooth(true);
         plainImageView.fitWidthProperty().bind(centeringPane.widthProperty().multiply(0.9));
         plainImageView.fitHeightProperty().bind(centeringPane.heightProperty().multiply(0.9));
 
         centeringPane.getChildren().add(plainImageView);
-        VBox.setVgrow(centeringPane, javafx.scene.layout.Priority.ALWAYS);
+        VBox.setVgrow(centeringPane, Priority.ALWAYS);
 
         var controlsPanel = createFullscreenControlsPanel();
 
@@ -2095,9 +2100,7 @@ public class Bass2000SubmissionController {
 
         var resetButton = new Button("Reset");
         resetButton.setStyle("-fx-background-color: #666; -fx-text-fill: white;");
-        resetButton.setOnAction(e -> {
-            resetTransformations();
-        });
+        resetButton.setOnAction(e -> resetTransformations());
 
         var angleLabel = new Label("Fine Tilt Adjust:");
         angleLabel.setStyle("-fx-text-fill: white; -fx-font-weight: bold;");
@@ -2472,7 +2475,7 @@ public class Bass2000SubmissionController {
         private final ProgressBar progressBar;
         private long bytesRead = 0;
 
-        public ProgressTrackingInputStream(java.io.InputStream in, long totalBytes, long bytesAlreadyTransferred) {
+        public ProgressTrackingInputStream(InputStream in, long totalBytes, long bytesAlreadyTransferred) {
             super(in);
             this.totalBytes = totalBytes;
             this.bytesAlreadyTransferred = bytesAlreadyTransferred;
