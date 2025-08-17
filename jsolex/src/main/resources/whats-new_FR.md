@@ -19,6 +19,7 @@
 - Ajout d'un mode de détection d'ellipse assistée par l'utilisateur, qui permet de dessiner une ellipse sur l'image et ainsi corriger les cas où la détection automatique échoue
 - Déplacement des paramètres de traitement avancés dans leur propre section
 - Les images générées par script ne sont plus automatiquement étirées (corrige issue 660)
+- Ajout de la possibilité de télécharger une image GONG à une date arbitraire
 
 ### 3.3.2
 

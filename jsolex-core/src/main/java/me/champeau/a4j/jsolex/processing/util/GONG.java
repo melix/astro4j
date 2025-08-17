@@ -63,11 +63,9 @@ public class GONG {
     private static Optional<URL> fetchGongImage(ZonedDateTime date, Path targetFolder) {
         try {
             LOCK.lock();
-            var yearmo = String.format("%04d%02d", date.getYear(), date.getMonthValue());
-            var yearmoday = String.format("%04d%02d%02d", date.getYear(), date.getMonthValue(), date.getDayOfMonth());
-            var cacheKey = String.format("HA/hav/%s/%s", yearmo, yearmoday);
+            var utcDate = date.withZoneSameInstant(ZoneId.of("UTC"));
+            var cacheKey = generateCacheKey(utcDate);
             
-            // Check if we have a cached image for this date
             Optional<Path> cachedImage = findCachedImage(cacheKey, targetFolder);
             if (cachedImage.isPresent()) {
                 try {
@@ -77,10 +75,17 @@ public class GONG {
                 }
             }
             
-            return fetchAndCacheGongImage(date, cacheKey, targetFolder);
+            return fetchAndCacheGongImage(utcDate, targetFolder);
         } finally {
             LOCK.unlock();
         }
+    }
+
+    private static String generateCacheKey(ZonedDateTime utcDate) {
+        var yearmo = String.format("%04d%02d", utcDate.getYear(), utcDate.getMonthValue());
+        var yearmoday = String.format("%04d%02d%02d", utcDate.getYear(), utcDate.getMonthValue(), utcDate.getDayOfMonth());
+        var yearmohourmin = String.format("%04d%02d%02d%02d%02d", utcDate.getYear(), utcDate.getMonthValue(), utcDate.getDayOfMonth(), utcDate.getHour(), utcDate.getMinute());
+        return String.format("HA/hav/%s/%s/%s", yearmo, yearmoday, yearmohourmin);
     }
     
     private static Optional<Path> findCachedImage(String cacheKey, Path targetFolder) {
@@ -99,7 +104,7 @@ public class GONG {
         }
     }
     
-    private static Optional<URL> fetchAndCacheGongImage(ZonedDateTime date, String cacheKey, Path targetFolder) {
+    private static Optional<URL> fetchAndCacheGongImage(ZonedDateTime date, Path targetFolder) {
         var yearmo = String.format("%04d%02d", date.getYear(), date.getMonthValue());
         var yearmoday = String.format("%04d%02d%02d", date.getYear(), date.getMonthValue(), date.getDayOfMonth());
         
@@ -148,12 +153,16 @@ public class GONG {
             if (closest.isPresent()) {
                 var imageUrl = new URI(baseUrl + closest.get().target).toURL();
                 
-                // Cache the image
-                var cacheDir = targetFolder.resolve(cacheKey);
+                // Recompute cache key based on the actual image's timestamp, not the requested time
+                var actualImageDate = closest.get().date;
+                var actualCacheKey = generateCacheKey(actualImageDate);
+                
+                // Cache the image using the actual image's timestamp
+                var cacheDir = targetFolder.resolve(actualCacheKey);
                 createDirectoriesIfNeeded(cacheDir);
                 var cachedImagePath = cacheDir.resolve(closest.get().target);
                 
-                LOGGER.info("Downloading GONG image for {} to cache", yearmoday);
+                LOGGER.info("Downloading GONG image for {} to cache", actualImageDate.format(DateTimeFormatter.ofPattern("yyyyMMdd")));
                 try (var inputStream = imageUrl.openStream()) {
                     Files.copy(inputStream, cachedImagePath, StandardCopyOption.REPLACE_EXISTING);
                     LOGGER.info("GONG image cached successfully");
