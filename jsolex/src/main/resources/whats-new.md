@@ -14,6 +14,7 @@
 
 ### 3.4.0
 
+- Reworked process parameters UI
 - Remove some false positives in Ellerman Bomb detection on solar limb
 - Added mount, ERF and stop in observation details
 - Add an "assisted ellipse fitting" mode, which allows you to draw an ellipse around the disk, when detection fails
