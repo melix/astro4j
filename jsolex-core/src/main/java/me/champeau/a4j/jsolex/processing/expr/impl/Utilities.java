@@ -209,12 +209,25 @@ public class Utilities extends AbstractFunctionImpl {
         return arguments;
     }
 
+    public static List<?> tryGetList(Map<String, Object> arguments, String key) {
+        var value = arguments.get(key);
+        if (value instanceof List<?> list) {
+            return list;
+        }
+        if (value instanceof Map<?, ?> map) {
+            if (map.size() == 1 && map.get("list") instanceof List<?> list) {
+                return list;
+            }
+        }
+        return null;
+    }
+
     public Object weightedAverage(Map<String ,Object> arguments) {
         BuiltinFunction.WEIGHTED_AVG.validateArgs(arguments);
-        if (!(arguments.get("images") instanceof List<?> images)) {
+        if (!(tryGetList(arguments, "images") instanceof List<?> images)) {
             throw new IllegalArgumentException("weighted_average expects a list of images as first argument");
         }
-        if (!(arguments.get("weights") instanceof List<?> weights)) {
+        if (!(tryGetList(arguments, "weights") instanceof List<?> weights)) {
             throw new IllegalArgumentException("weighted_average expects a list of weights as second argument");
         }
         if (images.size() != weights.size()) {

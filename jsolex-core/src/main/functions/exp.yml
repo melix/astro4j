@@ -8,12 +8,7 @@ arguments:
     description:
       fr: Valeur
       en: Value
-  - name: exp
-    description:
-      fr: Exposant
-      en: Exponent
 examples:
-  - "exp(img(0); 1.5)"
-  - "exp(v:img(0), exp: 2)"
-  - "exp(2, 3)"
-  - "exp(v:2, exp: 3)"
+  - "exp(img(0))"
+  - "exp(2)"
+  - "exp(v:2)"
