@@ -169,6 +169,7 @@ public class ImageViewer implements WithRootNode {
             recordImage(baseName, image);
             // Initialize correctAngleP synchronously to avoid race conditions
             correctAngleP = new CheckBox(message("correct.p.angle"));
+            correctAngleP.getStyleClass().add("check-box");
             correctAngleP.setSelected(processParams.geometryParams().isAutocorrectAngleP());
             correctAngleP.setDisable(kind.cannotPerformManualRotation());
             BackgroundOperations.async(() -> {
@@ -333,19 +334,19 @@ public class ImageViewer implements WithRootNode {
             var line1 = new HBox(8);
             line1.setAlignment(Pos.CENTER_LEFT);
             line1.getChildren().addAll(new Label(message("stretching.label")), strategySelector, linearStretchParams, curveStretchParams);
-            var reset = new Button(message("reset"));
+            var reset = createButton(message("reset"));
             reset.setOnAction(event -> {
                 stretchingParams.getChildren().clear();
                 configureStretching();
                 stretchAndDisplay();
             });
-            saveButton = new Button(message("save"));
+            saveButton = createButton(message("save"));
             saveButton.setOnAction(e -> saveImage());
             dimensions = new Label();
             var zoomLabel = new Label("Zoom");
-            var zoomMinus = new Button("-");
+            var zoomMinus = createButton("-");
             zoomMinus.setOnAction(evt -> imageView.setZoom(imageView.getZoom() * 0.8));
-            var zoomPlus = new Button("+");
+            var zoomPlus = createButton("+");
             zoomPlus.setOnAction(evt -> imageView.setZoom(imageView.getZoom() * 1.2));
             var coordinatesLabel = new Label();
             imageView.setCoordinatesListener((x, y) -> {
@@ -364,36 +365,36 @@ public class ImageViewer implements WithRootNode {
                 }
                 coordinatesLabel.setText("(" + xx + ", " + yy + extra + ")");
             });
-            var applyNextTime = new Button("✔");
+            var applyNextTime = createButton("✔");
             correctAngleP.selectedProperty().addListener((obj, oldValue, newValue) -> {
                 stretchAndDisplay();
                 if (!Objects.equals(oldValue, newValue)) {
                     applyNextTime.setDisable(false);
                 }
             });
-            var prevButton = new Button(message("prev.image"));
+            var prevButton = createButton(message("prev.image"));
             prevButton.disableProperty().bind(currentImage.isEqualTo(0));
             prevButton.visibleProperty().bind(imageHistory.sizeProperty().greaterThan(1));
             prevButton.setOnAction(evt -> {
                 currentImage.set(currentImage.get() - 1);
                 showImage();
             });
-            var nextButton = new Button(message("next.image"));
+            var nextButton = createButton(message("next.image"));
             nextButton.setOnAction(evt -> {
                 currentImage.set(currentImage.get() + 1);
                 showImage();
             });
             nextButton.disableProperty().bind(currentImage.isEqualTo(imageHistory.sizeProperty().subtract(1)));
             nextButton.visibleProperty().bind(imageHistory.sizeProperty().greaterThan(1));
-            var fitButton = new Button("←fit→");
+            var fitButton = createButton("←fit→");
             fitButton.setOnAction(evt -> imageView.resetZoom(true));
-            var fitToCenter = new Button("→fit←");
+            var fitToCenter = createButton("→fit←");
             fitToCenter.disableProperty().bind(imageView.canFitToCenterProperty().map(e -> !e));
             fitToCenter.setOnAction(evt -> imageView.fitToCenter());
-            var oneToOneFit = new Button("1:1");
+            var oneToOneFit = createButton("1:1");
             oneToOneFit.disableProperty().bind(imageView.canFitToCenterProperty().map(e -> !e));
             oneToOneFit.setOnAction(evt -> imageView.oneToOneZoomAndCenter());
-            var leftRotate = new Button("↶");
+            var leftRotate = createButton("↶");
             leftRotate.setTooltip(new Tooltip(message("rotate.left")));
             leftRotate.setOnAction(evt -> {
                 rotation = (rotation - 1) % 4;
@@ -401,7 +402,7 @@ public class ImageViewer implements WithRootNode {
                 stretchAndDisplay();
             });
             leftRotate.disableProperty().set(kind.cannotPerformManualRotation());
-            var rightRotate = new Button("↷");
+            var rightRotate = createButton("↷");
             rightRotate.setTooltip(new Tooltip(message("rotate.right")));
             rightRotate.setOnAction(evt -> {
                 rotation = (rotation + 1) % 4;
@@ -410,7 +411,7 @@ public class ImageViewer implements WithRootNode {
                 stretchAndDisplay();
             });
             rightRotate.disableProperty().set(kind.cannotPerformManualRotation());
-            var verticalMirror = new Button("⇅");
+            var verticalMirror = createButton("⇅");
             verticalMirror.setTooltip(new Tooltip(message("vertical.flip")));
             verticalMirror.setOnAction(evt -> {
                 vflip = !vflip;
@@ -419,7 +420,7 @@ public class ImageViewer implements WithRootNode {
                 stretchAndDisplay();
             });
             verticalMirror.disableProperty().set(kind.cannotPerformManualRotation());
-            var horizontalMirror = new Button("⇄");
+            var horizontalMirror = createButton("⇄");
             horizontalMirror.setTooltip(new Tooltip(message("horizontal.flip")));
             horizontalMirror.setOnAction(evt -> {
                 rotation = (rotation + 2) % 4;
@@ -434,7 +435,7 @@ public class ImageViewer implements WithRootNode {
             });
             applyNextTime.setTooltip(new Tooltip(message("apply.next.time")));
             applyNextTime.setDisable(true);
-            var measureButton = new Button("⚖");
+            var measureButton = createButton("⚖");
             measureButton.setTooltip(new Tooltip(message("measure.button.tooltip")));
             measureButton.setStyle("-fx-padding: 2; -fx-font-size: 18");
             measureButton.setDisable(true);
@@ -446,7 +447,7 @@ public class ImageViewer implements WithRootNode {
             line2.getChildren().addAll(correctAngleP, zoomLabel, zoomMinus, zoomPlus, fitButton, fitToCenter, oneToOneFit, leftRotate, rightRotate, verticalMirror, horizontalMirror, applyNextTime, measureButton, dimensions, coordinatesLabel);
             var titleLabel = new Label(title);
             titleLabel.setStyle("-fx-font-weight: bold");
-            var alignButton = new Button("⌖");
+            var alignButton = createButton("⌖");
             alignButton.setStyle("-fx-padding: 2; -fx-font-size: 18");
             alignButton.setOnAction(evt -> {
                 onDisplayUpdate = null;
@@ -681,6 +682,12 @@ public class ImageViewer implements WithRootNode {
             File imageFile
     ) {
 
+    }
+
+    private static Button createButton(String text) {
+        var button = new Button(text);
+        button.getStyleClass().add("image-viewer-button");
+        return button;
     }
 
     private enum StretchingMode {

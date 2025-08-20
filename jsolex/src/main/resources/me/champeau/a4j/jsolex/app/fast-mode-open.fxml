@@ -11,7 +11,7 @@
       <VBox alignment="CENTER" spacing="8.0" BorderPane.alignment="CENTER">
          <children>
             <Label text="%fast.process.label" />
-            <Button mnemonicParsing="false" onAction="#openFastMode" text="%feeling.lucky" />
+            <Button mnemonicParsing="false" onAction="#openFastMode" text="%feeling.lucky" styleClass="primary-button" />
          </children>
       </VBox>
    </center>

@@ -72,23 +72,23 @@
                     <padding>
                         <Insets bottom="4.0" left="4.0" right="20.0" top="4.0"/>
                     </padding>
-                    <Button fx:id="closeAllButton" onAction="#resetUI" text="%reset.ui" disable="true">
+                    <Button fx:id="closeAllButton" onAction="#resetUI" text="%reset.ui" disable="true" styleClass="cancel-button">
                         <tooltip>
                             <Tooltip text="%reset.ui.tooltip"/>
                         </tooltip>
                     </Button>
-                    <Button fx:id="deleteSerFileButton" onAction="#deleteSerFile" text="%delete.ser.file" disable="true">
+                    <Button fx:id="deleteSerFileButton" onAction="#deleteSerFile" text="%delete.ser.file" disable="true" styleClass="cancel-button">
                         <tooltip>
                             <Tooltip text="%delete.ser.file.tooltip"/>
                         </tooltip>
                     </Button>
-                    <Button fx:id="trimSerFileButton" onAction="#trimSerFile" text="%trim.ser.file" disable="true">
+                    <Button fx:id="trimSerFileButton" onAction="#trimSerFile" text="%trim.ser.file" disable="true" styleClass="cancel-button">
                         <tooltip>
                             <Tooltip text="%trim.ser.file.tooltip"/>
                         </tooltip>
                     </Button>
-                    <Button fx:id="serverStatus" onMouseClicked="#showEmbeddedServerMenu" alignment="BASELINE_CENTER"/>
-                    <Button fx:id="bass2000Button" onAction="#showBass2000Submission" text="%bass2000.submit" disable="true"/>
+                    <Button fx:id="serverStatus" onMouseClicked="#showEmbeddedServerMenu" alignment="BASELINE_CENTER" styleClass="primary-button,regular-button"/>
+                    <Button fx:id="bass2000Button" onAction="#showBass2000Submission" text="%bass2000.submit" disable="true" styleClass="primary-button"/>
                 </HBox>
                 <SplitPane dividerPositions="0.5" orientation="VERTICAL">
                     <items>
@@ -100,8 +100,8 @@
                                             <Insets bottom="4.0" left="4.0" right="20.0" top="4.0"/>
                                         </padding>
                                         <buttons>
-                                            <Button onAction="#clearLog" text="%clear.log"/>
-                                            <Button onAction="#saveLog" text="%save.log"/>
+                                            <Button onAction="#clearLog" text="%clear.log" styleClass="cancel-button"/>
+                                            <Button onAction="#saveLog" text="%save.log" styleClass="primary-button"/>
                                         </buttons>
                                     </ButtonBar>
                                     <VirtualizedScrollPane VBox.vgrow="ALWAYS">
@@ -185,7 +185,7 @@
                                                     <Label fx:id="estimatedDiskSpace"/>
                                                 </VBox>
                                                 <VBox alignment="CENTER" GridPane.rowIndex="8" GridPane.columnIndex="0" GridPane.columnSpan="2">
-                                                    <Button fx:id="generateRedshiftImages" text="%generate"/>
+                                                    <Button fx:id="generateRedshiftImages" text="%generate" styleClass="primary-button"/>
                                                 </VBox>
                                             </GridPane>
                                         </ScrollPane>
@@ -205,9 +205,9 @@
                                                 <CheckBox fx:id="clearImagesCheckbox" text="%clear.images"/>
                                                 <ButtonBar prefHeight="40.0" prefWidth="200.0">
                                                     <buttons>
-                                                        <Button fx:id="imageMathLoad" mnemonicParsing="false" text="%imagemath.load"/>
-                                                        <Button fx:id="imageMathSave" mnemonicParsing="false" text="%imagemath.save"/>
-                                                        <Button fx:id="imageMathRun" mnemonicParsing="false" text="%imagemath.run"/>
+                                                        <Button fx:id="imageMathLoad" mnemonicParsing="false" text="%imagemath.load" styleClass="cancel-button"/>
+                                                        <Button fx:id="imageMathSave" mnemonicParsing="false" text="%imagemath.save" styleClass="cancel-button"/>
+                                                        <Button fx:id="imageMathRun" mnemonicParsing="false" text="%imagemath.run" styleClass="primary-button"/>
                                                     </buttons>
                                                 </ButtonBar>
                                             </HBox>

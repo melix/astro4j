@@ -586,6 +586,7 @@ public class JSolEx implements JSolExInterface {
         datePickerBox.getChildren().addAll(dateLabel, datePicker, timeLabel, timeBox);
 
         var downloadButton = new Button(message("download.gong.image"));
+        downloadButton.getStyleClass().add("primary-button");
         var message = new Label();
         var imageView = new ImageView();
         imageView.setPreserveRatio(true);
@@ -961,6 +962,7 @@ public class JSolEx implements JSolExInterface {
                 watchedDirectory = directory.toPath();
                 var key = watchedDirectory.register(watcher, StandardWatchEventKinds.ENTRY_CREATE);
                 interruptWatchButton = new Button(message("stop.watching"));
+                interruptWatchButton.getStyleClass().add("cancel-button");
                 interruptWatchButton.setOnAction(e -> {
                     try {
                         reusedProcessParams = null;
@@ -988,6 +990,7 @@ public class JSolEx implements JSolExInterface {
 
     private Button addInterruptClearParamsButton() {
         var interruptClearParamsButton = new Button(message("interrupt.new.params"));
+        interruptClearParamsButton.getStyleClass().add("cancel-button");
         interruptClearParamsButton.setOnAction(e -> {
             reusedProcessParams = null;
             reusedProcessParamsBinding.invalidate();
@@ -1704,6 +1707,7 @@ public class JSolEx implements JSolExInterface {
 
     private Button addInterruptButton() {
         var interruptButton = new Button(message("interrupt"));
+        interruptButton.getStyleClass().add("cancel-button");
         Platform.runLater(() -> workButtons.getChildren().add(interruptButton));
         return interruptButton;
     }
@@ -1820,30 +1824,32 @@ public class JSolEx implements JSolExInterface {
     }
 
     private ProcessParamsController createProcessParams(File serFile, ProgressOperation progressOperation, SerFileReader serFileReader, boolean batchMode) {
-        var loader = I18N.fxmlLoader(getClass(), "process-params");
-        try {
-            var dialog = newStage();
-            dialog.setTitle(I18N.string(getClass(), "process-params", "process.parameters"));
-            var content = (Parent) loader.load();
-            var controller = (ProcessParamsController) loader.getController();
-            var scene = new Scene(content);
-            var md = CaptureSoftwareMetadataHelper.readSharpcapMetadata(serFile)
-                    .or(() -> CaptureSoftwareMetadataHelper.readFireCaptureMetadata(serFile))
-                    .orElse(null);
-            controller.setup(dialog, progressOperation, evt -> {
-                        if (evt instanceof ProgressEvent pg) {
-                            updateProgress(pg.getPayload());
-                        }
-                    },
-                    serFile, serFileReader.header(), md, batchMode, getHostServices());
-            dialog.setScene(scene);
-            dialog.initOwner(rootStage);
-            dialog.initModality(Modality.APPLICATION_MODAL);
-            dialog.showAndWait();
-            return controller;
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        }
+        var dialog = newStage();
+        dialog.setTitle(I18N.string(getClass(), "process-params", "process.parameters"));
+        
+        var controller = new ProcessParamsController();
+        var md = CaptureSoftwareMetadataHelper.readSharpcapMetadata(serFile)
+                .or(() -> CaptureSoftwareMetadataHelper.readFireCaptureMetadata(serFile))
+                .orElse(null);
+                
+        controller.setup(dialog, progressOperation, evt -> {
+                    if (evt instanceof ProgressEvent pg) {
+                        updateProgress(pg.getPayload());
+                    }
+                },
+                serFile, serFileReader.header(), md, batchMode, getHostServices());
+        
+        var scene = new Scene(controller.getRoot(), 1000, 700);
+        scene.getStylesheets().add(
+            getClass().getResource("/me/champeau/a4j/jsolex/app/components.css").toExternalForm()
+        );
+        
+        dialog.setScene(scene);
+        dialog.initOwner(rootStage);
+        dialog.initModality(Modality.APPLICATION_MODAL);
+        dialog.showAndWait();
+        
+        return controller;
     }
 
     @FXML
