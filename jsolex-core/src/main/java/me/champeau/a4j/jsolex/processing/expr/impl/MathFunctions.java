@@ -37,7 +37,7 @@ public class MathFunctions extends AbstractFunctionImpl {
 
     public Object exp(Map<String ,Object> arguments) {
         BuiltinFunction.EXP.validateArgs(arguments);
-        return applyUnary(arguments, "v", "exp", Math::exp);
+        return applyUnary(arguments, "exp", "v", Math::exp);
     }
 
 }

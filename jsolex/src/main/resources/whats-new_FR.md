@@ -21,6 +21,7 @@
 - Déplacement des paramètres de traitement avancés dans leur propre section
 - Les images générées par script ne sont plus automatiquement étirées (corrige issue 660)
 - Ajout de la possibilité de télécharger une image GONG à une date arbitraire
+- Correction des fonctions `WEIGHTED_AVG` et `EXP`
 
 ### 3.3.2
 

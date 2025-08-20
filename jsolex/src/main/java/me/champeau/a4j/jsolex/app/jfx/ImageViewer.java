@@ -301,7 +301,7 @@ public class ImageViewer implements WithRootNode {
     private StretchingStrategy determineStrategy() {
         return switch (stretchingMode) {
             case NO_STRETCH -> CutoffStretchingStrategy.DEFAULT;
-            case LINEAR -> new StretchingChain(contrastAdjustStrategy, RangeExpansionStrategy.DEFAULT);
+            case LINEAR -> new StretchingChain(RangeExpansionStrategy.DEFAULT, contrastAdjustStrategy, RangeExpansionStrategy.DEFAULT);
             case CURVE -> curveTransformStrategy;
         };
     }

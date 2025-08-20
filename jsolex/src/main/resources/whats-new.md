@@ -21,6 +21,7 @@
 - Moved advanced process parameters to their own section in the process settings
 - Images generated using scripts are no longer stretched by default (fixes issue 660)
 - Make it possible to download any GONG image at arbitrary datetime
+- Fixed `WEIGHTED_AVG` and `EXP` functions
 
 ### 3.3.2
 
