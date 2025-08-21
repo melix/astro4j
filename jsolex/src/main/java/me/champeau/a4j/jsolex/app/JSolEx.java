@@ -77,8 +77,8 @@ import javafx.util.StringConverter;
 import javafx.util.converter.IntegerStringConverter;
 import me.champeau.a4j.jsolex.app.jfx.AdvancedParamsController;
 import me.champeau.a4j.jsolex.app.jfx.ApplyUserRotation;
-import me.champeau.a4j.jsolex.app.jfx.Bass2000SubmissionController;
 import me.champeau.a4j.jsolex.app.jfx.AssistedEllipseFittingController;
+import me.champeau.a4j.jsolex.app.jfx.Bass2000SubmissionController;
 import me.champeau.a4j.jsolex.app.jfx.BatchItem;
 import me.champeau.a4j.jsolex.app.jfx.DocsHelper;
 import me.champeau.a4j.jsolex.app.jfx.EmbeddedServerController;
@@ -130,10 +130,10 @@ import me.champeau.a4j.jsolex.processing.util.BackgroundOperations;
 import me.champeau.a4j.jsolex.processing.util.Constants;
 import me.champeau.a4j.jsolex.processing.util.FilesUtils;
 import me.champeau.a4j.jsolex.processing.util.GONG;
+import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 import me.champeau.a4j.jsolex.processing.util.LoggingSupport;
 import me.champeau.a4j.jsolex.processing.util.MutableMap;
 import me.champeau.a4j.jsolex.processing.util.ProcessingException;
-import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 import me.champeau.a4j.jsolex.processing.util.TemporaryFolder;
 import me.champeau.a4j.jsolex.processing.util.VersionUtil;
 import me.champeau.a4j.math.VectorApiSupport;
@@ -178,7 +178,6 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.function.Consumer;
-import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import static java.nio.file.StandardWatchEventKinds.OVERFLOW;
@@ -926,17 +925,37 @@ public class JSolEx implements JSolExInterface {
 
     @FXML
     private void openBatch() {
-        var fileChooser = new FileChooser();
-        fileChooser.getExtensionFilters().add(SER_FILES_EXTENSION_FILTER);
-        config.findLastOpenDirectory().ifPresent(dir -> fileChooser.setInitialDirectory(dir.toFile()));
-        var selectedFiles = fileChooser.showOpenMultipleDialog(rootStage);
-        if (selectedFiles != null && !selectedFiles.isEmpty()) {
-            if (LOGGER.isInfoEnabled()) {
-                LoggingSupport.LOGGER.info(message("selected.files"), System.lineSeparator() + selectedFiles.stream().map(File::getName).collect(Collectors.joining(System.lineSeparator())));
+        List<File> allSelectedFiles = new ArrayList<>();
+        boolean addMoreFiles = true;
+
+        while (addMoreFiles) {
+            var fileChooser = new FileChooser();
+            fileChooser.getExtensionFilters().add(SER_FILES_EXTENSION_FILTER);
+            config.findLastOpenDirectory().ifPresent(dir -> fileChooser.setInitialDirectory(dir.toFile()));
+            var selectedFiles = fileChooser.showOpenMultipleDialog(rootStage);
+            
+            if (selectedFiles != null && !selectedFiles.isEmpty()) {
+                allSelectedFiles.addAll(selectedFiles);
+                var alert = AlertFactory.confirmation(message("batch.add.more.files"));
+                alert.setTitle(message("batch.file.selection.title"));
+                alert.setHeaderText(message("batch.files.added.success"));
+                alert.getButtonTypes().clear();
+                alert.getButtonTypes().addAll(ButtonType.NO, ButtonType.YES);
+
+                var noButton = (Button) alert.getDialogPane().lookupButton(ButtonType.NO);
+                noButton.setDefaultButton(true);
+                var yesButton = (Button) alert.getDialogPane().lookupButton(ButtonType.YES);
+                yesButton.setDefaultButton(false);
+                
+                var result = alert.showAndWait();
+                addMoreFiles = result.isPresent() && result.get() == ButtonType.YES;
+            } else {
+                addMoreFiles = false;
             }
-            doOpenMany(selectedFiles);
-        } else {
-            LoggingSupport.LOGGER.info(message("no.selected.file"));
+        }
+        
+        if (!allSelectedFiles.isEmpty()) {
+            doOpenMany(allSelectedFiles);
         }
     }
 
