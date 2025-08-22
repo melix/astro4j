@@ -229,7 +229,7 @@ public class ProcessParamsController {
         buttonBar.setPadding(new Insets(12));
 
         var cancelButton = new Button(I18N.string(JSolEx.class, "process-params", "cancel"));
-        cancelButton.getStyleClass().add("cancel-button");
+        cancelButton.getStyleClass().add("default-button");
         cancelButton.setMinWidth(80);
         cancelButton.setPrefWidth(100);
         cancelButton.setOnAction(e -> {

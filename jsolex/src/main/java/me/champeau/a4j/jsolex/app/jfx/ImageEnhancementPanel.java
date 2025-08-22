@@ -342,7 +342,7 @@ public class ImageEnhancementPanel extends BaseParameterPanel {
 
         var selectButton = new Button(I18N.string(JSolEx.class, "process-params", "choose.flat.file"));
         selectButton.setTooltip(new Tooltip(I18N.string(JSolEx.class, "process-params", "flat.mode.help")));
-        selectButton.getStyleClass().add("cancel-button");
+        selectButton.getStyleClass().add("default-button");
         selectButton.setOnAction(e -> selectFlatFile());
         
         box.getChildren().addAll(flatFilePath, selectButton);

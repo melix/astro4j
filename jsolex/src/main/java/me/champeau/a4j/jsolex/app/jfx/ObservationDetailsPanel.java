@@ -202,7 +202,7 @@ public class ObservationDetailsPanel extends BaseParameterPanel {
 
         var selectButton = new Button(I18N.string(JSolEx.class, "process-params", "select.equipment"));
         selectButton.setTooltip(new Tooltip(I18N.string(JSolEx.class, "process-params", "select.equipment")));
-        selectButton.getStyleClass().add("cancel-button");
+        selectButton.getStyleClass().add("default-button");
         selectButton.setOnAction(e -> openInstrumentEditor());
         
         box.getChildren().addAll(instrument, selectButton);
@@ -215,7 +215,7 @@ public class ObservationDetailsPanel extends BaseParameterPanel {
 
         var selectButton = new Button(I18N.string(JSolEx.class, "process-params", "select.equipment"));
         selectButton.setTooltip(new Tooltip(I18N.string(JSolEx.class, "process-params", "select.equipment")));
-        selectButton.getStyleClass().add("cancel-button");
+        selectButton.getStyleClass().add("default-button");
         selectButton.setOnAction(e -> openSetupEditor());
         
         box.getChildren().addAll(telescope, selectButton);

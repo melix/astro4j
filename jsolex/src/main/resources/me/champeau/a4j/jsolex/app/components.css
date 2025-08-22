@@ -47,25 +47,27 @@
     -fx-background-color: #0056b3;
 }
 
-.cancel-button {
-    -fx-background-color: #f8f9fa;
-    -fx-text-fill: #6c757d;
-    -fx-border-color: #dee2e6;
+.default-button {
+    -fx-background-color: #ffffff;
+    -fx-text-fill: #495057;
+    -fx-border-color: #ced4da;
     -fx-background-radius: 6;
     -fx-border-radius: 6;
     -fx-padding: 4 8;
     -fx-font-weight: 500;
     -fx-cursor: hand;
+    -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.1), 2, 0, 0, 1);
 }
 
 .regular-button {
     -fx-background-color: #f8f9fa;
 }
 
-.cancel-button:hover {
-    -fx-background-color: #e9ecef;
-    -fx-text-fill: #495057;
+.default-button:hover {
+    -fx-background-color: #f8f9fa;
+    -fx-border-color: #adb5bd;
 }
+
 
 .custom-button {
     -fx-background-color: #17a2b8;
@@ -437,20 +439,21 @@
     -fx-padding: 0 0 8 0;
 }
 
-.cancel-button {
-    -fx-background-color: #f8f9fa;
-    -fx-text-fill: #6c757d;
-    -fx-border-color: #dee2e6;
+.default-button {
+    -fx-background-color: #ffffff;
+    -fx-text-fill: #495057;
+    -fx-border-color: #ced4da;
     -fx-background-radius: 6;
     -fx-border-radius: 6;
     -fx-padding: 4 8;
     -fx-font-weight: 500;
     -fx-cursor: hand;
+    -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.1), 2, 0, 0, 1);
 }
 
-.cancel-button:hover {
-    -fx-background-color: #e9ecef;
-    -fx-text-fill: #495057;
+.default-button:hover {
+    -fx-background-color: #f8f9fa;
+    -fx-border-color: #adb5bd;
 }
 
 .quick-button, .custom-button {

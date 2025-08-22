@@ -166,7 +166,7 @@ public class ImageSelectionPanel extends BaseParameterPanel {
         pixelShiftsField = new TextField("0");
 
         openImageMathButton = new Button(I18N.string(JSolEx.class, "image-selection", "open.imagemath"));
-        openImageMathButton.getStyleClass().add("cancel-button");
+        openImageMathButton.getStyleClass().add("default-button");
         openImageMathButton.setDisable(true);
     }
 
@@ -240,11 +240,11 @@ public class ImageSelectionPanel extends BaseParameterPanel {
         fullModeButton.setOnAction(e -> loadFullModeSelection());
 
         var selectAllButton = new Button(I18N.string(JSolEx.class, "image-selection", "select.all"));
-        selectAllButton.getStyleClass().add("cancel-button");
+        selectAllButton.getStyleClass().add("default-button");
         selectAllButton.setOnAction(e -> selectAll(true));
 
         var unselectAllButton = new Button(I18N.string(JSolEx.class, "image-selection", "unselect.all"));
-        unselectAllButton.getStyleClass().add("cancel-button");
+        unselectAllButton.getStyleClass().add("default-button");
         unselectAllButton.setOnAction(e -> selectAll(false));
 
         var presetBox = createHBox();

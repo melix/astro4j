@@ -127,7 +127,7 @@ public class AdvancedParametersPanel extends BaseParameterPanel {
         advancedSection.getChildren().add(advancedGrid);
         
         var resetButton = new Button(I18N.string(JSolEx.class, "process-params", "reset.to.defaults"));
-        resetButton.getStyleClass().add("cancel-button");
+        resetButton.getStyleClass().add("default-button");
         resetButton.setOnAction(e -> resetToDefaults());
         
         getChildren().addAll(advancedSection, resetButton);

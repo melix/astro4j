@@ -981,7 +981,7 @@ public class JSolEx implements JSolExInterface {
                 watchedDirectory = directory.toPath();
                 var key = watchedDirectory.register(watcher, StandardWatchEventKinds.ENTRY_CREATE);
                 interruptWatchButton = new Button(message("stop.watching"));
-                interruptWatchButton.getStyleClass().add("cancel-button");
+                interruptWatchButton.getStyleClass().add("default-button");
                 interruptWatchButton.setOnAction(e -> {
                     try {
                         reusedProcessParams = null;
@@ -1009,7 +1009,7 @@ public class JSolEx implements JSolExInterface {
 
     private Button addInterruptClearParamsButton() {
         var interruptClearParamsButton = new Button(message("interrupt.new.params"));
-        interruptClearParamsButton.getStyleClass().add("cancel-button");
+        interruptClearParamsButton.getStyleClass().add("default-button");
         interruptClearParamsButton.setOnAction(e -> {
             reusedProcessParams = null;
             reusedProcessParamsBinding.invalidate();
@@ -1726,7 +1726,7 @@ public class JSolEx implements JSolExInterface {
 
     private Button addInterruptButton() {
         var interruptButton = new Button(message("interrupt"));
-        interruptButton.getStyleClass().add("cancel-button");
+        interruptButton.getStyleClass().add("default-button");
         Platform.runLater(() -> workButtons.getChildren().add(interruptButton));
         return interruptButton;
     }

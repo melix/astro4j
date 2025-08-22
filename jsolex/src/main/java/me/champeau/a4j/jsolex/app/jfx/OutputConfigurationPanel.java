@@ -154,7 +154,7 @@ public class OutputConfigurationPanel extends BaseParameterPanel {
 
         var editButton = new Button("...");
         editButton.setTooltip(new Tooltip(I18N.string(JSolEx.class, "process-params", "naming.pattern")));
-        editButton.getStyleClass().add("cancel-button");
+        editButton.getStyleClass().add("default-button");
         editButton.setOnAction(e -> openNamingPatternEditor());
         
         box.getChildren().addAll(namingPattern, editButton);

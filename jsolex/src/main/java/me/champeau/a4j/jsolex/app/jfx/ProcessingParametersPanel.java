@@ -173,7 +173,7 @@ public class ProcessingParametersPanel extends BaseParameterPanel {
         }
         
         var resetButton = new Button(I18N.string(JSolEx.class, "process-params", "reset.to.defaults"));
-        resetButton.getStyleClass().add("cancel-button");
+        resetButton.getStyleClass().add("default-button");
         resetButton.setOnAction(ignored -> resetToDefaults());
         
         var buttonContainer = new HBox();
@@ -184,7 +184,7 @@ public class ProcessingParametersPanel extends BaseParameterPanel {
     private HBox createWavelengthBox() {
         var editButton = new Button("...");
         editButton.setTooltip(new Tooltip(I18N.string(JSolEx.class, "process-params", "wavelength.tooltip")));
-        editButton.getStyleClass().add("cancel-button");
+        editButton.getStyleClass().add("default-button");
         editButton.setOnAction(ignored -> openWavelengthEditor());
         
         return createChoiceBoxWithButton(wavelengthChoice, editButton);
