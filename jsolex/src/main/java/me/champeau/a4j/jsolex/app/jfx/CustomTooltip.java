@@ -16,10 +16,12 @@
 package me.champeau.a4j.jsolex.app.jfx;
 
 import javafx.animation.PauseTransition;
+import javafx.application.Platform;
 import javafx.scene.Node;
 import javafx.scene.control.Label;
 import javafx.scene.layout.VBox;
 import javafx.stage.Popup;
+import javafx.stage.Screen;
 import javafx.util.Duration;
 
 /**
@@ -44,10 +46,10 @@ public class CustomTooltip {
         
         popup.getContent().add(content);
         
-        showTimer = new PauseTransition(Duration.millis(300));
+        showTimer = new PauseTransition(Duration.millis(500));
         showTimer.setOnFinished(_ -> doShow());
         
-        hideTimer = new PauseTransition(Duration.millis(100));
+        hideTimer = new PauseTransition(Duration.millis(200));
         hideTimer.setOnFinished(_ -> doHide());
     }
     
@@ -84,29 +86,71 @@ public class CustomTooltip {
     }
     
     private void doShow() {
-        if (showing || currentOwner == null) return;
+        if (showing || currentOwner == null) {
+            return;
+        }
         
         try {
-            var bounds = currentOwner.localToScreen(currentOwner.getBoundsInLocal());
-            if (bounds == null || bounds.isEmpty()) return;
-            
-            var x = bounds.getCenterX();
-            var y = bounds.getMinY() - 8;
-            
-            if (x < 0) x = 5;
-            if (y < 0) y = bounds.getMaxY() + 5;
-            
-            popup.show(currentOwner, x, y);
-            showing = true;
+            Platform.runLater(() -> {
+                if (showing || currentOwner == null) {
+                    return;
+                }
+                
+                try {
+                    var scene = currentOwner.getScene();
+                    var window = scene != null ? scene.getWindow() : null;
+                    if (window == null || !window.isShowing()) {
+                        return;
+                    }
+                    
+                    var bounds = currentOwner.localToScreen(currentOwner.getBoundsInLocal());
+                    if (bounds == null || bounds.isEmpty()) {
+                        return;
+                    }
+                    
+                    var screen = Screen.getPrimary().getVisualBounds();
+                    
+                    var x = bounds.getCenterX() - 75;
+                    var y = bounds.getMinY() - 35;
+                    
+                    if (x < screen.getMinX()) {
+                        x = screen.getMinX() + 5;
+                    } else if (x + 150 > screen.getMaxX()) {
+                        x = screen.getMaxX() - 155;
+                    }
+                    
+                    if (y < screen.getMinY()) {
+                        y = bounds.getMaxY() + 5;
+                    }
+                    
+                    if (y + 50 > screen.getMaxY()) {
+                        y = screen.getMaxY() - 55;
+                    }
+                    
+                    popup.show(window, x, y);
+                    showing = true;
+                } catch (Exception e) {
+                    try {
+                        popup.show(currentOwner.getScene().getWindow(), 0, 0);
+                        showing = true;
+                    } catch (Exception fallbackException) {
+                    }
+                }
+            });
         } catch (Exception e) {
-            // Ignore positioning errors - tooltip will simply not show
         }
     }
     
     private void doHide() {
-        if (!showing) return;
+        if (!showing) {
+            return;
+        }
         
-        popup.hide();
-        showing = false;
+        try {
+            popup.hide();
+        } catch (Exception e) {
+        } finally {
+            showing = false;
+        }
     }
 }
