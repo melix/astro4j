@@ -300,6 +300,14 @@ public class ProcessingParametersPanel extends BaseParameterPanel {
     public String getPixelShiftValue() {
         return pixelShiftingField.getText();
     }
+
+    public String getContinuumShiftValue() {
+        return continuumShiftingField.getText();
+    }
+
+    public String getDopplerShiftValue() {
+        return dopplerShiftingField.getText();
+    }
     
     public void setPixelShiftValue(String value) {
         pixelShiftingField.setText(value);

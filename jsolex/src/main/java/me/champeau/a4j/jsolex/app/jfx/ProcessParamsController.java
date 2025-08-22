@@ -40,6 +40,7 @@ import me.champeau.a4j.jsolex.processing.params.ProcessParams;
 import me.champeau.a4j.jsolex.processing.params.VideoParams;
 import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
 import me.champeau.a4j.jsolex.processing.sun.CaptureSoftwareMetadataHelper;
+import me.champeau.a4j.jsolex.processing.sun.workflow.GeneratedImageKind;
 import me.champeau.a4j.ser.ColorMode;
 import me.champeau.a4j.ser.Header;
 import me.champeau.a4j.ser.ImageMetadata;
@@ -305,7 +306,8 @@ public class ProcessParamsController {
         var newEnhancement = enhancementPanel.getEnhancementParams();
 
         var extraParams = outputPanel.getExtraParams()
-                .withReviewImagesAfterBatch(processingPanel.isReviewImagesAfterBatch());
+                .withReviewImagesAfterBatch(processingPanel.isReviewImagesAfterBatch())
+                .withGenerateDebugImages(imageSelectionPanel.getRequestedImages().isEnabled(GeneratedImageKind.DEBUG));
                 
         var baseGeometry = processingPanel.getGeometryParams()
                 .withDeconvolutionMode(enhancementPanel.getDeconvolutionMode());
@@ -346,9 +348,6 @@ public class ProcessParamsController {
         observationPanel.loadData(processParams, metadata);
         advancedPanel.loadData(processParams);
         outputPanel.loadData(processParams, batchMode);
-
-        var spectrumParams = processParams.spectrumParams();
-        imageSelectionPanel.setShiftParameters(spectrumParams.dopplerShift(), spectrumParams.continuumShift());
     }
 
     public Optional<ProcessParams> getProcessParams() {

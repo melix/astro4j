@@ -16,18 +16,15 @@
 package me.champeau.a4j.jsolex.app.jfx;
 
 import javafx.application.HostServices;
-import javafx.collections.FXCollections;
 import javafx.geometry.Insets;
 import javafx.scene.control.Button;
 import javafx.scene.control.CheckBox;
-import javafx.scene.control.ChoiceBox;
-import javafx.scene.control.TextField;
+import javafx.scene.control.Label;
 import javafx.scene.layout.ColumnConstraints;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.stage.Stage;
-import javafx.util.StringConverter;
 import me.champeau.a4j.jsolex.app.JSolEx;
 import me.champeau.a4j.jsolex.app.script.JSolExScriptExecutor;
 import me.champeau.a4j.jsolex.processing.expr.DefaultImageScriptExecutor;
@@ -43,10 +40,10 @@ import me.champeau.a4j.jsolex.processing.util.ProcessingException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.EnumSet;
 import java.util.HashMap;
@@ -54,7 +51,6 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.TreeSet;
-import java.util.stream.Collectors;
 
 public class ImageSelectionPanel extends BaseParameterPanel {
     private static final Logger LOGGER = LoggerFactory.getLogger(ImageSelectionPanel.class);
@@ -81,24 +77,19 @@ public class ImageSelectionPanel extends BaseParameterPanel {
 
     private CheckBox debug;
 
-    private ChoiceBox<PixelShiftMode> pixelShiftMode;
-    private TextField pixelShiftsField;
+    private Label scriptLabel;
     private Button openImageMathButton;
+    private Button clearScriptsButton;
 
     private ProcessParamsController controller;
     private HostServices hostServices;
     private boolean batchMode;
     private Stage stage;
-    private double dopplerShift = 3.0;
-    private double continuumShift = 0.0;
     private ImageMathParams imageMathParams = ImageMathParams.NONE;
-    private Set<Double> internalPixelShifts;
     private Set<Double> requestedWaveLengths;
     private boolean autoContinuum;
-    private SelectionMode currentMode = SelectionMode.CUSTOM; // Will be dynamically updated
+    private SelectionMode currentMode = SelectionMode.CUSTOM;
 
-    private ImageMathParams cachedImageMathParams;
-    private List<Double> cachedShifts;
 
     public ImageSelectionPanel() {
         getStyleClass().add("parameter-panel");
@@ -148,26 +139,15 @@ public class ImageSelectionPanel extends BaseParameterPanel {
 
         debug = createCheckbox("debug.images");
 
-        pixelShiftMode = createChoiceBox();
-        pixelShiftMode.setItems(FXCollections.observableArrayList(PixelShiftMode.values()));
-        pixelShiftMode.setValue(PixelShiftMode.SIMPLE);
-        pixelShiftMode.setConverter(new StringConverter<PixelShiftMode>() {
-            @Override
-            public String toString(PixelShiftMode mode) {
-                return mode == null ? "" : (mode == PixelShiftMode.SIMPLE ? "Simple" : "Image Math");
-            }
-
-            @Override
-            public PixelShiftMode fromString(String string) {
-                return null;
-            }
-        });
-
-        pixelShiftsField = new TextField("0");
+        scriptLabel = new Label("No script loaded");
+        scriptLabel.getStyleClass().add("script-label");
 
         openImageMathButton = new Button(I18N.string(JSolEx.class, "image-selection", "open.imagemath"));
         openImageMathButton.getStyleClass().add("default-button");
-        openImageMathButton.setDisable(true);
+
+        clearScriptsButton = new Button(I18N.string(JSolEx.class, "process-params", "clear"));
+        clearScriptsButton.getStyleClass().add("default-button");
+        clearScriptsButton.setOnAction(e -> clearScripts());
     }
 
     private static CheckBox createCheckbox(String item) {
@@ -219,12 +199,11 @@ public class ImageSelectionPanel extends BaseParameterPanel {
         var pixelShiftSection = createSection("custom.images");
         var pixelShiftGrid = createGrid();
 
-        var modeBox = createHBox();
-        HBox.setHgrow(pixelShiftMode, Priority.ALWAYS);
-        modeBox.getChildren().addAll(pixelShiftMode, openImageMathButton);
+        var scriptBox = createHBox();
+        HBox.setHgrow(scriptLabel, Priority.ALWAYS);
+        scriptBox.getChildren().addAll(scriptLabel, clearScriptsButton, openImageMathButton);
 
-        addGridRow(pixelShiftGrid, 0, "Mode:", modeBox);
-        addGridRow(pixelShiftGrid, 1, I18N.string(JSolEx.class, "process-params", "pixel.shifts") + ":", pixelShiftsField);
+        addGridRow(pixelShiftGrid, 0, I18N.string(JSolEx.class, "process-params", "scripts") + ":", scriptBox);
 
         pixelShiftSection.getChildren().add(pixelShiftGrid);
 
@@ -262,22 +241,6 @@ public class ImageSelectionPanel extends BaseParameterPanel {
     }
 
     private void setupEventHandlers() {
-        pixelShiftMode.valueProperty().addListener((obs, oldValue, newValue) -> {
-            if (newValue != null) {
-                var isImageMath = newValue == PixelShiftMode.IMAGEMATH;
-                openImageMathButton.setDisable(!isImageMath);
-                pixelShiftsField.setDisable(isImageMath);
-
-                if (isImageMath && imageMathParams != null && !imageMathParams.equals(ImageMathParams.NONE)) {
-                    updatePixelShiftsWithSelectedImages(findPixelShifts(imageMathParams));
-                } else if (!isImageMath) {
-                    updatePixelShiftsWithSelectedImages(List.of(0.0));
-                }
-            }
-        });
-
-        doppler.selectedProperty().addListener((obs, oldValue, newValue) -> adjustPixelShifts(newValue, -dopplerShift, dopplerShift));
-        continuum.selectedProperty().addListener((obs, oldValue, newValue) -> adjustPixelShifts(newValue, continuumShift));
         activeRegions.selectedProperty().addListener((obs, oldValue, newValue) -> {
             if (newValue) {
                 continuum.setSelected(true);
@@ -315,6 +278,31 @@ public class ImageSelectionPanel extends BaseParameterPanel {
         if (controller != null) {
             controller.updateFullButtonLabel();
         }
+    }
+
+    private List<Double> calculatePixelShiftsForSelectedImages() {
+        var result = new TreeSet<Double>();
+        result.add(Double.parseDouble(controller.getProcessingPanel().getPixelShiftValue()));
+
+        if (continuum.isSelected() || activeRegions.isSelected() || redshift.isSelected() || ellermanBombs.isSelected()) {
+            result.add(Double.parseDouble(controller.getProcessingPanel().getContinuumShiftValue()));
+        }
+
+        return result.stream().toList();
+    }
+
+    private List<Double> calculateInternalPixelShiftsForSelectedImages() {
+        var result = new TreeSet<Double>();
+        if (doppler.isSelected() || dopplerEclipse.isSelected()) {
+            var ds = Double.parseDouble(controller.getProcessingPanel().getDopplerShiftValue());
+            result.add(ds);
+            result.add(-ds);
+        }
+        if (ellermanBombs.isSelected()) {
+            result.add(Double.parseDouble(controller.getProcessingPanel().getContinuumShiftValue()));
+        }
+
+        return result.stream().toList();
     }
 
 
@@ -370,43 +358,7 @@ public class ImageSelectionPanel extends BaseParameterPanel {
         ellermanBombs.setSelected(selected);
     }
 
-    private void updatePixelShiftsWithSelectedImages(List<Double> newPixelShifts) {
-        var result = new TreeSet<>(newPixelShifts);
-        if (result.isEmpty()) {
-            result.add(0.0);
-        }
-        if (continuum.isSelected()) {
-            result.add(continuumShift);
-        }
-        if (doppler.isSelected() || dopplerEclipse.isSelected()) {
-            result.add(-dopplerShift);
-            result.add(dopplerShift);
-        }
-        setPixelShiftText(result.stream().toList());
-    }
 
-    private void adjustPixelShifts(boolean newValue, double... shifts) {
-        var newPixelShifts = new ArrayList<>(readPixelShifts());
-        for (var shift : shifts) {
-            if (newValue) {
-                newPixelShifts.add(shift);
-            } else {
-                newPixelShifts.remove(shift);
-            }
-        }
-        setPixelShiftText(newPixelShifts);
-    }
-
-    private void setPixelShiftText(List<Double> pixelShifts) {
-        pixelShiftsField.setText(pixelShifts.stream().distinct().sorted().map(String::valueOf).collect(Collectors.joining(";")));
-    }
-
-    private List<Double> readPixelShifts() {
-        return Arrays.stream(pixelShiftsField.getText().split("\\s*;\\s*"))
-                .filter(s -> !s.isEmpty())
-                .map(Double::parseDouble)
-                .collect(Collectors.toList());
-    }
 
     private DefaultImageScriptExecutor createScriptExecutor() {
         var images = new HashMap<PixelShift, ImageWrapper32>();
@@ -417,22 +369,18 @@ public class ImageSelectionPanel extends BaseParameterPanel {
         );
     }
 
-    private List<Double> findPixelShifts(ImageMathParams params) {
-        if (cachedImageMathParams == params) {
-            return cachedShifts;
-        }
+    private PixelShifts findPixelShifts(ImageMathParams params) {
         var executor = createScriptExecutor();
-        var allShifts = new TreeSet<Double>();
-        internalPixelShifts = new TreeSet<>();
+        var normalShifts = new TreeSet<Double>();
+        var internalShifts = new TreeSet<Double>();
         requestedWaveLengths = new TreeSet<>();
         autoContinuum = false;
         for (var file : params.scriptFiles()) {
             if (Files.exists(file.toPath())) {
                 try {
                     var result = executor.execute(file.toPath(), ImageMathScriptExecutor.SectionKind.SINGLE);
-                    allShifts.addAll(result.internalShifts());
-                    internalPixelShifts.addAll(result.internalShifts());
-                    allShifts.addAll(result.outputShifts());
+                    internalShifts.addAll(result.internalShifts());
+                    normalShifts.addAll(result.outputShifts());
                     requestedWaveLengths.addAll(result.requestedWavelenghts());
                     autoContinuum |= result.autoContinuum();
                 } catch (IOException e) {
@@ -440,13 +388,8 @@ public class ImageSelectionPanel extends BaseParameterPanel {
                 }
             }
         }
-        var list = allShifts.stream().toList();
-        cachedShifts = list;
-        cachedImageMathParams = params;
         
-        updatePixelShiftFromInternalShifts();
-        
-        return list;
+        return new PixelShifts(normalShifts.stream().toList(), internalShifts.stream().toList());
     }
 
     private void openImageMath() {
@@ -459,13 +402,8 @@ public class ImageSelectionPanel extends BaseParameterPanel {
                     controller -> {
                     },
                     controller -> controller.getConfiguration().ifPresent(params -> {
-                        try {
-                            updatePixelShiftsWithSelectedImages(findPixelShifts(params));
-                        } catch (ProcessingException e) {
-                            LOGGER.warn("Error while executing image math script {}", e.getMessage());
-                            updatePixelShiftsWithSelectedImages(List.of(0.0));
-                        }
                         this.imageMathParams = params;
+                        updateScriptLabel();
 
 
                         currentMode = determineCurrentMode();
@@ -476,17 +414,6 @@ public class ImageSelectionPanel extends BaseParameterPanel {
 
     public void setController(ProcessParamsController controller) {
         this.controller = controller;
-    }
-    
-    public void updatePixelShiftFromInternalShifts() {
-        if (controller != null && !internalPixelShifts.isEmpty()) {
-            double currentPixelShift = Double.parseDouble(controller.getProcessingPanel().getPixelShiftValue());
-            
-            if (!internalPixelShifts.contains(currentPixelShift)) {
-                double newPixelShift = internalPixelShifts.iterator().next(); // Use first internal shift
-                controller.getProcessingPanel().setPixelShiftValue(String.valueOf(newPixelShift));
-            }
-        }
     }
 
     public void setStage(Stage stage) {
@@ -499,11 +426,6 @@ public class ImageSelectionPanel extends BaseParameterPanel {
 
     public void setBatchMode(boolean batchMode) {
         this.batchMode = batchMode;
-    }
-
-    public void setShiftParameters(double dopplerShift, double continuumShift) {
-        this.dopplerShift = dopplerShift;
-        this.continuumShift = continuumShift;
     }
 
     public void loadQuickModeSelection() {
@@ -547,6 +469,15 @@ public class ImageSelectionPanel extends BaseParameterPanel {
 
         autoContinuum = requestedImages.autoContinuum();
 
+        var imageMathParams = requestedImages.mathImages();
+        if (imageMathParams != null && !imageMathParams.equals(ImageMathParams.NONE)) {
+            this.imageMathParams = imageMathParams;
+            updateScriptLabel();
+        } else {
+            this.imageMathParams = null;
+            updateScriptLabel();
+        }
+
         currentMode = determineCurrentMode();
         updateCurrentModeDisplay();
 
@@ -558,19 +489,15 @@ public class ImageSelectionPanel extends BaseParameterPanel {
         if (raw.isSelected()) {
             images.add(GeneratedImageKind.RAW);
         }
+        if (technicalCard.isSelected()) {
+            images.add(GeneratedImageKind.TECHNICAL_CARD);
+        }
         if (geometryCorrected.isSelected()) {
             images.add(GeneratedImageKind.GEOMETRY_CORRECTED);
         }
         if (geometryCorrectedStretched.isSelected()) {
             images.add(GeneratedImageKind.GEOMETRY_CORRECTED_PROCESSED);
         }
-        if (reconstruction.isSelected()) {
-            images.add(GeneratedImageKind.RECONSTRUCTION);
-        }
-        if (technicalCard.isSelected()) {
-            images.add(GeneratedImageKind.TECHNICAL_CARD);
-        }
-
         if (colorized.isSelected()) {
             images.add(GeneratedImageKind.COLORIZED);
         }
@@ -592,6 +519,9 @@ public class ImageSelectionPanel extends BaseParameterPanel {
         if (continuum.isSelected()) {
             images.add(GeneratedImageKind.CONTINUUM);
         }
+        if (reconstruction.isSelected()) {
+            images.add(GeneratedImageKind.RECONSTRUCTION);
+        }
         if (redshift.isSelected()) {
             images.add(GeneratedImageKind.REDSHIFT);
         }
@@ -602,66 +532,66 @@ public class ImageSelectionPanel extends BaseParameterPanel {
             images.add(GeneratedImageKind.ELLERMAN_BOMBS);
             images.add(GeneratedImageKind.FLARES);
         }
-
         if (debug.isSelected()) {
             images.add(GeneratedImageKind.DEBUG);
         }
 
-        var pixelShifts = readPixelShifts();
+        var normalShifts = new ArrayList<>(calculatePixelShiftsForSelectedImages());
+        var internalShiftsSet = new HashSet<>(calculateInternalPixelShiftsForSelectedImages());
         
-        Set<Double> computedInternalShifts = new HashSet<>();
-        if (images.contains(GeneratedImageKind.DOPPLER) || 
-            images.contains(GeneratedImageKind.DOPPLER_ECLIPSE) ||
-            images.contains(GeneratedImageKind.REDSHIFT)) {
-            computedInternalShifts.add(dopplerShift);
-            computedInternalShifts.add(-dopplerShift);
+        var finalImageMathParams = ImageMathParams.NONE;
+        if (imageMathParams != null && !imageMathParams.equals(ImageMathParams.NONE)) {
+            finalImageMathParams = imageMathParams;
+
+            var scriptPixelShifts = findPixelShifts(imageMathParams);
+            normalShifts.addAll(scriptPixelShifts.normalShifts());
+            internalShiftsSet.addAll(scriptPixelShifts.internalShifts());
         }
 
-        if (continuum.isSelected()) {
-            pixelShifts.add(continuumShift);
-        }
-
-        if (internalPixelShifts != null) {
-            computedInternalShifts.addAll(internalPixelShifts);
-        }
+        normalShifts.forEach(internalShiftsSet::remove);
         
         return new RequestedImages(
-                images,
-                pixelShifts.stream().distinct().toList(),
-                computedInternalShifts,
-                requestedWaveLengths == null ? Set.of() : Collections.unmodifiableSet(requestedWaveLengths),
-                pixelShiftMode.getValue() == PixelShiftMode.IMAGEMATH ? imageMathParams : ImageMathParams.NONE,
-                autoContinuum
+            images,
+            normalShifts.stream().distinct().toList(),
+            internalShiftsSet,
+            requestedWaveLengths == null ? Set.of() : Collections.unmodifiableSet(requestedWaveLengths),
+            finalImageMathParams,
+            autoContinuum
         );
     }
 
     public boolean isCustomMode() {
-        return currentMode == SelectionMode.CUSTOM || pixelShiftMode.getValue() == PixelShiftMode.IMAGEMATH;
+        return currentMode == SelectionMode.CUSTOM || (imageMathParams != null && !imageMathParams.equals(ImageMathParams.NONE));
     }
 
-    private enum PixelShiftMode {
-        SIMPLE("mode.simple"),
-        IMAGEMATH("mode.imagemath");
-
-        private final String label;
-
-        PixelShiftMode(String label) {
-            this.label = label;
-        }
-
-        public String getLabel() {
-            return label;
+    private void updateScriptLabel() {
+        if (imageMathParams != null && !imageMathParams.equals(ImageMathParams.NONE)) {
+            var files = imageMathParams.scriptFiles();
+            if (files.isEmpty()) {
+                scriptLabel.setText(I18N.string(JSolEx.class, "process-params", "no.script.loaded"));
+            } else {
+                var names = files.stream().map(File::getName).toList();
+                scriptLabel.setText(String.join(", ", names));
+            }
+        } else {
+            scriptLabel.setText(I18N.string(JSolEx.class, "process-params", "no.script.loaded"));
         }
     }
+
+    private void clearScripts() {
+        imageMathParams = null;
+        updateScriptLabel();
+        currentMode = determineCurrentMode();
+        updateCurrentModeDisplay();
+    }
+
 
     private enum SelectionMode {
         QUICK, FULL, CUSTOM
     }
 
-    /**
-     * Dynamically determines the selection mode based on the current image selections
-     * by comparing with RequestedImages constants.
-     */
+    private record PixelShifts(List<Double> normalShifts, List<Double> internalShifts) {}
+
     private SelectionMode determineCurrentMode() {
         if (fullModeCheckBoxes.stream().allMatch(CheckBox::isSelected)) {
             return SelectionMode.FULL;
