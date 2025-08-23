@@ -62,6 +62,7 @@ import javafx.scene.image.ImageView;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.HBox;
+import javafx.scene.layout.Region;
 import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
 import javafx.scene.paint.Color;
@@ -544,13 +545,21 @@ public class JSolEx implements JSolExInterface {
         datePickerBox.setSpacing(10);
         
         var dateLabel = new Label(message("select.date"));
+        dateLabel.setMinWidth(Region.USE_PREF_SIZE);
         var defaultDate = serFileDate != null ? serFileDate.toLocalDate() : LocalDate.now();
         var datePicker = new DatePicker(defaultDate);
+        datePicker.setPrefWidth(120);
+        datePicker.setMaxWidth(120);
         
         var timeLabel = new Label(message("select.time"));
+        timeLabel.setMinWidth(Region.USE_PREF_SIZE);
         var defaultTime = serFileDate != null ? serFileDate.toLocalTime() : LocalTime.now(ZoneId.of("UTC"));
         var hourField = new TextField();
-        hourField.setPrefWidth(50);
+        hourField.setPrefColumnCount(2);
+        hourField.setPrefWidth(30);
+        hourField.setMaxWidth(30);
+        hourField.setMinWidth(30);
+        hourField.setStyle("-fx-pref-width: 30px; -fx-max-width: 30px; -fx-min-width: 30px;");
         hourField.setTextFormatter(new TextFormatter<>(new IntegerStringConverter() {
             @Override
             public Integer fromString(String value) {
@@ -560,11 +569,20 @@ public class JSolEx implements JSolExInterface {
                 }
                 return Math.max(0, Math.min(23, asInt));
             }
+            
+            @Override
+            public String toString(Integer value) {
+                return value == null ? "00" : String.format("%02d", value);
+            }
         }));
         hourField.setText(String.format("%02d", defaultTime.getHour()));
         
         var minuteField = new TextField();
-        minuteField.setPrefWidth(50);
+        minuteField.setPrefColumnCount(2);
+        minuteField.setPrefWidth(30);
+        minuteField.setMaxWidth(30);
+        minuteField.setMinWidth(30);
+        minuteField.setStyle("-fx-pref-width: 30px; -fx-max-width: 30px; -fx-min-width: 30px;");
         minuteField.setTextFormatter(new TextFormatter<>(new IntegerStringConverter() {
             @Override
             public Integer fromString(String value) {
@@ -574,9 +592,13 @@ public class JSolEx implements JSolExInterface {
                 }
                 return Math.max(0, Math.min(59, asInt));
             }
+            
+            @Override
+            public String toString(Integer value) {
+                return value == null ? "00" : String.format("%02d", value);
+            }
         }));
         minuteField.setText(String.format("%02d", defaultTime.getMinute()));
-        
         var colonLabel = new Label(":");
         var timeBox = new HBox(5);
         timeBox.setAlignment(Pos.CENTER);
