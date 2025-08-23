@@ -230,9 +230,7 @@ public class AdvancedParametersPanel extends BaseParameterPanel {
     }
     
     private void openPolynomialEditor() {
-        if (controller != null) {
-            controller.openVideoDebugger();
-        }
+        controller.openVideoDebugger();
     }
     
     public void updateForcedPolynomial(String polynomial) {

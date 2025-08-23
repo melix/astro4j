@@ -99,7 +99,7 @@ public class ObservationDetailsPanel extends BaseParameterPanel {
         });
         
         instrument.getSelectionModel().selectedItemProperty().addListener((obs, oldInstrument, newInstrument) -> {
-            if (newInstrument != null && controller != null) {
+            if (newInstrument != null) {
                 controller.updateSpectrumVFlipForInstrument(newInstrument);
                 controller.notifyObservationDetailsChanged();
             }
@@ -137,18 +137,14 @@ public class ObservationDetailsPanel extends BaseParameterPanel {
         binning.setValue(1);
         binning.setTooltip(new Tooltip(I18N.string(JSolEx.class, "process-params", "binning")));
         binning.getSelectionModel().selectedItemProperty().addListener((obs, oldValue, newValue) -> {
-            if (controller != null) {
-                controller.notifyObservationDetailsChanged();
-            }
+            controller.notifyObservationDetailsChanged();
         });
         
         pixelSize = new TextField();
         pixelSize.setPromptText("3.76");
         pixelSize.setTooltip(new Tooltip(I18N.string(JSolEx.class, "process-params", "pixel.size")));
         pixelSize.textProperty().addListener((obs, oldValue, newValue) -> {
-            if (controller != null) {
-                controller.notifyObservationDetailsChanged();
-            }
+            controller.notifyObservationDetailsChanged();
         });
         
         altAzMode = createCheckBox(I18N.string(JSolEx.class, "process-params", "altaz.mode"), I18N.string(JSolEx.class, "process-params", "altaz.mode"));
@@ -303,15 +299,11 @@ public class ObservationDetailsPanel extends BaseParameterPanel {
     }
     
     private void openInstrumentEditor() {
-        if (controller != null) {
-            controller.openInstrumentEditor();
-        }
+        controller.openInstrumentEditor();
     }
     
     private void openSetupEditor() {
-        if (controller != null) {
-            controller.openSetupEditor();
-        }
+        controller.openSetupEditor();
     }
     
     

@@ -193,9 +193,7 @@ public class ProcessingParametersPanel extends BaseParameterPanel {
 
 
     private void openWavelengthEditor() {
-        if (controller != null) {
-            controller.openWavelengthEditor();
-        }
+        controller.openWavelengthEditor();
     }
     
     
@@ -209,7 +207,7 @@ public class ProcessingParametersPanel extends BaseParameterPanel {
         verticalMirrorCheck.setSelected(false);
         autocorrectAnglePCheck.setSelected(false);
         switchRedBlueChannelsCheck.setSelected(false);
-        if (batchMode && reviewImagesAfterBatch != null) {
+        if (batchMode) {
             reviewImagesAfterBatch.setSelected(false);
         }
     }
@@ -294,7 +292,7 @@ public class ProcessingParametersPanel extends BaseParameterPanel {
     }
     
     public boolean isReviewImagesAfterBatch() {
-        return batchMode && reviewImagesAfterBatch != null && reviewImagesAfterBatch.isSelected();
+        return batchMode && reviewImagesAfterBatch.isSelected();
     }
     
     public String getPixelShiftValue() {

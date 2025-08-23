@@ -162,9 +162,7 @@ public class OutputConfigurationPanel extends BaseParameterPanel {
     }
     
     private void openNamingPatternEditor() {
-        if (controller != null) {
-            controller.openNamingPatternEditor();
-        }
+        controller.openNamingPatternEditor();
     }
     
     public void loadData(ProcessParams params, boolean batchMode) {

@@ -275,9 +275,7 @@ public class ImageSelectionPanel extends BaseParameterPanel {
     }
 
     private void updateCurrentModeDisplay() {
-        if (controller != null) {
-            controller.updateFullButtonLabel();
-        }
+        controller.updateFullButtonLabel();
     }
 
     private List<Double> calculatePixelShiftsForSelectedImages() {

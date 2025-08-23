@@ -350,9 +350,7 @@ public class ImageEnhancementPanel extends BaseParameterPanel {
     }
     
     private void selectFlatFile() {
-        if (controller != null) {
-            controller.selectFlatFile();
-        }
+        controller.selectFlatFile();
     }
     
     public void loadData(ProcessParams params) {

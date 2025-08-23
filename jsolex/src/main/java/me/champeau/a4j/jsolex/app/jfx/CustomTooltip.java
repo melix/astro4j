@@ -76,7 +76,11 @@ public class CustomTooltip {
         node.setOnMousePressed(_ -> {
             showTimer.stop();
             hideTimer.stop();
-            doHide();
+            if (!showing) {
+                doShow();
+            } else {
+                doHide();
+            }
         });
         
         content.setOnMouseEntered(_ -> {
