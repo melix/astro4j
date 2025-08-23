@@ -46,16 +46,17 @@ public class CustomTooltip {
         
         popup.getContent().add(content);
         
-        showTimer = new PauseTransition(Duration.millis(500));
+        showTimer = new PauseTransition(Duration.millis(300));
         showTimer.setOnFinished(_ -> doShow());
         
-        hideTimer = new PauseTransition(Duration.millis(200));
+        hideTimer = new PauseTransition(Duration.millis(100));
         hideTimer.setOnFinished(_ -> doHide());
     }
     
     private Node currentOwner;
     
     public void attachTo(Node node) {
+        detachFromCurrent();
         this.currentOwner = node;
         
         node.setOnMouseEntered(_ -> {
@@ -65,19 +66,23 @@ public class CustomTooltip {
             }
         });
         
-        node.setOnMouseExited(_ -> {
+        node.setOnMouseExited(event -> {
             showTimer.stop();
-            if (showing) {
+            if (showing && !isMouseOverTooltip(event)) {
                 hideTimer.playFromStart();
             }
         });
         
         node.setOnMousePressed(_ -> {
             showTimer.stop();
+            hideTimer.stop();
             doHide();
         });
         
-        content.setOnMouseEntered(_ -> hideTimer.stop());
+        content.setOnMouseEntered(_ -> {
+            hideTimer.stop();
+        });
+        
         content.setOnMouseExited(_ -> {
             if (showing) {
                 hideTimer.playFromStart();
@@ -85,59 +90,95 @@ public class CustomTooltip {
         });
     }
     
+    public void detachFromCurrent() {
+        showTimer.stop();
+        hideTimer.stop();
+        doHide();
+        
+        if (currentOwner != null) {
+            currentOwner.setOnMouseEntered(null);
+            currentOwner.setOnMouseExited(null);
+            currentOwner.setOnMousePressed(null);
+            currentOwner = null;
+        }
+    }
+    
+    private boolean isMouseOverTooltip(javafx.scene.input.MouseEvent event) {
+        if (!showing || popup == null || !popup.isShowing()) {
+            return false;
+        }
+        
+        try {
+            var screenBounds = popup.getContent().getFirst().localToScreen(popup.getContent().getFirst().getBoundsInLocal());
+            if (screenBounds != null) {
+                return screenBounds.contains(event.getScreenX(), event.getScreenY());
+            }
+        } catch (Exception e) {
+            // ignore
+        }
+        return false;
+    }
+    
     private void doShow() {
         if (showing || currentOwner == null) {
             return;
         }
         
+        if (Platform.isFxApplicationThread()) {
+            showOnFxThread();
+        } else {
+            Platform.runLater(this::showOnFxThread);
+        }
+    }
+    
+    private void showOnFxThread() {
+        if (showing || currentOwner == null) {
+            return;
+        }
+        
         try {
-            Platform.runLater(() -> {
-                if (showing || currentOwner == null) {
-                    return;
-                }
-                
-                try {
-                    var scene = currentOwner.getScene();
-                    var window = scene != null ? scene.getWindow() : null;
-                    if (window == null || !window.isShowing()) {
-                        return;
-                    }
-                    
-                    var bounds = currentOwner.localToScreen(currentOwner.getBoundsInLocal());
-                    if (bounds == null || bounds.isEmpty()) {
-                        return;
-                    }
-                    
-                    var screen = Screen.getPrimary().getVisualBounds();
-                    
-                    var x = bounds.getCenterX() - 75;
-                    var y = bounds.getMinY() - 35;
-                    
-                    if (x < screen.getMinX()) {
-                        x = screen.getMinX() + 5;
-                    } else if (x + 150 > screen.getMaxX()) {
-                        x = screen.getMaxX() - 155;
-                    }
-                    
-                    if (y < screen.getMinY()) {
-                        y = bounds.getMaxY() + 5;
-                    }
-                    
-                    if (y + 50 > screen.getMaxY()) {
-                        y = screen.getMaxY() - 55;
-                    }
-                    
-                    popup.show(window, x, y);
-                    showing = true;
-                } catch (Exception e) {
-                    try {
-                        popup.show(currentOwner.getScene().getWindow(), 0, 0);
-                        showing = true;
-                    } catch (Exception fallbackException) {
-                    }
-                }
-            });
+            var scene = currentOwner.getScene();
+            var window = scene != null ? scene.getWindow() : null;
+            if (window == null || !window.isShowing()) {
+                return;
+            }
+            
+            var bounds = currentOwner.localToScreen(currentOwner.getBoundsInLocal());
+            if (bounds == null || bounds.isEmpty()) {
+                return;
+            }
+            
+            var screen = Screen.getPrimary().getVisualBounds();
+            
+            var x = bounds.getCenterX() - 75;
+            var y = bounds.getMinY() - 35;
+            
+            if (x < screen.getMinX()) {
+                x = screen.getMinX() + 5;
+            } else if (x + 150 > screen.getMaxX()) {
+                x = screen.getMaxX() - 155;
+            }
+            
+            if (y < screen.getMinY()) {
+                y = bounds.getMaxY() + 5;
+            }
+            
+            if (y + 50 > screen.getMaxY()) {
+                y = screen.getMaxY() - 55;
+            }
+            
+            popup.show(window, x, y);
+            showing = true;
         } catch (Exception e) {
+            try {
+                var scene = currentOwner.getScene();
+                if (scene != null && scene.getWindow() != null) {
+                    popup.show(scene.getWindow(), 0, 0);
+                    showing = true;
+                }
+            } catch (Exception fallbackException) {
+                // ignore
+            }
         }
     }
     
@@ -146,9 +187,24 @@ public class CustomTooltip {
             return;
         }
         
+        if (Platform.isFxApplicationThread()) {
+            hideOnFxThread();
+        } else {
+            Platform.runLater(this::hideOnFxThread);
+        }
+    }
+    
+    private void hideOnFxThread() {
+        if (!showing) {
+            return;
+        }
+        
         try {
-            popup.hide();
+            if (popup != null && popup.isShowing()) {
+                popup.hide();
+            }
         } catch (Exception e) {
+            // ignore
         } finally {
             showing = false;
         }
