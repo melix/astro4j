@@ -269,6 +269,10 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
             case AUTOCROP -> crop.autocrop(arguments);
             case AUTOCROP2 -> crop.autocrop2(arguments);
             case AVG -> simpleFunctionCall.applyFunction("avg", arguments, DoubleStream::average);
+            case AVG2 -> simpleFunctionCall.applyFunction("avg2", arguments, stream -> {
+                var sigma = ((Number) arguments.get("sigma")).doubleValue();
+                return applySigmaClippedAverage(stream, sigma);
+            });
             case BG_MODEL -> bgRemoval.backgroundModel(arguments);
             case BLUR -> convolution.blur(arguments);
             case CLAHE -> clahe.clahe(arguments);
@@ -324,6 +328,10 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
             case MAX -> simpleFunctionCall.applyFunction("max", arguments, DoubleStream::max);
             case MEDIAN ->
                     simpleFunctionCall.applyFunction("median", arguments, AbstractImageExpressionEvaluator::median);
+            case MEDIAN2 -> simpleFunctionCall.applyFunction("median2", arguments, stream -> {
+                var sigma = ((Number) arguments.get("sigma")).doubleValue();
+                return applySigmaClippedMedian(stream, sigma);
+            });
             case MIN -> simpleFunctionCall.applyFunction("min", arguments, DoubleStream::min);
             case MONO -> utilities.toMono(arguments);
             case MOSAIC -> mosaicComposition.mosaic(arguments);
@@ -552,6 +560,72 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
             median = array[length / 2];
         }
         return OptionalDouble.of(median);
+    }
+
+    public static OptionalDouble applySigmaClippedAverage(DoubleStream doubleStream, double sigma) {
+        var array = doubleStream.toArray();
+        if (array.length == 0) {
+            return OptionalDouble.empty();
+        }
+        if (array.length == 1) {
+            return OptionalDouble.of(array[0]);
+        }
+        
+        // Calculate mean and standard deviation
+        double mean = Arrays.stream(array).average().orElse(0.0);
+        double stddev = Math.sqrt(Arrays.stream(array)
+                .map(v -> (v - mean) * (v - mean))
+                .average()
+                .orElse(0.0));
+        
+        // Apply sigma clipping and compute average
+        double threshold = sigma * stddev;
+        OptionalDouble result = Arrays.stream(array)
+                .filter(v -> Math.abs(v - mean) <= threshold)
+                .average();
+        return result.isPresent() ? result : OptionalDouble.of(mean);
+    }
+
+    public static OptionalDouble applySigmaClippedMedian(DoubleStream doubleStream, double sigma) {
+        var array = doubleStream.toArray();
+        if (array.length == 0) {
+            return OptionalDouble.empty();
+        }
+        if (array.length == 1) {
+            return OptionalDouble.of(array[0]);
+        }
+        
+        // Calculate mean and standard deviation
+        double mean = Arrays.stream(array).average().orElse(0.0);
+        double stddev = Math.sqrt(Arrays.stream(array)
+                .map(v -> (v - mean) * (v - mean))
+                .average()
+                .orElse(0.0));
+        
+        // Apply sigma clipping
+        double threshold = sigma * stddev;
+        double[] filteredValues = Arrays.stream(array)
+                .filter(v -> Math.abs(v - mean) <= threshold)
+                .toArray();
+        
+        // If all values were filtered out, return the original mean
+        if (filteredValues.length == 0) {
+            return OptionalDouble.of(mean);
+        }
+        
+        // If only one value remains, return it
+        if (filteredValues.length == 1) {
+            return OptionalDouble.of(filteredValues[0]);
+        }
+        
+        // Calculate median of filtered values
+        Arrays.sort(filteredValues);
+        int length = filteredValues.length;
+        if (length % 2 == 0) {
+            return OptionalDouble.of((filteredValues[length / 2 - 1] + filteredValues[length / 2]) / 2.0);
+        } else {
+            return OptionalDouble.of(filteredValues[length / 2]);
+        }
     }
 
     private Object setWorkDir(Map<String, Object> arguments) {

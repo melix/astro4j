@@ -22,6 +22,7 @@
 - Images generated using scripts are no longer stretched by default (fixes issue 660)
 - Make it possible to download any GONG image at arbitrary datetime
 - Fixed `WEIGHTED_AVG` and `EXP` functions
+- Added `AVG2` and `MEDIAN2` functions to compute average and median of images with sigma clipping
 
 ### 3.3.2
 

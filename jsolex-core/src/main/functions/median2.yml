@@ -1,0 +1,17 @@
+name: MEDIAN2
+category: MATHS
+description:
+  fr: "Calcule la médiane de ses arguments avec écrêtage sigma. Si les arguments sont des images, la médiane est calculée pixel par pixel en excluant les valeurs aberrantes."
+  en: "Computes the median of its arguments with sigma clipping. If the arguments are images, the median is computed pixel-wise excluding outliers."
+arguments:
+  - name: list
+    description: Arguments
+    required: true
+  - name: sigma
+    description:
+      fr: "Facteur de multiplication pour l'écart-type définissant le seuil d'écrêtage"
+      en: "Multiplication factor for standard deviation defining the clipping threshold"
+    required: true
+examples:
+  - "median2(range(-1;1); 2.0)"
+  - "median2(img(0); img(1); sigma: 2.5)"
