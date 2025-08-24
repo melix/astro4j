@@ -270,7 +270,7 @@ public class ProcessParamsController {
 
     private void onNavigationItemSelected(NavigationSidebar.NavigationItem item) {
         breadcrumbNav.clear();
-        breadcrumbNav.addItem("root", I18N.string(JSolEx.class, "process-params", "process.parameters"), null);
+        breadcrumbNav.addItem("root", I18N.string(JSolEx.class, "process-params", "root.process.params"), null);
         breadcrumbNav.addItem(item.getId(), item.getTitle(), null);
 
         contentArea.getChildren().clear();
