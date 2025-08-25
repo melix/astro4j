@@ -80,45 +80,54 @@ La fenêtre principale se présente sous cette forme:
 image::main-window-fr.jpg[]
 
 Dans le menu "Fichier", sélectionnez "Ouvrir un fichier SER".
-Choisissez votre fichier, la fenêtre suivante devrait s'ouvrir:
+Une fenêtre de paramétrage s'ouvre, avec plusieurs sections:
+
+=== Paramètres de base
+
+La première section est la plus importante pour vos premiers scans, les autres sections vous serviront à affiner le traitement.
 
 image::params-1-fr.jpg[]
 
-Cette fenêtre est le point d'entrée de la configuration du traitement.
-Vous pouvez préciser:
-
-- la longueur d'onde d'observation: s'il n'est pas obligatore de remplir ce champ, le faire vous permettra de bénéficier de la coloration automatique. En cliquant sur les "..." vous disposez de la possibilité d'ajouter vos propres raies si elles ne sont pas listées
+- la longueur d'onde d'observation: s'il n'est pas obligatoire de remplir ce champ, le faire vous permettra de bénéficier de la coloration automatique et de fonctionnalités avancées telles que les calculs de vitesse. En cliquant sur les "..." vous disposez de la possibilité d'ajouter vos propres raies si elles ne sont pas listées. Il s'agit ici de la longueur d'onde de la raie la plus sombre de votre fenêtre de capture. Le mode "Autodetect" tentera de trouver la raie parmi celles listées automatiquement.
 - décalage en pixels : par défaut, le logiciel trouve la raie la plus sombre dans l'image et calcule un polynôme de second degré pour modéliser cette raie. L'image est reconstituée en prenant les pixels au centre de la raie (décalage = 0). Il vous est possible d'entrer un décalage en pixels pour aller par exemple vers le continuum, ou trouver une raie plus difficile à identifier (ex. Hélium) à partir de la raie la plus sombre.
 - le décalage Doppler est utilisé uniquement lorsque vous observez en raie h-alpha pour générer une image Doppler. Par défaut, le logiciel utilise 2 images décalées de 3 pixels pour reconstituer une image en couleur.
-- Correction angle P : lorsque cette case est cochée, l'angle P du soleil sera calculé automatiquement à partir de la date d'observation (disponible dans le fichier SER). Les images seront automatiquement corrigées de cet angle, pour que le Nord soit bien en haut. Ce paramètre n'affecte pas les images générées avec ImageMath, qui doivent faire leur propre correction.
+- le décalage continuum est utilisé pour générer une image du continuum, proche de la lumière blanche en H-alpha.
+- Inversion des canaux rouge/bleu : lorsqu'une image Doppler est crée, le logiciel assigne un décalage au canal rouge et l'autre au canal bleu. Cependant, suivant votre configuration, il peut en résulter une image où les couleurs sont inversées (régions qui s'approchent en bleu au lieu de rouge). Si c'est le cas, cochez cette case pour inverser les canaux.
 - Rotation : permet d'effectuer une rotation à gauche ou à droite (90 degrés) de l'image. Ceci peut par exemple être utile dans le cas d'un scan fait en déclinaison, pour corriger l'orientation. Ce paramètre n'affecte pas les images crées avec ImageMath.
 - Rognage : permet d'effectuer un rognage automatique de l'image après correction géométrique. Il existe plusieurs modes:
 * Aucun: pas de rognage (par défaut)
 * Largeur d'origine : l'image sera redimensionnée dans un carré de la taille de la largeur de la vidéo d'origine. Idéal pour les disques solaires complets.
 * Rayon (x...) : l'image sera redimensionnée en fonction du rayon du disque solaire, en appliquant un multiplicateur. Peut-être utile par exemple lorsque le disque est tronqué et que l'on veut avoir une image carrée permettant de "remettre" la portion à sa place.
-- Forcer la valeur du tilt : lors de la correction géométrique d'image, JSol'Ex calcule une ellipse pour modéliser le disque solaire reconstitué. Cette ellipse est utilisée pour calculer des paramètre comme l'angle de tilt. Si le calcul effectué par le logiciel est erroné, vous disposez de la possibilité de surcharger la valeur calculée.
-- Forcer le rapport X/Y : de manière similaire, sur certaines images dans des raies difficiles, l'ellipse peut ne pas parfaitement correspondre au disque solaire et ne pas reconstituer un soleil parfaitement circulaire. Vous pouvez surcharger le rapport détecté pour corriger ces problèmes
-- Forcer le polynôme: permet de forcer le polynôme de second degré utilisé pour modéliser la raie spectrale. Voir la <<#force-polynomial,section sur le forçage du polynôme>> pour plus d'informations.
+- Correction angle P : lorsque cette case est cochée, l'angle P du soleil sera calculé automatiquement à partir de la date d'observation (disponible dans le fichier SER). Les images seront automatiquement corrigées de cet angle, pour que le Nord soit bien en haut. Ce paramètre n'affecte pas les images générées avec ImageMath, qui doivent faire leur propre correction.
 - Inverser l'axe horizontal/vertical : permet de retourner l'image verticalement et horizontalement pour avoir le Nord et l'Est bien orientés
-- Redimensionner au maximum: peut être utilisé si votre vidéo est sur-échantillonnée et que vous souhaitez conserver la résolution maximum. Ceci arrive par exemple si vous faites des scans à basse vitesse (ex, sidérale).
 
-WARNING: Activer ce paramètre peut produire des images sensiblement plus grandes et entraîner une forte pression mémoire. Il n'est pas recommandé d'activer ce paramètre.
+=== Paramètres de correction cosmétique
 
-== Paramètres d'amélioration de l'image
-
-Cette section permet de configurer les transformations qui seront appliqueés aux images de façon à améliorer leur aspect esthétique.
+Le deuxième panneau de paramètres permet de configurer les options cosmétiques :
 
 image::params-2-fr.jpg[]
 
-- Paramètres CLAHE : permet de configurer l'algorithme d'amélioration de contraste CLAHE.
-Il est possible de configurer la taille des tuiles utilisées pour calculer les histogrammes, la résolution de l'histogramme et le facteur de clipping.
+- Méthode d'amélioration du contraste : vous pouvez choisir entre Autostretch (JSol'Ex) et CLAHE. Selon votre choix, des paramètres supplémentaires seront disponibles.
+
+Pour la méthode Autostretch, vous pouvez configurer:
+
+- le gamma : un gamma plus élevé donnera une image plus sombre
+- la correction du fond : une valeur proche de 0 supprimera fortement le fond de ciel, une valeur proche de 1 le conservera tel quel
+- amplification des protubérances : si activée, permet de choisir un facteur d'amplification. Plus le facteur est élevé, plus les protubérances seront visibles, au prix d'une démarcation plus forte avec le limbe
+
+Pour la méthode CLAHE, vous pouvez configurer:
+
+- la taille des tuiles
+- le nombre de niveaux de l'histogramme
+- le facteur de clipping
 
 Viennent ensuite les paramètres de correction de bandes, qui permettent de corriger les bandes transversales qui peuvent apparaître sur les images par exemple à cause de poussières sur la fente.
 
 - Largeur de correction de bande : c'est la largeur des bandes qui sont utilisées pour l'algorithme de correction de transversallium. L'algorithme calcule la valeur moyenne des pixels dans ces bandes et corrige la luminosité d'une ligne en fonction de cette valeur.
 - Nombre de passes de correction de bande : plus vous ferez de passes, plus il sera possible de corriger de gros défauts, au prix d'une image moins contrastée et/ou moins lumineuse
 
-Une autre section permet de configurer la déconvolution des images.
+Vous pouvez ensuite choisir des paramètres d'accentuation des détails.
+
 Par défaut, aucune déconvolution n'est appliquée, mais vous pouvez choisir l'agorithme de déconvolution et ses paramètres.
 
 Pour la déconvolution de Richardson-Lucy, vous pouvez choisir la taille du PSF synthétique, le facteur sigma et le nombre d'itérations.
@@ -136,7 +145,7 @@ Il est aussi possible d'appliquer une correction de vignettage.
 - Flat artificiel : un modèle d'illumination du disque est calculé automatiquement, en sélectionnant des pixels en excluant des percentiles haut/bas. Cette correction fonctionne bien pour des vignétages raisonnables.
 - Flat physique : le logiciel est capable d'utiliser un fichier SER contenant un petit nombre d'images, ou bien un flat préenregistré. Il appliquera alors la correction en fonction.
 
-=== Correction des bords dentelés
+==== Correction des bords dentelés
 
 Ceci est une fonctionnalité expérimentale disponible depuis JSol'Ex 3.1.0.
 Elle permet de corriger les bords dentelés qui peuvent apparaître sur les images.
@@ -156,13 +165,12 @@ La correction de bords dentelés peut avoir des effets de bord, tels que la déf
 Dans tous les cas, il est recommandé de commencer sans correction et de vérifier le résultat dans tous les cas.
 ====
 
-== Paramètres d'observation
+=== Détails d'observation
+
+image::params-3-fr.jpg[]
 
 Les paramètres d'observation sont utilisés lorsque vous enregistrez vos images au format FITS, pour remplir certaines métadonnées.
 Elles servent aussi à calculer le graphique de longueur d'ondes.
-A noter qu'à ce stade, nous ne recommandons pas d'envoyer les images générées par JSol'Ex sur la base de données BASSS2000, les champs de métadonnées entrés n'étant pas exactement les mêmes.
-
-image::params-3-fr.jpg[]
 
 Voici les champs disponibles dans JSol'Ex:
 
@@ -188,17 +196,44 @@ Si vous utilisez une monture altazimutale, l'oritentation sera incorrecte, ainsi
 Pour corriger cela, vous devez cocher la case "mode altazimutal" et entrer les coordonnées de votre site d'observation : JSol'Ex calculera alors l'angle parallactique et effectuera la correction automatiquement, donnant une image bien orientée.
 ====
 
-== Autres paramètres disponibles
+=== Images à générer
+
+Le panneau suivant permet de choisir les images à générer.
 
 image::params-4-fr.jpg[]
 
-- Supposer vidéo mono : si cette cache est cochée, JSol'Ex n'essaiera pas de faire un dématriçage de la vidéo d'entrée, ce qui permet d'accélérer considérablement les temps de traitement. En règle générale, vos vidéos seront en mono, il est donc utile de conserver cette case cochée.
-- Enregistrement automatique des images : si cette case est cochée, toutes les images générées sont automatiquement enregistrées sur disque. Dans le cas contraire, vous devrez dans l'interface qui affiche les images générés appuyer sur le bouton "Enregistrer" pour conserver les images produites
+Dans cette section vous pouvez choisir individuellement les images qui vous intéressent, ou bien choisir un mode de traitement prédéfini (rapide ou complet).
+
+Vous pouvez aussi choisir d'ajouter des scripts ImageMath pour générer des images personnalisées (voir la <<#imagemath,section sur ImageMath>>).
+
 - Générer des images de debug : permet de générer des images telles que la reconnaissance de contours, la reconnaissance d'ellipse/tilt, l'image moyenne. Utile pour vérifier si le logiciel ne se comporte pas correctement sur votre vidéo et que vous souhaitez vérifier là où il se trompe
+
+=== Paramètres de traitement avancés
+
+Ces paramètres sont destinés à des cas particuliers, pour corriger des problèmes de détection ou pour des travaux avancés.
+
+image::params-5-fr.jpg[]
+
+- Forcer la valeur du tilt : lors de la correction géométrique d'image, JSol'Ex calcule une ellipse pour modéliser le disque solaire reconstitué. Cette ellipse est utilisée pour calculer des paramètre comme l'angle de tilt. Si le calcul effectué par le logiciel est erroné, vous disposez de la possibilité de surcharger la valeur calculée.
+- Forcer le rapport X/Y : de manière similaire, sur certaines images dans des raies difficiles, l'ellipse peut ne pas parfaitement correspondre au disque solaire et ne pas reconstituer un soleil parfaitement circulaire. Vous pouvez surcharger le rapport détecté pour corriger ces problèmes
+- Forcer le polynôme: permet de forcer le polynôme de second degré utilisé pour modéliser la raie spectrale. Voir la <<#force-polynomial,section sur le forçage du polynôme>> pour plus d'informations.
+- Redimensionner au maximum: peut être utilisé si votre vidéo est sur-échantillonnée et que vous souhaitez conserver la résolution maximum. Ceci arrive par exemple si vous faites des scans à basse vitesse (ex, sidérale).
+
+WARNING: Activer ce paramètre peut produire des images sensiblement plus grandes et entraîner une forte pression mémoire. Il n'est pas recommandé d'activer ce paramètre.
+
+- Supposer vidéo mono : si cette cache est cochée, JSol'Ex n'essaiera pas de faire un dématriçage de la vidéo d'entrée, ce qui permet d'accélérer considérablement les temps de traitement. En règle générale, vos vidéos seront en mono, il est donc utile de conserver cette case cochée.
+
+=== Paramètres de sortie
+
+Dans cette section vous pouvez configurer les formats de fichier à générer ainsi que le modèle de nommage des fichiers.
+
+image::params-6-fr.jpg[]
+
+- Enregistrement automatique des images : si cette case est cochée, toutes les images générées sont automatiquement enregistrées sur disque. Dans le cas contraire, vous devrez dans l'interface qui affiche les images générés appuyer sur le bouton "Enregistrer" pour conserver les images produites
 - Générer des fichiers FITS : permet de générer des fichiers FITS, non destructifs, en plus des images PNG
 
 [[force-polynomial]]
-== Forcer le polynôme
+==== Forcer le polynôme
 
 JSol'Ex effectue une détection de la raie spectrale en cherchant la ligne la plus sombre dans l'image, puis en ajustant un polynôme de 3ème ordre.
 Il arrive parfois que la détection soit incorrecte, auquel cas vous pouvez forcer l'utilisation d'un polynôme.
@@ -206,25 +241,16 @@ Pour ce faire, cliquez sur le bouton "forcer le polynôme", qui vous permettra d
 
 Le format du polynôme est une liste de 4 nombres entre accolades, séparés par des virgules, par exemple: `{1.3414109042116584E-10,3.889927699830093E-5,-0.056529799336687114,35.76051527062038}`.
 
-La façon la plus simple d'obtenir les coefficients du polynôme est de cliquer sur les "..." qui ouvrira une fenêtre avec l'image moyenne et la raie spectrale détectée :
-
-image::force-polynomial-1.jpg[]
+La façon la plus simple d'obtenir les coefficients du polynôme est de cliquer sur les "..." qui ouvrira une fenêtre avec l'image moyenne et la raie spectrale détectée.
 
 Vous pouvez alors appuyer sur "CTRL" puis cliquer sur la ligne pour ajouter des points de mesure : une croix rouge sera ajoutée pour chaque point.
-Lorsque vous avez suffisamment de points, cliquez sur le bouton "Calculer le polynôme", qui ajustera un polynôme de 3ème ordre aux points et remplira automatiquement le champ "polynôme de force" dans les paramètres de traitement :
-
-image::force-polynomial-2.jpg[]
-
-You can then close the popup and start processing.
-
+Lorsque vous avez suffisamment de points, cliquez sur le bouton "Calculer le polynôme", qui ajustera un polynôme de 3ème ordre aux points et remplira automatiquement le champ "polynôme" dans les paramètres de traitement.
 
 [[modele-noms-fichier]]
-== Modèles de noms de fichier
+==== Modèles de noms de fichier
 
 Par défaut, JSol'Ex enregistre les images produites dans un sous-dossier correspondant au nom de la vidéo, et dans ce sous-dossier un autre sous-dossier par type d'image (raw, debug, traitées, etc...).
 Si ce modèle ne vous convient pas, vous pouvez créer vos propres modèles de nommage, en cliquant sur les "...":
-
-image::params-5-fr.jpg[]
 
 Un modèle de nommage consiste en un label (un nom), mais surtout un modèle dont les composantes sont des jetons entre `%`.
 
@@ -247,18 +273,9 @@ Le champ "exemple" donne une idée de ce qui sera généré.
 
 == Lancer un traitement
 
-Vous avez le choix entre 3 modes de traitement.
+Lorsque vous avez configuré les paramètres, cliquez sur "Traiter" pour lancer le traitement.
 
-- Le mode "rapide" ne produira que 2 images : l'image brute reconstituée, qui permet de se donner une idée de la circularité du disque et donc du potentiel sous-échantillonage, et une image corrigée géométriquement. C'est un mode particulièrement utile lors des premières acquisitions, par exemple de temps de régler le tilt correctement. Combiné au fait de ne pas sauvegarder automatiquement les images, il peut vous faire gagner un temps précieux et de l'espace disque !
-- Le mode "complet" produira l'intégralité des images que peut produire JSol'Ex. En fonction de la raie spectrale choisie, certaines images seront disponibles ou non. Par défaut, le logiciel produira:
-    - l'image brute reconstituée
-    - une version géométriquement corrigée et "étalée" (contraste amélioré)
-    - une version colorisée (si la raie choisie dispose d'un profil de colorisation)
-    - une version en négatif
-    - une éclipse virtuelle, permettant de simuler un coronagraphe
-    - une version "mix" combinant l'éclipse virtuelle et l'image colorisée
-    - une image Doppler
-- le mode "personnalisé" permet de choisir plus précisément les images générées, voire de générer des images non prévues à l'origine par le logiciel (voir la <<#custom_images,section suivante>>).
+Vous avez la possibilité de lancer un traitement rapide ou complet directement en cliquant sur les boutons correspondants en bas à droite.
 
 === Affichage des images produites
 

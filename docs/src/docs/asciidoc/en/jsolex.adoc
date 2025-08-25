@@ -80,45 +80,54 @@ The main window looks like this:
 image::main-window-fr.jpg[]
 
 In the "File" menu, choose "Open SER File" and select a file.
-The following popup should open:
+A configuration window opens, with several sections:
+
+=== Basic parameters
+
+The first section is the most important for your first scans, the other sections will help you refine the processing.
 
 image::params-1-en.jpg[]
 
-This window is the main entry point for the process parameters.
-You can specify:
 
-- the observation bandwidth: while it's not mandatory to select that field, doing so will enable automatic colorization of the images. Should your observation bandwidth not be available in the list, you can add more by clicking on the "..." button.
+- the observation bandwidth: while it's not mandatory to select that field, doing so will enable automatic colorization of the images and advanced functionalities such as velocity calculations. By clicking on the "..." you have the possibility to add your own lines if they are not listed. This is the wavelength of the darkest line in your capture window. The "Autodetect" mode will try to find the line among those listed automatically.
 - Pixel shift : by default, the software will identify the darkest line in the image and model it as a second order polynomial. Then the image is reconstructed by picking the center of the line, which corresponds to a shift of 0. By using a different shift value, you can produce an image which is "off center", for example to produce images of the solar continuum or to select a different wavelength which isn't the darkest, such as when observing in helium for example
-- the Doppler shift is only used when you are observing in h-alpha. JSol'Ex will produce a couple more images shifted in one direction and the other in order to produce a Doppler image. By default, a shift of 3 pixels is used but you can override that parameter.
+- the Doppler shift is only used when you are observing in h-alpha line to generate a Doppler image. By default, the software uses 2 images shifted by 3 pixels to reconstruct a color image.
+- the continuum shift is used to generate a continuum image, close to white light in H-alpha.
+- Red/blue channel inversion: when a Doppler image is created, the software assigns a shift to the red channel and the other to the blue channel. However, depending on your configuration, it may result in an image where the colors are inverted (regions approaching in blue instead of red). If this is the case, check this box to invert the channels.
 - Rotation : allows performing a left or right rotation (90 degrees) of the images. This can be useful for scans performed in declination, to fix the orientation. This parameter doesn't affect images produced with ImageMath.
 - Autocrop : allows automatic cropping of images after geometric transformation. There are multiple modes:
 * Off: no autocrop (this is the default)
 * Original width: the image will be cropped to a square which width corresponds to the width of the original SER file. Ideal for full solar disks.
 * Radius (x...) : the image will be cropped or rescaled to a factor of the determined solar radius. This can be useful for example with truncated disks, if you want to "see" where it would be positioned.
 - Autocorrect P angle: when checked, the solar angle P will be computed from the observation date (available in the SER file). The generated images will be automatically corrected so that the North is at the top. This parameter will not affect images generated via ImageMath, which need to perform their own correction.
-- Force tilt: the software is fitting an ellipse around the solar disk which is reconstructed, and uses that information to perform geometric correction. It is possible that the tilt detection is wrong, in which case you can force a value.
-- Force X/Y ratio: similarly, the X/Y ratio which is detected may be inaccurrate, in which case you can force it to a particular value.
-- Force polynomial: this lets you override the detected spectral line, if for some reason it is not detected correctly. See the <<#force-polynomial,section about forcing the polynomial>> for more information.
 - Horizontal and vertical inversion let you mirror the image so that you match the North and East as expected in the output images.
-- Rescale to full resolution: can be used if your video is oversampled, which typically happens if you are scanning at lower rates (e.g sideral) and that you want to resize the generated image to its full resolution.
 
-WARNING: Enabling full resolution can lead in significantly larger images and very high memory pressure. It is not recommended to enable this flag.
+=== Cosmetic correction parameters
 
-== Image enhancement
-
-This section lets you configure the transformations which will be applied to images in order to improve their aesthetic aspect.
+The second parameter panel allows you to configure cosmetic options:
 
 image::params-2-en.jpg[]
 
-- CLAHE parameters : allows configuring the CLAHE contrast improvement algorithm.
-It is possible to configure the size of the tiles used to compute histograms, the histogram resolution and the clipping factor.
+- Contrast enhancement method: you can choose between Autostretch (JSol'Ex) and CLAHE. Depending on your choice, additional parameters will be available.
+
+For the Autostretch method, you can configure:
+
+- gamma: a higher gamma will give a darker image
+- background correction: a value close to 0 will strongly suppress the sky background, a value close to 1 will keep it as is
+- prominence amplification: if enabled, allows choosing an amplification factor. The higher the factor, the more visible the prominences will be, at the cost of stronger demarcation with the limb
+
+For the CLAHE method, you can configure:
+
+- tile size
+- number of histogram levels
+- clipping factor
 
 Next come the banding correction parameters, which allow to correct transversal bands which can appear on images, for example because of dust on the slit.
 
 - Banding correction width: this is the width of the bands which are used in the transversallium correction algorithm. Bands are used to compute the average brightness of pixels in the band, then lines are corrected according the band they belong to.
 - Banding correction passes: the more passes you'll apply, the more lines should be corrected, at the cost of lower contrast images
 
-Another section lets you configure image deconvolution.
+You can then choose detail enhancement parameters.
 By default, no deconvolution is applied, but you can choose the deconvolution algorithm and its parameters.
 
 For the Richardson-Lucy deconvolution, you can choose the size of the synthetic PSF, the sigma factor and the number of iterations.
@@ -135,7 +144,7 @@ There are 3 modes available:
 - Artificial flat correction: the software will compute a model of the flat field from the image itself, by looking at the pixels which are between a low and a high percentile. The model is then used to correct the image. This can be used to correct for reasonable vignetting.
 - Physical flat correction: the software can use a flat field which is either a SER file containing a few frames, or a pre-computed flat field. This is the preferred method for strong vignetting.
 
-=== Jagged Edges Correction
+==== Jagged Edges Correction
 
 This is an experimental feature available since JSol'Ex 3.1.0.
 It enables the correction of jagged edges which can appear on images.
@@ -155,12 +164,12 @@ Jagged edges correction may have side effects, such as distortion of prominences
 In all cases, it is recommended to start without correction and verify the result in all cases.
 ====
 
-== Observation parameters
-
-Observation parameters are used to insert metadata into FITS files.
-As of now, we do _not_ recommend to publish images produced using JSol'Ex to the BASS2000 database because the FITS header that this software uses are not validated against what the database expects.
+=== Observation details
 
 image::params-3-en.jpg[]
+
+Observation parameters are used when you save your images in FITS format, to populate certain metadata.
+They are also used to calculate the wavelength graph.
 
 Here are the fields available in JSol'Ex:
 
@@ -186,17 +195,44 @@ If you are using an alt-az mount, then the orientation grid will be incorrect, a
 In order to fix this, you must check the "Alt-Az" box and enter your observation site coordinates: JSol'Ex will then compute the parallactic angle and perform correction automatically, resulting in a well oriented image.
 ====
 
-== Other parameters
+=== Images to generate
+
+The following panel allows you to choose which images to generate.
 
 image::params-4-en.jpg[]
 
-- Assume mono video : when checked, JSol'Ex will not try to perform demosaicing of the video, by assuming it's a mono one. This can considerably speedup processing, and because most videos for Sol'Ex will be mono, it is better to leave this checked.
-- Automatically save images : if checked, all images which are generated by the software will be saved to disk immediately. If unchecked, then it's your responsibility to save them by clicking on the "save" button of each image tab.
-- Generate debug images: when checked, additional images will be generated to highlight edge detection, tilt detection and average image. These can be useful to figure out what when wrong when the software doesn't produce the expected results.
-- Generate FITS files : in addition to PNG files, will also generate FITS files.
+In this section you can individually choose the images that interest you, or choose a predefined processing mode (quick or complete).
+
+You can also choose to add ImageMath scripts to generate custom images (see the <<#imagemath,section on ImageMath>>).
+
+- Generate debug images: allows generating images such as edge recognition, ellipse/tilt recognition, average image. Useful to verify if the software is not behaving correctly on your video and you want to check where it goes wrong
+
+=== Advanced processing parameters
+
+These parameters are intended for special cases, to correct detection problems or for advanced work.
+
+image::params-5-en.jpg[]
+
+- Force tilt value: during image geometric correction, JSol'Ex calculates an ellipse to model the reconstructed solar disk. This ellipse is used to calculate parameters like the tilt angle. If the calculation performed by the software is incorrect, you have the possibility to override the calculated value.
+- Force X/Y ratio: similarly, on certain images in difficult lines, the ellipse may not perfectly correspond to the solar disk and not reconstruct a perfectly circular sun. You can override the detected ratio to correct these problems
+- Force polynomial: allows forcing the second-degree polynomial used to model the spectral line. See the <<#force-polynomial,section on forcing the polynomial>> for more information.
+- Resize to maximum: can be used if your video is over-sampled and you want to keep the maximum resolution. This happens for example if you do scans at low speed (e.g., sidereal).
+
+WARNING: Enabling this parameter can produce significantly larger images and cause high memory pressure. It is not recommended to enable this parameter.
+
+- Assume mono video: when checked, JSol'Ex will not try to perform demosaicing of the video, by assuming it's a mono one. This can considerably speedup processing, and because most videos for Sol'Ex will be mono, it is better to leave this checked.
+
+=== Output parameters
+
+In this section you can configure the file formats to generate as well as the file naming template.
+
+image::params-6-en.jpg[]
+
+- Automatically save images: if this box is checked, all generated images are automatically saved to disk. Otherwise, you will have to press the "Save" button in the interface that displays the generated images to keep the produced images
+- Generate FITS files: allows generating FITS files, non-destructive, in addition to PNG images
 
 [[force-polynomial]]
-== Force polynomial
+==== Force polynomial
 
 JSol'Ex performs detection of the spectral line by looking for the darkest line in the image, then fitting a 3rd order polynomial to it.
 Sometimes, detection may be incorrect, in which case you can force a polynomial to be used.
@@ -205,24 +241,16 @@ In order to do this, click on the "force polynomial" button, which will let you 
 
 The format of the polynomial is a list of 4 numbers between curly braces, separated by commas, for example: `{1.3414109042116584E-10,3.889927699830093E-5,-0.056529799336687114,35.76051527062038}`.
 
-The easiest way to get the polynomial coefficients is to click on the "..." button, which will open a window with the average image and the detected spectral line :
-
-image::force-polynomial-1.jpg[]
+The easiest way to get the polynomial coefficients is to click on the "..." button, which will open a window with the average image and the detected spectral line.
 
 You can then press "CTRL" then click on the line to add measurement points: a red cross will be added for each point.
-When you have enough points, click on the "Compute polynomial" button, which will fit a 3rd order polynomial to the points and automatically fill the "force polynomial" field in the process parameters:
-
-image::force-polynomial-2.jpg[]
-
-You can then close the popup and start processing.
+When you have enough points, click on the "Compute polynomial" button, which will fit a 3rd order polynomial to the points and automatically fill the "polynomial" field in the process parameters.
 
 [[filename-templates]]
-== File naming patterns
+==== File naming patterns
 
 By default, JSol'Ex will output the generated images in a subfolder which name matches the name of the SER file (without extension). Then each kind of images is stored in a subdirectory of that folder (e.g raw, debug, processed, ...).
 If that naming convention doesn't suit you, you can create your own naming patterns, by clicking the "..." dots:
-
-image::params-5-en.jpg[]
 
 A naming pattern consists of a label, but more importantly a pattern consisting of tokens delimited by the `%` character.
 
@@ -243,20 +271,11 @@ This for example would be a pattern which puts all generated files in a single f
 
 The "example" field shows you what the generated file names would look like.
 
-== Process start
+== Starting a process
 
-JSol'Ex provides 3 processing modes: quick, full and custom.
+When you have configured the parameters, click "Process" to start the processing.
 
-- The "quick" mode will only produce a couple images: the raw reconstructed one, and a geometry corrected version. It is useful in your initial setup, when you're still trying to figure out the tilt or exposure, for example. It is recommended to combine this mode with not saving images automatically, so that you don't fill your disk with images that you will never use.
-- The "full" mode will generate all images that JSol'Ex can automatically produce:
-    - the raw, reconstructed image
-    - a geometry corrected and color-stretched version
-    - a colorized image, if the bandwidth you have selected provides the required parameters
-    - a negative image version
-    - a virtual eclipse, to simulate a coronagraph
-    - a mixed image combining the colorized version with the virtual eclipse
-    - a Doppler image
-- the "custom" mode will let you precisely pick which images you want to generate. It even provides a more advanced mode letting you script generated images, allowing the generation of images which weren't designed initially (see the <<#custom_images,section about custom images>>).
+You have the possibility to launch a quick or complete processing directly by clicking the corresponding buttons in the bottom right.
 
 === Image display
 
