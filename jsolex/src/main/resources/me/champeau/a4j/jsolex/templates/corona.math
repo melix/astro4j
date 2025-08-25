@@ -28,7 +28,7 @@ offset=12000
 # Denoised Fe XIV image
 extractedLine=avg(range(shift-rng;shift+rng;rng/2))
 # Continuum image
-cont=min(img(find_shift(c1;refWl));img(find_shift(c2;refWl)))
+cont=avg(img(find_shift(c1;refWl));img(find_shift(c2;refWl)))
 # Difference between Fe image and continuum
 diff=(offset+extractedLine)-cont
 
