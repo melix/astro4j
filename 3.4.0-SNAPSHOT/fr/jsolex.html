@@ -473,16 +473,16 @@ body.book #toc,body.book #preamble,body.book h1.sect0,body.book .sect1>h2{page-b
 </li>
 <li><a href="#_communauté">Communauté</a></li>
 <li><a href="#donate">Dons</a></li>
-<li><a href="#_traitement_dune_vidéo">Traitement d&#8217;une vidéo</a></li>
-<li><a href="#_paramètres_damélioration_de_limage">Paramètres d&#8217;amélioration de l&#8217;image</a>
+<li><a href="#_traitement_dune_vidéo">Traitement d&#8217;une vidéo</a>
 <ul class="sectlevel2">
-<li><a href="#_correction_des_bords_dentelés">Correction des bords dentelés</a></li>
+<li><a href="#_paramètres_de_base">Paramètres de base</a></li>
+<li><a href="#_paramètres_de_correction_cosmétique">Paramètres de correction cosmétique</a></li>
+<li><a href="#_détails_dobservation">Détails d&#8217;observation</a></li>
+<li><a href="#_images_à_générer">Images à générer</a></li>
+<li><a href="#_paramètres_de_traitement_avancés">Paramètres de traitement avancés</a></li>
+<li><a href="#_paramètres_de_sortie">Paramètres de sortie</a></li>
 </ul>
 </li>
-<li><a href="#_paramètres_dobservation">Paramètres d&#8217;observation</a></li>
-<li><a href="#_autres_paramètres_disponibles">Autres paramètres disponibles</a></li>
-<li><a href="#force-polynomial">Forcer le polynôme</a></li>
-<li><a href="#modele-noms-fichier">Modèles de noms de fichier</a></li>
 <li><a href="#_lancer_un_traitement">Lancer un traitement</a>
 <ul class="sectlevel2">
 <li><a href="#_affichage_des_images_produites">Affichage des images produites</a></li>
@@ -664,21 +664,22 @@ La fenêtre principale se présente sous cette forme:</p>
 </div>
 <div class="paragraph">
 <p>Dans le menu "Fichier", sélectionnez "Ouvrir un fichier SER".
-Choisissez votre fichier, la fenêtre suivante devrait s&#8217;ouvrir:</p>
+Une fenêtre de paramétrage s&#8217;ouvre, avec plusieurs sections:</p>
+</div>
+<div class="sect2">
+<h3 id="_paramètres_de_base">Paramètres de base</h3>
+<div class="paragraph">
+<p>La première section est la plus importante pour vos premiers scans, les autres sections vous serviront à affiner le traitement.</p>
 </div>
 <div class="imageblock">
 <div class="content">
 <img src="params-1-fr.jpg" alt="params 1 fr">
 </div>
 </div>
-<div class="paragraph">
-<p>Cette fenêtre est le point d&#8217;entrée de la configuration du traitement.
-Vous pouvez préciser:</p>
-</div>
 <div class="ulist">
 <ul>
 <li>
-<p>la longueur d&#8217;onde d&#8217;observation: s&#8217;il n&#8217;est pas obligatore de remplir ce champ, le faire vous permettra de bénéficier de la coloration automatique. En cliquant sur les "&#8230;&#8203;" vous disposez de la possibilité d&#8217;ajouter vos propres raies si elles ne sont pas listées</p>
+<p>la longueur d&#8217;onde d&#8217;observation: s&#8217;il n&#8217;est pas obligatoire de remplir ce champ, le faire vous permettra de bénéficier de la coloration automatique et de fonctionnalités avancées telles que les calculs de vitesse. En cliquant sur les "&#8230;&#8203;" vous disposez de la possibilité d&#8217;ajouter vos propres raies si elles ne sont pas listées. Il s&#8217;agit ici de la longueur d&#8217;onde de la raie la plus sombre de votre fenêtre de capture. Le mode "Autodetect" tentera de trouver la raie parmi celles listées automatiquement.</p>
 </li>
 <li>
 <p>décalage en pixels : par défaut, le logiciel trouve la raie la plus sombre dans l&#8217;image et calcule un polynôme de second degré pour modéliser cette raie. L&#8217;image est reconstituée en prenant les pixels au centre de la raie (décalage = 0). Il vous est possible d&#8217;entrer un décalage en pixels pour aller par exemple vers le continuum, ou trouver une raie plus difficile à identifier (ex. Hélium) à partir de la raie la plus sombre.</p>
@@ -687,7 +688,10 @@ Vous pouvez préciser:</p>
 <p>le décalage Doppler est utilisé uniquement lorsque vous observez en raie h-alpha pour générer une image Doppler. Par défaut, le logiciel utilise 2 images décalées de 3 pixels pour reconstituer une image en couleur.</p>
 </li>
 <li>
-<p>Correction angle P : lorsque cette case est cochée, l&#8217;angle P du soleil sera calculé automatiquement à partir de la date d&#8217;observation (disponible dans le fichier SER). Les images seront automatiquement corrigées de cet angle, pour que le Nord soit bien en haut. Ce paramètre n&#8217;affecte pas les images générées avec ImageMath, qui doivent faire leur propre correction.</p>
+<p>le décalage continuum est utilisé pour générer une image du continuum, proche de la lumière blanche en H-alpha.</p>
+</li>
+<li>
+<p>Inversion des canaux rouge/bleu : lorsqu&#8217;une image Doppler est crée, le logiciel assigne un décalage au canal rouge et l&#8217;autre au canal bleu. Cependant, suivant votre configuration, il peut en résulter une image où les couleurs sont inversées (régions qui s&#8217;approchent en bleu au lieu de rouge). Si c&#8217;est le cas, cochez cette case pour inverser les canaux.</p>
 </li>
 <li>
 <p>Rotation : permet d&#8217;effectuer une rotation à gauche ou à droite (90 degrés) de l&#8217;image. Ceci peut par exemple être utile dans le cas d&#8217;un scan fait en déclinaison, pour corriger l&#8217;orientation. Ce paramètre n&#8217;affecte pas les images crées avec ImageMath.</p>
@@ -709,41 +713,18 @@ Vous pouvez préciser:</p>
 </div>
 </li>
 <li>
-<p>Forcer la valeur du tilt : lors de la correction géométrique d&#8217;image, JSol&#8217;Ex calcule une ellipse pour modéliser le disque solaire reconstitué. Cette ellipse est utilisée pour calculer des paramètre comme l&#8217;angle de tilt. Si le calcul effectué par le logiciel est erroné, vous disposez de la possibilité de surcharger la valeur calculée.</p>
-</li>
-<li>
-<p>Forcer le rapport X/Y : de manière similaire, sur certaines images dans des raies difficiles, l&#8217;ellipse peut ne pas parfaitement correspondre au disque solaire et ne pas reconstituer un soleil parfaitement circulaire. Vous pouvez surcharger le rapport détecté pour corriger ces problèmes</p>
-</li>
-<li>
-<p>Forcer le polynôme: permet de forcer le polynôme de second degré utilisé pour modéliser la raie spectrale. Voir la <a href="#force-polynomial">section sur le forçage du polynôme</a> pour plus d&#8217;informations.</p>
+<p>Correction angle P : lorsque cette case est cochée, l&#8217;angle P du soleil sera calculé automatiquement à partir de la date d&#8217;observation (disponible dans le fichier SER). Les images seront automatiquement corrigées de cet angle, pour que le Nord soit bien en haut. Ce paramètre n&#8217;affecte pas les images générées avec ImageMath, qui doivent faire leur propre correction.</p>
 </li>
 <li>
 <p>Inverser l&#8217;axe horizontal/vertical : permet de retourner l&#8217;image verticalement et horizontalement pour avoir le Nord et l&#8217;Est bien orientés</p>
 </li>
-<li>
-<p>Redimensionner au maximum: peut être utilisé si votre vidéo est sur-échantillonnée et que vous souhaitez conserver la résolution maximum. Ceci arrive par exemple si vous faites des scans à basse vitesse (ex, sidérale).</p>
-</li>
 </ul>
 </div>
-<div class="admonitionblock warning">
-<table>
-<tr>
-<td class="icon">
-<i class="fa icon-warning" title="Warning"></i>
-</td>
-<td class="content">
-Activer ce paramètre peut produire des images sensiblement plus grandes et entraîner une forte pression mémoire. Il n&#8217;est pas recommandé d&#8217;activer ce paramètre.
-</td>
-</tr>
-</table>
 </div>
-</div>
-</div>
-<div class="sect1">
-<h2 id="_paramètres_damélioration_de_limage">Paramètres d&#8217;amélioration de l&#8217;image</h2>
-<div class="sectionbody">
+<div class="sect2">
+<h3 id="_paramètres_de_correction_cosmétique">Paramètres de correction cosmétique</h3>
 <div class="paragraph">
-<p>Cette section permet de configurer les transformations qui seront appliqueés aux images de façon à améliorer leur aspect esthétique.</p>
+<p>Le deuxième panneau de paramètres permet de configurer les options cosmétiques :</p>
 </div>
 <div class="imageblock">
 <div class="content">
@@ -753,8 +734,39 @@ Activer ce paramètre peut produire des images sensiblement plus grandes et entr
 <div class="ulist">
 <ul>
 <li>
-<p>Paramètres CLAHE : permet de configurer l&#8217;algorithme d&#8217;amélioration de contraste CLAHE.
-Il est possible de configurer la taille des tuiles utilisées pour calculer les histogrammes, la résolution de l&#8217;histogramme et le facteur de clipping.</p>
+<p>Méthode d&#8217;amélioration du contraste : vous pouvez choisir entre Autostretch (JSol&#8217;Ex) et CLAHE. Selon votre choix, des paramètres supplémentaires seront disponibles.</p>
+</li>
+</ul>
+</div>
+<div class="paragraph">
+<p>Pour la méthode Autostretch, vous pouvez configurer:</p>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p>le gamma : un gamma plus élevé donnera une image plus sombre</p>
+</li>
+<li>
+<p>la correction du fond : une valeur proche de 0 supprimera fortement le fond de ciel, une valeur proche de 1 le conservera tel quel</p>
+</li>
+<li>
+<p>amplification des protubérances : si activée, permet de choisir un facteur d&#8217;amplification. Plus le facteur est élevé, plus les protubérances seront visibles, au prix d&#8217;une démarcation plus forte avec le limbe</p>
+</li>
+</ul>
+</div>
+<div class="paragraph">
+<p>Pour la méthode CLAHE, vous pouvez configurer:</p>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p>la taille des tuiles</p>
+</li>
+<li>
+<p>le nombre de niveaux de l&#8217;histogramme</p>
+</li>
+<li>
+<p>le facteur de clipping</p>
 </li>
 </ul>
 </div>
@@ -772,8 +784,10 @@ Il est possible de configurer la taille des tuiles utilisées pour calculer les 
 </ul>
 </div>
 <div class="paragraph">
-<p>Une autre section permet de configurer la déconvolution des images.
-Par défaut, aucune déconvolution n&#8217;est appliquée, mais vous pouvez choisir l&#8217;agorithme de déconvolution et ses paramètres.</p>
+<p>Vous pouvez ensuite choisir des paramètres d&#8217;accentuation des détails.</p>
+</div>
+<div class="paragraph">
+<p>Par défaut, aucune déconvolution n&#8217;est appliquée, mais vous pouvez choisir l&#8217;agorithme de déconvolution et ses paramètres.</p>
 </div>
 <div class="paragraph">
 <p>Pour la déconvolution de Richardson-Lucy, vous pouvez choisir la taille du PSF synthétique, le facteur sigma et le nombre d&#8217;itérations.</p>
@@ -811,8 +825,8 @@ Par défaut, aucune déconvolution n&#8217;est appliquée, mais vous pouvez choi
 </li>
 </ul>
 </div>
-<div class="sect2">
-<h3 id="_correction_des_bords_dentelés">Correction des bords dentelés</h3>
+<div class="sect3">
+<h4 id="_correction_des_bords_dentelés">Correction des bords dentelés</h4>
 <div class="paragraph">
 <p>Ceci est une fonctionnalité expérimentale disponible depuis JSol&#8217;Ex 3.1.0.
 Elle permet de corriger les bords dentelés qui peuvent apparaître sur les images.
@@ -853,19 +867,16 @@ Dans tous les cas, il est recommandé de commencer sans correction et de vérifi
 </div>
 </div>
 </div>
-</div>
-<div class="sect1">
-<h2 id="_paramètres_dobservation">Paramètres d&#8217;observation</h2>
-<div class="sectionbody">
-<div class="paragraph">
-<p>Les paramètres d&#8217;observation sont utilisés lorsque vous enregistrez vos images au format FITS, pour remplir certaines métadonnées.
-Elles servent aussi à calculer le graphique de longueur d&#8217;ondes.
-A noter qu&#8217;à ce stade, nous ne recommandons pas d&#8217;envoyer les images générées par JSol&#8217;Ex sur la base de données BASSS2000, les champs de métadonnées entrés n&#8217;étant pas exactement les mêmes.</p>
-</div>
+<div class="sect2">
+<h3 id="_détails_dobservation">Détails d&#8217;observation</h3>
 <div class="imageblock">
 <div class="content">
 <img src="params-3-fr.jpg" alt="params 3 fr">
 </div>
+</div>
+<div class="paragraph">
+<p>Les paramètres d&#8217;observation sont utilisés lorsque vous enregistrez vos images au format FITS, pour remplir certaines métadonnées.
+Elles servent aussi à calculer le graphique de longueur d&#8217;ondes.</p>
 </div>
 <div class="paragraph">
 <p>Voici les champs disponibles dans JSol&#8217;Ex:</p>
@@ -929,36 +940,98 @@ Pour corriger cela, vous devez cocher la case "mode altazimutal" et entrer les c
 </table>
 </div>
 </div>
+<div class="sect2">
+<h3 id="_images_à_générer">Images à générer</h3>
+<div class="paragraph">
+<p>Le panneau suivant permet de choisir les images à générer.</p>
 </div>
-<div class="sect1">
-<h2 id="_autres_paramètres_disponibles">Autres paramètres disponibles</h2>
-<div class="sectionbody">
 <div class="imageblock">
 <div class="content">
 <img src="params-4-fr.jpg" alt="params 4 fr">
 </div>
+</div>
+<div class="paragraph">
+<p>Dans cette section vous pouvez choisir individuellement les images qui vous intéressent, ou bien choisir un mode de traitement prédéfini (rapide ou complet).</p>
+</div>
+<div class="paragraph">
+<p>Vous pouvez aussi choisir d&#8217;ajouter des scripts ImageMath pour générer des images personnalisées (voir la <a href="#imagemath">section sur ImageMath</a>).</p>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p>Générer des images de debug : permet de générer des images telles que la reconnaissance de contours, la reconnaissance d&#8217;ellipse/tilt, l&#8217;image moyenne. Utile pour vérifier si le logiciel ne se comporte pas correctement sur votre vidéo et que vous souhaitez vérifier là où il se trompe</p>
+</li>
+</ul>
+</div>
+</div>
+<div class="sect2">
+<h3 id="_paramètres_de_traitement_avancés">Paramètres de traitement avancés</h3>
+<div class="paragraph">
+<p>Ces paramètres sont destinés à des cas particuliers, pour corriger des problèmes de détection ou pour des travaux avancés.</p>
+</div>
+<div class="imageblock">
+<div class="content">
+<img src="params-5-fr.jpg" alt="params 5 fr">
+</div>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p>Forcer la valeur du tilt : lors de la correction géométrique d&#8217;image, JSol&#8217;Ex calcule une ellipse pour modéliser le disque solaire reconstitué. Cette ellipse est utilisée pour calculer des paramètre comme l&#8217;angle de tilt. Si le calcul effectué par le logiciel est erroné, vous disposez de la possibilité de surcharger la valeur calculée.</p>
+</li>
+<li>
+<p>Forcer le rapport X/Y : de manière similaire, sur certaines images dans des raies difficiles, l&#8217;ellipse peut ne pas parfaitement correspondre au disque solaire et ne pas reconstituer un soleil parfaitement circulaire. Vous pouvez surcharger le rapport détecté pour corriger ces problèmes</p>
+</li>
+<li>
+<p>Forcer le polynôme: permet de forcer le polynôme de second degré utilisé pour modéliser la raie spectrale. Voir la <a href="#force-polynomial">section sur le forçage du polynôme</a> pour plus d&#8217;informations.</p>
+</li>
+<li>
+<p>Redimensionner au maximum: peut être utilisé si votre vidéo est sur-échantillonnée et que vous souhaitez conserver la résolution maximum. Ceci arrive par exemple si vous faites des scans à basse vitesse (ex, sidérale).</p>
+</li>
+</ul>
+</div>
+<div class="admonitionblock warning">
+<table>
+<tr>
+<td class="icon">
+<i class="fa icon-warning" title="Warning"></i>
+</td>
+<td class="content">
+Activer ce paramètre peut produire des images sensiblement plus grandes et entraîner une forte pression mémoire. Il n&#8217;est pas recommandé d&#8217;activer ce paramètre.
+</td>
+</tr>
+</table>
 </div>
 <div class="ulist">
 <ul>
 <li>
 <p>Supposer vidéo mono : si cette cache est cochée, JSol&#8217;Ex n&#8217;essaiera pas de faire un dématriçage de la vidéo d&#8217;entrée, ce qui permet d&#8217;accélérer considérablement les temps de traitement. En règle générale, vos vidéos seront en mono, il est donc utile de conserver cette case cochée.</p>
 </li>
+</ul>
+</div>
+</div>
+<div class="sect2">
+<h3 id="_paramètres_de_sortie">Paramètres de sortie</h3>
+<div class="paragraph">
+<p>Dans cette section vous pouvez configurer les formats de fichier à générer ainsi que le modèle de nommage des fichiers.</p>
+</div>
+<div class="imageblock">
+<div class="content">
+<img src="params-6-fr.jpg" alt="params 6 fr">
+</div>
+</div>
+<div class="ulist">
+<ul>
 <li>
 <p>Enregistrement automatique des images : si cette case est cochée, toutes les images générées sont automatiquement enregistrées sur disque. Dans le cas contraire, vous devrez dans l&#8217;interface qui affiche les images générés appuyer sur le bouton "Enregistrer" pour conserver les images produites</p>
-</li>
-<li>
-<p>Générer des images de debug : permet de générer des images telles que la reconnaissance de contours, la reconnaissance d&#8217;ellipse/tilt, l&#8217;image moyenne. Utile pour vérifier si le logiciel ne se comporte pas correctement sur votre vidéo et que vous souhaitez vérifier là où il se trompe</p>
 </li>
 <li>
 <p>Générer des fichiers FITS : permet de générer des fichiers FITS, non destructifs, en plus des images PNG</p>
 </li>
 </ul>
 </div>
-</div>
-</div>
-<div class="sect1">
-<h2 id="force-polynomial">Forcer le polynôme</h2>
-<div class="sectionbody">
+<div class="sect3">
+<h4 id="force-polynomial">Forcer le polynôme</h4>
 <div class="paragraph">
 <p>JSol&#8217;Ex effectue une détection de la raie spectrale en cherchant la ligne la plus sombre dans l&#8217;image, puis en ajustant un polynôme de 3ème ordre.
 Il arrive parfois que la détection soit incorrecte, auquel cas vous pouvez forcer l&#8217;utilisation d&#8217;un polynôme.
@@ -968,38 +1041,18 @@ Pour ce faire, cliquez sur le bouton "forcer le polynôme", qui vous permettra d
 <p>Le format du polynôme est une liste de 4 nombres entre accolades, séparés par des virgules, par exemple: <code>{1.3414109042116584E-10,3.889927699830093E-5,-0.056529799336687114,35.76051527062038}</code>.</p>
 </div>
 <div class="paragraph">
-<p>La façon la plus simple d&#8217;obtenir les coefficients du polynôme est de cliquer sur les "&#8230;&#8203;" qui ouvrira une fenêtre avec l&#8217;image moyenne et la raie spectrale détectée :</p>
-</div>
-<div class="imageblock">
-<div class="content">
-<img src="force-polynomial-1.jpg" alt="force polynomial 1">
-</div>
+<p>La façon la plus simple d&#8217;obtenir les coefficients du polynôme est de cliquer sur les "&#8230;&#8203;" qui ouvrira une fenêtre avec l&#8217;image moyenne et la raie spectrale détectée.</p>
 </div>
 <div class="paragraph">
 <p>Vous pouvez alors appuyer sur "CTRL" puis cliquer sur la ligne pour ajouter des points de mesure : une croix rouge sera ajoutée pour chaque point.
-Lorsque vous avez suffisamment de points, cliquez sur le bouton "Calculer le polynôme", qui ajustera un polynôme de 3ème ordre aux points et remplira automatiquement le champ "polynôme de force" dans les paramètres de traitement :</p>
-</div>
-<div class="imageblock">
-<div class="content">
-<img src="force-polynomial-2.jpg" alt="force polynomial 2">
+Lorsque vous avez suffisamment de points, cliquez sur le bouton "Calculer le polynôme", qui ajustera un polynôme de 3ème ordre aux points et remplira automatiquement le champ "polynôme" dans les paramètres de traitement.</p>
 </div>
 </div>
-<div class="paragraph">
-<p>You can then close the popup and start processing.</p>
-</div>
-</div>
-</div>
-<div class="sect1">
-<h2 id="modele-noms-fichier">Modèles de noms de fichier</h2>
-<div class="sectionbody">
+<div class="sect3">
+<h4 id="modele-noms-fichier">Modèles de noms de fichier</h4>
 <div class="paragraph">
 <p>Par défaut, JSol&#8217;Ex enregistre les images produites dans un sous-dossier correspondant au nom de la vidéo, et dans ce sous-dossier un autre sous-dossier par type d&#8217;image (raw, debug, traitées, etc&#8230;&#8203;).
 Si ce modèle ne vous convient pas, vous pouvez créer vos propres modèles de nommage, en cliquant sur les "&#8230;&#8203;":</p>
-</div>
-<div class="imageblock">
-<div class="content">
-<img src="params-5-fr.jpg" alt="params 5 fr">
-</div>
 </div>
 <div class="paragraph">
 <p>Un modèle de nommage consiste en un label (un nom), mais surtout un modèle dont les composantes sont des jetons entre <code>%</code>.</p>
@@ -1046,45 +1099,16 @@ Si ce modèle ne vous convient pas, vous pouvez créer vos propres modèles de n
 </div>
 </div>
 </div>
+</div>
+</div>
 <div class="sect1">
 <h2 id="_lancer_un_traitement">Lancer un traitement</h2>
 <div class="sectionbody">
 <div class="paragraph">
-<p>Vous avez le choix entre 3 modes de traitement.</p>
+<p>Lorsque vous avez configuré les paramètres, cliquez sur "Traiter" pour lancer le traitement.</p>
 </div>
-<div class="ulist">
-<ul>
-<li>
-<p>Le mode "rapide" ne produira que 2 images : l&#8217;image brute reconstituée, qui permet de se donner une idée de la circularité du disque et donc du potentiel sous-échantillonage, et une image corrigée géométriquement. C&#8217;est un mode particulièrement utile lors des premières acquisitions, par exemple de temps de régler le tilt correctement. Combiné au fait de ne pas sauvegarder automatiquement les images, il peut vous faire gagner un temps précieux et de l&#8217;espace disque !</p>
-</li>
-<li>
-<p>Le mode "complet" produira l&#8217;intégralité des images que peut produire JSol&#8217;Ex. En fonction de la raie spectrale choisie, certaines images seront disponibles ou non. Par défaut, le logiciel produira:</p>
-</li>
-<li>
-<p>l&#8217;image brute reconstituée</p>
-</li>
-<li>
-<p>une version géométriquement corrigée et "étalée" (contraste amélioré)</p>
-</li>
-<li>
-<p>une version colorisée (si la raie choisie dispose d&#8217;un profil de colorisation)</p>
-</li>
-<li>
-<p>une version en négatif</p>
-</li>
-<li>
-<p>une éclipse virtuelle, permettant de simuler un coronagraphe</p>
-</li>
-<li>
-<p>une version "mix" combinant l&#8217;éclipse virtuelle et l&#8217;image colorisée</p>
-</li>
-<li>
-<p>une image Doppler</p>
-</li>
-<li>
-<p>le mode "personnalisé" permet de choisir plus précisément les images générées, voire de générer des images non prévues à l&#8217;origine par le logiciel (voir la <a href="#custom_images">section suivante</a>).</p>
-</li>
-</ul>
+<div class="paragraph">
+<p>Vous avez la possibilité de lancer un traitement rapide ou complet directement en cliquant sur les boutons correspondants en bas à droite.</p>
 </div>
 <div class="sect2">
 <h3 id="_affichage_des_images_produites">Affichage des images produites</h3>

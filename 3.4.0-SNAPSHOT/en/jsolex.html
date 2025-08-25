@@ -473,17 +473,17 @@ body.book #toc,body.book #preamble,body.book h1.sect0,body.book .sect1>h2{page-b
 </li>
 <li><a href="#_community">Community</a></li>
 <li><a href="#donate">Donations</a></li>
-<li><a href="#_processing_a_video_file">Processing a video file</a></li>
-<li><a href="#_image_enhancement">Image enhancement</a>
+<li><a href="#_processing_a_video_file">Processing a video file</a>
 <ul class="sectlevel2">
-<li><a href="#_jagged_edges_correction">Jagged Edges Correction</a></li>
+<li><a href="#_basic_parameters">Basic parameters</a></li>
+<li><a href="#_cosmetic_correction_parameters">Cosmetic correction parameters</a></li>
+<li><a href="#_observation_details">Observation details</a></li>
+<li><a href="#_images_to_generate">Images to generate</a></li>
+<li><a href="#_advanced_processing_parameters">Advanced processing parameters</a></li>
+<li><a href="#_output_parameters">Output parameters</a></li>
 </ul>
 </li>
-<li><a href="#_observation_parameters">Observation parameters</a></li>
-<li><a href="#_other_parameters">Other parameters</a></li>
-<li><a href="#force-polynomial">Force polynomial</a></li>
-<li><a href="#filename-templates">File naming patterns</a></li>
-<li><a href="#_process_start">Process start</a>
+<li><a href="#_starting_a_process">Starting a process</a>
 <ul class="sectlevel2">
 <li><a href="#_image_display">Image display</a></li>
 </ul>
@@ -664,27 +664,34 @@ The main window looks like this:</p>
 </div>
 <div class="paragraph">
 <p>In the "File" menu, choose "Open SER File" and select a file.
-The following popup should open:</p>
+A configuration window opens, with several sections:</p>
+</div>
+<div class="sect2">
+<h3 id="_basic_parameters">Basic parameters</h3>
+<div class="paragraph">
+<p>The first section is the most important for your first scans, the other sections will help you refine the processing.</p>
 </div>
 <div class="imageblock">
 <div class="content">
 <img src="params-1-en.jpg" alt="params 1 en">
 </div>
 </div>
-<div class="paragraph">
-<p>This window is the main entry point for the process parameters.
-You can specify:</p>
-</div>
 <div class="ulist">
 <ul>
 <li>
-<p>the observation bandwidth: while it&#8217;s not mandatory to select that field, doing so will enable automatic colorization of the images. Should your observation bandwidth not be available in the list, you can add more by clicking on the "&#8230;&#8203;" button.</p>
+<p>the observation bandwidth: while it&#8217;s not mandatory to select that field, doing so will enable automatic colorization of the images and advanced functionalities such as velocity calculations. By clicking on the "&#8230;&#8203;" you have the possibility to add your own lines if they are not listed. This is the wavelength of the darkest line in your capture window. The "Autodetect" mode will try to find the line among those listed automatically.</p>
 </li>
 <li>
 <p>Pixel shift : by default, the software will identify the darkest line in the image and model it as a second order polynomial. Then the image is reconstructed by picking the center of the line, which corresponds to a shift of 0. By using a different shift value, you can produce an image which is "off center", for example to produce images of the solar continuum or to select a different wavelength which isn&#8217;t the darkest, such as when observing in helium for example</p>
 </li>
 <li>
-<p>the Doppler shift is only used when you are observing in h-alpha. JSol&#8217;Ex will produce a couple more images shifted in one direction and the other in order to produce a Doppler image. By default, a shift of 3 pixels is used but you can override that parameter.</p>
+<p>the Doppler shift is only used when you are observing in h-alpha line to generate a Doppler image. By default, the software uses 2 images shifted by 3 pixels to reconstruct a color image.</p>
+</li>
+<li>
+<p>the continuum shift is used to generate a continuum image, close to white light in H-alpha.</p>
+</li>
+<li>
+<p>Red/blue channel inversion: when a Doppler image is created, the software assigns a shift to the red channel and the other to the blue channel. However, depending on your configuration, it may result in an image where the colors are inverted (regions approaching in blue instead of red). If this is the case, check this box to invert the channels.</p>
 </li>
 <li>
 <p>Rotation : allows performing a left or right rotation (90 degrees) of the images. This can be useful for scans performed in declination, to fix the orientation. This parameter doesn&#8217;t affect images produced with ImageMath.</p>
@@ -709,41 +716,15 @@ You can specify:</p>
 <p>Autocorrect P angle: when checked, the solar angle P will be computed from the observation date (available in the SER file). The generated images will be automatically corrected so that the North is at the top. This parameter will not affect images generated via ImageMath, which need to perform their own correction.</p>
 </li>
 <li>
-<p>Force tilt: the software is fitting an ellipse around the solar disk which is reconstructed, and uses that information to perform geometric correction. It is possible that the tilt detection is wrong, in which case you can force a value.</p>
-</li>
-<li>
-<p>Force X/Y ratio: similarly, the X/Y ratio which is detected may be inaccurrate, in which case you can force it to a particular value.</p>
-</li>
-<li>
-<p>Force polynomial: this lets you override the detected spectral line, if for some reason it is not detected correctly. See the <a href="#force-polynomial">section about forcing the polynomial</a> for more information.</p>
-</li>
-<li>
 <p>Horizontal and vertical inversion let you mirror the image so that you match the North and East as expected in the output images.</p>
-</li>
-<li>
-<p>Rescale to full resolution: can be used if your video is oversampled, which typically happens if you are scanning at lower rates (e.g sideral) and that you want to resize the generated image to its full resolution.</p>
 </li>
 </ul>
 </div>
-<div class="admonitionblock warning">
-<table>
-<tr>
-<td class="icon">
-<i class="fa icon-warning" title="Warning"></i>
-</td>
-<td class="content">
-Enabling full resolution can lead in significantly larger images and very high memory pressure. It is not recommended to enable this flag.
-</td>
-</tr>
-</table>
 </div>
-</div>
-</div>
-<div class="sect1">
-<h2 id="_image_enhancement">Image enhancement</h2>
-<div class="sectionbody">
+<div class="sect2">
+<h3 id="_cosmetic_correction_parameters">Cosmetic correction parameters</h3>
 <div class="paragraph">
-<p>This section lets you configure the transformations which will be applied to images in order to improve their aesthetic aspect.</p>
+<p>The second parameter panel allows you to configure cosmetic options:</p>
 </div>
 <div class="imageblock">
 <div class="content">
@@ -753,8 +734,39 @@ Enabling full resolution can lead in significantly larger images and very high m
 <div class="ulist">
 <ul>
 <li>
-<p>CLAHE parameters : allows configuring the CLAHE contrast improvement algorithm.
-It is possible to configure the size of the tiles used to compute histograms, the histogram resolution and the clipping factor.</p>
+<p>Contrast enhancement method: you can choose between Autostretch (JSol&#8217;Ex) and CLAHE. Depending on your choice, additional parameters will be available.</p>
+</li>
+</ul>
+</div>
+<div class="paragraph">
+<p>For the Autostretch method, you can configure:</p>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p>gamma: a higher gamma will give a darker image</p>
+</li>
+<li>
+<p>background correction: a value close to 0 will strongly suppress the sky background, a value close to 1 will keep it as is</p>
+</li>
+<li>
+<p>prominence amplification: if enabled, allows choosing an amplification factor. The higher the factor, the more visible the prominences will be, at the cost of stronger demarcation with the limb</p>
+</li>
+</ul>
+</div>
+<div class="paragraph">
+<p>For the CLAHE method, you can configure:</p>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p>tile size</p>
+</li>
+<li>
+<p>number of histogram levels</p>
+</li>
+<li>
+<p>clipping factor</p>
 </li>
 </ul>
 </div>
@@ -772,7 +784,7 @@ It is possible to configure the size of the tiles used to compute histograms, th
 </ul>
 </div>
 <div class="paragraph">
-<p>Another section lets you configure image deconvolution.
+<p>You can then choose detail enhancement parameters.
 By default, no deconvolution is applied, but you can choose the deconvolution algorithm and its parameters.</p>
 </div>
 <div class="paragraph">
@@ -801,8 +813,8 @@ There are 3 modes available:
 - Artificial flat correction: the software will compute a model of the flat field from the image itself, by looking at the pixels which are between a low and a high percentile. The model is then used to correct the image. This can be used to correct for reasonable vignetting.
 - Physical flat correction: the software can use a flat field which is either a SER file containing a few frames, or a pre-computed flat field. This is the preferred method for strong vignetting.</p>
 </div>
-<div class="sect2">
-<h3 id="_jagged_edges_correction">Jagged Edges Correction</h3>
+<div class="sect3">
+<h4 id="_jagged_edges_correction">Jagged Edges Correction</h4>
 <div class="paragraph">
 <p>This is an experimental feature available since JSol&#8217;Ex 3.1.0.
 It enables the correction of jagged edges which can appear on images.
@@ -843,18 +855,16 @@ In all cases, it is recommended to start without correction and verify the resul
 </div>
 </div>
 </div>
-</div>
-<div class="sect1">
-<h2 id="_observation_parameters">Observation parameters</h2>
-<div class="sectionbody">
-<div class="paragraph">
-<p>Observation parameters are used to insert metadata into FITS files.
-As of now, we do <em>not</em> recommend to publish images produced using JSol&#8217;Ex to the BASS2000 database because the FITS header that this software uses are not validated against what the database expects.</p>
-</div>
+<div class="sect2">
+<h3 id="_observation_details">Observation details</h3>
 <div class="imageblock">
 <div class="content">
 <img src="params-3-en.jpg" alt="params 3 en">
 </div>
+</div>
+<div class="paragraph">
+<p>Observation parameters are used when you save your images in FITS format, to populate certain metadata.
+They are also used to calculate the wavelength graph.</p>
 </div>
 <div class="paragraph">
 <p>Here are the fields available in JSol&#8217;Ex:</p>
@@ -918,36 +928,98 @@ In order to fix this, you must check the "Alt-Az" box and enter your observation
 </table>
 </div>
 </div>
+<div class="sect2">
+<h3 id="_images_to_generate">Images to generate</h3>
+<div class="paragraph">
+<p>The following panel allows you to choose which images to generate.</p>
 </div>
-<div class="sect1">
-<h2 id="_other_parameters">Other parameters</h2>
-<div class="sectionbody">
 <div class="imageblock">
 <div class="content">
 <img src="params-4-en.jpg" alt="params 4 en">
 </div>
 </div>
+<div class="paragraph">
+<p>In this section you can individually choose the images that interest you, or choose a predefined processing mode (quick or complete).</p>
+</div>
+<div class="paragraph">
+<p>You can also choose to add ImageMath scripts to generate custom images (see the <a href="#imagemath">section on ImageMath</a>).</p>
+</div>
 <div class="ulist">
 <ul>
 <li>
-<p>Assume mono video : when checked, JSol&#8217;Ex will not try to perform demosaicing of the video, by assuming it&#8217;s a mono one. This can considerably speedup processing, and because most videos for Sol&#8217;Ex will be mono, it is better to leave this checked.</p>
-</li>
-<li>
-<p>Automatically save images : if checked, all images which are generated by the software will be saved to disk immediately. If unchecked, then it&#8217;s your responsibility to save them by clicking on the "save" button of each image tab.</p>
-</li>
-<li>
-<p>Generate debug images: when checked, additional images will be generated to highlight edge detection, tilt detection and average image. These can be useful to figure out what when wrong when the software doesn&#8217;t produce the expected results.</p>
-</li>
-<li>
-<p>Generate FITS files : in addition to PNG files, will also generate FITS files.</p>
+<p>Generate debug images: allows generating images such as edge recognition, ellipse/tilt recognition, average image. Useful to verify if the software is not behaving correctly on your video and you want to check where it goes wrong</p>
 </li>
 </ul>
 </div>
 </div>
+<div class="sect2">
+<h3 id="_advanced_processing_parameters">Advanced processing parameters</h3>
+<div class="paragraph">
+<p>These parameters are intended for special cases, to correct detection problems or for advanced work.</p>
 </div>
-<div class="sect1">
-<h2 id="force-polynomial">Force polynomial</h2>
-<div class="sectionbody">
+<div class="imageblock">
+<div class="content">
+<img src="params-5-en.jpg" alt="params 5 en">
+</div>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p>Force tilt value: during image geometric correction, JSol&#8217;Ex calculates an ellipse to model the reconstructed solar disk. This ellipse is used to calculate parameters like the tilt angle. If the calculation performed by the software is incorrect, you have the possibility to override the calculated value.</p>
+</li>
+<li>
+<p>Force X/Y ratio: similarly, on certain images in difficult lines, the ellipse may not perfectly correspond to the solar disk and not reconstruct a perfectly circular sun. You can override the detected ratio to correct these problems</p>
+</li>
+<li>
+<p>Force polynomial: allows forcing the second-degree polynomial used to model the spectral line. See the <a href="#force-polynomial">section on forcing the polynomial</a> for more information.</p>
+</li>
+<li>
+<p>Resize to maximum: can be used if your video is over-sampled and you want to keep the maximum resolution. This happens for example if you do scans at low speed (e.g., sidereal).</p>
+</li>
+</ul>
+</div>
+<div class="admonitionblock warning">
+<table>
+<tr>
+<td class="icon">
+<i class="fa icon-warning" title="Warning"></i>
+</td>
+<td class="content">
+Enabling this parameter can produce significantly larger images and cause high memory pressure. It is not recommended to enable this parameter.
+</td>
+</tr>
+</table>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p>Assume mono video: when checked, JSol&#8217;Ex will not try to perform demosaicing of the video, by assuming it&#8217;s a mono one. This can considerably speedup processing, and because most videos for Sol&#8217;Ex will be mono, it is better to leave this checked.</p>
+</li>
+</ul>
+</div>
+</div>
+<div class="sect2">
+<h3 id="_output_parameters">Output parameters</h3>
+<div class="paragraph">
+<p>In this section you can configure the file formats to generate as well as the file naming template.</p>
+</div>
+<div class="imageblock">
+<div class="content">
+<img src="params-6-en.jpg" alt="params 6 en">
+</div>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p>Automatically save images: if this box is checked, all generated images are automatically saved to disk. Otherwise, you will have to press the "Save" button in the interface that displays the generated images to keep the produced images</p>
+</li>
+<li>
+<p>Generate FITS files: allows generating FITS files, non-destructive, in addition to PNG images</p>
+</li>
+</ul>
+</div>
+<div class="sect3">
+<h4 id="force-polynomial">Force polynomial</h4>
 <div class="paragraph">
 <p>JSol&#8217;Ex performs detection of the spectral line by looking for the darkest line in the image, then fitting a 3rd order polynomial to it.
 Sometimes, detection may be incorrect, in which case you can force a polynomial to be used.</p>
@@ -959,38 +1031,18 @@ Sometimes, detection may be incorrect, in which case you can force a polynomial 
 <p>The format of the polynomial is a list of 4 numbers between curly braces, separated by commas, for example: <code>{1.3414109042116584E-10,3.889927699830093E-5,-0.056529799336687114,35.76051527062038}</code>.</p>
 </div>
 <div class="paragraph">
-<p>The easiest way to get the polynomial coefficients is to click on the "&#8230;&#8203;" button, which will open a window with the average image and the detected spectral line :</p>
-</div>
-<div class="imageblock">
-<div class="content">
-<img src="force-polynomial-1.jpg" alt="force polynomial 1">
-</div>
+<p>The easiest way to get the polynomial coefficients is to click on the "&#8230;&#8203;" button, which will open a window with the average image and the detected spectral line.</p>
 </div>
 <div class="paragraph">
 <p>You can then press "CTRL" then click on the line to add measurement points: a red cross will be added for each point.
-When you have enough points, click on the "Compute polynomial" button, which will fit a 3rd order polynomial to the points and automatically fill the "force polynomial" field in the process parameters:</p>
-</div>
-<div class="imageblock">
-<div class="content">
-<img src="force-polynomial-2.jpg" alt="force polynomial 2">
+When you have enough points, click on the "Compute polynomial" button, which will fit a 3rd order polynomial to the points and automatically fill the "polynomial" field in the process parameters.</p>
 </div>
 </div>
-<div class="paragraph">
-<p>You can then close the popup and start processing.</p>
-</div>
-</div>
-</div>
-<div class="sect1">
-<h2 id="filename-templates">File naming patterns</h2>
-<div class="sectionbody">
+<div class="sect3">
+<h4 id="filename-templates">File naming patterns</h4>
 <div class="paragraph">
 <p>By default, JSol&#8217;Ex will output the generated images in a subfolder which name matches the name of the SER file (without extension). Then each kind of images is stored in a subdirectory of that folder (e.g raw, debug, processed, &#8230;&#8203;).
 If that naming convention doesn&#8217;t suit you, you can create your own naming patterns, by clicking the "&#8230;&#8203;" dots:</p>
-</div>
-<div class="imageblock">
-<div class="content">
-<img src="params-5-en.jpg" alt="params 5 en">
-</div>
 </div>
 <div class="paragraph">
 <p>A naming pattern consists of a label, but more importantly a pattern consisting of tokens delimited by the <code>%</code> character.</p>
@@ -1037,45 +1089,16 @@ If that naming convention doesn&#8217;t suit you, you can create your own naming
 </div>
 </div>
 </div>
+</div>
+</div>
 <div class="sect1">
-<h2 id="_process_start">Process start</h2>
+<h2 id="_starting_a_process">Starting a process</h2>
 <div class="sectionbody">
 <div class="paragraph">
-<p>JSol&#8217;Ex provides 3 processing modes: quick, full and custom.</p>
+<p>When you have configured the parameters, click "Process" to start the processing.</p>
 </div>
-<div class="ulist">
-<ul>
-<li>
-<p>The "quick" mode will only produce a couple images: the raw reconstructed one, and a geometry corrected version. It is useful in your initial setup, when you&#8217;re still trying to figure out the tilt or exposure, for example. It is recommended to combine this mode with not saving images automatically, so that you don&#8217;t fill your disk with images that you will never use.</p>
-</li>
-<li>
-<p>The "full" mode will generate all images that JSol&#8217;Ex can automatically produce:</p>
-</li>
-<li>
-<p>the raw, reconstructed image</p>
-</li>
-<li>
-<p>a geometry corrected and color-stretched version</p>
-</li>
-<li>
-<p>a colorized image, if the bandwidth you have selected provides the required parameters</p>
-</li>
-<li>
-<p>a negative image version</p>
-</li>
-<li>
-<p>a virtual eclipse, to simulate a coronagraph</p>
-</li>
-<li>
-<p>a mixed image combining the colorized version with the virtual eclipse</p>
-</li>
-<li>
-<p>a Doppler image</p>
-</li>
-<li>
-<p>the "custom" mode will let you precisely pick which images you want to generate. It even provides a more advanced mode letting you script generated images, allowing the generation of images which weren&#8217;t designed initially (see the <a href="#custom_images">section about custom images</a>).</p>
-</li>
-</ul>
+<div class="paragraph">
+<p>You have the possibility to launch a quick or complete processing directly by clicking the corresponding buttons in the bottom right.</p>
 </div>
 <div class="sect2">
 <h3 id="_image_display">Image display</h3>
