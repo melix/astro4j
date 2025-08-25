@@ -143,7 +143,11 @@ public class OutputConfigurationPanel extends BaseParameterPanel {
         addGridRow(namingGrid, 0, I18N.string(JSolEx.class, "process-params", "naming.pattern") + ":", createNamingPatternBox());
         namingSection.getChildren().add(namingGrid);
         
-        getChildren().addAll(formatsSection, optionsSection, namingSection);
+        var resetButton = new Button(I18N.string(JSolEx.class, "process-params", "reset.to.defaults"));
+        resetButton.getStyleClass().add("default-button");
+        resetButton.setOnAction(e -> resetToDefaults());
+        
+        getChildren().addAll(formatsSection, optionsSection, namingSection, resetButton);
     }
     
     
@@ -163,6 +167,24 @@ public class OutputConfigurationPanel extends BaseParameterPanel {
     
     private void openNamingPatternEditor() {
         controller.openNamingPatternEditor();
+    }
+    
+    private void resetToDefaults() {
+        generatePng.setSelected(true);
+        generateJpg.setSelected(false);
+        generateTif.setSelected(false);
+        generateFits.setSelected(false);
+        
+        autoSave.setSelected(true);
+        autoTrimSerFile.setSelected(false);
+        
+        globeStyle.setValue(GlobeStyle.EQUATORIAL_COORDS);
+        
+        namingPattern.getItems().clear();
+        namingPattern.getItems().addAll(FileNamingPatternsIO.loadDefaults());
+        if (!namingPattern.getItems().isEmpty()) {
+            namingPattern.getSelectionModel().selectFirst();
+        }
     }
     
     public void loadData(ProcessParams params, boolean batchMode) {

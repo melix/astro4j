@@ -331,7 +331,11 @@ public class ImageEnhancementPanel extends BaseParameterPanel {
         addGridRow(jaggingGrid, 1, I18N.string(JSolEx.class, "process-params", "jagging.correction.sigma") + ":", jaggingCorrectionSigma);
         jaggingSection.getChildren().add(jaggingGrid);
         
-        getChildren().addAll(contrastSection, bandingSection, deconvolutionSharpeningSection, flatSection, jaggingSection);
+        var resetButton = new Button(I18N.string(JSolEx.class, "process-params", "reset.to.defaults"));
+        resetButton.getStyleClass().add("default-button");
+        resetButton.setOnAction(e -> resetToDefaults());
+        
+        getChildren().addAll(contrastSection, bandingSection, deconvolutionSharpeningSection, flatSection, jaggingSection, resetButton);
         
         updateParameterVisibility();
     }
@@ -351,6 +355,41 @@ public class ImageEnhancementPanel extends BaseParameterPanel {
     
     private void selectFlatFile() {
         controller.selectFlatFile();
+    }
+    
+    private void resetToDefaults() {
+        contrastEnhancementChoice.setValue(ContrastEnhancement.AUTOSTRETCH);
+        autostretchGamma.setText(String.valueOf(AutohistogramStrategy.DEFAULT_GAMMA));
+        bgThreshold.setText(String.valueOf(AutohistogramStrategy.DEFAULT_BACKGROUND_THRESHOLD));
+        stretchProtus.setSelected(false);
+        protusStretchValue.setText(String.valueOf(AutohistogramStrategy.DEFAULT_PROM_STRETCH));
+        
+        claheTileSize.setValue(ClaheStrategy.DEFAULT_TILE_SIZE);
+        claheBins.setValue(ClaheStrategy.DEFAULT_BINS);
+        claheClipping.setText(String.valueOf(ClaheStrategy.DEFAULT_CLIP));
+        
+        bandingCorrectionPasses.setText(String.valueOf(BandingReduction.DEFAULT_PASS_COUNT));
+        bandingCorrectionWidth.setText(String.valueOf(BandingReduction.DEFAULT_BAND_SIZE));
+        
+        deconvolutionMode.setValue(DeconvolutionMode.NONE);
+        rlRadius.setText(String.valueOf(Deconvolution.DEFAULT_RADIUS));
+        rlSigma.setText(String.valueOf(Deconvolution.DEFAULT_SIGMA));
+        rlIterations.setText(String.valueOf(Deconvolution.DEFAULT_ITERATIONS));
+        
+        sharpeningMethod.setValue(SharpeningMethod.NONE);
+        sharpeningRadius.setText("3.0");
+        sharpeningAmount.setText("1.0");
+        
+        jaggingCorrection.setSelected(false);
+        jaggingCorrectionSigma.setText(String.valueOf(JaggingCorrection.DEFAULT_SIGMA));
+        
+        flatMode.setValue(FlatMode.NONE);
+        flatLoPercentile.setText(String.valueOf(FlatCorrection.DEFAULT_LO_PERCENTILE));
+        flatHiPercentile.setText(String.valueOf(FlatCorrection.DEFAULT_HI_PERCENTILE));
+        flatOrder.setText(String.valueOf(FlatCorrection.DEFAULT_ORDER));
+        updateFlatFile(null);
+        
+        updateParameterVisibility();
     }
     
     public void loadData(ProcessParams params) {
