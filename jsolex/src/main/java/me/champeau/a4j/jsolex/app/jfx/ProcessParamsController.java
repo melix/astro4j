@@ -110,7 +110,7 @@ public class ProcessParamsController {
             navigationSidebar.selectItem(firstItem);
         }
 
-        stage.setOnCloseRequest(e -> {
+        stage.setOnHidden(e -> {
             if (!completed) {
                 processParams = null;
             }
