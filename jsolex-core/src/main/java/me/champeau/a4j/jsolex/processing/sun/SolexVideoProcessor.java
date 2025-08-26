@@ -49,6 +49,7 @@ import me.champeau.a4j.jsolex.processing.params.ImageMathParams;
 import me.champeau.a4j.jsolex.processing.params.ProcessParams;
 import me.champeau.a4j.jsolex.processing.params.RotationKind;
 import me.champeau.a4j.jsolex.processing.params.SpectralRay;
+import me.champeau.a4j.jsolex.processing.params.SpectralRayIO;
 import me.champeau.a4j.jsolex.processing.spectrum.FlatCreator;
 import me.champeau.a4j.jsolex.processing.spectrum.SpectrumAnalyzer;
 import me.champeau.a4j.jsolex.processing.sun.detection.ActiveRegions;
@@ -361,7 +362,7 @@ public class SolexVideoProcessor implements Broadcaster {
             if (processParams.spectrumParams().ray().equals(SpectralRay.AUTO) && pixelSize != null && pixelSize > 0) {
                 var instrument = processParams.observationDetails().instrument();
                 var candidates = new ArrayList<SpectrumAnalyzer.QueryDetails>();
-                for (var line : SpectralRay.predefined()) {
+                for (var line : SpectralRayIO.loadDefaults()) {
                     if (line.wavelength().nanos() > 0 && !line.emission()) {
                         if (binningIsReliable) {
                             candidates.add(new SpectrumAnalyzer.QueryDetails(line, pixelSize, processParams.observationDetails().binning(), instrument));
