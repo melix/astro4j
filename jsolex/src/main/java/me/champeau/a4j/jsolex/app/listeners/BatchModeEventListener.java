@@ -764,6 +764,18 @@ public class BatchModeEventListener implements ProcessingEventListener, ImageMat
         }
     }
 
+    public void onProcessingFailed() {
+        item.status().set(message("batch.error"));
+        dataLock.writeLock().lock();
+        try {
+            errors.add(sequenceNumber);
+        } finally {
+            dataLock.writeLock().unlock();
+        }
+        updateProgressStatus(true);
+        maybeExecuteEndOfBatch();
+    }
+
     private record FilteringResult(
         List<Integer> discarded,
         Integer best

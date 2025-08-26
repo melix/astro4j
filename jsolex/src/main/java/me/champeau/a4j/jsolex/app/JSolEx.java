@@ -1786,6 +1786,10 @@ public class JSolEx implements JSolExInterface {
             processor.process();
         } catch (Throwable ex) {
             LoggingSupport.logError(ex);
+            // In batch mode, notify listener about processing failure
+            if (batchMode && listener instanceof BatchModeEventListener batchListener) {
+                batchListener.onProcessingFailed();
+            }
         } finally {
             onComplete.run();
             appender.stop();
