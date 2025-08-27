@@ -238,7 +238,10 @@ public class ProcessingParametersPanel extends BaseParameterPanel {
             reviewImagesAfterBatch.setSelected(extraParams.reviewImagesAfterBatch());
         }
         
-        if (!wavelengthChoice.getItems().isEmpty()) {
+        var savedRay = spectrum.ray();
+        if (savedRay != null && wavelengthChoice.getItems().contains(savedRay)) {
+            wavelengthChoice.getSelectionModel().select(savedRay);
+        } else if (!wavelengthChoice.getItems().isEmpty()) {
             wavelengthChoice.getSelectionModel().selectFirst();
         }
     }

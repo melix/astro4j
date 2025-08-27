@@ -488,7 +488,7 @@ public class BatchModeEventListener implements ProcessingEventListener, ImageMat
     }
 
     private boolean hasBatchScriptExpressions() {
-        var scriptFiles = processParams.requestedImages().mathImages().scriptFiles();
+        var scriptFiles = processParams.combinedImageMathParams().scriptFiles();
         if (scriptFiles.isEmpty()) {
             return false;
         }
@@ -503,7 +503,7 @@ public class BatchModeEventListener implements ProcessingEventListener, ImageMat
 
     private void executeBatchScriptExpressions(FilteringResult result, ProgressOperation rootOperation) {
         try {
-            var scriptFiles = processParams.requestedImages().mathImages().scriptFiles();
+            var scriptFiles = processParams.combinedImageMathParams().scriptFiles();
             if (scriptFiles.isEmpty() || result.discarded().size() == totalItems) {
                 return;
             }

@@ -16,6 +16,7 @@
 package me.champeau.a4j.jsolex.processing.params;
 
 import java.io.File;
+import java.util.ArrayList;
 import java.util.Optional;
 
 public record ProcessParams(
@@ -251,5 +252,23 @@ public record ProcessParams(
             contrastEnhancement,
             enhancementParams
         );
+    }
+
+    public ImageMathParams combinedImageMathParams() {
+        if (!requestedImages().applyAutomaticScripts()) {
+            return requestedImages.mathImages();
+        }
+
+        var currentRay = spectrumParams().ray();
+        if (currentRay.automaticScripts().isEmpty()) {
+            return requestedImages.mathImages();
+        }
+
+        var combinedScripts = new ArrayList<>(requestedImages.mathImages().scriptFiles());
+        for (var scriptPath : currentRay.automaticScripts()) {
+            combinedScripts.add(scriptPath.toFile());
+        }
+
+        return new ImageMathParams(combinedScripts);
     }
 }

@@ -917,9 +917,9 @@ public class JSolEx implements JSolExInterface {
                 }
             }
         });
-        var scriptFiles = params.requestedImages().mathImages().scriptFiles();
+        var scriptFiles = params.combinedImageMathParams().scriptFiles();
         if (!scriptFiles.isEmpty()) {
-            loadImageMathScriptFrom(scriptFiles.get(0));
+            loadImageMathScriptFrom(scriptFiles.getFirst());
         }
     }
 
@@ -1092,7 +1092,7 @@ public class JSolEx implements JSolExInterface {
     private void showImageMathEditor() {
         var stage = newStage();
         var params = ProcessParams.loadDefaults();
-        ImageMathEditor.create(stage, params.requestedImages().mathImages(), getHostServices(), true, true, e -> {
+        ImageMathEditor.create(stage, params.combinedImageMathParams(), getHostServices(), true, true, e -> {
         }, e -> {
             stage.close();
             Platform.runLater(this::newSession);
@@ -1179,7 +1179,7 @@ public class JSolEx implements JSolExInterface {
     }
 
     private void executeStandaloneScripts(ProcessParams params, ProgressOperation rootOperation) {
-        var scriptFiles = params.requestedImages().mathImages().scriptFiles();
+        var scriptFiles = params.combinedImageMathParams().scriptFiles();
         var scriptFile = scriptFiles.stream().findFirst();
         scriptFile.ifPresent(script -> {
             var outputDirectory = script.getParentFile();

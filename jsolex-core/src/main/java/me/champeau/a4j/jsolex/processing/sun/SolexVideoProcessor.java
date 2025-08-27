@@ -464,10 +464,9 @@ public class SolexVideoProcessor implements Broadcaster {
                 });
             }
             runnables.add(() -> {
-                var mathImages = processParams.requestedImages().mathImages();
-                var finalMathImages = combineWithAutomaticScripts(mathImages);
+                var mathImages = processParams.combinedImageMathParams();
                 var missingShiftLock = new ReentrantLock();
-                generateImageMaths(imageNamingStrategy, baseName, imageList, finalMathImages,
+                generateImageMaths(imageNamingStrategy, baseName, imageList, mathImages,
                         shift -> computeMissingImageShift(converter, header, fps, serFile, 0, end, shift, missingShiftLock, width, newHeight, geometry, height, polynomial, imageNamingStrategy, baseName, imageList),
                         minShift, maxShift,
                         header);
@@ -1794,24 +1793,6 @@ public class SolexVideoProcessor implements Broadcaster {
             Flares flares
     ) {
 
-    }
-
-    private ImageMathParams combineWithAutomaticScripts(ImageMathParams mathImages) {
-        if (!processParams.requestedImages().applyAutomaticScripts()) {
-            return mathImages;
-        }
-
-        var currentRay = processParams.spectrumParams().ray();
-        if (currentRay.automaticScripts().isEmpty()) {
-            return mathImages;
-        }
-
-        var combinedScripts = new ArrayList<>(mathImages.scriptFiles());
-        for (var scriptPath : currentRay.automaticScripts()) {
-            combinedScripts.add(scriptPath.toFile());
-        }
-
-        return new ImageMathParams(combinedScripts);
     }
 
     private static class TaskCoordinator {
