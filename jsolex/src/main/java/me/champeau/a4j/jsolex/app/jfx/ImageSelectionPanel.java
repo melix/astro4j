@@ -76,6 +76,7 @@ public class ImageSelectionPanel extends BaseParameterPanel {
     private Set<CheckBox> fullModeCheckBoxes;
 
     private CheckBox debug;
+    private CheckBox applyAutomaticScripts;
 
     private Label scriptLabel;
     private Button openImageMathButton;
@@ -138,6 +139,8 @@ public class ImageSelectionPanel extends BaseParameterPanel {
         );
 
         debug = createCheckbox("debug.images");
+        applyAutomaticScripts = createCheckbox("apply.automatic.scripts");
+        applyAutomaticScripts.setSelected(true);
 
         scriptLabel = new Label("No script loaded");
         scriptLabel.getStyleClass().add("script-label");
@@ -193,6 +196,7 @@ public class ImageSelectionPanel extends BaseParameterPanel {
         var debugGrid = createCompactGrid();
 
         debugGrid.add(debug, 0, 0);
+        debugGrid.add(applyAutomaticScripts, 1, 0);
 
         debugSection.getChildren().add(debugGrid);
 
@@ -265,6 +269,7 @@ public class ImageSelectionPanel extends BaseParameterPanel {
         addCustomModeListener(activeRegions);
         addCustomModeListener(ellermanBombs);
         addCustomModeListener(debug);
+        addCustomModeListener(applyAutomaticScripts);
     }
 
     private void addCustomModeListener(CheckBox checkBox) {
@@ -330,6 +335,7 @@ public class ImageSelectionPanel extends BaseParameterPanel {
         selectAllExceptDebug(selected);
 
         debug.setSelected(selected);
+        applyAutomaticScripts.setSelected(selected);
 
         if (selected) {
             currentMode = determineCurrentMode();
@@ -464,6 +470,7 @@ public class ImageSelectionPanel extends BaseParameterPanel {
         ellermanBombs.setSelected(images.contains(GeneratedImageKind.ELLERMAN_BOMBS));
 
         debug.setSelected(images.contains(GeneratedImageKind.DEBUG));
+        applyAutomaticScripts.setSelected(requestedImages.applyAutomaticScripts());
 
         autoContinuum = requestedImages.autoContinuum();
 
@@ -554,7 +561,8 @@ public class ImageSelectionPanel extends BaseParameterPanel {
             internalShiftsSet,
             requestedWaveLengths == null ? Set.of() : Collections.unmodifiableSet(requestedWaveLengths),
             finalImageMathParams,
-            autoContinuum
+            autoContinuum,
+            applyAutomaticScripts.isSelected()
         );
     }
 

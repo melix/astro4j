@@ -33,7 +33,8 @@ public record RequestedImages(
     Set<Double> internalPixelShifts,
     Set<Double> requestedWaveLengths,
     ImageMathParams mathImages,
-    boolean autoContinuum
+    boolean autoContinuum,
+    boolean applyAutomaticScripts
 ) {
     public static final Set<GeneratedImageKind> FULL_MODE = EnumSet.of(
         GeneratedImageKind.RECONSTRUCTION,
@@ -95,26 +96,30 @@ public record RequestedImages(
     }
 
     public RequestedImages withMathImages(ImageMathParams mathImages) {
-        return new RequestedImages(images, pixelShifts, internalPixelShifts, requestedWaveLengths, mathImages, autoContinuum);
+        return new RequestedImages(images, pixelShifts, internalPixelShifts, requestedWaveLengths, mathImages, autoContinuum, applyAutomaticScripts);
     }
 
     public RequestedImages withImages(Set<GeneratedImageKind> images) {
-        return new RequestedImages(images, pixelShifts, internalPixelShifts, requestedWaveLengths, mathImages, autoContinuum);
+        return new RequestedImages(images, pixelShifts, internalPixelShifts, requestedWaveLengths, mathImages, autoContinuum, applyAutomaticScripts);
     }
 
     public RequestedImages withPixelShifts(List<Double> pixelShifts) {
-        return new RequestedImages(images, pixelShifts, internalPixelShifts, requestedWaveLengths, mathImages, autoContinuum);
+        return new RequestedImages(images, pixelShifts, internalPixelShifts, requestedWaveLengths, mathImages, autoContinuum, applyAutomaticScripts);
     }
 
     public RequestedImages withInternalPixelShifts(Set<Double> internalPixelShifts) {
-        return new RequestedImages(images, pixelShifts, internalPixelShifts, requestedWaveLengths, mathImages, autoContinuum);
+        return new RequestedImages(images, pixelShifts, internalPixelShifts, requestedWaveLengths, mathImages, autoContinuum, applyAutomaticScripts);
     }
 
     public RequestedImages withRequestedWaveLengths(Set<Double> requestedWaveLengths) {
-        return new RequestedImages(images, pixelShifts, internalPixelShifts, requestedWaveLengths, mathImages, autoContinuum);
+        return new RequestedImages(images, pixelShifts, internalPixelShifts, requestedWaveLengths, mathImages, autoContinuum, applyAutomaticScripts);
     }
 
     public RequestedImages withAutoContinuum(boolean autoContinuum) {
-        return new RequestedImages(images, pixelShifts, internalPixelShifts, requestedWaveLengths, mathImages, autoContinuum);
+        return new RequestedImages(images, pixelShifts, internalPixelShifts, requestedWaveLengths, mathImages, autoContinuum, applyAutomaticScripts);
+    }
+
+    public RequestedImages withApplyAutomaticScripts(boolean applyAutomaticScripts) {
+        return new RequestedImages(images, pixelShifts, internalPixelShifts, requestedWaveLengths, mathImages, autoContinuum, applyAutomaticScripts);
     }
 }

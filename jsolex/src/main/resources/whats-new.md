@@ -23,6 +23,7 @@
 - Make it possible to download any GONG image at arbitrary datetime
 - Fixed `WEIGHTED_AVG` and `EXP` functions
 - Added `AVG2` and `MEDIAN2` functions to compute average and median of images with sigma clipping
+- Added the option to run a script automatically for a specific wavelength
 
 ### 3.3.2
 

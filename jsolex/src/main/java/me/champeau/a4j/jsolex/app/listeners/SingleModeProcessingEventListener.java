@@ -1044,6 +1044,7 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
                         missingShifts,
                         Set.of(),
                         ImageMathParams.NONE,
+                        false,
                         false)
         ).withExtraParams(params.extraParams().withAutosave(false));
         var solexVideoProcessor = new SolexVideoProcessor(serFile, outputDirectory, 0, tmpParams, LocalDateTime.now(), false, Configuration.getInstance().getMemoryRestrictionMultiplier(), rootOperation);

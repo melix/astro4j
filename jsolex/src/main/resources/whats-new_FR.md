@@ -23,6 +23,7 @@
 - Ajout de la possibilité de télécharger une image GONG à une date arbitraire
 - Correction des fonctions `WEIGHTED_AVG` et `EXP`
 - Ajout de `AVG2` et `MEDIAN2` pour calculer la moyenne et la médiane d'images avec écrêtage sigma
+- Ajout de la possibilité d'exécuter un script automatiquement pour une longueur d'onde donnée
 
 ### 3.3.2
 

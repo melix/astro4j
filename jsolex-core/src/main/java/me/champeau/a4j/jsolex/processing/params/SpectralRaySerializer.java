@@ -27,6 +27,10 @@ import me.champeau.a4j.jsolex.processing.color.ColorCurve;
 import me.champeau.a4j.jsolex.processing.util.Wavelen;
 
 import java.lang.reflect.Type;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.util.List;
+import java.util.ArrayList;
 
 class SpectralRaySerializer implements JsonSerializer<SpectralRay>, JsonDeserializer<SpectralRay> {
 
@@ -47,11 +51,13 @@ class SpectralRaySerializer implements JsonSerializer<SpectralRay>, JsonDeserial
         } else if (json instanceof JsonObject obj) {
             ColorCurve curve = readColorCurve(obj);
             var emission = obj.has("emission") && obj.get("emission").getAsBoolean();
+            var automaticScripts = readAutomaticScripts(obj);
             return new SpectralRay(
                     obj.get("label").getAsString(),
                     curve,
                     Wavelen.ofNanos(obj.get("wavelength").getAsDouble()),
-                    emission);
+                    emission,
+                    automaticScripts);
         }
         throw new IllegalAccessError("Unexpected JSON type " + json.getClass());
     }
@@ -70,6 +76,29 @@ class SpectralRaySerializer implements JsonSerializer<SpectralRay>, JsonDeserial
             );
         }
         return null;
+    }
+
+    private static List<Path> readAutomaticScripts(JsonObject object) {
+        JsonElement e = object.get("automaticScripts");
+        if (e != null && e.isJsonArray()) {
+            var scripts = new ArrayList<Path>();
+            for (JsonElement scriptElement : e.getAsJsonArray()) {
+                scripts.add(Paths.get(scriptElement.getAsString()));
+            }
+            return scripts;
+        }
+        return List.of();
+    }
+
+    private static com.google.gson.JsonArray writeAutomaticScripts(List<Path> automaticScripts) {
+        if (automaticScripts == null || automaticScripts.isEmpty()) {
+            return null;
+        }
+        var scriptsArray = new com.google.gson.JsonArray();
+        for (Path path : automaticScripts) {
+            scriptsArray.add(path.toString());
+        }
+        return scriptsArray;
     }
 
     private static JsonObject writeColorCurve(ColorCurve curve) {
@@ -96,6 +125,10 @@ class SpectralRaySerializer implements JsonSerializer<SpectralRay>, JsonDeserial
         var curve = writeColorCurve(src.colorCurve());
         if (curve != null) {
             obj.add("colorCurve", curve);
+        }
+        var automaticScripts = writeAutomaticScripts(src.automaticScripts());
+        if (automaticScripts != null) {
+            obj.add("automaticScripts", automaticScripts);
         }
         return obj;
     }

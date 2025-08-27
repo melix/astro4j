@@ -15,12 +15,19 @@
  */
 package me.champeau.a4j.jsolex.processing.params;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.io.File;
 import java.util.List;
+
+import static me.champeau.a4j.jsolex.processing.util.Constants.message;
 
 public record ImageMathParams(
         List<File> scriptFiles
 ) {
+    public static final Logger LOGGER = LoggerFactory.getLogger(ImageMathParams.class);
+
     public static final ImageMathParams NONE = new ImageMathParams(
             List.of()
     );
@@ -28,7 +35,13 @@ public record ImageMathParams(
     @Override
     public List<File> scriptFiles() {
         return scriptFiles.stream()
-            .filter(File::exists)
-            .toList();
+                .filter(f -> {
+                    if (!f.exists()) {
+                        LOGGER.warn(message("script.file.missing"), f);
+                        return false;
+                    }
+                    return true;
+                })
+                .toList();
     }
 }

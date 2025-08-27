@@ -19,6 +19,7 @@ import me.champeau.a4j.jsolex.processing.color.ColorCurve;
 import me.champeau.a4j.jsolex.processing.color.KnownCurves;
 import me.champeau.a4j.jsolex.processing.util.Wavelen;
 
+import java.nio.file.Path;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
@@ -29,21 +30,21 @@ import java.util.stream.Stream;
  * defines a color curve to perform automatic coloring of images.
  * See https://en.wikipedia.org/wiki/Fraunhofer_lines for wavelenths
  */
-public record SpectralRay(String label, ColorCurve colorCurve, Wavelen wavelength, boolean emission) {
-    public static final SpectralRay AUTO = new SpectralRay("Autodetect", null, Wavelen.ofAngstroms(0), false);
-    public static final SpectralRay CALCIUM_K = new SpectralRay("Calcium (K)", null, Wavelen.ofNanos(393.366), false);
-    public static final SpectralRay CALCIUM_H = new SpectralRay("Calcium (H)", null, Wavelen.ofNanos(396.847), false);
-    public static final SpectralRay CA_IRON_G = new SpectralRay("Calcium+Iron+CH (G)", null, Wavelen.ofNanos(430.782), false);
-    public static final SpectralRay H_BETA = new SpectralRay("H-beta", null, Wavelen.ofNanos(486.134), false);
-    public static final SpectralRay MAGNESIUM_b1 = new SpectralRay("Magnesium (b1)", null, Wavelen.ofNanos(518.362), false);
-    public static final SpectralRay IRON_E2 = new SpectralRay("Iron (E2)", null, Wavelen.ofNanos(527.039), false);
-    public static final SpectralRay MERCURY_e = new SpectralRay("Mercury (e)", null, Wavelen.ofNanos(546.073), false);
-    public static final SpectralRay HELIUM_D3 = new SpectralRay("Helium (D3)", null, Wavelen.ofNanos(587.562), true);
-    public static final SpectralRay IRON_FE1 = new SpectralRay("Iron (Fe I)", null, Wavelen.ofNanos(588.38166), false);
-    public static final SpectralRay SODIUM_D2 = new SpectralRay("Sodium (D2)", null, Wavelen.ofNanos(588.995), false);
-    public static final SpectralRay SODIUM_D1 = new SpectralRay("Sodium (D1)", null, Wavelen.ofNanos(589.592), false);
-    public static final SpectralRay H_ALPHA = new SpectralRay("H-alpha", KnownCurves.H_ALPHA, Wavelen.ofNanos(656.281d), false);
-    public static final SpectralRay OTHER = new SpectralRay("Other", null, Wavelen.ofNanos(0), false);
+public record SpectralRay(String label, ColorCurve colorCurve, Wavelen wavelength, boolean emission, List<Path> automaticScripts) {
+    public static final SpectralRay AUTO = new SpectralRay("Autodetect", null, Wavelen.ofAngstroms(0), false, List.of());
+    public static final SpectralRay CALCIUM_K = new SpectralRay("Calcium (K)", null, Wavelen.ofNanos(393.366), false, List.of());
+    public static final SpectralRay CALCIUM_H = new SpectralRay("Calcium (H)", null, Wavelen.ofNanos(396.847), false, List.of());
+    public static final SpectralRay CA_IRON_G = new SpectralRay("Calcium+Iron+CH (G)", null, Wavelen.ofNanos(430.782), false, List.of());
+    public static final SpectralRay H_BETA = new SpectralRay("H-beta", null, Wavelen.ofNanos(486.134), false, List.of());
+    public static final SpectralRay MAGNESIUM_b1 = new SpectralRay("Magnesium (b1)", null, Wavelen.ofNanos(518.362), false, List.of());
+    public static final SpectralRay IRON_E2 = new SpectralRay("Iron (E2)", null, Wavelen.ofNanos(527.039), false, List.of());
+    public static final SpectralRay MERCURY_e = new SpectralRay("Mercury (e)", null, Wavelen.ofNanos(546.073), false, List.of());
+    public static final SpectralRay HELIUM_D3 = new SpectralRay("Helium (D3)", null, Wavelen.ofNanos(587.562), true, List.of());
+    public static final SpectralRay IRON_FE1 = new SpectralRay("Iron (Fe I)", null, Wavelen.ofNanos(588.38166), false, List.of());
+    public static final SpectralRay SODIUM_D2 = new SpectralRay("Sodium (D2)", null, Wavelen.ofNanos(588.995), false, List.of());
+    public static final SpectralRay SODIUM_D1 = new SpectralRay("Sodium (D1)", null, Wavelen.ofNanos(589.592), false, List.of());
+    public static final SpectralRay H_ALPHA = new SpectralRay("H-alpha", KnownCurves.H_ALPHA, Wavelen.ofNanos(656.281d), false, List.of());
+    public static final SpectralRay OTHER = new SpectralRay("Other", null, Wavelen.ofNanos(0), false, List.of());
 
     private static final List<SpectralRay> PREDEFINED = Stream.concat(Stream.concat(Stream.of(AUTO), Stream.of(
         CALCIUM_K,
@@ -229,6 +230,10 @@ public record SpectralRay(String label, ColorCurve colorCurve, Wavelen wavelengt
     }
 
     public SpectralRay withWavelength(Wavelen wavelength) {
-        return new SpectralRay(label, colorCurve, wavelength, emission);
+        return new SpectralRay(label, colorCurve, wavelength, emission, automaticScripts);
+    }
+
+    public SpectralRay withAutomaticScripts(List<Path> automaticScripts) {
+        return new SpectralRay(label, colorCurve, wavelength, emission, automaticScripts);
     }
 }

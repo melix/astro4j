@@ -16,9 +16,11 @@
 package me.champeau.a4j.jsolex.app.jfx;
 
 import javafx.beans.value.ChangeListener;
+import javafx.collections.FXCollections;
 import javafx.fxml.FXML;
 import javafx.scene.Parent;
 import javafx.scene.Scene;
+import javafx.scene.control.Button;
 import javafx.scene.control.CheckBox;
 import javafx.scene.control.ChoiceBox;
 import javafx.scene.control.ListView;
@@ -27,6 +29,8 @@ import javafx.scene.control.TextField;
 import javafx.scene.control.TextFormatter;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
+import javafx.scene.layout.VBox;
+import javafx.stage.FileChooser;
 import javafx.stage.Stage;
 import javafx.stage.WindowEvent;
 import javafx.util.StringConverter;
@@ -51,7 +55,9 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.EnumSet;
+import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -103,9 +109,42 @@ public class SpectralRayEditor {
     private Slider rOut;
     @FXML
     private TextField wavelength;
+    @FXML
+    private ListView<Path> automaticScriptsList;
+    @FXML
+    private Button addAutomaticScriptButton;
+    @FXML
+    private Button removeAutomaticScriptButton;
+    @FXML
+    private Button clearAutomaticScriptsButton;
+    @FXML
+    private Button addNewItemButton;
+    @FXML
+    private Button removeSelectedItemButton;
+    @FXML
+    private VBox automaticScriptsSection;
 
     private Stage stage;
     private SpectralRay selectedRay;
+
+    @FXML
+    private void initialize() {
+        automaticScriptsList.setCellFactory(_ -> new javafx.scene.control.ListCell<Path>() {
+            @Override
+            protected void updateItem(Path item, boolean empty) {
+                super.updateItem(item, empty);
+                if (empty || item == null) {
+                    setText(null);
+                } else {
+                    setText(item.getFileName().toString());
+                }
+            }
+        });
+        
+        automaticScriptsList.getSelectionModel().selectedItemProperty().addListener((_, _, _) -> {
+            updateScriptButtonStates();
+        });
+    }
 
     public static void openEditor(Stage stage, Consumer<? super SpectralRayEditor> onCloseRequest) {
         var fxmlLoader = I18N.fxmlLoader(JSolEx.class, "spectral-ray-editor");
@@ -114,6 +153,7 @@ public class SpectralRayEditor {
             var controller = (SpectralRayEditor) fxmlLoader.getController();
             controller.setup(stage);
             Scene scene = new Scene(node);
+            scene.getStylesheets().add(JSolEx.class.getResource("components.css").toExternalForm());
             var currentScene = stage.getScene();
             stage.setTitle(I18N.string(JSolEx.class, "spectral-ray-editor", "frame.title"));
             stage.setScene(scene);
@@ -161,7 +201,7 @@ public class SpectralRayEditor {
         items.addAll(rays);
         var selectionModel = elements.getSelectionModel();
         var updating = new AtomicBoolean();
-        selectionModel.selectedIndexProperty().addListener((observable, oldValue, newValue) -> {
+        selectionModel.selectedIndexProperty().addListener((_, _, newValue) -> {
             if (items.isEmpty()) {
                 return;
             }
@@ -189,12 +229,14 @@ public class SpectralRayEditor {
                     bIn.setValue(curve.bIn());
                     bOut.setValue(curve.bOut());
                 }
+                updateAutomaticScriptsList(item.automaticScripts());
                 updateEditableInOut(curveCheckbox.isSelected());
+                updateScriptsSectionVisibility(item.wavelength().angstroms());
                 updating.set(false);
                 updateSunDiskPreview(item);
             }
         });
-        ChangeListener<Object> updateValueListener = (obs, oldValue, newValue) -> {
+        ChangeListener<Object> updateValueListener = (_, _, _) -> {
             if (updating.compareAndSet(false, true)) {
                 var newLabel = label.getText();
                 var newWavelen = toDoubleValue(wavelength.getText());
@@ -206,12 +248,16 @@ public class SpectralRayEditor {
                 var gOutValue = gOut.valueProperty().intValue();
                 var bInValue = bIn.valueProperty().intValue();
                 var bOutValue = bOut.valueProperty().intValue();
+                var currentRay = items.get(selectionModel.getSelectedIndex());
                 var newRay = new SpectralRay(
                     newLabel,
                     hasColor ? new ColorCurve(newLabel, rInValue, rOutValue, gInValue, gOutValue, bInValue, bOutValue) : null,
                     Wavelen.ofAngstroms(newWavelen),
-                    isEmission);
+                    isEmission,
+                    currentRay.automaticScripts());
                 updateEditableInOut(hasColor);
+                updateAutomaticScriptsList(newRay.automaticScripts());
+                updateScriptsSectionVisibility(newWavelen);
                 items.set(selectionModel.getSelectedIndex(), newRay);
                 updating.set(false);
                 updateSunDiskPreview(newRay);
@@ -239,6 +285,13 @@ public class SpectralRayEditor {
         gOut.setDisable(!enabled);
         bIn.setDisable(!enabled);
         bOut.setDisable(!enabled);
+    }
+
+    private void updateScriptsSectionVisibility(double wavelength) {
+        // Hide scripts section for Autodetect ray (wavelength == 0)
+        boolean visible = wavelength != 0.0;
+        automaticScriptsSection.setVisible(visible);
+        automaticScriptsSection.setManaged(visible);
     }
 
     private void updateSunDiskPreview(SpectralRay newRay) {
@@ -322,9 +375,96 @@ public class SpectralRayEditor {
             "<new> " + elements.getItems().size(),
             null,
             Wavelen.ofAngstroms(0),
-            false);
+            false,
+            List.of());
         elements.getItems().add(spectralRay);
         elements.getSelectionModel().select(spectralRay);
+    }
+
+    @FXML
+    public void addAutomaticScript() {
+        var selectedItem = elements.getSelectionModel().getSelectedItem();
+        if (selectedItem == null || selectedItem.wavelength().angstroms() == 0) {
+            return;
+        }
+
+        var fileChooser = new FileChooser();
+        fileChooser.setTitle(I18N.string(JSolEx.class, "spectral-ray-editor", "browse"));
+        fileChooser.getExtensionFilters().addAll(
+            new FileChooser.ExtensionFilter("Image math files (*.math)", "*.math"),
+            new FileChooser.ExtensionFilter("All files", "*.*")
+        );
+
+        var files = fileChooser.showOpenMultipleDialog(stage);
+        if (files != null && !files.isEmpty()) {
+            var currentScripts = new ArrayList<>(selectedItem.automaticScripts());
+            for (var file : files) {
+                var path = file.toPath();
+                if (!currentScripts.contains(path)) {
+                    currentScripts.add(path);
+                }
+            }
+            var newRay = selectedItem.withAutomaticScripts(currentScripts);
+            var items = elements.getItems();
+            var selectedIndex = elements.getSelectionModel().getSelectedIndex();
+            items.set(selectedIndex, newRay);
+            
+            // Update the automatic scripts list immediately
+            updateAutomaticScriptsList(currentScripts);
+        }
+    }
+
+    @FXML
+    public void removeAutomaticScript() {
+        var selectedItem = elements.getSelectionModel().getSelectedItem();
+        var selectedScript = automaticScriptsList.getSelectionModel().getSelectedItem();
+        if (selectedItem == null || selectedScript == null) {
+            return;
+        }
+
+        var currentScripts = new ArrayList<>(selectedItem.automaticScripts());
+        currentScripts.remove(selectedScript);
+        var newRay = selectedItem.withAutomaticScripts(currentScripts);
+        var items = elements.getItems();
+        var selectedIndex = elements.getSelectionModel().getSelectedIndex();
+        items.set(selectedIndex, newRay);
+        
+        // Update the automatic scripts list immediately
+        updateAutomaticScriptsList(currentScripts);
+    }
+
+    @FXML
+    public void clearAutomaticScripts() {
+        var selectedItem = elements.getSelectionModel().getSelectedItem();
+        if (selectedItem == null) {
+            return;
+        }
+
+        var newRay = selectedItem.withAutomaticScripts(List.of());
+        var items = elements.getItems();
+        var selectedIndex = elements.getSelectionModel().getSelectedIndex();
+        items.set(selectedIndex, newRay);
+        
+        // Update the automatic scripts list immediately
+        updateAutomaticScriptsList(List.of());
+    }
+
+    private void updateAutomaticScriptsList(List<Path> automaticScripts) {
+        var observableList = FXCollections.observableArrayList(automaticScripts);
+        automaticScriptsList.setItems(observableList);
+        
+        updateScriptButtonStates();
+    }
+    
+    private void updateScriptButtonStates() {
+        var selectedItem = elements.getSelectionModel().getSelectedItem();
+        boolean canHaveScript = selectedItem != null && selectedItem.wavelength().angstroms() != 0;
+        var hasScripts = automaticScriptsList.getItems() != null && !automaticScriptsList.getItems().isEmpty();
+        var hasSelectedScript = automaticScriptsList.getSelectionModel().getSelectedItem() != null;
+        
+        addAutomaticScriptButton.setDisable(!canHaveScript);
+        removeAutomaticScriptButton.setDisable(!canHaveScript || !hasSelectedScript);
+        clearAutomaticScriptsButton.setDisable(!canHaveScript || !hasScripts);
     }
 
     static class SunDiskColorPreview {
