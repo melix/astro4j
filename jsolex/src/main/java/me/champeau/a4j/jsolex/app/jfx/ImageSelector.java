@@ -327,7 +327,8 @@ public class ImageSelector {
             mode.getSelectionModel().getSelectedItem() == PixelShiftMode.SIMPLE || internalPixelShifts == null ? Set.of() : internalPixelShifts,
             requestesWaveLengths == null ? Set.of() : Collections.unmodifiableSet(requestesWaveLengths),
             mode.getSelectionModel().getSelectedItem() == PixelShiftMode.IMAGEMATH ? imageMathParams : ImageMathParams.NONE,
-            autoContinuum
+            autoContinuum,
+            false
         );
         requestClose();
     }

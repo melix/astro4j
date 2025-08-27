@@ -110,7 +110,7 @@ public abstract class ProcessParamsIO {
                 new VideoParams(ColorMode.MONO),
                 new GeometryParams(null, null, false, false, false, false, RotationKind.NONE, AutocropMode.RADIUS_1_2, DeconvolutionMode.NONE, null, false, null, false, EllipseFittingMode.AUTOMATIC),
                 new BandingCorrectionParams(DEFAULT_BAND_SIZE, DEFAULT_PASS_COUNT),
-                new RequestedImages(RequestedImages.FULL_MODE, List.of(0d), Set.of(), Set.of(), ImageMathParams.NONE, false),
+                new RequestedImages(RequestedImages.FULL_MODE, List.of(0d), Set.of(), Set.of(), ImageMathParams.NONE, false, false),
                 createDefaultClaheParams(),
                 createDefaultAutoStretchParams(),
                 ContrastEnhancement.AUTOSTRETCH,
@@ -207,7 +207,7 @@ public abstract class ProcessParamsIO {
                         params.videoParams(),
                         params.geometryParams(),
                         params.bandingCorrectionParams(),
-                        new RequestedImages(RequestedImages.FULL_MODE, List.of(0d), Set.of(), Set.of(), ImageMathParams.NONE, false),
+                        new RequestedImages(RequestedImages.FULL_MODE, List.of(0d), Set.of(), Set.of(), ImageMathParams.NONE, false, false),
                         params.claheParams(),
                         params.autoStretchParams(),
                         params.contrastEnhancement(),
@@ -255,7 +255,8 @@ public abstract class ProcessParamsIO {
                         params.requestedImages().internalPixelShifts(),
                         params.requestedImages().requestedWaveLengths(),
                         ImageMathParams.NONE,
-                        params.requestedImages().autoContinuum()
+                        params.requestedImages().autoContinuum(),
+                        false
                 ));
             }
             return params;

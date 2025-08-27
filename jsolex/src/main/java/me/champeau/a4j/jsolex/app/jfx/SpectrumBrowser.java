@@ -58,6 +58,8 @@ import me.champeau.a4j.jsolex.processing.expr.impl.Loader;
 import me.champeau.a4j.jsolex.processing.params.ProcessParams;
 import me.champeau.a4j.jsolex.processing.params.ProcessParamsIO;
 import me.champeau.a4j.jsolex.processing.params.SpectralRay;
+
+import java.util.List;
 import me.champeau.a4j.jsolex.processing.params.SpectroHeliograph;
 import me.champeau.a4j.jsolex.processing.params.SpectroHeliographsIO;
 import me.champeau.a4j.jsolex.processing.spectrum.ReferenceIntensities;
@@ -602,7 +604,7 @@ public class SpectrumBrowser extends BorderPane {
     }
 
     private Color createColor(double grayscale, Wavelen wavelength) {
-        var ray = new SpectralRay("", null, wavelength, false);
+        var ray = new SpectralRay("", null, wavelength, false, List.of());
         var rgb = ray.toSimpleRGB();
         if (rgb[0] == 0 && rgb[1] == 0 && rgb[2] == 0) {
             return Color.gray(grayscale);
