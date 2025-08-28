@@ -77,6 +77,7 @@ public class SpectroHeliographEditor {
             var controller = (SpectroHeliographEditor) fxmlLoader.getController();
             controller.setup(stage);
             Scene scene = new Scene(node);
+            scene.getStylesheets().add(JSolEx.class.getResource("components.css").toExternalForm());
             var currentScene = stage.getScene();
             stage.setTitle(I18N.string(JSolEx.class, "shg-editor", "frame.title"));
             stage.setScene(scene);
