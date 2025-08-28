@@ -72,6 +72,7 @@ import me.champeau.a4j.jsolex.processing.event.ProcessingStartEvent;
 import me.champeau.a4j.jsolex.processing.event.ProgressEvent;
 import me.champeau.a4j.jsolex.processing.event.ProgressOperation;
 import me.champeau.a4j.jsolex.processing.event.ReconstructionDoneEvent;
+import me.champeau.a4j.jsolex.processing.event.ScriptExecutionResultEvent;
 import me.champeau.a4j.jsolex.processing.event.SuggestionEvent;
 import me.champeau.a4j.jsolex.processing.event.TrimmingParametersDeterminedEvent;
 import me.champeau.a4j.jsolex.processing.event.VideoMetadataEvent;
@@ -125,6 +126,7 @@ import java.io.PrintWriter;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -189,6 +191,7 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
 
     private final AtomicInteger cropCount = new AtomicInteger();
     private final AtomicInteger animCount = new AtomicInteger();
+    private final Map<String, List<ImageWrapper>> scriptImagesByLabel = new HashMap<>();
 
     private static final long MIN_UI_UPDATE_INTERVAL_MS = 50;
     private final AtomicLong lastUIUpdateTime = new AtomicLong(0);
@@ -890,6 +893,7 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
         var payload = e.getPayload();
         sd = payload.timestamp();
         owner.getRedshiftTab().setDisable(true);
+        scriptImagesByLabel.clear();
     }
 
     @Override
@@ -953,6 +957,11 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
                 rootOperation
         ));
         owner.prepareForGongImageDownload(processParams);
+        
+        // Execute batch scripts for single file processing (only when not in batch mode)
+        if (serFile != null && hasBatchScriptExpressions()) {
+            executeSingleFileBatchScripts();
+        }
     }
 
     private Map<Class, Object> prepareExecutionContext(ProcessingDoneEvent.Outcome payload) {
@@ -1513,6 +1522,135 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
 
     private record NormalizedDataPoints(List<SpectrumAnalyzer.DataPoint> dataPoints, double maxIntensity) {
 
+    }
+
+    @Override
+    public void onScriptExecutionResult(ScriptExecutionResultEvent e) {
+        var images = e.getPayload().imagesByLabel();
+        for (Map.Entry<String, ImageWrapper> entry : images.entrySet()) {
+            scriptImagesByLabel.computeIfAbsent(entry.getKey(), unused -> new ArrayList<>())
+                .add(entry.getValue());
+        }
+    }
+
+    private boolean hasBatchScriptExpressions() {
+        var scriptFiles = adjustedParams.combinedImageMathParams().scriptFiles();
+        if (scriptFiles.isEmpty()) {
+            return false;
+        }
+        return scriptFiles.stream().anyMatch(file -> {
+            try {
+                return Files.readString(file.toPath()).contains("[[batch]]");
+            } catch (IOException e) {
+                return false;
+            }
+        });
+    }
+
+    /**
+     * In case we're in a single file processing (serFile != null) but have batch script expressions,
+     * execute them now. We would have collected images during single file processing and will create
+     * a list which only contains one image per label.
+     */
+    private void executeSingleFileBatchScripts() {
+        try {
+            var scriptFiles = adjustedParams.combinedImageMathParams().scriptFiles();
+            if (scriptFiles.isEmpty()) {
+                return;
+            }
+
+            var namingStrategy = createNamingStrategy();
+            var ctx = new HashMap<>(scriptExecutionContext);
+            ctx.put(ImageEmitter.class, imageEmitter);
+            
+            var batchScriptExecutor = new JSolExScriptExecutor(
+                idx -> {
+                    throw new IllegalStateException("Cannot call img() in batch outputs. Use variables to store images instead");
+                },
+                ctx,
+                this,
+                null
+            );
+            
+            for (Map.Entry<String, List<ImageWrapper>> entry : scriptImagesByLabel.entrySet()) {
+                batchScriptExecutor.putVariable(entry.getKey(), entry.getValue());
+            }
+            
+            boolean initial = true;
+            for (File scriptFile : scriptFiles) {
+                if (initial) {
+                    owner.prepareForScriptExecution(this, params, rootOperation, ImageMathScriptExecutor.SectionKind.BATCH);
+                    initial = false;
+                }
+                executeSingleFileBatchScript(namingStrategy, batchScriptExecutor, scriptFile);
+            }
+        } catch (Exception e) {
+            LOGGER.error("Error executing batch scripts for single file", e);
+        }
+    }
+
+    private void executeSingleFileBatchScript(FileNamingStrategy namingStrategy, ImageMathScriptExecutor batchScriptExecutor, File scriptFile) {
+        Platform.runLater(() -> owner.updateProgress(0, String.format(message("executing.script"), scriptFile)));
+        ImageMathScriptResult result;
+        try {
+            result = batchScriptExecutor.execute(scriptFile.toPath(), ImageMathScriptExecutor.SectionKind.BATCH);
+        } catch (IOException e) {
+            throw new ProcessingException(e);
+        }
+        try {
+            processScriptErrors(result);
+            renderSingleFileBatchOutputs(namingStrategy, result);
+        } finally {
+            Platform.runLater(() -> owner.updateProgress(1, String.format(message("executing.script"), scriptFile)));
+        }
+    }
+
+    private void renderSingleFileBatchOutputs(FileNamingStrategy namingStrategy, ImageMathScriptResult result) {
+        if (result.imagesByLabel().isEmpty() && result.filesByLabel().isEmpty()) {
+            return;
+        }
+        Platform.runLater(() -> {
+                var tabPane = owner.getTabs();
+                var imagesViewerTab = owner.getImagesViewerTab();
+                tabPane.getTabs().add(imagesViewerTab);
+                tabPane.getSelectionModel().select(imagesViewerTab);
+        });
+        result.imagesByLabel().entrySet().stream().parallel().forEach(entry -> {
+            var name = namingStrategy.render(0, null, Constants.TYPE_PROCESSED, entry.getKey(), "batch", entry.getValue());
+            var outputFile = new File(outputDirectory.toFile(), name);
+            onImageGenerated(new ImageGeneratedEvent(
+                new GeneratedImage(GeneratedImageKind.IMAGE_MATH, entry.getKey(), outputFile.toPath(), entry.getValue(), null)
+            ));
+        });
+        result.filesByLabel().entrySet().stream().parallel().forEach(entry -> {
+            var name = namingStrategy.render(0, null, Constants.TYPE_PROCESSED, entry.getKey(), "batch", null);
+            try {
+                var fileName = entry.getValue().toFile().getName();
+                var ext = fileName.substring(fileName.lastIndexOf("."));
+                var targetPath = new File(outputDirectory.toFile(), name + ext).toPath();
+                createDirectoriesIfNeeded(targetPath.getParent());
+                Files.move(entry.getValue(), targetPath, StandardCopyOption.REPLACE_EXISTING);
+                onFileGenerated(FileGeneratedEvent.of(GeneratedImageKind.IMAGE_MATH, entry.getKey(), targetPath));
+            } catch (IOException e) {
+                throw new ProcessingException(e);
+            }
+        });
+    }
+
+    private void processScriptErrors(ImageMathScriptResult result) {
+        var invalidExpressions = result.invalidExpressions();
+        var errorCount = invalidExpressions.size();
+        if (errorCount > 0) {
+            String message = invalidExpressions.stream()
+                .map(invalidExpression -> "Expression '" + invalidExpression.label() + "' (" + invalidExpression.expression() + ") : " + invalidExpression.error().getMessage())
+                .collect(Collectors.joining(System.lineSeparator()));
+            onNotification(new NotificationEvent(new Notification(
+                Notification.AlertType.ERROR,
+                message("error.processing.script"),
+                message("script.errors." + (errorCount == 1 ? "single" : "many")),
+                message
+            )));
+        }
     }
 
     sealed interface GraphData {
