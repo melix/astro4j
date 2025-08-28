@@ -72,6 +72,7 @@ public class NamingPatternEditor {
             var controller = (NamingPatternEditor) fxmlLoader.getController();
             controller.setup(stage, header);
             Scene scene = new Scene(node);
+            scene.getStylesheets().add(JSolEx.class.getResource("components.css").toExternalForm());
             var currentScene = stage.getScene();
             stage.setTitle(I18N.string(JSolEx.class, "naming-patterns", "frame.title"));
             stage.setScene(scene);
