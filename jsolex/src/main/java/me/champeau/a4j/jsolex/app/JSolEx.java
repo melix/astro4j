@@ -1126,6 +1126,7 @@ public class JSolEx implements JSolExInterface {
             var controller = (ExposureCalculator) fxmlLoader.getController();
             controller.setup(stage);
             Scene scene = new Scene(node);
+            scene.getStylesheets().add(JSolEx.class.getResource("components.css").toExternalForm());
             stage.setTitle(I18N.string(JSolEx.class, "exposure-calculator", "frame.title"));
             stage.setScene(scene);
             stage.show();

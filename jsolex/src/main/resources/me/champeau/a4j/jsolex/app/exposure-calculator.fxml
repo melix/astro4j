@@ -6,72 +6,129 @@
 <?import javafx.scene.control.DatePicker?>
 <?import javafx.scene.control.Label?>
 <?import javafx.scene.control.RadioButton?>
+<?import javafx.scene.control.ScrollPane?>
 <?import javafx.scene.control.TextField?>
+<?import javafx.scene.layout.BorderPane?>
 <?import javafx.scene.layout.ColumnConstraints?>
 <?import javafx.scene.layout.GridPane?>
 <?import javafx.scene.layout.HBox?>
 <?import javafx.scene.layout.RowConstraints?>
+<?import javafx.scene.layout.VBox?>
 
-<GridPane hgap="8.0" maxHeight="-Infinity" maxWidth="-Infinity" minHeight="-Infinity" minWidth="-Infinity" prefHeight="355.0" prefWidth="711.0" vgap="8.0" xmlns="http://javafx.com/javafx/19" xmlns:fx="http://javafx.com/fxml/1" fx:controller="me.champeau.a4j.jsolex.app.jfx.ExposureCalculator">
-    <columnConstraints>
-        <ColumnConstraints hgrow="SOMETIMES" maxWidth="266.0" minWidth="10.0" prefWidth="266.0" />
-        <ColumnConstraints hgrow="SOMETIMES" maxWidth="222.0" minWidth="10.0" prefWidth="158.0" />
-      <ColumnConstraints hgrow="SOMETIMES" maxWidth="170.0" minWidth="10.0" prefWidth="117.0" />
-      <ColumnConstraints hgrow="SOMETIMES" maxWidth="128.0" minWidth="10.0" prefWidth="106.0" />
-    </columnConstraints>
-    <rowConstraints>
-      <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="SOMETIMES" />
-      <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="SOMETIMES" />
-        <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="SOMETIMES" />
-      <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="SOMETIMES" />
-        <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="SOMETIMES" />
-        <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="SOMETIMES" />
-        <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="SOMETIMES" />
-      <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="SOMETIMES" />
-      <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="SOMETIMES" />
-        <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="SOMETIMES" />
-      <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="SOMETIMES" />
-        <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="SOMETIMES" />
-    </rowConstraints>
-    <children>
-        <Label text="%pixel.size" GridPane.rowIndex="2" />
-        <Label text="%binning" GridPane.columnIndex="2" GridPane.halignment="RIGHT" GridPane.rowIndex="2" />
-        <Label text="%focal.length" GridPane.rowIndex="4" />
-        <Label text="%scan.speed" GridPane.rowIndex="5" />
-        <Label text="%date" GridPane.rowIndex="6" />
-        <Label text="%optimal.exposure" GridPane.columnSpan="2" GridPane.halignment="RIGHT" GridPane.rowIndex="9" />
-        <TextField fx:id="pixelSize" GridPane.columnIndex="1" GridPane.rowIndex="2" />
-        <TextField fx:id="binning" GridPane.columnIndex="3" GridPane.rowIndex="2" />
-        <TextField fx:id="focalLength" GridPane.columnIndex="1" GridPane.rowIndex="4" />
-        <TextField fx:id="scanSpeed" GridPane.columnIndex="1" GridPane.rowIndex="5" />
-        <DatePicker fx:id="date" GridPane.columnIndex="1" GridPane.rowIndex="6" />
-        <TextField fx:id="exposure" disable="true" editable="false" GridPane.columnIndex="2" GridPane.rowIndex="9" />
-        <Button mnemonicParsing="false" onAction="#close" text="Ok" GridPane.columnSpan="4" GridPane.halignment="CENTER" GridPane.rowIndex="11" />
-      <Label text="%recommended.fps" GridPane.columnSpan="2" GridPane.halignment="RIGHT" GridPane.rowIndex="8" />
-      <TextField fx:id="fps" disable="true" editable="false" GridPane.columnIndex="2" GridPane.rowIndex="8" />
-      <Label text="%setup" />
-      <Label text="%shg" GridPane.rowIndex="1" />
-      <HBox spacing="16.0" GridPane.columnIndex="1" GridPane.columnSpan="3">
-         <children>
-            <ChoiceBox fx:id="setup" prefHeight="24.0" prefWidth="290.0" />
-            <Button mnemonicParsing="false" onAction="#chooseSetup" text="..." />
-         </children>
-      </HBox>
-      <HBox spacing="16.0" GridPane.columnIndex="1" GridPane.columnSpan="3" GridPane.rowIndex="1">
-         <children>
-            <ChoiceBox fx:id="instrument" prefHeight="24.0" prefWidth="290.0" />
-            <Button mnemonicParsing="false" onAction="#chooseInstrument" text="..." />
-         </children>
-      </HBox>
-      <Label text="%scan.direction" GridPane.columnIndex="2" GridPane.halignment="RIGHT" GridPane.rowIndex="5" />
-      <HBox alignment="CENTER" spacing="16.0" GridPane.columnIndex="3" GridPane.rowIndex="5">
-         <children>
-            <RadioButton fx:id="ra" mnemonicParsing="false" text="RA" />
-            <RadioButton fx:id="dec" mnemonicParsing="false" text="DEC" />
-         </children>
-      </HBox>
-    </children>
-    <padding>
-        <Insets bottom="8.0" left="8.0" right="8.0" top="8.0" />
-    </padding>
-</GridPane>
+<BorderPane prefHeight="480.0" prefWidth="720.0" styleClass="params-dialog" xmlns="http://javafx.com/javafx/19" xmlns:fx="http://javafx.com/fxml/1" fx:controller="me.champeau.a4j.jsolex.app.jfx.ExposureCalculator">
+    
+    <!-- Main content -->
+    <center>
+        <ScrollPane styleClass="content-scroll-pane" fitToWidth="true">
+            <VBox styleClass="parameter-panel" spacing="20">
+                <padding>
+                    <Insets top="16" right="16" bottom="16" left="16"/>
+                </padding>
+                
+                <!-- Setup Configuration Section -->
+                <VBox styleClass="panel-section" spacing="12">
+                    <GridPane styleClass="form-grid" hgap="12" vgap="12">
+                        <columnConstraints>
+                            <ColumnConstraints minWidth="150" prefWidth="150"/>
+                            <ColumnConstraints hgrow="ALWAYS" minWidth="280"/>
+                            <ColumnConstraints minWidth="40" prefWidth="40"/>
+                        </columnConstraints>
+                        <rowConstraints>
+                            <RowConstraints/>
+                            <RowConstraints/>
+                        </rowConstraints>
+                        
+                        <Label text="%setup" styleClass="field-label" GridPane.columnIndex="0" GridPane.rowIndex="0"/>
+                        <ChoiceBox fx:id="setup" styleClass="choice-box" prefWidth="280" GridPane.columnIndex="1" GridPane.rowIndex="0"/>
+                        <Button styleClass="default-button,editor-button" mnemonicParsing="false" onAction="#chooseSetup" text="..." GridPane.columnIndex="2" GridPane.rowIndex="0"/>
+                        
+                        <Label text="%shg" styleClass="field-label" GridPane.columnIndex="0" GridPane.rowIndex="1"/>
+                        <ChoiceBox fx:id="instrument" styleClass="choice-box" prefWidth="280" GridPane.columnIndex="1" GridPane.rowIndex="1"/>
+                        <Button styleClass="default-button,editor-button" mnemonicParsing="false" onAction="#chooseInstrument" text="..." GridPane.columnIndex="2" GridPane.rowIndex="1"/>
+                    </GridPane>
+                </VBox>
+                
+                <!-- Camera Configuration Section -->
+                <VBox styleClass="panel-section" spacing="12">
+                    <GridPane styleClass="form-grid" hgap="12" vgap="12">
+                        <columnConstraints>
+                            <ColumnConstraints minWidth="150" prefWidth="150"/>
+                            <ColumnConstraints hgrow="ALWAYS" minWidth="160"/>
+                            <ColumnConstraints minWidth="150" prefWidth="150"/>
+                            <ColumnConstraints hgrow="ALWAYS" minWidth="160"/>
+                        </columnConstraints>
+                        <rowConstraints>
+                            <RowConstraints/>
+                            <RowConstraints/>
+                        </rowConstraints>
+                        
+                        <Label text="%pixel.size" styleClass="field-label" GridPane.columnIndex="0" GridPane.rowIndex="0"/>
+                        <TextField fx:id="pixelSize" styleClass="text-field" GridPane.columnIndex="1" GridPane.rowIndex="0"/>
+                        
+                        <Label text="%binning" styleClass="field-label" GridPane.columnIndex="2" GridPane.rowIndex="0"/>
+                        <TextField fx:id="binning" styleClass="text-field" GridPane.columnIndex="3" GridPane.rowIndex="0"/>
+                        
+                        <Label text="%focal.length" styleClass="field-label" GridPane.columnIndex="0" GridPane.rowIndex="1"/>
+                        <TextField fx:id="focalLength" styleClass="text-field" GridPane.columnIndex="1" GridPane.rowIndex="1"/>
+                    </GridPane>
+                </VBox>
+                
+                <!-- Observation Configuration Section -->
+                <VBox styleClass="panel-section" spacing="12">
+                    <GridPane styleClass="form-grid" hgap="12" vgap="12">
+                        <columnConstraints>
+                            <ColumnConstraints minWidth="150" prefWidth="150"/>
+                            <ColumnConstraints hgrow="ALWAYS" minWidth="160"/>
+                            <ColumnConstraints minWidth="150" prefWidth="150"/>
+                            <ColumnConstraints hgrow="ALWAYS" minWidth="160"/>
+                        </columnConstraints>
+                        <rowConstraints>
+                            <RowConstraints/>
+                            <RowConstraints/>
+                        </rowConstraints>
+                        
+                        <Label text="%date" styleClass="field-label" GridPane.columnIndex="0" GridPane.rowIndex="0"/>
+                        <DatePicker fx:id="date" styleClass="date-picker" GridPane.columnIndex="1" GridPane.rowIndex="0"/>
+                        
+                        <Label text="%scan.speed" styleClass="field-label" GridPane.columnIndex="0" GridPane.rowIndex="1"/>
+                        <TextField fx:id="scanSpeed" styleClass="text-field" GridPane.columnIndex="1" GridPane.rowIndex="1"/>
+                        
+                        <Label text="%scan.direction" styleClass="field-label" GridPane.columnIndex="2" GridPane.rowIndex="1"/>
+                        <HBox alignment="CENTER_LEFT" spacing="16" GridPane.columnIndex="3" GridPane.rowIndex="1">
+                            <RadioButton fx:id="ra" mnemonicParsing="false" text="RA"/>
+                            <RadioButton fx:id="dec" mnemonicParsing="false" text="DEC"/>
+                        </HBox>
+                    </GridPane>
+                </VBox>
+                
+                <!-- Results Section -->
+                <VBox styleClass="panel-section" spacing="12">
+                    <GridPane styleClass="form-grid" hgap="12" vgap="12">
+                        <columnConstraints>
+                            <ColumnConstraints minWidth="150" prefWidth="150"/>
+                            <ColumnConstraints hgrow="ALWAYS" minWidth="160"/>
+                            <ColumnConstraints minWidth="150" prefWidth="150"/>
+                            <ColumnConstraints hgrow="ALWAYS" minWidth="160"/>
+                        </columnConstraints>
+                        <rowConstraints>
+                            <RowConstraints/>
+                        </rowConstraints>
+                        
+                        <Label text="%recommended.fps" styleClass="field-label" GridPane.columnIndex="0" GridPane.rowIndex="0"/>
+                        <TextField fx:id="fps" styleClass="text-field" disable="true" editable="false" style="-fx-font-weight: bold; -fx-text-fill: #0056b3; -fx-background-color: #f8f9fa;" GridPane.columnIndex="1" GridPane.rowIndex="0"/>
+                        
+                        <Label text="%optimal.exposure" styleClass="field-label" GridPane.columnIndex="2" GridPane.rowIndex="0"/>
+                        <TextField fx:id="exposure" styleClass="text-field" disable="true" editable="false" style="-fx-font-weight: bold; -fx-text-fill: #0056b3; -fx-background-color: #f8f9fa;" GridPane.columnIndex="3" GridPane.rowIndex="0"/>
+                    </GridPane>
+                </VBox>
+            </VBox>
+        </ScrollPane>
+    </center>
+    
+    <!-- Bottom button bar -->
+    <bottom>
+        <HBox styleClass="editor-button-bar" alignment="CENTER_RIGHT" spacing="8">
+            <Button styleClass="primary-button" mnemonicParsing="false" onAction="#close" text="%ok" prefWidth="80"/>
+        </HBox>
+    </bottom>
+</BorderPane>
