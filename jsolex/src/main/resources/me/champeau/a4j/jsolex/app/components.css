@@ -280,6 +280,34 @@
     -fx-padding: 0;
 }
 
+/* General ListView styling */
+.list-view {
+    -fx-border-color: #ced4da;
+    -fx-border-width: 1;
+    -fx-border-radius: 6;
+    -fx-background-radius: 6;
+    -fx-background-color: #ffffff;
+}
+
+.list-view .list-cell {
+    -fx-background-color: #ffffff;
+    -fx-text-fill: #212529;
+    -fx-padding: 4 8;
+}
+
+.list-view .list-cell:selected {
+    -fx-background-color: #007bff;
+    -fx-text-fill: white;
+}
+
+.list-view .list-cell:hover {
+    -fx-background-color: #f8f9fa;
+}
+
+.list-view .list-cell:selected:hover {
+    -fx-background-color: #0056b3;
+}
+
 /* Adjust ListView in embedded editors */
 .embedded-editor .list-view {
     -fx-pref-height: 200;

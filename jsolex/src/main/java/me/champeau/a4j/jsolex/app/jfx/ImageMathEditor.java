@@ -23,7 +23,7 @@ import javafx.scene.control.Button;
 import javafx.scene.control.ButtonType;
 import javafx.scene.control.ChoiceBox;
 import javafx.scene.control.ListView;
-import javafx.scene.layout.BorderPane;
+import javafx.scene.layout.VBox;
 import javafx.stage.FileChooser;
 import javafx.stage.Stage;
 import javafx.stage.WindowEvent;
@@ -53,7 +53,7 @@ public class ImageMathEditor {
     private final Configuration configuration = Configuration.getInstance();
 
     @FXML
-    public BorderPane fileList;
+    public VBox fileList;
 
     @FXML
     private ListView<ImageMathEntry> scriptsToApply;
@@ -92,6 +92,7 @@ public class ImageMathEditor {
             }
             onCreate.accept(controller);
             Scene scene = new Scene(node);
+            scene.getStylesheets().add(JSolEx.class.getResource("components.css").toExternalForm());
             scene.getStylesheets().add(JSolEx.class.getResource("syntax.css").toExternalForm());
             var currentScene = stage.getScene();
             var onCloseRequest = stage.getOnCloseRequest();

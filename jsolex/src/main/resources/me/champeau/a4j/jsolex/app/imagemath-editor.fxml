@@ -2,88 +2,75 @@
 
 <?import javafx.geometry.Insets?>
 <?import javafx.scene.control.Button?>
-<?import javafx.scene.control.ButtonBar?>
+<?import javafx.scene.control.ChoiceBox?>
+<?import javafx.scene.control.Hyperlink?>
 <?import javafx.scene.control.Label?>
 <?import javafx.scene.control.ListView?>
-<?import javafx.scene.control.TextArea?>
-<?import javafx.scene.layout.AnchorPane?>
+<?import javafx.scene.control.ScrollPane?>
 <?import javafx.scene.layout.BorderPane?>
 <?import javafx.scene.layout.HBox?>
-<?import javafx.scene.layout.StackPane?>
 <?import javafx.scene.layout.VBox?>
-
 <?import me.champeau.a4j.jsolex.app.jfx.ime.ImageMathTextArea?>
-<?import javafx.scene.control.Hyperlink?>
-<?import javafx.scene.control.ChoiceBox?>
-<BorderPane maxHeight="-Infinity" maxWidth="-Infinity" minHeight="-Infinity" minWidth="-Infinity" prefHeight="420.0" prefWidth="1024.0" xmlns="http://javafx.com/javafx/19"
+
+<BorderPane prefHeight="600.0" prefWidth="1100.0" styleClass="params-dialog" xmlns="http://javafx.com/javafx/19"
             xmlns:fx="http://javafx.com/fxml/1" fx:controller="me.champeau.a4j.jsolex.app.jfx.ImageMathEditor">
     <center>
-        <VBox>
-            <Label text="%script.text">
-                <VBox.margin>
-                    <Insets top="4.0"/>
-                </VBox.margin>
+        <HBox spacing="0">
+            <!-- Navigation Sidebar -->
+            <VBox fx:id="fileList" styleClass="navigation-sidebar" prefWidth="300" minWidth="300" maxWidth="350">
                 <padding>
-                    <Insets left="8.0"/>
+                    <Insets top="8" right="8" bottom="8" left="8"/>
                 </padding>
-            </Label>
-            <Hyperlink fx:id="docsLink" text="%open.documentation" onAction="#openDocs"/>
-            <ImageMathTextArea fx:id="scriptTextArea" maxHeight="250.0" prefHeight="250.0" prefWidth="592.0" BorderPane.alignment="CENTER">
-                <VBox.margin>
-                    <Insets left="4" right="8" bottom="4" top="4"/>
-                </VBox.margin>
-            </ImageMathTextArea>
-            <HBox BorderPane.alignment="CENTER" alignment="CENTER_LEFT" spacing="4.0">
-                <Label text="%predefined.scripts"/>
-                <ChoiceBox fx:id="predefinedScripts"/>
-                <ButtonBar BorderPane.alignment="CENTER">
-                    <buttons>
-                        <Button mnemonicParsing="false" onAction="#newScript" prefHeight="24.0" prefWidth="86.0" text="%new"/>
-                        <Button mnemonicParsing="false" onAction="#loadScript" prefHeight="24.0" prefWidth="86.0" text="%load"/>
-                        <Button fx:id="saveButton" mnemonicParsing="false" onAction="#saveScript" prefHeight="24.0" prefWidth="86.0" text="%save"/>
-                    </buttons>
-                    <padding>
-                        <Insets right="4.0" top="4.0"/>
-                    </padding>
-                </ButtonBar>
-            </HBox>
-        </VBox>
+                
+                <Label text="%scripts.to.execute" styleClass="sidebar-title">
+                    <VBox.margin>
+                        <Insets bottom="8"/>
+                    </VBox.margin>
+                </Label>
+                
+                <ListView fx:id="scriptsToApply" prefHeight="150" VBox.vgrow="ALWAYS">
+                    <VBox.margin>
+                        <Insets bottom="8"/>
+                    </VBox.margin>
+                </ListView>
+                
+                <Button styleClass="default-button" mnemonicParsing="false" onAction="#removeSelectedItem" text="%remove.script" prefWidth="240" maxWidth="Infinity"/>
+            </VBox>
+            
+            <!-- Main Script Editor Area -->
+            <VBox HBox.hgrow="ALWAYS">
+                <padding>
+                    <Insets top="8" right="12" bottom="8" left="12"/>
+                </padding>
+                
+                <!-- Script Editor Header -->
+                <HBox alignment="CENTER_LEFT" spacing="16">
+                    <Label text="%script.text" style="-fx-font-weight: bold; -fx-font-size: 14px;"/>
+                    <Hyperlink fx:id="docsLink" text="%open.documentation" onAction="#openDocs"/>
+                </HBox>
+                
+                <!-- Script Text Area - This should take most of the space -->
+                <ImageMathTextArea fx:id="scriptTextArea" prefHeight="350" VBox.vgrow="ALWAYS">
+                    <VBox.margin>
+                        <Insets top="8" bottom="12"/>
+                    </VBox.margin>
+                </ImageMathTextArea>
+                
+                <!-- Script Controls - Keep these compact at bottom -->
+                <HBox alignment="CENTER_LEFT" spacing="12" VBox.vgrow="NEVER">
+                    <Label text="%predefined.scripts"/>
+                    <ChoiceBox fx:id="predefinedScripts" prefWidth="200"/>
+                    <Button styleClass="default-button" mnemonicParsing="false" onAction="#newScript" text="%new" minWidth="80"/>
+                    <Button styleClass="default-button" mnemonicParsing="false" onAction="#loadScript" text="%load" minWidth="80"/>
+                    <Button fx:id="saveButton" styleClass="default-button" mnemonicParsing="false" onAction="#saveScript" text="%save" minWidth="80"/>
+                </HBox>
+            </VBox>
+        </HBox>
     </center>
     <bottom>
-        <AnchorPane prefHeight="41.0" prefWidth="687.0" BorderPane.alignment="CENTER">
-            <children>
-                <Button layoutX="641.0" layoutY="7.0" mnemonicParsing="false" onAction="#ok" text="%ok"/>
-                <Button layoutX="559.0" layoutY="7.0" mnemonicParsing="false" onAction="#cancel" text="%cancel"/>
-            </children>
-        </AnchorPane>
+        <HBox styleClass="editor-button-bar" alignment="CENTER_RIGHT" spacing="8">
+            <Button styleClass="default-button" mnemonicParsing="false" onAction="#cancel" text="%cancel" prefWidth="80"/>
+            <Button styleClass="primary-button" mnemonicParsing="false" onAction="#ok" text="%ok" prefWidth="80"/>
+        </HBox>
     </bottom>
-    <left>
-        <BorderPane prefHeight="200.0" prefWidth="200.0" BorderPane.alignment="CENTER" fx:id="fileList">
-            <center>
-                <VBox BorderPane.alignment="CENTER">
-                    <BorderPane.margin>
-                        <Insets left="4.0" top="4.0"/>
-                    </BorderPane.margin>
-                    <children>
-                        <Label text="%scripts.to.execute">
-                            <VBox.margin>
-                                <Insets bottom="2.0"/>
-                            </VBox.margin>
-                        </Label>
-                        <ListView fx:id="scriptsToApply" prefHeight="320.0" prefWidth="204.0"/>
-                    </children>
-                </VBox>
-            </center>
-            <bottom>
-                <ButtonBar prefHeight="40.0" prefWidth="200.0">
-                    <buttons>
-                        <Button mnemonicParsing="false" onAction="#removeSelectedItem" text="%remove.script"/>
-                    </buttons>
-                    <BorderPane.margin>
-                        <Insets right="8.0"/>
-                    </BorderPane.margin>
-                </ButtonBar>
-            </bottom>
-        </BorderPane>
-    </left>
 </BorderPane>
