@@ -18,7 +18,13 @@ package me.champeau.a4j.jsolex.app.jfx.ime;
 import javafx.application.Platform;
 import javafx.beans.value.ObservableValue;
 import javafx.concurrent.Task;
+import javafx.scene.control.ContextMenu;
+import javafx.scene.control.MenuItem;
+import javafx.scene.input.Clipboard;
+import javafx.scene.input.ClipboardContent;
 import javafx.scene.layout.BorderPane;
+import me.champeau.a4j.jsolex.app.JSolEx;
+import me.champeau.a4j.jsolex.app.jfx.I18N;
 import me.champeau.a4j.jsolex.expr.ImageMathParser;
 import me.champeau.a4j.jsolex.expr.InvalidToken;
 import me.champeau.a4j.jsolex.expr.Node;
@@ -85,6 +91,7 @@ public class ImageMathTextArea extends BorderPane {
             })
             .subscribe(this::applyHighlighting);
         setCenter(codeArea);
+        setupContextMenu();
     }
 
     public void setIncludesDir(Path includesDir) {
@@ -111,6 +118,10 @@ public class ImageMathTextArea extends BorderPane {
 
     public ObservableValue<String> textProperty() {
         return codeArea.textProperty();
+    }
+
+    public CodeArea getCodeArea() {
+        return codeArea;
     }
 
     private Task<StyleSpans<Collection<String>>> computeHighlightingAsync() {
@@ -356,6 +367,44 @@ public class ImageMathTextArea extends BorderPane {
             spansBuilder.add(List.of(""), 0);
         }
         return spansBuilder.create();
+    }
+    
+    private void setupContextMenu() {
+        var contextMenu = new ContextMenu();
+        
+        var copyItem = new MenuItem(I18N.string(JSolEx.class, "app", "copy"));
+        copyItem.setOnAction(e -> {
+            String selectedText = codeArea.getSelectedText();
+            if (selectedText != null && !selectedText.isEmpty()) {
+                var clipboard = Clipboard.getSystemClipboard();
+                var content = new ClipboardContent();
+                content.putString(selectedText);
+                clipboard.setContent(content);
+            }
+        });
+        
+        var pasteItem = new MenuItem(I18N.string(JSolEx.class, "app", "paste"));
+        pasteItem.setOnAction(e -> {
+            var clipboard = Clipboard.getSystemClipboard();
+            if (clipboard.hasString()) {
+                String clipboardText = clipboard.getString();
+                codeArea.replaceSelection(clipboardText);
+            }
+        });
+        
+        var selectAllItem = new MenuItem(I18N.string(JSolEx.class, "app", "select.all"));
+        selectAllItem.setOnAction(e -> codeArea.selectAll());
+        
+        contextMenu.getItems().addAll(copyItem, pasteItem, selectAllItem);
+        codeArea.setContextMenu(contextMenu);
+        
+        // Enable/disable menu items based on selection and clipboard content
+        contextMenu.setOnShowing(e -> {
+            boolean hasSelection = codeArea.getSelectedText() != null && !codeArea.getSelectedText().isEmpty();
+            boolean hasClipboardText = Clipboard.getSystemClipboard().hasString();
+            copyItem.setDisable(!hasSelection);
+            pasteItem.setDisable(!hasClipboardText);
+        });
     }
 
     public void close() {

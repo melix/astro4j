@@ -31,6 +31,8 @@ import javafx.collections.FXCollections;
 import javafx.collections.ListChangeListener;
 import javafx.embed.swing.SwingFXUtils;
 import javafx.fxml.FXML;
+import javafx.scene.input.Clipboard;
+import javafx.scene.input.ClipboardContent;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Node;
@@ -403,6 +405,8 @@ public class JSolEx implements JSolExInterface {
             stage.show();
             refreshRecentItemsMenu();
             LogbackConfigurer.configureLogger(console);
+            setupLogWindowContextMenu();
+            setupImageMathEditorContextMenu();
             createFastModePane();
             stage.setOnCloseRequest(e -> System.exit(0));
             startWatcherThread();
@@ -1988,6 +1992,72 @@ public class JSolEx implements JSolExInterface {
 
     public static void main(String[] args) {
         Application.launch(Launcher.class, args);
+    }
+
+    private void setupLogWindowContextMenu() {
+        var contextMenu = new ContextMenu();
+        
+        var copyItem = new MenuItem(I18N.string(JSolEx.class, "app", "copy"));
+        copyItem.setOnAction(e -> {
+            String selectedText = console.getSelectedText();
+            if (selectedText != null && !selectedText.isEmpty()) {
+                var clipboard = Clipboard.getSystemClipboard();
+                var content = new ClipboardContent();
+                content.putString(selectedText);
+                clipboard.setContent(content);
+            }
+        });
+        
+        var selectAllItem = new MenuItem(I18N.string(JSolEx.class, "app", "select.all"));
+        selectAllItem.setOnAction(e -> console.selectAll());
+        
+        contextMenu.getItems().addAll(copyItem, selectAllItem);
+        console.setContextMenu(contextMenu);
+        
+        // Enable/disable menu items based on selection
+        contextMenu.setOnShowing(e -> {
+            boolean hasSelection = console.getSelectedText() != null && !console.getSelectedText().isEmpty();
+            copyItem.setDisable(!hasSelection);
+        });
+    }
+    
+    private void setupImageMathEditorContextMenu() {
+        var codeArea = imageMathScript.getCodeArea();
+        var contextMenu = new ContextMenu();
+        
+        var copyItem = new MenuItem(I18N.string(JSolEx.class, "app", "copy"));
+        copyItem.setOnAction(e -> {
+            String selectedText = codeArea.getSelectedText();
+            if (selectedText != null && !selectedText.isEmpty()) {
+                var clipboard = Clipboard.getSystemClipboard();
+                var content = new ClipboardContent();
+                content.putString(selectedText);
+                clipboard.setContent(content);
+            }
+        });
+        
+        var pasteItem = new MenuItem(I18N.string(JSolEx.class, "app", "paste"));
+        pasteItem.setOnAction(e -> {
+            var clipboard = Clipboard.getSystemClipboard();
+            if (clipboard.hasString()) {
+                String clipboardText = clipboard.getString();
+                codeArea.replaceSelection(clipboardText);
+            }
+        });
+        
+        var selectAllItem = new MenuItem(I18N.string(JSolEx.class, "app", "select.all"));
+        selectAllItem.setOnAction(e -> codeArea.selectAll());
+        
+        contextMenu.getItems().addAll(copyItem, pasteItem, selectAllItem);
+        codeArea.setContextMenu(contextMenu);
+        
+        // Enable/disable menu items based on selection and clipboard content
+        contextMenu.setOnShowing(e -> {
+            boolean hasSelection = codeArea.getSelectedText() != null && !codeArea.getSelectedText().isEmpty();
+            boolean hasClipboardText = Clipboard.getSystemClipboard().hasString();
+            copyItem.setDisable(!hasSelection);
+            pasteItem.setDisable(!hasClipboardText);
+        });
     }
 
     private static class ProgressCellFactory implements Callback<TableColumn<BatchItem, Number>, TableCell<BatchItem, Number>> {
