@@ -69,23 +69,27 @@ public class ObservationDetailsPanel extends BaseParameterPanel {
     private void initializeComponents() {
         observerName = new TextField();
         observerName.setPromptText(I18N.string(JSolEx.class, "process-params", "observer.name"));
+        observerName.setTooltip(new Tooltip(I18N.string(JSolEx.class, "process-params", "observer.tooltip")));
         
         email = new TextField();
         email.setPromptText(I18N.string(JSolEx.class, "process-params", "contact.email"));
+        email.setTooltip(new Tooltip(I18N.string(JSolEx.class, "process-params", "contact.email.tooltip")));
         
         observationDate = new TextField();
         observationDate.setText(LocalDate.now().toString());
+        observationDate.setTooltip(new Tooltip(I18N.string(JSolEx.class, "process-params", "utc.date.tooltip")));
         
         latitude = new TextField();
         latitude.setPromptText("48.8566");
-        latitude.setTooltip(new Tooltip(I18N.string(JSolEx.class, "process-params", "latitude")));
+        latitude.setTooltip(new Tooltip(I18N.string(JSolEx.class, "process-params", "latitude.tooltip")));
         
         longitude = new TextField();
         longitude.setPromptText("2.3522");
-        longitude.setTooltip(new Tooltip(I18N.string(JSolEx.class, "process-params", "longitude")));
+        longitude.setTooltip(new Tooltip(I18N.string(JSolEx.class, "process-params", "longitude.tooltip")));
         
         instrument = createChoiceBox();
         instrument.setItems(FXCollections.observableArrayList(SpectroHeliographsIO.loadDefaults()));
+        instrument.setTooltip(new Tooltip(I18N.string(JSolEx.class, "process-params", "instrument.tooltip")));
         instrument.setConverter(new StringConverter<>() {
             @Override
             public String toString(SpectroHeliograph shg) {
@@ -107,6 +111,7 @@ public class ObservationDetailsPanel extends BaseParameterPanel {
         
         camera = new TextField();
         camera.setPromptText("ZWO ASI178MM");
+        camera.setTooltip(new Tooltip(I18N.string(JSolEx.class, "process-params", "camera.tooltip")));
         
         telescope = new TextField();
         telescope.setPromptText("Celestron C8");
@@ -114,7 +119,7 @@ public class ObservationDetailsPanel extends BaseParameterPanel {
         
         mount = new TextField();
         mount.setPromptText("SkyWatcher EQ6-R Pro");
-        mount.setTooltip(new Tooltip(I18N.string(JSolEx.class, "process-params", "mount")));
+        mount.setTooltip(new Tooltip(I18N.string(JSolEx.class, "process-params", "mount.tooltip")));
         
         focalLength = new TextField();
         focalLength.setPromptText("1000");
@@ -122,32 +127,33 @@ public class ObservationDetailsPanel extends BaseParameterPanel {
         
         aperture = new TextField();
         aperture.setPromptText("100");
-        aperture.setTooltip(new Tooltip(I18N.string(JSolEx.class, "process-params", "aperture")));
+        aperture.setTooltip(new Tooltip(I18N.string(JSolEx.class, "process-params", "aperture.tooltip")));
         
         stop = new TextField();
         stop.setPromptText("1000");
-        stop.setTooltip(new Tooltip(I18N.string(JSolEx.class, "process-params", "stop")));
+        stop.setTooltip(new Tooltip(I18N.string(JSolEx.class, "process-params", "stop.tooltip")));
         
         energyRejectionFilter = new TextField();
         energyRejectionFilter.setPromptText("ND 16");
-        energyRejectionFilter.setTooltip(new Tooltip(I18N.string(JSolEx.class, "process-params", "erf")));
+        energyRejectionFilter.setTooltip(new Tooltip(I18N.string(JSolEx.class, "process-params", "erf.tooltip")));
         
         binning = createChoiceBox();
         binning.setItems(FXCollections.observableArrayList(1, 2, 3, 4, 5, 6, 7, 8));
         binning.setValue(1);
-        binning.setTooltip(new Tooltip(I18N.string(JSolEx.class, "process-params", "binning")));
+        binning.setTooltip(new Tooltip(I18N.string(JSolEx.class, "process-params", "binning.tooltip")));
         binning.getSelectionModel().selectedItemProperty().addListener((obs, oldValue, newValue) -> {
             controller.notifyObservationDetailsChanged();
         });
         
         pixelSize = new TextField();
         pixelSize.setPromptText("3.76");
-        pixelSize.setTooltip(new Tooltip(I18N.string(JSolEx.class, "process-params", "pixel.size")));
+        pixelSize.setTooltip(new Tooltip(I18N.string(JSolEx.class, "process-params", "pixel.size.tooltip")));
         pixelSize.textProperty().addListener((obs, oldValue, newValue) -> {
             controller.notifyObservationDetailsChanged();
         });
         
-        altAzMode = createCheckBox(I18N.string(JSolEx.class, "process-params", "altaz.mode"), I18N.string(JSolEx.class, "process-params", "altaz.mode"));
+        altAzMode = new CheckBox();
+        altAzMode.setTooltip(new Tooltip(I18N.string(JSolEx.class, "process-params", "altaz.mode.tooltip")));
     }
     
     private void setupLayout() {
@@ -166,25 +172,25 @@ public class ObservationDetailsPanel extends BaseParameterPanel {
         var locationSection = createSection("coords");
         var locationGrid = createGrid();
         
-        addGridRow(locationGrid, 0, I18N.string(JSolEx.class, "process-params", "latitude") + ":", latitude);
-        addGridRow(locationGrid, 1, I18N.string(JSolEx.class, "process-params", "longitude") + ":", longitude);
+        addGridRow(locationGrid, 0, I18N.string(JSolEx.class, "process-params", "latitude") + ":", latitude, "latitude.tooltip");
+        addGridRow(locationGrid, 1, I18N.string(JSolEx.class, "process-params", "longitude") + ":", longitude, "longitude.tooltip");
         
         locationSection.getChildren().add(locationGrid);
         
         var equipmentSection = createSection("instrument");
         var equipmentGrid = createGrid();
         
-        addGridRow(equipmentGrid, 0, I18N.string(JSolEx.class, "process-params", "instrument") + ":", createInstrumentBox());
+        addGridRow(equipmentGrid, 0, I18N.string(JSolEx.class, "process-params", "instrument") + ":", createInstrumentBox(), "instrument.tooltip");
         addGridRow(equipmentGrid, 1, I18N.string(JSolEx.class, "process-params", "telescope") + ":", createTelescopeBox(), "telescope.tooltip");
-        addGridRow(equipmentGrid, 2, I18N.string(JSolEx.class, "process-params", "mount") + ":", mount);
+        addGridRow(equipmentGrid, 2, I18N.string(JSolEx.class, "process-params", "mount") + ":", mount, "mount.tooltip");
         addGridRow(equipmentGrid, 3, I18N.string(JSolEx.class, "process-params", "camera") + ":", camera, "camera.tooltip");
         addGridRow(equipmentGrid, 4, I18N.string(JSolEx.class, "process-params", "focal.length") + ":", focalLength, "focal.length.tooltip");
-        addGridRow(equipmentGrid, 5, I18N.string(JSolEx.class, "process-params", "aperture") + ":", aperture);
-        addGridRow(equipmentGrid, 6, I18N.string(JSolEx.class, "process-params", "stop") + ":", stop);
-        addGridRow(equipmentGrid, 7, I18N.string(JSolEx.class, "process-params", "erf") + ":", energyRejectionFilter);
-        addGridRow(equipmentGrid, 8, I18N.string(JSolEx.class, "process-params", "binning") + ":", binning);
-        addGridRow(equipmentGrid, 9, I18N.string(JSolEx.class, "process-params", "pixel.size") + ":", pixelSize);
-        addGridRow(equipmentGrid, 10, altAzMode);
+        addGridRow(equipmentGrid, 5, I18N.string(JSolEx.class, "process-params", "aperture") + ":", aperture, "aperture.tooltip");
+        addGridRow(equipmentGrid, 6, I18N.string(JSolEx.class, "process-params", "stop") + ":", stop, "stop.tooltip");
+        addGridRow(equipmentGrid, 7, I18N.string(JSolEx.class, "process-params", "erf") + ":", energyRejectionFilter, "erf.tooltip");
+        addGridRow(equipmentGrid, 8, I18N.string(JSolEx.class, "process-params", "binning") + ":", binning, "binning.tooltip");
+        addGridRow(equipmentGrid, 9, I18N.string(JSolEx.class, "process-params", "pixel.size") + ":", pixelSize, "pixel.size.tooltip");
+        addGridRow(equipmentGrid, 10, I18N.string(JSolEx.class, "process-params", "altaz.mode") + ":", altAzMode, "altaz.mode.tooltip");
 
         equipmentSection.getChildren().add(equipmentGrid);
         
