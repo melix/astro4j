@@ -7,64 +7,84 @@
 <?import javafx.scene.control.Label?>
 <?import javafx.scene.control.ProgressBar?>
 <?import javafx.scene.control.RadioButton?>
+<?import javafx.scene.control.ScrollPane?>
 <?import javafx.scene.control.Slider?>
 <?import javafx.scene.control.TextField?>
-<?import javafx.scene.Group?>
 <?import javafx.scene.layout.BorderPane?>
 <?import javafx.scene.layout.HBox?>
+<?import javafx.scene.layout.StackPane?>
 <?import javafx.scene.layout.VBox?>
-<?import javafx.scene.text.Font?>
-<BorderPane xmlns="http://javafx.com/javafx/19" xmlns:fx="http://javafx.com/fxml/1" fx:controller="me.champeau.a4j.jsolex.app.jfx.SpectralLineDebugger">
+<BorderPane styleClass="params-dialog" xmlns="http://javafx.com/javafx/19" xmlns:fx="http://javafx.com/fxml/1"
+            fx:controller="me.champeau.a4j.jsolex.app.jfx.SpectralLineDebugger">
     <center>
-        <Group>
-            <HBox fx:id="progressBox" spacing="4.0">
+        <StackPane>
+            <ScrollPane fx:id="canvasScrollPane" styleClass="canvas-scroll-pane"
+                        fitToWidth="false" fitToHeight="false"
+                        hbarPolicy="AS_NEEDED" vbarPolicy="AS_NEEDED"
+                        pannable="true">
+                <Canvas fx:id="canvas"/>
+            </ScrollPane>
+            <HBox fx:id="progressBox" spacing="4.0" alignment="CENTER">
                 <padding>
                     <Insets bottom="4.0" left="4.0" right="4.0" top="4.0"/>
                 </padding>
                 <Label text="%computing.average.image"/>
                 <ProgressBar fx:id="progressBar" prefWidth="200"/>
             </HBox>
-            <Canvas fx:id="canvas"/>
-        </Group>
+        </StackPane>
     </center>
     <bottom>
-        <VBox fx:id="status" spacing="4.0">
-            <HBox alignment="CENTER_LEFT" spacing="4.0">
-                <RadioButton fx:id="average" mnemonicParsing="false" text="%average"/>
-                <RadioButton fx:id="frames" mnemonicParsing="false" text="%frames"/>
-                <HBox fx:id="frameMoveGroup" alignment="CENTER_LEFT">
-                    <Button mnemonicParsing="false" onAction="#fastRewind" text="&lt;&lt;"/>
-                    <Button mnemonicParsing="false" onAction="#rewind" text="&lt;"/>
-                    <Slider fx:id="frameSlider" prefHeight="16.0" prefWidth="258.0"/>
-                    <Label text="Frame "/> <TextField fx:id="frameId" maxWidth="64"/>
-                    <Button mnemonicParsing="false" onAction="#forward" text="&gt;"/>
-                    <Button mnemonicParsing="false" onAction="#fastForward" text="&gt;&gt;"/>
+        <VBox>
+            <VBox fx:id="status" styleClass="compact-panel" spacing="8">
+                <padding>
+                    <Insets top="8" right="12" bottom="8" left="12"/>
+                </padding>
+
+                <!-- Navigation Row -->
+                <HBox alignment="CENTER_LEFT" spacing="16">
+                    <RadioButton fx:id="average" mnemonicParsing="false" text="%average" styleClass="radio-button"/>
+                    <RadioButton fx:id="frames" mnemonicParsing="false" text="%frames" styleClass="radio-button"/>
+
+                    <HBox fx:id="frameMoveGroup" alignment="CENTER_LEFT" spacing="4">
+                        <Button mnemonicParsing="false" onAction="#fastRewind" text="&lt;&lt;"
+                                styleClass="small-button"/>
+                        <Button mnemonicParsing="false" onAction="#rewind" text="&lt;" styleClass="small-button"/>
+                        <Slider fx:id="frameSlider" prefHeight="20" prefWidth="200" styleClass="compact-slider"/>
+                        <Label text="Frame" styleClass="compact-label"/>
+                        <TextField fx:id="frameId" maxWidth="60" styleClass="compact-field"/>
+                        <Button mnemonicParsing="false" onAction="#forward" text="&gt;" styleClass="small-button"/>
+                        <Button mnemonicParsing="false" onAction="#fastForward" text="&gt;&gt;"
+                                styleClass="small-button"/>
+                    </HBox>
                 </HBox>
-                <VBox.margin>
-                    <Insets bottom="4.0" left="4.0" right="4.0" top="4.0"/>
-                </VBox.margin>
+
+                <!-- Analysis Row -->
+                <HBox alignment="CENTER_LEFT" spacing="16">
+                    <Label text="%sun.detection.threshold" styleClass="compact-label"/>
+                    <TextField fx:id="sunDetectionThreshold" maxWidth="80" styleClass="compact-field"/>
+
+                    <CheckBox fx:id="lockPolynomialCheckbox" text="%lock.polynomial" styleClass="compact-checkbox"/>
+                    <Button fx:id="computePolynomial" text="%compute.polynomial" styleClass="small-button"/>
+                    <Button fx:id="resetPolynomial" text="Reset" styleClass="small-button"/>
+
+                    <Label text="%contrast" styleClass="compact-label"/>
+                    <Slider fx:id="contrastBoost" max="200" min="0" prefWidth="100" styleClass="compact-slider"/>
+                </HBox>
+
+                <!-- Polynomial Row -->
+                <HBox alignment="CENTER_LEFT" spacing="8">
+                    <Label text="%detected.polynomial" styleClass="compact-label"/>
+                    <TextField fx:id="polynomialTextField" editable="false" styleClass="compact-polynomial-field"
+                               HBox.hgrow="ALWAYS"
+                               promptText="No polynomial computed yet"/>
+                </HBox>
+            </VBox>
+
+            <!-- Status Bar -->
+            <HBox styleClass="status-bar" alignment="CENTER_LEFT" spacing="12">
+                <Label fx:id="info" styleClass="status-text" text="Move mouse over spectrum to see coordinates"
+                       HBox.hgrow="ALWAYS"/>
             </HBox>
-            <HBox alignment="CENTER_LEFT" spacing="8.0">
-                <Label text="%sun.detection.threshold">
-                    <HBox.margin>
-                        <Insets bottom="4.0" left="4.0" right="4.0" top="4.0"/>
-                    </HBox.margin>
-                    <padding>
-                        <Insets bottom="4.0" left="4.0" right="4.0" top="4.0"/>
-                    </padding>
-                </Label>
-                <TextField fx:id="sunDetectionThreshold" maxWidth="100"/>
-                <CheckBox fx:id="lockPolynomialCheckbox" text="%lock.polynomial"/>
-                <Button fx:id="computePolynomial" text="%compute.polynomial"/>
-                <TextField fx:id="polynomialTextField" editable="false"/>
-                <Label text="%contrast"/>
-                <Slider fx:id="contrastBoost" max="200" min="0"/>
-            </HBox>
-            <Label fx:id="info">
-                <font>
-                    <Font size="16"/>
-                </font>
-            </Label>
         </VBox>
     </bottom>
 </BorderPane>

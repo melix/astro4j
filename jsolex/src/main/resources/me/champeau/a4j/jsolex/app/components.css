@@ -822,3 +822,252 @@
     -fx-wrap-text: true;
     -fx-max-width: 300;
 }
+
+/* SpectralLineDebugger specific styles */
+.progress-overlay {
+    -fx-background-color: rgba(255, 255, 255, 0.95);
+    -fx-background-radius: 8;
+    -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.2), 8, 0, 0, 2);
+    -fx-border-color: #e9ecef;
+    -fx-border-radius: 8;
+    -fx-border-width: 1;
+}
+
+.progress-label {
+    -fx-font-size: 14px;
+    -fx-font-weight: 500;
+    -fx-text-fill: #495057;
+}
+
+.progress-bar {
+    -fx-background-color: #f8f9fa;
+    -fx-background-radius: 8;
+}
+
+.progress-bar .bar {
+    -fx-background-color: #007bff;
+    -fx-background-radius: 8;
+}
+
+.info-label {
+    -fx-font-size: 13px;
+    -fx-font-weight: 500;
+    -fx-text-fill: #495057;
+    -fx-background-color: #f8f9fa;
+    -fx-background-radius: 6;
+    -fx-padding: 8 12;
+    -fx-border-color: #e9ecef;
+    -fx-border-radius: 6;
+    -fx-border-width: 1;
+}
+
+.radio-button {
+    -fx-font-size: 13px;
+    -fx-text-fill: #212529;
+    -fx-font-weight: 500;
+    -fx-spacing: 6;
+}
+
+.radio-button .radio {
+    -fx-background-color: #ffffff;
+    -fx-border-color: #ced4da;
+    -fx-border-width: 1.5;
+    -fx-border-radius: 8;
+    -fx-background-radius: 8;
+    -fx-min-width: 16;
+    -fx-pref-width: 16;
+    -fx-min-height: 16;
+    -fx-pref-height: 16;
+}
+
+.radio-button:selected .radio {
+    -fx-border-color: #007bff;
+    -fx-background-color: #007bff;
+}
+
+.radio-button:selected .radio .dot {
+    -fx-background-color: white;
+    -fx-background-radius: 4;
+}
+
+.checkbox {
+    -fx-font-size: 13px;
+    -fx-text-fill: #212529;
+    -fx-font-weight: 500;
+    -fx-spacing: 8;
+}
+
+.checkbox .box {
+    -fx-background-color: #ffffff;
+    -fx-border-color: #ced4da;
+    -fx-border-width: 1.5;
+    -fx-border-radius: 4;
+    -fx-background-radius: 4;
+    -fx-min-width: 16;
+    -fx-pref-width: 16;
+    -fx-min-height: 16;
+    -fx-pref-height: 16;
+}
+
+.checkbox:selected .box {
+    -fx-background-color: #007bff;
+    -fx-border-color: #007bff;
+}
+
+.checkbox:selected .box .mark {
+    -fx-background-color: white;
+}
+
+.slider {
+    -fx-background-color: #f8f9fa;
+}
+
+.slider .track {
+    -fx-background-color: #e9ecef;
+    -fx-background-radius: 4;
+    -fx-pref-height: 4;
+}
+
+.slider .thumb {
+    -fx-background-color: #007bff;
+    -fx-background-radius: 8;
+    -fx-min-width: 16;
+    -fx-pref-width: 16;
+    -fx-min-height: 16;
+    -fx-pref-height: 16;
+    -fx-effect: dropshadow(gaussian, rgba(0,123,255,0.3), 4, 0, 0, 1);
+}
+
+.slider:focused .thumb {
+    -fx-background-color: #0056b3;
+}
+
+/* Compact Spectral Line Debugger Styles */
+.compact-panel {
+    -fx-background-color: #f8f9fa;
+    -fx-border-color: #dee2e6;
+    -fx-border-width: 1 0 0 0;
+}
+
+.compact-label {
+    -fx-font-size: 11px;
+    -fx-text-fill: #495057;
+    -fx-min-width: 50;
+}
+
+.compact-field {
+    -fx-font-size: 11px;
+    -fx-padding: 2 4;
+    -fx-min-height: 22;
+    -fx-pref-height: 22;
+    -fx-background-color: #ffffff;
+    -fx-border-color: #ced4da;
+    -fx-border-width: 1;
+    -fx-border-radius: 3;
+    -fx-background-radius: 3;
+}
+
+.compact-polynomial-field {
+    -fx-font-size: 11px;
+    -fx-padding: 2 4;
+    -fx-min-height: 22;
+    -fx-pref-height: 22;
+    -fx-background-color: #ffffff;
+    -fx-border-color: #ced4da;
+    -fx-border-width: 1;
+    -fx-border-radius: 3;
+    -fx-background-radius: 3;
+    -fx-font-family: "Consolas", "Monaco", "monospace";
+}
+
+.small-button {
+    -fx-font-size: 10px;
+    -fx-padding: 2 6;
+    -fx-min-height: 22;
+    -fx-pref-height: 22;
+    -fx-background-color: #ffffff;
+    -fx-border-color: #ced4da;
+    -fx-border-width: 1;
+    -fx-border-radius: 3;
+    -fx-background-radius: 3;
+}
+
+.small-button:hover {
+    -fx-background-color: #e9ecef;
+}
+
+.compact-slider {
+    -fx-pref-height: 18;
+    -fx-min-height: 18;
+}
+
+.compact-slider .track {
+    -fx-pref-height: 3;
+    -fx-background-color: #e9ecef;
+    -fx-background-radius: 2;
+}
+
+.compact-slider .thumb {
+    -fx-background-color: #007bff;
+    -fx-background-radius: 6;
+    -fx-min-width: 12;
+    -fx-pref-width: 12;
+    -fx-min-height: 12;
+    -fx-pref-height: 12;
+}
+
+.compact-checkbox {
+    -fx-font-size: 11px;
+}
+
+.compact-checkbox .box {
+    -fx-min-width: 12;
+    -fx-pref-width: 12;
+    -fx-min-height: 12;
+    -fx-pref-height: 12;
+}
+
+.canvas-scroll-pane {
+    -fx-background-color: #ffffff;
+    -fx-border-color: #dee2e6;
+    -fx-border-width: 1;
+    -fx-border-radius: 4;
+    -fx-background-radius: 4;
+}
+
+.canvas-scroll-pane > .viewport {
+    -fx-background-color: #ffffff;
+}
+
+.canvas-scroll-pane .scroll-bar {
+    -fx-background-color: #f8f9fa;
+}
+
+.canvas-scroll-pane .scroll-bar .thumb {
+    -fx-background-color: #ced4da;
+    -fx-background-radius: 4;
+}
+
+.canvas-scroll-pane .scroll-bar .thumb:hover {
+    -fx-background-color: #adb5bd;
+}
+
+.canvas-scroll-pane .scroll-bar .thumb:pressed {
+    -fx-background-color: #6c757d;
+}
+
+
+/* Status Bar */
+.status-bar {
+    -fx-background-color: #343a40;
+    -fx-padding: 8 16;
+    -fx-min-height: 32;
+    -fx-border-color: #dee2e6;
+    -fx-border-width: 1 0 0 0;
+}
+
+.status-text {
+    -fx-text-fill: #f8f9fa;
+    -fx-font-size: 12px;
+    -fx-font-family: "Consolas", "Monaco", "monospace";
+}

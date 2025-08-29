@@ -25,6 +25,7 @@ import javafx.scene.canvas.Canvas;
 import javafx.scene.canvas.GraphicsContext;
 import javafx.scene.control.Button;
 import javafx.scene.control.CheckBox;
+import javafx.scene.control.ScrollPane;
 import javafx.scene.control.Label;
 import javafx.scene.control.ProgressBar;
 import javafx.scene.control.RadioButton;
@@ -65,6 +66,7 @@ import me.champeau.a4j.jsolex.processing.util.TemporaryFolder;
 import me.champeau.a4j.math.Point2D;
 import me.champeau.a4j.math.regression.LinearRegression;
 import me.champeau.a4j.math.tuples.DoublePair;
+import me.champeau.a4j.math.tuples.DoubleQuadruplet;
 import me.champeau.a4j.ser.ColorMode;
 import me.champeau.a4j.ser.ImageGeometry;
 import me.champeau.a4j.ser.SerFileReader;
@@ -113,6 +115,9 @@ public class SpectralLineDebugger {
     private Canvas canvas;
 
     @FXML
+    private ScrollPane canvasScrollPane;
+
+    @FXML
     private VBox status;
 
     @FXML
@@ -134,10 +139,10 @@ public class SpectralLineDebugger {
     private HBox progressBox;
     @FXML
     private ProgressBar progressBar;
+    @FXML
+    private Button resetPolynomial;
 
     private Image image;
-    private Point2D p1;
-    private Point2D p2;
     private final List<Point2D> samplePoints = new ArrayList<>();
     private final List<Double> sampleDistances = new ArrayList<>();
     private double zoom = 1.0;
@@ -149,6 +154,7 @@ public class SpectralLineDebugger {
     private Consumer<? super String> onPolynomialComputed;
     private float[][] averageImage;
     private ProgressOperation operation;
+    private DoubleQuadruplet originalPolynomial;
 
     public static Stage open(File file, ProgressOperation operation, Consumer<? super String> onPolynomialComputed) {
         var fxmlLoader = I18N.fxmlLoader(JSolEx.class, "frame-debugger");
@@ -159,10 +165,11 @@ public class SpectralLineDebugger {
             throw new ProcessingException(e);
         }
         var controller = (SpectralLineDebugger) fxmlLoader.getController();
-        controller.operation =  operation;
+        controller.operation = operation;
         controller.onPolynomialComputed = onPolynomialComputed;
         var stage = newStage();
         Scene scene = new Scene((Parent) configWindow);
+        scene.getStylesheets().add(JSolEx.class.getResource("components.css").toExternalForm());
         controller.open(file, null, scene, stage);
         stage.setTitle(I18N.string(JSolEx.class, "frame-debugger", "frame.debugger") + " (" + file.getName() + ")");
         stage.setScene(scene);
@@ -209,14 +216,70 @@ public class SpectralLineDebugger {
         });
     }
 
+    private void updateCanvasSize(Scene scene) {
+        if (image == null || scene == null) return;
+
+        // Calculate available space for ScrollPane viewport
+        double sceneWidth = scene.getWidth();
+        double sceneHeight = scene.getHeight();
+
+        // Account for padding and bottom panel (controls + status bar)
+        double horizontalPadding = 40; // Border padding
+        double bottomPanelHeight = status.prefHeight(-1) + 32 + 40; // Controls + status bar + padding
+
+        double availableWidth = Math.max(200, sceneWidth - horizontalPadding);
+        double availableHeight = Math.max(150, sceneHeight - bottomPanelHeight);
+
+        // Set ScrollPane size to fit in available space
+        canvasScrollPane.setPrefWidth(availableWidth);
+        canvasScrollPane.setMaxWidth(availableWidth);
+        canvasScrollPane.setPrefHeight(availableHeight);
+        canvasScrollPane.setMaxHeight(availableHeight);
+
+        // Calculate base scale to fit image in viewport when zoom = 1.0
+        double scaleX = availableWidth / image.getWidth();
+        double scaleY = availableHeight / image.getHeight();
+        double baseScale = Math.min(scaleX, scaleY);
+
+        // Apply zoom factor - allow canvas to grow beyond viewport
+        double finalScale = Math.max(0.1, Math.min(10.0, baseScale * zoom));
+
+        // Set canvas dimensions - can be larger than ScrollPane viewport
+        double newWidth = image.getWidth() * finalScale;
+        double newHeight = image.getHeight() * finalScale;
+
+        canvas.setWidth(newWidth);
+        canvas.setHeight(newHeight);
+        canvas.setScaleX(1.0);
+        canvas.setScaleY(1.0);
+    }
+
     private void fireZoomChanged(Scene scene) {
-        double scale = zoom;
-        if (image != null) {
-            scale = zoom * scene.getWidth() / image.getWidth();
-        }
-        canvas.setScaleX(scale);
-        canvas.setScaleY(scale);
+        updateCanvasSize(scene);
         redraw();
+    }
+
+    private void redraw() {
+        if (image == null) return;
+
+        var graphicsContext = canvas.getGraphicsContext2D();
+        graphicsContext.clearRect(0, 0, canvas.getWidth(), canvas.getHeight());
+
+        // Scale factor for drawing scaled image
+        double scaleX = canvas.getWidth() / image.getWidth();
+        double scaleY = canvas.getHeight() / image.getHeight();
+
+        // Draw scaled image
+        graphicsContext.drawImage(image, 0, 0, canvas.getWidth(), canvas.getHeight());
+
+        // Draw overlays scaled appropriately
+        graphicsContext.setStroke(Color.RED);
+        graphicsContext.setLineWidth(2.0);
+
+        // Draw crosses for all sample points
+        for (Point2D samplePoint : samplePoints) {
+            drawCross(graphicsContext, samplePoint.x() * scaleX, samplePoint.y() * scaleY);
+        }
     }
 
     private void prepareView(File file, ColorMode colorMode, Scene scene, Stage stage, ToggleGroup toggleGroup) {
@@ -225,16 +288,17 @@ public class SpectralLineDebugger {
         var detector = new AverageImageCreator(converter,
                 operation,
                 event -> {
-            if (event instanceof ProgressEvent progress) {
-                BatchOperations.submitOneOfAKind("progress", () -> progressBar.setProgress(progress.getPayload().progress()));
-            }
-        });
+                    if (event instanceof ProgressEvent progress) {
+                        BatchOperations.submitOneOfAKind("progress", () -> progressBar.setProgress(progress.getPayload().progress()));
+                    }
+                });
         try {
             reader = SerFileReader.of(file);
             detector.computeAverageImage(reader);
             averageImage = detector.getAverageImage();
             var tmpPath = TemporaryFolder.newTempFile("debug_", ".png");
             File imageFile = tmpPath.toFile();
+            resetPolynomial.setDisable(true);
             Platform.runLater(() -> {
                 status.setDisable(false);
                 progressBox.setVisible(false);
@@ -252,7 +316,7 @@ public class SpectralLineDebugger {
                 });
                 scene.heightProperty().addListener((o, oldValue, newValue) -> {
                     if (image != null) {
-                        redraw();
+                        fireZoomChanged(scene);
                     }
                 });
                 var pause = new PauseTransition(Duration.millis(50));
@@ -260,7 +324,7 @@ public class SpectralLineDebugger {
                     int newId = newValue instanceof Number ? ((Number) newValue).intValue() : frameSlider.valueProperty().intValue();
                     frameId.setText(newId + "");
                     pause.setOnFinished(e ->
-                        processFrame(converter, reader, geometry, newId, imageFile, toggleGroup.getSelectedToggle() == average ? averageImage : null, scene)
+                            processFrame(converter, reader, geometry, newId, imageFile, toggleGroup.getSelectedToggle() == average ? averageImage : null, scene)
                     );
                     pause.playFromStart();
                 };
@@ -269,6 +333,16 @@ public class SpectralLineDebugger {
                     lockedPolynomial = polynomial.asPolynomial();
                     processFrame(converter, reader, geometry, Integer.parseInt(frameId.getText()), imageFile, toggleGroup.getSelectedToggle() == average ? averageImage : null, scene);
                     polynomialTextField.setText(polynomial.asPolynomialString());
+                    resetPolynomial.setDisable(false);
+                    redraw();
+                });
+                resetPolynomial.setOnAction(e -> {
+                    lockedPolynomial = null;
+                    polynomial = originalPolynomial.asPolynomial();
+                    lockPolynomialCheckbox.setSelected(false);
+                    processFrame(converter, reader, geometry, Integer.parseInt(frameId.getText()), imageFile, toggleGroup.getSelectedToggle() == average ? averageImage : null, scene);
+                    polynomialTextField.setText(originalPolynomial.asPolynomialString());
+                    resetPolynomial.setDisable(true);
                     redraw();
                 });
                 frameSlider.valueProperty().addListener(listener);
@@ -313,33 +387,17 @@ public class SpectralLineDebugger {
                 lockPolynomialCheckbox.setSelected(true);
             });
         } catch (
-            Exception e) {
+                Exception e) {
             throw new RuntimeException(e);
         }
     }
 
-    private void redraw() {
-        var graphicsContext = canvas.getGraphicsContext2D();
-        graphicsContext.drawImage(image, 0, 0);
-        graphicsContext.setStroke(Color.RED);
-        graphicsContext.setLineWidth(2.0);
-        for (Point2D samplePoint : samplePoints) {
-            drawCross(graphicsContext, samplePoint.x(), samplePoint.y());
-        }
-        if (p1 != null) {
-            var x = p1.x();
-            var y = p1.y();
-            drawCross(graphicsContext, x, y);
-        }
-        if (p2 != null) {
-            drawline(graphicsContext, p2);
-        }
-    }
 
     private static void drawCross(GraphicsContext graphicsContext, double x, double y) {
         graphicsContext.strokeLine(x - 5, y, x + 5, y);
         graphicsContext.strokeLine(x, y - 5, x, y + 5);
     }
+
 
     public void close() throws Exception {
         reader.close();
@@ -362,10 +420,10 @@ public class SpectralLineDebugger {
         int height = geometry.height();
         Double sunThreshold = sunDetectionThreshold.textProperty().getValue().isEmpty() ? null : Double.parseDouble(sunDetectionThreshold.textProperty().getValue());
         var analyzer = new SpectrumFrameAnalyzer(
-            width,
-            height,
-            reader.header().isJSolexTrimmedSer(),
-            sunThreshold
+                width,
+                height,
+                reader.header().isJSolexTrimmedSer(),
+                sunThreshold
         );
         analyzer.analyze(buffer);
         processParams = ProcessParamsIO.loadDefaults();
@@ -373,7 +431,10 @@ public class SpectralLineDebugger {
         var analysis = analyzer.result();
         analysis.distortionPolynomial().ifPresent(p -> {
             this.polynomial = p;
-            this.polynomialTextField.setText(analysis.distortionQuadruplet().get().asPolynomialString());
+            this.originalPolynomial = analysis.distortionQuadruplet().orElse(null);
+            if (this.originalPolynomial != null) {
+                this.polynomialTextField.setText(originalPolynomial.asPolynomialString());
+            }
             if (spectralRayDetectionResult == null) {
                 var pixelSize = processParams.observationDetails().pixelSize();
                 var candidates = new ArrayList<SpectrumAnalyzer.QueryDetails>();
@@ -386,8 +447,8 @@ public class SpectralLineDebugger {
                 int leftBorder = analysis.leftBorder().orElse(0);
                 int rightBorder = analysis.rightBorder().orElse(width);
                 var map = candidates
-                    .stream()
-                    .collect(Collectors.toMap(d -> d, details -> SpectrumAnalyzer.computeDataPoints(details, polynomial, leftBorder, rightBorder, width, height, buffer), (e1, e2) -> e1, LinkedHashMap::new));
+                        .stream()
+                        .collect(Collectors.toMap(d -> d, details -> SpectrumAnalyzer.computeDataPoints(details, polynomial, leftBorder, rightBorder, width, height, buffer), (e1, e2) -> e1, LinkedHashMap::new));
                 spectralRayDetectionResult = SpectrumAnalyzer.findBestMatch(map);
             }
         });
@@ -401,7 +462,7 @@ public class SpectralLineDebugger {
         });
         var boostValue = contrastBoost.getValue();
         if (boostValue > 0) {
-            for (int i=0; i<boostValue;i++) {
+            for (int i = 0; i < boostValue; i++) {
                 new ArcsinhStretchingStrategy(0f, 0.25f, 0.25f).stretch(new ImageWrapper32(width, height, buffer, MutableMap.of()));
             }
         }
@@ -425,7 +486,7 @@ public class SpectralLineDebugger {
 
                 @Override
                 public void onActiveRegion(int x) {
-                    for (int y=0;y<height;y++) {
+                    for (int y = 0; y < height; y++) {
                         rgb.r()[y + height + SPACING][x] = Constants.MAX_PIXEL_VALUE;
                         rgb.b()[y + height + SPACING][x] = Constants.MAX_PIXEL_VALUE;
                     }
@@ -435,62 +496,65 @@ public class SpectralLineDebugger {
         }
         ImageUtils.writeRgbImage(rgb.width(), rgb.height(), rgb.r(), rgb.g(), rgb.b(), imageFile, EnumSet.of(ImageFormat.PNG));
         image = new Image(imageFile.toURI().toString());
-        canvas.setWidth(image.getWidth());
-        canvas.setHeight(image.getHeight());
-        canvas.setScaleX(scene.getWidth() / image.getWidth());
-        var graphicsContext = canvas.getGraphicsContext2D();
-        graphicsContext.drawImage(image, 0, 0);
+        updateCanvasSize(scene);
+        redraw();
         canvas.setOnMouseClicked(evt -> {
-            var x = evt.getX();
-            var y = evt.getY();
+            // Convert canvas coordinates to original image coordinates
+            double scaleX = canvas.getWidth() / image.getWidth();
+            double scaleY = canvas.getHeight() / image.getHeight();
+            var x = evt.getX() / scaleX;
+            var y = evt.getY() / scaleY;
             double dist = computeDistanceToSpectralLine(detectedPolynomial, x, y);
-            if (evt.isControlDown()) {
-                sampleDistances.add(dist);
-                samplePoints.add(new Point2D(x, y));
-                double avgDist = computeAverageDistanceToSpectralLineFromSamples();
-                info.setText(localized("average.distance.spectral.line") + " " + Math.round(avgDist));
+
+            if (evt.getClickCount() == 2) {
+                // Double-click: reset all points
+                sampleDistances.clear();
+                samplePoints.clear();
+                computePolynomial.setDisable(true);
+                polynomialTextField.setDisable(true);
+                info.setText("");
                 redraw();
-                if (samplePoints.size()>2) {
-                    computePolynomial.setDisable(false);
-                    polynomialTextField.setDisable(false);
-                } else {
-                    computePolynomial.setDisable(true);
-                    polynomialTextField.setDisable(true);
-                }
                 return;
             }
-            sampleDistances.clear();
-            samplePoints.clear();
-            if (p1 == null) {
-                p1 = new Point2D(x, y);
-                sampleDistances.add(dist);
-                samplePoints.add(p1);
-            } else if (p2 == null) {
-                p2 = new Point2D(x, y);
-            } else {
-                p1 = null;
-                p2 = null;
-            }
-            redraw();
-        });
-        canvas.setOnMouseMoved(evt -> {
-            var x = evt.getX();
-            var y = evt.getY();
-            var sb = new StringBuilder();
-            double dist = computeDistanceToSpectralLine(detectedPolynomial, x, y);
-            info.setText(localized("distance.spectral.line") + " " + Math.round(dist));
+
+            // Single click: add a point
+            sampleDistances.add(dist);
+            samplePoints.add(new Point2D(x, y));
             double avgDist = computeAverageDistanceToSpectralLineFromSamples();
-            sb.append("(x=").append(format(x)).append(",y=")
-                .append(format(y)).append(",")
-                .append(localized("distance.spectral.line.short")).append("=")
-                .append(format(dist))
-                .append(",")
-                .append(localized("distance.spectral.line.avg.short")).append("=")
-                .append(format(avgDist)).append(")");
-            if (p1 != null) {
-                redraw();
-                var cur = p2 != null ? p2 : new Point2D(x, y);
-                drawline(graphicsContext, cur);
+            info.setText(localized("average.distance.spectral.line") + " " + Math.round(avgDist));
+            redraw();
+
+            // Enable polynomial computation if we have enough points
+            if (samplePoints.size() > 2) {
+                computePolynomial.setDisable(false);
+                polynomialTextField.setDisable(false);
+            } else {
+                computePolynomial.setDisable(true);
+                polynomialTextField.setDisable(true);
+            }
+        });
+
+        canvas.setOnMouseMoved(evt -> {
+            var canvasX = evt.getX();
+            var canvasY = evt.getY();
+
+            // Convert canvas coordinates to image coordinates
+            double scale = canvas.getWidth() / image.getWidth();
+            var x = canvasX / scale;
+            var y = canvasY / scale;
+
+            // Show cursor position and distance information
+            double dist = computeDistanceToSpectralLine(detectedPolynomial, x, y);
+            double avgDist = computeAverageDistanceToSpectralLineFromSamples();
+            var sb = new StringBuilder("(x=").append(format(x)).append(",y=")
+                    .append(format(y)).append(", ")
+                    .append(localized("distance.spectral.line.short")).append("=")
+                    .append(format(dist))
+                    .append(", ")
+                    .append(localized("distance.spectral.line.avg.short")).append("=")
+                    .append(format(avgDist)).append("). ");
+            if (!samplePoints.isEmpty()) {
+                    sb.append(localized("reset.points.tooltip"));
             }
             info.setText(sb.toString());
         });
@@ -502,8 +566,8 @@ public class SpectralLineDebugger {
 
     private double computeDistanceToSpectralLine(DoubleUnaryOperator detectedPolynomial, double x, double y) {
         var poly = Optional.ofNullable(lockedPolynomial)
-            .or(() -> Optional.ofNullable(detectedPolynomial))
-            .orElse(UNDEFINED_POLY);
+                .or(() -> Optional.ofNullable(detectedPolynomial))
+                .orElse(UNDEFINED_POLY);
         var yy = poly.applyAsDouble(x);
         return y - yy;
     }
@@ -512,21 +576,6 @@ public class SpectralLineDebugger {
         return String.format(Locale.US, "%.1f", value);
     }
 
-    private void drawline(GraphicsContext graphicsContext, Point2D cur) {
-        var color = Color.RED;
-        if (Math.abs(cur.x() - p1.x()) <= EPSILON) {
-            color = Color.ORANGE;
-            if (polynomial != null) {
-                var py = polynomial.applyAsDouble(cur.x());
-                if (Math.abs(py - cur.y()) <= EPSILON) {
-                    color = Color.GREEN;
-                }
-            }
-        }
-        graphicsContext.setStroke(color);
-        graphicsContext.setLineWidth(4);
-        graphicsContext.strokeLine(p1.x(), p1.y(), cur.x(), cur.y());
-    }
 
     private static String localized(String key) {
         return I18N.string(JSolEx.class, "frame-debugger", key);
