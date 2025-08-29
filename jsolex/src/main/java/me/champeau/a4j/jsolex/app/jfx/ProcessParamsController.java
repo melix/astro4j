@@ -478,9 +478,7 @@ public class ProcessParamsController {
         if (fullButton != null && imageSelectionPanel != null) {
             if (imageSelectionPanel.isCustomMode()) {
                 fullButton.setText(I18N.string(JSolEx.class, "process-params", "process"));
-                quickButton.setDisable(true);
             } else {
-                quickButton.setDisable(false);
                 fullButton.setText(I18N.string(JSolEx.class, "process-params", "full.process"));
             }
         }
