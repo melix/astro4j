@@ -34,6 +34,7 @@ import me.champeau.a4j.jsolex.processing.event.ProgressEvent;
 import me.champeau.a4j.jsolex.processing.event.ProgressOperation;
 import me.champeau.a4j.jsolex.processing.event.ReconstructionDoneEvent;
 import me.champeau.a4j.jsolex.processing.event.ScriptExecutionResultEvent;
+import me.champeau.a4j.jsolex.processing.event.SpectralLineDetectedEvent;
 import me.champeau.a4j.jsolex.processing.event.SuggestionEvent;
 import me.champeau.a4j.jsolex.processing.event.TrimmingParametersDeterminedEvent;
 import me.champeau.a4j.jsolex.processing.event.VideoMetadataEvent;
@@ -381,6 +382,7 @@ public class SolexVideoProcessor implements Broadcaster {
                 processParams = processParams.withSpectrumParams(spectrumParams.withRay(bestMatch.line()));
                 var obsDetails = processParams.observationDetails();
                 processParams = processParams.withObservationDetails(obsDetails.withBinning(bestMatch.binning()));
+                broadcast(SpectralLineDetectedEvent.of(bestMatch.line()));
             }
             var heliumLineShift = computeHeliumLineShift();
             var canGenerateHeliumD3Images = heliumLineVisible(pixelShiftRange, heliumLineShift) && processParams.requestedImages().isEnabled(GeneratedImageKind.GEOMETRY_CORRECTED_PROCESSED);
@@ -1744,6 +1746,7 @@ public class SolexVideoProcessor implements Broadcaster {
                 case ScriptExecutionResultEvent e -> listener.onScriptExecutionResult(e);
                 case AverageImageComputedEvent e -> listener.onAverageImageComputed(e);
                 case ReconstructionDoneEvent e -> listener.onReconstructionDone(e);
+                case SpectralLineDetectedEvent e -> listener.onSpectralLineDetected(e);
                 case TrimmingParametersDeterminedEvent e -> listener.onTrimmingParametersDetermined(e);
                 case EllipseFittingRequestEvent e -> listener.onEllipseFittingRequest(e);
             }

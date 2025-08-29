@@ -38,6 +38,7 @@ import me.champeau.a4j.jsolex.processing.event.ProcessingEventListener;
 import me.champeau.a4j.jsolex.processing.event.ProcessingStartEvent;
 import me.champeau.a4j.jsolex.processing.event.ProgressOperation;
 import me.champeau.a4j.jsolex.processing.event.ScriptExecutionResultEvent;
+import me.champeau.a4j.jsolex.processing.event.SpectralLineDetectedEvent;
 import me.champeau.a4j.jsolex.processing.event.TrimmingParametersDeterminedEvent;
 import me.champeau.a4j.jsolex.processing.event.VideoMetadataEvent;
 import me.champeau.a4j.jsolex.processing.expr.BestImages;
@@ -47,6 +48,7 @@ import me.champeau.a4j.jsolex.processing.expr.ImageMathScriptResult;
 import me.champeau.a4j.jsolex.processing.file.FileNamingStrategy;
 import me.champeau.a4j.jsolex.processing.params.AutocropMode;
 import me.champeau.a4j.jsolex.processing.params.ProcessParams;
+import me.champeau.a4j.jsolex.processing.params.SpectralRay;
 import me.champeau.a4j.jsolex.processing.stretching.CutoffStretchingStrategy;
 import me.champeau.a4j.jsolex.processing.stretching.RangeExpansionStrategy;
 import me.champeau.a4j.jsolex.processing.sun.detection.RedshiftArea;
@@ -77,6 +79,7 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -86,6 +89,7 @@ import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import static me.champeau.a4j.jsolex.app.JSolEx.message;
 import static me.champeau.a4j.jsolex.processing.sun.CaptureSoftwareMetadataHelper.computeSerFileBasename;
@@ -110,6 +114,7 @@ public class BatchModeEventListener implements ProcessingEventListener, ImageMat
     private final LocalDateTime processingDate;
     private final AtomicBoolean hasCustomImages = new AtomicBoolean();
     private final ProgressOperation rootOperation;
+    private final Set<SpectralRay> detectedSpectralLines = new HashSet<>();
 
     private final Header referenceHeader;
 
@@ -503,8 +508,23 @@ public class BatchModeEventListener implements ProcessingEventListener, ImageMat
 
     private void executeBatchScriptExpressions(FilteringResult result, ProgressOperation rootOperation) {
         try {
-            var scriptFiles = processParams.combinedImageMathParams().scriptFiles();
-            if (scriptFiles.isEmpty() || result.discarded().size() == totalItems) {
+            var configuredScriptFiles = processParams.combinedImageMathParams().scriptFiles();
+            
+            var automaticScriptFiles = new LinkedHashSet<File>();
+            synchronized (detectedSpectralLines) {
+                for (var detectedLine : detectedSpectralLines) {
+                    for (var scriptPath : detectedLine.automaticScripts()) {
+                        automaticScriptFiles.add(scriptPath.toFile());
+                    }
+                }
+            }
+            
+            var allScriptFiles = Stream.concat(
+                    configuredScriptFiles.stream(),
+                    automaticScriptFiles.stream()
+            ).distinct().toList();
+            
+            if (allScriptFiles.isEmpty() || result.discarded().size() == totalItems) {
                 return;
             }
             var imageEmitter = new NamingStrategyAwareImageEmitter(new RenamingImageEmitter(new DefaultImageEmitter(delegate, rootOperation, outputDirectory), name -> name, name -> name), createNamingStrategy(), sequenceNumber, computeSerFileBasename(item.file()));
@@ -576,7 +596,7 @@ public class BatchModeEventListener implements ProcessingEventListener, ImageMat
             }
             var namingStrategy = createNamingStrategy();
             boolean initial = true;
-            for (File scriptFile : scriptFiles) {
+            for (File scriptFile : allScriptFiles) {
                 if (initial) {
                     owner.prepareForScriptExecution(this, processParams, rootOperation, ImageMathScriptExecutor.SectionKind.BATCH);
                     initial = false;
@@ -636,6 +656,13 @@ public class BatchModeEventListener implements ProcessingEventListener, ImageMat
                 throw new ProcessingException(e);
             }
         });
+    }
+
+    @Override
+    public void onSpectralLineDetected(SpectralLineDetectedEvent e) {
+        synchronized (detectedSpectralLines) {
+            detectedSpectralLines.add(e.getPayload().spectralRay());
+        }
     }
 
     @Override

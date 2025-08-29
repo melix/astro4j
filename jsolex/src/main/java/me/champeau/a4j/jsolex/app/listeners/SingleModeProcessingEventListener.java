@@ -73,6 +73,7 @@ import me.champeau.a4j.jsolex.processing.event.ProgressEvent;
 import me.champeau.a4j.jsolex.processing.event.ProgressOperation;
 import me.champeau.a4j.jsolex.processing.event.ReconstructionDoneEvent;
 import me.champeau.a4j.jsolex.processing.event.ScriptExecutionResultEvent;
+import me.champeau.a4j.jsolex.processing.event.SpectralLineDetectedEvent;
 import me.champeau.a4j.jsolex.processing.event.SuggestionEvent;
 import me.champeau.a4j.jsolex.processing.event.TrimmingParametersDeterminedEvent;
 import me.champeau.a4j.jsolex.processing.event.VideoMetadataEvent;
@@ -1120,6 +1121,8 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
             onAverageImageComputed(e);
         } else if (event instanceof ReconstructionDoneEvent e) {
             onReconstructionDone(e);
+        } else if (event instanceof SpectralLineDetectedEvent e) {
+            onSpectralLineDetected(e);
         }
     }
 

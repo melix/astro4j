@@ -75,4 +75,8 @@ public interface ProcessingEventListener {
     default void onTrimmingParametersDetermined(TrimmingParametersDeterminedEvent e) {
 
     }
+
+    default void onSpectralLineDetected(SpectralLineDetectedEvent e) {
+
+    }
 }

@@ -26,6 +26,7 @@ public abstract sealed class ProcessingEvent<T> permits
         ReconstructionDoneEvent,
         ProcessingStartEvent,
         ProcessingDoneEvent,
+        SpectralLineDetectedEvent,
         SuggestionEvent,
         ProgressEvent,
         GenericMessage,
