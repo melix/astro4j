@@ -308,6 +308,19 @@
     -fx-background-color: #0056b3;
 }
 
+/* Additional field styling */
+.field-unit {
+    -fx-font-size: 12px;
+    -fx-text-fill: #6c757d;
+    -fx-font-style: italic;
+}
+
+.help-text {
+    -fx-font-size: 11px;
+    -fx-text-fill: #6c757d;
+    -fx-font-style: italic;
+}
+
 /* Adjust ListView in embedded editors */
 .embedded-editor .list-view {
     -fx-pref-height: 200;
@@ -673,6 +686,11 @@
     -fx-alignment: center-right;
     -fx-text-alignment: right;
     -fx-padding: 0 6 0 0;
+}
+
+.params-dialog .field-label {
+    -fx-max-width: 400;
+    -fx-pref-width: -1;
 }
 
 .editor-button {

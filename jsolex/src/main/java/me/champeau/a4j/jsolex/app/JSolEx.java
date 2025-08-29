@@ -1109,6 +1109,7 @@ public class JSolEx implements JSolExInterface {
             var controller = (AdvancedParamsController) fxmlLoader.getController();
             controller.setup(stage);
             Scene scene = new Scene(node);
+            scene.getStylesheets().add(JSolEx.class.getResource("components.css").toExternalForm());
             stage.setTitle(I18N.string(JSolEx.class, "advanced-params", "frame.title"));
             stage.setScene(scene);
             stage.showAndWait();

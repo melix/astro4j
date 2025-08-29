@@ -3,10 +3,10 @@
 <?import javafx.geometry.Insets?>
 <?import javafx.scene.control.Button?>
 <?import javafx.scene.control.Label?>
+<?import javafx.scene.control.ScrollPane?>
 <?import javafx.scene.control.Slider?>
 <?import javafx.scene.control.TextField?>
 <?import javafx.scene.control.Tooltip?>
-<?import javafx.scene.layout.AnchorPane?>
 <?import javafx.scene.layout.BorderPane?>
 <?import javafx.scene.layout.ColumnConstraints?>
 <?import javafx.scene.layout.GridPane?>
@@ -14,88 +14,80 @@
 <?import javafx.scene.layout.RowConstraints?>
 <?import javafx.scene.layout.VBox?>
 
-<BorderPane maxHeight="-Infinity" maxWidth="-Infinity" minHeight="-Infinity" minWidth="-Infinity" prefHeight="157.0" prefWidth="594.0" xmlns="http://javafx.com/javafx/19" xmlns:fx="http://javafx.com/fxml/1" fx:controller="me.champeau.a4j.jsolex.app.jfx.AdvancedParamsController">
+<BorderPane prefHeight="300.0" prefWidth="700.0" styleClass="params-dialog" xmlns="http://javafx.com/javafx/19" xmlns:fx="http://javafx.com/fxml/1" fx:controller="me.champeau.a4j.jsolex.app.jfx.AdvancedParamsController">
     <center>
-        <GridPane prefHeight="374.0" prefWidth="408.0" vgap="4.0" BorderPane.alignment="CENTER">
-            <columnConstraints>
-                <ColumnConstraints hgrow="SOMETIMES" maxWidth="307.0" minWidth="10.0" prefWidth="294.0" />
-                <ColumnConstraints hgrow="SOMETIMES" maxWidth="379.0" minWidth="10.0" prefWidth="128.0" />
-            </columnConstraints>
-            <rowConstraints>
-                <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="NEVER" />
-                <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="NEVER" />
-                <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="NEVER" />
-                <RowConstraints />
-                <RowConstraints />
-                <RowConstraints />
-                <RowConstraints />
-            </rowConstraints>
-            <children>
-                <Label text="%watch.mode.wait.time">
-                    <tooltip>
-                        <Tooltip text="%watch.mode.wait.time.tooltip" />
-                    </tooltip>
-                </Label>
-                <HBox alignment="CENTER_LEFT" spacing="4.0" GridPane.columnIndex="1">
-                    <children>
-                        <TextField fx:id="watchModeWaitTimeMillis" prefHeight="24.0" prefWidth="103.0">
+        <ScrollPane styleClass="content-scroll-pane" fitToWidth="true">
+            <VBox styleClass="parameter-panel" spacing="20">
+                <padding>
+                    <Insets top="16" right="16" bottom="16" left="16"/>
+                </padding>
+                
+                <VBox styleClass="panel-section" spacing="12">
+                    <GridPane styleClass="form-grid" hgap="12" vgap="16">
+                        <columnConstraints>
+                            <ColumnConstraints hgrow="SOMETIMES"/>
+                            <ColumnConstraints hgrow="ALWAYS"/>
+                        </columnConstraints>
+                        <rowConstraints>
+                            <RowConstraints/>
+                            <RowConstraints/>
+                            <RowConstraints/>
+                        </rowConstraints>
+                        
+                        <Label text="%watch.mode.wait.time" styleClass="field-label" GridPane.columnIndex="0" GridPane.rowIndex="0">
                             <tooltip>
-                                <Tooltip text="%watch.mode.wait.time.tooltip" />
+                                <Tooltip text="%watch.mode.wait.time.tooltip"/>
                             </tooltip>
-                        </TextField>
-                        <Label text="ms" />
-                    </children>
-                </HBox>
-                <Label text="%memory.restriction" GridPane.rowIndex="1">
-                    <tooltip>
-                        <Tooltip text="%memory.restriction.tooltip" />
-                    </tooltip>
-                </Label>
-                <VBox alignment="CENTER_LEFT" GridPane.columnIndex="1" GridPane.rowIndex="1">
-                    <children>
-                  <VBox>
-                     <children>
-                              <Slider fx:id="memoryRestrictionMultiplier" blockIncrement="1.0" majorTickUnit="8.0"  max="32.0" min="1.0" minorTickCount="1" value="1.0">
-                                  <tooltip>
-                                      <Tooltip text="%memory.restriction.tooltip" />
-                                  </tooltip>
-                              </Slider>
-                        <Label fx:id="memoryRestrictionHelp" alignment="CENTER" text="Label" />
-                     </children>
-                  </VBox>
-                    </children>
+                        </Label>
+                        <HBox alignment="CENTER_LEFT" spacing="8" GridPane.columnIndex="1" GridPane.rowIndex="0">
+                            <TextField fx:id="watchModeWaitTimeMillis" styleClass="text-field">
+                                <tooltip>
+                                    <Tooltip text="%watch.mode.wait.time.tooltip"/>
+                                </tooltip>
+                            </TextField>
+                            <Label text="ms" styleClass="field-unit"/>
+                        </HBox>
+                        
+                        <Label text="%memory.restriction" styleClass="field-label" GridPane.columnIndex="0" GridPane.rowIndex="1">
+                            <tooltip>
+                                <Tooltip text="%memory.restriction.tooltip"/>
+                            </tooltip>
+                        </Label>
+                        <VBox spacing="8" GridPane.columnIndex="1" GridPane.rowIndex="1">
+                            <Slider fx:id="memoryRestrictionMultiplier" blockIncrement="1.0" majorTickUnit="8.0" max="32.0" min="1.0" minorTickCount="1" value="1.0">
+                                <tooltip>
+                                    <Tooltip text="%memory.restriction.tooltip"/>
+                                </tooltip>
+                            </Slider>
+                            <Label fx:id="memoryRestrictionHelp" alignment="CENTER" text="Label" styleClass="help-text"/>
+                        </VBox>
+                        
+                        <Label text="%bass2000.ftp.url" styleClass="field-label" GridPane.columnIndex="0" GridPane.rowIndex="2">
+                            <tooltip>
+                                <Tooltip text="%bass2000.ftp.url.tooltip"/>
+                            </tooltip>
+                        </Label>
+                        <HBox alignment="CENTER_LEFT" spacing="8" GridPane.columnIndex="1" GridPane.rowIndex="2">
+                            <TextField fx:id="bass2000FtpUrl" styleClass="text-field" HBox.hgrow="ALWAYS">
+                                <tooltip>
+                                    <Tooltip text="%bass2000.ftp.url.tooltip"/>
+                                </tooltip>
+                            </TextField>
+                            <Button fx:id="resetFtpUrlButton" styleClass="default-button" mnemonicParsing="false" onAction="#resetFtpUrl" text="%reset">
+                                <tooltip>
+                                    <Tooltip text="%reset.ftp.url.tooltip"/>
+                                </tooltip>
+                            </Button>
+                        </HBox>
+                    </GridPane>
                 </VBox>
-                <Label text="%bass2000.ftp.url" GridPane.rowIndex="2">
-                    <tooltip>
-                        <Tooltip text="%bass2000.ftp.url.tooltip" />
-                    </tooltip>
-                </Label>
-                <HBox alignment="CENTER_LEFT" spacing="4.0" GridPane.columnIndex="1" GridPane.rowIndex="2">
-                    <children>
-                        <TextField fx:id="bass2000FtpUrl" prefWidth="300.0" HBox.hgrow="ALWAYS">
-                            <tooltip>
-                                <Tooltip text="%bass2000.ftp.url.tooltip" />
-                            </tooltip>
-                        </TextField>
-                        <Button fx:id="resetFtpUrlButton" mnemonicParsing="false" onAction="#resetFtpUrl" text="%reset">
-                            <tooltip>
-                                <Tooltip text="%reset.ftp.url.tooltip" />
-                            </tooltip>
-                        </Button>
-                    </children>
-                </HBox>
-            </children>
-            <padding>
-                <Insets bottom="8.0" left="8.0" right="8.0" top="8.0" />
-            </padding>
-        </GridPane>
+            </VBox>
+        </ScrollPane>
     </center>
     <bottom>
-        <AnchorPane prefHeight="37.0" prefWidth="545.0" BorderPane.alignment="CENTER">
-            <children>
-                <Button layoutX="520.0" layoutY="7.0" mnemonicParsing="false" onAction="#close" text="%ok" />
-                <Button layoutX="425.0" layoutY="7.0" mnemonicParsing="false" onAction="#cancel" text="%cancel" />
-            </children>
-        </AnchorPane>
+        <HBox styleClass="editor-button-bar" alignment="CENTER_RIGHT" spacing="8">
+            <Button styleClass="default-button" mnemonicParsing="false" onAction="#cancel" text="%cancel" prefWidth="80"/>
+            <Button styleClass="primary-button" mnemonicParsing="false" onAction="#close" text="%ok" prefWidth="80"/>
+        </HBox>
     </bottom>
 </BorderPane>
