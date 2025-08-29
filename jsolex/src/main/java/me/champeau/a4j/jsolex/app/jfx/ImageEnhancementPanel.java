@@ -22,10 +22,12 @@ import javafx.scene.control.CheckBox;
 import javafx.scene.control.ChoiceBox;
 import javafx.scene.control.Label;
 import javafx.scene.control.TextField;
+import javafx.scene.control.TextFormatter;
 import javafx.scene.control.Tooltip;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
 import javafx.util.StringConverter;
+import javafx.util.converter.IntegerStringConverter;
 import me.champeau.a4j.jsolex.app.JSolEx;
 import me.champeau.a4j.jsolex.processing.params.AutoStretchParams;
 import me.champeau.a4j.jsolex.processing.params.BandingCorrectionParams;
@@ -137,6 +139,16 @@ public class ImageEnhancementPanel extends BaseParameterPanel {
         rlRadius = new TextField("2.5");
         rlSigma = new TextField("2.5");
         rlIterations = new TextField("5");
+        rlIterations.setTextFormatter(new TextFormatter<>(new IntegerStringConverter() {
+            @Override
+            public Integer fromString(String s) {
+                var value = super.fromString(s);
+                if (value != null && value < 1) {
+                    value = 1;
+                }
+                return value;
+            }
+        }));
         
         sharpeningMethod = createChoiceBox();
         sharpeningMethod.setItems(FXCollections.observableArrayList(SharpeningMethod.values()));
@@ -187,7 +199,28 @@ public class ImageEnhancementPanel extends BaseParameterPanel {
         flatFilePath.setEditable(false);
         
         bandingCorrectionPasses = new TextField("1");
+        bandingCorrectionPasses.setTextFormatter(new TextFormatter<>(new IntegerStringConverter() {
+            @Override
+            public Integer fromString(String s) {
+                var value = super.fromString(s);
+                if (value != null && value < 0) {
+                    value = 0;
+                }
+                return value;
+            }
+        }));
+        
         bandingCorrectionWidth = new TextField("32");
+        bandingCorrectionWidth.setTextFormatter(new TextFormatter<>(new IntegerStringConverter() {
+            @Override
+            public Integer fromString(String s) {
+                var value = super.fromString(s);
+                if (value != null && value < 1) {
+                    value = 1;
+                }
+                return value;
+            }
+        }));
         
         jaggingCorrection = new CheckBox(I18N.string(JSolEx.class, "process-params", "jagging.correction"));
         jaggingCorrection.setOnAction(e -> updateParameterVisibility());
@@ -212,6 +245,16 @@ public class ImageEnhancementPanel extends BaseParameterPanel {
         flatLoPercentile = new TextField("0.1");
         flatHiPercentile = new TextField("0.95");
         flatOrder = new TextField("2");
+        flatOrder.setTextFormatter(new TextFormatter<>(new IntegerStringConverter() {
+            @Override
+            public Integer fromString(String s) {
+                var value = super.fromString(s);
+                if (value != null && value < 1) {
+                    value = 1;
+                }
+                return value;
+            }
+        }));
         
         flatModeHelp = new Label(I18N.string(JSolEx.class, "process-params", "flat.mode.help"));
         flatModeHelp.getStyleClass().add("field-description");
