@@ -14,7 +14,7 @@ dependencies {
     implementation("org.openjfx:javafx-plugin:0.1.0")
     implementation("org.nosphere.apache:creadur-rat-gradle:0.8.1")
     implementation("org.graalvm.buildtools:native-gradle-plugin:0.10.6")
-    implementation("org.beryx.jlink:org.beryx.jlink.gradle.plugin:3.1.1")
+    implementation("org.beryx.jlink:org.beryx.jlink.gradle.plugin:3.1.3")
     implementation("org.javamodularity:moduleplugin:1.8.15")
     implementation("com.diffplug.spotless:spotless-plugin-gradle:7.0.4")
     implementation("com.github.vlsi.gradle:license-gather-plugin:1.90")
