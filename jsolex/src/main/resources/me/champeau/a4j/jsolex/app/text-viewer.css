@@ -1,55 +1,96 @@
 .heading-1 {
-    -fx-font-size: 24px;
+    -fx-font-size: 28px;
     -fx-font-weight: bold;
+    -fx-fill: #212529;
+    -fx-padding: 20px 0 12px 0;
+    -fx-border-color: transparent transparent #dee2e6 transparent;
+    -fx-border-width: 0 0 1px 0;
 }
 
 .heading-2 {
-    -fx-font-size: 18px;
+    -fx-font-size: 22px;
     -fx-font-weight: bold;
+    -fx-fill: #495057;
+    -fx-padding: 16px 0 10px 0;
 }
 
 .heading-3 {
-    -fx-font-size: 16px;
+    -fx-font-size: 18px;
     -fx-font-weight: bold;
+    -fx-fill: #495057;
+    -fx-padding: 12px 0 8px 0;
 }
 
 .heading-4 {
-    -fx-font-size: 14px;
+    -fx-font-size: 16px;
     -fx-font-weight: bold;
+    -fx-fill: #6c757d;
+    -fx-padding: 10px 0 6px 0;
 }
 
 .paragraph-text {
-    -fx-padding: 2px 2px 0 0;
+    -fx-padding: 8px 0;
+    -fx-fill: #495057;
+    -fx-font-size: 14px;
+    -fx-line-spacing: 0.2em;
 }
 
 .bold {
     -fx-font-weight: bold;
+    -fx-fill: #212529;
 }
 
 .italic {
     -fx-font-style: italic;
-}
-
-.image {
-    -fx-background-color: lightgray;
+    -fx-fill: #6c757d;
 }
 
 .bullet {
-    -fx-padding: 0 0 0 20px;
+    -fx-padding: 1px 0 1px 24px;
+    -fx-fill: #495057;
 }
 
 .link {
-    -fx-fill: blue;
+    -fx-fill: #007bff;
     -fx-underline: true;
-    -rtfx-underline-color: blue;
+    -rtfx-underline-color: #007bff;
     -fx-cursor: hand;
+    -fx-font-weight: normal;
+}
+
+.link:hover {
+    -fx-fill: #0056b3;
+    -rtfx-underline-color: #0056b3;
 }
 
 .code {
-    -rtfx-background-color: lightgrey;
+    -rtfx-background-color: #f8f9fa;
+    -fx-fill: #e83e8c;
+    -fx-font-family: "Consolas", "Monaco", "Courier New", monospace;
+    -fx-font-size: 13px;
+    -fx-padding: 2px 4px;
+    -fx-background-radius: 3px;
+    -fx-border-color: #dee2e6;
+    -fx-border-width: 1px;
+    -fx-border-radius: 3px;
 }
 
 .image {
-    padding: 5px;
-    max-width: 100%;
+    -fx-padding: 12px 0;
+    -fx-background-radius: 6px;
+    -fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.1), 4, 0, 0, 2);
+}
+
+.image-placeholder {
+    -fx-fill: #007bff;
+    -fx-underline: true;
+    -rtfx-underline-color: #007bff;
+    -fx-cursor: hand;
+    -rtfx-background-color: #e3f2fd;
+    -fx-font-style: italic;
+    -fx-padding: 8px 12px;
+    -fx-background-radius: 6px;
+    -fx-border-color: #bee5eb;
+    -fx-border-width: 1px;
+    -fx-border-radius: 6px;
 }

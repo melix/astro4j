@@ -17,10 +17,17 @@ package me.champeau.a4j.jsolex.app.jfx;
 
 import javafx.application.HostServices;
 import javafx.geometry.Insets;
+import javafx.geometry.Pos;
 import javafx.scene.Scene;
 import javafx.scene.control.Button;
+import javafx.scene.control.Label;
+import javafx.scene.control.ScrollPane;
+import javafx.scene.image.Image;
+import javafx.scene.image.ImageView;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.HBox;
+import javafx.scene.layout.VBox;
+import javafx.scene.text.TextFlow;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
 import me.champeau.a4j.jsolex.app.JSolEx;
@@ -38,23 +45,19 @@ import org.commonmark.node.SoftLineBreak;
 import org.commonmark.node.StrongEmphasis;
 import org.commonmark.node.Text;
 import org.commonmark.parser.Parser;
-import org.fxmisc.flowless.VirtualizedScrollPane;
-import org.fxmisc.richtext.StyleClassedTextArea;
-import org.fxmisc.richtext.model.StyleSpansBuilder;
-import org.fxmisc.richtext.model.TwoDimensional;
 
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Collections;
+
+import java.text.Normalizer;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 
 import static me.champeau.a4j.jsolex.app.JSolEx.message;
 
 public class SimpleMarkdownViewer {
     private final String title;
     private final HostServices hostServices;
+    private ScrollPane scrollPane;
 
     public SimpleMarkdownViewer(String title, HostServices hostServices) {
         this.title = title;
@@ -62,39 +65,43 @@ public class SimpleMarkdownViewer {
     }
 
     public void render(Scene parent, String markdown, Runnable onDismiss) {
-        var styledTextArea = new StyleClassedTextArea();
-        styledTextArea.setWrapText(true);
-        styledTextArea.setEditable(false);
-        styledTextArea.setPadding(new Insets(4));
-
         var parser = Parser.builder().build();
         var document = parser.parse(markdown);
-        var anchorPositions = new HashMap<String, Integer>();
-        var linkPositions = new HashMap<Integer, String>();
+        
+        var contentVBox = new VBox(16);
+        contentVBox.setPadding(new Insets(24, 32, 24, 32));
+        contentVBox.setStyle("-fx-background-color: white;");
+        
+        var anchorMap = new HashMap<String, javafx.scene.Node>();
+        buildMarkdownContent(document, contentVBox, anchorMap);
 
-        applyStyles(document, styledTextArea, anchorPositions, linkPositions);
-
-        // Ensure the text area is scrolled to the top
-        styledTextArea.moveTo(0);
-        styledTextArea.requestFollowCaret();
-
-        configureLinkClicks(styledTextArea, linkPositions, anchorPositions);
-
+        this.scrollPane = new ScrollPane(contentVBox);
+        this.scrollPane.setFitToWidth(true);
+        this.scrollPane.setStyle("-fx-background: white; -fx-background-color: white;");
+        
         var root = new BorderPane();
-        root.setCenter(new VirtualizedScrollPane<>(styledTextArea));
+        root.setCenter(this.scrollPane);
+        
         var closeButton = new Button(message("do.not.show.again"));
+        closeButton.setStyle("-fx-background-color: #007bff; -fx-text-fill: white; " +
+                           "-fx-background-radius: 6px; -fx-border-radius: 6px; " +
+                           "-fx-padding: 8px 16px; -fx-font-size: 13px; " +
+                           "-fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.1), 2, 0, 0, 1);");
         closeButton.setOnAction(unused -> {
             var stage = (Stage) closeButton.getScene().getWindow();
             stage.close();
             onDismiss.run();
         });
-        // add the button centered at the bottom
+        
         var buttonBar = new HBox(closeButton);
-        buttonBar.setPadding(new Insets(4));
-        buttonBar.setAlignment(javafx.geometry.Pos.CENTER);
+        buttonBar.setPadding(new Insets(16, 24, 20, 24));
+        buttonBar.setAlignment(Pos.CENTER);
+        buttonBar.setStyle("-fx-background-color: #f8f9fa; -fx-border-color: #dee2e6; " +
+                         "-fx-border-width: 1px 0 0 0;");
         root.setBottom(buttonBar);
 
-        Scene scene = new Scene(root, 800, 600);
+        var scene = new Scene(root, 850, 650);
+        root.setStyle("-fx-background-color: white;");
 
         scene.getStylesheets().add(JSolEx.class.getResource("text-viewer.css").toExternalForm());
         var stage = new Stage();
@@ -102,204 +109,174 @@ public class SimpleMarkdownViewer {
         stage.setScene(scene);
         stage.initModality(Modality.WINDOW_MODAL);
         stage.initOwner(parent.getWindow());
+        stage.setResizable(true);
         stage.showAndWait();
     }
 
-    private void configureLinkClicks(StyleClassedTextArea styledTextArea, HashMap<Integer, String> linkPositions, HashMap<String, Integer> anchorPositions) {
-        styledTextArea.setOnMouseClicked(event -> {
-            var offset = styledTextArea.getCaretPosition();
-            if (linkPositions.containsKey(offset)) {
-                var link = linkPositions.get(offset);
-                if (link.startsWith("#")) {
-                    var anchor = buildAnchor(link.substring(1));
-                    if (anchorPositions.containsKey(anchor)) {
-                        int position = anchorPositions.get(anchor);
-                        int paragraph = styledTextArea.offsetToPosition(position, TwoDimensional.Bias.Forward).getMajor();
-                        // Ensure the target is at the top of the viewport
-                        styledTextArea.showParagraphAtTop(paragraph);
+    private void buildMarkdownContent(Node document, VBox contentVBox, Map<String, javafx.scene.Node> anchorMap) {
+        document.accept(new AbstractVisitor() {
+            @Override
+            public void visit(Heading heading) {
+                var text = new javafx.scene.text.Text(collectTextContent(heading));
+                text.getStyleClass().add("heading-" + heading.getLevel());
+                var textFlow = new TextFlow(text);
+
+                var anchor = buildAnchor(collectTextContent(heading));
+                anchorMap.put(anchor, textFlow);
+                
+                contentVBox.getChildren().add(textFlow);
+            }
+
+            @Override
+            public void visit(Paragraph paragraph) {
+                var textFlow = new TextFlow();
+                paragraph.accept(new AbstractVisitor() {
+                    @Override
+                    public void visit(org.commonmark.node.Text textNode) {
+                        var text = new javafx.scene.text.Text(textNode.getLiteral());
+                        textFlow.getChildren().add(text);
                     }
-                } else {
-                    hostServices.showDocument(link);
+
+                    @Override
+                    public void visit(StrongEmphasis strongEmphasis) {
+                        var text = new javafx.scene.text.Text(collectTextContent(strongEmphasis));
+                        text.getStyleClass().add("bold");
+                        textFlow.getChildren().add(text);
+                    }
+
+                    @Override
+                    public void visit(Emphasis emphasis) {
+                        var text = new javafx.scene.text.Text(collectTextContent(emphasis));
+                        text.getStyleClass().add("italic");
+                        textFlow.getChildren().add(text);
+                    }
+
+                    @Override
+                    public void visit(Link link) {
+                        var text = new javafx.scene.text.Text(collectTextContent(link));
+                        text.getStyleClass().add("link");
+                        text.setStyle("-fx-cursor: hand;");
+                        text.setOnMouseClicked(event -> {
+                            if (link.getDestination().startsWith("#")) {
+                                var anchor = buildAnchor(link.getDestination().substring(1));
+                                var targetNode = anchorMap.get(anchor);
+                                if (targetNode != null) {
+                                    scrollToNode(targetNode, contentVBox);
+                                }
+                            } else {
+                                hostServices.showDocument(link.getDestination());
+                            }
+                        });
+                        textFlow.getChildren().add(text);
+                    }
+
+                    @Override
+                    public void visit(Code code) {
+                        var text = new javafx.scene.text.Text(code.getLiteral());
+                        text.getStyleClass().add("code");
+                        textFlow.getChildren().add(text);
+                    }
+
+                    @Override
+                    public void visit(org.commonmark.node.Image image) {
+                        var linkedImage = new LinkedImage(image.getDestination(), collectTextContent(image));
+                        var imageNode = linkedImage.createNode();
+                        textFlow.getChildren().add(imageNode);
+                    }
+                });
+                
+                if (!textFlow.getChildren().isEmpty()) {
+                    contentVBox.getChildren().add(textFlow);
                 }
+            }
+
+            @Override
+            public void visit(BulletList bulletList) {
+                var listVBox = new VBox(4);
+                bulletList.accept(new AbstractVisitor() {
+                    @Override
+                    public void visit(ListItem listItem) {
+                        var textFlow = new TextFlow();
+                        var bullet = new javafx.scene.text.Text("• ");
+                        bullet.getStyleClass().add("bullet");
+                        textFlow.getChildren().add(bullet);
+                        
+                        listItem.accept(new AbstractVisitor() {
+                            @Override
+                            public void visit(org.commonmark.node.Text textNode) {
+                                var text = new javafx.scene.text.Text(textNode.getLiteral());
+                                textFlow.getChildren().add(text);
+                            }
+
+                            @Override
+                            public void visit(StrongEmphasis strongEmphasis) {
+                                var text = new javafx.scene.text.Text(collectTextContent(strongEmphasis));
+                                text.getStyleClass().add("bold");
+                                textFlow.getChildren().add(text);
+                            }
+
+                            @Override
+                            public void visit(Emphasis emphasis) {
+                                var text = new javafx.scene.text.Text(collectTextContent(emphasis));
+                                text.getStyleClass().add("italic");
+                                textFlow.getChildren().add(text);
+                            }
+
+                            @Override
+                            public void visit(Link link) {
+                                var text = new javafx.scene.text.Text(collectTextContent(link));
+                                text.getStyleClass().add("link");
+                                text.setStyle("-fx-cursor: hand;");
+                                text.setOnMouseClicked(event -> {
+                                    if (link.getDestination().startsWith("#")) {
+                                        var anchor = buildAnchor(link.getDestination().substring(1));
+                                        var targetNode = anchorMap.get(anchor);
+                                        if (targetNode != null) {
+                                            scrollToNode(targetNode, contentVBox);
+                                        }
+                                    } else {
+                                        hostServices.showDocument(link.getDestination());
+                                    }
+                                });
+                                textFlow.getChildren().add(text);
+                            }
+
+                            @Override
+                            public void visit(Code code) {
+                                var text = new javafx.scene.text.Text(code.getLiteral());
+                                text.getStyleClass().add("code");
+                                textFlow.getChildren().add(text);
+                            }
+                        });
+                        
+                        listVBox.getChildren().add(textFlow);
+                    }
+                });
+                contentVBox.getChildren().add(listVBox);
             }
         });
     }
 
     private static String buildAnchor(String text) {
-        return text.toLowerCase().replace(" ", "-").replaceAll("[()]", "");
+        return Normalizer.normalize(text.toLowerCase(), Normalizer.Form.NFD)
+                .replaceAll("\\p{M}", "")
+                .replaceAll("[^a-z0-9]", "-");
     }
 
-    private void applyStyles(Node document, StyleClassedTextArea styledTextArea, Map<String, Integer> anchorPositions, Map<Integer, String> linkPositions) {
-        StringBuilder markdownText = new StringBuilder();
-        List<StyleRange> styleRanges = new ArrayList<>();
-
-        document.accept(new AbstractVisitor() {
-            int currentOffset = 0;
-
-            @Override
-            public void visit(Heading heading) {
-                int start = markdownText.length();
-                String text = collectTextContent(heading);
-                markdownText.append(text).append("\n\n"); // Add extra newline for spacing
-                int end = markdownText.length();
-                styleRanges.add(new StyleRange(start, end - 1, "heading-" + heading.getLevel()));
-
-                // Store the position of the anchor
-                String anchor = buildAnchor(text);
-                anchorPositions.put(anchor, currentOffset);
-                currentOffset = markdownText.length();
-
-                visitChildren(heading);
-            }
-
-            @Override
-            public void visit(Paragraph paragraph) {
-                paragraph.accept(new AbstractVisitor() {
-                    @Override
-                    public void visit(Text textNode) {
-                        maybeAppendSpace();
-                        markdownText.append(textNode.getLiteral());
-                    }
-
-                    private void maybeAppendSpace() {
-                        if (!markdownText.isEmpty()) {
-                            var pChar = markdownText.charAt(markdownText.length() - 1);
-                            if ((pChar != ' ') && (pChar != '\n')) {
-                                markdownText.append(' ');
-                            }
-                        }
-                    }
-
-                    @Override
-                    public void visit(StrongEmphasis strongEmphasis) {
-                        maybeAppendSpace();
-                        int start = markdownText.length();
-                        String boldText = collectTextContent(strongEmphasis);
-                        markdownText.append(boldText);
-                        int end = markdownText.length();
-                        styleRanges.add(new StyleRange(start, end, "bold"));
-                    }
-
-                    @Override
-                    public void visit(Emphasis emphasis) {
-                        maybeAppendSpace();
-                        int start = markdownText.length();
-                        String italicText = collectTextContent(emphasis);
-                        markdownText.append(italicText);
-                        int end = markdownText.length();
-                        styleRanges.add(new StyleRange(start, end, "italic"));
-                    }
-
-                    @Override
-                    public void visit(Link link) {
-                        maybeAppendSpace();
-                        int start = markdownText.length();
-                        String linkText = collectTextContent(link);
-                        markdownText.append(linkText); // Only append link text, not the Markdown syntax
-                        int end = markdownText.length();
-                        styleRanges.add(new StyleRange(start, end, "link"));
-
-                        // Map the position of the link text to its destination
-                        for (int i = start; i < end; i++) {
-                            linkPositions.put(i, link.getDestination());
-                        }
-                    }
-
-                    @Override
-                    public void visit(Code code) {
-                        maybeAppendSpace();
-                        int start = markdownText.length();
-                        String codeText = code.getLiteral();
-                        markdownText.append(codeText); // Append the code text
-                        int end = markdownText.length();
-                        styleRanges.add(new StyleRange(start, end, "code"));
-                    }
-
-                });
-                markdownText.append("\n\n");
-                visitChildren(paragraph);
-            }
-
-            @Override
-            public void visit(BulletList bulletList) {
-                bulletList.accept(new AbstractVisitor() {
-                    @Override
-                    public void visit(ListItem listItem) {
-                        int start = markdownText.length();
-                        markdownText.append("- "); // Add bullet point
-                        listItem.accept(new AbstractVisitor() {
-                            @Override
-                            public void visit(Text textNode) {
-                                markdownText.append(textNode.getLiteral());
-                            }
-
-                            @Override
-                            public void visit(StrongEmphasis strongEmphasis) {
-                                int start = markdownText.length();
-                                String boldText = collectTextContent(strongEmphasis);
-                                markdownText.append(boldText);
-                                int end = markdownText.length();
-                                styleRanges.add(new StyleRange(start, end, "bold"));
-                                visitChildren(strongEmphasis);
-                            }
-
-                            @Override
-                            public void visit(Emphasis emphasis) {
-                                int start = markdownText.length();
-                                String italicText = collectTextContent(emphasis);
-                                markdownText.append(italicText);
-                                int end = markdownText.length();
-                                styleRanges.add(new StyleRange(start, end, "italic"));
-                                visitChildren(emphasis);
-                            }
-
-                            @Override
-                            public void visit(Link link) {
-                                int start = markdownText.length();
-                                String linkText = collectTextContent(link);
-                                markdownText.append(linkText); // Only append link text, not the Markdown syntax
-                                int end = markdownText.length();
-                                styleRanges.add(new StyleRange(start, end, "link"));
-
-                                // Map the position of the link text to its destination
-                                for (int i = start; i < end; i++) {
-                                    linkPositions.put(i, link.getDestination());
-                                }
-                            }
-
-                            @Override
-                            public void visit(Code code) {
-                                int start = markdownText.length();
-                                String codeText = code.getLiteral();
-                                markdownText.append(codeText); // Append the code text
-                                int end = markdownText.length();
-                                styleRanges.add(new StyleRange(start, end, "code"));
-                            }
-                        });
-                        markdownText.append("\n");
-                    }
-                });
-                markdownText.append("\n\n");
-            }
-        });
-
-        styledTextArea.replaceText(markdownText.toString());
-
-        StyleSpansBuilder<Collection<String>> spansBuilder = new StyleSpansBuilder<>();
-        int lastEnd = 0;
-        for (StyleRange styleRange : styleRanges) {
-            spansBuilder.add(Collections.emptyList(), styleRange.start - lastEnd);
-            spansBuilder.add(Collections.singleton(styleRange.style), styleRange.end - styleRange.start);
-            lastEnd = styleRange.end;
+    private void scrollToNode(javafx.scene.Node targetNode, VBox contentVBox) {
+        var targetBounds = targetNode.getBoundsInParent();
+        var contentHeight = contentVBox.getHeight();
+        var viewportHeight = scrollPane.getViewportBounds().getHeight();
+        
+        if (contentHeight > viewportHeight) {
+            var targetY = targetBounds.getMinY();
+            var scrollRatio = targetY / (contentHeight - viewportHeight);
+            scrollPane.setVvalue(Math.max(0, Math.min(1, scrollRatio)));
         }
-        spansBuilder.add(Collections.emptyList(), markdownText.length() - lastEnd);
-
-        styledTextArea.setStyleSpans(0, spansBuilder.create());
-
     }
 
     private String collectTextContent(Node node) {
-        StringBuilder content = new StringBuilder();
+        var content = new StringBuilder();
         node.accept(new AbstractVisitor() {
             @Override
             public void visit(Text text) {
@@ -315,23 +292,70 @@ public class SimpleMarkdownViewer {
             public void visit(HardLineBreak hardLineBreak) {
                 content.append('\n');
             }
+
+            @Override
+            public void visit(org.commonmark.node.Image image) {
+            }
         });
         return content.toString();
     }
 
-    private record ImageInsertion(int position, String url) {
+    private static class LinkedImage {
+        private final String url;
+        private final String altText;
+        private final Image image;
 
-    }
+        LinkedImage(String url, String altText) {
+            this.url = url;
+            this.altText = altText;
+            this.image = loadImage(url);
+        }
 
-    private static class StyleRange {
-        final int start;
-        final int end;
-        final String style;
+        private Image loadImage(String url) {
+            try {
+                if (url.startsWith("http://") || url.startsWith("https://")) {
+                    return new Image(url, true);
+                } else {
+                    Image image = null;
+                    
+                    var resource = JSolEx.class.getResource(url);
+                    if (resource != null) {
+                        image = new Image(resource.toExternalForm());
+                    }
 
-        StyleRange(int start, int end, String style) {
-            this.start = start;
-            this.end = end;
-            this.style = style;
+                    return image;
+                }
+            } catch (Exception e) {
+                // ignore
+            }
+            return null;
+        }
+
+        public javafx.scene.Node createNode() {
+            if (image != null && !image.isError()) {
+                var imageView = new ImageView(image);
+                imageView.setPreserveRatio(true);
+                imageView.setFitWidth(400);
+                return imageView;
+            } else {
+                var label = new Label("[Image: " + altText + "]");
+                label.setStyle("-fx-background-color: #f0f0f0; -fx-padding: 4px;");
+                return label;
+            }
+        }
+
+        @Override
+        public boolean equals(Object obj) {
+            if (this == obj) return true;
+            if (obj == null || getClass() != obj.getClass()) return false;
+            var that = (LinkedImage) obj;
+            return Objects.equals(url, that.url) && Objects.equals(altText, that.altText);
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(url, altText);
         }
     }
+
 }

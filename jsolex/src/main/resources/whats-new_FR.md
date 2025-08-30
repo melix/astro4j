@@ -70,7 +70,7 @@
 
 ### 3.2.0
 
-- Ajout de la détection de [bombes d'Ellerman](#bombe-d-ellerman)
+- Ajout de la détection de [bombes d'Ellerman](#bombes-d-ellerman)
 - Amélioration des capacités de la fonction `DRAW_TEXT`
 - Ajustement des paramètres par défaut
 - Correction de l'image colorisée qui était trop sombre / tronquée
