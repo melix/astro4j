@@ -77,9 +77,8 @@ public class GeometryPreviewPane extends BorderPane {
         this.originalImage = image;
         if (image != null) {
             Platform.runLater(() -> {
-                statusLabel.setText("");
-                var fxImage = WritableImageSupport.asWritable(image);
-                previewView.setImage(fxImage);
+                statusLabel.setText(I18N.string(JSolEx.class, "assisted-ellipse-fitting", "select.ellipse.to.preview"));
+                previewView.setImage(null);
             });
         }
     }
