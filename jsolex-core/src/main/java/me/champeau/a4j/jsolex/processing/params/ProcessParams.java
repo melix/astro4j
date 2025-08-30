@@ -62,6 +62,7 @@ public record ProcessParams(
                 geometryParams().isAutocorrectAngleP(),
                 geometryParams().rotation(),
                 geometryParams().autocropMode(),
+                geometryParams().fixedWidth().orElse(null),
                 geometryParams().deconvolutionMode(),
                 geometryParams().richardsonLucyDeconvolutionParams().orElse(null),
                 geometryParams().isForcePolynomial(),

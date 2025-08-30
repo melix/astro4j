@@ -212,11 +212,15 @@ public class GeometryCorrector extends AbstractTask<GeometryCorrector.Result> {
                     var cx = center.a();
                     var cy = center.b();
                     if (cx - halfWidth >= 0 && (cy - halfWidth >= 0) && (cx + halfWidth <= targetWidth) && (cy + halfWidth <= targetWidth)) {
-                        yield (ImageWrapper32) cropping.cropToRect(Map.of("img", corrected, "width", targetWidth, "height", targetWidth, "ellipse", circle));
+                        yield (ImageWrapper32) cropping.cropToRect(Map.of("img", corrected, "width", targetWidth, "height", targetWidth));
                     } else {
                         LOGGER.warn(message("destructive.cannot.crop"));
                         yield corrected;
                     }
+                }
+                case FIXED_WIDTH -> {
+                    var fixedWidth = processParams.geometryParams().fixedWidth().orElse(1024);
+                    yield (ImageWrapper32) cropping.cropToRect(Map.of("img", corrected, "width", fixedWidth, "height", fixedWidth));
                 }
                 default -> corrected;
             };

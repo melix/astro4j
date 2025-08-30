@@ -31,35 +31,32 @@ public class InlineGuidance extends VBox {
     public enum GuidanceType {
         TIP, RECOMMENDATION, WARNING, REQUIREMENT
     }
-    
-    private final Label titleLabel;
-    private final Label descriptionLabel;
+
     private final Button actionButton;
-    private final Button dismissButton;
-    
+
     public InlineGuidance(String title, String description, GuidanceType type) {
         getStyleClass().addAll("inline-guidance", "guidance-" + type.name().toLowerCase());
         setSpacing(8);
-        setPadding(new Insets(12, 16, 12, 16));
+        setPadding(new Insets(4, 8, 8, 8));
         
         HBox header = new HBox(8);
         header.setAlignment(Pos.CENTER_LEFT);
         
         Label iconLabel = new Label(getIconForType(type));
         iconLabel.getStyleClass().add("guidance-icon");
-        
-        titleLabel = new Label(title);
+
+        Label titleLabel = new Label(title);
         titleLabel.getStyleClass().add("guidance-title");
         
         Region spacer = new Region();
         HBox.setHgrow(spacer, Priority.ALWAYS);
-        
-        dismissButton = new Button("×");
+
+        Button dismissButton = new Button("×");
         dismissButton.getStyleClass().add("guidance-dismiss");
         dismissButton.setOnAction(e -> dismiss());
         
         header.getChildren().addAll(iconLabel, titleLabel, spacer, dismissButton);
-        descriptionLabel = new Label(description);
+        Label descriptionLabel = new Label(description);
         descriptionLabel.getStyleClass().add("guidance-description");
         descriptionLabel.setWrapText(true);
         actionButton = new Button();

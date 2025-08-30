@@ -130,7 +130,7 @@ public class ObservationDetailsPanel extends BaseParameterPanel {
         aperture.setTooltip(new Tooltip(I18N.string(JSolEx.class, "process-params", "aperture.tooltip")));
         
         stop = new TextField();
-        stop.setPromptText("1000");
+        stop.setPromptText("55");
         stop.setTooltip(new Tooltip(I18N.string(JSolEx.class, "process-params", "stop.tooltip")));
         
         energyRejectionFilter = new TextField();

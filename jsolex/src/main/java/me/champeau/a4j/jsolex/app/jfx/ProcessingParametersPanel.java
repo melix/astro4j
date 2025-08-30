@@ -46,6 +46,9 @@ public class ProcessingParametersPanel extends BaseParameterPanel {
     private Label continuumShiftAngstromLabel;
     private ChoiceBox<RotationKind> rotationChoice;
     private ChoiceBox<AutocropMode> autocropChoice;
+    private TextField fixedWidthField;
+    private InlineGuidance fixedWidthWarning;
+    private Integer sourceWidth;
     private CheckBox horizontalMirrorCheck;
     private CheckBox verticalMirrorCheck;
     private CheckBox autocorrectAnglePCheck;
@@ -113,12 +116,12 @@ public class ProcessingParametersPanel extends BaseParameterPanel {
             }
         });
         
-        horizontalMirrorCheck = createCheckBox(I18N.string(JSolEx.class, "process-params", "horizontal.flip"), I18N.string(JSolEx.class, "process-params", "horizontal.flip"));
-        verticalMirrorCheck = createCheckBox(I18N.string(JSolEx.class, "process-params", "vertical.flip"), I18N.string(JSolEx.class, "process-params", "vertical.flip")); 
-        autocorrectAnglePCheck = createCheckBox(I18N.string(JSolEx.class, "process-params", "autocorrect.p.angle"), I18N.string(JSolEx.class, "process-params", "autocorrect.p.angle.tooltip"));
-        switchRedBlueChannelsCheck = createCheckBox(I18N.string(JSolEx.class, "process-params", "doppler.switch.red.blue.channels"), I18N.string(JSolEx.class, "process-params", "doppler.switch.red.blue.channels.tooltip"));
+        horizontalMirrorCheck = new CheckBox();
+        verticalMirrorCheck = new CheckBox();
+        autocorrectAnglePCheck = new CheckBox();
+        switchRedBlueChannelsCheck = new CheckBox();
         
-        reviewImagesAfterBatch = createCheckBox(I18N.string(JSolEx.class, "process-params", "review.images.after.batch"), I18N.string(JSolEx.class, "process-params", "review.images.after.batch.tooltip"));
+        reviewImagesAfterBatch = new CheckBox();
         
         autocropChoice = createChoiceBox();
         autocropChoice.setItems(FXCollections.observableArrayList(AutocropMode.values()));
@@ -133,8 +136,51 @@ public class ProcessingParametersPanel extends BaseParameterPanel {
                 return AutocropMode.valueOf(string);
             }
         });
+        
+        fixedWidthField = createTextField("1024", I18N.string(JSolEx.class, "process-params", "fixed.width.tooltip"));
+        fixedWidthField.setVisible(false);
+        
+        fixedWidthWarning = InlineGuidance.warning(
+            I18N.string(JSolEx.class, "process-params", "fixed.width.warning.title"),
+            I18N.string(JSolEx.class, "process-params", "fixed.width.warning.message")
+        );
+        fixedWidthWarning.setVisible(false);
+        fixedWidthWarning.setManaged(false);
+        
+        autocropChoice.valueProperty().addListener((obs, oldVal, newVal) -> {
+            boolean showFixedWidth = newVal == AutocropMode.FIXED_WIDTH;
+            fixedWidthField.setVisible(showFixedWidth);
+            fixedWidthField.setManaged(showFixedWidth);
+            updateFixedWidthWarning();
+        });
+        
+        fixedWidthField.textProperty().addListener((obs, oldVal, newVal) -> {
+            updateFixedWidthWarning();
+        });
     }
     
+    private void updateFixedWidthWarning() {
+        if (autocropChoice.getValue() != AutocropMode.FIXED_WIDTH || sourceWidth == null) {
+            fixedWidthWarning.setVisible(false);
+            fixedWidthWarning.setManaged(false);
+            return;
+        }
+        
+        try {
+            int fixedWidth = Integer.parseInt(fixedWidthField.getText());
+            boolean showWarning = fixedWidth > sourceWidth * 1.25;
+            fixedWidthWarning.setVisible(showWarning);
+            fixedWidthWarning.setManaged(showWarning);
+        } catch (NumberFormatException e) {
+            fixedWidthWarning.setVisible(false);
+            fixedWidthWarning.setManaged(false);
+        }
+    }
+    
+    public void setSourceWidth(Integer width) {
+        this.sourceWidth = width;
+        updateFixedWidthWarning();
+    }
     
     private void setupLayout() {
         getStyleClass().add("parameter-panel");
@@ -147,27 +193,28 @@ public class ProcessingParametersPanel extends BaseParameterPanel {
         addGridRow(spectrumGrid, 1, I18N.string(JSolEx.class, "process-params", "pixel.shifting"), createFieldWithAngstromLabel(pixelShiftingField, pixelShiftAngstromLabel), "pixel.shifting.tooltip");
         addGridRow(spectrumGrid, 2, I18N.string(JSolEx.class, "process-params", "doppler.shifting"), createFieldWithAngstromLabel(dopplerShiftingField, dopplerShiftAngstromLabel), "doppler.tooltip");
         addGridRow(spectrumGrid, 3, I18N.string(JSolEx.class, "process-params", "continuum.shift"), createFieldWithAngstromLabel(continuumShiftingField, continuumShiftAngstromLabel), "continuum.shift.desc");
-        addGridRow(spectrumGrid, 4, switchRedBlueChannelsCheck, "doppler.switch.red.blue.channels.tooltip");
+        addGridRow(spectrumGrid, 4, I18N.string(JSolEx.class, "process-params", "doppler.switch.red.blue.channels") + ":", switchRedBlueChannelsCheck, "doppler.switch.red.blue.channels.tooltip");
         
         spectrumSection.getChildren().add(spectrumGrid);
         
         var geometrySection = createSection("geometry.orientation");
         var geometryGrid = createGrid();
         
-        addGridRow(geometryGrid, 0, I18N.string(JSolEx.class, "process-params", "rotation"), rotationChoice);
-        addGridRow(geometryGrid, 1, I18N.string(JSolEx.class, "process-params", "autocrop"), autocropChoice);
-        addGridRow(geometryGrid, 2, autocorrectAnglePCheck, "autocorrect.p.angle.tooltip");
-        addGridRow(geometryGrid, 3, horizontalMirrorCheck);
-        addGridRow(geometryGrid, 4, verticalMirrorCheck);
+        addGridRow(geometryGrid, 0, I18N.string(JSolEx.class, "process-params", "rotation"), rotationChoice, "rotation.tooltip");
+        addGridRow(geometryGrid, 1, I18N.string(JSolEx.class, "process-params", "autocrop"), autocropChoice, "autocrop.tooltip");
+        addGridRow(geometryGrid, 2, I18N.string(JSolEx.class, "process-params", "fixed.width"), fixedWidthField, "fixed.width.tooltip");
+        addGridRow(geometryGrid, 3, I18N.string(JSolEx.class, "process-params", "autocorrect.p.angle") + ":", autocorrectAnglePCheck, "autocorrect.p.angle.tooltip");
+        addGridRow(geometryGrid, 4, I18N.string(JSolEx.class, "process-params", "horizontal.flip") + ":", horizontalMirrorCheck, "horizontal.mirror.tooltip");
+        addGridRow(geometryGrid, 5, I18N.string(JSolEx.class, "process-params", "vertical.flip") + ":", verticalMirrorCheck, "vertical.mirror.tooltip");
         
-        geometrySection.getChildren().add(geometryGrid);
+        geometrySection.getChildren().addAll(geometryGrid, fixedWidthWarning);
         
         getChildren().addAll(spectrumSection, geometrySection);
         
         if (batchMode) {
             var batchSection = createSection("batch.options");
             var batchGrid = createGrid();
-            addGridRow(batchGrid, 0, reviewImagesAfterBatch);
+            addGridRow(batchGrid, 0, I18N.string(JSolEx.class, "process-params", "review.images.after.batch") + ":", reviewImagesAfterBatch, "review.images.after.batch.tooltip");
             batchSection.getChildren().add(batchGrid);
             getChildren().add(batchSection);
         }
@@ -203,6 +250,7 @@ public class ProcessingParametersPanel extends BaseParameterPanel {
         continuumShiftingField.setText("0");
         rotationChoice.setValue(RotationKind.NONE);
         autocropChoice.setValue(AutocropMode.RADIUS_1_2);
+        fixedWidthField.setText("1024");
         horizontalMirrorCheck.setSelected(false);
         verticalMirrorCheck.setSelected(false);
         autocorrectAnglePCheck.setSelected(false);
@@ -230,6 +278,7 @@ public class ProcessingParametersPanel extends BaseParameterPanel {
         
         rotationChoice.setValue(geometry.rotation());
         autocropChoice.setValue(geometry.autocropMode());
+        fixedWidthField.setText(String.valueOf(geometry.fixedWidth().orElse(1024)));
         horizontalMirrorCheck.setSelected(geometry.isHorizontalMirror());
         verticalMirrorCheck.setSelected(geometry.isVerticalMirror());
         autocorrectAnglePCheck.setSelected(geometry.isAutocorrectAngleP());
@@ -275,9 +324,18 @@ public class ProcessingParametersPanel extends BaseParameterPanel {
     
     public GeometryParams getGeometryParams() {
         var defaults = ProcessParams.loadDefaults().geometryParams();
+        Integer fixedWidth = null;
+        if (autocropChoice.getValue() == AutocropMode.FIXED_WIDTH) {
+            try {
+                fixedWidth = Integer.parseInt(fixedWidthField.getText());
+            } catch (NumberFormatException e) {
+                fixedWidth = 1024;
+            }
+        }
         return defaults
             .withRotation(rotationChoice.getValue())
             .withAutocropMode(autocropChoice.getValue())
+            .withFixedWidth(fixedWidth)
             .withHorizontalMirror(horizontalMirrorCheck.isSelected())
             .withVerticalMirror(verticalMirrorCheck.isSelected())
             .withAutocorrectAngleP(autocorrectAnglePCheck.isSelected());
@@ -288,6 +346,12 @@ public class ProcessingParametersPanel extends BaseParameterPanel {
             Double.parseDouble(pixelShiftingField.getText());
             Double.parseDouble(dopplerShiftingField.getText());
             Double.parseDouble(continuumShiftingField.getText());
+            if (autocropChoice.getValue() == AutocropMode.FIXED_WIDTH) {
+                int width = Integer.parseInt(fixedWidthField.getText());
+                if (width <= 0) {
+                    return false;
+                }
+            }
             return wavelengthChoice.getValue() != null;
         } catch (NumberFormatException e) {
             return false;
