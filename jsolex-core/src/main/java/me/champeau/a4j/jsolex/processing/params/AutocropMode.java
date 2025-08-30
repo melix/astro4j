@@ -20,5 +20,6 @@ public enum AutocropMode {
     SOURCE_WIDTH,
     RADIUS_1_1,
     RADIUS_1_2,
-    RADIUS_1_5
+    RADIUS_1_5,
+    FIXED_WIDTH
 }

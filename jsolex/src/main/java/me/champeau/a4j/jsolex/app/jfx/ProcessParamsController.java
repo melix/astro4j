@@ -133,6 +133,9 @@ public class ProcessParamsController {
         imageSelectionPanel = new ImageSelectionPanel();
 
         processingPanel.setController(this);
+        if (header != null) {
+            processingPanel.setSourceWidth(header.geometry().width());
+        }
         enhancementPanel.setController(this);
         observationPanel.setController(this);
         advancedPanel.setController(this);

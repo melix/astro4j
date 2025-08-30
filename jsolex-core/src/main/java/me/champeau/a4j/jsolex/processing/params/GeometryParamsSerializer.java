@@ -46,6 +46,7 @@ class GeometryParamsSerializer implements JsonSerializer<GeometryParams>, JsonDe
         var forcedPolynomial = o.get("forcedPolynomial") != null ? o.get("forcedPolynomial").getAsString() : null;
         var spectrumVFlip = o.get("spectrumVFlip") != null ? o.get("spectrumVFlip").getAsBoolean() : false;
         var ellipseFittingMode = o.get("ellipseFittingMode") != null ? EllipseFittingMode.valueOf(o.get("ellipseFittingMode").getAsString()) : EllipseFittingMode.AUTOMATIC;
+        var fixedWidth = o.get("fixedWidth") != null ? o.get("fixedWidth").getAsInt() : null;
         return new GeometryParams(
             tilt == null ? null : tilt.getAsDouble(),
             ratio == null ? null : ratio.getAsDouble(),
@@ -55,6 +56,7 @@ class GeometryParamsSerializer implements JsonSerializer<GeometryParams>, JsonDe
             autocorrectAngleP,
             scanDirection,
             autocropMode,
+            fixedWidth,
             deconvolutionMode,
             richardsonLucyDeconvolutionParams,
             forcePolynomial,
@@ -83,6 +85,7 @@ class GeometryParamsSerializer implements JsonSerializer<GeometryParams>, JsonDe
         jsonObject.addProperty("autocorrectAngleP", String.valueOf(src.isAutocorrectAngleP()));
         jsonObject.addProperty("rotation", src.rotation().toString());
         jsonObject.addProperty("autocropMode", src.autocropMode().toString());
+        src.fixedWidth().ifPresent(fw -> jsonObject.addProperty("fixedWidth", fw));
         jsonObject.addProperty("deconvolutionMode", src.deconvolutionMode().toString());
         src.richardsonLucyDeconvolutionParams().ifPresent(rl -> {
             var value = new JsonObject();
