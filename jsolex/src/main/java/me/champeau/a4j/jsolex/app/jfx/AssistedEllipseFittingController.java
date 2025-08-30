@@ -97,7 +97,7 @@ public class AssistedEllipseFittingController {
         this.originalImage = image;
         this.initialEllipse = initialEllipse;
         this.currentEllipse = initialEllipse;
-        
+
         Platform.runLater(() -> {
             var fxImage = WritableImageSupport.asWritable(image);
             imageView.setImage(fxImage);
@@ -249,6 +249,7 @@ public class AssistedEllipseFittingController {
                 stage.initOwner(parent);
                 stage.initModality(Modality.APPLICATION_MODAL);
                 var scene = new Scene(root);
+                scene.getStylesheets().add(JSolEx.class.getResource("components.css").toExternalForm());
                 stage.setScene(scene);
                 stage.setResizable(true);
 

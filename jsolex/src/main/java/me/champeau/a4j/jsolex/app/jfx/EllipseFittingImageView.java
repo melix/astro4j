@@ -24,7 +24,7 @@ import me.champeau.a4j.math.regression.Ellipse;
 import java.util.function.Consumer;
 
 public class EllipseFittingImageView extends ZoomableImageView {
-    private final InteractiveEllipseOverlay ellipseOverlay = new InteractiveEllipseOverlay();
+    private final PointBasedEllipseOverlay ellipseOverlay = new PointBasedEllipseOverlay();
 
     public EllipseFittingImageView() {
         super();
