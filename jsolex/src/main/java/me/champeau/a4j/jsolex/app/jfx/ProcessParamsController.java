@@ -18,13 +18,12 @@ package me.champeau.a4j.jsolex.app.jfx;
 import javafx.application.HostServices;
 import javafx.application.Platform;
 import javafx.geometry.Insets;
-import javafx.geometry.Pos;
 import javafx.scene.Node;
 import javafx.scene.control.Alert;
 import javafx.scene.control.Button;
-import javafx.scene.control.ButtonBar;
 import javafx.scene.control.ButtonType;
 import javafx.scene.control.ScrollPane;
+import javafx.scene.control.Tooltip;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
@@ -79,8 +78,7 @@ public class ProcessParamsController {
     private AdvancedParametersPanel advancedPanel;
     private OutputConfigurationPanel outputPanel;
     private ImageSelectionPanel imageSelectionPanel;
-    private Button quickButton;
-    private Button fullButton;
+    private Button processSelectedButton;
 
     public void setup(Stage stage,
                       ProgressOperation progressOperation,
@@ -103,6 +101,7 @@ public class ProcessParamsController {
         setupNavigation();
         setupLayout();
         loadInitialData(serFile, header, metadata, batchMode);
+        updateButtonsVisibility();
 
         if (!navigationSidebar.getNavigationItems().isEmpty()) {
             var firstItem = navigationSidebar.getNavigationItems().getFirst();
@@ -228,9 +227,9 @@ public class ProcessParamsController {
         root.getStyleClass().add("params-dialog");
     }
 
-    private ButtonBar createButtonBar() {
-        var buttonBar = new ButtonBar();
-        buttonBar.setPadding(new Insets(12));
+    private HBox createButtonBar() {
+        var buttonContainer = new HBox();
+        buttonContainer.setPadding(new Insets(12));
 
         var cancelButton = new Button(I18N.string(JSolEx.class, "process-params", "cancel"));
         cancelButton.getStyleClass().add("default-button");
@@ -240,9 +239,9 @@ public class ProcessParamsController {
             processParams = null;
             stage.close();
         });
-        ButtonBar.setButtonData(cancelButton, ButtonBar.ButtonData.CANCEL_CLOSE);
 
-        quickButton = new Button(I18N.string(JSolEx.class, "process-params", "quick.mode"));
+        Button quickButton = new Button(I18N.string(JSolEx.class, "process-params", "quick.mode"));
+        quickButton.setTooltip(new Tooltip(I18N.string(JSolEx.class, "process-params", "quick.mode.tooltip")));
         quickButton.getStyleClass().add("quick-button");
         quickButton.setMinWidth(120);
         quickButton.setPrefWidth(140);
@@ -251,24 +250,37 @@ public class ProcessParamsController {
             process();
         });
 
-        fullButton = new Button(I18N.string(JSolEx.class, "process-params", "full.process"));
-        fullButton.getStyleClass().addAll("primary-button", "full-process-button");
+        Button fullButton = new Button(I18N.string(JSolEx.class, "process-params", "full.process"));
+        fullButton.setTooltip(new Tooltip(I18N.string(JSolEx.class, "process-params", "full.process.tooltip")));
+        fullButton.getStyleClass().addAll("quick-button");
         fullButton.setMinWidth(160);
         fullButton.setPrefWidth(180);
         fullButton.setOnAction(e -> {
-            if (!imageSelectionPanel.isCustomMode()) {
-                imageSelectionPanel.loadFullModeSelection();
-            }
+            imageSelectionPanel.loadFullModeSelection();
             process();
         });
-        ButtonBar.setButtonData(fullButton, ButtonBar.ButtonData.OK_DONE);
 
-        var buttonContainer = new HBox(6);
-        buttonContainer.setAlignment(Pos.CENTER_RIGHT);
-        buttonContainer.getChildren().addAll(cancelButton, quickButton, fullButton);
+        processSelectedButton = new Button(I18N.string(JSolEx.class, "process-params", "process.selected"));
+        processSelectedButton.setTooltip(new Tooltip(I18N.string(JSolEx.class, "process-params", "process.selected.tooltip")));
+        processSelectedButton.getStyleClass().addAll("primary-button", "process-selected-button");
+        processSelectedButton.setMinWidth(160);
+        processSelectedButton.setPrefWidth(180);
+        processSelectedButton.setOnAction(e -> process());
+        processSelectedButton.setVisible(false);
+        processSelectedButton.setManaged(false);
 
-        buttonBar.getButtons().add(buttonContainer);
-        return buttonBar;
+        // Create right container for action buttons  
+        var rightContainer = new HBox(6);
+        rightContainer.getChildren().addAll(quickButton, fullButton, processSelectedButton);
+        
+        // Create spacer that fills all available space
+        var spacer = new HBox();
+        HBox.setHgrow(spacer, Priority.ALWAYS);
+        
+        // Add all elements to main container
+        buttonContainer.getChildren().addAll(cancelButton, spacer, rightContainer);
+        
+        return buttonContainer;
     }
 
     private void onNavigationItemSelected(NavigationSidebar.NavigationItem item) {
@@ -477,13 +489,11 @@ public class ProcessParamsController {
         });
     }
 
-    public void updateFullButtonLabel() {
-        if (fullButton != null && imageSelectionPanel != null) {
-            if (imageSelectionPanel.isCustomMode()) {
-                fullButton.setText(I18N.string(JSolEx.class, "process-params", "process"));
-            } else {
-                fullButton.setText(I18N.string(JSolEx.class, "process-params", "full.process"));
-            }
+    public void updateButtonsVisibility() {
+        if (imageSelectionPanel != null && processSelectedButton != null) {
+            boolean isCustom = imageSelectionPanel.isCustomMode();
+            processSelectedButton.setVisible(isCustom);
+            processSelectedButton.setManaged(isCustom);
         }
     }
     

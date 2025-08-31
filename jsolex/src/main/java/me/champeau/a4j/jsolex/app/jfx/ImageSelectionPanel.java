@@ -283,7 +283,7 @@ public class ImageSelectionPanel extends BaseParameterPanel {
     }
 
     private void updateCurrentModeDisplay() {
-        controller.updateFullButtonLabel();
+        controller.updateButtonsVisibility();
     }
 
     SelectionMode getCurrentMode() {
@@ -439,17 +439,28 @@ public class ImageSelectionPanel extends BaseParameterPanel {
     }
 
     public void loadQuickModeSelection() {
+        var debugWasSelected = debug.isSelected();
         selectAllExceptDebug(false);
         raw.setSelected(true);
         reconstruction.setSelected(true);
         geometryCorrected.setSelected(true);
         geometryCorrectedStretched.setSelected(true);
+        debug.setSelected(debugWasSelected);
+        applyAutomaticScripts.setSelected(false);
+        imageMathParams = ImageMathParams.NONE;
+        updateScriptLabel();
         determineCurrentMode();
         updateCurrentModeDisplay();
     }
 
     public void loadFullModeSelection() {
+        var debugWasSelected = debug.isSelected();
+        var scriptsWereSelected = applyAutomaticScripts.isSelected();
+        var scriptsWereLoaded = imageMathParams;
         selectAllExceptDebug(true);
+        debug.setSelected(debugWasSelected);
+        applyAutomaticScripts.setSelected(scriptsWereSelected);
+        imageMathParams = scriptsWereLoaded;
         determineCurrentMode();
         updateCurrentModeDisplay();
     }
@@ -573,7 +584,9 @@ public class ImageSelectionPanel extends BaseParameterPanel {
     }
 
     public boolean isCustomMode() {
-        return currentMode == SelectionMode.CUSTOM || (imageMathParams != null && !imageMathParams.equals(ImageMathParams.NONE));
+        return currentMode == SelectionMode.CUSTOM || 
+               (imageMathParams != null && !imageMathParams.equals(ImageMathParams.NONE)) ||
+               applyAutomaticScripts.isSelected();
     }
 
     private void updateScriptLabel() {
