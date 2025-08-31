@@ -75,4 +75,8 @@ public class EllipseFittingImageView extends ZoomableImageView {
     public boolean isInInteractiveEllipseMode() {
         return ellipseOverlay.isActive();
     }
+    
+    public void setEllipseOpacity(double opacity) {
+        ellipseOverlay.setOpacity(opacity);
+    }
 }

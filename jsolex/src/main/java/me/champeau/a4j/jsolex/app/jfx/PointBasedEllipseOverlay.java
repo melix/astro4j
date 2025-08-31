@@ -15,11 +15,15 @@
  */
 package me.champeau.a4j.jsolex.app.jfx;
 
+import javafx.animation.Timeline;
+import javafx.animation.KeyFrame;
+import javafx.application.Platform;
 import javafx.geometry.BoundingBox;
 import javafx.geometry.Bounds;
 import javafx.scene.Node;
 import javafx.scene.control.ScrollPane;
 import javafx.scene.image.ImageView;
+import javafx.scene.input.KeyEvent;
 import javafx.scene.input.MouseButton;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.Pane;
@@ -27,11 +31,14 @@ import javafx.scene.paint.Color;
 import javafx.scene.shape.Circle;
 import javafx.scene.shape.Ellipse;
 import javafx.scene.shape.StrokeType;
+import javafx.util.Duration;
 import me.champeau.a4j.math.Point2D;
 import me.champeau.a4j.math.regression.EllipseRegression;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Timer;
+import java.util.TimerTask;
 import java.util.function.Consumer;
 
 import static javafx.scene.input.ScrollEvent.SCROLL;
@@ -61,18 +68,22 @@ public class PointBasedEllipseOverlay {
     private ScrollPane scrollPane;
     private double contentOffsetX = 0;
     private double contentOffsetY = 0;
+    private Timer debounceTimer;
+    private Timeline blinkTimeline;
     
     public PointBasedEllipseOverlay() {
         pointHandles = new ArrayList<>();
         ellipsePoints = new ArrayList<>();
         
         ellipseShape = createEllipseShape(ELLIPSE_COLOR, 2.0);
+        ellipseShape.setOpacity(0.7);
         previewEllipseShape = createEllipseShape(PREVIEW_ELLIPSE_COLOR, 1.0);
         previewEllipseShape.getStrokeDashArray().addAll(5.0, 5.0);
         
         overlayPane = new Pane();
         overlayPane.getChildren().addAll(previewEllipseShape, ellipseShape);
         
+        setupBlinkAnimation();
         setupEventHandlers();
         setVisible(false);
     }
@@ -164,6 +175,7 @@ public class PointBasedEllipseOverlay {
             isDragging = false;
             selectedPointIndex = -1;
             resetPointColors();
+            notifyEllipseChanged();
             ensurePointsAreVisible();
         }
         event.consume();
@@ -199,7 +211,7 @@ public class PointBasedEllipseOverlay {
         overlayPane.getChildren().add(handle);
         
         updateVisualElements();
-        updateEllipse();
+        updateEllipseImmediate();
         ensurePointsAreVisible();
     }
     
@@ -221,7 +233,7 @@ public class PointBasedEllipseOverlay {
         overlayPane.getChildren().remove(handle);
         
         updateVisualElements();
-        updateEllipse();
+        updateEllipseImmediate();
     }
     
     private void updatePoint(int index, double x, double y) {
@@ -231,7 +243,7 @@ public class PointBasedEllipseOverlay {
         
         ellipsePoints.set(index, new Point2D(x, y));
         updateVisualElements();
-        updateEllipse();
+        updateEllipseWithoutNotification();
     }
     
     private Circle createPointHandle() {
@@ -248,6 +260,14 @@ public class PointBasedEllipseOverlay {
         });
         
         return handle;
+    }
+    
+    private void setupBlinkAnimation() {
+        blinkTimeline = new Timeline(
+            new KeyFrame(Duration.millis(800), e -> ellipseShape.setOpacity(0.3)),
+            new KeyFrame(Duration.millis(1600), e -> ellipseShape.setOpacity(0.7))
+        );
+        blinkTimeline.setCycleCount(Timeline.INDEFINITE);
     }
     
     private void updateEllipse() {
@@ -267,6 +287,30 @@ public class PointBasedEllipseOverlay {
             }
         } else {
             // Not enough points for ellipse, show preview if we have points
+            currentEllipse = null;
+            ellipseShape.setVisible(false);
+            updatePreviewEllipse();
+        }
+    }
+    
+    private void updateEllipseImmediate() {
+        updateEllipse();
+    }
+    
+    private void updateEllipseWithoutNotification() {
+        if (ellipsePoints.size() >= 3) {
+            try {
+                var regression = new EllipseRegression(ellipsePoints);
+                currentEllipse = regression.solve();
+                updateEllipseShape(ellipseShape, currentEllipse);
+                previewEllipseShape.setVisible(false);
+                ellipseShape.setVisible(true);
+            } catch (Exception e) {
+                currentEllipse = null;
+                ellipseShape.setVisible(false);
+                updatePreviewEllipse();
+            }
+        } else {
             currentEllipse = null;
             ellipseShape.setVisible(false);
             updatePreviewEllipse();
@@ -487,6 +531,11 @@ public class PointBasedEllipseOverlay {
     
     public void setScrollPane(ScrollPane scrollPane) {
         this.scrollPane = scrollPane;
+    }
+    
+    public void setOpacity(double opacity) {
+        ellipseShape.setOpacity(opacity);
+        previewEllipseShape.setOpacity(opacity);
     }
     
     private void ensurePointsAreVisible() {

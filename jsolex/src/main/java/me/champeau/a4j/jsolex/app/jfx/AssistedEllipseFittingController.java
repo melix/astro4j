@@ -20,6 +20,7 @@ import javafx.fxml.FXML;
 import javafx.scene.Parent;
 import javafx.scene.Scene;
 import javafx.scene.control.Button;
+import javafx.scene.control.Slider;
 import javafx.scene.layout.VBox;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
@@ -54,6 +55,9 @@ public class AssistedEllipseFittingController {
     @FXML
     private Button cancelButton;
     
+    @FXML
+    private Slider opacitySlider;
+    
     private EllipseFittingImageView imageView;
     private GeometryPreviewPane previewPane;
     private Stage stage;
@@ -86,6 +90,12 @@ public class AssistedEllipseFittingController {
         resetButton.setOnAction(_ -> resetEllipse());
         applyButton.setOnAction(_ -> applyEllipse());
         cancelButton.setOnAction(_ -> cancel());
+        
+        opacitySlider.valueProperty().addListener((_, _, newValue) -> {
+            if (imageView != null) {
+                imageView.setEllipseOpacity(newValue.doubleValue());
+            }
+        });
     }
 
     /**
