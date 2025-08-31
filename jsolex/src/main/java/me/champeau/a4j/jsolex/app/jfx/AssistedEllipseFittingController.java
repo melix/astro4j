@@ -130,7 +130,9 @@ public class AssistedEllipseFittingController {
      * Creates a default ellipse at the center of the image
      */
     private void createDefaultEllipse() {
-        if (originalImage == null) return;
+        if (originalImage == null) {
+            return;
+        }
         
         var width = originalImage.width();
         var height = originalImage.height();

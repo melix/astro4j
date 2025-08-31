@@ -1318,7 +1318,11 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
 
             return lineChart;
         };
-        Platform.runLater(() -> profileTab.setContent(profileGraphFactory.get()));
+        if (Platform.isFxApplicationThread()) {
+            profileTab.setContent(profileGraphFactory.get());
+        } else {
+            Platform.runLater(() -> profileTab.setContent(profileGraphFactory.get()));
+        }
 
     }
 
