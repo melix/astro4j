@@ -230,10 +230,17 @@
                 <HBox spacing="10.0" HBox.hgrow="ALWAYS">
                     <AnchorPane prefWidth="200.0" HBox.hgrow="ALWAYS">
                         <children>
-                            <StackPane AnchorPane.rightAnchor="10">
-                                <ProgressBar fx:id="memory" prefWidth="200.0" progress="0.0" blendMode="SOFT_LIGHT"/>
-                                <Label fx:id="memoryLabel" style="-fx-text-fill: #666666"/>
-                            </StackPane>
+                            <HBox spacing="10.0" AnchorPane.rightAnchor="10">
+                                <StackPane>
+                                    <ProgressBar fx:id="memory" prefWidth="200.0" progress="0.0" blendMode="SOFT_LIGHT"/>
+                                    <Label fx:id="memoryLabel" style="-fx-text-fill: #666666"/>
+                                </StackPane>
+                                <Button onAction="#donate" style="-fx-background-color: transparent; -fx-text-fill: red; -fx-font-size: 12px;" text="♥">
+                                    <tooltip>
+                                        <Tooltip text="%donate.tooltip"/>
+                                    </tooltip>
+                                </Button>
+                            </HBox>
                         </children>
                     </AnchorPane>
                 </HBox>
