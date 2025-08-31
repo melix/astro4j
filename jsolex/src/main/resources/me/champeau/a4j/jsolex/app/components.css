@@ -769,7 +769,6 @@
 
 .check-box .mark {
     -fx-background-color: #ffffff;
-    -fx-shape: "M2,6 L6,10 L14,2";
     -fx-scale-shape: true;
 }
 
