@@ -9,48 +9,51 @@
 <?import javafx.scene.layout.HBox?>
 <?import javafx.scene.layout.VBox?>
 
-<BorderPane maxHeight="-Infinity" maxWidth="-Infinity" minHeight="-Infinity" minWidth="-Infinity" 
-            prefHeight="800.0" prefWidth="1200.0" 
-            xmlns="http://javafx.com/javafx/19" xmlns:fx="http://javafx.com/fxml/1" 
+<BorderPane maxHeight="-Infinity" maxWidth="-Infinity" minHeight="-Infinity" minWidth="-Infinity"
+            prefHeight="800.0" prefWidth="1200.0"
+            xmlns="http://javafx.com/javafx/19" xmlns:fx="http://javafx.com/fxml/1"
             fx:controller="me.champeau.a4j.jsolex.app.jfx.AssistedEllipseFittingController">
-   <top>
-      <VBox>
-         <padding>
-            <Insets top="16" right="16" bottom="12" left="16"/>
-         </padding>
-         <Label fx:id="instructionLabel" text="%assisted.ellipse.instructions" wrapText="true" 
-                style="-fx-font-size: 12px; -fx-text-fill: #6c757d;"/>
-      </VBox>
-   </top>
-   <center>
-      <SplitPane fx:id="splitPane" dividerPositions="0.6">
-         <padding>
-            <Insets bottom="8" left="8" right="8" top="8"/>
-         </padding>
-         <VBox fx:id="editContent" spacing="8">
+    <top>
+        <VBox>
             <padding>
-               <Insets top="12" right="8" bottom="12" left="12"/>
+                <Insets top="16" right="16" bottom="12" left="16"/>
             </padding>
-            <Label text="%ellipse.edit" style="-fx-font-size: 14px; -fx-font-weight: bold;"/>
-            <VBox spacing="6">
-               <Label text="%ellipse.opacity" style="-fx-font-size: 12px; -fx-text-fill: #6c757d;"/>
-               <Slider fx:id="opacitySlider" min="0.1" max="1.0" value="0.7" showTickLabels="false" showTickMarks="false" 
-                       snapToTicks="false" styleClass="slider"/>
+            <Label fx:id="instructionLabel" text="%assisted.ellipse.instructions" wrapText="true"
+                   style="-fx-font-size: 12px; -fx-text-fill: #6c757d;"/>
+        </VBox>
+    </top>
+    <center>
+        <SplitPane fx:id="splitPane" dividerPositions="0.6">
+            <padding>
+                <Insets bottom="8" left="8" right="8" top="8"/>
+            </padding>
+            <VBox fx:id="editContent" spacing="8">
+                <padding>
+                    <Insets top="12" right="8" bottom="12" left="12"/>
+                </padding>
+                <Label text="%ellipse.edit" style="-fx-font-size: 14px; -fx-font-weight: bold;"/>
+                <VBox spacing="6">
+                    <Label text="%ellipse.opacity" style="-fx-font-size: 12px; -fx-text-fill: #6c757d;"/>
+                    <Slider fx:id="opacitySlider" max="1.0" value="0.7"
+                            styleClass="slider"/>
+                </VBox>
             </VBox>
-         </VBox>
-         <VBox fx:id="previewContent" spacing="8">
-            <padding>
-               <Insets top="12" right="12" bottom="12" left="8"/>
-            </padding>
-            <Label text="%geometry.preview" style="-fx-font-size: 14px; -fx-font-weight: bold;"/>
-         </VBox>
-      </SplitPane>
-   </center>
-   <bottom>
-      <HBox alignment="CENTER_RIGHT" spacing="10" style="-fx-padding: 16;">
-         <Button fx:id="resetButton" styleClass="default-button" mnemonicParsing="false" text="%reset" prefWidth="120"/>
-         <Button fx:id="cancelButton" styleClass="default-button" mnemonicParsing="false" text="%cancel" prefWidth="120"/>
-         <Button fx:id="applyButton" styleClass="primary-button" mnemonicParsing="false" text="%apply" prefWidth="120"/>
-      </HBox>
-   </bottom>
+            <VBox fx:id="previewContent" spacing="8">
+                <padding>
+                    <Insets top="12" right="12" bottom="12" left="8"/>
+                </padding>
+                <Label text="%geometry.preview" style="-fx-font-size: 14px; -fx-font-weight: bold;"/>
+            </VBox>
+        </SplitPane>
+    </center>
+    <bottom>
+        <HBox alignment="CENTER_RIGHT" spacing="10" style="-fx-padding: 16;">
+            <Button fx:id="resetButton" styleClass="default-button" mnemonicParsing="false" text="%reset"
+                    prefWidth="120"/>
+            <Button fx:id="cancelButton" styleClass="default-button" mnemonicParsing="false" text="%cancel"
+                    prefWidth="120"/>
+            <Button fx:id="applyButton" styleClass="primary-button" mnemonicParsing="false" text="%apply"
+                    prefWidth="120"/>
+        </HBox>
+    </bottom>
 </BorderPane>
