@@ -74,6 +74,7 @@ public class ImageSelectionPanel extends BaseParameterPanel {
 
     private Set<CheckBox> quickModeCheckBoxes;
     private Set<CheckBox> fullModeCheckBoxes;
+    private Set<CheckBox> fullModeOnlyCheckBoxes;
 
     private CheckBox debug;
     private CheckBox applyAutomaticScripts;
@@ -137,6 +138,8 @@ public class ImageSelectionPanel extends BaseParameterPanel {
                 activeRegions,
                 ellermanBombs
         );
+        fullModeOnlyCheckBoxes = new HashSet<>(fullModeCheckBoxes);
+        fullModeOnlyCheckBoxes.removeAll(quickModeCheckBoxes);
 
         debug = createCheckbox("debug.images");
         applyAutomaticScripts = createCheckbox("apply.automatic.scripts");
@@ -274,13 +277,17 @@ public class ImageSelectionPanel extends BaseParameterPanel {
 
     private void addCustomModeListener(CheckBox checkBox) {
         checkBox.selectedProperty().addListener((obs, oldValue, newValue) -> {
-            currentMode = determineCurrentMode();
+            determineCurrentMode();
             updateCurrentModeDisplay();
         });
     }
 
     private void updateCurrentModeDisplay() {
         controller.updateFullButtonLabel();
+    }
+
+    SelectionMode getCurrentMode() {
+        return currentMode;
     }
 
     private List<Double> calculatePixelShiftsForSelectedImages() {
@@ -338,7 +345,7 @@ public class ImageSelectionPanel extends BaseParameterPanel {
         applyAutomaticScripts.setSelected(selected);
 
         if (selected) {
-            currentMode = determineCurrentMode();
+            determineCurrentMode();
             updateCurrentModeDisplay();
         }
     }
@@ -409,8 +416,7 @@ public class ImageSelectionPanel extends BaseParameterPanel {
                         this.imageMathParams = params;
                         updateScriptLabel();
 
-
-                        currentMode = determineCurrentMode();
+                        determineCurrentMode();
                         updateCurrentModeDisplay();
                     }));
         }
@@ -438,13 +444,13 @@ public class ImageSelectionPanel extends BaseParameterPanel {
         reconstruction.setSelected(true);
         geometryCorrected.setSelected(true);
         geometryCorrectedStretched.setSelected(true);
-        currentMode = determineCurrentMode();
+        determineCurrentMode();
         updateCurrentModeDisplay();
     }
 
     public void loadFullModeSelection() {
         selectAllExceptDebug(true);
-        currentMode = determineCurrentMode();
+        determineCurrentMode();
         updateCurrentModeDisplay();
     }
 
@@ -483,7 +489,7 @@ public class ImageSelectionPanel extends BaseParameterPanel {
             updateScriptLabel();
         }
 
-        currentMode = determineCurrentMode();
+        determineCurrentMode();
         updateCurrentModeDisplay();
 
     }
@@ -587,7 +593,7 @@ public class ImageSelectionPanel extends BaseParameterPanel {
     private void clearScripts() {
         imageMathParams = null;
         updateScriptLabel();
-        currentMode = determineCurrentMode();
+        determineCurrentMode();
         updateCurrentModeDisplay();
     }
 
@@ -598,13 +604,13 @@ public class ImageSelectionPanel extends BaseParameterPanel {
 
     private record PixelShifts(List<Double> normalShifts, List<Double> internalShifts) {}
 
-    private SelectionMode determineCurrentMode() {
+    private void determineCurrentMode() {
         if (fullModeCheckBoxes.stream().allMatch(CheckBox::isSelected)) {
-            return SelectionMode.FULL;
-        } else if (quickModeCheckBoxes.stream().allMatch(CheckBox::isSelected)) {
-            return SelectionMode.QUICK;
+            currentMode = SelectionMode.FULL;
+        } else if (quickModeCheckBoxes.stream().allMatch(CheckBox::isSelected) && fullModeOnlyCheckBoxes.stream().noneMatch(CheckBox::isSelected)) {
+            currentMode = SelectionMode.QUICK;
         } else {
-            return SelectionMode.CUSTOM;
+            currentMode = SelectionMode.CUSTOM;
         }
     }
 }
