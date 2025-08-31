@@ -47,6 +47,7 @@ public class ProcessingParametersPanel extends BaseParameterPanel {
     private ChoiceBox<RotationKind> rotationChoice;
     private ChoiceBox<AutocropMode> autocropChoice;
     private TextField fixedWidthField;
+    private Label fixedWidthLabel;
     private InlineGuidance fixedWidthWarning;
     private Integer sourceWidth;
     private CheckBox horizontalMirrorCheck;
@@ -151,6 +152,8 @@ public class ProcessingParametersPanel extends BaseParameterPanel {
             boolean showFixedWidth = newVal == AutocropMode.FIXED_WIDTH;
             fixedWidthField.setVisible(showFixedWidth);
             fixedWidthField.setManaged(showFixedWidth);
+            fixedWidthLabel.setVisible(showFixedWidth);
+            fixedWidthLabel.setManaged(showFixedWidth);
             updateFixedWidthWarning();
         });
         
@@ -202,7 +205,14 @@ public class ProcessingParametersPanel extends BaseParameterPanel {
         
         addGridRow(geometryGrid, 0, I18N.string(JSolEx.class, "process-params", "rotation"), rotationChoice, "rotation.tooltip");
         addGridRow(geometryGrid, 1, I18N.string(JSolEx.class, "process-params", "autocrop"), autocropChoice, "autocrop.tooltip");
-        addGridRow(geometryGrid, 2, I18N.string(JSolEx.class, "process-params", "fixed.width"), fixedWidthField, "fixed.width.tooltip");
+        
+        fixedWidthLabel = new Label(I18N.string(JSolEx.class, "process-params", "fixed.width"));
+        fixedWidthLabel.getStyleClass().add("field-label");
+        fixedWidthLabel.setVisible(false);
+        fixedWidthLabel.setManaged(false);
+        geometryGrid.add(fixedWidthLabel, 0, 2);
+        geometryGrid.add(fixedWidthField, 1, 2);
+        
         addGridRow(geometryGrid, 3, I18N.string(JSolEx.class, "process-params", "autocorrect.p.angle") + ":", autocorrectAnglePCheck, "autocorrect.p.angle.tooltip");
         addGridRow(geometryGrid, 4, I18N.string(JSolEx.class, "process-params", "horizontal.flip") + ":", horizontalMirrorCheck, "horizontal.mirror.tooltip");
         addGridRow(geometryGrid, 5, I18N.string(JSolEx.class, "process-params", "vertical.flip") + ":", verticalMirrorCheck, "vertical.mirror.tooltip");
