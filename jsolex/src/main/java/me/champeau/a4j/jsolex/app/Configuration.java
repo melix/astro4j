@@ -15,6 +15,7 @@
  */
 package me.champeau.a4j.jsolex.app;
 
+import me.champeau.a4j.jsolex.processing.util.FitsUtils;
 import me.champeau.a4j.math.tuples.IntPair;
 
 import java.io.File;
@@ -40,6 +41,8 @@ public class Configuration {
     private static final String AUTO_START_SERVER = "auto.start.server";
     private static final String AUTO_START_SERVER_PORT = "auto.start.server.port";
     private static final String BASS2000_FTP_URL = "bass2000.ftp.url";
+    private static final String PIPP_COMPAT = "pipp.compatibility";
+
     public static final String DEFAULT_SOLAP_URL = "ftp://ftp.obspm.fr/incoming/solap";
 
     private final Preferences prefs;
@@ -49,10 +52,11 @@ public class Configuration {
         prefs = Preferences.userRoot().node(this.getClass().getName());
         String recentFilesString = prefs.get(RECENT_FILES, "");
         this.recentFiles = Arrays.stream(recentFilesString.split(Pattern.quote(File.pathSeparator)))
-            .map(Path::of)
-            .filter(Files::exists)
-            .limit(10)
-            .collect(Collectors.toCollection(java.util.ArrayList::new));
+                .map(Path::of)
+                .filter(Files::exists)
+                .limit(10)
+                .collect(Collectors.toCollection(java.util.ArrayList::new));
+        FitsUtils.setPippCompatibility(isWritePippCompatibleFits());
     }
 
     public static Configuration getInstance() {
@@ -61,7 +65,7 @@ public class Configuration {
 
     public void loadedSerFile(Path path) {
         recentFiles.remove(path);
-        recentFiles.add(0, path);
+        recentFiles.addFirst(path);
         prefs.put(RECENT_FILES, recentFiles.stream().map(Path::toString).limit(10).collect(joining(File.pathSeparator)));
         updateLastOpenDirectory(path.getParent());
     }
@@ -132,6 +136,15 @@ public class Configuration {
         return prefs.getBoolean(AUTO_START_SERVER, false);
     }
 
+    public boolean isWritePippCompatibleFits() {
+        return prefs.getBoolean(PIPP_COMPAT, false);
+    }
+
+    public void setWritePippCompatibleFits(boolean pippCompat) {
+        prefs.putBoolean(PIPP_COMPAT, pippCompat);
+        FitsUtils.setPippCompatibility(pippCompat);
+    }
+
     public void setAutoStartServer(boolean autoStart) {
         prefs.putBoolean(AUTO_START_SERVER, autoStart);
     }
@@ -147,8 +160,8 @@ public class Configuration {
 
     public IntPair getPreferredDimensions() {
         return new IntPair(
-            prefs.getInt(PREFERRED_WIDTH, 1024),
-            prefs.getInt(PREFERRED_HEIGHT, 768)
+                prefs.getInt(PREFERRED_WIDTH, 1024),
+                prefs.getInt(PREFERRED_HEIGHT, 768)
         );
     }
 

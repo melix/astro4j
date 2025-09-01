@@ -500,7 +500,7 @@ public class Bass2000SubmissionController {
                 var lineCenterFileName = baseFileName + ".fits";
                 Files.createDirectories(outputDirectory);
                 var lineCenterFile = outputDirectory.resolve(lineCenterFileName).toFile();
-                FitsUtils.writeFitsFile(generatedBass2000Image, lineCenterFile, findProcessParams());
+                FitsUtils.writeFitsFile(generatedBass2000Image, lineCenterFile, findProcessParams(), false);
                 savedFilePath = lineCenterFile;
 
                 if (generatedOffBandImage != null) {
@@ -515,7 +515,7 @@ public class Bass2000SubmissionController {
                     var offBandFileName = offBandBaseFileName + ".fits";
                     var offBandFile = outputDirectory.resolve(offBandFileName).toFile();
 
-                    FitsUtils.writeFitsFile(generatedOffBandImage, offBandFile, generatedOffBandImage.findMetadata(ProcessParams.class).orElseThrow());
+                    FitsUtils.writeFitsFile(generatedOffBandImage, offBandFile, generatedOffBandImage.findMetadata(ProcessParams.class).orElseThrow(), false);
                     savedOffBandFilePath = offBandFile;
                 }
 

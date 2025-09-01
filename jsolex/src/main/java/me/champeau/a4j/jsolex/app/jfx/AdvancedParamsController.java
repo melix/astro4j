@@ -17,6 +17,7 @@ package me.champeau.a4j.jsolex.app.jfx;
 
 import javafx.fxml.FXML;
 import javafx.scene.control.Button;
+import javafx.scene.control.CheckBox;
 import javafx.scene.control.Label;
 import javafx.scene.control.Slider;
 import javafx.scene.control.TextField;
@@ -43,6 +44,9 @@ public class AdvancedParamsController {
     @FXML
     private Button resetFtpUrlButton;
 
+    @FXML
+    private CheckBox pippCompatibleFits;
+
     private Stage stage;
 
     public void setup(Stage stage) {
@@ -62,6 +66,8 @@ public class AdvancedParamsController {
         watchModeWaitTimeMillis.setText(String.valueOf(initialWaitTime));
         memoryRestrictionMultiplier.setValue(Configuration.getInstance().getMemoryRestrictionMultiplier());
         bass2000FtpUrl.setText(Configuration.getInstance().getBass2000FtpUrl());
+        pippCompatibleFits.setSelected(Configuration.getInstance().isWritePippCompatibleFits());
+        pippCompatibleFits.setOnAction(event -> handlePippCompatibilityChange());
     }
 
     public static String computeMemoryUsageHelpLabel(Number value) {
@@ -77,10 +83,23 @@ public class AdvancedParamsController {
         return I18N.string(JSolEx.class, "advanced-params", "memory.usage.low");
     }
 
+    private void handlePippCompatibilityChange() {
+        if (pippCompatibleFits.isSelected()) {
+            var result = AlertFactory.confirmation(
+                I18N.string(JSolEx.class, "advanced-params", "pipp.compatible.fits.warning")
+            ).showAndWait();
+            
+            if (result.isEmpty() || result.get() != javafx.scene.control.ButtonType.OK) {
+                pippCompatibleFits.setSelected(false);
+            }
+        }
+    }
+
     public void close() {
         Configuration.getInstance().setWatchModeWaitTimeMilis(Integer.parseInt(watchModeWaitTimeMillis.getText()));
         Configuration.getInstance().setMemoryRestrictionMultiplier((int) memoryRestrictionMultiplier.getValue());
         Configuration.getInstance().setBass2000FtpUrl(bass2000FtpUrl.getText());
+        Configuration.getInstance().setWritePippCompatibleFits(pippCompatibleFits.isSelected());
         AlertFactory.info(I18N.string(JSolEx.class, "advanced-params", "must.restart"))
             .showAndWait();
         stage.close();

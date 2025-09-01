@@ -65,12 +65,16 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import static nom.tam.fits.header.ObservationDescription.OBJNAME;
 import static nom.tam.fits.header.extra.MaxImDLExt.*;
 import static nom.tam.fits.header.extra.NOAOExt.CAMERA;
 
 public class FitsUtils {
+
+    private static final AtomicBoolean DEFAULT_PIPP_COMPATIBILITY = new AtomicBoolean(false);
+
     public static final String JSOLEX_HEADER_KEY = "JSOLEX";
     public static final String ELLIPSE_VALUE = "Ellipse";
     public static final String PROCESS_PARAMS_VALUE = "PrParams";
@@ -127,14 +131,24 @@ public class FitsUtils {
 
     private final ProcessParams params;
     private final File destination;
+    private final boolean pippCompat;
 
-    private FitsUtils(ProcessParams params, File destination) {
+    public static void setPippCompatibility(boolean pippCompatibility) {
+        DEFAULT_PIPP_COMPATIBILITY.set(pippCompatibility);
+    }
+
+    private FitsUtils(ProcessParams params, File destination, boolean pippCompat) {
         this.params = params;
         this.destination = destination;
+        this.pippCompat = pippCompat;
     }
 
     public static void writeFitsFile(ImageWrapper image, File destination, ProcessParams params) {
-        new FitsUtils(params, destination).write(image);
+        new FitsUtils(params, destination, DEFAULT_PIPP_COMPATIBILITY.get()).write(image);
+    }
+
+    public static void writeFitsFile(ImageWrapper image, File destination, ProcessParams params, boolean compatibleWithPIPP) {
+        new FitsUtils(params, destination, compatibleWithPIPP).write(image);
     }
 
     public static ImageWrapper readFitsFile(File source) {
@@ -344,7 +358,7 @@ public class FitsUtils {
                     var date = ZonedDateTime.parse((String) binaryTable.get(0, 2));
                     int width = 0;
                     int height = 0;
-                    if (binaryTable.getNCols()>3) {
+                    if (binaryTable.getNCols() > 3) {
                         width = binaryTable.getNumber(0, 3).intValue();
                         height = binaryTable.getNumber(0, 4).intValue();
                     }
@@ -461,7 +475,7 @@ public class FitsUtils {
         }
     }
 
-    private static void writeMetadata(ImageWrapper image, Fits fits) throws FitsException, IOException {
+    private void writeMetadata(ImageWrapper image, Fits fits) throws FitsException, IOException {
         if (!image.metadata().isEmpty()) {
             writeEllipse(image, fits);
             writeProcessParams(image, fits);
@@ -702,6 +716,9 @@ public class FitsUtils {
         }
         header.addValue(Standard.BSCALE, 1);
         header.addValue(Standard.BZERO, 32768);
+        if (pippCompat) {
+            return;
+        }
         header.addValue(Standard.OBJECT, "Sun");
         header.addValue(OBJNAME, "Sun");
         var obs = params.observationDetails();
