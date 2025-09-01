@@ -236,8 +236,17 @@ public class Bass2000SubmissionController {
         this.mainController = mainController;
         this.scaling = new Scaling(Map.of(), Broadcaster.NO_OP, new Crop(Map.of(), Broadcaster.NO_OP));
         this.outputDirectory = outputDirectory;
+        
+        Platform.runLater(this::initializeStyles);
+        
         initializeWizard();
         loadUserImage();
+    }
+
+    private void initializeStyles() {
+        if (stage != null && stage.getScene() != null) {
+            stage.getScene().getStylesheets().add(JSolEx.class.getResource("components.css").toExternalForm());
+        }
     }
 
 
@@ -725,7 +734,7 @@ public class Bass2000SubmissionController {
         var blinkDurationLabel = new Label(message("blink.duration"));
         blinkDurationLabel.setStyle("-fx-font-weight: bold;");
         var fullscreenButton = new Button("🔍 Fullscreen");
-        fullscreenButton.setStyle("-fx-background-color: #4CAF50; -fx-text-fill: white; -fx-font-size: 11px;");
+        fullscreenButton.getStyleClass().add("custom-button");
         fullscreenButton.setOnAction(e -> openFullscreenBlink());
 
         angleAdjustmentBox.getChildren().addAll(angleLabel, angleSlider, blinkDurationLabel, blinkDurationSlider, fullscreenButton);
@@ -737,20 +746,26 @@ public class Bass2000SubmissionController {
         controlsLabel.setStyle("-fx-font-weight: bold;");
 
         var horizontalFlipButton = new Button("⇄ " + message("orientation.button.horizontal.flip"));
+        horizontalFlipButton.getStyleClass().add("default-button");
         horizontalFlipButton.setOnAction(e -> applyHorizontalFlip());
 
         var verticalFlipButton = new Button("⇅ " + message("orientation.button.vertical.flip"));
+        verticalFlipButton.getStyleClass().add("default-button");
         verticalFlipButton.setOnAction(e -> applyVerticalFlip());
 
         var rotateLeftButton = new Button("↶ " + message("orientation.button.rotate.left"));
+        rotateLeftButton.getStyleClass().add("default-button");
         rotateLeftButton.setOnAction(e -> applyRotation(-90));
 
         var rotateRightButton = new Button("↷ " + message("orientation.button.rotate.right"));
+        rotateRightButton.getStyleClass().add("default-button");
         rotateRightButton.setOnAction(e -> applyRotation(90));
 
         var resetButton = new Button(message("orientation.button.reset"));
+        resetButton.getStyleClass().add("default-button");
 
         var blinkButton = new Button("👁 Blink");
+        blinkButton.getStyleClass().add("custom-button");
         blinkButton.setOnAction(e -> toggleBlinkMode());
 
         resetButton.setOnAction(e -> {
@@ -811,6 +826,7 @@ public class Bass2000SubmissionController {
 
     private GridPane createForm() {
         var formGrid = new GridPane();
+        formGrid.getStyleClass().add("form-grid");
         formGrid.setHgap(15);
         formGrid.setVgap(8);
         formGrid.setStyle("-fx-padding: 5;");
@@ -819,13 +835,49 @@ public class Bass2000SubmissionController {
 
         addSectionHeader(formGrid, message("observer.section.title"), row++);
 
-        observerNameField = new TextField();
-        observerNameField.setPromptText(message("observer.name.prompt"));
-        addFormField(formGrid, message("observer.name.label"), observerNameField, 0, row, true);
+        wavelengthField = new ChoiceBox<>();
+        wavelengthField.getItems().addAll(ACCEPTED_SPECTRAL_RAYS.keySet());
+        addFormField(formGrid, message("instrument.wavelength.label"), wavelengthField, 0, row++, true);
 
+        var nameEmailContainer = new HBox(15);
+        
+        var nameContainer = new VBox(3);
+        var nameLabel = new Label(message("observer.name.label"));
+        nameLabel.getStyleClass().add("field-label");
+        nameLabel.setStyle("-fx-font-weight: bold;");
+        observerNameField = new TextField();
+        observerNameField.getStyleClass().add("text-field");
+        observerNameField.setPromptText(message("observer.name.prompt"));
+        observerNameField.setPrefWidth(300);
+        requiredFields.add(observerNameField);
+        observerNameField.textProperty().addListener((observable, oldValue, newValue) -> {
+            var isValid = isFieldValid(observerNameField);
+            updateFieldValidationStyle(observerNameField, isValid);
+            validateForm();
+        });
+        nameContainer.getChildren().addAll(nameLabel, observerNameField);
+        
+        var emailContainer = new VBox(3);
+        var emailLabel = new Label(message("observer.email.label"));
+        emailLabel.getStyleClass().add("field-label");
+        emailLabel.setStyle("-fx-font-weight: bold;");
         observerEmailField = new TextField();
+        observerEmailField.getStyleClass().add("text-field");
         observerEmailField.setPromptText(message("observer.email.prompt"));
-        addFormField(formGrid, message("observer.email.label"), observerEmailField, 1, row++, true);
+        observerEmailField.setPrefWidth(300);
+        requiredFields.add(observerEmailField);
+        observerEmailField.textProperty().addListener((observable, oldValue, newValue) -> {
+            var isValid = isFieldValid(observerEmailField);
+            updateFieldValidationStyle(observerEmailField, isValid);
+            validateForm();
+        });
+        emailContainer.getChildren().addAll(emailLabel, observerEmailField);
+        
+        nameEmailContainer.getChildren().addAll(nameContainer, emailContainer);
+        HBox.setHgrow(nameContainer, Priority.ALWAYS);
+        HBox.setHgrow(emailContainer, Priority.ALWAYS);
+        
+        formGrid.add(nameEmailContainer, 0, row++, 3, 1);
 
         siteLatitudeField = new TextField();
         siteLatitudeField.setPromptText(message("site.latitude.prompt"));
@@ -833,11 +885,13 @@ public class Bass2000SubmissionController {
 
         siteLongitudeField = new TextField();
         siteLongitudeField.setPromptText(message("site.longitude.prompt"));
-        addFormField(formGrid, message("site.longitude.label"), siteLongitudeField, 1, row++, true);
+        addFormField(formGrid, message("site.longitude.label"), siteLongitudeField, 1, row, true);
 
-        wavelengthField = new ChoiceBox<>();
-        wavelengthField.getItems().addAll(ACCEPTED_SPECTRAL_RAYS.keySet());
-        addFormField(formGrid, message("instrument.wavelength.label"), wavelengthField, 0, row++, true);
+        var decimalHint = new Label(message("site.coordinates.decimal.hint"));
+        decimalHint.setWrapText(true);
+        
+        formGrid.add(decimalHint, 2, row);
+        row++;
 
         addSectionHeader(formGrid, message("instrument.section.title"), row++);
 
@@ -927,6 +981,7 @@ public class Bass2000SubmissionController {
 
     private void addSectionHeader(GridPane grid, String title, int row) {
         var headerLabel = new Label(title);
+        headerLabel.getStyleClass().add("panel-section-title");
         headerLabel.setStyle("-fx-font-weight: bold; -fx-font-size: 14px; -fx-text-fill: #333; -fx-padding: 8 0 3 0;");
         grid.add(headerLabel, 0, row, 3, 1);
     }
@@ -935,6 +990,7 @@ public class Bass2000SubmissionController {
         var fieldContainer = new VBox(3);
 
         var label = new Label(labelText);
+        label.getStyleClass().add("field-label");
         if (required) {
             label.setStyle("-fx-font-weight: bold;");
         }
@@ -943,6 +999,7 @@ public class Bass2000SubmissionController {
             region.setMaxWidth(Double.MAX_VALUE);
         }
         if (field instanceof TextField textField) {
+            textField.getStyleClass().add("text-field");
             textField.setPrefWidth(180);
 
             if (required) {
@@ -954,28 +1011,38 @@ public class Bass2000SubmissionController {
                 });
             }
         }
-        if (field instanceof CheckBox checkBox && required) {
-            requiredCheckboxes.add(checkBox);
-            checkBox.selectedProperty().addListener((observable, oldValue, newValue) -> {
-                var isValid = checkBox.isSelected();
-                updateFieldValidationStyle(checkBox, isValid);
-                validateForm();
-            });
+        if (field instanceof CheckBox checkBox) {
+            checkBox.getStyleClass().add("check-box");
+            if (required) {
+                requiredCheckboxes.add(checkBox);
+                checkBox.selectedProperty().addListener((observable, oldValue, newValue) -> {
+                    var isValid = checkBox.isSelected();
+                    updateFieldValidationStyle(checkBox, isValid);
+                    validateForm();
+                });
+            }
         }
-        if (field instanceof ComboBox<?> comboBox && required) {
-            @SuppressWarnings("unchecked")
-            var stringComboBox = (ComboBox<String>) comboBox;
-            requiredComboBoxes.add(stringComboBox);
-            stringComboBox.valueProperty().addListener((observable, oldValue, newValue) -> {
-                var isValid = stringComboBox.getValue() != null;
-                updateFieldValidationStyle(stringComboBox, isValid);
-                validateForm();
-            });
+        if (field instanceof ComboBox<?> comboBox) {
+            comboBox.getStyleClass().add("choice-box");
+            if (required) {
+                @SuppressWarnings("unchecked")
+                var stringComboBox = (ComboBox<String>) comboBox;
+                requiredComboBoxes.add(stringComboBox);
+                stringComboBox.valueProperty().addListener((observable, oldValue, newValue) -> {
+                    var isValid = stringComboBox.getValue() != null;
+                    updateFieldValidationStyle(stringComboBox, isValid);
+                    validateForm();
+                });
+            }
+        }
+        if (field instanceof ChoiceBox<?> choiceBox) {
+            choiceBox.getStyleClass().add("choice-box");
         }
 
         fieldContainer.getChildren().addAll(label, field);
         grid.add(fieldContainer, column, row);
     }
+
 
     private ProcessParams findProcessParams() {
         return generatedBass2000Image.findMetadata(ProcessParams.class).orElse(null);
@@ -1217,6 +1284,7 @@ public class Bass2000SubmissionController {
         lineCenterLabel.setStyle("-fx-font-weight: bold;");
 
         lineCenterFilenameField = new TextField();
+        lineCenterFilenameField.getStyleClass().add("text-field");
         lineCenterFilenameField.setPromptText(message("filename.linecenter.prompt"));
         lineCenterFilenameField.setPrefWidth(600);
 
@@ -1237,6 +1305,7 @@ public class Bass2000SubmissionController {
         offBandLabel.setStyle("-fx-font-weight: bold;");
 
         offBandFilenameField = new TextField();
+        offBandFilenameField.getStyleClass().add("text-field");
         offBandFilenameField.setPromptText(message("filename.offband.prompt"));
         offBandFilenameField.setPrefWidth(600);
 
@@ -1322,6 +1391,7 @@ public class Bass2000SubmissionController {
         container.setStyle("-fx-alignment: center;");
 
         var checkbox = new CheckBox(title);
+        checkbox.getStyleClass().add("check-box");
         checkbox.setSelected(true);
 
         var imageView = new ImageView();
@@ -1383,7 +1453,8 @@ public class Bass2000SubmissionController {
         uploadInfoLabel.setWrapText(true);
 
         var uploadButton = new Button(message("upload.button.upload"));
-        uploadButton.setStyle("-fx-background-color: #2196F3; -fx-text-fill: white; -fx-font-weight: bold; -fx-pref-width: 200;");
+        uploadButton.getStyleClass().add("primary-button");
+        uploadButton.setPrefWidth(200);
         uploadButton.setOnAction(e -> uploadToBass2000());
 
         var uploadButtonContainer = new HBox();
@@ -2049,6 +2120,7 @@ public class Bass2000SubmissionController {
         root.getChildren().addAll(centeringPane, controlsPanel);
 
         var scene = new Scene(root);
+        scene.getStylesheets().add(JSolEx.class.getResource("components.css").toExternalForm());
         fullscreenStage.setScene(scene);
 
         fullscreenStage.setOnCloseRequest(e -> {
@@ -2079,33 +2151,34 @@ public class Bass2000SubmissionController {
         controlsPanel.setStyle("-fx-alignment: center; -fx-padding: 10; -fx-background-color: #333;");
 
         var closeButton = new Button("✕ Close Fullscreen");
-        closeButton.setStyle("-fx-background-color: #666; -fx-text-fill: white;");
+        closeButton.getStyleClass().add("dark-close-button");
         closeButton.setOnAction(e -> closeFullscreenBlink());
 
         var horizontalFlipButton = new Button("⇄ Horizontal Flip");
-        horizontalFlipButton.setStyle("-fx-background-color: #666; -fx-text-fill: white;");
+        horizontalFlipButton.getStyleClass().add("dark-button");
         horizontalFlipButton.setOnAction(e -> applyHorizontalFlip());
 
         var verticalFlipButton = new Button("⇅ Vertical Flip");
-        verticalFlipButton.setStyle("-fx-background-color: #666; -fx-text-fill: white;");
+        verticalFlipButton.getStyleClass().add("dark-button");
         verticalFlipButton.setOnAction(e -> applyVerticalFlip());
 
         var rotateLeftButton = new Button("↶ Rotate Left");
-        rotateLeftButton.setStyle("-fx-background-color: #666; -fx-text-fill: white;");
+        rotateLeftButton.getStyleClass().add("dark-button");
         rotateLeftButton.setOnAction(e -> applyRotation(-90));
 
         var rotateRightButton = new Button("↷ Rotate Right");
-        rotateRightButton.setStyle("-fx-background-color: #666; -fx-text-fill: white;");
+        rotateRightButton.getStyleClass().add("dark-button");
         rotateRightButton.setOnAction(e -> applyRotation(90));
 
         var resetButton = new Button("Reset");
-        resetButton.setStyle("-fx-background-color: #666; -fx-text-fill: white;");
+        resetButton.getStyleClass().add("dark-button");
         resetButton.setOnAction(e -> resetTransformations());
 
         var angleLabel = new Label("Fine Tilt Adjust:");
         angleLabel.setStyle("-fx-text-fill: white; -fx-font-weight: bold;");
 
         var angleSlider = new Slider(-2.0, 2.0, angleAdjustment);
+        angleSlider.getStyleClass().add("dark-slider");
         angleSlider.setShowTickLabels(true);
         angleSlider.setShowTickMarks(true);
         angleSlider.setMajorTickUnit(1.0);
@@ -2120,6 +2193,7 @@ public class Bass2000SubmissionController {
         blinkLabel.setStyle("-fx-text-fill: white; -fx-font-weight: bold;");
 
         var blinkSlider = new Slider(500.0, 5000.0, blinkDurationMs);
+        blinkSlider.getStyleClass().add("dark-slider");
         blinkSlider.setShowTickLabels(true);
         blinkSlider.setShowTickMarks(true);
         blinkSlider.setMajorTickUnit(1000.0);

@@ -1070,3 +1070,59 @@
     -fx-font-size: 12px;
     -fx-font-family: "Consolas", "Monaco", "monospace";
 }
+
+/* Dark theme buttons for fullscreen mode */
+.dark-button {
+    -fx-background-color: #495057;
+    -fx-text-fill: white;
+    -fx-background-radius: 6;
+    -fx-border-radius: 6;
+    -fx-padding: 4 8;
+    -fx-font-weight: 500;
+    -fx-cursor: hand;
+    -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.3), 3, 0, 0, 1);
+}
+
+.dark-button:hover {
+    -fx-background-color: #6c757d;
+}
+
+.dark-close-button {
+    -fx-background-color: #dc3545;
+    -fx-text-fill: white;
+    -fx-background-radius: 6;
+    -fx-border-radius: 6;
+    -fx-padding: 4 8;
+    -fx-font-weight: 500;
+    -fx-cursor: hand;
+    -fx-effect: dropshadow(gaussian, rgba(220,53,69,0.3), 3, 0, 0, 1);
+}
+
+.dark-close-button:hover {
+    -fx-background-color: #c82333;
+}
+
+/* Dark theme sliders for fullscreen mode */
+.dark-slider {
+    -fx-background-color: transparent;
+}
+
+.dark-slider .track {
+    -fx-background-color: #6c757d;
+    -fx-background-radius: 4;
+    -fx-pref-height: 4;
+}
+
+.dark-slider .thumb {
+    -fx-background-color: #fff;
+    -fx-background-radius: 8;
+    -fx-min-width: 16;
+    -fx-pref-width: 16;
+    -fx-min-height: 16;
+    -fx-pref-height: 16;
+    -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.3), 4, 0, 0, 1);
+}
+
+.dark-slider:focused .thumb {
+    -fx-background-color: #f8f9fa;
+}
