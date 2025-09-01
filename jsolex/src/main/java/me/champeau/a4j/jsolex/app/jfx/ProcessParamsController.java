@@ -246,8 +246,10 @@ public class ProcessParamsController {
         quickButton.setMinWidth(120);
         quickButton.setPrefWidth(140);
         quickButton.setOnAction(e -> {
-            imageSelectionPanel.loadQuickModeSelection();
-            process();
+            if (showCustomModeWarning("quick.mode.warning.header", "quick.mode.warning.content")) {
+                imageSelectionPanel.loadQuickModeSelection();
+                process();
+            }
         });
 
         Button fullButton = new Button(I18N.string(JSolEx.class, "process-params", "full.process"));
@@ -256,8 +258,10 @@ public class ProcessParamsController {
         fullButton.setMinWidth(160);
         fullButton.setPrefWidth(180);
         fullButton.setOnAction(e -> {
-            imageSelectionPanel.loadFullModeSelection();
-            process();
+            if (showCustomModeWarning("full.process.warning.header", "full.process.warning.content")) {
+                imageSelectionPanel.loadFullModeSelection();
+                process();
+            }
         });
 
         processSelectedButton = new Button(I18N.string(JSolEx.class, "process-params", "process.selected"));
@@ -487,6 +491,33 @@ public class ProcessParamsController {
                 p.close();
             }
         });
+    }
+
+    private boolean showCustomModeWarning(String headerKey, String baseContentKey) {
+        if (!imageSelectionPanel.isCustomMode()) {
+            return true;
+        }
+        
+        boolean hasSelection = imageSelectionPanel.hasCustomImageSelection();
+        boolean hasScripts = imageSelectionPanel.hasCustomScripts() || imageSelectionPanel.hasAutomaticScripts();
+        
+        String contentKey;
+        if (hasSelection && hasScripts) {
+            contentKey = baseContentKey + ".selection.scripts";
+        } else if (hasSelection) {
+            contentKey = baseContentKey + ".selection";
+        } else if (hasScripts) {
+            contentKey = baseContentKey + ".scripts";
+        } else {
+            contentKey = baseContentKey;
+        }
+        
+        var alert = new Alert(Alert.AlertType.CONFIRMATION);
+        alert.initOwner(stage);
+        alert.setTitle(I18N.string(JSolEx.class, "process-params", headerKey));
+        alert.setContentText(I18N.string(JSolEx.class, "process-params", contentKey));
+        var result = alert.showAndWait();
+        return result.isPresent() && result.get() != ButtonType.CANCEL;
     }
 
     public void updateButtonsVisibility() {

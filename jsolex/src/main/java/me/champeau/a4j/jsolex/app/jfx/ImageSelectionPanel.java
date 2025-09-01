@@ -589,6 +589,18 @@ public class ImageSelectionPanel extends BaseParameterPanel {
                applyAutomaticScripts.isSelected();
     }
 
+    public boolean hasCustomImageSelection() {
+        return currentMode == SelectionMode.CUSTOM;
+    }
+
+    public boolean hasCustomScripts() {
+        return imageMathParams != null && !imageMathParams.equals(ImageMathParams.NONE);
+    }
+
+    public boolean hasAutomaticScripts() {
+        return applyAutomaticScripts.isSelected();
+    }
+
     private void updateScriptLabel() {
         if (imageMathParams != null && !imageMathParams.equals(ImageMathParams.NONE)) {
             var files = imageMathParams.scriptFiles();
