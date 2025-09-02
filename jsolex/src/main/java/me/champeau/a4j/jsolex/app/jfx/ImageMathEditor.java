@@ -44,6 +44,8 @@ import java.util.Optional;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
 
+import static me.champeau.a4j.jsolex.app.JSolEx.newScene;
+
 public class ImageMathEditor {
     private static final ButtonType PROCEED = new ButtonType(I18N.string(JSolEx.class, "imagemath-editor", "proceed.anyway"));
     private static final ButtonType BACK = new ButtonType(I18N.string(JSolEx.class, "imagemath-editor", "back"));
@@ -91,8 +93,7 @@ public class ImageMathEditor {
                 controller.fileList.setVisible(false);
             }
             onCreate.accept(controller);
-            Scene scene = new Scene(node);
-            scene.getStylesheets().add(JSolEx.class.getResource("components.css").toExternalForm());
+            Scene scene = newScene(node);
             scene.getStylesheets().add(JSolEx.class.getResource("syntax.css").toExternalForm());
             var currentScene = stage.getScene();
             var onCloseRequest = stage.getOnCloseRequest();

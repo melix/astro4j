@@ -45,6 +45,8 @@ import java.util.Optional;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
 
+import static me.champeau.a4j.jsolex.app.JSolEx.newScene;
+
 public class NamingPatternEditor {
     @FXML
     public ListView<NamedPattern> elements;
@@ -71,8 +73,7 @@ public class NamingPatternEditor {
             var node = (Parent) fxmlLoader.load();
             var controller = (NamingPatternEditor) fxmlLoader.getController();
             controller.setup(stage, header);
-            Scene scene = new Scene(node);
-            scene.getStylesheets().add(JSolEx.class.getResource("components.css").toExternalForm());
+            Scene scene = newScene(node);
             var currentScene = stage.getScene();
             stage.setTitle(I18N.string(JSolEx.class, "naming-patterns", "frame.title"));
             stage.setScene(scene);

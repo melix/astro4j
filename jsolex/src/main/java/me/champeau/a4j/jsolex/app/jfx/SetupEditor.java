@@ -43,6 +43,8 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
 import java.util.function.Function;
 
+import static me.champeau.a4j.jsolex.app.JSolEx.newScene;
+
 public class SetupEditor {
     public static final String DEFAULT_NAME = "My setup";
     @FXML
@@ -87,8 +89,7 @@ public class SetupEditor {
             var node = (Parent) fxmlLoader.load();
             var controller = (SetupEditor) fxmlLoader.getController();
             controller.setup(stage);
-            Scene scene = new Scene(node);
-            scene.getStylesheets().add(JSolEx.class.getResource("components.css").toExternalForm());
+            Scene scene = newScene(node);
             var currentScene = stage.getScene();
             stage.setTitle(I18N.string(JSolEx.class, "setup-editor", "frame.title"));
             stage.setScene(scene);

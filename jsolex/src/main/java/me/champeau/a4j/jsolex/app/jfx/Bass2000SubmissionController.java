@@ -23,7 +23,6 @@ import javafx.application.Platform;
 import javafx.beans.value.ChangeListener;
 import javafx.fxml.FXML;
 import javafx.scene.Node;
-import javafx.scene.Scene;
 import javafx.scene.control.Button;
 import javafx.scene.control.CheckBox;
 import javafx.scene.control.ChoiceBox;
@@ -105,6 +104,7 @@ import java.util.regex.Pattern;
 
 import static javafx.scene.input.KeyCode.ESCAPE;
 import static javafx.stage.Modality.APPLICATION_MODAL;
+import static me.champeau.a4j.jsolex.app.JSolEx.newScene;
 
 public class Bass2000SubmissionController {
     private static final Logger LOGGER = LoggerFactory.getLogger(Bass2000SubmissionController.class);
@@ -2119,8 +2119,7 @@ public class Bass2000SubmissionController {
 
         root.getChildren().addAll(centeringPane, controlsPanel);
 
-        var scene = new Scene(root);
-        scene.getStylesheets().add(JSolEx.class.getResource("components.css").toExternalForm());
+        var scene = newScene(root);
         fullscreenStage.setScene(scene);
 
         fullscreenStage.setOnCloseRequest(e -> {

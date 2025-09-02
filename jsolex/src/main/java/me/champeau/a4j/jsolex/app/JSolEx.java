@@ -478,13 +478,20 @@ public class JSolEx implements JSolExInterface {
             var node = (Parent) fxmlLoader.load();
             var controller = (EmbeddedServerController) fxmlLoader.getController();
             controller.setup(stage, server, getHostServices(), config);
-            stage.setScene(new Scene(node));
+            var scene = newScene(node);
+            stage.setScene(scene);
             stage.setTitle(I18N.string(JSolEx.class, "embedded-server", "frame.title"));
             stage.initModality(Modality.APPLICATION_MODAL);
             stage.showAndWait();
         } catch (IOException e) {
             throw new ProcessingException(e);
         }
+    }
+
+    public static Scene newScene(Parent root) {
+        var scene = new Scene(root);
+        scene.getStylesheets().add(JSolEx.class.getResource("components.css").toExternalForm());
+        return scene;
     }
 
     private void configureRedshiftControls() {
@@ -1112,8 +1119,7 @@ public class JSolEx implements JSolExInterface {
             var node = (Parent) fxmlLoader.load();
             var controller = (AdvancedParamsController) fxmlLoader.getController();
             controller.setup(stage);
-            Scene scene = new Scene(node);
-            scene.getStylesheets().add(JSolEx.class.getResource("components.css").toExternalForm());
+            Scene scene = newScene(node);
             stage.setTitle(I18N.string(JSolEx.class, "advanced-params", "frame.title"));
             stage.setScene(scene);
             stage.showAndWait();
@@ -1130,8 +1136,7 @@ public class JSolEx implements JSolExInterface {
             var node = (Parent) fxmlLoader.load();
             var controller = (ExposureCalculator) fxmlLoader.getController();
             controller.setup(stage);
-            Scene scene = new Scene(node);
-            scene.getStylesheets().add(JSolEx.class.getResource("components.css").toExternalForm());
+            Scene scene = newScene(node);
             stage.setTitle(I18N.string(JSolEx.class, "exposure-calculator", "frame.title"));
             stage.setScene(scene);
             stage.show();

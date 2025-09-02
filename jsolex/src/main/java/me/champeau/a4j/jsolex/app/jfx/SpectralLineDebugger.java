@@ -85,6 +85,7 @@ import java.util.function.Consumer;
 import java.util.function.DoubleUnaryOperator;
 import java.util.stream.Collectors;
 
+import static me.champeau.a4j.jsolex.app.JSolEx.newScene;
 import static me.champeau.a4j.jsolex.app.jfx.FXUtils.newStage;
 import static me.champeau.a4j.jsolex.processing.sun.ImageUtils.createImageConverter;
 import static me.champeau.a4j.jsolex.processing.util.SpectralLineFrameImageCreator.SPACING;
@@ -168,8 +169,7 @@ public class SpectralLineDebugger {
         controller.operation = operation;
         controller.onPolynomialComputed = onPolynomialComputed;
         var stage = newStage();
-        Scene scene = new Scene((Parent) configWindow);
-        scene.getStylesheets().add(JSolEx.class.getResource("components.css").toExternalForm());
+        Scene scene = newScene((Parent) configWindow);
         controller.open(file, null, scene, stage);
         stage.setTitle(I18N.string(JSolEx.class, "frame-debugger", "frame.debugger") + " (" + file.getName() + ")");
         stage.setScene(scene);

@@ -63,6 +63,8 @@ import java.util.Optional;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
 
+import static me.champeau.a4j.jsolex.app.JSolEx.newScene;
+
 public class SpectralRayEditor {
     private static final ImageWrapper32 MONO_SUN_IMAGE = SunDiskColorPreview.getMono();
     
@@ -152,8 +154,7 @@ public class SpectralRayEditor {
             var node = (Parent) fxmlLoader.load();
             var controller = (SpectralRayEditor) fxmlLoader.getController();
             controller.setup(stage);
-            Scene scene = new Scene(node);
-            scene.getStylesheets().add(JSolEx.class.getResource("components.css").toExternalForm());
+            Scene scene = newScene(node);
             var currentScene = stage.getScene();
             stage.setTitle(I18N.string(JSolEx.class, "spectral-ray-editor", "frame.title"));
             stage.setScene(scene);

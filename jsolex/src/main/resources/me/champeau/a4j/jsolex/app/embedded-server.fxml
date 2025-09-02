@@ -13,13 +13,13 @@
 <?import javafx.scene.layout.RowConstraints?>
 <?import javafx.scene.layout.VBox?>
 
-<BorderPane maxHeight="-Infinity" maxWidth="-Infinity" minHeight="-Infinity" minWidth="-Infinity" prefHeight="203.0" prefWidth="600.0" xmlns="http://javafx.com/javafx/19"
+<BorderPane maxHeight="-Infinity" maxWidth="-Infinity" minHeight="-Infinity" minWidth="-Infinity" prefHeight="203.0" prefWidth="600.0" styleClass="params-dialog" xmlns="http://javafx.com/javafx/19"
             xmlns:fx="http://javafx.com/fxml/1" fx:controller="me.champeau.a4j.jsolex.app.jfx.EmbeddedServerController">
     <bottom>
         <ButtonBar prefHeight="40.0" prefWidth="600.0" BorderPane.alignment="CENTER">
             <buttons>
-                <Button fx:id="startStopButton" mnemonicParsing="false" onAction="#startOrStop" text="%start"/>
-                <Button mnemonicParsing="false" onAction="#close" text="%close"/>
+                <Button fx:id="startStopButton" mnemonicParsing="false" onAction="#startOrStop" styleClass="primary-button" text="%start"/>
+                <Button mnemonicParsing="false" onAction="#close" styleClass="default-button" text="%close"/>
             </buttons>
             <BorderPane.margin>
                 <Insets/>
@@ -30,31 +30,36 @@
         </ButtonBar>
     </bottom>
     <center>
-        <GridPane prefHeight="175.0" prefWidth="600.0" BorderPane.alignment="CENTER">
-            <columnConstraints>
-                <ColumnConstraints hgrow="SOMETIMES" maxWidth="250.0" minWidth="10.0" prefWidth="193.0"/>
-                <ColumnConstraints hgrow="SOMETIMES" maxWidth="488.0" minWidth="10.0" prefWidth="391.0"/>
-            </columnConstraints>
-            <rowConstraints>
-                <RowConstraints maxHeight="31.0" minHeight="10.0" prefHeight="31.0" vgrow="SOMETIMES"/>
-                <RowConstraints maxHeight="31.0" minHeight="10.0" prefHeight="31.0" vgrow="SOMETIMES"/>
-                <RowConstraints maxHeight="97.0" minHeight="10.0" prefHeight="82.0" vgrow="SOMETIMES"/>
-            </rowConstraints>
+        <VBox styleClass="parameter-panel" spacing="20">
             <padding>
-                <Insets bottom="8.0" left="8.0" right="8.0" top="8.0"/>
+                <Insets top="16" right="16" bottom="16" left="16"/>
             </padding>
-            <Label text="%server.url" GridPane.rowIndex="2"/>
-            <VBox fx:id="serverUrls" alignment="CENTER_LEFT" prefHeight="200.0" prefWidth="100.0" GridPane.columnIndex="1" GridPane.rowIndex="2"/>
-            <Label text="%server.port" GridPane.rowIndex="1"/>
-            <HBox alignment="CENTER_LEFT" GridPane.columnIndex="1" GridPane.rowIndex="1">
-                <TextField fx:id="serverPort"/>
-                <Label text="(1024-65535)">
-                    <padding>
-                        <Insets left="8.0"/>
-                    </padding>
-                </Label>
-            </HBox>
-            <CheckBox fx:id="startOnLaunch" mnemonicParsing="false" text="%start.on.launch" GridPane.columnSpan="2"/>
-        </GridPane>
+            <VBox styleClass="panel-section" spacing="12">
+                <GridPane styleClass="form-grid" prefHeight="175.0" prefWidth="600.0" BorderPane.alignment="CENTER" hgap="12" vgap="16">
+                <columnConstraints>
+                    <ColumnConstraints hgrow="SOMETIMES"/>
+                    <ColumnConstraints hgrow="ALWAYS"/>
+                </columnConstraints>
+                <rowConstraints>
+                    <RowConstraints/>
+                    <RowConstraints/>
+                    <RowConstraints/>
+                </rowConstraints>
+                <Label text="%start.on.launch" styleClass="field-label" GridPane.columnIndex="0" GridPane.rowIndex="0"/>
+                <CheckBox fx:id="startOnLaunch" mnemonicParsing="false" styleClass="checkbox-control" GridPane.columnIndex="1" GridPane.rowIndex="0"/>
+                <Label styleClass="field-label" text="%server.port" GridPane.rowIndex="1"/>
+                <HBox alignment="CENTER_LEFT" GridPane.columnIndex="1" GridPane.rowIndex="1">
+                    <TextField fx:id="serverPort" styleClass="text-field"/>
+                    <Label styleClass="help-text" text="(1024-65535)">
+                        <padding>
+                            <Insets left="8.0"/>
+                        </padding>
+                    </Label>
+                </HBox>
+                <Label styleClass="field-label" text="%server.url" GridPane.rowIndex="2"/>
+                <VBox fx:id="serverUrls" alignment="CENTER_LEFT" prefHeight="200.0" prefWidth="100.0" GridPane.columnIndex="1" GridPane.rowIndex="2"/>
+                </GridPane>
+            </VBox>
+        </VBox>
     </center>
 </BorderPane>

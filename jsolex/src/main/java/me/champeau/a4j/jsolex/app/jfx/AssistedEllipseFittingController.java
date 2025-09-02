@@ -18,7 +18,6 @@ package me.champeau.a4j.jsolex.app.jfx;
 import javafx.application.Platform;
 import javafx.fxml.FXML;
 import javafx.scene.Parent;
-import javafx.scene.Scene;
 import javafx.scene.control.Button;
 import javafx.scene.control.Slider;
 import javafx.scene.layout.VBox;
@@ -34,6 +33,8 @@ import me.champeau.a4j.math.regression.EllipseRegression;
 import java.util.Arrays;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Consumer;
+
+import static me.champeau.a4j.jsolex.app.JSolEx.newScene;
 
 /**
  * Controller for the assisted ellipse fitting dialog
@@ -260,8 +261,7 @@ public class AssistedEllipseFittingController {
                 stage.setTitle(title);
                 stage.initOwner(parent);
                 stage.initModality(Modality.APPLICATION_MODAL);
-                var scene = new Scene(root);
-                scene.getStylesheets().add(JSolEx.class.getResource("components.css").toExternalForm());
+                var scene = newScene(root);
                 stage.setScene(scene);
                 stage.setResizable(true);
 
