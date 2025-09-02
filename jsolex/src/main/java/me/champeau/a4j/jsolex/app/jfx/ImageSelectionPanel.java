@@ -292,7 +292,7 @@ public class ImageSelectionPanel extends BaseParameterPanel {
 
     private List<Double> calculatePixelShiftsForSelectedImages() {
         var result = new TreeSet<Double>();
-        result.add(Double.parseDouble(controller.getProcessingPanel().getPixelShiftValue()));
+        result.addAll(controller.getProcessingPanel().getPixelShiftValues());
 
         if (continuum.isSelected() || activeRegions.isSelected() || redshift.isSelected() || ellermanBombs.isSelected()) {
             result.add(Double.parseDouble(controller.getProcessingPanel().getContinuumShiftValue()));

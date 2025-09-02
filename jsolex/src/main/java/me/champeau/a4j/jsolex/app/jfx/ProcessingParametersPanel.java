@@ -35,6 +35,9 @@ import me.champeau.a4j.jsolex.processing.params.SpectrumParams;
 import me.champeau.a4j.jsolex.processing.spectrum.SpectrumAnalyzer;
 import me.champeau.a4j.jsolex.processing.util.Dispersion;
 
+import java.util.ArrayList;
+import java.util.List;
+
 public class ProcessingParametersPanel extends BaseParameterPanel {
     
     private ChoiceBox<SpectralRay> wavelengthChoice;
@@ -323,11 +326,13 @@ public class ProcessingParametersPanel extends BaseParameterPanel {
     
     public SpectrumParams getSpectrumParams() {
         var selectedRay = wavelengthChoice.getValue();
+        var pixelShifts = parsePixelShifts(pixelShiftingField.getText());
+        var firstPixelShift = pixelShifts.isEmpty() ? 0.0 : pixelShifts.get(0);
         return new SpectrumParams(
             selectedRay,
-            Double.parseDouble(pixelShiftingField.getText()),
-            Double.parseDouble(dopplerShiftingField.getText()),
-            Double.parseDouble(continuumShiftingField.getText()),
+            firstPixelShift,
+            parseDoubleLocaleIndependent(dopplerShiftingField.getText()),
+            parseDoubleLocaleIndependent(continuumShiftingField.getText()),
             switchRedBlueChannelsCheck.isSelected()
         );
     }
@@ -353,9 +358,12 @@ public class ProcessingParametersPanel extends BaseParameterPanel {
     
     public boolean isValid() {
         try {
-            Double.parseDouble(pixelShiftingField.getText());
-            Double.parseDouble(dopplerShiftingField.getText());
-            Double.parseDouble(continuumShiftingField.getText());
+            var pixelShifts = parsePixelShifts(pixelShiftingField.getText());
+            if (pixelShifts.isEmpty()) {
+                return false;
+            }
+            parseDoubleLocaleIndependent(dopplerShiftingField.getText());
+            parseDoubleLocaleIndependent(continuumShiftingField.getText());
             if (autocropChoice.getValue() == AutocropMode.FIXED_WIDTH) {
                 int width = Integer.parseInt(fixedWidthField.getText());
                 if (width <= 0) {
@@ -374,6 +382,39 @@ public class ProcessingParametersPanel extends BaseParameterPanel {
     
     public String getPixelShiftValue() {
         return pixelShiftingField.getText();
+    }
+    
+    public List<Double> getPixelShiftValues() {
+        return parsePixelShifts(pixelShiftingField.getText());
+    }
+    
+    private List<Double> parsePixelShifts(String input) {
+        if (input == null || input.trim().isEmpty()) {
+            return List.of(0.0);
+        }
+        
+        var shifts = new ArrayList<Double>();
+        var parts = input.split(";");
+        
+        for (var part : parts) {
+            var trimmed = part.trim();
+            if (!trimmed.isEmpty()) {
+                try {
+                    shifts.add(parseDoubleLocaleIndependent(trimmed));
+                } catch (NumberFormatException ignored) {
+                    // Skip invalid values
+                }
+            }
+        }
+        
+        return shifts.isEmpty() ? List.of(0.0) : shifts;
+    }
+    
+    private static double parseDoubleLocaleIndependent(String value) throws NumberFormatException {
+        // Replace comma with dot to handle different decimal separators
+        // Double.parseDouble always uses US locale (dot as decimal separator)
+        String normalized = value.replace(',', '.');
+        return Double.parseDouble(normalized);
     }
 
     public String getContinuumShiftValue() {
@@ -407,17 +448,25 @@ public class ProcessingParametersPanel extends BaseParameterPanel {
             if (dispersion != null && !Double.isNaN(dispersion.angstromsPerPixel())) {
                 // Update pixel shift label
                 try {
-                    double pixelShift = Double.parseDouble(pixelShiftingField.getText());
-                    double angstroms = pixelShift * dispersion.angstromsPerPixel();
-                    pixelShiftAngstromLabel.setText(String.format("(%.2f Å)", angstroms));
-                    pixelShiftAngstromLabel.setVisible(true);
+                    var pixelShifts = parsePixelShifts(pixelShiftingField.getText());
+                    if (!pixelShifts.isEmpty()) {
+                        var angstromStrings = new ArrayList<String>();
+                        for (var shift : pixelShifts) {
+                            double angstroms = shift * dispersion.angstromsPerPixel();
+                            angstromStrings.add(String.format("%.2f", angstroms));
+                        }
+                        pixelShiftAngstromLabel.setText("(" + String.join("; ", angstromStrings) + " Å)");
+                        pixelShiftAngstromLabel.setVisible(true);
+                    } else {
+                        pixelShiftAngstromLabel.setVisible(false);
+                    }
                 } catch (NumberFormatException ignored) {
                     pixelShiftAngstromLabel.setVisible(false);
                 }
                 
                 // Update doppler shift label
                 try {
-                    double dopplerShift = Double.parseDouble(dopplerShiftingField.getText());
+                    double dopplerShift = parseDoubleLocaleIndependent(dopplerShiftingField.getText());
                     double angstroms = dopplerShift * dispersion.angstromsPerPixel();
                     dopplerShiftAngstromLabel.setText(String.format("(%.2f Å)", angstroms));
                     dopplerShiftAngstromLabel.setVisible(true);
@@ -427,7 +476,7 @@ public class ProcessingParametersPanel extends BaseParameterPanel {
                 
                 // Update continuum shift label
                 try {
-                    double continuumShift = Double.parseDouble(continuumShiftingField.getText());
+                    double continuumShift = parseDoubleLocaleIndependent(continuumShiftingField.getText());
                     double angstroms = continuumShift * dispersion.angstromsPerPixel();
                     continuumShiftAngstromLabel.setText(String.format("(%.2f Å)", angstroms));
                     continuumShiftAngstromLabel.setVisible(true);
