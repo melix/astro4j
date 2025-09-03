@@ -23,6 +23,7 @@ import com.google.gson.JsonParseException;
 import com.google.gson.JsonSerializationContext;
 import com.google.gson.JsonSerializer;
 import me.champeau.a4j.jsolex.processing.sun.FlatCorrection;
+import me.champeau.a4j.jsolex.processing.spectrum.FlatCreator;
 import me.champeau.a4j.jsolex.processing.sun.workflow.JaggingCorrection;
 
 import java.lang.reflect.Type;
@@ -67,6 +68,10 @@ class EnhancementParamsSerializer implements JsonSerializer<EnhancementParams>, 
                 order = FlatCorrection.DEFAULT_ORDER;
             }
             var masterFlat = getNullableString(obj, "masterFlatFile");
+            var slitDetectionSigma = getNullableDouble(obj, "slitDetectionSigma");
+            if (slitDetectionSigma == null) {
+                slitDetectionSigma = FlatCreator.DEFAULT_SLIT_DETECTION_SIGMA;
+            }
             var jaggingCorrectionParams = obj.getAsJsonObject("jaggingCorrectionParams");
             JaggingCorrectionParams jaggingCorrection = new JaggingCorrectionParams(false, JaggingCorrection.DEFAULT_SIGMA);
             if (jaggingCorrectionParams != null) {
@@ -94,7 +99,7 @@ class EnhancementParamsSerializer implements JsonSerializer<EnhancementParams>, 
                     }
                 }
             }
-            return new EnhancementParams(artificialFlatCorrection, loPercentile, hiPercentile, order, masterFlat==null ? null : Path.of(masterFlat), jaggingCorrection, sharpeningParams);
+            return new EnhancementParams(artificialFlatCorrection, loPercentile, hiPercentile, order, masterFlat==null ? null : Path.of(masterFlat), slitDetectionSigma, jaggingCorrection, sharpeningParams);
         }
         throw new IllegalAccessError("Unexpected JSON type " + json.getClass());
     }
@@ -108,6 +113,7 @@ class EnhancementParamsSerializer implements JsonSerializer<EnhancementParams>, 
         obj.addProperty("artificialFlatCorrectionHiPercentile", src.artificialFlatCorrectionHiPercentile());
         obj.addProperty("artificialFlatCorrectionOrder", src.artificialFlatCorrectionOrder());
         obj.addProperty("masterFlatFile", src.masterFlatFile() == null ? null : src.masterFlatFile().toString());
+        obj.addProperty("slitDetectionSigma", src.slitDetectionSigma());
         var jaggingCorrectionParams = new JsonObject();
         jaggingCorrectionParams.addProperty("enabled", src.jaggingCorrectionParams().enabled());
         jaggingCorrectionParams.addProperty("sigma", src.jaggingCorrectionParams().sigma());

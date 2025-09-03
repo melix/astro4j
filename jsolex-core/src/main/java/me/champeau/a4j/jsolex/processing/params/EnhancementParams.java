@@ -23,6 +23,7 @@ public record EnhancementParams(
     double artificialFlatCorrectionHiPercentile,
     int artificialFlatCorrectionOrder,
     Path masterFlatFile,
+    double slitDetectionSigma,
     JaggingCorrectionParams jaggingCorrectionParams,
     SharpeningParams sharpeningParams
 ) {

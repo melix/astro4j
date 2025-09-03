@@ -44,6 +44,7 @@ import me.champeau.a4j.jsolex.processing.stretching.AutohistogramStrategy;
 import me.champeau.a4j.jsolex.processing.stretching.ClaheStrategy;
 import me.champeau.a4j.jsolex.processing.sun.BandingReduction;
 import me.champeau.a4j.jsolex.processing.sun.FlatCorrection;
+import me.champeau.a4j.jsolex.processing.spectrum.FlatCreator;
 import me.champeau.a4j.jsolex.processing.sun.workflow.JaggingCorrection;
 import me.champeau.a4j.math.image.Deconvolution;
 
@@ -77,6 +78,7 @@ public class ImageEnhancementPanel extends BaseParameterPanel {
     
     private TextField flatFilePath;
     private Path selectedFlatFilePath;
+    private TextField slitDetectionSigma;
 
     private TextField bandingCorrectionPasses;
     private TextField bandingCorrectionWidth;
@@ -259,6 +261,9 @@ public class ImageEnhancementPanel extends BaseParameterPanel {
         flatModeHelp = new Label(I18N.string(JSolEx.class, "process-params", "flat.mode.help"));
         flatModeHelp.getStyleClass().add("field-description");
         flatModeHelp.setWrapText(true);
+        
+        slitDetectionSigma = new TextField(String.valueOf(FlatCreator.DEFAULT_SLIT_DETECTION_SIGMA));
+        slitDetectionSigma.setTooltip(new Tooltip(I18N.string(JSolEx.class, "process-params", "slit.detection.sigma.tooltip")));
     }
     
     private void setupLayout() {
@@ -359,6 +364,7 @@ public class ImageEnhancementPanel extends BaseParameterPanel {
         realFlatSection.getStyleClass().add("subsection");
         var realFlatGrid = createGrid();
         addGridRow(realFlatGrid, 0, "Flat file:", createFlatFileBox());
+        addGridRow(realFlatGrid, 1, I18N.string(JSolEx.class, "process-params", "slit.detection.sigma") + ":", slitDetectionSigma, "slit.detection.sigma.tooltip");
         realFlatSection.getChildren().add(realFlatGrid);
         realFlatSection.setVisible(false);
         realFlatSection.setManaged(false);
@@ -430,6 +436,7 @@ public class ImageEnhancementPanel extends BaseParameterPanel {
         flatLoPercentile.setText(String.valueOf(FlatCorrection.DEFAULT_LO_PERCENTILE));
         flatHiPercentile.setText(String.valueOf(FlatCorrection.DEFAULT_HI_PERCENTILE));
         flatOrder.setText(String.valueOf(FlatCorrection.DEFAULT_ORDER));
+        slitDetectionSigma.setText(String.valueOf(FlatCreator.DEFAULT_SLIT_DETECTION_SIGMA));
         updateFlatFile(null);
         
         updateParameterVisibility();
@@ -469,6 +476,7 @@ public class ImageEnhancementPanel extends BaseParameterPanel {
         flatLoPercentile.setText(String.valueOf(enhancementParams.artificialFlatCorrectionLoPercentile()));
         flatHiPercentile.setText(String.valueOf(enhancementParams.artificialFlatCorrectionHiPercentile()));
         flatOrder.setText(String.valueOf(enhancementParams.artificialFlatCorrectionOrder()));
+        slitDetectionSigma.setText(String.valueOf(enhancementParams.slitDetectionSigma()));
         
         deconvolutionMode.setValue(params.geometryParams().deconvolutionMode());
         
@@ -646,6 +654,7 @@ public class ImageEnhancementPanel extends BaseParameterPanel {
             parseDouble(flatHiPercentile.getText(), FlatCorrection.DEFAULT_HI_PERCENTILE),
             parseInt(flatOrder.getText(), FlatCorrection.DEFAULT_ORDER),
             masterFlatFile,
+            parseDouble(slitDetectionSigma.getText(), FlatCreator.DEFAULT_SLIT_DETECTION_SIGMA),
             jaggingParams,
             getSharpeningParams()
         );

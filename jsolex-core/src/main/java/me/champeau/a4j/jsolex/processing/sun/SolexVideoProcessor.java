@@ -1613,7 +1613,7 @@ public class SolexVideoProcessor implements Broadcaster {
             LOGGER.error(message("invalid.master.flat.size"), flatImage.width(), flatImage.height(), expectedWidth, expectedHeight);
             return Optional.empty();
         }
-        var flat = prepareFlatFromAverage(flatImage.data(), flatImage.width(), flatImage.height(), FlatCreator.DEFAULT_CUTOFF);
+        var flat = prepareFlatFromAverage(flatImage.data(), flatImage.width(), flatImage.height(), FlatCreator.DEFAULT_CUTOFF, processParams.enhancementParams().slitDetectionSigma());
 
         // normalize to [0, 1] range
         var max = 0f;

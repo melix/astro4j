@@ -49,6 +49,7 @@ public class FlatCreator {
     private static final int MAX_FRAME_COUNT = 50;
 
     public static final double DEFAULT_CUTOFF = 1d / 32d;
+    public static final double DEFAULT_SLIT_DETECTION_SIGMA = 1.0;
 
     private final ImageConverter<float[][]> imageConverter;
     private final ProgressOperation rootOperation;
@@ -138,7 +139,7 @@ public class FlatCreator {
         }
     }
 
-    public static float[] prepareFlatFromAverage(float[][] averageImage, int width, int height, double cutoff) {
+    public static float[] prepareFlatFromAverage(float[][] averageImage, int width, int height, double cutoff, double slitDetectionSigma) {
         int paddedWidth = FFTSupport.nextPowerOf2(width);
         int paddedHeight = FFTSupport.nextPowerOf2(height);
         var paddedData = FFTSupport.padFromFloatArray(averageImage, width, height);
@@ -201,10 +202,11 @@ public class FlatCreator {
             stddev += diff * diff;
         }
         stddev = Math.sqrt(stddev / width);
+        var threshold = slitDetectionSigma * stddev;
         // now replace columns which are too far from the average with the average
         for (int x = 0; x < width; x++) {
             var v = averageImage[0][x];
-            if (v < totalAverage - stddev || v > totalAverage + stddev) {
+            if (v < totalAverage - threshold || v > totalAverage + threshold) {
                 for (int y = 0; y < height; y++) {
                     averageImage[y][x] = (float) totalAverage;
                 }
