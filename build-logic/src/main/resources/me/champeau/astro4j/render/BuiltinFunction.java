@@ -152,6 +152,16 @@ public enum BuiltinFunction {
     public Set<String> getAllParameterNames() {
         return parameters.stream().map(Parameter::name).collect(Collectors.toSet());
     }
+%DOCUMENTATION_METHODS%
+    public record FunctionParameter(
+            String name,
+            boolean optional,
+            Map<String, String> descriptions
+    ) {
+        public String getDescription(String locale) {
+            return descriptions.getOrDefault(locale, descriptions.getOrDefault("en", ""));
+        }
+    }
 
     private record Parameter(
             String name,
