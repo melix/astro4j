@@ -126,6 +126,7 @@ public class SpectrumBrowser extends BorderPane {
     private final Configuration configuration;
 
     public SpectrumBrowser(double height) {
+        getStyleClass().add("params-dialog");
         centerWavelength(H_ALPHA_WAVELENGTH);
         configuration = Configuration.getInstance();
         canvas = new Canvas(1000, height);
@@ -205,26 +206,39 @@ public class SpectrumBrowser extends BorderPane {
 
     private Node createTopBar() {
         var vbox = new VBox();
+        vbox.setSpacing(2);
+        
+        // Apply styling to labels and controls
         var gtLabel = new Label(I18N.string(JSolEx.class, "spectrum-browser", "goto"));
+        gtLabel.getStyleClass().add("field-label");
         var textField = new TextField();
+        textField.getStyleClass().add("text-field");
         textField.setPrefWidth(CROP_HEIGHT);
         var unit = new Label("Å");
+        unit.getStyleClass().add("field-unit");
         adjustDispersion.setSelected(true);
         adjustDispersion.selectedProperty().addListener((observableValue, aBoolean, value) -> drawSpectrum());
+        adjustDispersion.getStyleClass().add("check-box");
         var searchButton = new Button(I18N.string(JSolEx.class, "spectrum-browser", "go"));
+        searchButton.getStyleClass().add("default-button");
         var choiceBox = new ChoiceBox<IdentifiedLine>();
+        choiceBox.getStyleClass().add("choice-box");
         choiceBox.getItems().addAll(Arrays.stream(IDENTIFIED_LINES).sorted(IDENTIFIED_LINE_COMPARATOR).toList());
         choiceBox.getSelectionModel().selectedItemProperty().addListener((observableValue, identifiedLine, t1) -> searchByWavelength(t1.wavelength()));
         textField.setOnAction(unused -> searchByWavelength(textField.getText()));
         searchButton.setOnAction(unused -> searchByWavelength(textField.getText()));
         var colorize = new CheckBox(I18N.string(JSolEx.class, "spectrum-browser", "color"));
+        colorize.getStyleClass().add("check-box");
         colorizeSpectrum.bind(colorize.selectedProperty());
         colorize.selectedProperty().addListener((observableValue, aBoolean, t1) -> drawSpectrum());
         var zoomIn = new Button("+");
+        zoomIn.getStyleClass().add("default-button");
         zoomIn.setOnAction(evt -> zoom(1 / ZOOM_FACTOR));
         var zoomOut = new Button("-");
+        zoomOut.getStyleClass().add("default-button");
         zoomOut.setOnAction(evt -> zoom(ZOOM_FACTOR));
         var shg = new ChoiceBox<SpectroHeliograph>();
+        shg.getStyleClass().add("choice-box");
         shg.setConverter(new StringConverter<>() {
             @Override
             public String toString(SpectroHeliograph spectroHeliograph) {
@@ -255,7 +269,9 @@ public class SpectrumBrowser extends BorderPane {
         }
         var initialPixelSize = computeInitialPixelSize(processParams);
         var pixelSizeLabel = new Label(I18N.string(JSolEx.class, "spectrum-browser", "pixel.size"));
+        pixelSizeLabel.getStyleClass().add("field-label");
         var pixelSizeValue = new TextField();
+        pixelSizeValue.getStyleClass().add("text-field");
         pixelSizeValue.setPrefWidth(48);
         pixelSizeValue.setTextFormatter(createPixelSizeFormatter());
         pixelSizeValue.textProperty().addListener((observableValue, s, value) -> {
@@ -270,7 +286,9 @@ public class SpectrumBrowser extends BorderPane {
         });
         pixelSizeValue.setText("" + initialPixelSize);
         var instrumentLabel = new Label(I18N.string(JSolEx.class, "spectrum-browser", "instrument"));
+        instrumentLabel.getStyleClass().add("field-label");
         var help = new Button("?");
+        help.getStyleClass().add("default-button");
         help.setOnAction(evt -> {
             var helpMessage = AlertFactory.info(I18N.string(JSolEx.class, "spectrum-browser", "help.message"));
             helpMessage.setTitle(I18N.string(JSolEx.class, "spectrum-browser", "help"));
@@ -278,6 +296,7 @@ public class SpectrumBrowser extends BorderPane {
             helpMessage.showAndWait();
         });
         var loadImage = new Button(I18N.string(JSolEx.class, "spectrum-browser", "identify"));
+        loadImage.getStyleClass().add("primary-button");
         loadImage.setOnAction(evt -> {
             var fileChooser = new FileChooser();
             configuration.findLastOpenDirectory(Configuration.DirectoryKind.SPECTRUM_IDENTIFICATION).ifPresent(dir -> fileChooser.setInitialDirectory(dir.toFile()));
@@ -290,8 +309,11 @@ public class SpectrumBrowser extends BorderPane {
 
         });
         var hide = new Button(I18N.string(JSolEx.class, "spectrum-browser", "hide"));
+        hide.getStyleClass().add("default-button");
         hide.setOnAction(evt -> imageView.setImage(null));
         hide.disableProperty().bind(imageView.imageProperty().isNull());
+        flipSpectrumCheckBox.getStyleClass().add("check-box");
+        
         var line1 = new HBox();
         line1.setAlignment(Pos.CENTER);
         line1.setSpacing(8);
@@ -538,11 +560,11 @@ public class SpectrumBrowser extends BorderPane {
 
     private HBox createBottomBar() {
         var hbox = new HBox();
+        hbox.getStyleClass().add("status-bar");
         hbox.setAlignment(Pos.CENTER_LEFT);
-        hbox.setOpaqueInsets(new Insets(8, 8, 8, 8));
         hbox.setSpacing(8);
-        hbox.setPadding(new Insets(8, 8, 8, 8));
         var label = new Label();
+        label.getStyleClass().add("status-text");
         stackPane.setOnMouseMoved(evt -> {
             var y = evt.getY();
             // determine wavelength from y position

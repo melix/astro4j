@@ -1167,7 +1167,7 @@ public class JSolEx implements JSolExInterface {
         var browser = new SpectrumBrowser(800);
         var stage = newStage();
         stage.initModality(Modality.NONE);
-        stage.setScene(new Scene(browser));
+        stage.setScene(newScene(browser));
         stage.setTitle(I18N.string(JSolEx.class, "spectrum-browser", "frame.title"));
         stage.show();
     }
