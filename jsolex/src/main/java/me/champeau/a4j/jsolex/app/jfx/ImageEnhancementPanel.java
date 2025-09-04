@@ -623,7 +623,7 @@ public class ImageEnhancementPanel extends BaseParameterPanel {
     public BandingCorrectionParams getBandingCorrectionParams() {
         var passes = parseInt(bandingCorrectionPasses.getText(), BandingReduction.DEFAULT_PASS_COUNT);
         var width = parseInt(bandingCorrectionWidth.getText(), BandingReduction.DEFAULT_BAND_SIZE);
-        return new BandingCorrectionParams(passes, width);
+        return new BandingCorrectionParams(width, passes);
     }
     
     public DeconvolutionMode getDeconvolutionMode() {
