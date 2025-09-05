@@ -31,6 +31,7 @@ import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
 import javafx.stage.Stage;
 import javafx.stage.StageStyle;
+import me.champeau.a4j.jsolex.app.AlertFactory;
 import me.champeau.a4j.jsolex.app.Configuration;
 import me.champeau.a4j.jsolex.app.JSolEx;
 import me.champeau.a4j.jsolex.processing.event.ProgressOperation;
@@ -512,10 +513,7 @@ public class ProcessParamsController {
             contentKey = baseContentKey;
         }
         
-        var alert = new Alert(Alert.AlertType.CONFIRMATION);
-        alert.initOwner(stage);
-        alert.setTitle(I18N.string(JSolEx.class, "process-params", headerKey));
-        alert.setContentText(I18N.string(JSolEx.class, "process-params", contentKey));
+        var alert = AlertFactory.confirmation(I18N.string(JSolEx.class, "process-params", contentKey));
         var result = alert.showAndWait();
         return result.isPresent() && result.get() != ButtonType.CANCEL;
     }

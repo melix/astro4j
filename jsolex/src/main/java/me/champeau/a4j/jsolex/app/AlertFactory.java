@@ -16,6 +16,7 @@
 package me.champeau.a4j.jsolex.app;
 
 import javafx.scene.control.Alert;
+import javafx.scene.control.ButtonType;
 
 public class AlertFactory {
     private static Alert newAlert(Alert.AlertType type, String message) {
@@ -25,6 +26,35 @@ public class AlertFactory {
         if (message != null) {
             alert.setContentText(message);
         }
+
+        var dialogPane = alert.getDialogPane();
+        dialogPane.getStylesheets().add(JSolEx.class.getResource("components.css").toExternalForm());
+
+        dialogPane.getStyleClass().add("params-dialog");
+
+        if (dialogPane.getHeader() != null) {
+            dialogPane.getHeader().getStyleClass().add("params-header");
+        }
+
+        if (dialogPane.getContent() != null) {
+            dialogPane.getContent().getStyleClass().add("parameter-panel");
+        }
+
+        alert.setOnShown(e -> {
+            for (var buttonType : dialogPane.getButtonTypes()) {
+                var button = (javafx.scene.control.Button) dialogPane.lookupButton(buttonType);
+                if (button != null) {
+                    button.getStyleClass().removeAll("button");
+                    if (buttonType == ButtonType.CANCEL || buttonType == ButtonType.NO) {
+                        button.getStyleClass().add("default-button");
+                    } else {
+                        button.getStyleClass().add("primary-button");
+                    }
+                    button.setStyle(button.getStyle() + "; -fx-alignment: center; -fx-text-alignment: center;");
+                }
+            }
+        });
+
         return alert;
     }
 

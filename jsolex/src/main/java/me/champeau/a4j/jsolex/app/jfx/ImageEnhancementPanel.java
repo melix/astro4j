@@ -71,6 +71,8 @@ public class ImageEnhancementPanel extends BaseParameterPanel {
     private VBox claheSection;
     private VBox rlSection;
     private VBox sharpeningSection;
+    private VBox protusStretchRow;
+    private VBox jaggingCorrectionSigmaRow;
     
     private ChoiceBox<Integer> claheTileSize;
     private ChoiceBox<Integer> claheBins;
@@ -120,7 +122,8 @@ public class ImageEnhancementPanel extends BaseParameterPanel {
         
         autostretchGamma = new TextField("2.2");
         bgThreshold = new TextField("0.1");
-        stretchProtus = new CheckBox(I18N.string(JSolEx.class, "process-params", "protus.stretch.value"));
+        stretchProtus = new CheckBox();
+        stretchProtus.setOnAction(e -> updateParameterVisibility());
         protusStretchValue = new TextField("1.5");
         
         deconvolutionMode = createChoiceBox();
@@ -224,7 +227,7 @@ public class ImageEnhancementPanel extends BaseParameterPanel {
             }
         }));
         
-        jaggingCorrection = new CheckBox(I18N.string(JSolEx.class, "process-params", "jagging.correction"));
+        jaggingCorrection = new CheckBox();
         jaggingCorrection.setOnAction(e -> updateParameterVisibility());
         jaggingCorrectionSigma = new TextField("2.5");
         jaggingCorrectionSigma.setTooltip(new Tooltip(I18N.string(JSolEx.class, "process-params", "jagging.correction.sigma.tooltip")));
@@ -281,9 +284,14 @@ public class ImageEnhancementPanel extends BaseParameterPanel {
         var autostretchGrid = createGrid();
         addGridRow(autostretchGrid, 0, I18N.string(JSolEx.class, "process-params", "gamma") + ":", autostretchGamma);
         addGridRow(autostretchGrid, 1, I18N.string(JSolEx.class, "process-params", "background.threshold") + ":", bgThreshold, "background.threshold.tooltip");
-        autostretchGrid.add(stretchProtus, 0, 2, 2, 1);
-        addGridRow(autostretchGrid, 3, I18N.string(JSolEx.class, "process-params", "protus.stretch.value") + ":", protusStretchValue, "protus.stretch.value.tooltip");
-        autostretchSection.getChildren().add(autostretchGrid);
+        addGridRow(autostretchGrid, 2, I18N.string(JSolEx.class, "process-params", "protus.stretch.value") + ":", stretchProtus, "protus.stretch.value.tooltip");
+        
+        protusStretchRow = new VBox();
+        var protusStretchGrid = createGrid();
+        addGridRow(protusStretchGrid, 0, I18N.string(JSolEx.class, "process-params", "protus.stretch.value") + ":", protusStretchValue, "protus.stretch.value.tooltip");
+        protusStretchRow.getChildren().add(protusStretchGrid);
+        
+        autostretchSection.getChildren().addAll(autostretchGrid, protusStretchRow);
         
         claheSection = new VBox(8);
         claheSection.getStyleClass().add("subsection");
@@ -376,9 +384,14 @@ public class ImageEnhancementPanel extends BaseParameterPanel {
         
         var jaggingSection = createSection("jagging.correction");
         var jaggingGrid = createGrid();
-        jaggingGrid.add(jaggingCorrection, 0, 0, 3, 1);
-        addGridRow(jaggingGrid, 1, I18N.string(JSolEx.class, "process-params", "jagging.correction.sigma") + ":", jaggingCorrectionSigma);
-        jaggingSection.getChildren().add(jaggingGrid);
+        addGridRow(jaggingGrid, 0, I18N.string(JSolEx.class, "process-params", "jagging.correction") + ":", jaggingCorrection, "jagging.correction.tooltip");
+        
+        jaggingCorrectionSigmaRow = new VBox();
+        var jaggingSigmaGrid = createGrid();
+        addGridRow(jaggingSigmaGrid, 0, I18N.string(JSolEx.class, "process-params", "jagging.correction.sigma") + ":", jaggingCorrectionSigma);
+        jaggingCorrectionSigmaRow.getChildren().add(jaggingSigmaGrid);
+        
+        jaggingSection.getChildren().addAll(jaggingGrid, jaggingCorrectionSigmaRow);
         
         var resetButton = new Button(I18N.string(JSolEx.class, "process-params", "reset.to.defaults"));
         resetButton.getStyleClass().add("default-button");
@@ -572,8 +585,14 @@ public class ImageEnhancementPanel extends BaseParameterPanel {
             sharpeningSection.setManaged(showSharpening);
         }
         
-        if (jaggingCorrectionSigma != null) {
-            jaggingCorrectionSigma.setDisable(!jaggingCorrection.isSelected());
+        if (jaggingCorrectionSigmaRow != null) {
+            jaggingCorrectionSigmaRow.setVisible(jaggingCorrection.isSelected());
+            jaggingCorrectionSigmaRow.setManaged(jaggingCorrection.isSelected());
+        }
+        
+        if (protusStretchRow != null) {
+            protusStretchRow.setVisible(stretchProtus.isSelected());
+            protusStretchRow.setManaged(stretchProtus.isSelected());
         }
         
         var selectedFlatMode = flatMode.getValue();

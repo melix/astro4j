@@ -547,6 +547,10 @@
     -fx-max-width: 220;
 }
 
+.field-label-wrapped {
+    -fx-wrap-text: true;
+}
+
 .field-description {
     -fx-font-size: 10px;
     -fx-text-fill: #6c757d;

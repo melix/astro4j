@@ -78,7 +78,7 @@ public abstract class BaseParameterPanel extends VBox {
 
     protected void addGridRow(GridPane grid, int row, String labelText, Node control, String tooltipKey) {
         var label = new Label(labelText);
-        label.getStyleClass().add("field-label");
+        label.getStyleClass().addAll("field-label", "field-label-wrapped");
 
         grid.add(label, 0, row);
         grid.add(control, 1, row);
