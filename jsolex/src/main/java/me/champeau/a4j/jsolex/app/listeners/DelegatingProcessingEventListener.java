@@ -16,6 +16,7 @@
 package me.champeau.a4j.jsolex.app.listeners;
 
 import me.champeau.a4j.jsolex.processing.event.AverageImageComputedEvent;
+import me.champeau.a4j.jsolex.processing.event.EllipseFittingRequestEvent;
 import me.champeau.a4j.jsolex.processing.event.FileGeneratedEvent;
 import me.champeau.a4j.jsolex.processing.event.GenericMessage;
 import me.champeau.a4j.jsolex.processing.event.ImageGeneratedEvent;
@@ -29,6 +30,7 @@ import me.champeau.a4j.jsolex.processing.event.ProcessingStartEvent;
 import me.champeau.a4j.jsolex.processing.event.ProgressEvent;
 import me.champeau.a4j.jsolex.processing.event.ReconstructionDoneEvent;
 import me.champeau.a4j.jsolex.processing.event.ScriptExecutionResultEvent;
+import me.champeau.a4j.jsolex.processing.event.SpectralLineDetectedEvent;
 import me.champeau.a4j.jsolex.processing.event.SuggestionEvent;
 import me.champeau.a4j.jsolex.processing.event.TrimmingParametersDeterminedEvent;
 import me.champeau.a4j.jsolex.processing.event.VideoMetadataEvent;
@@ -155,6 +157,20 @@ public class DelegatingProcessingEventListener implements ProcessingEventListene
             if (listener instanceof Broadcaster) {
                 ((Broadcaster) listener).broadcast(event);
             }
+        }
+    }
+
+    @Override
+    public void onEllipseFittingRequest(EllipseFittingRequestEvent e) {
+        for (ProcessingEventListener listener : listeners) {
+            listener.onEllipseFittingRequest(e);
+        }
+    }
+
+    @Override
+    public void onSpectralLineDetected(SpectralLineDetectedEvent e) {
+        for (ProcessingEventListener listener : listeners) {
+            listener.onSpectralLineDetected(e);
         }
     }
 }

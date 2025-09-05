@@ -31,14 +31,11 @@ import javafx.collections.FXCollections;
 import javafx.collections.ListChangeListener;
 import javafx.embed.swing.SwingFXUtils;
 import javafx.fxml.FXML;
-import javafx.scene.input.Clipboard;
-import javafx.scene.input.ClipboardContent;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Node;
 import javafx.scene.Parent;
 import javafx.scene.Scene;
-import javafx.scene.control.Alert;
 import javafx.scene.control.Button;
 import javafx.scene.control.ButtonType;
 import javafx.scene.control.CheckBox;
@@ -61,6 +58,8 @@ import javafx.scene.control.TextField;
 import javafx.scene.control.TextFormatter;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
+import javafx.scene.input.Clipboard;
+import javafx.scene.input.ClipboardContent;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.HBox;
@@ -268,8 +267,6 @@ public class JSolEx implements JSolExInterface {
     @FXML
     private Button bass2000Button;
 
-    private int bass2000ClickCount = 0;
-    private static final int BASS2000_REQUIRED_CLICKS = 5;
 
     @FXML
     private ChoiceBox<Integer> redshiftBoxSize;
@@ -401,7 +398,7 @@ public class JSolEx implements JSolExInterface {
             hideTabHeaderWhenSingleTab(mainPane);
             configureRedshiftControls();
             initializeReferenceImageTab();
-            bass2000Button.setVisible(isBass2000Enabled());
+            bass2000Button.setVisible(true);
             stage.show();
             refreshRecentItemsMenu();
             LogbackConfigurer.configureLogger(console);
@@ -1274,7 +1271,6 @@ public class JSolEx implements JSolExInterface {
 
         var contentLabel = new Label(I18N.string(getClass(), "about", "about.message"));
         contentLabel.setWrapText(true);
-        setupHiddenBass2000Feature(contentLabel, alert);
         alert.getDialogPane().setContent(contentLabel);
 
         var licenses = new TextArea();
@@ -1290,36 +1286,7 @@ public class JSolEx implements JSolExInterface {
         alert.showAndWait();
     }
 
-    private void setupHiddenBass2000Feature(Label contentLabel, Alert alert) {
-        if (isBass2000Enabled()) {
-            bass2000Button.setVisible(true);
-            return;
-        }
-        bass2000Button.setVisible(false);
 
-        // Add click handler for hidden feature
-        contentLabel.setOnMouseClicked(e -> {
-            if (!bass2000Button.isVisible()) {
-                bass2000ClickCount++;
-                if (bass2000ClickCount >= BASS2000_REQUIRED_CLICKS) {
-                    bass2000Button.setVisible(true);
-                    // Show notification
-                    Platform.runLater(() -> {
-                        var notification = AlertFactory.info();
-                        notification.setTitle("Hidden Feature Unlocked!");
-                        notification.setHeaderText("BASS2000 submission feature is now available");
-                        notification.setContentText("Only use the BASS2000 submission feature from the main interface IF YOU HAVE BEEN APPROVED BY THE AUTHOR. This is beta testing only!");
-                        notification.showAndWait().ifPresent(bt -> alert.close());
-                    });
-                }
-            }
-        });
-
-    }
-
-    private static boolean isBass2000Enabled() {
-        return Boolean.getBoolean("bass2000.enabled");
-    }
 
     @FXML
     private void showHelp() {

@@ -129,12 +129,42 @@ public class SimpleMarkdownViewer {
 
             @Override
             public void visit(Paragraph paragraph) {
+                var hasImage = new boolean[1];
+                var imageNode = new org.commonmark.node.Image[1];
+                
+                paragraph.accept(new AbstractVisitor() {
+                    @Override
+                    public void visit(org.commonmark.node.Image image) {
+                        hasImage[0] = true;
+                        imageNode[0] = image;
+                    }
+                });
+                
+                if (hasImage[0] && imageNode[0] != null) {
+                    var linkedImage = new LinkedImage(imageNode[0].getDestination(), collectTextContent(imageNode[0]));
+                    var imageContainer = linkedImage.createNode();
+                    contentVBox.getChildren().add(imageContainer);
+                    return;
+                }
+                
                 var textFlow = new TextFlow();
                 paragraph.accept(new AbstractVisitor() {
                     @Override
                     public void visit(org.commonmark.node.Text textNode) {
                         var text = new javafx.scene.text.Text(textNode.getLiteral());
                         textFlow.getChildren().add(text);
+                    }
+
+                    @Override
+                    public void visit(SoftLineBreak softLineBreak) {
+                        var space = new javafx.scene.text.Text(" ");
+                        textFlow.getChildren().add(space);
+                    }
+
+                    @Override
+                    public void visit(HardLineBreak hardLineBreak) {
+                        var space = new javafx.scene.text.Text(" ");
+                        textFlow.getChildren().add(space);
                     }
 
                     @Override
@@ -179,9 +209,6 @@ public class SimpleMarkdownViewer {
 
                     @Override
                     public void visit(org.commonmark.node.Image image) {
-                        var linkedImage = new LinkedImage(image.getDestination(), collectTextContent(image));
-                        var imageNode = linkedImage.createNode();
-                        textFlow.getChildren().add(imageNode);
                     }
                 });
                 
@@ -206,6 +233,18 @@ public class SimpleMarkdownViewer {
                             public void visit(org.commonmark.node.Text textNode) {
                                 var text = new javafx.scene.text.Text(textNode.getLiteral());
                                 textFlow.getChildren().add(text);
+                            }
+
+                            @Override
+                            public void visit(SoftLineBreak softLineBreak) {
+                                var space = new javafx.scene.text.Text(" ");
+                                textFlow.getChildren().add(space);
+                            }
+
+                            @Override
+                            public void visit(HardLineBreak hardLineBreak) {
+                                var space = new javafx.scene.text.Text(" ");
+                                textFlow.getChildren().add(space);
                             }
 
                             @Override
@@ -285,7 +324,7 @@ public class SimpleMarkdownViewer {
 
             @Override
             public void visit(SoftLineBreak softLineBreak) {
-                content.append('\n');
+                content.append(' ');
             }
 
             @Override
@@ -336,11 +375,17 @@ public class SimpleMarkdownViewer {
                 var imageView = new ImageView(image);
                 imageView.setPreserveRatio(true);
                 imageView.setFitWidth(400);
-                return imageView;
+                
+                var hbox = new HBox(imageView);
+                hbox.setAlignment(Pos.CENTER);
+                return hbox;
             } else {
                 var label = new Label("[Image: " + altText + "]");
                 label.setStyle("-fx-background-color: #f0f0f0; -fx-padding: 4px;");
-                return label;
+                
+                var hbox = new HBox(label);
+                hbox.setAlignment(Pos.CENTER);
+                return hbox;
             }
         }
 
