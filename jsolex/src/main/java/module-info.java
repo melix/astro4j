@@ -32,8 +32,8 @@ module me.champeau.a4j.jsolex {
     requires reactfx;
     requires org.commonmark;
     requires org.fxmisc.flowless;
-    requires io.micronaut.context;
-    requires io.micronaut.inject;
+    requires io.micronaut.micronaut_context;
+    requires io.micronaut.micronaut_inject;
     requires org.kordamp.ikonli.core;
     requires org.kordamp.ikonli.javafx;
     requires org.apache.commons.net;

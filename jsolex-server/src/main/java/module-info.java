@@ -15,19 +15,23 @@
  */
 module me.champeau.a4j.jsolex.server {
     requires me.champeau.a4j.jsolex.core;
-    requires io.micronaut.context;
-    requires io.micronaut.core;
-    requires io.micronaut.http;
+    requires io.micronaut.micronaut_context;
+    requires io.micronaut.micronaut_core;
+    requires io.micronaut.micronaut_http;
     requires io.micronaut.views.micronaut_views_core;
     requires io.micronaut.views.micronaut_views_thymeleaf;
     requires io.micronaut.views.micronaut_views_htmx;
     requires io.micronaut.serde.micronaut_serde_api;
     requires io.micronaut.serde.micronaut_serde_bson;
-    requires io.micronaut.websocket;
-    requires io.micronaut.http_server_netty;
+    requires io.micronaut.micronaut_websocket;
+    requires io.micronaut.micronaut_http_server_netty;
+    requires io.netty.handler;
+    requires io.netty.codec.compression;
+    requires io.netty.codec.http;
+    requires io.netty.codec.http2;
     requires jakarta.annotation;
     requires jakarta.inject;
-    requires io.micronaut.inject;
+    requires io.micronaut.micronaut_inject;
 
     // For Thymeleaf!!!
     requires java.sql;
