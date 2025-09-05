@@ -18,6 +18,7 @@ package me.champeau.a4j.jsolex.server;
 import io.micronaut.context.ApplicationContext;
 import io.micronaut.views.ViewsRenderer;
 import io.micronaut.websocket.WebSocketBroadcaster;
+import io.micronaut.websocket.WebSocketSession;
 import io.micronaut.websocket.annotation.OnClose;
 import io.micronaut.websocket.annotation.OnMessage;
 import io.micronaut.websocket.annotation.OnOpen;
@@ -32,7 +33,6 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
@@ -59,7 +59,7 @@ public class MainWebSocket extends AbstractController implements StoreListener {
     }
 
     @OnOpen
-    public void onOpen() throws IOException {
+    public void onOpen(WebSocketSession session) throws IOException {
         var store = context.getBean(ImagesStore.class);
         sendAllImages(store);
     }
@@ -105,12 +105,13 @@ public class MainWebSocket extends AbstractController implements StoreListener {
     }
 
     @OnClose
-    public void onClose() {
-
+    public void onClose(WebSocketSession session) {
+        LOGGER.info("WebSocket connection closed: {}", session.getId());
     }
 
     @OnMessage
-    public void onMessage(String message) {
+    public void onMessage(String message, WebSocketSession session) {
+        LOGGER.debug("WebSocket message from {}: {}", session.getId(), message);
     }
 
     @Override
