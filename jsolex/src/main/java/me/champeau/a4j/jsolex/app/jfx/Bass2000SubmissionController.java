@@ -177,6 +177,7 @@ public class Bass2000SubmissionController {
     private HBox originalImageComparisonBox;
     private VBox blinkContainer;
     private HBox angleAdjustmentBox;
+    private Slider mainAngleSlider;
     private boolean showingUserImage = true;
     private double blinkDurationMs = 500.0;
 
@@ -698,18 +699,18 @@ public class Bass2000SubmissionController {
 
         imageComparisonBox.getChildren().addAll(userImageContainer, gongImageContainer);
 
-        var angleSlider = new Slider(-2.0, 2.0, 0.0);
-        angleSlider.setShowTickLabels(true);
-        angleSlider.setShowTickMarks(true);
-        angleSlider.setMajorTickUnit(1.0);
-        angleSlider.setMinorTickCount(4);
-        angleSlider.setPrefWidth(300);
+        mainAngleSlider = new Slider(-2.0, 2.0, 0.0);
+        mainAngleSlider.setShowTickLabels(true);
+        mainAngleSlider.setShowTickMarks(true);
+        mainAngleSlider.setMajorTickUnit(1.0);
+        mainAngleSlider.setMinorTickCount(4);
+        mainAngleSlider.setPrefWidth(300);
 
         var angleSliderListener = (ChangeListener<Number>) (observable, oldValue, newValue) -> {
             angleAdjustment = newValue.doubleValue();
             applyCurrentTransformations();
         };
-        angleSlider.valueProperty().addListener(angleSliderListener);
+        mainAngleSlider.valueProperty().addListener(angleSliderListener);
 
         var blinkDurationSlider = new Slider(500.0, 5000.0, 500.0);
         blinkDurationSlider.setShowTickLabels(true);
@@ -737,7 +738,7 @@ public class Bass2000SubmissionController {
         fullscreenButton.getStyleClass().add("custom-button");
         fullscreenButton.setOnAction(e -> openFullscreenBlink());
 
-        angleAdjustmentBox.getChildren().addAll(angleLabel, angleSlider, blinkDurationLabel, blinkDurationSlider, fullscreenButton);
+        angleAdjustmentBox.getChildren().addAll(angleLabel, mainAngleSlider, blinkDurationLabel, blinkDurationSlider, fullscreenButton);
 
         var controlsBox = new HBox(8);
         controlsBox.setStyle("-fx-alignment: center; -fx-padding: 1;");
@@ -769,10 +770,10 @@ public class Bass2000SubmissionController {
         blinkButton.setOnAction(e -> toggleBlinkMode());
 
         resetButton.setOnAction(e -> {
-            angleSlider.valueProperty().removeListener(angleSliderListener);
-            angleSlider.setValue(0.0);
+            mainAngleSlider.valueProperty().removeListener(angleSliderListener);
+            mainAngleSlider.setValue(0.0);
             resetTransformations();
-            angleSlider.valueProperty().addListener(angleSliderListener);
+            mainAngleSlider.valueProperty().addListener(angleSliderListener);
         });
 
         controlsBox.getChildren().addAll(controlsLabel, horizontalFlipButton, verticalFlipButton, rotateLeftButton, rotateRightButton, resetButton, blinkButton);
@@ -2250,6 +2251,8 @@ public class Bass2000SubmissionController {
         }
 
         fullscreenImageView = null;
+        
+        mainAngleSlider.setValue(angleAdjustment);
     }
 
     private void applyCurrentTransformations() {

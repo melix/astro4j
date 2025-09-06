@@ -314,36 +314,16 @@ public class ObservationDetailsPanel extends BaseParameterPanel {
     
     
     public void updateFromSetup(me.champeau.a4j.jsolex.processing.params.Setup setup) {
-        if (setup.telescope() != null) {
-            telescope.setText(setup.telescope());
-        }
-        if (setup.focalLength() != null) {
-            focalLength.setText(String.valueOf(setup.focalLength()));
-        }
-        if (setup.aperture() != null) {
-            aperture.setText(String.valueOf(setup.aperture()));
-        }
-        if (setup.stop() != null) {
-            stop.setText(String.valueOf(setup.stop()));
-        }
-        if (setup.energyRejectionFilter() != null) {
-            energyRejectionFilter.setText(setup.energyRejectionFilter());
-        }
-        if (setup.camera() != null) {
-            camera.setText(setup.camera());
-        }
-        if (setup.pixelSize() != null) {
-            pixelSize.setText(String.valueOf(setup.pixelSize()));
-        }
-        if (setup.latitude() != null) {
-            latitude.setText(String.valueOf(setup.latitude()));
-        }
-        if (setup.longitude() != null) {
-            longitude.setText(String.valueOf(setup.longitude()));
-        }
-        if (setup.mount() != null) {
-            mount.setText(setup.mount());
-        }
+        telescope.setText(setup.telescope() != null ? setup.telescope() : "");
+        focalLength.setText(setup.focalLength() != null ? String.valueOf(setup.focalLength()) : "");
+        aperture.setText(setup.aperture() != null ? String.valueOf(setup.aperture()) : "");
+        stop.setText(setup.stop() != null ? String.valueOf(setup.stop()) : "");
+        energyRejectionFilter.setText(setup.energyRejectionFilter() != null ? setup.energyRejectionFilter() : "");
+        camera.setText(setup.camera() != null ? setup.camera() : "");
+        pixelSize.setText(setup.pixelSize() != null ? String.valueOf(setup.pixelSize()) : "");
+        latitude.setText(setup.latitude() != null ? String.valueOf(setup.latitude()) : "");
+        longitude.setText(setup.longitude() != null ? String.valueOf(setup.longitude()) : "");
+        mount.setText(setup.mount() != null ? setup.mount() : "");
         altAzMode.setSelected(setup.altAzMode());
     }
     
