@@ -184,7 +184,7 @@ public class FitsUtils {
                         cols = rows == 0 ? 0 : mono[0].length;
                         // JSol'Ex up to 3.3.x used to flip the Y axis
                         boolean hasSpectroHeader = imageHdu.getHeader().containsKey(SPECTRO);
-                        boolean shouldFlipY = isJSolEx && !hasSpectroHeader;
+                        boolean shouldFlipY = isJSolEx && hasSpectroHeader;
                         data = readChannel(mono, rows, cols, bzero, shouldFlipY);
                     } else if (kernel instanceof short[][][] channels) {
                         rgb = new float[3][][];
@@ -193,7 +193,7 @@ public class FitsUtils {
                             rows = channel.length;
                             cols = rows == 0 ? 0 : channel[0].length;
                             boolean hasSpectroHeader = imageHdu.getHeader().containsKey(SPECTRO);
-                            boolean shouldFlipY = isJSolEx && !hasSpectroHeader;
+                            boolean shouldFlipY = isJSolEx && hasSpectroHeader;
                             rgb[i] = readChannel(channel, rows, cols, bzero, shouldFlipY);
                         }
                     } else {
