@@ -138,6 +138,7 @@ import me.champeau.a4j.jsolex.processing.util.MutableMap;
 import me.champeau.a4j.jsolex.processing.util.ProcessingException;
 import me.champeau.a4j.jsolex.processing.util.TemporaryFolder;
 import me.champeau.a4j.jsolex.processing.util.VersionUtil;
+import me.champeau.a4j.jsolex.processing.util.Bass2000ConfigService;
 import me.champeau.a4j.math.VectorApiSupport;
 import me.champeau.a4j.math.regression.Ellipse;
 import me.champeau.a4j.ser.Header;
@@ -411,12 +412,12 @@ public class JSolEx implements JSolExInterface {
             LOGGER.info("Java runtime version {}", System.getProperty("java.version"));
             LOGGER.info("Vector API support is {} and {}", VectorApiSupport.isPresent() ? "available" : "missing",
                     VectorApiSupport.isEnabled() ? "enabled (disable by setting " + VectorApiSupport.VECTOR_API_ENV_VAR + " environment variable to false)" : "disabled");
-            maybeShowWelcomeMessage(rootScene);
             if (config.isAutoStartServer()) {
                 server.start(config.getAutoStartServerPort());
             }
             updateServerStatus(false);
             server.addStatusChangeListener(this::updateServerStatus);
+            maybeShowWelcomeMessage(rootScene);
         } catch (IOException exception) {
             throw new ProcessingException(exception);
         }
@@ -1171,6 +1172,42 @@ public class JSolEx implements JSolExInterface {
 
     @FXML
     private void showBass2000Submission() {
+        if (lastExecutionProcessParams != null && 
+            lastExecutionProcessParams.observationDetails().instrument().isSupportedByBass2000() &&
+            !Bass2000ConfigService.getInstance().isBass2000Enabled()) {
+            
+            var configService = Bass2000ConfigService.getInstance();
+            var reason = configService.getDisabledReason();
+            String message = switch (reason) {
+                case Bass2000ConfigService.DisabledReason.EXPLICITLY_DISABLED -> {
+                    var config = configService.fetchConfiguration();
+                    if (config.isPresent()) {
+                        var currentLocale = Locale.getDefault();
+                        var language = currentLocale.getLanguage();
+                        yield config.get().getMessage(language);
+                    }
+                    yield message("bass2000.disabled");
+                }
+                case Bass2000ConfigService.DisabledReason.VERSION_TOO_OLD -> {
+                    var requiredVersion = configService.getRequiredVersion();
+                    var baseMessage = message("bass2000.version.too.old");
+                    if (requiredVersion != null) {
+                        yield baseMessage.replace("{version}", requiredVersion);
+                    } else {
+                        yield baseMessage;
+                    }
+                }
+                default -> message("bass2000.disabled");
+            };
+            
+            if (!message.isEmpty()) {
+                var alert = AlertFactory.warning(message);
+                alert.setTitle("BASS2000");
+                alert.showAndWait();
+                return;
+            }
+        }
+        
         var fxmlLoader = I18N.fxmlLoader(JSolEx.class, "bass2000-submission");
         try {
             var stage = newStage();
