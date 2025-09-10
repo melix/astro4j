@@ -62,7 +62,7 @@
                             
                             <GridPane styleClass="form-grid" hgap="12" vgap="8">
                                 <columnConstraints>
-                                    <ColumnConstraints minWidth="100" prefWidth="100"/>
+                                    <ColumnConstraints minWidth="140" prefWidth="140"/>
                                     <ColumnConstraints hgrow="ALWAYS" minWidth="200"/>
                                 </columnConstraints>
                                 <rowConstraints>

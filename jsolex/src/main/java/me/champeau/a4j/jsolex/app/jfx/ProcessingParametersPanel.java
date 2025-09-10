@@ -69,7 +69,7 @@ public class ProcessingParametersPanel extends BaseParameterPanel {
     
     private void initializeComponents() {
         wavelengthChoice = createChoiceBox();
-        wavelengthChoice.setItems(FXCollections.observableArrayList(SpectralRayIO.loadDefaults()));
+        wavelengthChoice.setItems(FXCollections.observableArrayList(loadAbsorptionLines()));
         wavelengthChoice.setConverter(new StringConverter<>() {
             @Override
             public String toString(SpectralRay ray) {
@@ -164,7 +164,11 @@ public class ProcessingParametersPanel extends BaseParameterPanel {
             updateFixedWidthWarning();
         });
     }
-    
+
+    private static List<SpectralRay> loadAbsorptionLines() {
+        return SpectralRayIO.loadDefaults().stream().filter(s -> !s.emission()).toList();
+    }
+
     private void updateFixedWidthWarning() {
         if (autocropChoice.getValue() != AutocropMode.FIXED_WIDTH || sourceWidth == null) {
             fixedWidthWarning.setVisible(false);
@@ -314,7 +318,7 @@ public class ProcessingParametersPanel extends BaseParameterPanel {
     
     public void updateWavelength(SpectralRay ray) {
         wavelengthChoice.getItems().clear();
-        var candidates = SpectralRayIO.loadDefaults().stream().filter(spectralRay -> !spectralRay.emission()).toList();
+        var candidates = loadAbsorptionLines();
         wavelengthChoice.getItems().addAll(candidates);
         if (candidates.contains(ray)) {
             wavelengthChoice.getSelectionModel().select(ray);
