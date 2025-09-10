@@ -223,6 +223,7 @@ public class PointBasedEllipseOverlay {
         
         updateVisualElements();
         updateEllipseImmediate();
+        notifyEllipseChanged();
     }
     
     private void updatePoint(int index, double x, double y) {
@@ -416,7 +417,7 @@ public class PointBasedEllipseOverlay {
     }
     
     private void notifyEllipseChanged() {
-        if (onEllipseChanged != null && currentEllipse != null) {
+        if (onEllipseChanged != null) {
             onEllipseChanged.accept(currentEllipse);
         }
     }

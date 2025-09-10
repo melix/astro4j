@@ -255,9 +255,8 @@ public class SpectralRayEditor {
                     hasColor ? new ColorCurve(newLabel, rInValue, rOutValue, gInValue, gOutValue, bInValue, bOutValue) : null,
                     Wavelen.ofAngstroms(newWavelen),
                     isEmission,
-                    currentRay.automaticScripts());
+                    automaticScriptsList.getItems() != null ? List.copyOf(automaticScriptsList.getItems()) : List.of());
                 updateEditableInOut(hasColor);
-                updateAutomaticScriptsList(newRay.automaticScripts());
                 updateScriptsSectionVisibility(newWavelen);
                 items.set(selectionModel.getSelectedIndex(), newRay);
                 updating.set(false);
@@ -396,22 +395,19 @@ public class SpectralRayEditor {
             new FileChooser.ExtensionFilter("All files", "*.*")
         );
 
-        var files = fileChooser.showOpenMultipleDialog(stage);
-        if (files != null && !files.isEmpty()) {
-            var currentScripts = new ArrayList<>(selectedItem.automaticScripts());
-            for (var file : files) {
-                var path = file.toPath();
-                if (!currentScripts.contains(path)) {
-                    currentScripts.add(path);
-                }
+        var file = fileChooser.showOpenDialog(stage);
+        if (file != null) {
+            var path = file.toPath();
+            var currentScripts = automaticScriptsList.getItems();
+            if (!currentScripts.contains(path)) {
+                currentScripts.add(path);
+                
+                // Save to data model
+                var newRay = selectedItem.withAutomaticScripts(List.copyOf(currentScripts));
+                var items = elements.getItems();
+                var selectedIndex = elements.getSelectionModel().getSelectedIndex();
+                items.set(selectedIndex, newRay);
             }
-            var newRay = selectedItem.withAutomaticScripts(currentScripts);
-            var items = elements.getItems();
-            var selectedIndex = elements.getSelectionModel().getSelectedIndex();
-            items.set(selectedIndex, newRay);
-            
-            // Update the automatic scripts list immediately
-            updateAutomaticScriptsList(currentScripts);
         }
     }
 
@@ -423,15 +419,13 @@ public class SpectralRayEditor {
             return;
         }
 
-        var currentScripts = new ArrayList<>(selectedItem.automaticScripts());
-        currentScripts.remove(selectedScript);
-        var newRay = selectedItem.withAutomaticScripts(currentScripts);
+        automaticScriptsList.getItems().remove(selectedScript);
+        
+        // Save to data model
+        var newRay = selectedItem.withAutomaticScripts(List.copyOf(automaticScriptsList.getItems()));
         var items = elements.getItems();
         var selectedIndex = elements.getSelectionModel().getSelectedIndex();
         items.set(selectedIndex, newRay);
-        
-        // Update the automatic scripts list immediately
-        updateAutomaticScriptsList(currentScripts);
     }
 
     @FXML
@@ -441,13 +435,13 @@ public class SpectralRayEditor {
             return;
         }
 
+        automaticScriptsList.getItems().clear();
+        
+        // Save to data model
         var newRay = selectedItem.withAutomaticScripts(List.of());
         var items = elements.getItems();
         var selectedIndex = elements.getSelectionModel().getSelectedIndex();
         items.set(selectedIndex, newRay);
-        
-        // Update the automatic scripts list immediately
-        updateAutomaticScriptsList(List.of());
     }
 
     private void updateAutomaticScriptsList(List<Path> automaticScripts) {

@@ -95,7 +95,16 @@ public class GeometryPreviewPane extends BorderPane {
      * Generates the geometry correction preview
      */
     private void generatePreview() {
-        if (originalImage == null || currentEllipse == null) {
+        if (originalImage == null) {
+            return;
+        }
+        
+        if (currentEllipse == null) {
+            Platform.runLater(() -> {
+                previewView.setImage(null);
+                progressIndicator.setVisible(false);
+                statusLabel.setText("Insufficient points for ellipse fitting");
+            });
             return;
         }
 
