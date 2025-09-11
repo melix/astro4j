@@ -35,6 +35,7 @@ import javafx.scene.text.Text;
 import me.champeau.a4j.jsolex.app.JSolEx;
 import me.champeau.a4j.jsolex.app.jfx.I18N;
 import me.champeau.a4j.jsolex.expr.BuiltinFunction;
+import me.champeau.a4j.jsolex.processing.util.LocaleUtils;
 import me.champeau.a4j.jsolex.expr.ImageMathParser;
 import me.champeau.a4j.jsolex.expr.InvalidToken;
 import me.champeau.a4j.jsolex.expr.Node;
@@ -753,7 +754,7 @@ public class ImageMathTextArea extends BorderPane {
         var content = new VBox(5);
         content.setStyle("-fx-padding: 8; -fx-background-color: #2b2b2b; -fx-text-fill: white; -fx-font-size: 12px;");
 
-        String currentLanguage = Locale.getDefault().getLanguage();
+        String currentLanguage = LocaleUtils.getConfiguredLocale().getLanguage();
 
         // Function name
         var nameText = new Text(builtinFunction.name());

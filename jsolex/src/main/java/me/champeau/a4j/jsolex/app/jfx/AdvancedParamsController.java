@@ -18,6 +18,7 @@ package me.champeau.a4j.jsolex.app.jfx;
 import javafx.fxml.FXML;
 import javafx.scene.control.Button;
 import javafx.scene.control.CheckBox;
+import javafx.scene.control.ChoiceBox;
 import javafx.scene.control.Label;
 import javafx.scene.control.Slider;
 import javafx.scene.control.TextField;
@@ -47,6 +48,9 @@ public class AdvancedParamsController {
     @FXML
     private CheckBox pippCompatibleFits;
 
+    @FXML
+    private ChoiceBox<String> languageSelector;
+
     private Stage stage;
 
     public void setup(Stage stage) {
@@ -68,6 +72,18 @@ public class AdvancedParamsController {
         bass2000FtpUrl.setText(Configuration.getInstance().getBass2000FtpUrl());
         pippCompatibleFits.setSelected(Configuration.getInstance().isWritePippCompatibleFits());
         pippCompatibleFits.setOnAction(event -> handlePippCompatibilityChange());
+        
+        languageSelector.getItems().addAll(
+            I18N.string(JSolEx.class, "advanced-params", "language.english"),
+            I18N.string(JSolEx.class, "advanced-params", "language.french")
+        );
+
+        var selectedLanguage = Configuration.getInstance().getSelectedLanguage();
+        if ("fr".equals(selectedLanguage)) {
+            languageSelector.setValue(I18N.string(JSolEx.class, "advanced-params", "language.french"));
+        } else {
+            languageSelector.setValue(I18N.string(JSolEx.class, "advanced-params", "language.english"));
+        }
     }
 
     public static String computeMemoryUsageHelpLabel(Number value) {
@@ -100,6 +116,15 @@ public class AdvancedParamsController {
         Configuration.getInstance().setMemoryRestrictionMultiplier((int) memoryRestrictionMultiplier.getValue());
         Configuration.getInstance().setBass2000FtpUrl(bass2000FtpUrl.getText());
         Configuration.getInstance().setWritePippCompatibleFits(pippCompatibleFits.isSelected());
+        
+        var selectedLanguageDisplay = languageSelector.getValue();
+        var frenchDisplay = I18N.string(JSolEx.class, "advanced-params", "language.french");
+        if (frenchDisplay.equals(selectedLanguageDisplay)) {
+            Configuration.getInstance().setSelectedLanguage("fr");
+        } else {
+            Configuration.getInstance().setSelectedLanguage("en");
+        }
+        
         AlertFactory.info(I18N.string(JSolEx.class, "advanced-params", "must.restart"))
             .showAndWait();
         stage.close();

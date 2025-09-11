@@ -3,6 +3,7 @@
 <?import javafx.geometry.Insets?>
 <?import javafx.scene.control.Button?>
 <?import javafx.scene.control.CheckBox?>
+<?import javafx.scene.control.ChoiceBox?>
 <?import javafx.scene.control.Label?>
 <?import javafx.scene.control.ScrollPane?>
 <?import javafx.scene.control.Slider?>
@@ -34,14 +35,26 @@
                             <RowConstraints/>
                             <RowConstraints/>
                             <RowConstraints/>
+                            <RowConstraints/>
                         </rowConstraints>
                         
-                        <Label text="%watch.mode.wait.time" styleClass="field-label" GridPane.columnIndex="0" GridPane.rowIndex="0">
+                        <Label text="%language" styleClass="field-label" GridPane.columnIndex="0" GridPane.rowIndex="0">
+                            <tooltip>
+                                <Tooltip text="%language.tooltip"/>
+                            </tooltip>
+                        </Label>
+                        <ChoiceBox fx:id="languageSelector" styleClass="choice-box" GridPane.columnIndex="1" GridPane.rowIndex="0">
+                            <tooltip>
+                                <Tooltip text="%language.tooltip"/>
+                            </tooltip>
+                        </ChoiceBox>
+                        
+                        <Label text="%watch.mode.wait.time" styleClass="field-label" GridPane.columnIndex="0" GridPane.rowIndex="1">
                             <tooltip>
                                 <Tooltip text="%watch.mode.wait.time.tooltip"/>
                             </tooltip>
                         </Label>
-                        <HBox alignment="CENTER_LEFT" spacing="8" GridPane.columnIndex="1" GridPane.rowIndex="0">
+                        <HBox alignment="CENTER_LEFT" spacing="8" GridPane.columnIndex="1" GridPane.rowIndex="1">
                             <TextField fx:id="watchModeWaitTimeMillis" styleClass="text-field">
                                 <tooltip>
                                     <Tooltip text="%watch.mode.wait.time.tooltip"/>
@@ -50,12 +63,12 @@
                             <Label text="ms" styleClass="field-unit"/>
                         </HBox>
                         
-                        <Label text="%memory.restriction" styleClass="field-label" GridPane.columnIndex="0" GridPane.rowIndex="1">
+                        <Label text="%memory.restriction" styleClass="field-label" GridPane.columnIndex="0" GridPane.rowIndex="2">
                             <tooltip>
                                 <Tooltip text="%memory.restriction.tooltip"/>
                             </tooltip>
                         </Label>
-                        <VBox spacing="8" GridPane.columnIndex="1" GridPane.rowIndex="1">
+                        <VBox spacing="8" GridPane.columnIndex="1" GridPane.rowIndex="2">
                             <Slider fx:id="memoryRestrictionMultiplier" blockIncrement="1.0" majorTickUnit="8.0" max="32.0" min="1.0" minorTickCount="1" value="1.0">
                                 <tooltip>
                                     <Tooltip text="%memory.restriction.tooltip"/>
@@ -64,12 +77,12 @@
                             <Label fx:id="memoryRestrictionHelp" alignment="CENTER" text="Label" styleClass="help-text"/>
                         </VBox>
                         
-                        <Label text="%bass2000.ftp.url" styleClass="field-label" GridPane.columnIndex="0" GridPane.rowIndex="2">
+                        <Label text="%bass2000.ftp.url" styleClass="field-label" GridPane.columnIndex="0" GridPane.rowIndex="3">
                             <tooltip>
                                 <Tooltip text="%bass2000.ftp.url.tooltip"/>
                             </tooltip>
                         </Label>
-                        <HBox alignment="CENTER_LEFT" spacing="8" GridPane.columnIndex="1" GridPane.rowIndex="2">
+                        <HBox alignment="CENTER_LEFT" spacing="8" GridPane.columnIndex="1" GridPane.rowIndex="3">
                             <TextField fx:id="bass2000FtpUrl" styleClass="text-field" HBox.hgrow="ALWAYS">
                                 <tooltip>
                                     <Tooltip text="%bass2000.ftp.url.tooltip"/>
@@ -82,12 +95,12 @@
                             </Button>
                         </HBox>
                         
-                        <Label text="%pipp.compatible.fits" styleClass="field-label" GridPane.columnIndex="0" GridPane.rowIndex="3">
+                        <Label text="%pipp.compatible.fits" styleClass="field-label" GridPane.columnIndex="0" GridPane.rowIndex="4">
                             <tooltip>
                                 <Tooltip text="%pipp.compatible.fits.tooltip"/>
                             </tooltip>
                         </Label>
-                        <CheckBox fx:id="pippCompatibleFits" styleClass="checkbox-control" GridPane.columnIndex="1" GridPane.rowIndex="3">
+                        <CheckBox fx:id="pippCompatibleFits" styleClass="checkbox-control" GridPane.columnIndex="1" GridPane.rowIndex="4">
                             <tooltip>
                                 <Tooltip text="%pipp.compatible.fits.tooltip"/>
                             </tooltip>
