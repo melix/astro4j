@@ -36,6 +36,6 @@ public class LocaleUtils {
         if (localeProperty != null) {
             return localeProperty;
         }
-        return "FR".equals(Locale.getDefault().getCountry()) ? "fr" : "en";
+        return "fr".equals(Locale.getDefault().getLanguage()) ? "fr" : "en";
     }
 }
