@@ -16,10 +16,10 @@
 package me.champeau.a4j.jsolex.server;
 
 import io.micronaut.views.ViewsRenderer;
+import me.champeau.a4j.jsolex.processing.util.LocaleUtils;
 
 import java.io.IOException;
 import java.io.StringWriter;
-import java.util.Locale;
 import java.util.MissingResourceException;
 import java.util.ResourceBundle;
 import java.util.function.Supplier;
@@ -30,7 +30,7 @@ class AbstractController {
     static {
         ResourceBundle bundle;
         try {
-            bundle = ResourceBundle.getBundle(AbstractController.class.getPackageName() + "." + "messages", Locale.getDefault());
+            bundle = ResourceBundle.getBundle(AbstractController.class.getPackageName() + "." + "messages", LocaleUtils.getConfiguredLocale());
         } catch (MissingResourceException ex) {
             bundle = null;
         }

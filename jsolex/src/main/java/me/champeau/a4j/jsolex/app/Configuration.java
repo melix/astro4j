@@ -42,6 +42,7 @@ public class Configuration {
     private static final String AUTO_START_SERVER_PORT = "auto.start.server.port";
     private static final String BASS2000_FTP_URL = "bass2000.ftp.url";
     private static final String PIPP_COMPAT = "pipp.compatibility";
+    private static final String SELECTED_LANGUAGE = "selected.language";
 
     public static final String DEFAULT_SOLAP_URL = "ftp://ftp.obspm.fr/incoming/solap";
 
@@ -50,13 +51,19 @@ public class Configuration {
 
     private Configuration() {
         prefs = Preferences.userRoot().node(this.getClass().getName());
-        String recentFilesString = prefs.get(RECENT_FILES, "");
+        var recentFilesString = prefs.get(RECENT_FILES, "");
         this.recentFiles = Arrays.stream(recentFilesString.split(Pattern.quote(File.pathSeparator)))
                 .map(Path::of)
                 .filter(Files::exists)
                 .limit(10)
                 .collect(Collectors.toCollection(java.util.ArrayList::new));
         FitsUtils.setPippCompatibility(isWritePippCompatibleFits());
+        
+        // Set system property for locale if configured
+        var selectedLanguage = getSelectedLanguage();
+        if (selectedLanguage != null) {
+            System.setProperty("jsolex.locale", selectedLanguage);
+        }
     }
 
     public static Configuration getInstance() {
@@ -83,14 +90,14 @@ public class Configuration {
     }
 
     public void updateLastOpenDirectory(Path directory, DirectoryKind kind) {
-        String name = directory.toString();
-        String key = kind.dirKey();
+        var name = directory.toString();
+        var key = kind.dirKey();
         prefs.put(key, name);
     }
 
     public void updateLastOpenDirectory(Path directory, String customKey) {
-        String name = directory.toString();
-        String key = CUSTOM_DIR + customKey;
+        var name = directory.toString();
+        var key = CUSTOM_DIR + customKey;
         prefs.put(key, name);
     }
 
@@ -187,6 +194,20 @@ public class Configuration {
 
     public void setBass2000FtpUrl(String url) {
         prefs.put(BASS2000_FTP_URL, url);
+    }
+
+    public String getSelectedLanguage() {
+        return prefs.get(SELECTED_LANGUAGE, null);
+    }
+
+    public void setSelectedLanguage(String languageTag) {
+        if (languageTag == null) {
+            prefs.remove(SELECTED_LANGUAGE);
+            System.clearProperty("jsolex.locale");
+        } else {
+            prefs.put(SELECTED_LANGUAGE, languageTag);
+            System.setProperty("jsolex.locale", languageTag);
+        }
     }
 
     public enum DirectoryKind {

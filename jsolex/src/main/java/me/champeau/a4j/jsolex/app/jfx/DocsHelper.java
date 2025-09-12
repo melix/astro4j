@@ -16,8 +16,7 @@
 package me.champeau.a4j.jsolex.app.jfx;
 
 import javafx.application.HostServices;
-
-import java.util.Locale;
+import me.champeau.a4j.jsolex.processing.util.LocaleUtils;
 
 import static me.champeau.a4j.jsolex.processing.util.VersionUtil.getFullVersion;
 
@@ -32,7 +31,7 @@ public class DocsHelper {
         } else {
             section = "#" + section;
         }
-        var country = Locale.getDefault().getCountry().toLowerCase(Locale.US);
+        var country = LocaleUtils.getConfiguredLanguageCode();
         if (!country.equals("fr") && !country.equals("en")) {
             // default to en
             country = "en";

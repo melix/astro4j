@@ -129,16 +129,17 @@ import me.champeau.a4j.jsolex.processing.sun.TrimmingParameters;
 import me.champeau.a4j.jsolex.processing.sun.detection.RedshiftArea;
 import me.champeau.a4j.jsolex.processing.sun.workflow.GeneratedImageKind;
 import me.champeau.a4j.jsolex.processing.util.BackgroundOperations;
+import me.champeau.a4j.jsolex.processing.util.Bass2000ConfigService;
 import me.champeau.a4j.jsolex.processing.util.Constants;
 import me.champeau.a4j.jsolex.processing.util.FilesUtils;
 import me.champeau.a4j.jsolex.processing.util.GONG;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
+import me.champeau.a4j.jsolex.processing.util.LocaleUtils;
 import me.champeau.a4j.jsolex.processing.util.LoggingSupport;
 import me.champeau.a4j.jsolex.processing.util.MutableMap;
 import me.champeau.a4j.jsolex.processing.util.ProcessingException;
 import me.champeau.a4j.jsolex.processing.util.TemporaryFolder;
 import me.champeau.a4j.jsolex.processing.util.VersionUtil;
-import me.champeau.a4j.jsolex.processing.util.Bass2000ConfigService;
 import me.champeau.a4j.math.VectorApiSupport;
 import me.champeau.a4j.math.regression.Ellipse;
 import me.champeau.a4j.ser.Header;
@@ -700,9 +701,10 @@ public class JSolEx implements JSolExInterface {
         }
     }
 
+
     private void showWelcomeMessage(Scene current, Runnable onDismiss) {
         var webview = new SimpleMarkdownViewer(message("welcome"), getHostServices());
-        var country = Locale.getDefault().getLanguage().toUpperCase(Locale.US);
+        var country = LocaleUtils.getConfiguredLocale().getLanguage().toUpperCase(Locale.US);
         InputStream resource = getClass().getResourceAsStream("/whats-new_" + country + ".md");
         if (resource == null) {
             resource = getClass().getResourceAsStream("/whats-new.md");
@@ -802,7 +804,7 @@ public class JSolEx implements JSolExInterface {
                 alert.getButtonTypes().add(ButtonType.CLOSE);
                 alert.showAndWait().ifPresent(button -> {
                     if (button == download) {
-                        var lang = "FR".equals(Locale.getDefault().getCountry()) ? "fr" : "en";
+                        var lang = LocaleUtils.getConfiguredLanguageCode();
                         getHostServices().showDocument("https://melix.github.io/astro4j/latest/" + lang + "/jsolex.html");
                     }
                 });
@@ -1182,7 +1184,7 @@ public class JSolEx implements JSolExInterface {
                 case Bass2000ConfigService.DisabledReason.EXPLICITLY_DISABLED -> {
                     var config = configService.fetchConfiguration();
                     if (config.isPresent()) {
-                        var currentLocale = Locale.getDefault();
+                        var currentLocale = LocaleUtils.getConfiguredLocale();
                         var language = currentLocale.getLanguage();
                         yield config.get().getMessage(language);
                     }
@@ -1337,7 +1339,7 @@ public class JSolEx implements JSolExInterface {
 
     @FXML
     private void donate() {
-        var lang = "FR".equals(Locale.getDefault().getCountry()) ? "fr" : "en";
+        var lang = LocaleUtils.getConfiguredLanguageCode();
         getHostServices().showDocument("https://melix.github.io/astro4j/latest/" + lang + "/jsolex.html#donate");
     }
 

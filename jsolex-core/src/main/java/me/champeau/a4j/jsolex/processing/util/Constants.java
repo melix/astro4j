@@ -15,7 +15,6 @@
  */
 package me.champeau.a4j.jsolex.processing.util;
 
-import java.util.Locale;
 import java.util.MissingResourceException;
 import java.util.ResourceBundle;
 
@@ -32,7 +31,7 @@ public class Constants {
     static {
         ResourceBundle bundle;
         try {
-            bundle = ResourceBundle.getBundle(Constants.class.getPackageName() + "." + "messages", Locale.getDefault());
+            bundle = ResourceBundle.getBundle(Constants.class.getPackageName() + "." + "messages", LocaleUtils.getConfiguredLocale());
         } catch (MissingResourceException ex) {
             bundle = null;
         }
