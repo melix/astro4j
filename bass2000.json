@@ -1,8 +1,8 @@
 {
       "requiresVersion": "4.0.0",
-      "enabled": true,
+      "enabled": false,
       "message": {
-         "en": "BASS2000 feature is temporarily disabled and will be back on September 9, 2025",
-         "fr": "La fonctionnalité BASS2000 est temporairement fermée. Retour le 9 septembre 2025"
+         "en": "BASS2000 feature is temporarily disabled and will be back with 4.0.1 release!",
+         "fr": "La fonctionnalité BASS2000 est temporairement fermée et sera de retour avec la version 4.0.1 !"
       }
  }
