@@ -1,5 +1,10 @@
 # Welcome to JSol'Ex {{version}}!
 
+## What's New in Version 4.0.1
+
+- [ui] Let the user select language of the application in the preferences
+- [bugfix] Fixed intrusive completion popups
+
 ## What's New in Version 4.0.0
 
 - [Enhanced User Interface](#enhanced-user-interface)
