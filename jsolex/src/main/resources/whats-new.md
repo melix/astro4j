@@ -4,6 +4,7 @@
 
 - [ui] Let the user select language of the application in the preferences
 - [bugfix] Fixed intrusive completion popups
+- [bugfix] Fixed INSTRUME field in BASS2000 submission
 
 ## What's New in Version 4.0.0
 
