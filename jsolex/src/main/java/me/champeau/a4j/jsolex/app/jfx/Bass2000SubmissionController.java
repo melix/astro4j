@@ -1664,7 +1664,7 @@ public class Bass2000SubmissionController {
             var dateStr = date.format(DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss"));
             var prefixDateStr = date.format(DateTimeFormatter.ofPattern("_HH_mm_ss"));
 
-            return Optional.of(String.format("%s_%s_%s_%s", prefixDateStr, instrumeId, lineName, dateStr));
+            return Optional.of(String.format("%sZ_%s_%s_%s", prefixDateStr, instrumeId, lineName, dateStr));
         } catch (Exception e) {
             return Optional.empty();
         }
@@ -1684,7 +1684,7 @@ public class Bass2000SubmissionController {
                     .map(PixelShift::pixelShift)
                     .orElse(0.0);
             var dp = Math.round(pixelShift);
-            return Optional.of(String.format("%s_dp%d_%s_%s_%s", prefixDateStr, dp, instrumeId, offBandName, dateStr));
+            return Optional.of(String.format("%sZ_dp%d_%s_%s_%s", prefixDateStr, dp, instrumeId, offBandName, dateStr));
         } catch (Exception e) {
             return Optional.empty();
         }
@@ -2460,6 +2460,10 @@ public class Bass2000SubmissionController {
         var updatedSpectrumParams = processParams
                 .withObservationDetails(updatedObservationDetails)
                 .withSpectrumParams(processParams.spectrumParams().withRay(selectedSpectralRay));
+        var instrumentId = generateInstrumentId(updatedSpectrumParams);
+        updatedSpectrumParams = updatedSpectrumParams.withObservationDetails(
+                updatedObservationDetails.withInstrument(newSpectroHeliograph.withLabel(instrumentId))
+        );
         generatedBass2000Image.metadata().put(ProcessParams.class, updatedSpectrumParams);
         if (generatedOffBandImage != null) {
             var offbandRay = RAY_TO_WING.get(updatedSpectrumParams.spectrumParams().ray());
