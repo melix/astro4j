@@ -28,6 +28,7 @@ import javafx.scene.control.Tooltip;
 import javafx.scene.input.Clipboard;
 import javafx.scene.input.ClipboardContent;
 import javafx.scene.input.KeyCode;
+import javafx.scene.input.KeyEvent;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.VBox;
@@ -35,7 +36,6 @@ import javafx.scene.text.Text;
 import me.champeau.a4j.jsolex.app.JSolEx;
 import me.champeau.a4j.jsolex.app.jfx.I18N;
 import me.champeau.a4j.jsolex.expr.BuiltinFunction;
-import me.champeau.a4j.jsolex.processing.util.LocaleUtils;
 import me.champeau.a4j.jsolex.expr.ImageMathParser;
 import me.champeau.a4j.jsolex.expr.InvalidToken;
 import me.champeau.a4j.jsolex.expr.Node;
@@ -55,6 +55,7 @@ import me.champeau.a4j.jsolex.expr.ast.Section;
 import me.champeau.a4j.jsolex.expr.ast.SectionHeader;
 import me.champeau.a4j.jsolex.expr.ast.StringLiteral;
 import me.champeau.a4j.jsolex.processing.expr.DefaultImageScriptExecutor;
+import me.champeau.a4j.jsolex.processing.util.LocaleUtils;
 import org.fxmisc.richtext.CodeArea;
 import org.fxmisc.richtext.LineNumberFactory;
 import org.fxmisc.richtext.model.StyleSpans;
@@ -157,44 +158,6 @@ public class ImageMathTextArea extends BorderPane {
 
     private void applyHighlighting(StyleSpans<Collection<String>> highlighting) {
         codeArea.setStyleSpans(0, highlighting);
-        checkForAutoCompletion(highlighting);
-    }
-
-    private void checkForAutoCompletion(StyleSpans<Collection<String>> highlighting) {
-        if (completionPopup.isShowing()) {
-            return;
-        }
-
-        int caretPos = codeArea.getCaretPosition();
-        if (caretPos == 0) {
-            return;
-        }
-
-        // Get the token at caret to see if it's a partial identifier
-        var context = CompletionContext.analyze(codeArea.getText(), caretPos, includesDir);
-        String partial = context.getPartialToken();
-
-        // Check for auto-completion opportunities
-        if (partial.length() > 1 && context.getContextType() == CompletionContext.ContextType.GENERAL) {
-            var completions = completionProvider.getCompletions(codeArea.getText(), caretPos);
-
-            // Show auto-completion if we have a partial match and there are completions
-            if (!completions.isEmpty()) {
-                // Check if any completion starts with our partial (indicating a good match)
-                boolean hasGoodMatch = completions.stream()
-                        .anyMatch(completion -> completion.text().toLowerCase().startsWith(partial.toLowerCase()));
-
-                if (hasGoodMatch) {
-                    // Small delay to ensure caret position is stable
-                    Platform.runLater(() -> {
-                        Platform.runLater(() -> {
-                            populateCompletionPopup(completions);
-                            showCompletionPopup();
-                        });
-                    });
-                }
-            }
-        }
     }
 
     public void requestHighlighting() {
@@ -466,52 +429,55 @@ public class ImageMathTextArea extends BorderPane {
 
     private void setupCompletion() {
         completionPopup.setAutoHide(true);
+        completionPopup.setHideOnEscape(true);
 
-        // Intercept Tab events at the highest level before CodeArea processes them
-        codeArea.addEventFilter(javafx.scene.input.KeyEvent.KEY_PRESSED, event -> {
-            if (completionPopup.isShowing() && event.getCode() == KeyCode.TAB) {
-                if (!completionPopup.getItems().isEmpty()) {
-                    var firstItem = completionPopup.getItems().get(0);
-                    if (firstItem instanceof CustomMenuItem customItem) {
-                        customItem.fire();
-                        event.consume();
+        codeArea.addEventFilter(KeyEvent.KEY_PRESSED, event -> {
+            if (completionPopup.isShowing()) {
+                if (event.getCode() == KeyCode.TAB) {
+                    if (!completionPopup.getItems().isEmpty()) {
+                        var firstItem = completionPopup.getItems().getFirst();
+                        if (firstItem instanceof CustomMenuItem customItem) {
+                            customItem.fire();
+                            event.consume();
+                        }
                     }
                 }
             }
         });
 
-        // Hide popup on text changes (typing new characters)
         codeArea.textProperty().addListener((obs, oldText, newText) -> {
             if (completionPopup.isShowing()) {
-                // Update popup with filtered completions if still relevant
-                Platform.runLater(() -> updateCompletionFilter());
+                Platform.runLater(this::updateCompletionFilter);
+            }
+        });
+        
+        codeArea.focusedProperty().addListener((obs, oldVal, newVal) -> {
+            if (!newVal && completionPopup.isShowing()) {
+                completionPopup.hide();
             }
         });
 
+        codeArea.addEventHandler(KeyEvent.KEY_RELEASED, event -> {
+            if (event.getCode() == KeyCode.ESCAPE) {
+                event.consume();
+                completionPopup.hide();
+            }
+        });
         codeArea.setOnKeyPressed(event -> {
             if (event.getCode() == KeyCode.SPACE && event.isControlDown()) {
                 showCompletion();
                 event.consume();
             } else if (completionPopup.isShowing()) {
-                switch (event.getCode()) {
-                    case ESCAPE -> {
-                        completionPopup.hide();
-                        event.consume();
-                    }
-                    case ENTER -> {
-                        if (!completionPopup.getItems().isEmpty()) {
-                            // Simulate clicking on the first item - use the same codepath
-                            var firstItem = completionPopup.getItems().get(0);
-                            if (firstItem instanceof CustomMenuItem customItem) {
-                                // Fire the action that's already configured for clicking
-                                customItem.fire();
-                                event.consume();
-                            }
+                if (event.getCode() == KeyCode.ENTER) {
+                    if (!completionPopup.getItems().isEmpty()) {
+                        var firstItem = completionPopup.getItems().getFirst();
+                        if (firstItem instanceof CustomMenuItem customItem) {
+                            customItem.fire();
+                            event.consume();
                         }
                     }
                 }
             } else if (event.getCode() == KeyCode.TAB) {
-                // Check if we should auto-complete when Tab is pressed outside popup
                 var completions = completionProvider != null ?
                         completionProvider.getCompletions(codeArea.getText(), codeArea.getCaretPosition()) :
                         List.<CompletionItem>of();
@@ -522,7 +488,7 @@ public class ImageMathTextArea extends BorderPane {
 
                     // Auto-complete if there's a partial match
                     if (!partial.isEmpty() && partial.length() > 1) {
-                        insertCompletion(completions.get(0));
+                        insertCompletion(completions.getFirst());
                         event.consume();
                     }
                 }
@@ -609,20 +575,6 @@ public class ImageMathTextArea extends BorderPane {
         }
     }
 
-    private CompletionItem getSelectedCompletionItem() {
-        if (completionPopup.getItems().isEmpty()) {
-            return null;
-        }
-
-        var firstItem = completionPopup.getItems().get(0);
-        if (firstItem instanceof CustomMenuItem customItem) {
-            var label = (Label) customItem.getContent();
-            return findCompletionItemByLabel(label.getText());
-        }
-
-        return null;
-    }
-
     private CompletionItem getFirstCompletionItem() {
         if (completionProvider == null) {
             return null;
@@ -633,7 +585,7 @@ public class ImageMathTextArea extends BorderPane {
                 codeArea.getCaretPosition()
         );
 
-        return completions.isEmpty() ? null : completions.get(0);
+        return completions.isEmpty() ? null : completions.getFirst();
     }
 
     private CompletionItem getFirstCompletionFromPopup() {
@@ -641,28 +593,12 @@ public class ImageMathTextArea extends BorderPane {
             return null;
         }
 
-        var firstItem = completionPopup.getItems().get(0);
+        var firstItem = completionPopup.getItems().getFirst();
         if (firstItem instanceof CustomMenuItem customItem) {
             return (CompletionItem) customItem.getUserData();
         }
 
         return null;
-    }
-
-    private CompletionItem findCompletionItemByLabel(String labelText) {
-        if (completionProvider == null) {
-            return null;
-        }
-
-        var completions = completionProvider.getCompletions(
-                codeArea.getText(),
-                codeArea.getCaretPosition()
-        );
-
-        return completions.stream()
-                .filter(item -> item.text().equals(labelText))
-                .findFirst()
-                .orElse(null);
     }
 
     private void insertCompletion(CompletionItem item) {
@@ -832,6 +768,7 @@ public class ImageMathTextArea extends BorderPane {
             hoverTooltip = null;
         }
     }
+
 
     public void close() {
         hideHoverTooltip();
