@@ -147,13 +147,17 @@ public class ImageSelectionPanel extends BaseParameterPanel {
 
         scriptLabel = new Label("No script loaded");
         scriptLabel.getStyleClass().add("script-label");
+        scriptLabel.setWrapText(true);
 
         openImageMathButton = new Button(I18N.string(JSolEx.class, "image-selection", "open.imagemath"));
         openImageMathButton.getStyleClass().add("default-button");
+        openImageMathButton.setMinSize(Button.USE_PREF_SIZE, Button.USE_PREF_SIZE);
 
         clearScriptsButton = new Button(I18N.string(JSolEx.class, "process-params", "clear"));
         clearScriptsButton.getStyleClass().add("default-button");
         clearScriptsButton.setOnAction(e -> clearScripts());
+        clearScriptsButton.setMinSize(Button.USE_PREF_SIZE, Button.USE_PREF_SIZE);
+
     }
 
     private static CheckBox createCheckbox(String item) {
