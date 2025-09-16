@@ -5,6 +5,7 @@
 - [ui] Possibilité de choisir la langue de l'interface
 - [bugfix] Correction des popups de complétion intrusives
 - [bugfix] Correction du champ INSTRUME dans la soumission BASS2000
+- Avertissement lors de la soumission à BASS2000 si un fichier a déjà été envoyé le même jour pour la même longueur d'onde
 
 ## Nouveautés de la version 4.0.0
 

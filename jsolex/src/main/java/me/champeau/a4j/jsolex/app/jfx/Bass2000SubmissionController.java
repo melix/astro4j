@@ -64,6 +64,7 @@ import me.champeau.a4j.jsolex.processing.sun.workflow.ReferenceCoords;
 import me.champeau.a4j.jsolex.processing.sun.workflow.SourceInfo;
 import me.champeau.a4j.jsolex.processing.util.BackgroundOperations;
 import me.champeau.a4j.jsolex.processing.util.Bass2000Compatibility;
+import me.champeau.a4j.jsolex.processing.util.Bass2000UploadHistoryService;
 import me.champeau.a4j.jsolex.processing.util.FitsUtils;
 import me.champeau.a4j.jsolex.processing.util.GONG;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
@@ -108,6 +109,9 @@ import static me.champeau.a4j.jsolex.app.JSolEx.newScene;
 
 public class Bass2000SubmissionController {
     private static final Logger LOGGER = LoggerFactory.getLogger(Bass2000SubmissionController.class);
+
+    private static final String DUMMY_FTP = "ftp://dummy";
+
     private static final SpectralRay BASS2000_HA = SpectralRay.H_ALPHA.withWavelength(Wavelen.ofAngstroms(6562.762));
     private static final SpectralRay BASS2000_CALCIUM_K = SpectralRay.CALCIUM_K.withWavelength(Wavelen.ofAngstroms(3933.663));
     private static final SpectralRay BASS2000_CALCIUM_H = SpectralRay.CALCIUM_H.withWavelength(Wavelen.ofAngstroms(3968.469));
@@ -223,6 +227,8 @@ public class Bass2000SubmissionController {
 
     private CheckBox lineCenterUploadCheckbox;
     private CheckBox wingImageUploadCheckbox;
+    private Label step1DuplicateWarningLabel;
+    private Label step5DuplicateWarningLabel;
 
     private Stage fullscreenStage;
     private ImageView fullscreenImageView;
@@ -482,6 +488,8 @@ public class Bass2000SubmissionController {
         contentPane.getChildren().clear();
         contentPane.getChildren().add(step5Content);
 
+        checkForDuplicateOnStep5();
+
         if (savedFilePath == null) {
             exportBass2000ImageForUpload();
         }
@@ -557,7 +565,13 @@ public class Bass2000SubmissionController {
         agreeLabel.setWrapText(true);
         agreeLabel.setStyle("-fx-font-size: 14px; -fx-text-fill: red; -fx-font-weight: bold;");
 
-        content.getChildren().addAll(headerLabel, warningLabel, requirementsFlow, processLabel, agreeLabel);
+        step1DuplicateWarningLabel = new Label();
+        step1DuplicateWarningLabel.setWrapText(true);
+        step1DuplicateWarningLabel.setVisible(false);
+        step1DuplicateWarningLabel.setManaged(false);
+        step1DuplicateWarningLabel.setStyle("-fx-text-fill: orange; -fx-font-weight: bold; -fx-padding: 10px; -fx-border-color: orange; -fx-border-width: 1px; -fx-background-color: #fff3cd;");
+
+        content.getChildren().addAll(headerLabel, warningLabel, requirementsFlow, processLabel, agreeLabel, step1DuplicateWarningLabel);
         return content;
     }
 
@@ -1343,7 +1357,13 @@ public class Bass2000SubmissionController {
 
         var uploadBox = createUploadSection();
 
-        content.getChildren().addAll(headerLabel, submissionWarningLabel, fileSavedBox, uploadBox);
+        step5DuplicateWarningLabel = new Label();
+        step5DuplicateWarningLabel.setWrapText(true);
+        step5DuplicateWarningLabel.setVisible(false);
+        step5DuplicateWarningLabel.setManaged(false);
+        step5DuplicateWarningLabel.setStyle("-fx-text-fill: orange; -fx-font-weight: bold; -fx-padding: 10px; -fx-border-color: orange; -fx-border-width: 1px; -fx-background-color: #fff3cd;");
+
+        content.getChildren().addAll(headerLabel, submissionWarningLabel, fileSavedBox, step5DuplicateWarningLabel, uploadBox);
         return content;
     }
 
@@ -1496,6 +1516,13 @@ public class Bass2000SubmissionController {
             return;
         }
 
+        var selectedWavelength = wavelengthField.getValue();
+        if (selectedWavelength != null) {
+            if (!maybeConfirmDuplicateUpload(selectedWavelength.wavelength().angstroms())) {
+                return;
+            }
+        }
+
         if (uploadLineCenter && savedFilePath == null) {
             Platform.runLater(() -> {
                 var alert = AlertFactory.error(message("upload.error.no.file.message"));
@@ -1574,11 +1601,14 @@ public class Bass2000SubmissionController {
                         uploadProgressBar.setManaged(false);
                     }
 
+                    recordSuccessfulUploads();
+
                     var alert = AlertFactory.info();
                     alert.setTitle(message("upload.success.title"));
                     alert.setHeaderText(message("upload.success.header"));
                     alert.setContentText(message("upload.success.message"));
                     alert.showAndWait();
+                    stage.close();
                 });
             } catch (Exception e) {
                 LOGGER.error("Failed to upload file to BASS2000", e);
@@ -1608,7 +1638,9 @@ public class Bass2000SubmissionController {
     private void uploadFileToFTP(File file, long totalBytes, long bytesAlreadyTransferred) throws IOException {
         var config = Configuration.getInstance();
         var ftpUrl = config.getBass2000FtpUrl();
-
+        if (DUMMY_FTP.equals(ftpUrl)) {
+            return;
+        }
         try {
             var uri = new URI(ftpUrl);
             var ftpHost = uri.getHost();
@@ -1769,6 +1801,8 @@ public class Bass2000SubmissionController {
                             nextButton.setDisable(false);
                         }
                         updateButtons();
+
+                        checkForDuplicateOnStep1();
                     });
                 } else {
                     Platform.runLater(() -> {
@@ -2598,6 +2632,111 @@ public class Bass2000SubmissionController {
                 Platform.runLater(() -> progressBar.setProgress(Math.min(progress, 1.0)));
             }
         }
+    }
+
+
+    private void checkForDuplicateOnStep1() {
+        BackgroundOperations.async(() -> {
+            var processParams = originalImage.findMetadata(ProcessParams.class);
+            if (processParams.isPresent()) {
+                var pp = processParams.get();
+                var spectralRay = pp.spectrumParams().ray();
+                if (spectralRay != null) {
+                    var wavelengthAngstroms = spectralRay.wavelength().angstroms();
+                    var observationDate = pp.observationDetails().date().toLocalDate();
+                    var duplicate = Bass2000UploadHistoryService.getInstance().checkForDuplicateUpload(observationDate, wavelengthAngstroms);
+                    Platform.runLater(() -> updateStep1DuplicateWarning(duplicate.orElse(null)));
+                }
+            }
+        });
+    }
+
+    private void checkForDuplicateOnStep5() {
+        BackgroundOperations.async(() -> {
+            var selectedWavelength = wavelengthField.getValue();
+            if (selectedWavelength != null) {
+                var observationDate = findProcessParams().observationDetails().date().toLocalDate();
+                var duplicate = Bass2000UploadHistoryService.getInstance().checkForDuplicateUpload(observationDate, selectedWavelength.wavelength().angstroms());
+                Platform.runLater(() -> updateStep5DuplicateWarning(duplicate.orElse(null)));
+            }
+        });
+    }
+
+    private void updateStep1DuplicateWarning(Bass2000UploadHistoryService.UploadRecord duplicate) {
+        if (step1DuplicateWarningLabel == null) {
+            LOGGER.info("Step 1 duplicate warning label is null, cannot update warning");
+            return;
+        }
+
+        if (duplicate != null) {
+            LOGGER.info("Updating step 1 duplicate warning label with message for file: {}", duplicate.sourceFilename());
+            step1DuplicateWarningLabel.setText(MessageFormat.format(message("duplicate.warning"), duplicate.sourceFilename()));
+            step1DuplicateWarningLabel.setVisible(true);
+            step1DuplicateWarningLabel.setManaged(true);
+        } else {
+            LOGGER.info("No duplicate found, hiding step 1 warning label");
+            step1DuplicateWarningLabel.setVisible(false);
+            step1DuplicateWarningLabel.setManaged(false);
+        }
+    }
+
+    private void updateStep5DuplicateWarning(Bass2000UploadHistoryService.UploadRecord duplicate) {
+        if (step5DuplicateWarningLabel == null) {
+            LOGGER.info("Step 5 duplicate warning label is null, cannot update warning");
+            return;
+        }
+
+        if (duplicate != null) {
+            LOGGER.info("Updating step 5 duplicate warning label with message for file: {}", duplicate.sourceFilename());
+            step5DuplicateWarningLabel.setText(MessageFormat.format(message("duplicate.warning"), duplicate.sourceFilename()));
+            step5DuplicateWarningLabel.setVisible(true);
+            step5DuplicateWarningLabel.setManaged(true);
+        } else {
+            LOGGER.info("No duplicate found, hiding step 5 warning label");
+            step5DuplicateWarningLabel.setVisible(false);
+            step5DuplicateWarningLabel.setManaged(false);
+        }
+    }
+
+    private boolean maybeConfirmDuplicateUpload(double wavelengthAngstroms) {
+        var observationDate = findProcessParams().observationDetails().date().toLocalDate();
+        var duplicate = Bass2000UploadHistoryService.getInstance().checkForDuplicateUpload(observationDate, wavelengthAngstroms);
+        if (duplicate.isPresent()) {
+            var record = duplicate.get();
+            var alert = AlertFactory.confirmation(MessageFormat.format(message("duplicate.confirmation.message"), record.sourceFilename()));
+            alert.setTitle(message("duplicate.confirmation.title"));
+            alert.setHeaderText(message("duplicate.confirmation.header"));
+            var result = alert.showAndWait();
+            return result.isPresent() && result.get().getButtonData().isDefaultButton();
+        }
+        return true;
+    }
+
+    private void recordSuccessfulUploads() {
+        BackgroundOperations.async(() -> {
+            var selectedWavelength = wavelengthField.getValue();
+            if (selectedWavelength == null) {
+                return;
+            }
+
+            var historyService = Bass2000UploadHistoryService.getInstance();
+            var observationDate = findProcessParams().observationDetails().date().toLocalDate();
+            var wavelengthAngstroms = selectedWavelength.wavelength().angstroms();
+            var sourceFileBasename = generatedBass2000Image.findMetadata(SourceInfo.class).map(SourceInfo::serFileName).orElse(generatedFilename);
+
+            var uploadLineCenter = lineCenterUploadCheckbox != null && lineCenterUploadCheckbox.isSelected();
+            var uploadWingImage = wingImageUploadCheckbox != null && wingImageUploadCheckbox.isSelected();
+
+            if (uploadLineCenter && savedFilePath != null) {
+                var lineCenterFilename = generateFileName().orElse("unknown_line_center") + ".fits";
+                historyService.recordUpload(observationDate, wavelengthAngstroms, sourceFileBasename, lineCenterFilename);
+            }
+
+            if (uploadWingImage && savedOffBandFilePath != null) {
+                var wingFilename = generateFileName().orElse("unknown_wing") + "_wing.fits";
+                historyService.recordUpload(observationDate, wavelengthAngstroms, sourceFileBasename, wingFilename);
+            }
+        });
     }
 
 }

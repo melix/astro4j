@@ -5,6 +5,7 @@
 - [ui] Let the user select language of the application in the preferences
 - [bugfix] Fixed intrusive completion popups
 - [bugfix] Fixed INSTRUME field in BASS2000 submission
+- Added a warning when submitting to BASS2000 a file which was already submitted on the same day for the same wavelength
 
 ## What's New in Version 4.0.0
 

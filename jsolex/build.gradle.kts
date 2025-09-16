@@ -18,6 +18,7 @@ dependencies {
     implementation(libs.ikonli)
     implementation(libs.ikonli.fluentui)
     implementation(libs.commons.net)
+    runtimeOnly(libs.sqlite)
 }
 
 jlink {
@@ -45,6 +46,7 @@ jlink {
     forceMerge(
         "commons-compress",
         "logback-core", "logback-classic",
+        "sqlite-jdbc"
     )
 }
 

@@ -11,6 +11,7 @@ micronaut = "4.9.3"
 richtextfx = "0.11.6"
 jcodec="0.2.5"
 ikonli="12.4.0"
+sqlite="3.50.3.0"
 
 [libraries]
 slf4j-api = { module = "org.slf4j:slf4j-api", version.ref = "slf4j-api" }
@@ -26,3 +27,4 @@ jcodec = { module = "org.jcodec:jcodec", version.ref = "jcodec"}
 micronaut = { module = "io.micronaut.platform:micronaut-platform", version.ref = "micronaut"}
 ikonli= { module = "org.kordamp.ikonli:ikonli-javafx", version.ref = "ikonli" }
 ikonli-fluentui = { module = "org.kordamp.ikonli:ikonli-fluentui-pack", version.ref = "ikonli" }
+sqlite = { module = "org.xerial:sqlite-jdbc", version.ref = "sqlite" }
