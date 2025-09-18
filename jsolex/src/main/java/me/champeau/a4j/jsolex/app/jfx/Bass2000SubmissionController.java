@@ -95,7 +95,6 @@ import java.nio.file.Path;
 import java.text.MessageFormat;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
@@ -1250,7 +1249,9 @@ public class Bass2000SubmissionController {
         if (field == mountNameField || field == cameraNameField || field == telescopeNameField) {
             if (text.trim().contains(" ")) {
                 var parts = text.trim().split("\\s+");
-                return Arrays.stream(parts).allMatch(s -> s.length() >= 3);
+                return parts.length > 1
+                        && parts[0].length() > 2
+                        && parts[1].length() > 1;
             }
             return false;
         } else if (field == spectrographNameField) {
