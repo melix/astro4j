@@ -18,12 +18,18 @@ package me.champeau.a4j.jsolex.app.jfx;
 import javafx.application.HostServices;
 import javafx.geometry.Insets;
 import javafx.scene.control.Button;
+import javafx.scene.control.Alert;
+import javafx.scene.control.ButtonType;
 import javafx.scene.control.CheckBox;
 import javafx.scene.control.Label;
+import javafx.scene.control.TextInputDialog;
+import javafx.scene.control.Tooltip;
 import javafx.scene.layout.ColumnConstraints;
+import javafx.scene.layout.FlowPane;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
+import javafx.scene.layout.VBox;
 import javafx.stage.Stage;
 import me.champeau.a4j.jsolex.app.JSolEx;
 import me.champeau.a4j.jsolex.app.script.JSolExScriptExecutor;
@@ -32,6 +38,8 @@ import me.champeau.a4j.jsolex.processing.expr.ImageMathScriptExecutor;
 import me.champeau.a4j.jsolex.processing.params.ImageMathParams;
 import me.champeau.a4j.jsolex.processing.params.ProcessParams;
 import me.champeau.a4j.jsolex.processing.params.RequestedImages;
+import me.champeau.a4j.jsolex.processing.params.UserPreset;
+import me.champeau.a4j.jsolex.processing.params.UserPresetIO;
 import me.champeau.a4j.jsolex.processing.sun.workflow.GeneratedImageKind;
 import me.champeau.a4j.jsolex.processing.sun.workflow.PixelShift;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
@@ -49,6 +57,7 @@ import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 import java.util.TreeSet;
 
@@ -82,6 +91,9 @@ public class ImageSelectionPanel extends BaseParameterPanel {
     private Label scriptLabel;
     private Button openImageMathButton;
     private Button clearScriptsButton;
+    private Button savePresetButton;
+    private FlowPane userPresetsContainer;
+    private VBox userPresetsSection;
 
     private ProcessParamsController controller;
     private HostServices hostServices;
@@ -158,6 +170,16 @@ public class ImageSelectionPanel extends BaseParameterPanel {
         clearScriptsButton.setOnAction(e -> clearScripts());
         clearScriptsButton.setMinSize(Button.USE_PREF_SIZE, Button.USE_PREF_SIZE);
 
+        savePresetButton = new Button(I18N.string(JSolEx.class, "process-params", "save.preset"));
+        savePresetButton.setTooltip(new Tooltip(I18N.string(JSolEx.class, "process-params", "save.preset.tooltip")));
+        savePresetButton.getStyleClass().add("default-button");
+        savePresetButton.setOnAction(e -> saveCurrentSelectionAsPreset());
+        savePresetButton.setMinSize(Button.USE_PREF_SIZE, Button.USE_PREF_SIZE);
+
+        userPresetsContainer = new FlowPane();
+        userPresetsContainer.setHgap(8);
+        userPresetsContainer.setVgap(4);
+
     }
 
     private static CheckBox createCheckbox(String item) {
@@ -214,7 +236,11 @@ public class ImageSelectionPanel extends BaseParameterPanel {
         HBox.setHgrow(scriptLabel, Priority.ALWAYS);
         scriptBox.getChildren().addAll(scriptLabel, clearScriptsButton, openImageMathButton);
 
+        var savePresetBox = createHBox();
+        savePresetBox.getChildren().add(savePresetButton);
+
         addGridRow(pixelShiftGrid, 0, I18N.string(JSolEx.class, "process-params", "scripts") + ":", scriptBox);
+        addGridRow(pixelShiftGrid, 1, I18N.string(JSolEx.class, "process-params", "save.preset") + ":", savePresetBox);
 
         pixelShiftSection.getChildren().add(pixelShiftGrid);
 
@@ -248,7 +274,17 @@ public class ImageSelectionPanel extends BaseParameterPanel {
 
         actionsSection.getChildren().add(actionsGrid);
 
-        getChildren().addAll(actionsSection, basicSection, advancedSection, pixelShiftSection, debugSection);
+        // Create user presets section that can be shown/hidden (no section header, just grid row)
+        userPresetsSection = new VBox();
+        var userPresetsGrid = createGrid();
+        addGridRow(userPresetsGrid, 0, I18N.string(JSolEx.class, "process-params", "user.presets") + ":", userPresetsContainer);
+        userPresetsSection.getChildren().add(userPresetsGrid);
+
+        // Load user presets and update visibility
+        loadUserPresets();
+        updateUserPresetsVisibility();
+
+        getChildren().addAll(actionsSection, userPresetsSection, basicSection, advancedSection, pixelShiftSection, debugSection);
     }
 
     private void setupEventHandlers() {
@@ -641,5 +677,192 @@ public class ImageSelectionPanel extends BaseParameterPanel {
         } else {
             currentMode = SelectionMode.CUSTOM;
         }
+    }
+
+    private void saveCurrentSelectionAsPreset() {
+        var dialog = new TextInputDialog();
+        dialog.setTitle(I18N.string(JSolEx.class, "process-params", "preset.name.dialog.title"));
+        dialog.setHeaderText(I18N.string(JSolEx.class, "process-params", "preset.name.dialog.header"));
+        dialog.setContentText(I18N.string(JSolEx.class, "process-params", "preset.name.dialog.content"));
+        dialog.initOwner(getScene().getWindow());
+
+        Optional<String> result = dialog.showAndWait();
+        result.ifPresent(name -> {
+            var trimmedName = name.trim();
+            if (trimmedName.isEmpty()) {
+                showError(I18N.string(JSolEx.class, "process-params", "preset.name.empty.error"));
+                return;
+            }
+
+            // Check if preset already exists
+            if (UserPresetIO.presetExists(trimmedName)) {
+                var confirmDialog = new Alert(Alert.AlertType.CONFIRMATION);
+                confirmDialog.setTitle(I18N.string(JSolEx.class, "process-params", "preset.name.dialog.title"));
+                confirmDialog.setHeaderText(I18N.string(JSolEx.class, "process-params", "preset.name.exists.error"));
+                confirmDialog.initOwner(getScene().getWindow());
+
+                var confirmResult = confirmDialog.showAndWait();
+                if (confirmResult.orElse(ButtonType.CANCEL) != ButtonType.OK) {
+                    return;
+                }
+            }
+
+            try {
+                var currentImages = getCurrentSelectedImages();
+                var currentMathImages = imageMathParams != null ? imageMathParams : ImageMathParams.NONE;
+                var currentAutomaticScripts = applyAutomaticScripts.isSelected();
+
+                var preset = new UserPreset(trimmedName, currentImages, currentMathImages, currentAutomaticScripts);
+                UserPresetIO.savePreset(preset);
+
+                loadUserPresets();
+                showInfo(I18N.string(JSolEx.class, "process-params", "preset.saved.success"));
+            } catch (Exception ex) {
+                LOGGER.error("Failed to save user preset", ex);
+                showError("Failed to save preset: " + ex.getMessage());
+            }
+        });
+    }
+
+    private Set<GeneratedImageKind> getCurrentSelectedImages() {
+        var images = EnumSet.noneOf(GeneratedImageKind.class);
+
+        if (raw.isSelected()) images.add(GeneratedImageKind.RAW);
+        if (geometryCorrected.isSelected()) images.add(GeneratedImageKind.GEOMETRY_CORRECTED);
+        if (geometryCorrectedStretched.isSelected()) images.add(GeneratedImageKind.GEOMETRY_CORRECTED_PROCESSED);
+        if (reconstruction.isSelected()) images.add(GeneratedImageKind.RECONSTRUCTION);
+        if (technicalCard.isSelected()) images.add(GeneratedImageKind.TECHNICAL_CARD);
+        if (colorized.isSelected()) images.add(GeneratedImageKind.COLORIZED);
+        if (virtualEclipse.isSelected()) images.add(GeneratedImageKind.VIRTUAL_ECLIPSE);
+        if (negative.isSelected()) images.add(GeneratedImageKind.NEGATIVE);
+        if (mixed.isSelected()) images.add(GeneratedImageKind.MIXED);
+        if (doppler.isSelected()) images.add(GeneratedImageKind.DOPPLER);
+        if (dopplerEclipse.isSelected()) images.add(GeneratedImageKind.DOPPLER_ECLIPSE);
+        if (continuum.isSelected()) images.add(GeneratedImageKind.CONTINUUM);
+        if (redshift.isSelected()) images.add(GeneratedImageKind.REDSHIFT);
+        if (activeRegions.isSelected()) images.add(GeneratedImageKind.ACTIVE_REGIONS);
+        if (ellermanBombs.isSelected()) {
+            images.add(GeneratedImageKind.ELLERMAN_BOMBS);
+            images.add(GeneratedImageKind.FLARES);
+        }
+        if (debug.isSelected()) images.add(GeneratedImageKind.DEBUG);
+
+        return images;
+    }
+
+    private void loadUserPresets() {
+        userPresetsContainer.getChildren().clear();
+
+        try {
+            var presets = UserPresetIO.loadPresets();
+            for (var preset : presets) {
+                var loadButton = new Button(preset.displayName());
+                loadButton.setTooltip(new Tooltip(I18N.string(JSolEx.class, "process-params", "load.preset.tooltip")));
+                loadButton.getStyleClass().add("custom-button");
+                loadButton.setOnAction(e -> loadUserPreset(preset));
+                loadButton.setMinWidth(Button.USE_PREF_SIZE);
+                loadButton.setMaxWidth(Double.MAX_VALUE);
+
+                var deleteButton = new Button("✕");
+                deleteButton.setTooltip(new Tooltip(I18N.string(JSolEx.class, "process-params", "delete.preset.tooltip")));
+                deleteButton.getStyleClass().addAll("default-button", "small-button");
+                deleteButton.setOnAction(e -> deleteUserPreset(preset.displayName()));
+                deleteButton.setMinWidth(25);
+                deleteButton.setMaxWidth(25);
+
+                userPresetsContainer.getChildren().addAll(loadButton, deleteButton);
+            }
+        } catch (Exception ex) {
+            LOGGER.error("Failed to load user presets", ex);
+        }
+        updateUserPresetsVisibility();
+    }
+
+    private void updateUserPresetsVisibility() {
+        try {
+            var presets = UserPresetIO.loadPresets();
+            boolean hasPresets = !presets.isEmpty();
+
+            // Show or hide the entire user presets section
+            userPresetsSection.setVisible(hasPresets);
+            userPresetsSection.setManaged(hasPresets);
+        } catch (Exception ex) {
+            LOGGER.error("Failed to update user presets visibility", ex);
+        }
+    }
+
+    public void loadUserPreset(UserPreset preset) {
+        try {
+            // Clear all selections first
+            selectAllExceptDebug(false);
+
+            // Apply image selections from preset
+            for (var imageKind : preset.selectedImages()) {
+                switch (imageKind) {
+                    case RAW -> raw.setSelected(true);
+                    case GEOMETRY_CORRECTED -> geometryCorrected.setSelected(true);
+                    case GEOMETRY_CORRECTED_PROCESSED -> geometryCorrectedStretched.setSelected(true);
+                    case RECONSTRUCTION -> reconstruction.setSelected(true);
+                    case TECHNICAL_CARD -> technicalCard.setSelected(true);
+                    case COLORIZED -> colorized.setSelected(true);
+                    case VIRTUAL_ECLIPSE -> virtualEclipse.setSelected(true);
+                    case NEGATIVE -> negative.setSelected(true);
+                    case MIXED -> mixed.setSelected(true);
+                    case DOPPLER -> doppler.setSelected(true);
+                    case DOPPLER_ECLIPSE -> dopplerEclipse.setSelected(true);
+                    case CONTINUUM -> continuum.setSelected(true);
+                    case REDSHIFT -> redshift.setSelected(true);
+                    case ACTIVE_REGIONS -> activeRegions.setSelected(true);
+                    case ELLERMAN_BOMBS -> ellermanBombs.setSelected(true);
+                    case DEBUG -> debug.setSelected(true);
+                }
+            }
+
+            // Apply script configuration
+            imageMathParams = preset.mathImages();
+            updateScriptLabel();
+
+            // Apply automatic scripts setting
+            applyAutomaticScripts.setSelected(preset.applyAutomaticScripts());
+
+            determineCurrentMode();
+            updateCurrentModeDisplay();
+        } catch (Exception ex) {
+            LOGGER.error("Failed to load user preset: " + preset.displayName(), ex);
+            showError("Failed to load preset: " + ex.getMessage());
+        }
+    }
+
+    private void deleteUserPreset(String presetName) {
+        var alert = new Alert(Alert.AlertType.CONFIRMATION);
+        alert.setTitle(I18N.string(JSolEx.class, "process-params", "preset.delete.confirm.title"));
+        alert.setHeaderText(I18N.string(JSolEx.class, "process-params", "preset.delete.confirm.header").replace("{0}", presetName));
+        alert.setContentText(I18N.string(JSolEx.class, "process-params", "preset.delete.confirm.content"));
+        alert.initOwner(getScene().getWindow());
+
+        var result = alert.showAndWait();
+        if (result.orElse(ButtonType.CANCEL) == ButtonType.OK) {
+            try {
+                UserPresetIO.deletePreset(presetName);
+                loadUserPresets();
+            } catch (Exception ex) {
+                LOGGER.error("Failed to delete user preset: " + presetName, ex);
+                showError("Failed to delete preset: " + ex.getMessage());
+            }
+        }
+    }
+
+    private void showError(String message) {
+        var alert = new Alert(Alert.AlertType.ERROR);
+        alert.setContentText(message);
+        alert.initOwner(getScene().getWindow());
+        alert.showAndWait();
+    }
+
+    private void showInfo(String message) {
+        var alert = new Alert(Alert.AlertType.INFORMATION);
+        alert.setContentText(message);
+        alert.initOwner(getScene().getWindow());
+        alert.showAndWait();
     }
 }

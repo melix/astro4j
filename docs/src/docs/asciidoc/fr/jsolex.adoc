@@ -271,6 +271,39 @@ Par exemple, pour créer un modèle pour mettre toutes vos images dans un même 
 
 Le champ "exemple" donne une idée de ce qui sera généré.
 
+=== Préréglages personnalisés
+
+En complément des préréglages intégrés "Mode rapide" et "Traitement complet", JSol'Ex vous permet de créer et gérer vos propres préréglages personnalisés pour la sélection d'images et la configuration des scripts.
+
+==== Créer un préréglage
+
+Une fois que vous avez configuré vos sélections d'images et scripts souhaités dans la section "Images personnalisées et scripts", vous pouvez sauvegarder votre configuration comme un préréglage :
+
+1. Sélectionnez les images que vous voulez inclure dans votre préréglage
+2. Configurez les scripts ImageMath si nécessaire
+3. Dans la section "Images personnalisées et scripts", cliquez sur le bouton "Enregistrer votre sélection"
+4. Entrez un nom descriptif pour votre préréglage
+5. Cliquez sur "OK" pour sauvegarder
+
+Votre préréglage est maintenant sauvegardé et persistera entre les sessions JSol'Ex.
+
+==== Utiliser vos préréglages
+
+Les préréglages personnalisés apparaissent comme des boutons dans la fenêtre de paramètres de traitement, à côté des boutons Mode rapide et Traitement complet. Cliquez simplement sur n'importe quel bouton de préréglage pour appliquer instantanément cette configuration.
+
+Chaque préréglage restaure :
+- Toutes les sélections de types d'images (images de base, avancées et personnalisées)
+- Les configurations de scripts ImageMath
+- Le paramètre de scripts automatiques
+
+==== Gérer les préréglages
+
+- **Charger un préréglage** : Cliquez sur le bouton du préréglage pour appliquer sa configuration
+- **Supprimer un préréglage** : Cliquez sur le bouton "×" à côté de n'importe quel préréglage utilisateur pour le supprimer (avec confirmation)
+- **Remplacer un préréglage** : Sauvegardez un nouveau préréglage avec le même nom qu'un existant pour le remplacer
+
+Les préréglages utilisateur sont stockés localement sur votre ordinateur et sont automatiquement disponibles à chaque ouverture de JSol'Ex.
+
 == Lancer un traitement
 
 Lorsque vous avez configuré les paramètres, cliquez sur "Traiter" pour lancer le traitement.

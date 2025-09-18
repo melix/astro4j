@@ -58,6 +58,7 @@ abstract class PropertiesFileSanityCheckTask : DefaultTask() {
         }
 
         val problematicChars = listOf(
+            "ï¿½",
             "\u00C3\u00A9", "\u00C3\u00A8", "\u00C3\u0020", "\u00C3\u00B4", "\u00C3\u00BB", "\u00C3\u00A7", "\u00C3\u00AB", "\u00C3\u00AE", "\u00C3\u00AF", "\u00C3\u00A2", "\u00C3\u00BC",
             "\u00E2\u0080\u0099", "\u00E2\u0080\u009C", "\u00E2\u0080\u009D", "\u00E2\u0080\u00A6", "\u00C2\u00B0", "\u00E2\u0080\u0093", "\u00E2\u0080\u0094", "\u00E2\u0080\u00B2", "\u00E2\u0080\u00B3"
         )
