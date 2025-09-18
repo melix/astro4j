@@ -271,6 +271,39 @@ This for example would be a pattern which puts all generated files in a single f
 
 The "example" field shows you what the generated file names would look like.
 
+=== User-Defined Presets
+
+In addition to the built-in "Quick Mode" and "Full Process" presets, JSol'Ex allows you to create and manage your own custom presets for image selection and script configuration.
+
+==== Creating a Preset
+
+Once you have configured your desired image selections and scripts in the "Custom Images and Scripts" section, you can save your configuration as a preset:
+
+1. Select the images you want to include in your preset
+2. Configure any ImageMath scripts if needed
+3. In the "Custom Images and Scripts" section, click the "Save as Preset..." button
+4. Enter a descriptive name for your preset
+5. Click "OK" to save
+
+Your preset is now saved and will persist between JSol'Ex sessions.
+
+==== Using Your Presets
+
+User-defined presets appear as buttons in the processing parameters window, alongside the Quick Mode and Full Process buttons. Simply click on any preset button to instantly apply that configuration.
+
+Each preset restores:
+- All image type selections (basic, advanced, and custom images)
+- ImageMath script configurations
+- Automatic scripts setting
+
+==== Managing Presets
+
+- **Load a preset**: Click on the preset button to apply its configuration
+- **Delete a preset**: Click the "×" button next to any user preset to remove it (with confirmation)
+- **Replace a preset**: Save a new preset with the same name as an existing one to replace it
+
+User presets are stored locally on your computer and are automatically available every time you open JSol'Ex.
+
 == Starting a process
 
 When you have configured the parameters, click "Process" to start the processing.

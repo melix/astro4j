@@ -1,12 +1,16 @@
 # Welcome to JSol'Ex {{version}}!
 
+## What's New in Version 4.1.0
+
+- **User-Defined Presets**: Create, save, and manage your own custom image selection and script presets alongside the existing Quick and Full mode presets
+- Added blend mode for BASS2000 image alignment with adjustable opacity
+- Added a warning when submitting to BASS2000 a file which was already submitted on the same day for the same wavelength
+
 ## What's New in Version 4.0.1
 
 - [ui] Let the user select language of the application in the preferences
-- [ui] Added blend mode for BASS2000 image alignment with adjustable opacity
 - [bugfix] Fixed intrusive completion popups
 - [bugfix] Fixed INSTRUME field in BASS2000 submission
-- Added a warning when submitting to BASS2000 a file which was already submitted on the same day for the same wavelength
 
 ## What's New in Version 4.0.0
 

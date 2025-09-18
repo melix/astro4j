@@ -1,12 +1,16 @@
 # Bienvenue dans JSol'Ex {{version}} !
 
+## Nouveautés de la version 4.1.0
+
+- **Préréglages utilisateur** : Créez, sauvegardez et gérez vos propres préréglages personnalisés pour la sélection d'images et les scripts, en complément des modes Rapide et Complet
+- Ajout du mode fondu pour l'alignement d'images BASS2000 avec opacité réglable
+- Avertissement lors de la soumission à BASS2000 si un fichier a déjà été envoyé le même jour pour la même longueur d'onde
+
 ## Nouveautés de la version 4.0.1
 
 - [ui] Possibilité de choisir la langue de l'interface
-- [ui] Ajout du mode fondu pour l'alignement d'images BASS2000 avec opacité réglable
 - [bugfix] Correction des popups de complétion intrusives
 - [bugfix] Correction du champ INSTRUME dans la soumission BASS2000
-- Avertissement lors de la soumission à BASS2000 si un fichier a déjà été envoyé le même jour pour la même longueur d'onde
 
 ## Nouveautés de la version 4.0.0
 
