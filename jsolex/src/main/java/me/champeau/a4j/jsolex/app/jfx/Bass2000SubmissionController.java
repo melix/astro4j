@@ -171,19 +171,32 @@ public class Bass2000SubmissionController {
     private ZoomableImageView userImageView;
     private ZoomableImageView gongImageView;
     private VBox gongImageContainer;
-    private ZoomableImageView blinkImageView;
 
-    // Blink functionality
-    private boolean blinkMode = false;
+    private enum ComparisonMode {
+        NORMAL, BLINK, BLEND
+    }
+
+    private ComparisonMode currentComparisonMode = ComparisonMode.NORMAL;
     private Timeline blinkTimeline;
     private Image userDisplayImage;
     private Image gongDisplayImage;
     private HBox originalImageComparisonBox;
     private VBox blinkContainer;
+    private VBox blendContainer;
     private HBox angleAdjustmentBox;
     private Slider mainAngleSlider;
     private boolean showingUserImage = true;
     private double blinkDurationMs = 500.0;
+    private double opacityValue = 50.0;
+
+    private ZoomableImageView blinkImageView;
+    private StackPane opacityStackPane;
+    private ZoomableImageView opacityUserImageView;
+    private ZoomableImageView opacityGongImageView;
+    private Button comparisonModeButton;
+    private Label comparisonModeLabel;
+    private Slider comparisonModeSlider;
+    private Button fullscreenComparisonModeButton;
 
     private int rotation = 0;
     private boolean horizontalFlip = false;
@@ -232,6 +245,9 @@ public class Bass2000SubmissionController {
 
     private Stage fullscreenStage;
     private ImageView fullscreenImageView;
+    private StackPane fullscreenBlendPane;
+    private ImageView fullscreenUserImageView;
+    private ImageView fullscreenGongImageView;
     private Timeline fullscreenBlinkTimeline;
     private boolean fullscreenShowingUserImage = true;
 
@@ -392,11 +408,11 @@ public class Bass2000SubmissionController {
 
     @FXML
     private void onCancel() {
-        if (blinkMode) {
-            exitBlinkMode();
+        if (currentComparisonMode != ComparisonMode.NORMAL) {
+            exitComparisonMode();
         }
         if (fullscreenStage != null) {
-            closeFullscreenBlink();
+            closeFullscreenComparison();
         }
         stage.close();
     }
@@ -412,8 +428,8 @@ public class Bass2000SubmissionController {
     }
 
     private void loadCurrentStep() {
-        if (blinkMode && currentStep != 2) {
-            exitBlinkMode();
+        if (currentComparisonMode != ComparisonMode.NORMAL && currentStep != 2) {
+            exitComparisonMode();
         }
 
         switch (currentStep) {
@@ -726,33 +742,41 @@ public class Bass2000SubmissionController {
         };
         mainAngleSlider.valueProperty().addListener(angleSliderListener);
 
-        var blinkDurationSlider = new Slider(500.0, 5000.0, 500.0);
-        blinkDurationSlider.setShowTickLabels(true);
-        blinkDurationSlider.setShowTickMarks(true);
-        blinkDurationSlider.setMajorTickUnit(1000.0);
-        blinkDurationSlider.setMinorTickCount(4);
-        blinkDurationSlider.setPrefWidth(300);
+        comparisonModeSlider = new Slider(0.0, 100.0, 50.0);
+        comparisonModeSlider.setShowTickLabels(true);
+        comparisonModeSlider.setShowTickMarks(true);
+        comparisonModeSlider.setMajorTickUnit(25.0);
+        comparisonModeSlider.setMinorTickCount(4);
+        comparisonModeSlider.setPrefWidth(300);
 
-        var blinkDurationSliderListener = (ChangeListener<Number>) (observable, oldValue, newValue) -> {
-            blinkDurationMs = newValue.doubleValue();
-            if (blinkMode && blinkTimeline != null) {
-                restartBlinkAnimation();
+        var comparisonSliderListener = (ChangeListener<Number>) (observable, oldValue, newValue) -> {
+            if (currentComparisonMode == ComparisonMode.BLINK) {
+                double blinkMs = 500.0 + (newValue.doubleValue() / 100.0) * 4500.0;
+                blinkDurationMs = blinkMs;
+                if (blinkTimeline != null) {
+                    restartBlinkAnimation();
+                }
+            } else if (currentComparisonMode == ComparisonMode.BLEND) {
+                opacityValue = newValue.doubleValue();
+                if (opacityUserImageView != null) {
+                    opacityUserImageView.setOpacity(opacityValue / 100.0);
+                }
             }
         };
-        blinkDurationSlider.valueProperty().addListener(blinkDurationSliderListener);
+        comparisonModeSlider.valueProperty().addListener(comparisonSliderListener);
 
         angleAdjustmentBox = new HBox(8);
         angleAdjustmentBox.setStyle("-fx-alignment: center; -fx-padding: 1;");
         angleAdjustmentBox.setVisible(false);
         var angleLabel = new Label(message("fine.tilt.adjust"));
         angleLabel.setStyle("-fx-font-weight: bold;");
-        var blinkDurationLabel = new Label(message("blink.duration"));
-        blinkDurationLabel.setStyle("-fx-font-weight: bold;");
-        var fullscreenButton = new Button("🔍 Fullscreen");
+        comparisonModeLabel = new Label(message("blink.duration"));
+        comparisonModeLabel.setStyle("-fx-font-weight: bold;");
+        var fullscreenButton = new Button(message("button.fullscreen"));
         fullscreenButton.getStyleClass().add("custom-button");
-        fullscreenButton.setOnAction(e -> openFullscreenBlink());
+        fullscreenButton.setOnAction(e -> openFullscreenComparison());
 
-        angleAdjustmentBox.getChildren().addAll(angleLabel, mainAngleSlider, blinkDurationLabel, blinkDurationSlider, fullscreenButton);
+        angleAdjustmentBox.getChildren().addAll(angleLabel, mainAngleSlider, comparisonModeLabel, comparisonModeSlider);
 
         var controlsBox = new HBox(8);
         controlsBox.setStyle("-fx-alignment: center; -fx-padding: 1;");
@@ -779,9 +803,9 @@ public class Bass2000SubmissionController {
         var resetButton = new Button(message("orientation.button.reset"));
         resetButton.getStyleClass().add("default-button");
 
-        var blinkButton = new Button("👁 Blink");
-        blinkButton.getStyleClass().add("custom-button");
-        blinkButton.setOnAction(e -> toggleBlinkMode());
+        comparisonModeButton = new Button(getComparisonModeButtonText());
+        comparisonModeButton.getStyleClass().add("custom-button");
+        comparisonModeButton.setOnAction(e -> toggleComparisonMode());
 
         resetButton.setOnAction(e -> {
             mainAngleSlider.valueProperty().removeListener(angleSliderListener);
@@ -790,7 +814,7 @@ public class Bass2000SubmissionController {
             mainAngleSlider.valueProperty().addListener(angleSliderListener);
         });
 
-        controlsBox.getChildren().addAll(controlsLabel, horizontalFlipButton, verticalFlipButton, rotateLeftButton, rotateRightButton, resetButton, blinkButton);
+        controlsBox.getChildren().addAll(controlsLabel, horizontalFlipButton, verticalFlipButton, rotateLeftButton, rotateRightButton, resetButton, comparisonModeButton, fullscreenButton);
 
         this.userImageView = userImageView;
         this.gongImageView = gongImageView;
@@ -1967,13 +1991,22 @@ public class Bass2000SubmissionController {
                         userDisplayImage = writableImage;
                         userImageView.resetZoom();
 
-                        if (blinkMode && blinkImageView != null && showingUserImage) {
+                        if (currentComparisonMode == ComparisonMode.BLINK && blinkImageView != null && showingUserImage) {
                             blinkImageView.setImage(writableImage);
                             blinkImageView.resetZoom();
                         }
 
+                        if (currentComparisonMode == ComparisonMode.BLEND && opacityUserImageView != null) {
+                            opacityUserImageView.setImage(writableImage);
+                            opacityUserImageView.resetZoom();
+                        }
+
                         if (fullscreenImageView != null && fullscreenShowingUserImage) {
                             fullscreenImageView.setImage(writableImage);
+                        }
+
+                        if (fullscreenUserImageView != null) {
+                            fullscreenUserImageView.setImage(writableImage);
                         }
                     });
                 } catch (Exception e) {
@@ -2021,11 +2054,61 @@ public class Bass2000SubmissionController {
         applyCurrentTransformations();
     }
 
-    private void toggleBlinkMode() {
-        if (blinkMode) {
-            exitBlinkMode();
-        } else {
-            enterBlinkMode();
+    private void toggleComparisonMode() {
+        switch (currentComparisonMode) {
+            case NORMAL -> enterBlinkMode();
+            case BLINK -> {
+                exitComparisonMode();
+                enterBlendMode();
+            }
+            case BLEND -> exitComparisonMode();
+        }
+        updateComparisonUI();
+    }
+
+    private String getComparisonModeButtonText() {
+        return switch (currentComparisonMode) {
+            case NORMAL -> message("mode.button.blink");
+            case BLINK -> message("mode.button.blend");
+            case BLEND -> message("mode.button.normal");
+        };
+    }
+
+    private String getFullscreenComparisonModeButtonText() {
+        return switch (currentComparisonMode) {
+            case NORMAL, BLINK -> message("mode.button.blend");
+            case BLEND -> message("mode.button.blink");
+        };
+    }
+
+    private void updateComparisonUI() {
+        if (comparisonModeButton != null) {
+            comparisonModeButton.setText(getComparisonModeButtonText());
+        }
+
+        if (comparisonModeLabel != null) {
+            switch (currentComparisonMode) {
+                case NORMAL -> comparisonModeLabel.setText(message("blink.duration"));
+                case BLINK -> comparisonModeLabel.setText(message("blink.duration"));
+                case BLEND -> comparisonModeLabel.setText(message("blend.percent"));
+            }
+        }
+
+        if (comparisonModeSlider != null) {
+            switch (currentComparisonMode) {
+                case NORMAL, BLINK -> {
+                    comparisonModeSlider.setMin(0.0);
+                    comparisonModeSlider.setMax(100.0);
+                    comparisonModeSlider.setMajorTickUnit(25.0);
+                    comparisonModeSlider.setValue((blinkDurationMs - 500.0) / 4500.0 * 100.0);
+                }
+                case BLEND -> {
+                    comparisonModeSlider.setMin(0.0);
+                    comparisonModeSlider.setMax(100.0);
+                    comparisonModeSlider.setMajorTickUnit(25.0);
+                    comparisonModeSlider.setValue(opacityValue);
+                }
+            }
         }
     }
 
@@ -2034,7 +2117,7 @@ public class Bass2000SubmissionController {
             return;
         }
 
-        blinkMode = true;
+        currentComparisonMode = ComparisonMode.BLINK;
 
         if (angleAdjustmentBox != null) {
             angleAdjustmentBox.setVisible(true);
@@ -2066,8 +2149,8 @@ public class Bass2000SubmissionController {
         startBlinkAnimation();
     }
 
-    private void exitBlinkMode() {
-        blinkMode = false;
+    private void exitComparisonMode() {
+        currentComparisonMode = ComparisonMode.NORMAL;
         showingUserImage = true;
 
         if (angleAdjustmentBox != null) {
@@ -2085,8 +2168,18 @@ public class Bass2000SubmissionController {
             contentVBox.getChildren().set(index, originalImageComparisonBox);
         }
 
+        if (blendContainer != null && originalImageComparisonBox != null) {
+            var contentVBox = (VBox) blendContainer.getParent();
+            var index = contentVBox.getChildren().indexOf(blendContainer);
+            contentVBox.getChildren().set(index, originalImageComparisonBox);
+        }
+
         blinkContainer = null;
         blinkImageView = null;
+        blendContainer = null;
+        opacityStackPane = null;
+        opacityUserImageView = null;
+        opacityGongImageView = null;
     }
 
     private void startBlinkAnimation() {
@@ -2121,7 +2214,88 @@ public class Bass2000SubmissionController {
         startBlinkAnimation();
     }
 
-    private void openFullscreenBlink() {
+    private void enterBlendMode() {
+        if (userDisplayImage == null || gongDisplayImage == null) {
+            return;
+        }
+
+        currentComparisonMode = ComparisonMode.BLEND;
+
+        if (angleAdjustmentBox != null) {
+            angleAdjustmentBox.setVisible(true);
+        }
+
+        blendContainer = new VBox(5);
+        blendContainer.setStyle("-fx-alignment: center; -fx-background-color: #f0f0f0; -fx-padding: 6;");
+
+        var opacityLabel = new Label(message("blend.mode"));
+        opacityLabel.setStyle("-fx-font-weight: bold; -fx-font-size: 14px;");
+
+        opacityStackPane = new StackPane();
+        opacityStackPane.setPrefWidth(IMAGE_VIEW_SIZE);
+        opacityStackPane.setPrefHeight(IMAGE_VIEW_SIZE);
+        opacityStackPane.setStyle("-fx-border-color: gray; -fx-border-width: 1;");
+
+        opacityGongImageView = new ZoomableImageView();
+        opacityGongImageView.setPrefWidth(IMAGE_VIEW_SIZE);
+        opacityGongImageView.setPrefHeight(IMAGE_VIEW_SIZE);
+        opacityGongImageView.getScrollPane().setHbarPolicy(ScrollPane.ScrollBarPolicy.NEVER);
+        opacityGongImageView.getScrollPane().setVbarPolicy(ScrollPane.ScrollBarPolicy.NEVER);
+        opacityGongImageView.setImage(gongDisplayImage);
+
+        opacityUserImageView = new ZoomableImageView();
+        opacityUserImageView.setPrefWidth(IMAGE_VIEW_SIZE);
+        opacityUserImageView.setPrefHeight(IMAGE_VIEW_SIZE);
+        opacityUserImageView.getScrollPane().setHbarPolicy(ScrollPane.ScrollBarPolicy.NEVER);
+        opacityUserImageView.getScrollPane().setVbarPolicy(ScrollPane.ScrollBarPolicy.NEVER);
+        opacityUserImageView.setImage(userDisplayImage);
+        opacityUserImageView.setOpacity(opacityValue / 100.0);
+
+        opacityStackPane.getChildren().addAll(opacityGongImageView, opacityUserImageView);
+
+        var imageWrapper = new HBox();
+        imageWrapper.setStyle("-fx-alignment: center;");
+        imageWrapper.getChildren().add(opacityStackPane);
+
+        blendContainer.getChildren().addAll(opacityLabel, imageWrapper);
+
+        var contentVBox = (VBox) originalImageComparisonBox.getParent();
+        var index = contentVBox.getChildren().indexOf(originalImageComparisonBox);
+        contentVBox.getChildren().set(index, blendContainer);
+
+        syncZoomBetweenOpacityViews();
+    }
+
+    private void syncZoomBetweenOpacityViews() {
+        if (opacityUserImageView != null && opacityGongImageView != null) {
+            var userScrollPane = opacityUserImageView.getScrollPane();
+            var gongScrollPane = opacityGongImageView.getScrollPane();
+
+            userScrollPane.hvalueProperty().addListener((obs, oldVal, newVal) -> {
+                if (!gongScrollPane.hvalueProperty().getValue().equals(newVal)) {
+                    gongScrollPane.setHvalue(newVal.doubleValue());
+                }
+            });
+            userScrollPane.vvalueProperty().addListener((obs, oldVal, newVal) -> {
+                if (!gongScrollPane.vvalueProperty().getValue().equals(newVal)) {
+                    gongScrollPane.setVvalue(newVal.doubleValue());
+                }
+            });
+
+            gongScrollPane.hvalueProperty().addListener((obs, oldVal, newVal) -> {
+                if (!userScrollPane.hvalueProperty().getValue().equals(newVal)) {
+                    userScrollPane.setHvalue(newVal.doubleValue());
+                }
+            });
+            gongScrollPane.vvalueProperty().addListener((obs, oldVal, newVal) -> {
+                if (!userScrollPane.vvalueProperty().getValue().equals(newVal)) {
+                    userScrollPane.setVvalue(newVal.doubleValue());
+                }
+            });
+        }
+    }
+
+    private void openFullscreenComparison() {
         if (userDisplayImage == null || gongDisplayImage == null) {
             return;
         }
@@ -2129,6 +2303,11 @@ public class Bass2000SubmissionController {
         if (fullscreenStage != null) {
             fullscreenStage.toFront();
             return;
+        }
+
+        if (currentComparisonMode == ComparisonMode.NORMAL) {
+            currentComparisonMode = ComparisonMode.BLINK;
+            updateComparisonUI();
         }
 
         fullscreenStage = new Stage();
@@ -2141,13 +2320,37 @@ public class Bass2000SubmissionController {
         var centeringPane = new StackPane();
         centeringPane.setStyle("-fx-alignment: center; -fx-background-color: black;");
 
-        var plainImageView = new ImageView();
-        plainImageView.setPreserveRatio(true);
-        plainImageView.setSmooth(true);
-        plainImageView.fitWidthProperty().bind(centeringPane.widthProperty().multiply(0.9));
-        plainImageView.fitHeightProperty().bind(centeringPane.heightProperty().multiply(0.9));
+        if (currentComparisonMode == ComparisonMode.BLEND) {
+            fullscreenBlendPane = new StackPane();
+            fullscreenBlendPane.setStyle("-fx-alignment: center;");
 
-        centeringPane.getChildren().add(plainImageView);
+            fullscreenGongImageView = new ImageView();
+            fullscreenGongImageView.setPreserveRatio(true);
+            fullscreenGongImageView.setSmooth(true);
+            fullscreenGongImageView.fitWidthProperty().bind(centeringPane.widthProperty().multiply(0.9));
+            fullscreenGongImageView.fitHeightProperty().bind(centeringPane.heightProperty().multiply(0.9));
+            fullscreenGongImageView.setImage(gongDisplayImage);
+
+            fullscreenUserImageView = new ImageView();
+            fullscreenUserImageView.setPreserveRatio(true);
+            fullscreenUserImageView.setSmooth(true);
+            fullscreenUserImageView.fitWidthProperty().bind(centeringPane.widthProperty().multiply(0.9));
+            fullscreenUserImageView.fitHeightProperty().bind(centeringPane.heightProperty().multiply(0.9));
+            fullscreenUserImageView.setImage(userDisplayImage);
+            fullscreenUserImageView.setOpacity(opacityValue / 100.0);
+
+            fullscreenBlendPane.getChildren().addAll(fullscreenGongImageView, fullscreenUserImageView);
+            centeringPane.getChildren().add(fullscreenBlendPane);
+        } else {
+            var plainImageView = new ImageView();
+            plainImageView.setPreserveRatio(true);
+            plainImageView.setSmooth(true);
+            plainImageView.fitWidthProperty().bind(centeringPane.widthProperty().multiply(0.9));
+            plainImageView.fitHeightProperty().bind(centeringPane.heightProperty().multiply(0.9));
+
+            centeringPane.getChildren().add(plainImageView);
+            fullscreenImageView = plainImageView;
+        }
         VBox.setVgrow(centeringPane, Priority.ALWAYS);
 
         var controlsPanel = createFullscreenControlsPanel();
@@ -2159,56 +2362,61 @@ public class Bass2000SubmissionController {
 
         fullscreenStage.setOnCloseRequest(e -> {
             e.consume();
-            closeFullscreenBlink();
+            closeFullscreenComparison();
         });
 
         scene.setOnKeyReleased(event -> {
             if (event.getCode() == ESCAPE) {
                 event.consume();
-                closeFullscreenBlink();
+                closeFullscreenComparison();
             }
         });
 
-        fullscreenStage.setOnCloseRequest(e -> closeFullscreenBlink());
+        fullscreenStage.setOnCloseRequest(e -> closeFullscreenComparison());
         fullscreenStage.show();
         Platform.runLater(() -> {
             root.requestFocus();
             fullscreenStage.toFront();
         });
 
-        fullscreenImageView = plainImageView;
-        startFullscreenBlinkAnimation();
+        if (currentComparisonMode == ComparisonMode.BLINK) {
+            startFullscreenBlinkAnimation();
+        }
     }
 
     private HBox createFullscreenControlsPanel() {
         var controlsPanel = new HBox(15);
         controlsPanel.setStyle("-fx-alignment: center; -fx-padding: 10; -fx-background-color: #333;");
 
-        var closeButton = new Button("✕ Close Fullscreen");
+        var closeButton = new Button(message("button.close.fullscreen"));
         closeButton.getStyleClass().add("dark-close-button");
-        closeButton.setOnAction(e -> closeFullscreenBlink());
+        closeButton.setOnAction(e -> closeFullscreenComparison());
 
-        var horizontalFlipButton = new Button("⇄ Horizontal Flip");
+        fullscreenComparisonModeButton = new Button(getComparisonModeButtonText());
+        fullscreenComparisonModeButton.getStyleClass().add("dark-button");
+        fullscreenComparisonModeButton.setOnAction(e -> toggleFullscreenComparisonMode());
+
+        var horizontalFlipButton = new Button("⇄ " + message("orientation.button.horizontal.flip"));
         horizontalFlipButton.getStyleClass().add("dark-button");
         horizontalFlipButton.setOnAction(e -> applyHorizontalFlip());
 
-        var verticalFlipButton = new Button("⇅ Vertical Flip");
+        var verticalFlipButton = new Button("⇅ " + message("orientation.button.vertical.flip"));
         verticalFlipButton.getStyleClass().add("dark-button");
         verticalFlipButton.setOnAction(e -> applyVerticalFlip());
 
-        var rotateLeftButton = new Button("↶ Rotate Left");
+        var rotateLeftButton = new Button("↶ " + message("orientation.button.rotate.left"));
         rotateLeftButton.getStyleClass().add("dark-button");
         rotateLeftButton.setOnAction(e -> applyRotation(-90));
 
-        var rotateRightButton = new Button("↷ Rotate Right");
+        var rotateRightButton = new Button("↷ " + message("orientation.button.rotate.right"));
         rotateRightButton.getStyleClass().add("dark-button");
         rotateRightButton.setOnAction(e -> applyRotation(90));
 
-        var resetButton = new Button("Reset");
+        var resetButton = new Button(message("orientation.button.reset"));
         resetButton.getStyleClass().add("dark-button");
         resetButton.setOnAction(e -> resetTransformations());
 
-        var angleLabel = new Label("Fine Tilt Adjust:");
+        var angleLabel = new Label(message("fine.tilt.adjust") + ":");
         angleLabel.setStyle("-fx-text-fill: white; -fx-font-weight: bold;");
 
         var angleSlider = new Slider(-2.0, 2.0, angleAdjustment);
@@ -2223,26 +2431,151 @@ public class Bass2000SubmissionController {
             applyCurrentTransformations();
         });
 
-        var blinkLabel = new Label("Blink Duration (ms):");
-        blinkLabel.setStyle("-fx-text-fill: white; -fx-font-weight: bold;");
+        var comparisonSliderLabel = new Label();
+        comparisonSliderLabel.setStyle("-fx-text-fill: white; -fx-font-weight: bold;");
 
-        var blinkSlider = new Slider(500.0, 5000.0, blinkDurationMs);
-        blinkSlider.getStyleClass().add("dark-slider");
-        blinkSlider.setShowTickLabels(true);
-        blinkSlider.setShowTickMarks(true);
-        blinkSlider.setMajorTickUnit(1000.0);
-        blinkSlider.setMinorTickCount(4);
-        blinkSlider.setPrefWidth(200);
-        blinkSlider.valueProperty().addListener((observable, oldValue, newValue) -> {
-            blinkDurationMs = newValue.doubleValue();
-            if (fullscreenBlinkTimeline != null) {
-                restartFullscreenBlinkAnimation();
-            }
-        });
+        var comparisonSlider = new Slider();
+        comparisonSlider.getStyleClass().add("dark-slider");
+        comparisonSlider.setShowTickLabels(true);
+        comparisonSlider.setShowTickMarks(true);
+        comparisonSlider.setPrefWidth(200);
 
-        controlsPanel.getChildren().addAll(closeButton, horizontalFlipButton, verticalFlipButton, rotateLeftButton, rotateRightButton, resetButton, angleLabel, angleSlider, blinkLabel, blinkSlider);
+        if (currentComparisonMode == ComparisonMode.BLEND) {
+            comparisonSliderLabel.setText(message("blend.percent") + ":");
+            comparisonSlider.setMin(0.0);
+            comparisonSlider.setMax(100.0);
+            comparisonSlider.setMajorTickUnit(25.0);
+            comparisonSlider.setMinorTickCount(4);
+            comparisonSlider.setValue(opacityValue);
+            comparisonSlider.valueProperty().addListener((observable, oldValue, newValue) -> {
+                opacityValue = newValue.doubleValue();
+                if (fullscreenUserImageView != null) {
+                    fullscreenUserImageView.setOpacity(opacityValue / 100.0);
+                }
+            });
+        } else {
+            comparisonSliderLabel.setText(message("blink.duration") + ":");
+            comparisonSlider.setMin(500.0);
+            comparisonSlider.setMax(5000.0);
+            comparisonSlider.setMajorTickUnit(1000.0);
+            comparisonSlider.setMinorTickCount(4);
+            comparisonSlider.setValue(blinkDurationMs);
+            comparisonSlider.valueProperty().addListener((observable, oldValue, newValue) -> {
+                blinkDurationMs = newValue.doubleValue();
+                if (fullscreenBlinkTimeline != null) {
+                    restartFullscreenBlinkAnimation();
+                }
+            });
+        }
+
+        var leftControls = new HBox(10);
+        leftControls.setStyle("-fx-alignment: center-left;");
+        leftControls.getChildren().addAll(horizontalFlipButton, verticalFlipButton, rotateLeftButton, rotateRightButton, resetButton);
+
+        var centerControls = new HBox(10);
+        centerControls.setStyle("-fx-alignment: center;");
+        centerControls.getChildren().addAll(angleLabel, angleSlider, comparisonSliderLabel, comparisonSlider);
+
+        var rightControls = new HBox(10);
+        rightControls.setStyle("-fx-alignment: center-right;");
+        rightControls.getChildren().addAll(fullscreenComparisonModeButton, closeButton);
+
+        HBox.setHgrow(leftControls, Priority.NEVER);
+        HBox.setHgrow(centerControls, Priority.ALWAYS);
+        HBox.setHgrow(rightControls, Priority.NEVER);
+
+        controlsPanel.getChildren().addAll(leftControls, centerControls, rightControls);
 
         return controlsPanel;
+    }
+
+    private void toggleFullscreenComparisonMode() {
+        switch (currentComparisonMode) {
+            case NORMAL, BLINK -> {
+                currentComparisonMode = ComparisonMode.BLEND;
+                rebuildFullscreenUI();
+            }
+            case BLEND -> {
+                currentComparisonMode = ComparisonMode.BLINK;
+                rebuildFullscreenUI();
+            }
+        }
+        updateComparisonUI();
+        if (fullscreenComparisonModeButton != null) {
+            fullscreenComparisonModeButton.setText(getFullscreenComparisonModeButtonText());
+        }
+    }
+
+    private void rebuildFullscreenUI() {
+        if (fullscreenStage == null) return;
+
+        var scene = fullscreenStage.getScene();
+        var root = (VBox) scene.getRoot();
+        var centeringPane = (StackPane) root.getChildren().get(0);
+
+        centeringPane.getChildren().clear();
+
+        if (fullscreenBlinkTimeline != null) {
+            fullscreenBlinkTimeline.stop();
+            fullscreenBlinkTimeline = null;
+        }
+
+        if (currentComparisonMode == ComparisonMode.BLEND) {
+            fullscreenBlendPane = new StackPane();
+            fullscreenBlendPane.setStyle("-fx-alignment: center;");
+
+            fullscreenGongImageView = new ImageView();
+            fullscreenGongImageView.setPreserveRatio(true);
+            fullscreenGongImageView.setSmooth(true);
+            fullscreenGongImageView.fitWidthProperty().bind(centeringPane.widthProperty().multiply(0.9));
+            fullscreenGongImageView.fitHeightProperty().bind(centeringPane.heightProperty().multiply(0.9));
+            fullscreenGongImageView.setImage(gongDisplayImage);
+
+            fullscreenUserImageView = new ImageView();
+            fullscreenUserImageView.setPreserveRatio(true);
+            fullscreenUserImageView.setSmooth(true);
+            fullscreenUserImageView.fitWidthProperty().bind(centeringPane.widthProperty().multiply(0.9));
+            fullscreenUserImageView.fitHeightProperty().bind(centeringPane.heightProperty().multiply(0.9));
+            fullscreenUserImageView.setImage(userDisplayImage);
+            fullscreenUserImageView.setOpacity(opacityValue / 100.0);
+
+            fullscreenBlendPane.getChildren().addAll(fullscreenGongImageView, fullscreenUserImageView);
+            centeringPane.getChildren().add(fullscreenBlendPane);
+
+            fullscreenImageView = null;
+        } else {
+            var plainImageView = new ImageView();
+            plainImageView.setPreserveRatio(true);
+            plainImageView.setSmooth(true);
+            plainImageView.fitWidthProperty().bind(centeringPane.widthProperty().multiply(0.9));
+            plainImageView.fitHeightProperty().bind(centeringPane.heightProperty().multiply(0.9));
+
+            centeringPane.getChildren().add(plainImageView);
+            fullscreenImageView = plainImageView;
+
+            fullscreenBlendPane = null;
+            fullscreenUserImageView = null;
+            fullscreenGongImageView = null;
+
+            if (currentComparisonMode == ComparisonMode.BLINK) {
+                startFullscreenBlinkAnimation();
+            } else {
+                fullscreenImageView.setImage(userDisplayImage);
+            }
+        }
+
+        rebuildFullscreenControls();
+    }
+
+    private void rebuildFullscreenControls() {
+        if (fullscreenStage == null) return;
+
+        var scene = fullscreenStage.getScene();
+        var root = (VBox) scene.getRoot();
+        var oldControlsPanel = (HBox) root.getChildren().get(1);
+
+        var newControlsPanel = createFullscreenControlsPanel();
+        root.getChildren().set(1, newControlsPanel);
     }
 
     private void startFullscreenBlinkAnimation() {
@@ -2273,7 +2606,7 @@ public class Bass2000SubmissionController {
         startFullscreenBlinkAnimation();
     }
 
-    private void closeFullscreenBlink() {
+    private void closeFullscreenComparison() {
         if (fullscreenBlinkTimeline != null) {
             fullscreenBlinkTimeline.stop();
             fullscreenBlinkTimeline = null;
@@ -2285,6 +2618,13 @@ public class Bass2000SubmissionController {
         }
 
         fullscreenImageView = null;
+        fullscreenBlendPane = null;
+        fullscreenUserImageView = null;
+        fullscreenGongImageView = null;
+
+        currentComparisonMode = ComparisonMode.NORMAL;
+        exitComparisonMode();
+        updateComparisonUI();
         
         mainAngleSlider.setValue(angleAdjustment);
     }
@@ -2350,11 +2690,11 @@ public class Bass2000SubmissionController {
     }
 
     private void finishWizard() {
-        if (blinkMode) {
-            exitBlinkMode();
+        if (currentComparisonMode != ComparisonMode.NORMAL) {
+            exitComparisonMode();
         }
         if (fullscreenStage != null) {
-            closeFullscreenBlink();
+            closeFullscreenComparison();
         }
         stage.close();
     }
@@ -2664,17 +3004,14 @@ public class Bass2000SubmissionController {
 
     private void updateStep1DuplicateWarning(Bass2000UploadHistoryService.UploadRecord duplicate) {
         if (step1DuplicateWarningLabel == null) {
-            LOGGER.info("Step 1 duplicate warning label is null, cannot update warning");
             return;
         }
 
         if (duplicate != null) {
-            LOGGER.info("Updating step 1 duplicate warning label with message for file: {}", duplicate.sourceFilename());
             step1DuplicateWarningLabel.setText(MessageFormat.format(message("duplicate.warning"), duplicate.sourceFilename()));
             step1DuplicateWarningLabel.setVisible(true);
             step1DuplicateWarningLabel.setManaged(true);
         } else {
-            LOGGER.info("No duplicate found, hiding step 1 warning label");
             step1DuplicateWarningLabel.setVisible(false);
             step1DuplicateWarningLabel.setManaged(false);
         }
@@ -2682,17 +3019,14 @@ public class Bass2000SubmissionController {
 
     private void updateStep5DuplicateWarning(Bass2000UploadHistoryService.UploadRecord duplicate) {
         if (step5DuplicateWarningLabel == null) {
-            LOGGER.info("Step 5 duplicate warning label is null, cannot update warning");
             return;
         }
 
         if (duplicate != null) {
-            LOGGER.info("Updating step 5 duplicate warning label with message for file: {}", duplicate.sourceFilename());
             step5DuplicateWarningLabel.setText(MessageFormat.format(message("duplicate.warning"), duplicate.sourceFilename()));
             step5DuplicateWarningLabel.setVisible(true);
             step5DuplicateWarningLabel.setManaged(true);
         } else {
-            LOGGER.info("No duplicate found, hiding step 5 warning label");
             step5DuplicateWarningLabel.setVisible(false);
             step5DuplicateWarningLabel.setManaged(false);
         }
