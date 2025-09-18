@@ -321,7 +321,7 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
             case IMG -> image(arguments);
             case INVERT -> inverse.invert(arguments);
             case LINEAR_STRETCH -> stretching.linearStretch(arguments);
-            case LIST -> arguments;
+            case LIST -> arguments.get("list");
             case LOAD -> loader.load(arguments);
             case LOAD_MANY -> loader.loadMany(arguments);
             case LOG -> math.log(arguments);
