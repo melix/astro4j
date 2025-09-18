@@ -1,6 +1,7 @@
 import com.github.vlsi.gradle.license.GatherLicenseTask
 import me.champeau.astro4j.BuildExtension
 import me.champeau.astro4j.GenerateLicenseResourceFile
+import me.champeau.astro4j.PropertiesFileSanityCheckTask
 
 plugins {
     groovy
@@ -97,6 +98,14 @@ val gatherLicenses by tasks.registering(GatherLicenseTask::class) {
 val generateLicense by tasks.registering(GenerateLicenseResourceFile::class) {
     licensesDir.set(gatherLicenses.flatMap(GatherLicenseTask::licenseDir))
     outputFile.set(layout.buildDirectory.file("generated/resources/licenses/licenses.txt"))
+}
+
+val propertiesSanityCheck by tasks.registering(PropertiesFileSanityCheckTask::class) {
+    propertiesFiles.from(sourceSets.main.get().resources.asFileTree.filter { it.name.endsWith(".properties") })
+}
+
+tasks.named("processResources") {
+    dependsOn(propertiesSanityCheck)
 }
 
 publishing {

@@ -162,10 +162,10 @@ public class GONG {
                 createDirectoriesIfNeeded(cacheDir);
                 var cachedImagePath = cacheDir.resolve(closest.get().target);
                 
-                LOGGER.info("Downloading GONG image for {} to cache", actualImageDate.format(DateTimeFormatter.ofPattern("yyyyMMdd")));
+                LOGGER.debug("Downloading GONG image for {} to cache", actualImageDate.format(DateTimeFormatter.ofPattern("yyyyMMdd")));
                 try (var inputStream = imageUrl.openStream()) {
                     Files.copy(inputStream, cachedImagePath, StandardCopyOption.REPLACE_EXISTING);
-                    LOGGER.info("GONG image cached successfully");
+                    LOGGER.debug("GONG image cached successfully");
                     return Optional.of(cachedImagePath.toUri().toURL());
                 } catch (IOException e) {
                     LOGGER.warn("Failed to cache GONG image, returning direct URL", e);
