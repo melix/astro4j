@@ -3,13 +3,14 @@
 <?import javafx.geometry.Insets?>
 <?import javafx.scene.control.Button?>
 <?import javafx.scene.control.Label?>
+<?import javafx.scene.control.ScrollPane?>
 <?import javafx.scene.control.Slider?>
 <?import javafx.scene.control.SplitPane?>
 <?import javafx.scene.layout.BorderPane?>
 <?import javafx.scene.layout.HBox?>
 <?import javafx.scene.layout.VBox?>
 
-<BorderPane maxHeight="-Infinity" maxWidth="-Infinity" minHeight="-Infinity" minWidth="-Infinity"
+<BorderPane maxHeight="-Infinity" maxWidth="-Infinity" minHeight="400.0" minWidth="600.0"
             prefHeight="800.0" prefWidth="1200.0"
             xmlns="http://javafx.com/javafx/19" xmlns:fx="http://javafx.com/fxml/1"
             fx:controller="me.champeau.a4j.jsolex.app.jfx.AssistedEllipseFittingController">
@@ -23,28 +24,30 @@
         </VBox>
     </top>
     <center>
-        <SplitPane fx:id="splitPane" dividerPositions="0.6">
-            <padding>
-                <Insets bottom="8" left="8" right="8" top="8"/>
-            </padding>
-            <VBox fx:id="editContent" spacing="8">
+        <ScrollPane fitToWidth="true" fitToHeight="true" hbarPolicy="AS_NEEDED" vbarPolicy="AS_NEEDED">
+            <SplitPane fx:id="splitPane" dividerPositions="0.6" minHeight="300.0" minWidth="500.0">
                 <padding>
-                    <Insets top="12" right="8" bottom="12" left="12"/>
+                    <Insets bottom="8" left="8" right="8" top="8"/>
                 </padding>
-                <Label text="%ellipse.edit" style="-fx-font-size: 14px; -fx-font-weight: bold;"/>
-                <VBox spacing="6">
-                    <Label text="%ellipse.opacity" style="-fx-font-size: 12px; -fx-text-fill: #6c757d;"/>
-                    <Slider fx:id="opacitySlider" max="1.0" value="0.7"
-                            styleClass="slider"/>
+                <VBox fx:id="editContent" spacing="8">
+                    <padding>
+                        <Insets top="12" right="8" bottom="12" left="12"/>
+                    </padding>
+                    <Label text="%ellipse.edit" style="-fx-font-size: 14px; -fx-font-weight: bold;"/>
+                    <VBox spacing="6">
+                        <Label text="%ellipse.opacity" style="-fx-font-size: 12px; -fx-text-fill: #6c757d;"/>
+                        <Slider fx:id="opacitySlider" max="1.0" value="0.7"
+                                styleClass="slider"/>
+                    </VBox>
                 </VBox>
-            </VBox>
-            <VBox fx:id="previewContent" spacing="8">
-                <padding>
-                    <Insets top="12" right="12" bottom="12" left="8"/>
-                </padding>
-                <Label text="%geometry.preview" style="-fx-font-size: 14px; -fx-font-weight: bold;"/>
-            </VBox>
-        </SplitPane>
+                <VBox fx:id="previewContent" spacing="8">
+                    <padding>
+                        <Insets top="12" right="12" bottom="12" left="8"/>
+                    </padding>
+                    <Label text="%geometry.preview" style="-fx-font-size: 14px; -fx-font-weight: bold;"/>
+                </VBox>
+            </SplitPane>
+        </ScrollPane>
     </center>
     <bottom>
         <HBox alignment="CENTER_RIGHT" spacing="10" style="-fx-padding: 16;">
