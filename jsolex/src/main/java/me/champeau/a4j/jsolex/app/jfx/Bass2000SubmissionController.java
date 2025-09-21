@@ -196,6 +196,7 @@ public class Bass2000SubmissionController {
     private Label comparisonModeLabel;
     private Slider comparisonModeSlider;
     private Button fullscreenComparisonModeButton;
+    private Button uploadButton;
 
     private int rotation = 0;
     private boolean horizontalFlip = false;
@@ -538,7 +539,6 @@ public class Bass2000SubmissionController {
 
                     var offBandFileName = offBandBaseFileName + ".fits";
                     var offBandFile = outputDirectory.resolve(offBandFileName).toFile();
-
                     FitsUtils.writeFitsFile(generatedOffBandImage, offBandFile, generatedOffBandImage.findMetadata(ProcessParams.class).orElseThrow(), false);
                     savedOffBandFilePath = offBandFile;
                 }
@@ -547,6 +547,7 @@ public class Bass2000SubmissionController {
                     if (currentStep == 5) {
                         loadStep5();
                     }
+                    uploadButton.setDisable(false);
                 });
             } catch (Exception e) {
                 LOGGER.error("Failed to save BASS2000 file automatically", e);
@@ -1498,10 +1499,11 @@ public class Bass2000SubmissionController {
         var uploadInfoLabel = new Label(message("upload.upload.info"));
         uploadInfoLabel.setWrapText(true);
 
-        var uploadButton = new Button(message("upload.button.upload"));
+        uploadButton = new Button(message("upload.button.upload"));
         uploadButton.getStyleClass().add("primary-button");
         uploadButton.setPrefWidth(200);
         uploadButton.setOnAction(e -> uploadToBass2000());
+        uploadButton.setDisable(true);
 
         var uploadButtonContainer = new HBox();
         uploadButtonContainer.setStyle("-fx-alignment: center;");

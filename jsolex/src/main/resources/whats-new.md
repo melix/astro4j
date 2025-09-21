@@ -5,6 +5,7 @@
 - **User-Defined Presets**: Create, save, and manage your own custom image selection and script presets alongside the existing Quick and Full mode presets
 - Added blend mode for BASS2000 image alignment with adjustable opacity
 - Added a warning when submitting to BASS2000 a file which was already submitted on the same day for the same wavelength
+- [bugfix] Fixed BASS2000 upload button being enabled before files are fully saved to disk
 
 ## What's New in Version 4.0.1
 
