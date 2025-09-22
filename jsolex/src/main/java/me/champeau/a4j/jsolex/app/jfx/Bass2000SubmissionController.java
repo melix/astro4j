@@ -768,6 +768,7 @@ public class Bass2000SubmissionController {
         angleAdjustmentBox = new HBox(8);
         angleAdjustmentBox.setStyle("-fx-alignment: center; -fx-padding: 1;");
         angleAdjustmentBox.setVisible(false);
+        angleAdjustmentBox.setManaged(false);
         var angleLabel = new Label(message("fine.tilt.adjust"));
         angleLabel.setStyle("-fx-font-weight: bold;");
         comparisonModeLabel = new Label(message("blink.duration"));
@@ -2123,6 +2124,7 @@ public class Bass2000SubmissionController {
         currentComparisonMode = ComparisonMode.BLINK;
 
         if (angleAdjustmentBox != null) {
+            angleAdjustmentBox.setManaged(true);
             angleAdjustmentBox.setVisible(true);
         }
 
@@ -2158,6 +2160,7 @@ public class Bass2000SubmissionController {
 
         if (angleAdjustmentBox != null) {
             angleAdjustmentBox.setVisible(false);
+            angleAdjustmentBox.setManaged(false);
         }
 
         if (blinkTimeline != null) {
@@ -2226,6 +2229,7 @@ public class Bass2000SubmissionController {
 
         if (angleAdjustmentBox != null) {
             angleAdjustmentBox.setVisible(true);
+            angleAdjustmentBox.setManaged(true);
         }
 
         blendContainer = new VBox(5);
