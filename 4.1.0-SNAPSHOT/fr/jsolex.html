@@ -499,6 +499,7 @@ body.book #toc,body.book #preamble,body.book h1.sect0,body.book .sect1>h2{page-b
 <li><a href="#includes">Inclure d&#8217;autres scripts</a></li>
 <li><a href="#remote-scriptgen">Génération de script à distance</a></li>
 <li><a href="#_scripts_imagemath">Scripts ImageMath</a></li>
+<li><a href="#script-parameters">Paramètres de scripts</a></li>
 </ul>
 </li>
 <li><a href="#trimming-ser-files">Réduire la taille des fichiers SER</a></li>
@@ -1783,6 +1784,134 @@ Vous pouvez mettre des commentaires sur une ligne commençant par <code>#</code>
 </td>
 </tr>
 </table>
+</div>
+</div>
+<div class="sect2">
+<h3 id="script-parameters">Paramètres de scripts</h3>
+<div class="paragraph">
+<p>Les scripts peuvent optionnellement déclarer des paramètres configurables en utilisant le bloc <code>meta</code>.
+Bien que ce ne soit pas obligatoire, ajouter des paramètres est fortement recommandé si vous prévoyez de partager votre script avec d&#8217;autres, car les utilisateurs peu familiers avec les scripts préfèreront ajuster des paramètres plutôt que de modifier directement le code.</p>
+</div>
+<div class="paragraph">
+<p>Lorsqu&#8217;un script déclare des paramètres, JSol&#8217;Ex crée automatiquement des contrôles d&#8217;interface utilisateur qui permettent aux utilisateurs d&#8217;ajuster les valeurs sans éditer le script.</p>
+</div>
+<div class="sect3">
+<h4 id="_déclaration_des_paramètres">Déclaration des paramètres</h4>
+<div class="paragraph">
+<p>Les paramètres sont déclarés dans un bloc <code>meta</code> au début de votre script :</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-none hljs">meta {
+    title = "Script d'empilement amélioré"
+    requires = "4.1.0"
+
+    params {
+        tileSize{
+            type = "number"
+            default = 64
+            min = 16
+            max = 512
+            name {
+                en = "Tile Size"
+                fr = "Taille de tuile"
+            }
+            description {
+                en = "Size of tiles for processing"
+                fr = "Taille des tuiles pour le traitement"
+            }
+        }
+
+        pixelShift {
+            type = "number"
+            default = 0
+            min = -10
+            max = 10
+            name = "Décalage pixel"
+            description = "Décalage en pixels par rapport à la longueur d'onde de référence"
+        }
+
+        cropRatio {
+            type = "choice"
+            choices = "1.0,1.1,1.2,1.5,2.0"
+            default = "1.1"
+            name = "Ratio de rognage"
+            description = "Facteur de multiplication du rayon solaire pour le rognage"
+        }
+    }
+}
+
+[outputs]
+result = autocrop(img(pixelShift), cropRatio)</code></pre>
+</div>
+</div>
+</div>
+<div class="sect3">
+<h4 id="_types_de_paramètres">Types de paramètres</h4>
+<div class="paragraph">
+<p>JSol&#8217;Ex supporte trois types de paramètres :</p>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p><strong>number</strong> : Valeurs numériques avec contraintes min/max optionnelles</p>
+</li>
+<li>
+<p><strong>string</strong> : Valeurs textuelles</p>
+</li>
+<li>
+<p><strong>choice</strong> : Sélection parmi des options prédéfinies</p>
+</li>
+</ul>
+</div>
+</div>
+<div class="sect3">
+<h4 id="_propriétés_du_bloc_meta">Propriétés du bloc Meta</h4>
+<div class="ulist">
+<ul>
+<li>
+<p><strong>title</strong> : Nom d&#8217;affichage pour le script (supporte plusieurs langues)</p>
+</li>
+<li>
+<p><strong>requires</strong> : Version minimale de JSol&#8217;Ex requise (affiche un avertissement si non satisfaite)</p>
+</li>
+<li>
+<p><strong>params</strong> : Conteneur pour les définitions de paramètres</p>
+</li>
+</ul>
+</div>
+</div>
+<div class="sect3">
+<h4 id="_localisation">Localisation</h4>
+<div class="paragraph">
+<p>Les noms et descriptions des paramètres peuvent être localisés en utilisant des objets de langue ou des chaînes simples :</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-none hljs">name {
+    en = "English Name"
+    fr = "Nom français"
+}
+// Ou simplement :
+name = "Nom par défaut"</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>Si aucune localisation n&#8217;est fournie pour la langue de l&#8217;utilisateur, JSol&#8217;Ex utilise l&#8217;anglais par défaut, puis la première langue disponible.</p>
+</div>
+</div>
+<div class="sect3">
+<h4 id="_compatibilité_de_version">Compatibilité de version</h4>
+<div class="paragraph">
+<p>Le champ <code>requires</code> assure que les utilisateurs sont avertis si leur version de JSol&#8217;Ex peut ne pas supporter toutes les fonctionnalités du script :</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-none hljs">meta {
+    requires = "4.1.0"  // Avertit les utilisateurs avec des versions plus anciennes
+}</code></pre>
+</div>
+</div>
 </div>
 </div>
 </div>

@@ -497,6 +497,7 @@ body.book #toc,body.book #preamble,body.book h1.sect0,body.book .sect1>h2{page-b
 <li><a href="#_introduction_to_imagemath">Introduction to ImageMath</a></li>
 <li><a href="#_functions_available_in_imagemath">Functions available in ImageMath</a></li>
 <li><a href="#_imagemath_scripts">ImageMath scripts</a></li>
+<li><a href="#script-parameters">Script Parameters</a></li>
 <li><a href="#special-variables">Special variables</a></li>
 <li><a href="#custom-functions">Custom functions</a></li>
 <li><a href="#includes">Including other scripts</a></li>
@@ -535,7 +536,7 @@ body.book #toc,body.book #preamble,body.book h1.sect0,body.book .sect1>h2{page-b
 <div class="paragraph">
 <p>JSol&#8217;Ex is a solar images processing software for <a href="http://www.astrosurf.com/solex/sol-ex-presentation-en.html">Christian Buil&#8217;s Sol&#8217;Ex</a>.
 It is capable of processing SER files captured with this instrument in order to produce images of the solar disk, in a similar way to what <a href="http://valerie.desnoux.free.fr/inti/">INTI from Valérie Desnoux</a> is doing.
-It is primarily designed to process images for Sol&#8217;Ex, but it might work properly for other kinds of spectroheliographs.</p>
+It is primarily designed to process images for Sol&#8217;Ex, but it will work properly for other kinds of spectroheliographs.</p>
 </div>
 <div class="paragraph">
 <p>JSol&#8217;Ex is free software published under the Apache 2 software license.
@@ -1512,6 +1513,134 @@ Comments can be added either with the <code>#</code> or <code>//</code> prefix.
 </td>
 </tr>
 </table>
+</div>
+</div>
+<div class="sect2">
+<h3 id="script-parameters">Script Parameters</h3>
+<div class="paragraph">
+<p>Scripts can optionally declare configurable parameters using the <code>meta</code> block.
+While not required, adding parameters is highly recommended if you plan to share your script with others, as users unfamiliar with scripting will prefer tweaking parameters rather than modifying code directly.</p>
+</div>
+<div class="paragraph">
+<p>When a script declares parameters, JSol&#8217;Ex automatically creates user interface controls that allow users to adjust values without editing the script.</p>
+</div>
+<div class="sect3">
+<h4 id="_declaring_parameters">Declaring Parameters</h4>
+<div class="paragraph">
+<p>Parameters are declared in a <code>meta</code> block at the beginning of your script:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-none hljs">meta {
+    title = "Enhanced Stacking Script"
+    requires = "4.1.0"
+
+    params {
+        tileSize {
+            type = "number"
+            default = 64
+            min = 16
+            max = 512
+            name {
+                en = "Tile Size"
+                fr = "Taille de tuile"
+            }
+            description {
+                en = "Size of tiles for processing"
+                fr = "Taille des tuiles pour le traitement"
+            }
+        }
+
+        pixelShift {
+            type = "number"
+            default = 0
+            min = -10
+            max = 10
+            name = "Pixel Shift"
+            description = "Shift in pixels from reference wavelength"
+        }
+
+        cropRatio {
+            type = "choice"
+            choices = "1.0,1.1,1.2,1.5,2.0"
+            default = "1.1"
+            name = "Autocrop Ratio"
+            description = "Solar radius multiplication factor for cropping"
+        }
+    }
+}
+
+[outputs]
+result = autocrop(img(pixelShift), cropRatio)</code></pre>
+</div>
+</div>
+</div>
+<div class="sect3">
+<h4 id="_parameter_types">Parameter Types</h4>
+<div class="paragraph">
+<p>JSol&#8217;Ex supports three parameter types:</p>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p><strong>number</strong>: Numeric values with optional min/max constraints</p>
+</li>
+<li>
+<p><strong>string</strong>: Text values</p>
+</li>
+<li>
+<p><strong>choice</strong>: Selection from predefined options</p>
+</li>
+</ul>
+</div>
+</div>
+<div class="sect3">
+<h4 id="_meta_block_properties">Meta Block Properties</h4>
+<div class="ulist">
+<ul>
+<li>
+<p><strong>title</strong>: Display name for the script (supports multiple languages)</p>
+</li>
+<li>
+<p><strong>requires</strong>: Minimum JSol&#8217;Ex version needed (displays warning if not met)</p>
+</li>
+<li>
+<p><strong>params</strong>: Container for parameter definitions</p>
+</li>
+</ul>
+</div>
+</div>
+<div class="sect3">
+<h4 id="_localization">Localization</h4>
+<div class="paragraph">
+<p>Parameter names and descriptions can be localized using language objects or simple strings:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-none hljs">name {
+    en = "English Name"
+    fr = "Nom français"
+}
+// Or simply:
+name = "Default Name"</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>If no localization is provided for the user&#8217;s language, JSol&#8217;Ex falls back to English, then to the first available language.</p>
+</div>
+</div>
+<div class="sect3">
+<h4 id="_version_compatibility">Version Compatibility</h4>
+<div class="paragraph">
+<p>The <code>requires</code> field ensures users are warned if their JSol&#8217;Ex version might not support all script features:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-none hljs">meta {
+    requires = "4.1.0"  // Warns users with older versions
+}</code></pre>
+</div>
+</div>
 </div>
 </div>
 <div class="sect2">
