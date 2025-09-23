@@ -3,9 +3,11 @@
 ## What's New in Version 4.1.0
 
 - **User-Defined Presets**: Create, save, and manage your own custom image selection and script presets alongside the existing Quick and Full mode presets
+- Scripts can now declare their parameters which will automatically be configurable in the user interface
 - Added blend mode for BASS2000 image alignment with adjustable opacity
 - Added a warning when submitting to BASS2000 a file which was already submitted on the same day for the same wavelength
 - [bugfix] Fixed BASS2000 upload button being enabled before files are fully saved to disk
+- [improvement] Script parameters are now properly isolated per script file to prevent parameter name conflicts
 
 ## What's New in Version 4.0.1
 

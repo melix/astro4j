@@ -5,7 +5,7 @@ Cédric Champeau
 
 JSol'Ex is a solar images processing software for http://www.astrosurf.com/solex/sol-ex-presentation-en.html[Christian Buil's Sol'Ex].
 It is capable of processing SER files captured with this instrument in order to produce images of the solar disk, in a similar way to what http://valerie.desnoux.free.fr/inti/[INTI from Valérie Desnoux] is doing.
-It is primarily designed to process images for Sol'Ex, but it might work properly for other kinds of spectroheliographs.
+It is primarily designed to process images for Sol'Ex, but it will work properly for other kinds of spectroheliographs.
 
 JSol'Ex is free software published under the Apache 2 software license.
 It is written in en Java and provided for free without any warranty.
@@ -516,6 +516,104 @@ Last but not least, the `[outputs]` section declares the images we want to gener
 - `helium_color` is the `helium_mono` image to which we have applied a colorization.
 
 NOTE: Comments can be added either with the `#` or `//` prefix.
+
+[[script-parameters]]
+=== Script Parameters
+
+Scripts can optionally declare configurable parameters using the `meta` block.
+While not required, adding parameters is highly recommended if you plan to share your script with others, as users unfamiliar with scripting will prefer tweaking parameters rather than modifying code directly.
+
+When a script declares parameters, JSol'Ex automatically creates user interface controls that allow users to adjust values without editing the script.
+
+==== Declaring Parameters
+
+Parameters are declared in a `meta` block at the beginning of your script:
+
+[source]
+----
+meta {
+    title = "Enhanced Stacking Script"
+    requires = "4.1.0"
+
+    params {
+        tileSize {
+            type = "number"
+            default = 64
+            min = 16
+            max = 512
+            name {
+                en = "Tile Size"
+                fr = "Taille de tuile"
+            }
+            description {
+                en = "Size of tiles for processing"
+                fr = "Taille des tuiles pour le traitement"
+            }
+        }
+
+        pixelShift {
+            type = "number"
+            default = 0
+            min = -10
+            max = 10
+            name = "Pixel Shift"
+            description = "Shift in pixels from reference wavelength"
+        }
+
+        cropRatio {
+            type = "choice"
+            choices = "1.0,1.1,1.2,1.5,2.0"
+            default = "1.1"
+            name = "Autocrop Ratio"
+            description = "Solar radius multiplication factor for cropping"
+        }
+    }
+}
+
+[outputs]
+result = autocrop(img(pixelShift), cropRatio)
+----
+
+==== Parameter Types
+
+JSol'Ex supports three parameter types:
+
+* **number**: Numeric values with optional min/max constraints
+* **string**: Text values
+* **choice**: Selection from predefined options
+
+==== Meta Block Properties
+
+* **title**: Display name for the script (supports multiple languages)
+* **requires**: Minimum JSol'Ex version needed (displays warning if not met)
+* **params**: Container for parameter definitions
+
+==== Localization
+
+Parameter names and descriptions can be localized using language objects or simple strings:
+
+[source]
+----
+name {
+    en = "English Name"
+    fr = "Nom français"
+}
+// Or simply:
+name = "Default Name"
+----
+
+If no localization is provided for the user's language, JSol'Ex falls back to English, then to the first available language.
+
+==== Version Compatibility
+
+The `requires` field ensures users are warned if their JSol'Ex version might not support all script features:
+
+[source]
+----
+meta {
+    requires = "4.1.0"  // Warns users with older versions
+}
+----
 
 [[special-variables]]
 === Special variables

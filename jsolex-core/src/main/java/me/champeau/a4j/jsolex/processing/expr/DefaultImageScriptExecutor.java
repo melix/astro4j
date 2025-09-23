@@ -37,6 +37,7 @@ import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 import me.champeau.a4j.jsolex.processing.util.ProcessingException;
 import me.champeau.a4j.jsolex.processing.util.SolarParameters;
+import me.champeau.a4j.jsolex.processing.params.ImageMathParameterExtractor;
 
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -210,6 +211,9 @@ public class DefaultImageScriptExecutor implements ImageMathScriptExecutor {
         } catch (ParseException ex) {
             throw new ProcessingException(ex);
         }
+
+        extractParametersAsVariables(root, evaluator);
+
         var sections = root.findSections(kind);
         if (sections.isEmpty()) {
             return ImageMathScriptResult.EMPTY;
@@ -239,6 +243,9 @@ public class DefaultImageScriptExecutor implements ImageMathScriptExecutor {
                         .findFirst())
                 .or(() -> {
                     if (kind == SectionKind.BATCH && sections.size() == 1) {
+                        return Optional.of(sections.getFirst());
+                    }
+                    if (kind == SectionKind.SINGLE && sections.size() == 1) {
                         return Optional.of(sections.getFirst());
                     }
                     return Optional.empty();
@@ -420,6 +427,26 @@ public class DefaultImageScriptExecutor implements ImageMathScriptExecutor {
         public void clearCache() {
             super.clearCache();
             memoizeCache.clear();
+        }
+    }
+
+    private void extractParametersAsVariables(ImageMathScript script, MemoizingExpressionEvaluator evaluator) {
+        try {
+            var extractor = new ImageMathParameterExtractor();
+            var extractionResult = extractor.extractParametersFromAST(script, "runtime");
+
+            for (var parameter : extractionResult.getParameters()) {
+                var paramName = parameter.getName();
+                if (!evaluator.getVariables().containsKey(paramName)) {
+                    var defaultValue = parameter.getDefaultValue();
+                    if (defaultValue != null) {
+                        evaluator.putVariable(paramName, defaultValue);
+                    }
+                }
+            }
+        } catch (Exception e) {
+            // Log error but don't fail script execution
+            LOGGER.warn("Failed to extract script parameters: " + e.getMessage());
         }
     }
 

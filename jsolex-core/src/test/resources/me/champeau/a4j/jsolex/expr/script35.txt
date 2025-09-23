@@ -1,0 +1,17 @@
+meta {
+    params {
+        radius {
+            type = "number"
+            default = 5.0
+            min = 1.0
+            max = 50.0
+            display_name = "Blur Radius"
+            display_name_fr = "Rayon de flou"
+            description = "Gaussian blur radius in pixels"
+            description_fr = "Rayon du flou gaussien en pixels"
+        }
+    }
+}
+
+[[single]]
+result = gaussian_blur(img(0), radius)

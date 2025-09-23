@@ -1,0 +1,25 @@
+meta {
+    author = "Cédric Champeau"
+    title = "Median Filter with Threshold"
+    version = "1.0"
+    requires = "4.1.0"
+    params {
+        threshold {
+            type = "number"
+            default = 0.5
+            min = 0.0
+            max = 1.0
+            description = "Detection threshold"
+        }
+        method {
+            type = "choice"
+            default = "auto"
+            choices = "auto,manual,hybrid"
+            description = "Processing method"
+        }
+    }
+}
+
+[[single]]
+filtered = median_filter(img(0), 3)
+result = apply_threshold(filtered, threshold, method)

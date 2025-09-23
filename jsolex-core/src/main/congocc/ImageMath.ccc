@@ -32,7 +32,7 @@ INJECT PARSER_CLASS:
 
 INCLUDE "ImageMathLexer.ccc"
 
-Root#ImageMathScript : (IncludeDef! | FunctionDef!)* (IncludeDef! | FirstSection!) ( IncludeDef! | SubsequentSection! )* <EOF>;
+Root#ImageMathScript : (IncludeDef! | FunctionDef! | MetaBlock!)* (IncludeDef! | FirstSection!) ( IncludeDef! | SubsequentSection! )* <EOF>;
 
 INJECT ImageMathScript:
 import java.nio.file.Path;
@@ -106,6 +106,12 @@ import me.champeau.a4j.jsolex.processing.expr.ImageMathScriptExecutor;
                     if (first.isMajor() && "batch".equals(first.id())) {
                         isInBatch = true;
                         batchSections.add(section);
+                    } else if (first.isMajor() && "params".equals(first.id())) {
+                        // Skip params sections in both single and batch modes
+                        continue;
+                    } else if (first.isMajor() && "single".equals(first.id())) {
+                        // [[single]] sections are treated as standard sections
+                        standardSections.add(section);
                     } else {
                         standardSections.add(section);
                     }
@@ -116,11 +122,39 @@ import me.champeau.a4j.jsolex.processing.expr.ImageMathScriptExecutor;
         }
         return Collections.unmodifiableList(kind == ImageMathScriptExecutor.SectionKind.SINGLE ? standardSections : batchSections);
     }
+
+    public Optional<Section> findParamsSection() {
+        // Look for top-level meta blocks containing params
+        var metaBlocks = childrenOfType(MetaBlock.class);
+        if (!metaBlocks.isEmpty()) {
+            // Return the first section we can find for compatibility,
+            // the actual parameters will be extracted via getTopLevelParameterDefs()
+            return childrenOfType(Section.class).stream().findFirst();
+        }
+        return Optional.empty();
+    }
+
+    public List<ParameterDef> getTopLevelParameterDefs() {
+        var metaBlocks = childrenOfType(MetaBlock.class);
+        for (var metaBlock : metaBlocks) {
+            var content = metaBlock.getContent();
+            var paramsBlocks = content.childrenOfType(ParametersBlock.class);
+            for (var paramsBlock : paramsBlocks) {
+                if (paramsBlock.isParams()) {
+                    return paramsBlock.getParameterDefs();
+                }
+            }
+        }
+        return Collections.emptyList();
+    }
 }
 
-FirstSection#Section : [SectionHeader] (Assignment!)*;
+FirstSection#Section : [SectionHeader] SectionContent;
 
-SubsequentSection#Section : SectionHeader (Assignment!)* ;
+SubsequentSection#Section : SectionHeader SectionContent;
+
+SectionContent#void:
+    (Assignment | MetaBlock)*;
 
 INJECT Section:
 
@@ -132,13 +166,38 @@ import me.champeau.a4j.jsolex.processing.expr.ImageMathScriptExecutor;
                    .map(header -> header.firstChildOfType(Identifier.class).toString());
     }
 
+    public List<ParameterDef> getParameterDefs() {
+        // Look for meta blocks with params in this section
+        var metaBlocks = childrenOfType(MetaBlock.class);
+        for (var metaBlock : metaBlocks) {
+            var content = metaBlock.getContent();
+            var paramsBlocks = content.childrenOfType(ParametersBlock.class);
+            for (var paramsBlock : paramsBlocks) {
+                if (paramsBlock.isParams()) {
+                    return paramsBlock.getParameterDefs();
+                }
+            }
+        }
+
+        // If no meta blocks in this section, check the script level
+        var parent = getParent();
+        while (parent != null && !(parent instanceof ImageMathScript)) {
+            parent = parent.getParent();
+        }
+        if (parent instanceof ImageMathScript script) {
+            return script.getTopLevelParameterDefs();
+        }
+
+        return Collections.emptyList();
+    }
+
 }
 
 SectionHeader :
 (
     <LBRACKET> (
         (<LBRACKET> <IDENTIFIER> <RBRACKET> <RBRACKET>) { thisProduction.setMajor(true); }# |
-        <IDENTIFIER> <RBRACKET>
+        (<IDENTIFIER> | "params") <RBRACKET>
     )
 );
 
@@ -306,7 +365,16 @@ INJECT NumericalLiteral: extends Expression;
 NamedArgument :
     <IDENTIFIER> <COLON> Expression =>||;
 
-INJECT NamedArgument : extends Argument;
+INJECT NamedArgument : extends Argument
+{
+    public String getName() {
+        return firstChildOfType(Identifier.class).toString();
+    }
+
+    public Expression getValue() {
+        return firstChildOfType(Expression.class);
+    }
+}
 
 Argument:
     NamedArgument | Expression;
@@ -388,5 +456,200 @@ INJECT IncludeDef:
 
     public boolean isUnresolved() {
         return includedNodes == null;
+    }
+}
+
+ParameterDef:
+    <IDENTIFIER> ParameterObject;
+
+INJECT ParameterDef:
+{
+    public String getName() {
+        return firstChildOfType(Identifier.class).toString();
+    }
+
+    public ParameterObject getObjectValue() {
+        return firstChildOfType(ParameterObject.class);
+    }
+
+    public StringLiteral getStringValue() {
+        return firstChildOfType(StringLiteral.class);
+    }
+
+    public NumericalLiteral getNumberValue() {
+        return firstChildOfType(NumericalLiteral.class);
+    }
+
+    public ParameterArray getArrayValue() {
+        return firstChildOfType(ParameterArray.class);
+    }
+
+    public Object getValue() {
+        var obj = getObjectValue();
+        if (obj != null) return obj;
+        var str = getStringValue();
+        if (str != null) return str;
+        var num = getNumberValue();
+        if (num != null) return num;
+        var arr = getArrayValue();
+        if (arr != null) return arr;
+        return null;
+    }
+}
+
+ParameterValue:
+    ParameterObject |
+    StringLiteral |
+    NumericalLiteral;
+
+ParameterObject:
+    <LBRACE> (ParameterProperty)* <RBRACE>;
+
+INJECT ParameterObject:
+{
+    public List<ParameterProperty> getProperties() {
+        return childrenOfType(ParameterProperty.class);
+    }
+
+    public Optional<String> getProperty(String name) {
+        return getProperties().stream()
+            .filter(prop -> name.equals(prop.getName()))
+            .map(ParameterProperty::getStringValue)
+            .filter(Optional::isPresent)
+            .map(Optional::get)
+            .findFirst();
+    }
+
+    public Optional<Number> getNumberProperty(String name) {
+        return getProperties().stream()
+            .filter(prop -> name.equals(prop.getName()))
+            .map(ParameterProperty::getNumberValue)
+            .filter(Optional::isPresent)
+            .map(Optional::get)
+            .findFirst();
+    }
+}
+
+ParameterProperty:
+    <IDENTIFIER> (<ASSIGNMENT> ParameterPropertyValue | ParameterObject);
+
+INJECT ParameterProperty:
+{
+    public String getName() {
+        return firstChildOfType(Identifier.class).toString();
+    }
+
+    public ParameterPropertyValue getValue() {
+        var value = firstChildOfType(ParameterPropertyValue.class);
+        if (value != null) {
+            return value;
+        }
+        // Fallback: if ParameterPropertyValue is optimized away, create a virtual one
+        var virtualValue = new ParameterPropertyValue();
+        virtualValue.addAll(childrenOfType(StringLiteral.class));
+        virtualValue.addAll(childrenOfType(NumericalLiteral.class));
+        virtualValue.addAll(childrenOfType(ParameterObject.class));
+        virtualValue.addAll(childrenOfType(ParameterArray.class));
+        return virtualValue;
+    }
+
+    public Optional<String> getStringValue() {
+        var value = getValue();
+        if (value.firstChildOfType(StringLiteral.class) != null) {
+            return Optional.of(value.firstChildOfType(StringLiteral.class).toString());
+        }
+        return Optional.empty();
+    }
+
+    public Optional<Number> getNumberValue() {
+        var value = getValue();
+        var numLiteral = value.firstChildOfType(NumericalLiteral.class);
+        if (numLiteral != null) {
+            try {
+                var str = numLiteral.toString();
+                if (str.contains(".")) {
+                    return Optional.of(Double.parseDouble(str));
+                } else {
+                    return Optional.of(Long.parseLong(str));
+                }
+            } catch (NumberFormatException e) {
+                return Optional.empty();
+            }
+        }
+        return Optional.empty();
+    }
+}
+
+ParameterPropertyValue:
+    StringLiteral |
+    NumericalLiteral |
+    ParameterObject |
+    ParameterArray;
+
+ParameterArray:
+    <LBRACKET> [StringLiteral ((<COMMA>|<SEMICOLON>) StringLiteral)*] <RBRACKET>;
+
+INJECT ParameterArray:
+{
+    public List<StringLiteral> getElements() {
+        return childrenOfType(StringLiteral.class);
+    }
+}
+
+MetaBlock:
+    <META> <LBRACE> MetaContent <RBRACE>;
+
+INJECT MetaBlock:
+{
+    public String getName() {
+        return "meta";
+    }
+
+    public MetaContent getContent() {
+        var content = firstChildOfType(MetaContent.class);
+        if (content != null) {
+            return content;
+        }
+        // Fallback: if MetaContent is optimized away, create a virtual one
+        var virtualContent = new MetaContent();
+        virtualContent.addAll(childrenOfType(ParametersBlock.class));
+        virtualContent.addAll(childrenOfType(MetaProperty.class));
+        return virtualContent;
+    }
+
+}
+
+MetaContent:
+    (ParametersBlock | MetaProperty)*;
+
+INJECT MetaContent:
+{
+    public List<ParametersBlock> getParametersBlocks() {
+        return childrenOfType(ParametersBlock.class);
+    }
+
+    public List<MetaProperty> getMetaProperties() {
+        return childrenOfType(MetaProperty.class);
+    }
+}
+
+MetaProperty:
+    <IDENTIFIER> (<ASSIGNMENT> (StringLiteral | NumericalLiteral) | ParameterObject);
+
+ParametersBlock:
+    <PARAMS> <LBRACE> (ParameterDef)* <RBRACE>;
+
+INJECT ParametersBlock:
+{
+    public String getName() {
+        return "params";
+    }
+
+    public boolean isParams() {
+        return true;
+    }
+
+    public List<ParameterDef> getParameterDefs() {
+        return childrenOfType(ParameterDef.class);
     }
 }

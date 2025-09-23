@@ -64,3 +64,25 @@
 .log_debug {
     -fx-fill: blue;
 }
+
+.parameter_property {
+    -fx-fill: #27ae60;
+    -fx-font-weight: bold;
+}
+
+.language_code {
+    -fx-fill: #f39c12;
+    -fx-font-style: italic;
+}
+
+.parameter_name {
+    -fx-fill: #dd5f00;
+    -fx-font-weight: bold;
+}
+
+.folded-hidden {
+    visibility: hidden;
+    -fx-max-height: 0;
+    -fx-pref-height: 0;
+    -fx-min-height: 0;
+}

@@ -1,0 +1,19 @@
+meta {
+    params {
+        brightness {
+            type = "number"
+            default = 1.0
+            min = 0.0
+            max = 2.0
+            description = "Image brightness"
+        }
+        contrast {
+            type = "number"
+            default = 1.0
+            description = "Image contrast"
+        }
+    }
+}
+
+[[single]]
+result = adjust_gamma(img(0), brightness, contrast)

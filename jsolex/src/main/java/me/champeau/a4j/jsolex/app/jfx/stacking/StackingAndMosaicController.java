@@ -370,7 +370,7 @@ public class StackingAndMosaicController {
     private void editStackingPostProcessingScript() {
         var files = stackPostProcessingScriptFile != null ? List.of(stackPostProcessingScriptFile) : List.<File>of();
         ImageMathEditor.create(stage,
-            new ImageMathParams(files),
+            new ImageMathParams(files, Map.of()),
             owner.getHostServices(),
             false,
             false,
@@ -390,7 +390,7 @@ public class StackingAndMosaicController {
     private void editMosaicPostProcessingScript() {
         var files = mosaicPostProcessingScriptFile != null ? List.of(mosaicPostProcessingScriptFile) : List.<File>of();
         ImageMathEditor.create(stage,
-            new ImageMathParams(files),
+            new ImageMathParams(files, Map.of()),
             owner.getHostServices(),
             false,
             false,

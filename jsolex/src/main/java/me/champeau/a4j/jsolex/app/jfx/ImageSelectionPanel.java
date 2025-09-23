@@ -17,11 +17,12 @@ package me.champeau.a4j.jsolex.app.jfx;
 
 import javafx.application.HostServices;
 import javafx.geometry.Insets;
-import javafx.scene.control.Button;
 import javafx.scene.control.Alert;
+import javafx.scene.control.Button;
 import javafx.scene.control.ButtonType;
 import javafx.scene.control.CheckBox;
 import javafx.scene.control.Label;
+import javafx.scene.control.TextField;
 import javafx.scene.control.TextInputDialog;
 import javafx.scene.control.Tooltip;
 import javafx.scene.layout.ColumnConstraints;
@@ -35,29 +36,40 @@ import me.champeau.a4j.jsolex.app.JSolEx;
 import me.champeau.a4j.jsolex.app.script.JSolExScriptExecutor;
 import me.champeau.a4j.jsolex.processing.expr.DefaultImageScriptExecutor;
 import me.champeau.a4j.jsolex.processing.expr.ImageMathScriptExecutor;
+import me.champeau.a4j.jsolex.processing.params.ChoiceParameter;
+import me.champeau.a4j.jsolex.processing.params.ImageMathParameterExtractor;
 import me.champeau.a4j.jsolex.processing.params.ImageMathParams;
+import me.champeau.a4j.jsolex.processing.params.NumberParameter;
 import me.champeau.a4j.jsolex.processing.params.ProcessParams;
 import me.champeau.a4j.jsolex.processing.params.RequestedImages;
+import me.champeau.a4j.jsolex.processing.params.ScriptParameter;
+import me.champeau.a4j.jsolex.processing.params.StringParameter;
 import me.champeau.a4j.jsolex.processing.params.UserPreset;
 import me.champeau.a4j.jsolex.processing.params.UserPresetIO;
 import me.champeau.a4j.jsolex.processing.sun.workflow.GeneratedImageKind;
 import me.champeau.a4j.jsolex.processing.sun.workflow.PixelShift;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
+import me.champeau.a4j.jsolex.processing.util.LocaleUtils;
 import me.champeau.a4j.jsolex.processing.util.MutableMap;
 import me.champeau.a4j.jsolex.processing.util.ProcessingException;
+import me.champeau.a4j.jsolex.processing.util.VersionUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
+import java.text.DecimalFormat;
+import java.text.DecimalFormatSymbols;
+import java.text.ParseException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Optional;
+import java.util.Locale;
+import java.util.Map;
 import java.util.Set;
 import java.util.TreeSet;
 
@@ -94,6 +106,9 @@ public class ImageSelectionPanel extends BaseParameterPanel {
     private Button savePresetButton;
     private FlowPane userPresetsContainer;
     private VBox userPresetsSection;
+    private VBox scriptParametersSection;
+    private VBox scriptParametersContainer;
+    private Map<String, Object> scriptParameterValues = new HashMap<>();
 
     private ProcessParamsController controller;
     private HostServices hostServices;
@@ -179,6 +194,9 @@ public class ImageSelectionPanel extends BaseParameterPanel {
         userPresetsContainer = new FlowPane();
         userPresetsContainer.setHgap(8);
         userPresetsContainer.setVgap(4);
+
+        scriptParametersContainer = new VBox();
+        scriptParametersContainer.setSpacing(8);
 
     }
 
@@ -274,17 +292,20 @@ public class ImageSelectionPanel extends BaseParameterPanel {
 
         actionsSection.getChildren().add(actionsGrid);
 
-        // Create user presets section that can be shown/hidden (no section header, just grid row)
         userPresetsSection = new VBox();
         var userPresetsGrid = createGrid();
         addGridRow(userPresetsGrid, 0, I18N.string(JSolEx.class, "process-params", "user.presets") + ":", userPresetsContainer);
         userPresetsSection.getChildren().add(userPresetsGrid);
 
-        // Load user presets and update visibility
+        scriptParametersSection = createSection("script.parameters");
+        scriptParametersSection.getChildren().add(scriptParametersContainer);
+        scriptParametersSection.setVisible(false);
+        scriptParametersSection.setManaged(false);
+
         loadUserPresets();
         updateUserPresetsVisibility();
 
-        getChildren().addAll(actionsSection, userPresetsSection, basicSection, advancedSection, pixelShiftSection, debugSection);
+        getChildren().addAll(actionsSection, userPresetsSection, basicSection, advancedSection, pixelShiftSection, scriptParametersSection, debugSection);
     }
 
     private void setupEventHandlers() {
@@ -413,11 +434,13 @@ public class ImageSelectionPanel extends BaseParameterPanel {
 
     private DefaultImageScriptExecutor createScriptExecutor() {
         var images = new HashMap<PixelShift, ImageWrapper32>();
-        return new JSolExScriptExecutor(
+        var executor = new JSolExScriptExecutor(
                 i -> images.computeIfAbsent(i, unused -> ImageWrapper32.createEmpty()),
                 MutableMap.of(),
                 stage
         );
+
+        return executor;
     }
 
     private PixelShifts findPixelShifts(ImageMathParams params) {
@@ -429,6 +452,14 @@ public class ImageSelectionPanel extends BaseParameterPanel {
         for (var file : params.scriptFiles()) {
             if (Files.exists(file.toPath())) {
                 try {
+                    // Inject parameters specific to this file
+                    var fileParams = params.parameterValues().get(file);
+                    if (fileParams != null) {
+                        for (var entry : fileParams.entrySet()) {
+                            executor.putVariable(entry.getKey(), entry.getValue());
+                        }
+                    }
+
                     var result = executor.execute(file.toPath(), ImageMathScriptExecutor.SectionKind.SINGLE);
                     internalShifts.addAll(result.internalShifts());
                     normalShifts.addAll(result.outputShifts());
@@ -439,7 +470,7 @@ public class ImageSelectionPanel extends BaseParameterPanel {
                 }
             }
         }
-        
+
         return new PixelShifts(normalShifts.stream().toList(), internalShifts.stream().toList());
     }
 
@@ -455,10 +486,168 @@ public class ImageSelectionPanel extends BaseParameterPanel {
                     controller -> controller.getConfiguration().ifPresent(params -> {
                         this.imageMathParams = params;
                         updateScriptLabel();
+                        updateScriptParametersUI();
 
                         determineCurrentMode();
                         updateCurrentModeDisplay();
                     }));
+        }
+    }
+
+    private void updateScriptParametersUI() {
+        scriptParametersContainer.getChildren().clear();
+        scriptParameterValues.clear();
+
+        if (imageMathParams == null || imageMathParams.scriptFiles().isEmpty()) {
+            scriptParametersSection.setVisible(false);
+            scriptParametersSection.setManaged(false);
+            return;
+        }
+
+        var extractor = new ImageMathParameterExtractor();
+        var currentLanguage = LocaleUtils.getConfiguredLocale().getLanguage();
+        var hasAnyParameters = false;
+
+        for (var scriptFile : imageMathParams.scriptFiles()) {
+            try {
+                var result = extractor.extractParameters(scriptFile.toPath());
+                if (!result.getParameters().isEmpty()) {
+                    hasAnyParameters = true;
+
+                    var scriptTitle = result.getDisplayTitle(currentLanguage);
+                    var headerText = I18N.string(JSolEx.class, "image-selection", "script.parameters.header");
+                    if (headerText == null || headerText.trim().isEmpty()) {
+                        headerText = "Parameters for %s";
+                    }
+                    var formattedHeader = String.format(headerText, scriptTitle);
+
+                    var headerLabel = new Label(formattedHeader);
+                    headerLabel.setStyle("-fx-font-weight: bold; -fx-font-size: 14px; -fx-padding: 10 0 5 0;");
+                    scriptParametersContainer.getChildren().add(headerLabel);
+
+                    if (!result.isVersionSupported()) {
+                        var warningText = I18N.string(JSolEx.class, "image-selection", "script.version.warning");
+                        var formattedWarning = String.format(warningText, result.getRequiredVersion(), VersionUtil.getVersion());
+
+                        var warningLabel = new Label(formattedWarning);
+                        warningLabel.setStyle("-fx-text-fill: #d73027; -fx-font-weight: bold; -fx-padding: 5 0 5 0; -fx-wrap-text: true;");
+                        scriptParametersContainer.getChildren().add(warningLabel);
+                    }
+
+                    // Create grid for this script's parameters
+                    var grid = createGrid();
+                    var row = 0;
+
+                    for (var param : result.getParameters()) {
+                        var savedFileParams = imageMathParams.parameterValues().get(scriptFile);
+                        var savedValue = savedFileParams != null ? savedFileParams.get(param.getName()) : null;
+                        var valueToUse = savedValue != null ? savedValue : param.getDefaultValue();
+
+                        var control = createParameterControl(param, valueToUse);
+                        if (control != null) {
+                            var displayName = param.getDisplayName(currentLanguage);
+                            var description = param.getDescription(currentLanguage);
+
+                            addGridRowWithDirectTooltip(grid, row++, displayName + ":", control, description);
+
+                            scriptParameterValues.put(param.getName(), valueToUse);
+                        }
+                    }
+
+                    if (row > 0) {
+                        scriptParametersContainer.getChildren().add(grid);
+                    }
+                }
+            } catch (Exception e) {
+                LOGGER.warn("Failed to extract parameters from script: " + scriptFile.getName(), e);
+            }
+        }
+
+        if (hasAnyParameters) {
+            scriptParametersSection.setVisible(true);
+            scriptParametersSection.setManaged(true);
+        } else {
+            scriptParametersSection.setVisible(false);
+            scriptParametersSection.setManaged(false);
+        }
+    }
+
+    private javafx.scene.Node createParameterControl(ScriptParameter param, Object initialValue) {
+        switch (param) {
+            case ChoiceParameter choiceParam -> {
+                var choiceBox = createChoiceBox();
+                choiceBox.getItems().addAll(choiceParam.getChoices());
+                if (initialValue != null) {
+                    choiceBox.setValue(initialValue.toString());
+                }
+                choiceBox.valueProperty().addListener((obs, oldVal, newVal) -> {
+                    if (newVal != null) {
+                        scriptParameterValues.put(param.getName(), newVal);
+                    }
+                });
+                return choiceBox;
+            }
+            case NumberParameter numberParam -> {
+                var textField = new TextField();
+                var min = numberParam.getMin() != null ? numberParam.getMin().doubleValue() : Double.NEGATIVE_INFINITY;
+                var max = numberParam.getMax() != null ? numberParam.getMax().doubleValue() : Double.POSITIVE_INFINITY;
+                var value = initialValue instanceof Number num ? num.doubleValue() :
+                           (numberParam.getDefaultValue() instanceof Number defNum ? defNum.doubleValue() : 0.0);
+
+                var formatter = new DecimalFormat("#.###", DecimalFormatSymbols.getInstance(Locale.US));
+                textField.setText(formatter.format(value));
+
+                textField.textProperty().addListener((obs, oldVal, newVal) -> {
+                    try {
+                        var number = formatter.parse(newVal);
+                        var doubleValue = number.doubleValue();
+
+                        if (doubleValue >= min && doubleValue <= max) {
+                            textField.setStyle("");
+                            scriptParameterValues.put(param.getName(), doubleValue);
+                        } else {
+                            textField.setStyle("-fx-border-color: red;");
+                        }
+                    } catch (ParseException e) {
+                        textField.setStyle("-fx-border-color: red;");
+                    }
+                });
+
+                scriptParameterValues.put(param.getName(), value);
+                return textField;
+            }
+            case StringParameter stringParam -> {
+                var textField = new TextField();
+                var textValue = initialValue != null ? initialValue.toString() :
+                               (stringParam.getDefaultValue() != null ? stringParam.getDefaultValue().toString() : "");
+                textField.setText(textValue);
+                textField.textProperty().addListener((obs, oldVal, newVal) -> {
+                    scriptParameterValues.put(param.getName(), newVal);
+                });
+                return textField;
+            }
+            default -> {
+                LOGGER.warn("Unsupported parameter type: " + param.getClass().getSimpleName());
+                return null;
+            }
+        }
+    }
+
+    private void addGridRowWithDirectTooltip(GridPane grid, int row, String labelText, javafx.scene.Node control, String tooltipText) {
+        var label = new Label(labelText);
+        label.getStyleClass().addAll("field-label", "field-label-wrapped");
+
+        grid.add(label, 0, row);
+        grid.add(control, 1, row);
+
+        if (tooltipText != null && !tooltipText.isEmpty()) {
+            var helpIcon = new Label("?");
+            helpIcon.getStyleClass().addAll("help-icon");
+
+            var customTooltip = new CustomTooltip(tooltipText);
+            customTooltip.attachTo(helpIcon);
+
+            grid.add(helpIcon, 2, row);
         }
     }
 
@@ -535,9 +724,11 @@ public class ImageSelectionPanel extends BaseParameterPanel {
         if (imageMathParams != null && !imageMathParams.equals(ImageMathParams.NONE)) {
             this.imageMathParams = imageMathParams;
             updateScriptLabel();
+            updateScriptParametersUI();
         } else {
             this.imageMathParams = null;
             updateScriptLabel();
+            updateScriptParametersUI();
         }
 
         determineCurrentMode();
@@ -603,9 +794,13 @@ public class ImageSelectionPanel extends BaseParameterPanel {
         
         var finalImageMathParams = ImageMathParams.NONE;
         if (imageMathParams != null && !imageMathParams.equals(ImageMathParams.NONE)) {
-            finalImageMathParams = imageMathParams;
+            var nestedParameterValues = new HashMap<File, Map<String, Object>>();
+            for (var scriptFile : imageMathParams.scriptFiles()) {
+                nestedParameterValues.put(scriptFile, Map.copyOf(scriptParameterValues));
+            }
+            finalImageMathParams = new ImageMathParams(imageMathParams.scriptFiles(), nestedParameterValues);
 
-            var scriptPixelShifts = findPixelShifts(imageMathParams);
+            var scriptPixelShifts = findPixelShifts(finalImageMathParams);
             normalShifts.addAll(scriptPixelShifts.normalShifts());
             internalShiftsSet.addAll(scriptPixelShifts.internalShifts());
         }
@@ -658,10 +853,10 @@ public class ImageSelectionPanel extends BaseParameterPanel {
     private void clearScripts() {
         imageMathParams = null;
         updateScriptLabel();
+        updateScriptParametersUI();
         determineCurrentMode();
         updateCurrentModeDisplay();
     }
-
 
     private enum SelectionMode {
         QUICK, FULL, CUSTOM
@@ -686,7 +881,7 @@ public class ImageSelectionPanel extends BaseParameterPanel {
         dialog.setContentText(I18N.string(JSolEx.class, "process-params", "preset.name.dialog.content"));
         dialog.initOwner(getScene().getWindow());
 
-        Optional<String> result = dialog.showAndWait();
+        var result = dialog.showAndWait();
         result.ifPresent(name -> {
             var trimmedName = name.trim();
             if (trimmedName.isEmpty()) {
@@ -694,7 +889,6 @@ public class ImageSelectionPanel extends BaseParameterPanel {
                 return;
             }
 
-            // Check if preset already exists
             if (UserPresetIO.presetExists(trimmedName)) {
                 var confirmDialog = new Alert(Alert.AlertType.CONFIRMATION);
                 confirmDialog.setTitle(I18N.string(JSolEx.class, "process-params", "preset.name.dialog.title"));
@@ -781,7 +975,7 @@ public class ImageSelectionPanel extends BaseParameterPanel {
     private void updateUserPresetsVisibility() {
         try {
             var presets = UserPresetIO.loadPresets();
-            boolean hasPresets = !presets.isEmpty();
+            var hasPresets = !presets.isEmpty();
 
             // Show or hide the entire user presets section
             userPresetsSection.setVisible(hasPresets);
@@ -818,11 +1012,10 @@ public class ImageSelectionPanel extends BaseParameterPanel {
                 }
             }
 
-            // Apply script configuration
             imageMathParams = preset.mathImages();
             updateScriptLabel();
+            updateScriptParametersUI();
 
-            // Apply automatic scripts setting
             applyAutomaticScripts.setSelected(preset.applyAutomaticScripts());
 
             determineCurrentMode();

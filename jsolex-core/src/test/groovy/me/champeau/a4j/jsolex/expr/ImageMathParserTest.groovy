@@ -15,7 +15,7 @@
  */
 package me.champeau.a4j.jsolex.expr
 
-
+import me.champeau.a4j.jsolex.processing.params.ImageMathParameterExtractor
 import spock.lang.Specification
 
 import java.nio.file.Path
@@ -46,5 +46,67 @@ class ImageMathParserTest extends Specification {
             samples << stream.text
         }
         samples
+    }
+
+    def "should extract parameters even when functions are present"() {
+        given:
+        var scriptWithoutFunction = """meta {
+    title="Test"
+    requires="5.0.0"
+    params {
+        gamma {
+            type = "number"
+            name = "Gamma Correction"
+            default = 1.5
+            min = 0.5
+            max = 100
+        }
+    }
+}
+
+[tmp]
+v=1
+
+[outputs]
+processed=draw_text(v; 100; 100; "" + gamma)
+"""
+
+        var scriptWithFunction = """meta {
+    title="Test"
+    requires="5.0.0"
+    params {
+        gamma {
+            type = "number"
+            name = "Gamma Correction"
+            default = 1.5
+            min = 0.5
+            max = 100
+        }
+    }
+}
+
+[fun:foo i]
+   result=img(i)
+
+[tmp]
+v=foo(2)
+
+[outputs]
+processed=draw_text(v; 100; 100; "" + gamma)
+"""
+
+        var extractor = new ImageMathParameterExtractor()
+
+        when:
+        var resultWithoutFunction = extractor.extractParameters(scriptWithoutFunction)
+        var resultWithFunction = extractor.extractParameters(scriptWithFunction)
+
+        then:
+        resultWithoutFunction.parameters.size() == 1
+        resultWithoutFunction.parameters[0].name == "gamma"
+
+        and:
+        resultWithFunction.parameters.size() == 1
+        resultWithFunction.parameters[0].name == "gamma"
     }
 }

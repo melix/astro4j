@@ -84,4 +84,8 @@ TOKEN #Keyword:
     <FUNCTION: "fun">
     |
     <INCLUDE: "include">
+    |
+    <META: "meta">
+    |
+    <PARAMS: "params">
 ;

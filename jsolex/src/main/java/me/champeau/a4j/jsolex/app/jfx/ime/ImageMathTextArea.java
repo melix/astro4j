@@ -49,17 +49,24 @@ import me.champeau.a4j.jsolex.expr.ast.FunctionParams;
 import me.champeau.a4j.jsolex.expr.ast.Identifier;
 import me.champeau.a4j.jsolex.expr.ast.IncludeDef;
 import me.champeau.a4j.jsolex.expr.ast.Keyword;
+import me.champeau.a4j.jsolex.expr.ast.MetaBlock;
 import me.champeau.a4j.jsolex.expr.ast.NamedArgument;
 import me.champeau.a4j.jsolex.expr.ast.NumericalLiteral;
+import me.champeau.a4j.jsolex.expr.ast.ParameterDef;
+import me.champeau.a4j.jsolex.expr.ast.ParameterObject;
+import me.champeau.a4j.jsolex.expr.ast.ParameterProperty;
+import me.champeau.a4j.jsolex.expr.ast.ParametersBlock;
 import me.champeau.a4j.jsolex.expr.ast.Section;
 import me.champeau.a4j.jsolex.expr.ast.SectionHeader;
 import me.champeau.a4j.jsolex.expr.ast.StringLiteral;
 import me.champeau.a4j.jsolex.processing.expr.DefaultImageScriptExecutor;
 import me.champeau.a4j.jsolex.processing.util.LocaleUtils;
 import org.fxmisc.richtext.CodeArea;
-import org.fxmisc.richtext.LineNumberFactory;
 import org.fxmisc.richtext.model.StyleSpans;
 import org.fxmisc.richtext.model.StyleSpansBuilder;
+import javafx.scene.layout.HBox;
+import javafx.scene.control.Button;
+import javafx.geometry.Insets;
 
 import java.nio.file.Path;
 import java.time.Duration;
@@ -69,6 +76,7 @@ import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ExecutionException;
@@ -87,12 +95,26 @@ public class ImageMathTextArea extends BorderPane {
     private javafx.animation.Timeline hoverDelayTimeline;
 
     private Path includesDir;
+    private final Set<FoldedRegion> foldedRegions = new HashSet<>();
+    private boolean autoFoldMetaBlocks = false;
+
+    private static class FoldedRegion {
+        final int startParagraph;
+        final int endParagraph;
+        final String foldText;
+
+        FoldedRegion(int startParagraph, int endParagraph, String foldText) {
+            this.startParagraph = startParagraph;
+            this.endParagraph = endParagraph;
+            this.foldText = foldText;
+        }
+    }
 
     public ImageMathTextArea() {
         this.completionProvider = new ImageMathCompletionProvider(null, knownVariables);
 
         codeArea.prefWidthProperty().bind(widthProperty());
-        codeArea.setParagraphGraphicFactory(LineNumberFactory.get(codeArea));
+        codeArea.setParagraphGraphicFactory(this::createParagraphGraphic);
         codeArea.setWrapText(true);
         codeArea.multiPlainChanges()
                 .successionEnds(Duration.ofMillis(250))
@@ -107,6 +129,14 @@ public class ImageMathTextArea extends BorderPane {
                     }
                 })
                 .subscribe(this::applyHighlighting);
+
+        codeArea.textProperty().addListener((obs, oldText, newText) -> {
+            Platform.runLater(() -> {
+                foldedRegions.removeIf(region -> region.endParagraph >= codeArea.getParagraphs().size());
+                codeArea.setParagraphGraphicFactory(this::createParagraphGraphic);
+            });
+        });
+
         setCenter(codeArea);
         setupContextMenu();
         setupCompletion();
@@ -123,12 +153,21 @@ public class ImageMathTextArea extends BorderPane {
         knownVariables.add(variable);
     }
 
+    public void setAutoFoldMetaBlocks(boolean autoFold) {
+        this.autoFoldMetaBlocks = autoFold;
+    }
+
     public void setText(String text) {
         Platform.runLater(() -> {
+            foldedRegions.clear();
             codeArea.replaceText(text);
             codeArea.moveTo(0);
             codeArea.showParagraphAtTop(0);
             requestHighlighting();
+
+            if (autoFoldMetaBlocks) {
+                autoFoldMetaBlocksIfPresent();
+            }
         });
     }
 
@@ -145,7 +184,7 @@ public class ImageMathTextArea extends BorderPane {
     }
 
     private Task<StyleSpans<Collection<String>>> computeHighlightingAsync() {
-        String text = codeArea.getText();
+        var text = codeArea.getText();
         var task = new Task<StyleSpans<Collection<String>>>() {
             @Override
             protected StyleSpans<Collection<String>> call() throws Exception {
@@ -175,7 +214,7 @@ public class ImageMathTextArea extends BorderPane {
         var spansBuilder = new StyleSpansBuilder<Collection<String>>();
         Node root;
         Node inlined;
-        boolean error = false;
+        var error = false;
         try {
             parser.parse();
             root = parser.rootNode();
@@ -194,6 +233,16 @@ public class ImageMathTextArea extends BorderPane {
                 .filter(Optional::isPresent)
                 .map(Optional::get)
                 .collect(Collectors.toSet());
+
+        // Add parameter names from params blocks as known variables
+        var parameterNames = inlined.descendantsOfType(ParameterDef.class)
+                .stream()
+                .map(paramDef -> paramDef.firstChildOfType(Identifier.class))
+                .filter(Objects::nonNull)
+                .map(Object::toString)
+                .collect(Collectors.toSet());
+        knownVariables.addAll(parameterNames);
+
         knownVariables.add(DefaultImageScriptExecutor.BLACK_POINT_VAR);
         knownVariables.add(DefaultImageScriptExecutor.ANGLE_P_VAR);
         knownVariables.add(DefaultImageScriptExecutor.B0_VAR);
@@ -211,8 +260,8 @@ public class ImageMathTextArea extends BorderPane {
                         root.getAllTokens(true).stream()
                 ).sorted(Comparator.comparingInt(Node::getBeginOffset))
                 .toList();
-        int pos = 0;
-        boolean hasSpans = false;
+        var pos = 0;
+        var hasSpans = false;
         Node previousToken = null;
         for (var token : descendants) {
             List<String> styles = new ArrayList<>();
@@ -227,7 +276,7 @@ public class ImageMathTextArea extends BorderPane {
                 previousToken = token;
                 continue;
             }
-            int tokenStart = token.getBeginOffset();
+            var tokenStart = token.getBeginOffset();
             if (tokenStart > pos) {
                 hasSpans = true;
                 spansBuilder.add(styles, tokenStart - pos);
@@ -243,7 +292,7 @@ public class ImageMathTextArea extends BorderPane {
                 case Assignment assignment -> {
                     var variable = assignment.variable();
                     if (variable.isPresent()) {
-                        int tokenLength = variable.get().getLength();
+                        var tokenLength = variable.get().getLength();
                         pos += tokenLength;
                         hasSpans = true;
                         styles.add("variable_def");
@@ -253,7 +302,7 @@ public class ImageMathTextArea extends BorderPane {
                 }
                 case FunctionCall functionCall -> {
                     var functionName = functionCall.getFunctionName();
-                    int tokenLength = functionName.length();
+                    var tokenLength = functionName.length();
                     pos += tokenLength;
                     if (functionCall.getBuiltinFunction().isPresent() || userFunctionNames.contains(functionName)) {
                         styles.add("token_function");
@@ -304,11 +353,18 @@ public class ImageMathTextArea extends BorderPane {
                                 .map(Object::toString)
                                 .collect(Collectors.toSet());
                     }
-                    if (variables.contains(token.toString()) || previousToken instanceof Keyword) {
+
+                    // Check if this identifier is in a valid parameter context
+                    var parameterContextStyle = getParameterContextStyle(token);
+
+                    if (parameterContextStyle != null) {
+                        styles.add(parameterContextStyle);
+                        spansBuilder.add(styles, tokenLength);
+                    } else if (variables.contains(token.toString()) || previousToken instanceof Keyword) {
                         styles.add("variable");
                         spansBuilder.add(styles, tokenLength);
                     } else {
-                        Node parent = token.getParent();
+                        var parent = token.getParent();
                         while (parent != null && !(parent instanceof FunctionDef)) {
                             parent = parent.getParent();
                         }
@@ -337,24 +393,24 @@ public class ImageMathTextArea extends BorderPane {
                                         spansBuilder.add(styles, tokenLength);
                                     }
                                 } else {
-                                    // find a user function with the same name
-                                    var functionName = call.getFunctionName();
-                                    var functionDef = root.childrenOfType(FunctionDef.class)
-                                            .stream()
-                                            .filter(f -> f.name().equals(functionName))
-                                            .findFirst();
-                                    if (functionDef.isPresent()) {
-                                        var args = functionDef.get().arguments();
-                                        if (args.contains(token.toString())) {
-                                            spansBuilder.add(styles, tokenLength);
+                                        // find a user function with the same name
+                                        var functionName = call.getFunctionName();
+                                        var functionDef = root.childrenOfType(FunctionDef.class)
+                                                .stream()
+                                                .filter(f -> f.name().equals(functionName))
+                                                .findFirst();
+                                        if (functionDef.isPresent()) {
+                                            var args = functionDef.get().arguments();
+                                            if (args.contains(token.toString())) {
+                                                spansBuilder.add(styles, tokenLength);
+                                            } else {
+                                                styles.add("underline_error");
+                                                spansBuilder.add(styles, tokenLength);
+                                            }
                                         } else {
                                             styles.add("underline_error");
                                             spansBuilder.add(styles, tokenLength);
                                         }
-                                    } else {
-                                        styles.add("underline_error");
-                                        spansBuilder.add(styles, tokenLength);
-                                    }
                                 }
                             }
                         } else {
@@ -378,6 +434,21 @@ public class ImageMathTextArea extends BorderPane {
                     spansBuilder.add(styles, tokenLength);
                     hasSpans = true;
                 }
+                case MetaBlock metaBlock -> {
+                    // MetaBlock itself doesn't need highlighting, its children will be handled
+                }
+                case ParametersBlock parametersBlock -> {
+                    // ParametersBlock itself doesn't need highlighting, its children will be handled
+                }
+                case ParameterDef parameterDef -> {
+                    // ParameterDef itself doesn't need highlighting, its children will be handled
+                }
+                case ParameterObject parameterObject -> {
+                    // ParameterObject itself doesn't need highlighting, its children will be handled
+                }
+                case ParameterProperty parameterProperty -> {
+                    // ParameterProperty itself doesn't need highlighting, its children will be handled
+                }
                 default -> {
                 }
             }
@@ -394,7 +465,7 @@ public class ImageMathTextArea extends BorderPane {
 
         var copyItem = new MenuItem(I18N.string(JSolEx.class, "app", "copy"));
         copyItem.setOnAction(e -> {
-            String selectedText = codeArea.getSelectedText();
+            var selectedText = codeArea.getSelectedText();
             if (selectedText != null && !selectedText.isEmpty()) {
                 var clipboard = Clipboard.getSystemClipboard();
                 var content = new ClipboardContent();
@@ -407,7 +478,7 @@ public class ImageMathTextArea extends BorderPane {
         pasteItem.setOnAction(e -> {
             var clipboard = Clipboard.getSystemClipboard();
             if (clipboard.hasString()) {
-                String clipboardText = clipboard.getString();
+                var clipboardText = clipboard.getString();
                 codeArea.replaceSelection(clipboardText);
             }
         });
@@ -420,8 +491,8 @@ public class ImageMathTextArea extends BorderPane {
 
         // Enable/disable menu items based on selection and clipboard content
         contextMenu.setOnShowing(e -> {
-            boolean hasSelection = codeArea.getSelectedText() != null && !codeArea.getSelectedText().isEmpty();
-            boolean hasClipboardText = Clipboard.getSystemClipboard().hasString();
+            var hasSelection = codeArea.getSelectedText() != null && !codeArea.getSelectedText().isEmpty();
+            var hasClipboardText = Clipboard.getSystemClipboard().hasString();
             copyItem.setDisable(!hasSelection);
             pasteItem.setDisable(!hasClipboardText);
         });
@@ -484,7 +555,7 @@ public class ImageMathTextArea extends BorderPane {
 
                 if (!completions.isEmpty()) {
                     var context = CompletionContext.analyze(codeArea.getText(), codeArea.getCaretPosition(), includesDir);
-                    String partial = context.getPartialToken();
+                    var partial = context.getPartialToken();
 
                     // Auto-complete if there's a partial match
                     if (!partial.isEmpty() && partial.length() > 1) {
@@ -521,7 +592,7 @@ public class ImageMathTextArea extends BorderPane {
         }
 
         var context = CompletionContext.analyze(codeArea.getText(), codeArea.getCaretPosition(), includesDir);
-        String partial = context.getPartialToken();
+        var partial = context.getPartialToken();
 
         if (partial.isEmpty() || partial.length() < 2) {
             completionPopup.hide();
@@ -535,7 +606,7 @@ public class ImageMathTextArea extends BorderPane {
         }
 
         // Check if any completion still matches
-        boolean hasMatch = completions.stream()
+        var hasMatch = completions.stream()
                 .anyMatch(completion -> completion.text().toLowerCase().startsWith(partial.toLowerCase()));
 
         if (!hasMatch) {
@@ -557,8 +628,8 @@ public class ImageMathTextArea extends BorderPane {
     private void populateCompletionPopup(List<CompletionItem> completions) {
         completionPopup.getItems().clear();
 
-        int maxItems = Math.min(completions.size(), 10);
-        for (int i = 0; i < maxItems; i++) {
+        var maxItems = Math.min(completions.size(), 10);
+        for (var i = 0; i < maxItems; i++) {
             var completion = completions.get(i);
             var label = new Label(completion.text());
             label.getStyleClass().add("completion-" + completion.type().name().toLowerCase());
@@ -603,10 +674,10 @@ public class ImageMathTextArea extends BorderPane {
 
     private void insertCompletion(CompletionItem item) {
         var context = CompletionContext.analyze(codeArea.getText(), codeArea.getCaretPosition(), includesDir);
-        String partial = context.getPartialToken();
+        var partial = context.getPartialToken();
 
-        int startPos = codeArea.getCaretPosition() - partial.length();
-        int endPos = codeArea.getCaretPosition();
+        var startPos = codeArea.getCaretPosition() - partial.length();
+        var endPos = codeArea.getCaretPosition();
 
         codeArea.replaceText(startPos, endPos, item.text());
     }
@@ -630,7 +701,7 @@ public class ImageMathTextArea extends BorderPane {
             return;
         }
 
-        int position = charIndexOpt.getAsInt();
+        var position = charIndexOpt.getAsInt();
         var functionCall = findFunctionCallAtPosition(position);
 
         if (functionCall != null) {
@@ -660,8 +731,8 @@ public class ImageMathTextArea extends BorderPane {
 
             var functionCalls = root.descendantsOfType(FunctionCall.class);
             for (var call : functionCalls) {
-                int start = call.getBeginOffset();
-                int end = Math.min(start + call.getFunctionName().length(), call.getEndOffset());
+                var start = call.getBeginOffset();
+                var end = Math.min(start + call.getFunctionName().length(), call.getEndOffset());
 
                 if (position >= start && position <= end) {
                     return call.getFunctionName().toLowerCase();
@@ -690,7 +761,7 @@ public class ImageMathTextArea extends BorderPane {
         var content = new VBox(5);
         content.setStyle("-fx-padding: 8; -fx-background-color: #2b2b2b; -fx-text-fill: white; -fx-font-size: 12px;");
 
-        String currentLanguage = LocaleUtils.getConfiguredLocale().getLanguage();
+        var currentLanguage = LocaleUtils.getConfiguredLocale().getLanguage();
 
         // Function name
         var nameText = new Text(builtinFunction.name());
@@ -779,6 +850,274 @@ public class ImageMathTextArea extends BorderPane {
         var simpleName = token.getClass().getSimpleName();
         var styleClass = simpleName.toLowerCase(Locale.US);
         return List.of(styleClass);
+    }
+
+    private String getParameterContextStyle(Node token) {
+        // Known parameter properties
+        var knownProperties = Set.of("type", "name", "description", "default", "min", "max", "choices", "step");
+
+        // Known meta properties
+        var knownMetaProperties = Set.of("author", "title", "version", "requires");
+
+        // Language codes (extend as needed)
+        var languageCodes = Set.of("en", "fr", "de", "es", "it", "pt", "nl", "sv", "da", "no", "fi", "pl", "cs", "sk", "hu", "ro", "bg", "hr", "sl", "et", "lv", "lt", "mt", "ga", "cy");
+
+        var tokenText = token.toString();
+
+        // Check if this is a known parameter property
+        if (knownProperties.contains(tokenText)) {
+            return "parameter_property";
+        }
+
+        // Check if this is a known meta property
+        if (knownMetaProperties.contains(tokenText)) {
+            return "parameter_property"; // Use same styling as parameter properties
+        }
+
+        // Check if this is a language code inside a name or description object
+        if (languageCodes.contains(tokenText)) {
+            var parent = token.getParent();
+            while (parent != null) {
+                if (parent instanceof ParameterProperty prop &&
+                    ("name".equals(prop.getName()) || "description".equals(prop.getName()))) {
+                    return "language_code";
+                }
+                // Also check for meta properties that support i18n (like title)
+                if (parent instanceof ParameterObject) {
+                    var grandParent = parent.getParent();
+                    if (grandParent != null) {
+                        // Check if this is a MetaProperty with a supported i18n property name
+                        var metaPropertyName = getMetaPropertyName(grandParent);
+                        if ("title".equals(metaPropertyName)) {
+                            return "language_code";
+                        }
+                    }
+                }
+                parent = parent.getParent();
+            }
+        }
+
+        // Check if this is a parameter name (identifier that is a direct child of ParametersBlock)
+        var parent = token.getParent();
+        if (parent instanceof ParameterDef) {
+            // This is a parameter name like "gamma", "tileSize", etc.
+            return "parameter_name";
+        }
+
+        return null;
+    }
+
+    private String getMetaPropertyName(Node node) {
+        // Try to get the name of a MetaProperty by finding its identifier child
+        var identifier = node.firstChildOfType(Identifier.class);
+        return identifier != null ? identifier.toString() : null;
+    }
+
+    // Code folding implementation
+    private javafx.scene.Node createParagraphGraphic(int paragraphIndex) {
+        // Check if this paragraph is hidden due to folding
+        var isHiddenInFold = isParaHiddenInFoldedRegion(paragraphIndex);
+        if (isHiddenInFold) {
+            // Return empty node with zero height to effectively hide the paragraph
+            var hiddenNode = new Label("");
+            hiddenNode.setMaxHeight(0);
+            hiddenNode.setPrefHeight(0);
+            hiddenNode.setMinHeight(0);
+            hiddenNode.setVisible(false);
+            hiddenNode.setManaged(false);
+            return hiddenNode;
+        }
+
+        var hbox = new HBox();
+        hbox.setSpacing(5);
+        hbox.setPadding(new Insets(0, 5, 0, 0));
+
+        // Line number
+        var lineNumber = new Label(String.format("%d", paragraphIndex + 1));
+        lineNumber.setStyle("-fx-font-family: monospace; -fx-text-fill: #999999; -fx-font-size: 12px;");
+        lineNumber.setMinWidth(35);
+        hbox.getChildren().add(lineNumber);
+
+        // Fold indicator
+        var foldRegion = findFoldRegionStartingAt(paragraphIndex);
+        if (foldRegion != null) {
+            var foldButton = new Button();
+            foldButton.setPrefSize(12, 12);
+            foldButton.setStyle("-fx-font-size: 8px; -fx-padding: 0;");
+
+            var isFolded = foldedRegions.stream().anyMatch(r -> r.startParagraph == paragraphIndex);
+            foldButton.setText(isFolded ? "+" : "-");
+
+            foldButton.setOnAction(e -> {
+                if (isFolded) {
+                    unfoldRegion(paragraphIndex);
+                } else {
+                    foldRegion(paragraphIndex, foldRegion.endLine);
+                }
+            });
+
+            hbox.getChildren().add(foldButton);
+
+            // Add fold indicator if this region is folded (right after the fold button)
+            if (isFolded) {
+                var folded = getFoldedRegionForParagraph(paragraphIndex);
+                if (folded != null) {
+                    var foldIndicator = new Label("... " + (folded.endParagraph - folded.startParagraph) + " lines");
+                    foldIndicator.setStyle("-fx-text-fill: #888888; -fx-font-style: italic; -fx-font-size: 10px; -fx-padding: 0 0 0 5;");
+                    hbox.getChildren().add(foldIndicator);
+                }
+            }
+        } else {
+            // Empty space where fold button would be
+            var spacer = new Label(" ");
+            spacer.setPrefSize(12, 12);
+            hbox.getChildren().add(spacer);
+        }
+
+        return hbox;
+    }
+
+
+    private boolean isParaHiddenInFoldedRegion(int paragraphIndex) {
+        for (var region : foldedRegions) {
+            if (paragraphIndex > region.startParagraph && paragraphIndex <= region.endParagraph) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private FoldedRegion getFoldedRegionForParagraph(int paragraphIndex) {
+        for (var region : foldedRegions) {
+            if (region.startParagraph == paragraphIndex) {
+                return region;
+            }
+        }
+        return null;
+    }
+
+    private static class FoldRegion {
+        final int startLine;
+        final int endLine;
+
+        FoldRegion(int startLine, int endLine) {
+            this.startLine = startLine;
+            this.endLine = endLine;
+        }
+    }
+
+    private FoldRegion findFoldRegionStartingAt(int paragraphIndex) {
+        return findFoldRegionStartingAt(paragraphIndex, codeArea.getText());
+    }
+
+    private void foldRegion(int startParagraph, int endParagraph) {
+        // Store the original text content for this region
+        var originalContent = new StringBuilder();
+        for (var i = startParagraph; i <= endParagraph && i < codeArea.getParagraphs().size(); i++) {
+            originalContent.append(codeArea.getParagraph(i).toString());
+            if (i < endParagraph) {
+                originalContent.append("\n");
+            }
+        }
+
+        var region = new FoldedRegion(startParagraph, endParagraph, originalContent.toString());
+        foldedRegions.add(region);
+
+        // Style the folded paragraphs to hide them
+        for (var i = startParagraph + 1; i <= endParagraph && i < codeArea.getParagraphs().size(); i++) {
+            codeArea.setParagraphStyle(i, List.of("folded-hidden"));
+        }
+
+        Platform.runLater(() -> {
+            codeArea.setParagraphGraphicFactory(this::createParagraphGraphic);
+            requestHighlighting();
+        });
+    }
+
+    private void unfoldRegion(int startParagraph) {
+        FoldedRegion toRemove = null;
+        for (var region : foldedRegions) {
+            if (region.startParagraph == startParagraph) {
+                toRemove = region;
+                break;
+            }
+        }
+
+        if (toRemove != null) {
+            foldedRegions.remove(toRemove);
+
+            // Remove the hidden styling from the unfolded paragraphs
+            for (var i = toRemove.startParagraph + 1; i <= toRemove.endParagraph && i < codeArea.getParagraphs().size(); i++) {
+                codeArea.setParagraphStyle(i, List.of());
+            }
+
+            Platform.runLater(() -> {
+                codeArea.setParagraphGraphicFactory(this::createParagraphGraphic);
+                requestHighlighting();
+            });
+        }
+    }
+
+    private void autoFoldMetaBlocksIfPresent() {
+        Platform.runLater(() -> {
+            var paragraphCount = codeArea.getParagraphs().size();
+            for (var paragraphIndex = 0; paragraphIndex < paragraphCount; paragraphIndex++) {
+                var foldRegion = findFoldRegionStartingAt(paragraphIndex);
+                if (foldRegion != null) {
+                    // Auto-fold this meta block
+                    foldRegion(paragraphIndex, foldRegion.endLine);
+                    break; // Only fold the first meta block found
+                }
+            }
+        });
+    }
+
+
+
+
+    private FoldRegion findFoldRegionStartingAt(int paragraphIndex, String text) {
+        var lines = text.split("\n", -1);
+
+        if (paragraphIndex >= lines.length) {
+            return null;
+        }
+
+        var line = lines[paragraphIndex];
+
+        if (!line.trim().startsWith("meta")) {
+            return null;
+        }
+
+        var braceIndex = line.indexOf('{');
+        if (braceIndex == -1) {
+            return null;
+        }
+
+        var braceCount = 0;
+
+        for (var i = 0; i <= braceIndex; i++) {
+            if (line.charAt(i) == '{') braceCount++;
+            else if (line.charAt(i) == '}') braceCount--;
+        }
+
+        for (var i = paragraphIndex; i < lines.length; i++) {
+            var currentLine = i == paragraphIndex ? line.substring(braceIndex + 1) : lines[i];
+
+            for (var c : currentLine.toCharArray()) {
+                if (c == '{') braceCount++;
+                else if (c == '}') {
+                    braceCount--;
+                    if (braceCount == 0) {
+                        if (i > paragraphIndex) {
+                            return new FoldRegion(paragraphIndex, i);
+                        }
+                        return null;
+                    }
+                }
+            }
+        }
+
+        return null;
     }
 
 }

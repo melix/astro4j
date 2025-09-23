@@ -40,6 +40,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.StandardOpenOption;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
@@ -167,7 +168,7 @@ public class ImageMathEditor {
         if (!items.isEmpty()) {
             scriptsToApply.getSelectionModel().selectFirst();
         }
-        scriptTextArea.minHeightProperty().bind(stage.heightProperty().subtract(200));
+        scriptTextArea.minHeightProperty().bind(stage.heightProperty().subtract(300));
     }
 
     private void loadPredefinedScripts() {
@@ -240,7 +241,8 @@ public class ImageMathEditor {
     private void ok() {
         if (doesNotHaveStaleChanges()) {
             params = new ImageMathParams(
-                    scriptsToApply.getItems().stream().map(ImageMathEntry::scriptFile).toList()
+                    scriptsToApply.getItems().stream().map(ImageMathEntry::scriptFile).toList(),
+                    Map.of()
             );
             requestClose();
         }
