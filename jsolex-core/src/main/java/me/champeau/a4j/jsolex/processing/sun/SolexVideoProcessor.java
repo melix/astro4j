@@ -1081,6 +1081,12 @@ public class SolexVideoProcessor implements Broadcaster {
                     }
                     return img;
                 }, Collections.unmodifiableMap(context), this);
+                var fileParams = mathImages.parameterValues().get(scriptFile);
+                if (fileParams != null) {
+                    for (Map.Entry<String, Object> entry : fileParams.entrySet()) {
+                        scriptRunner.putVariable(entry.getKey(), entry.getValue());
+                    }
+                }
                 try {
                     var result = scriptRunner.execute(scriptFile.toPath(), ImageMathScriptExecutor.SectionKind.SINGLE);
                     ImageMathScriptExecutor.render(result, emitter);

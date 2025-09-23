@@ -19,34 +19,89 @@ import com.google.gson.JsonArray;
 import com.google.gson.JsonDeserializationContext;
 import com.google.gson.JsonDeserializer;
 import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
 import com.google.gson.JsonParseException;
 import com.google.gson.JsonSerializationContext;
 import com.google.gson.JsonSerializer;
 
 import java.io.File;
 import java.lang.reflect.Type;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 class ImageMathParamsSerializer implements JsonSerializer<ImageMathParams>, JsonDeserializer<ImageMathParams> {
 
     @Override
     public ImageMathParams deserialize(JsonElement json, Type typeOfT, JsonDeserializationContext context) throws JsonParseException {
-        if (json instanceof JsonArray array) {
+        if (json instanceof JsonObject obj) {
+            var scriptsArray = obj.getAsJsonArray("scripts");
+            var scripts = scriptsArray != null ?
+                scriptsArray.asList().stream().map(e -> new File(e.getAsString())).toList() :
+                List.<File>of();
+
+            var parametersObj = obj.getAsJsonObject("parameters");
+            var parameters = new HashMap<File, Map<String, Object>>();
+            if (parametersObj != null) {
+                for (var entry : parametersObj.entrySet()) {
+                    var file = new File(entry.getKey());
+                    var fileParams = new HashMap<String, Object>();
+                    var paramsObj = entry.getValue().getAsJsonObject();
+                    for (var paramEntry : paramsObj.entrySet()) {
+                        var value = paramEntry.getValue();
+                        if (value.isJsonPrimitive()) {
+                            var primitive = value.getAsJsonPrimitive();
+                            if (primitive.isString()) {
+                                fileParams.put(paramEntry.getKey(), primitive.getAsString());
+                            } else if (primitive.isNumber()) {
+                                fileParams.put(paramEntry.getKey(), primitive.getAsDouble());
+                            } else if (primitive.isBoolean()) {
+                                fileParams.put(paramEntry.getKey(), primitive.getAsBoolean());
+                            }
+                        }
+                    }
+                    parameters.put(file, fileParams);
+                }
+            }
+            return new ImageMathParams(scripts, parameters);
+        } else if (json instanceof JsonArray array) {
             return new ImageMathParams(
                     array.asList().stream()
                     .map(e -> new File(e.getAsString()))
-                    .toList()
+                    .toList(),
+                    Map.of()
             );
         }
-        return new ImageMathParams(List.of());
+        return new ImageMathParams(List.of(), Map.of());
     }
 
     @Override
     public JsonElement serialize(ImageMathParams src, Type typeOfSrc, JsonSerializationContext context) {
-        var array = new JsonArray();
-        for (File file : src.scriptFiles()) {
-            array.add(file.getAbsolutePath());
+        var obj = new JsonObject();
+
+        var scriptsArray = new JsonArray();
+        for (var file : src.scriptFiles()) {
+            scriptsArray.add(file.getAbsolutePath());
         }
-        return array;
+        obj.add("scripts", scriptsArray);
+
+        var parametersObj = new JsonObject();
+        for (var entry : src.parameterValues().entrySet()) {
+            var fileParams = new JsonObject();
+            for (var paramEntry : entry.getValue().entrySet()) {
+                var value = paramEntry.getValue();
+                if (value instanceof String s) {
+                    fileParams.addProperty(paramEntry.getKey(), s);
+                } else if (value instanceof Number n) {
+                    fileParams.addProperty(paramEntry.getKey(), n);
+                } else if (value instanceof Boolean b) {
+                    fileParams.addProperty(paramEntry.getKey(), b);
+                }
+            }
+            parametersObj.add(entry.getKey().getAbsolutePath(), fileParams);
+        }
+        obj.add("parameters", parametersObj);
+
+        return obj;
     }
 }

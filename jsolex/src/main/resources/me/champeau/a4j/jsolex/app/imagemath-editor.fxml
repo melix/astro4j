@@ -12,7 +12,7 @@
 <?import javafx.scene.layout.VBox?>
 <?import me.champeau.a4j.jsolex.app.jfx.ime.ImageMathTextArea?>
 
-<BorderPane prefHeight="600.0" prefWidth="1100.0" styleClass="params-dialog" xmlns="http://javafx.com/javafx/19"
+<BorderPane prefHeight="600.0" prefWidth="1100.0" minHeight="500.0" maxHeight="800.0" styleClass="params-dialog" xmlns="http://javafx.com/javafx/19"
             xmlns:fx="http://javafx.com/fxml/1" fx:controller="me.champeau.a4j.jsolex.app.jfx.ImageMathEditor">
     <center>
         <HBox spacing="0">
@@ -42,15 +42,15 @@
                 <padding>
                     <Insets top="8" right="12" bottom="8" left="12"/>
                 </padding>
-                
+
                 <!-- Script Editor Header -->
                 <HBox alignment="CENTER_LEFT" spacing="16">
                     <Label text="%script.text" style="-fx-font-weight: bold; -fx-font-size: 14px;"/>
                     <Hyperlink fx:id="docsLink" text="%open.documentation" onAction="#openDocs"/>
                 </HBox>
-                
+
                 <!-- Script Text Area - This should take most of the space -->
-                <ImageMathTextArea fx:id="scriptTextArea" prefHeight="350" VBox.vgrow="ALWAYS">
+                <ImageMathTextArea fx:id="scriptTextArea" prefHeight="250" minHeight="200" VBox.vgrow="ALWAYS">
                     <VBox.margin>
                         <Insets top="8" bottom="12"/>
                     </VBox.margin>

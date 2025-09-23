@@ -1,0 +1,27 @@
+[fun:enhance img radius]
+blurred = gaussian_blur(img, radius)
+contrast = auto_contrast(blurred, 1.2)
+result = sharpen(contrast, 2)
+
+meta {
+    params {
+        blur_radius {
+            type = "number"
+            default = 3.0
+            min = 1.0
+            max = 10.0
+            description = "Blur radius for preprocessing"
+        }
+        threshold {
+            type = "number"
+            default = 0.8
+            min = 0.0
+            max = 1.0
+            description = "Detection threshold"
+        }
+    }
+}
+
+[[single]]
+preprocessed = enhance(img(0), blur_radius)
+result = threshold_detect(preprocessed, threshold)

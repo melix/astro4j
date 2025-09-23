@@ -1,0 +1,15 @@
+meta {
+    params {
+        text_content {
+            type = "string"
+            default = "Sample text"
+            description = "Text to add"
+        }
+    }
+}
+
+x_position = 10
+y_position = 20
+
+[[single]]
+result = draw_text(img(0), x_position, y_position, text_content)

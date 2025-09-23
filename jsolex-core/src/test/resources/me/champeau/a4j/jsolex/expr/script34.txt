@@ -1,0 +1,14 @@
+meta {
+    params {
+        scale {
+            type = "number"
+            default = 1.5
+            display_name = "Scale Factor"
+            description = "Scaling factor for image processing"
+        }
+    }
+}
+
+[[single]]
+scaled = resize(img(0), scale)
+result = scaled

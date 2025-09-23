@@ -230,7 +230,7 @@ public class ScriptingEntryPoint implements Runnable {
         }
         processParams = processParams.withRequestedImages(
                 processParams.requestedImages().withMathImages(
-                        new ImageMathParams(List.of(scriptPath)
+                        new ImageMathParams(List.of(scriptPath), Map.of()
                         )
                 )
         );

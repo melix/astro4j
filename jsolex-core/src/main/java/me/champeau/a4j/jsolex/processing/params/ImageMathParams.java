@@ -20,16 +20,19 @@ import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.util.List;
+import java.util.Map;
 
 import static me.champeau.a4j.jsolex.processing.util.Constants.message;
 
 public record ImageMathParams(
-        List<File> scriptFiles
+        List<File> scriptFiles,
+        Map<File, Map<String, Object>> parameterValues
 ) {
     public static final Logger LOGGER = LoggerFactory.getLogger(ImageMathParams.class);
 
     public static final ImageMathParams NONE = new ImageMathParams(
-            List.of()
+            List.of(),
+            Map.of()
     );
 
     @Override

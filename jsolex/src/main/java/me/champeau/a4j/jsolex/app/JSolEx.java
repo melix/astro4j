@@ -376,6 +376,7 @@ public class JSolEx implements JSolExInterface {
             var root = (Parent) fxmlLoader.load();
             configureIsolatedScriptExecution();
             imageMathScript.setPrefHeight(10000);
+            imageMathScript.setAutoFoldMetaBlocks(true);
             var preferredDimensions = config.getPreferredDimensions();
             Scene rootScene = new Scene(root, preferredDimensions.a(), preferredDimensions.b());
             rootScene.getStylesheets().add(JSolEx.class.getResource("syntax.css").toExternalForm());

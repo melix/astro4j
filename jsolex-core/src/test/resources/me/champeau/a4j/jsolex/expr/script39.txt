@@ -1,0 +1,29 @@
+[fun:process_frame img method]
+enhanced = linear_stretch(img, 2.0)
+denoised = median_filter(enhanced, 3)
+result = apply_method(denoised, method)
+
+meta {
+    params {
+        stack_method {
+            type = "choice"
+            default = "median"
+            choices = "median,average,maximum"
+            description = "Stacking method"
+        }
+        iterations {
+            type = "number"
+            default = 5
+            min = 1
+            max = 20
+            description = "Processing iterations"
+        }
+    }
+}
+
+[[batch]]
+processed = process_frame(img(0), stack_method)
+stacked = stack(processed, stack_method)
+
+[[single]]
+final_result = iterate_process(stacked, iterations)

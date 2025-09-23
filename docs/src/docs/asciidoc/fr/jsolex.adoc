@@ -707,6 +707,104 @@ Au final, la section `[outputs]` déclare les images qui nous intéressent :
 
 NOTE: Vous pouvez mettre des commentaires sur une ligne commençant par `#` ou `//`
 
+[[script-parameters]]
+=== Paramètres de scripts
+
+Les scripts peuvent optionnellement déclarer des paramètres configurables en utilisant le bloc `meta`.
+Bien que ce ne soit pas obligatoire, ajouter des paramètres est fortement recommandé si vous prévoyez de partager votre script avec d'autres, car les utilisateurs peu familiers avec les scripts préfèreront ajuster des paramètres plutôt que de modifier directement le code.
+
+Lorsqu'un script déclare des paramètres, JSol'Ex crée automatiquement des contrôles d'interface utilisateur qui permettent aux utilisateurs d'ajuster les valeurs sans éditer le script.
+
+==== Déclaration des paramètres
+
+Les paramètres sont déclarés dans un bloc `meta` au début de votre script :
+
+[source]
+----
+meta {
+    title = "Script d'empilement amélioré"
+    requires = "4.1.0"
+
+    params {
+        tileSize{
+            type = "number"
+            default = 64
+            min = 16
+            max = 512
+            name {
+                en = "Tile Size"
+                fr = "Taille de tuile"
+            }
+            description {
+                en = "Size of tiles for processing"
+                fr = "Taille des tuiles pour le traitement"
+            }
+        }
+
+        pixelShift {
+            type = "number"
+            default = 0
+            min = -10
+            max = 10
+            name = "Décalage pixel"
+            description = "Décalage en pixels par rapport à la longueur d'onde de référence"
+        }
+
+        cropRatio {
+            type = "choice"
+            choices = "1.0,1.1,1.2,1.5,2.0"
+            default = "1.1"
+            name = "Ratio de rognage"
+            description = "Facteur de multiplication du rayon solaire pour le rognage"
+        }
+    }
+}
+
+[outputs]
+result = autocrop(img(pixelShift), cropRatio)
+----
+
+==== Types de paramètres
+
+JSol'Ex supporte trois types de paramètres :
+
+* **number** : Valeurs numériques avec contraintes min/max optionnelles
+* **string** : Valeurs textuelles
+* **choice** : Sélection parmi des options prédéfinies
+
+==== Propriétés du bloc Meta
+
+* **title** : Nom d'affichage pour le script (supporte plusieurs langues)
+* **requires** : Version minimale de JSol'Ex requise (affiche un avertissement si non satisfaite)
+* **params** : Conteneur pour les définitions de paramètres
+
+==== Localisation
+
+Les noms et descriptions des paramètres peuvent être localisés en utilisant des objets de langue ou des chaînes simples :
+
+[source]
+----
+name {
+    en = "English Name"
+    fr = "Nom français"
+}
+// Ou simplement :
+name = "Nom par défaut"
+----
+
+Si aucune localisation n'est fournie pour la langue de l'utilisateur, JSol'Ex utilise l'anglais par défaut, puis la première langue disponible.
+
+==== Compatibilité de version
+
+Le champ `requires` assure que les utilisateurs sont avertis si leur version de JSol'Ex peut ne pas supporter toutes les fonctionnalités du script :
+
+[source]
+----
+meta {
+    requires = "4.1.0"  // Avertit les utilisateurs avec des versions plus anciennes
+}
+----
+
 [[trimming-ser-files]]
 == Réduire la taille des fichiers SER
 

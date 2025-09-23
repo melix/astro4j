@@ -134,4 +134,46 @@ public class VersionUtil {
             return version;
         }
     }
+
+    public static boolean isVersionSupported(String requiredVersion) {
+        if (requiredVersion == null || requiredVersion.trim().isEmpty()) {
+            return true;
+        }
+
+        try {
+            var currentVersion = getVersion();
+            return compareVersions(currentVersion, requiredVersion) >= 0;
+        } catch (Exception e) {
+            return true;
+        }
+    }
+
+    public static int compareVersions(String version1, String version2) {
+        var parts1 = version1.split("\\.");
+        var parts2 = version2.split("\\.");
+
+        int maxLength = Math.max(parts1.length, parts2.length);
+
+        for (int i = 0; i < maxLength; i++) {
+            int v1 = i < parts1.length ? parseVersionPart(parts1[i]) : 0;
+            int v2 = i < parts2.length ? parseVersionPart(parts2[i]) : 0;
+
+            if (v1 != v2) {
+                return Integer.compare(v1, v2);
+            }
+        }
+
+        return 0;
+    }
+
+    private static int parseVersionPart(String part) {
+        try {
+            if (part.contains("-")) {
+                part = part.substring(0, part.indexOf("-"));
+            }
+            return Integer.parseInt(part);
+        } catch (NumberFormatException e) {
+            return 0;
+        }
+    }
 }

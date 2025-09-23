@@ -1,0 +1,8 @@
+[section1]
+var1 = 123
+
+[section2]
+var2 = 456
+
+[[batch]]
+var3 = 789

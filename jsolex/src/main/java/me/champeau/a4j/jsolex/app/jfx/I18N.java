@@ -18,6 +18,7 @@ package me.champeau.a4j.jsolex.app.jfx;
 import javafx.fxml.FXMLLoader;
 import me.champeau.a4j.jsolex.processing.util.LocaleUtils;
 
+import java.util.Locale;
 import java.util.Map;
 import java.util.MissingResourceException;
 import java.util.ResourceBundle;
@@ -32,7 +33,7 @@ public class I18N {
 
     public static FXMLLoader fxmlLoader(Class<?> clazz, String resourceName) {
         try {
-            var bundle = ResourceBundle.getBundle(clazz.getPackageName() + "." + resourceName, LocaleUtils.getConfiguredLocale());
+            var bundle = fetchBundle(clazz.getPackageName() + "." + resourceName);
             return new FXMLLoader(clazz.getResource(resourceName + ".fxml"), bundle);
         } catch (MissingResourceException ex) {
             return new FXMLLoader(clazz.getResource(resourceName + ".fxml"));
@@ -42,11 +43,20 @@ public class I18N {
     public static String string(Class<?> clazz, String resourceName, String label) {
         try {
             var baseName = clazz.getPackageName() + "." + resourceName;
-            var bundle = CACHED_BUNDLES.computeIfAbsent(baseName, _ -> ResourceBundle.getBundle(baseName, LocaleUtils.getConfiguredLocale()));
+            var bundle = fetchBundle(baseName);
             return bundle.getString(label);
         } catch (MissingResourceException ex) {
             return "";
         }
+    }
+
+    private static ResourceBundle fetchBundle(String baseName) {
+        return CACHED_BUNDLES.computeIfAbsent(baseName, _ -> {
+            if ("en".equals(LocaleUtils.getConfiguredLocale().toString())) {
+                return ResourceBundle.getBundle(baseName, Locale.ROOT);
+            }
+            return ResourceBundle.getBundle(baseName, LocaleUtils.getConfiguredLocale());
+        });
     }
 
 }

@@ -270,6 +270,6 @@ public record ProcessParams(
             combinedScripts.add(scriptPath.toFile());
         }
 
-        return new ImageMathParams(combinedScripts);
+        return new ImageMathParams(combinedScripts, requestedImages.mathImages().parameterValues());
     }
 }
