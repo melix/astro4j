@@ -4,7 +4,7 @@
 ###
 
 meta {
-    name {
+    title {
         en = "Enhanced Invert"
         fr = "Inversion Améliorée"
     }
@@ -14,11 +14,9 @@ meta {
             type = "number"
             default = 1.5
             min = 0.1
-            max = 5.0
-            step = 0.05
             name {
                 en = "Disk Contrast Gamma"
-                fr = "Gamma de Contraste du Disque"
+                fr = "Gamma du disque"
             }
             description {
                 en = "Gamma correction value for the contrast adjustment of the solar disk"
@@ -29,10 +27,9 @@ meta {
             type = "number"
             default = 1.05
             min = 0.1
-            max = 5.0
             name {
                 en = "Final Contrast Gamma"
-                fr = "Gamma de Contraste Final"
+                fr = "Gamma contraste final"
             }
             description {
                 en = "Gamma correction value for the final contrast adjustment"
@@ -43,15 +40,13 @@ meta {
             type = "number"
             default = 20
             min = 1
-            max = 100
-            step = 1
             name {
                 en = "Prominences Stretch"
-                fr = "Étalement des Protubérances"
+                fr = "Amplification des protubérances"
             }
             description {
                 en = "Stretch factor for the prominences enhancement"
-                fr = "Facteur d'étalement pour l'amélioration des protubérances"
+                fr = "Facteur d'accentuation pour l'amélioration des protubérances"
             }
         }
     }
