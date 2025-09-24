@@ -43,18 +43,23 @@ public class CollageComposition extends AbstractFunctionImpl {
             var layout = calculateLayout(parameters);
             var metadata = MutableMap.<Class<?>, Object>of();
 
+            float maxValue = 1.0f;
             for (var imageSelection : parameters.images()) {
                 metadata.putAll(imageSelection.image().metadata());
+                maxValue = Math.max(maxValue, findMaxValue(imageSelection.image()));
             }
 
             var hasColorImages = parameters.images().stream()
                     .anyMatch(img -> img.image() instanceof RGBImage);
 
-            if (hasColorImages) {
-                var collageData = createColorCollageData(parameters, layout);
+            var hasColorBackground = parameters.backgroundColorR() != parameters.backgroundColorG() ||
+                                   parameters.backgroundColorG() != parameters.backgroundColorB();
+
+            if (hasColorImages || hasColorBackground) {
+                var collageData = createColorCollageData(parameters, layout, maxValue);
                 return new RGBImage(layout.totalWidth(), layout.totalHeight(), collageData[0], collageData[1], collageData[2], metadata);
             } else {
-                var collageData = createMonoCollageData(parameters, layout);
+                var collageData = createMonoCollageData(parameters, layout, maxValue);
                 return new ImageWrapper32(layout.totalWidth(), layout.totalHeight(), collageData, metadata);
             }
         } finally {
@@ -62,10 +67,44 @@ public class CollageComposition extends AbstractFunctionImpl {
         }
     }
 
+    private float findMaxValue(ImageWrapper image) {
+        float max = 1.0f;
+        if (image instanceof RGBImage rgb) {
+            max = Math.max(max, findMaxInArray(rgb.r()));
+            max = Math.max(max, findMaxInArray(rgb.g()));
+            max = Math.max(max, findMaxInArray(rgb.b()));
+        } else if (image instanceof ImageWrapper32 mono) {
+            max = Math.max(max, findMaxInArray(mono.data()));
+        } else {
+            var unwrapped = image.unwrapToMemory();
+            if (unwrapped instanceof RGBImage rgb) {
+                max = Math.max(max, findMaxInArray(rgb.r()));
+                max = Math.max(max, findMaxInArray(rgb.g()));
+                max = Math.max(max, findMaxInArray(rgb.b()));
+            } else if (unwrapped instanceof ImageWrapper32 mono) {
+                max = Math.max(max, findMaxInArray(mono.data()));
+            }
+        }
+        return max;
+    }
+
+    private float findMaxInArray(float[][] data) {
+        float max = 1.0f;
+        for (var row : data) {
+            for (var val : row) {
+                if (val > max) {
+                    max = val;
+                }
+            }
+        }
+        return max;
+    }
+
     private CollageLayout calculateLayout(CollageParameters parameters) {
         var rows = parameters.rows();
         var cols = parameters.columns();
         var padding = parameters.padding();
+
 
         var maxCellWidth = 0;
         var maxCellHeight = 0;
@@ -76,9 +115,12 @@ public class CollageComposition extends AbstractFunctionImpl {
             maxCellHeight = Math.max(maxCellHeight, img.height());
         }
 
+        // Calculate total dimensions including padding between cells
         var totalWidth = cols * maxCellWidth + (cols - 1) * padding;
         var totalHeight = rows * maxCellHeight + (rows - 1) * padding;
 
+
+        int scaledPadding = padding;
         if (parameters.downscaleIfNeeded() &&
             (totalWidth > parameters.maxOutputWidth() || totalHeight > parameters.maxOutputHeight())) {
 
@@ -88,19 +130,22 @@ public class CollageComposition extends AbstractFunctionImpl {
 
             maxCellWidth = (int) (maxCellWidth * scale);
             maxCellHeight = (int) (maxCellHeight * scale);
+            scaledPadding = (int) (padding * scale);
             totalWidth = (int) (totalWidth * scale);
             totalHeight = (int) (totalHeight * scale);
+
         }
 
-        return new CollageLayout(maxCellWidth, maxCellHeight, totalWidth, totalHeight);
+        return new CollageLayout(maxCellWidth, maxCellHeight, totalWidth, totalHeight, scaledPadding);
     }
 
-    private float[][] createMonoCollageData(CollageParameters parameters, CollageLayout layout) {
+    private float[][] createMonoCollageData(CollageParameters parameters, CollageLayout layout, float maxValue) {
         var collageData = new float[layout.totalHeight()][layout.totalWidth()];
+        var scaledBgColor = parameters.backgroundColor() * maxValue;
 
         for (var y = 0; y < layout.totalHeight(); y++) {
             for (var x = 0; x < layout.totalWidth(); x++) {
-                collageData[y][x] = parameters.backgroundColor();
+                collageData[y][x] = scaledBgColor;
             }
         }
 
@@ -129,18 +174,24 @@ public class CollageComposition extends AbstractFunctionImpl {
         return collageData;
     }
 
-    private float[][][] createColorCollageData(CollageParameters parameters, CollageLayout layout) {
+    private float[][][] createColorCollageData(CollageParameters parameters, CollageLayout layout, float maxValue) {
         var collageR = new float[layout.totalHeight()][layout.totalWidth()];
         var collageG = new float[layout.totalHeight()][layout.totalWidth()];
         var collageB = new float[layout.totalHeight()][layout.totalWidth()];
 
+        var scaledBgR = parameters.backgroundColorR() * maxValue;
+        var scaledBgG = parameters.backgroundColorG() * maxValue;
+        var scaledBgB = parameters.backgroundColorB() * maxValue;
+
+
         for (var y = 0; y < layout.totalHeight(); y++) {
             for (var x = 0; x < layout.totalWidth(); x++) {
-                collageR[y][x] = parameters.backgroundColor();
-                collageG[y][x] = parameters.backgroundColor();
-                collageB[y][x] = parameters.backgroundColor();
+                collageR[y][x] = scaledBgR;
+                collageG[y][x] = scaledBgG;
+                collageB[y][x] = scaledBgB;
             }
         }
+
 
         var imageIndex = 0;
         for (var row = 0; row < parameters.rows(); row++) {
@@ -201,15 +252,22 @@ public class CollageComposition extends AbstractFunctionImpl {
         var imgWidth = image.width();
         var imgHeight = image.height();
 
-        var cellX = col * (layout.cellWidth() + parameters.padding());
-        var cellY = row * (layout.cellHeight() + parameters.padding());
+        var cellX = col * (layout.cellWidth() + layout.padding());
+        var cellY = row * (layout.cellHeight() + layout.padding());
+
+
 
         var scaleX = 1.0;
         var scaleY = 1.0;
 
-        if (imgWidth > layout.cellWidth() || imgHeight > layout.cellHeight()) {
-            scaleX = (double) layout.cellWidth() / imgWidth;
-            scaleY = (double) layout.cellHeight() / imgHeight;
+        // Reserve a small margin within the cell (don't use full padding here as it's already used for cell spacing)
+        var marginSize = Math.max(2, layout.padding() / 4);
+        var effectiveCellWidth = Math.max(1, layout.cellWidth() - marginSize);
+        var effectiveCellHeight = Math.max(1, layout.cellHeight() - marginSize);
+
+        if (imgWidth > effectiveCellWidth || imgHeight > effectiveCellHeight) {
+            scaleX = (double) effectiveCellWidth / imgWidth;
+            scaleY = (double) effectiveCellHeight / imgHeight;
 
             if (parameters.maintainAspectRatio()) {
                 var scale = Math.min(scaleX, scaleY);
@@ -221,6 +279,7 @@ public class CollageComposition extends AbstractFunctionImpl {
         var scaledWidth = (int) (imgWidth * scaleX);
         var scaledHeight = (int) (imgHeight * scaleY);
 
+        // Center the image within the cell
         var offsetX = (layout.cellWidth() - scaledWidth) / 2;
         var offsetY = (layout.cellHeight() - scaledHeight) / 2;
 
@@ -265,15 +324,22 @@ public class CollageComposition extends AbstractFunctionImpl {
         var imgWidth = image.width();
         var imgHeight = image.height();
 
-        var cellX = col * (layout.cellWidth() + parameters.padding());
-        var cellY = row * (layout.cellHeight() + parameters.padding());
+        var cellX = col * (layout.cellWidth() + layout.padding());
+        var cellY = row * (layout.cellHeight() + layout.padding());
+
+
 
         var scaleX = 1.0;
         var scaleY = 1.0;
 
-        if (imgWidth > layout.cellWidth() || imgHeight > layout.cellHeight()) {
-            scaleX = (double) layout.cellWidth() / imgWidth;
-            scaleY = (double) layout.cellHeight() / imgHeight;
+        // Reserve a small margin within the cell (don't use full padding here as it's already used for cell spacing)
+        var marginSize = Math.max(2, layout.padding() / 4);
+        var effectiveCellWidth = Math.max(1, layout.cellWidth() - marginSize);
+        var effectiveCellHeight = Math.max(1, layout.cellHeight() - marginSize);
+
+        if (imgWidth > effectiveCellWidth || imgHeight > effectiveCellHeight) {
+            scaleX = (double) effectiveCellWidth / imgWidth;
+            scaleY = (double) effectiveCellHeight / imgHeight;
 
             if (parameters.maintainAspectRatio()) {
                 var scale = Math.min(scaleX, scaleY);
@@ -285,6 +351,7 @@ public class CollageComposition extends AbstractFunctionImpl {
         var scaledWidth = (int) (imgWidth * scaleX);
         var scaledHeight = (int) (imgHeight * scaleY);
 
+        // Center the image within the cell
         var offsetX = (layout.cellWidth() - scaledWidth) / 2;
         var offsetY = (layout.cellHeight() - scaledHeight) / 2;
 
@@ -309,6 +376,7 @@ public class CollageComposition extends AbstractFunctionImpl {
         int cellWidth,
         int cellHeight,
         int totalWidth,
-        int totalHeight
+        int totalHeight,
+        int padding
     ) {}
 }

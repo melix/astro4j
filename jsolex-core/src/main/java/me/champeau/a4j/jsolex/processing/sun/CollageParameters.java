@@ -29,7 +29,10 @@ public record CollageParameters(
         boolean maintainAspectRatio,
         int padding,
         boolean downscaleIfNeeded,
-        float backgroundColor
+        float backgroundColor,
+        float backgroundColorR,
+        float backgroundColorG,
+        float backgroundColorB
 ) {
 
     public record ImageSelection(
