@@ -151,7 +151,7 @@ public class CollageController {
     private void initializeSpinners() {
         rowsSpinner.setValueFactory(new SpinnerValueFactory.IntegerSpinnerValueFactory(1, 6, 2));
         columnsSpinner.setValueFactory(new SpinnerValueFactory.IntegerSpinnerValueFactory(1, 6, 2));
-        paddingSpinner.setValueFactory(new SpinnerValueFactory.IntegerSpinnerValueFactory(0, 50, 10));
+        paddingSpinner.setValueFactory(new SpinnerValueFactory.IntegerSpinnerValueFactory(0, 200, 10));
         backgroundColorPicker.setValue(Color.BLACK);
 
         rowsSpinner.valueProperty().addListener((obs, oldVal, newVal) -> setupPreviewGrid());
@@ -165,6 +165,10 @@ public class CollageController {
             (int) (color.getRed() * 255),
             (int) (color.getGreen() * 255),
             (int) (color.getBlue() * 255));
+    }
+
+    private static float colorToGrayscaleFloat(Color color) {
+        return (float) (0.299 * color.getRed() + 0.587 * color.getGreen() + 0.114 * color.getBlue());
     }
 
     private void populateImageStrip() {
@@ -659,6 +663,8 @@ public class CollageController {
         var maxWidth = Integer.parseInt(maxWidthField.getText());
         var maxHeight = Integer.parseInt(maxHeightField.getText());
 
+        var bgColor = backgroundColorPicker.getValue();
+        var paddingValue = paddingSpinner.getValue();
         return new CollageParameters(
                 imageSelections,
                 rowsSpinner.getValue(),
@@ -666,9 +672,12 @@ public class CollageController {
                 maxWidth,
                 maxHeight,
                 maintainAspectRatioCheckBox.isSelected(),
-                paddingSpinner.getValue(),
+                paddingValue,
                 autoDownscaleCheckBox.isSelected(),
-                (float) backgroundColorPicker.getValue().getBrightness()
+                colorToGrayscaleFloat(bgColor),
+                (float) bgColor.getRed(),
+                (float) bgColor.getGreen(),
+                (float) bgColor.getBlue()
         );
     }
 

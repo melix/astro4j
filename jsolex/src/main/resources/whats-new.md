@@ -1,5 +1,15 @@
 # Welcome to JSol'Ex {{version}}!
 
+- [Version 4.1.1](#whats-new-in-version-4-1-1) - Latest release
+- [Version 4.1.0](#whats-new-in-version-4-1-0) - User-defined presets, collage creation
+- [Version 4.0.1](#whats-new-in-version-4-0-1) - Language selection, bug fixes
+- [Version 4.0.0](#whats-new-in-version-4-0-0) - Enhanced UI, BASS2000 integration
+
+## What's New in Version 4.1.1
+
+- Fixed collage background color selection not properly applied
+- Fixed collage padding parameter not properly controlling spacing between images
+
 ## What's New in Version 4.1.0
 
 - **User-Defined Presets**: Create, save, and manage your own custom image selection and script presets alongside the existing Quick and Full mode presets
