@@ -492,6 +492,14 @@ body.book #toc,body.book #preamble,body.book h1.sect0,body.book .sect1>h2{page-b
 <li><a href="#_watching_a_directory_for_changes">Watching a directory for changes</a></li>
 <li><a href="#custom_images">Customization of generated images</a></li>
 <li><a href="#trimming-ser-files">Trimming SER files</a></li>
+<li><a href="#collage">Creating Image Collages</a>
+<ul class="sectlevel2">
+<li><a href="#_accessing_the_collage_feature">Accessing the Collage Feature</a></li>
+<li><a href="#_using_the_collage_interface">Using the Collage Interface</a></li>
+<li><a href="#_collage_controls">Collage Controls</a></li>
+<li><a href="#_creating_the_collage">Creating the Collage</a></li>
+</ul>
+</li>
 <li><a href="#imagemath">ImageMath : images generation scripts</a>
 <ul class="sectlevel2">
 <li><a href="#_introduction_to_imagemath">Introduction to ImageMath</a></li>
@@ -1325,6 +1333,99 @@ In both cases, the result of processing the trimmed video will be different from
   <source src="trimmed.webm" type="video/webm">
   Your browser does not support the video tag.
 </video>
+</div>
+</div>
+<div class="sect1">
+<h2 id="collage">Creating Image Collages</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>JSol&#8217;Ex includes a collage feature that allows you to combine multiple processed images into a single composite image. This is useful for creating comparison views or presentation materials.</p>
+</div>
+<div class="sect2">
+<h3 id="_accessing_the_collage_feature">Accessing the Collage Feature</h3>
+<div class="paragraph">
+<p>The collage feature becomes available after processing images.
+Once you have at least two non-reconstruction images available:</p>
+</div>
+<div class="olist arabic">
+<ol class="arabic">
+<li>
+<p>Look for the "Actions" section in the left sidebar</p>
+</li>
+<li>
+<p>Click on "Create collage" link</p>
+</li>
+</ol>
+</div>
+</div>
+<div class="sect2">
+<h3 id="_using_the_collage_interface">Using the Collage Interface</h3>
+<div class="imageblock">
+<div class="content">
+<img src="collage-interface-en.jpg" alt="Collage interface">
+</div>
+</div>
+<div class="paragraph">
+<p>The collage interface provides a drag-and-drop workspace where you can:</p>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p><strong>Select Grid Layout</strong>: Choose the number of rows and columns for your collage</p>
+</li>
+<li>
+<p><strong>Add Images</strong>: Drag images from the image strip at the top to empty slots in the grid</p>
+</li>
+<li>
+<p><strong>Rearrange Images</strong>: Drag images between slots to reorder them</p>
+</li>
+<li>
+<p><strong>Remove Images</strong>: Double-click on a slot to remove an image</p>
+</li>
+<li>
+<p><strong>Customize Appearance</strong>: Adjust spacing between images and set the background color</p>
+</li>
+</ul>
+</div>
+</div>
+<div class="sect2">
+<h3 id="_collage_controls">Collage Controls</h3>
+<div class="ulist">
+<ul>
+<li>
+<p><strong>Rows/Columns</strong>: Define the grid dimensions (1-10 rows/columns)</p>
+</li>
+<li>
+<p><strong>Spacing</strong>: Set the pixel gap between images (0-50 pixels)</p>
+</li>
+<li>
+<p><strong>Background Color</strong>: Choose the color for empty areas and spacing</p>
+</li>
+<li>
+<p><strong>Max Width/Height</strong>: Set maximum output dimensions (images will be scaled proportionally if needed)</p>
+</li>
+</ul>
+</div>
+</div>
+<div class="sect2">
+<h3 id="_creating_the_collage">Creating the Collage</h3>
+<div class="paragraph">
+<p>Once you have arranged your images:</p>
+</div>
+<div class="olist arabic">
+<ol class="arabic">
+<li>
+<p>Click the "Create" button to generate the collage</p>
+</li>
+<li>
+<p>The collage will be saved to your output directory</p>
+</li>
+<li>
+<p>The new collage image will appear in the main image viewer</p>
+</li>
+</ol>
+</div>
+</div>
 </div>
 </div>
 <div class="sect1">
