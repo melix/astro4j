@@ -6,7 +6,8 @@
 - Les scripts peuvent maintenant déclarer leurs paramètres qui seront automatiquement configurables dans l'interface utilisateur
 - Ajout du mode fondu pour l'alignement d'images BASS2000 avec opacité réglable
 - Avertissement lors de la soumission à BASS2000 si un fichier a déjà été envoyé le même jour pour la même longueur d'onde
-- [bugfix] Correction du bouton d'upload BASS2000 activé avant la sauvegarde des fichiers sur disque
+- Correction du bouton d'upload BASS2000 activé avant la sauvegarde des fichiers sur disque
+- [Création de collages d'images](#creation-de-collages-d-images) : Nouvelle fonctionnalité de collage permettant de combiner plusieurs images traitées en une seule image composite avec mise en page et espacement personnalisables
 
 ## Nouveautés de la version 4.0.1
 
@@ -79,6 +80,15 @@ Deux nouvelles fonctions statistiques ont été ajoutées au module ImageMath :
 - `median2` : calcule la médiane de plusieurs images avec détection configurable des valeurs aberrantes basée sur sigma
 
 Ces fonctions sont particulièrement utiles lors de la combinaison de plusieurs observations, car elles aident à réduire le bruit et éliminent les artefacts qui pourraient apparaître dans les images individuelles.
+
+## Création de collages d'images
+
+JSol'Ex 4.1 introduit une nouvelle fonctionnalité pour créer des collages d'images à partir de plusieurs images traitées.
+Cela vous permet de combiner plusieurs images en une seule image composite avec mise en page et espacement personnalisables.
+
+![Création de collages d'images](/docs/collage-interface-fr.jpg)
+
+Vous pouvez sélectionner plusieurs images traitées et les organiser dans une grille.
 
 ## Corrections et améliorations
 

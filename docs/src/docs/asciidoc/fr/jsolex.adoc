@@ -1198,6 +1198,50 @@ L'interface donne accès aux images en cours de traitement ainsi qu'à leur hist
 
 image::embedded-server-2-fr.jpg[]
 
+[[collage]]
+== Création de collages d'images
+
+=== Utilisation de l'interface de collage
+
+image::collage-interface-fr.jpg[Interface de collage]
+
+La fonction de collage permet de combiner plusieurs images traitées en une seule image composite. Cette fonctionnalité est accessible via un lien dans la barre latérale gauche lorsque deux images ou plus sont disponibles (à l'exception des images de reconstruction).
+
+Pour utiliser cette fonction :
+
+1. Traitez plusieurs images ou utilisez des scripts pour générer différents types d'images
+2. Cliquez sur le lien "Créer un collage" dans la section Actions de la barre latérale
+3. L'interface de collage s'ouvre avec toutes les images disponibles listées sur la gauche
+
+=== Contrôles de collage
+
+L'interface de collage offre plusieurs options de personnalisation :
+
+**Mise en page :**
+- **Lignes** : Nombre de lignes dans la grille de collage
+- **Colonnes** : Nombre de colonnes dans la grille de collage
+- **Espacement** : Espace en pixels entre les images dans le collage
+
+**Dimensions :**
+- **Largeur max** : Largeur maximale de sortie du collage en pixels
+- **Hauteur max** : Hauteur maximale de sortie du collage en pixels
+- **Réduire si nécessaire** : Réduit automatiquement le collage s'il dépasse les dimensions maximales
+
+**Apparence :**
+- **Conserver les proportions** : Maintient le rapport hauteur/largeur des images individuelles
+- **Couleur de fond** : Couleur utilisée pour remplir les zones vides du collage
+
+=== Création du collage
+
+Une fois les paramètres configurés :
+
+1. Glissez-déposez les images de la liste vers les cellules de la grille de prévisualisation
+2. Ajustez la disposition en déplaçant les images entre les cellules
+3. Modifiez les paramètres si nécessaire pour obtenir l'apparence souhaitée
+4. Cliquez sur "Créer le collage" pour générer l'image finale
+
+Le collage créé sera sauvegardé dans le répertoire de sortie et ajouté à la visionneuse d'images principale.
+
 == Remerciements
 
 - Christian Buil pour avoir conçu le Sol'Ex et diriger la communauté d'une main de maître

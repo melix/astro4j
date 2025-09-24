@@ -35,6 +35,7 @@ public enum GeneratedImageKind {
     TECHNICAL_CARD(DisplayCategory.MISC, DirectoryKind.PROCESSED),
     IMAGE_MATH(DisplayCategory.IMAGE_MATH, DirectoryKind.CUSTOM),
     COMPOSITION(DisplayCategory.PROCESSED, DirectoryKind.PROCESSED),
+    COLLAGE(DisplayCategory.MISC, DirectoryKind.PROCESSED),
     CROPPED(DisplayCategory.MISC, DirectoryKind.PROCESSED),
     REDSHIFT(DisplayCategory.PHENOMENA, DirectoryKind.PROCESSED),
     ACTIVE_REGIONS(DisplayCategory.COLORIZED, DirectoryKind.PROCESSED),
@@ -63,6 +64,7 @@ public enum GeneratedImageKind {
                 || this == GeneratedImageKind.DEBUG
                 || this == GeneratedImageKind.TECHNICAL_CARD
                 || this == GeneratedImageKind.CROPPED
+                || this == GeneratedImageKind.COLLAGE
                 || this == GeneratedImageKind.REDSHIFT
                 || this == GeneratedImageKind.ELLERMAN_BOMBS
                 || this == GeneratedImageKind.FLARES;

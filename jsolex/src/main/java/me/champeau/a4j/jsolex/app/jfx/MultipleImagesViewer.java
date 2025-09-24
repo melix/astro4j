@@ -17,11 +17,16 @@ package me.champeau.a4j.jsolex.app.jfx;
 
 import javafx.application.Platform;
 import javafx.beans.binding.Bindings;
+import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
+import javafx.collections.ObservableMap;
 import javafx.geometry.Pos;
 import javafx.scene.Node;
+import javafx.scene.Parent;
+import javafx.scene.Scene;
 import javafx.scene.control.Button;
 import javafx.scene.control.Hyperlink;
+import javafx.scene.control.Label;
 import javafx.scene.control.ScrollPane;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.HBox;
@@ -31,6 +36,7 @@ import javafx.scene.media.Media;
 import javafx.scene.media.MediaPlayer;
 import javafx.scene.media.MediaView;
 import me.champeau.a4j.jsolex.app.JSolEx;
+import me.champeau.a4j.jsolex.app.listeners.JSolExInterface;
 import me.champeau.a4j.jsolex.processing.event.ProcessingEventListener;
 import me.champeau.a4j.jsolex.processing.event.ProgressOperation;
 import me.champeau.a4j.jsolex.processing.params.ProcessParams;
@@ -62,6 +68,7 @@ public class MultipleImagesViewer extends Pane {
     // Ordered list to determine the default image to show
     private static final List<GeneratedImageKind> DEFAULT_IMAGE_TO_SHOW = List.of(
             GeneratedImageKind.IMAGE_MATH,
+            GeneratedImageKind.COLLAGE,
             GeneratedImageKind.COMPOSITION,
             GeneratedImageKind.GEOMETRY_CORRECTED_PROCESSED,
             GeneratedImageKind.GEOMETRY_CORRECTED,
@@ -78,23 +85,66 @@ public class MultipleImagesViewer extends Pane {
     private final BorderPane borderPane;
     private final ReentrantLock lock = new ReentrantLock();
     private Map<Object, Runnable> onShowHooks = new HashMap<>();
+    private Map<ImageViewer, String> viewerTitles = new HashMap<>();
+    private ObservableMap<ImageViewer, GeneratedImageKind> viewerKinds = FXCollections.observableHashMap();
+    private Map<Hyperlink, ImageViewer> linkToViewer = new HashMap<>();
     private Hyperlink selected = null;
     private GeneratedImageKind selectedKind = null;
     private Object selectedView;
+
+    private JSolExInterface owner;
+    private ProcessParams processParams;
+    private Path outputDirectory;
 
     public MultipleImagesViewer() {
         getStyleClass().add("multiple-images-viewer");
         borderPane = new BorderPane();
         borderPane.prefWidthProperty().bind(widthProperty());
         borderPane.prefHeightProperty().bind(heightProperty());
+
         var sideBar = new VBox();
-        categories = sideBar.getChildren();
+        var categoriesContainer = new VBox();
+        categories = categoriesContainer.getChildren();
+
+        var actionsSection = createActionsSection();
+
+        sideBar.getChildren().addAll(categoriesContainer, actionsSection);
+
         var scrollPane = new ScrollPane(sideBar);
         scrollPane.setFitToWidth(true);
         scrollPane.visibleProperty().bind(Bindings.size(categories).greaterThan(0));
         borderPane.setLeft(scrollPane);
         getChildren().add(borderPane);
     }
+
+    private VBox createActionsSection() {
+        var actionsSection = new VBox();
+        actionsSection.getStyleClass().add("category-pane");
+
+        var nonReconstructionImageCount = Bindings.createIntegerBinding(() -> (int) viewerKinds.values().stream()
+                .filter(kind -> kind != GeneratedImageKind.RECONSTRUCTION)
+                .count(), viewerKinds);
+
+        actionsSection.visibleProperty().bind(nonReconstructionImageCount.greaterThanOrEqualTo(2));
+        actionsSection.managedProperty().bind(actionsSection.visibleProperty());
+
+        var titleLabel = new Label(message("actions"));
+        titleLabel.getStyleClass().add("category-title");
+        actionsSection.getChildren().add(titleLabel);
+
+        var collageBox = new HBox();
+        collageBox.setAlignment(Pos.CENTER_LEFT);
+
+        var collageLink = new Hyperlink(message("create.collage"));
+        collageLink.getStyleClass().add("category-link");
+        collageLink.setOnAction(e -> createCollage());
+
+        collageBox.getChildren().add(collageLink);
+        actionsSection.getChildren().add(collageBox);
+
+        return actionsSection;
+    }
+
 
     public void clear() {
         try {
@@ -104,6 +154,8 @@ public class MultipleImagesViewer extends Pane {
                 categories.clear();
                 borderPane.setCenter(null);
                 imageViews.clear();
+                viewerTitles.clear();
+                viewerKinds.clear();
             });
             selected = null;
             selectedKind = null;
@@ -160,6 +212,8 @@ public class MultipleImagesViewer extends Pane {
             var category = getOrCreateCategory(kind);
             var viewer = newImageViewer();
             var transformed = transformer.apply(viewer);
+            viewerTitles.put(viewer, title);
+            viewerKinds.put(viewer, kind);
             viewer.setup(
                     listener,
                     operation,
@@ -188,6 +242,8 @@ public class MultipleImagesViewer extends Pane {
                 onShow.accept(viewer);
                 viewer.display();
             }, this::onClose);
+
+            linkToViewer.put(hyperlink, viewer);
             if (selected == null) {
                 category.selectFirst();
                 hyperlink.fire();
@@ -204,6 +260,12 @@ public class MultipleImagesViewer extends Pane {
         if (selected == link) {
             borderPane.setCenter(null);
             selected = null;
+        }
+
+        var viewer = linkToViewer.remove(link);
+        if (viewer != null) {
+            viewerTitles.remove(viewer);
+            viewerKinds.remove(viewer);
         }
     }
 
@@ -317,6 +379,67 @@ public class MultipleImagesViewer extends Pane {
 
     private static DisplayCategory categoryOf(CategoryPane pane) {
         return (DisplayCategory) pane.getProperties().get(DisplayCategory.class);
+    }
+
+    public record ImageInfo(ImageWrapper image, String title, GeneratedImageKind kind) {
+    }
+
+    public List<ImageInfo> getAllAvailableImagesWithInfo() {
+        lock.lock();
+        try {
+            return imageViews.stream()
+                    .filter(viewer -> viewer.getStretchedImage() != null)
+                    .map(viewer -> new ImageInfo(
+                            viewer.getStretchedImage(),
+                            getImageTitle(viewer),
+                            getImageKind(viewer)
+                    ))
+                    .toList();
+        } finally {
+            lock.unlock();
+        }
+    }
+
+    private String getImageTitle(ImageViewer viewer) {
+        return viewerTitles.getOrDefault(viewer, "Image");
+    }
+
+    private GeneratedImageKind getImageKind(ImageViewer viewer) {
+        return viewerKinds.get(viewer);
+    }
+
+    public void setCollageContext(JSolExInterface owner, ProcessParams processParams, Path outputDirectory) {
+        this.owner = owner;
+        this.processParams = processParams;
+        this.outputDirectory = outputDirectory;
+    }
+
+    private void createCollage() {
+        if (owner == null) {
+            return;
+        }
+
+        var availableImagesWithInfo = getAllAvailableImagesWithInfo();
+        if (availableImagesWithInfo.isEmpty()) {
+            return;
+        }
+
+        var fxmlLoader = I18N.fxmlLoader(JSolEx.class, "collage");
+        try {
+            var stage = FXUtils.newStage();
+            var node = (Parent) fxmlLoader.load();
+            var controller = (CollageController) fxmlLoader.getController();
+            var params = processParams != null ? processParams : ProcessParams.loadDefaults();
+            var outputDir = outputDirectory != null ? outputDirectory : Path.of(".");
+            controller.setup(stage, owner, availableImagesWithInfo, outputDir, params);
+            Scene scene = JSolEx.newScene(node);
+            stage.setTitle(I18N.string(JSolEx.class, "collage", "frame.title"));
+            stage.setScene(scene);
+            stage.setMaximized(true);
+            stage.show();
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
     }
 
 }
