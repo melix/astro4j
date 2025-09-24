@@ -6,8 +6,8 @@
 - Scripts can now declare their parameters which will automatically be configurable in the user interface
 - Added blend mode for BASS2000 image alignment with adjustable opacity
 - Added a warning when submitting to BASS2000 a file which was already submitted on the same day for the same wavelength
-- [bugfix] Fixed BASS2000 upload button being enabled before files are fully saved to disk
-- [improvement] Script parameters are now properly isolated per script file to prevent parameter name conflicts
+- Fixed BASS2000 upload button being enabled before files are fully saved to disk
+- [Image Collage Creation](#image-collage-creation): New collage feature allows combining multiple processed images into a single composite image with customizable layout and spacing
 
 ## What's New in Version 4.0.1
 
@@ -81,6 +81,15 @@ Two new statistical functions have been added to the ImageMath module:
 - `median2`: computes the median of multiple images with configurable sigma-based outlier detection
 
 These functions are particularly useful when combining multiple observations, as they help reduce noise and eliminate artifacts that might appear in individual frames.
+
+## Image Collage Creation
+
+JSol'Ex 4.1 introduces a new feature to create image collages from multiple processed images.
+This allows you to combine several images into a single composite image with customizable layout and spacing.
+
+![Image Collage Creation](/docs/collage-interface-fr.jpg)
+
+You can select multiple processed images and arrange them in a grid.
 
 ## Bug Fixes and Improvements
 

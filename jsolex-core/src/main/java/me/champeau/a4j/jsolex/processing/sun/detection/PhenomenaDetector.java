@@ -505,10 +505,10 @@ public class PhenomenaDetector {
             maxShift = maxShiftDown;
             relMaxShift = relMaxShiftDown;
         }
-        if (maxY == height) {
+        if (maxY > height - 4) {
             return;
         }
-        if (minY == 0) {
+        if (minY < 4) {
             return;
         }
         if (maxShift >= 2 * wingShiftInPixels) {

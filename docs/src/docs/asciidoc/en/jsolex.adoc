@@ -409,6 +409,46 @@ And the result after trimming:
 </video>
 ++++
 
+[[collage]]
+== Creating Image Collages
+
+JSol'Ex includes a collage feature that allows you to combine multiple processed images into a single composite image. This is useful for creating comparison views or presentation materials.
+
+=== Accessing the Collage Feature
+
+The collage feature becomes available after processing images.
+Once you have at least two non-reconstruction images available:
+
+1. Look for the "Actions" section in the left sidebar
+2. Click on "Create collage" link
+
+=== Using the Collage Interface
+
+image::collage-interface-en.jpg[Collage interface]
+
+The collage interface provides a drag-and-drop workspace where you can:
+
+* **Select Grid Layout**: Choose the number of rows and columns for your collage
+* **Add Images**: Drag images from the image strip at the top to empty slots in the grid
+* **Rearrange Images**: Drag images between slots to reorder them
+* **Remove Images**: Double-click on a slot to remove an image
+* **Customize Appearance**: Adjust spacing between images and set the background color
+
+=== Collage Controls
+
+* **Rows/Columns**: Define the grid dimensions (1-10 rows/columns)
+* **Spacing**: Set the pixel gap between images (0-50 pixels)
+* **Background Color**: Choose the color for empty areas and spacing
+* **Max Width/Height**: Set maximum output dimensions (images will be scaled proportionally if needed)
+
+=== Creating the Collage
+
+Once you have arranged your images:
+
+1. Click the "Create" button to generate the collage
+2. The collage will be saved to your output directory
+3. The new collage image will appear in the main image viewer
+
 [[batch-mode]]
 
 [[imagemath]]

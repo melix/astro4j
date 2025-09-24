@@ -1,0 +1,142 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.Button?>
+<?import javafx.scene.control.ButtonBar?>
+<?import javafx.scene.control.CheckBox?>
+<?import javafx.scene.control.ColorPicker?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.control.ScrollPane?>
+<?import javafx.scene.control.Spinner?>
+<?import javafx.scene.control.TextField?>
+<?import javafx.scene.layout.BorderPane?>
+<?import javafx.scene.layout.GridPane?>
+<?import javafx.scene.layout.HBox?>
+<?import javafx.scene.layout.VBox?>
+<BorderPane fx:controller="me.champeau.a4j.jsolex.app.jfx.CollageController"
+            prefHeight="700.0" prefWidth="1000.0" styleClass="params-dialog"
+            xmlns="http://javafx.com/javafx/19" xmlns:fx="http://javafx.com/fxml/1">
+
+    <center>
+        <!-- Large Central Preview Area -->
+        <VBox spacing="8">
+            <padding>
+                <Insets top="16" right="8" bottom="8" left="16"/>
+            </padding>
+
+            <Label text="%collage.preview" styleClass="section-title"/>
+
+            <ScrollPane fx:id="previewScrollPane" styleClass="content-scroll-pane"
+                        fitToWidth="true" fitToHeight="true" VBox.vgrow="ALWAYS"
+                        prefHeight="500.0" minHeight="400.0">
+                <GridPane fx:id="previewGrid" alignment="CENTER" hgap="8.0" vgap="8.0"
+                          styleClass="collage-preview-grid">
+                    <padding>
+                        <Insets top="20" right="20" bottom="20" left="20"/>
+                    </padding>
+                </GridPane>
+            </ScrollPane>
+        </VBox>
+    </center>
+
+    <!-- Right Side: Controls -->
+    <right>
+        <VBox prefWidth="350.0" spacing="20">
+            <padding>
+                <Insets top="20" right="20" bottom="16" left="16"/>
+            </padding>
+
+            <!-- Grid Layout -->
+            <VBox spacing="12">
+                <Label text="%grid.layout" styleClass="section-title"/>
+
+                <VBox spacing="10">
+                    <HBox alignment="CENTER_LEFT" spacing="12">
+                        <Label text="%rows" prefWidth="90" minWidth="90"/>
+                        <Spinner fx:id="rowsSpinner" editable="true" prefWidth="50"/>
+                    </HBox>
+
+                    <HBox alignment="CENTER_LEFT" spacing="12">
+                        <Label text="%columns" prefWidth="90" minWidth="90"/>
+                        <Spinner fx:id="columnsSpinner" editable="true" prefWidth="50"/>
+                    </HBox>
+
+                    <HBox alignment="CENTER_LEFT" spacing="12">
+                        <Label text="%padding" prefWidth="90" minWidth="90"/>
+                        <Spinner fx:id="paddingSpinner" editable="true" prefWidth="50"/>
+                        <Label text="px"/>
+                    </HBox>
+                </VBox>
+            </VBox>
+
+            <!-- Output Settings -->
+            <VBox spacing="12">
+                <Label text="%output.settings" styleClass="section-title"/>
+
+                <VBox spacing="8">
+                    <CheckBox fx:id="maintainAspectRatioCheckBox" text="%maintain.aspect.ratio" selected="true"/>
+                    <CheckBox fx:id="autoDownscaleCheckBox" text="%auto.downscale" selected="true"/>
+                </VBox>
+
+                <VBox spacing="10">
+                    <HBox alignment="CENTER_LEFT" spacing="12">
+                        <Label text="%max.width" prefWidth="90" minWidth="90"/>
+                        <TextField fx:id="maxWidthField" prefWidth="70" text="4096"/>
+                        <Label text="px"/>
+                    </HBox>
+
+                    <HBox alignment="CENTER_LEFT" spacing="12">
+                        <Label text="%max.height" prefWidth="90" minWidth="90"/>
+                        <TextField fx:id="maxHeightField" prefWidth="70" text="4096"/>
+                        <Label text="px"/>
+                    </HBox>
+
+                    <HBox alignment="CENTER_LEFT" spacing="12">
+                        <Label text="%background.color" prefWidth="90" minWidth="90"/>
+                        <ColorPicker fx:id="backgroundColorPicker" prefWidth="100"/>
+                    </HBox>
+                </VBox>
+            </VBox>
+
+            <Button fx:id="resetButton" text="%reset.to.defaults" maxWidth="Infinity" styleClass="default-button"/>
+        </VBox>
+    </right>
+
+    <!-- Bottom: Image Selection Strip -->
+    <bottom>
+        <VBox spacing="8">
+            <padding>
+                <Insets top="8" right="16" bottom="16" left="16"/>
+            </padding>
+
+            <HBox alignment="CENTER_LEFT" spacing="8">
+                <Label text="%available.images" styleClass="section-title"/>
+                <Button fx:id="selectAllButton" styleClass="default-button,compact-button"
+                        onAction="#selectAll" text="%select.all"/>
+                <Button fx:id="deselectAllButton" styleClass="default-button,compact-button"
+                        onAction="#deselectAll" text="%deselect.all"/>
+            </HBox>
+
+            <ScrollPane fx:id="imageStripScrollPane" styleClass="image-strip-scroll"
+                        fitToHeight="true" prefHeight="120" maxHeight="120" minHeight="120">
+                <HBox fx:id="imageStripPane" spacing="8" alignment="CENTER_LEFT"
+                      styleClass="image-strip">
+                    <padding>
+                        <Insets top="8" right="8" bottom="8" left="8"/>
+                    </padding>
+                </HBox>
+            </ScrollPane>
+
+            <!-- Action Buttons -->
+            <ButtonBar styleClass="editor-button-bar" prefHeight="40">
+                <buttons>
+                    <Button fx:id="cancelButton" styleClass="default-button"
+                            onAction="#cancel" text="%cancel"/>
+                    <Button fx:id="createCollageButton" styleClass="primary-button"
+                            onAction="#createCollage" text="%create.collage"/>
+                </buttons>
+            </ButtonBar>
+        </VBox>
+    </bottom>
+
+</BorderPane>

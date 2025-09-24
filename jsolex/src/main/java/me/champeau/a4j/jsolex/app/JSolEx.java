@@ -1401,6 +1401,7 @@ public class JSolEx implements JSolExInterface {
         imagesViewerTab = new Tab(message("images"), multipleImagesViewer);
         mainPane.getTabs().add(imagesViewerTab);
         multipleImagesViewer.clear();
+        multipleImagesViewer.setCollageContext(this, lastExecutionProcessParams, outputDirectory);
         hideTabHeaderWhenSingleTab(mainPane);
         bass2000Button.setDisable(true);
     }
@@ -1786,6 +1787,7 @@ public class JSolEx implements JSolExInterface {
         var namingStrategy = new FileNamingStrategy(params.extraParams().fileNamePattern(), params.extraParams().datetimeFormat(), params.extraParams().dateFormat(), processingDate, header);
         var outputDirectory = selectedFile.getParentFile();
         this.outputDirectory = outputDirectory.toPath();
+        multipleImagesViewer.setCollageContext(this, lastExecutionProcessParams, this.outputDirectory);
         var baseName = selectedFile.getName().substring(0, selectedFile.getName().lastIndexOf("."));
         var logFileName = namingStrategy.render(sequenceNumber, null, "log", "log", baseName, null) + LOG_EXTENSION;
         var logFile = new File(outputDirectory, logFileName);
