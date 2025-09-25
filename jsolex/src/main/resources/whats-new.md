@@ -9,6 +9,7 @@
 
 - Fixed collage background color selection not properly applied
 - Fixed collage padding parameter not properly controlling spacing between images
+- Fixed scripts which fail if they contained a `[params]` block
 
 ## What's New in Version 4.1.0
 
