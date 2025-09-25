@@ -162,8 +162,22 @@ import me.champeau.a4j.jsolex.processing.expr.ImageMathScriptExecutor;
 
 {
     public java.util.Optional<String> name() {
-        return java.util.Optional.ofNullable(firstChildOfType(SectionHeader.class))
-                   .map(header -> header.firstChildOfType(Identifier.class).toString());
+        var header = firstChildOfType(SectionHeader.class);
+        if (header == null) {
+            return java.util.Optional.empty();
+        }
+        var identifier = header.firstChildOfType(Identifier.class);
+        if (identifier != null) {
+            return java.util.Optional.of(identifier.toString());
+        }
+        // Check if it's the special "params" case
+        var tokens = header.childrenOfType(Token.class);
+        for (var token : tokens) {
+            if (token.getType() == Token.TokenType.PARAMS) {
+                return java.util.Optional.of("params");
+            }
+        }
+        return java.util.Optional.empty();
     }
 
     public List<ParameterDef> getParameterDefs() {

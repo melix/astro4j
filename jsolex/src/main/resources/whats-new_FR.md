@@ -9,6 +9,7 @@
 
 - Correction de la sélection de couleur d'arrière-plan des collages qui n'était pas appliquée correctement
 - Correction du paramètre d'espacement des collages qui n'était pas appliqué correctement
+- Correction des scripts qui échouaient s'ils contenaient un bloc `[params]`
 
 ## Nouveautés de la version 4.1.0
 
