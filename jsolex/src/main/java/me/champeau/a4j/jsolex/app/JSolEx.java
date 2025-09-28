@@ -80,7 +80,7 @@ import javafx.util.converter.IntegerStringConverter;
 import me.champeau.a4j.jsolex.app.jfx.AdvancedParamsController;
 import me.champeau.a4j.jsolex.app.jfx.ApplyUserRotation;
 import me.champeau.a4j.jsolex.app.jfx.AssistedEllipseFittingController;
-import me.champeau.a4j.jsolex.app.jfx.Bass2000SubmissionController;
+import me.champeau.a4j.jsolex.app.jfx.bass2000.Bass2000SubmissionController;
 import me.champeau.a4j.jsolex.app.jfx.BatchItem;
 import me.champeau.a4j.jsolex.app.jfx.DocsHelper;
 import me.champeau.a4j.jsolex.app.jfx.EmbeddedServerController;

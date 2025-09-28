@@ -1,9 +1,14 @@
 # Welcome to JSol'Ex {{version}}!
 
-- [Version 4.1.1](#whats-new-in-version-4-1-1) - Latest release
+- [Version 4.1.2](#whats-new-in-version-4-1-2) - Bug fixes
+- [Version 4.1.1](#whats-new-in-version-4-1-1) - Bug fixes
 - [Version 4.1.0](#whats-new-in-version-4-1-0) - User-defined presets, collage creation
 - [Version 4.0.1](#whats-new-in-version-4-0-1) - Language selection, bug fixes
 - [Version 4.0.0](#whats-new-in-version-4-0-0) - Enhanced UI, BASS2000 integration
+
+## What's New in Version 4.1.2
+
+- Fixed orientation of wing images not being applied (BASS2000)
 
 ## What's New in Version 4.1.1
 

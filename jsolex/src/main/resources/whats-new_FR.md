@@ -1,9 +1,14 @@
 # Bienvenue dans JSol'Ex {{version}} !
 
-- [Version 4.1.1](#nouveautes-de-la-version-4-1-1) - Dernière version
+- [Version 4.1.2](#nouveautes-de-la-version-4-1-2) - Corrections de bugs
+- [Version 4.1.1](#nouveautes-de-la-version-4-1-1) - Corrections de bugs
 - [Version 4.1.0](#nouveautes-de-la-version-4-1-0) - Préréglages utilisateur, création de collages
 - [Version 4.0.1](#nouveautes-de-la-version-4-0-1) - Sélection de langue, corrections
 - [Version 4.0.0](#nouveautes-de-la-version-4-0-0) - Interface améliorée, intégration BASS2000
+
+## Nouveautés de la version 4.1.2
+
+- Correction de l'orientation des images ailes de raies qui n'était pas appliquée (BASS2000)
 
 ## Nouveautés de la version 4.1.1
 

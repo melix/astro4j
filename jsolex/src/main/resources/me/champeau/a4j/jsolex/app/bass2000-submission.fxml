@@ -12,7 +12,7 @@
 
 <BorderPane maxHeight="-Infinity" maxWidth="-Infinity" minHeight="400.0" minWidth="600.0" prefHeight="780.0"
             prefWidth="1100.0" xmlns="http://javafx.com/javafx/19" xmlns:fx="http://javafx.com/fxml/1"
-            fx:controller="me.champeau.a4j.jsolex.app.jfx.Bass2000SubmissionController">
+            fx:controller="me.champeau.a4j.jsolex.app.jfx.bass2000.Bass2000SubmissionController">
     <top>
         <HBox alignment="CENTER" spacing="10.0" BorderPane.alignment="CENTER">
             <padding>
