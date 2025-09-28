@@ -45,4 +45,5 @@ module me.champeau.a4j.jsolex {
     opens me.champeau.a4j.jsolex.app.jfx.stacking to javafx.fxml, javafx.graphics;
     opens me.champeau.a4j.jsolex.app to javafx.fxml;
     opens me.champeau.a4j.jsolex.app.jfx to javafx.fxml;
+    opens me.champeau.a4j.jsolex.app.jfx.bass2000 to javafx.fxml;
 }

@@ -1,0 +1,544 @@
+/*
+ * Copyright 2023-2023 the original author or authors.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     https://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+package me.champeau.a4j.jsolex.app.jfx.bass2000;
+
+import javafx.scene.Node;
+import javafx.scene.control.CheckBox;
+import javafx.scene.control.ChoiceBox;
+import javafx.scene.control.ComboBox;
+import javafx.scene.control.Label;
+import javafx.scene.control.ScrollPane;
+import javafx.scene.control.TextField;
+import javafx.scene.layout.ColumnConstraints;
+import javafx.scene.layout.GridPane;
+import javafx.scene.layout.HBox;
+import javafx.scene.layout.Priority;
+import javafx.scene.layout.Region;
+import javafx.scene.layout.VBox;
+import me.champeau.a4j.jsolex.app.JSolEx;
+import me.champeau.a4j.jsolex.app.jfx.I18N;
+import me.champeau.a4j.jsolex.processing.params.ObservationDetails;
+import me.champeau.a4j.jsolex.processing.params.ProcessParams;
+import me.champeau.a4j.jsolex.processing.params.SpectralRay;
+import me.champeau.a4j.jsolex.processing.params.SpectroHeliograph;
+import me.champeau.a4j.math.tuples.DoublePair;
+
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.List;
+import java.util.Locale;
+
+class Step3FormDataHandler implements StepHandler {
+    private final ProcessParamsSupplier processParamsSupplier;
+    private final FormValidator formValidator = new FormValidator();
+    private final FileNameGenerator fileNameGenerator;
+
+    private ChoiceBox<SpectralRay> wavelengthField;
+    private TextField observerNameField;
+    private TextField observerEmailField;
+    private TextField siteLatitudeField;
+    private TextField siteLongitudeField;
+    private CheckBox focalReducerCheckbox;
+    private TextField mountNameField;
+    private TextField telescopeNameField;
+    private TextField telescopeFocalLengthField;
+    private TextField apertureField;
+    private TextField stopField;
+    private TextField erfField;
+    private TextField cameraNameField;
+    private TextField pixelSizeField;
+    private ComboBox<String> binningField;
+    private TextField spectrographNameField;
+    private TextField slitWidthField;
+    private TextField slitHeightField;
+    private TextField gratingDensityField;
+    private TextField collimatorFocalLengthField;
+    private TextField cameraLensFocalLengthField;
+    private TextField orderField;
+    private TextField totalAngleField;
+
+    private final List<TextField> requiredFields = new ArrayList<>();
+    private final List<CheckBox> requiredCheckboxes = new ArrayList<>();
+    private final List<ComboBox<String>> requiredComboBoxes = new ArrayList<>();
+
+    interface ProcessParamsSupplier {
+        ProcessParams findProcessParams();
+    }
+
+    Step3FormDataHandler(ProcessParamsSupplier processParamsSupplier, FileNameGenerator fileNameGenerator) {
+        this.processParamsSupplier = processParamsSupplier;
+        this.fileNameGenerator = fileNameGenerator;
+        initializeFields();
+    }
+
+    private void initializeFields() {
+        wavelengthField = new ChoiceBox<>();
+        wavelengthField.getItems().addAll(Bass2000SubmissionController.ACCEPTED_SPECTRAL_RAYS.keySet());
+
+        observerNameField = new TextField();
+        observerEmailField = new TextField();
+        siteLatitudeField = new TextField();
+        siteLongitudeField = new TextField();
+        focalReducerCheckbox = new CheckBox();
+        mountNameField = new TextField();
+        telescopeNameField = new TextField();
+        telescopeFocalLengthField = new TextField();
+        apertureField = new TextField();
+        stopField = new TextField();
+        erfField = new TextField();
+        cameraNameField = new TextField();
+        pixelSizeField = new TextField();
+        binningField = new ComboBox<>();
+        spectrographNameField = new TextField();
+        slitWidthField = new TextField();
+        slitHeightField = new TextField();
+        gratingDensityField = new TextField();
+        collimatorFocalLengthField = new TextField();
+        cameraLensFocalLengthField = new TextField();
+        orderField = new TextField();
+        totalAngleField = new TextField();
+
+        // Set up focal reducer for file name generator
+        fileNameGenerator.setFocalReducerCheckbox(focalReducerCheckbox);
+    }
+
+    @Override
+    public VBox createContent() {
+        var content = new VBox(10);
+
+        var headerLabel = new Label(message("metadata.title"));
+        headerLabel.setStyle("-fx-font-weight: bold; -fx-font-size: 16px;");
+
+        var instructionLabel = new Label(message("metadata.instruction"));
+        instructionLabel.setStyle("-fx-font-size: 14px;");
+
+        var formGrid = createForm();
+
+        var scrollPane = new ScrollPane();
+        var formContent = new VBox(12);
+        formContent.getChildren().addAll(headerLabel, instructionLabel, formGrid);
+        formContent.setStyle("-fx-padding: 8;");
+
+        scrollPane.setContent(formContent);
+        scrollPane.setFitToWidth(true);
+        scrollPane.setStyle("-fx-background-color: transparent;");
+
+        content.getChildren().add(scrollPane);
+        return content;
+    }
+
+    @Override
+    public void load() {
+        populateFormFromProcessParams();
+    }
+
+    @Override
+    public void cleanup() {
+        // No cleanup needed for step 3
+    }
+
+    @Override
+    public boolean validate() {
+        return formValidator.validateForm(requiredFields, requiredCheckboxes, requiredComboBoxes);
+    }
+
+    // Data extraction methods
+    public SpectralRay getSelectedWavelength() {
+        return wavelengthField.getValue();
+    }
+
+    public ObservationDetails getObservationDetails() {
+        var observer = observerNameField.getText().trim();
+        var email = observerEmailField.getText().trim();
+        var telescope = telescopeNameField.getText().trim();
+        var mount = mountNameField.getText().trim();
+        var telescopeFocalLength = parseInt(telescopeFocalLengthField.getText().trim());
+        var aperture = parseInt(apertureField.getText().trim());
+        var stop = parseIntOrNull(stopField.getText().trim());
+        var energyRejectionFilter = erfField.getText().trim().isEmpty() ? null : erfField.getText().trim();
+        var siteLatitude = parseDouble(siteLatitudeField.getText().trim());
+        var siteLongitude = parseDouble(siteLongitudeField.getText().trim());
+        var coordinates = new DoublePair(siteLatitude, siteLongitude);
+        var camera = cameraNameField.getText().trim();
+        var binning = parseInt(binningField.getValue());
+        var pixelSize = parseDouble(pixelSizeField.getText().trim());
+
+        var currentObservationDetails = processParamsSupplier.findProcessParams().observationDetails();
+
+        return new ObservationDetails(
+                observer,
+                email,
+                getSpectroHeliograph(),
+                telescope,
+                mount,
+                telescopeFocalLength,
+                aperture,
+                stop,
+                energyRejectionFilter,
+                coordinates,
+                currentObservationDetails.date(),
+                camera,
+                binning,
+                pixelSize,
+                currentObservationDetails.forceCamera(),
+                currentObservationDetails.showCoordinatesInDetails(),
+                currentObservationDetails.altAzMode()
+        );
+    }
+
+    public SpectroHeliograph getSpectroHeliograph() {
+        var spectrographName = spectrographNameField.getText().trim();
+
+        var collimatorFocalLength = parseDouble(collimatorFocalLengthField.getText().trim());
+        var cameraLensFocalLength = parseDouble(cameraLensFocalLengthField.getText().trim());
+        var gratingDensity = parseInt(gratingDensityField.getText().trim());
+        var order = parseInt(orderField.getText().trim());
+        var totalAngle = parseDouble(totalAngleField.getText().trim());
+        var slitWidth = parseDouble(slitWidthField.getText().trim());
+        var slitHeight = parseDouble(slitHeightField.getText().trim());
+
+        var currentObservationDetails = processParamsSupplier.findProcessParams().observationDetails();
+
+        return new SpectroHeliograph(
+                spectrographName,
+                totalAngle,
+                cameraLensFocalLength,
+                collimatorFocalLength,
+                gratingDensity,
+                order,
+                slitWidth,
+                slitHeight,
+                currentObservationDetails.instrument().spectrumVFlip()
+        );
+    }
+
+    public boolean hasFocalReducer() {
+        return focalReducerCheckbox.isSelected();
+    }
+
+    private GridPane createForm() {
+        var formGrid = new GridPane();
+        formGrid.getStyleClass().add("form-grid");
+        formGrid.setHgap(15);
+        formGrid.setVgap(8);
+        formGrid.setStyle("-fx-padding: 5;");
+
+        var col1 = new ColumnConstraints();
+        col1.setHgrow(Priority.ALWAYS);
+
+        var col2 = new ColumnConstraints();
+        col2.setHgrow(Priority.ALWAYS);
+
+        var col3 = new ColumnConstraints();
+        col3.setHgrow(Priority.ALWAYS);
+
+        formGrid.getColumnConstraints().addAll(col1, col2, col3);
+
+        var row = 0;
+
+        addSectionHeader(formGrid, message("observer.section.title"), row++);
+
+        addFormField(formGrid, message("instrument.wavelength.label"), wavelengthField, 0, row++, true);
+
+        var nameEmailContainer = new HBox(15);
+
+        var nameContainer = new VBox(3);
+        var nameLabel = new Label(message("observer.name.label"));
+        nameLabel.getStyleClass().add("field-label");
+        nameLabel.setStyle("-fx-font-weight: bold;");
+        observerNameField.getStyleClass().add("text-field");
+        observerNameField.setPromptText(message("observer.name.prompt"));
+        observerNameField.setPrefWidth(300);
+        requiredFields.add(observerNameField);
+        observerNameField.textProperty().addListener((observable, oldValue, newValue) -> {
+            var isValid = formValidator.isFieldValid(observerNameField);
+            formValidator.updateFieldValidationStyle(observerNameField, isValid);
+        });
+        nameContainer.getChildren().addAll(nameLabel, observerNameField);
+
+        var emailContainer = new VBox(3);
+        var emailLabel = new Label(message("observer.email.label"));
+        emailLabel.getStyleClass().add("field-label");
+        emailLabel.setStyle("-fx-font-weight: bold;");
+        observerEmailField.getStyleClass().add("text-field");
+        observerEmailField.setPromptText(message("observer.email.prompt"));
+        observerEmailField.setPrefWidth(300);
+        requiredFields.add(observerEmailField);
+        observerEmailField.textProperty().addListener((observable, oldValue, newValue) -> {
+            var isValid = formValidator.isFieldValid(observerEmailField);
+            formValidator.updateFieldValidationStyle(observerEmailField, isValid);
+        });
+        emailContainer.getChildren().addAll(emailLabel, observerEmailField);
+
+        nameEmailContainer.getChildren().addAll(nameContainer, emailContainer);
+        HBox.setHgrow(nameContainer, Priority.ALWAYS);
+        HBox.setHgrow(emailContainer, Priority.ALWAYS);
+
+        formGrid.add(nameEmailContainer, 0, row++, 3, 1);
+
+        siteLatitudeField.setPromptText(message("site.latitude.prompt"));
+        addFormField(formGrid, message("site.latitude.label"), siteLatitudeField, 0, row, true);
+
+        siteLongitudeField.setPromptText(message("site.longitude.prompt"));
+        addFormField(formGrid, message("site.longitude.label"), siteLongitudeField, 1, row, true);
+
+        var decimalHint = new Label(message("site.coordinates.decimal.hint"));
+        decimalHint.setWrapText(true);
+
+        formGrid.add(decimalHint, 2, row);
+        row++;
+
+        addSectionHeader(formGrid, message("instrument.section.title"), row++);
+
+        focalReducerCheckbox.setText(message("instrument.focal.reducer.checkbox"));
+        addFormField(formGrid, message("instrument.focal.reducer.label"), focalReducerCheckbox, 0, row++, false);
+
+        mountNameField.setPromptText(message("mount.name.prompt"));
+        addFormField(formGrid, message("mount.name.label"), mountNameField, 0, row, true);
+
+        telescopeNameField.setPromptText(message("instrument.name.prompt"));
+        addFormField(formGrid, message("instrument.name.label"), telescopeNameField, 1, row, true);
+
+        telescopeFocalLengthField.setPromptText("e.g., 1000");
+        addFormField(formGrid, "Telescope Focal Length (mm)", telescopeFocalLengthField, 2, row++, true);
+
+        apertureField.setPromptText(message("instrument.aperture.prompt"));
+        addFormField(formGrid, message("instrument.aperture.label"), apertureField, 0, row, true);
+
+        stopField.setPromptText(message("instrument.stop.prompt"));
+        addFormField(formGrid, message("instrument.stop.label"), stopField, 1, row, false);
+
+        erfField.setPromptText(message("instrument.erf.prompt"));
+        addFormField(formGrid, message("instrument.erf.label"), erfField, 2, row++, false);
+
+        cameraNameField.setPromptText(message("instrument.camera.name.prompt"));
+        addFormField(formGrid, message("instrument.camera.name.label"), cameraNameField, 0, row, true);
+
+        pixelSizeField.setPromptText(message("instrument.pixel.size.only.prompt"));
+        addFormField(formGrid, message("instrument.pixel.size.only.label"), pixelSizeField, 1, row, true);
+        pixelSizeField.setDisable(true);
+        pixelSizeField.setEditable(false);
+
+        binningField.getItems().addAll("1", "2", "3", "4");
+        binningField.setPromptText(message("instrument.binning.prompt"));
+        addFormField(formGrid, message("instrument.binning.label"), binningField, 2, row++, true);
+        binningField.setDisable(true);
+        binningField.setEditable(false);
+        formGrid.add(new Label(message("instrument.pixels.binning.note")), 0, row++, 3, 1);
+
+        addSectionHeader(formGrid, message("spectrograph.section.title"), row++);
+
+        spectrographNameField.setPromptText(message("spectrograph.name.prompt"));
+        addFormField(formGrid, message("spectrograph.name.label"), spectrographNameField, 0, row, true);
+
+        slitWidthField.setPromptText(message("spectrograph.slit.width.prompt"));
+        addFormField(formGrid, message("spectrograph.slit.width.label"), slitWidthField, 1, row, true);
+
+        slitHeightField.setPromptText(message("spectrograph.slit.height.prompt"));
+        addFormField(formGrid, message("spectrograph.slit.height.label"), slitHeightField, 2, row++, true);
+
+        gratingDensityField.setPromptText(message("spectrograph.grating.density.prompt"));
+        addFormField(formGrid, message("spectrograph.grating.density.label"), gratingDensityField, 0, row, true);
+
+        collimatorFocalLengthField.setPromptText(message("spectrograph.collimator.focal.length.prompt"));
+        addFormField(formGrid, message("spectrograph.collimator.focal.length.label"), collimatorFocalLengthField, 1, row, true);
+
+        cameraLensFocalLengthField.setPromptText(message("spectrograph.camera.lens.focal.length.prompt"));
+        addFormField(formGrid, message("spectrograph.camera.lens.focal.length.label"), cameraLensFocalLengthField, 2, row++, true);
+
+        orderField.setPromptText(message("spectrograph.order.prompt"));
+        addFormField(formGrid, message("spectrograph.order.label"), orderField, 0, row, true);
+
+        totalAngleField.setPromptText(message("spectrograph.total.angle.prompt"));
+        addFormField(formGrid, message("spectrograph.total.angle.label"), totalAngleField, 1, row++, true);
+
+        return formGrid;
+    }
+
+    private void addSectionHeader(GridPane grid, String title, int row) {
+        var headerLabel = new Label(title);
+        headerLabel.getStyleClass().add("panel-section-title");
+        headerLabel.setStyle("-fx-font-weight: bold; -fx-font-size: 14px; -fx-text-fill: #333; -fx-padding: 8 0 3 0;");
+        grid.add(headerLabel, 0, row, 3, 1);
+    }
+
+    private void addFormField(GridPane grid, String labelText, Node field, int column, int row, boolean required) {
+        var fieldContainer = new VBox(3);
+        fieldContainer.setMaxWidth(Double.MAX_VALUE);
+
+        var label = new Label(labelText);
+        label.setMaxWidth(Double.MAX_VALUE);
+        label.setPrefWidth(Region.USE_COMPUTED_SIZE);
+        if (required) {
+            label.setStyle("-fx-font-weight: bold; -fx-font-size: 12px; -fx-text-fill: #495057;");
+        } else {
+            label.setStyle("-fx-font-size: 12px; -fx-text-fill: #495057;");
+        }
+
+        if (field instanceof Region region) {
+            region.setMaxWidth(Double.MAX_VALUE);
+        }
+        if (field instanceof TextField textField) {
+            textField.getStyleClass().add("text-field");
+            textField.setPrefWidth(180);
+
+            if (required) {
+                requiredFields.add(textField);
+                textField.textProperty().addListener((observable, oldValue, newValue) -> {
+                    var isValid = formValidator.isFieldValid(textField);
+                    formValidator.updateFieldValidationStyle(textField, isValid);
+                        });
+            }
+        }
+        if (field instanceof CheckBox checkBox) {
+            checkBox.getStyleClass().add("check-box");
+            if (required) {
+                requiredCheckboxes.add(checkBox);
+                checkBox.selectedProperty().addListener((observable, oldValue, newValue) -> {
+                    var isValid = checkBox.isSelected();
+                    formValidator.updateFieldValidationStyle(checkBox, isValid);
+                        });
+            }
+        }
+        if (field instanceof ComboBox<?> comboBox) {
+            comboBox.getStyleClass().add("choice-box");
+            if (required) {
+                @SuppressWarnings("unchecked")
+                var stringComboBox = (ComboBox<String>) comboBox;
+                requiredComboBoxes.add(stringComboBox);
+                stringComboBox.valueProperty().addListener((observable, oldValue, newValue) -> {
+                    var isValid = stringComboBox.getValue() != null;
+                    formValidator.updateFieldValidationStyle(stringComboBox, isValid);
+                        });
+            }
+        }
+        if (field instanceof ChoiceBox<?> choiceBox) {
+            choiceBox.getStyleClass().add("choice-box");
+        }
+
+        fieldContainer.getChildren().addAll(label, field);
+        grid.add(fieldContainer, column, row);
+    }
+
+    private void populateFormFromProcessParams() {
+        var processParams = processParamsSupplier.findProcessParams();
+        var spectralRay = processParams.spectrumParams().ray();
+        if (spectralRay != null) {
+            var wavelength = spectralRay.wavelength().angstroms();
+            var closestRay = Bass2000SubmissionController.ACCEPTED_SPECTRAL_RAYS.keySet().stream()
+                    .filter(ray -> Math.abs(ray.wavelength().angstroms() - wavelength) <= Bass2000SubmissionController.TOLERANCE_ANGSTROMS)
+                    .min(Comparator.comparingDouble(ray -> Math.abs(ray.wavelength().angstroms() - wavelength)));
+            closestRay.ifPresentOrElse(wavelengthField::setValue, () -> wavelengthField.setValue(Bass2000SubmissionController.BASS2000_HA));
+        }
+
+        var spectrograph = processParams.observationDetails().instrument();
+        if (spectrograph != null) {
+            spectrographNameField.setText(spectrograph.label());
+            collimatorFocalLengthField.setText(String.format(Locale.US, "%.1f", spectrograph.collimatorFocalLength()));
+            cameraLensFocalLengthField.setText(String.format(Locale.US, "%.1f", spectrograph.focalLength()));
+            gratingDensityField.setText(String.format(Locale.US, "%.0f", (double) spectrograph.density()));
+            orderField.setText(String.valueOf(spectrograph.order()));
+            totalAngleField.setText(String.format(Locale.US, "%.1f", spectrograph.totalAngleDegrees()));
+            slitWidthField.setText(String.format(Locale.US, "%.3f", spectrograph.slitWidthMicrons()));
+            slitHeightField.setText(String.format(Locale.US, "%.1f", spectrograph.slitHeightMillimeters()));
+        }
+
+        var observationDetails = processParams.observationDetails();
+
+        formValidator.setSpecialFields(
+            siteLatitudeField, siteLongitudeField,
+            apertureField, pixelSizeField,
+            collimatorFocalLengthField, cameraLensFocalLengthField,
+            gratingDensityField, totalAngleField,
+            slitWidthField, slitHeightField,
+            orderField, observerEmailField,
+            mountNameField, cameraNameField,
+            telescopeNameField, spectrographNameField
+        );
+
+        if (observationDetails.aperture() != null) {
+            apertureField.setText(String.valueOf(observationDetails.aperture()));
+        }
+        if (observationDetails.stop() != null) {
+            stopField.setText(String.valueOf(observationDetails.stop()));
+        }
+
+        if (observationDetails.camera() != null) {
+            cameraNameField.setText(observationDetails.camera());
+        }
+        if (observationDetails.pixelSize() != null) {
+            pixelSizeField.setText(String.format(Locale.US, "%.2f", observationDetails.pixelSize()));
+        }
+        if (observationDetails.binning() != null) {
+            binningField.setValue(String.valueOf(observationDetails.binning()));
+        }
+        if (observationDetails.telescope() != null) {
+            telescopeNameField.setText(observationDetails.telescope());
+        }
+        if (observationDetails.focalLength() != null) {
+            telescopeFocalLengthField.setText(String.valueOf(observationDetails.focalLength()));
+        }
+        if (observationDetails.mount() != null) {
+            mountNameField.setText(observationDetails.mount());
+        }
+        if (observationDetails.coordinates() != null) {
+            var coords = observationDetails.coordinates();
+            siteLatitudeField.setText(String.format(Locale.US, "%.4f", coords.a()));
+            siteLongitudeField.setText(String.format(Locale.US, "%.4f", coords.b()));
+        }
+        if (observationDetails.observer() != null && !observationDetails.observer().isBlank()) {
+            observerNameField.setText(observationDetails.observer());
+        }
+        if (observationDetails.email() != null && !observationDetails.email().isBlank()) {
+            observerEmailField.setText(observationDetails.email());
+        }
+        if (observationDetails.energyRejectionFilter() != null) {
+            erfField.setText(observationDetails.energyRejectionFilter());
+        }
+    }
+
+
+    private static String message(String messageKey) {
+        return I18N.string(JSolEx.class, "bass2000-submission", messageKey);
+    }
+
+    private static int parseInt(String text) {
+        try {
+            return Integer.parseInt(text.trim());
+        } catch (NumberFormatException e) {
+            return 0;
+        }
+    }
+
+    private static Integer parseIntOrNull(String text) {
+        if (text == null || text.trim().isEmpty()) {
+            return null;
+        }
+        try {
+            return Integer.parseInt(text.trim());
+        } catch (NumberFormatException e) {
+            return null;
+        }
+    }
+
+    private static double parseDouble(String text) {
+        try {
+            return Double.parseDouble(text.trim());
+        } catch (NumberFormatException e) {
+            return 0.0;
+        }
+    }
+}
