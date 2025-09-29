@@ -1,8 +1,8 @@
 {
-      "requiresVersion": "4.0.1",
+      "requiresVersion": "4.1.2",
       "enabled": true,
       "message": {
-         "en": "BASS2000 feature is temporarily disabled and will be back with 4.0.1 release!",
-         "fr": "La fonctionnalité BASS2000 est temporairement fermée et sera de retour avec la version 4.0.1 !"
+         "en": "BASS2000 feature is temporarily disabled and will be back with 4.1.2 release!",
+         "fr": "La fonctionnalité BASS2000 est temporairement fermée et sera de retour avec la version 4.1.2 !"
       }
  }
