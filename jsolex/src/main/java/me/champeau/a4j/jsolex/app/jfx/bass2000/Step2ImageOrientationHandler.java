@@ -263,9 +263,7 @@ class Step2ImageOrientationHandler implements StepHandler {
 
     @Override
     public void load() {
-        if (transformationListener.getGeneratedBass2000Image() != null) {
-            updateUserImageDisplay();
-        }
+        applyCurrentTransformations();
         loadGongReferenceImage();
     }
 
@@ -500,13 +498,6 @@ class Step2ImageOrientationHandler implements StepHandler {
         if (comparisonModeManager != null) {
             comparisonModeManager.setAngleAdjustment(0.0);
         }
-        var originalImage = transformationListener.getOriginalImage();
-        var originalOffBandImage = transformationListener.getOriginalOffBandImage();
-        transformationListener.setGeneratedBass2000Image(originalImage.copy());
-
-        if (originalOffBandImage != null) {
-            transformationListener.setGeneratedOffBandImage(originalOffBandImage.copy());
-        }
 
         applyCurrentTransformations();
     }
@@ -517,35 +508,31 @@ class Step2ImageOrientationHandler implements StepHandler {
             return;
         }
 
-        BackgroundOperations.async(() -> {
-            try {
-                var processParams = transformationListener.findProcessParams();
-                var observationDate = processParams.observationDetails().date();
-                var solarParams = SolarParametersUtils.computeSolarParams(observationDate.toLocalDateTime());
-                var pAngle = solarParams.p();
+        try {
+            var processParams = transformationListener.findProcessParams();
+            var observationDate = processParams.observationDetails().date();
+            var solarParams = SolarParametersUtils.computeSolarParams(observationDate.toLocalDateTime());
+            var pAngle = solarParams.p();
 
-                var generatedBass2000Image = applyTransformationsToImage(originalImage, pAngle);
-                transformationListener.setGeneratedBass2000Image(generatedBass2000Image);
+            var generatedBass2000Image = applyTransformationsToImage(originalImage, pAngle);
+            transformationListener.setGeneratedBass2000Image(generatedBass2000Image);
 
-                var originalOffBandImage = transformationListener.getOriginalOffBandImage();
-                if (originalOffBandImage != null) {
-                    var generatedOffBandImage = applyTransformationsToImage(originalOffBandImage, pAngle);
-                    transformationListener.setGeneratedOffBandImage(generatedOffBandImage);
-                }
-
-                Platform.runLater(() -> {
-                    updateUserImageDisplay();
-                    if (transformationListener.getCurrentStep() == 2) {
-                        transformationListener.validateBass2000Image();
-                    }
-                });
-
-                transformationListener.onTransformationApplied();
-
-            } catch (Exception e) {
-                throw new ProcessingException("Error applying transformations", e);
+            var originalOffBandImage = transformationListener.getOriginalOffBandImage();
+            if (originalOffBandImage != null) {
+                var generatedOffBandImage = applyTransformationsToImage(originalOffBandImage, pAngle);
+                transformationListener.setGeneratedOffBandImage(generatedOffBandImage);
             }
-        });
+
+            updateUserImageDisplay();
+            if (transformationListener.getCurrentStep() == 2) {
+                transformationListener.validateBass2000Image();
+            }
+
+            transformationListener.onTransformationApplied();
+
+        } catch (Exception e) {
+            throw new ProcessingException("Error applying transformations", e);
+        }
     }
 
     private ImageWrapper applyTransformationsToImage(ImageWrapper originalImage, double pAngle) {
