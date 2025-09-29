@@ -16,6 +16,7 @@
 package me.champeau.a4j.jsolex.app.jfx.bass2000;
 
 import javafx.scene.Node;
+import javafx.scene.control.Button;
 import javafx.scene.control.CheckBox;
 import javafx.scene.control.ChoiceBox;
 import javafx.scene.control.ComboBox;
@@ -51,6 +52,7 @@ class Step3FormDataHandler implements StepHandler {
     private TextField observerEmailField;
     private TextField siteLatitudeField;
     private TextField siteLongitudeField;
+    private CoordinateMapView coordinateMap;
     private CheckBox focalReducerCheckbox;
     private TextField mountNameField;
     private TextField telescopeNameField;
@@ -92,6 +94,7 @@ class Step3FormDataHandler implements StepHandler {
         observerEmailField = new TextField();
         siteLatitudeField = new TextField();
         siteLongitudeField = new TextField();
+        coordinateMap = new CoordinateMapView();
         focalReducerCheckbox = new CheckBox();
         mountNameField = new TextField();
         telescopeNameField = new TextField();
@@ -113,6 +116,9 @@ class Step3FormDataHandler implements StepHandler {
 
         // Set up focal reducer for file name generator
         fileNameGenerator.setFocalReducerCheckbox(focalReducerCheckbox);
+
+        // Set up coordinate map bindings
+        setupCoordinateMapBindings();
     }
 
     @Override
@@ -253,7 +259,6 @@ class Step3FormDataHandler implements StepHandler {
 
         addFormField(formGrid, message("instrument.wavelength.label"), wavelengthField, 0, row++, true);
 
-        var nameEmailContainer = new HBox(15);
 
         var nameContainer = new VBox(3);
         var nameLabel = new Label(message("observer.name.label"));
@@ -283,22 +288,64 @@ class Step3FormDataHandler implements StepHandler {
         });
         emailContainer.getChildren().addAll(emailLabel, observerEmailField);
 
-        nameEmailContainer.getChildren().addAll(nameContainer, emailContainer);
-        HBox.setHgrow(nameContainer, Priority.ALWAYS);
-        HBox.setHgrow(emailContainer, Priority.ALWAYS);
 
-        formGrid.add(nameEmailContainer, 0, row++, 3, 1);
+        var observerContainer = new VBox(5);
+        observerContainer.getChildren().addAll(nameContainer, emailContainer);
+        formGrid.add(observerContainer, 0, row);
 
+        var coordinatesContainer = new VBox(5);
+        var latitudeContainer = new VBox(3);
+        var latitudeLabel = new Label(message("site.latitude.label"));
+        latitudeLabel.getStyleClass().add("field-label");
+        latitudeLabel.setStyle("-fx-font-weight: bold;");
+        siteLatitudeField.getStyleClass().add("text-field");
         siteLatitudeField.setPromptText(message("site.latitude.prompt"));
-        addFormField(formGrid, message("site.latitude.label"), siteLatitudeField, 0, row, true);
+        siteLatitudeField.setPrefWidth(150);
+        requiredFields.add(siteLatitudeField);
+        siteLatitudeField.textProperty().addListener((observable, oldValue, newValue) -> {
+            var isValid = formValidator.isFieldValid(siteLatitudeField);
+            formValidator.updateFieldValidationStyle(siteLatitudeField, isValid);
+            updateMapCoordinates();
+        });
+        latitudeContainer.getChildren().addAll(latitudeLabel, siteLatitudeField);
 
+        var longitudeContainer = new VBox(3);
+        var longitudeLabel = new Label(message("site.longitude.label"));
+        longitudeLabel.getStyleClass().add("field-label");
+        longitudeLabel.setStyle("-fx-font-weight: bold;");
+        siteLongitudeField.getStyleClass().add("text-field");
         siteLongitudeField.setPromptText(message("site.longitude.prompt"));
-        addFormField(formGrid, message("site.longitude.label"), siteLongitudeField, 1, row, true);
+        siteLongitudeField.setPrefWidth(150);
+        requiredFields.add(siteLongitudeField);
+        siteLongitudeField.textProperty().addListener((observable, oldValue, newValue) -> {
+            var isValid = formValidator.isFieldValid(siteLongitudeField);
+            formValidator.updateFieldValidationStyle(siteLongitudeField, isValid);
+            updateMapCoordinates();
+        });
+        longitudeContainer.getChildren().addAll(longitudeLabel, siteLongitudeField);
 
         var decimalHint = new Label(message("site.coordinates.decimal.hint"));
         decimalHint.setWrapText(true);
+        decimalHint.setStyle("-fx-font-size: 11px; -fx-text-fill: #666;");
 
-        formGrid.add(decimalHint, 2, row);
+        coordinatesContainer.getChildren().addAll(latitudeContainer, longitudeContainer, decimalHint);
+        formGrid.add(coordinatesContainer, 1, row);
+
+        var mapContainer = new VBox(5);
+        var mapHeaderBox = new HBox(5);
+        var mapLabel = new Label(message("map.label"));
+        mapLabel.setStyle("-fx-font-weight: bold; -fx-font-size: 12px; -fx-text-fill: #495057;");
+        var resetButton = new Button(message("map.reset"));
+        resetButton.setStyle("-fx-font-size: 10px;");
+        resetButton.setOnAction(e -> coordinateMap.resetZoom());
+        mapHeaderBox.getChildren().addAll(mapLabel, resetButton);
+        HBox.setHgrow(mapLabel, Priority.ALWAYS);
+
+        var mapHelpLabel = new Label(message("map.help"));
+        mapHelpLabel.setStyle("-fx-font-size: 10px; -fx-text-fill: #666;");
+
+        mapContainer.getChildren().addAll(mapHeaderBox, coordinateMap, mapHelpLabel);
+        formGrid.add(mapContainer, 2, row);
         row++;
 
         addSectionHeader(formGrid, message("instrument.section.title"), row++);
@@ -498,6 +545,7 @@ class Step3FormDataHandler implements StepHandler {
             var coords = observationDetails.coordinates();
             siteLatitudeField.setText(String.format(Locale.US, "%.4f", coords.a()));
             siteLongitudeField.setText(String.format(Locale.US, "%.4f", coords.b()));
+            coordinateMap.setCoordinates(coords.a(), coords.b());
         }
         if (observationDetails.observer() != null && !observationDetails.observer().isBlank()) {
             observerNameField.setText(observationDetails.observer());
@@ -539,6 +587,38 @@ class Step3FormDataHandler implements StepHandler {
             return Double.parseDouble(text.trim());
         } catch (NumberFormatException e) {
             return 0.0;
+        }
+    }
+
+    private void setupCoordinateMapBindings() {
+        siteLatitudeField.textProperty().addListener((obs, oldVal, newVal) -> updateMapCoordinates());
+        siteLongitudeField.textProperty().addListener((obs, oldVal, newVal) -> updateMapCoordinates());
+
+        coordinateMap.latitudeProperty().addListener((obs, oldVal, newVal) -> updateCoordinateFields());
+        coordinateMap.longitudeProperty().addListener((obs, oldVal, newVal) -> updateCoordinateFields());
+    }
+
+    private void updateMapCoordinates() {
+        try {
+            var latText = siteLatitudeField.getText().trim();
+            var lonText = siteLongitudeField.getText().trim();
+
+            if (!latText.isEmpty() && !lonText.isEmpty()) {
+                var latitude = Double.parseDouble(latText);
+                var longitude = Double.parseDouble(lonText);
+                coordinateMap.setCoordinates(latitude, longitude);
+            }
+        } catch (NumberFormatException e) {
+        }
+    }
+
+    private void updateCoordinateFields() {
+        var latitude = coordinateMap.latitudeProperty().get();
+        var longitude = coordinateMap.longitudeProperty().get();
+
+        if (latitude != 0.0 || longitude != 0.0) {
+            siteLatitudeField.setText(String.format(Locale.US, "%.4f", latitude));
+            siteLongitudeField.setText(String.format(Locale.US, "%.4f", longitude));
         }
     }
 }
