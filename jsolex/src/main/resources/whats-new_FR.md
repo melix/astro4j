@@ -8,6 +8,7 @@
 
 ## Nouveautés de la version 4.1.2
 
+- Ajout d'un champ nom de fichier dans la boîte de dialogue de création de collage pour personnaliser le nom des fichiers
 - Correction de l'orientation des images ailes de raies qui n'était pas appliquée (BASS2000)
 
 ## Nouveautés de la version 4.1.1

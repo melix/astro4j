@@ -113,6 +113,9 @@ public class CollageController {
     private ColorPicker backgroundColorPicker;
 
     @FXML
+    private TextField fileNameField;
+
+    @FXML
     private Button selectAllButton;
 
     @FXML
@@ -141,6 +144,7 @@ public class CollageController {
         this.processParams = processParams;
 
         initializeSpinners();
+        initializeFileNameField();
         populateImageStrip();
         setupPreviewGrid();
         setupEventHandlers();
@@ -158,6 +162,11 @@ public class CollageController {
         columnsSpinner.valueProperty().addListener((obs, oldVal, newVal) -> setupPreviewGrid());
         paddingSpinner.valueProperty().addListener((obs, oldVal, newVal) -> setupPreviewGrid());
         backgroundColorPicker.valueProperty().addListener((obs, oldVal, newVal) -> setupPreviewGrid());
+    }
+
+    private void initializeFileNameField() {
+        var defaultName = "collage_" + (COLLAGE_COUNTER.get() + 1);
+        fileNameField.setText(defaultName);
     }
 
     private static String colorToHex(Color color) {
@@ -586,6 +595,8 @@ public class CollageController {
         autoDownscaleCheckBox.setSelected(true);
         maxWidthField.setText("4096");
         maxHeightField.setText("4096");
+        var defaultName = "collage_" + (COLLAGE_COUNTER.get() + 1);
+        fileNameField.setText(defaultName);
     }
 
     @FXML
@@ -614,7 +625,11 @@ public class CollageController {
 
                         var collageImage = collageComposition.createCollage(parameters);
 
-                        var filename = "collage_" + COLLAGE_COUNTER.incrementAndGet();
+                        var userProvidedName = fileNameField.getText().trim();
+                        var filename = userProvidedName.isEmpty() ? "collage_" + COLLAGE_COUNTER.incrementAndGet() : userProvidedName;
+                        if (!userProvidedName.isEmpty()) {
+                            COLLAGE_COUNTER.incrementAndGet();
+                        }
 
                         Platform.runLater(() -> {
                             try {
