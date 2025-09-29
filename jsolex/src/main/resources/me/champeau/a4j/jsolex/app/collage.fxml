@@ -95,6 +95,11 @@
                         <Label text="%background.color" prefWidth="90" minWidth="90"/>
                         <ColorPicker fx:id="backgroundColorPicker" prefWidth="100"/>
                     </HBox>
+
+                    <HBox alignment="CENTER_LEFT" spacing="12">
+                        <Label text="%file.name" prefWidth="90" minWidth="90"/>
+                        <TextField fx:id="fileNameField" prefWidth="150"/>
+                    </HBox>
                 </VBox>
             </VBox>
 
