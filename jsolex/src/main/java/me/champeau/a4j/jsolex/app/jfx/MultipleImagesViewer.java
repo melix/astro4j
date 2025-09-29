@@ -390,7 +390,7 @@ public class MultipleImagesViewer extends Pane {
             return imageViews.stream()
                     .filter(viewer -> viewer.getStretchedImage() != null)
                     .map(viewer -> new ImageInfo(
-                            viewer.getStretchedImage(),
+                            viewer.getStretchedImage().wrap(),
                             getImageTitle(viewer),
                             getImageKind(viewer)
                     ))

@@ -53,6 +53,7 @@ import me.champeau.a4j.jsolex.processing.sun.workflow.PixelShift;
 import me.champeau.a4j.jsolex.processing.util.BackgroundOperations;
 import me.champeau.a4j.jsolex.processing.util.Constants;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
+import me.champeau.a4j.jsolex.processing.util.ThumbnailGenerator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -194,7 +195,8 @@ public class CollageController {
         imageView.setFitWidth(70);
         imageView.setFitHeight(70);
         imageView.setPreserveRatio(true);
-        imageView.setImage(WritableImageSupport.asWritable(imageInfo.image()));
+        var thumbnail = ThumbnailGenerator.generateThumbnail(imageInfo.image(), 70, 70);
+        imageView.setImage(WritableImageSupport.asWritable(thumbnail));
 
         var label = new Label(imageInfo.title());
         label.setStyle("-fx-font-size: 0.75em; -fx-text-alignment: center;");
@@ -282,8 +284,12 @@ public class CollageController {
         var availableWidth = previewScrollPane.getWidth() - 60; 
         var availableHeight = previewScrollPane.getHeight() - 60;
 
-        if (availableWidth <= 0) availableWidth = 600;
-        if (availableHeight <= 0) availableHeight = 400;
+        if (availableWidth <= 0) {
+            availableWidth = 600;
+        }
+        if (availableHeight <= 0) {
+            availableHeight = 400;
+        }
 
         var gapWidth = (columns - 1) * 8; 
         var gapHeight = (rows - 1) * 8; 
@@ -320,8 +326,12 @@ public class CollageController {
         var availableWidth = previewScrollPane.getWidth() - 60;
         var availableHeight = previewScrollPane.getHeight() - 60;
 
-        if (availableWidth <= 0) availableWidth = 600;
-        if (availableHeight <= 0) availableHeight = 400;
+        if (availableWidth <= 0) {
+            availableWidth = 600;
+        }
+        if (availableHeight <= 0) {
+            availableHeight = 400;
+        }
 
         var gapWidth = (newColumns - 1) * 8;
         var gapHeight = (newRows - 1) * 8;
@@ -384,7 +394,9 @@ public class CollageController {
     }
 
     private void updateSlotSizes() {
-        if (imageSlots.isEmpty()) return;
+        if (imageSlots.isEmpty()) {
+            return;
+        }
 
         var rows = rowsSpinner.getValue();
         var columns = columnsSpinner.getValue();
@@ -392,7 +404,9 @@ public class CollageController {
         var availableWidth = previewScrollPane.getWidth() - 60;
         var availableHeight = previewScrollPane.getHeight() - 60;
 
-        if (availableWidth <= 0 || availableHeight <= 0) return;
+        if (availableWidth <= 0 || availableHeight <= 0) {
+            return;
+        }
 
         var gapWidth = (columns - 1) * 8;
         var gapHeight = (rows - 1) * 8;
@@ -499,7 +513,16 @@ public class CollageController {
         imageView.fitWidthProperty().bind(slot.container.widthProperty().subtract(10));
         imageView.fitHeightProperty().bind(slot.container.heightProperty().subtract(10));
         imageView.setPreserveRatio(true);
-        imageView.setImage(WritableImageSupport.asWritable(imageInfo.image()));
+        var slotWidth = (int) slot.container.getWidth();
+        var slotHeight = (int) slot.container.getHeight();
+        if (slotWidth <= 0) {
+            slotWidth = 150;
+        }
+        if (slotHeight <= 0) {
+            slotHeight = 150;
+        }
+        var thumbnail = ThumbnailGenerator.generateThumbnail(imageInfo.image(), slotWidth, slotHeight);
+        imageView.setImage(WritableImageSupport.asWritable(thumbnail));
 
         var label = new Label(imageInfo.title());
         label.setStyle("-fx-background-color: rgba(0,0,0,0.7); -fx-text-fill: white; -fx-padding: 2 4 2 4; -fx-font-size: 10px; -fx-background-radius: 3;");

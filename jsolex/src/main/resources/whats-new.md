@@ -10,6 +10,7 @@
 
 - Added file name field in collage creation dialog to allow custom naming of collage files
 - Fixed orientation of wing images not being applied (BASS2000)
+- Reduced memory usage when generating collages
 
 ## What's New in Version 4.1.1
 

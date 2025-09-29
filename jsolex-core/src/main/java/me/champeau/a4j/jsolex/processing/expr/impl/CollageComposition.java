@@ -17,6 +17,7 @@ package me.champeau.a4j.jsolex.processing.expr.impl;
 
 import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
 import me.champeau.a4j.jsolex.processing.sun.CollageParameters;
+import me.champeau.a4j.jsolex.processing.util.FileBackedImage;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 import me.champeau.a4j.jsolex.processing.util.RGBImage;
@@ -43,23 +44,26 @@ public class CollageComposition extends AbstractFunctionImpl {
             var layout = calculateLayout(parameters);
             var metadata = MutableMap.<Class<?>, Object>of();
 
-            float maxValue = 1.0f;
-            for (var imageSelection : parameters.images()) {
-                metadata.putAll(imageSelection.image().metadata());
-                maxValue = Math.max(maxValue, findMaxValue(imageSelection.image()));
-            }
-
-            var hasColorImages = parameters.images().stream()
-                    .anyMatch(img -> img.image() instanceof RGBImage);
-
+            var hasColorImages = false;
             var hasColorBackground = parameters.backgroundColorR() != parameters.backgroundColorG() ||
                                    parameters.backgroundColorG() != parameters.backgroundColorB();
 
+            for (var imageSelection : parameters.images()) {
+                var img = imageSelection.image();
+                if (img instanceof FileBackedImage fbi) {
+                    img = fbi.unwrapToMemory();
+                }
+                metadata.putAll(img.metadata());
+                if (img instanceof RGBImage) {
+                    hasColorImages = true;
+                }
+            }
+
             if (hasColorImages || hasColorBackground) {
-                var collageData = createColorCollageData(parameters, layout, maxValue);
+                var collageData = createColorCollageData(parameters, layout);
                 return new RGBImage(layout.totalWidth(), layout.totalHeight(), collageData[0], collageData[1], collageData[2], metadata);
             } else {
-                var collageData = createMonoCollageData(parameters, layout, maxValue);
+                var collageData = createMonoCollageData(parameters, layout);
                 return new ImageWrapper32(layout.totalWidth(), layout.totalHeight(), collageData, metadata);
             }
         } finally {
@@ -67,38 +71,6 @@ public class CollageComposition extends AbstractFunctionImpl {
         }
     }
 
-    private float findMaxValue(ImageWrapper image) {
-        float max = 1.0f;
-        if (image instanceof RGBImage rgb) {
-            max = Math.max(max, findMaxInArray(rgb.r()));
-            max = Math.max(max, findMaxInArray(rgb.g()));
-            max = Math.max(max, findMaxInArray(rgb.b()));
-        } else if (image instanceof ImageWrapper32 mono) {
-            max = Math.max(max, findMaxInArray(mono.data()));
-        } else {
-            var unwrapped = image.unwrapToMemory();
-            if (unwrapped instanceof RGBImage rgb) {
-                max = Math.max(max, findMaxInArray(rgb.r()));
-                max = Math.max(max, findMaxInArray(rgb.g()));
-                max = Math.max(max, findMaxInArray(rgb.b()));
-            } else if (unwrapped instanceof ImageWrapper32 mono) {
-                max = Math.max(max, findMaxInArray(mono.data()));
-            }
-        }
-        return max;
-    }
-
-    private float findMaxInArray(float[][] data) {
-        float max = 1.0f;
-        for (var row : data) {
-            for (var val : row) {
-                if (val > max) {
-                    max = val;
-                }
-            }
-        }
-        return max;
-    }
 
     private CollageLayout calculateLayout(CollageParameters parameters) {
         var rows = parameters.rows();
@@ -139,13 +111,13 @@ public class CollageComposition extends AbstractFunctionImpl {
         return new CollageLayout(maxCellWidth, maxCellHeight, totalWidth, totalHeight, scaledPadding);
     }
 
-    private float[][] createMonoCollageData(CollageParameters parameters, CollageLayout layout, float maxValue) {
+    private float[][] createMonoCollageData(CollageParameters parameters, CollageLayout layout) {
         var collageData = new float[layout.totalHeight()][layout.totalWidth()];
-        var scaledBgColor = parameters.backgroundColor() * maxValue;
+        var bgColor = parameters.backgroundColor();
 
         for (var y = 0; y < layout.totalHeight(); y++) {
             for (var x = 0; x < layout.totalWidth(); x++) {
-                collageData[y][x] = scaledBgColor;
+                collageData[y][x] = bgColor;
             }
         }
 
@@ -157,8 +129,8 @@ public class CollageComposition extends AbstractFunctionImpl {
                 }
 
                 var imageSelection = parameters.images().get(imageIndex);
-                var targetRow = imageSelection.row().orElse(row);
-                var targetCol = imageSelection.column().orElse(col);
+                int targetRow = imageSelection.row().orElse(row);
+                int targetCol = imageSelection.column().orElse(col);
 
                 if (targetRow >= 0 && targetRow < parameters.rows() &&
                     targetCol >= 0 && targetCol < parameters.columns()) {
@@ -174,21 +146,21 @@ public class CollageComposition extends AbstractFunctionImpl {
         return collageData;
     }
 
-    private float[][][] createColorCollageData(CollageParameters parameters, CollageLayout layout, float maxValue) {
+    private float[][][] createColorCollageData(CollageParameters parameters, CollageLayout layout) {
         var collageR = new float[layout.totalHeight()][layout.totalWidth()];
         var collageG = new float[layout.totalHeight()][layout.totalWidth()];
         var collageB = new float[layout.totalHeight()][layout.totalWidth()];
 
-        var scaledBgR = parameters.backgroundColorR() * maxValue;
-        var scaledBgG = parameters.backgroundColorG() * maxValue;
-        var scaledBgB = parameters.backgroundColorB() * maxValue;
+        var bgR = parameters.backgroundColorR();
+        var bgG = parameters.backgroundColorG();
+        var bgB = parameters.backgroundColorB();
 
 
         for (var y = 0; y < layout.totalHeight(); y++) {
             for (var x = 0; x < layout.totalWidth(); x++) {
-                collageR[y][x] = scaledBgR;
-                collageG[y][x] = scaledBgG;
-                collageB[y][x] = scaledBgB;
+                collageR[y][x] = bgR;
+                collageG[y][x] = bgG;
+                collageB[y][x] = bgB;
             }
         }
 
@@ -201,8 +173,8 @@ public class CollageComposition extends AbstractFunctionImpl {
                 }
 
                 var imageSelection = parameters.images().get(imageIndex);
-                var targetRow = imageSelection.row().orElse(row);
-                var targetCol = imageSelection.column().orElse(col);
+                int targetRow = imageSelection.row().orElse(row);
+                int targetCol = imageSelection.column().orElse(col);
 
                 if (targetRow >= 0 && targetRow < parameters.rows() &&
                     targetCol >= 0 && targetCol < parameters.columns()) {
@@ -218,9 +190,14 @@ public class CollageComposition extends AbstractFunctionImpl {
         return new float[][][] { collageR, collageG, collageB };
     }
 
-    private void placeColorImageInCell(float[][] collageR, float[][] collageG, float[][] collageB,
-                                     ImageWrapper image, int row, int col,
-                                     CollageLayout layout, CollageParameters parameters) {
+    private void placeColorImageInCell(float[][] collageR,
+                                       float[][] collageG,
+                                       float[][] collageB,
+                                       ImageWrapper image,
+                                       int row,
+                                       int col,
+                                       CollageLayout layout,
+                                       CollageParameters parameters) {
 
         float[][] rData, gData, bData;
         if (image instanceof RGBImage rgb) {
