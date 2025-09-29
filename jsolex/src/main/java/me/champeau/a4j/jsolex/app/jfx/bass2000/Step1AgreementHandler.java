@@ -19,8 +19,11 @@ import javafx.application.Platform;
 import javafx.scene.control.Hyperlink;
 import javafx.scene.control.Label;
 import javafx.scene.layout.VBox;
+import javafx.scene.control.ButtonType;
 import javafx.scene.text.Text;
 import javafx.scene.text.TextFlow;
+import me.champeau.a4j.jsolex.app.AlertFactory;
+import me.champeau.a4j.jsolex.app.Configuration;
 import me.champeau.a4j.jsolex.app.jfx.I18N;
 import me.champeau.a4j.jsolex.app.JSolEx;
 import me.champeau.a4j.jsolex.processing.params.ProcessParams;
@@ -89,6 +92,35 @@ class Step1AgreementHandler implements StepHandler {
 
     @Override
     public boolean validate() {
+        return validateWithConfirmation();
+    }
+
+    private boolean validateWithConfirmation() {
+        var config = Configuration.getInstance();
+        var confirmed = config.isBass2000FormConfirmed();
+
+        if (!confirmed) {
+            var alert = AlertFactory.confirmation(message("registration.confirmation.message"));
+            alert.setTitle(message("registration.confirmation.title"));
+            alert.setHeaderText(message("registration.confirmation.header"));
+
+            alert.getButtonTypes().setAll(ButtonType.YES, ButtonType.NO);
+
+            var result = alert.showAndWait();
+            if (result.isPresent() && result.get() == ButtonType.YES) {
+                config.setBass2000FormConfirmed(true);
+                return true;
+            } else {
+                BackgroundOperations.async(() -> {
+                    try {
+                        Desktop.getDesktop().browse(new URI("https://bass2000.obspm.fr/solex.php"));
+                    } catch (Exception e) {
+                        LOGGER.error("Error opening BASS2000 form URL", e);
+                    }
+                });
+                return false;
+            }
+        }
         return true;
     }
 

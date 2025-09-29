@@ -325,6 +325,12 @@ public class Bass2000SubmissionController {
     @FXML
     private void onNext() {
         if (currentStep < TOTAL_STEPS) {
+            // Validate current step before proceeding
+            var currentHandler = getCurrentStepHandler();
+            if (currentHandler != null && !currentHandler.validate()) {
+                return;
+            }
+
             if (currentStep == 3) {
                 if (!isWavelengthValid()) {
                     showWavelengthError();
@@ -574,7 +580,11 @@ public class Bass2000SubmissionController {
     private void updateNextButtonState() {
         var currentHandler = getCurrentStepHandler();
         if (currentHandler != null) {
-            nextButton.setDisable(!currentHandler.validate());
+            if (currentHandler instanceof Step1AgreementHandler) {
+                nextButton.setDisable(false);
+            } else {
+                nextButton.setDisable(!currentHandler.validate());
+            }
         }
     }
 
