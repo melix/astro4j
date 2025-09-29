@@ -41,6 +41,7 @@ public class Configuration {
     private static final String AUTO_START_SERVER = "auto.start.server";
     private static final String AUTO_START_SERVER_PORT = "auto.start.server.port";
     private static final String BASS2000_FTP_URL = "bass2000.ftp.url";
+    private static final String BASS2000_FORM_CONFIRMED = "bass2000.form.confirmed";
     private static final String PIPP_COMPAT = "pipp.compatibility";
     private static final String SELECTED_LANGUAGE = "selected.language";
 
@@ -194,6 +195,14 @@ public class Configuration {
 
     public void setBass2000FtpUrl(String url) {
         prefs.put(BASS2000_FTP_URL, url);
+    }
+
+    public boolean isBass2000FormConfirmed() {
+        return prefs.getBoolean(BASS2000_FORM_CONFIRMED, false);
+    }
+
+    public void setBass2000FormConfirmed(boolean confirmed) {
+        prefs.putBoolean(BASS2000_FORM_CONFIRMED, confirmed);
     }
 
     public String getSelectedLanguage() {
