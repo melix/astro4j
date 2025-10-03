@@ -1,10 +1,15 @@
 # Welcome to JSol'Ex {{version}}!
 
+- [Version 4.1.3](#whats-new-in-version-4-1-3) - Improved banding correction
 - [Version 4.1.2](#whats-new-in-version-4-1-2) - Bug fixes
 - [Version 4.1.1](#whats-new-in-version-4-1-1) - Bug fixes
 - [Version 4.1.0](#whats-new-in-version-4-1-0) - User-defined presets, collage creation
 - [Version 4.0.1](#whats-new-in-version-4-0-1) - Language selection, bug fixes
 - [Version 4.0.0](#whats-new-in-version-4-0-0) - Enhanced UI, BASS2000 integration
+
+## What's New in Version 4.1.3
+
+- Improved banding correction
 
 ## What's New in Version 4.1.2
 
