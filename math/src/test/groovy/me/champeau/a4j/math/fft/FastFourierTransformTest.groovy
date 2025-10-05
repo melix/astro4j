@@ -19,20 +19,23 @@ import spock.lang.Specification
 import spock.lang.Subject
 
 class FastFourierTransformTest extends Specification {
-    private static final float EPSILON = 0.00000001f
-    private static final List<Float> DATA = (0..<4096).collect {
-        (float) (1 + it % 4)
+    private static final double EPSILON = 0.00000001
+    private static final List<Double> DATA = (0..<4096).collect {
+        (double) (1 + it % 4)
     }
-    private static final List<Float> ZERO = (0..<4096).collect { 0f }
+    private static final List<Double> ZERO = (0..<4096).collect { 0d }
 
-    private float[] real
-    private float[] imaginary
+    private double[] real
+    private double[] imaginary
 
     @Subject
     FastFourierTransform fft
 
-    def "computes FFT using #type"() {
-        prepare(type)
+    def "computes FFT"() {
+        given:
+        real = DATA.toArray(new double[DATA.size()])
+        imaginary = new double[real.length]
+        fft = FastFourierTransform.ofComplex(real, imaginary)
 
         when:
         fft.transform()
@@ -41,29 +44,20 @@ class FastFourierTransformTest extends Specification {
         then:
         assertEquals(real, DATA)
         assertEquals(imaginary, ZERO)
-
-        where:
-        type << [FallbackFloatFastFourierTransform, VectorizedFloatFastFourierTransform]
     }
 
-    private static void assertEquals(float[] array, List<Float> expected) {
+    private static void assertEquals(double[] array, List<Double> expected) {
         if (array.length != expected.size()) {
             throw new AssertionError("Expected array to have ${expected.size()} elements but got ${array.length}")
         }
-        def elements = array as List<Float>
+        def elements = array as List<Double>
         double avgError = 0
-        elements.eachWithIndex { float entry, int i ->
+        elements.eachWithIndex { double entry, int i ->
             def error = Math.abs(entry - expected[i])
             avgError = avgError + (error - avgError) / (i + 1)
         }
         if (avgError > EPSILON) {
             throw new AssertionError("Average is greater than epsilon: error = $avgError (${avgError / EPSILON} times epsilon)")
         }
-    }
-
-    void prepare(Class<FastFourierTransform> clazz) {
-        real = DATA.toArray(new float[DATA.size()])
-        imaginary = new float[real.length]
-        fft = clazz.newInstance(real, imaginary)
     }
 }

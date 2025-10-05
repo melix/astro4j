@@ -31,8 +31,8 @@ public interface FastFourierTransform {
      * @param real the array of real numbers to transform.
      * @return the Fourier transform
      */
-    static FastFourierTransform ofReal(float[] real) {
-        return ofComplex(real, new float[real.length]);
+    static FastFourierTransform ofReal(double[] real) {
+        return ofComplex(real, new double[real.length]);
     }
 
     /**
@@ -41,7 +41,7 @@ public interface FastFourierTransform {
      * @param imaginary the imaginary part of complex numbers
      * @return the Fourier transform
      */
-    static FastFourierTransform ofComplex(float[] real, float[] imaginary) {
+    static FastFourierTransform ofComplex(double[] real, double[] imaginary) {
         int n = real.length;
         if (imaginary.length != n) {
             throw new IllegalArgumentException("Both real and imaginary parts must have the same length");
@@ -50,9 +50,23 @@ public interface FastFourierTransform {
             throw new IllegalArgumentException("Input arrays length must be a power of 2");
         }
         if (VectorApiSupport.isEnabled()) {
-            return new VectorizedFloatFastFourierTransform(real, imaginary);
+            return new VectorizedDoubleFFT(real, imaginary);
         }
-        return new FallbackFloatFastFourierTransform(real, imaginary);
+        return new CommonsMathFFT(real, imaginary);
+    }
+
+    static FloatFFT ofComplex(float[] real, float[] imaginary) {
+        int n = real.length;
+        if (imaginary.length != n) {
+            throw new IllegalArgumentException("Both real and imaginary parts must have the same length");
+        }
+        if (!isPowerOf2(n)) {
+            throw new IllegalArgumentException("Input arrays length must be a power of 2");
+        }
+        if (VectorApiSupport.isEnabled()) {
+            return new VectorizedFloatFFT(real, imaginary);
+        }
+        return new CommonsMathFloatFFT(real, imaginary);
     }
 
     /**
@@ -62,7 +76,7 @@ public interface FastFourierTransform {
      * @param height the height
      * @return the Fourier transform
      */
-    static FastFourierTransform ofArray2D(float[] array, int width, int height) {
+    static FastFourierTransform ofArray2D(double[] array, int width, int height) {
         if (!isPowerOf2(width)) {
             throw new IllegalArgumentException("Width must be a power of 2");
         }
@@ -77,13 +91,13 @@ public interface FastFourierTransform {
      * @param data the data
      * @return the padded data
      */
-    static float[] pad(float[] data) {
+    static double[] pad(double[] data) {
         int length = data.length;
         if (isPowerOf2(length)) {
             return data;
         }
         int nextPowerOf2 = nextPowerOf2(length);
-        float[] padded = new float[(int) Math.pow(nextPowerOf2, 2)];
+        double[] padded = new double[(int) Math.pow(nextPowerOf2, 2)];
         System.arraycopy(data, 0, padded, 0, length);
         return padded;
     }
@@ -94,7 +108,7 @@ public interface FastFourierTransform {
      * @param data the data
      * @return the padded data
      */
-    static float[] pad(float[] data, int width) {
+    static double[] pad(double[] data, int width) {
         int length = data.length;
         int height = length / width;
         if (isPowerOf2(width) && isPowerOf2(height)) {
@@ -103,7 +117,7 @@ public interface FastFourierTransform {
         int padWidth = nextPowerOf2(width);
         int padHeight = nextPowerOf2(height);
         int padLength = padWidth * padHeight;
-        float[] padded = new float[padLength];
+        double[] padded = new double[padLength];
         int xoffset = (padWidth - width) / 2;
         int yoffset = (padHeight - height) / 2;
         for (int y = 0; y < height; y++) {
@@ -125,10 +139,10 @@ public interface FastFourierTransform {
     /**
      * @return the real part of the complex numbers
      */
-    float[] real();
+    double[] real();
 
     /**
      * @return the imaginary part of the complex numbers
      */
-    float[] imaginary();
+    double[] imaginary();
 }

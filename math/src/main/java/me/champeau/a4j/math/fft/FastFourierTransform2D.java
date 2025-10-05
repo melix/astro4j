@@ -17,14 +17,21 @@ package me.champeau.a4j.math.fft;
 
 class FastFourierTransform2D implements FastFourierTransform {
 
-    private final float[] real;
-    private final float[] imaginary;
+    private final double[] real;
+    private final double[] imaginary;
     private final int width;
     private final int height;
 
-    FastFourierTransform2D(float[] real, int width, int height) {
+    FastFourierTransform2D(double[] real, int width, int height) {
         this.real = real;
-        this.imaginary = new float[real.length];
+        this.imaginary = new double[real.length];
+        this.width = width;
+        this.height = height;
+    }
+
+    FastFourierTransform2D(double[] real, double[] imaginary, int width, int height) {
+        this.real = real;
+        this.imaginary = imaginary;
         this.width = width;
         this.height = height;
     }
@@ -42,18 +49,18 @@ class FastFourierTransform2D implements FastFourierTransform {
     }
 
     @Override
-    public float[] real() {
+    public double[] real() {
         return real;
     }
 
     @Override
-    public float[] imaginary() {
+    public double[] imaginary() {
         return imaginary;
     }
 
     void transformColumns() {
-        var r = new float[height];
-        var i = new float[height];
+        var r = new double[height];
+        var i = new double[height];
         for (int x = 0; x < width; x++) {
             for (int y = 0; y < height; y++) {
                 int offset = y * width + x;
@@ -70,8 +77,8 @@ class FastFourierTransform2D implements FastFourierTransform {
     }
 
     void inverseColumns() {
-        float[] r = new float[height];
-        float[] i = new float[height];
+        double[] r = new double[height];
+        double[] i = new double[height];
         for (int x = 0; x < width; x++) {
             for (int y = 0; y < height; y++) {
                 int offset = y * width + x;
@@ -88,8 +95,8 @@ class FastFourierTransform2D implements FastFourierTransform {
     }
 
     void transformRows() {
-        float[] r = new float[width];
-        float[] i = new float[width];
+        double[] r = new double[width];
+        double[] i = new double[width];
         for (int y = 0; y < height; y++) {
             int offset = y * width;
             System.arraycopy(real, offset, r, 0, width);
@@ -101,8 +108,8 @@ class FastFourierTransform2D implements FastFourierTransform {
     }
 
     void inverseRows() {
-        float[] r = new float[width];
-        float[] i = new float[width];
+        double[] r = new double[width];
+        double[] i = new double[width];
         for (int y = 0; y < height; y++) {
             int offset = y * width;
             System.arraycopy(real, offset, r, 0, width);

@@ -10,6 +10,7 @@
 ## What's New in Version 4.1.3
 
 - Improved banding correction
+- Improved stacking/dedistortion algorithm
 
 ## What's New in Version 4.1.2
 

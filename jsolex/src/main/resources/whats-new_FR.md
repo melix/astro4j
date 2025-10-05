@@ -10,6 +10,7 @@
 ## Nouveautés de la version 4.1.3
 
 - Amélioration de la correction des bandes
+- Amélioration de l'algorithme d'alignement/empilement
 
 ## Nouveautés de la version 4.1.2
 

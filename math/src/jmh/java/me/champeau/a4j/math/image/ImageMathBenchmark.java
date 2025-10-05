@@ -44,7 +44,7 @@ public class ImageMathBenchmark {
 
         @Setup
         public void setup() {
-            float[] data = new float[width * height];
+            float[][] data = new float[height][width];
             image = new Image(width, height, data);
         }
     }

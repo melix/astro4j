@@ -15,11 +15,6 @@
  */
 package me.champeau.a4j.jsolex.processing.expr.stacking;
 
-import org.apache.commons.math3.analysis.interpolation.BicubicInterpolatingFunction;
-import org.apache.commons.math3.analysis.interpolation.BicubicInterpolator;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -28,15 +23,39 @@ import java.nio.channels.Channels;
 
 /**
  * Represents a distorsion map, which is a map of deltas in the x and y axis.
- * The map is created using a grid of samples, and then interpolated using bicubic interpolation.
+ * The map is created using a grid of samples, and then interpolated using local bicubic interpolation.
  */
 public class DistorsionMap {
-    private static final Logger LOGGER = LoggerFactory.getLogger(DistorsionMap.class);
+    private static final int LUT_SIZE = 256;
+    private static final double[] CUBIC_WEIGHT_LUT = precomputeCubicWeights();
 
     private final int step;
     private final int tileSize;
     private final double[][][] dxy;
-    private BicubicInterpolatingFunction dxModel, dyModel;
+
+    private static double[] precomputeCubicWeights() {
+        var lut = new double[LUT_SIZE * 4];
+        for (var i = 0; i < LUT_SIZE; i++) {
+            var t = i / (double) (LUT_SIZE - 1);
+            for (var offset = 0; offset < 4; offset++) {
+                var distance = Math.abs(t - (offset - 1));
+                lut[i * 4 + offset] = cubicWeightDirect(distance);
+            }
+        }
+        return lut;
+    }
+
+    private static double cubicWeightDirect(double t) {
+        var a = -0.5;
+        var absT = Math.abs(t);
+        if (absT <= 1.0) {
+            return (a + 2.0) * absT * absT * absT - (a + 3.0) * absT * absT + 1.0;
+        } else if (absT < 2.0) {
+            return a * absT * absT * absT - 5.0 * a * absT * absT + 8.0 * a * absT - 4.0 * a;
+        } else {
+            return 0.0;
+        }
+    }
 
     public DistorsionMap(int width, int height, int tileSize, int step) {
         this.step = step;
@@ -53,9 +72,6 @@ public class DistorsionMap {
     }
 
     public void recordDistorsion(int x, int y, double dx, double dy) {
-        if (dxModel != null || dyModel != null) {
-            throw new IllegalStateException("Cannot record distorsion after interpolators have been computed");
-        }
         var offset = tileSize / 2;
         var sampleX = (x - offset) / step;
         var sampleY = (y - offset) / step;
@@ -64,68 +80,56 @@ public class DistorsionMap {
     }
 
     public void computeInterpolators() {
-        dxModel = interpolate(0);
-        dyModel = interpolate(1);
-        if (LOGGER.isDebugEnabled()) {
-            double sum = 0;
-            double count = 0;
-            for (int yy = 0; yy < dxy.length; yy++) {
-                for (int xx = 0; xx < dxy[yy].length; xx++) {
-                    var dx = dxy[yy][xx][1];
-                    var dy = dxy[yy][xx][1];
-                    var estimateX = dxModel.value(yy, xx);
-                    var estimateY = dyModel.value(yy, xx);
-                    if (Double.isFinite(estimateX) && Double.isFinite(estimateY)) {
-                        sum += Math.pow(estimateX - dx, 2) + Math.pow(estimateY - dy, 2);
-                        count++;
-                    }
-                }
-            }
-            LOGGER.debug("Error: {}", Math.sqrt(sum / count));
-        }
-    }
-
-    private BicubicInterpolatingFunction interpolate(int idx) {
-        var interpolator = new BicubicInterpolator();
-
-        // Original grid dimensions
-        int gridXSize = dxy[0].length;
-        int gridYSize = dxy.length;
-
-        // Extended grid to include all angles
-        double[] xGrid = new double[gridXSize];
-        double[] yGrid = new double[gridYSize];
-        double[][] values = new double[gridYSize][gridXSize];
-
-        // Populate xGrid and yGrid
-        for (int i = 0; i < gridXSize; i++) {
-            xGrid[i] = i;
-        }
-        for (int j = 0; j < gridYSize; j++) {
-            yGrid[j] = j;
-        }
-
-        // Fill values grid, handling inner and boundary points
-        for (int y = 0; y < gridYSize; y++) {
-            for (int x = 0; x < gridXSize; x++) {
-                values[y][x] = dxy[y][x][idx];
-            }
-        }
-
-        // Build and return the spline interpolator
-        return interpolator.interpolate(xGrid, yGrid, values);
     }
 
     public DeltaXY findDistorsion(int x, int y) {
-        if (dxModel == null || dyModel == null) {
-            computeInterpolators();
-        }
         var ax = ((double) x) / step;
         var ay = ((double) y) / step;
-        if (dxModel.isValidPoint(ay, ax) && dyModel.isValidPoint(ay, ax)) {
-            return new DeltaXY(dxModel.value(ay, ax), dyModel.value(ay, ax));
+
+        var gridXSize = dxy[0].length;
+        var gridYSize = dxy.length;
+
+        if (ax < 0 || ax >= gridXSize - 1 || ay < 0 || ay >= gridYSize - 1) {
+            return new DeltaXY(0, 0);
         }
-        return new DeltaXY(0, 0);
+
+        var dx = bicubicInterpolate(ax, ay, 0);
+        var dy = bicubicInterpolate(ax, ay, 1);
+        return new DeltaXY(dx, dy);
+    }
+
+    private double bicubicInterpolate(double x, double y, int component) {
+        var x0 = (int) Math.floor(x);
+        var y0 = (int) Math.floor(y);
+
+        var gridXSize = dxy[0].length;
+        var gridYSize = dxy.length;
+
+        var p = new double[4][4];
+        for (var i = 0; i < 4; i++) {
+            for (var j = 0; j < 4; j++) {
+                var xi = Math.min(Math.max(x0 - 1 + j, 0), gridXSize - 1);
+                var yi = Math.min(Math.max(y0 - 1 + i, 0), gridYSize - 1);
+                p[i][j] = dxy[yi][xi][component];
+            }
+        }
+
+        var dx = x - x0;
+        var dy = y - y0;
+
+        var dxIdx = (int) (dx * (LUT_SIZE - 1));
+        var dyIdx = (int) (dy * (LUT_SIZE - 1));
+
+        var result = 0.0;
+        for (var i = 0; i < 4; i++) {
+            var wy = CUBIC_WEIGHT_LUT[dyIdx * 4 + i];
+            for (var j = 0; j < 4; j++) {
+                var wx = CUBIC_WEIGHT_LUT[dxIdx * 4 + j];
+                result += p[i][j] * wx * wy;
+            }
+        }
+
+        return result;
     }
 
     public static void saveTo(OutputStream out, DistorsionMap map) throws IOException {
