@@ -19,18 +19,18 @@ import spock.lang.Specification
 import spock.lang.Subject
 
 class FastFourierTransform2DTest extends Specification {
-    private static final float EPSILON = 0.000001f
+    private static final double EPSILON = 0.000001
     private static final int WIDTH = 16
-    private static final List<Float> DATA = [
-            0f, 2f, 2f, 2f, 1f, 1.5f, 2f, 4f, 2f, 2f, 2f, 1f, 0f, 0f, 5f, 0f,
-            0f, 1.5f, 2f, 4f, 2f, 2f, 2f, 1f, 2f, 2f, 2f, 1f, 0f, 0f, 5f, 0f,
-            0f, 2f, 2f, 2f, 1f, 1.5f, 2f, 0f, 2f, 2f, 2f, 1f, 0f, 2f, 5f, 0f,
-            1f, 1.5f, 2f, 0f, 2f, 0f, 2f, 4f, 2f, 2f, 2f, 1f, 0f, 0f, 5f, 0f
+    private static final List<Double> DATA = [
+            0d, 2d, 2d, 2d, 1d, 1.5d, 2d, 4d, 2d, 2d, 2d, 1d, 0d, 0d, 5d, 0d,
+            0d, 1.5d, 2d, 4d, 2d, 2d, 2d, 1d, 2d, 2d, 2d, 1d, 0d, 0d, 5d, 0d,
+            0d, 2d, 2d, 2d, 1d, 1.5d, 2d, 0d, 2d, 2d, 2d, 1d, 0d, 2d, 5d, 0d,
+            1d, 1.5d, 2d, 0d, 2d, 0d, 2d, 4d, 2d, 2d, 2d, 1d, 0d, 0d, 5d, 0d
     ]
-    private static final List<Float> ZERO = (0..<4*16).collect { 0f }
+    private static final List<Double> ZERO = (0..<4*16).collect { 0d }
 
-    private float[] real
-    private float[] imaginary
+    private double[] real
+    private double[] imaginary
 
     @Subject
     FastFourierTransform2D fft
@@ -65,12 +65,12 @@ class FastFourierTransform2DTest extends Specification {
         assertEquals(imaginary, ZERO)
     }
 
-    private static void assertEquals(float[] array, List<Float> expected) {
+    private static void assertEquals(double[] array, List<Double> expected) {
         if (array.length != expected.size()) {
             throw new AssertionError("Expected array to have ${expected.size()} elements but got ${array.length}")
         }
-        def elements = array as List<Float>
-        elements.eachWithIndex { float entry, int i ->
+        def elements = array as List<Double>
+        elements.eachWithIndex { double entry, int i ->
             if (Math.abs(entry - expected[i])>EPSILON) {
                 throw new AssertionError("At index $i expected ${expected[i]} but found $entry")
             }
@@ -79,8 +79,8 @@ class FastFourierTransform2DTest extends Specification {
 
     void setup() {
         int size = DATA.size()
-        real = DATA.toArray(new float[size])
-        imaginary = new float[real.length]
+        real = DATA.toArray(new double[size])
+        imaginary = new double[real.length]
         fft = new FastFourierTransform2D(real, WIDTH, (int) (real.length/WIDTH))
     }
 }

@@ -15,11 +15,6 @@
  */
 package me.champeau.a4j.math.fft;
 
-import org.apache.commons.math3.complex.Complex;
-import org.apache.commons.math3.transform.DftNormalization;
-import org.apache.commons.math3.transform.FastFourierTransformer;
-import org.apache.commons.math3.transform.TransformType;
-
 public class FFTSupport {
     private FFTSupport() {
 
@@ -33,7 +28,7 @@ public class FFTSupport {
         if (isPowerOf2(number)) {
             return number;
         }
-        int x = number;
+        var x = number;
         x = x - 1;
         x |= x >> 1;
         x |= x >> 2;
@@ -43,135 +38,306 @@ public class FFTSupport {
         return x + 1;
     }
 
-    public static Complex[][] fft2(float[][] data) {
-        int rows = data.length;
-        int cols = data[0].length;
-        var result = new Complex[rows][cols];
-        var fft = new FastFourierTransformer(DftNormalization.STANDARD);
+    public static class FFT2DResult {
+        public final double[][] real;
+        public final double[][] imaginary;
 
-        // Perform 1D FFT on rows
-        for (int i = 0; i < rows; i++) {
-            var row = new Complex[cols];
-            for (int j = 0; j < cols; j++) {
-                row[j] = new Complex(data[i][j], 0);
-            }
-            row = fft.transform(row, TransformType.FORWARD);
-            result[i] = row;
+        public FFT2DResult(double[][] real, double[][] imaginary) {
+            this.real = real;
+            this.imaginary = imaginary;
         }
 
-        // Perform 1D FFT on columns
-        for (int j = 0; j < cols; j++) {
-            var column = new Complex[rows];
-            for (int i = 0; i < rows; i++) {
-                column[i] = result[i][j];
-            }
-            column = fft.transform(column, TransformType.FORWARD);
-            for (int i = 0; i < rows; i++) {
-                result[i][j] = column[i];
+        public void zeroFrequencies(int rowStart, int rowEnd, int colStart, int colEnd) {
+            for (var y = rowStart; y < rowEnd; y++) {
+                for (var x = colStart; x < colEnd; x++) {
+                    real[y][x] = 0;
+                    imaginary[y][x] = 0;
+                }
             }
         }
-
-        return result;
     }
 
-    public static Complex[][] fft2(double[][] data) {
-        int rows = data.length;
-        int cols = data[0].length;
-        var result = new Complex[rows][cols];
-        var fft = new FastFourierTransformer(DftNormalization.STANDARD);
+    public static class FloatFFT2DResult {
+        public final float[][] real;
+        public final float[][] imaginary;
 
-        // Perform 1D FFT on rows
-        for (int i = 0; i < rows; i++) {
-            var row = new Complex[cols];
-            for (int j = 0; j < cols; j++) {
-                row[j] = new Complex(data[i][j], 0);
-            }
-            row = fft.transform(row, TransformType.FORWARD);
-            result[i] = row;
+        public FloatFFT2DResult(float[][] real, float[][] imaginary) {
+            this.real = real;
+            this.imaginary = imaginary;
         }
 
-        // Perform 1D FFT on columns
-        for (int j = 0; j < cols; j++) {
-            var column = new Complex[rows];
-            for (int i = 0; i < rows; i++) {
-                column[i] = result[i][j];
-            }
-            column = fft.transform(column, TransformType.FORWARD);
-            for (int i = 0; i < rows; i++) {
-                result[i][j] = column[i];
+        public void zeroFrequencies(int rowStart, int rowEnd, int colStart, int colEnd) {
+            for (var y = rowStart; y < rowEnd; y++) {
+                for (var x = colStart; x < colEnd; x++) {
+                    real[y][x] = 0;
+                    imaginary[y][x] = 0;
+                }
             }
         }
-
-        return result;
     }
 
-    public static Complex[][] ifft2(Complex[][] data) {
-        int rows = data.length;
-        int cols = data[0].length;
-        var result = new Complex[rows][cols];
-        var fft = new FastFourierTransformer(DftNormalization.STANDARD);
+    public static FFT2DResult fft2(float[][] data) {
+        var rows = data.length;
+        var cols = data[0].length;
 
-        // Perform 1D IFFT on rows
-        for (int i = 0; i < rows; i++) {
-            var row = data[i];
-            row = fft.transform(row, TransformType.INVERSE);
-            result[i] = row;
-        }
-
-        // Perform 1D IFFT on columns
-        for (int j = 0; j < cols; j++) {
-            var column = new Complex[rows];
-            for (int i = 0; i < rows; i++) {
-                column[i] = result[i][j];
-            }
-            column = fft.transform(column, TransformType.INVERSE);
-            for (int i = 0; i < rows; i++) {
-                result[i][j] = column[i];
+        var flatReal = new double[rows * cols];
+        for (var i = 0; i < rows; i++) {
+            for (var j = 0; j < cols; j++) {
+                flatReal[i * cols + j] = data[i][j];
             }
         }
 
-        return result;
+        var fft = FastFourierTransform.ofArray2D(flatReal, cols, rows);
+        fft.transform();
+
+        var realFlat = fft.real();
+        var imagFlat = fft.imaginary();
+
+        var real2D = new double[rows][cols];
+        var imag2D = new double[rows][cols];
+        for (var i = 0; i < rows; i++) {
+            for (var j = 0; j < cols; j++) {
+                var idx = i * cols + j;
+                real2D[i][j] = realFlat[idx];
+                imag2D[i][j] = imagFlat[idx];
+            }
+        }
+
+        return new FFT2DResult(real2D, imag2D);
     }
 
-    /*
-     * Compute the cross-correlation (inverse FFT of the product of the reference and defined FFT)
-     */
-    public static Complex[][] crossCorrelation(Complex[][] fftRef, Complex[][] fftDef) {
-        int rows = fftRef.length;
-        int cols = fftRef[0].length;
-        var result = new Complex[rows][cols];
+    public static FFT2DResult fft2(double[][] data) {
+        var rows = data.length;
+        var cols = data[0].length;
 
-        for (int i = 0; i < rows; i++) {
-            for (int j = 0; j < cols; j++) {
-                result[i][j] = fftRef[i][j].multiply(fftDef[i][j].conjugate());
+        var flatReal = new double[rows * cols];
+        for (var i = 0; i < rows; i++) {
+            System.arraycopy(data[i], 0, flatReal, i * cols, cols);
+        }
+
+        var fft = FastFourierTransform.ofArray2D(flatReal, cols, rows);
+        fft.transform();
+
+        var realFlat = fft.real();
+        var imagFlat = fft.imaginary();
+
+        var real2D = new double[rows][cols];
+        var imag2D = new double[rows][cols];
+        for (var i = 0; i < rows; i++) {
+            for (var j = 0; j < cols; j++) {
+                var idx = i * cols + j;
+                real2D[i][j] = realFlat[idx];
+                imag2D[i][j] = imagFlat[idx];
             }
         }
 
-        return ifft2(result);
+        return new FFT2DResult(real2D, imag2D);
+    }
+
+    public static FFT2DResult ifft2(FFT2DResult frequencyDomain) {
+        var rows = frequencyDomain.real.length;
+        var cols = frequencyDomain.real[0].length;
+
+        var flatReal = new double[rows * cols];
+        var flatImag = new double[rows * cols];
+        for (var i = 0; i < rows; i++) {
+            for (var j = 0; j < cols; j++) {
+                var idx = i * cols + j;
+                flatReal[idx] = frequencyDomain.real[i][j];
+                flatImag[idx] = frequencyDomain.imaginary[i][j];
+            }
+        }
+
+        var fft = new FastFourierTransform2D(flatReal, flatImag, cols, rows);
+        fft.inverseTransform();
+
+        var realFlat = fft.real();
+        var imagFlat = fft.imaginary();
+
+        var real2D = new double[rows][cols];
+        var imag2D = new double[rows][cols];
+        for (var i = 0; i < rows; i++) {
+            for (var j = 0; j < cols; j++) {
+                var idx = i * cols + j;
+                real2D[i][j] = realFlat[idx];
+                imag2D[i][j] = imagFlat[idx];
+            }
+        }
+
+        return new FFT2DResult(real2D, imag2D);
+    }
+
+    public static FFT2DResult crossCorrelation(FFT2DResult fftRef, FFT2DResult fftDef) {
+        var rows = fftRef.real.length;
+        var cols = fftRef.real[0].length;
+
+        var flatReal = new double[rows * cols];
+        var flatImag = new double[rows * cols];
+
+        for (var i = 0; i < rows; i++) {
+            for (var j = 0; j < cols; j++) {
+                var idx = i * cols + j;
+                var refR = fftRef.real[i][j];
+                var refI = fftRef.imaginary[i][j];
+                var defR = fftDef.real[i][j];
+                var defI = fftDef.imaginary[i][j];
+
+                // Complex multiply: ref * conj(def) = (refR + i*refI) * (defR - i*defI)
+                flatReal[idx] = refR * defR + refI * defI;
+                flatImag[idx] = refI * defR - refR * defI;
+            }
+        }
+
+        var fft = new FastFourierTransform2D(flatReal, flatImag, cols, rows);
+        fft.inverseTransform();
+
+        var realFlat = fft.real();
+        var imagFlat = fft.imaginary();
+
+        var real2D = new double[rows][cols];
+        var imag2D = new double[rows][cols];
+        for (var i = 0; i < rows; i++) {
+            for (var j = 0; j < cols; j++) {
+                var idx = i * cols + j;
+                real2D[i][j] = realFlat[idx];
+                imag2D[i][j] = imagFlat[idx];
+            }
+        }
+
+        return new FFT2DResult(real2D, imag2D);
     }
 
     public static double[][] pad(double[][] data, int width, int height) {
-        int paddedWidth = nextPowerOf2(width);
-        int paddedHeight = nextPowerOf2(height);
+        var paddedWidth = nextPowerOf2(width);
+        var paddedHeight = nextPowerOf2(height);
 
         var paddedData = new double[paddedHeight][paddedWidth];
-        for (int y = 0; y < height; y++) {
+        for (var y = 0; y < height; y++) {
             System.arraycopy(data[y], 0, paddedData[y], 0, width);
         }
         return paddedData;
     }
 
     public static double[][] padFromFloatArray(float[][] data, int width, int height) {
-        int paddedWidth = nextPowerOf2(width);
-        int paddedHeight = nextPowerOf2(height);
+        var paddedWidth = nextPowerOf2(width);
+        var paddedHeight = nextPowerOf2(height);
 
         var paddedData = new double[paddedHeight][paddedWidth];
-        for (int y = 0; y < height; y++) {
-            for (int x = 0; x < width; x++) {
+        for (var y = 0; y < height; y++) {
+            for (var x = 0; x < width; x++) {
                 paddedData[y][x] = data[y][x];
             }
         }
         return paddedData;
+    }
+
+    public static float[][] padFloatArray(float[][] data, int width, int height) {
+        var paddedWidth = nextPowerOf2(width);
+        var paddedHeight = nextPowerOf2(height);
+
+        var paddedData = new float[paddedHeight][paddedWidth];
+        for (var y = 0; y < height; y++) {
+            System.arraycopy(data[y], 0, paddedData[y], 0, width);
+        }
+        return paddedData;
+    }
+
+    public static FloatFFT2DResult fft2Float(float[][] data) {
+        var rows = data.length;
+        var cols = data[0].length;
+
+        var realRows = new float[rows][cols];
+        var imagRows = new float[rows][cols];
+        for (var i = 0; i < rows; i++) {
+            System.arraycopy(data[i], 0, realRows[i], 0, cols);
+        }
+
+        for (var i = 0; i < rows; i++) {
+            var fft = FastFourierTransform.ofComplex(realRows[i], imagRows[i]);
+            fft.transform();
+        }
+
+        var realCols = new float[cols][rows];
+        var imagCols = new float[cols][rows];
+        for (var i = 0; i < rows; i++) {
+            for (var j = 0; j < cols; j++) {
+                realCols[j][i] = realRows[i][j];
+                imagCols[j][i] = imagRows[i][j];
+            }
+        }
+
+        for (var j = 0; j < cols; j++) {
+            var fft = FastFourierTransform.ofComplex(realCols[j], imagCols[j]);
+            fft.transform();
+        }
+
+        var real2D = new float[rows][cols];
+        var imag2D = new float[rows][cols];
+        for (var i = 0; i < rows; i++) {
+            for (var j = 0; j < cols; j++) {
+                real2D[i][j] = realCols[j][i];
+                imag2D[i][j] = imagCols[j][i];
+            }
+        }
+
+        return new FloatFFT2DResult(real2D, imag2D);
+    }
+
+    public static FloatFFT2DResult ifft2Float(FloatFFT2DResult frequencyDomain) {
+        var rows = frequencyDomain.real.length;
+        var cols = frequencyDomain.real[0].length;
+
+        var realCols = new float[cols][rows];
+        var imagCols = new float[cols][rows];
+        for (var i = 0; i < rows; i++) {
+            for (var j = 0; j < cols; j++) {
+                realCols[j][i] = frequencyDomain.real[i][j];
+                imagCols[j][i] = frequencyDomain.imaginary[i][j];
+            }
+        }
+
+        for (var j = 0; j < cols; j++) {
+            var fft = FastFourierTransform.ofComplex(realCols[j], imagCols[j]);
+            fft.inverseTransform();
+        }
+
+        var realRows = new float[rows][cols];
+        var imagRows = new float[rows][cols];
+        for (var i = 0; i < rows; i++) {
+            for (var j = 0; j < cols; j++) {
+                realRows[i][j] = realCols[j][i];
+                imagRows[i][j] = imagCols[j][i];
+            }
+        }
+
+        for (var i = 0; i < rows; i++) {
+            var fft = FastFourierTransform.ofComplex(realRows[i], imagRows[i]);
+            fft.inverseTransform();
+        }
+
+        return new FloatFFT2DResult(realRows, imagRows);
+    }
+
+    public static FloatFFT2DResult crossCorrelationFloat(FloatFFT2DResult fftRef, FloatFFT2DResult fftDef) {
+        var rows = fftRef.real.length;
+        var cols = fftRef.real[0].length;
+
+        var realResult = new float[rows][cols];
+        var imagResult = new float[rows][cols];
+
+        for (var i = 0; i < rows; i++) {
+            for (var j = 0; j < cols; j++) {
+                var refR = fftRef.real[i][j];
+                var refI = fftRef.imaginary[i][j];
+                var defR = fftDef.real[i][j];
+                var defI = fftDef.imaginary[i][j];
+
+                realResult[i][j] = refR * defR + refI * defI;
+                imagResult[i][j] = refI * defR - refR * defI;
+            }
+        }
+
+        return ifft2Float(new FloatFFT2DResult(realResult, imagResult));
     }
 
 

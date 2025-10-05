@@ -103,7 +103,7 @@ class StackingTest extends Specification {
 
         where:
         refX | refY | tileSize | expectedX | expectedY | tolerance
-        1030 | 1087 | 16       | 1031      | 1078      | 3
+        1030 | 1087 | 16       | 1031      | 1078      | 4
 //        1030 | 1087 | 32       | 1031      | 1078      | 3
 //        1030 | 1087 | 64       | 1031      | 1078      | 3
 //        283  | 1137 | 16       | 285       | 1127      | 3

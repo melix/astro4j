@@ -148,18 +148,14 @@ public class FlatCreator {
 
         // Apply low-pass filter
         int limit = (int) (paddedWidth * cutoff);
-        for (int y = 0; y < paddedHeight; y++) {
-            for (int x = limit; x < paddedWidth - limit; x++) {
-                frequencyDomain[y][x] = Complex.ZERO;
-            }
-        }
+        frequencyDomain.zeroFrequencies(0, paddedHeight, limit, paddedWidth - limit);
 
         var ifft = FFTSupport.ifft2(frequencyDomain);
 
         // Back to original size
         for (int y = 0; y < height; y++) {
             for (int x = 0; x < width; x++) {
-                averageImage[y][x] = (float) ifft[y][x].getReal();
+                averageImage[y][x] = (float) ifft.real[y][x];
             }
         }
         var totalAverage = 0d;
