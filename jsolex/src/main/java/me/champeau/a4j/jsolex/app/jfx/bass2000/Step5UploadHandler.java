@@ -74,6 +74,7 @@ class Step5UploadHandler implements StepHandler {
         void recordSuccessfulUploads();
         java.time.LocalDate getObservationDate();
         void exportFilesForUpload();
+        void closeWizard();
     }
 
     Step5UploadHandler(Step4FileNamingHandler step4Handler, ImageDataSupplier imageDataSupplier, UploadDataProvider uploadDataProvider, Scaling scaling) {
@@ -388,6 +389,8 @@ class Step5UploadHandler implements StepHandler {
                     alert.setHeaderText(message("upload.success.header"));
                     alert.setContentText(message("upload.success.message"));
                     alert.showAndWait();
+
+                    uploadDataProvider.closeWizard();
                 });
             } catch (Exception e) {
                 LOGGER.error("Failed to upload file to BASS2000", e);

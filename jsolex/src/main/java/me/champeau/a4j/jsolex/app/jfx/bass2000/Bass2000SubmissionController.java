@@ -133,6 +133,7 @@ public class Bass2000SubmissionController {
 
         this.step1Handler = new Step1AgreementHandler();
         this.step3Handler = new Step3FormDataHandler(Bass2000SubmissionController.this::findProcessParams, fileNameGenerator);
+        this.step3Handler.setValidationChangeListener(this::updateNextButtonState);
 
         this.step4Handler = new Step4FileNamingHandler(
             fileNameGenerator,
@@ -192,6 +193,11 @@ public class Bass2000SubmissionController {
                 @Override
                 public void exportFilesForUpload() {
                     Bass2000SubmissionController.this.exportBass2000ImageForUpload();
+                }
+
+                @Override
+                public void closeWizard() {
+                    Bass2000SubmissionController.this.finishWizard();
                 }
             },
                 scaling

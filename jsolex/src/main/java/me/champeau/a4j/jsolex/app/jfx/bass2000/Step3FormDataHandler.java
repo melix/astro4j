@@ -46,6 +46,7 @@ class Step3FormDataHandler implements StepHandler {
     private final ProcessParamsSupplier processParamsSupplier;
     private final FormValidator formValidator = new FormValidator();
     private final FileNameGenerator fileNameGenerator;
+    private Runnable validationChangeListener;
 
     private ChoiceBox<SpectralRay> wavelengthField;
     private TextField observerNameField;
@@ -84,6 +85,10 @@ class Step3FormDataHandler implements StepHandler {
         this.processParamsSupplier = processParamsSupplier;
         this.fileNameGenerator = fileNameGenerator;
         initializeFields();
+    }
+
+    void setValidationChangeListener(Runnable listener) {
+        this.validationChangeListener = listener;
     }
 
     private void initializeFields() {
@@ -271,6 +276,9 @@ class Step3FormDataHandler implements StepHandler {
         observerNameField.textProperty().addListener((observable, oldValue, newValue) -> {
             var isValid = formValidator.isFieldValid(observerNameField);
             formValidator.updateFieldValidationStyle(observerNameField, isValid);
+            if (validationChangeListener != null) {
+                validationChangeListener.run();
+            }
         });
         nameContainer.getChildren().addAll(nameLabel, observerNameField);
 
@@ -285,6 +293,9 @@ class Step3FormDataHandler implements StepHandler {
         observerEmailField.textProperty().addListener((observable, oldValue, newValue) -> {
             var isValid = formValidator.isFieldValid(observerEmailField);
             formValidator.updateFieldValidationStyle(observerEmailField, isValid);
+            if (validationChangeListener != null) {
+                validationChangeListener.run();
+            }
         });
         emailContainer.getChildren().addAll(emailLabel, observerEmailField);
 
@@ -306,6 +317,9 @@ class Step3FormDataHandler implements StepHandler {
             var isValid = formValidator.isFieldValid(siteLatitudeField);
             formValidator.updateFieldValidationStyle(siteLatitudeField, isValid);
             updateMapCoordinates();
+            if (validationChangeListener != null) {
+                validationChangeListener.run();
+            }
         });
         latitudeContainer.getChildren().addAll(latitudeLabel, siteLatitudeField);
 
@@ -321,6 +335,9 @@ class Step3FormDataHandler implements StepHandler {
             var isValid = formValidator.isFieldValid(siteLongitudeField);
             formValidator.updateFieldValidationStyle(siteLongitudeField, isValid);
             updateMapCoordinates();
+            if (validationChangeListener != null) {
+                validationChangeListener.run();
+            }
         });
         longitudeContainer.getChildren().addAll(longitudeLabel, siteLongitudeField);
 
@@ -447,6 +464,9 @@ class Step3FormDataHandler implements StepHandler {
                 textField.textProperty().addListener((observable, oldValue, newValue) -> {
                     var isValid = formValidator.isFieldValid(textField);
                     formValidator.updateFieldValidationStyle(textField, isValid);
+                    if (validationChangeListener != null) {
+                        validationChangeListener.run();
+                    }
                         });
             }
         }
@@ -457,6 +477,9 @@ class Step3FormDataHandler implements StepHandler {
                 checkBox.selectedProperty().addListener((observable, oldValue, newValue) -> {
                     var isValid = checkBox.isSelected();
                     formValidator.updateFieldValidationStyle(checkBox, isValid);
+                    if (validationChangeListener != null) {
+                        validationChangeListener.run();
+                    }
                         });
             }
         }
@@ -469,6 +492,9 @@ class Step3FormDataHandler implements StepHandler {
                 stringComboBox.valueProperty().addListener((observable, oldValue, newValue) -> {
                     var isValid = stringComboBox.getValue() != null;
                     formValidator.updateFieldValidationStyle(stringComboBox, isValid);
+                    if (validationChangeListener != null) {
+                        validationChangeListener.run();
+                    }
                         });
             }
         }
