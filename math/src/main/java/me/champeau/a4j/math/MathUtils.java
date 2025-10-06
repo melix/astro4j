@@ -42,33 +42,73 @@ public class MathUtils {
     }
 
     private static double quickSelect(double[] arr, int left, int right, int k) {
-        if (left == right) {
-            return arr[left];
+        while (left < right) {
+            if (right - left < 10) {
+                insertionSort(arr, left, right);
+                return arr[k];
+            }
+            var pivotIndex = partition(arr, left, right);
+            if (k <= pivotIndex) {
+                right = pivotIndex;
+            } else {
+                left = pivotIndex + 1;
+            }
         }
-        var pivotIndex = partition(arr, left, right);
-        if (k == pivotIndex) {
-            return arr[k];
-        } else if (k < pivotIndex) {
-            return quickSelect(arr, left, pivotIndex - 1, k);
-        } else {
-            return quickSelect(arr, pivotIndex + 1, right, k);
+        return arr[left];
+    }
+
+    private static void insertionSort(double[] arr, int left, int right) {
+        for (var i = left + 1; i <= right; i++) {
+            var key = arr[i];
+            var j = i - 1;
+            while (j >= left && arr[j] > key) {
+                arr[j + 1] = arr[j];
+                j--;
+            }
+            arr[j + 1] = key;
         }
     }
 
     private static int partition(double[] arr, int left, int right) {
-        var pivot = arr[right];
+        var mid = left + (right - left) / 2;
+        var pivot = medianOfThree(arr, left, mid, right);
         var i = left;
-        for (var j = left; j < right; j++) {
-            if (arr[j] <= pivot) {
+        var j = right;
+        while (i <= j) {
+            while (arr[i] < pivot) {
+                i++;
+            }
+            while (arr[j] > pivot) {
+                j--;
+            }
+            if (i <= j) {
                 var temp = arr[i];
                 arr[i] = arr[j];
                 arr[j] = temp;
                 i++;
+                j--;
             }
         }
-        var temp = arr[i];
-        arr[i] = arr[right];
-        arr[right] = temp;
-        return i;
+        return j;
+    }
+
+    private static double medianOfThree(double[] arr, int left, int mid, int right) {
+        if (arr[left] > arr[mid]) {
+            if (arr[mid] > arr[right]) {
+                return arr[mid];
+            } else if (arr[left] > arr[right]) {
+                return arr[right];
+            } else {
+                return arr[left];
+            }
+        } else {
+            if (arr[left] > arr[right]) {
+                return arr[left];
+            } else if (arr[mid] > arr[right]) {
+                return arr[right];
+            } else {
+                return arr[mid];
+            }
+        }
     }
 }

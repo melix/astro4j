@@ -102,4 +102,48 @@ class MathUtilsTest extends Specification {
         then:
         result == 3.0
     }
+
+    def "median with all identical values"() {
+        given:
+        def values = [5.0] * 1000 as double[]
+
+        when:
+        def result = MathUtils.median(values)
+
+        then:
+        result == 5.0
+    }
+
+    def "median with mostly identical values"() {
+        given:
+        def values = ([5.0] * 1000 + [1.0, 2.0, 3.0, 4.0]) as double[]
+
+        when:
+        def result = MathUtils.median(values)
+
+        then:
+        result == 5.0
+    }
+
+    def "median of random values matches traditional sort-based median"() {
+        given:
+        def random = new Random(seed)
+        def values = new double[100]
+        for (int i = 0; i < values.length; i++) {
+            values[i] = (int) (random.nextDouble() * 100.0)
+        }
+
+        when:
+        def quickSelectResult = MathUtils.median(values)
+        def sortedValues = values.clone()
+        Arrays.sort(sortedValues)
+        def medianIndex = (int) (sortedValues.length / 2)
+        def traditionalMedian = sortedValues[medianIndex]
+
+        then:
+        quickSelectResult == traditionalMedian
+
+        where:
+        seed << [42, 7, 123, 999, 2024, 84469]
+    }
 }
