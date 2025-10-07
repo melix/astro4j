@@ -135,7 +135,7 @@ public class ImageDraw extends AbstractFunctionImpl {
                     } else if (details.stop() != null) {
                         appendLine("Diaphragm " + details.stop() + "mm", sb);
                     }
-                    if (details.energyRejectionFilter() != null) {
+                    if (!isNullOrEmpty(details.energyRejectionFilter())) {
                         appendLine("ERF " + details.energyRejectionFilter(), sb);
                     }
                     appendLine(details.camera(), sb);
@@ -932,6 +932,10 @@ public class ImageDraw extends AbstractFunctionImpl {
                 }
             }
         }
+    }
+
+    private static boolean isNullOrEmpty(String value) {
+        return value == null || value.trim().isEmpty();
     }
 
     private static String emptyIfNull(String value) {
