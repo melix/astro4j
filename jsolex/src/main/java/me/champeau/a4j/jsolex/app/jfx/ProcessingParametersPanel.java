@@ -37,9 +37,10 @@ import me.champeau.a4j.jsolex.processing.util.Dispersion;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 
 public class ProcessingParametersPanel extends BaseParameterPanel {
-    
+
     private ChoiceBox<SpectralRay> wavelengthChoice;
     private TextField pixelShiftingField;
     private TextField dopplerShiftingField;
@@ -60,20 +61,23 @@ public class ProcessingParametersPanel extends BaseParameterPanel {
     private CheckBox reviewImagesAfterBatch;
     private ProcessParamsController controller;
     private boolean batchMode;
-    
+
     public ProcessingParametersPanel() {
         initializeComponents();
         setupLayout();
         getStyleClass().add("parameter-panel");
     }
-    
+
     private void initializeComponents() {
         wavelengthChoice = createChoiceBox();
         wavelengthChoice.setItems(FXCollections.observableArrayList(loadAbsorptionLines()));
         wavelengthChoice.setConverter(new StringConverter<>() {
             @Override
             public String toString(SpectralRay ray) {
-                return ray == null ? "" : ray.label();
+                if (ray == null) {
+                    return "";
+                }
+                return ray.label() + (ray.wavelength().nanos() == 0 ? "" : " - " + String.format(Locale.US, "%.2f Å", ray.wavelength().angstroms()));
             }
 
             @Override
@@ -84,28 +88,28 @@ public class ProcessingParametersPanel extends BaseParameterPanel {
                         .orElse(null);
             }
         });
-        
+
         pixelShiftingField = createTextField("0", I18N.string(JSolEx.class, "process-params", "pixel.shifting.tooltip"));
         dopplerShiftingField = createTextField("3.0", I18N.string(JSolEx.class, "process-params", "doppler.tooltip"));
         continuumShiftingField = createTextField("0", null);
-        
+
         pixelShiftAngstromLabel = new Label("");
         pixelShiftAngstromLabel.getStyleClass().add("field-description");
         pixelShiftAngstromLabel.setVisible(false);
-        
+
         dopplerShiftAngstromLabel = new Label("");
         dopplerShiftAngstromLabel.getStyleClass().add("field-description");
         dopplerShiftAngstromLabel.setVisible(false);
-        
+
         continuumShiftAngstromLabel = new Label("");
         continuumShiftAngstromLabel.getStyleClass().add("field-description");
         continuumShiftAngstromLabel.setVisible(false);
-        
+
         pixelShiftingField.textProperty().addListener((obs, oldVal, newVal) -> updateAngstromLabels());
         dopplerShiftingField.textProperty().addListener((obs, oldVal, newVal) -> updateAngstromLabels());
         continuumShiftingField.textProperty().addListener((obs, oldVal, newVal) -> updateAngstromLabels());
         wavelengthChoice.valueProperty().addListener((obs, oldVal, newVal) -> updateAngstromLabels());
-        
+
         rotationChoice = createChoiceBox();
         rotationChoice.setItems(FXCollections.observableArrayList(RotationKind.values()));
         rotationChoice.setConverter(new StringConverter<>() {
@@ -119,14 +123,14 @@ public class ProcessingParametersPanel extends BaseParameterPanel {
                 return RotationKind.valueOf(string);
             }
         });
-        
+
         horizontalMirrorCheck = new CheckBox();
         verticalMirrorCheck = new CheckBox();
         autocorrectAnglePCheck = new CheckBox();
         switchRedBlueChannelsCheck = new CheckBox();
-        
+
         reviewImagesAfterBatch = new CheckBox();
-        
+
         autocropChoice = createChoiceBox();
         autocropChoice.setItems(FXCollections.observableArrayList(AutocropMode.values()));
         autocropChoice.setConverter(new StringConverter<>() {
@@ -140,17 +144,17 @@ public class ProcessingParametersPanel extends BaseParameterPanel {
                 return AutocropMode.valueOf(string);
             }
         });
-        
+
         fixedWidthField = createTextField("1024", I18N.string(JSolEx.class, "process-params", "fixed.width.tooltip"));
         fixedWidthField.setVisible(false);
-        
+
         fixedWidthWarning = InlineGuidance.warning(
-            I18N.string(JSolEx.class, "process-params", "fixed.width.warning.title"),
-            I18N.string(JSolEx.class, "process-params", "fixed.width.warning.message")
+                I18N.string(JSolEx.class, "process-params", "fixed.width.warning.title"),
+                I18N.string(JSolEx.class, "process-params", "fixed.width.warning.message")
         );
         fixedWidthWarning.setVisible(false);
         fixedWidthWarning.setManaged(false);
-        
+
         autocropChoice.valueProperty().addListener((obs, oldVal, newVal) -> {
             boolean showFixedWidth = newVal == AutocropMode.FIXED_WIDTH;
             fixedWidthField.setVisible(showFixedWidth);
@@ -159,7 +163,7 @@ public class ProcessingParametersPanel extends BaseParameterPanel {
             fixedWidthLabel.setManaged(showFixedWidth);
             updateFixedWidthWarning();
         });
-        
+
         fixedWidthField.textProperty().addListener((obs, oldVal, newVal) -> {
             updateFixedWidthWarning();
         });
@@ -175,7 +179,7 @@ public class ProcessingParametersPanel extends BaseParameterPanel {
             fixedWidthWarning.setManaged(false);
             return;
         }
-        
+
         try {
             int fixedWidth = Integer.parseInt(fixedWidthField.getText());
             boolean showWarning = fixedWidth > sourceWidth * 1.25;
@@ -186,48 +190,48 @@ public class ProcessingParametersPanel extends BaseParameterPanel {
             fixedWidthWarning.setManaged(false);
         }
     }
-    
+
     public void setSourceWidth(Integer width) {
         this.sourceWidth = width;
         updateFixedWidthWarning();
     }
-    
+
     private void setupLayout() {
         getStyleClass().add("parameter-panel");
         setSpacing(24);
-        
+
         var spectrumSection = createSection("spectrum.configuration");
         var spectrumGrid = createGrid();
-        
+
         addGridRow(spectrumGrid, 0, I18N.string(JSolEx.class, "process-params", "wavelength"), createWavelengthBox(), "wavelength.tooltip");
         addGridRow(spectrumGrid, 1, I18N.string(JSolEx.class, "process-params", "pixel.shifting"), createFieldWithAngstromLabel(pixelShiftingField, pixelShiftAngstromLabel), "pixel.shifting.tooltip");
         addGridRow(spectrumGrid, 2, I18N.string(JSolEx.class, "process-params", "doppler.shifting"), createFieldWithAngstromLabel(dopplerShiftingField, dopplerShiftAngstromLabel), "doppler.tooltip");
         addGridRow(spectrumGrid, 3, I18N.string(JSolEx.class, "process-params", "continuum.shift"), createFieldWithAngstromLabel(continuumShiftingField, continuumShiftAngstromLabel), "continuum.shift.desc");
         addGridRow(spectrumGrid, 4, I18N.string(JSolEx.class, "process-params", "doppler.switch.red.blue.channels") + ":", switchRedBlueChannelsCheck, "doppler.switch.red.blue.channels.tooltip");
-        
+
         spectrumSection.getChildren().add(spectrumGrid);
-        
+
         var geometrySection = createSection("geometry.orientation");
         var geometryGrid = createGrid();
-        
+
         addGridRow(geometryGrid, 0, I18N.string(JSolEx.class, "process-params", "rotation"), rotationChoice, "rotation.tooltip");
         addGridRow(geometryGrid, 1, I18N.string(JSolEx.class, "process-params", "autocrop"), autocropChoice, "autocrop.tooltip");
-        
+
         fixedWidthLabel = new Label(I18N.string(JSolEx.class, "process-params", "fixed.width"));
         fixedWidthLabel.getStyleClass().add("field-label");
         fixedWidthLabel.setVisible(false);
         fixedWidthLabel.setManaged(false);
         geometryGrid.add(fixedWidthLabel, 0, 2);
         geometryGrid.add(fixedWidthField, 1, 2);
-        
+
         addGridRow(geometryGrid, 3, I18N.string(JSolEx.class, "process-params", "autocorrect.p.angle") + ":", autocorrectAnglePCheck, "autocorrect.p.angle.tooltip");
         addGridRow(geometryGrid, 4, I18N.string(JSolEx.class, "process-params", "horizontal.flip") + ":", horizontalMirrorCheck, "horizontal.mirror.tooltip");
         addGridRow(geometryGrid, 5, I18N.string(JSolEx.class, "process-params", "vertical.flip") + ":", verticalMirrorCheck, "vertical.mirror.tooltip");
-        
+
         geometrySection.getChildren().addAll(geometryGrid, fixedWidthWarning);
-        
+
         getChildren().addAll(spectrumSection, geometrySection);
-        
+
         if (batchMode) {
             var batchSection = createSection("batch.options");
             var batchGrid = createGrid();
@@ -235,32 +239,31 @@ public class ProcessingParametersPanel extends BaseParameterPanel {
             batchSection.getChildren().add(batchGrid);
             getChildren().add(batchSection);
         }
-        
+
         var resetButton = new Button(I18N.string(JSolEx.class, "process-params", "reset.to.defaults"));
         resetButton.getStyleClass().add("default-button");
         resetButton.setOnAction(ignored -> resetToDefaults());
-        
+
         var buttonContainer = new HBox();
         buttonContainer.getChildren().add(resetButton);
         getChildren().add(buttonContainer);
     }
-    
+
     private HBox createWavelengthBox() {
         var editButton = new Button("...");
         editButton.setTooltip(new Tooltip(I18N.string(JSolEx.class, "process-params", "wavelength.tooltip")));
         editButton.getStyleClass().add("default-button");
         editButton.setOnAction(ignored -> openWavelengthEditor());
-        
+
         return createChoiceBoxWithButton(wavelengthChoice, editButton);
     }
-
 
 
     private void openWavelengthEditor() {
         controller.openWavelengthEditor();
     }
-    
-    
+
+
     private void resetToDefaults() {
         pixelShiftingField.setText("0");
         dopplerShiftingField.setText("3.0");
@@ -276,34 +279,34 @@ public class ProcessingParametersPanel extends BaseParameterPanel {
             reviewImagesAfterBatch.setSelected(false);
         }
     }
-    
+
     public void loadData(ProcessParams params, boolean batchMode) {
         if (this.batchMode != batchMode) {
             this.batchMode = batchMode;
             getChildren().clear();
             setupLayout();
         }
-        
+
         var spectrum = params.spectrumParams();
         var geometry = params.geometryParams();
         var extraParams = params.extraParams();
-        
+
         pixelShiftingField.setText(String.valueOf(spectrum.pixelShift()));
         dopplerShiftingField.setText(String.valueOf(spectrum.dopplerShift()));
         continuumShiftingField.setText(String.valueOf(spectrum.continuumShift()));
         switchRedBlueChannelsCheck.setSelected(spectrum.switchRedBlueChannels());
-        
+
         rotationChoice.setValue(geometry.rotation());
         autocropChoice.setValue(geometry.autocropMode());
         fixedWidthField.setText(String.valueOf(geometry.fixedWidth().orElse(1024)));
         horizontalMirrorCheck.setSelected(geometry.isHorizontalMirror());
         verticalMirrorCheck.setSelected(geometry.isVerticalMirror());
         autocorrectAnglePCheck.setSelected(geometry.isAutocorrectAngleP());
-        
+
         if (batchMode) {
             reviewImagesAfterBatch.setSelected(extraParams.reviewImagesAfterBatch());
         }
-        
+
         var savedRay = spectrum.ray();
         if (savedRay != null && wavelengthChoice.getItems().contains(savedRay)) {
             wavelengthChoice.getSelectionModel().select(savedRay);
@@ -311,11 +314,11 @@ public class ProcessingParametersPanel extends BaseParameterPanel {
             wavelengthChoice.getSelectionModel().selectFirst();
         }
     }
-    
+
     public void setController(ProcessParamsController controller) {
         this.controller = controller;
     }
-    
+
     public void updateWavelength(SpectralRay ray) {
         wavelengthChoice.getItems().clear();
         var candidates = loadAbsorptionLines();
@@ -326,21 +329,21 @@ public class ProcessingParametersPanel extends BaseParameterPanel {
             wavelengthChoice.getSelectionModel().selectFirst();
         }
     }
-    
-    
+
+
     public SpectrumParams getSpectrumParams() {
         var selectedRay = wavelengthChoice.getValue();
         var pixelShifts = parsePixelShifts(pixelShiftingField.getText());
         var firstPixelShift = pixelShifts.isEmpty() ? 0.0 : pixelShifts.get(0);
         return new SpectrumParams(
-            selectedRay,
-            firstPixelShift,
-            parseDoubleLocaleIndependent(dopplerShiftingField.getText()),
-            parseDoubleLocaleIndependent(continuumShiftingField.getText()),
-            switchRedBlueChannelsCheck.isSelected()
+                selectedRay,
+                firstPixelShift,
+                parseDoubleLocaleIndependent(dopplerShiftingField.getText()),
+                parseDoubleLocaleIndependent(continuumShiftingField.getText()),
+                switchRedBlueChannelsCheck.isSelected()
         );
     }
-    
+
     public GeometryParams getGeometryParams() {
         var defaults = ProcessParams.loadDefaults().geometryParams();
         Integer fixedWidth = null;
@@ -352,14 +355,14 @@ public class ProcessingParametersPanel extends BaseParameterPanel {
             }
         }
         return defaults
-            .withRotation(rotationChoice.getValue())
-            .withAutocropMode(autocropChoice.getValue())
-            .withFixedWidth(fixedWidth)
-            .withHorizontalMirror(horizontalMirrorCheck.isSelected())
-            .withVerticalMirror(verticalMirrorCheck.isSelected())
-            .withAutocorrectAngleP(autocorrectAnglePCheck.isSelected());
+                .withRotation(rotationChoice.getValue())
+                .withAutocropMode(autocropChoice.getValue())
+                .withFixedWidth(fixedWidth)
+                .withHorizontalMirror(horizontalMirrorCheck.isSelected())
+                .withVerticalMirror(verticalMirrorCheck.isSelected())
+                .withAutocorrectAngleP(autocorrectAnglePCheck.isSelected());
     }
-    
+
     public boolean isValid() {
         try {
             var pixelShifts = parsePixelShifts(pixelShiftingField.getText());
@@ -379,27 +382,27 @@ public class ProcessingParametersPanel extends BaseParameterPanel {
             return false;
         }
     }
-    
+
     public boolean isReviewImagesAfterBatch() {
         return batchMode && reviewImagesAfterBatch.isSelected();
     }
-    
+
     public String getPixelShiftValue() {
         return pixelShiftingField.getText();
     }
-    
+
     public List<Double> getPixelShiftValues() {
         return parsePixelShifts(pixelShiftingField.getText());
     }
-    
+
     private List<Double> parsePixelShifts(String input) {
         if (input == null || input.trim().isEmpty()) {
             return List.of(0.0);
         }
-        
+
         var shifts = new ArrayList<Double>();
         var parts = input.split(";");
-        
+
         for (var part : parts) {
             var trimmed = part.trim();
             if (!trimmed.isEmpty()) {
@@ -410,10 +413,10 @@ public class ProcessingParametersPanel extends BaseParameterPanel {
                 }
             }
         }
-        
+
         return shifts.isEmpty() ? List.of(0.0) : shifts;
     }
-    
+
     private static double parseDoubleLocaleIndependent(String value) throws NumberFormatException {
         // Replace comma with dot to handle different decimal separators
         // Double.parseDouble always uses US locale (dot as decimal separator)
@@ -428,24 +431,24 @@ public class ProcessingParametersPanel extends BaseParameterPanel {
     public String getDopplerShiftValue() {
         return dopplerShiftingField.getText();
     }
-    
+
     public void setPixelShiftValue(String value) {
         pixelShiftingField.setText(value);
     }
-    
+
     private HBox createFieldWithAngstromLabel(TextField field, Label angstromLabel) {
         var container = new HBox(8);
         var fieldContainer = new HBox();
         fieldContainer.getChildren().add(field);
-        
+
         var labelContainer = new HBox();
         labelContainer.getChildren().add(angstromLabel);
         labelContainer.setAlignment(javafx.geometry.Pos.CENTER_LEFT);
-        
+
         container.getChildren().addAll(fieldContainer, labelContainer);
         return container;
     }
-    
+
     private void updateAngstromLabels() {
         try {
             var dispersion = computeCurrentDispersion();
@@ -467,7 +470,7 @@ public class ProcessingParametersPanel extends BaseParameterPanel {
                 } catch (NumberFormatException ignored) {
                     pixelShiftAngstromLabel.setVisible(false);
                 }
-                
+
                 // Update doppler shift label
                 try {
                     double dopplerShift = parseDoubleLocaleIndependent(dopplerShiftingField.getText());
@@ -477,7 +480,7 @@ public class ProcessingParametersPanel extends BaseParameterPanel {
                 } catch (NumberFormatException ignored) {
                     dopplerShiftAngstromLabel.setVisible(false);
                 }
-                
+
                 // Update continuum shift label
                 try {
                     double continuumShift = parseDoubleLocaleIndependent(continuumShiftingField.getText());
@@ -498,37 +501,37 @@ public class ProcessingParametersPanel extends BaseParameterPanel {
             continuumShiftAngstromLabel.setVisible(false);
         }
     }
-    
+
     private Dispersion computeCurrentDispersion() {
         if (controller == null) {
             return null;
         }
-        
+
         try {
             var obsDetails = controller.getObservationDetails();
             if (obsDetails == null || obsDetails.instrument() == null || obsDetails.pixelSize() == null) {
                 return null;
             }
-            
+
             var selectedRay = wavelengthChoice.getValue();
             if (selectedRay == null) {
                 return null;
             }
-            
+
             var lambda0 = selectedRay.wavelength();
             var pixelSize = obsDetails.pixelSize();
             var binning = obsDetails.binning() != null ? obsDetails.binning() : 1;
-            
+
             if (pixelSize == null) {
                 return null;
             }
-            
+
             return SpectrumAnalyzer.computeSpectralDispersion(obsDetails.instrument(), lambda0, pixelSize * binning);
         } catch (Exception e) {
             return null;
         }
     }
-    
+
     public void onObservationDetailsChanged() {
         updateAngstromLabels();
     }
