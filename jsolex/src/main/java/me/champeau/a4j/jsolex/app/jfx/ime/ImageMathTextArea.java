@@ -67,6 +67,11 @@ import org.fxmisc.richtext.model.StyleSpansBuilder;
 import javafx.scene.layout.HBox;
 import javafx.scene.control.Button;
 import javafx.geometry.Insets;
+import javafx.scene.control.TextField;
+import javafx.scene.control.CheckBox;
+import javafx.geometry.Pos;
+import javafx.scene.layout.Priority;
+import javafx.scene.layout.Region;
 
 import java.nio.file.Path;
 import java.time.Duration;
@@ -97,6 +102,25 @@ public class ImageMathTextArea extends BorderPane {
     private Path includesDir;
     private final Set<FoldedRegion> foldedRegions = new HashSet<>();
     private boolean autoFoldMetaBlocks = false;
+
+    private HBox searchBar;
+    private TextField searchField;
+    private TextField replaceField;
+    private CheckBox caseSensitiveCheckBox;
+    private CheckBox wholeWordCheckBox;
+    private CheckBox regexCheckBox;
+    private int currentSearchIndex = -1;
+    private List<SearchMatch> searchMatches = new ArrayList<>();
+
+    private static class SearchMatch {
+        final int start;
+        final int end;
+
+        SearchMatch(int start, int end) {
+            this.start = start;
+            this.end = end;
+        }
+    }
 
     private static class FoldedRegion {
         final int startParagraph;
@@ -135,12 +159,17 @@ public class ImageMathTextArea extends BorderPane {
                 foldedRegions.removeIf(region -> region.endParagraph >= codeArea.getParagraphs().size());
                 codeArea.setParagraphGraphicFactory(this::createParagraphGraphic);
             });
+            if (!searchBar.isVisible()) {
+                clearSearchHighlights();
+            }
         });
 
         setCenter(codeArea);
+        setupSearchBar();
         setupContextMenu();
         setupCompletion();
         setupHoverTooltip();
+        setupKeyboardShortcuts();
     }
 
     public void setIncludesDir(Path includesDir) {
@@ -532,37 +561,6 @@ public class ImageMathTextArea extends BorderPane {
             if (event.getCode() == KeyCode.ESCAPE) {
                 event.consume();
                 completionPopup.hide();
-            }
-        });
-        codeArea.setOnKeyPressed(event -> {
-            if (event.getCode() == KeyCode.SPACE && event.isControlDown()) {
-                showCompletion();
-                event.consume();
-            } else if (completionPopup.isShowing()) {
-                if (event.getCode() == KeyCode.ENTER) {
-                    if (!completionPopup.getItems().isEmpty()) {
-                        var firstItem = completionPopup.getItems().getFirst();
-                        if (firstItem instanceof CustomMenuItem customItem) {
-                            customItem.fire();
-                            event.consume();
-                        }
-                    }
-                }
-            } else if (event.getCode() == KeyCode.TAB) {
-                var completions = completionProvider != null ?
-                        completionProvider.getCompletions(codeArea.getText(), codeArea.getCaretPosition()) :
-                        List.<CompletionItem>of();
-
-                if (!completions.isEmpty()) {
-                    var context = CompletionContext.analyze(codeArea.getText(), codeArea.getCaretPosition(), includesDir);
-                    var partial = context.getPartialToken();
-
-                    // Auto-complete if there's a partial match
-                    if (!partial.isEmpty() && partial.length() > 1) {
-                        insertCompletion(completions.getFirst());
-                        event.consume();
-                    }
-                }
             }
         });
     }
@@ -1096,16 +1094,20 @@ public class ImageMathTextArea extends BorderPane {
         var braceCount = 0;
 
         for (var i = 0; i <= braceIndex; i++) {
-            if (line.charAt(i) == '{') braceCount++;
-            else if (line.charAt(i) == '}') braceCount--;
+            if (line.charAt(i) == '{') {
+                braceCount++;
+            } else if (line.charAt(i) == '}') {
+                braceCount--;
+            }
         }
 
         for (var i = paragraphIndex; i < lines.length; i++) {
             var currentLine = i == paragraphIndex ? line.substring(braceIndex + 1) : lines[i];
 
             for (var c : currentLine.toCharArray()) {
-                if (c == '{') braceCount++;
-                else if (c == '}') {
+                if (c == '{') {
+                    braceCount++;
+                } else if (c == '}') {
                     braceCount--;
                     if (braceCount == 0) {
                         if (i > paragraphIndex) {
@@ -1118,6 +1120,307 @@ public class ImageMathTextArea extends BorderPane {
         }
 
         return null;
+    }
+
+    private void setupSearchBar() {
+        searchBar = new HBox(8);
+        searchBar.setPadding(new Insets(8));
+        searchBar.setAlignment(Pos.CENTER_LEFT);
+        searchBar.setStyle("-fx-background-color: #3c3f41; -fx-border-color: #555555; -fx-border-width: 0 0 1 0;");
+
+        var searchLabel = new Label(I18N.string(JSolEx.class, "imagemath-editor", "find"));
+        searchLabel.setStyle("-fx-text-fill: white;");
+        searchLabel.setMinWidth(Region.USE_PREF_SIZE);
+
+        searchField = new TextField();
+        searchField.setPrefWidth(150);
+        searchField.setMaxWidth(150);
+        searchField.setPromptText(I18N.string(JSolEx.class, "imagemath-editor", "find.prompt"));
+        searchField.textProperty().addListener((obs, oldVal, newVal) -> performSearch());
+        searchField.setOnAction(e -> findNext());
+
+        var findNextButton = new Button("▼");
+        findNextButton.setTooltip(new javafx.scene.control.Tooltip(I18N.string(JSolEx.class, "imagemath-editor", "find.next")));
+        findNextButton.setOnAction(e -> findNext());
+        findNextButton.setMinWidth(Region.USE_PREF_SIZE);
+
+        var findPrevButton = new Button("▲");
+        findPrevButton.setTooltip(new javafx.scene.control.Tooltip(I18N.string(JSolEx.class, "imagemath-editor", "find.previous")));
+        findPrevButton.setOnAction(e -> findPrevious());
+        findPrevButton.setMinWidth(Region.USE_PREF_SIZE);
+
+        var replaceLabel = new Label(I18N.string(JSolEx.class, "imagemath-editor", "replace"));
+        replaceLabel.setStyle("-fx-text-fill: white;");
+        replaceLabel.setMinWidth(Region.USE_PREF_SIZE);
+
+        replaceField = new TextField();
+        replaceField.setPrefWidth(150);
+        replaceField.setMaxWidth(150);
+        replaceField.setPromptText(I18N.string(JSolEx.class, "imagemath-editor", "replace.prompt"));
+
+        var replaceButton = new Button(I18N.string(JSolEx.class, "imagemath-editor", "replace"));
+        replaceButton.setOnAction(e -> replaceCurrent());
+        replaceButton.setMinWidth(Region.USE_PREF_SIZE);
+
+        var replaceAllButton = new Button(I18N.string(JSolEx.class, "imagemath-editor", "replace.all"));
+        replaceAllButton.setOnAction(e -> replaceAll());
+        replaceAllButton.setMinWidth(Region.USE_PREF_SIZE);
+
+        caseSensitiveCheckBox = new CheckBox(I18N.string(JSolEx.class, "imagemath-editor", "case.sensitive"));
+        caseSensitiveCheckBox.setStyle("-fx-text-fill: white;");
+        caseSensitiveCheckBox.selectedProperty().addListener((obs, oldVal, newVal) -> performSearch());
+        caseSensitiveCheckBox.setMinWidth(Region.USE_PREF_SIZE);
+
+        wholeWordCheckBox = new CheckBox(I18N.string(JSolEx.class, "imagemath-editor", "whole.word"));
+        wholeWordCheckBox.setStyle("-fx-text-fill: white;");
+        wholeWordCheckBox.selectedProperty().addListener((obs, oldVal, newVal) -> performSearch());
+        wholeWordCheckBox.setMinWidth(Region.USE_PREF_SIZE);
+
+        regexCheckBox = new CheckBox(I18N.string(JSolEx.class, "imagemath-editor", "regex"));
+        regexCheckBox.setStyle("-fx-text-fill: white;");
+        regexCheckBox.selectedProperty().addListener((obs, oldVal, newVal) -> performSearch());
+        regexCheckBox.setMinWidth(Region.USE_PREF_SIZE);
+
+        var closeButton = new Button("×");
+        closeButton.setStyle("-fx-font-size: 18px; -fx-padding: 0 8;");
+        closeButton.setOnAction(e -> hideSearchBar());
+        closeButton.setMinWidth(Region.USE_PREF_SIZE);
+
+        var spacer = new Region();
+        HBox.setHgrow(spacer, Priority.ALWAYS);
+
+        searchBar.getChildren().addAll(
+            searchLabel, searchField, findPrevButton, findNextButton,
+            replaceLabel, replaceField, replaceButton, replaceAllButton,
+            caseSensitiveCheckBox, wholeWordCheckBox, regexCheckBox,
+            spacer, closeButton
+        );
+
+        searchBar.setVisible(false);
+        searchBar.setManaged(false);
+    }
+
+    private void setupKeyboardShortcuts() {
+        codeArea.setOnKeyPressed(event -> {
+            if (event.getCode() == KeyCode.F && event.isControlDown()) {
+                if (searchBar.isVisible()) {
+                    hideSearchBar();
+                } else {
+                    showSearchBar(false);
+                }
+                event.consume();
+            } else if (event.getCode() == KeyCode.H && event.isControlDown()) {
+                if (searchBar.isVisible()) {
+                    hideSearchBar();
+                } else {
+                    showSearchBar(true);
+                }
+                event.consume();
+            } else if (event.getCode() == KeyCode.ESCAPE && searchBar.isVisible()) {
+                hideSearchBar();
+                event.consume();
+            } else if (event.getCode() == KeyCode.F3) {
+                if (event.isShiftDown()) {
+                    findPrevious();
+                } else {
+                    findNext();
+                }
+                event.consume();
+            } else if (event.getCode() == KeyCode.SPACE && event.isControlDown()) {
+                showCompletion();
+                event.consume();
+            } else if (completionPopup.isShowing()) {
+                if (event.getCode() == KeyCode.ENTER) {
+                    if (!completionPopup.getItems().isEmpty()) {
+                        var firstItem = completionPopup.getItems().getFirst();
+                        if (firstItem instanceof CustomMenuItem customItem) {
+                            customItem.fire();
+                            event.consume();
+                        }
+                    }
+                }
+            } else if (event.getCode() == KeyCode.TAB) {
+                var completions = completionProvider != null ?
+                        completionProvider.getCompletions(codeArea.getText(), codeArea.getCaretPosition()) :
+                        List.<CompletionItem>of();
+
+                if (!completions.isEmpty()) {
+                    var context = CompletionContext.analyze(codeArea.getText(), codeArea.getCaretPosition(), includesDir);
+                    var partial = context.getPartialToken();
+
+                    if (!partial.isEmpty() && partial.length() > 1) {
+                        insertCompletion(completions.getFirst());
+                        event.consume();
+                    }
+                }
+            }
+        });
+    }
+
+    public void showSearchBar(boolean withReplace) {
+        if (!searchBar.isVisible()) {
+            setTop(searchBar);
+            searchBar.setVisible(true);
+            searchBar.setManaged(true);
+        }
+        replaceField.setVisible(withReplace);
+        replaceField.setManaged(withReplace);
+        var replaceLabel = (Label) searchBar.getChildren().get(4);
+        replaceLabel.setVisible(withReplace);
+        replaceLabel.setManaged(withReplace);
+        var replaceButton = (Button) searchBar.getChildren().get(6);
+        replaceButton.setVisible(withReplace);
+        replaceButton.setManaged(withReplace);
+        var replaceAllButton = (Button) searchBar.getChildren().get(7);
+        replaceAllButton.setVisible(withReplace);
+        replaceAllButton.setManaged(withReplace);
+
+        searchField.requestFocus();
+        if (codeArea.getSelectedText() != null && !codeArea.getSelectedText().isEmpty()) {
+            searchField.setText(codeArea.getSelectedText());
+            searchField.selectAll();
+        }
+    }
+
+    public void hideSearchBar() {
+        searchBar.setVisible(false);
+        searchBar.setManaged(false);
+        setTop(null);
+        clearSearchHighlights();
+        requestHighlighting();
+        codeArea.requestFocus();
+    }
+
+    private void performSearch() {
+        clearSearchHighlights();
+        requestHighlighting();
+
+        var searchText = searchField.getText();
+        if (searchText == null || searchText.isEmpty()) {
+            return;
+        }
+
+        var text = codeArea.getText();
+        var caseSensitive = caseSensitiveCheckBox.isSelected();
+        var wholeWord = wholeWordCheckBox.isSelected();
+        var regex = regexCheckBox.isSelected();
+
+        if (regex) {
+            try {
+                var pattern = java.util.regex.Pattern.compile(searchText,
+                    caseSensitive ? 0 : java.util.regex.Pattern.CASE_INSENSITIVE);
+                var matcher = pattern.matcher(text);
+                while (matcher.find()) {
+                    searchMatches.add(new SearchMatch(matcher.start(), matcher.end()));
+                }
+            } catch (java.util.regex.PatternSyntaxException e) {
+                return;
+            }
+        } else {
+            var searchLower = caseSensitive ? searchText : searchText.toLowerCase();
+            var textLower = caseSensitive ? text : text.toLowerCase();
+
+            var index = 0;
+            while ((index = textLower.indexOf(searchLower, index)) != -1) {
+                if (wholeWord) {
+                    var beforeOk = index == 0 || !Character.isLetterOrDigit(text.charAt(index - 1));
+                    var afterOk = index + searchText.length() >= text.length() ||
+                                  !Character.isLetterOrDigit(text.charAt(index + searchText.length()));
+                    if (beforeOk && afterOk) {
+                        searchMatches.add(new SearchMatch(index, index + searchText.length()));
+                    }
+                } else {
+                    searchMatches.add(new SearchMatch(index, index + searchText.length()));
+                }
+                index += searchText.length();
+            }
+        }
+
+        highlightSearchMatches();
+        if (!searchMatches.isEmpty()) {
+            currentSearchIndex = 0;
+            selectSearchMatch(0);
+        }
+    }
+
+    private void findNext() {
+        if (searchMatches.isEmpty()) {
+            performSearch();
+            return;
+        }
+        currentSearchIndex = (currentSearchIndex + 1) % searchMatches.size();
+        selectSearchMatch(currentSearchIndex);
+    }
+
+    private void findPrevious() {
+        if (searchMatches.isEmpty()) {
+            performSearch();
+            return;
+        }
+        currentSearchIndex = currentSearchIndex - 1;
+        if (currentSearchIndex < 0) {
+            currentSearchIndex = searchMatches.size() - 1;
+        }
+        selectSearchMatch(currentSearchIndex);
+    }
+
+    private void selectSearchMatch(int index) {
+        if (index < 0 || index >= searchMatches.size()) {
+            return;
+        }
+        var match = searchMatches.get(index);
+        codeArea.selectRange(match.start, match.end);
+        codeArea.requestFollowCaret();
+    }
+
+    private void highlightSearchMatches() {
+        if (!searchBar.isVisible()) {
+            return;
+        }
+        for (var match : searchMatches) {
+            codeArea.setStyle(match.start, match.end, List.of("search-highlight"));
+        }
+    }
+
+    private void clearSearchHighlights() {
+        searchMatches.clear();
+        currentSearchIndex = -1;
+    }
+
+    private void replaceCurrent() {
+        if (currentSearchIndex < 0 || currentSearchIndex >= searchMatches.size()) {
+            return;
+        }
+        var match = searchMatches.get(currentSearchIndex);
+        var replaceText = replaceField.getText();
+        if (replaceText == null) {
+            replaceText = "";
+        }
+
+        codeArea.replaceText(match.start, match.end, replaceText);
+        performSearch();
+
+        if (!searchMatches.isEmpty() && currentSearchIndex < searchMatches.size()) {
+            selectSearchMatch(currentSearchIndex);
+        }
+    }
+
+    private void replaceAll() {
+        if (searchMatches.isEmpty()) {
+            return;
+        }
+
+        var replaceText = replaceField.getText();
+        if (replaceText == null) {
+            replaceText = "";
+        }
+
+        for (var i = searchMatches.size() - 1; i >= 0; i--) {
+            var match = searchMatches.get(i);
+            codeArea.replaceText(match.start, match.end, replaceText);
+        }
+
+        performSearch();
     }
 
 }

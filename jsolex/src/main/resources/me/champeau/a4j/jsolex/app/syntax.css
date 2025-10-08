@@ -86,3 +86,8 @@
     -fx-pref-height: 0;
     -fx-min-height: 0;
 }
+
+.search-highlight {
+    -fx-fill: black;
+    -rtfx-background-color: yellow;
+}
