@@ -15,11 +15,17 @@
  */
 package me.champeau.a4j.jsolex.processing.expr.stacking;
 
+import me.champeau.a4j.math.fft.FFTSupport;
+
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.nio.ByteBuffer;
 import java.nio.channels.Channels;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantLock;
 
 /**
  * Represents a distorsion map, which is a map of deltas in the x and y axis.
@@ -32,6 +38,10 @@ public class DistorsionMap {
     private final int step;
     private final int tileSize;
     private final double[][][] dxy;
+    private double totalDistorsion = -1;
+    private final Lock cacheLock = new ReentrantLock();
+    private double[][] cachedTileErrors;
+    private int estimatedTurbulenceScale = -1;
 
     private static double[] precomputeCubicWeights() {
         var lut = new double[LUT_SIZE * 4];
@@ -77,9 +87,6 @@ public class DistorsionMap {
         var sampleY = (y - offset) / step;
         dxy[sampleY][sampleX][0] = dx;
         dxy[sampleY][sampleX][1] = dy;
-    }
-
-    public void computeInterpolators() {
     }
 
     public DeltaXY findDistorsion(int x, int y) {
@@ -130,6 +137,176 @@ public class DistorsionMap {
         }
 
         return result;
+    }
+
+    public double error() {
+        return totalDistorsion() / (dxy.length * dxy[0].length);
+    }
+
+    public double totalDistorsion() {
+        if (totalDistorsion < 0) {
+            totalDistorsion = computeTotalDistorsion();
+        }
+        return totalDistorsion;
+    }
+
+    private double computeTotalDistorsion() {
+        double total = 0.0;
+        for (var row : dxy) {
+            for (var delta : row) {
+                total += Math.hypot(delta[0], delta[1]);
+            }
+        }
+        return total;
+    }
+
+    private void ensureTileErrorsComputed(int tileSize) {
+        if (cachedTileErrors != null) {
+            return;
+        }
+
+        cacheLock.lock();
+        try {
+            if (cachedTileErrors != null) {
+                return;
+            }
+
+            var tilesX = (dxy[0].length * step + tileSize - 1) / tileSize;
+            var tilesY = (dxy.length * step + tileSize - 1) / tileSize;
+            cachedTileErrors = new double[tilesY][tilesX];
+
+            for (var ty = 0; ty < tilesY; ty++) {
+                for (var tx = 0; tx < tilesX; tx++) {
+                    var startX = tx * tileSize;
+                    var startY = ty * tileSize;
+                    var endX = Math.min(startX + tileSize, dxy[0].length * step);
+                    var endY = Math.min(startY + tileSize, dxy.length * step);
+
+                    var sampleStartX = startX / step;
+                    var sampleEndX = (endX + step - 1) / step;
+                    var sampleStartY = startY / step;
+                    var sampleEndY = (endY + step - 1) / step;
+
+                    var sum = 0.0;
+                    var count = 0;
+                    for (var sy = sampleStartY; sy < sampleEndY && sy < dxy.length; sy++) {
+                        for (var sx = sampleStartX; sx < sampleEndX && sx < dxy[0].length; sx++) {
+                            sum += Math.hypot(dxy[sy][sx][0], dxy[sy][sx][1]);
+                            count++;
+                        }
+                    }
+                    cachedTileErrors[ty][tx] = count > 0 ? sum / count : 0;
+                }
+            }
+        } finally {
+            cacheLock.unlock();
+        }
+    }
+
+    public static int estimateTurbulenceScale(List<DistorsionMap> distortionMaps) {
+        var allMagnitudes = new ArrayList<double[][]>();
+        var step = distortionMaps.getFirst().step;
+
+        for (var map : distortionMaps) {
+            var gridHeight = map.dxy.length;
+            var gridWidth = map.dxy[0].length;
+            var magnitudes = new double[gridHeight][gridWidth];
+            for (var y = 0; y < gridHeight; y++) {
+                for (var x = 0; x < gridWidth; x++) {
+                    magnitudes[y][x] = Math.hypot(map.dxy[y][x][0], map.dxy[y][x][1]);
+                }
+            }
+            allMagnitudes.add(magnitudes);
+        }
+
+        var gridHeight = allMagnitudes.getFirst().length;
+        var gridWidth = allMagnitudes.getFirst()[0].length;
+        var avgMagnitudes = new double[gridHeight][gridWidth];
+        for (var magnitudes : allMagnitudes) {
+            for (var y = 0; y < gridHeight; y++) {
+                for (var x = 0; x < gridWidth; x++) {
+                    avgMagnitudes[y][x] += magnitudes[y][x];
+                }
+            }
+        }
+        for (var y = 0; y < gridHeight; y++) {
+            for (var x = 0; x < gridWidth; x++) {
+                avgMagnitudes[y][x] /= allMagnitudes.size();
+            }
+        }
+
+        var paddedMagnitudes = FFTSupport.pad(avgMagnitudes, gridWidth, gridHeight);
+        var fft = FFTSupport.fft2(paddedMagnitudes);
+
+        var powerSpectrum = new double[fft.real.length][fft.real[0].length];
+        for (var y = 0; y < fft.real.length; y++) {
+            for (var x = 0; x < fft.real[0].length; x++) {
+                powerSpectrum[y][x] = fft.real[y][x] * fft.real[y][x] + fft.imaginary[y][x] * fft.imaginary[y][x];
+            }
+        }
+
+        var centerY = powerSpectrum.length / 2;
+        var centerX = powerSpectrum[0].length / 2;
+        powerSpectrum[centerY][centerX] = 0;
+
+        var maxPower = 0.0;
+        var maxFreqY = 0;
+        var maxFreqX = 0;
+
+        var searchRadius = Math.min(centerY, centerX) / 2;
+        for (var dy = -searchRadius; dy <= searchRadius; dy++) {
+            for (var dx = -searchRadius; dx <= searchRadius; dx++) {
+                if (dx == 0 && dy == 0) {
+                    continue;
+                }
+                var y = centerY + dy;
+                var x = centerX + dx;
+                if (y >= 0 && y < powerSpectrum.length && x >= 0 && x < powerSpectrum[0].length) {
+                    if (powerSpectrum[y][x] > maxPower) {
+                        maxPower = powerSpectrum[y][x];
+                        maxFreqY = dy;
+                        maxFreqX = dx;
+                    }
+                }
+            }
+        }
+
+        var dominantFrequency = Math.hypot(maxFreqX, maxFreqY);
+        if (dominantFrequency > 0) {
+            var wavelengthInSamples = powerSpectrum[0].length / dominantFrequency;
+            var wavelengthInPixels = wavelengthInSamples * step;
+            return (int) Math.max(32, Math.min(256, wavelengthInPixels));
+        } else {
+            return 64;
+        }
+    }
+
+    public double interpolateTileError(int x, int y, int tileSize) {
+        ensureTileErrorsComputed(tileSize);
+
+        var tx = (double) x / tileSize;
+        var ty = (double) y / tileSize;
+
+        var tx0 = (int) Math.floor(tx);
+        var ty0 = (int) Math.floor(ty);
+        var tx1 = Math.min(tx0 + 1, cachedTileErrors[0].length - 1);
+        var ty1 = Math.min(ty0 + 1, cachedTileErrors.length - 1);
+
+        tx0 = Math.max(0, Math.min(tx0, cachedTileErrors[0].length - 1));
+        ty0 = Math.max(0, Math.min(ty0, cachedTileErrors.length - 1));
+
+        var dx = tx - tx0;
+        var dy = ty - ty0;
+
+        var e00 = cachedTileErrors[ty0][tx0];
+        var e10 = cachedTileErrors[ty0][tx1];
+        var e01 = cachedTileErrors[ty1][tx0];
+        var e11 = cachedTileErrors[ty1][tx1];
+
+        var e0 = e00 * (1 - dx) + e10 * dx;
+        var e1 = e01 * (1 - dx) + e11 * dx;
+
+        return e0 * (1 - dy) + e1 * dy;
     }
 
     public static void saveTo(OutputStream out, DistorsionMap map) throws IOException {

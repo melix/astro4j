@@ -31,6 +31,7 @@ import me.champeau.a4j.jsolex.processing.expr.impl.MosaicComposition;
 import me.champeau.a4j.jsolex.processing.expr.impl.Scaling;
 import me.champeau.a4j.jsolex.processing.expr.impl.SimpleFunctionCall;
 import me.champeau.a4j.jsolex.processing.expr.impl.Stacking;
+import me.champeau.a4j.jsolex.processing.expr.impl.Utilities;
 import me.champeau.a4j.jsolex.processing.file.FileNamingStrategy;
 import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
 import me.champeau.a4j.jsolex.processing.util.Constants;
@@ -70,7 +71,7 @@ public class StackingWorkflow {
         this.ellipseFit = new EllipseFit(context, broadcaster);
         this.geometryCorrector = new GeometryCorrection(context, broadcaster, ellipseFit);
         this.scaling = new Scaling(context, broadcaster, crop);
-        this.stacking = new Stacking(context, scaling, crop, new SimpleFunctionCall(context, broadcaster), new ImageDraw(context, broadcaster), broadcaster);
+        this.stacking = new Stacking(context, scaling, crop, new SimpleFunctionCall(context, broadcaster), new ImageDraw(context, broadcaster), new Utilities(context, broadcaster), broadcaster);
         this.mosaicComposition = new MosaicComposition(context, broadcaster, stacking, ellipseFit, scaling);
     }
 

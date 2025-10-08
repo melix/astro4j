@@ -166,9 +166,9 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
         this.scaling = new Scaling(context, broadcaster, crop);
         this.simpleFunctionCall = new SimpleFunctionCall(context, broadcaster);
         this.stretching = new Stretching(context, broadcaster);
-        this.stacking = new Stacking(context, scaling, crop, simpleFunctionCall, imageDraw, broadcaster);
-        this.mosaicComposition = new MosaicComposition(context, broadcaster, stacking, ellipseFit, scaling);
         this.utilities = new Utilities(context, broadcaster);
+        this.stacking = new Stacking(context, scaling, crop, simpleFunctionCall, imageDraw, utilities, broadcaster);
+        this.mosaicComposition = new MosaicComposition(context, broadcaster, stacking, ellipseFit, scaling);
     }
 
     public <T> void putInContext(Class<T> key, T value) {
@@ -358,6 +358,7 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
             case FIND_SHIFT -> pixelShiftFor(arguments);
             case STACK -> stacking.stack(arguments);
             case STACK_REF -> stacking.chooseReference(arguments);
+            case STACK_DEDIS -> stacking.stackDedistorted(arguments);
             case SORT -> utilities.sort(arguments);
             case TRANSITION -> animate.transition(arguments);
             case UNSHARP_MASK -> convolution.unsharpMask(arguments);

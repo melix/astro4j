@@ -1,0 +1,27 @@
+name: STACK_DEDIS
+category: STACKING
+description:
+  fr: "Empile des images dé-déformées en appliquant un poids sur chaque image. Le poids est calculé en fonction de l'erreur de dé-distortion : les images nécessitant une forte correction de distorsion auront un poids plus faible."
+  en: "Stacks de-distorted images by applying a weight to each image. The weight is calculated based on the de-distortion error: images requiring strong distortion correction will have a lower weight."
+arguments:
+  - name: images
+    description:
+      fr: "Images à empiler."
+      en: "Images to be stacked."
+  - name: best
+    optional: true
+    default: 1
+    description:
+      fr: "Fraction des meilleures images à empiler."
+      en: "Fraction of the best images to be stacked."
+  - name: local
+    optional: true
+    default: 0
+    description:
+      fr: "Active une analyse locale des distorsions (1=activé, 0=désactivé). Si activé, les images à prendre en compte et leur poids sont calculés pixel par pixel en fonction de l'erreur de distorsion locale. Cette méthode peut donner de meilleurs résultats, mais ils ne sont pas garantis. Il peut être judicieux de ne pas conserver 100% des images pour cette méthode."
+      en: "Enables local distortion analysis (1=enabled, 0=disabled). If enabled, the images to be considered and their weight are calculated pixel by pixel based on the local distortion error. This method can yield better results, but they are not guaranteed. It may be wise not to keep 100% of the images for this method."
+examples:
+  - "stack_dedis(some_images)"
+  - "stack_dedis(images: some_images)"
+  - "stack_dedis(images: some_images, local: 1)"
+
