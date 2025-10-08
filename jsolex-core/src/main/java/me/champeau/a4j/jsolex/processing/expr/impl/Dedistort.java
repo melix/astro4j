@@ -189,15 +189,6 @@ public class Dedistort extends AbstractFunctionImpl {
         return new FFTSupport.FloatFFT2DResult(shiftedReal, shiftedImag);
     }
 
-    // Parabola fitting for sub-pixel accuracy correction
-    public static double fitParabola1D(double v0, double v1, double v2) {
-        var denom = 2 * (2 * v1 - v0 - v2);
-        if (denom == 0) {
-            return 0;
-        }
-        return (v0 - v2) / denom;
-    }
-
     static double linearInterpolation(double v0, double v1, double t) {
         return (v0 + t * (v1 - v0));
     }
@@ -337,7 +328,6 @@ public class Dedistort extends AbstractFunctionImpl {
                                            DistorsionMap distorsionMap,
                                            int height,
                                            int width) {
-        distorsionMap.computeInterpolators();
         var metadata = MutableMap.<Class<?>, Object>of();
         metadata.putAll(image.metadata());
         var currentY = new AtomicInteger();

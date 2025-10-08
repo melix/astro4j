@@ -54,14 +54,17 @@ public class Stacking extends AbstractFunctionImpl {
 
     private static final String STACKING_MESSAGE = message("stacking");
     private static final String FIND_CORRESP_MESSAGE = message("finding.correspondances");
+    private static final double DECAY_RATE = -2.0;
     public static final int DEFAULT_TILE_SIZE = 32;
     public static final float DEFAULT_SAMPLING = .5f;
+    public static final double DEFAULT_SELECTION_RATIO = 1;
 
     private final ImageMath imageMath = ImageMath.newInstance();
     private final Scaling scaling;
     private final Crop crop;
     private final SimpleFunctionCall simpleFunctionCall;
     private final ImageDraw imageDraw;
+    private final Utilities utilities;
     private final Broadcaster broadcaster;
 
     public Stacking(Map<Class<?>, Object> context,
@@ -69,12 +72,14 @@ public class Stacking extends AbstractFunctionImpl {
                     Crop crop,
                     SimpleFunctionCall simpleFunctionCall,
                     ImageDraw imageDraw,
+                    Utilities utilities,
                     Broadcaster broadcaster) {
         super(context, broadcaster);
         this.scaling = scaling;
         this.crop = crop;
         this.simpleFunctionCall = simpleFunctionCall;
         this.imageDraw = imageDraw;
+        this.utilities = utilities;
         this.broadcaster = broadcaster;
     }
 
@@ -106,10 +111,250 @@ public class Stacking extends AbstractFunctionImpl {
         return computeReferenceImageAndAdjustWeights(images, bestSourceInfo, referenceSelection, new double[images.size()]);
     }
 
+    public Object stackDedistorted(Map<String, Object> arguments) {
+        BuiltinFunction.STACK_DEDIS.validateArgs(arguments);
+        var arg = arguments.get("images");
+        if (arg instanceof List<?> list) {
+            if (list.size() == 1) {
+                return list.getFirst();
+            }
+            var images = list.stream()
+                    .parallel()
+                    .filter(ImageWrapper.class::isInstance)
+                    .map(img -> {
+                        if (img instanceof FileBackedImage fbi) {
+                            return fbi.unwrapToMemory();
+                        }
+                        return img;
+                    })
+                    .filter(ImageWrapper32.class::isInstance)
+                    .map(ImageWrapper32.class::cast)
+                    .toList();
+            if (images.size() == 1) {
+                return images.getFirst();
+            } else if (images.isEmpty()) {
+                return List.of();
+            }
+            var ratio = Math.clamp(doubleArg(arguments, "best", DEFAULT_SELECTION_RATIO), 0, 1);
+            var useLocalWeights = intArg(arguments, "local", 0) != 0;
+            var imagesWithError = images.stream()
+                    .filter(img -> img.findMetadata(DistorsionMap.class).isPresent())
+                    .map(img -> {
+                        var distMap = img.findMetadata(DistorsionMap.class).get();
+                        return new ImageWithError(distMap.error(), img, distMap);
+                    })
+                    .toList();
+            if (imagesWithError.size() != images.size()) {
+                throw new IllegalArgumentException("All images must have a DistorsionMap metadata");
+            }
+
+            if (useLocalWeights) {
+                return stackDedistortedWithLocalWeights(imagesWithError, ratio);
+            } else {
+                var maxError = imagesWithError.stream().mapToDouble(ImageWithError::error).max().orElse(1);
+                var imagesWithWeight = imagesWithError.stream()
+                        .map(i -> new Object() {
+                            private final double weight = Math.exp(DECAY_RATE * i.error / maxError);
+                            private final ImageWrapper32 image = i.image;
+                        })
+                        .sorted(Comparator.comparingDouble(i -> -i.weight))
+                        .limit((int) Math.ceil(ratio * imagesWithError.size()))
+                        .toList();
+                return utilities.weightedAverage(Map.of(
+                        "images", imagesWithWeight.stream().map(i -> i.image).toList(),
+                        "weights", imagesWithWeight.stream().mapToDouble(i -> i.weight).boxed().toList()
+                ));
+            }
+        } else {
+            throw new IllegalArgumentException("stack_dedis first argument must be a list of images");
+        }
+    }
+
+    private ImageWrapper32 stackDedistortedWithLocalWeights(List<ImageWithError> imagesWithError, double ratio) {
+        var first = imagesWithError.getFirst();
+        var width = first.image().width();
+        var height = first.image().height();
+
+        var distortionMaps = imagesWithError.stream()
+                .map(ImageWithError::distorsionMap)
+                .toList();
+        var tileSize = DistorsionMap.estimateTurbulenceScale(distortionMaps);
+
+        var sharpnessMaps = imagesWithError.stream()
+                .map(img -> computeSharpnessMap(img.image().data(), width, height, tileSize))
+                .toList();
+
+        var maxImagesToKeep = (int) Math.ceil(ratio * imagesWithError.size());
+        var result = new float[height][width];
+        var currentY = new AtomicInteger();
+        var progressOperation = newOperation().createChild(STACKING_MESSAGE);
+
+        IntStream.range(0, height)
+                .parallel()
+                .forEach(y -> {
+                    var progress = currentY.incrementAndGet() / (double) height;
+                    broadcaster.broadcast(progressOperation.update(progress));
+                    var line = result[y];
+                    for (int x = 0; x < width; x++) {
+                        double sum = 0;
+                        double weightSum = 0;
+                        double localMaxError = 0;
+                        double maxSharpness = 0;
+                        var localErrors = new double[imagesWithError.size()];
+                        var localSharpness = new double[imagesWithError.size()];
+                        for (int i = 0; i < imagesWithError.size(); i++) {
+                            var img = imagesWithError.get(i);
+                            var localError = img.distorsionMap().interpolateTileError(x, y, tileSize);
+                            localErrors[i] = localError;
+                            localMaxError = Math.max(localMaxError, localError);
+                            var sharpness = sharpnessMaps.get(i)[y][x];
+                            localSharpness[i] = sharpness;
+                            maxSharpness = Math.max(maxSharpness, sharpness);
+                        }
+
+                        if (localMaxError > 0 && maxSharpness > 0) {
+                            var weightsAndIndices = new double[imagesWithError.size()][2];
+                            for (int i = 0; i < imagesWithError.size(); i++) {
+                                var errorWeight = Math.exp(DECAY_RATE * localErrors[i] / localMaxError);
+                                var sharpnessWeight = localSharpness[i] / maxSharpness;
+                                weightsAndIndices[i][0] = errorWeight * sharpnessWeight;
+                                weightsAndIndices[i][1] = i;
+                            }
+                            Arrays.sort(weightsAndIndices, (a, b) -> Double.compare(b[0], a[0]));
+
+                            for (int i = 0; i < maxImagesToKeep; i++) {
+                                var weight = weightsAndIndices[i][0];
+                                var idx = (int) weightsAndIndices[i][1];
+                                sum += weight * imagesWithError.get(idx).image().data()[y][x];
+                                weightSum += weight;
+                            }
+                        } else {
+                            for (int i = 0; i < maxImagesToKeep; i++) {
+                                sum += imagesWithError.get(i).image().data()[y][x];
+                                weightSum += 1;
+                            }
+                        }
+                        if (weightSum > 0) {
+                            line[x] = (float) (sum / weightSum);
+                        }
+                    }
+                });
+        broadcaster.broadcast(progressOperation.complete());
+
+        var metadata = MutableMap.<Class<?>, Object>of();
+        for (var img : imagesWithError) {
+            metadata.putAll(img.image().metadata());
+        }
+        return new ImageWrapper32(width, height, result, metadata);
+    }
+
+    private static float[][] computeSharpnessMap(float[][] data, int width, int height, int tileSize) {
+        var stride = tileSize / 2;
+        var gridWidth = (width + stride - 1) / stride + 1;
+        var gridHeight = (height + stride - 1) / stride + 1;
+        var sparseGrid = new double[gridHeight][gridWidth];
+
+        for (int gy = 0; gy < gridHeight; gy++) {
+            for (int gx = 0; gx < gridWidth; gx++) {
+                var tx = gx * stride;
+                var ty = gy * stride;
+                sparseGrid[gy][gx] = computeLocalSharpness(data, tx, ty, tileSize, width, height);
+            }
+        }
+
+        var sharpnessMap = new float[height][width];
+        for (int y = 0; y < height; y++) {
+            for (int x = 0; x < width; x++) {
+                var gx = (double) x / stride;
+                var gy = (double) y / stride;
+                var gx0 = (int) Math.floor(gx);
+                var gy0 = (int) Math.floor(gy);
+                var gx1 = Math.min(gx0 + 1, gridWidth - 1);
+                var gy1 = Math.min(gy0 + 1, gridHeight - 1);
+
+                var fx = gx - gx0;
+                var fy = gy - gy0;
+
+                var v00 = sparseGrid[gy0][gx0];
+                var v10 = sparseGrid[gy0][gx1];
+                var v01 = sparseGrid[gy1][gx0];
+                var v11 = sparseGrid[gy1][gx1];
+
+                var v0 = v00 + fx * (v10 - v00);
+                var v1 = v01 + fx * (v11 - v01);
+                sharpnessMap[y][x] = (float) (v0 + fy * (v1 - v0));
+            }
+        }
+        return sharpnessMap;
+    }
+
+    private static double computeLocalSharpness(float[][] data, int cx, int cy, int tileSize, int width, int height) {
+        var halfTile = tileSize / 2;
+        var x0 = Math.max(0, cx - halfTile);
+        var x1 = Math.min(width - 1, cx + halfTile);
+        var y0 = Math.max(0, cy - halfTile);
+        var y1 = Math.min(height - 1, cy + halfTile);
+
+        var tileWidth = x1 - x0 + 1;
+        var tileHeight = y1 - y0 + 1;
+        if (tileWidth < 4 || tileHeight < 4 || !FFTSupport.isPowerOf2(tileWidth) || !FFTSupport.isPowerOf2(tileHeight)) {
+            return computeGradientSharpness(data, x0, x1, y0, y1);
+        }
+
+        var tile = new float[tileHeight][tileWidth];
+        for (int y = 0; y < tileHeight; y++) {
+            System.arraycopy(data[y0 + y], x0, tile[y], 0, tileWidth);
+        }
+
+        var fftResult = FFTSupport.fft2Float(tile);
+        double highFreqEnergy = 0;
+        double totalEnergy = 0;
+        var cutoff = Math.min(tileWidth, tileHeight) / 4;
+
+        for (int y = 0; y < tileHeight; y++) {
+            for (int x = 0; x < tileWidth; x++) {
+                var real = fftResult.real[y][x];
+                var imag = fftResult.imaginary[y][x];
+                var energy = real * real + imag * imag;
+                totalEnergy += energy;
+                var freqDist = Math.sqrt((x - tileWidth / 2.0) * (x - tileWidth / 2.0) + (y - tileHeight / 2.0) * (y - tileHeight / 2.0));
+                if (freqDist > cutoff) {
+                    highFreqEnergy += energy;
+                }
+            }
+        }
+
+        if (totalEnergy < 1e-10) {
+            return 0;
+        }
+        return highFreqEnergy / totalEnergy;
+    }
+
+    private static double computeGradientSharpness(float[][] data, int x0, int x1, int y0, int y1) {
+        double gradientSum = 0;
+        double intensitySum = 0;
+        int count = 0;
+
+        for (int y = Math.max(1, y0); y <= Math.min(y1, data.length - 2); y++) {
+            for (int x = Math.max(1, x0); x <= Math.min(x1, data[0].length - 2); x++) {
+                var dx = data[y][x + 1] - data[y][x - 1];
+                var dy = data[y + 1][x] - data[y - 1][x];
+                gradientSum += dx * dx + dy * dy;
+                intensitySum += data[y][x] * data[y][x];
+                count++;
+            }
+        }
+
+        if (intensitySum < 1e-10 || count == 0) {
+            return 0;
+        }
+        return gradientSum / (intensitySum * count);
+    }
+
     /**
      * Chooses or generates a reference image from a list of images, based on the given reference selection.
      */
-    public Object chooseReference(Map<String ,Object> arguments) {
+    public Object chooseReference(Map<String, Object> arguments) {
         BuiltinFunction.STACK_REF.validateArgs(arguments);
         var arg = arguments.get("images");
         if (arg instanceof List<?> list) {
@@ -152,7 +397,7 @@ public class Stacking extends AbstractFunctionImpl {
     /**
      * Stacks a list of images, using a given tile size and sampling ratio.
      */
-    public Object stack(Map<String ,Object> arguments) {
+    public Object stack(Map<String, Object> arguments) {
         BuiltinFunction.STACK.validateArgs(arguments);
         var arg = arguments.get("images");
         if (arg instanceof List<?> list) {
@@ -254,7 +499,6 @@ public class Stacking extends AbstractFunctionImpl {
             Arrays.stream(distorsions).parallel().forEach(distorsionMap -> {
                 var progress = progressCounter.getAndIncrement() / (double) imageCount;
                 broadcaster.broadcast(progressOperation.update(progress));
-                distorsionMap.computeInterpolators();
             });
             broadcaster.broadcast(progressOperation.complete());
             return null;
@@ -470,6 +714,9 @@ public class Stacking extends AbstractFunctionImpl {
     }
 
     public record Tiles(float[][] referenceTile, float[][] dataTile, boolean isRelevant) {
+    }
+
+    private record ImageWithError(double error, ImageWrapper32 image, DistorsionMap distorsionMap) {
     }
 
     public enum ReferenceSelection {

@@ -11,6 +11,7 @@
 
 - Improved banding correction
 - Improved stacking/dedistortion algorithm
+- Added `STACK_DEDIS` function to stack using distortion as weight
 
 ## What's New in Version 4.1.2
 

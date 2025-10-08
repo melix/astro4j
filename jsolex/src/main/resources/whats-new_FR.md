@@ -11,6 +11,7 @@
 
 - Amélioration de la correction des bandes
 - Amélioration de l'algorithme d'alignement/empilement
+- Ajout de la fonction `STACK_DEDIS` pour empiler en prenant en compte la distorsion comme poids
 
 ## Nouveautés de la version 4.1.2
 
