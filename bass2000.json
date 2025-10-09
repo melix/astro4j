@@ -1,5 +1,5 @@
 {
-      "requiresVersion": "4.1.2",
+      "requiresVersion": "4.1.3",
       "enabled": true,
       "message": {
          "en": "BASS2000 feature is temporarily disabled and will be back with 4.1.2 release!",
