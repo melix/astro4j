@@ -154,6 +154,7 @@ class Step3FormDataHandler implements StepHandler {
     @Override
     public void load() {
         populateFormFromProcessParams();
+        formValidator.validateAllFieldsVisually();
     }
 
     @Override
@@ -163,7 +164,7 @@ class Step3FormDataHandler implements StepHandler {
 
     @Override
     public boolean validate() {
-        return formValidator.validateForm(requiredFields, requiredCheckboxes, requiredComboBoxes);
+        return formValidator.validateForm();
     }
 
     // Data extraction methods
@@ -507,6 +508,18 @@ class Step3FormDataHandler implements StepHandler {
     }
 
     private void populateFormFromProcessParams() {
+        formValidator.setRequiredFields(requiredFields, requiredCheckboxes, requiredComboBoxes);
+        formValidator.setSpecialFields(
+            siteLatitudeField, siteLongitudeField,
+            apertureField, pixelSizeField,
+            collimatorFocalLengthField, cameraLensFocalLengthField,
+            gratingDensityField, totalAngleField,
+            slitWidthField, slitHeightField,
+            orderField, observerEmailField,
+            mountNameField, cameraNameField,
+            telescopeNameField, spectrographNameField
+        );
+
         var processParams = processParamsSupplier.findProcessParams();
         var spectralRay = processParams.spectrumParams().ray();
         if (spectralRay != null) {
@@ -530,17 +543,6 @@ class Step3FormDataHandler implements StepHandler {
         }
 
         var observationDetails = processParams.observationDetails();
-
-        formValidator.setSpecialFields(
-            siteLatitudeField, siteLongitudeField,
-            apertureField, pixelSizeField,
-            collimatorFocalLengthField, cameraLensFocalLengthField,
-            gratingDensityField, totalAngleField,
-            slitWidthField, slitHeightField,
-            orderField, observerEmailField,
-            mountNameField, cameraNameField,
-            telescopeNameField, spectrographNameField
-        );
 
         if (observationDetails.aperture() != null) {
             apertureField.setText(String.valueOf(observationDetails.aperture()));

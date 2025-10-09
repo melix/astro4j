@@ -50,7 +50,17 @@ class FormValidator {
     private TextField telescopeNameField;
     private TextField spectrographNameField;
 
+    private List<TextField> requiredFields;
+    private List<CheckBox> requiredCheckboxes;
+    private List<ComboBox<String>> requiredComboBoxes;
+
     FormValidator() {
+    }
+
+    void setRequiredFields(List<TextField> requiredFields, List<CheckBox> requiredCheckboxes, List<ComboBox<String>> requiredComboBoxes) {
+        this.requiredFields = requiredFields;
+        this.requiredCheckboxes = requiredCheckboxes;
+        this.requiredComboBoxes = requiredComboBoxes;
     }
 
     void setSpecialFields(TextField siteLatitudeField, TextField siteLongitudeField,
@@ -79,7 +89,7 @@ class FormValidator {
         this.spectrographNameField = spectrographNameField;
     }
 
-    boolean validateForm(List<TextField> requiredFields, List<CheckBox> requiredCheckboxes, List<ComboBox<String>> requiredComboBoxes) {
+    boolean validateForm() {
         boolean allValid = true;
 
         for (var field : requiredFields) {
@@ -110,7 +120,7 @@ class FormValidator {
         return allValid;
     }
 
-    void validateAllFieldsVisually(List<TextField> requiredFields, List<CheckBox> requiredCheckboxes, List<ComboBox<String>> requiredComboBoxes) {
+    void validateAllFieldsVisually() {
         for (var field : requiredFields) {
             var isValid = isFieldValid(field);
             updateFieldValidationStyle(field, isValid);
