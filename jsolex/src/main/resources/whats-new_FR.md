@@ -7,6 +7,10 @@
 - [Version 4.0.1](#nouveautes-de-la-version-4-0-1) - Sélection de langue, corrections
 - [Version 4.0.0](#nouveautes-de-la-version-4-0-0) - Interface améliorée, intégration BASS2000
 
+## Nouveautés de la version 4.1.4
+
+- Clarification de l'affichage de la conversion des pixels en Angströms dans la boîte de dialogue des paramètres de traitement
+
 ## Nouveautés de la version 4.1.3
 
 - Amélioration de la correction des bandes

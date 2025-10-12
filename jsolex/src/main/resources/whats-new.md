@@ -7,6 +7,10 @@
 - [Version 4.0.1](#whats-new-in-version-4-0-1) - Language selection, bug fixes
 - [Version 4.0.0](#whats-new-in-version-4-0-0) - Enhanced UI, BASS2000 integration
 
+## What's New in Version 4.1.4
+
+- Clarify display of conversion from pixels to Angstroms in the process parameters dialog
+
 ## What's New in Version 4.1.3
 
 - Improved banding correction
