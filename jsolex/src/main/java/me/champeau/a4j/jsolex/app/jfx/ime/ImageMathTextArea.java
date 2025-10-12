@@ -706,9 +706,8 @@ public class ImageMathTextArea extends BorderPane {
             try {
                 var builtinFunction = BuiltinFunction.valueOf(functionCall.toUpperCase());
                 
-                // Create a delayed hover with 250ms delay
                 hoverDelayTimeline = new Timeline(new KeyFrame(
-                    javafx.util.Duration.millis(250),
+                    javafx.util.Duration.millis(1000),
                     e -> showHoverTooltip(event, builtinFunction)
                 ));
                 hoverDelayTimeline.play();

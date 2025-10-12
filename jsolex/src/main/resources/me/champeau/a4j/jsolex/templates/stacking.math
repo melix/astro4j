@@ -1,22 +1,88 @@
-#
-# Performs stacking of several images processed in batch mode
-#
+meta {
+    title {
+        en = "Stacking"
+        fr = "Empilement"
+    }
+    author = "Cédric Champeau"
+    params {
+        method {
+            type = "choice"
+            choices = ["sharpness", "average", "median", "manual"]
+            default = "average"
+            name {
+                en = "Best image selection method"
+                fr = "Méthode de sélection de la meilleure image"
+            }
+            description {
+                en = "Method used to select the best image as a reference for stacking"
+                fr = "Méthode utilisée pour sélectionner la meilleure image comme référence pour l'empilement"
+            }
+        }
+        gamma {
+            type = "number"
+            default = 1.5
+            min = 0.1
+            name {
+                en = "Final Contrast Gamma"
+                fr = "Gamma contraste final"
+            }
+            description {
+                en = "Gamma correction value for the final contrast adjustment"
+                fr = "Valeur de correction gamma pour l'ajustement final du contraste"
+            }
+        }
+        tileSize {
+            type = "number"
+            default = 64
+            min = 16
+            name {
+                en = "Tile Size"
+                fr = "Taille des tuiles"
+            }
+            description {
+                en = "Size of the tiles used for dedistortion. Must be a power of 2."
+                fr = "Taille des tuiles utilisées pour les calculs de déformation. Doit être une puissance de 2."
+            }
+        }
+        sampling {
+            type = "number"
+            default = 0.25
+            min = 0.125
+            max = 1.0
+            name {
+                en = "Sampling"
+                fr = "Échantillonnage"
+            }
+            description {
+                en = "Sampling factor for the local normalization and dedistortion (between 0.125 and 1.0)"
+                fr = "Facteur d'échantillonnage pour la normalisation locale et la déformation (entre 0.125 et 1.0)"
+            }
+        }
+        ratio {
+            type = "number"
+            default = 1.0
+            min = 0.1
+            name {
+                en = "Proportion of images used for stacking"
+                fr = "Proportion d'images utilisées pour l'empilement"
+            }
+            description {
+                en = "Proportion of images to keep for stacking (1 means keep all images, 0 would keep none)"
+                fr = "Proportion d'images à conserver pour l'empilement (1 signifie conserver toutes les images, 0 n'en conserverait aucune)"
+            }
+        }
+    }
+}
 
-[tmp]
+[outputs]
 denoised = avg(range(-1;1))
 
-[outputs]
-decon=rl_decon(denoised)
-
 [[batch]]
-[params]
-# contrast adjustment
-gamma=1.5
-# tile size
-tileSize=32
-# sampling
-sampling=0.25
+[tmp]
 
+ref = stack_ref(denoised; method)
+dedistorted = dedistort(ref: ref, img: denoised, ts: tileSize, sampling: sampling)
+stacked = stack_dedis(images:dedistorted, best: ratio)
 
 [outputs]
-stacked=auto_contrast(stack(decon;tileSize;sampling);gamma)
+stacked=auto_contrast(unsharp_mask(stacked; 1.5; 7);gamma)

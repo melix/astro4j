@@ -453,16 +453,19 @@ public class ProcessingParametersPanel extends BaseParameterPanel {
         try {
             var dispersion = computeCurrentDispersion();
             if (dispersion != null && !Double.isNaN(dispersion.angstromsPerPixel())) {
-                // Update pixel shift label
+                var selectedRay = wavelengthChoice.getValue();
+                var isAutodetect = selectedRay.equals(SpectralRay.AUTO);
+                var suffix = isAutodetect ? ", " + I18N.string(JSolEx.class, "process-params", "angstrom.for.halpha") : "";
+
                 try {
                     var pixelShifts = parsePixelShifts(pixelShiftingField.getText());
                     if (!pixelShifts.isEmpty()) {
                         var angstromStrings = new ArrayList<String>();
                         for (var shift : pixelShifts) {
-                            double angstroms = shift * dispersion.angstromsPerPixel();
+                            var angstroms = shift * dispersion.angstromsPerPixel();
                             angstromStrings.add(String.format("%.2f", angstroms));
                         }
-                        pixelShiftAngstromLabel.setText("(" + String.join("; ", angstromStrings) + " Å)");
+                        pixelShiftAngstromLabel.setText("(" + String.join("; ", angstromStrings) + " Å" + suffix + ")");
                         pixelShiftAngstromLabel.setVisible(true);
                     } else {
                         pixelShiftAngstromLabel.setVisible(false);
@@ -471,21 +474,19 @@ public class ProcessingParametersPanel extends BaseParameterPanel {
                     pixelShiftAngstromLabel.setVisible(false);
                 }
 
-                // Update doppler shift label
                 try {
-                    double dopplerShift = parseDoubleLocaleIndependent(dopplerShiftingField.getText());
-                    double angstroms = dopplerShift * dispersion.angstromsPerPixel();
-                    dopplerShiftAngstromLabel.setText(String.format("(%.2f Å)", angstroms));
+                    var dopplerShift = parseDoubleLocaleIndependent(dopplerShiftingField.getText());
+                    var angstroms = dopplerShift * dispersion.angstromsPerPixel();
+                    dopplerShiftAngstromLabel.setText(String.format("(%.2f Å%s)", angstroms, suffix));
                     dopplerShiftAngstromLabel.setVisible(true);
                 } catch (NumberFormatException ignored) {
                     dopplerShiftAngstromLabel.setVisible(false);
                 }
 
-                // Update continuum shift label
                 try {
-                    double continuumShift = parseDoubleLocaleIndependent(continuumShiftingField.getText());
-                    double angstroms = continuumShift * dispersion.angstromsPerPixel();
-                    continuumShiftAngstromLabel.setText(String.format("(%.2f Å)", angstroms));
+                    var continuumShift = parseDoubleLocaleIndependent(continuumShiftingField.getText());
+                    var angstroms = continuumShift * dispersion.angstromsPerPixel();
+                    continuumShiftAngstromLabel.setText(String.format("(%.2f Å%s)", angstroms, suffix));
                     continuumShiftAngstromLabel.setVisible(true);
                 } catch (NumberFormatException ignored) {
                     continuumShiftAngstromLabel.setVisible(false);
@@ -518,7 +519,7 @@ public class ProcessingParametersPanel extends BaseParameterPanel {
                 return null;
             }
 
-            var lambda0 = selectedRay.wavelength();
+            var lambda0 = selectedRay.equals(SpectralRay.AUTO) ? SpectralRay.H_ALPHA.wavelength() : selectedRay.wavelength();
             var pixelSize = obsDetails.pixelSize();
             var binning = obsDetails.binning() != null ? obsDetails.binning() : 1;
 
