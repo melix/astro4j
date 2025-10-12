@@ -200,13 +200,14 @@ public class GeometryPreviewPane extends BorderPane {
      * Inverts pixel colors outside the solar disk
      */
     private ImageWrapper32 invertColorsOutsideDisk(ImageWrapper32 image) {
-        var data = image.data();
-        var height = image.height();
-        var width = image.width();
         var ellipse = image.findMetadata(Ellipse.class).orElse(null);
         if (ellipse == null) {
             return image;
         }
+        var imageCopy = image.copy();
+        var data = imageCopy.data();
+        var height = imageCopy.height();
+        var width = imageCopy.width();
         for (int y = 0; y < height; y++) {
             for (int x = 0; x < width; x++) {
                 var originalValue = data[y][x];
@@ -216,7 +217,7 @@ public class GeometryPreviewPane extends BorderPane {
             }
         }
 
-        return image;
+        return imageCopy;
     }
 
 
