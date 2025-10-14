@@ -28,7 +28,7 @@ import me.champeau.a4j.jsolex.processing.sun.workflow.SourceInfo;
 import me.champeau.a4j.jsolex.processing.util.FileBackedImage;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
-import me.champeau.a4j.jsolex.processing.util.MutableMap;
+import me.champeau.a4j.jsolex.processing.util.MetadataMerger;
 import me.champeau.a4j.math.fft.FFTSupport;
 import me.champeau.a4j.math.image.Image;
 import me.champeau.a4j.math.image.ImageMath;
@@ -241,10 +241,7 @@ public class Stacking extends AbstractFunctionImpl {
                 });
         broadcaster.broadcast(progressOperation.complete());
 
-        var metadata = MutableMap.<Class<?>, Object>of();
-        for (var img : imagesWithError) {
-            metadata.putAll(img.image().metadata());
-        }
+        var metadata = MetadataMerger.merge(imagesWithError.stream().map(ImageWithError::image).toList());
         return new ImageWrapper32(width, height, result, metadata);
     }
 
@@ -473,7 +470,6 @@ public class Stacking extends AbstractFunctionImpl {
             distorsions[i] = new DistorsionMap(width, height, tileSize, increment);
         }
         AtomicInteger progressCounter = new AtomicInteger();
-        var metadata = MutableMap.<Class<?>, Object>of();
         var displacementResult = measure(() -> {
             var progressOperation = newOperation().createChild(FIND_CORRESP_MESSAGE);
             IntStream.iterate(0, y -> y < height, y -> y + increment)
@@ -488,9 +484,7 @@ public class Stacking extends AbstractFunctionImpl {
             broadcaster.broadcast(progressOperation.complete());
             return null;
         });
-        for (ImageWrapper32 image : sourceImages) {
-            metadata.putAll(image.metadata());
-        }
+        var metadata = MetadataMerger.merge(sourceImages);
 
         var interpolationResult = measure(() -> {
             var progressOperation = newOperation().createChild(message("interpolating.models"));

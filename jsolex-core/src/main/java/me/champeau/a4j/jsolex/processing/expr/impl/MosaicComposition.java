@@ -26,6 +26,7 @@ import me.champeau.a4j.jsolex.processing.util.DrawUtils;
 import me.champeau.a4j.jsolex.processing.util.FileBackedImage;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
+import me.champeau.a4j.jsolex.processing.util.MetadataMerger;
 import me.champeau.a4j.jsolex.processing.util.MutableMap;
 import me.champeau.a4j.jsolex.processing.util.ProcessingException;
 import me.champeau.a4j.math.Point2D;
@@ -220,10 +221,7 @@ public class MosaicComposition extends AbstractFunctionImpl {
                         }
                     }
                 }
-                var metadata = MutableMap.<Class<?>, Object>of();
-                for (var image : corrected) {
-                    metadata.putAll(image.metadata());
-                }
+                var metadata = MetadataMerger.merge(corrected);
                 var assembled = new ImageWrapper32(width, height, assembledData, metadata);
                 corrected.set(0, assembled);
                 boolean reassembled = true;

@@ -25,12 +25,11 @@ import me.champeau.a4j.jsolex.processing.sun.ImageUtils;
 import me.champeau.a4j.jsolex.processing.sun.WorkflowState;
 import me.champeau.a4j.jsolex.processing.sun.tasks.GeometryCorrector;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
-import me.champeau.a4j.jsolex.processing.util.MutableMap;
+import me.champeau.a4j.jsolex.processing.util.MetadataMerger;
 import me.champeau.a4j.jsolex.processing.util.RGBImage;
 import me.champeau.a4j.math.regression.Ellipse;
 
 import java.util.Arrays;
-import java.util.HashMap;
 import java.util.List;
 
 import static me.champeau.a4j.jsolex.processing.util.Constants.message;
@@ -60,8 +59,7 @@ public class DopplerSupport {
                 var grey2 = (ImageWrapper32) ((GeometryCorrector.Result) i2).corrected().unwrapToMemory();
                 var width = grey1.width();
                 var height = grey1.height();
-                var metadata = new HashMap<>(grey1.metadata());
-                metadata.putAll(grey2.metadata());
+                var metadata = MetadataMerger.merge(List.of(grey1, grey2));
                 processedImagesEmitter.newColorImage(GeneratedImageKind.DOPPLER,
                     null, "Doppler",
                     "doppler",
@@ -88,8 +86,7 @@ public class DopplerSupport {
                 var stretch = new ArcsinhStretchingStrategy(0, 50, 50);
                 stretch.stretch(g1);
                 stretch.stretch(g2);
-                var metadata = new HashMap<>(grey1.metadata());
-                metadata.putAll(grey2.metadata());
+                var metadata = MetadataMerger.merge(List.of(grey1, grey2));
                 processedImagesEmitter.newColorImage(GeneratedImageKind.DOPPLER_ECLIPSE,
                     null, message("doppler.eclipse"),
                     "doppler-eclipse",
@@ -129,9 +126,7 @@ public class DopplerSupport {
             }
         });
         ImageUtils.fromHSLtoRGB(hsl, rgb);
-        var metadata = MutableMap.<Class<?>, Object>of();
-        metadata.putAll(grey1.metadata());
-        metadata.putAll(grey2.metadata());
+        var metadata = MetadataMerger.merge(List.of(grey1, grey2));
         RangeExpansionStrategy.DEFAULT.stretch(new RGBImage(width, height, r, g, b, metadata));
         return rgb;
     }

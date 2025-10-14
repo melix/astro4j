@@ -23,6 +23,7 @@ import me.champeau.a4j.jsolex.processing.sun.workflow.PixelShift;
 import me.champeau.a4j.jsolex.processing.sun.workflow.SourceInfo;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
+import me.champeau.a4j.jsolex.processing.util.MetadataMerger;
 import me.champeau.a4j.jsolex.processing.util.RGBImage;
 import me.champeau.a4j.math.regression.Ellipse;
 
@@ -240,8 +241,7 @@ public class Utilities extends AbstractFunctionImpl {
         var width = firstImage.width();
         var height = firstImage.height();
         var data = new float[height][width];
-        var metadata = new HashMap<Class<?>, Object>();
-        double pixelShift = 0.0;
+        var monoImages = new java.util.ArrayList<ImageWrapper32>();
         for (Object image : images) {
             if (!(image instanceof ImageWrapper wrapper)) {
                 throw new IllegalArgumentException("weighted_average expects a list of images as first argument");
@@ -252,16 +252,7 @@ public class Utilities extends AbstractFunctionImpl {
             if (!(wrapper.unwrapToMemory() instanceof ImageWrapper32 mono)) {
                 throw new IllegalArgumentException("weighted_average only supports mono images");
             }
-            for (Map.Entry<Class<?>, Object> entry : mono.metadata().entrySet()) {
-                Class<?> metadataKey = entry.getKey();
-                Object metadataValue = entry.getValue();
-                if (!metadata.containsKey(metadataKey)) {
-                    metadata.put(metadataKey, metadataValue);
-                }
-                if (metadataKey == PixelShift.class) {
-                    pixelShift += ((PixelShift) metadataValue).pixelShift();
-                }
-            }
+            monoImages.add(mono);
             var pixels = mono.data();
             var weight = ((Number) weights.get(images.indexOf(image))).doubleValue();
             for (int y = 0; y < height; y++) {
@@ -276,7 +267,7 @@ public class Utilities extends AbstractFunctionImpl {
                 data[y][x] /= totalWeight;
             }
         }
-        metadata.put(PixelShift.class, new PixelShift(pixelShift));
+        var metadata = MetadataMerger.merge(monoImages);
         return new ImageWrapper32(width, height, data, metadata);
     }
 }

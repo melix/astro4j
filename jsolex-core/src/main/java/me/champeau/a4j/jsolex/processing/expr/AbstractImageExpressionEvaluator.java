@@ -73,6 +73,7 @@ import me.champeau.a4j.jsolex.processing.util.ImageFormat;
 import me.champeau.a4j.jsolex.processing.util.ImageSaver;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
+import me.champeau.a4j.jsolex.processing.util.MetadataMerger;
 import me.champeau.a4j.jsolex.processing.util.TemporaryFolder;
 import me.champeau.a4j.jsolex.processing.util.Wavelen;
 import me.champeau.a4j.math.image.ImageMath;
@@ -680,9 +681,7 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
                 }
             }
             normalize(result, min);
-            Map<Class<?>, Object> metadata = new LinkedHashMap<>();
-            metadata.putAll(leftImage.metadata());
-            metadata.putAll(rightImage.metadata());
+            var metadata = MetadataMerger.merge(List.of(leftImage, rightImage));
             return new ImageWrapper32(width, height, result, metadata);
         }
         if (leftImage != null && rightScalar != null) {
