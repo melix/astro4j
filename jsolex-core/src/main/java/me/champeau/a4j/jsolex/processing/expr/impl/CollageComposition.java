@@ -20,8 +20,8 @@ import me.champeau.a4j.jsolex.processing.sun.CollageParameters;
 import me.champeau.a4j.jsolex.processing.util.FileBackedImage;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
+import me.champeau.a4j.jsolex.processing.util.MetadataMerger;
 import me.champeau.a4j.jsolex.processing.util.RGBImage;
-import me.champeau.a4j.jsolex.processing.util.MutableMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -42,22 +42,28 @@ public class CollageComposition extends AbstractFunctionImpl {
 
         try {
             var layout = calculateLayout(parameters);
-            var metadata = MutableMap.<Class<?>, Object>of();
 
             var hasColorImages = false;
             var hasColorBackground = parameters.backgroundColorR() != parameters.backgroundColorG() ||
                                    parameters.backgroundColorG() != parameters.backgroundColorB();
 
-            for (var imageSelection : parameters.images()) {
-                var img = imageSelection.image();
-                if (img instanceof FileBackedImage fbi) {
-                    img = fbi.unwrapToMemory();
-                }
-                metadata.putAll(img.metadata());
+            var images = parameters.images().stream()
+                .map(imageSelection -> {
+                    var img = imageSelection.image();
+                    if (img instanceof FileBackedImage fbi) {
+                        return fbi.unwrapToMemory();
+                    }
+                    return img;
+                })
+                .toList();
+
+            for (var img : images) {
                 if (img instanceof RGBImage) {
                     hasColorImages = true;
                 }
             }
+
+            var metadata = MetadataMerger.merge(images);
 
             if (hasColorImages || hasColorBackground) {
                 var collageData = createColorCollageData(parameters, layout);

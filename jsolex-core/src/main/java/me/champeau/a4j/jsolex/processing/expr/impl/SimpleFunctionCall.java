@@ -15,24 +15,15 @@
  */
 package me.champeau.a4j.jsolex.processing.expr.impl;
 
-import me.champeau.a4j.jsolex.processing.params.ProcessParams;
 import me.champeau.a4j.jsolex.processing.stretching.CutoffStretchingStrategy;
 import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
 import me.champeau.a4j.jsolex.processing.util.FileBackedImage;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
-import me.champeau.a4j.jsolex.processing.util.SolarParameters;
-import me.champeau.a4j.jsolex.processing.util.SolarParametersUtils;
-import me.champeau.a4j.math.Point2D;
-import me.champeau.a4j.math.regression.Ellipse;
-import me.champeau.a4j.math.regression.EllipseRegression;
+import me.champeau.a4j.jsolex.processing.util.MetadataMerger;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.time.Instant;
-import java.time.ZoneId;
-import java.time.ZonedDateTime;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.OptionalDouble;
@@ -103,53 +94,9 @@ public class SimpleFunctionCall extends AbstractFunctionImpl {
                     result[y][x] = (float) operator.apply(images.stream().mapToDouble(img -> img.data()[finalY][finalX])).orElse(0);
                 }
             }
-            Map<Class<?>, Object> metadata = new HashMap<>();
-            CutoffStretchingStrategy.DEFAULT.stretch(new ImageWrapper32(width, height, result, metadata));
-            List<Point2D> ellipseSamplePoints = new ArrayList<>();
-            long avgDate = 0;
-            int cpt = 0;
-            for (ImageWrapper32 image : images) {
-                image.findMetadata(Ellipse.class).ifPresent(ellipse -> {
-                    // add sample points to the list in order to compute an "average" ellipse for all images
-                    for (double theta = 0; theta < 2 * Math.PI; theta += Math.PI / 4) {
-                        ellipseSamplePoints.add(ellipse.toCartesian(theta));
-                    }
-                });
-                var processParamsOptional = image.findMetadata(ProcessParams.class);
-                if (processParamsOptional.isPresent()) {
-                    var pp = processParamsOptional.get();
-                    double date = pp.observationDetails().date().toEpochSecond();
-                    avgDate = (long) (avgDate + (date - avgDate) / (++cpt));
-                    metadata.put(ProcessParams.class, pp.withObservationDetails(
-                        pp.observationDetails().withDate(
-                            ZonedDateTime.ofInstant(Instant.ofEpochSecond(avgDate), ZoneId.of("UTC"))
-                        )
-                    ));
-                }
-            }
-            if (!ellipseSamplePoints.isEmpty()) {
-                try {
-                    var ellipseFit = new EllipseRegression(ellipseSamplePoints);
-                    metadata.put(Ellipse.class, ellipseFit.solve());
-                } catch (Exception ex) {
-                    LOGGER.warn("Cannot estimate average ellipse for many images");
-                }
-            }
-            ProcessParams pp = (ProcessParams) metadata.get(ProcessParams.class);
-            if (pp != null) {
-                var solarParams = SolarParametersUtils.computeSolarParams(
-                    pp.observationDetails().date().toLocalDateTime()
-                );
-                metadata.put(SolarParameters.class, solarParams);
-            }
+            var metadata = MetadataMerger.merge(images, MetadataMerger.averagingMergers());
             var output = new ImageWrapper32(width, height, result, metadata);
-            for (var sample : images) {
-                for (var entry : sample.metadata().entrySet()) {
-                    if (output.findMetadata(entry.getKey()).isEmpty()) {
-                        output.metadata().put(entry.getKey(), entry.getValue());
-                    }
-                }
-            }
+            CutoffStretchingStrategy.DEFAULT.stretch(output);
             return output;
         }
         throw new IllegalArgumentException("Unexpected argument type '" + type + "'");
