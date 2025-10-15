@@ -785,7 +785,7 @@ public class ImageDraw extends AbstractFunctionImpl {
         }
         if (image != null) {
             var g = image.createGraphics();
-            int greyValue = 80 * maxValue(wrapper) / 100;
+            int greyValue = Math.clamp((80L * maxValue(wrapper)) / 100, 0, 255);
             g.setColor(new Color(greyValue, greyValue, greyValue));
             g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
             consumer.accept(g, wrapper);
