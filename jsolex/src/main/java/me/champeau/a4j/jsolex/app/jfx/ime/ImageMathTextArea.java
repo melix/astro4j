@@ -746,6 +746,10 @@ public class ImageMathTextArea extends BorderPane {
     }
 
     private void showHoverTooltip(MouseEvent event, BuiltinFunction builtinFunction) {
+        if (codeArea.getSelection().getLength() > 0) {
+            return;
+        }
+
         var content = createDocumentationContent(builtinFunction);
 
         hoverTooltip = new Tooltip();
