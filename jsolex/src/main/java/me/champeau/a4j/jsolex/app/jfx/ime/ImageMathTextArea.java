@@ -687,10 +687,13 @@ public class ImageMathTextArea extends BorderPane {
 
     private void handleMouseHover(MouseEvent event) {
         hideHoverTooltip();
-        
-        // Cancel any existing delayed hover
+
         if (hoverDelayTimeline != null) {
             hoverDelayTimeline.stop();
+        }
+
+        if (codeArea.getSelection().getLength() > 0) {
+            return;
         }
 
         var mousePosition = codeArea.hit(event.getX(), event.getY());
@@ -705,7 +708,7 @@ public class ImageMathTextArea extends BorderPane {
         if (functionCall != null) {
             try {
                 var builtinFunction = BuiltinFunction.valueOf(functionCall.toUpperCase());
-                
+
                 hoverDelayTimeline = new Timeline(new KeyFrame(
                     javafx.util.Duration.millis(1000),
                     e -> showHoverTooltip(event, builtinFunction)
