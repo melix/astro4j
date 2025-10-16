@@ -27,6 +27,7 @@ import me.champeau.a4j.jsolex.processing.util.Constants;
 import me.champeau.a4j.jsolex.processing.util.FileBackedImage;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 import me.champeau.a4j.jsolex.processing.util.RGBImage;
+import me.champeau.a4j.jsolex.processing.util.Wavelen;
 
 import java.util.List;
 import java.util.Map;
@@ -51,6 +52,18 @@ public class Colorize extends AbstractFunctionImpl {
         var arg = arguments.get("img");
         if (arg instanceof List<?>) {
             return expandToImageList("colorize", "img", arguments, function);
+        }
+        var profileAsNumber = getArgument(Object.class, arguments, "profile");
+        if (profileAsNumber.orElse(null) instanceof Number referenceWl) {
+            if (arg instanceof FileBackedImage fileBackedImage) {
+                arg = fileBackedImage.unwrapToMemory();
+            }
+            if (arg instanceof ImageWrapper32 mono) {
+                return RGBImage.fromMono(mono, data -> {
+                    var ray = new SpectralRay("tmp", null, Wavelen.ofAngstroms(referenceWl.doubleValue()), true, List.of());
+                    return doColorize(mono.width(), mono.height(), data.data(), ray.toRGB());
+                });
+            }
         }
         var profile = stringArg(arguments, "profile", null);
         if (profile == null) {
