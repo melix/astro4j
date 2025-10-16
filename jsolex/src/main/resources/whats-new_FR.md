@@ -10,6 +10,9 @@
 ## Nouveautés de la version 4.1.4
 
 - Clarification de l'affichage de la conversion des pixels en Angströms dans la boîte de dialogue des paramètres de traitement
+- Correction de `COLORIZE` qui n'acceptait pas un paramètre de longueur d'onde comme annoncé
+- Correction d'un cas limite où la colorisation pouvait échouer
+- Correction de l'affichage du décalage de pixels dans les détails d'observation
 
 ## Nouveautés de la version 4.1.3
 
