@@ -201,6 +201,18 @@ public class Ellipse {
         return a >= 0 && value <= 0 || a <= 0 && value >= 0;
     }
 
+    public double distanceFromBoundary(double x, double y) {
+        var a = cart.a();
+        var b = cart.b();
+        var c = cart.c();
+        var d = cart.d();
+        var e = cart.e();
+        var f = cart.f();
+        double value = a * x * x + b * x * y + c * y * y + d * x + e * y + f;
+        var normalizer = Math.sqrt(a * a + b * b / 4 + c * c);
+        return value / normalizer;
+    }
+
     /**
      * Computes the parameters of this ellipse translated by vector (u,v)
      *

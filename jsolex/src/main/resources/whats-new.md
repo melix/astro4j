@@ -13,6 +13,7 @@
 - Fix `COLORIZE` not accepting a wavelength parameter as advertised
 - Fix edge case where colorization could fail
 - Fix pixel shift display in observation details
+- Fixed excessive banding correction
 
 ## What's New in Version 4.1.3
 

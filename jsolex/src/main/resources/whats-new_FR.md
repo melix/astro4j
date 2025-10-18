@@ -13,6 +13,7 @@
 - Correction de `COLORIZE` qui n'acceptait pas un paramètre de longueur d'onde comme annoncé
 - Correction d'un cas limite où la colorisation pouvait échouer
 - Correction de l'affichage du décalage de pixels dans les détails d'observation
+- Correction de la correction excessive des bandes
 
 ## Nouveautés de la version 4.1.3
 
