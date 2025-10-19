@@ -1,5 +1,6 @@
 # Welcome to JSol'Ex {{version}}!
 
+- [Version 4.1.4](#whats-new-in-version-4-1-4) - Bug fixes and improvements
 - [Version 4.1.3](#whats-new-in-version-4-1-3) - Improved banding correction
 - [Version 4.1.2](#whats-new-in-version-4-1-2) - Bug fixes
 - [Version 4.1.1](#whats-new-in-version-4-1-1) - Bug fixes

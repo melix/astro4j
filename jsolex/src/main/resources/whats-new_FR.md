@@ -1,5 +1,6 @@
 # Bienvenue dans JSol'Ex {{version}} !
 
+- [Version 4.1.4](#nouveautes-de-la-version-4-1-4) - Corrections de bugs et améliorations
 - [Version 4.1.3](#nouveautes-de-la-version-4-1-3) - Amélioration de la correction des bandes
 - [Version 4.1.2](#nouveautes-de-la-version-4-1-2) - Corrections de bugs
 - [Version 4.1.1](#nouveautes-de-la-version-4-1-1) - Corrections de bugs
