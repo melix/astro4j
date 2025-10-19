@@ -529,6 +529,7 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
         var imageWrapper = payload.image();
         var pixelShift = imageWrapper.findMetadata(PixelShift.class);
         Platform.runLater(() -> {
+            var metadata = imageWrapper.metadata();
             var addedImageViewer = owner.getImagesViewer().addImage(this,
                     rootOperation,
                     title,
@@ -546,8 +547,12 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
                             var histogram = showHistogram(viewer.getStretchedImage());
                             Platform.runLater(() -> statsTab.setContent(histogram));
                         });
-                        showMetadata(imageWrapper.metadata());
+                        showMetadata(metadata);
                     });
+            var pixelShiftRange = imageWrapper.findMetadata(PixelShiftRange.class).orElse(new PixelShiftRange(-15, 15, .25));
+            int imageWidth = imageWrapper.width();
+            int imageHeight = imageWrapper.height();
+            var imagePath = event.getPayload().path();
             addedImageViewer.getImageView().setRectangleSelectionListener(new RectangleSelectionListener() {
                 @Override
                 public boolean supports(ActionKind kind) {
@@ -624,8 +629,7 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
                         var controller = fxmlLoader.<CustomAnimationCreator>getController();
                         var stage = new Stage();
                         stage.setScene(new Scene(node));
-                        controller.setup(stage, adjustedParams, imageWrapper.findMetadata(PixelShiftRange.class).orElse(new PixelShiftRange(-15, 15, .25)), imageWrapper.width(), imageWrapper.height(), x, y, width, height, redshiftProcessor,
-                                animCount.getAndIncrement());
+                        controller.setup(stage, adjustedParams, pixelShiftRange, imageWidth, imageHeight, x, y, width, height, redshiftProcessor, animCount.getAndIncrement());
                         stage.setTitle(I18N.string(JSolEx.class, "custom-anim-panel", "frame.title"));
                         stage.showAndWait();
                     });
@@ -641,7 +645,7 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
                             var title = String.format(message("cropped.image"), id);
                             var path = adjustedParams != null
                                     ? outputDirectory.resolve(createNamingStrategy().render(0, null, Constants.TYPE_CUSTOM, imageName, computeSerFileBasename(serFile), croppedImage))
-                                    : event.getPayload().path().getParent().resolve("cropped-" + id);
+                                    : imagePath.getParent().resolve("cropped-" + id);
                             broadcast(new ImageGeneratedEvent(
                                     new GeneratedImage(
                                             GeneratedImageKind.CROPPED,

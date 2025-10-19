@@ -156,6 +156,8 @@ public class MultipleImagesViewer extends Pane {
                 imageViews.clear();
                 viewerTitles.clear();
                 viewerKinds.clear();
+                onShowHooks.clear();
+                linkToViewer.clear();
             });
             selected = null;
             selectedKind = null;

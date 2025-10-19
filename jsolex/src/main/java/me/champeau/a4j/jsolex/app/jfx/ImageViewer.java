@@ -95,8 +95,7 @@ public class ImageViewer implements WithRootNode {
     private Stage stage;
     private ContrastAdjustmentStrategy contrastAdjustStrategy = ContrastAdjustmentStrategy.DEFAULT;
     private CurveTransformStrategy curveTransformStrategy = new CurveTransformStrategy(32768, 32768);
-    private ImageWrapper image;
-    private ImageWrapper displayImage;
+    private FileBackedImage image;
     private ImageWrapper stretchedImage;
     private File imageFile;
     private GeneratedImageKind kind;
@@ -127,9 +126,16 @@ public class ImageViewer implements WithRootNode {
     private final ListProperty<ImageState> imageHistory = new SimpleListProperty<>(FXCollections.observableArrayList());
     private final IntegerProperty currentImage = new SimpleIntegerProperty(0);
     private Set<ImageViewer> siblings;
+    private PauseTransition stretchedImageDebounce;
 
     public void init(Node root) {
         this.root = root;
+        this.stretchedImageDebounce = new PauseTransition(Duration.seconds(10));
+        this.stretchedImageDebounce.setOnFinished(e -> {
+            if (stretchedImage != null && !(stretchedImage instanceof FileBackedImage)) {
+                stretchedImage = FileBackedImage.wrap(stretchedImage);
+            }
+        });
     }
 
     public DoubleProperty fitWidthProperty() {
@@ -164,7 +170,8 @@ public class ImageViewer implements WithRootNode {
             }
         });
         if (image != null) {
-            this.image = image instanceof FileBackedImage fbi ? fbi.unwrapToMemory() : image;
+            var wrapped = FileBackedImage.wrap(image);
+            this.image = wrapped;
             this.imageFile = new File(imageName.getParentFile(), baseName + "_" + imageName.getName() + imageDisplayExtension(params));
             recordImage(baseName, image);
             // Initialize correctAngleP synchronously to avoid race conditions
@@ -186,7 +193,7 @@ public class ImageViewer implements WithRootNode {
                             var controller = (ImageViewer) fxmlLoader.getController();
                             controller.init(node);
                             controller.setup(new ProcessingEventListener() {
-                            }, operation, title, baseName, kind, description, image, imageName, processParams, popupViews, siblings);
+                            }, operation, title, baseName, kind, description, wrapped, imageName, processParams, popupViews, siblings);
                             var stage = new Stage();
                             var scene = new Scene((Parent) node);
                             controller.stage = stage;
@@ -273,7 +280,8 @@ public class ImageViewer implements WithRootNode {
     }
 
     private void recordImage(String baseName, ImageWrapper image) {
-        imageHistory.add(new ImageState(processParams, baseName, image, imageFile));
+        var fileBackedImage = FileBackedImage.wrap(image);
+        imageHistory.add(new ImageState(processParams, baseName, fileBackedImage, imageFile));
     }
 
     private String imageDisplayExtension(ProcessParams params) {
@@ -286,7 +294,8 @@ public class ImageViewer implements WithRootNode {
     }
 
     private void saveImage() {
-        var image = applyTransformations(this.image);
+        var unwrapped = this.image.unwrapToMemory();
+        var image = applyTransformations(unwrapped);
         var strategy = determineStrategy();
         var files = new ImageSaver(strategy, processParams).save(image, imageFile);
         files.stream()
@@ -351,12 +360,11 @@ public class ImageViewer implements WithRootNode {
             var coordinatesLabel = new Label();
             imageView.setCoordinatesListener((x, y) -> {
                 String extra = "";
-                if (displayImage == null) {
-                    displayImage = image;
-                }
+                var imageForPixelValue = stretchedImage != null ? stretchedImage : image;
+                var unwrappedForPixel = imageForPixelValue.unwrapToMemory();
                 var xx = x.intValue();
                 var yy = y.intValue();
-                if (displayImage instanceof ImageWrapper32 mono) {
+                if (unwrappedForPixel instanceof ImageWrapper32 mono) {
                     if (xx < 0 || xx >= mono.width() || yy < 0 || yy >= mono.height()) {
                         return;
                     }
@@ -574,8 +582,9 @@ public class ImageViewer implements WithRootNode {
     private void updateDisplay(Image newImage, boolean resetZoom) {
         try {
             displayLock.lock();
-            if (displayImage != null) {
-                dimensions.setText(displayImage.width() + "x" + displayImage.height());
+            var imageForDimensions = stretchedImage != null ? stretchedImage : image;
+            if (imageForDimensions != null) {
+                dimensions.setText(imageForDimensions.width() + "x" + imageForDimensions.height());
             }
             imageView.setImage(newImage);
             imageView.setSolarDisk(image != null ? image.findMetadata(Ellipse.class).orElse(null) : null);
@@ -603,16 +612,18 @@ public class ImageViewer implements WithRootNode {
     }
 
     private void stretchAndDisplay(boolean resetZoom) {
-        displayImage = applyTransformations(this.image);
+        var unwrapped = this.image.unwrapToMemory();
+        var transformedImage = applyTransformations(unwrapped);
         if (stretchingMode == StretchingMode.NO_STRETCH) {
-            stretchedImage = displayImage;
+            stretchedImage = transformedImage;
         } else {
-            if (displayImage instanceof ImageWrapper32 mono) {
+            if (transformedImage instanceof ImageWrapper32 mono) {
                 stretchedImage = stretch(mono);
-            } else if (displayImage instanceof RGBImage rgb) {
+            } else if (transformedImage instanceof RGBImage rgb) {
                 stretchedImage = stretch(rgb);
             }
         }
+        Platform.runLater(() -> stretchedImageDebounce.playFromStart());
         var writable = WritableImageSupport.asWritable(stretchedImage);
         Platform.runLater(() -> updateDisplay(writable, resetZoom));
     }
@@ -637,7 +648,8 @@ public class ImageViewer implements WithRootNode {
     }
 
     public ImageWrapper getStretchedImage() {
-        return stretchedImage == null ? image : stretchedImage;
+        var result = stretchedImage == null ? image : stretchedImage;
+        return result.unwrapToMemory();
     }
 
     @Override
@@ -647,7 +659,7 @@ public class ImageViewer implements WithRootNode {
 
     public synchronized void setImage(String baseName, ProcessParams params, ImageWrapper image, Path path) {
         this.processParams = params;
-        this.image = image instanceof FileBackedImage fbi ? fbi.unwrapToMemory() : image;
+        this.image = FileBackedImage.wrap(image);
         this.imageFile = new File(path.toFile().getParentFile(), baseName + "_" + path.getFileName() + imageDisplayExtension(processParams));
         this.imageView.setImagePathForOpeningInExplorer(path);
         recordImage(baseName, image);
@@ -678,7 +690,7 @@ public class ImageViewer implements WithRootNode {
     private record ImageState(
             ProcessParams processParams,
             String baseName,
-            ImageWrapper image,
+            FileBackedImage image,
             File imageFile
     ) {
 

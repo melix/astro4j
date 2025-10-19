@@ -9,6 +9,7 @@
 
 ## What's New in Version 4.1.4
 
+- Fixed memory leak
 - Clarify display of conversion from pixels to Angstroms in the process parameters dialog
 - Fix `COLORIZE` not accepting a wavelength parameter as advertised
 - Fix edge case where colorization could fail
