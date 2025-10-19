@@ -28,6 +28,7 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.WeakHashMap;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executors;
@@ -46,6 +47,8 @@ public final class FileBackedImage implements ImageWrapper {
     private static final Map<Path, Integer> REF_COUNT = new HashMap<>();
     private static final Map<Path, Status> STATUS = new ConcurrentHashMap<>();
     private static final Lock LOCK = new ReentrantLock();
+    private static final Map<ImageWrapper, FileBackedImage> WRAP_CACHE = new WeakHashMap<>();
+    private static final Lock CACHE_LOCK = new ReentrantLock();
     private static final byte MONO = 0;
     private static final byte RGB = 2;
     private static final BlockingQueue<Runnable> WRITE_OPS = new LinkedBlockingQueue<>(Math.max(1, Runtime.getRuntime().availableProcessors() / 2));
@@ -103,66 +106,76 @@ public final class FileBackedImage implements ImageWrapper {
         if (wrapper instanceof FileBackedImage fbi) {
             return fbi;
         }
-        var width = wrapper.width();
-        var height = wrapper.height();
+        CACHE_LOCK.lock();
         try {
-            var backingFile = TemporaryFolder.newTempFile("jsolex", ".img");
-            if (wrapper instanceof ImageWrapper32 mono) {
-                var result = new FileBackedImage(width, height, backingFile, mono.metadata(), null, mono);
-                WRITE_OPS.put(() -> {
-                    var data = mono.data();
-                    var length = mono.width() * mono.height();
-                    MappedByteBuffer byteBuffer = null;
-                    try (var raf = new RandomAccessFile(backingFile.toFile(), "rw"); var channel = raf.getChannel()) {
-                        byteBuffer = channel.map(FileChannel.MapMode.READ_WRITE, 0, 1 + 4 + 4 + 4L * length);
-                        byteBuffer.put(MONO);
-                        byteBuffer.putInt(height);
-                        byteBuffer.putInt(width);
-                        var floatBuffer = byteBuffer.asFloatBuffer();
-                        for (int y = 0; y < height; y++) {
-                            floatBuffer.put(data[y]);
-                        }
-                    } catch (IOException e) {
-                        throw new RuntimeException(e);
-                    } finally {
-                        result.fileSaved();
-                    }
-                });
-                return result;
+            var cached = WRAP_CACHE.get(wrapper);
+            if (cached != null) {
+                return cached;
             }
-            if (wrapper instanceof RGBImage rgb) {
-                var fileBackedImage = new FileBackedImage(width, height, backingFile, rgb.metadata(), null, rgb);
-                WRITE_OPS.put(() -> {
-                    var r = rgb.r();
-                    var g = rgb.g();
-                    var b = rgb.b();
-                    var length = rgb.width() * rgb.height();
-                    try (var raf = new RandomAccessFile(backingFile.toFile(), "rw"); var channel = raf.getChannel()) {
-                        var byteBuffer = channel.map(FileChannel.MapMode.READ_WRITE, 0, 1 + 4 + 4 + 3 * 4L * length);
-                        byteBuffer.put(RGB);
-                        byteBuffer.putInt(rgb.height());
-                        byteBuffer.putInt(rgb.width());
-                        var floatBuffer = byteBuffer.asFloatBuffer();
-                        for (int y = 0; y < height; y++) {
-                            floatBuffer.put(r[y]);
-                            floatBuffer.put(g[y]);
-                            floatBuffer.put(b[y]);
+            var width = wrapper.width();
+            var height = wrapper.height();
+            try {
+                var backingFile = TemporaryFolder.newTempFile("jsolex", ".img");
+                if (wrapper instanceof ImageWrapper32 mono) {
+                    var result = new FileBackedImage(width, height, backingFile, mono.metadata(), null, mono);
+                    WRITE_OPS.put(() -> {
+                        var data = mono.data();
+                        var length = mono.width() * mono.height();
+                        MappedByteBuffer byteBuffer = null;
+                        try (var raf = new RandomAccessFile(backingFile.toFile(), "rw"); var channel = raf.getChannel()) {
+                            byteBuffer = channel.map(FileChannel.MapMode.READ_WRITE, 0, 1 + 4 + 4 + 4L * length);
+                            byteBuffer.put(MONO);
+                            byteBuffer.putInt(height);
+                            byteBuffer.putInt(width);
+                            var floatBuffer = byteBuffer.asFloatBuffer();
+                            for (int y = 0; y < height; y++) {
+                                floatBuffer.put(data[y]);
+                            }
+                        } catch (IOException e) {
+                            throw new RuntimeException(e);
+                        } finally {
+                            result.fileSaved();
                         }
-                    } catch (IOException e) {
-                        throw new RuntimeException(e);
-                    } finally {
-                        fileBackedImage.fileSaved();
-                    }
-                });
-
-                return fileBackedImage;
+                    });
+                    WRAP_CACHE.put(wrapper, result);
+                    return result;
+                }
+                if (wrapper instanceof RGBImage rgb) {
+                    var fileBackedImage = new FileBackedImage(width, height, backingFile, rgb.metadata(), null, rgb);
+                    WRITE_OPS.put(() -> {
+                        var r = rgb.r();
+                        var g = rgb.g();
+                        var b = rgb.b();
+                        var length = rgb.width() * rgb.height();
+                        try (var raf = new RandomAccessFile(backingFile.toFile(), "rw"); var channel = raf.getChannel()) {
+                            var byteBuffer = channel.map(FileChannel.MapMode.READ_WRITE, 0, 1 + 4 + 4 + 3 * 4L * length);
+                            byteBuffer.put(RGB);
+                            byteBuffer.putInt(rgb.height());
+                            byteBuffer.putInt(rgb.width());
+                            var floatBuffer = byteBuffer.asFloatBuffer();
+                            for (int y = 0; y < height; y++) {
+                                floatBuffer.put(r[y]);
+                                floatBuffer.put(g[y]);
+                                floatBuffer.put(b[y]);
+                            }
+                        } catch (IOException e) {
+                            throw new RuntimeException(e);
+                        } finally {
+                            fileBackedImage.fileSaved();
+                        }
+                    });
+                    WRAP_CACHE.put(wrapper, fileBackedImage);
+                    return fileBackedImage;
+                }
+                throw new ProcessingException("Unexpected image type " + wrapper);
+            } catch (IOException ex) {
+                throw new ProcessingException(ex);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                throw new ProcessingException(e);
             }
-            throw new ProcessingException("Unexpected image type " + wrapper);
-        } catch (IOException ex) {
-            throw new ProcessingException(ex);
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new ProcessingException(e);
+        } finally {
+            CACHE_LOCK.unlock();
         }
     }
 

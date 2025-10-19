@@ -9,6 +9,7 @@
 
 ## Nouveautés de la version 4.1.4
 
+- Correction d'une fuite de mémoire
 - Clarification de l'affichage de la conversion des pixels en Angströms dans la boîte de dialogue des paramètres de traitement
 - Correction de `COLORIZE` qui n'acceptait pas un paramètre de longueur d'onde comme annoncé
 - Correction d'un cas limite où la colorisation pouvait échouer
