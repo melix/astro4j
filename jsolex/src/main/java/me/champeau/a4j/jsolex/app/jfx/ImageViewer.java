@@ -661,7 +661,7 @@ public class ImageViewer implements WithRootNode {
 
     public ImageWrapper getStretchedImage() {
         var result = stretchedImage == null ? image : stretchedImage;
-        return result.unwrapToMemory();
+        return result == null ? null : result.unwrapToMemory();
     }
 
     @Override
