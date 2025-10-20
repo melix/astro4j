@@ -28,7 +28,7 @@ Cliquez sur le bouton correspondant à votre système ci-dessous pour téléchar
 link:https://jsolex.s3.eu-west-3.amazonaws.com/jsolex-windows-latest/{prefixName}-{version}.msi[icon:windows[] JSol'Ex (Windows), role="badge"]
 link:https://jsolex.s3.eu-west-3.amazonaws.com/jsolex-ubuntu-latest/{prefixName}_{version}_amd64.deb[icon:linux[] JSol'Ex (Linux), role="badge"]
 link:https://jsolex.s3.eu-west-3.amazonaws.com/jsolex-macos-latest/{prefixName}-{version}.pkg[icon:apple[] JSol'Ex (Mac ARM64), role="badge"]
-link:https://jsolex.s3.eu-west-3.amazonaws.com/jsolex-macos-13/{prefixName}-{version}.pkg[icon:apple[] JSol'Ex (Mac Intel), role="badge"]
+link:https://jsolex.s3.eu-west-3.amazonaws.com/jsolex-macos-15-intel/{prefixName}-{version}.pkg[icon:apple[] JSol'Ex (Mac Intel), role="badge"]
 
 === Fichiers zips
 
@@ -37,7 +37,7 @@ Certains utilisateurs préfèreront télécharger un fichier zip contenant les b
 - link:https://jsolex.s3.eu-west-3.amazonaws.com/jsolex-windows-latest/{fullName}-{fullVersion}.zip[ZIP JSol'Ex (Windows)]
 - link:https://jsolex.s3.eu-west-3.amazonaws.com/jsolex-ubuntu-latest/{fullName}-{fullVersion}.zip[ZIP JSol'Ex (Linux)]
 - link:https://jsolex.s3.eu-west-3.amazonaws.com/jsolex-macos-latest/{fullName}-{fullVersion}.zip[ZIP JSol'Ex (Mac ARM64)]
-- link:https://jsolex.s3.eu-west-3.amazonaws.com/jsolex-macos-13/{fullName}-{fullVersion}.zip[ZIP JSol'Ex (Mac Intel)]
+- link:https://jsolex.s3.eu-west-3.amazonaws.com/jsolex-macos-15-intel/{fullName}-{fullVersion}.zip[ZIP JSol'Ex (Mac Intel)]
 
 === Compilation depuis les sources
 
