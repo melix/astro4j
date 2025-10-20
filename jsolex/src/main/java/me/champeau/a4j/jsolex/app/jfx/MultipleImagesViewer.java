@@ -84,10 +84,10 @@ public class MultipleImagesViewer extends Pane {
     private final ObservableList<Node> categories;
     private final BorderPane borderPane;
     private final ReentrantLock lock = new ReentrantLock();
-    private Map<Object, Runnable> onShowHooks = new HashMap<>();
-    private Map<ImageViewer, String> viewerTitles = new HashMap<>();
-    private ObservableMap<ImageViewer, GeneratedImageKind> viewerKinds = FXCollections.observableHashMap();
-    private Map<Hyperlink, ImageViewer> linkToViewer = new HashMap<>();
+    private final Map<Object, Runnable> onShowHooks = new HashMap<>();
+    private final Map<ImageViewer, String> viewerTitles = new HashMap<>();
+    private final ObservableMap<ImageViewer, GeneratedImageKind> viewerKinds = FXCollections.observableHashMap();
+    private final Map<Hyperlink, ImageViewer> linkToViewer = new HashMap<>();
     private Hyperlink selected = null;
     private GeneratedImageKind selectedKind = null;
     private Object selectedView;

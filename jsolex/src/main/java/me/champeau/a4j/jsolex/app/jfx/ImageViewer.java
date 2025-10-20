@@ -88,6 +88,8 @@ import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Supplier;
 
 import static me.champeau.a4j.jsolex.app.JSolEx.message;
+import static me.champeau.a4j.jsolex.app.JSolEx.newScene;
+import static me.champeau.a4j.jsolex.app.jfx.FXUtils.newStage;
 
 public class ImageViewer implements WithRootNode {
     private final Lock displayLock = new ReentrantLock();
@@ -194,8 +196,8 @@ public class ImageViewer implements WithRootNode {
                             controller.init(node);
                             controller.setup(new ProcessingEventListener() {
                             }, operation, title, baseName, kind, description, wrapped, imageName, processParams, popupViews, siblings);
-                            var stage = new Stage();
-                            var scene = new Scene((Parent) node);
+                            var stage = newStage();
+                            var scene = newScene((Parent) node);
                             controller.stage = stage;
                             controller.fitWidthProperty().bind(stage.widthProperty());
                             controller.updateTitle();
@@ -342,7 +344,9 @@ public class ImageViewer implements WithRootNode {
             curveStretchParams.managedProperty().bind(strategySelector.getSelectionModel().selectedItemProperty().isEqualTo(StretchingMode.CURVE));
             var line1 = new HBox(8);
             line1.setAlignment(Pos.CENTER_LEFT);
-            line1.getChildren().addAll(new Label(message("stretching.label")), strategySelector, linearStretchParams, curveStretchParams);
+            var stretchingLabel = new Label(message("stretching.label"));
+            preventEllipsis(stretchingLabel);
+            line1.getChildren().addAll(stretchingLabel, strategySelector, linearStretchParams, curveStretchParams);
             var reset = createButton(message("reset"));
             reset.setOnAction(event -> {
                 stretchingParams.getChildren().clear();
@@ -359,7 +363,7 @@ public class ImageViewer implements WithRootNode {
             zoomPlus.setOnAction(evt -> imageView.setZoom(imageView.getZoom() * 1.2));
             var coordinatesLabel = new Label();
             imageView.setCoordinatesListener((x, y) -> {
-                String extra = "";
+                var extra = "";
                 var imageForPixelValue = stretchedImage != null ? stretchedImage : image;
                 var unwrappedForPixel = imageForPixelValue.unwrapToMemory();
                 var xx = x.intValue();
@@ -480,24 +484,31 @@ public class ImageViewer implements WithRootNode {
         }
     }
 
+    private static void preventEllipsis(Label... labels) {
+        for (var label : labels) {
+            label.setMinSize(Button.USE_PREF_SIZE, Button.USE_PREF_SIZE);
+        }
+    }
+
     private static void configureHGrow(List<Node> nodes) {
         nodes.forEach(e -> HBox.setHgrow(e, Priority.ALWAYS));
     }
 
     private static float linValueOf(double sliderValue) {
-        int rnd = (int) Math.round(sliderValue);
+        var rnd = (int) Math.round(sliderValue);
         return rnd << 8;
     }
 
     private void configureContrastAdjustment(HBox container) {
-        int lo = (int) contrastAdjustStrategy.getMin() >> 8;
-        int hi = (int) contrastAdjustStrategy.getMax() >> 8;
+        var lo = (int) contrastAdjustStrategy.getMin() >> 8;
+        var hi = (int) contrastAdjustStrategy.getMax() >> 8;
         var loSlider = new Slider(0, 255, lo);
         var hiSlider = new Slider(0, 255, hi);
         var loValueLabel = new Label("" + lo);
         var hiValueLabel = new Label("" + hi);
         var loLabel = new Label(message("low") + " ");
         var hiLabel = new Label(message("high") + " ");
+        preventEllipsis(loValueLabel, hiValueLabel, loLabel, hiLabel);
         loSlider.setBlockIncrement(10);
         hiSlider.setBlockIncrement(10);
         var pause = new PauseTransition(Duration.millis(500));
@@ -525,14 +536,15 @@ public class ImageViewer implements WithRootNode {
     private HBox createCurveAdjustment() {
         var container = new HBox(8);
         container.setAlignment(Pos.CENTER_LEFT);
-        int lo = (int) curveTransformStrategy.getIn() >> 8;
-        int hi = (int) curveTransformStrategy.getOut() >> 8;
+        var lo = (int) curveTransformStrategy.getIn() >> 8;
+        var hi = (int) curveTransformStrategy.getOut() >> 8;
         var loSlider = new Slider(0, 255, lo);
         var hiSlider = new Slider(0, 255, hi);
         var inValueLabel = new Label("" + lo);
         var outValueLabel = new Label("" + hi);
         var loLabel = new Label(message("in") + " ");
         var hiLabel = new Label(message("out") + " ");
+        preventEllipsis(loLabel, hiLabel, inValueLabel, outValueLabel);
         loSlider.setBlockIncrement(10);
         hiSlider.setBlockIncrement(10);
         var pause = new PauseTransition(Duration.millis(500));
@@ -699,6 +711,7 @@ public class ImageViewer implements WithRootNode {
     private static Button createButton(String text) {
         var button = new Button(text);
         button.getStyleClass().add("image-viewer-button");
+        button.setMinSize(Button.USE_PREF_SIZE, Button.USE_PREF_SIZE);
         return button;
     }
 
