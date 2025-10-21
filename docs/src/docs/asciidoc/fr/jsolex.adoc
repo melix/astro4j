@@ -63,12 +63,25 @@ image::https://discordapp.com/api/guilds/1305595962663768074/widget.png?style=ba
 
 JSol'Ex est un logiciel gratuit, développé sur mon temps libre.
 Si vous appréciez mon travail, je n'accepte pas de dons directs.
-Cependant, je vous encourage fortement à soutenir l'https://www.helloasso.com/associations/single-tracking-astronomical-repository-for-open-spectroscopy/formulaires/3[association STAROS], qui a initié les projets Sol'Ex et Sunscan et promeut la spectrographie à travers des projets innovants avec des amateurs, des écoles et des collaborations scientifiques.
-Vos dons seront donc ma contribution à ce projet et seront grandement appréciés !
+Cependant, je vous encourage fortement à soutenir les organisations suivantes qui contribuent à l'éducation et à la sensibilisation en astronomie :
 
-Cliquez sur le lien ci-dessous pour faire un don :
+[cols="^a,^a", frame=none, grid=none]
+|===
+|
+=== Association STAROS
+
+L'https://www.helloasso.com/associations/single-tracking-astronomical-repository-for-open-spectroscopy/formulaires/3[association STAROS] a initié les projets Sol'Ex et Sunscan et promeut la spectrographie à travers des projets innovants avec des amateurs, des écoles et des collaborations scientifiques. Vos dons seront donc ma contribution à ce projet et seront grandement appréciés !
 
 image::https://staros-projects.org/assets/img/backgrounds/STAROS_logo_text.png[link=https://www.helloasso.com/associations/single-tracking-astronomical-repository-for-open-spectroscopy/formulaires/3, height=200]
+
+|
+=== Charlie Bates Solar Astronomy Project
+
+Le https://www.charliebates.org/[Charlie Bates Solar Astronomy Project] est le plus grand programme de sensibilisation à l'astronomie solaire au monde. Depuis 2008, ils enseignent l'astronomie solaire d'observation et les techniques d'observation solaire à bande étroite, rendant l'éducation en astronomie accessible à un public plus large grâce à l'apprentissage pratique et à l'engagement communautaire.
+
+image::../shared/cbsap_logo.png[link=http://www.paypal.me/CBSAP, height=200]
+
+|===
 
 Bien entendu, vous pouvez également envoyer un message d'encouragement ou d'appréciation, c'est toujours agréable à recevoir !
 

@@ -40,11 +40,30 @@ If you do, I kindly ask you to review your choices and turn to more positive val
 ## Donations
 
 If you appreciate my work, I do not accept direct donations.
-However, I strongly encourage you to make a donation to the [STAROS association](https://www.helloasso.com/associations/single-tracking-astronomical-repository-for-open-spectroscopy/formulaires/3), which initiated the Sol'Ex and Sunscan projects and promotes spectrography using innovative projects with amateurs, schools and science collaborations: that will be my contribution to this project and will be greatly appreciated!
+However, I strongly encourage you to support the following organizations that contribute to astronomy education and outreach:
 
-Click on the image below to donate:
+<table style="border: none;">
+<tr>
+<td width="50%" style="border: none; text-align: center;">
+
+### STAROS Association
+
+The [STAROS association](https://www.helloasso.com/associations/single-tracking-astronomical-repository-for-open-spectroscopy/formulaires/3) initiated the Sol'Ex and Sunscan projects and promotes spectrography using innovative projects with amateurs, schools and science collaborations. Your support will be my contribution to this project and will be greatly appreciated!
 
 [<img src="https://staros-projects.org/assets/img/backgrounds/STAROS_logo_text.png" height="150">](https://www.helloasso.com/associations/single-tracking-astronomical-repository-for-open-spectroscopy/formulaires/3)
+
+</td>
+<td width="50%" style="border: none; text-align: center;">
+
+### Charlie Bates Solar Astronomy Project
+
+The [Charlie Bates Solar Astronomy Project](https://www.charliebates.org/) is the largest solar astronomy outreach program in the world. Since 2008, they have been teaching observational solar astronomy and narrowband solar observation techniques, making astronomy education accessible to broader audiences through hands-on learning and community engagement.
+
+[<img src="https://www.stephenramsden.com/charliebates/CBSAP%20Large%20Logo%20White%20Shadow.png" height="150">](http://www.paypal.me/CBSAP)
+
+</td>
+</tr>
+</table>
 
 Of course, you can also send a message of encouragement or appreciation, it is always nice to receive them!
 

@@ -64,11 +64,25 @@ image::https://discordapp.com/api/guilds/1305595962663768074/widget.png?style=ba
 
 JSol'Ex is free software.
 If you appreciate my work, I do not accept direct donations.
-However, I strongly encourage you to make a donation to the https://www.helloasso.com/associations/single-tracking-astronomical-repository-for-open-spectroscopy/formulaires/3[STAROS association], which initiated the Sol'Ex and Sunscan projects and promotes spectrography using innovative projects with amateurs, schools and science collaborations: that will be my contribution to this project and will be greatly appreciated!
+However, I strongly encourage you to support the following organizations that contribute to astronomy education and outreach:
 
-Click on the image below to donate:
+[cols="^a,^a", frame=none, grid=none]
+|===
+|
+=== STAROS Association
+
+The https://www.helloasso.com/associations/single-tracking-astronomical-repository-for-open-spectroscopy/formulaires/3[STAROS association] initiated the Sol'Ex and Sunscan projects and promotes spectrography using innovative projects with amateurs, schools and science collaborations. Your support will be my contribution to this project and will be greatly appreciated!
 
 image::https://staros-projects.org/assets/img/backgrounds/STAROS_logo_text.png[link=https://www.helloasso.com/associations/single-tracking-astronomical-repository-for-open-spectroscopy/formulaires/3, height=200]
+
+|
+=== Charlie Bates Solar Astronomy Project
+
+The https://www.charliebates.org/[Charlie Bates Solar Astronomy Project] is the largest solar astronomy outreach program in the world. Since 2008, they have been teaching observational solar astronomy and narrowband solar observation techniques, making astronomy education accessible to broader audiences through hands-on learning and community engagement.
+
+image::../shared/cbsap_logo.png[link=http://www.paypal.me/CBSAP, height=200]
+
+|===
 
 Of course, you can also send a message of encouragement or appreciation, it is always nice to receive them!
 
