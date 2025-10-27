@@ -8,6 +8,10 @@
 - [Version 4.0.1](#nouveautes-de-la-version-4-0-1) - Sélection de langue, corrections
 - [Version 4.0.0](#nouveautes-de-la-version-4-0-0) - Interface améliorée, intégration BASS2000
 
+## Nouveautés de la version 4.2.0
+
+- Les formats de fichier font désormais partie des réglages avancés (en dehors des paramètres de traitement)
+
 ## Nouveautés de la version 4.1.4
 
 - Correction d'une fuite de mémoire

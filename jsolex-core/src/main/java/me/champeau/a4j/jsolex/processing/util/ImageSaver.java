@@ -21,6 +21,7 @@ import me.champeau.a4j.jsolex.processing.sun.ImageUtils;
 
 import java.io.File;
 import java.util.List;
+import java.util.Set;
 import java.util.stream.Stream;
 
 /**
@@ -30,15 +31,16 @@ import java.util.stream.Stream;
 public class ImageSaver {
     private final StretchingStrategy stretchingStrategy;
     private final ProcessParams processParams;
+    private final Set<ImageFormat> imageFormats;
 
-    public ImageSaver(StretchingStrategy stretchingStrategy, ProcessParams processParams) {
+    public ImageSaver(StretchingStrategy stretchingStrategy, ProcessParams processParams, Set<ImageFormat> imageFormats) {
         this.stretchingStrategy = stretchingStrategy;
         this.processParams = processParams;
+        this.imageFormats = imageFormats;
     }
 
 
     public List<File> save(ImageWrapper image, File target) {
-        var imageFormats = processParams.extraParams().imageFormats();
         var files = List.<File>of();
         if (image instanceof FileBackedImage fbi) {
             image = fbi.unwrapToMemory();

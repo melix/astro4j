@@ -235,7 +235,7 @@ public class BatchModeEventListener implements ProcessingEventListener, ImageMat
             img = Corrector.rotate(img, correction, params.geometryParams().autocropMode() == AutocropMode.OFF);
         }
         var strategy = kind == GeneratedImageKind.IMAGE_MATH ? CutoffStretchingStrategy.DEFAULT : RangeExpansionStrategy.DEFAULT;
-        var saved = new ImageSaver(strategy, params).save(img, target);
+        var saved = new ImageSaver(strategy, params, me.champeau.a4j.jsolex.app.Configuration.getInstance().getImageFormats()).save(img, target);
         for (var file : saved) {
             item.generatedFiles().add(file);
             dataLock.writeLock().lock();

@@ -182,10 +182,11 @@ public class StackingAndMosaicController {
             }
 
         }
-        saveFits.setSelected(processParams.extraParams().imageFormats().contains(ImageFormat.FITS));
-        saveJpg.setSelected(processParams.extraParams().imageFormats().contains(ImageFormat.JPG));
-        savePng.setSelected(processParams.extraParams().imageFormats().contains(ImageFormat.PNG));
-        saveTif.setSelected(processParams.extraParams().imageFormats().contains(ImageFormat.TIF));
+        var imageFormats = me.champeau.a4j.jsolex.app.Configuration.getInstance().getImageFormats();
+        saveFits.setSelected(imageFormats.contains(ImageFormat.FITS));
+        saveJpg.setSelected(imageFormats.contains(ImageFormat.JPG));
+        savePng.setSelected(imageFormats.contains(ImageFormat.PNG));
+        saveTif.setSelected(imageFormats.contains(ImageFormat.TIF));
         stackSampling.setTextFormatter(createSamplingFormatter());
         stackTileSizeLabel.textProperty().bind(Bindings.createStringBinding(() -> {
             var value = stackTileSize.getValue();
@@ -348,9 +349,10 @@ public class StackingAndMosaicController {
         if (saveTif.isSelected()) {
             imageFormats.add(ImageFormat.TIF);
         }
+        // Save image formats to Configuration
+        me.champeau.a4j.jsolex.app.Configuration.getInstance().setImageFormats(imageFormats);
         return params.withExtraParams(
             params.extraParams()
-                .withImageFormats(imageFormats)
                 .withAutosave(true)
         ).withRequestedImages(
             params.requestedImages()

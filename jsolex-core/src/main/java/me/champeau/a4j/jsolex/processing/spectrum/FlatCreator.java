@@ -227,7 +227,6 @@ public class FlatCreator {
         var serFile = Path.of("/home/cchampeau/Astro/flat-sky2/12_44_01.ser");
         var flat = flatCreator.createMasterFlat(serFile);
         ProcessParams processParams = ProcessParamsIO.loadDefaults();
-        processParams = processParams.withExtraParams(processParams.extraParams().withImageFormats(Set.of(ImageFormat.FITS, ImageFormat.JPG)));
-        new ImageSaver(LinearStrechingStrategy.DEFAULT, processParams).save(flat, Path.of("/home/cchampeau/Astro/flat/out2").toFile());
+        new ImageSaver(LinearStrechingStrategy.DEFAULT, processParams, Set.of(ImageFormat.FITS, ImageFormat.JPG)).save(flat, Path.of("/home/cchampeau/Astro/flat/out2").toFile());
     }
 }

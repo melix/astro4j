@@ -133,7 +133,7 @@ public class Main implements Runnable {
                     4,
                     ProgressOperation.root("cli", p -> {
                     }));
-            processor.addEventListener(new LoggingListener(processParams));
+            processor.addEventListener(new LoggingListener(processParams, miscOptions.getImageFormats()));
             processor.process();
         } catch (IOException e) {
             throw new ProcessingException(e);
@@ -265,10 +265,14 @@ public class Main implements Runnable {
             if (debugImages != null) {
                 result = result.withGenerateDebugImages(debugImages);
             }
-            if (generateFits != null) {
-                result = result.withImageFormats(Set.of(ImageFormat.FITS, ImageFormat.PNG));
-            }
             return result;
+        }
+
+        public Set<me.champeau.a4j.jsolex.processing.util.ImageFormat> getImageFormats() {
+            if (generateFits != null && generateFits) {
+                return Set.of(me.champeau.a4j.jsolex.processing.util.ImageFormat.FITS, me.champeau.a4j.jsolex.processing.util.ImageFormat.PNG);
+            }
+            return Set.of(me.champeau.a4j.jsolex.processing.util.ImageFormat.PNG, me.champeau.a4j.jsolex.processing.util.ImageFormat.FITS);
         }
     }
 

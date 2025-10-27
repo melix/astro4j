@@ -24,7 +24,6 @@ import me.champeau.a4j.jsolex.processing.spectrum.FlatCreator;
 import me.champeau.a4j.jsolex.processing.sun.workflow.JaggingCorrection;
 import me.champeau.a4j.jsolex.processing.util.Constants;
 import me.champeau.a4j.jsolex.processing.util.FilesUtils;
-import me.champeau.a4j.jsolex.processing.util.ImageFormat;
 import me.champeau.a4j.jsolex.processing.util.VersionUtil;
 import me.champeau.a4j.ser.ColorMode;
 import org.slf4j.Logger;
@@ -38,7 +37,6 @@ import java.nio.file.Path;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
-import java.util.EnumSet;
 import java.util.List;
 import java.util.Set;
 
@@ -73,6 +71,7 @@ public abstract class ProcessParamsIO {
         builder.registerTypeAdapter(ImageMathParams.class, new ImageMathParamsSerializer());
         builder.registerTypeAdapter(EnhancementParams.class, new EnhancementParamsSerializer());
         builder.registerTypeAdapter(AutoStretchParams.class, new AutoStretchParamsSerializer());
+        builder.registerTypeAdapter(ExtraParams.class, new ExtraParamsSerializer());
         return builder.create();
     }
 
@@ -107,7 +106,7 @@ public abstract class ProcessParamsIO {
                         false,
                         false,
                         false),
-                new ExtraParams(false, true, EnumSet.of(ImageFormat.PNG), FileNamingStrategy.DEFAULT_TEMPLATE, FileNamingStrategy.DEFAULT_DATETIME_FORMAT, FileNamingStrategy.DEFAULT_DATE_FORMAT, false, GlobeStyle.EQUATORIAL_COORDS),
+                new ExtraParams(false, true, FileNamingStrategy.DEFAULT_TEMPLATE, FileNamingStrategy.DEFAULT_DATETIME_FORMAT, FileNamingStrategy.DEFAULT_DATE_FORMAT, false, GlobeStyle.EQUATORIAL_COORDS),
                 new VideoParams(ColorMode.MONO),
                 new GeometryParams(null, null, false, false, false, false, RotationKind.NONE, AutocropMode.RADIUS_1_2, null, DeconvolutionMode.NONE, null, false, null, false, EllipseFittingMode.AUTOMATIC),
                 new BandingCorrectionParams(DEFAULT_BAND_SIZE, DEFAULT_PASS_COUNT),
@@ -220,7 +219,6 @@ public abstract class ProcessParamsIO {
                 params = params.withExtraParams(new ExtraParams(
                         false,
                         true,
-                        EnumSet.of(ImageFormat.PNG),
                         FileNamingStrategy.DEFAULT_TEMPLATE,
                         FileNamingStrategy.DEFAULT_DATETIME_FORMAT,
                         FileNamingStrategy.DEFAULT_DATE_FORMAT,

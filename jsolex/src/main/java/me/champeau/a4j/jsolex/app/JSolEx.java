@@ -1114,19 +1114,7 @@ public class JSolEx implements JSolExInterface {
 
     @FXML
     private void showAdvancedParams() {
-        var fxmlLoader = I18N.fxmlLoader(JSolEx.class, "advanced-params");
-        try {
-            var stage = newStage();
-            var node = (Parent) fxmlLoader.load();
-            var controller = (AdvancedParamsController) fxmlLoader.getController();
-            controller.setup(stage);
-            Scene scene = newScene(node);
-            stage.setTitle(I18N.string(JSolEx.class, "advanced-params", "frame.title"));
-            stage.setScene(scene);
-            stage.showAndWait();
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        }
+        AdvancedParamsController.openDialog(rootStage);
     }
 
     @FXML

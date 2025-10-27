@@ -38,13 +38,15 @@ import java.util.concurrent.CopyOnWriteArrayList;
 public class ScriptLoggingListener implements ProcessingEventListener {
     private static final Logger LOGGER = LoggerFactory.getLogger(ScriptLoggingListener.class);
     private final ProcessParams processParams;
+    private final java.util.Set<me.champeau.a4j.jsolex.processing.util.ImageFormat> imageFormats;
     private final List<String> suggestions = new CopyOnWriteArrayList<>();
     private long sd;
 
     private Map<String, ImageWrapper> generatedImages = Map.of();
 
-    public ScriptLoggingListener(ProcessParams processParams) {
+    public ScriptLoggingListener(ProcessParams processParams, java.util.Set<me.champeau.a4j.jsolex.processing.util.ImageFormat> imageFormats) {
         this.processParams = processParams;
+        this.imageFormats = imageFormats;
     }
 
 
@@ -53,7 +55,7 @@ public class ScriptLoggingListener implements ProcessingEventListener {
         var payload = event.getPayload();
         var image = payload.image();
         var target = payload.path().toFile();
-        new ImageSaver(RangeExpansionStrategy.DEFAULT, processParams).save(image, target);
+        new ImageSaver(RangeExpansionStrategy.DEFAULT, processParams, imageFormats).save(image, target);
         LOGGER.info("Image {} generated at {}", payload.title(), payload.path());
     }
 

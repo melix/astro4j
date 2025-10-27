@@ -846,9 +846,7 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
             if (processParams == null) {
                 processParams = ProcessParamsIO.loadDefaults();
             }
-            this.processParams = processParams.withExtraParams(
-                    processParams.extraParams().withImageFormats(Set.of(ImageFormat.FITS))
-            );
+            this.processParams = processParams;
         }
 
         @Override
@@ -862,7 +860,7 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
             if (width > 0 && height > 0) {
                 try {
                     var tempFile = TemporaryFolder.newTempFile("image", ".fits");
-                    var files = new ImageSaver(CutoffStretchingStrategy.DEFAULT, processParams).save(imageWrapper, tempFile.toFile());
+                    var files = new ImageSaver(CutoffStretchingStrategy.DEFAULT, processParams, java.util.EnumSet.of(me.champeau.a4j.jsolex.processing.util.ImageFormat.PNG)).save(imageWrapper, tempFile.toFile());
                     obj.addProperty("file", files.getFirst().getAbsolutePath());
                 } catch (IOException e) {
                     throw new RuntimeException(e);

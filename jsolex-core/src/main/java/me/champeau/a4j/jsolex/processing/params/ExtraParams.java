@@ -15,48 +15,39 @@
  */
 package me.champeau.a4j.jsolex.processing.params;
 
-import me.champeau.a4j.jsolex.processing.util.ImageFormat;
-
-import java.util.Set;
-
 public record ExtraParams(
         boolean generateDebugImages,
         boolean autosave,
-        Set<ImageFormat> imageFormats,
         String fileNamePattern,
         String datetimeFormat,
         String dateFormat,
         boolean reviewImagesAfterBatch,
         GlobeStyle globeStyle) {
     public ExtraParams withGenerateDebugImages(boolean generateDebugImages) {
-        return new ExtraParams(generateDebugImages, autosave, imageFormats, fileNamePattern, datetimeFormat, dateFormat, reviewImagesAfterBatch, globeStyle);
+        return new ExtraParams(generateDebugImages, autosave, fileNamePattern, datetimeFormat, dateFormat, reviewImagesAfterBatch, globeStyle);
     }
 
     public ExtraParams withAutosave(boolean autosave) {
-        return new ExtraParams(generateDebugImages, autosave, imageFormats, fileNamePattern, datetimeFormat, dateFormat, reviewImagesAfterBatch, globeStyle);
-    }
-
-    public ExtraParams withImageFormats(Set<ImageFormat> imageFormats) {
-        return new ExtraParams(generateDebugImages, autosave, imageFormats, fileNamePattern, datetimeFormat, dateFormat, reviewImagesAfterBatch, globeStyle);
+        return new ExtraParams(generateDebugImages, autosave, fileNamePattern, datetimeFormat, dateFormat, reviewImagesAfterBatch, globeStyle);
     }
 
     public ExtraParams withFileNamePattern(String fileNamePattern) {
-        return new ExtraParams(generateDebugImages, autosave, imageFormats, fileNamePattern, datetimeFormat, dateFormat, reviewImagesAfterBatch, globeStyle);
+        return new ExtraParams(generateDebugImages, autosave, fileNamePattern, datetimeFormat, dateFormat, reviewImagesAfterBatch, globeStyle);
     }
 
     public ExtraParams withDateTimeFormat(String datetimeFormat) {
-        return new ExtraParams(generateDebugImages, autosave, imageFormats, fileNamePattern, datetimeFormat, dateFormat, reviewImagesAfterBatch, globeStyle);
+        return new ExtraParams(generateDebugImages, autosave, fileNamePattern, datetimeFormat, dateFormat, reviewImagesAfterBatch, globeStyle);
     }
 
     public ExtraParams withDateFormat(String dateFormat) {
-        return new ExtraParams(generateDebugImages, autosave, imageFormats, fileNamePattern, datetimeFormat, dateFormat, reviewImagesAfterBatch, globeStyle);
+        return new ExtraParams(generateDebugImages, autosave, fileNamePattern, datetimeFormat, dateFormat, reviewImagesAfterBatch, globeStyle);
     }
 
     public ExtraParams withReviewImagesAfterBatch(boolean reviewImagesAfterBatch) {
-        return new ExtraParams(generateDebugImages, autosave, imageFormats, fileNamePattern, datetimeFormat, dateFormat, reviewImagesAfterBatch, globeStyle);
+        return new ExtraParams(generateDebugImages, autosave, fileNamePattern, datetimeFormat, dateFormat, reviewImagesAfterBatch, globeStyle);
     }
 
     public ExtraParams withGlobeStyle(GlobeStyle globeStyle) {
-        return new ExtraParams(generateDebugImages, autosave, imageFormats, fileNamePattern, datetimeFormat, dateFormat, reviewImagesAfterBatch, globeStyle);
+        return new ExtraParams(generateDebugImages, autosave, fileNamePattern, datetimeFormat, dateFormat, reviewImagesAfterBatch, globeStyle);
     }
 }
