@@ -28,6 +28,7 @@ import me.champeau.a4j.jsolex.processing.util.RGBImage;
 import me.champeau.a4j.math.regression.Ellipse;
 
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
@@ -241,7 +242,7 @@ public class Utilities extends AbstractFunctionImpl {
         var width = firstImage.width();
         var height = firstImage.height();
         var data = new float[height][width];
-        var monoImages = new java.util.ArrayList<ImageWrapper32>();
+        var monoImages = new ArrayList<ImageWrapper32>();
         for (Object image : images) {
             if (!(image instanceof ImageWrapper wrapper)) {
                 throw new IllegalArgumentException("weighted_average expects a list of images as first argument");

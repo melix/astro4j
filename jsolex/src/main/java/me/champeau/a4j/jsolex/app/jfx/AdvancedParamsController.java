@@ -15,126 +15,60 @@
  */
 package me.champeau.a4j.jsolex.app.jfx;
 
-import javafx.fxml.FXML;
+import javafx.geometry.Insets;
+import javafx.geometry.Pos;
+import javafx.scene.Scene;
 import javafx.scene.control.Button;
-import javafx.scene.control.CheckBox;
-import javafx.scene.control.ChoiceBox;
-import javafx.scene.control.Label;
-import javafx.scene.control.Slider;
-import javafx.scene.control.TextField;
-import javafx.scene.control.TextFormatter;
+import javafx.scene.control.ScrollPane;
+import javafx.scene.layout.BorderPane;
+import javafx.scene.layout.HBox;
+import javafx.stage.Modality;
 import javafx.stage.Stage;
-import javafx.util.converter.IntegerStringConverter;
 import me.champeau.a4j.jsolex.app.AlertFactory;
-import me.champeau.a4j.jsolex.app.Configuration;
 import me.champeau.a4j.jsolex.app.JSolEx;
 
 public class AdvancedParamsController {
-    @FXML
-    private TextField watchModeWaitTimeMillis;
+    public static void openDialog(Stage owner) {
+        var stage = new Stage();
+        stage.initOwner(owner);
+        stage.initModality(Modality.APPLICATION_MODAL);
+        stage.setTitle(I18N.string(JSolEx.class, "advanced-params", "frame.title"));
 
-    @FXML
-    private Slider memoryRestrictionMultiplier;
+        var panel = new AdvancedParamsPanel();
+        var scrollPane = new ScrollPane(panel);
+        scrollPane.getStyleClass().add("content-scroll-pane");
+        scrollPane.setFitToWidth(true);
 
-    @FXML
-    private Label memoryRestrictionHelp;
-
-    @FXML
-    private TextField bass2000FtpUrl;
-
-    @FXML
-    private Button resetFtpUrlButton;
-
-    @FXML
-    private CheckBox pippCompatibleFits;
-
-    @FXML
-    private ChoiceBox<String> languageSelector;
-
-    private Stage stage;
-
-    public void setup(Stage stage) {
-        this.stage = stage;
-        this.memoryRestrictionHelp.textProperty().bind(memoryRestrictionMultiplier.valueProperty().map(v -> "(" + v.intValue() + ") " + computeMemoryUsageHelpLabel(v)));
-        watchModeWaitTimeMillis.setTextFormatter(new TextFormatter<>(new IntegerStringConverter() {
-            @Override
-            public Integer fromString(String s) {
-                var value = super.fromString(s);
-                if (value != null && value < 500) {
-                    value = 500;
-                }
-                return value;
+        var okButton = new Button(I18N.string(JSolEx.class, "advanced-params", "ok"));
+        okButton.getStyleClass().add("primary-button");
+        okButton.setPrefWidth(80);
+        okButton.setOnAction(e -> {
+            panel.saveConfiguration();
+            if (panel.requiresRestart()) {
+                AlertFactory.info(I18N.string(JSolEx.class, "advanced-params", "must.restart"))
+                        .showAndWait();
             }
-        }));
-        var initialWaitTime = Configuration.getInstance().getWatchModeWaitTimeMilis();
-        watchModeWaitTimeMillis.setText(String.valueOf(initialWaitTime));
-        memoryRestrictionMultiplier.setValue(Configuration.getInstance().getMemoryRestrictionMultiplier());
-        bass2000FtpUrl.setText(Configuration.getInstance().getBass2000FtpUrl());
-        pippCompatibleFits.setSelected(Configuration.getInstance().isWritePippCompatibleFits());
-        pippCompatibleFits.setOnAction(event -> handlePippCompatibilityChange());
-        
-        languageSelector.getItems().addAll(
-            I18N.string(JSolEx.class, "advanced-params", "language.english"),
-            I18N.string(JSolEx.class, "advanced-params", "language.french")
-        );
+            stage.close();
+        });
 
-        var selectedLanguage = Configuration.getInstance().getSelectedLanguage();
-        if ("fr".equals(selectedLanguage)) {
-            languageSelector.setValue(I18N.string(JSolEx.class, "advanced-params", "language.french"));
-        } else {
-            languageSelector.setValue(I18N.string(JSolEx.class, "advanced-params", "language.english"));
-        }
-    }
+        var cancelButton = new Button(I18N.string(JSolEx.class, "advanced-params", "cancel"));
+        cancelButton.getStyleClass().add("default-button");
+        cancelButton.setPrefWidth(80);
+        cancelButton.setOnAction(e -> stage.close());
 
-    public static String computeMemoryUsageHelpLabel(Number value) {
-        if (value.doubleValue() < 4) {
-            return I18N.string(JSolEx.class, "advanced-params", "memory.usage.high");
-        }
-        if (value.doubleValue() < 8) {
-            return I18N.string(JSolEx.class, "advanced-params", "memory.usage.conservative");
-        }
-        if (value.doubleValue() >= 16) {
-            return I18N.string(JSolEx.class, "advanced-params", "memory.usage.very.conservative");
-        }
-        return I18N.string(JSolEx.class, "advanced-params", "memory.usage.low");
-    }
+        var buttonBar = new HBox(8);
+        buttonBar.getStyleClass().add("editor-button-bar");
+        buttonBar.setAlignment(Pos.CENTER_RIGHT);
+        buttonBar.getChildren().addAll(cancelButton, okButton);
 
-    private void handlePippCompatibilityChange() {
-        if (pippCompatibleFits.isSelected()) {
-            var result = AlertFactory.confirmation(
-                I18N.string(JSolEx.class, "advanced-params", "pipp.compatible.fits.warning")
-            ).showAndWait();
-            
-            if (result.isEmpty() || result.get() != javafx.scene.control.ButtonType.OK) {
-                pippCompatibleFits.setSelected(false);
-            }
-        }
-    }
+        var root = new BorderPane();
+        root.getStyleClass().add("params-dialog");
+        root.setCenter(scrollPane);
+        root.setBottom(buttonBar);
 
-    public void close() {
-        Configuration.getInstance().setWatchModeWaitTimeMilis(Integer.parseInt(watchModeWaitTimeMillis.getText()));
-        Configuration.getInstance().setMemoryRestrictionMultiplier((int) memoryRestrictionMultiplier.getValue());
-        Configuration.getInstance().setBass2000FtpUrl(bass2000FtpUrl.getText());
-        Configuration.getInstance().setWritePippCompatibleFits(pippCompatibleFits.isSelected());
-        
-        var selectedLanguageDisplay = languageSelector.getValue();
-        var frenchDisplay = I18N.string(JSolEx.class, "advanced-params", "language.french");
-        if (frenchDisplay.equals(selectedLanguageDisplay)) {
-            Configuration.getInstance().setSelectedLanguage("fr");
-        } else {
-            Configuration.getInstance().setSelectedLanguage("en");
-        }
-        
-        AlertFactory.info(I18N.string(JSolEx.class, "advanced-params", "must.restart"))
-            .showAndWait();
-        stage.close();
-    }
-
-    public void cancel() {
-        stage.close();
-    }
-
-    public void resetFtpUrl() {
-        bass2000FtpUrl.setText(Configuration.DEFAULT_SOLAP_URL);
+        var scene = new Scene(root, 700, 600);
+        scene.getStylesheets().addAll(owner.getScene().getStylesheets());
+        stage.setScene(scene);
+        stage.showAndWait();
     }
 }

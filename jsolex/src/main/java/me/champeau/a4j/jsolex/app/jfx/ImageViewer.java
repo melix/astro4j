@@ -45,6 +45,7 @@ import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
 import javafx.stage.Stage;
 import javafx.util.Duration;
+import me.champeau.a4j.jsolex.app.Configuration;
 import me.champeau.a4j.jsolex.app.JSolEx;
 import me.champeau.a4j.jsolex.processing.event.GenericMessage;
 import me.champeau.a4j.jsolex.processing.event.ProcessingEventListener;
@@ -239,10 +240,7 @@ public class ImageViewer implements WithRootNode {
                     try {
                         var preparedFile = TemporaryFolder.newTempFile("prepared", ".png").toFile();
                         var globeFile = TemporaryFolder.newTempFile("globe", ".png").toFile();
-                        var pp = processParams.withExtraParams(
-                                processParams.extraParams().withImageFormats(Set.of(ImageFormat.PNG))
-                        );
-                        var imageSaver = new ImageSaver(determineStrategy(), pp);
+                        var imageSaver = new ImageSaver(determineStrategy(), processParams, Set.of(ImageFormat.PNG));
                         imageSaver.save(prepared, preparedFile);
                         imageSaver.save(withGlobe, globeFile);
                         var distanceMeasurementPane = new DistanceMeasurementPane(new Image(preparedFile.toURI().toString()), new Image(globeFile.toURI().toString()), ellipse, solarParameters);
@@ -287,7 +285,7 @@ public class ImageViewer implements WithRootNode {
     }
 
     private String imageDisplayExtension(ProcessParams params) {
-        var imageFormats = params.extraParams().imageFormats();
+        var imageFormats = Configuration.getInstance().getImageFormats();
         if (imageFormats.contains(ImageFormat.PNG)) {
             return ImageFormat.PNG.extension();
         } else {
@@ -299,7 +297,7 @@ public class ImageViewer implements WithRootNode {
         var unwrapped = this.image.unwrapToMemory();
         var image = applyTransformations(unwrapped);
         var strategy = determineStrategy();
-        var files = new ImageSaver(strategy, processParams).save(image, imageFile);
+        var files = new ImageSaver(strategy, processParams, Configuration.getInstance().getImageFormats()).save(image, imageFile);
         files.stream()
                 .findFirst()
                 .ifPresent(file -> imageView.setImagePathForOpeningInExplorer(file.toPath()));

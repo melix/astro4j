@@ -15,16 +15,22 @@
  */
 package me.champeau.a4j.jsolex.app;
 
+import me.champeau.a4j.jsolex.processing.util.AnimationFormat;
 import me.champeau.a4j.jsolex.processing.util.FitsUtils;
+import me.champeau.a4j.jsolex.processing.util.ImageFormat;
 import me.champeau.a4j.math.tuples.IntPair;
 
 import java.io.File;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.EnumSet;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 import java.util.prefs.Preferences;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
@@ -44,6 +50,8 @@ public class Configuration {
     private static final String BASS2000_FORM_CONFIRMED = "bass2000.form.confirmed";
     private static final String PIPP_COMPAT = "pipp.compatibility";
     private static final String SELECTED_LANGUAGE = "selected.language";
+    private static final String IMAGE_FORMATS = "image.formats";
+    private static final String ANIMATION_FORMATS = "animation.formats";
 
     public static final String DEFAULT_SOLAP_URL = "ftp://ftp.obspm.fr/incoming/solap";
 
@@ -57,7 +65,7 @@ public class Configuration {
                 .map(Path::of)
                 .filter(Files::exists)
                 .limit(10)
-                .collect(Collectors.toCollection(java.util.ArrayList::new));
+                .collect(Collectors.toCollection(ArrayList::new));
         FitsUtils.setPippCompatibility(isWritePippCompatibleFits());
         
         // Set system property for locale if configured
@@ -217,6 +225,58 @@ public class Configuration {
             prefs.put(SELECTED_LANGUAGE, languageTag);
             System.setProperty("jsolex.locale", languageTag);
         }
+    }
+
+    public Set<ImageFormat> getImageFormats() {
+        var formatsString = prefs.get(IMAGE_FORMATS, ImageFormat.PNG.name());
+        return Arrays.stream(formatsString.split(","))
+                .map(String::trim)
+                .filter(s -> !s.isEmpty())
+                .map(s -> {
+                    try {
+                        return ImageFormat.valueOf(s);
+                    } catch (IllegalArgumentException e) {
+                        return null;
+                    }
+                })
+                .filter(Objects::nonNull)
+                .collect(Collectors.toCollection(() -> EnumSet.noneOf(ImageFormat.class)));
+    }
+
+    public void setImageFormats(Set<ImageFormat> formats) {
+        if (formats == null || formats.isEmpty()) {
+            formats = EnumSet.of(ImageFormat.PNG);
+        }
+        var formatsString = formats.stream()
+                .map(ImageFormat::name)
+                .collect(joining(","));
+        prefs.put(IMAGE_FORMATS, formatsString);
+    }
+
+    public Set<AnimationFormat> getAnimationFormats() {
+        var formatsString = prefs.get(ANIMATION_FORMATS, AnimationFormat.MP4.name());
+        return Arrays.stream(formatsString.split(","))
+                .map(String::trim)
+                .filter(s -> !s.isEmpty())
+                .map(s -> {
+                    try {
+                        return AnimationFormat.valueOf(s);
+                    } catch (IllegalArgumentException e) {
+                        return null;
+                    }
+                })
+                .filter(Objects::nonNull)
+                .collect(Collectors.toCollection(() -> EnumSet.noneOf(AnimationFormat.class)));
+    }
+
+    public void setAnimationFormats(Set<AnimationFormat> formats) {
+        if (formats == null || formats.isEmpty()) {
+            formats = EnumSet.of(AnimationFormat.MP4);
+        }
+        var formatsString = formats.stream()
+                .map(AnimationFormat::name)
+                .collect(joining(","));
+        prefs.put(ANIMATION_FORMATS, formatsString);
     }
 
     public enum DirectoryKind {

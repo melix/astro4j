@@ -47,6 +47,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.File;
+import java.time.LocalDate;
 import java.util.function.Consumer;
 
 class Step5UploadHandler implements StepHandler {
@@ -72,7 +73,7 @@ class Step5UploadHandler implements StepHandler {
         SpectralRay getSelectedWavelength();
         boolean maybeConfirmDuplicateUpload(double wavelengthAngstroms);
         void recordSuccessfulUploads();
-        java.time.LocalDate getObservationDate();
+        LocalDate getObservationDate();
         void exportFilesForUpload();
         void closeWizard();
     }

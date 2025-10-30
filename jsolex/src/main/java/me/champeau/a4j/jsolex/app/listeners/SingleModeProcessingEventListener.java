@@ -78,7 +78,7 @@ import me.champeau.a4j.jsolex.processing.event.SuggestionEvent;
 import me.champeau.a4j.jsolex.processing.event.TrimmingParametersDeterminedEvent;
 import me.champeau.a4j.jsolex.processing.event.VideoMetadataEvent;
 import me.champeau.a4j.jsolex.processing.expr.DefaultImageScriptExecutor;
-import me.champeau.a4j.jsolex.processing.expr.FileOutput;
+import me.champeau.a4j.jsolex.processing.expr.FileOutputResult;
 import me.champeau.a4j.jsolex.processing.expr.ImageMathScriptExecutor;
 import me.champeau.a4j.jsolex.processing.expr.ImageMathScriptResult;
 import me.champeau.a4j.jsolex.processing.expr.ShiftCollectingImageExpressionEvaluator;
@@ -99,9 +99,11 @@ import me.champeau.a4j.jsolex.processing.sun.workflow.ImageStats;
 import me.champeau.a4j.jsolex.processing.sun.workflow.PixelShift;
 import me.champeau.a4j.jsolex.processing.sun.workflow.PixelShiftRange;
 import me.champeau.a4j.jsolex.processing.sun.workflow.ReferenceCoords;
+import me.champeau.a4j.jsolex.processing.util.AnimationFormat;
 import me.champeau.a4j.jsolex.processing.util.BackgroundOperations;
 import me.champeau.a4j.jsolex.processing.util.Constants;
 import me.champeau.a4j.jsolex.processing.util.Dispersion;
+import me.champeau.a4j.jsolex.processing.util.FilesUtils;
 import me.champeau.a4j.jsolex.processing.util.Histogram;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
@@ -127,7 +129,6 @@ import java.io.PrintWriter;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.StandardCopyOption;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -616,7 +617,10 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
                             List.of(),
                             polynomial,
                             averageImage,
-                            rootOperation
+                            rootOperation,
+                            createNamingStrategy(),
+                            0,
+                            computeSerFileBasename(serFile)
                     );
                     Platform.runLater(() -> {
                         var fxmlLoader = I18N.fxmlLoader(JSolEx.class, "custom-anim-panel");
@@ -740,14 +744,14 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
                                     throw new IllegalStateException("No frames were extracted - cannot create animation");
                                 }
 
-                                var animate = new Animate(Map.of(), SingleModeProcessingEventListener.this);
+                                var animate = new Animate(Map.of(AnimationFormat.class, Configuration.getInstance().getAnimationFormats()), SingleModeProcessingEventListener.this);
                                 Object animationResult;
                                 try {
                                     animationResult = animate.createAnimation(Map.of("images", frames, "delay", 25));
                                 } catch (Exception e) {
                                     throw new RuntimeException("Animation creation failed: " + e.getMessage(), e);
                                 }
-                                if (animationResult instanceof FileOutput fileOutput) {
+                                if (animationResult instanceof FileOutputResult fileOutput) {
                                     // Generate output filename
                                     var outputPath = outputDirectory.resolve(
                                             createNamingStrategy().render(0, null, Constants.TYPE_CUSTOM,
@@ -755,7 +759,7 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
                                                     computeSerFileBasename(serFile), null) + ".mp4");
 
                                     Files.createDirectories(outputPath.getParent());
-                                    Files.move(fileOutput.file(), outputPath);
+                                    Files.move(fileOutput.displayFile(), outputPath);
 
                                     broadcast(FileGeneratedEvent.of(GeneratedImageKind.IMAGE_MATH, "SER Frame Extract", outputPath));
                                 } else {
@@ -860,8 +864,11 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
     @Override
     public void onFileGenerated(FileGeneratedEvent event) {
         var filePath = event.getPayload().path();
-        if (filePath.toFile().getName().endsWith(".mp4")) {
+        var fileName = filePath.toFile().getName();
+        if (fileName.endsWith(".mp4")) {
             Platform.runLater(() -> owner.getImagesViewer().addVideo(event.getPayload().kind(), event.getPayload().title(), filePath));
+        } else if (fileName.endsWith(".gif")) {
+            Platform.runLater(() -> owner.getImagesViewer().addAnimatedGif(event.getPayload().kind(), event.getPayload().title(), filePath));
         }
     }
 
@@ -959,7 +966,10 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
                 redshifts,
                 polynomial,
                 averageImage,
-                rootOperation
+                rootOperation,
+                createNamingStrategy(),
+                0,
+                computeSerFileBasename(serFile)
         ));
         owner.prepareForGongImageDownload(processParams);
         
@@ -981,6 +991,7 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
         context.put(ProcessParams.class, payload.processParams());
         context.put(ImageEmitter.class, payload.customImageEmitter());
         context.put(PixelShiftRange.class, payload.pixelShiftRange());
+        context.put(AnimationFormat.class, Configuration.getInstance().getAnimationFormats());
         return context;
     }
 
@@ -1016,7 +1027,18 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
             restartProcessForMissingShifts(missingShifts);
         }
         var result = imageScriptExecutor.execute(script, SectionKind.SINGLE);
-        ImageMathScriptExecutor.render(result, imageEmitter);
+        var namingStrategy = createNamingStrategy();
+        ImageMathScriptExecutor.render(result, imageEmitter, (outputLabel, fileOutput) -> {
+            var baseName = namingStrategy.render(0, null, Constants.TYPE_CUSTOM, outputLabel, computeSerFileBasename(serFile), null);
+            try {
+                var displayPath = FilesUtils.saveAllFilesAndGetDisplayPath(fileOutput, outputDirectory, baseName);
+                if (displayPath != null) {
+                    onFileGenerated(FileGeneratedEvent.of(GeneratedImageKind.IMAGE_MATH, outputLabel, displayPath));
+                }
+            } catch (IOException e) {
+                throw new ProcessingException(e);
+            }
+        });
         var invalidExpressions = result.invalidExpressions();
         var errorCount = invalidExpressions.size();
         if (errorCount > 0) {
@@ -1083,6 +1105,13 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
     @Override
     public <T> Optional<T> getVariable(String name) {
         return imageScriptExecutor.getVariable(name);
+    }
+
+    @Override
+    public <T> void putInContext(Class<T> key, Object value) {
+        if (imageScriptExecutor != null) {
+            imageScriptExecutor.putInContext(key, value);
+        }
     }
 
     private Set<Double> determineShiftsRequiredInScript(String script) {
@@ -1634,14 +1663,14 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
             ));
         });
         result.filesByLabel().entrySet().stream().parallel().forEach(entry -> {
-            var name = namingStrategy.render(0, null, Constants.TYPE_PROCESSED, entry.getKey(), "batch", null);
+            var fileOutput = entry.getValue();
+            var baseName = namingStrategy.render(0, null, Constants.TYPE_PROCESSED, entry.getKey(), "batch", null);
             try {
-                var fileName = entry.getValue().toFile().getName();
-                var ext = fileName.substring(fileName.lastIndexOf("."));
-                var targetPath = new File(outputDirectory.toFile(), name + ext).toPath();
-                createDirectoriesIfNeeded(targetPath.getParent());
-                Files.move(entry.getValue(), targetPath, StandardCopyOption.REPLACE_EXISTING);
-                onFileGenerated(FileGeneratedEvent.of(GeneratedImageKind.IMAGE_MATH, entry.getKey(), targetPath));
+                var displayPath = FilesUtils.saveAllFilesAndGetDisplayPath(fileOutput, outputDirectory, baseName);
+                // Only fire display event for the designated display file
+                if (displayPath != null) {
+                    onFileGenerated(FileGeneratedEvent.of(GeneratedImageKind.IMAGE_MATH, entry.getKey(), displayPath));
+                }
             } catch (IOException e) {
                 throw new ProcessingException(e);
             }

@@ -35,6 +35,7 @@ import javafx.scene.input.ScrollEvent;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Pane;
+import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
 import javafx.scene.paint.Color;
 import javafx.scene.shape.LineTo;
@@ -153,7 +154,7 @@ public class DistanceMeasurementPane extends BorderPane {
         buttonBar.setSpacing(10);
         setBottom(buttonBar);
         setTop(topBar);
-        HBox.setHgrow(topBar, javafx.scene.layout.Priority.ALWAYS);
+        HBox.setHgrow(topBar, Priority.ALWAYS);
         setupMouseHandlers();
         setupKeyHandlers();
         setFocusTraversable(true);

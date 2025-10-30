@@ -133,7 +133,7 @@ public class Main implements Runnable {
                     4,
                     ProgressOperation.root("cli", p -> {
                     }));
-            processor.addEventListener(new LoggingListener(processParams));
+            processor.addEventListener(new LoggingListener(processParams, miscOptions.getImageFormats()));
             processor.process();
         } catch (IOException e) {
             throw new ProcessingException(e);
@@ -265,10 +265,14 @@ public class Main implements Runnable {
             if (debugImages != null) {
                 result = result.withGenerateDebugImages(debugImages);
             }
-            if (generateFits != null) {
-                result = result.withImageFormats(Set.of(ImageFormat.FITS, ImageFormat.PNG));
-            }
             return result;
+        }
+
+        public Set<ImageFormat> getImageFormats() {
+            if (generateFits != null && generateFits) {
+                return Set.of(ImageFormat.FITS, ImageFormat.PNG);
+            }
+            return Set.of(ImageFormat.PNG, ImageFormat.FITS);
         }
     }
 

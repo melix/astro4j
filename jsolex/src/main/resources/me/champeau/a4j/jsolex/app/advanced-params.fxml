@@ -36,6 +36,10 @@
                             <RowConstraints/>
                             <RowConstraints/>
                             <RowConstraints/>
+                            <RowConstraints/>
+                            <RowConstraints/>
+                            <RowConstraints/>
+                            <RowConstraints/>
                         </rowConstraints>
                         
                         <Label text="%language" styleClass="field-label" GridPane.columnIndex="0" GridPane.rowIndex="0">
@@ -103,6 +107,38 @@
                         <CheckBox fx:id="pippCompatibleFits" styleClass="checkbox-control" GridPane.columnIndex="1" GridPane.rowIndex="4">
                             <tooltip>
                                 <Tooltip text="%pipp.compatible.fits.tooltip"/>
+                            </tooltip>
+                        </CheckBox>
+
+                        <Label text="%output.formats" styleClass="field-label" GridPane.columnIndex="0" GridPane.rowIndex="5">
+                            <tooltip>
+                                <Tooltip text="%output.formats.tooltip"/>
+                            </tooltip>
+                        </Label>
+                        <CheckBox fx:id="generatePng" text="PNG" styleClass="checkbox-control" GridPane.columnIndex="1" GridPane.rowIndex="5">
+                            <tooltip>
+                                <Tooltip text="%generate.png.files"/>
+                            </tooltip>
+                        </CheckBox>
+
+                        <Label text="" GridPane.columnIndex="0" GridPane.rowIndex="6"/>
+                        <CheckBox fx:id="generateJpg" text="JPG" styleClass="checkbox-control" GridPane.columnIndex="1" GridPane.rowIndex="6">
+                            <tooltip>
+                                <Tooltip text="%generate.jpg.files"/>
+                            </tooltip>
+                        </CheckBox>
+
+                        <Label text="" GridPane.columnIndex="0" GridPane.rowIndex="7"/>
+                        <CheckBox fx:id="generateTif" text="TIF" styleClass="checkbox-control" GridPane.columnIndex="1" GridPane.rowIndex="7">
+                            <tooltip>
+                                <Tooltip text="%generate.tif.files"/>
+                            </tooltip>
+                        </CheckBox>
+
+                        <Label text="" GridPane.columnIndex="0" GridPane.rowIndex="8"/>
+                        <CheckBox fx:id="generateFits" text="FITS" styleClass="checkbox-control" GridPane.columnIndex="1" GridPane.rowIndex="8">
+                            <tooltip>
+                                <Tooltip text="%generate.fits.files"/>
                             </tooltip>
                         </CheckBox>
                     </GridPane>

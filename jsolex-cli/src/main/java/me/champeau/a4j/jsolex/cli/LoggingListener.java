@@ -24,22 +24,26 @@ import me.champeau.a4j.jsolex.processing.event.ProcessingStartEvent;
 import me.champeau.a4j.jsolex.processing.event.SuggestionEvent;
 import me.champeau.a4j.jsolex.processing.params.ProcessParams;
 import me.champeau.a4j.jsolex.processing.stretching.RangeExpansionStrategy;
+import me.champeau.a4j.jsolex.processing.util.ImageFormat;
 import me.champeau.a4j.jsolex.processing.util.ImageSaver;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.time.Duration;
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.CopyOnWriteArrayList;
 
 public class LoggingListener implements ProcessingEventListener {
     private static final Logger LOGGER = LoggerFactory.getLogger(LoggingListener.class);
     private final ProcessParams processParams;
+    private final Set<ImageFormat> imageFormats;
     private final List<String> suggestions = new CopyOnWriteArrayList<>();
     private long sd;
 
-    public LoggingListener(ProcessParams processParams) {
+    public LoggingListener(ProcessParams processParams, Set<ImageFormat> imageFormats) {
         this.processParams = processParams;
+        this.imageFormats = imageFormats;
     }
 
 
@@ -48,7 +52,7 @@ public class LoggingListener implements ProcessingEventListener {
         var payload = event.getPayload();
         var image = payload.image();
         var target = payload.path().toFile();
-        new ImageSaver(RangeExpansionStrategy.DEFAULT, processParams).save(image, target);
+        new ImageSaver(RangeExpansionStrategy.DEFAULT, processParams, imageFormats).save(image, target);
         LOGGER.info("Image {} generated at {}", payload.title(), payload.path());
     }
 

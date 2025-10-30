@@ -15,6 +15,8 @@
  */
 package me.champeau.a4j.jsolex.processing.util;
 
+import me.champeau.a4j.jsolex.processing.expr.FileOutputResult;
+
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
@@ -26,6 +28,7 @@ import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
 import java.nio.file.StandardOpenOption;
 import java.util.List;
 
@@ -105,6 +108,63 @@ public class FilesUtils {
                 return apply(from);
             } catch (Exception e) {
                 throw new RuntimeException(e);
+            }
+        }
+    }
+
+    /**
+     * Saves all files from a FileOutputResult (both display and non-display files)
+     * to the output directory using the provided base name, and returns the path
+     * where the display file was saved.
+     *
+     * @param fileOutput the file output result containing all files
+     * @param outputDirectory the directory where files should be saved
+     * @param baseName the base name for the files (extension will be appended)
+     * @return the path where the display file was saved, or null if no display file
+     * @throws IOException if an I/O error occurs
+     */
+    public static Path saveAllFilesAndGetDisplayPath(
+            FileOutputResult fileOutput,
+            Path outputDirectory,
+            String baseName
+    ) throws IOException {
+        Path displayPath = null;
+        for (var file : fileOutput.allFiles()) {
+            var fileName = file.getFileName().toString();
+            var ext = fileName.substring(fileName.lastIndexOf("."));
+            var targetPath = outputDirectory.resolve(baseName + ext);
+            createDirectoriesIfNeeded(targetPath.getParent());
+            Files.move(file, targetPath, StandardCopyOption.REPLACE_EXISTING);
+            if (file.equals(fileOutput.displayFile())) {
+                displayPath = targetPath;
+            }
+        }
+        return displayPath;
+    }
+
+    /**
+     * Saves only the non-display files from a FileOutputResult to the output directory
+     * using the provided base name. The display file is not processed by this method
+     * and should be handled separately by the caller (typically passed to an emitter).
+     *
+     * @param fileOutput the file output result containing all files
+     * @param outputDirectory the directory where files should be saved
+     * @param baseName the base name for the files (extension will be appended)
+     * @throws IOException if an I/O error occurs
+     */
+    public static void saveNonDisplayFiles(
+            FileOutputResult fileOutput,
+            Path outputDirectory,
+            String baseName
+    ) throws IOException {
+        var displayFile = fileOutput.displayFile();
+        for (var file : fileOutput.allFiles()) {
+            if (!file.equals(displayFile)) {
+                var fileName = file.getFileName().toString();
+                var extension = fileName.substring(fileName.lastIndexOf("."));
+                var targetFile = outputDirectory.resolve(baseName + extension);
+                createDirectoriesIfNeeded(targetFile.getParent());
+                Files.move(file, targetFile, StandardCopyOption.REPLACE_EXISTING);
             }
         }
     }

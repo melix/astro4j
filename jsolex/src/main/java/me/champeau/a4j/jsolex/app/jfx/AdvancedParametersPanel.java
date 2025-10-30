@@ -28,6 +28,8 @@ import me.champeau.a4j.jsolex.processing.params.EllipseFittingMode;
 import me.champeau.a4j.jsolex.processing.params.ProcessParams;
 import me.champeau.a4j.ser.ColorMode;
 
+import java.util.Locale;
+
 public class AdvancedParametersPanel extends BaseParameterPanel {
     
     private ProcessParamsController controller;
@@ -80,7 +82,7 @@ public class AdvancedParametersPanel extends BaseParameterPanel {
         ellipseFittingMode.setConverter(new StringConverter<EllipseFittingMode>() {
             @Override
             public String toString(EllipseFittingMode mode) {
-                return mode == null ? null : I18N.string(JSolEx.class, "process-params", "ellipse.fitting.mode." + mode.name().toLowerCase(java.util.Locale.US));
+                return mode == null ? null : I18N.string(JSolEx.class, "process-params", "ellipse.fitting.mode." + mode.name().toLowerCase(Locale.US));
             }
             @Override
             public EllipseFittingMode fromString(String string) {

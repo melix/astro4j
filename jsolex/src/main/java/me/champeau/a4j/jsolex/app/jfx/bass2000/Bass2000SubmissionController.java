@@ -50,6 +50,7 @@ import org.slf4j.LoggerFactory;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.text.MessageFormat;
+import java.time.LocalDate;
 import java.util.LinkedHashMap;
 import java.util.Locale;
 import java.util.Map;
@@ -186,7 +187,7 @@ public class Bass2000SubmissionController {
                 }
 
                 @Override
-                public java.time.LocalDate getObservationDate() {
+                public LocalDate getObservationDate() {
                     return findProcessParams().observationDetails().date().toLocalDate();
                 }
 

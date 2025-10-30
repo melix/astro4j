@@ -15,6 +15,8 @@
  */
 package me.champeau.a4j.jsolex.processing.params;
 
+import me.champeau.a4j.math.regression.Ellipse;
+
 import java.util.Optional;
 import java.util.OptionalDouble;
 
@@ -189,7 +191,7 @@ public class GeometryParams {
         return new GeometryParams(tilt, xyRatio, horizontalMirror, verticalMirror, disallowDownsampling, autocorrectAngleP, rotation, autocropMode, fixedWidth, deconvolutionMode, richardsonLucyDeconvolutionParams, forcePolynomial, forcedPolynomial, spectrumVFlip, ellipseFittingMode);
     }
 
-    public GeometryParams withUserEllipse(me.champeau.a4j.math.regression.Ellipse userEllipse) {
+    public GeometryParams withUserEllipse(Ellipse userEllipse) {
         return new GeometryParams(tilt, xyRatio, horizontalMirror, verticalMirror, disallowDownsampling, autocorrectAngleP, rotation, autocropMode, fixedWidth, deconvolutionMode, richardsonLucyDeconvolutionParams, forcePolynomial, forcedPolynomial, spectrumVFlip, ellipseFittingMode);
     }
 

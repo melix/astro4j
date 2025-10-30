@@ -88,6 +88,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
+import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
@@ -846,9 +847,7 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
             if (processParams == null) {
                 processParams = ProcessParamsIO.loadDefaults();
             }
-            this.processParams = processParams.withExtraParams(
-                    processParams.extraParams().withImageFormats(Set.of(ImageFormat.FITS))
-            );
+            this.processParams = processParams;
         }
 
         @Override
@@ -862,7 +861,7 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
             if (width > 0 && height > 0) {
                 try {
                     var tempFile = TemporaryFolder.newTempFile("image", ".fits");
-                    var files = new ImageSaver(CutoffStretchingStrategy.DEFAULT, processParams).save(imageWrapper, tempFile.toFile());
+                    var files = new ImageSaver(CutoffStretchingStrategy.DEFAULT, processParams, EnumSet.of(ImageFormat.PNG)).save(imageWrapper, tempFile.toFile());
                     obj.addProperty("file", files.getFirst().getAbsolutePath());
                 } catch (IOException e) {
                     throw new RuntimeException(e);

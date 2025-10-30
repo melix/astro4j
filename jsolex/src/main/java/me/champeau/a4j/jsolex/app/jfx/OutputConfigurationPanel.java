@@ -31,17 +31,9 @@ import me.champeau.a4j.jsolex.processing.params.FileNamingPatternsIO;
 import me.champeau.a4j.jsolex.processing.params.GlobeStyle;
 import me.champeau.a4j.jsolex.processing.params.NamedPattern;
 import me.champeau.a4j.jsolex.processing.params.ProcessParams;
-import me.champeau.a4j.jsolex.processing.util.ImageFormat;
-
-import java.util.EnumSet;
-import java.util.Set;
 
 public class OutputConfigurationPanel extends BaseParameterPanel {
-    
-    private CheckBox generatePng;
-    private CheckBox generateJpg;
-    private CheckBox generateTif;
-    private CheckBox generateFits;
+
     private CheckBox autoSave;
     private CheckBox autoTrimSerFile;
     private ChoiceBox<GlobeStyle> globeStyle;
@@ -55,20 +47,6 @@ public class OutputConfigurationPanel extends BaseParameterPanel {
     }
     
     private void initializeComponents() {
-        // File format checkboxes
-        generatePng = new CheckBox(I18N.string(JSolEx.class, "process-params", "generate.png.files"));
-        generatePng.setSelected(true);
-        generatePng.setTooltip(new Tooltip(I18N.string(JSolEx.class, "process-params", "generate.png.files")));
-        
-        generateJpg = new CheckBox(I18N.string(JSolEx.class, "process-params", "generate.jpg.files"));
-        generateJpg.setTooltip(new Tooltip(I18N.string(JSolEx.class, "process-params", "generate.jpg.files")));
-        
-        generateTif = new CheckBox(I18N.string(JSolEx.class, "process-params", "generate.tif.files"));
-        generateTif.setTooltip(new Tooltip(I18N.string(JSolEx.class, "process-params", "generate.tif.files")));
-        
-        generateFits = new CheckBox(I18N.string(JSolEx.class, "process-params", "generate.fits.files"));
-        generateFits.setTooltip(new Tooltip(I18N.string(JSolEx.class, "process-params", "generate.fits.files")));
-        
         autoSave = new CheckBox(I18N.string(JSolEx.class, "process-params", "automatic.save.images"));
         autoSave.setSelected(true);
         autoSave.setTooltip(new Tooltip(I18N.string(JSolEx.class, "process-params", "automatic.save.images.tooltip")));
@@ -115,17 +93,7 @@ public class OutputConfigurationPanel extends BaseParameterPanel {
     private void setupLayout() {
         setPadding(new Insets(24));
         setSpacing(24);
-        
-        var formatsSection = createSection("file.formats");
-        var formatCheckboxes = new VBox(8);
-        formatCheckboxes.getChildren().addAll(
-            generatePng,
-            generateJpg,
-            generateTif,
-            generateFits
-        );
-        formatsSection.getChildren().add(formatCheckboxes);
-        
+
         var optionsSection = createSection("output.options");
         var optionCheckboxes = new VBox(8);
         optionCheckboxes.getChildren().addAll(
@@ -147,7 +115,7 @@ public class OutputConfigurationPanel extends BaseParameterPanel {
         resetButton.getStyleClass().add("default-button");
         resetButton.setOnAction(e -> resetToDefaults());
         
-        getChildren().addAll(formatsSection, optionsSection, namingSection, resetButton);
+        getChildren().addAll(optionsSection, namingSection, resetButton);
     }
     
     
@@ -170,11 +138,6 @@ public class OutputConfigurationPanel extends BaseParameterPanel {
     }
     
     private void resetToDefaults() {
-        generatePng.setSelected(true);
-        generateJpg.setSelected(false);
-        generateTif.setSelected(false);
-        generateFits.setSelected(false);
-        
         autoSave.setSelected(true);
         autoTrimSerFile.setSelected(false);
         
@@ -189,13 +152,7 @@ public class OutputConfigurationPanel extends BaseParameterPanel {
     
     public void loadData(ProcessParams params, boolean batchMode) {
         var extraParams = params.extraParams();
-        
-        // Load file format preferences
-        generatePng.setSelected(extraParams.imageFormats().contains(ImageFormat.PNG));
-        generateJpg.setSelected(extraParams.imageFormats().contains(ImageFormat.JPG));
-        generateTif.setSelected(extraParams.imageFormats().contains(ImageFormat.TIF));
-        generateFits.setSelected(extraParams.imageFormats().contains(ImageFormat.FITS));
-        
+
         // Load other options
         autoSave.setSelected(extraParams.autosave());
         globeStyle.setValue(extraParams.globeStyle() != null ? extraParams.globeStyle() : GlobeStyle.EQUATORIAL_COORDS);
@@ -213,16 +170,8 @@ public class OutputConfigurationPanel extends BaseParameterPanel {
     
     public ExtraParams getExtraParams() {
         var defaults = ProcessParams.loadDefaults().extraParams();
-        
-        // Build image formats set
-        Set<ImageFormat> imageFormats = EnumSet.noneOf(ImageFormat.class);
-        if (generatePng.isSelected()) imageFormats.add(ImageFormat.PNG);
-        if (generateJpg.isSelected()) imageFormats.add(ImageFormat.JPG);
-        if (generateTif.isSelected()) imageFormats.add(ImageFormat.TIF);
-        if (generateFits.isSelected()) imageFormats.add(ImageFormat.FITS);
-        
+
         return defaults
-            .withImageFormats(imageFormats)
             .withAutosave(autoSave.isSelected())
             .withGlobeStyle(globeStyle.getValue() != null ? globeStyle.getValue() : GlobeStyle.EQUATORIAL_COORDS)
             .withFileNamePattern(namingPattern.getValue() != null ? namingPattern.getValue().pattern() : defaults.fileNamePattern());

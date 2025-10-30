@@ -80,7 +80,6 @@ import javafx.util.converter.IntegerStringConverter;
 import me.champeau.a4j.jsolex.app.jfx.AdvancedParamsController;
 import me.champeau.a4j.jsolex.app.jfx.ApplyUserRotation;
 import me.champeau.a4j.jsolex.app.jfx.AssistedEllipseFittingController;
-import me.champeau.a4j.jsolex.app.jfx.bass2000.Bass2000SubmissionController;
 import me.champeau.a4j.jsolex.app.jfx.BatchItem;
 import me.champeau.a4j.jsolex.app.jfx.DocsHelper;
 import me.champeau.a4j.jsolex.app.jfx.EmbeddedServerController;
@@ -99,6 +98,7 @@ import me.champeau.a4j.jsolex.app.jfx.SpectralLineDebugger;
 import me.champeau.a4j.jsolex.app.jfx.SpectralRayEditor;
 import me.champeau.a4j.jsolex.app.jfx.SpectroHeliographEditor;
 import me.champeau.a4j.jsolex.app.jfx.SpectrumBrowser;
+import me.champeau.a4j.jsolex.app.jfx.bass2000.Bass2000SubmissionController;
 import me.champeau.a4j.jsolex.app.jfx.ime.ImageMathTextArea;
 import me.champeau.a4j.jsolex.app.jfx.stacking.StackingAndMosaicController;
 import me.champeau.a4j.jsolex.app.listeners.BatchModeEventListener;
@@ -128,6 +128,7 @@ import me.champeau.a4j.jsolex.processing.sun.SolexVideoProcessor;
 import me.champeau.a4j.jsolex.processing.sun.TrimmingParameters;
 import me.champeau.a4j.jsolex.processing.sun.detection.RedshiftArea;
 import me.champeau.a4j.jsolex.processing.sun.workflow.GeneratedImageKind;
+import me.champeau.a4j.jsolex.processing.util.AnimationFormat;
 import me.champeau.a4j.jsolex.processing.util.BackgroundOperations;
 import me.champeau.a4j.jsolex.processing.util.Bass2000ConfigService;
 import me.champeau.a4j.jsolex.processing.util.Constants;
@@ -156,7 +157,6 @@ import java.io.InputStream;
 import java.nio.file.FileSystems;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.StandardCopyOption;
 import java.nio.file.StandardWatchEventKinds;
 import java.nio.file.WatchEvent;
 import java.nio.file.WatchKey;
@@ -188,7 +188,6 @@ import static java.nio.file.StandardWatchEventKinds.OVERFLOW;
 import static me.champeau.a4j.jsolex.app.jfx.FXUtils.newStage;
 import static me.champeau.a4j.jsolex.app.jfx.SerFileTrimmerController.toTrimmedFile;
 import static me.champeau.a4j.jsolex.processing.sun.CaptureSoftwareMetadataHelper.findMetadataFile;
-import static me.champeau.a4j.jsolex.processing.util.FilesUtils.createDirectoriesIfNeeded;
 import static me.champeau.a4j.jsolex.processing.util.LoggingSupport.logError;
 
 public class JSolEx implements JSolExInterface {
@@ -894,6 +893,7 @@ public class JSolEx implements JSolExInterface {
             BackgroundOperations.async(() -> {
                 var operation = rootOperation.createChild("ImageMath Script");
                 executor.putInContext(ProgressOperation.class, operation);
+                executor.putInContext(AnimationFormat.class, config.getAnimationFormats());
                 executor.execute(text, sectionKind);
             });
         });
@@ -1114,19 +1114,7 @@ public class JSolEx implements JSolExInterface {
 
     @FXML
     private void showAdvancedParams() {
-        var fxmlLoader = I18N.fxmlLoader(JSolEx.class, "advanced-params");
-        try {
-            var stage = newStage();
-            var node = (Parent) fxmlLoader.load();
-            var controller = (AdvancedParamsController) fxmlLoader.getController();
-            controller.setup(stage);
-            Scene scene = newScene(node);
-            stage.setTitle(I18N.string(JSolEx.class, "advanced-params", "frame.title"));
-            stage.setScene(scene);
-            stage.showAndWait();
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        }
+        AdvancedParamsController.openDialog(rootStage);
     }
 
     @FXML
@@ -1265,14 +1253,14 @@ public class JSolEx implements JSolExInterface {
 
                 });
                 result.filesByLabel().entrySet().stream().parallel().forEach(entry -> {
-                    var name = namingStrategy.render(0, null, Constants.TYPE_PROCESSED, entry.getKey(), "standalone", null);
+                    var fileOutput = entry.getValue();
+                    var baseName = namingStrategy.render(0, null, Constants.TYPE_PROCESSED, entry.getKey(), "standalone", null);
                     try {
-                        var fileName = entry.getValue().toFile().getName();
-                        var ext = fileName.substring(fileName.lastIndexOf("."));
-                        var targetPath = new File(outputDirectory, name + ext).toPath();
-                        createDirectoriesIfNeeded(targetPath.getParent());
-                        Files.move(entry.getValue(), targetPath, StandardCopyOption.REPLACE_EXISTING);
-                        listener.onFileGenerated(FileGeneratedEvent.of(GeneratedImageKind.IMAGE_MATH, entry.getKey(), targetPath));
+                        var displayPath = FilesUtils.saveAllFilesAndGetDisplayPath(fileOutput, outputDirectory.toPath(), baseName);
+                        // Only fire display event for the designated display file
+                        if (displayPath != null) {
+                            listener.onFileGenerated(FileGeneratedEvent.of(GeneratedImageKind.IMAGE_MATH, entry.getKey(), displayPath));
+                        }
                     } catch (IOException e) {
                         throw new ProcessingException(e);
                     }
@@ -1798,7 +1786,8 @@ public class JSolEx implements JSolExInterface {
         }
         var appender = LogbackConfigurer.createContextualFileAppender(sequenceNumber, logFile);
         LoggingSupport.LOGGER.info(message("output.dir.set"), outputDirectory);
-        var processor = new SolexVideoProcessor(selectedFile, outputDirectory.toPath(), sequenceNumber, params, processingDate, batchMode, config.getMemoryRestrictionMultiplier(), operation);
+        var processorContext = Map.<Class<?>, Object>of(AnimationFormat.class, config.getAnimationFormats());
+        var processor = new SolexVideoProcessor(selectedFile, outputDirectory.toPath(), sequenceNumber, params, processingDate, batchMode, config.getMemoryRestrictionMultiplier(), operation, processorContext);
         var listener = createListener(operation, baseName, params, batchMode, sequenceNumber, context);
         processor.addEventListener(listener);
         try {

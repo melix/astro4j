@@ -1,5 +1,6 @@
 # Welcome to JSol'Ex {{version}}!
 
+- [Version 4.2.0](#whats-new-in-version-4-2-0) - GIF support, file format settings
 - [Version 4.1.4](#whats-new-in-version-4-1-4) - Bug fixes and improvements
 - [Version 4.1.3](#whats-new-in-version-4-1-3) - Improved banding correction
 - [Version 4.1.2](#whats-new-in-version-4-1-2) - Bug fixes
@@ -7,6 +8,11 @@
 - [Version 4.1.0](#whats-new-in-version-4-1-0) - User-defined presets, collage creation
 - [Version 4.0.1](#whats-new-in-version-4-0-1) - Language selection, bug fixes
 - [Version 4.0.0](#whats-new-in-version-4-0-0) - Enhanced UI, BASS2000 integration
+
+## What's New in Version 4.2.0
+
+- File formats are now part of advanced settings (outside of process parameters)
+- Added ability to generate GIF files in addition to MP4
 
 ## What's New in Version 4.1.4
 

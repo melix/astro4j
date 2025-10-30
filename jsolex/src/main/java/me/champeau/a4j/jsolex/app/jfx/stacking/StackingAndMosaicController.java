@@ -33,6 +33,7 @@ import javafx.scene.layout.FlowPane;
 import javafx.stage.FileChooser;
 import javafx.stage.Stage;
 import javafx.util.converter.DoubleStringConverter;
+import me.champeau.a4j.jsolex.app.Configuration;
 import me.champeau.a4j.jsolex.app.JSolEx;
 import me.champeau.a4j.jsolex.app.jfx.I18N;
 import me.champeau.a4j.jsolex.app.jfx.ImageMathEditor;
@@ -57,6 +58,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.File;
+import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.EnumSet;
 import java.util.List;
@@ -182,10 +184,11 @@ public class StackingAndMosaicController {
             }
 
         }
-        saveFits.setSelected(processParams.extraParams().imageFormats().contains(ImageFormat.FITS));
-        saveJpg.setSelected(processParams.extraParams().imageFormats().contains(ImageFormat.JPG));
-        savePng.setSelected(processParams.extraParams().imageFormats().contains(ImageFormat.PNG));
-        saveTif.setSelected(processParams.extraParams().imageFormats().contains(ImageFormat.TIF));
+        var imageFormats = Configuration.getInstance().getImageFormats();
+        saveFits.setSelected(imageFormats.contains(ImageFormat.FITS));
+        saveJpg.setSelected(imageFormats.contains(ImageFormat.JPG));
+        savePng.setSelected(imageFormats.contains(ImageFormat.PNG));
+        saveTif.setSelected(imageFormats.contains(ImageFormat.TIF));
         stackSampling.setTextFormatter(createSamplingFormatter());
         stackTileSizeLabel.textProperty().bind(Bindings.createStringBinding(() -> {
             var value = stackTileSize.getValue();
@@ -325,7 +328,7 @@ public class StackingAndMosaicController {
                 workflow.execute(params, panels, outputDirectory);
             } finally {
                 long ed = System.nanoTime();
-                var duration = java.time.Duration.ofNanos(ed - sd);
+                var duration = Duration.ofNanos(ed - sd);
                 double seconds = duration.toMillis() / 1000d;
                 LOGGER.info(message(String.format(message("finished.in"), seconds)));
             }
@@ -348,9 +351,10 @@ public class StackingAndMosaicController {
         if (saveTif.isSelected()) {
             imageFormats.add(ImageFormat.TIF);
         }
+        // Save image formats to Configuration
+        Configuration.getInstance().setImageFormats(imageFormats);
         return params.withExtraParams(
             params.extraParams()
-                .withImageFormats(imageFormats)
                 .withAutosave(true)
         ).withRequestedImages(
             params.requestedImages()

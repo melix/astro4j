@@ -32,6 +32,7 @@ import org.slf4j.LoggerFactory;
 
 import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;
+import java.awt.image.DataBufferInt;
 import java.awt.image.DataBufferUShort;
 import java.io.File;
 import java.io.IOException;
@@ -117,8 +118,8 @@ public class ImageUtils {
 
         var rgbImage = new BufferedImage(width, height, BufferedImage.TYPE_INT_RGB);
 
-        short[] sourceData = ((java.awt.image.DataBufferUShort) source.getRaster().getDataBuffer()).getData();
-        int[] destData = ((java.awt.image.DataBufferInt) rgbImage.getRaster().getDataBuffer()).getData();
+        short[] sourceData = ((DataBufferUShort) source.getRaster().getDataBuffer()).getData();
+        int[] destData = ((DataBufferInt) rgbImage.getRaster().getDataBuffer()).getData();
 
         for (int y = 0; y < height; y++) {
             for (int x = 0; x < width; x++) {

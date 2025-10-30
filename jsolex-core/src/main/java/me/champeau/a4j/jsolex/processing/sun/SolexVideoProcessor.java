@@ -83,6 +83,7 @@ import me.champeau.a4j.jsolex.processing.sun.workflow.TruncatedDisk;
 import me.champeau.a4j.jsolex.processing.sun.workflow.WorkflowResults;
 import me.champeau.a4j.jsolex.processing.util.Constants;
 import me.champeau.a4j.jsolex.processing.util.FileBackedImage;
+import me.champeau.a4j.jsolex.processing.util.FilesUtils;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 import me.champeau.a4j.jsolex.processing.util.MutableMap;
@@ -170,6 +171,27 @@ public class SolexVideoProcessor implements Broadcaster {
     private boolean ignoreIncompleteShifts;
     private boolean forceDetectActiveRegions;
     private EllipseFittingTask.Result cachedEllipse;
+    private Map<Class<?>, Object> additionalContext;
+
+    public SolexVideoProcessor(File serFile,
+                               Path outputDirectory,
+                               int sequenceNumber,
+                               ProcessParams processParametersProvider,
+                               LocalDateTime processingDate,
+                               boolean batchMode,
+                               int memoryRestrictionMultiplier,
+                               ProgressOperation rootOperation,
+                               Map<Class<?>, Object> additionalContext) {
+        this.serFile = serFile;
+        this.outputDirectory = outputDirectory;
+        this.sequenceNumber = sequenceNumber;
+        this.processParams = processParametersProvider;
+        this.processingDate = processingDate;
+        this.batchMode = batchMode;
+        this.memoryRestrictionMultiplier = memoryRestrictionMultiplier;
+        this.rootOperation = rootOperation;
+        this.additionalContext = additionalContext != null ? additionalContext : Map.of();
+    }
 
     public SolexVideoProcessor(File serFile,
                                Path outputDirectory,
@@ -179,14 +201,7 @@ public class SolexVideoProcessor implements Broadcaster {
                                boolean batchMode,
                                int memoryRestrictionMultiplier,
                                ProgressOperation rootOperation) {
-        this.serFile = serFile;
-        this.outputDirectory = outputDirectory;
-        this.sequenceNumber = sequenceNumber;
-        this.processParams = processParametersProvider;
-        this.processingDate = processingDate;
-        this.batchMode = batchMode;
-        this.memoryRestrictionMultiplier = memoryRestrictionMultiplier;
-        this.rootOperation = rootOperation;
+        this(serFile, outputDirectory, sequenceNumber, processParametersProvider, processingDate, batchMode, memoryRestrictionMultiplier, rootOperation, null);
     }
 
     public void setCachedEllipse(Ellipse cachedEllipse) {
@@ -992,7 +1007,7 @@ public class SolexVideoProcessor implements Broadcaster {
                     var draw = new ImageDraw(Map.of(), Broadcaster.NO_OP);
                     var copy = new RGBImage(w, 2 * h + spacing, rgb.r(), rgb.g(), rgb.b(), Map.of());
                     RGBImage color = (RGBImage) drawOnImage(copy, (g, img) -> {
-                        g.setColor(java.awt.Color.GREEN);
+                        g.setColor(Color.GREEN);
                         g.setFont(g.getFont().deriveFont(16f));
                         g.drawString("Frame " + frameNb + " shift " + redshift.relPixelShift(), 16, img.height() - 16);
                     });
@@ -1057,6 +1072,7 @@ public class SolexVideoProcessor implements Broadcaster {
                 var context = createMetadata(processParams, serFile.toPath(), pixelShiftRange, header);
                 context.put(ImageEmitter.class, emitter);
                 context.put(ProgressOperation.class, scriptsOperation);
+                context.putAll(additionalContext);
                 if (circle != null) {
                     context.put(Ellipse.class, circle);
                 }
@@ -1089,7 +1105,18 @@ public class SolexVideoProcessor implements Broadcaster {
                 }
                 try {
                     var result = scriptRunner.execute(scriptFile.toPath(), ImageMathScriptExecutor.SectionKind.SINGLE);
-                    ImageMathScriptExecutor.render(result, emitter);
+                    ImageMathScriptExecutor.render(result, emitter, (outputLabel, fileOutput) -> {
+                        var displayFile = fileOutput.displayFile();
+                        // Save non-display files with naming strategy
+                        var targetName = imageNamingStrategy.render(sequenceNumber, null, GeneratedImageKind.IMAGE_MATH.directoryKind().name().toLowerCase(Locale.US), outputLabel, baseName, null);
+                        try {
+                            FilesUtils.saveNonDisplayFiles(fileOutput, outputDirectory, targetName);
+                        } catch (IOException e) {
+                            throw new ProcessingException(e);
+                        }
+                        // Let emitter handle the display file
+                        emitter.newGenericFile(GeneratedImageKind.IMAGE_MATH, null, outputLabel, outputLabel, null, displayFile);
+                    });
                     if (!result.invalidExpressions().isEmpty()) {
                         var sb = new StringBuilder();
                         for (InvalidExpression expression : result.invalidExpressions()) {

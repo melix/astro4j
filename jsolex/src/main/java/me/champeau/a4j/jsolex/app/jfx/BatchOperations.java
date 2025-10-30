@@ -22,6 +22,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.ReentrantLock;
@@ -56,7 +57,7 @@ public final class BatchOperations {
 
     public static <T> T blockingUntilResultAvailable(Supplier<T> supplier) {
         var ref = new AtomicReference<T>();
-        var latch = new java.util.concurrent.CountDownLatch(1);
+        var latch = new CountDownLatch(1);
         Platform.runLater(() -> {
             try {
                 ref.set(supplier.get());

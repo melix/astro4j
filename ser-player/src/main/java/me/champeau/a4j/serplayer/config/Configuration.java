@@ -18,6 +18,7 @@ package me.champeau.a4j.serplayer.config;
 import java.io.File;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
@@ -40,7 +41,7 @@ public class Configuration {
                 .map(Path::of)
                 .filter(Files::exists)
                 .limit(5)
-                .collect(Collectors.toCollection(java.util.ArrayList::new));
+                .collect(Collectors.toCollection(ArrayList::new));
     }
 
     public void loaded(Path path) {

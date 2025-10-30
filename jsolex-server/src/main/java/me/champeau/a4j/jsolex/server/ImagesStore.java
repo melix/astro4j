@@ -56,7 +56,8 @@ public class ImagesStore implements ProcessingEventListener {
         var params = ProcessParams.loadDefaults();
         this.saver = new ImageSaver(
             RangeExpansionStrategy.DEFAULT,
-            params.withExtraParams(params.extraParams().withImageFormats(Set.of(ImageFormat.JPG)))
+            params,
+            Set.of(ImageFormat.JPG)
         );
     }
 

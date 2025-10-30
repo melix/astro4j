@@ -29,7 +29,16 @@ import java.util.Map;
 import java.util.Optional;
 
 public interface ImageMathScriptExecutor {
+    @FunctionalInterface
+    interface FileOutputHandler {
+        void handle(String label, FileOutputResult fileOutput);
+    }
+
     static void render(ImageMathScriptResult result, ImageEmitter emitter) {
+        render(result, emitter, null);
+    }
+
+    static void render(ImageMathScriptResult result, ImageEmitter emitter, FileOutputHandler fileHandler) {
         for (Map.Entry<String, ImageWrapper> entry : result.imagesByLabel().entrySet()) {
             var label = entry.getKey();
             var image = entry.getValue();
@@ -55,14 +64,18 @@ public interface ImageMathScriptExecutor {
                     () -> new float[][][]{rgb.r(), rgb.g(), rgb.b()});
             }
         }
-        for (Map.Entry<String, Path> entry : result.filesByLabel().entrySet()) {
+        for (Map.Entry<String, FileOutputResult> entry : result.filesByLabel().entrySet()) {
             var label = entry.getKey();
-            var file = entry.getValue();
-            emitter.newGenericFile(GeneratedImageKind.IMAGE_MATH,
-                null, label,
-                label,
-                null,
-                file);
+            var fileOutput = entry.getValue();
+            if (fileHandler != null) {
+                fileHandler.handle(label, fileOutput);
+            } else {
+                emitter.newGenericFile(GeneratedImageKind.IMAGE_MATH,
+                    null, label,
+                    label,
+                    null,
+                    fileOutput.displayFile());
+            }
         }
     }
 
@@ -77,7 +90,7 @@ public interface ImageMathScriptExecutor {
 
     <T> Optional<T> getVariable(String name);
 
-    default <T> void putInContext(Class<T> key, T value) {
+    default <T> void putInContext(Class<T> key, Object value) {
 
     }
 

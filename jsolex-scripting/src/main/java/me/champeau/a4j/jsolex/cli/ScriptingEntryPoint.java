@@ -49,6 +49,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 
@@ -103,7 +104,8 @@ public class ScriptingEntryPoint implements Runnable {
                 logger("me.champeau.a4j.math").setLevel(Level.ERROR);
             }
             var processParams = createProcessParams();
-            var saver = new ImageSaver(CutoffStretchingStrategy.DEFAULT, processParams);
+            var imageFormats = getImageFormats();
+            var saver = new ImageSaver(CutoffStretchingStrategy.DEFAULT, processParams, imageFormats);
             if (inputFiles != null && !inputFiles.isEmpty()) {
                 Map<String, List<ImageWrapper>> generatedImages = new HashMap<>();
                 for (int i = 0; i < inputFiles.size(); i++) {
@@ -115,7 +117,7 @@ public class ScriptingEntryPoint implements Runnable {
                             throw new RuntimeException("image not available in batch section. You can only reference images generated in the [outputs] section");
                         },
                         Map.of(ProcessParams.class, processParams),
-                        createBroadcaster(new ImageSaver(CutoffStretchingStrategy.DEFAULT, processParams), outputDir)
+                        createBroadcaster(new ImageSaver(CutoffStretchingStrategy.DEFAULT, processParams, imageFormats), outputDir)
                 );
                 for (Map.Entry<String, List<ImageWrapper>> entry : generatedImages.entrySet()) {
                     scriptExecutor.putVariable(entry.getKey(), entry.getValue());
@@ -151,7 +153,7 @@ public class ScriptingEntryPoint implements Runnable {
                 ProgressOperation.root("cli", p -> {
                 })
         );
-        var listener = new ScriptLoggingListener(processParams);
+        var listener = new ScriptLoggingListener(processParams, getImageFormats());
         svp.addEventListener(listener);
         svp.process();
         listener.getGeneratedImages().
@@ -192,18 +194,19 @@ public class ScriptingEntryPoint implements Runnable {
             var saved = saver.save(image, new File(outputDirectory, name + ".png"));
             saved.forEach(f -> System.out.println("Saved " + f));
         });
-        result.filesByLabel().forEach((name, path) -> {
+        result.filesByLabel().forEach((name, fileOutput) -> {
             try {
-                var target = outputDirectory.toPath().resolve(path.toFile().getName());
-                int idx = target.getFileName().toString().lastIndexOf('.');
-                if (idx > 0) {
-                    target = target.resolveSibling(name + target.getFileName().toString().substring(idx));
+                for (var file : fileOutput.allFiles()) {
+                    var target = outputDirectory.toPath().resolve(file.toFile().getName());
+                    int idx = target.getFileName().toString().lastIndexOf('.');
+                    if (idx > 0) {
+                        target = target.resolveSibling(name + target.getFileName().toString().substring(idx));
+                    }
+                    if (Files.exists(target)) {
+                        Files.delete(target);
+                    }
+                    Files.move(file, target);
                 }
-                if (Files.exists(target)) {
-                    Files.delete(target);
-                }
-                Files.move(path, target);
-                System.out.println("Saved " + target);
             } catch (IOException e) {
                 throw new RuntimeException(e);
             }
@@ -217,8 +220,7 @@ public class ScriptingEntryPoint implements Runnable {
 
     private ProcessParams createProcessParams() {
         var processParams = configFile != null ? ProcessParamsIO.readFrom(configFile.toPath()) : ProcessParamsIO.createNewDefaults();
-        var formats = this.formats.stream().map(String::toUpperCase).map(ImageFormat::valueOf).collect(Collectors.toSet());
-        processParams = processParams.withExtraParams(processParams.extraParams().withImageFormats(formats));
+        // Note: imageFormats are handled separately via getImageFormats() for CLI
         if (debug) {
             var newImages = new HashSet<>(processParams.requestedImages().images());
             newImages.add(GeneratedImageKind.DEBUG);
@@ -235,6 +237,13 @@ public class ScriptingEntryPoint implements Runnable {
                 )
         );
         return processParams;
+    }
+
+    private Set<ImageFormat> getImageFormats() {
+        if (formats.isEmpty()) {
+            return Set.of(ImageFormat.PNG, ImageFormat.FITS);
+        }
+        return this.formats.stream().map(String::toUpperCase).map(ImageFormat::valueOf).collect(Collectors.toSet());
     }
 
     private void propapateErrorIfNeeded(Exception error) {

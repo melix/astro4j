@@ -15,6 +15,7 @@
  */
 package me.champeau.a4j.jsolex.processing.params;
 
+import com.google.gson.JsonArray;
 import com.google.gson.JsonDeserializationContext;
 import com.google.gson.JsonDeserializer;
 import com.google.gson.JsonElement;
@@ -90,11 +91,11 @@ class SpectralRaySerializer implements JsonSerializer<SpectralRay>, JsonDeserial
         return List.of();
     }
 
-    private static com.google.gson.JsonArray writeAutomaticScripts(List<Path> automaticScripts) {
+    private static JsonArray writeAutomaticScripts(List<Path> automaticScripts) {
         if (automaticScripts == null || automaticScripts.isEmpty()) {
             return null;
         }
-        var scriptsArray = new com.google.gson.JsonArray();
+        var scriptsArray = new JsonArray();
         for (Path path : automaticScripts) {
             scriptsArray.add(path.toString());
         }

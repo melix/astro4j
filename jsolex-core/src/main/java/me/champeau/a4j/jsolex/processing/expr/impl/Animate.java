@@ -17,10 +17,13 @@ package me.champeau.a4j.jsolex.processing.expr.impl;
 
 import me.champeau.a4j.jsolex.expr.BuiltinFunction;
 import me.champeau.a4j.jsolex.processing.event.ProgressOperation;
-import me.champeau.a4j.jsolex.processing.expr.FileOutput;
+import me.champeau.a4j.jsolex.processing.expr.MultiFileOutput;
+import me.champeau.a4j.jsolex.processing.expr.SingleFileOutput;
 import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
 import me.champeau.a4j.jsolex.processing.sun.workflow.SourceInfo;
+import me.champeau.a4j.jsolex.processing.util.AnimationFormat;
 import me.champeau.a4j.jsolex.processing.util.FileBackedImage;
+import me.champeau.a4j.jsolex.processing.util.AnimatedGifWriter;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 import me.champeau.a4j.jsolex.processing.util.ProcessingException;
@@ -35,15 +38,19 @@ import org.jcodec.common.model.Rational;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.imageio.stream.FileImageOutputStream;
+import java.awt.image.BufferedImage;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
@@ -74,12 +81,37 @@ public class Animate extends AbstractFunctionImpl {
             return expandToImageList("anim", "images", arguments, this::createAnimation);
         }
         var delay = doubleArg(arguments, "delay", DEFAULT_DELAY);
+        var animationFormats = (Set<AnimationFormat>) context.get(AnimationFormat.class);
+        if (animationFormats == null || animationFormats.isEmpty()) {
+            animationFormats = EnumSet.of(AnimationFormat.MP4);
+        }
+
+        var results = new ArrayList<SingleFileOutput>();
+        SingleFileOutput gifOutput = null;
+        for (var format : animationFormats) {
+            var result = (SingleFileOutput) switch (format) {
+                case GIF -> createGifAnimation(listOfImages, (int) delay);
+                case MP4 -> createMp4Animation(listOfImages, (int) delay);
+            };
+            results.add(result);
+            if (format == AnimationFormat.GIF) {
+                gifOutput = result;
+            }
+        }
+        if (results.size() == 1) {
+            return results.getFirst();
+        }
+        var displayFile = gifOutput != null ? gifOutput.file() : results.getFirst().file();
+        var allFiles = results.stream().map(SingleFileOutput::file).toList();
+        return new MultiFileOutput(allFiles, displayFile);
+    }
+
+    private Object createMp4Animation(List<?> frames, int delay) {
         try {
             var tempFile = TemporaryFolder.newTempFile("video_jsolex", ".mp4");
-            var frames = (List) images;
             if (FfmegEncoder.isAvailable()) {
-                if (encodeWithFfmpeg(broadcaster, newOperation(), frames, tempFile, (int) delay)) {
-                    return new FileOutput(tempFile);
+                if (encodeWithFfmpeg(broadcaster, newOperation(), frames, tempFile, delay)) {
+                    return new SingleFileOutput(tempFile);
                 }
             }
             var encoder = SequenceEncoder.createWithFps(NIOUtils.writableChannel(tempFile.toFile()),
@@ -100,10 +132,76 @@ public class Animate extends AbstractFunctionImpl {
             }
             encoder.finish();
             broadcaster.broadcast(progressOperation.complete());
-            return new FileOutput(tempFile);
+            return new SingleFileOutput(tempFile);
         } catch (IOException e) {
             throw new ProcessingException(e);
         }
+    }
+
+    private Object createGifAnimation(List<?> frames, int delay) {
+        try {
+            var tempFile = TemporaryFolder.newTempFile("anim_jsolex", ".gif");
+            var outputStream = new FileImageOutputStream(tempFile.toFile());
+            var firstFrame = frames.getFirst();
+            if (firstFrame instanceof FileBackedImage fileBackedImage) {
+                firstFrame = fileBackedImage.unwrapToMemory();
+            }
+
+            var imageType = firstFrame instanceof RGBImage ? BufferedImage.TYPE_INT_RGB : BufferedImage.TYPE_BYTE_GRAY;
+
+            try (var writer = new AnimatedGifWriter(outputStream, imageType, delay, true)) {
+                double progress = 0;
+                var progressOperation = newOperation().createChild("Encoding GIF frame");
+                for (Object argument : frames) {
+                    broadcaster.broadcast(progressOperation.update(progress / frames.size(), "Encoding GIF frame " + (int) progress + "/" + frames.size()));
+                    if (argument instanceof FileBackedImage fileBackedImage) {
+                        argument = fileBackedImage.unwrapToMemory();
+                    }
+                    if (argument instanceof ImageWrapper32 image) {
+                        writer.writeToSequence(toBufferedImage(image));
+                    } else if (argument instanceof RGBImage rgb) {
+                        writer.writeToSequence(toBufferedImage(rgb));
+                    }
+                    progress++;
+                }
+                broadcaster.broadcast(progressOperation.complete());
+            }
+            return new SingleFileOutput(tempFile);
+        } catch (IOException e) {
+            throw new ProcessingException(e);
+        }
+    }
+
+    private static BufferedImage toBufferedImage(ImageWrapper32 image) {
+        var bufferedImage = new BufferedImage(image.width(), image.height(), BufferedImage.TYPE_BYTE_GRAY);
+        var data = image.data();
+        var bytes = EightBitConversionSupport.to8BitImage(data);
+        for (int y = 0; y < image.height(); y++) {
+            for (int x = 0; x < image.width(); x++) {
+                var value = bytes[y * image.width() + x] & 0xFF;
+                var rgb = (value << 16) | (value << 8) | value;
+                bufferedImage.setRGB(x, y, rgb);
+            }
+        }
+        return bufferedImage;
+    }
+
+    private static BufferedImage toBufferedImage(RGBImage image) {
+        var bufferedImage = new BufferedImage(image.width(), image.height(), BufferedImage.TYPE_INT_RGB);
+        var rBytes = EightBitConversionSupport.to8BitImage(image.r());
+        var gBytes = EightBitConversionSupport.to8BitImage(image.g());
+        var bBytes = EightBitConversionSupport.to8BitImage(image.b());
+        for (int y = 0; y < image.height(); y++) {
+            for (int x = 0; x < image.width(); x++) {
+                var idx = y * image.width() + x;
+                var r = rBytes[idx] & 0xFF;
+                var g = gBytes[idx] & 0xFF;
+                var b = bBytes[idx] & 0xFF;
+                var rgb = (r << 16) | (g << 8) | b;
+                bufferedImage.setRGB(x, y, rgb);
+            }
+        }
+        return bufferedImage;
     }
 
     private static boolean encodeWithFfmpeg(Broadcaster broadcaster, ProgressOperation operation, List frames, Path tempFile, int delay) {
