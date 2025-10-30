@@ -15,6 +15,7 @@
  */
 package me.champeau.a4j.jsolex.app;
 
+import me.champeau.a4j.jsolex.processing.util.AnimationFormat;
 import me.champeau.a4j.jsolex.processing.util.FitsUtils;
 import me.champeau.a4j.jsolex.processing.util.ImageFormat;
 import me.champeau.a4j.math.tuples.IntPair;
@@ -48,6 +49,7 @@ public class Configuration {
     private static final String PIPP_COMPAT = "pipp.compatibility";
     private static final String SELECTED_LANGUAGE = "selected.language";
     private static final String IMAGE_FORMATS = "image.formats";
+    private static final String ANIMATION_FORMATS = "animation.formats";
 
     public static final String DEFAULT_SOLAP_URL = "ftp://ftp.obspm.fr/incoming/solap";
 
@@ -247,6 +249,32 @@ public class Configuration {
                 .map(ImageFormat::name)
                 .collect(joining(","));
         prefs.put(IMAGE_FORMATS, formatsString);
+    }
+
+    public Set<AnimationFormat> getAnimationFormats() {
+        var formatsString = prefs.get(ANIMATION_FORMATS, AnimationFormat.MP4.name());
+        return Arrays.stream(formatsString.split(","))
+                .map(String::trim)
+                .filter(s -> !s.isEmpty())
+                .map(s -> {
+                    try {
+                        return AnimationFormat.valueOf(s);
+                    } catch (IllegalArgumentException e) {
+                        return null;
+                    }
+                })
+                .filter(java.util.Objects::nonNull)
+                .collect(Collectors.toCollection(() -> EnumSet.noneOf(AnimationFormat.class)));
+    }
+
+    public void setAnimationFormats(Set<AnimationFormat> formats) {
+        if (formats == null || formats.isEmpty()) {
+            formats = EnumSet.of(AnimationFormat.MP4);
+        }
+        var formatsString = formats.stream()
+                .map(AnimationFormat::name)
+                .collect(joining(","));
+        prefs.put(ANIMATION_FORMATS, formatsString);
     }
 
     public enum DirectoryKind {

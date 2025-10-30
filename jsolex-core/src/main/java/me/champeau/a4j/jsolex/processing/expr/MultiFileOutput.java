@@ -16,10 +16,15 @@
 package me.champeau.a4j.jsolex.processing.expr;
 
 import java.nio.file.Path;
+import java.util.List;
 
 /**
- * A generic return type when the generated output is a file
- * @param file the path to the generated file
+ * Represents multiple file outputs where only one should be displayed to the user,
+ * but all files should be saved. This is used when generating animations in multiple
+ * formats (e.g., both MP4 and GIF).
+ *
+ * @param allFiles All generated files
+ * @param displayFile The file that should be displayed in the UI (typically GIF if available)
  */
-public record FileOutput(Path file) {
+public record MultiFileOutput(List<Path> allFiles, Path displayFile) implements FileOutputResult {
 }

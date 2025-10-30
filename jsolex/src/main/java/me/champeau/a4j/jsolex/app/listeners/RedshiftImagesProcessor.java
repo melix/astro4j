@@ -21,12 +21,13 @@ import me.champeau.a4j.jsolex.processing.event.ProcessingDoneEvent;
 import me.champeau.a4j.jsolex.processing.event.ProcessingEventListener;
 import me.champeau.a4j.jsolex.processing.event.ProgressEvent;
 import me.champeau.a4j.jsolex.processing.event.ProgressOperation;
-import me.champeau.a4j.jsolex.processing.expr.FileOutput;
+import me.champeau.a4j.jsolex.processing.expr.FileOutputResult;
 import me.champeau.a4j.jsolex.processing.expr.impl.AdjustContrast;
 import me.champeau.a4j.jsolex.processing.expr.impl.Animate;
 import me.champeau.a4j.jsolex.processing.expr.impl.Crop;
 import me.champeau.a4j.jsolex.processing.expr.impl.ImageDraw;
 import me.champeau.a4j.jsolex.processing.expr.impl.Scaling;
+import me.champeau.a4j.jsolex.processing.file.FileNamingStrategy;
 import me.champeau.a4j.jsolex.processing.params.ImageMathParams;
 import me.champeau.a4j.jsolex.processing.params.ProcessParams;
 import me.champeau.a4j.jsolex.processing.params.RequestedImages;
@@ -40,7 +41,9 @@ import me.champeau.a4j.jsolex.processing.sun.workflow.GeneratedImageKind;
 import me.champeau.a4j.jsolex.processing.sun.workflow.ImageEmitter;
 import me.champeau.a4j.jsolex.processing.sun.workflow.PixelShift;
 import me.champeau.a4j.jsolex.processing.util.Constants;
+import me.champeau.a4j.jsolex.processing.util.AnimationFormat;
 import me.champeau.a4j.jsolex.processing.util.FileBackedImage;
+import me.champeau.a4j.jsolex.processing.util.FilesUtils;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 import me.champeau.a4j.math.regression.Ellipse;
@@ -51,7 +54,10 @@ import java.awt.Color;
 import java.awt.Font;
 import java.awt.image.BufferedImage;
 import java.io.File;
+import java.io.IOException;
+import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
 import java.time.LocalDateTime;
 import java.util.Collections;
 import java.util.HashMap;
@@ -89,6 +95,9 @@ public class RedshiftImagesProcessor {
     private final DoubleUnaryOperator polynomial;
     private final float[][] averageImage;
     private final ProgressOperation operation;
+    private final FileNamingStrategy namingStrategy;
+    private final int sequenceNumber;
+    private final String serFileBaseName;
     private final int imageWidth;
     private final int imageHeight;
 
@@ -102,7 +111,10 @@ public class RedshiftImagesProcessor {
                                    List<RedshiftArea> redshifts,
                                    DoubleUnaryOperator polynomial,
                                    float[][] averageImage,
-                                   ProgressOperation operation) {
+                                   ProgressOperation operation,
+                                   FileNamingStrategy namingStrategy,
+                                   int sequenceNumber,
+                                   String serFileBaseName) {
         this.shiftImages = shiftImages;
         this.params = params;
         this.serFile = serFile;
@@ -114,6 +126,9 @@ public class RedshiftImagesProcessor {
         this.polynomial = polynomial;
         this.averageImage = averageImage;
         this.operation = operation;
+        this.namingStrategy = namingStrategy;
+        this.sequenceNumber = sequenceNumber;
+        this.serFileBaseName = serFileBaseName;
         var image = shiftImages.values().stream().findFirst();
         if (image.isPresent()) {
             imageWidth = image.get().width();
@@ -125,7 +140,7 @@ public class RedshiftImagesProcessor {
     }
 
     public RedshiftImagesProcessor withRedshifts(List<RedshiftArea> redshifts) {
-        return new RedshiftImagesProcessor(shiftImages, params, serFile, outputDirectory, owner, broadcaster, imageEmitter, redshifts, polynomial, averageImage, operation);
+        return new RedshiftImagesProcessor(shiftImages, params, serFile, outputDirectory, owner, broadcaster, imageEmitter, redshifts, polynomial, averageImage, operation, namingStrategy, sequenceNumber, serFileBaseName);
     }
 
     public Optional<Double> getSunRadius() {
@@ -215,7 +230,7 @@ public class RedshiftImagesProcessor {
         var y1 = Math.max(0, centerY - dy);
         var crop = new Crop(Map.of(), broadcaster);
         var constrastAdjusted = shiftToContrastAdjusted.keySet().stream().sorted().map(shiftToContrastAdjusted::get).toList();
-        var animate = new Animate(Map.of(), broadcaster);
+        var animate = new Animate(Map.of(AnimationFormat.class, Configuration.getInstance().getAnimationFormats()), broadcaster);
         var cropped = crop.crop(Map.of("img", constrastAdjusted, "left", x1, "top", y1, "width", boxSize, "height", boxSize));
         if (kind == RedshiftCreatorKind.ANIMATION || kind == RedshiftCreatorKind.ALL) {
             var annotationColorHex = toHex(annotationColor);
@@ -237,7 +252,7 @@ public class RedshiftImagesProcessor {
     public void generateStandaloneAnimation(int x, int y, int width, int height, double minShift, double maxShift, String title, String name, boolean annotate, int delay, int[] annotationColor) {
         var crop = new Crop(Map.of(), broadcaster);
         var contrast = new AdjustContrast(Map.of(), broadcaster);
-        var animate = new Animate(Map.of(), broadcaster);
+        var animate = new Animate(Map.of(AnimationFormat.class, Configuration.getInstance().getAnimationFormats()), broadcaster);
         var range = createMinMaxRange(minShift, maxShift, .25);
         var missingShifts = range.stream().filter(d -> !shiftImages.containsKey(new PixelShift(d))).toList();
         if (!missingShifts.isEmpty()) {
@@ -254,13 +269,26 @@ public class RedshiftImagesProcessor {
         var scaling = new Scaling(Map.of(), broadcaster, crop);
         var annotationColorHex = toHex(annotationColor);
         List<ImageWrapper> frames = createFrames(cropWidth, cropHeight, annotate, cropped, scaling, annotationColorHex);
-        var anim = (FileOutput) animate.createAnimation(Map.of("images", frames, "delay", delay));
+        var anim = (FileOutputResult) animate.createAnimation(Map.of("images", frames, "delay", delay));
+        var displayFile = anim.displayFile();
+
+        // Save non-display files manually without firing display events
+        var baseName = namingStrategy.render(sequenceNumber, null,
+            GeneratedImageKind.CROPPED.directoryKind().name().toLowerCase(Locale.US),
+            name, serFileBaseName, null);
+        try {
+            FilesUtils.saveNonDisplayFiles(anim, outputDirectory, baseName);
+        } catch (IOException e) {
+            LOGGER.error("Failed to save animation files", e);
+        }
+
+        // Only emit the display file to avoid duplicate display
         imageEmitter.newGenericFile(
             GeneratedImageKind.CROPPED,
             null, title,
             name,
             null,
-            anim.file());
+            displayFile);
     }
 
     private static String toHex(int[] annotationColor) {
@@ -357,13 +385,28 @@ public class RedshiftImagesProcessor {
 
     private void generateAnim(RedshiftArea redshift, Animate animate, Object cropped, boolean annotateAnimations, int width, int height, Scaling scaling, String annotationColorHex) {
         var frames = createFrames(width, height, annotateAnimations, cropped, scaling, annotationColorHex);
-        var anim = (FileOutput) animate.createAnimation(Map.of("images", frames, "delay", 25));
+        var anim = (FileOutputResult) animate.createAnimation(Map.of("images", frames, "delay", 25));
+        var displayFile = anim.displayFile();
+        var name = "redshift-" + redshift.id();
+        var title = String.format("Panel %s (%.2f km/s)", redshift.id(), redshift.kmPerSec());
+
+        // Save non-display files manually without firing display events
+        var baseName = namingStrategy.render(sequenceNumber, null,
+            GeneratedImageKind.REDSHIFT.directoryKind().name().toLowerCase(Locale.US),
+            name, serFileBaseName, null);
+        try {
+            FilesUtils.saveNonDisplayFiles(anim, outputDirectory, baseName);
+        } catch (IOException e) {
+            LOGGER.error("Failed to save animation files", e);
+        }
+
+        // Only emit the display file to avoid duplicate display
         imageEmitter.newGenericFile(
             GeneratedImageKind.REDSHIFT,
-            null, String.format("Panel %s (%.2f km/s)", redshift.id(), redshift.kmPerSec()),
-            "redshift-" + redshift.id(),
+            null, title,
+            name,
             null,
-            anim.file());
+            displayFile);
     }
 
     private void generatePanel(RedshiftArea redshift, List<ImageWrapper> cropped, int boxSize, Crop crop, boolean useFullRangePanels, int[] annotationColor) {

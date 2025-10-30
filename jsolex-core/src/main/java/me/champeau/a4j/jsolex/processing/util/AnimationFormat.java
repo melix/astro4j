@@ -13,17 +13,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package me.champeau.a4j.jsolex.processing.sun.workflow;
+package me.champeau.a4j.jsolex.processing.util;
 
-public record PixelShift(
-    double pixelShift
-) implements Comparable<PixelShift> {
-    public PixelShift(double pixelShift) {
-        this.pixelShift = Math.round(pixelShift * 100.0) / 100.0;
-    }
+import java.util.Locale;
 
-    @Override
-    public int compareTo(PixelShift o) {
-        return Double.compare(this.pixelShift, o.pixelShift);
+public enum AnimationFormat {
+    MP4,
+    GIF;
+
+    public String extension() {
+        return "." + name().toLowerCase(Locale.US);
     }
 }

@@ -282,10 +282,10 @@ public class MultipleImagesViewer extends Pane {
             var mediaPlayer = new MediaPlayer(media);
             var viewer = new MediaView(mediaPlayer);
             // Create the buttons
-            var rewindButton = new Button("<<");
-            var playButton = new Button("Play");
-            var stopButton = new Button("Stop");
-            var openButton = new Button(message("open.in.files"));
+            var rewindButton = createButton("<<");
+            var playButton = createButton("Play");
+            var stopButton = createButton("Stop");
+            var openButton = createButton(message("open.in.files"));
             openButton.setOnAction(e -> ExplorerSupport.openInExplorer(filePath));
             mediaPlayer.setOnEndOfMedia(() -> mediaPlayer.seek(javafx.util.Duration.ZERO));
             playButton.setOnAction(e -> mediaPlayer.play());
@@ -308,6 +308,41 @@ public class MultipleImagesViewer extends Pane {
             }, this::onClose);
             hyperlink.fire();
             return mediaPlayer;
+        } finally {
+            lock.unlock();
+        }
+    }
+
+    public void addAnimatedGif(GeneratedImageKind kind,
+                               String title,
+                               Path filePath) {
+        try {
+            lock.lock();
+
+            var category = getOrCreateCategory(kind);
+            var image = new javafx.scene.image.Image(filePath.toUri().toString());
+            var imageView = new javafx.scene.image.ImageView(image);
+            imageView.setPreserveRatio(true);
+
+            var openButton = createButton(message("open.in.files"));
+            openButton.setOnAction(e -> ExplorerSupport.openInExplorer(filePath));
+
+            var buttonBox = new HBox(openButton);
+            buttonBox.setSpacing(10);
+            buttonBox.setAlignment(Pos.CENTER);
+
+            var contentBox = new VBox(new ScrollPane(imageView), buttonBox);
+            contentBox.setAlignment(Pos.CENTER);
+            imageView.fitWidthProperty().bind(widthProperty());
+            imageView.fitHeightProperty().bind(heightProperty().subtract(buttonBox.heightProperty()));
+
+            var hyperlink = category.addVideo(title, link -> {
+                categories().forEach(CategoryPane::clearSelection);
+                borderPane.setCenter(contentBox);
+                selected = link;
+                selectedView = contentBox;
+            }, this::onClose);
+            hyperlink.fire();
         } finally {
             lock.unlock();
         }
@@ -442,6 +477,13 @@ public class MultipleImagesViewer extends Pane {
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
+    }
+
+    private static Button createButton(String text) {
+        var button = new Button(text);
+        button.getStyleClass().add("image-viewer-button");
+        button.setMinSize(Button.USE_PREF_SIZE, Button.USE_PREF_SIZE);
+        return button;
     }
 
 }

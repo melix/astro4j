@@ -15,27 +15,20 @@
  */
 package me.champeau.a4j.jsolex.processing.expr;
 
-import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
-
+import java.nio.file.Path;
 import java.util.List;
-import java.util.Map;
-import java.util.Set;
 
-public record ImageMathScriptResult(
-        Map<String, ImageWrapper> imagesByLabel,
-        Map<String, FileOutputResult> filesByLabel,
-        List<InvalidExpression> invalidExpressions,
-        Set<Double> internalShifts,
-        Set<Double> outputShifts,
-        Set<Double> requestedWavelenghts,
-        boolean autoContinuum) {
-    public static final ImageMathScriptResult EMPTY = new ImageMathScriptResult(
-            Map.of(),
-            Map.of(),
-            List.of(),
-            Set.of(),
-            Set.of(),
-            Set.of(),
-            false
-    );
+/**
+ * Represents a single file output.
+ */
+public record SingleFileOutput(Path file) implements FileOutputResult {
+    @Override
+    public Path displayFile() {
+        return file;
+    }
+
+    @Override
+    public List<Path> allFiles() {
+        return List.of(file);
+    }
 }

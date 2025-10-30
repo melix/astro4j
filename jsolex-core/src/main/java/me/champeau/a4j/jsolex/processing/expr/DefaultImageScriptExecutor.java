@@ -111,7 +111,7 @@ public class DefaultImageScriptExecutor implements ImageMathScriptExecutor {
         this.includesDir = includesDir;
     }
 
-    public <T> void putInContext(Class<T> key, T value) {
+    public <T> void putInContext(Class<T> key, Object value) {
         context.put(key, value);
     }
 
@@ -150,7 +150,7 @@ public class DefaultImageScriptExecutor implements ImageMathScriptExecutor {
             evaluator.putFunction(fn.name(), prep);
         });
         var imagesByLabel = new LinkedHashMap<String, ImageWrapper>();
-        var filesByLabel = new LinkedHashMap<String, Path>();
+        var filesByLabel = new LinkedHashMap<String, FileOutputResult>();
         var invalidExpressions = new ArrayList<InvalidExpression>();
         executeExpressions(executionCount.getAndIncrement(), evaluator, expressions, true, 0, imagesByLabel, filesByLabel, invalidExpressions);
         evaluator.getVariables().forEach((k, v) -> {
@@ -169,17 +169,18 @@ public class DefaultImageScriptExecutor implements ImageMathScriptExecutor {
         );
     }
 
-    private void extractResults(Map<String, ImageWrapper> producedImages, Map<String, Path> producedFiles, String variableName, Object result) {
+    private void extractResults(Map<String, ImageWrapper> producedImages, Map<String, FileOutputResult> producedFiles, String variableName, Object result) {
         switch (result) {
             case ImageWrapper image -> producedImages.put(variableName, image);
-            case FileOutput(Path file) -> producedFiles.put(variableName, file);
+            case SingleFileOutput singleFile -> producedFiles.put(variableName, singleFile);
+            case MultiFileOutput multiFile -> producedFiles.put(variableName, multiFile);
             case List<?> images -> {
                 int img = 0;
                 for (Object o : images) {
                     if (o instanceof ImageWrapper image) {
                         producedImages.put(variableName + "_" + img++, image);
-                    } else if (o instanceof FileOutput(Path file)) {
-                        producedFiles.put(variableName + "_" + img++, file);
+                    } else if (o instanceof SingleFileOutput singleFile) {
+                        producedFiles.put(variableName + "_" + img++, singleFile);
                     }
                 }
             }
@@ -252,7 +253,7 @@ public class DefaultImageScriptExecutor implements ImageMathScriptExecutor {
                 })
                 .orElseThrow(() -> new ProcessingException(new SyntaxError("No [outputs] section found")));
         Map<String, ImageWrapper> imagesByLabel = new LinkedHashMap<>();
-        Map<String, Path> filesByLabel = new LinkedHashMap<>();
+        Map<String, FileOutputResult> filesByLabel = new LinkedHashMap<>();
         List<InvalidExpression> invalidExpressions = new ArrayList<>();
         var progressOperation = operation.createChild("ImageScript evaluation");
         broadcaster.broadcast(progressOperation);
@@ -274,7 +275,7 @@ public class DefaultImageScriptExecutor implements ImageMathScriptExecutor {
     }
 
 
-    private int executeExpressions(int index, MemoizingExpressionEvaluator evaluator, List<Expression> expressions, boolean isOutputSection, int cpt, Map<String, ImageWrapper> imagesByLabel, Map<String, Path> filesByLabel, List<InvalidExpression> invalidExpressions) {
+    private int executeExpressions(int index, MemoizingExpressionEvaluator evaluator, List<Expression> expressions, boolean isOutputSection, int cpt, Map<String, ImageWrapper> imagesByLabel, Map<String, FileOutputResult> filesByLabel, List<InvalidExpression> invalidExpressions) {
         for (var expression : expressions) {
             try {
                 var result = evaluator.evaluate(expression);

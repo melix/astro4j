@@ -1,5 +1,6 @@
 # Bienvenue dans JSol'Ex {{version}} !
 
+- [Version 4.2.0](#nouveautes-de-la-version-4-2-0) - Support GIF, réglages de format de fichier
 - [Version 4.1.4](#nouveautes-de-la-version-4-1-4) - Corrections de bugs et améliorations
 - [Version 4.1.3](#nouveautes-de-la-version-4-1-3) - Amélioration de la correction des bandes
 - [Version 4.1.2](#nouveautes-de-la-version-4-1-2) - Corrections de bugs
@@ -11,6 +12,7 @@
 ## Nouveautés de la version 4.2.0
 
 - Les formats de fichier font désormais partie des réglages avancés (en dehors des paramètres de traitement)
+- Ajout de la possibilité de générer des fichiers GIF en plus du MP4
 
 ## Nouveautés de la version 4.1.4
 

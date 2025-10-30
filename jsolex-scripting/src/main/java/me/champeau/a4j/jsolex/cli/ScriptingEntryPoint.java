@@ -194,18 +194,19 @@ public class ScriptingEntryPoint implements Runnable {
             var saved = saver.save(image, new File(outputDirectory, name + ".png"));
             saved.forEach(f -> System.out.println("Saved " + f));
         });
-        result.filesByLabel().forEach((name, path) -> {
+        result.filesByLabel().forEach((name, fileOutput) -> {
             try {
-                var target = outputDirectory.toPath().resolve(path.toFile().getName());
-                int idx = target.getFileName().toString().lastIndexOf('.');
-                if (idx > 0) {
-                    target = target.resolveSibling(name + target.getFileName().toString().substring(idx));
+                for (var file : fileOutput.allFiles()) {
+                    var target = outputDirectory.toPath().resolve(file.toFile().getName());
+                    int idx = target.getFileName().toString().lastIndexOf('.');
+                    if (idx > 0) {
+                        target = target.resolveSibling(name + target.getFileName().toString().substring(idx));
+                    }
+                    if (Files.exists(target)) {
+                        Files.delete(target);
+                    }
+                    Files.move(file, target);
                 }
-                if (Files.exists(target)) {
-                    Files.delete(target);
-                }
-                Files.move(path, target);
-                System.out.println("Saved " + target);
             } catch (IOException e) {
                 throw new RuntimeException(e);
             }

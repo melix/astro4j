@@ -18,6 +18,7 @@ package me.champeau.a4j.jsolex.app.listeners;
 import javafx.application.Platform;
 import javafx.scene.control.ButtonType;
 import me.champeau.a4j.jsolex.app.AlertFactory;
+import me.champeau.a4j.jsolex.app.Configuration;
 import me.champeau.a4j.jsolex.app.jfx.BatchItem;
 import me.champeau.a4j.jsolex.app.jfx.BatchOperations;
 import me.champeau.a4j.jsolex.app.jfx.CandidateImageDescriptor;
@@ -59,7 +60,9 @@ import me.champeau.a4j.jsolex.processing.sun.workflow.NamingStrategyAwareImageEm
 import me.champeau.a4j.jsolex.processing.sun.workflow.PixelShift;
 import me.champeau.a4j.jsolex.processing.sun.workflow.RenamingImageEmitter;
 import me.champeau.a4j.jsolex.processing.sun.workflow.SourceInfo;
+import me.champeau.a4j.jsolex.processing.util.AnimationFormat;
 import me.champeau.a4j.jsolex.processing.util.Constants;
+import me.champeau.a4j.jsolex.processing.util.FilesUtils;
 import me.champeau.a4j.jsolex.processing.util.ImageSaver;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
 import me.champeau.a4j.jsolex.processing.util.ProcessingException;
@@ -73,7 +76,6 @@ import java.io.StringWriter;
 import java.nio.charset.Charset;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.StandardCopyOption;
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -93,7 +95,6 @@ import java.util.stream.Stream;
 
 import static me.champeau.a4j.jsolex.app.JSolEx.message;
 import static me.champeau.a4j.jsolex.processing.sun.CaptureSoftwareMetadataHelper.computeSerFileBasename;
-import static me.champeau.a4j.jsolex.processing.util.FilesUtils.createDirectoriesIfNeeded;
 import static me.champeau.a4j.jsolex.processing.util.LoggingSupport.LOGGER;
 
 public class BatchModeEventListener implements ProcessingEventListener, ImageMathScriptExecutor {
@@ -530,6 +531,7 @@ public class BatchModeEventListener implements ProcessingEventListener, ImageMat
             var imageEmitter = new NamingStrategyAwareImageEmitter(new RenamingImageEmitter(new DefaultImageEmitter(delegate, rootOperation, outputDirectory), name -> name, name -> name), createNamingStrategy(), sequenceNumber, computeSerFileBasename(item.file()));
             var ctx = new HashMap<Class, Object>();
             ctx.put(ImageEmitter.class, imageEmitter);
+            ctx.put(AnimationFormat.class, Configuration.getInstance().getAnimationFormats());
 
             dataLock.readLock().lock();
             try {
@@ -644,14 +646,14 @@ public class BatchModeEventListener implements ProcessingEventListener, ImageMat
             hasCustomImages.set(true);
         });
         result.filesByLabel().entrySet().stream().parallel().forEach(entry -> {
-            var name = namingStrategy.render(0, null, Constants.TYPE_PROCESSED, entry.getKey(), "batch", null);
+            var fileOutput = entry.getValue();
+            var baseName = namingStrategy.render(0, null, Constants.TYPE_PROCESSED, entry.getKey(), "batch", null);
             try {
-                var fileName = entry.getValue().toFile().getName();
-                var ext = fileName.substring(fileName.lastIndexOf("."));
-                var targetPath = new File(outputDirectory, name + ext).toPath();
-                createDirectoriesIfNeeded(targetPath.getParent());
-                Files.move(entry.getValue(), targetPath, StandardCopyOption.REPLACE_EXISTING);
-                delegate.onFileGenerated(FileGeneratedEvent.of(GeneratedImageKind.IMAGE_MATH, entry.getKey(), targetPath));
+                var displayPath = FilesUtils.saveAllFilesAndGetDisplayPath(fileOutput, outputDirectory.toPath(), baseName);
+                // Only fire display event for the designated display file
+                if (displayPath != null) {
+                    delegate.onFileGenerated(FileGeneratedEvent.of(GeneratedImageKind.IMAGE_MATH, entry.getKey(), displayPath));
+                }
             } catch (IOException e) {
                 throw new ProcessingException(e);
             }

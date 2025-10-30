@@ -15,27 +15,21 @@
  */
 package me.champeau.a4j.jsolex.processing.expr;
 
-import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
-
+import java.nio.file.Path;
 import java.util.List;
-import java.util.Map;
-import java.util.Set;
 
-public record ImageMathScriptResult(
-        Map<String, ImageWrapper> imagesByLabel,
-        Map<String, FileOutputResult> filesByLabel,
-        List<InvalidExpression> invalidExpressions,
-        Set<Double> internalShifts,
-        Set<Double> outputShifts,
-        Set<Double> requestedWavelenghts,
-        boolean autoContinuum) {
-    public static final ImageMathScriptResult EMPTY = new ImageMathScriptResult(
-            Map.of(),
-            Map.of(),
-            List.of(),
-            Set.of(),
-            Set.of(),
-            Set.of(),
-            false
-    );
+/**
+ * Sealed interface representing file output results from script execution.
+ * Can be either a single file or multiple files where only one should be displayed.
+ */
+public sealed interface FileOutputResult permits SingleFileOutput, MultiFileOutput {
+    /**
+     * @return The file that should be displayed in the UI
+     */
+    Path displayFile();
+
+    /**
+     * @return All files that should be saved
+     */
+    List<Path> allFiles();
 }

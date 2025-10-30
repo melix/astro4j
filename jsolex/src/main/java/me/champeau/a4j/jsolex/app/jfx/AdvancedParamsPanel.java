@@ -29,6 +29,7 @@ import javafx.scene.layout.VBox;
 import javafx.util.converter.IntegerStringConverter;
 import me.champeau.a4j.jsolex.app.Configuration;
 import me.champeau.a4j.jsolex.app.JSolEx;
+import me.champeau.a4j.jsolex.processing.util.AnimationFormat;
 import me.champeau.a4j.jsolex.processing.util.ImageFormat;
 
 import java.util.EnumSet;
@@ -44,6 +45,8 @@ public class AdvancedParamsPanel extends BaseParameterPanel {
     private final CheckBox generateJpg;
     private final CheckBox generateTif;
     private final CheckBox generateFits;
+    private final CheckBox generateMp4;
+    private final CheckBox generateGif;
 
     private int initialMemoryRestriction;
     private String initialLanguage;
@@ -63,6 +66,8 @@ public class AdvancedParamsPanel extends BaseParameterPanel {
         generateJpg = createCheckBox("JPG", I18N.string(JSolEx.class, "advanced-params", "generate.jpg.files"));
         generateTif = createCheckBox("TIF", I18N.string(JSolEx.class, "advanced-params", "generate.tif.files"));
         generateFits = createCheckBox("FITS", I18N.string(JSolEx.class, "advanced-params", "generate.fits.files"));
+        generateMp4 = createCheckBox("MP4", I18N.string(JSolEx.class, "advanced-params", "generate.mp4.files"));
+        generateGif = createCheckBox("GIF", I18N.string(JSolEx.class, "advanced-params", "generate.gif.files"));
 
         setupLayout();
         loadConfiguration();
@@ -155,6 +160,14 @@ public class AdvancedParamsPanel extends BaseParameterPanel {
                 formatsBox,
                 "image.formats.tooltip");
 
+        var animationFormatsBox = new VBox(8);
+        animationFormatsBox.getChildren().addAll(generateMp4, generateGif);
+
+        addGridRow(outputGrid, 1,
+                I18N.string(JSolEx.class, "advanced-params", "animation.formats"),
+                animationFormatsBox,
+                "animation.formats.tooltip");
+
         outputSection.getChildren().add(outputGrid);
 
         getChildren().addAll(localizationSection, performanceSection, dataSection, outputSection);
@@ -188,6 +201,10 @@ public class AdvancedParamsPanel extends BaseParameterPanel {
         generateJpg.setSelected(imageFormats.contains(ImageFormat.JPG));
         generateTif.setSelected(imageFormats.contains(ImageFormat.TIF));
         generateFits.setSelected(imageFormats.contains(ImageFormat.FITS));
+
+        var animationFormats = config.getAnimationFormats();
+        generateMp4.setSelected(animationFormats.contains(AnimationFormat.MP4));
+        generateGif.setSelected(animationFormats.contains(AnimationFormat.GIF));
     }
 
     public void saveConfiguration() {
@@ -217,6 +234,15 @@ public class AdvancedParamsPanel extends BaseParameterPanel {
             imageFormats.add(ImageFormat.FITS);
         }
         config.setImageFormats(imageFormats);
+
+        var animationFormats = EnumSet.noneOf(AnimationFormat.class);
+        if (generateMp4.isSelected()) {
+            animationFormats.add(AnimationFormat.MP4);
+        }
+        if (generateGif.isSelected()) {
+            animationFormats.add(AnimationFormat.GIF);
+        }
+        config.setAnimationFormats(animationFormats);
     }
 
     public boolean requiresRestart() {
