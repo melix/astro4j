@@ -87,6 +87,8 @@ import java.util.Set;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.regex.Pattern;
+import java.util.regex.PatternSyntaxException;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -97,7 +99,7 @@ public class ImageMathTextArea extends BorderPane {
     private final ContextMenu completionPopup = new ContextMenu();
     private CompletionProvider completionProvider;
     private Tooltip hoverTooltip = null;
-    private javafx.animation.Timeline hoverDelayTimeline;
+    private Timeline hoverDelayTimeline;
 
     private Path includesDir;
     private final Set<FoldedRegion> foldedRegions = new HashSet<>();
@@ -1146,12 +1148,12 @@ public class ImageMathTextArea extends BorderPane {
         searchField.setOnAction(e -> findNext());
 
         var findNextButton = new Button("▼");
-        findNextButton.setTooltip(new javafx.scene.control.Tooltip(I18N.string(JSolEx.class, "imagemath-editor", "find.next")));
+        findNextButton.setTooltip(new Tooltip(I18N.string(JSolEx.class, "imagemath-editor", "find.next")));
         findNextButton.setOnAction(e -> findNext());
         findNextButton.setMinWidth(Region.USE_PREF_SIZE);
 
         var findPrevButton = new Button("▲");
-        findPrevButton.setTooltip(new javafx.scene.control.Tooltip(I18N.string(JSolEx.class, "imagemath-editor", "find.previous")));
+        findPrevButton.setTooltip(new Tooltip(I18N.string(JSolEx.class, "imagemath-editor", "find.previous")));
         findPrevButton.setOnAction(e -> findPrevious());
         findPrevButton.setMinWidth(Region.USE_PREF_SIZE);
 
@@ -1313,13 +1315,13 @@ public class ImageMathTextArea extends BorderPane {
 
         if (regex) {
             try {
-                var pattern = java.util.regex.Pattern.compile(searchText,
-                    caseSensitive ? 0 : java.util.regex.Pattern.CASE_INSENSITIVE);
+                var pattern = Pattern.compile(searchText,
+                    caseSensitive ? 0 : Pattern.CASE_INSENSITIVE);
                 var matcher = pattern.matcher(text);
                 while (matcher.find()) {
                     searchMatches.add(new SearchMatch(matcher.start(), matcher.end()));
                 }
-            } catch (java.util.regex.PatternSyntaxException e) {
+            } catch (PatternSyntaxException e) {
                 return;
             }
         } else {

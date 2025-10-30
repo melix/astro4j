@@ -16,6 +16,7 @@
 package me.champeau.a4j.jsolex.app.jfx;
 
 import javafx.geometry.Insets;
+import javafx.scene.Node;
 import javafx.scene.control.Button;
 import javafx.scene.control.CheckBox;
 import javafx.scene.control.ChoiceBox;
@@ -24,6 +25,7 @@ import javafx.scene.control.Slider;
 import javafx.scene.control.TextField;
 import javafx.scene.control.TextFormatter;
 import javafx.scene.control.Tooltip;
+import javafx.scene.layout.GridPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
 import javafx.util.converter.IntegerStringConverter;
@@ -271,7 +273,7 @@ public class AdvancedParamsPanel extends BaseParameterPanel {
     }
 
     @Override
-    protected void addGridRow(javafx.scene.layout.GridPane grid, int row, String labelText, javafx.scene.Node control, String tooltipKey) {
+    protected void addGridRow(GridPane grid, int row, String labelText, Node control, String tooltipKey) {
         var label = new Label(labelText);
         label.getStyleClass().addAll("field-label", "field-label-wrapped");
 

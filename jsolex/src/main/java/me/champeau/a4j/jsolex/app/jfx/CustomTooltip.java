@@ -19,6 +19,7 @@ import javafx.animation.PauseTransition;
 import javafx.application.Platform;
 import javafx.scene.Node;
 import javafx.scene.control.Label;
+import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.VBox;
 import javafx.stage.Popup;
 import javafx.stage.Screen;
@@ -107,7 +108,7 @@ public class CustomTooltip {
         }
     }
     
-    private boolean isMouseOverTooltip(javafx.scene.input.MouseEvent event) {
+    private boolean isMouseOverTooltip(MouseEvent event) {
         if (!showing || popup == null || !popup.isShowing()) {
             return false;
         }

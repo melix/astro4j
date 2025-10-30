@@ -23,10 +23,12 @@ import me.champeau.a4j.math.tuples.IntPair;
 import java.io.File;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.EnumSet;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.prefs.Preferences;
@@ -63,7 +65,7 @@ public class Configuration {
                 .map(Path::of)
                 .filter(Files::exists)
                 .limit(10)
-                .collect(Collectors.toCollection(java.util.ArrayList::new));
+                .collect(Collectors.toCollection(ArrayList::new));
         FitsUtils.setPippCompatibility(isWritePippCompatibleFits());
         
         // Set system property for locale if configured
@@ -237,7 +239,7 @@ public class Configuration {
                         return null;
                     }
                 })
-                .filter(java.util.Objects::nonNull)
+                .filter(Objects::nonNull)
                 .collect(Collectors.toCollection(() -> EnumSet.noneOf(ImageFormat.class)));
     }
 
@@ -263,7 +265,7 @@ public class Configuration {
                         return null;
                     }
                 })
-                .filter(java.util.Objects::nonNull)
+                .filter(Objects::nonNull)
                 .collect(Collectors.toCollection(() -> EnumSet.noneOf(AnimationFormat.class)));
     }
 

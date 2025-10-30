@@ -369,7 +369,7 @@ class ComparisonModeManager {
         }
     }
 
-    void updateUserImage(javafx.scene.image.WritableImage newImage) {
+    void updateUserImage(WritableImage newImage) {
         userDisplayImage = newImage;
 
         if (currentMode == ComparisonMode.BLINK && blinkImageView != null && showingUserImage) {

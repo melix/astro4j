@@ -72,6 +72,7 @@ import me.champeau.a4j.ser.Header;
 
 import java.io.File;
 import java.io.IOException;
+import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.nio.charset.Charset;
 import java.nio.file.Files;
@@ -89,6 +90,7 @@ import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.ReentrantLock;
+import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -133,7 +135,7 @@ public class BatchModeEventListener implements ProcessingEventListener, ImageMat
     private final Map<Integer, ProcessParams> processParamsByIndex;
     private final long sd = System.nanoTime();
     private ProcessParams adjustedParams;
-    private final java.util.concurrent.locks.ReentrantReadWriteLock dataLock;
+    private final ReentrantReadWriteLock dataLock;
 
     public BatchModeEventListener(JSolExInterface owner,
                                   ProgressOperation rootOperation,
@@ -236,7 +238,7 @@ public class BatchModeEventListener implements ProcessingEventListener, ImageMat
             img = Corrector.rotate(img, correction, params.geometryParams().autocropMode() == AutocropMode.OFF);
         }
         var strategy = kind == GeneratedImageKind.IMAGE_MATH ? CutoffStretchingStrategy.DEFAULT : RangeExpansionStrategy.DEFAULT;
-        var saved = new ImageSaver(strategy, params, me.champeau.a4j.jsolex.app.Configuration.getInstance().getImageFormats()).save(img, target);
+        var saved = new ImageSaver(strategy, params, Configuration.getInstance().getImageFormats()).save(img, target);
         for (var file : saved) {
             item.generatedFiles().add(file);
             dataLock.writeLock().lock();
@@ -780,7 +782,7 @@ public class BatchModeEventListener implements ProcessingEventListener, ImageMat
             String details = invalidExpressions.stream()
                 .map(invalidExpression -> {
                     var sb = new StringWriter();
-                    invalidExpression.error().printStackTrace(new java.io.PrintWriter(sb));
+                    invalidExpression.error().printStackTrace(new PrintWriter(sb));
                     return sb.toString();
                 })
                 .collect(Collectors.joining("\n"));

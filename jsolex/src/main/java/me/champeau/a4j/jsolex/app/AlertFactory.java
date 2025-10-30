@@ -16,6 +16,7 @@
 package me.champeau.a4j.jsolex.app;
 
 import javafx.scene.control.Alert;
+import javafx.scene.control.Button;
 import javafx.scene.control.ButtonType;
 
 public class AlertFactory {
@@ -42,7 +43,7 @@ public class AlertFactory {
 
         alert.setOnShown(e -> {
             for (var buttonType : dialogPane.getButtonTypes()) {
-                var button = (javafx.scene.control.Button) dialogPane.lookupButton(buttonType);
+                var button = (Button) dialogPane.lookupButton(buttonType);
                 if (button != null) {
                     button.getStyleClass().removeAll("button");
                     if (buttonType == ButtonType.CANCEL || buttonType == ButtonType.NO) {

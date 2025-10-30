@@ -40,6 +40,7 @@ import me.champeau.a4j.jsolex.processing.util.SolarParameters;
 import me.champeau.a4j.jsolex.processing.params.ImageMathParameterExtractor;
 
 import java.nio.file.Path;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.LinkedHashMap;
@@ -133,7 +134,7 @@ public class DefaultImageScriptExecutor implements ImageMathScriptExecutor {
             return result;
         } finally {
             if (!isCollectingShifts() && outputLogging) {
-                var dur = java.time.Duration.ofNanos(System.nanoTime() - nanoTime);
+                var dur = Duration.ofNanos(System.nanoTime() - nanoTime);
                 LOGGER.info(message("script.completed.in"), dur.toSeconds(), dur.toMillisPart() / 100);
                 var secs = dur.toSeconds() + (dur.toMillisPart() / 1000d);
                 broadcaster.broadcast(scriptOperation.complete(String.format(message("script.completed.in.format"), secs)));

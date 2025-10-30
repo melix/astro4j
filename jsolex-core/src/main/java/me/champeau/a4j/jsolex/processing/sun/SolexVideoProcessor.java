@@ -112,7 +112,6 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.StandardCopyOption;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -1008,7 +1007,7 @@ public class SolexVideoProcessor implements Broadcaster {
                     var draw = new ImageDraw(Map.of(), Broadcaster.NO_OP);
                     var copy = new RGBImage(w, 2 * h + spacing, rgb.r(), rgb.g(), rgb.b(), Map.of());
                     RGBImage color = (RGBImage) drawOnImage(copy, (g, img) -> {
-                        g.setColor(java.awt.Color.GREEN);
+                        g.setColor(Color.GREEN);
                         g.setFont(g.getFont().deriveFont(16f));
                         g.drawString("Frame " + frameNb + " shift " + redshift.relPixelShift(), 16, img.height() - 16);
                     });

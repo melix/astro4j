@@ -297,7 +297,7 @@ public class ImageViewer implements WithRootNode {
         var unwrapped = this.image.unwrapToMemory();
         var image = applyTransformations(unwrapped);
         var strategy = determineStrategy();
-        var files = new ImageSaver(strategy, processParams, me.champeau.a4j.jsolex.app.Configuration.getInstance().getImageFormats()).save(image, imageFile);
+        var files = new ImageSaver(strategy, processParams, Configuration.getInstance().getImageFormats()).save(image, imageFile);
         files.stream()
                 .findFirst()
                 .ifPresent(file -> imageView.setImagePathForOpeningInExplorer(file.toPath()));

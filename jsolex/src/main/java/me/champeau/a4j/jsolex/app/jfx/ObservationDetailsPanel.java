@@ -29,6 +29,7 @@ import javafx.util.StringConverter;
 import me.champeau.a4j.jsolex.app.JSolEx;
 import me.champeau.a4j.jsolex.processing.params.ObservationDetails;
 import me.champeau.a4j.jsolex.processing.params.ProcessParams;
+import me.champeau.a4j.jsolex.processing.params.Setup;
 import me.champeau.a4j.jsolex.processing.params.SpectroHeliograph;
 import me.champeau.a4j.jsolex.processing.params.SpectroHeliographsIO;
 import me.champeau.a4j.jsolex.processing.sun.CaptureSoftwareMetadataHelper;
@@ -313,7 +314,7 @@ public class ObservationDetailsPanel extends BaseParameterPanel {
     }
     
     
-    public void updateFromSetup(me.champeau.a4j.jsolex.processing.params.Setup setup) {
+    public void updateFromSetup(Setup setup) {
         telescope.setText(setup.telescope() != null ? setup.telescope() : "");
         focalLength.setText(setup.focalLength() != null ? String.valueOf(setup.focalLength()) : "");
         aperture.setText(setup.aperture() != null ? String.valueOf(setup.aperture()) : "");

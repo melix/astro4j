@@ -17,6 +17,7 @@ package me.champeau.a4j.jsolex.processing.sun.workflow;
 
 import me.champeau.a4j.math.Point2D;
 
+import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Stream;
 
@@ -47,7 +48,7 @@ public record ReferenceCoords(
                 case ROTATION -> {
                     // Use stored rotation center - if not available, throw error
                     if (operation.values.length < 3) {
-                        throw new IllegalStateException("Rotation operation missing stored center: " + java.util.Arrays.toString(operation.values));
+                        throw new IllegalStateException("Rotation operation missing stored center: " + Arrays.toString(operation.values));
                     }
                     Point2D opRotationCenter = new Point2D(operation.value(1), operation.value(2));
                     current = rotate(opRotationCenter, current, -operation.value());
@@ -209,7 +210,7 @@ public record ReferenceCoords(
 
         @Override
         public String toString() {
-            return kind + (values.length > 0 ? " (" + java.util.Arrays.toString(values) + ")" : "");
+            return kind + (values.length > 0 ? " (" + Arrays.toString(values) + ")" : "");
         }
     }
 

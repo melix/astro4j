@@ -268,11 +268,11 @@ public class Main implements Runnable {
             return result;
         }
 
-        public Set<me.champeau.a4j.jsolex.processing.util.ImageFormat> getImageFormats() {
+        public Set<ImageFormat> getImageFormats() {
             if (generateFits != null && generateFits) {
-                return Set.of(me.champeau.a4j.jsolex.processing.util.ImageFormat.FITS, me.champeau.a4j.jsolex.processing.util.ImageFormat.PNG);
+                return Set.of(ImageFormat.FITS, ImageFormat.PNG);
             }
-            return Set.of(me.champeau.a4j.jsolex.processing.util.ImageFormat.PNG, me.champeau.a4j.jsolex.processing.util.ImageFormat.FITS);
+            return Set.of(ImageFormat.PNG, ImageFormat.FITS);
         }
     }
 

@@ -37,6 +37,7 @@ import me.champeau.a4j.jsolex.app.JSolEx;
 import me.champeau.a4j.jsolex.processing.event.ProgressOperation;
 import me.champeau.a4j.jsolex.processing.params.ObservationDetails;
 import me.champeau.a4j.jsolex.processing.params.ProcessParams;
+import me.champeau.a4j.jsolex.processing.params.SpectroHeliograph;
 import me.champeau.a4j.jsolex.processing.params.VideoParams;
 import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
 import me.champeau.a4j.jsolex.processing.sun.CaptureSoftwareMetadataHelper;
@@ -446,7 +447,7 @@ public class ProcessParamsController {
             new ImageMetadata(null, null, null, true, now, now.atZone(ZoneId.of("UTC"))));
     }
     
-    public void updateSpectrumVFlipForInstrument(me.champeau.a4j.jsolex.processing.params.SpectroHeliograph instrument) {
+    public void updateSpectrumVFlipForInstrument(SpectroHeliograph instrument) {
         if (advancedPanel != null) {
             advancedPanel.updateSpectrumVFlip(instrument.spectrumVFlip());
         }

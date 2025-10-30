@@ -23,6 +23,7 @@ import javafx.scene.Scene;
 import javafx.scene.control.Button;
 import javafx.scene.control.CheckBox;
 import javafx.scene.control.ChoiceBox;
+import javafx.scene.control.ListCell;
 import javafx.scene.control.ListView;
 import javafx.scene.control.Slider;
 import javafx.scene.control.TextField;
@@ -131,7 +132,7 @@ public class SpectralRayEditor {
 
     @FXML
     private void initialize() {
-        automaticScriptsList.setCellFactory(_ -> new javafx.scene.control.ListCell<Path>() {
+        automaticScriptsList.setCellFactory(_ -> new ListCell<Path>() {
             @Override
             protected void updateItem(Path item, boolean empty) {
                 super.updateItem(item, empty);

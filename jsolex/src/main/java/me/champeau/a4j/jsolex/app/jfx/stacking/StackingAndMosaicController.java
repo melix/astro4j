@@ -33,6 +33,7 @@ import javafx.scene.layout.FlowPane;
 import javafx.stage.FileChooser;
 import javafx.stage.Stage;
 import javafx.util.converter.DoubleStringConverter;
+import me.champeau.a4j.jsolex.app.Configuration;
 import me.champeau.a4j.jsolex.app.JSolEx;
 import me.champeau.a4j.jsolex.app.jfx.I18N;
 import me.champeau.a4j.jsolex.app.jfx.ImageMathEditor;
@@ -57,6 +58,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.File;
+import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.EnumSet;
 import java.util.List;
@@ -182,7 +184,7 @@ public class StackingAndMosaicController {
             }
 
         }
-        var imageFormats = me.champeau.a4j.jsolex.app.Configuration.getInstance().getImageFormats();
+        var imageFormats = Configuration.getInstance().getImageFormats();
         saveFits.setSelected(imageFormats.contains(ImageFormat.FITS));
         saveJpg.setSelected(imageFormats.contains(ImageFormat.JPG));
         savePng.setSelected(imageFormats.contains(ImageFormat.PNG));
@@ -326,7 +328,7 @@ public class StackingAndMosaicController {
                 workflow.execute(params, panels, outputDirectory);
             } finally {
                 long ed = System.nanoTime();
-                var duration = java.time.Duration.ofNanos(ed - sd);
+                var duration = Duration.ofNanos(ed - sd);
                 double seconds = duration.toMillis() / 1000d;
                 LOGGER.info(message(String.format(message("finished.in"), seconds)));
             }
@@ -350,7 +352,7 @@ public class StackingAndMosaicController {
             imageFormats.add(ImageFormat.TIF);
         }
         // Save image formats to Configuration
-        me.champeau.a4j.jsolex.app.Configuration.getInstance().setImageFormats(imageFormats);
+        Configuration.getInstance().setImageFormats(imageFormats);
         return params.withExtraParams(
             params.extraParams()
                 .withAutosave(true)

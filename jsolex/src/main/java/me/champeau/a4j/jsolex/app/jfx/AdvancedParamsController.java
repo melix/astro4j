@@ -16,6 +16,7 @@
 package me.champeau.a4j.jsolex.app.jfx;
 
 import javafx.geometry.Insets;
+import javafx.geometry.Pos;
 import javafx.scene.Scene;
 import javafx.scene.control.Button;
 import javafx.scene.control.ScrollPane;
@@ -57,7 +58,7 @@ public class AdvancedParamsController {
 
         var buttonBar = new HBox(8);
         buttonBar.getStyleClass().add("editor-button-bar");
-        buttonBar.setAlignment(javafx.geometry.Pos.CENTER_RIGHT);
+        buttonBar.setAlignment(Pos.CENTER_RIGHT);
         buttonBar.getChildren().addAll(cancelButton, okButton);
 
         var root = new BorderPane();

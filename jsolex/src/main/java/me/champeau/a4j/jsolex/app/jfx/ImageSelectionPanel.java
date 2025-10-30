@@ -17,6 +17,7 @@ package me.champeau.a4j.jsolex.app.jfx;
 
 import javafx.application.HostServices;
 import javafx.geometry.Insets;
+import javafx.scene.Node;
 import javafx.scene.control.Alert;
 import javafx.scene.control.Button;
 import javafx.scene.control.ButtonType;
@@ -572,7 +573,7 @@ public class ImageSelectionPanel extends BaseParameterPanel {
         }
     }
 
-    private javafx.scene.Node createParameterControl(ScriptParameter param, Object initialValue) {
+    private Node createParameterControl(ScriptParameter param, Object initialValue) {
         switch (param) {
             case ChoiceParameter choiceParam -> {
                 var choiceBox = createChoiceBox();
@@ -633,7 +634,7 @@ public class ImageSelectionPanel extends BaseParameterPanel {
         }
     }
 
-    private void addGridRowWithDirectTooltip(GridPane grid, int row, String labelText, javafx.scene.Node control, String tooltipText) {
+    private void addGridRowWithDirectTooltip(GridPane grid, int row, String labelText, Node control, String tooltipText) {
         var label = new Label(labelText);
         label.getStyleClass().addAll("field-label", "field-label-wrapped");
 

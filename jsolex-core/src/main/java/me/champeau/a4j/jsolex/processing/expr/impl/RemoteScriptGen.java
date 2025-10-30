@@ -22,6 +22,7 @@ import me.champeau.a4j.jsolex.processing.expr.DefaultImageScriptExecutor;
 import me.champeau.a4j.jsolex.processing.expr.ImageMathScriptExecutor;
 import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
 
+import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
@@ -43,7 +44,7 @@ public class RemoteScriptGen extends AbstractFunctionImpl {
         var scriptUrl = stringArg(arguments, "url", null);
         try (var client = HttpClient.newHttpClient()) {
             var request = HttpRequest.newBuilder()
-                    .uri(java.net.URI.create(scriptUrl))
+                    .uri(URI.create(scriptUrl))
                     .header("accept", "application/json")
                     .POST(HttpRequest.BodyPublishers.ofString(evaluator.exportAsJson()))
                     .build();

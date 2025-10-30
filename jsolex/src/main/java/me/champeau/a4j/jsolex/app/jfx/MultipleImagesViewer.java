@@ -28,6 +28,8 @@ import javafx.scene.control.Button;
 import javafx.scene.control.Hyperlink;
 import javafx.scene.control.Label;
 import javafx.scene.control.ScrollPane;
+import javafx.scene.image.Image;
+import javafx.scene.image.ImageView;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Pane;
@@ -35,6 +37,7 @@ import javafx.scene.layout.VBox;
 import javafx.scene.media.Media;
 import javafx.scene.media.MediaPlayer;
 import javafx.scene.media.MediaView;
+import javafx.util.Duration;
 import me.champeau.a4j.jsolex.app.JSolEx;
 import me.champeau.a4j.jsolex.app.listeners.JSolExInterface;
 import me.champeau.a4j.jsolex.processing.event.ProcessingEventListener;
@@ -50,6 +53,7 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -287,12 +291,12 @@ public class MultipleImagesViewer extends Pane {
             var stopButton = createButton("Stop");
             var openButton = createButton(message("open.in.files"));
             openButton.setOnAction(e -> ExplorerSupport.openInExplorer(filePath));
-            mediaPlayer.setOnEndOfMedia(() -> mediaPlayer.seek(javafx.util.Duration.ZERO));
+            mediaPlayer.setOnEndOfMedia(() -> mediaPlayer.seek(Duration.ZERO));
             playButton.setOnAction(e -> mediaPlayer.play());
             stopButton.setOnAction(e -> mediaPlayer.stop());
             rewindButton.setOnAction(e -> {
                 mediaPlayer.stop();
-                mediaPlayer.seek(javafx.util.Duration.ZERO);
+                mediaPlayer.seek(Duration.ZERO);
             });
             var buttonBox = new HBox(playButton, stopButton, rewindButton, openButton);
             buttonBox.setSpacing(10);
@@ -320,8 +324,8 @@ public class MultipleImagesViewer extends Pane {
             lock.lock();
 
             var category = getOrCreateCategory(kind);
-            var image = new javafx.scene.image.Image(filePath.toUri().toString());
-            var imageView = new javafx.scene.image.ImageView(image);
+            var image = new Image(filePath.toUri().toString());
+            var imageView = new ImageView(image);
             imageView.setPreserveRatio(true);
 
             var openButton = createButton(message("open.in.files"));
@@ -355,7 +359,7 @@ public class MultipleImagesViewer extends Pane {
             // file writing will fail because the media player has locked the file
             try {
                 var tempFile = TemporaryFolder.newTempFile("jsolex", ".mp4");
-                Files.copy(filePath, tempFile, java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+                Files.copy(filePath, tempFile, StandardCopyOption.REPLACE_EXISTING);
                 return new Media(tempFile.toUri().toString());
             } catch (IOException e) {
                 throw new RuntimeException(e);

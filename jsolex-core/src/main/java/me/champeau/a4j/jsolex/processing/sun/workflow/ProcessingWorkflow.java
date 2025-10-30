@@ -59,6 +59,7 @@ import me.champeau.a4j.jsolex.processing.util.SolarParameters;
 import me.champeau.a4j.math.Point2D;
 import me.champeau.a4j.math.image.Deconvolution;
 import me.champeau.a4j.math.image.ImageMath;
+import me.champeau.a4j.math.image.SharpenKernel;
 import me.champeau.a4j.math.regression.Ellipse;
 import me.champeau.a4j.ser.Header;
 import org.slf4j.Logger;
@@ -385,7 +386,7 @@ public class ProcessingWorkflow {
             }
             case SharpeningParams.Sharpen sharpen -> {
                 enhancements.add("Sharpening (kernel size: " + sharpen.kernelSize() + ")");
-                image = imageMath.convolve(image, me.champeau.a4j.math.image.SharpenKernel.of(sharpen.kernelSize()));
+                image = imageMath.convolve(image, SharpenKernel.of(sharpen.kernelSize()));
             }
             case SharpeningParams.UnsharpMask unsharpMask -> {
                 enhancements.add("Unsharp mask (kernel size: " + unsharpMask.kernelSize() + ", strength: " + unsharpMask.strength() + ")");
