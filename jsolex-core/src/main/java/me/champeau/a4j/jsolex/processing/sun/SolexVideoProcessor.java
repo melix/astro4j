@@ -1406,7 +1406,7 @@ public class SolexVideoProcessor implements Broadcaster {
 
     private void createWorkflowStateSteps(List<WorkflowState> imageList, int width, int newHeight) {
         var list = new ArrayList<>(processParams.requestedImages().pixelShifts().stream().map(i -> WorkflowState.prepare(width, newHeight, i)).toList());
-        
+
         for (var internalShift : processParams.requestedImages().internalPixelShifts()) {
             if (list.stream().noneMatch(s -> s.pixelShift() == internalShift)) {
                 var internalState = WorkflowState.prepare(width, newHeight, internalShift);
@@ -1414,7 +1414,7 @@ public class SolexVideoProcessor implements Broadcaster {
                 list.add(internalState);
             }
         }
-        
+
         var detectionShift = processParams.spectrumParams().pixelShift() - 6;
         if (list.stream().noneMatch(s -> s.pixelShift() == detectionShift)) {
             var internalState = WorkflowState.prepare(width, newHeight, detectionShift);

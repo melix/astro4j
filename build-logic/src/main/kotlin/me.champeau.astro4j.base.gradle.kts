@@ -16,7 +16,7 @@ extensions.create("astro4j", BuildExtension::class.java, project)
 
 java {
     toolchain {
-        languageVersion.set(JavaLanguageVersion.of(23))
+        languageVersion.set(JavaLanguageVersion.of(25))
     }
     withSourcesJar()
     withJavadocJar()
@@ -29,6 +29,8 @@ repositories {
 dependencies {
     testImplementation("org.spockframework:spock-core:2.3-groovy-4.0")
     testImplementation("org.apache.groovy:groovy:4.0.28")
+    testRuntimeOnly("org.junit.platform:junit-platform-launcher")
+    testRuntimeOnly("org.junit.jupiter:junit-jupiter-engine")
 }
 
 tasks.withType<JavaCompile>().configureEach {
