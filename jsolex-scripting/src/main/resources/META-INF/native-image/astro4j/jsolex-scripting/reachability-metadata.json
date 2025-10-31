@@ -1,0 +1,2629 @@
+{
+  "reflection": [
+    {
+      "type": "boolean[]"
+    },
+    {
+      "type": "byte[]"
+    },
+    {
+      "type": "byte[][]"
+    },
+    {
+      "type": "ch.qos.logback.classic.encoder.PatternLayoutEncoder",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "ch.qos.logback.classic.joran.SerializedModelConfigurator",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "ch.qos.logback.classic.spi.LogbackServiceProvider"
+    },
+    {
+      "type": "ch.qos.logback.classic.util.DefaultJoranConfigurator",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "ch.qos.logback.core.ConsoleAppender",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "ch.qos.logback.core.OutputStreamAppender",
+      "methods": [
+        {
+          "name": "setEncoder",
+          "parameterTypes": [
+            "ch.qos.logback.core.encoder.Encoder"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "ch.qos.logback.core.encoder.Encoder"
+    },
+    {
+      "type": "ch.qos.logback.core.encoder.LayoutWrappingEncoder",
+      "methods": [
+        {
+          "name": "setParent",
+          "parameterTypes": [
+            "ch.qos.logback.core.spi.ContextAware"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "ch.qos.logback.core.pattern.PatternLayoutEncoderBase",
+      "methods": [
+        {
+          "name": "setPattern",
+          "parameterTypes": [
+            "java.lang.String"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "ch.qos.logback.core.spi.ContextAware"
+    },
+    {
+      "type": "char[]"
+    },
+    {
+      "type": "com.sun.imageio.plugins.jpeg.JPEGImageWriter",
+      "jniAccessible": true,
+      "methods": [
+        {
+          "name": "grabPixels",
+          "parameterTypes": [
+            "int"
+          ]
+        },
+        {
+          "name": "warningOccurred",
+          "parameterTypes": [
+            "int"
+          ]
+        },
+        {
+          "name": "warningWithMessage",
+          "parameterTypes": [
+            "java.lang.String"
+          ]
+        },
+        {
+          "name": "writeMetadata",
+          "parameterTypes": []
+        },
+        {
+          "name": "writeOutputData",
+          "parameterTypes": [
+            "byte[]",
+            "int",
+            "int"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "com.sun.management.GarbageCollectorMXBean"
+    },
+    {
+      "type": "com.sun.management.GcInfo"
+    },
+    {
+      "type": "com.sun.management.HotSpotDiagnosticMXBean"
+    },
+    {
+      "type": "com.sun.management.ThreadMXBean"
+    },
+    {
+      "type": "com.sun.management.UnixOperatingSystemMXBean"
+    },
+    {
+      "type": "com.sun.management.VMOption"
+    },
+    {
+      "type": "com.sun.management.internal.DiagnosticCommandArgumentInfo",
+      "jniAccessible": true,
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": [
+            "java.lang.String",
+            "java.lang.String",
+            "java.lang.String",
+            "java.lang.String",
+            "boolean",
+            "boolean",
+            "boolean",
+            "int"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "com.sun.management.internal.DiagnosticCommandArgumentInfo[]"
+    },
+    {
+      "type": "com.sun.management.internal.DiagnosticCommandInfo",
+      "jniAccessible": true,
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": [
+            "java.lang.String",
+            "java.lang.String",
+            "java.lang.String",
+            "boolean",
+            "java.util.List"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "com.sun.management.internal.DiagnosticCommandInfo[]"
+    },
+    {
+      "type": "com.sun.management.internal.GarbageCollectorExtImpl"
+    },
+    {
+      "type": "com.sun.management.internal.HotSpotDiagnostic"
+    },
+    {
+      "type": "com.sun.management.internal.HotSpotThreadImpl"
+    },
+    {
+      "type": "com.sun.management.internal.OperatingSystemImpl"
+    },
+    {
+      "type": "com.sun.management.internal.VirtualThreadSchedulerImpls$VirtualThreadSchedulerImpl"
+    },
+    {
+      "type": "com.sun.org.apache.xerces.internal.jaxp.SAXParserFactoryImpl",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "double[]"
+    },
+    {
+      "type": "float[]"
+    },
+    {
+      "type": "groovy.lang.Closure"
+    },
+    {
+      "type": "int[]"
+    },
+    {
+      "type": "io.micronaut.context.DefaultBeanContext$BeanDefinitionProducer"
+    },
+    {
+      "type": "io.micronaut.context.env.PropertiesPropertySourceLoader",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "io.micronaut.context.env.yaml.YamlPropertySourceLoader",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "io.micronaut.context.event.ApplicationEventPublisherFactory",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "io.micronaut.inject.annotation.AnnotationConvertersRegistrar",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "io.micronaut.inject.provider.BeanProviderDefinition",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "io.micronaut.inject.provider.JakartaProviderBeanDefinition",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "io.micronaut.inject.provider.JavaxProviderBeanDefinition",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "java.awt.AlphaComposite",
+      "jniAccessible": true,
+      "fields": [
+        {
+          "name": "extraAlpha"
+        },
+        {
+          "name": "rule"
+        }
+      ]
+    },
+    {
+      "type": "java.awt.Color",
+      "jniAccessible": true,
+      "methods": [
+        {
+          "name": "getRGB",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "java.awt.GraphicsEnvironment",
+      "jniAccessible": true,
+      "methods": [
+        {
+          "name": "isHeadless",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "java.awt.Rectangle",
+      "jniAccessible": true,
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": [
+            "int",
+            "int",
+            "int",
+            "int"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "java.awt.geom.AffineTransform",
+      "jniAccessible": true,
+      "fields": [
+        {
+          "name": "m00"
+        },
+        {
+          "name": "m01"
+        },
+        {
+          "name": "m02"
+        },
+        {
+          "name": "m10"
+        },
+        {
+          "name": "m11"
+        },
+        {
+          "name": "m12"
+        }
+      ]
+    },
+    {
+      "type": "java.awt.geom.GeneralPath",
+      "jniAccessible": true,
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        },
+        {
+          "name": "<init>",
+          "parameterTypes": [
+            "int",
+            "byte[]",
+            "int",
+            "float[]",
+            "int"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "java.awt.geom.Path2D",
+      "jniAccessible": true,
+      "fields": [
+        {
+          "name": "numTypes"
+        },
+        {
+          "name": "pointTypes"
+        },
+        {
+          "name": "windingRule"
+        }
+      ]
+    },
+    {
+      "type": "java.awt.geom.Path2D$Float",
+      "jniAccessible": true,
+      "fields": [
+        {
+          "name": "floatCoords"
+        }
+      ]
+    },
+    {
+      "type": "java.awt.geom.Point2D$Float",
+      "jniAccessible": true,
+      "fields": [
+        {
+          "name": "x"
+        },
+        {
+          "name": "y"
+        }
+      ],
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": [
+            "float",
+            "float"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "java.awt.geom.Rectangle2D$Float",
+      "jniAccessible": true,
+      "fields": [
+        {
+          "name": "height"
+        },
+        {
+          "name": "width"
+        },
+        {
+          "name": "x"
+        },
+        {
+          "name": "y"
+        }
+      ],
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        },
+        {
+          "name": "<init>",
+          "parameterTypes": [
+            "float",
+            "float",
+            "float",
+            "float"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "java.awt.image.BufferedImage",
+      "jniAccessible": true,
+      "fields": [
+        {
+          "name": "colorModel"
+        },
+        {
+          "name": "imageType"
+        },
+        {
+          "name": "raster"
+        }
+      ],
+      "methods": [
+        {
+          "name": "getRGB",
+          "parameterTypes": [
+            "int",
+            "int",
+            "int",
+            "int",
+            "int[]",
+            "int",
+            "int"
+          ]
+        },
+        {
+          "name": "setRGB",
+          "parameterTypes": [
+            "int",
+            "int",
+            "int",
+            "int",
+            "int[]",
+            "int",
+            "int"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "java.awt.image.ColorModel",
+      "jniAccessible": true,
+      "fields": [
+        {
+          "name": "colorSpace"
+        },
+        {
+          "name": "colorSpaceType"
+        },
+        {
+          "name": "isAlphaPremultiplied"
+        },
+        {
+          "name": "is_sRGB"
+        },
+        {
+          "name": "nBits"
+        },
+        {
+          "name": "numComponents"
+        },
+        {
+          "name": "supportsAlpha"
+        },
+        {
+          "name": "transparency"
+        }
+      ],
+      "methods": [
+        {
+          "name": "getRGBdefault",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "java.awt.image.IndexColorModel",
+      "jniAccessible": true,
+      "fields": [
+        {
+          "name": "allgrayopaque"
+        },
+        {
+          "name": "colorData"
+        },
+        {
+          "name": "map_size"
+        },
+        {
+          "name": "rgb"
+        },
+        {
+          "name": "transparent_index"
+        }
+      ]
+    },
+    {
+      "type": "java.awt.image.Raster",
+      "jniAccessible": true,
+      "fields": [
+        {
+          "name": "dataBuffer"
+        },
+        {
+          "name": "height"
+        },
+        {
+          "name": "minX"
+        },
+        {
+          "name": "minY"
+        },
+        {
+          "name": "numBands"
+        },
+        {
+          "name": "numDataElements"
+        },
+        {
+          "name": "sampleModel"
+        },
+        {
+          "name": "sampleModelTranslateX"
+        },
+        {
+          "name": "sampleModelTranslateY"
+        },
+        {
+          "name": "width"
+        }
+      ]
+    },
+    {
+      "type": "java.awt.image.SampleModel",
+      "jniAccessible": true,
+      "fields": [
+        {
+          "name": "height"
+        },
+        {
+          "name": "width"
+        }
+      ],
+      "methods": [
+        {
+          "name": "getPixels",
+          "parameterTypes": [
+            "int",
+            "int",
+            "int",
+            "int",
+            "int[]",
+            "java.awt.image.DataBuffer"
+          ]
+        },
+        {
+          "name": "setPixels",
+          "parameterTypes": [
+            "int",
+            "int",
+            "int",
+            "int",
+            "int[]",
+            "java.awt.image.DataBuffer"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "java.awt.image.SinglePixelPackedSampleModel",
+      "jniAccessible": true,
+      "fields": [
+        {
+          "name": "bitMasks"
+        },
+        {
+          "name": "bitOffsets"
+        },
+        {
+          "name": "bitSizes"
+        },
+        {
+          "name": "maxBitSize"
+        }
+      ]
+    },
+    {
+      "type": "java.lang.Boolean",
+      "jniAccessible": true,
+      "fields": [
+        {
+          "name": "TYPE"
+        }
+      ],
+      "methods": [
+        {
+          "name": "getBoolean",
+          "parameterTypes": [
+            "java.lang.String"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "java.lang.Byte",
+      "fields": [
+        {
+          "name": "TYPE"
+        }
+      ]
+    },
+    {
+      "type": "java.lang.Character",
+      "fields": [
+        {
+          "name": "TYPE"
+        }
+      ]
+    },
+    {
+      "type": "java.lang.Class",
+      "methods": [
+        {
+          "name": "getRecordComponents",
+          "parameterTypes": []
+        },
+        {
+          "name": "isRecord",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "java.lang.Deprecated"
+    },
+    {
+      "type": "java.lang.Double",
+      "fields": [
+        {
+          "name": "TYPE"
+        }
+      ]
+    },
+    {
+      "type": "java.lang.Float",
+      "fields": [
+        {
+          "name": "TYPE"
+        }
+      ]
+    },
+    {
+      "type": "java.lang.Integer",
+      "fields": [
+        {
+          "name": "TYPE"
+        }
+      ]
+    },
+    {
+      "type": "java.lang.Long",
+      "fields": [
+        {
+          "name": "TYPE"
+        }
+      ]
+    },
+    {
+      "type": "java.lang.Object"
+    },
+    {
+      "type": "java.lang.Record"
+    },
+    {
+      "type": "java.lang.Short",
+      "fields": [
+        {
+          "name": "TYPE"
+        }
+      ]
+    },
+    {
+      "type": "java.lang.StackTraceElement"
+    },
+    {
+      "type": "java.lang.String"
+    },
+    {
+      "type": "java.lang.String[]"
+    },
+    {
+      "type": "java.lang.System",
+      "jniAccessible": true,
+      "methods": [
+        {
+          "name": "load",
+          "parameterTypes": [
+            "java.lang.String"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "java.lang.Void",
+      "fields": [
+        {
+          "name": "TYPE"
+        }
+      ]
+    },
+    {
+      "type": "java.lang.management.BufferPoolMXBean"
+    },
+    {
+      "type": "java.lang.management.ClassLoadingMXBean"
+    },
+    {
+      "type": "java.lang.management.CompilationMXBean"
+    },
+    {
+      "type": "java.lang.management.LockInfo"
+    },
+    {
+      "type": "java.lang.management.MemoryMXBean"
+    },
+    {
+      "type": "java.lang.management.MemoryManagerMXBean"
+    },
+    {
+      "type": "java.lang.management.MemoryPoolMXBean"
+    },
+    {
+      "type": "java.lang.management.MemoryUsage"
+    },
+    {
+      "type": "java.lang.management.MonitorInfo"
+    },
+    {
+      "type": "java.lang.management.PlatformLoggingMXBean"
+    },
+    {
+      "type": "java.lang.management.RuntimeMXBean"
+    },
+    {
+      "type": "java.lang.management.ThreadInfo"
+    },
+    {
+      "type": "java.lang.reflect.RecordComponent",
+      "methods": [
+        {
+          "name": "getName",
+          "parameterTypes": []
+        },
+        {
+          "name": "getType",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "java.math.BigDecimal"
+    },
+    {
+      "type": "java.math.BigInteger"
+    },
+    {
+      "type": "java.nio.file.Path"
+    },
+    {
+      "type": "java.nio.file.Paths"
+    },
+    {
+      "type": "java.rmi.server.RemoteObject",
+      "serializable": true
+    },
+    {
+      "type": "java.rmi.server.RemoteStub",
+      "serializable": true
+    },
+    {
+      "type": "java.sql.Connection"
+    },
+    {
+      "type": "java.sql.Date"
+    },
+    {
+      "type": "java.sql.Driver"
+    },
+    {
+      "type": "java.sql.DriverManager"
+    },
+    {
+      "type": "java.sql.Time"
+    },
+    {
+      "type": "java.sql.Timestamp"
+    },
+    {
+      "type": "java.time.Duration"
+    },
+    {
+      "type": "java.time.Instant"
+    },
+    {
+      "type": "java.time.LocalDate"
+    },
+    {
+      "type": "java.time.LocalDateTime"
+    },
+    {
+      "type": "java.time.LocalTime"
+    },
+    {
+      "type": "java.time.MonthDay"
+    },
+    {
+      "type": "java.time.OffsetDateTime"
+    },
+    {
+      "type": "java.time.OffsetTime"
+    },
+    {
+      "type": "java.time.Period"
+    },
+    {
+      "type": "java.time.Year"
+    },
+    {
+      "type": "java.time.YearMonth"
+    },
+    {
+      "type": "java.time.ZoneId"
+    },
+    {
+      "type": "java.time.ZoneOffset"
+    },
+    {
+      "type": "java.time.ZonedDateTime"
+    },
+    {
+      "type": "java.util.Arrays",
+      "jniAccessible": true,
+      "methods": [
+        {
+          "name": "asList",
+          "parameterTypes": [
+            "java.lang.Object[]"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "java.util.Date"
+    },
+    {
+      "type": "java.util.List"
+    },
+    {
+      "type": "java.util.Map"
+    },
+    {
+      "type": "javax.imageio.plugins.jpeg.JPEGHuffmanTable",
+      "jniAccessible": true,
+      "fields": [
+        {
+          "name": "lengths"
+        },
+        {
+          "name": "values"
+        }
+      ]
+    },
+    {
+      "type": "javax.imageio.plugins.jpeg.JPEGQTable",
+      "jniAccessible": true,
+      "fields": [
+        {
+          "name": "qTable"
+        }
+      ]
+    },
+    {
+      "type": "javax.imageio.spi.ImageReaderSpi"
+    },
+    {
+      "type": "javax.imageio.spi.ImageReaderWriterSpi",
+      "methods": [
+        {
+          "name": "getFileSuffixes",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "javax.imageio.spi.ImageWriterSpi"
+    },
+    {
+      "type": "javax.management.MBeanOperationInfo"
+    },
+    {
+      "type": "javax.management.MBeanServerBuilder",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "javax.management.ObjectName"
+    },
+    {
+      "type": "javax.management.StandardEmitterMBean"
+    },
+    {
+      "type": "javax.management.openmbean.CompositeData"
+    },
+    {
+      "type": "javax.management.openmbean.CompositeData[]"
+    },
+    {
+      "type": "javax.management.openmbean.OpenMBeanOperationInfoSupport"
+    },
+    {
+      "type": "javax.management.openmbean.TabularData"
+    },
+    {
+      "type": "javax.management.remote.rmi.RMIServer"
+    },
+    {
+      "type": "javax.management.remote.rmi.RMIServerImpl_Skel"
+    },
+    {
+      "type": "javax.management.remote.rmi.RMIServerImpl_Stub",
+      "serializable": true,
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": [
+            "java.rmi.server.RemoteRef"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "jdk.incubator.vector.VectorOperators"
+    },
+    {
+      "type": "jdk.internal.jrtfs.JrtFileSystemProvider"
+    },
+    {
+      "type": "jdk.management.VirtualThreadSchedulerMXBean"
+    },
+    {
+      "type": "jdk.management.jfr.ConfigurationInfo"
+    },
+    {
+      "type": "jdk.management.jfr.EventTypeInfo"
+    },
+    {
+      "type": "jdk.management.jfr.FlightRecorderMXBean"
+    },
+    {
+      "type": "jdk.management.jfr.FlightRecorderMXBeanImpl"
+    },
+    {
+      "type": "jdk.management.jfr.RecordingInfo"
+    },
+    {
+      "type": "jdk.management.jfr.SettingDescriptorInfo"
+    },
+    {
+      "type": "long[]"
+    },
+    {
+      "type": "me.champeau.a4j.jsolex.cli.ScriptingEntryPoint",
+      "jniAccessible": true,
+      "fields": [
+        {
+          "name": "configFile"
+        },
+        {
+          "name": "debug"
+        },
+        {
+          "name": "formats"
+        },
+        {
+          "name": "inputFiles"
+        },
+        {
+          "name": "outputDir"
+        },
+        {
+          "name": "params"
+        },
+        {
+          "name": "scriptPaths"
+        },
+        {
+          "name": "verbose"
+        }
+      ],
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        },
+        {
+          "name": "main",
+          "parameterTypes": [
+            "java.lang.String[]"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "me.champeau.a4j.jsolex.processing.params.BandingCorrectionParams",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": [
+            "int",
+            "int"
+          ]
+        },
+        {
+          "name": "passes",
+          "parameterTypes": []
+        },
+        {
+          "name": "width",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "me.champeau.a4j.jsolex.processing.params.ClaheParams",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": [
+            "int",
+            "int",
+            "double"
+          ]
+        },
+        {
+          "name": "bins",
+          "parameterTypes": []
+        },
+        {
+          "name": "clipping",
+          "parameterTypes": []
+        },
+        {
+          "name": "tileSize",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "me.champeau.a4j.jsolex.processing.params.ContrastEnhancement",
+      "fields": [
+        {
+          "name": "AUTOSTRETCH"
+        },
+        {
+          "name": "CLAHE"
+        }
+      ]
+    },
+    {
+      "type": "me.champeau.a4j.jsolex.processing.params.GlobeStyle",
+      "fields": [
+        {
+          "name": "EQUATORIAL_COORDS"
+        },
+        {
+          "name": "SOLAR_COORDS"
+        }
+      ]
+    },
+    {
+      "type": "me.champeau.a4j.jsolex.processing.params.ProcessParams",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": [
+            "me.champeau.a4j.jsolex.processing.params.SpectrumParams",
+            "me.champeau.a4j.jsolex.processing.params.ObservationDetails",
+            "me.champeau.a4j.jsolex.processing.params.ExtraParams",
+            "me.champeau.a4j.jsolex.processing.params.VideoParams",
+            "me.champeau.a4j.jsolex.processing.params.GeometryParams",
+            "me.champeau.a4j.jsolex.processing.params.BandingCorrectionParams",
+            "me.champeau.a4j.jsolex.processing.params.RequestedImages",
+            "me.champeau.a4j.jsolex.processing.params.ClaheParams",
+            "me.champeau.a4j.jsolex.processing.params.AutoStretchParams",
+            "me.champeau.a4j.jsolex.processing.params.ContrastEnhancement",
+            "me.champeau.a4j.jsolex.processing.params.EnhancementParams"
+          ]
+        },
+        {
+          "name": "autoStretchParams",
+          "parameterTypes": []
+        },
+        {
+          "name": "bandingCorrectionParams",
+          "parameterTypes": []
+        },
+        {
+          "name": "claheParams",
+          "parameterTypes": []
+        },
+        {
+          "name": "contrastEnhancement",
+          "parameterTypes": []
+        },
+        {
+          "name": "enhancementParams",
+          "parameterTypes": []
+        },
+        {
+          "name": "extraParams",
+          "parameterTypes": []
+        },
+        {
+          "name": "geometryParams",
+          "parameterTypes": []
+        },
+        {
+          "name": "observationDetails",
+          "parameterTypes": []
+        },
+        {
+          "name": "requestedImages",
+          "parameterTypes": []
+        },
+        {
+          "name": "spectrumParams",
+          "parameterTypes": []
+        },
+        {
+          "name": "videoParams",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "me.champeau.a4j.jsolex.processing.params.RequestedImages",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": [
+            "java.util.Set",
+            "java.util.List",
+            "java.util.Set",
+            "java.util.Set",
+            "me.champeau.a4j.jsolex.processing.params.ImageMathParams",
+            "boolean",
+            "boolean"
+          ]
+        },
+        {
+          "name": "applyAutomaticScripts",
+          "parameterTypes": []
+        },
+        {
+          "name": "autoContinuum",
+          "parameterTypes": []
+        },
+        {
+          "name": "images",
+          "parameterTypes": []
+        },
+        {
+          "name": "internalPixelShifts",
+          "parameterTypes": []
+        },
+        {
+          "name": "mathImages",
+          "parameterTypes": []
+        },
+        {
+          "name": "pixelShifts",
+          "parameterTypes": []
+        },
+        {
+          "name": "requestedWaveLengths",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "me.champeau.a4j.jsolex.processing.params.SpectroHeliograph",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": [
+            "java.lang.String",
+            "double",
+            "double",
+            "double",
+            "int",
+            "int",
+            "double",
+            "double",
+            "boolean"
+          ]
+        },
+        {
+          "name": "collimatorFocalLength",
+          "parameterTypes": []
+        },
+        {
+          "name": "density",
+          "parameterTypes": []
+        },
+        {
+          "name": "focalLength",
+          "parameterTypes": []
+        },
+        {
+          "name": "label",
+          "parameterTypes": []
+        },
+        {
+          "name": "order",
+          "parameterTypes": []
+        },
+        {
+          "name": "slitHeightMillimeters",
+          "parameterTypes": []
+        },
+        {
+          "name": "slitWidthMicrons",
+          "parameterTypes": []
+        },
+        {
+          "name": "spectrumVFlip",
+          "parameterTypes": []
+        },
+        {
+          "name": "totalAngleDegrees",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "me.champeau.a4j.jsolex.processing.params.SpectrumParams",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": [
+            "me.champeau.a4j.jsolex.processing.params.SpectralRay",
+            "double",
+            "double",
+            "double",
+            "boolean"
+          ]
+        },
+        {
+          "name": "continuumShift",
+          "parameterTypes": []
+        },
+        {
+          "name": "dopplerShift",
+          "parameterTypes": []
+        },
+        {
+          "name": "pixelShift",
+          "parameterTypes": []
+        },
+        {
+          "name": "ray",
+          "parameterTypes": []
+        },
+        {
+          "name": "switchRedBlueChannels",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "me.champeau.a4j.jsolex.processing.params.VideoParams",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": [
+            "me.champeau.a4j.ser.ColorMode"
+          ]
+        },
+        {
+          "name": "colorMode",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "me.champeau.a4j.jsolex.processing.sun.workflow.GeneratedImageKind",
+      "fields": [
+        {
+          "name": "ACTIVE_REGIONS"
+        },
+        {
+          "name": "COLLAGE"
+        },
+        {
+          "name": "COLORIZED"
+        },
+        {
+          "name": "COMPOSITION"
+        },
+        {
+          "name": "CONTINUUM"
+        },
+        {
+          "name": "CROPPED"
+        },
+        {
+          "name": "DEBUG"
+        },
+        {
+          "name": "DOPPLER"
+        },
+        {
+          "name": "DOPPLER_ECLIPSE"
+        },
+        {
+          "name": "ELLERMAN_BOMBS"
+        },
+        {
+          "name": "FLARES"
+        },
+        {
+          "name": "GEOMETRY_CORRECTED"
+        },
+        {
+          "name": "GEOMETRY_CORRECTED_PROCESSED"
+        },
+        {
+          "name": "IMAGE_MATH"
+        },
+        {
+          "name": "MIXED"
+        },
+        {
+          "name": "NEGATIVE"
+        },
+        {
+          "name": "RAW"
+        },
+        {
+          "name": "RECONSTRUCTION"
+        },
+        {
+          "name": "REDSHIFT"
+        },
+        {
+          "name": "TECHNICAL_CARD"
+        },
+        {
+          "name": "VIRTUAL_ECLIPSE"
+        }
+      ]
+    },
+    {
+      "type": "me.champeau.a4j.ser.ColorMode",
+      "fields": [
+        {
+          "name": "BAYER_BGGR"
+        },
+        {
+          "name": "BAYER_CYYM"
+        },
+        {
+          "name": "BAYER_GBRG"
+        },
+        {
+          "name": "BAYER_GRBG"
+        },
+        {
+          "name": "BAYER_RGGB"
+        },
+        {
+          "name": "BAYER_YCMY"
+        },
+        {
+          "name": "BAYER_YMCY"
+        },
+        {
+          "name": "BGR"
+        },
+        {
+          "name": "MONO"
+        },
+        {
+          "name": "RGB"
+        }
+      ]
+    },
+    {
+      "type": "org.jcodec.containers.mp4.boxes.PixelAspectExt[]"
+    },
+    {
+      "type": "picocli.CommandLine$AutoHelpMixin",
+      "fields": [
+        {
+          "name": "helpRequested"
+        },
+        {
+          "name": "versionRequested"
+        }
+      ]
+    },
+    {
+      "type": "short[]"
+    },
+    {
+      "type": "sun.awt.SunHints",
+      "jniAccessible": true,
+      "fields": [
+        {
+          "name": "INTVAL_STROKE_PURE"
+        }
+      ]
+    },
+    {
+      "type": "sun.awt.SunToolkit",
+      "jniAccessible": true,
+      "methods": [
+        {
+          "name": "awtLock",
+          "parameterTypes": []
+        },
+        {
+          "name": "awtLockNotify",
+          "parameterTypes": []
+        },
+        {
+          "name": "awtLockNotifyAll",
+          "parameterTypes": []
+        },
+        {
+          "name": "awtLockWait",
+          "parameterTypes": [
+            "long"
+          ]
+        },
+        {
+          "name": "awtUnlock",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "sun.awt.X11.XErrorHandlerUtil",
+      "jniAccessible": true,
+      "methods": [
+        {
+          "name": "init",
+          "parameterTypes": [
+            "long"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "sun.awt.X11GraphicsConfig",
+      "jniAccessible": true,
+      "fields": [
+        {
+          "name": "aData"
+        },
+        {
+          "name": "bitsPerPixel"
+        }
+      ]
+    },
+    {
+      "type": "sun.awt.X11GraphicsDevice",
+      "jniAccessible": true,
+      "methods": [
+        {
+          "name": "addDoubleBufferVisual",
+          "parameterTypes": [
+            "int"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "sun.awt.image.BufImgSurfaceData$ICMColorData",
+      "jniAccessible": true,
+      "fields": [
+        {
+          "name": "pData"
+        }
+      ],
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": [
+            "long"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "sun.awt.image.ByteComponentRaster",
+      "jniAccessible": true,
+      "fields": [
+        {
+          "name": "data"
+        },
+        {
+          "name": "dataOffsets"
+        },
+        {
+          "name": "pixelStride"
+        },
+        {
+          "name": "scanlineStride"
+        },
+        {
+          "name": "type"
+        }
+      ]
+    },
+    {
+      "type": "sun.awt.image.IntegerComponentRaster",
+      "jniAccessible": true,
+      "fields": [
+        {
+          "name": "data"
+        },
+        {
+          "name": "dataOffsets"
+        },
+        {
+          "name": "pixelStride"
+        },
+        {
+          "name": "scanlineStride"
+        },
+        {
+          "name": "type"
+        }
+      ]
+    },
+    {
+      "type": "sun.awt.image.ShortComponentRaster",
+      "jniAccessible": true,
+      "fields": [
+        {
+          "name": "data"
+        },
+        {
+          "name": "dataOffsets"
+        },
+        {
+          "name": "pixelStride"
+        },
+        {
+          "name": "scanlineStride"
+        },
+        {
+          "name": "type"
+        }
+      ]
+    },
+    {
+      "type": "sun.font.CharToGlyphMapper",
+      "jniAccessible": true,
+      "methods": [
+        {
+          "name": "charToGlyph",
+          "parameterTypes": [
+            "int"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "sun.font.Font2D",
+      "jniAccessible": true,
+      "methods": [
+        {
+          "name": "canDisplay",
+          "parameterTypes": [
+            "char"
+          ]
+        },
+        {
+          "name": "charToGlyphRaw",
+          "parameterTypes": [
+            "int"
+          ]
+        },
+        {
+          "name": "charToVariationGlyphRaw",
+          "parameterTypes": [
+            "int",
+            "int"
+          ]
+        },
+        {
+          "name": "getMapper",
+          "parameterTypes": []
+        },
+        {
+          "name": "getTableBytes",
+          "parameterTypes": [
+            "int"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "sun.font.FontStrike",
+      "jniAccessible": true,
+      "methods": [
+        {
+          "name": "getGlyphMetrics",
+          "parameterTypes": [
+            "int"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "sun.font.FontUtilities",
+      "jniAccessible": true,
+      "methods": [
+        {
+          "name": "debugFonts",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "sun.font.FreetypeFontScaler",
+      "jniAccessible": true,
+      "methods": [
+        {
+          "name": "invalidateScaler",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "sun.font.GlyphList",
+      "jniAccessible": true,
+      "fields": [
+        {
+          "name": "gposx"
+        },
+        {
+          "name": "gposy"
+        },
+        {
+          "name": "images"
+        },
+        {
+          "name": "lcdRGBOrder"
+        },
+        {
+          "name": "lcdSubPixPos"
+        },
+        {
+          "name": "len"
+        },
+        {
+          "name": "positions"
+        },
+        {
+          "name": "usePositions"
+        }
+      ]
+    },
+    {
+      "type": "sun.font.PhysicalStrike",
+      "jniAccessible": true,
+      "fields": [
+        {
+          "name": "pScalerContext"
+        }
+      ],
+      "methods": [
+        {
+          "name": "adjustPoint",
+          "parameterTypes": [
+            "java.awt.geom.Point2D$Float"
+          ]
+        },
+        {
+          "name": "getGlyphPoint",
+          "parameterTypes": [
+            "int",
+            "int"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "sun.font.StrikeMetrics",
+      "jniAccessible": true,
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": [
+            "float",
+            "float",
+            "float",
+            "float",
+            "float",
+            "float",
+            "float",
+            "float",
+            "float",
+            "float"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "sun.font.TrueTypeFont",
+      "jniAccessible": true,
+      "methods": [
+        {
+          "name": "readBlock",
+          "parameterTypes": [
+            "java.nio.ByteBuffer",
+            "int",
+            "int"
+          ]
+        },
+        {
+          "name": "readBytes",
+          "parameterTypes": [
+            "int",
+            "int"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "sun.font.Type1Font",
+      "jniAccessible": true,
+      "methods": [
+        {
+          "name": "readFile",
+          "parameterTypes": [
+            "java.nio.ByteBuffer"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "sun.java2d.Disposer",
+      "jniAccessible": true,
+      "methods": [
+        {
+          "name": "addRecord",
+          "parameterTypes": [
+            "java.lang.Object",
+            "long",
+            "long"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "sun.java2d.InvalidPipeException",
+      "jniAccessible": true
+    },
+    {
+      "type": "sun.java2d.NullSurfaceData",
+      "jniAccessible": true
+    },
+    {
+      "type": "sun.java2d.SunGraphics2D",
+      "jniAccessible": true,
+      "fields": [
+        {
+          "name": "clipRegion"
+        },
+        {
+          "name": "composite"
+        },
+        {
+          "name": "eargb"
+        },
+        {
+          "name": "lcdTextContrast"
+        },
+        {
+          "name": "pixel"
+        },
+        {
+          "name": "strokeHint"
+        }
+      ]
+    },
+    {
+      "type": "sun.java2d.SurfaceData",
+      "jniAccessible": true,
+      "fields": [
+        {
+          "name": "pData"
+        },
+        {
+          "name": "valid"
+        }
+      ]
+    },
+    {
+      "type": "sun.java2d.loops.Blit",
+      "jniAccessible": true,
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": [
+            "long",
+            "sun.java2d.loops.SurfaceType",
+            "sun.java2d.loops.CompositeType",
+            "sun.java2d.loops.SurfaceType"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "sun.java2d.loops.BlitBg",
+      "jniAccessible": true,
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": [
+            "long",
+            "sun.java2d.loops.SurfaceType",
+            "sun.java2d.loops.CompositeType",
+            "sun.java2d.loops.SurfaceType"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "sun.java2d.loops.CompositeType",
+      "jniAccessible": true,
+      "fields": [
+        {
+          "name": "AnyAlpha"
+        },
+        {
+          "name": "Src"
+        },
+        {
+          "name": "SrcNoEa"
+        },
+        {
+          "name": "SrcOver"
+        },
+        {
+          "name": "SrcOverNoEa"
+        },
+        {
+          "name": "Xor"
+        }
+      ]
+    },
+    {
+      "type": "sun.java2d.loops.DrawGlyphList",
+      "jniAccessible": true,
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": [
+            "long",
+            "sun.java2d.loops.SurfaceType",
+            "sun.java2d.loops.CompositeType",
+            "sun.java2d.loops.SurfaceType"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "sun.java2d.loops.DrawGlyphListAA",
+      "jniAccessible": true,
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": [
+            "long",
+            "sun.java2d.loops.SurfaceType",
+            "sun.java2d.loops.CompositeType",
+            "sun.java2d.loops.SurfaceType"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "sun.java2d.loops.DrawGlyphListLCD",
+      "jniAccessible": true,
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": [
+            "long",
+            "sun.java2d.loops.SurfaceType",
+            "sun.java2d.loops.CompositeType",
+            "sun.java2d.loops.SurfaceType"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "sun.java2d.loops.DrawLine",
+      "jniAccessible": true,
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": [
+            "long",
+            "sun.java2d.loops.SurfaceType",
+            "sun.java2d.loops.CompositeType",
+            "sun.java2d.loops.SurfaceType"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "sun.java2d.loops.DrawParallelogram",
+      "jniAccessible": true,
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": [
+            "long",
+            "sun.java2d.loops.SurfaceType",
+            "sun.java2d.loops.CompositeType",
+            "sun.java2d.loops.SurfaceType"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "sun.java2d.loops.DrawPath",
+      "jniAccessible": true,
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": [
+            "long",
+            "sun.java2d.loops.SurfaceType",
+            "sun.java2d.loops.CompositeType",
+            "sun.java2d.loops.SurfaceType"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "sun.java2d.loops.DrawPolygons",
+      "jniAccessible": true,
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": [
+            "long",
+            "sun.java2d.loops.SurfaceType",
+            "sun.java2d.loops.CompositeType",
+            "sun.java2d.loops.SurfaceType"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "sun.java2d.loops.DrawRect",
+      "jniAccessible": true,
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": [
+            "long",
+            "sun.java2d.loops.SurfaceType",
+            "sun.java2d.loops.CompositeType",
+            "sun.java2d.loops.SurfaceType"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "sun.java2d.loops.FillParallelogram",
+      "jniAccessible": true,
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": [
+            "long",
+            "sun.java2d.loops.SurfaceType",
+            "sun.java2d.loops.CompositeType",
+            "sun.java2d.loops.SurfaceType"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "sun.java2d.loops.FillPath",
+      "jniAccessible": true,
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": [
+            "long",
+            "sun.java2d.loops.SurfaceType",
+            "sun.java2d.loops.CompositeType",
+            "sun.java2d.loops.SurfaceType"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "sun.java2d.loops.FillRect",
+      "jniAccessible": true,
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": [
+            "long",
+            "sun.java2d.loops.SurfaceType",
+            "sun.java2d.loops.CompositeType",
+            "sun.java2d.loops.SurfaceType"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "sun.java2d.loops.FillSpans",
+      "jniAccessible": true,
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": [
+            "long",
+            "sun.java2d.loops.SurfaceType",
+            "sun.java2d.loops.CompositeType",
+            "sun.java2d.loops.SurfaceType"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "sun.java2d.loops.GraphicsPrimitive",
+      "jniAccessible": true,
+      "fields": [
+        {
+          "name": "pNativePrim"
+        }
+      ]
+    },
+    {
+      "type": "sun.java2d.loops.GraphicsPrimitiveMgr",
+      "jniAccessible": true,
+      "methods": [
+        {
+          "name": "register",
+          "parameterTypes": [
+            "sun.java2d.loops.GraphicsPrimitive[]"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "sun.java2d.loops.GraphicsPrimitive[]"
+    },
+    {
+      "type": "sun.java2d.loops.MaskBlit",
+      "jniAccessible": true,
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": [
+            "long",
+            "sun.java2d.loops.SurfaceType",
+            "sun.java2d.loops.CompositeType",
+            "sun.java2d.loops.SurfaceType"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "sun.java2d.loops.MaskFill",
+      "jniAccessible": true,
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": [
+            "long",
+            "sun.java2d.loops.SurfaceType",
+            "sun.java2d.loops.CompositeType",
+            "sun.java2d.loops.SurfaceType"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "sun.java2d.loops.ScaledBlit",
+      "jniAccessible": true,
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": [
+            "long",
+            "sun.java2d.loops.SurfaceType",
+            "sun.java2d.loops.CompositeType",
+            "sun.java2d.loops.SurfaceType"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "sun.java2d.loops.SurfaceType",
+      "jniAccessible": true,
+      "fields": [
+        {
+          "name": "Any3Byte"
+        },
+        {
+          "name": "Any4Byte"
+        },
+        {
+          "name": "AnyByte"
+        },
+        {
+          "name": "AnyColor"
+        },
+        {
+          "name": "AnyInt"
+        },
+        {
+          "name": "AnyShort"
+        },
+        {
+          "name": "ByteBinary1Bit"
+        },
+        {
+          "name": "ByteBinary2Bit"
+        },
+        {
+          "name": "ByteBinary4Bit"
+        },
+        {
+          "name": "ByteGray"
+        },
+        {
+          "name": "ByteIndexed"
+        },
+        {
+          "name": "ByteIndexedBm"
+        },
+        {
+          "name": "FourByteAbgr"
+        },
+        {
+          "name": "FourByteAbgrPre"
+        },
+        {
+          "name": "Index12Gray"
+        },
+        {
+          "name": "Index8Gray"
+        },
+        {
+          "name": "IntArgb"
+        },
+        {
+          "name": "IntArgbBm"
+        },
+        {
+          "name": "IntArgbPre"
+        },
+        {
+          "name": "IntBgr"
+        },
+        {
+          "name": "IntRgb"
+        },
+        {
+          "name": "IntRgbx"
+        },
+        {
+          "name": "OpaqueColor"
+        },
+        {
+          "name": "ThreeByteBgr"
+        },
+        {
+          "name": "Ushort4444Argb"
+        },
+        {
+          "name": "Ushort555Rgb"
+        },
+        {
+          "name": "Ushort555Rgbx"
+        },
+        {
+          "name": "Ushort565Rgb"
+        },
+        {
+          "name": "UshortGray"
+        },
+        {
+          "name": "UshortIndexed"
+        }
+      ]
+    },
+    {
+      "type": "sun.java2d.loops.TransformHelper",
+      "jniAccessible": true,
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": [
+            "long",
+            "sun.java2d.loops.SurfaceType",
+            "sun.java2d.loops.CompositeType",
+            "sun.java2d.loops.SurfaceType"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "sun.java2d.loops.XORComposite",
+      "jniAccessible": true,
+      "fields": [
+        {
+          "name": "alphaMask"
+        },
+        {
+          "name": "xorColor"
+        },
+        {
+          "name": "xorPixel"
+        }
+      ]
+    },
+    {
+      "type": "sun.java2d.marlin.DMarlinRenderingEngine",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "sun.java2d.pipe.Region",
+      "jniAccessible": true,
+      "fields": [
+        {
+          "name": "bands"
+        },
+        {
+          "name": "endIndex"
+        },
+        {
+          "name": "hix"
+        },
+        {
+          "name": "hiy"
+        },
+        {
+          "name": "lox"
+        },
+        {
+          "name": "loy"
+        }
+      ]
+    },
+    {
+      "type": "sun.java2d.pipe.RegionIterator",
+      "jniAccessible": true,
+      "fields": [
+        {
+          "name": "curIndex"
+        },
+        {
+          "name": "numXbands"
+        },
+        {
+          "name": "region"
+        }
+      ]
+    },
+    {
+      "type": "sun.java2d.xr.XRSurfaceData",
+      "jniAccessible": true,
+      "fields": [
+        {
+          "name": "picture"
+        },
+        {
+          "name": "xid"
+        }
+      ]
+    },
+    {
+      "type": "sun.launcher.LauncherHelper",
+      "jniAccessible": true,
+      "fields": [
+        {
+          "name": "isStaticMain"
+        },
+        {
+          "name": "noArgMain"
+        }
+      ],
+      "methods": [
+        {
+          "name": "checkAndLoadMain",
+          "parameterTypes": [
+            "boolean",
+            "int",
+            "java.lang.String"
+          ]
+        },
+        {
+          "name": "getApplicationClass",
+          "parameterTypes": []
+        },
+        {
+          "name": "makePlatformString",
+          "parameterTypes": [
+            "boolean",
+            "byte[]"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "sun.management.ClassLoadingImpl"
+    },
+    {
+      "type": "sun.management.CompilationImpl"
+    },
+    {
+      "type": "sun.management.ManagementFactoryHelper$1"
+    },
+    {
+      "type": "sun.management.ManagementFactoryHelper$PlatformLoggingImpl"
+    },
+    {
+      "type": "sun.management.MemoryImpl"
+    },
+    {
+      "type": "sun.management.MemoryManagerImpl"
+    },
+    {
+      "type": "sun.management.MemoryPoolImpl"
+    },
+    {
+      "type": "sun.management.RuntimeImpl"
+    },
+    {
+      "type": "sun.management.VMManagementImpl",
+      "jniAccessible": true,
+      "fields": [
+        {
+          "name": "compTimeMonitoringSupport"
+        },
+        {
+          "name": "currentThreadCpuTimeSupport"
+        },
+        {
+          "name": "objectMonitorUsageSupport"
+        },
+        {
+          "name": "otherThreadCpuTimeSupport"
+        },
+        {
+          "name": "remoteDiagnosticCommandsSupport"
+        },
+        {
+          "name": "synchronizerUsageSupport"
+        },
+        {
+          "name": "threadAllocatedMemorySupport"
+        },
+        {
+          "name": "threadContentionMonitoringSupport"
+        }
+      ]
+    },
+    {
+      "type": "sun.rmi.transport.DGCImpl_Skel",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "sun.rmi.transport.DGCImpl_Stub",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": [
+            "java.rmi.server.RemoteRef"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "sun.security.provider.NativePRNG",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": [
+            "java.security.SecureRandomParameters"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "sun.security.provider.SHA",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "sun.text.resources.cldr.FormatData"
+    },
+    {
+      "type": "sun.text.resources.cldr.FormatData_en"
+    },
+    {
+      "type": "sun.text.resources.cldr.FormatData_en_US"
+    },
+    {
+      "type": "sun.util.resources.cldr.CalendarData"
+    },
+    {
+      "type": "sun.util.resources.cldr.TimeZoneNames"
+    },
+    {
+      "type": "sun.util.resources.cldr.TimeZoneNames_en"
+    },
+    {
+      "type": "sun.util.resources.cldr.TimeZoneNames_en_US"
+    }
+  ],
+  "resources": [
+    {
+      "glob": "META-INF/micronaut"
+    },
+    {
+      "glob": "META-INF/services/ch.qos.logback.classic.spi.Configurator"
+    },
+    {
+      "glob": "META-INF/services/io.micronaut.context.ApplicationContextConfigurer"
+    },
+    {
+      "glob": "META-INF/services/io.micronaut.context.env.PropertySourceLoader"
+    },
+    {
+      "glob": "META-INF/services/io.micronaut.core.beans.BeanIntrospectionReference"
+    },
+    {
+      "glob": "META-INF/services/io.micronaut.core.convert.TypeConverterRegistrar"
+    },
+    {
+      "glob": "META-INF/services/io.micronaut.core.optim.StaticOptimizations$Loader"
+    },
+    {
+      "glob": "META-INF/services/java.net.spi.InetAddressResolverProvider"
+    },
+    {
+      "glob": "META-INF/services/java.nio.file.spi.FileSystemProvider"
+    },
+    {
+      "glob": "META-INF/services/java.time.zone.ZoneRulesProvider"
+    },
+    {
+      "glob": "META-INF/services/java.util.spi.ResourceBundleControlProvider"
+    },
+    {
+      "glob": "META-INF/services/javax.imageio.spi.ImageInputStreamSpi"
+    },
+    {
+      "glob": "META-INF/services/javax.imageio.spi.ImageOutputStreamSpi"
+    },
+    {
+      "glob": "META-INF/services/javax.imageio.spi.ImageReaderSpi"
+    },
+    {
+      "glob": "META-INF/services/javax.imageio.spi.ImageTranscoderSpi"
+    },
+    {
+      "glob": "META-INF/services/javax.imageio.spi.ImageWriterSpi"
+    },
+    {
+      "glob": "META-INF/services/javax.management.remote.JMXConnectorServerProvider"
+    },
+    {
+      "glob": "META-INF/services/javax.xml.parsers.SAXParserFactory"
+    },
+    {
+      "glob": "META-INF/services/org.slf4j.spi.SLF4JServiceProvider"
+    },
+    {
+      "glob": "application-cli.properties"
+    },
+    {
+      "glob": "application.properties"
+    },
+    {
+      "glob": "atlasvi.txt"
+    },
+    {
+      "glob": "logback-test.scmo"
+    },
+    {
+      "glob": "logback-test.xml"
+    },
+    {
+      "glob": "logback.scmo"
+    },
+    {
+      "glob": "logback.xml"
+    },
+    {
+      "glob": "me/champeau/a4j/jsolex/processing/util/messages.properties"
+    },
+    {
+      "glob": "me/champeau/a4j/jsolex/processing/util/messages_en.properties"
+    },
+    {
+      "glob": "me/champeau/a4j/jsolex/processing/util/messages_en_US.properties"
+    },
+    {
+      "glob": "version.txt"
+    },
+    {
+      "module": "java.base",
+      "glob": "jdk/internal/icu/impl/data/icudt76b/nfkc.nrm"
+    },
+    {
+      "module": "java.desktop",
+      "glob": "sun/awt/resources/awt_en.properties"
+    },
+    {
+      "module": "java.desktop",
+      "glob": "sun/awt/resources/awt_en_US.properties"
+    },
+    {
+      "module": "jdk.jfr",
+      "glob": "jdk/jfr/internal/query/view.ini"
+    },
+    {
+      "bundle": "me.champeau.a4j.jsolex.processing.util.messages"
+    },
+    {
+      "bundle": "sun.awt.resources.awt"
+    }
+  ]
+}

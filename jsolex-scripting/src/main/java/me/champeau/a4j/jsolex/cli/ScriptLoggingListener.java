@@ -32,6 +32,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.time.Duration;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -42,9 +43,9 @@ public class ScriptLoggingListener implements ProcessingEventListener {
     private final ProcessParams processParams;
     private final Set<ImageFormat> imageFormats;
     private final List<String> suggestions = new CopyOnWriteArrayList<>();
-    private long sd;
+    private final Map<String, ImageWrapper> generatedImages = new LinkedHashMap<>();
 
-    private Map<String, ImageWrapper> generatedImages = Map.of();
+    private long sd;
 
     public ScriptLoggingListener(ProcessParams processParams, Set<ImageFormat> imageFormats) {
         this.processParams = processParams;
@@ -101,7 +102,7 @@ public class ScriptLoggingListener implements ProcessingEventListener {
 
     @Override
     public void onScriptExecutionResult(ScriptExecutionResultEvent e) {
-        generatedImages = e.getPayload().imagesByLabel();
+        generatedImages.putAll(e.getPayload().imagesByLabel());
     }
 
     public Map<String, ImageWrapper> getGeneratedImages() {

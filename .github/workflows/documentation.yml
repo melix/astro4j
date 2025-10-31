@@ -10,13 +10,13 @@ jobs:
   generate_documentation:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v5
         with:
           fetch-depth: 1
           ssh-key: "${{ secrets.SSH_PRIVATE_KEY }}"
       - uses: graalvm/setup-graalvm@v1
         with:
-          java-version: '23'
+          java-version: '25'
           distribution: 'graalvm'
           github-token: ${{ secrets.GITHUB_TOKEN }}
           native-image-job-reports: 'true'
@@ -38,7 +38,7 @@ jobs:
           git config --global user.email 'melix@users.noreply.github.com'
       - uses: actions/setup-java@v1
         with:
-          java-version: 23
+          java-version: '25'
       - uses: gradle/actions/setup-gradle@v4
       - name: Publish documentation
         run: ./gradlew :docs:gitPublishPush

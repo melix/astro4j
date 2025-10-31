@@ -18,7 +18,11 @@ package me.champeau.a4j.jsolex.cli;
 import ch.qos.logback.classic.Level;
 import io.micronaut.configuration.picocli.PicocliRunner;
 import io.micronaut.core.annotation.ReflectiveAccess;
-import me.champeau.a4j.jsolex.processing.event.*;
+import me.champeau.a4j.jsolex.processing.event.GeneratedImage;
+import me.champeau.a4j.jsolex.processing.event.ImageGeneratedEvent;
+import me.champeau.a4j.jsolex.processing.event.ProcessingEvent;
+import me.champeau.a4j.jsolex.processing.event.ProgressEvent;
+import me.champeau.a4j.jsolex.processing.event.ProgressOperation;
 import me.champeau.a4j.jsolex.processing.expr.DefaultImageScriptExecutor;
 import me.champeau.a4j.jsolex.processing.expr.ImageMathScriptExecutor;
 import me.champeau.a4j.jsolex.processing.expr.ImageMathScriptResult;
@@ -29,6 +33,7 @@ import me.champeau.a4j.jsolex.processing.stretching.CutoffStretchingStrategy;
 import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
 import me.champeau.a4j.jsolex.processing.sun.SolexVideoProcessor;
 import me.champeau.a4j.jsolex.processing.sun.workflow.GeneratedImageKind;
+import me.champeau.a4j.jsolex.processing.util.AnimationFormat;
 import me.champeau.a4j.jsolex.processing.util.ImageFormat;
 import me.champeau.a4j.jsolex.processing.util.ImageSaver;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
@@ -49,8 +54,10 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 
 
@@ -67,13 +74,13 @@ public class ScriptingEntryPoint implements Runnable {
     public Map<String, Object> params;
 
     @Option(names = {"-s", "--script"}, description = "Path to the script to execute", required = true)
-    public File scriptPath;
+    public List<File> scriptPaths;
 
     @Option(names = {"-o", "--output"}, description = "Output directory")
     public File outputDir;
 
-    @Option(names = {"-f", "--format"}, description = "Image formats (jpg, png, fits, tif)")
-    public List<String> formats = List.of(ImageFormat.FITS.name(), ImageFormat.JPG.name(), ImageFormat.PNG.name(), ImageFormat.TIF.name());
+    @Option(names = {"-f", "--format"}, description = "Image and animation formats (jpg, png, fits, tif, gif, mp4)")
+    public List<String> formats = List.of(ImageFormat.FITS.name(), ImageFormat.JPG.name(), ImageFormat.PNG.name(), ImageFormat.TIF.name(), AnimationFormat.GIF.name(), AnimationFormat.MP4.name());
 
     @Option(names = {"-d", "--debug"}, description = "Debug mode", defaultValue = "false")
     public boolean debug;
@@ -96,6 +103,9 @@ public class ScriptingEntryPoint implements Runnable {
 
     public void run() {
         long sd = System.nanoTime();
+        if (scriptPaths == null) {
+            scriptPaths = List.of();
+        }
         try {
             if (verbose) {
                 logger(ScriptLoggingListener.class.getName()).setLevel(Level.DEBUG);
@@ -104,29 +114,31 @@ public class ScriptingEntryPoint implements Runnable {
                 logger("me.champeau.a4j.math").setLevel(Level.ERROR);
             }
             var processParams = createProcessParams();
-            var imageFormats = getImageFormats();
+            var imageFormats = imageFormats();
             var saver = new ImageSaver(CutoffStretchingStrategy.DEFAULT, processParams, imageFormats);
             if (inputFiles != null && !inputFiles.isEmpty()) {
                 Map<String, List<ImageWrapper>> generatedImages = new HashMap<>();
-                for (int i = 0; i < inputFiles.size(); i++) {
-                    var inputFile = inputFiles.get(i);
-                    performSerProcessing(inputFile, i, processParams, generatedImages);
+                var index = new AtomicInteger(0);
+                for (var inputFile : inputFiles) {
+                    performSerProcessing(inputFile, index, processParams, generatedImages);
                 }
-                var scriptExecutor = new DefaultImageScriptExecutor(
-                        d -> {
-                            throw new RuntimeException("image not available in batch section. You can only reference images generated in the [outputs] section");
-                        },
-                        Map.of(ProcessParams.class, processParams),
-                        createBroadcaster(new ImageSaver(CutoffStretchingStrategy.DEFAULT, processParams, imageFormats), outputDir)
-                );
-                for (Map.Entry<String, List<ImageWrapper>> entry : generatedImages.entrySet()) {
-                    scriptExecutor.putVariable(entry.getKey(), entry.getValue());
-                }
-                try {
-                    var result = scriptExecutor.execute(scriptPath.toPath(), ImageMathScriptExecutor.SectionKind.BATCH);
-                    processScriptResult(saver, result, outputDir);
-                } catch (IOException e) {
-                    throw new RuntimeException(e);
+                for (var scriptPath : scriptPaths) {
+                    var scriptExecutor = new DefaultImageScriptExecutor(
+                            d -> {
+                                throw new RuntimeException("image not available in batch section. You can only reference images generated in the [outputs] section");
+                            },
+                            Map.of(ProcessParams.class, processParams, AnimationFormat.class, animationFormats()),
+                            createBroadcaster(new ImageSaver(CutoffStretchingStrategy.DEFAULT, processParams, imageFormats), outputDir)
+                    );
+                    for (Map.Entry<String, List<ImageWrapper>> entry : generatedImages.entrySet()) {
+                        scriptExecutor.putVariable(entry.getKey(), entry.getValue());
+                    }
+                    try {
+                        var result = scriptExecutor.execute(scriptPath.toPath(), ImageMathScriptExecutor.SectionKind.BATCH);
+                        processScriptResult(saver, result, outputDir);
+                    } catch (IOException e) {
+                        throw new RuntimeException(e);
+                    }
                 }
             } else {
                 processSingle(processParams, saver);
@@ -141,7 +153,18 @@ public class ScriptingEntryPoint implements Runnable {
         System.exit(0);
     }
 
-    private void performSerProcessing(File inputFile, int idx, ProcessParams processParams, Map<String, List<ImageWrapper>> generatedImages) {
+    private void performSerProcessing(File inputFile, AtomicInteger counter, ProcessParams processParams, Map<String, List<ImageWrapper>> generatedImages) {
+        if (Files.isDirectory(inputFile.toPath())) {
+            for (var f : inputFile.listFiles()) {
+                var lowerName = f.getName().toLowerCase();
+                if (lowerName.endsWith(".ser")) {
+                    performSerProcessing(f, counter, processParams, generatedImages);
+                }
+            }
+            return;
+        }
+        int idx = counter.getAndIncrement();
+
         var svp = new SolexVideoProcessor(
                 inputFile,
                 outputDir.toPath(),
@@ -151,9 +174,10 @@ public class ScriptingEntryPoint implements Runnable {
                 true,
                 1,
                 ProgressOperation.root("cli", p -> {
-                })
+                }),
+                Map.of(AnimationFormat.class, animationFormats())
         );
-        var listener = new ScriptLoggingListener(processParams, getImageFormats());
+        var listener = new ScriptLoggingListener(processParams, imageFormats());
         svp.addEventListener(listener);
         svp.process();
         listener.getGeneratedImages().
@@ -170,19 +194,22 @@ public class ScriptingEntryPoint implements Runnable {
                 Map.of(ProcessParams.class, processParams),
                 createBroadcaster(saver, outputDirectory)
         );
+        scriptExecutor.putInContext(AnimationFormat.class, animationFormats());
         try {
             if (params != null) {
                 for (Map.Entry<String, Object> entry : params.entrySet()) {
                     scriptExecutor.putVariable(entry.getKey(), entry.getValue());
                 }
             }
-            var sourceScriptPath = scriptPath.toPath();
-            if (!Files.exists(sourceScriptPath)) {
-                System.err.println("Script " + sourceScriptPath + " not found");
-                System.exit(-1);
+            for (var scriptPath : scriptPaths) {
+                var sourceScriptPath = scriptPath.toPath();
+                if (!Files.exists(sourceScriptPath)) {
+                    System.err.println("Script " + sourceScriptPath + " not found");
+                    System.exit(-1);
+                }
+                var result = scriptExecutor.execute(sourceScriptPath, ImageMathScriptExecutor.SectionKind.SINGLE);
+                processScriptResult(saver, result, outputDirectory);
             }
-            var result = scriptExecutor.execute(sourceScriptPath, ImageMathScriptExecutor.SectionKind.SINGLE);
-            processScriptResult(saver, result, outputDirectory);
         } catch (Exception e) {
             LOGGER.error("Unable to execute script", e);
             propapateErrorIfNeeded(e);
@@ -232,18 +259,40 @@ public class ScriptingEntryPoint implements Runnable {
         }
         processParams = processParams.withRequestedImages(
                 processParams.requestedImages().withMathImages(
-                        new ImageMathParams(List.of(scriptPath), Map.of()
-                        )
+                        new ImageMathParams(scriptPaths, Map.of())
                 )
         );
         return processParams;
     }
 
-    private Set<ImageFormat> getImageFormats() {
+    private Set<ImageFormat> imageFormats() {
         if (formats.isEmpty()) {
             return Set.of(ImageFormat.PNG, ImageFormat.FITS);
         }
-        return this.formats.stream().map(String::toUpperCase).map(ImageFormat::valueOf).collect(Collectors.toSet());
+        return this.formats.stream().map(String::toUpperCase).map(name -> {
+                    try {
+                        return ImageFormat.valueOf(name);
+                    } catch (IllegalArgumentException e) {
+                        return null;
+                    }
+                })
+                .filter(Objects::nonNull)
+                .collect(Collectors.toSet());
+    }
+
+    private Set<AnimationFormat> animationFormats() {
+        if (formats.isEmpty()) {
+            return Set.of(AnimationFormat.GIF, AnimationFormat.MP4);
+        }
+        return this.formats.stream().map(String::toUpperCase).map(name -> {
+                    try {
+                        return AnimationFormat.valueOf(name);
+                    } catch (IllegalArgumentException e) {
+                        return null;
+                    }
+                })
+                .filter(Objects::nonNull)
+                .collect(Collectors.toSet());
     }
 
     private void propapateErrorIfNeeded(Exception error) {

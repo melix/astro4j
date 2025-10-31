@@ -15,7 +15,6 @@
  */
 package me.champeau.a4j.jsolex.processing.expr.impl;
 
-import me.champeau.a4j.jsolex.processing.event.ProgressEvent;
 import me.champeau.a4j.jsolex.processing.event.ProgressOperation;
 import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
 import me.champeau.a4j.jsolex.processing.sun.ImageUtils;
@@ -131,6 +130,10 @@ public class FfmegEncoder {
                     .start();
                 isAvailable = ffmpeg.waitFor(5, TimeUnit.SECONDS) && ffmpeg.exitValue() == 0;
             } catch (IOException | InterruptedException e) {
+                isAvailable = false;
+            }
+            if (Boolean.getBoolean("disable.ffmpeg")) {
+                System.out.println("FFMPEG support disabled via system property");
                 isAvailable = false;
             }
             AVAILABLE = isAvailable;

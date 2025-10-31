@@ -32,6 +32,7 @@ import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
 import me.champeau.a4j.jsolex.processing.sun.workflow.ImageStats;
 import me.champeau.a4j.jsolex.processing.sun.workflow.PixelShift;
 import me.champeau.a4j.jsolex.processing.sun.workflow.TransformationHistory;
+import me.champeau.a4j.jsolex.processing.util.AnimationFormat;
 import me.champeau.a4j.jsolex.processing.util.FileBackedImage;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
@@ -354,6 +355,9 @@ public class DefaultImageScriptExecutor implements ImageMathScriptExecutor {
         }
         evaluator.putInContext(Broadcaster.class, broadcaster);
         evaluator.putInContext(ProgressOperation.class, operation);
+        if (context.containsKey(AnimationFormat.class)) {
+            evaluator.putInContext(AnimationFormat.class, context.get(AnimationFormat.class));
+        }
     }
 
     public <T> Optional<T> getVariable(String result) {

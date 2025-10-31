@@ -1,6 +1,6 @@
 # Welcome to JSol'Ex {{version}}!
 
-- [Version 4.2.0](#whats-new-in-version-4-2-0) - GIF support, file format settings
+- [Version 4.2.0](#whats-new-in-version-4-2-0) - Java 25, GIF support, file format settings
 - [Version 4.1.4](#whats-new-in-version-4-1-4) - Bug fixes and improvements
 - [Version 4.1.3](#whats-new-in-version-4-1-3) - Improved banding correction
 - [Version 4.1.2](#whats-new-in-version-4-1-2) - Bug fixes
@@ -11,6 +11,7 @@
 
 ## What's New in Version 4.2.0
 
+- Upgraded to Java 25
 - File formats are now part of advanced settings (outside of process parameters)
 - Added ability to generate GIF files in addition to MP4
 

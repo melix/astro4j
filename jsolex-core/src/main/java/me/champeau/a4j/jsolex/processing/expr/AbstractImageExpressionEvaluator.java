@@ -95,7 +95,6 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
-import java.util.Optional;
 import java.util.OptionalDouble;
 import java.util.Set;
 import java.util.function.DoubleBinaryOperator;
@@ -173,13 +172,8 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
         this.mosaicComposition = new MosaicComposition(context, broadcaster, stacking, ellipseFit, scaling);
     }
 
-    public <T> void putInContext(Class<T> key, T value) {
+    public <T> void putInContext(Class<T> key, Object value) {
         context.put(key, value);
-    }
-
-    @SuppressWarnings("unchecked")
-    public <T> Optional<T> getFromContext(Class<T> type) {
-        return (Optional<T>) Optional.ofNullable(context.get(type));
     }
 
     @Override
