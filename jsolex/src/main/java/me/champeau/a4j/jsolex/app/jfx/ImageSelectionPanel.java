@@ -1112,6 +1112,9 @@ public class ImageSelectionPanel extends BaseParameterPanel {
             }
 
             for (var repository : repositories) {
+                if (!repository.enabled()) {
+                    continue;
+                }
                 var scripts = repositoryManager.getLocalScripts(repository);
                 for (var script : scripts) {
                     var checkBox = new CheckBox(script.title());

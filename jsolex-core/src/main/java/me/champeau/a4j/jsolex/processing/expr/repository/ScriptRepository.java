@@ -20,9 +20,18 @@ import java.time.Instant;
 public record ScriptRepository(
     String name,
     String url,
-    Instant lastCheck
+    Instant lastCheck,
+    boolean enabled
 ) {
+    public ScriptRepository(String name, String url, Instant lastCheck) {
+        this(name, url, lastCheck, true);
+    }
+
     public ScriptRepository withLastCheck(Instant lastCheck) {
-        return new ScriptRepository(name, url, lastCheck);
+        return new ScriptRepository(name, url, lastCheck, enabled);
+    }
+
+    public ScriptRepository withEnabled(boolean enabled) {
+        return new ScriptRepository(name, url, lastCheck, enabled);
     }
 }

@@ -310,7 +310,7 @@ public class Configuration {
 
     private String encodeRepository(ScriptRepository repository) {
         var lastCheckStr = repository.lastCheck() != null ? String.valueOf(repository.lastCheck().toEpochMilli()) : "";
-        return repository.name() + ":::" + repository.url() + ":::" + lastCheckStr;
+        return repository.name() + ":::" + repository.url() + ":::" + lastCheckStr + ":::" + repository.enabled();
     }
 
     public Instant getLastRepositoryCheckTime() {
@@ -335,6 +335,7 @@ public class Configuration {
             var name = parts[0];
             var url = parts[1];
             Instant lastCheck = null;
+            boolean enabled = true;
 
             if (parts.length >= 3 && !parts[2].isEmpty()) {
                 try {
@@ -343,7 +344,11 @@ public class Configuration {
                 }
             }
 
-            return new ScriptRepository(name, url, lastCheck);
+            if (parts.length >= 4 && !parts[3].isEmpty()) {
+                enabled = Boolean.parseBoolean(parts[3]);
+            }
+
+            return new ScriptRepository(name, url, lastCheck, enabled);
         } catch (Exception e) {
             return null;
         }

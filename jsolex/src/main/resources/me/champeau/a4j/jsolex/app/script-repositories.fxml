@@ -33,6 +33,7 @@
             <Label styleClass="section-title" text="%script.repositories.title"/>
             <TableView fx:id="repositoriesTable" VBox.vgrow="ALWAYS">
                 <columns>
+                    <TableColumn fx:id="enabledColumn" text="%repository.enabled" prefWidth="80.0" sortable="false"/>
                     <TableColumn fx:id="nameColumn" text="%repository.name" prefWidth="150.0"/>
                     <TableColumn fx:id="urlColumn" text="%repository.url" prefWidth="300.0"/>
                     <TableColumn fx:id="scriptsColumn" text="%repository.scripts" prefWidth="100.0"/>

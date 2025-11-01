@@ -55,6 +55,9 @@ public class RepositoryUpdateService {
             var repositories = configuration.getScriptRepositories();
 
             for (var repository : repositories) {
+                if (!repository.enabled()) {
+                    continue;
+                }
                 try {
                     repositoryManager.refreshRepository(repository);
                     var updated = repository.withLastCheck(Instant.now());

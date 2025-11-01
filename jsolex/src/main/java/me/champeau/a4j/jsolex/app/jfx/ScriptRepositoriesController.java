@@ -23,6 +23,8 @@ import javafx.fxml.FXML;
 import javafx.scene.Parent;
 import javafx.scene.control.Button;
 import javafx.scene.control.ButtonType;
+import javafx.scene.control.CheckBox;
+import javafx.scene.control.TableCell;
 import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableView;
 import javafx.stage.Stage;
@@ -43,6 +45,9 @@ public class ScriptRepositoriesController {
 
     @FXML
     private TableView<ScriptRepository> repositoriesTable;
+
+    @FXML
+    private TableColumn<ScriptRepository, Boolean> enabledColumn;
 
     @FXML
     private TableColumn<ScriptRepository, String> nameColumn;
@@ -74,6 +79,39 @@ public class ScriptRepositoriesController {
         this.stage = stage;
         this.configuration = configuration;
         this.repositoryManager = new ScriptRepositoryManager();
+
+        enabledColumn.setCellFactory(column -> new TableCell<>() {
+            private final CheckBox checkBox = new CheckBox();
+            private boolean updating = false;
+
+            {
+                checkBox.setOnAction(event -> {
+                    if (updating) {
+                        return;
+                    }
+                    var repository = getTableRow().getItem();
+                    if (repository != null) {
+                        var updated = repository.withEnabled(checkBox.isSelected());
+                        var index = repositories.indexOf(repository);
+                        repositories.set(index, updated);
+                        saveRepositories();
+                    }
+                });
+            }
+
+            @Override
+            protected void updateItem(Boolean item, boolean empty) {
+                super.updateItem(item, empty);
+                if (empty || getTableRow().getItem() == null) {
+                    setGraphic(null);
+                } else {
+                    updating = true;
+                    checkBox.setSelected(getTableRow().getItem().enabled());
+                    updating = false;
+                    setGraphic(checkBox);
+                }
+            }
+        });
 
         nameColumn.setCellValueFactory(cellData -> new SimpleStringProperty(cellData.getValue().name()));
         urlColumn.setCellValueFactory(cellData -> new SimpleStringProperty(cellData.getValue().url()));
@@ -185,8 +223,11 @@ public class ScriptRepositoriesController {
     private void refreshAllRepositories() {
         new Thread(() -> {
             for (int i = 0; i < repositories.size(); i++) {
+                var repository = repositories.get(i);
+                if (!repository.enabled()) {
+                    continue;
+                }
                 try {
-                    var repository = repositories.get(i);
                     repositoryManager.refreshRepository(repository);
                     var updated = repository.withLastCheck(Instant.now());
                     final int index = i;
