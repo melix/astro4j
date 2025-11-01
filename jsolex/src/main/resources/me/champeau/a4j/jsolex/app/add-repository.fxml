@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.Button?>
+<?import javafx.scene.control.ButtonBar?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.control.TextField?>
+<?import javafx.scene.layout.BorderPane?>
+<?import javafx.scene.layout.GridPane?>
+
+<BorderPane maxHeight="-Infinity" maxWidth="-Infinity" minHeight="-Infinity" minWidth="-Infinity" prefHeight="200.0" prefWidth="500.0" styleClass="params-dialog" xmlns="http://javafx.com/javafx/19"
+            xmlns:fx="http://javafx.com/fxml/1" fx:controller="me.champeau.a4j.jsolex.app.jfx.AddRepositoryController">
+    <bottom>
+        <ButtonBar prefHeight="40.0" prefWidth="500.0" BorderPane.alignment="CENTER">
+            <buttons>
+                <Button mnemonicParsing="false" onAction="#cancel" styleClass="default-button" text="%cancel"/>
+                <Button fx:id="addButton" mnemonicParsing="false" onAction="#add" styleClass="primary-button" text="%repository.add"/>
+            </buttons>
+            <BorderPane.margin>
+                <Insets/>
+            </BorderPane.margin>
+            <padding>
+                <Insets right="8.0"/>
+            </padding>
+        </ButtonBar>
+    </bottom>
+    <center>
+        <GridPane styleClass="parameter-panel" hgap="10" vgap="10" BorderPane.alignment="CENTER">
+            <padding>
+                <Insets top="16" right="16" bottom="16" left="16"/>
+            </padding>
+            <Label styleClass="field-label" text="%repository.name.label" GridPane.columnIndex="0" GridPane.rowIndex="0"/>
+            <TextField fx:id="nameField" promptText="%repository.name" GridPane.columnIndex="1" GridPane.rowIndex="0" GridPane.hgrow="ALWAYS"/>
+            <Label styleClass="field-label" text="%repository.url.label" GridPane.columnIndex="0" GridPane.rowIndex="1"/>
+            <TextField fx:id="urlField" promptText="https://" text="https://" GridPane.columnIndex="1" GridPane.rowIndex="1" GridPane.hgrow="ALWAYS"/>
+        </GridPane>
+    </center>
+</BorderPane>

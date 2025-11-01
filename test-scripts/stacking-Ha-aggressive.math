@@ -1,0 +1,97 @@
+meta {
+    author = "Cédric Champeau"
+    title = "Aggressive H-alpha Stacking with Unsharp Mask"
+    version = "1.0"
+    requires = "4.2.0"
+    params {
+        tile_size {
+            type = "number"
+            default = 64
+            min = 32
+            max = 512
+            name = {
+                en = "Tile Size"
+                fr = "Taille de tuile"
+            }
+            description = {
+                en = "Size of tiles for dedistortion calculation"
+                fr = "Taille des tuiles pour le calcul de dédistorsion"
+            }
+        }
+        sampling {
+            type = "number"
+            default = 0.5
+            min = 0.1
+            max = 1
+            name = {
+                en = "Sampling"
+                fr = "Échantillonnage"
+            }
+            description = {
+                en = "Sampling rate for dedistortion"
+                fr = "Taux d'échantillonnage pour la dédistorsion"
+            }
+        }
+        gamma {
+                   type = "number"
+                   default = 1.5
+                   min = 0.5
+                   name = {
+                       en = "Gamma"
+                       fr = "Gamma"
+                   }
+                   description = {
+                       en = "Gamma correction for main image"
+                       fr = "Correction gamma pour l'image principale"
+                   }
+               }
+        inverse_gamma {
+            type = "number"
+            default = 3.0
+            min = 1.0
+            max = 5.0
+            name = {
+                en = "Inverse image gamma"
+                fr = "Gamma image inversée"
+            }
+            description = {
+                en = "Gamma correction for inverted image"
+                fr = "Correction gamma pour l'image inversée"
+            }
+        }
+    }
+}
+
+shift=a2px(.5)
+r=range(-1;1;.5)
+c=avg(img(a2px(3));img(a2px(3.1)))
+
+[outputs]
+base=avg(r)
+conti=c
+red=img(-shift)
+blue=img(shift)
+
+[[batch]]
+[tmp]
+rescaled=radius_rescale(base)
+ref=stack_ref(rescaled;"manual")
+dedis0=dedistort(ref;rescaled;tile_size;sampling)
+dedis=dedistort(dedis0;rescaled)
+stack_=unsharp_mask(avg2(dedis;sigma);1.5;7)
+stack_conti=unsharp_mask(avg2(dedistort(dedis;radius_rescale(conti));sigma);1.5;7)
+stack_b=auto_contrast(avg2(dedistort(dedis;radius_rescale(blue));sigma);1.2)
+stack_r=auto_contrast(avg2(dedistort(dedis;radius_rescale(red));sigma);1.2)
+cst=auto_contrast(rl_decon(unsharp_mask(stack_;1.5;7));gamma)
+
+[outputs]
+protus=asinh_stretch(disk_fill(stack_);0;20)
+Ha_auto=auto_contrast(stack_;gamma)
+Ha=draw_obs_details(sharpen(protus+disk_mask(cst)*cst))
+Ha_color=colorize(curve_transform(linear_stretch(protus+cst);64;112);"H-alpha")
+Ha_cont=draw_obs_details(linear_stretch(pow(rl_decon(unsharp_mask(stack_conti;1.5;7));gamma_continuum)))
+inverse=draw_obs_details(linear_stretch(disk_mask(blur(Ha;12))*sharpen(linear_stretch(pow(invert(rl_decon(stack_));3));7))+protus)
+ar=ar_overlay(Ha_cont)
+ar_crop=crop_ar(Ha_cont)
+doppler=saturate(rgb(stack_r;min(stack_r;stack_b);stack_b);.5)
+doppler_eclipse=disk_fill(curve_transform(doppler;128;230))

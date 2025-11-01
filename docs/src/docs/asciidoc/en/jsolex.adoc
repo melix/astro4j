@@ -932,6 +932,298 @@ To do this, JSol'Ex "fakes" a first run passing dummy images of size 0, which wi
 You should simply be aware that the server will receive multiple calls, and that the first one will likely not contain the whole context, but you should still return a valid script.
 ====
 
+[[script-repositories]]
+== Script Repositories
+
+JSol'Ex supports script repositories, allowing you to discover and automatically download ImageMath scripts published by the community.
+Repository scripts appear alongside built-in scripts in the image selection panel and are automatically updated when new versions are published.
+
+=== Using Script Repositories
+
+==== Adding a Repository
+
+To add a script repository:
+
+1. Open the Tools menu and select "Script Repositories..."
+2. Click the "Add" button
+3. Enter a name for the repository (for display purposes)
+4. Enter the repository URL (must start with `http://` or `https://`)
+5. Click "Add"
+
+JSol'Ex will immediately fetch the available scripts from the repository.
+
+==== Managing Repositories
+
+The Script Repositories dialog displays:
+
+- **Name**: The repository name you provided
+- **URL**: The repository address
+- **Scripts**: Number of scripts available
+- **Last Check**: When the repository was last checked for updates
+
+You can:
+
+- **Edit**: Change the repository URL (the name cannot be changed)
+- **Remove**: Delete a repository and its cached scripts
+- **Refresh**: Manually check for new or updated scripts
+
+==== Using Repository Scripts
+
+Repository scripts appear in the image selection panel alongside built-in scripts.
+They are organized by repository name and display metadata including:
+
+- Script title
+- Author name
+- Version number
+
+Select repository scripts the same way as built-in scripts.
+If a script declares parameters in its metadata block, you'll be able to configure them in the UI.
+
+==== Automatic Updates
+
+JSol'Ex checks repositories for updates:
+
+- Once per day at startup
+- When you click the Refresh button in the Script Repositories dialog
+
+Scripts are automatically updated when a newer version is detected based on the version field in the script metadata.
+
+**Version Compatibility**
+
+When checking for updates, JSol'Ex ensures version compatibility:
+
+- Scripts without a `requires` field are always downloaded (assumed compatible with all versions)
+- Scripts with `requires` set to a version newer than your current JSol'Ex version are ignored
+- If you have a local compatible version of a script, it is preserved even if a newer incompatible version is published
+
+=== Publishing Scripts
+
+If you want to share your ImageMath scripts with the community, you can publish them via a script repository.
+
+==== Repository Structure
+
+A script repository is simply an HTTP server that exposes `.math` files.
+JSol'Ex supports two discovery methods:
+
+**1. scripts.txt file (recommended)**
+
+Create a `scripts.txt` file listing available scripts (one filename per line):
+
+[source]
+----
+# My repository
+my-script.math
+another-script.math
+----
+
+Comments start with `#` and are ignored.
+
+**2. Directory listing (fallback)**
+
+Enable directory listing on your web server (Apache `mod_autoindex`, nginx `autoindex`):
+
+[source]
+----
+http://example.com/scripts/
+  ├── my-script.math
+  ├── another-script.math
+  └── ...
+----
+
+JSol'Ex will try to download `scripts.txt` first, and fall back to parsing HTML directory listings if not found.
+
+==== Script Requirements
+
+For a script to be available in a repository, it must:
+
+1. Have a `.math` extension
+2. Include a metadata block with required fields
+3. Be accessible via HTTP/HTTPS
+
+==== Metadata Block Format
+
+Each script must include a metadata block with at minimum:
+
+- `author`: Script author name
+- `title`: Script title (displayed in UI, can be multilingual)
+- `version`: Script version for update tracking
+
+Optional fields include:
+
+- `requires`: Minimum JSol'Ex version required (e.g., `"4.2.0"`). Users running older versions will not download scripts with incompatible version requirements.
+- `description`: Script description (can be multilingual)
+- `params`: Parameter declarations with types, defaults, and descriptions
+
+Example with multilingual support and parameters:
+
+[source]
+----
+meta {
+    title {
+        en = "My Processing Script"
+        fr = "Mon script de traitement"
+    }
+    author = "John Doe"
+    version = "1.0"
+    requires = "4.2.0"
+    params {
+        gamma {
+            type = "number"
+            default = 1.5
+            min = 0.1
+            name {
+                en = "Contrast Gamma"
+                fr = "Gamma contraste"
+            }
+            description {
+                en = "Gamma correction value"
+                fr = "Valeur de correction gamma"
+            }
+        }
+    }
+}
+----
+
+The metadata block must appear at the beginning of the script file.
+
+==== Version Updates
+
+When you publish a new version of a script, update the `version` field in the metadata block.
+It is recommended to use semantic versioning (e.g., `1.0`, `1.1`, `2.0`).
+
+Users will automatically receive the updated script the next time JSol'Ex checks for updates.
+
+==== Example Repository
+
+A minimal script repository might look like:
+
+[source]
+----
+http://example.com/jsolex-scripts/
+  ├── scripts.txt
+  ├── stacking.math
+  └── continuum-subtract.math
+----
+
+With `scripts.txt`:
+
+[source]
+----
+# My JSol'Ex Scripts
+stacking.math
+continuum-subtract.math
+----
+
+And `stacking.math` with full metadata and parameters:
+
+++++
+<details>
+<summary><strong>Click to expand full script example</strong></summary>
+++++
+
+[source]
+----
+meta {
+    title {
+        en = "Stacking"
+        fr = "Empilement"
+    }
+    author = "Cédric Champeau"
+    version = "1.0"
+    requires = "4.2.0"
+    params {
+        method {
+            type = "choice"
+            choices = ["sharpness", "average", "median", "manual"]
+            default = "average"
+            name {
+                en = "Best image selection method"
+                fr = "Méthode de sélection de la meilleure image"
+            }
+            description {
+                en = "Method used to select the best image as a reference for stacking"
+                fr = "Méthode utilisée pour sélectionner la meilleure image comme référence pour l'empilement"
+            }
+        }
+        gamma {
+            type = "number"
+            default = 1.5
+            min = 0.1
+            name {
+                en = "Final Contrast Gamma"
+                fr = "Gamma contraste final"
+            }
+            description {
+                en = "Gamma correction value for the final contrast adjustment"
+                fr = "Valeur de correction gamma pour l'ajustement final du contraste"
+            }
+        }
+        tileSize {
+            type = "number"
+            default = 64
+            min = 16
+            name {
+                en = "Tile Size"
+                fr = "Taille des tuiles"
+            }
+            description {
+                en = "Size of the tiles used for dedistortion. Must be a power of 2."
+                fr = "Taille des tuiles utilisées pour les calculs de déformation. Doit être une puissance de 2."
+            }
+        }
+        sampling {
+            type = "number"
+            default = 0.25
+            min = 0.125
+            max = 1.0
+            name {
+                en = "Sampling"
+                fr = "Échantillonnage"
+            }
+            description {
+                en = "Sampling factor for the local normalization and dedistortion (between 0.125 and 1.0)"
+                fr = "Facteur d'échantillonnage pour la normalisation locale et la déformation (entre 0.125 et 1.0)"
+            }
+        }
+        ratio {
+            type = "number"
+            default = 1.0
+            min = 0.1
+            name {
+                en = "Proportion of images used for stacking"
+                fr = "Proportion d'images utilisées pour l'empilement"
+            }
+            description {
+                en = "Proportion of images to keep for stacking (1 means keep all images, 0 would keep none)"
+                fr = "Proportion d'images à conserver pour l'empilement (1 signifie conserver toutes les images, 0 n'en conserverait aucune)"
+            }
+        }
+    }
+}
+
+[outputs]
+denoised = avg(range(-1;1))
+
+[[batch]]
+[tmp]
+
+ref = stack_ref(denoised; method)
+dedistorted = dedistort(ref: ref, img: denoised, ts: tileSize, sampling: sampling)
+stacked = stack_dedis(images:dedistorted, best: ratio)
+
+[outputs]
+stacked=auto_contrast(unsharp_mask(stacked; 1.5; 7);gamma)
+----
+
+++++
+</details>
+++++
+
+[TIP]
+====
+Consider hosting your scripts on GitHub Pages, GitLab Pages, or any static hosting service that allows directory listing or serving text files.
+====
+
 [[batch-mode]]
 == Batch processing
 

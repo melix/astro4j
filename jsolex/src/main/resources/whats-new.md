@@ -1,6 +1,6 @@
 # Welcome to JSol'Ex {{version}}!
 
-- [Version 4.2.0](#whats-new-in-version-4-2-0) - Java 25, GIF support, file format settings
+- [Version 4.2.0](#whats-new-in-version-4-2-0) - Script repositories, Java 25, GIF support, file format settings
 - [Version 4.1.4](#whats-new-in-version-4-1-4) - Bug fixes and improvements
 - [Version 4.1.3](#whats-new-in-version-4-1-3) - Improved banding correction
 - [Version 4.1.2](#whats-new-in-version-4-1-2) - Bug fixes
@@ -14,6 +14,7 @@
 - Upgraded to Java 25
 - File formats are now part of advanced settings (outside of process parameters)
 - Added ability to generate GIF files in addition to MP4
+- Add support for declaring [script repositories](#script-repositories)
 
 ## What's New in Version 4.1.4
 
@@ -132,6 +133,12 @@ This allows you to combine several images into a single composite image with cus
 ![Image Collage Creation](/docs/collage-interface-fr.jpg)
 
 You can select multiple processed images and arrange them in a grid.
+
+## Script Repositories
+
+JSol'Ex 4.2 introduces support for script repositories, allowing users to discover and automatically download ImageMath scripts published by the community.
+Users can declare repositories via the Tools menu by providing a name and URL.
+Script repositories are a convenient way to extend the capabilities of JSol'Ex with community-contributed scripts.
 
 ## Bug Fixes and Improvements
 

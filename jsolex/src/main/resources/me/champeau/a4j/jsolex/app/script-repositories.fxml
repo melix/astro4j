@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.Button?>
+<?import javafx.scene.control.ButtonBar?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.control.TableColumn?>
+<?import javafx.scene.control.TableView?>
+<?import javafx.scene.layout.BorderPane?>
+<?import javafx.scene.layout.HBox?>
+<?import javafx.scene.layout.VBox?>
+
+<BorderPane maxHeight="-Infinity" maxWidth="-Infinity" minHeight="-Infinity" minWidth="-Infinity" prefHeight="400.0" prefWidth="700.0" styleClass="params-dialog" xmlns="http://javafx.com/javafx/19"
+            xmlns:fx="http://javafx.com/fxml/1" fx:controller="me.champeau.a4j.jsolex.app.jfx.ScriptRepositoriesController">
+    <bottom>
+        <ButtonBar prefHeight="40.0" prefWidth="700.0" BorderPane.alignment="CENTER">
+            <buttons>
+                <Button mnemonicParsing="false" onAction="#close" styleClass="default-button" text="%close"/>
+            </buttons>
+            <BorderPane.margin>
+                <Insets/>
+            </BorderPane.margin>
+            <padding>
+                <Insets right="8.0"/>
+            </padding>
+        </ButtonBar>
+    </bottom>
+    <center>
+        <VBox styleClass="parameter-panel" spacing="12">
+            <padding>
+                <Insets top="16" right="16" bottom="16" left="16"/>
+            </padding>
+            <Label styleClass="section-title" text="%script.repositories.title"/>
+            <TableView fx:id="repositoriesTable" VBox.vgrow="ALWAYS">
+                <columns>
+                    <TableColumn fx:id="nameColumn" text="%repository.name" prefWidth="150.0"/>
+                    <TableColumn fx:id="urlColumn" text="%repository.url" prefWidth="300.0"/>
+                    <TableColumn fx:id="scriptsColumn" text="%repository.scripts" prefWidth="100.0"/>
+                    <TableColumn fx:id="lastCheckColumn" text="%repository.last.check" prefWidth="150.0"/>
+                </columns>
+            </TableView>
+            <HBox spacing="8">
+                <Button mnemonicParsing="false" onAction="#addRepository" styleClass="primary-button" text="%repository.add"/>
+                <Button fx:id="editButton" mnemonicParsing="false" onAction="#editRepository" styleClass="default-button" text="%repository.edit" disable="true"/>
+                <Button fx:id="removeButton" mnemonicParsing="false" onAction="#removeRepository" styleClass="default-button" text="%repository.remove" disable="true"/>
+                <Button fx:id="refreshButton" mnemonicParsing="false" onAction="#refreshRepository" styleClass="default-button" text="%repository.refresh"/>
+            </HBox>
+        </VBox>
+    </center>
+</BorderPane>

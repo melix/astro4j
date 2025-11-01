@@ -868,6 +868,298 @@ Et la version réduite :
 </video>
 ++++
 
+[[script-repositories]]
+== Dépôts de scripts
+
+JSol'Ex supporte les dépôts de scripts, vous permettant de découvrir et télécharger automatiquement des scripts ImageMath publiés par la communauté.
+Les scripts de dépôt apparaissent aux côtés des scripts intégrés dans le panneau de sélection d'images et sont automatiquement mis à jour lorsque de nouvelles versions sont publiées.
+
+=== Utilisation des dépôts de scripts
+
+==== Ajouter un dépôt
+
+Pour ajouter un dépôt de scripts :
+
+1. Ouvrez le menu Outils et sélectionnez "Dépôts de scripts..."
+2. Cliquez sur le bouton "Ajouter"
+3. Entrez un nom pour le dépôt (à des fins d'affichage)
+4. Entrez l'URL du dépôt (doit commencer par `http://` ou `https://`)
+5. Cliquez sur "Ajouter"
+
+JSol'Ex récupérera immédiatement les scripts disponibles depuis le dépôt.
+
+==== Gestion des dépôts
+
+La boîte de dialogue des dépôts de scripts affiche :
+
+- **Nom** : Le nom du dépôt que vous avez fourni
+- **URL** : L'adresse du dépôt
+- **Scripts** : Nombre de scripts disponibles
+- **Dernière vérification** : Quand le dépôt a été vérifié pour la dernière fois
+
+Vous pouvez :
+
+- **Modifier** : Changer l'URL du dépôt (le nom ne peut pas être modifié)
+- **Supprimer** : Supprimer un dépôt et ses scripts mis en cache
+- **Actualiser** : Vérifier manuellement les nouveaux scripts ou les mises à jour
+
+==== Utilisation des scripts de dépôt
+
+Les scripts de dépôt apparaissent dans le panneau de sélection d'images aux côtés des scripts intégrés.
+Ils sont organisés par nom de dépôt et affichent les métadonnées incluant :
+
+- Titre du script
+- Nom de l'auteur
+- Numéro de version
+
+Sélectionnez les scripts de dépôt de la même manière que les scripts intégrés.
+Si un script déclare des paramètres dans son bloc de métadonnées, vous pourrez les configurer dans l'interface.
+
+==== Mises à jour automatiques
+
+JSol'Ex vérifie les dépôts pour les mises à jour :
+
+- Une fois par jour au démarrage
+- Lorsque vous cliquez sur le bouton Actualiser dans la boîte de dialogue des dépôts de scripts
+
+Les scripts sont automatiquement mis à jour lorsqu'une version plus récente est détectée en fonction du champ version dans les métadonnées du script.
+
+**Compatibilité de version**
+
+Lors de la vérification des mises à jour, JSol'Ex assure la compatibilité de version :
+
+- Les scripts sans champ `requires` sont toujours téléchargés (considérés comme compatibles avec toutes les versions)
+- Les scripts avec `requires` défini à une version plus récente que votre version actuelle de JSol'Ex sont ignorés
+- Si vous avez une version locale compatible d'un script, elle est préservée même si une version plus récente incompatible est publiée
+
+=== Publication de scripts
+
+Si vous souhaitez partager vos scripts ImageMath avec la communauté, vous pouvez les publier via un dépôt de scripts.
+
+==== Structure du dépôt
+
+Un dépôt de scripts est simplement un serveur HTTP qui expose des fichiers `.math`.
+JSol'Ex supporte deux méthodes de découverte :
+
+**1. Fichier scripts.txt (recommandé)**
+
+Créez un fichier `scripts.txt` listant les scripts disponibles (un nom de fichier par ligne) :
+
+[source]
+----
+# Mon dépôt
+mon-script.math
+autre-script.math
+----
+
+Les commentaires commencent par `#` et sont ignorés.
+
+**2. Liste de répertoires (solution de repli)**
+
+Activez la liste de répertoires sur votre serveur web (Apache `mod_autoindex`, nginx `autoindex`) :
+
+[source]
+----
+http://example.com/scripts/
+  ├── mon-script.math
+  ├── autre-script.math
+  └── ...
+----
+
+JSol'Ex essaiera d'abord de télécharger `scripts.txt`, et se rabattra sur l'analyse des listes de répertoires HTML si le fichier n'est pas trouvé.
+
+==== Exigences pour les scripts
+
+Pour qu'un script soit disponible dans un dépôt, il doit :
+
+1. Avoir une extension `.math`
+2. Inclure un bloc de métadonnées avec les champs requis
+3. Être accessible via HTTP/HTTPS
+
+==== Format du bloc de métadonnées
+
+Chaque script doit inclure un bloc de métadonnées avec au minimum :
+
+- `author` : Nom de l'auteur du script
+- `title` : Titre du script (affiché dans l'interface, peut être multilingue)
+- `version` : Version du script pour le suivi des mises à jour
+
+Les champs optionnels incluent :
+
+- `requires` : Version minimale de JSol'Ex requise (par exemple, `"4.2.0"`). Les utilisateurs exécutant des versions plus anciennes ne téléchargeront pas les scripts avec des exigences de version incompatibles.
+- `description` : Description du script (peut être multilingue)
+- `params` : Déclarations de paramètres avec types, valeurs par défaut et descriptions
+
+Exemple avec support multilingue et paramètres :
+
+[source]
+----
+meta {
+    title {
+        en = "My Processing Script"
+        fr = "Mon script de traitement"
+    }
+    author = "Jean Dupont"
+    version = "1.0"
+    requires = "4.2.0"
+    params {
+        gamma {
+            type = "number"
+            default = 1.5
+            min = 0.1
+            name {
+                en = "Contrast Gamma"
+                fr = "Gamma contraste"
+            }
+            description {
+                en = "Gamma correction value"
+                fr = "Valeur de correction gamma"
+            }
+        }
+    }
+}
+----
+
+Le bloc de métadonnées doit apparaître au début du fichier script.
+
+==== Mises à jour de version
+
+Lorsque vous publiez une nouvelle version d'un script, mettez à jour le champ `version` dans le bloc de métadonnées.
+Il est recommandé d'utiliser le versionnement sémantique (par exemple, `1.0`, `1.1`, `2.0`).
+
+Les utilisateurs recevront automatiquement le script mis à jour la prochaine fois que JSol'Ex vérifiera les mises à jour.
+
+==== Exemple de dépôt
+
+Un dépôt de scripts minimal pourrait ressembler à :
+
+[source]
+----
+http://example.com/jsolex-scripts/
+  ├── scripts.txt
+  ├── empilement.math
+  └── soustraire-continuum.math
+----
+
+Avec `scripts.txt` :
+
+[source]
+----
+# Mes scripts JSol'Ex
+empilement.math
+soustraire-continuum.math
+----
+
+Et `empilement.math` avec métadonnées complètes et paramètres :
+
+++++
+<details>
+<summary><strong>Cliquez pour développer l'exemple complet du script</strong></summary>
+++++
+
+[source]
+----
+meta {
+    title {
+        en = "Stacking"
+        fr = "Empilement"
+    }
+    author = "Cédric Champeau"
+    version = "1.0"
+    requires = "4.2.0"
+    params {
+        method {
+            type = "choice"
+            choices = ["sharpness", "average", "median", "manual"]
+            default = "average"
+            name {
+                en = "Best image selection method"
+                fr = "Méthode de sélection de la meilleure image"
+            }
+            description {
+                en = "Method used to select the best image as a reference for stacking"
+                fr = "Méthode utilisée pour sélectionner la meilleure image comme référence pour l'empilement"
+            }
+        }
+        gamma {
+            type = "number"
+            default = 1.5
+            min = 0.1
+            name {
+                en = "Final Contrast Gamma"
+                fr = "Gamma contraste final"
+            }
+            description {
+                en = "Gamma correction value for the final contrast adjustment"
+                fr = "Valeur de correction gamma pour l'ajustement final du contraste"
+            }
+        }
+        tileSize {
+            type = "number"
+            default = 64
+            min = 16
+            name {
+                en = "Tile Size"
+                fr = "Taille des tuiles"
+            }
+            description {
+                en = "Size of the tiles used for dedistortion. Must be a power of 2."
+                fr = "Taille des tuiles utilisées pour les calculs de déformation. Doit être une puissance de 2."
+            }
+        }
+        sampling {
+            type = "number"
+            default = 0.25
+            min = 0.125
+            max = 1.0
+            name {
+                en = "Sampling"
+                fr = "Échantillonnage"
+            }
+            description {
+                en = "Sampling factor for the local normalization and dedistortion (between 0.125 and 1.0)"
+                fr = "Facteur d'échantillonnage pour la normalisation locale et la déformation (entre 0.125 et 1.0)"
+            }
+        }
+        ratio {
+            type = "number"
+            default = 1.0
+            min = 0.1
+            name {
+                en = "Proportion of images used for stacking"
+                fr = "Proportion d'images utilisées pour l'empilement"
+            }
+            description {
+                en = "Proportion of images to keep for stacking (1 means keep all images, 0 would keep none)"
+                fr = "Proportion d'images à conserver pour l'empilement (1 signifie conserver toutes les images, 0 n'en conserverait aucune)"
+            }
+        }
+    }
+}
+
+[outputs]
+denoised = avg(range(-1;1))
+
+[[batch]]
+[tmp]
+
+ref = stack_ref(denoised; method)
+dedistorted = dedistort(ref: ref, img: denoised, ts: tileSize, sampling: sampling)
+stacked = stack_dedis(images:dedistorted, best: ratio)
+
+[outputs]
+stacked=auto_contrast(unsharp_mask(stacked; 1.5; 7);gamma)
+----
+
+++++
+</details>
+++++
+
+[TIP]
+====
+Envisagez d'héberger vos scripts sur GitHub Pages, GitLab Pages, ou tout service d'hébergement statique permettant la liste de répertoires ou le service de fichiers texte.
+====
+
 [[batch-mode]]
 == Traitement par lots
 

@@ -91,6 +91,7 @@ import me.champeau.a4j.jsolex.app.jfx.ImageViewer;
 import me.champeau.a4j.jsolex.app.jfx.MultipleImagesViewer;
 import me.champeau.a4j.jsolex.app.jfx.NamingPatternEditor;
 import me.champeau.a4j.jsolex.app.jfx.ProcessParamsController;
+import me.champeau.a4j.jsolex.app.jfx.ScriptRepositoriesController;
 import me.champeau.a4j.jsolex.app.jfx.SerFileTrimmerController;
 import me.champeau.a4j.jsolex.app.jfx.SetupEditor;
 import me.champeau.a4j.jsolex.app.jfx.SimpleMarkdownViewer;
@@ -325,6 +326,7 @@ public class JSolEx implements JSolExInterface {
     private Tab imagesViewerTab;
     private ImageMathScriptExecutor scriptExecutor;
     private Path outputDirectory;
+    private final RepositoryUpdateService repositoryUpdateService = new RepositoryUpdateService();
 
     @Override
     public MultipleImagesViewer getImagesViewer() {
@@ -409,6 +411,7 @@ public class JSolEx implements JSolExInterface {
             createFastModePane();
             stage.setOnCloseRequest(e -> System.exit(0));
             startWatcherThread();
+            repositoryUpdateService.checkAtStartup();
             Thread.startVirtualThread(() -> UpdateChecker.findLatestRelease().ifPresent(this::maybeWarnAboutNewRelease));
             LOGGER.info("Java runtime version {}", System.getProperty("java.version"));
             LOGGER.info("Vector API support is {} and {}", VectorApiSupport.isPresent() ? "available" : "missing",
@@ -1110,6 +1113,23 @@ public class JSolEx implements JSolExInterface {
             Platform.runLater(this::newSession);
             e.getConfiguration().ifPresent(scripts -> BackgroundOperations.async(() -> executeStandaloneScripts(params.withRequestedImages(params.requestedImages().withMathImages(scripts)), createRootOperation(""))));
         });
+    }
+
+    @FXML
+    private void showScriptRepositories() {
+        var fxmlLoader = I18N.fxmlLoader(JSolEx.class, "script-repositories");
+        try {
+            var stage = newStage();
+            var node = (Parent) fxmlLoader.load();
+            var controller = (ScriptRepositoriesController) fxmlLoader.getController();
+            controller.setup(stage, Configuration.getInstance());
+            Scene scene = newScene(node);
+            stage.setTitle(I18N.string(JSolEx.class, "script-repositories", "frame.title"));
+            stage.setScene(scene);
+            stage.show();
+        } catch (Exception e) {
+            LOGGER.error("Unable to open script repositories dialog", e);
+        }
     }
 
     @FXML
