@@ -512,6 +512,12 @@ body.book #toc,body.book #preamble,body.book h1.sect0,body.book .sect1>h2{page-b
 <li><a href="#remote-scriptgen">Remote script generation</a></li>
 </ul>
 </li>
+<li><a href="#script-repositories">Script Repositories</a>
+<ul class="sectlevel2">
+<li><a href="#_using_script_repositories">Using Script Repositories</a></li>
+<li><a href="#_publishing_scripts">Publishing Scripts</a></li>
+</ul>
+</li>
 <li><a href="#batch-mode">Batch processing</a>
 <ul class="sectlevel2">
 <li><a href="#_reviewing_batch_processed_images">Reviewing batch processed images</a></li>
@@ -2150,6 +2156,428 @@ You should simply be aware that the server will receive multiple calls, and that
 </td>
 </tr>
 </table>
+</div>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="script-repositories">Script Repositories</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>JSol&#8217;Ex supports script repositories, allowing you to discover and automatically download ImageMath scripts published by the community.
+Repository scripts appear alongside built-in scripts in the image selection panel and are automatically updated when new versions are published.</p>
+</div>
+<div class="sect2">
+<h3 id="_using_script_repositories">Using Script Repositories</h3>
+<div class="sect3">
+<h4 id="_adding_a_repository">Adding a Repository</h4>
+<div class="paragraph">
+<p>To add a script repository:</p>
+</div>
+<div class="olist arabic">
+<ol class="arabic">
+<li>
+<p>Open the Tools menu and select "Script Repositories&#8230;&#8203;"</p>
+</li>
+<li>
+<p>Click the "Add" button</p>
+</li>
+<li>
+<p>Enter a name for the repository (for display purposes)</p>
+</li>
+<li>
+<p>Enter the repository URL (must start with <code>http://</code> or <code>https://</code>)</p>
+</li>
+<li>
+<p>Click "Add"</p>
+</li>
+</ol>
+</div>
+<div class="paragraph">
+<p>JSol&#8217;Ex will immediately fetch the available scripts from the repository.</p>
+</div>
+</div>
+<div class="sect3">
+<h4 id="_managing_repositories">Managing Repositories</h4>
+<div class="paragraph">
+<p>The Script Repositories dialog displays:</p>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p><strong>Name</strong>: The repository name you provided</p>
+</li>
+<li>
+<p><strong>URL</strong>: The repository address</p>
+</li>
+<li>
+<p><strong>Scripts</strong>: Number of scripts available</p>
+</li>
+<li>
+<p><strong>Last Check</strong>: When the repository was last checked for updates</p>
+</li>
+</ul>
+</div>
+<div class="paragraph">
+<p>You can:</p>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p><strong>Edit</strong>: Change the repository URL (the name cannot be changed)</p>
+</li>
+<li>
+<p><strong>Remove</strong>: Delete a repository and its cached scripts</p>
+</li>
+<li>
+<p><strong>Refresh</strong>: Manually check for new or updated scripts</p>
+</li>
+</ul>
+</div>
+</div>
+<div class="sect3">
+<h4 id="_using_repository_scripts">Using Repository Scripts</h4>
+<div class="paragraph">
+<p>Repository scripts appear in the image selection panel alongside built-in scripts.
+They are organized by repository name and display metadata including:</p>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p>Script title</p>
+</li>
+<li>
+<p>Author name</p>
+</li>
+<li>
+<p>Version number</p>
+</li>
+</ul>
+</div>
+<div class="paragraph">
+<p>Select repository scripts the same way as built-in scripts.
+If a script declares parameters in its metadata block, you&#8217;ll be able to configure them in the UI.</p>
+</div>
+</div>
+<div class="sect3">
+<h4 id="_automatic_updates">Automatic Updates</h4>
+<div class="paragraph">
+<p>JSol&#8217;Ex checks repositories for updates:</p>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p>Once per day at startup</p>
+</li>
+<li>
+<p>When you click the Refresh button in the Script Repositories dialog</p>
+</li>
+</ul>
+</div>
+<div class="paragraph">
+<p>Scripts are automatically updated when a newer version is detected based on the version field in the script metadata.</p>
+</div>
+<div class="paragraph">
+<p><strong>Version Compatibility</strong></p>
+</div>
+<div class="paragraph">
+<p>When checking for updates, JSol&#8217;Ex ensures version compatibility:</p>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p>Scripts without a <code>requires</code> field are always downloaded (assumed compatible with all versions)</p>
+</li>
+<li>
+<p>Scripts with <code>requires</code> set to a version newer than your current JSol&#8217;Ex version are ignored</p>
+</li>
+<li>
+<p>If you have a local compatible version of a script, it is preserved even if a newer incompatible version is published</p>
+</li>
+</ul>
+</div>
+</div>
+</div>
+<div class="sect2">
+<h3 id="_publishing_scripts">Publishing Scripts</h3>
+<div class="paragraph">
+<p>If you want to share your ImageMath scripts with the community, you can publish them via a script repository.</p>
+</div>
+<div class="sect3">
+<h4 id="_repository_structure">Repository Structure</h4>
+<div class="paragraph">
+<p>A script repository is simply an HTTP server that exposes <code>.math</code> files.
+JSol&#8217;Ex supports two discovery methods:</p>
+</div>
+<div class="paragraph">
+<p><strong>1. scripts.txt file (recommended)</strong></p>
+</div>
+<div class="paragraph">
+<p>Create a <code>scripts.txt</code> file listing available scripts (one filename per line):</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-none hljs"># My repository
+my-script.math
+another-script.math</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>Comments start with <code>#</code> and are ignored.</p>
+</div>
+<div class="paragraph">
+<p><strong>2. Directory listing (fallback)</strong></p>
+</div>
+<div class="paragraph">
+<p>Enable directory listing on your web server (Apache <code>mod_autoindex</code>, nginx <code>autoindex</code>):</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-none hljs">http://example.com/scripts/
+  ├── my-script.math
+  ├── another-script.math
+  └── ...</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>JSol&#8217;Ex will try to download <code>scripts.txt</code> first, and fall back to parsing HTML directory listings if not found.</p>
+</div>
+</div>
+<div class="sect3">
+<h4 id="_script_requirements">Script Requirements</h4>
+<div class="paragraph">
+<p>For a script to be available in a repository, it must:</p>
+</div>
+<div class="olist arabic">
+<ol class="arabic">
+<li>
+<p>Have a <code>.math</code> extension</p>
+</li>
+<li>
+<p>Include a metadata block with required fields</p>
+</li>
+<li>
+<p>Be accessible via HTTP/HTTPS</p>
+</li>
+</ol>
+</div>
+</div>
+<div class="sect3">
+<h4 id="_metadata_block_format">Metadata Block Format</h4>
+<div class="paragraph">
+<p>Each script must include a metadata block with at minimum:</p>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p><code>author</code>: Script author name</p>
+</li>
+<li>
+<p><code>title</code>: Script title (displayed in UI, can be multilingual)</p>
+</li>
+<li>
+<p><code>version</code>: Script version for update tracking</p>
+</li>
+</ul>
+</div>
+<div class="paragraph">
+<p>Optional fields include:</p>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p><code>requires</code>: Minimum JSol&#8217;Ex version required (e.g., <code>"4.2.0"</code>). Users running older versions will not download scripts with incompatible version requirements.</p>
+</li>
+<li>
+<p><code>description</code>: Script description (can be multilingual)</p>
+</li>
+<li>
+<p><code>params</code>: Parameter declarations with types, defaults, and descriptions</p>
+</li>
+</ul>
+</div>
+<div class="paragraph">
+<p>Example with multilingual support and parameters:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-none hljs">meta {
+    title {
+        en = "My Processing Script"
+        fr = "Mon script de traitement"
+    }
+    author = "John Doe"
+    version = "1.0"
+    requires = "4.2.0"
+    params {
+        gamma {
+            type = "number"
+            default = 1.5
+            min = 0.1
+            name {
+                en = "Contrast Gamma"
+                fr = "Gamma contraste"
+            }
+            description {
+                en = "Gamma correction value"
+                fr = "Valeur de correction gamma"
+            }
+        }
+    }
+}</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>The metadata block must appear at the beginning of the script file.</p>
+</div>
+</div>
+<div class="sect3">
+<h4 id="_version_updates">Version Updates</h4>
+<div class="paragraph">
+<p>When you publish a new version of a script, update the <code>version</code> field in the metadata block.
+It is recommended to use semantic versioning (e.g., <code>1.0</code>, <code>1.1</code>, <code>2.0</code>).</p>
+</div>
+<div class="paragraph">
+<p>Users will automatically receive the updated script the next time JSol&#8217;Ex checks for updates.</p>
+</div>
+</div>
+<div class="sect3">
+<h4 id="_example_repository">Example Repository</h4>
+<div class="paragraph">
+<p>A minimal script repository might look like:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-none hljs">http://example.com/jsolex-scripts/
+  ├── scripts.txt
+  ├── stacking.math
+  └── continuum-subtract.math</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>With <code>scripts.txt</code>:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-none hljs"># My JSol'Ex Scripts
+stacking.math
+continuum-subtract.math</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>And <code>stacking.math</code> with full metadata and parameters:</p>
+</div>
+<details>
+<summary><strong>Click to expand full script example</strong></summary>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-none hljs">meta {
+    title {
+        en = "Stacking"
+        fr = "Empilement"
+    }
+    author = "Cédric Champeau"
+    version = "1.0"
+    requires = "4.2.0"
+    params {
+        method {
+            type = "choice"
+            choices = ["sharpness", "average", "median", "manual"]
+            default = "average"
+            name {
+                en = "Best image selection method"
+                fr = "Méthode de sélection de la meilleure image"
+            }
+            description {
+                en = "Method used to select the best image as a reference for stacking"
+                fr = "Méthode utilisée pour sélectionner la meilleure image comme référence pour l'empilement"
+            }
+        }
+        gamma {
+            type = "number"
+            default = 1.5
+            min = 0.1
+            name {
+                en = "Final Contrast Gamma"
+                fr = "Gamma contraste final"
+            }
+            description {
+                en = "Gamma correction value for the final contrast adjustment"
+                fr = "Valeur de correction gamma pour l'ajustement final du contraste"
+            }
+        }
+        tileSize {
+            type = "number"
+            default = 64
+            min = 16
+            name {
+                en = "Tile Size"
+                fr = "Taille des tuiles"
+            }
+            description {
+                en = "Size of the tiles used for dedistortion. Must be a power of 2."
+                fr = "Taille des tuiles utilisées pour les calculs de déformation. Doit être une puissance de 2."
+            }
+        }
+        sampling {
+            type = "number"
+            default = 0.25
+            min = 0.125
+            max = 1.0
+            name {
+                en = "Sampling"
+                fr = "Échantillonnage"
+            }
+            description {
+                en = "Sampling factor for the local normalization and dedistortion (between 0.125 and 1.0)"
+                fr = "Facteur d'échantillonnage pour la normalisation locale et la déformation (entre 0.125 et 1.0)"
+            }
+        }
+        ratio {
+            type = "number"
+            default = 1.0
+            min = 0.1
+            name {
+                en = "Proportion of images used for stacking"
+                fr = "Proportion d'images utilisées pour l'empilement"
+            }
+            description {
+                en = "Proportion of images to keep for stacking (1 means keep all images, 0 would keep none)"
+                fr = "Proportion d'images à conserver pour l'empilement (1 signifie conserver toutes les images, 0 n'en conserverait aucune)"
+            }
+        }
+    }
+}
+
+[outputs]
+denoised = avg(range(-1;1))
+
+[[batch]]
+[tmp]
+
+ref = stack_ref(denoised; method)
+dedistorted = dedistort(ref: ref, img: denoised, ts: tileSize, sampling: sampling)
+stacked = stack_dedis(images:dedistorted, best: ratio)
+
+[outputs]
+stacked=auto_contrast(unsharp_mask(stacked; 1.5; 7);gamma)</code></pre>
+</div>
+</div>
+</details>
+<div class="admonitionblock tip">
+<table>
+<tr>
+<td class="icon">
+<i class="fa icon-tip" title="Tip"></i>
+</td>
+<td class="content">
+<div class="paragraph">
+<p>Consider hosting your scripts on GitHub Pages, GitLab Pages, or any static hosting service that allows directory listing or serving text files.</p>
+</div>
+</td>
+</tr>
+</table>
+</div>
 </div>
 </div>
 </div>

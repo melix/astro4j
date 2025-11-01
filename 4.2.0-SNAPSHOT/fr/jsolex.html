@@ -503,6 +503,12 @@ body.book #toc,body.book #preamble,body.book h1.sect0,body.book .sect1>h2{page-b
 </ul>
 </li>
 <li><a href="#trimming-ser-files">Réduire la taille des fichiers SER</a></li>
+<li><a href="#script-repositories">Dépôts de scripts</a>
+<ul class="sectlevel2">
+<li><a href="#_utilisation_des_dépôts_de_scripts">Utilisation des dépôts de scripts</a></li>
+<li><a href="#_publication_de_scripts">Publication de scripts</a></li>
+</ul>
+</li>
 <li><a href="#batch-mode">Traitement par lots</a>
 <ul class="sectlevel2">
 <li><a href="#_passage_en_revue_des_images_traitées_en_lot">Passage en revue des images traitées en lot</a></li>
@@ -2010,6 +2016,428 @@ Dans les deux cas, le résultat du traitement de la vidéo rognée sera différe
   <source src="trimmed.webm" type="video/webm">
   Your browser does not support the video tag.
 </video>
+</div>
+</div>
+<div class="sect1">
+<h2 id="script-repositories">Dépôts de scripts</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>JSol&#8217;Ex supporte les dépôts de scripts, vous permettant de découvrir et télécharger automatiquement des scripts ImageMath publiés par la communauté.
+Les scripts de dépôt apparaissent aux côtés des scripts intégrés dans le panneau de sélection d&#8217;images et sont automatiquement mis à jour lorsque de nouvelles versions sont publiées.</p>
+</div>
+<div class="sect2">
+<h3 id="_utilisation_des_dépôts_de_scripts">Utilisation des dépôts de scripts</h3>
+<div class="sect3">
+<h4 id="_ajouter_un_dépôt">Ajouter un dépôt</h4>
+<div class="paragraph">
+<p>Pour ajouter un dépôt de scripts :</p>
+</div>
+<div class="olist arabic">
+<ol class="arabic">
+<li>
+<p>Ouvrez le menu Outils et sélectionnez "Dépôts de scripts&#8230;&#8203;"</p>
+</li>
+<li>
+<p>Cliquez sur le bouton "Ajouter"</p>
+</li>
+<li>
+<p>Entrez un nom pour le dépôt (à des fins d&#8217;affichage)</p>
+</li>
+<li>
+<p>Entrez l&#8217;URL du dépôt (doit commencer par <code>http://</code> ou <code>https://</code>)</p>
+</li>
+<li>
+<p>Cliquez sur "Ajouter"</p>
+</li>
+</ol>
+</div>
+<div class="paragraph">
+<p>JSol&#8217;Ex récupérera immédiatement les scripts disponibles depuis le dépôt.</p>
+</div>
+</div>
+<div class="sect3">
+<h4 id="_gestion_des_dépôts">Gestion des dépôts</h4>
+<div class="paragraph">
+<p>La boîte de dialogue des dépôts de scripts affiche :</p>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p><strong>Nom</strong> : Le nom du dépôt que vous avez fourni</p>
+</li>
+<li>
+<p><strong>URL</strong> : L&#8217;adresse du dépôt</p>
+</li>
+<li>
+<p><strong>Scripts</strong> : Nombre de scripts disponibles</p>
+</li>
+<li>
+<p><strong>Dernière vérification</strong> : Quand le dépôt a été vérifié pour la dernière fois</p>
+</li>
+</ul>
+</div>
+<div class="paragraph">
+<p>Vous pouvez :</p>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p><strong>Modifier</strong> : Changer l&#8217;URL du dépôt (le nom ne peut pas être modifié)</p>
+</li>
+<li>
+<p><strong>Supprimer</strong> : Supprimer un dépôt et ses scripts mis en cache</p>
+</li>
+<li>
+<p><strong>Actualiser</strong> : Vérifier manuellement les nouveaux scripts ou les mises à jour</p>
+</li>
+</ul>
+</div>
+</div>
+<div class="sect3">
+<h4 id="_utilisation_des_scripts_de_dépôt">Utilisation des scripts de dépôt</h4>
+<div class="paragraph">
+<p>Les scripts de dépôt apparaissent dans le panneau de sélection d&#8217;images aux côtés des scripts intégrés.
+Ils sont organisés par nom de dépôt et affichent les métadonnées incluant :</p>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p>Titre du script</p>
+</li>
+<li>
+<p>Nom de l&#8217;auteur</p>
+</li>
+<li>
+<p>Numéro de version</p>
+</li>
+</ul>
+</div>
+<div class="paragraph">
+<p>Sélectionnez les scripts de dépôt de la même manière que les scripts intégrés.
+Si un script déclare des paramètres dans son bloc de métadonnées, vous pourrez les configurer dans l&#8217;interface.</p>
+</div>
+</div>
+<div class="sect3">
+<h4 id="_mises_à_jour_automatiques">Mises à jour automatiques</h4>
+<div class="paragraph">
+<p>JSol&#8217;Ex vérifie les dépôts pour les mises à jour :</p>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p>Une fois par jour au démarrage</p>
+</li>
+<li>
+<p>Lorsque vous cliquez sur le bouton Actualiser dans la boîte de dialogue des dépôts de scripts</p>
+</li>
+</ul>
+</div>
+<div class="paragraph">
+<p>Les scripts sont automatiquement mis à jour lorsqu&#8217;une version plus récente est détectée en fonction du champ version dans les métadonnées du script.</p>
+</div>
+<div class="paragraph">
+<p><strong>Compatibilité de version</strong></p>
+</div>
+<div class="paragraph">
+<p>Lors de la vérification des mises à jour, JSol&#8217;Ex assure la compatibilité de version :</p>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p>Les scripts sans champ <code>requires</code> sont toujours téléchargés (considérés comme compatibles avec toutes les versions)</p>
+</li>
+<li>
+<p>Les scripts avec <code>requires</code> défini à une version plus récente que votre version actuelle de JSol&#8217;Ex sont ignorés</p>
+</li>
+<li>
+<p>Si vous avez une version locale compatible d&#8217;un script, elle est préservée même si une version plus récente incompatible est publiée</p>
+</li>
+</ul>
+</div>
+</div>
+</div>
+<div class="sect2">
+<h3 id="_publication_de_scripts">Publication de scripts</h3>
+<div class="paragraph">
+<p>Si vous souhaitez partager vos scripts ImageMath avec la communauté, vous pouvez les publier via un dépôt de scripts.</p>
+</div>
+<div class="sect3">
+<h4 id="_structure_du_dépôt">Structure du dépôt</h4>
+<div class="paragraph">
+<p>Un dépôt de scripts est simplement un serveur HTTP qui expose des fichiers <code>.math</code>.
+JSol&#8217;Ex supporte deux méthodes de découverte :</p>
+</div>
+<div class="paragraph">
+<p><strong>1. Fichier scripts.txt (recommandé)</strong></p>
+</div>
+<div class="paragraph">
+<p>Créez un fichier <code>scripts.txt</code> listant les scripts disponibles (un nom de fichier par ligne) :</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-none hljs"># Mon dépôt
+mon-script.math
+autre-script.math</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>Les commentaires commencent par <code>#</code> et sont ignorés.</p>
+</div>
+<div class="paragraph">
+<p><strong>2. Liste de répertoires (solution de repli)</strong></p>
+</div>
+<div class="paragraph">
+<p>Activez la liste de répertoires sur votre serveur web (Apache <code>mod_autoindex</code>, nginx <code>autoindex</code>) :</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-none hljs">http://example.com/scripts/
+  ├── mon-script.math
+  ├── autre-script.math
+  └── ...</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>JSol&#8217;Ex essaiera d&#8217;abord de télécharger <code>scripts.txt</code>, et se rabattra sur l&#8217;analyse des listes de répertoires HTML si le fichier n&#8217;est pas trouvé.</p>
+</div>
+</div>
+<div class="sect3">
+<h4 id="_exigences_pour_les_scripts">Exigences pour les scripts</h4>
+<div class="paragraph">
+<p>Pour qu&#8217;un script soit disponible dans un dépôt, il doit :</p>
+</div>
+<div class="olist arabic">
+<ol class="arabic">
+<li>
+<p>Avoir une extension <code>.math</code></p>
+</li>
+<li>
+<p>Inclure un bloc de métadonnées avec les champs requis</p>
+</li>
+<li>
+<p>Être accessible via HTTP/HTTPS</p>
+</li>
+</ol>
+</div>
+</div>
+<div class="sect3">
+<h4 id="_format_du_bloc_de_métadonnées">Format du bloc de métadonnées</h4>
+<div class="paragraph">
+<p>Chaque script doit inclure un bloc de métadonnées avec au minimum :</p>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p><code>author</code> : Nom de l&#8217;auteur du script</p>
+</li>
+<li>
+<p><code>title</code> : Titre du script (affiché dans l&#8217;interface, peut être multilingue)</p>
+</li>
+<li>
+<p><code>version</code> : Version du script pour le suivi des mises à jour</p>
+</li>
+</ul>
+</div>
+<div class="paragraph">
+<p>Les champs optionnels incluent :</p>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p><code>requires</code> : Version minimale de JSol&#8217;Ex requise (par exemple, <code>"4.2.0"</code>). Les utilisateurs exécutant des versions plus anciennes ne téléchargeront pas les scripts avec des exigences de version incompatibles.</p>
+</li>
+<li>
+<p><code>description</code> : Description du script (peut être multilingue)</p>
+</li>
+<li>
+<p><code>params</code> : Déclarations de paramètres avec types, valeurs par défaut et descriptions</p>
+</li>
+</ul>
+</div>
+<div class="paragraph">
+<p>Exemple avec support multilingue et paramètres :</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-none hljs">meta {
+    title {
+        en = "My Processing Script"
+        fr = "Mon script de traitement"
+    }
+    author = "Jean Dupont"
+    version = "1.0"
+    requires = "4.2.0"
+    params {
+        gamma {
+            type = "number"
+            default = 1.5
+            min = 0.1
+            name {
+                en = "Contrast Gamma"
+                fr = "Gamma contraste"
+            }
+            description {
+                en = "Gamma correction value"
+                fr = "Valeur de correction gamma"
+            }
+        }
+    }
+}</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>Le bloc de métadonnées doit apparaître au début du fichier script.</p>
+</div>
+</div>
+<div class="sect3">
+<h4 id="_mises_à_jour_de_version">Mises à jour de version</h4>
+<div class="paragraph">
+<p>Lorsque vous publiez une nouvelle version d&#8217;un script, mettez à jour le champ <code>version</code> dans le bloc de métadonnées.
+Il est recommandé d&#8217;utiliser le versionnement sémantique (par exemple, <code>1.0</code>, <code>1.1</code>, <code>2.0</code>).</p>
+</div>
+<div class="paragraph">
+<p>Les utilisateurs recevront automatiquement le script mis à jour la prochaine fois que JSol&#8217;Ex vérifiera les mises à jour.</p>
+</div>
+</div>
+<div class="sect3">
+<h4 id="_exemple_de_dépôt">Exemple de dépôt</h4>
+<div class="paragraph">
+<p>Un dépôt de scripts minimal pourrait ressembler à :</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-none hljs">http://example.com/jsolex-scripts/
+  ├── scripts.txt
+  ├── empilement.math
+  └── soustraire-continuum.math</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>Avec <code>scripts.txt</code> :</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-none hljs"># Mes scripts JSol'Ex
+empilement.math
+soustraire-continuum.math</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>Et <code>empilement.math</code> avec métadonnées complètes et paramètres :</p>
+</div>
+<details>
+<summary><strong>Cliquez pour développer l'exemple complet du script</strong></summary>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-none hljs">meta {
+    title {
+        en = "Stacking"
+        fr = "Empilement"
+    }
+    author = "Cédric Champeau"
+    version = "1.0"
+    requires = "4.2.0"
+    params {
+        method {
+            type = "choice"
+            choices = ["sharpness", "average", "median", "manual"]
+            default = "average"
+            name {
+                en = "Best image selection method"
+                fr = "Méthode de sélection de la meilleure image"
+            }
+            description {
+                en = "Method used to select the best image as a reference for stacking"
+                fr = "Méthode utilisée pour sélectionner la meilleure image comme référence pour l'empilement"
+            }
+        }
+        gamma {
+            type = "number"
+            default = 1.5
+            min = 0.1
+            name {
+                en = "Final Contrast Gamma"
+                fr = "Gamma contraste final"
+            }
+            description {
+                en = "Gamma correction value for the final contrast adjustment"
+                fr = "Valeur de correction gamma pour l'ajustement final du contraste"
+            }
+        }
+        tileSize {
+            type = "number"
+            default = 64
+            min = 16
+            name {
+                en = "Tile Size"
+                fr = "Taille des tuiles"
+            }
+            description {
+                en = "Size of the tiles used for dedistortion. Must be a power of 2."
+                fr = "Taille des tuiles utilisées pour les calculs de déformation. Doit être une puissance de 2."
+            }
+        }
+        sampling {
+            type = "number"
+            default = 0.25
+            min = 0.125
+            max = 1.0
+            name {
+                en = "Sampling"
+                fr = "Échantillonnage"
+            }
+            description {
+                en = "Sampling factor for the local normalization and dedistortion (between 0.125 and 1.0)"
+                fr = "Facteur d'échantillonnage pour la normalisation locale et la déformation (entre 0.125 et 1.0)"
+            }
+        }
+        ratio {
+            type = "number"
+            default = 1.0
+            min = 0.1
+            name {
+                en = "Proportion of images used for stacking"
+                fr = "Proportion d'images utilisées pour l'empilement"
+            }
+            description {
+                en = "Proportion of images to keep for stacking (1 means keep all images, 0 would keep none)"
+                fr = "Proportion d'images à conserver pour l'empilement (1 signifie conserver toutes les images, 0 n'en conserverait aucune)"
+            }
+        }
+    }
+}
+
+[outputs]
+denoised = avg(range(-1;1))
+
+[[batch]]
+[tmp]
+
+ref = stack_ref(denoised; method)
+dedistorted = dedistort(ref: ref, img: denoised, ts: tileSize, sampling: sampling)
+stacked = stack_dedis(images:dedistorted, best: ratio)
+
+[outputs]
+stacked=auto_contrast(unsharp_mask(stacked; 1.5; 7);gamma)</code></pre>
+</div>
+</div>
+</details>
+<div class="admonitionblock tip">
+<table>
+<tr>
+<td class="icon">
+<i class="fa icon-tip" title="Tip"></i>
+</td>
+<td class="content">
+<div class="paragraph">
+<p>Envisagez d&#8217;héberger vos scripts sur GitHub Pages, GitLab Pages, ou tout service d&#8217;hébergement statique permettant la liste de répertoires ou le service de fichiers texte.</p>
+</div>
+</td>
+</tr>
+</table>
+</div>
+</div>
+</div>
 </div>
 </div>
 <div class="sect1">
