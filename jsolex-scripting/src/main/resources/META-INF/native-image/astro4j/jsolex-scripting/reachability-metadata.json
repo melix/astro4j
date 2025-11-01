@@ -91,6 +91,78 @@
       "type": "char[]"
     },
     {
+      "type": "com.sun.imageio.plugins.jpeg.JPEGImageReader",
+      "jniAccessible": true,
+      "methods": [
+        {
+          "name": "acceptPixels",
+          "parameterTypes": [
+            "int",
+            "boolean"
+          ]
+        },
+        {
+          "name": "passComplete",
+          "parameterTypes": []
+        },
+        {
+          "name": "passStarted",
+          "parameterTypes": [
+            "int"
+          ]
+        },
+        {
+          "name": "pushBack",
+          "parameterTypes": [
+            "int"
+          ]
+        },
+        {
+          "name": "readInputData",
+          "parameterTypes": [
+            "byte[]",
+            "int",
+            "int"
+          ]
+        },
+        {
+          "name": "setImageData",
+          "parameterTypes": [
+            "int",
+            "int",
+            "int",
+            "int",
+            "int",
+            "byte[]"
+          ]
+        },
+        {
+          "name": "skipInputBytes",
+          "parameterTypes": [
+            "long"
+          ]
+        },
+        {
+          "name": "skipPastImage",
+          "parameterTypes": [
+            "int"
+          ]
+        },
+        {
+          "name": "warningOccurred",
+          "parameterTypes": [
+            "int"
+          ]
+        },
+        {
+          "name": "warningWithMessage",
+          "parameterTypes": [
+            "java.lang.String"
+          ]
+        }
+      ]
+    },
+    {
       "type": "com.sun.imageio.plugins.jpeg.JPEGImageWriter",
       "jniAccessible": true,
       "methods": [
@@ -1460,6 +1532,21 @@
       ]
     },
     {
+      "type": "nom.tam.fits.compress.BZip2CompressionProvider"
+    },
+    {
+      "type": "nom.tam.fits.compress.BasicCompressProvider"
+    },
+    {
+      "type": "nom.tam.fits.compress.ExternalBZip2CompressionProvider"
+    },
+    {
+      "type": "nom.tam.fits.compress.GZipCompressionProvider"
+    },
+    {
+      "type": "nom.tam.fits.compress.ZCompressionProvider"
+    },
+    {
       "type": "org.jcodec.containers.mp4.boxes.PixelAspectExt[]"
     },
     {
@@ -1475,6 +1562,9 @@
     },
     {
       "type": "short[]"
+    },
+    {
+      "type": "short[][][]"
     },
     {
       "type": "sun.awt.SunHints",
@@ -2568,6 +2658,9 @@
       "glob": "META-INF/services/javax.xml.parsers.SAXParserFactory"
     },
     {
+      "glob": "META-INF/services/nom.tam.fits.compress.ICompressProvider"
+    },
+    {
       "glob": "META-INF/services/org.slf4j.spi.SLF4JServiceProvider"
     },
     {
@@ -2614,6 +2707,10 @@
     {
       "module": "java.desktop",
       "glob": "sun/awt/resources/awt_en_US.properties"
+    },
+    {
+      "module": "java.desktop",
+      "glob": "sun/java2d/cmm/profiles/sRGB.pf"
     },
     {
       "module": "jdk.jfr",

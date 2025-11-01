@@ -1,0 +1,1 @@
+images=LOAD_MANY("/home/cchampeau/DEV/astro4j/test-scripts/images")

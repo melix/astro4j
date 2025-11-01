@@ -54,6 +54,7 @@ tasks.withType<JavaExec>().configureEach {
         "-c", "/home/cchampeau/DEV/astro4j/test-scripts/config.json",
         "-i", "/home/cchampeau/DEV/astro4j/test-scripts/Ha-bin2",
 //        "-i", "/home/cchampeau/DEV/astro4j/test-scripts/quick",
+        "-s", "/home/cchampeau/DEV/astro4j/test-scripts/load-images.math",
         "-s", "/home/cchampeau/DEV/astro4j/test-scripts/stack-Ha-aggressive-unsharp.math",
         "-s", "/home/cchampeau/DEV/astro4j/test-scripts/anim.math",
 //        "-s", "/home/cchampeau/DEV/astro4j/test-scripts/stacking-conti.math",
@@ -62,7 +63,7 @@ tasks.withType<JavaExec>().configureEach {
 //        "-p", "kind=clahe",
         "-p", "tile_size=32",
         "-p", "sampling=.25",
-        "-f", "jpg", "-f", "gif",
+        "-f", "jpg", "-f", "png", "-f", "tif", "-f", "fits", "-f", "mp4", "-f", "gif"
         //"-i", "/home/cchampeau/Downloads/sunscan_2025_01_06-13_31_58.ser"
 //        "-d"
     ))
