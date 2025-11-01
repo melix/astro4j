@@ -31,6 +31,7 @@ graalvmNative {
         // Vector API is not supported in native-image yet
 //        buildArgs.addAll(listOf("--add-modules", "jdk.incubator.vector"))
         buildArgs.add("--gc=G1")
+        buildArgs.add("-march=compatibility")
 //        buildArgs.add("-march=native")
     }
 }
