@@ -191,10 +191,9 @@ public class ScriptingEntryPoint implements Runnable {
                 d -> {
                     throw new IllegalStateException("image not available in standalone mode");
                 },
-                Map.of(ProcessParams.class, processParams),
+                Map.of(ProcessParams.class, processParams, AnimationFormat.class, animationFormats()),
                 createBroadcaster(saver, outputDirectory)
         );
-        scriptExecutor.putInContext(AnimationFormat.class, animationFormats());
         try {
             if (params != null) {
                 for (Map.Entry<String, Object> entry : params.entrySet()) {
