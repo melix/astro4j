@@ -15,6 +15,7 @@
  */
 package me.champeau.a4j.jsolex.app;
 
+import me.champeau.a4j.jsolex.processing.expr.repository.ScriptRepository;
 import me.champeau.a4j.jsolex.processing.util.AnimationFormat;
 import me.champeau.a4j.jsolex.processing.util.FitsUtils;
 import me.champeau.a4j.jsolex.processing.util.ImageFormat;
@@ -23,6 +24,7 @@ import me.champeau.a4j.math.tuples.IntPair;
 import java.io.File;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -52,6 +54,7 @@ public class Configuration {
     private static final String SELECTED_LANGUAGE = "selected.language";
     private static final String IMAGE_FORMATS = "image.formats";
     private static final String ANIMATION_FORMATS = "animation.formats";
+    private static final String SCRIPT_REPOSITORIES = "script.repositories";
 
     public static final String DEFAULT_SOLAP_URL = "ftp://ftp.obspm.fr/incoming/solap";
 
@@ -277,6 +280,78 @@ public class Configuration {
                 .map(AnimationFormat::name)
                 .collect(joining(","));
         prefs.put(ANIMATION_FORMATS, formatsString);
+    }
+
+    public List<ScriptRepository> getScriptRepositories() {
+        var repositoriesString = prefs.get(SCRIPT_REPOSITORIES, "");
+        if (repositoriesString.isEmpty()) {
+            return new ArrayList<>();
+        }
+
+        return Arrays.stream(repositoriesString.split("\\|\\|"))
+                .map(String::trim)
+                .filter(s -> !s.isEmpty())
+                .map(this::parseRepository)
+                .filter(Objects::nonNull)
+                .collect(Collectors.toCollection(ArrayList::new));
+    }
+
+    public void setScriptRepositories(List<ScriptRepository> repositories) {
+        if (repositories == null || repositories.isEmpty()) {
+            prefs.remove(SCRIPT_REPOSITORIES);
+            return;
+        }
+
+        var repositoriesString = repositories.stream()
+                .map(repo -> encodeRepository(repo))
+                .collect(joining("||"));
+        prefs.put(SCRIPT_REPOSITORIES, repositoriesString);
+    }
+
+    private String encodeRepository(ScriptRepository repository) {
+        var lastCheckStr = repository.lastCheck() != null ? String.valueOf(repository.lastCheck().toEpochMilli()) : "";
+        return repository.name() + ":::" + repository.url() + ":::" + lastCheckStr + ":::" + repository.enabled();
+    }
+
+    public Instant getLastRepositoryCheckTime() {
+        var lastCheckMillis = prefs.getLong("repository.last.check", 0);
+        if (lastCheckMillis == 0) {
+            return Instant.EPOCH;
+        }
+        return Instant.ofEpochMilli(lastCheckMillis);
+    }
+
+    public void setLastRepositoryCheckTime(Instant instant) {
+        prefs.putLong("repository.last.check", instant.toEpochMilli());
+    }
+
+    private ScriptRepository parseRepository(String encoded) {
+        try {
+            var parts = encoded.split(":::");
+            if (parts.length < 2) {
+                return null;
+            }
+
+            var name = parts[0];
+            var url = parts[1];
+            Instant lastCheck = null;
+            boolean enabled = true;
+
+            if (parts.length >= 3 && !parts[2].isEmpty()) {
+                try {
+                    lastCheck = Instant.ofEpochMilli(Long.parseLong(parts[2]));
+                } catch (NumberFormatException e) {
+                }
+            }
+
+            if (parts.length >= 4 && !parts[3].isEmpty()) {
+                enabled = Boolean.parseBoolean(parts[3]);
+            }
+
+            return new ScriptRepository(name, url, lastCheck, enabled);
+        } catch (Exception e) {
+            return null;
+        }
     }
 
     public enum DirectoryKind {

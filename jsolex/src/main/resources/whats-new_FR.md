@@ -14,6 +14,7 @@
 - Passage à Java 25
 - Les formats de fichier font désormais partie des réglages avancés (en dehors des paramètres de traitement)
 - Ajout de la possibilité de générer des fichiers GIF en plus du MP4
+- Ajout du support pour déclarer des [dépôts de scripts](#depots-de-scripts)
 
 ## Nouveautés de la version 4.1.4
 
@@ -131,6 +132,12 @@ Cela vous permet de combiner plusieurs images en une seule image composite avec 
 ![Création de collages d'images](/docs/collage-interface-fr.jpg)
 
 Vous pouvez sélectionner plusieurs images traitées et les organiser dans une grille.
+
+## Dépôts de scripts
+
+JSol'Ex 4.2 introduit le support des dépôts de scripts, permettant aux utilisateurs de découvrir et télécharger automatiquement des scripts ImageMath publiés par la communauté.
+Les utilisateurs peuvent déclarer des dépôts via le menu Outils en fournissant un nom et une URL.
+Les dépôts de scripts sont un moyen pratique d'étendre les capacités de JSol'Ex avec des scripts contribués par la communauté.
 
 ## Corrections et améliorations
 

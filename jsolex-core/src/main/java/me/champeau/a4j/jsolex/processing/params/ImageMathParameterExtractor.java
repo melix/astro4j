@@ -42,17 +42,23 @@ public class ImageMathParameterExtractor {
         private final Map<String, String> title;
         private final String scriptFileName;
         private final String requiredVersion;
+        private final String author;
+        private final String version;
 
         public ParameterExtractionResult(List<ScriptParameter> parameters,
                                          boolean hasParametersSection,
                                          Map<String, String> title,
                                          String scriptFileName,
-                                         String requiredVersion) {
+                                         String requiredVersion,
+                                         String author,
+                                         String version) {
             this.parameters = List.copyOf(parameters);
             this.hasParametersSection = hasParametersSection;
             this.title = Map.copyOf(title != null ? title : Map.of());
             this.scriptFileName = scriptFileName;
             this.requiredVersion = requiredVersion;
+            this.author = author;
+            this.version = version;
         }
 
         public List<ScriptParameter> getParameters() {
@@ -73,6 +79,14 @@ public class ImageMathParameterExtractor {
 
         public String getRequiredVersion() {
             return requiredVersion;
+        }
+
+        public String getAuthor() {
+            return author;
+        }
+
+        public String getVersion() {
+            return version;
         }
 
         public boolean isVersionSupported() {
@@ -133,6 +147,8 @@ public class ImageMathParameterExtractor {
         boolean hasParametersSection = false;
         Map<String, String> title = new HashMap<>();
         String requiredVersion = null;
+        String author = null;
+        String version = null;
 
         var metaBlocks = script.childrenOfType(MetaBlock.class);
         for (var metaBlock : metaBlocks) {
@@ -142,12 +158,23 @@ public class ImageMathParameterExtractor {
             for (var property : metaProperties) {
                 var identifier = property.firstChildOfType(Identifier.class);
                 if (identifier != null) {
-                    if ("title".equals(identifier.toString()) || "name".equals(identifier.toString())) {
+                    var name = identifier.toString();
+                    if ("title".equals(name) || "name".equals(name)) {
                         title.putAll(extractLocalizedValuesFromProperty(property));
-                    } else if ("requires".equals(identifier.toString())) {
+                    } else if ("requires".equals(name)) {
                         var stringLiteral = property.firstChildOfType(StringLiteral.class);
                         if (stringLiteral != null) {
                             requiredVersion = stringLiteral.toString();
+                        }
+                    } else if ("author".equals(name)) {
+                        var stringLiteral = property.firstChildOfType(StringLiteral.class);
+                        if (stringLiteral != null) {
+                            author = stringLiteral.toString();
+                        }
+                    } else if ("version".equals(name)) {
+                        var stringLiteral = property.firstChildOfType(StringLiteral.class);
+                        if (stringLiteral != null) {
+                            version = stringLiteral.toString();
                         }
                     }
                 }
@@ -165,7 +192,7 @@ public class ImageMathParameterExtractor {
             }
         }
 
-        return new ParameterExtractionResult(parameters, hasParametersSection, title, fileName, requiredVersion);
+        return new ParameterExtractionResult(parameters, hasParametersSection, title, fileName, requiredVersion, author, version);
     }
 
 

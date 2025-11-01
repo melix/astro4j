@@ -3,4 +3,5 @@ build
 .idea
 test-files
 upgrade.groovy
+test-scripts
 

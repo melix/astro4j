@@ -33,8 +33,11 @@ import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
 import javafx.stage.Stage;
+import me.champeau.a4j.jsolex.app.Configuration;
 import me.champeau.a4j.jsolex.app.JSolEx;
 import me.champeau.a4j.jsolex.app.script.JSolExScriptExecutor;
+import me.champeau.a4j.jsolex.processing.expr.repository.RemoteScript;
+import me.champeau.a4j.jsolex.processing.expr.repository.ScriptRepositoryManager;
 import me.champeau.a4j.jsolex.processing.expr.DefaultImageScriptExecutor;
 import me.champeau.a4j.jsolex.processing.expr.ImageMathScriptExecutor;
 import me.champeau.a4j.jsolex.processing.params.ChoiceParameter;
@@ -60,6 +63,7 @@ import org.slf4j.LoggerFactory;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.text.DecimalFormat;
 import java.text.DecimalFormatSymbols;
 import java.text.ParseException;
@@ -73,6 +77,9 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeSet;
+import java.util.stream.Collectors;
+
+import static me.champeau.a4j.jsolex.processing.util.Constants.message;
 
 public class ImageSelectionPanel extends BaseParameterPanel {
     private static final Logger LOGGER = LoggerFactory.getLogger(ImageSelectionPanel.class);
@@ -110,6 +117,10 @@ public class ImageSelectionPanel extends BaseParameterPanel {
     private VBox scriptParametersSection;
     private VBox scriptParametersContainer;
     private Map<String, Object> scriptParameterValues = new HashMap<>();
+    private VBox repositoryScriptsSection;
+    private FlowPane repositoryScriptsContainer;
+    private Set<RemoteScript> selectedRepositoryScripts = new HashSet<>();
+    private ScriptRepositoryManager repositoryManager;
 
     private ProcessParamsController controller;
     private HostServices hostServices;
@@ -198,6 +209,12 @@ public class ImageSelectionPanel extends BaseParameterPanel {
 
         scriptParametersContainer = new VBox();
         scriptParametersContainer.setSpacing(8);
+
+        repositoryManager = new ScriptRepositoryManager();
+
+        repositoryScriptsContainer = new FlowPane();
+        repositoryScriptsContainer.setHgap(8);
+        repositoryScriptsContainer.setVgap(4);
 
     }
 
@@ -298,6 +315,11 @@ public class ImageSelectionPanel extends BaseParameterPanel {
         addGridRow(userPresetsGrid, 0, I18N.string(JSolEx.class, "process-params", "user.presets") + ":", userPresetsContainer);
         userPresetsSection.getChildren().add(userPresetsGrid);
 
+        repositoryScriptsSection = createSection("repository.scripts");
+        repositoryScriptsSection.getChildren().add(repositoryScriptsContainer);
+        repositoryScriptsSection.setVisible(false);
+        repositoryScriptsSection.setManaged(false);
+
         scriptParametersSection = createSection("script.parameters");
         scriptParametersSection.getChildren().add(scriptParametersContainer);
         scriptParametersSection.setVisible(false);
@@ -305,8 +327,9 @@ public class ImageSelectionPanel extends BaseParameterPanel {
 
         loadUserPresets();
         updateUserPresetsVisibility();
+        loadRepositoryScripts();
 
-        getChildren().addAll(actionsSection, userPresetsSection, basicSection, advancedSection, pixelShiftSection, scriptParametersSection, debugSection);
+        getChildren().addAll(actionsSection, userPresetsSection, basicSection, advancedSection, pixelShiftSection, repositoryScriptsSection, scriptParametersSection, debugSection);
     }
 
     private void setupEventHandlers() {
@@ -486,7 +509,7 @@ public class ImageSelectionPanel extends BaseParameterPanel {
                     },
                     controller -> controller.getConfiguration().ifPresent(params -> {
                         this.imageMathParams = params;
-                        updateScriptLabel();
+                        syncRepositoryScriptSelection();
                         updateScriptParametersUI();
 
                         determineCurrentMode();
@@ -499,7 +522,10 @@ public class ImageSelectionPanel extends BaseParameterPanel {
         scriptParametersContainer.getChildren().clear();
         scriptParameterValues.clear();
 
-        if (imageMathParams == null || imageMathParams.scriptFiles().isEmpty()) {
+        var hasUserScripts = imageMathParams != null && !imageMathParams.scriptFiles().isEmpty();
+        var hasRepositoryScripts = !selectedRepositoryScripts.isEmpty();
+
+        if (!hasUserScripts && !hasRepositoryScripts) {
             scriptParametersSection.setVisible(false);
             scriptParametersSection.setManaged(false);
             return;
@@ -509,58 +535,23 @@ public class ImageSelectionPanel extends BaseParameterPanel {
         var currentLanguage = LocaleUtils.getConfiguredLocale().getLanguage();
         var hasAnyParameters = false;
 
-        for (var scriptFile : imageMathParams.scriptFiles()) {
-            try {
-                var result = extractor.extractParameters(scriptFile.toPath());
-                if (!result.getParameters().isEmpty()) {
-                    hasAnyParameters = true;
+        var allRepositoryScriptPaths = selectedRepositoryScripts.stream()
+                .map(RemoteScript::localPath)
+                .map(Path::toAbsolutePath)
+                .collect(Collectors.toSet());
 
-                    var scriptTitle = result.getDisplayTitle(currentLanguage);
-                    var headerText = I18N.string(JSolEx.class, "image-selection", "script.parameters.header");
-                    if (headerText == null || headerText.trim().isEmpty()) {
-                        headerText = "Parameters for %s";
-                    }
-                    var formattedHeader = String.format(headerText, scriptTitle);
-
-                    var headerLabel = new Label(formattedHeader);
-                    headerLabel.setStyle("-fx-font-weight: bold; -fx-font-size: 14px; -fx-padding: 10 0 5 0;");
-                    scriptParametersContainer.getChildren().add(headerLabel);
-
-                    if (!result.isVersionSupported()) {
-                        var warningText = I18N.string(JSolEx.class, "image-selection", "script.version.warning");
-                        var formattedWarning = String.format(warningText, result.getRequiredVersion(), VersionUtil.getVersion());
-
-                        var warningLabel = new Label(formattedWarning);
-                        warningLabel.setStyle("-fx-text-fill: #d73027; -fx-font-weight: bold; -fx-padding: 5 0 5 0; -fx-wrap-text: true;");
-                        scriptParametersContainer.getChildren().add(warningLabel);
-                    }
-
-                    // Create grid for this script's parameters
-                    var grid = createGrid();
-                    var row = 0;
-
-                    for (var param : result.getParameters()) {
-                        var savedFileParams = imageMathParams.parameterValues().get(scriptFile);
-                        var savedValue = savedFileParams != null ? savedFileParams.get(param.getName()) : null;
-                        var valueToUse = savedValue != null ? savedValue : param.getDefaultValue();
-
-                        var control = createParameterControl(param, valueToUse);
-                        if (control != null) {
-                            var displayName = param.getDisplayName(currentLanguage);
-                            var description = param.getDescription(currentLanguage);
-
-                            addGridRowWithDirectTooltip(grid, row++, displayName + ":", control, description);
-
-                            scriptParameterValues.put(param.getName(), valueToUse);
-                        }
-                    }
-
-                    if (row > 0) {
-                        scriptParametersContainer.getChildren().add(grid);
-                    }
+        if (hasUserScripts) {
+            for (var scriptFile : imageMathParams.scriptFiles()) {
+                if (!allRepositoryScriptPaths.contains(scriptFile.toPath().toAbsolutePath())) {
+                    hasAnyParameters |= processScriptParameters(scriptFile.toPath(), scriptFile, extractor, currentLanguage);
                 }
-            } catch (Exception e) {
-                LOGGER.warn("Failed to extract parameters from script: " + scriptFile.getName(), e);
+            }
+        }
+
+        if (hasRepositoryScripts) {
+            for (var script : selectedRepositoryScripts) {
+                var scriptFile = script.localPath().toFile();
+                hasAnyParameters |= processScriptParameters(script.localPath(), scriptFile, extractor, currentLanguage);
             }
         }
 
@@ -573,7 +564,69 @@ public class ImageSelectionPanel extends BaseParameterPanel {
         }
     }
 
-    private Node createParameterControl(ScriptParameter param, Object initialValue) {
+    private boolean processScriptParameters(Path scriptPath, File scriptFile, ImageMathParameterExtractor extractor, String currentLanguage) {
+        if (!Files.exists(scriptPath)) {
+            return false;
+        }
+
+        try {
+            var result = extractor.extractParameters(scriptPath);
+            if (result.getParameters().isEmpty()) {
+                return false;
+            }
+
+            var scriptTitle = result.getDisplayTitle(currentLanguage);
+            var headerText = I18N.string(JSolEx.class, "image-selection", "script.parameters.header");
+            if (headerText == null || headerText.trim().isEmpty()) {
+                headerText = "Parameters for %s";
+            }
+            var formattedHeader = String.format(headerText, scriptTitle);
+
+            var headerLabel = new Label(formattedHeader);
+            headerLabel.setStyle("-fx-font-weight: bold; -fx-font-size: 14px; -fx-padding: 10 0 5 0;");
+            scriptParametersContainer.getChildren().add(headerLabel);
+
+            if (!result.isVersionSupported()) {
+                var warningText = I18N.string(JSolEx.class, "image-selection", "script.version.warning");
+                var formattedWarning = String.format(warningText, result.getRequiredVersion(), VersionUtil.getVersion());
+
+                var warningLabel = new Label(formattedWarning);
+                warningLabel.setStyle("-fx-text-fill: #d73027; -fx-font-weight: bold; -fx-padding: 5 0 5 0; -fx-wrap-text: true;");
+                scriptParametersContainer.getChildren().add(warningLabel);
+            }
+
+            var grid = createGrid();
+            var row = 0;
+
+            for (var param : result.getParameters()) {
+                Map<String, Object> savedFileParams = null;
+                if (scriptFile != null && imageMathParams != null) {
+                    savedFileParams = imageMathParams.parameterValues().get(scriptFile);
+                }
+                var savedValue = savedFileParams != null ? savedFileParams.get(param.getName()) : null;
+                var valueToUse = savedValue != null ? savedValue : param.getDefaultValue();
+
+                var control = createParameterControl(param, valueToUse, scriptFile);
+                if (control != null) {
+                    var displayName = param.getDisplayName(currentLanguage);
+                    var description = param.getDescription(currentLanguage);
+
+                    addGridRowWithDirectTooltip(grid, row++, displayName + ":", control, description);
+                }
+            }
+
+            if (row > 0) {
+                scriptParametersContainer.getChildren().add(grid);
+            }
+
+            return true;
+        } catch (Exception e) {
+            LOGGER.warn(message("script.parameters.extract.failed"), scriptPath.getFileName(), e);
+            return false;
+        }
+    }
+
+    private Node createParameterControl(ScriptParameter param, Object initialValue, File scriptFile) {
         switch (param) {
             case ChoiceParameter choiceParam -> {
                 var choiceBox = createChoiceBox();
@@ -584,8 +637,13 @@ public class ImageSelectionPanel extends BaseParameterPanel {
                 choiceBox.valueProperty().addListener((obs, oldVal, newVal) -> {
                     if (newVal != null) {
                         scriptParameterValues.put(param.getName(), newVal);
+                        updateParameterInImageMathParams(scriptFile, param.getName(), newVal);
                     }
                 });
+                if (initialValue != null) {
+                    scriptParameterValues.put(param.getName(), initialValue);
+                    updateParameterInImageMathParams(scriptFile, param.getName(), initialValue);
+                }
                 return choiceBox;
             }
             case NumberParameter numberParam -> {
@@ -606,6 +664,7 @@ public class ImageSelectionPanel extends BaseParameterPanel {
                         if (doubleValue >= min && doubleValue <= max) {
                             textField.setStyle("");
                             scriptParameterValues.put(param.getName(), doubleValue);
+                            updateParameterInImageMathParams(scriptFile, param.getName(), doubleValue);
                         } else {
                             textField.setStyle("-fx-border-color: red;");
                         }
@@ -615,6 +674,7 @@ public class ImageSelectionPanel extends BaseParameterPanel {
                 });
 
                 scriptParameterValues.put(param.getName(), value);
+                updateParameterInImageMathParams(scriptFile, param.getName(), value);
                 return textField;
             }
             case StringParameter stringParam -> {
@@ -624,14 +684,37 @@ public class ImageSelectionPanel extends BaseParameterPanel {
                 textField.setText(textValue);
                 textField.textProperty().addListener((obs, oldVal, newVal) -> {
                     scriptParameterValues.put(param.getName(), newVal);
+                    updateParameterInImageMathParams(scriptFile, param.getName(), newVal);
                 });
+                scriptParameterValues.put(param.getName(), textValue);
+                updateParameterInImageMathParams(scriptFile, param.getName(), textValue);
                 return textField;
             }
             default -> {
-                LOGGER.warn("Unsupported parameter type: " + param.getClass().getSimpleName());
+                LOGGER.warn(message("script.parameter.type.unsupported"), param.getClass().getSimpleName());
                 return null;
             }
         }
+    }
+
+    private void updateParameterInImageMathParams(File scriptFile, String paramName, Object value) {
+        if (imageMathParams == null || imageMathParams.equals(ImageMathParams.NONE)) {
+            return;
+        }
+
+        var currentFiles = new ArrayList<>(imageMathParams.scriptFiles());
+        var currentParams = new HashMap<>(imageMathParams.parameterValues());
+
+        var fileParams = currentParams.computeIfAbsent(scriptFile, k -> new HashMap<>());
+        if (fileParams instanceof HashMap) {
+            ((HashMap<String, Object>) fileParams).put(paramName, value);
+        } else {
+            var mutableParams = new HashMap<>(fileParams);
+            mutableParams.put(paramName, value);
+            currentParams.put(scriptFile, mutableParams);
+        }
+
+        imageMathParams = new ImageMathParams(currentFiles, currentParams);
     }
 
     private void addGridRowWithDirectTooltip(GridPane grid, int row, String labelText, Node control, String tooltipText) {
@@ -724,6 +807,7 @@ public class ImageSelectionPanel extends BaseParameterPanel {
         var imageMathParams = requestedImages.mathImages();
         if (imageMathParams != null && !imageMathParams.equals(ImageMathParams.NONE)) {
             this.imageMathParams = imageMathParams;
+            syncRepositoryScriptSelection();
             updateScriptLabel();
             updateScriptParametersUI();
         } else {
@@ -792,14 +876,10 @@ public class ImageSelectionPanel extends BaseParameterPanel {
 
         var normalShifts = new ArrayList<>(calculatePixelShiftsForSelectedImages());
         var internalShiftsSet = new HashSet<>(calculateInternalPixelShiftsForSelectedImages());
-        
+
         var finalImageMathParams = ImageMathParams.NONE;
         if (imageMathParams != null && !imageMathParams.equals(ImageMathParams.NONE)) {
-            var nestedParameterValues = new HashMap<File, Map<String, Object>>();
-            for (var scriptFile : imageMathParams.scriptFiles()) {
-                nestedParameterValues.put(scriptFile, Map.copyOf(scriptParameterValues));
-            }
-            finalImageMathParams = new ImageMathParams(imageMathParams.scriptFiles(), nestedParameterValues);
+            finalImageMathParams = imageMathParams;
 
             var scriptPixelShifts = findPixelShifts(finalImageMathParams);
             normalShifts.addAll(scriptPixelShifts.normalShifts());
@@ -840,19 +920,42 @@ public class ImageSelectionPanel extends BaseParameterPanel {
     private void updateScriptLabel() {
         if (imageMathParams != null && !imageMathParams.equals(ImageMathParams.NONE)) {
             var files = imageMathParams.scriptFiles();
-            if (files.isEmpty()) {
-                scriptLabel.setText(I18N.string(JSolEx.class, "process-params", "no.script.loaded"));
-            } else {
-                var names = files.stream().map(File::getName).toList();
-                scriptLabel.setText(String.join(", ", names));
+            if (!files.isEmpty()) {
+                var allRepositoryScriptPaths = new HashSet<Path>();
+                for (var node : repositoryScriptsContainer.getChildren()) {
+                    if (node instanceof CheckBox checkBox) {
+                        var script = (RemoteScript) checkBox.getUserData();
+                        if (script != null) {
+                            allRepositoryScriptPaths.add(script.localPath().toAbsolutePath());
+                        }
+                    }
+                }
+
+                var scriptNames = files.stream()
+                        .filter(file -> !allRepositoryScriptPaths.contains(file.toPath().toAbsolutePath()))
+                        .map(File::getName)
+                        .toList();
+
+                if (!scriptNames.isEmpty()) {
+                    scriptLabel.setText(String.join(", ", scriptNames));
+                    return;
+                }
             }
-        } else {
-            scriptLabel.setText(I18N.string(JSolEx.class, "process-params", "no.script.loaded"));
         }
+
+        scriptLabel.setText(I18N.string(JSolEx.class, "process-params", "no.script.loaded"));
     }
 
     private void clearScripts() {
         imageMathParams = null;
+
+        for (var node : repositoryScriptsContainer.getChildren()) {
+            if (node instanceof CheckBox checkBox) {
+                checkBox.setSelected(false);
+            }
+        }
+        selectedRepositoryScripts.clear();
+
         updateScriptLabel();
         updateScriptParametersUI();
         determineCurrentMode();
@@ -913,7 +1016,7 @@ public class ImageSelectionPanel extends BaseParameterPanel {
                 loadUserPresets();
                 showInfo(I18N.string(JSolEx.class, "process-params", "preset.saved.success"));
             } catch (Exception ex) {
-                LOGGER.error("Failed to save user preset", ex);
+                LOGGER.error(message("user.preset.save.failed"), ex);
                 showError("Failed to save preset: " + ex.getMessage());
             }
         });
@@ -968,7 +1071,7 @@ public class ImageSelectionPanel extends BaseParameterPanel {
                 userPresetsContainer.getChildren().addAll(loadButton, deleteButton);
             }
         } catch (Exception ex) {
-            LOGGER.error("Failed to load user presets", ex);
+            LOGGER.error(message("user.preset.load.failed"), ex);
         }
         updateUserPresetsVisibility();
     }
@@ -978,12 +1081,141 @@ public class ImageSelectionPanel extends BaseParameterPanel {
             var presets = UserPresetIO.loadPresets();
             var hasPresets = !presets.isEmpty();
 
-            // Show or hide the entire user presets section
             userPresetsSection.setVisible(hasPresets);
             userPresetsSection.setManaged(hasPresets);
         } catch (Exception ex) {
-            LOGGER.error("Failed to update user presets visibility", ex);
+            LOGGER.error(message("user.preset.visibility.update.failed"), ex);
         }
+    }
+
+    private void loadRepositoryScripts() {
+        repositoryScriptsContainer.getChildren().clear();
+
+        try {
+            var configuration = Configuration.getInstance();
+            var repositories = configuration.getScriptRepositories();
+
+            if (repositories.isEmpty()) {
+                repositoryScriptsSection.setVisible(false);
+                repositoryScriptsSection.setManaged(false);
+                return;
+            }
+
+            Set<Path> scriptPathsInParams;
+            if (imageMathParams != null && !imageMathParams.scriptFiles().isEmpty()) {
+                scriptPathsInParams = imageMathParams.scriptFiles().stream()
+                        .map(File::toPath)
+                        .map(Path::toAbsolutePath)
+                        .collect(Collectors.toSet());
+            } else {
+                scriptPathsInParams = Collections.emptySet();
+            }
+
+            for (var repository : repositories) {
+                if (!repository.enabled()) {
+                    continue;
+                }
+                var scripts = repositoryManager.getLocalScripts(repository);
+                for (var script : scripts) {
+                    var checkBox = new CheckBox(script.title());
+                    checkBox.setWrapText(true);
+                    checkBox.setTooltip(new Tooltip(script.author() + " - v" + script.version()));
+                    checkBox.setUserData(script);
+
+                    var scriptPath = script.localPath().toAbsolutePath();
+                    var isSelected = scriptPathsInParams.contains(scriptPath);
+                    if (isSelected) {
+                        selectedRepositoryScripts.add(script);
+                    }
+                    checkBox.setSelected(isSelected);
+
+                    checkBox.selectedProperty().addListener((obs, oldValue, newValue) -> {
+                        if (newValue) {
+                            selectedRepositoryScripts.add(script);
+                            addRepositoryScriptToImageMathParams(script);
+                        } else {
+                            selectedRepositoryScripts.remove(script);
+                            removeRepositoryScriptFromImageMathParams(script);
+                        }
+                        updateScriptLabel();
+                        updateScriptParametersUI();
+                        determineCurrentMode();
+                        updateCurrentModeDisplay();
+                    });
+                    repositoryScriptsContainer.getChildren().add(checkBox);
+                }
+            }
+
+            var hasScripts = !repositoryScriptsContainer.getChildren().isEmpty();
+            repositoryScriptsSection.setVisible(hasScripts);
+            repositoryScriptsSection.setManaged(hasScripts);
+        } catch (Exception ex) {
+            LOGGER.error(message("repository.scripts.load.failed"), ex);
+        }
+    }
+
+    private void addRepositoryScriptToImageMathParams(RemoteScript script) {
+        var scriptFile = script.localPath().toFile();
+        var currentFiles = new ArrayList<File>();
+        var currentParams = new HashMap<File, Map<String, Object>>();
+
+        if (imageMathParams != null && !imageMathParams.equals(ImageMathParams.NONE)) {
+            currentFiles.addAll(imageMathParams.scriptFiles());
+            currentParams.putAll(imageMathParams.parameterValues());
+        }
+
+        if (!currentFiles.contains(scriptFile)) {
+            currentFiles.add(scriptFile);
+            currentParams.put(scriptFile, Map.of());
+        }
+
+        imageMathParams = new ImageMathParams(currentFiles, currentParams);
+    }
+
+    private void removeRepositoryScriptFromImageMathParams(RemoteScript script) {
+        if (imageMathParams == null || imageMathParams.equals(ImageMathParams.NONE)) {
+            return;
+        }
+
+        var scriptFile = script.localPath().toFile();
+        var currentFiles = new ArrayList<>(imageMathParams.scriptFiles());
+        var currentParams = new HashMap<>(imageMathParams.parameterValues());
+
+        currentFiles.remove(scriptFile);
+        currentParams.remove(scriptFile);
+
+        if (currentFiles.isEmpty()) {
+            imageMathParams = null;
+        } else {
+            imageMathParams = new ImageMathParams(currentFiles, currentParams);
+        }
+    }
+
+    private void syncRepositoryScriptSelection() {
+        if (imageMathParams == null || imageMathParams.scriptFiles().isEmpty()) {
+            updateScriptLabel();
+            return;
+        }
+
+        var scriptPaths = imageMathParams.scriptFiles().stream()
+                .map(File::toPath)
+                .map(Path::toAbsolutePath)
+                .collect(Collectors.toSet());
+
+        for (var node : repositoryScriptsContainer.getChildren()) {
+            if (node instanceof CheckBox checkBox) {
+                var script = (RemoteScript) checkBox.getUserData();
+                if (script != null) {
+                    var scriptPath = script.localPath().toAbsolutePath();
+                    if (scriptPaths.contains(scriptPath)) {
+                        selectedRepositoryScripts.add(script);
+                        checkBox.setSelected(true);
+                    }
+                }
+            }
+        }
+
+        updateScriptLabel();
     }
 
     public void loadUserPreset(UserPreset preset) {
@@ -1014,6 +1246,7 @@ public class ImageSelectionPanel extends BaseParameterPanel {
             }
 
             imageMathParams = preset.mathImages();
+            syncRepositoryScriptSelection();
             updateScriptLabel();
             updateScriptParametersUI();
 
@@ -1022,7 +1255,7 @@ public class ImageSelectionPanel extends BaseParameterPanel {
             determineCurrentMode();
             updateCurrentModeDisplay();
         } catch (Exception ex) {
-            LOGGER.error("Failed to load user preset: " + preset.displayName(), ex);
+            LOGGER.error(message("user.preset.load.specific.failed"), preset.displayName(), ex);
             showError("Failed to load preset: " + ex.getMessage());
         }
     }
@@ -1040,7 +1273,7 @@ public class ImageSelectionPanel extends BaseParameterPanel {
                 UserPresetIO.deletePreset(presetName);
                 loadUserPresets();
             } catch (Exception ex) {
-                LOGGER.error("Failed to delete user preset: " + presetName, ex);
+                LOGGER.error(message("user.preset.delete.failed"), presetName, ex);
                 showError("Failed to delete preset: " + ex.getMessage());
             }
         }

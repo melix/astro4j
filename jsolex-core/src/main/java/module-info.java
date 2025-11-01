@@ -34,6 +34,7 @@ module me.champeau.a4j.jsolex.core {
     exports me.champeau.a4j.jsolex.processing.color;
     exports me.champeau.a4j.jsolex.processing.expr;
     exports me.champeau.a4j.jsolex.processing.expr.impl;
+    exports me.champeau.a4j.jsolex.processing.expr.repository;
     exports me.champeau.a4j.jsolex.processing.event;
     exports me.champeau.a4j.jsolex.processing.file;
     exports me.champeau.a4j.jsolex.processing.params;
