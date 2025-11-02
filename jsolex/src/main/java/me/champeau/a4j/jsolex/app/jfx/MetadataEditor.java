@@ -421,7 +421,18 @@ public class MetadataEditor {
         choicesBox.setManaged(isChoice);
 
         if (isChoice) {
+            choicesList.setItems(selectedParameter.getChoices());
+            addDefaultValueToChoices();
             removeChoiceButton.setDisable(choicesList.getSelectionModel().getSelectedItem() == null);
+        }
+    }
+
+    private void addDefaultValueToChoices() {
+        if (selectedParameter != null && selectedParameter.getType() == ParameterType.CHOICE) {
+            var defaultValue = defaultValueField.getText().trim();
+            if (!defaultValue.isEmpty() && !selectedParameter.getChoices().contains(defaultValue)) {
+                selectedParameter.getChoices().add(defaultValue);
+            }
         }
     }
 
@@ -519,6 +530,7 @@ public class MetadataEditor {
     private void handleDefaultValueChanged() {
         if (selectedParameter != null) {
             selectedParameter.setDefaultValue(defaultValueField.getText());
+            addDefaultValueToChoices();
         }
     }
 
@@ -706,15 +718,14 @@ public class MetadataEditor {
         }
 
         if (param.getType() == ParameterType.CHOICE && !param.getChoices().isEmpty()) {
-            var choices = new StringBuilder("[");
+            var choices = new StringBuilder();
             for (int i = 0; i < param.getChoices().size(); i++) {
                 if (i > 0) {
                     choices.append(",");
                 }
-                choices.append("\"").append(escapeString(param.getChoices().get(i))).append("\"");
+                choices.append(param.getChoices().get(i));
             }
-            choices.append("]");
-            writer.writeRawProperty("choices", choices.toString());
+            writer.writeProperty("choices", choices.toString());
         }
 
         writer.dedent();
