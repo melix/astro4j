@@ -923,7 +923,8 @@ public class ImageSelectionPanel extends BaseParameterPanel {
             if (!files.isEmpty()) {
                 var allRepositoryScriptPaths = new HashSet<Path>();
                 for (var node : repositoryScriptsContainer.getChildren()) {
-                    if (node instanceof CheckBox checkBox) {
+                    var checkBox = getCheckBoxFromNode(node);
+                    if (checkBox != null) {
                         var script = (RemoteScript) checkBox.getUserData();
                         if (script != null) {
                             allRepositoryScriptPaths.add(script.localPath().toAbsolutePath());
@@ -946,11 +947,25 @@ public class ImageSelectionPanel extends BaseParameterPanel {
         scriptLabel.setText(I18N.string(JSolEx.class, "process-params", "no.script.loaded"));
     }
 
+    private CheckBox getCheckBoxFromNode(Node node) {
+        if (node instanceof CheckBox checkBox) {
+            return checkBox;
+        } else if (node instanceof HBox hbox) {
+            for (var child : hbox.getChildren()) {
+                if (child instanceof CheckBox checkBox) {
+                    return checkBox;
+                }
+            }
+        }
+        return null;
+    }
+
     private void clearScripts() {
         imageMathParams = null;
 
         for (var node : repositoryScriptsContainer.getChildren()) {
-            if (node instanceof CheckBox checkBox) {
+            var checkBox = getCheckBoxFromNode(node);
+            if (checkBox != null) {
                 checkBox.setSelected(false);
             }
         }
@@ -1111,15 +1126,28 @@ public class ImageSelectionPanel extends BaseParameterPanel {
                 scriptPathsInParams = Collections.emptySet();
             }
 
+            var extractor = new ImageMathParameterExtractor();
+            var currentLanguage = LocaleUtils.getConfiguredLocale().getLanguage();
+
             for (var repository : repositories) {
                 if (!repository.enabled()) {
                     continue;
                 }
                 var scripts = repositoryManager.getLocalScripts(repository);
                 for (var script : scripts) {
-                    var checkBox = new CheckBox(script.title());
+                    var checkBox = new CheckBox("[" + repository.name() + "] - " + script.title());
                     checkBox.setWrapText(true);
-                    checkBox.setTooltip(new Tooltip(script.author() + " - v" + script.version()));
+
+                    String description = null;
+                    try {
+                        if (Files.exists(script.localPath())) {
+                            var extractionResult = extractor.extractParameters(script.localPath());
+                            description = extractionResult.getDisplayDescription(currentLanguage);
+                        }
+                    } catch (Exception e) {
+                        LOGGER.debug("Failed to extract description for script: " + script.title(), e);
+                    }
+
                     checkBox.setUserData(script);
 
                     var scriptPath = script.localPath().toAbsolutePath();
@@ -1142,7 +1170,25 @@ public class ImageSelectionPanel extends BaseParameterPanel {
                         determineCurrentMode();
                         updateCurrentModeDisplay();
                     });
-                    repositoryScriptsContainer.getChildren().add(checkBox);
+
+                    if (description != null && !description.isEmpty()) {
+                        var container = new HBox(5);
+                        container.setAlignment(javafx.geometry.Pos.CENTER_LEFT);
+                        container.getChildren().add(checkBox);
+
+                        var helpIcon = new Label("?");
+                        helpIcon.getStyleClass().addAll("help-icon");
+
+                        var customTooltip = new CustomTooltip(description);
+                        customTooltip.attachTo(helpIcon);
+
+                        container.getChildren().add(helpIcon);
+                        repositoryScriptsContainer.getChildren().add(container);
+                    } else {
+                        var fallbackTooltip = script.author() + " - v" + script.version();
+                        checkBox.setTooltip(new Tooltip(fallbackTooltip));
+                        repositoryScriptsContainer.getChildren().add(checkBox);
+                    }
                 }
             }
 
@@ -1203,7 +1249,8 @@ public class ImageSelectionPanel extends BaseParameterPanel {
                 .collect(Collectors.toSet());
 
         for (var node : repositoryScriptsContainer.getChildren()) {
-            if (node instanceof CheckBox checkBox) {
+            var checkBox = getCheckBoxFromNode(node);
+            if (checkBox != null) {
                 var script = (RemoteScript) checkBox.getUserData();
                 if (script != null) {
                     var scriptPath = script.localPath().toAbsolutePath();

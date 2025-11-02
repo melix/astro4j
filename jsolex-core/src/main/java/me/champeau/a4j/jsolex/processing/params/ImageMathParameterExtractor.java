@@ -40,6 +40,7 @@ public class ImageMathParameterExtractor {
         private final List<ScriptParameter> parameters;
         private final boolean hasParametersSection;
         private final Map<String, String> title;
+        private final Map<String, String> description;
         private final String scriptFileName;
         private final String requiredVersion;
         private final String author;
@@ -48,6 +49,7 @@ public class ImageMathParameterExtractor {
         public ParameterExtractionResult(List<ScriptParameter> parameters,
                                          boolean hasParametersSection,
                                          Map<String, String> title,
+                                         Map<String, String> description,
                                          String scriptFileName,
                                          String requiredVersion,
                                          String author,
@@ -55,6 +57,7 @@ public class ImageMathParameterExtractor {
             this.parameters = List.copyOf(parameters);
             this.hasParametersSection = hasParametersSection;
             this.title = Map.copyOf(title != null ? title : Map.of());
+            this.description = Map.copyOf(description != null ? description : Map.of());
             this.scriptFileName = scriptFileName;
             this.requiredVersion = requiredVersion;
             this.author = author;
@@ -71,6 +74,10 @@ public class ImageMathParameterExtractor {
 
         public Map<String, String> getTitle() {
             return title;
+        }
+
+        public Map<String, String> getDescription() {
+            return description;
         }
 
         public String getScriptFileName() {
@@ -119,6 +126,33 @@ public class ImageMathParameterExtractor {
 
             return scriptFileName;
         }
+
+        public String getDisplayDescription(String language) {
+            if (description.isEmpty()) {
+                return null;
+            }
+
+            String descText = description.get(language);
+            if (descText != null) {
+                return descText;
+            }
+
+            descText = description.get("default");
+            if (descText != null) {
+                return descText;
+            }
+
+            descText = description.get("en");
+            if (descText != null) {
+                return descText;
+            }
+
+            if (!description.isEmpty()) {
+                return description.values().iterator().next();
+            }
+
+            return null;
+        }
     }
 
     public ParameterExtractionResult extractParameters(Path scriptFile) throws Exception {
@@ -146,6 +180,7 @@ public class ImageMathParameterExtractor {
         List<ScriptParameter> parameters = new ArrayList<>();
         boolean hasParametersSection = false;
         Map<String, String> title = new HashMap<>();
+        Map<String, String> description = new HashMap<>();
         String requiredVersion = null;
         String author = null;
         String version = null;
@@ -161,6 +196,8 @@ public class ImageMathParameterExtractor {
                     var name = identifier.toString();
                     if ("title".equals(name) || "name".equals(name)) {
                         title.putAll(extractLocalizedValuesFromProperty(property));
+                    } else if ("description".equals(name)) {
+                        description.putAll(extractLocalizedValuesFromProperty(property));
                     } else if ("requires".equals(name)) {
                         var stringLiteral = property.firstChildOfType(StringLiteral.class);
                         if (stringLiteral != null) {
@@ -192,7 +229,7 @@ public class ImageMathParameterExtractor {
             }
         }
 
-        return new ParameterExtractionResult(parameters, hasParametersSection, title, fileName, requiredVersion, author, version);
+        return new ParameterExtractionResult(parameters, hasParametersSection, title, description, fileName, requiredVersion, author, version);
     }
 
 

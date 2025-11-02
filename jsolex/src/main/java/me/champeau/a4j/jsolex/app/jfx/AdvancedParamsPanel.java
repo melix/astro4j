@@ -84,6 +84,27 @@ public class AdvancedParamsPanel extends BaseParameterPanel {
                 "language.tooltip");
         localizationSection.getChildren().add(localizationGrid);
 
+        var outputSection = createSection("output.section");
+        var outputGrid = createGrid();
+
+        var formatsBox = new VBox(8);
+        formatsBox.getChildren().addAll(generatePng, generateJpg, generateTif, generateFits);
+
+        addGridRow(outputGrid, 0,
+                I18N.string(JSolEx.class, "advanced-params", "image.formats"),
+                formatsBox,
+                "image.formats.tooltip");
+
+        var animationFormatsBox = new VBox(8);
+        animationFormatsBox.getChildren().addAll(generateMp4, generateGif);
+
+        addGridRow(outputGrid, 1,
+                I18N.string(JSolEx.class, "advanced-params", "animation.formats"),
+                animationFormatsBox,
+                "animation.formats.tooltip");
+
+        outputSection.getChildren().add(outputGrid);
+
         var performanceSection = createSection("performance.section");
         var performanceGrid = createGrid();
 
@@ -151,28 +172,7 @@ public class AdvancedParamsPanel extends BaseParameterPanel {
 
         dataSection.getChildren().add(dataGrid);
 
-        var outputSection = createSection("output.section");
-        var outputGrid = createGrid();
-
-        var formatsBox = new VBox(8);
-        formatsBox.getChildren().addAll(generatePng, generateJpg, generateTif, generateFits);
-
-        addGridRow(outputGrid, 0,
-                I18N.string(JSolEx.class, "advanced-params", "image.formats"),
-                formatsBox,
-                "image.formats.tooltip");
-
-        var animationFormatsBox = new VBox(8);
-        animationFormatsBox.getChildren().addAll(generateMp4, generateGif);
-
-        addGridRow(outputGrid, 1,
-                I18N.string(JSolEx.class, "advanced-params", "animation.formats"),
-                animationFormatsBox,
-                "animation.formats.tooltip");
-
-        outputSection.getChildren().add(outputGrid);
-
-        getChildren().addAll(localizationSection, performanceSection, dataSection, outputSection);
+        getChildren().addAll(localizationSection, outputSection, performanceSection, dataSection);
     }
 
     private void loadConfiguration() {

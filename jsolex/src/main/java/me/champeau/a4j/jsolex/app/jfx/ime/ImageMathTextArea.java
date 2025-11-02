@@ -863,7 +863,7 @@ public class ImageMathTextArea extends BorderPane {
         var knownProperties = Set.of("type", "name", "description", "default", "min", "max", "choices", "step");
 
         // Known meta properties
-        var knownMetaProperties = Set.of("author", "title", "version", "requires");
+        var knownMetaProperties = Set.of("author", "title", "description", "version", "requires");
 
         // Language codes (extend as needed)
         var languageCodes = Set.of("en", "fr", "de", "es", "it", "pt", "nl", "sv", "da", "no", "fi", "pl", "cs", "sk", "hu", "ro", "bg", "hr", "sl", "et", "lv", "lt", "mt", "ga", "cy");
@@ -888,13 +888,13 @@ public class ImageMathTextArea extends BorderPane {
                     ("name".equals(prop.getName()) || "description".equals(prop.getName()))) {
                     return "language_code";
                 }
-                // Also check for meta properties that support i18n (like title)
+                // Also check for meta properties that support i18n (like title and description)
                 if (parent instanceof ParameterObject) {
                     var grandParent = parent.getParent();
                     if (grandParent != null) {
                         // Check if this is a MetaProperty with a supported i18n property name
                         var metaPropertyName = getMetaPropertyName(grandParent);
-                        if ("title".equals(metaPropertyName)) {
+                        if ("title".equals(metaPropertyName) || "description".equals(metaPropertyName)) {
                             return "language_code";
                         }
                     }

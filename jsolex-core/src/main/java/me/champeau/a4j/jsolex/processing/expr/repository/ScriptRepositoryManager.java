@@ -21,8 +21,6 @@ import me.champeau.a4j.jsolex.processing.util.VersionUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import static me.champeau.a4j.jsolex.processing.util.Constants.message;
-
 import java.io.IOException;
 import java.net.URI;
 import java.net.http.HttpClient;
@@ -38,6 +36,7 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 
+import static me.champeau.a4j.jsolex.processing.util.Constants.message;
 import static me.champeau.a4j.jsolex.processing.util.FilesUtils.createDirectoriesIfNeeded;
 
 public class ScriptRepositoryManager {
