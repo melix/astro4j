@@ -58,7 +58,7 @@
                 <MenuItem onAction="#showSetupEditor" text="%setup.editor"/>
             </Menu>
             <Menu text="%help">
-                <MenuItem onAction="#showHelp" text="%help"/>
+                <MenuItem onAction="#showHelp" text="%documentation"/>
                 <MenuItem onAction="#openDiscord" text="%discord"/>
                 <MenuItem onAction="#donate" text="%donate"/>
                 <MenuItem onAction="#about" text="%about"/>

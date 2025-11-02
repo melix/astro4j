@@ -16,6 +16,8 @@
 package me.champeau.a4j.jsolex.app.jfx;
 
 import javafx.application.HostServices;
+import javafx.beans.property.BooleanProperty;
+import javafx.beans.property.SimpleBooleanProperty;
 import javafx.geometry.Insets;
 import javafx.scene.Node;
 import javafx.scene.control.Alert;
@@ -116,10 +118,12 @@ public class ImageSelectionPanel extends BaseParameterPanel {
     private VBox userPresetsSection;
     private VBox scriptParametersSection;
     private VBox scriptParametersContainer;
-    private Map<String, Object> scriptParameterValues = new HashMap<>();
+    private final Map<String, Object> scriptParameterValues = new HashMap<>();
+    private Map<String, Boolean> scriptParameterValidationStates = new HashMap<>();
+    private final BooleanProperty allScriptParametersValid = new SimpleBooleanProperty(true);
     private VBox repositoryScriptsSection;
     private FlowPane repositoryScriptsContainer;
-    private Set<RemoteScript> selectedRepositoryScripts = new HashSet<>();
+    private final Set<RemoteScript> selectedRepositoryScripts = new HashSet<>();
     private ScriptRepositoryManager repositoryManager;
 
     private ProcessParamsController controller;
@@ -521,6 +525,8 @@ public class ImageSelectionPanel extends BaseParameterPanel {
     private void updateScriptParametersUI() {
         scriptParametersContainer.getChildren().clear();
         scriptParameterValues.clear();
+        scriptParameterValidationStates.clear();
+        updateOverallValidationState();
 
         var hasUserScripts = imageMathParams != null && !imageMathParams.scriptFiles().isEmpty();
         var hasRepositoryScripts = !selectedRepositoryScripts.isEmpty();
@@ -627,6 +633,8 @@ public class ImageSelectionPanel extends BaseParameterPanel {
     }
 
     private Node createParameterControl(ScriptParameter param, Object initialValue, File scriptFile) {
+        var paramKey = (scriptFile != null ? scriptFile.getName() : "unknown") + ":" + param.getName();
+
         switch (param) {
             case ChoiceParameter choiceParam -> {
                 var choiceBox = createChoiceBox();
@@ -634,8 +642,30 @@ public class ImageSelectionPanel extends BaseParameterPanel {
                 if (initialValue != null) {
                     choiceBox.setValue(initialValue.toString());
                 }
+
+                var initialValidationResult = choiceParam.validate(initialValue != null ? initialValue : choiceParam.getDefaultValue());
+                scriptParameterValidationStates.put(paramKey, initialValidationResult.isValid());
+                updateOverallValidationState();
+
+                if (!initialValidationResult.isValid()) {
+                    choiceBox.setStyle("-fx-border-color: red; -fx-border-width: 2px;");
+                    choiceBox.setTooltip(new Tooltip(initialValidationResult.getErrorMessage()));
+                }
+
                 choiceBox.valueProperty().addListener((obs, oldVal, newVal) -> {
                     if (newVal != null) {
+                        var validationResult = choiceParam.validate(newVal);
+                        scriptParameterValidationStates.put(paramKey, validationResult.isValid());
+                        updateOverallValidationState();
+
+                        if (!validationResult.isValid()) {
+                            choiceBox.setStyle("-fx-border-color: red; -fx-border-width: 2px;");
+                            choiceBox.setTooltip(new Tooltip(validationResult.getErrorMessage()));
+                        } else {
+                            choiceBox.setStyle("");
+                            choiceBox.setTooltip(null);
+                        }
+
                         scriptParameterValues.put(param.getName(), newVal);
                         updateParameterInImageMathParams(scriptFile, param.getName(), newVal);
                     }
@@ -656,21 +686,43 @@ public class ImageSelectionPanel extends BaseParameterPanel {
                 var formatter = new DecimalFormat("#.###", DecimalFormatSymbols.getInstance(Locale.US));
                 textField.setText(formatter.format(value));
 
+                var initialValidationResult = numberParam.validate(value);
+                scriptParameterValidationStates.put(paramKey, initialValidationResult.isValid());
+                updateOverallValidationState();
+
+                if (!initialValidationResult.isValid()) {
+                    textField.setStyle("-fx-border-color: red; -fx-border-width: 2px;");
+                    textField.setTooltip(new Tooltip(initialValidationResult.getErrorMessage()));
+                }
+
                 textField.textProperty().addListener((obs, oldVal, newVal) -> {
+                    boolean isValid = false;
+                    String errorMessage = null;
                     try {
                         var number = formatter.parse(newVal);
                         var doubleValue = number.doubleValue();
+                        var validationResult = numberParam.validate(doubleValue);
 
-                        if (doubleValue >= min && doubleValue <= max) {
+                        if (validationResult.isValid()) {
                             textField.setStyle("");
+                            textField.setTooltip(null);
                             scriptParameterValues.put(param.getName(), doubleValue);
                             updateParameterInImageMathParams(scriptFile, param.getName(), doubleValue);
+                            isValid = true;
                         } else {
-                            textField.setStyle("-fx-border-color: red;");
+                            errorMessage = validationResult.getErrorMessage();
                         }
                     } catch (ParseException e) {
-                        textField.setStyle("-fx-border-color: red;");
+                        errorMessage = "Invalid number format";
                     }
+
+                    if (errorMessage != null) {
+                        textField.setStyle("-fx-border-color: red; -fx-border-width: 2px;");
+                        textField.setTooltip(new Tooltip(errorMessage));
+                    }
+
+                    scriptParameterValidationStates.put(paramKey, isValid);
+                    updateOverallValidationState();
                 });
 
                 scriptParameterValues.put(param.getName(), value);
@@ -682,7 +734,31 @@ public class ImageSelectionPanel extends BaseParameterPanel {
                 var textValue = initialValue != null ? initialValue.toString() :
                                (stringParam.getDefaultValue() != null ? stringParam.getDefaultValue().toString() : "");
                 textField.setText(textValue);
+
+                var initialValidationResult = stringParam.validate(textValue);
+                scriptParameterValidationStates.put(paramKey, initialValidationResult.isValid());
+                updateOverallValidationState();
+
+                if (!initialValidationResult.isValid()) {
+                    textField.setStyle("-fx-border-color: red; -fx-border-width: 2px;");
+                    textField.setTooltip(new Tooltip(initialValidationResult.getErrorMessage()));
+                }
+
                 textField.textProperty().addListener((obs, oldVal, newVal) -> {
+                    var validationResult = stringParam.validate(newVal);
+                    boolean isValid = validationResult.isValid();
+
+                    if (isValid) {
+                        textField.setStyle("");
+                        textField.setTooltip(null);
+                    } else {
+                        textField.setStyle("-fx-border-color: red; -fx-border-width: 2px;");
+                        textField.setTooltip(new Tooltip(validationResult.getErrorMessage()));
+                    }
+
+                    scriptParameterValidationStates.put(paramKey, isValid);
+                    updateOverallValidationState();
+
                     scriptParameterValues.put(param.getName(), newVal);
                     updateParameterInImageMathParams(scriptFile, param.getName(), newVal);
                 });
@@ -749,6 +825,16 @@ public class ImageSelectionPanel extends BaseParameterPanel {
 
     public void setBatchMode(boolean batchMode) {
         this.batchMode = batchMode;
+    }
+
+    public BooleanProperty allScriptParametersValidProperty() {
+        return allScriptParametersValid;
+    }
+
+    private void updateOverallValidationState() {
+        boolean allValid = scriptParameterValidationStates.isEmpty() ||
+                          scriptParameterValidationStates.values().stream().allMatch(Boolean::booleanValue);
+        allScriptParametersValid.set(allValid);
     }
 
     public void loadQuickModeSelection() {

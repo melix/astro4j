@@ -81,6 +81,8 @@ public class ProcessParamsController {
     private OutputConfigurationPanel outputPanel;
     private ImageSelectionPanel imageSelectionPanel;
     private Button processSelectedButton;
+    private Button quickButton;
+    private Button fullButton;
 
     public void setup(Stage stage,
                       ProgressOperation progressOperation,
@@ -221,12 +223,21 @@ public class ProcessParamsController {
         HBox.setHgrow(contentArea, Priority.ALWAYS);
 
         var buttonBar = createButtonBar();
+        setupButtonBindings();
 
         root.setTop(header);
         root.setCenter(mainContent);
         root.setBottom(buttonBar);
 
         root.getStyleClass().add("params-dialog");
+    }
+
+    private void setupButtonBindings() {
+        if (imageSelectionPanel != null && quickButton != null && fullButton != null && processSelectedButton != null) {
+            quickButton.disableProperty().bind(imageSelectionPanel.allScriptParametersValidProperty().not());
+            fullButton.disableProperty().bind(imageSelectionPanel.allScriptParametersValidProperty().not());
+            processSelectedButton.disableProperty().bind(imageSelectionPanel.allScriptParametersValidProperty().not());
+        }
     }
 
     private HBox createButtonBar() {
@@ -242,7 +253,7 @@ public class ProcessParamsController {
             stage.close();
         });
 
-        Button quickButton = new Button(I18N.string(JSolEx.class, "process-params", "quick.mode"));
+        quickButton = new Button(I18N.string(JSolEx.class, "process-params", "quick.mode"));
         quickButton.setTooltip(new Tooltip(I18N.string(JSolEx.class, "process-params", "quick.mode.tooltip")));
         quickButton.getStyleClass().add("quick-button");
         quickButton.setMinWidth(120);
@@ -254,7 +265,7 @@ public class ProcessParamsController {
             }
         });
 
-        Button fullButton = new Button(I18N.string(JSolEx.class, "process-params", "full.process"));
+        fullButton = new Button(I18N.string(JSolEx.class, "process-params", "full.process"));
         fullButton.setTooltip(new Tooltip(I18N.string(JSolEx.class, "process-params", "full.process.tooltip")));
         fullButton.getStyleClass().addAll("quick-button");
         fullButton.setMinWidth(160);
