@@ -24,6 +24,7 @@ import javafx.scene.control.ContextMenu;
 import javafx.scene.control.CustomMenuItem;
 import javafx.scene.control.Label;
 import javafx.scene.control.MenuItem;
+import javafx.scene.control.SeparatorMenuItem;
 import javafx.scene.control.Tooltip;
 import javafx.scene.input.Clipboard;
 import javafx.scene.input.ClipboardContent;
@@ -113,6 +114,7 @@ public class ImageMathTextArea extends BorderPane {
     private CheckBox regexCheckBox;
     private int currentSearchIndex = -1;
     private List<SearchMatch> searchMatches = new ArrayList<>();
+    private Runnable metadataEditorHandler;
 
     private static class SearchMatch {
         final int start;
@@ -186,6 +188,10 @@ public class ImageMathTextArea extends BorderPane {
 
     public void setAutoFoldMetaBlocks(boolean autoFold) {
         this.autoFoldMetaBlocks = autoFold;
+    }
+
+    public void setMetadataEditorHandler(Runnable handler) {
+        this.metadataEditorHandler = handler;
     }
 
     public void setText(String text) {
@@ -517,7 +523,14 @@ public class ImageMathTextArea extends BorderPane {
         var selectAllItem = new MenuItem(I18N.string(JSolEx.class, "app", "select.all"));
         selectAllItem.setOnAction(e -> codeArea.selectAll());
 
-        contextMenu.getItems().addAll(copyItem, pasteItem, selectAllItem);
+        var editMetadataItem = new MenuItem(I18N.string(JSolEx.class, "imagemath-editor", "edit.metadata"));
+        editMetadataItem.setOnAction(e -> {
+            if (metadataEditorHandler != null) {
+                metadataEditorHandler.run();
+            }
+        });
+
+        contextMenu.getItems().addAll(copyItem, pasteItem, selectAllItem, new SeparatorMenuItem(), editMetadataItem);
         codeArea.setContextMenu(contextMenu);
 
         // Enable/disable menu items based on selection and clipboard content
@@ -526,6 +539,7 @@ public class ImageMathTextArea extends BorderPane {
             var hasClipboardText = Clipboard.getSystemClipboard().hasString();
             copyItem.setDisable(!hasSelection);
             pasteItem.setDisable(!hasClipboardText);
+            editMetadataItem.setDisable(metadataEditorHandler == null);
         });
     }
 

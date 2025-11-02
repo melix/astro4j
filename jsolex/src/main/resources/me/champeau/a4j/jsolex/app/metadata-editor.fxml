@@ -1,0 +1,175 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.Button?>
+<?import javafx.scene.control.ChoiceBox?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.control.ListView?>
+<?import javafx.scene.control.ScrollPane?>
+<?import javafx.scene.control.TextArea?>
+<?import javafx.scene.control.TextField?>
+<?import javafx.scene.layout.BorderPane?>
+<?import javafx.scene.layout.ColumnConstraints?>
+<?import javafx.scene.layout.GridPane?>
+<?import javafx.scene.layout.HBox?>
+<?import javafx.scene.layout.RowConstraints?>
+<?import javafx.scene.layout.VBox?>
+
+<BorderPane prefHeight="700.0" prefWidth="900.0" styleClass="params-dialog" xmlns="http://javafx.com/javafx/19" xmlns:fx="http://javafx.com/fxml/1" fx:controller="me.champeau.a4j.jsolex.app.jfx.MetadataEditor">
+
+    <!-- Header -->
+    <top>
+        <VBox styleClass="params-header">
+            <Label text="%frame.title" styleClass="params-title"/>
+        </VBox>
+    </top>
+
+    <!-- Main content -->
+    <center>
+        <ScrollPane styleClass="content-scroll-pane" fitToWidth="true">
+            <VBox spacing="16">
+                <padding>
+                    <Insets top="16" right="16" bottom="16" left="16"/>
+                </padding>
+
+                <!-- General Information Section -->
+                <VBox styleClass="panel-section" spacing="12">
+                    <Label text="%general.info" styleClass="panel-section-title"/>
+
+                    <GridPane fx:id="generalInfoGrid" styleClass="form-grid" hgap="12" vgap="8">
+                        <columnConstraints>
+                            <ColumnConstraints minWidth="140" prefWidth="140"/>
+                            <ColumnConstraints hgrow="ALWAYS" minWidth="200"/>
+                            <ColumnConstraints minWidth="20" prefWidth="20"/>
+                        </columnConstraints>
+
+                        <Label text="%author" styleClass="field-label" GridPane.columnIndex="0" GridPane.rowIndex="0"/>
+                        <TextField fx:id="authorField" styleClass="modern-text-field" GridPane.columnIndex="1" GridPane.rowIndex="0"/>
+
+                        <Label text="%version" styleClass="field-label" GridPane.columnIndex="0" GridPane.rowIndex="1"/>
+                        <TextField fx:id="versionField" styleClass="modern-text-field" GridPane.columnIndex="1" GridPane.rowIndex="1"/>
+
+                        <Label text="%requires" styleClass="field-label" GridPane.columnIndex="0" GridPane.rowIndex="2"/>
+                        <TextField fx:id="requiresField" styleClass="modern-text-field" GridPane.columnIndex="1" GridPane.rowIndex="2"/>
+                    </GridPane>
+
+                    <!-- Title Section -->
+                    <VBox spacing="8">
+                        <Label text="%title.en" styleClass="field-label"/>
+                        <TextField fx:id="titleEnField" styleClass="modern-text-field"/>
+
+                        <Label text="%title.fr" styleClass="field-label"/>
+                        <TextField fx:id="titleFrField" styleClass="modern-text-field"/>
+                    </VBox>
+
+                    <!-- Description Section -->
+                    <VBox spacing="8">
+                        <Label text="%description.en" styleClass="field-label"/>
+                        <TextArea fx:id="descriptionEnField" styleClass="modern-text-field" prefRowCount="3" wrapText="true"/>
+
+                        <Label text="%description.fr" styleClass="field-label"/>
+                        <TextArea fx:id="descriptionFrField" styleClass="modern-text-field" prefRowCount="3" wrapText="true"/>
+                    </VBox>
+                </VBox>
+
+                <!-- Parameters Section -->
+                <VBox styleClass="panel-section" spacing="12">
+                    <Label text="%parameters" styleClass="panel-section-title"/>
+
+                    <HBox spacing="16">
+                        <!-- Parameters List -->
+                        <VBox spacing="8" prefWidth="220">
+                            <ListView fx:id="parametersList" styleClass="embedded-editor" prefHeight="300" VBox.vgrow="ALWAYS"/>
+                            <HBox alignment="CENTER" spacing="8">
+                                <Button fx:id="addParameterButton" styleClass="default-button" mnemonicParsing="false" onAction="#handleAddParameter" text="+" prefWidth="50"/>
+                                <Button fx:id="removeParameterButton" styleClass="default-button" mnemonicParsing="false" onAction="#handleRemoveParameter" text="-" prefWidth="50"/>
+                            </HBox>
+                        </VBox>
+
+                        <!-- Parameter Form -->
+                        <VBox fx:id="parameterFormContainer" HBox.hgrow="ALWAYS" disable="true" spacing="12" styleClass="panel-section">
+                                <ScrollPane fitToWidth="true">
+                                    <VBox spacing="12">
+                                        <padding>
+                                            <Insets top="12" right="12" bottom="12" left="12"/>
+                                        </padding>
+
+                                        <GridPane fx:id="parameterBasicGrid" styleClass="form-grid" hgap="12" vgap="8">
+                                            <columnConstraints>
+                                                <ColumnConstraints minWidth="140" prefWidth="140"/>
+                                                <ColumnConstraints hgrow="ALWAYS" minWidth="200"/>
+                                                <ColumnConstraints minWidth="20" prefWidth="20"/>
+                                            </columnConstraints>
+
+                                            <Label text="%parameter.name" styleClass="field-label" GridPane.columnIndex="0" GridPane.rowIndex="0"/>
+                                            <TextField fx:id="parameterNameField" styleClass="modern-text-field" onAction="#handleParameterNameChanged" GridPane.columnIndex="1" GridPane.rowIndex="0"/>
+
+                                            <Label text="%parameter.type" styleClass="field-label" GridPane.columnIndex="0" GridPane.rowIndex="1"/>
+                                            <ChoiceBox fx:id="parameterTypeChoice" styleClass="choice-box" GridPane.columnIndex="1" GridPane.rowIndex="1"/>
+                                        </GridPane>
+
+                                        <VBox spacing="8">
+                                            <Label text="%parameter.display.name.en" styleClass="field-label"/>
+                                            <TextField fx:id="parameterNameEnField" styleClass="modern-text-field" onAction="#handleParameterNameEnChanged"/>
+
+                                            <Label text="%parameter.display.name.fr" styleClass="field-label"/>
+                                            <TextField fx:id="parameterNameFrField" styleClass="modern-text-field" onAction="#handleParameterNameFrChanged"/>
+                                        </VBox>
+
+                                        <VBox spacing="8">
+                                            <Label text="%parameter.description.en" styleClass="field-label"/>
+                                            <TextArea fx:id="parameterDescEnField" styleClass="modern-text-field" prefRowCount="3" wrapText="true" onKeyReleased="#handleParameterDescEnChanged"/>
+
+                                            <Label text="%parameter.description.fr" styleClass="field-label"/>
+                                            <TextArea fx:id="parameterDescFrField" styleClass="modern-text-field" prefRowCount="3" wrapText="true" onKeyReleased="#handleParameterDescFrChanged"/>
+                                        </VBox>
+
+                                        <VBox spacing="4">
+                                            <Label text="%default.value" styleClass="field-label"/>
+                                            <TextField fx:id="defaultValueField" styleClass="modern-text-field" onAction="#handleDefaultValueChanged"/>
+                                        </VBox>
+
+                                        <VBox fx:id="numberFieldsBox" spacing="12">
+                                            <VBox spacing="4">
+                                                <Label text="%min.value" styleClass="field-label"/>
+                                                <TextField fx:id="minValueField" styleClass="modern-text-field" onAction="#handleMinValueChanged"/>
+                                            </VBox>
+
+                                            <VBox spacing="4">
+                                                <Label text="%max.value" styleClass="field-label"/>
+                                                <TextField fx:id="maxValueField" styleClass="modern-text-field" onAction="#handleMaxValueChanged"/>
+                                            </VBox>
+                                        </VBox>
+
+                                        <VBox fx:id="choicesBox" spacing="4">
+                                            <Label text="%choices" styleClass="field-label"/>
+                                            <HBox spacing="8">
+                                                <ListView fx:id="choicesList" styleClass="embedded-editor" prefHeight="120" HBox.hgrow="ALWAYS"/>
+                                                <VBox spacing="8">
+                                                    <TextField fx:id="choiceValueField" styleClass="modern-text-field" promptText="Value"/>
+                                                    <Button fx:id="addChoiceButton" styleClass="default-button" mnemonicParsing="false" onAction="#handleAddChoice" text="%add.choice" prefWidth="80"/>
+                                                    <Button fx:id="removeChoiceButton" styleClass="default-button" mnemonicParsing="false" onAction="#handleRemoveChoice" text="%remove.choice" prefWidth="80"/>
+                                                </VBox>
+                                            </HBox>
+                                        </VBox>
+                                    </VBox>
+                                </ScrollPane>
+                        </VBox>
+                    </HBox>
+                </VBox>
+            </VBox>
+        </ScrollPane>
+    </center>
+
+    <!-- Footer with OK/Cancel buttons -->
+    <bottom>
+        <HBox alignment="CENTER_RIGHT" spacing="12" styleClass="button-bar">
+            <padding>
+                <Insets top="12" right="16" bottom="12" left="16"/>
+            </padding>
+            <Button styleClass="default-button" mnemonicParsing="false" onAction="#handleCancel" text="%cancel"/>
+            <Button styleClass="default-button" mnemonicParsing="false" onAction="#handleOk" text="%ok"/>
+        </HBox>
+    </bottom>
+
+</BorderPane>
