@@ -589,7 +589,7 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
                             int xx = Math.max(0, (int) orig.x() - width / 2);
                             int yy = Math.max(0, (int) orig.y() - height / 2);
                             if (kind == ActionKind.IMAGEMATH_CROP) {
-                                LOGGER.info("Script:\n\ncropped=crop(img(0); {}, {}, {}, {})\n\n", xx, yy, width, height);
+                                LOGGER.info(JSolEx.message("info.script.crop"), xx, yy, width, height);
                             } else if (kind == ActionKind.CROP) {
                                 performCropping(stretchedImage, x, y, width, height);
                             } else if (kind == ActionKind.CREATE_ANIM_OR_PANEL) {
@@ -696,11 +696,11 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
                                 
                                 // Validate bounds
                                 if (startFrame >= totalFrames || endFrame < 0 || frameCount <= 0) {
-                                    LOGGER.error("Invalid frame bounds: startFrame={}, endFrame={}, totalFrames={}, frameCount={}", startFrame, endFrame, totalFrames, frameCount);
+                                    LOGGER.error(JSolEx.message("error.invalid.frame.bounds"), startFrame, endFrame, totalFrames, frameCount);
                                     throw new IllegalArgumentException("Invalid frame selection bounds");
                                 }
                                 if (cropLeft >= originalWidth || cropRight < 0 || cropWidth <= 0) {
-                                    LOGGER.error("Invalid crop bounds: cropLeft={}, cropRight={}, originalWidth={}, cropWidth={}", cropLeft, cropRight, originalWidth, cropWidth);
+                                    LOGGER.error(JSolEx.message("error.invalid.crop.bounds"), cropLeft, cropRight, originalWidth, cropWidth);
                                     throw new IllegalArgumentException("Invalid crop selection bounds");
                                 }
 
@@ -1625,7 +1625,7 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
                 executeSingleFileBatchScript(namingStrategy, batchScriptExecutor, scriptFile);
             }
         } catch (Exception e) {
-            LOGGER.error("Error executing batch scripts for single file", e);
+            LOGGER.error(JSolEx.message("error.batch.scripts.single.file"), e);
         }
     }
 

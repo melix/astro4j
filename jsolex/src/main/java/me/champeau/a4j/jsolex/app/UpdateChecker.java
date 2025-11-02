@@ -99,7 +99,7 @@ class UpdateChecker {
             }
             return Optional.empty();
         } catch (IOException e) {
-            LOGGER.warn("Unable to fetch release information", e);
+            LOGGER.warn(JSolEx.message("warning.unable.fetch.release"), e);
             throw new RuntimeException(e);
         }
 

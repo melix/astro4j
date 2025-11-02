@@ -15,6 +15,7 @@
  */
 package me.champeau.a4j.jsolex.app.jfx.bass2000;
 
+import me.champeau.a4j.jsolex.app.JSolEx;
 import javafx.beans.property.DoubleProperty;
 import javafx.beans.property.SimpleDoubleProperty;
 import javafx.scene.canvas.Canvas;
@@ -25,6 +26,8 @@ import javafx.scene.input.ScrollEvent;
 import javafx.scene.paint.Color;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import static me.champeau.a4j.jsolex.app.JSolEx.message;
 
 class CoordinateMapView extends Canvas {
     private final static Logger LOGGER = LoggerFactory.getLogger(CoordinateMapView.class);
@@ -59,7 +62,7 @@ class CoordinateMapView extends Canvas {
                 worldMapImage = new Image(imageStream);
             }
         } catch (Exception e) {
-            LOGGER.error("Failed to load world map image: " + e.getMessage());
+            LOGGER.error(message("error.failed.load.world.map"), e.getMessage());
         }
     }
 

@@ -1145,7 +1145,7 @@ public class ImageSelectionPanel extends BaseParameterPanel {
                             description = extractionResult.getDisplayDescription(currentLanguage);
                         }
                     } catch (Exception e) {
-                        LOGGER.debug("Failed to extract description for script: " + script.title(), e);
+                        LOGGER.debug(JSolEx.message("debug.failed.extract.description"), script.title(), e);
                     }
 
                     checkBox.setUserData(script);

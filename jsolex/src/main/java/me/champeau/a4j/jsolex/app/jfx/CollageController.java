@@ -67,6 +67,8 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import static me.champeau.a4j.jsolex.app.JSolEx.message;
+
 public class CollageController {
     private static final Logger LOGGER = LoggerFactory.getLogger(CollageController.class);
     private static final DataFormat SLOT_DATA_FORMAT = new DataFormat("application/x-slot-index");
@@ -661,12 +663,12 @@ public class CollageController {
                                 }
                                 stage.close();
                             } catch (Exception e) {
-                                LOGGER.error("Error adding collage to viewer", e);
+                                LOGGER.error(message("error.adding.collage"), e);
                                 throw e;
                             }
                         });
                     } catch (Exception e) {
-                        LOGGER.error("Error creating collage", e);
+                        LOGGER.error(message("error.creating.collage"), e);
                         Platform.runLater(() -> {
                             createCollageButton.setDisable(false);
                         });
@@ -678,7 +680,7 @@ public class CollageController {
             BackgroundOperations.async(task);
 
         } catch (Exception e) {
-            LOGGER.error("Error creating collage parameters", e);
+            LOGGER.error(message("error.creating.collage.params"), e);
             createCollageButton.setDisable(false);
         }
     }
@@ -754,7 +756,7 @@ public class CollageController {
                     _ -> {}
             );
         } catch (Exception e) {
-            LOGGER.error("Failed to add collage to viewer", e);
+            LOGGER.error(message("error.failed.add.collage"), e);
             throw e;
         }
     }

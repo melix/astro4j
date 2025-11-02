@@ -268,7 +268,7 @@ class Step5UploadHandler implements StepHandler {
                 var writableImage = WritableImageSupport.asWritable(displayImage);
                 Platform.runLater(() -> imageView.setImage(writableImage));
             } catch (Exception e) {
-                LOGGER.error("Failed to create preview image", e);
+                LOGGER.error(JSolEx.message("error.failed.create.preview"), e);
             }
         });
 
@@ -394,7 +394,7 @@ class Step5UploadHandler implements StepHandler {
                     uploadDataProvider.closeWizard();
                 });
             } catch (Exception e) {
-                LOGGER.error("Failed to upload file to BASS2000", e);
+                LOGGER.error(JSolEx.message("error.failed.upload.bass2000"), e);
                 Platform.runLater(() -> {
                     updateUploadStatus(message("upload.failed"));
                     hideUploadProgress();

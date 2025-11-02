@@ -67,7 +67,7 @@ public class JSolExServerHolder {
                 var status = this.started.get();
                 runnable.accept(status);
             } catch (Exception e) {
-                LOGGER.error("Error while running listener", e);
+                LOGGER.error(JSolEx.message("error.running.listener"), e);
             }
         }
     }

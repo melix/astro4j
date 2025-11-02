@@ -317,7 +317,7 @@ class Step2ImageOrientationHandler implements StepHandler {
                 var generatedOffBandImage = applyTransformationsToImage(originalOffBandImage, pAngle);
                 transformationListener.setGeneratedOffBandImage(generatedOffBandImage);
             } catch (Exception e) {
-                LOGGER.error("Failed to apply transformations to offband image", e);
+                LOGGER.error(JSolEx.message("error.apply.transformations.offband"), e);
             }
         }
     }

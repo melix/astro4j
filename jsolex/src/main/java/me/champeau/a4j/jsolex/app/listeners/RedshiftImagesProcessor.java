@@ -16,6 +16,7 @@
 package me.champeau.a4j.jsolex.app.listeners;
 
 import me.champeau.a4j.jsolex.app.Configuration;
+import me.champeau.a4j.jsolex.app.JSolEx;
 import me.champeau.a4j.jsolex.app.jfx.BatchOperations;
 import me.champeau.a4j.jsolex.processing.event.ProcessingDoneEvent;
 import me.champeau.a4j.jsolex.processing.event.ProcessingEventListener;
@@ -279,7 +280,7 @@ public class RedshiftImagesProcessor {
         try {
             FilesUtils.saveNonDisplayFiles(anim, outputDirectory, baseName);
         } catch (IOException e) {
-            LOGGER.error("Failed to save animation files", e);
+            LOGGER.error(JSolEx.message("error.failed.save.animation"), e);
         }
 
         // Only emit the display file to avoid duplicate display
@@ -397,7 +398,7 @@ public class RedshiftImagesProcessor {
         try {
             FilesUtils.saveNonDisplayFiles(anim, outputDirectory, baseName);
         } catch (IOException e) {
-            LOGGER.error("Failed to save animation files", e);
+            LOGGER.error(JSolEx.message("error.failed.save.animation"), e);
         }
 
         // Only emit the display file to avoid duplicate display

@@ -115,7 +115,7 @@ class Step1AgreementHandler implements StepHandler {
                     try {
                         Desktop.getDesktop().browse(new URI("https://bass2000.obspm.fr/solex.php"));
                     } catch (Exception e) {
-                        LOGGER.error("Error opening BASS2000 form URL", e);
+                        LOGGER.error(JSolEx.message("error.opening.bass2000.form"), e);
                     }
                 });
                 return false;
@@ -169,7 +169,7 @@ class Step1AgreementHandler implements StepHandler {
                 try {
                     Desktop.getDesktop().browse(new URI(url));
                 } catch (Exception ex) {
-                    LOGGER.error("Error opening URL: {}", url, ex);
+                    LOGGER.error(JSolEx.message("error.opening.url"), url, ex);
                 }
             });
             hyperlink.setStyle("-fx-font-size: 14px;");

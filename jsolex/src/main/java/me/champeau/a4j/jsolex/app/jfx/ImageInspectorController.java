@@ -67,6 +67,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 import java.util.stream.Stream;
 
+import static me.champeau.a4j.jsolex.app.JSolEx.message;
 import static me.champeau.a4j.jsolex.processing.sun.CaptureSoftwareMetadataHelper.findMetadataFile;
 import static me.champeau.a4j.jsolex.processing.util.FilesUtils.createDirectoriesIfNeeded;
 
@@ -479,7 +480,7 @@ public class ImageInspectorController {
                                 deleteParentDirectories(file);
                                 movedFiles.put(file, destination.toFile());
                             } catch (IOException e) {
-                                LOGGER.warn("Could not move file {}", file, e);
+                                LOGGER.warn(message("warning.could.not.move.file"), file, e);
                             }
                         }
                     }
@@ -494,7 +495,7 @@ public class ImageInspectorController {
                                 Files.delete(metadataFile.toPath());
                                 deletedFiles.add(metadataFile);
                             } catch (IOException e) {
-                                LOGGER.warn("Could not delete file {}", metadataFile, e);
+                                LOGGER.warn(message("warning.could.not.delete.file"), metadataFile, e);
                             }
                         } else if (options.serAction == DiscardAction.MOVE) {
                             try {
@@ -503,7 +504,7 @@ public class ImageInspectorController {
                                 Files.move(metadataFile.toPath(), destination);
                                 movedFiles.put(metadataFile, destination.toFile());
                             } catch (IOException e) {
-                                LOGGER.warn("Could not move file {}", metadataFile, e);
+                                LOGGER.warn(message("warning.could.not.move.file"), metadataFile, e);
                             }
                         }
                     });
@@ -517,7 +518,7 @@ public class ImageInspectorController {
                         movedFiles.put(serFile, destination.toFile());
                     }
                 } catch (IOException e) {
-                    LOGGER.warn("Could not delete file {}", serFile, e);
+                    LOGGER.warn(message("warning.could.not.delete.file"), serFile, e);
                 }
             });
             stage.close();
@@ -543,7 +544,7 @@ public class ImageInspectorController {
                 }
                 deleteParentDirectories(file);
             } catch (IOException ex) {
-                LOGGER.warn("Could not delete file {}", file, ex);
+                LOGGER.warn(message("warning.could.not.delete.file"), file, ex);
             }
         }
     }

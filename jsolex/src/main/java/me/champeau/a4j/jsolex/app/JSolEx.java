@@ -155,6 +155,7 @@ import org.slf4j.LoggerFactory;
 
 import javax.imageio.ImageIO;
 import java.io.File;
+import java.text.MessageFormat;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.FileSystems;
@@ -415,9 +416,9 @@ public class JSolEx implements JSolExInterface {
             startWatcherThread();
             repositoryUpdateService.checkAtStartup();
             Thread.startVirtualThread(() -> UpdateChecker.findLatestRelease().ifPresent(this::maybeWarnAboutNewRelease));
-            LOGGER.info("Java runtime version {}", System.getProperty("java.version"));
-            LOGGER.info("Vector API support is {} and {}", VectorApiSupport.isPresent() ? "available" : "missing",
-                    VectorApiSupport.isEnabled() ? "enabled (disable by setting " + VectorApiSupport.VECTOR_API_ENV_VAR + " environment variable to false)" : "disabled");
+            LOGGER.info(message("java.runtime.version"), System.getProperty("java.version"));
+            LOGGER.info(message("vector.api.support"), VectorApiSupport.isPresent() ? message("vector.api.available") : message("vector.api.missing"),
+                    VectorApiSupport.isEnabled() ? message("vector.api.enabled") + MessageFormat.format(message("vector.api.enabled.disable.hint"), VectorApiSupport.VECTOR_API_ENV_VAR) : message("vector.api.disabled"));
             if (config.isAutoStartServer()) {
                 server.start(config.getAutoStartServerPort());
             }
@@ -687,7 +688,7 @@ public class JSolEx implements JSolExInterface {
                     }
                     ImageIO.write(SwingFXUtils.fromFXImage(image, null), outputFile.getName().substring(outputFile.getName().lastIndexOf(".") + 1), outputFile);
                 } catch (IOException ex) {
-                    LOGGER.error("Cannot save image", ex);
+                    LOGGER.error(message("error.cannot.save.image"), ex);
                 }
             });
         }
@@ -743,7 +744,7 @@ public class JSolEx implements JSolExInterface {
                         }
                     } catch (IOException e) {
                         newFiles.remove(child);
-                        LOGGER.error("Unable to determine size of {}", child);
+                        LOGGER.error(message("error.unable.determine.size"), child);
                     }
                 }
                 if (watchService != null) {
@@ -764,7 +765,7 @@ public class JSolEx implements JSolExInterface {
                                     newFiles.put(child, Files.size(child));
                                     LOGGER.info(message("file.added.wait.list"), filename);
                                 } catch (IOException e) {
-                                    LOGGER.error("Unable to determine size of {}", child);
+                                    LOGGER.error(message("error.unable.determine.size"), child);
                                 }
                             }
                         }
@@ -1041,7 +1042,7 @@ public class JSolEx implements JSolExInterface {
 
                 Platform.runLater(() -> workButtons.getChildren().add(interruptWatchButton));
             } catch (IOException e) {
-                LOGGER.error("Cannot create watch service", e);
+                LOGGER.error(message("error.cannot.create.watch.service"), e);
             }
         }
     }
@@ -1139,7 +1140,7 @@ public class JSolEx implements JSolExInterface {
             stage.setScene(scene);
             stage.show();
         } catch (Exception e) {
-            LOGGER.error("Unable to open script repositories dialog", e);
+            LOGGER.error(message("error.unable.open.script.repositories"), e);
         }
     }
 
@@ -1297,7 +1298,7 @@ public class JSolEx implements JSolExInterface {
                     }
                 });
                 for (InvalidExpression expression : result.invalidExpressions()) {
-                    LOGGER.error("Found invalid expression {} ({}): {}", expression.label(), expression.expression(), expression.error().getMessage());
+                    LOGGER.error(message("error.invalid.expression"), expression.label(), expression.expression(), expression.error().getMessage());
                 }
             }
         };
@@ -1822,7 +1823,7 @@ public class JSolEx implements JSolExInterface {
         var listener = createListener(operation, baseName, params, batchMode, sequenceNumber, context);
         processor.addEventListener(listener);
         try {
-            LOGGER.info("File {}", selectedFile.getName());
+            LOGGER.info(message("info.file"), selectedFile.getName());
             processor.process();
         } catch (Throwable ex) {
             LoggingSupport.logError(ex);
@@ -1983,13 +1984,13 @@ public class JSolEx implements JSolExInterface {
                     try {
                         Files.deleteIfExists(md.toPath());
                     } catch (IOException e) {
-                        LOGGER.error("Cannot delete metadata file", e);
+                        LOGGER.error(message("error.cannot.delete.metadata"), e);
                     }
                 });
                 try {
                     Files.deleteIfExists(toDelete);
                 } catch (IOException e) {
-                    LOGGER.error("Cannot delete SER file", e);
+                    LOGGER.error(message("error.cannot.delete.ser"), e);
                 }
             }
             resetUI();

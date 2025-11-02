@@ -107,7 +107,7 @@ public class SerFileTrimmerController {
             try {
                 Files.copy(metadataFile.toPath(), outputMetadataFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
             } catch (IOException e) {
-                LOGGER.error("Cannot copy metadata file", e);
+                LOGGER.error(JSolEx.message("error.cannot.copy.metadata"), e);
             }
         });
     }

@@ -548,7 +548,7 @@ public class Bass2000SubmissionController {
                     step5Handler.setUploadButtonEnabled(true);
                 });
             } catch (Exception e) {
-                LOGGER.error("Failed to save BASS2000 file automatically", e);
+                LOGGER.error(JSolEx.message("error.failed.save.bass2000"), e);
                 Platform.runLater(() -> {
                     var alert = AlertFactory.error("Could not save BASS2000 file: " + e.getMessage());
                     alert.setTitle("Save Error");

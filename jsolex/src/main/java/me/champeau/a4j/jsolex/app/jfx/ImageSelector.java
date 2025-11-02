@@ -51,6 +51,8 @@ import java.util.Set;
 import java.util.TreeSet;
 import java.util.stream.Collectors;
 
+import static me.champeau.a4j.jsolex.app.JSolEx.message;
+
 public class ImageSelector {
     private static final Logger LOGGER = LoggerFactory.getLogger(ImageSelector.class);
 
@@ -381,7 +383,7 @@ public class ImageSelector {
                 try {
                     updatePixelShiftsWithSelectedImages(findPixelShifts(params));
                 } catch (ProcessingException e) {
-                    LOGGER.warn("Error while executing image math script {}", e.getMessage());
+                    LOGGER.warn(message("warning.imagemath.script.error"), e.getMessage());
                     updatePixelShiftsWithSelectedImages(List.of(0d));
                 }
                 this.imageMathParams = params;

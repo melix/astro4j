@@ -15,6 +15,7 @@
  */
 package me.champeau.a4j.jsolex.app.jfx;
 
+import me.champeau.a4j.jsolex.app.JSolEx;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -22,6 +23,8 @@ import java.awt.*;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.util.Locale;
+
+import static me.champeau.a4j.jsolex.app.JSolEx.message;
 
 public class ExplorerSupport {
     private static final Logger LOGGER = LoggerFactory.getLogger(ExplorerSupport.class);
@@ -47,10 +50,10 @@ public class ExplorerSupport {
                         builder.command("explorer.exe", "/select,\"" + imagePath.toAbsolutePath() + "\"");
                         builder.start();
                     } else {
-                        LOGGER.info("Opening files not supported on this platform");
+                        LOGGER.info(message("info.opening.files.not.supported"));
                     }
                 } catch (IOException ex2) {
-                    LOGGER.info("Opening files not supported on this platform");
+                    LOGGER.info(message("info.opening.files.not.supported"));
                 }
             }
         }
