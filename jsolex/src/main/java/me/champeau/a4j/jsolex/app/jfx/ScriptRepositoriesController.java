@@ -20,24 +20,36 @@ import javafx.beans.property.SimpleStringProperty;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.fxml.FXML;
+import javafx.geometry.Insets;
 import javafx.scene.Parent;
 import javafx.scene.control.Button;
 import javafx.scene.control.ButtonType;
 import javafx.scene.control.CheckBox;
+import javafx.scene.control.Label;
+import javafx.scene.control.ScrollPane;
 import javafx.scene.control.TableCell;
 import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableView;
+import javafx.scene.layout.VBox;
+import javafx.scene.text.Font;
+import javafx.scene.text.FontWeight;
 import javafx.stage.Stage;
 import me.champeau.a4j.jsolex.app.AlertFactory;
 import me.champeau.a4j.jsolex.app.Configuration;
 import me.champeau.a4j.jsolex.app.JSolEx;
 import me.champeau.a4j.jsolex.processing.expr.repository.ScriptRepository;
 import me.champeau.a4j.jsolex.processing.expr.repository.ScriptRepositoryManager;
+import me.champeau.a4j.jsolex.processing.params.ImageMathParameterExtractor;
+import me.champeau.a4j.jsolex.processing.util.LocaleUtils;
 
+import java.nio.file.Files;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+
+import static me.champeau.a4j.jsolex.app.JSolEx.newScene;
+import static me.champeau.a4j.jsolex.app.jfx.FXUtils.*;
 
 public class ScriptRepositoriesController {
     private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm")
@@ -119,6 +131,29 @@ public class ScriptRepositoriesController {
             var scripts = repositoryManager.getLocalScripts(cellData.getValue());
             return new SimpleStringProperty(String.valueOf(scripts.size()));
         });
+        scriptsColumn.setCellFactory(column -> new TableCell<>() {
+            @Override
+            protected void updateItem(String item, boolean empty) {
+                super.updateItem(item, empty);
+                if (empty || getTableRow().getItem() == null) {
+                    setText(null);
+                    setGraphic(null);
+                    setStyle("");
+                    setOnMouseClicked(null);
+                } else {
+                    var repository = getTableRow().getItem();
+                    var scripts = repositoryManager.getLocalScripts(repository);
+                    setText(String.valueOf(scripts.size()));
+                    if (!scripts.isEmpty()) {
+                        setStyle("-fx-text-fill: blue; -fx-underline: true; -fx-cursor: hand;");
+                        setOnMouseClicked(event -> showScriptsSummary(repository));
+                    } else {
+                        setStyle("");
+                        setOnMouseClicked(null);
+                    }
+                }
+            }
+        });
         lastCheckColumn.setCellValueFactory(cellData -> {
             var lastCheck = cellData.getValue().lastCheck();
             return new SimpleStringProperty(lastCheck != null ? DATE_FORMATTER.format(lastCheck) : "-");
@@ -138,7 +173,7 @@ public class ScriptRepositoriesController {
     private void addRepository() {
         var fxmlLoader = I18N.fxmlLoader(JSolEx.class, "add-repository");
         try {
-            var dialogStage = FXUtils.newStage();
+            var dialogStage = newStage();
             dialogStage.initOwner(stage);
             var node = (Parent) fxmlLoader.load();
             var controller = (AddRepositoryController) fxmlLoader.getController();
@@ -148,7 +183,7 @@ public class ScriptRepositoriesController {
                 saveRepositories();
                 refreshRepositoryInBackground(repository, repositories.indexOf(repository));
             });
-            var scene = JSolEx.newScene(node);
+            var scene = newScene(node);
             dialogStage.setTitle(I18N.string(JSolEx.class, "script-repositories", "repository.add.title"));
             dialogStage.setScene(scene);
             dialogStage.showAndWait();
@@ -168,7 +203,7 @@ public class ScriptRepositoriesController {
 
         var fxmlLoader = I18N.fxmlLoader(JSolEx.class, "add-repository");
         try {
-            var dialogStage = FXUtils.newStage();
+            var dialogStage = newStage();
             dialogStage.initOwner(stage);
             var node = (Parent) fxmlLoader.load();
             var controller = (AddRepositoryController) fxmlLoader.getController();
@@ -178,7 +213,7 @@ public class ScriptRepositoriesController {
                 repositories.set(index, updated);
                 saveRepositories();
             });
-            var scene = JSolEx.newScene(node);
+            var scene = newScene(node);
             dialogStage.setTitle(I18N.string(JSolEx.class, "script-repositories", "repository.edit.title"));
             dialogStage.setScene(scene);
             dialogStage.showAndWait();
@@ -286,5 +321,72 @@ public class ScriptRepositoriesController {
 
     private void saveRepositories() {
         configuration.setScriptRepositories(new ArrayList<>(repositories));
+    }
+
+    private void showScriptsSummary(ScriptRepository repository) {
+        var scripts = repositoryManager.getLocalScripts(repository);
+        if (scripts.isEmpty()) {
+            return;
+        }
+
+        var extractor = new ImageMathParameterExtractor();
+        var currentLanguage = LocaleUtils.getConfiguredLocale().getLanguage();
+
+        var dialogStage = newStage();
+        dialogStage.initOwner(stage);
+        dialogStage.setTitle(I18N.string(JSolEx.class, "script-repositories", "scripts.summary.title") + " - " + repository.name());
+
+        var content = new VBox(10);
+        content.setPadding(new Insets(15));
+
+        for (var script : scripts) {
+            var scriptBox = new VBox(5);
+            scriptBox.setPadding(new Insets(10));
+            scriptBox.setStyle("-fx-border-color: #cccccc; -fx-border-width: 1; -fx-border-radius: 5; -fx-background-radius: 5;");
+
+            var titleLabel = new Label(script.title());
+            titleLabel.setFont(Font.font(null, FontWeight.BOLD, 14));
+            scriptBox.getChildren().add(titleLabel);
+
+            var authorVersion = new Label(script.author() + " - v" + script.version());
+            authorVersion.setStyle("-fx-text-fill: #666666;");
+            scriptBox.getChildren().add(authorVersion);
+
+            try {
+                if (Files.exists(script.localPath())) {
+                    var extractionResult = extractor.extractParameters(script.localPath());
+                    var description = extractionResult.getDisplayDescription(currentLanguage);
+                    if (description != null && !description.isEmpty()) {
+                        var descLabel = new Label(description);
+                        descLabel.setWrapText(true);
+                        descLabel.setMaxWidth(500);
+                        descLabel.setStyle("-fx-padding: 5 0 0 0;");
+                        scriptBox.getChildren().add(descLabel);
+                    }
+                }
+            } catch (Exception e) {
+            }
+
+            content.getChildren().add(scriptBox);
+        }
+
+        var scrollPane = new ScrollPane(content);
+        scrollPane.setFitToWidth(true);
+        scrollPane.setPrefSize(550, 400);
+
+        var closeButton = new Button(I18N.string(JSolEx.class, "script-repositories", "close"));
+        closeButton.getStyleClass().add("primary-button");
+
+        closeButton.setOnAction(e -> dialogStage.close());
+
+        var buttonBox = new VBox(10);
+        buttonBox.setPadding(new Insets(10));
+        buttonBox.getChildren().add(closeButton);
+        buttonBox.setStyle("-fx-alignment: center;");
+
+        var root = new VBox(scrollPane, buttonBox);
+        var scene = newScene(root);
+        dialogStage.setScene(scene);
+        dialogStage.showAndWait();
     }
 }
