@@ -46,6 +46,7 @@ import javafx.scene.control.Hyperlink;
 import javafx.scene.control.Label;
 import javafx.scene.control.Menu;
 import javafx.scene.control.MenuItem;
+import javafx.scene.control.SeparatorMenuItem;
 import javafx.scene.control.ProgressBar;
 import javafx.scene.control.ScrollPane;
 import javafx.scene.control.Tab;
@@ -88,6 +89,7 @@ import me.champeau.a4j.jsolex.app.jfx.ExposureCalculator;
 import me.champeau.a4j.jsolex.app.jfx.I18N;
 import me.champeau.a4j.jsolex.app.jfx.ImageMathEditor;
 import me.champeau.a4j.jsolex.app.jfx.ImageViewer;
+import me.champeau.a4j.jsolex.app.jfx.MetadataEditor;
 import me.champeau.a4j.jsolex.app.jfx.MultipleImagesViewer;
 import me.champeau.a4j.jsolex.app.jfx.NamingPatternEditor;
 import me.champeau.a4j.jsolex.app.jfx.ProcessParamsController;
@@ -1115,6 +1117,15 @@ public class JSolEx implements JSolExInterface {
         });
     }
 
+    private void openMetadataEditor() {
+        var stage = newStage();
+        var scriptText = imageMathScript.getText();
+        MetadataEditor.openEditor(stage, scriptText, (originalScript, modifiedScript) -> {
+            imageMathScript.setText(modifiedScript);
+            imageMathSave.setDisable(false);
+        });
+    }
+
     @FXML
     private void showScriptRepositories() {
         var fxmlLoader = I18N.fxmlLoader(JSolEx.class, "script-repositories");
@@ -2070,8 +2081,11 @@ public class JSolEx implements JSolExInterface {
         
         var selectAllItem = new MenuItem(I18N.string(JSolEx.class, "app", "select.all"));
         selectAllItem.setOnAction(e -> codeArea.selectAll());
-        
-        contextMenu.getItems().addAll(copyItem, pasteItem, selectAllItem);
+
+        var editMetadataItem = new MenuItem(I18N.string(JSolEx.class, "imagemath-editor", "edit.metadata"));
+        editMetadataItem.setOnAction(e -> openMetadataEditor());
+
+        contextMenu.getItems().addAll(copyItem, pasteItem, selectAllItem, new SeparatorMenuItem(), editMetadataItem);
         codeArea.setContextMenu(contextMenu);
         
         // Enable/disable menu items based on selection and clipboard content

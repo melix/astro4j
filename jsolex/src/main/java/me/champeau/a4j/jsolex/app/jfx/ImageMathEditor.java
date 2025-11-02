@@ -169,6 +169,21 @@ public class ImageMathEditor {
             scriptsToApply.getSelectionModel().selectFirst();
         }
         scriptTextArea.minHeightProperty().bind(stage.heightProperty().subtract(300));
+        scriptTextArea.setMetadataEditorHandler(this::openMetadataEditor);
+    }
+
+    private void openMetadataEditor() {
+        var scriptText = scriptTextArea.getText();
+        var editorStage = new Stage();
+        editorStage.initOwner(stage);
+        MetadataEditor.openEditor(editorStage, scriptText, (oldScript, newScript) -> {
+            if (!oldScript.equals(newScript)) {
+                updatingText.set(true);
+                scriptTextArea.setText(newScript);
+                saveButton.setDisable(false);
+                hasPendingUpdates.set(true);
+            }
+        });
     }
 
     private void loadPredefinedScripts() {
