@@ -33,6 +33,7 @@ import me.champeau.a4j.jsolex.app.Configuration;
 import me.champeau.a4j.jsolex.app.JSolEx;
 import me.champeau.a4j.jsolex.processing.util.AnimationFormat;
 import me.champeau.a4j.jsolex.processing.util.ImageFormat;
+import me.champeau.a4j.jsolex.processing.util.LocaleUtils;
 
 import java.util.EnumSet;
 
@@ -184,6 +185,9 @@ public class AdvancedParamsPanel extends BaseParameterPanel {
         );
 
         initialLanguage = config.getSelectedLanguage();
+        if (initialLanguage == null) {
+            initialLanguage = LocaleUtils.getConfiguredLanguageCode();
+        }
         if ("fr".equals(initialLanguage)) {
             languageSelector.setValue(I18N.string(JSolEx.class, "advanced-params", "language.french"));
         } else {
@@ -254,7 +258,7 @@ public class AdvancedParamsPanel extends BaseParameterPanel {
         var newLanguage = frenchDisplay.equals(selectedLanguageDisplay) ? "fr" : "en";
 
         var memoryChanged = initialMemoryRestriction != newMemoryRestriction;
-        var languageChanged = !initialLanguage.equals(newLanguage);
+        var languageChanged = !newLanguage.equals(initialLanguage);
 
         return memoryChanged || languageChanged;
     }
