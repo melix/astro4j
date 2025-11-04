@@ -118,8 +118,7 @@ public class ImageSelectionPanel extends BaseParameterPanel {
     private VBox userPresetsSection;
     private VBox scriptParametersSection;
     private VBox scriptParametersContainer;
-    private final Map<String, Object> scriptParameterValues = new HashMap<>();
-    private Map<String, Boolean> scriptParameterValidationStates = new HashMap<>();
+    private final Map<String, Boolean> scriptParameterValidationStates = new HashMap<>();
     private final BooleanProperty allScriptParametersValid = new SimpleBooleanProperty(true);
     private VBox repositoryScriptsSection;
     private FlowPane repositoryScriptsContainer;
@@ -524,7 +523,6 @@ public class ImageSelectionPanel extends BaseParameterPanel {
 
     private void updateScriptParametersUI() {
         scriptParametersContainer.getChildren().clear();
-        scriptParameterValues.clear();
         scriptParameterValidationStates.clear();
         updateOverallValidationState();
 
@@ -589,7 +587,7 @@ public class ImageSelectionPanel extends BaseParameterPanel {
             var formattedHeader = String.format(headerText, scriptTitle);
 
             var headerLabel = new Label(formattedHeader);
-            headerLabel.setStyle("-fx-font-weight: bold; -fx-font-size: 14px; -fx-padding: 10 0 5 0;");
+            headerLabel.setStyle("-fx-font-weight: bold; -fx-font-size: 12px; -fx-padding: 10 0 5 30;");
             scriptParametersContainer.getChildren().add(headerLabel);
 
             if (!result.isVersionSupported()) {
@@ -666,12 +664,10 @@ public class ImageSelectionPanel extends BaseParameterPanel {
                             choiceBox.setTooltip(null);
                         }
 
-                        scriptParameterValues.put(param.getName(), newVal);
                         updateParameterInImageMathParams(scriptFile, param.getName(), newVal);
                     }
                 });
                 if (initialValue != null) {
-                    scriptParameterValues.put(param.getName(), initialValue);
                     updateParameterInImageMathParams(scriptFile, param.getName(), initialValue);
                 }
                 return choiceBox;
@@ -706,7 +702,6 @@ public class ImageSelectionPanel extends BaseParameterPanel {
                         if (validationResult.isValid()) {
                             textField.setStyle("");
                             textField.setTooltip(null);
-                            scriptParameterValues.put(param.getName(), doubleValue);
                             updateParameterInImageMathParams(scriptFile, param.getName(), doubleValue);
                             isValid = true;
                         } else {
@@ -725,7 +720,6 @@ public class ImageSelectionPanel extends BaseParameterPanel {
                     updateOverallValidationState();
                 });
 
-                scriptParameterValues.put(param.getName(), value);
                 updateParameterInImageMathParams(scriptFile, param.getName(), value);
                 return textField;
             }
@@ -759,10 +753,8 @@ public class ImageSelectionPanel extends BaseParameterPanel {
                     scriptParameterValidationStates.put(paramKey, isValid);
                     updateOverallValidationState();
 
-                    scriptParameterValues.put(param.getName(), newVal);
                     updateParameterInImageMathParams(scriptFile, param.getName(), newVal);
                 });
-                scriptParameterValues.put(param.getName(), textValue);
                 updateParameterInImageMathParams(scriptFile, param.getName(), textValue);
                 return textField;
             }
