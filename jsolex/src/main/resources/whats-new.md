@@ -1,5 +1,6 @@
 # Welcome to JSol'Ex {{version}}!
 
+- [What's New in Version 4.2.1](#whats-new-in-version-4-2-1) - Bug fixes
 - [Version 4.2.0](#whats-new-in-version-4-2-0) - Script repositories, Java 25, GIF support, file format settings
 - [Version 4.1.4](#whats-new-in-version-4-1-4) - Bug fixes and improvements
 - [Version 4.1.3](#whats-new-in-version-4-1-3) - Improved banding correction
@@ -8,6 +9,10 @@
 - [Version 4.1.0](#whats-new-in-version-4-1-0) - User-defined presets, collage creation
 - [Version 4.0.1](#whats-new-in-version-4-0-1) - Language selection, bug fixes
 - [Version 4.0.0](#whats-new-in-version-4-0-0) - Enhanced UI, BASS2000 integration
+
+## What's New in Version 4.2.1
+
+- Fixed globe not positionned correctly in measure tool when autocrop was not used
 
 ## What's New in Version 4.2.0
 
