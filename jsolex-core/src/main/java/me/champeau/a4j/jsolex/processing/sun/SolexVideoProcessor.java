@@ -443,6 +443,7 @@ public class SolexVideoProcessor implements Broadcaster {
                 } catch (Exception e) {
                     throw new ProcessingException(e);
                 }
+                FileBackedImage.flushImages();
                 System.gc();
             }
 
@@ -664,7 +665,7 @@ public class SolexVideoProcessor implements Broadcaster {
         IntStream.range(0, imageList.size()).mapToObj(i -> new Object() {
             private final WorkflowState state = imageList.get(i);
             private final int step = i;
-        }).parallel().forEach(o -> {
+        }).forEach(o -> {
             broadcast(generationOperation.update(((double) progress.get()) / imageList.size()));
             var state = o.state;
             var step = o.step;
