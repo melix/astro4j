@@ -13,6 +13,7 @@
 ## Nouveautés de la version 4.2.1
 
 - Correction du globe mal positionné dans l'outil de mesure lorsque le recadrage automatique n'était pas utilisé
+- Correction de l'outil d'extraction de frames SER qui n'exportait que des fichiers MP4 même lorsque MP4 et GIF étaient sélectionnés dans les paramètres avancés
 
 ## Nouveautés de la version 4.2.0
 
