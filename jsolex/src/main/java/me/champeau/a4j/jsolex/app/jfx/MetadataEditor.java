@@ -590,6 +590,7 @@ public class MetadataEditor {
 
     @FXML
     private void handleOk() {
+        saveCurrentParameterChanges();
         if (!validateMetadata()) {
             return;
         }
@@ -597,6 +598,42 @@ public class MetadataEditor {
         var newScript = replaceMetaBlock(originalScript, newMetaBlock);
         onSave.accept(originalScript, newScript);
         stage.close();
+    }
+
+    private void saveCurrentParameterChanges() {
+        if (selectedParameter == null) {
+            return;
+        }
+
+        var newName = parameterNameField.getText().trim();
+        if (!newName.isEmpty() && IDENTIFIER_PATTERN.matcher(newName).matches()) {
+            if (parameters.stream().noneMatch(p -> p != selectedParameter && p.getName().equals(newName))) {
+                selectedParameter.setName(newName);
+            }
+        }
+
+        selectedParameter.setDisplayNameEn(parameterNameEnField.getText());
+        selectedParameter.setDisplayNameFr(parameterNameFrField.getText());
+        selectedParameter.setDescriptionEn(parameterDescEnField.getText());
+        selectedParameter.setDescriptionFr(parameterDescFrField.getText());
+        selectedParameter.setDefaultValue(defaultValueField.getText());
+
+        if (selectedParameter.getType() == ParameterType.NUMBER) {
+            try {
+                var minText = minValueField.getText().trim();
+                selectedParameter.setMinValue(minText.isEmpty() ? null : Double.parseDouble(minText));
+            } catch (NumberFormatException e) {
+            }
+            try {
+                var maxText = maxValueField.getText().trim();
+                selectedParameter.setMaxValue(maxText.isEmpty() ? null : Double.parseDouble(maxText));
+            } catch (NumberFormatException e) {
+            }
+        }
+
+        if (selectedParameter.getType() == ParameterType.CHOICE) {
+            addDefaultValueToChoices();
+        }
     }
 
     private boolean validateMetadata() {
