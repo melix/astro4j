@@ -129,6 +129,7 @@ import java.io.PrintWriter;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -752,16 +753,28 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
                                     throw new RuntimeException("Animation creation failed: " + e.getMessage(), e);
                                 }
                                 if (animationResult instanceof FileOutputResult fileOutput) {
-                                    // Generate output filename
-                                    var outputPath = outputDirectory.resolve(
-                                            createNamingStrategy().render(0, null, Constants.TYPE_CUSTOM,
-                                                    "ser-extract-" + System.currentTimeMillis(),
-                                                    computeSerFileBasename(serFile), null) + ".mp4");
+                                    var baseFilename = createNamingStrategy().render(0, null, Constants.TYPE_CUSTOM,
+                                            "ser-extract-" + System.currentTimeMillis(),
+                                            computeSerFileBasename(serFile), null);
 
-                                    Files.createDirectories(outputPath.getParent());
-                                    Files.move(fileOutput.displayFile(), outputPath);
+                                    var filesToMove = fileOutput.allFiles();
+                                    var displayFile = fileOutput.displayFile();
+                                    Path displayOutputPath = null;
 
-                                    broadcast(FileGeneratedEvent.of(GeneratedImageKind.IMAGE_MATH, "SER Frame Extract", outputPath));
+                                    for (var sourceFile : filesToMove) {
+                                        var extension = sourceFile.getFileName().toString().substring(sourceFile.getFileName().toString().lastIndexOf('.'));
+                                        var outputPath = outputDirectory.resolve(baseFilename + extension);
+                                        Files.createDirectories(outputPath.getParent());
+                                        Files.move(sourceFile, outputPath, StandardCopyOption.REPLACE_EXISTING);
+
+                                        if (sourceFile.equals(displayFile)) {
+                                            displayOutputPath = outputPath;
+                                        }
+                                    }
+
+                                    if (displayOutputPath != null) {
+                                        broadcast(FileGeneratedEvent.of(GeneratedImageKind.IMAGE_MATH, "SER Frame Extract", displayOutputPath));
+                                    }
                                 } else {
                                     throw new RuntimeException("Animation creation returned unexpected result type: " +
                                             (animationResult != null ? animationResult.getClass().getName() : "null"));

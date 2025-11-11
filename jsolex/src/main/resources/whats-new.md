@@ -13,6 +13,7 @@
 ## What's New in Version 4.2.1
 
 - Fixed globe not positionned correctly in measure tool when autocrop was not used
+- Fixed SER frames extraction tool only exporting MP4 files even when both MP4 and GIF were selected in advanced parameters
 
 ## What's New in Version 4.2.0
 
