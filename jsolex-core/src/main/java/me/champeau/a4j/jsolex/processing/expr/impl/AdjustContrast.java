@@ -25,6 +25,7 @@ import me.champeau.a4j.jsolex.processing.util.Constants;
 import me.champeau.a4j.jsolex.processing.util.FileBackedImage;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
+import me.champeau.a4j.jsolex.processing.util.RGBImage;
 
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -83,13 +84,23 @@ public class AdjustContrast extends AbstractFunctionImpl {
         if (list.size() < 2) {
             return list;
         }
-        // compute stats of all images
+        var firstImage = ((ImageWrapper) list.getFirst()).unwrapToMemory();
+        if (firstImage instanceof ImageWrapper32) {
+            return equalizeMono(list);
+        } else if (firstImage instanceof RGBImage) {
+            return equalizeRGB(list);
+        } else {
+            throw new IllegalArgumentException("equalize only supports mono and RGB images");
+        }
+    }
+
+    private Object equalizeMono(List<?> list) {
         var stats = list.stream()
                 .parallel()
                 .map(i -> {
                     var img = ((ImageWrapper) i).unwrapToMemory();
                     if (!(img instanceof ImageWrapper32 mono)) {
-                        throw new IllegalArgumentException("equalize only supports mono images");
+                        throw new IllegalArgumentException("equalize requires all images to be of the same type");
                     }
                     return new Object() {
                         private final ImageWrapper32 image = mono.copy();
@@ -97,47 +108,89 @@ public class AdjustContrast extends AbstractFunctionImpl {
                     };
                 })
                 .collect(Collectors.toMap(o -> o.image, o -> o.analysis, (e1, e2) -> e1, LinkedHashMap::new));
-        // compute the average of all averages
         var average = stats.values().stream()
                 .mapToDouble(ImageAnalysis::avg)
                 .average()
                 .orElse(0);
-        // compute the average of all standard deviations
         var stddev = stats.values().stream()
                 .mapToDouble(ImageAnalysis::stddev)
                 .average()
                 .orElse(0);
-        // now "rescale" all images to the average and stddev
         return stats.entrySet()
                 .stream()
                 .map(e -> {
                     var image = e.getKey();
                     var analysis = e.getValue();
-                    var data = image.data();
-                    for (int y = 0; y < image.height(); y++) {
-                        for (int x = 0; x < image.width(); x++) {
-                            double v = data[y][x] - analysis.avg();
-                            // scale by stddev
-                            v = v * stddev / analysis.stddev();
-                            // add target mean
-                            v += average;
-                            data[y][x] = (float) Math.clamp(v, 0, Constants.MAX_PIXEL_VALUE);
-                        }
-                    }
+                    equalizeChannel(image.data(), analysis, (float) average, (float) stddev);
                     return FileBackedImage.wrap(image);
                 })
                 .toList();
     }
 
-    public static void equalize(ImageWrapper32 image, ImageAnalysis analysis, float average, float stddev) {
-        var data = image.data();
-        for (int y = 0; y < image.height(); y++) {
-            for (int x = 0; x < image.width(); x++) {
+    private Object equalizeRGB(List<?> list) {
+        record ChannelStats(ImageAnalysis r, ImageAnalysis g, ImageAnalysis b) {}
+        var stats = list.stream()
+                .parallel()
+                .map(i -> {
+                    var img = ((ImageWrapper) i).unwrapToMemory();
+                    if (!(img instanceof RGBImage rgb)) {
+                        throw new IllegalArgumentException("equalize requires all images to be of the same type");
+                    }
+                    return new Object() {
+                        private final RGBImage image = rgb.copy();
+                        private final ChannelStats analysis = new ChannelStats(
+                                ImageAnalysis.of(image.r()),
+                                ImageAnalysis.of(image.g()),
+                                ImageAnalysis.of(image.b())
+                        );
+                    };
+                })
+                .collect(Collectors.toMap(o -> o.image, o -> o.analysis, (e1, e2) -> e1, LinkedHashMap::new));
+        var avgR = stats.values().stream()
+                .mapToDouble(cs -> cs.r.avg())
+                .average()
+                .orElse(0);
+        var stddevR = stats.values().stream()
+                .mapToDouble(cs -> cs.r.stddev())
+                .average()
+                .orElse(0);
+        var avgG = stats.values().stream()
+                .mapToDouble(cs -> cs.g.avg())
+                .average()
+                .orElse(0);
+        var stddevG = stats.values().stream()
+                .mapToDouble(cs -> cs.g.stddev())
+                .average()
+                .orElse(0);
+        var avgB = stats.values().stream()
+                .mapToDouble(cs -> cs.b.avg())
+                .average()
+                .orElse(0);
+        var stddevB = stats.values().stream()
+                .mapToDouble(cs -> cs.b.stddev())
+                .average()
+                .orElse(0);
+        return stats.entrySet()
+                .stream()
+                .map(e -> {
+                    var image = e.getKey();
+                    var analysis = e.getValue();
+                    equalizeChannel(image.r(), analysis.r, (float) avgR, (float) stddevR);
+                    equalizeChannel(image.g(), analysis.g, (float) avgG, (float) stddevG);
+                    equalizeChannel(image.b(), analysis.b, (float) avgB, (float) stddevB);
+                    return FileBackedImage.wrap(image);
+                })
+                .toList();
+    }
+
+    private static void equalizeChannel(float[][] data, ImageAnalysis analysis, float targetAvg, float targetStddev) {
+        int height = data.length;
+        int width = data[0].length;
+        for (int y = 0; y < height; y++) {
+            for (int x = 0; x < width; x++) {
                 double v = data[y][x] - analysis.avg();
-                // scale by stddev
-                v = v * stddev / analysis.stddev();
-                // add target mean
-                v += average;
+                v = v * targetStddev / analysis.stddev();
+                v += targetAvg;
                 data[y][x] = (float) Math.clamp(v, 0, Constants.MAX_PIXEL_VALUE);
             }
         }
