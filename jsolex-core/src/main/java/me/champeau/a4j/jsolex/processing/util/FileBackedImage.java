@@ -222,10 +222,10 @@ public final class FileBackedImage implements ImageWrapper {
                         } finally {
                             status.lock().unlock();
                         }
-                        System.gc();
                     });
                 }
             }
+            System.gc();
             LOGGER.debug("Flushed images");
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
