@@ -195,8 +195,15 @@ import static me.champeau.a4j.jsolex.processing.sun.CaptureSoftwareMetadataHelpe
 import static me.champeau.a4j.jsolex.processing.util.LoggingSupport.logError;
 
 public class JSolEx implements JSolExInterface {
+
+    private static final long MINIMAL_MEMORY = 6 * 1024 * 1024 * 1024L;
+
     static {
         System.setProperty("java.util.concurrent.ForkJoinPool.common.exceptionHandler", LoggingSupport.class.getName());
+        if (Runtime.getRuntime().maxMemory() < MINIMAL_MEMORY) {
+            System.err.println("Detected low memory environment, limiting parallelism to 2 threads");
+            System.setProperty("java.util.concurrent.ForkJoinPool.common.parallelism", "2");
+        }
     }
 
     private static final Logger LOGGER = LoggerFactory.getLogger(JSolEx.class);
