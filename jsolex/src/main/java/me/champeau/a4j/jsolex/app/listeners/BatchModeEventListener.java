@@ -123,6 +123,7 @@ public class BatchModeEventListener implements ProcessingEventListener, ImageMat
 
     private final int sequenceNumber;
     private DefaultImageScriptExecutor batchScriptExecutor;
+    private final Map<String, Object> pendingVariables = new HashMap<>();
 
     private Header header;
     private final List<BatchItem> allItems;
@@ -561,6 +562,9 @@ public class BatchModeEventListener implements ProcessingEventListener, ImageMat
                 delegate,
                 null
             );
+            for (var entry : pendingVariables.entrySet()) {
+                batchScriptExecutor.putVariable(entry.getKey(), entry.getValue());
+            }
             var discarded = new HashSet<ImageWrapper>();
             dataLock.readLock().lock();
             try {
@@ -805,6 +809,15 @@ public class BatchModeEventListener implements ProcessingEventListener, ImageMat
         }
         updateProgressStatus(true);
         maybeExecuteEndOfBatch();
+    }
+
+    @Override
+    public void putVariable(String name, Object value) {
+        if (batchScriptExecutor != null) {
+            batchScriptExecutor.putVariable(name, value);
+        } else {
+            pendingVariables.put(name, value);
+        }
     }
 
     private record FilteringResult(

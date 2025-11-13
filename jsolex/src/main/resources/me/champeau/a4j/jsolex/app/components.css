@@ -47,6 +47,69 @@
     -fx-background-color: #0056b3;
 }
 
+/* SplitMenuButton Primary Style */
+.split-menu-button.primary-button {
+    -fx-background-color: transparent;
+    -fx-background-radius: 6;
+    -fx-effect: dropshadow(gaussian, rgba(0,123,255,0.3), 4, 0, 0, 1);
+    -fx-padding: 0;
+}
+
+.split-menu-button.primary-button .label {
+    -fx-background-color: #007bff;
+    -fx-text-fill: white;
+    -fx-font-weight: 600;
+    -fx-padding: 4 12;
+    -fx-background-radius: 6 0 0 6;
+    -fx-background-insets: 0;
+    -fx-border-color: transparent rgba(255,255,255,0.3) transparent transparent;
+    -fx-border-width: 0 1 0 0;
+    -fx-min-width: -1;
+}
+
+.split-menu-button.primary-button:hover .label {
+    -fx-background-color: #0056b3;
+}
+
+.split-menu-button.primary-button .arrow-button {
+    -fx-background-color: #007bff;
+    -fx-background-radius: 0 6 6 0;
+    -fx-padding: 4 8;
+    -fx-background-insets: 0;
+    -fx-alignment: CENTER;
+}
+
+.split-menu-button.primary-button:hover .arrow-button {
+    -fx-background-color: #0056b3;
+}
+
+.split-menu-button.primary-button .arrow-button .arrow {
+    -fx-background-color: white;
+    -fx-padding: 3;
+    -fx-shape: "M 0 0 L 4 4 L 8 0 Z";
+}
+
+.split-menu-button.primary-button .context-menu {
+    -fx-background-color: white;
+    -fx-border-color: #dee2e6;
+    -fx-border-width: 1;
+    -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.15), 8, 0, 0, 2);
+}
+
+.split-menu-button.primary-button .context-menu .menu-item {
+    -fx-background-color: transparent;
+    -fx-text-fill: #212529;
+    -fx-padding: 8 16;
+}
+
+.split-menu-button.primary-button .context-menu .menu-item:hover {
+    -fx-background-color: #f8f9fa;
+}
+
+.split-menu-button.primary-button .context-menu .menu-item:focused {
+    -fx-background-color: #e9ecef;
+}
+
 .default-button {
     -fx-background-color: #ffffff;
     -fx-text-fill: #495057;
