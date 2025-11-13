@@ -46,9 +46,10 @@ import javafx.scene.control.Hyperlink;
 import javafx.scene.control.Label;
 import javafx.scene.control.Menu;
 import javafx.scene.control.MenuItem;
-import javafx.scene.control.SeparatorMenuItem;
 import javafx.scene.control.ProgressBar;
 import javafx.scene.control.ScrollPane;
+import javafx.scene.control.SeparatorMenuItem;
+import javafx.scene.control.SplitMenuButton;
 import javafx.scene.control.Tab;
 import javafx.scene.control.TabPane;
 import javafx.scene.control.TableCell;
@@ -93,6 +94,7 @@ import me.champeau.a4j.jsolex.app.jfx.MetadataEditor;
 import me.champeau.a4j.jsolex.app.jfx.MultipleImagesViewer;
 import me.champeau.a4j.jsolex.app.jfx.NamingPatternEditor;
 import me.champeau.a4j.jsolex.app.jfx.ProcessParamsController;
+import me.champeau.a4j.jsolex.app.jfx.ScriptParametersDialog;
 import me.champeau.a4j.jsolex.app.jfx.ScriptRepositoriesController;
 import me.champeau.a4j.jsolex.app.jfx.SerFileTrimmerController;
 import me.champeau.a4j.jsolex.app.jfx.SetupEditor;
@@ -121,9 +123,12 @@ import me.champeau.a4j.jsolex.processing.expr.ImageMathScriptExecutor;
 import me.champeau.a4j.jsolex.processing.expr.ImageMathScriptResult;
 import me.champeau.a4j.jsolex.processing.expr.InvalidExpression;
 import me.champeau.a4j.jsolex.processing.file.FileNamingStrategy;
+import me.champeau.a4j.jsolex.processing.params.ImageMathParameterExtractor;
+import me.champeau.a4j.jsolex.processing.params.NumberParameter;
 import me.champeau.a4j.jsolex.processing.params.ProcessParams;
 import me.champeau.a4j.jsolex.processing.params.ProcessParamsIO;
 import me.champeau.a4j.jsolex.processing.params.RotationKind;
+import me.champeau.a4j.jsolex.processing.params.ScriptParameter;
 import me.champeau.a4j.jsolex.processing.spectrum.SerFileTrimmer;
 import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
 import me.champeau.a4j.jsolex.processing.sun.CaptureSoftwareMetadataHelper;
@@ -155,7 +160,6 @@ import org.slf4j.LoggerFactory;
 
 import javax.imageio.ImageIO;
 import java.io.File;
-import java.text.MessageFormat;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.FileSystems;
@@ -165,6 +169,7 @@ import java.nio.file.StandardWatchEventKinds;
 import java.nio.file.WatchEvent;
 import java.nio.file.WatchKey;
 import java.nio.file.WatchService;
+import java.text.MessageFormat;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
@@ -245,7 +250,7 @@ public class JSolEx implements JSolExInterface {
     @FXML
     private CheckBox clearImagesCheckbox;
     @FXML
-    private Button imageMathRun;
+    private SplitMenuButton imageMathRun;
     @FXML
     private Button imageMathLoad;
     @FXML
@@ -454,6 +459,7 @@ public class JSolEx implements JSolExInterface {
             }
             prevHandler.handle(event);
         });
+        hideArrowButton(true);
     }
 
     private void updateServerStatus(boolean started) {
@@ -897,6 +903,7 @@ public class JSolEx implements JSolExInterface {
     @Override
     public void prepareForScriptExecution(ImageMathScriptExecutor executor, ProcessParams params, ProgressOperation rootOperation, ImageMathScriptExecutor.SectionKind sectionKind) {
         this.scriptExecutor = executor;
+
         imageMathRun.setOnAction(evt -> {
             var text = imageMathScript.getText();
             if (clearImagesCheckbox.isSelected()) {
@@ -907,9 +914,15 @@ public class JSolEx implements JSolExInterface {
                 var operation = rootOperation.createChild("ImageMath Script");
                 executor.putInContext(ProgressOperation.class, operation);
                 executor.putInContext(AnimationFormat.class, config.getAnimationFormats());
+                var parameters = extractScriptParameters(text);
+                var parameterValues = getScriptParameterValues(parameters);
+                for (var entry : parameterValues.entrySet()) {
+                    executor.putVariable(entry.getKey(), entry.getValue());
+                }
                 executor.execute(text, sectionKind);
             });
         });
+
         imageMathSave.setDisable(true);
         imageMathLoad.setOnAction(evt -> {
             var fileChooser = new FileChooser();
@@ -921,6 +934,7 @@ public class JSolEx implements JSolExInterface {
         imageMathScript.textProperty().addListener((o, oldValue, newValue) -> {
             if (newValue != null) {
                 imageMathSave.setDisable(false);
+                updateScriptParametersFromText(newValue);
             }
         });
         imageMathSave.setOnAction(evt -> {
@@ -946,6 +960,7 @@ public class JSolEx implements JSolExInterface {
         if (!scriptFiles.isEmpty()) {
             loadImageMathScriptFrom(scriptFiles.getFirst());
         }
+        updateScriptParametersFromText(imageMathScript.getText());
     }
 
     private void loadImageMathScriptFrom(File file) {
@@ -959,6 +974,120 @@ public class JSolEx implements JSolExInterface {
             });
         }
     }
+
+    private Map<String, Object> getScriptParameterValues(List<ScriptParameter> parameters) {
+        var values = new HashMap<String, Object>();
+        for (var param : parameters) {
+            if (lastExecutionProcessParams != null) {
+                var allParams = lastExecutionProcessParams.combinedImageMathParams().parameterValues();
+                var found = false;
+                for (var entry : allParams.entrySet()) {
+                    var existingParams = entry.getValue();
+                    if (existingParams != null && existingParams.containsKey(param.getName())) {
+                        var value = existingParams.get(param.getName());
+                        if (param instanceof NumberParameter && value instanceof String str) {
+                            try {
+                                value = Double.parseDouble(str);
+                            } catch (NumberFormatException e) {
+                                LOGGER.warn("Failed to parse parameter {} as number: {}", param.getName(), str);
+                                continue;
+                            }
+                        }
+                        values.put(param.getName(), value);
+                        found = true;
+                        break;
+                    }
+                }
+                if (!found && param.getDefaultValue() != null) {
+                    values.put(param.getName(), param.getDefaultValue());
+                }
+            } else if (param.getDefaultValue() != null) {
+                values.put(param.getName(), param.getDefaultValue());
+            }
+        }
+        return values;
+    }
+
+    private void updateScriptParametersFromText(String scriptText) {
+        var parameters = extractScriptParameters(scriptText);
+        updateParametersMenuItem(parameters);
+    }
+
+    private List<ScriptParameter> extractScriptParameters(String scriptText) {
+        if (scriptText == null || scriptText.isEmpty()) {
+            return List.of();
+        }
+        try {
+            var extractor = new ImageMathParameterExtractor();
+            var result = extractor.extractParameters(scriptText);
+            return result.getParameters();
+        } catch (Exception e) {
+            LOGGER.debug("Error extracting parameters from script", e);
+            return List.of();
+        }
+    }
+
+    private void updateParametersMenuItem(List<ScriptParameter> parameters) {
+        Platform.runLater(() -> {
+            if (imageMathRun != null && imageMathRun.getItems() != null) {
+                if (parameters.isEmpty()) {
+                    imageMathRun.getItems().clear();
+                    hideArrowButton(true);
+                } else if (imageMathRun.getItems().isEmpty()) {
+                    var paramsMenuItem = new MenuItem(I18N.string(JSolEx.class, "app", "imagemath.params"));
+                    paramsMenuItem.setOnAction(evt -> showScriptParametersDialogAndRun());
+                    imageMathRun.getItems().add(paramsMenuItem);
+                    hideArrowButton(false);
+                }
+            }
+        });
+    }
+
+    private void hideArrowButton(boolean hide) {
+        imageMathRun.lookupAll(".arrow-button").forEach(node -> {
+            node.setVisible(!hide);
+            node.setManaged(!hide);
+        });
+        var label = imageMathRun.lookup(".label");
+        if (label != null) {
+            if (hide) {
+                label.setStyle("-fx-background-radius: 6; -fx-border-width: 0;");
+            } else {
+                label.setStyle("");
+            }
+        }
+    }
+
+    private void showScriptParametersDialogAndRun() {
+        var scriptText = imageMathScript.getText();
+        var parameters = extractScriptParameters(scriptText);
+        var currentValues = getScriptParameterValues(parameters);
+        var dialog = new ScriptParametersDialog(parameters, currentValues);
+        var result = dialog.showAndWait(rootStage);
+        if (result != null && lastExecutionProcessParams != null) {
+            var currentMathParams = lastExecutionProcessParams.requestedImages().mathImages();
+            var updatedParamValues = new HashMap<>(currentMathParams.parameterValues());
+            var scriptFile = currentMathParams.scriptFiles().isEmpty() ? new File("") : currentMathParams.scriptFiles().getFirst();
+            updatedParamValues.put(scriptFile, result);
+            var updatedMathParams = new me.champeau.a4j.jsolex.processing.params.ImageMathParams(currentMathParams.scriptFiles(), updatedParamValues);
+            var updatedRequestedImages = lastExecutionProcessParams.requestedImages().withMathImages(updatedMathParams);
+            lastExecutionProcessParams = new ProcessParams(
+                lastExecutionProcessParams.spectrumParams(),
+                lastExecutionProcessParams.observationDetails(),
+                lastExecutionProcessParams.extraParams(),
+                lastExecutionProcessParams.videoParams(),
+                lastExecutionProcessParams.geometryParams(),
+                lastExecutionProcessParams.bandingCorrectionParams(),
+                updatedRequestedImages,
+                lastExecutionProcessParams.claheParams(),
+                lastExecutionProcessParams.autoStretchParams(),
+                lastExecutionProcessParams.contrastEnhancement(),
+                lastExecutionProcessParams.enhancementParams()
+            );
+            imageMathRun.fire();
+        }
+    }
+
 
     @FXML
     private void open() {

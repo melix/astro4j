@@ -830,6 +830,10 @@ public class MetadataEditor {
                 var start = metaBlock.getBeginOffset();
                 var end = metaBlock.getEndOffset();
 
+                if (end < script.length() && script.charAt(end) == '\n') {
+                    end++;
+                }
+
                 return script.substring(0, start) + newMetaBlock + script.substring(end);
             } else {
                 return newMetaBlock + "\n" + script;

@@ -451,7 +451,6 @@ public class DefaultImageScriptExecutor implements ImageMathScriptExecutor {
                 }
             }
         } catch (Exception e) {
-            // Log error but don't fail script execution
             LOGGER.warn("Failed to extract script parameters: " + e.getMessage());
         }
     }

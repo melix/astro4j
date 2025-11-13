@@ -442,6 +442,7 @@ public final class FileBackedImage implements ImageWrapper {
             super(referent, queue);
             this.image = image;
             this.source = switch (referent) {
+                case null -> null;
                 case ImageWrapper32 mono ->
                         new ImageWrapper32(mono.width(), mono.height(), mono.data(), mono.metadata());
                 case RGBImage rgb -> new RGBImage(rgb.width(), rgb.height(), rgb.r(), rgb.g(), rgb.b(), rgb.metadata());

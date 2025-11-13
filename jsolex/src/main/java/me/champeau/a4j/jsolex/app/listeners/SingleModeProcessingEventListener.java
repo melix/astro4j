@@ -184,6 +184,7 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
     private Map<Class, Object> scriptExecutionContext;
     private ImageEmitter imageEmitter;
     private ImageMathScriptExecutor imageScriptExecutor;
+    private final Map<String, Object> pendingVariables = new HashMap<>();
     private long sd;
     private long ed;
     private final Map<PixelShift, ImageWrapper> shiftImages;
@@ -947,6 +948,9 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
                 this,
                 null
         );
+        for (var entry : pendingVariables.entrySet()) {
+            imageScriptExecutor.putVariable(entry.getKey(), entry.getValue());
+        }
         ed = payload.timestamp();
         var duration = java.time.Duration.ofNanos(ed - sd);
         double seconds = duration.toMillis() / 1000d;
@@ -1061,7 +1065,7 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
             onNotification(new NotificationEvent(new Notification(
                     Notification.AlertType.ERROR,
                     message("error.processing.script"),
-                    message("script.errors." + (errorCount == SpectrumAnalyzer.DEFAULT_ORDER ? "single" : "many")),
+                    message("script.errors." + (errorCount == 1 ? "single" : "many")),
                     message
             )));
         }
@@ -1124,6 +1128,15 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
     public <T> void putInContext(Class<T> key, Object value) {
         if (imageScriptExecutor != null) {
             imageScriptExecutor.putInContext(key, value);
+        }
+    }
+
+    @Override
+    public void putVariable(String name, Object value) {
+        if (imageScriptExecutor != null) {
+            imageScriptExecutor.putVariable(name, value);
+        } else {
+            pendingVariables.put(name, value);
         }
     }
 

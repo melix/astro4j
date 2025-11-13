@@ -600,26 +600,35 @@ public class ImageSelectionPanel extends BaseParameterPanel {
             }
 
             var grid = createGrid();
-            var row = 0;
 
+            Map<String, Object> savedFileParams = null;
+            if (scriptFile != null && imageMathParams != null) {
+                savedFileParams = imageMathParams.parameterValues().get(scriptFile);
+            }
+
+            var initialValues = new HashMap<String, Object>();
             for (var param : result.getParameters()) {
-                Map<String, Object> savedFileParams = null;
-                if (scriptFile != null && imageMathParams != null) {
-                    savedFileParams = imageMathParams.parameterValues().get(scriptFile);
-                }
                 var savedValue = savedFileParams != null ? savedFileParams.get(param.getName()) : null;
                 var valueToUse = savedValue != null ? savedValue : param.getDefaultValue();
-
-                var control = createParameterControl(param, valueToUse, scriptFile);
-                if (control != null) {
-                    var displayName = param.getDisplayName(currentLanguage);
-                    var description = param.getDescription(currentLanguage);
-
-                    addGridRowWithDirectTooltip(grid, row++, displayName + ":", control, description);
+                if (valueToUse != null) {
+                    initialValues.put(param.getName(), valueToUse);
                 }
             }
 
-            if (row > 0) {
+            ScriptParameterUIBuilder.buildParameterGrid(
+                grid,
+                result.getParameters(),
+                currentLanguage,
+                initialValues,
+                (paramName, isValid) -> {
+                    var paramKey = (scriptFile != null ? scriptFile.getName() : "unknown") + ":" + paramName;
+                    scriptParameterValidationStates.put(paramKey, isValid);
+                    updateOverallValidationState();
+                },
+                (paramName, value) -> updateParameterInImageMathParams(scriptFile, paramName, value)
+            );
+
+            if (!result.getParameters().isEmpty()) {
                 scriptParametersContainer.getChildren().add(grid);
             }
 
@@ -627,141 +636,6 @@ public class ImageSelectionPanel extends BaseParameterPanel {
         } catch (Exception e) {
             LOGGER.warn(message("script.parameters.extract.failed"), scriptPath.getFileName(), e);
             return false;
-        }
-    }
-
-    private Node createParameterControl(ScriptParameter param, Object initialValue, File scriptFile) {
-        var paramKey = (scriptFile != null ? scriptFile.getName() : "unknown") + ":" + param.getName();
-
-        switch (param) {
-            case ChoiceParameter choiceParam -> {
-                var choiceBox = createChoiceBox();
-                choiceBox.getItems().addAll(choiceParam.getChoices());
-                if (initialValue != null) {
-                    choiceBox.setValue(initialValue.toString());
-                }
-
-                var initialValidationResult = choiceParam.validate(initialValue != null ? initialValue : choiceParam.getDefaultValue());
-                scriptParameterValidationStates.put(paramKey, initialValidationResult.isValid());
-                updateOverallValidationState();
-
-                if (!initialValidationResult.isValid()) {
-                    choiceBox.setStyle("-fx-border-color: red; -fx-border-width: 2px;");
-                    choiceBox.setTooltip(new Tooltip(initialValidationResult.getErrorMessage()));
-                }
-
-                choiceBox.valueProperty().addListener((obs, oldVal, newVal) -> {
-                    if (newVal != null) {
-                        var validationResult = choiceParam.validate(newVal);
-                        scriptParameterValidationStates.put(paramKey, validationResult.isValid());
-                        updateOverallValidationState();
-
-                        if (!validationResult.isValid()) {
-                            choiceBox.setStyle("-fx-border-color: red; -fx-border-width: 2px;");
-                            choiceBox.setTooltip(new Tooltip(validationResult.getErrorMessage()));
-                        } else {
-                            choiceBox.setStyle("");
-                            choiceBox.setTooltip(null);
-                        }
-
-                        updateParameterInImageMathParams(scriptFile, param.getName(), newVal);
-                    }
-                });
-                if (initialValue != null) {
-                    updateParameterInImageMathParams(scriptFile, param.getName(), initialValue);
-                }
-                return choiceBox;
-            }
-            case NumberParameter numberParam -> {
-                var textField = new TextField();
-                var min = numberParam.getMin() != null ? numberParam.getMin().doubleValue() : Double.NEGATIVE_INFINITY;
-                var max = numberParam.getMax() != null ? numberParam.getMax().doubleValue() : Double.POSITIVE_INFINITY;
-                var value = initialValue instanceof Number num ? num.doubleValue() :
-                           (numberParam.getDefaultValue() instanceof Number defNum ? defNum.doubleValue() : 0.0);
-
-                var formatter = new DecimalFormat("#.###", DecimalFormatSymbols.getInstance(Locale.US));
-                textField.setText(formatter.format(value));
-
-                var initialValidationResult = numberParam.validate(value);
-                scriptParameterValidationStates.put(paramKey, initialValidationResult.isValid());
-                updateOverallValidationState();
-
-                if (!initialValidationResult.isValid()) {
-                    textField.setStyle("-fx-border-color: red; -fx-border-width: 2px;");
-                    textField.setTooltip(new Tooltip(initialValidationResult.getErrorMessage()));
-                }
-
-                textField.textProperty().addListener((obs, oldVal, newVal) -> {
-                    boolean isValid = false;
-                    String errorMessage = null;
-                    try {
-                        var number = formatter.parse(newVal);
-                        var doubleValue = number.doubleValue();
-                        var validationResult = numberParam.validate(doubleValue);
-
-                        if (validationResult.isValid()) {
-                            textField.setStyle("");
-                            textField.setTooltip(null);
-                            updateParameterInImageMathParams(scriptFile, param.getName(), doubleValue);
-                            isValid = true;
-                        } else {
-                            errorMessage = validationResult.getErrorMessage();
-                        }
-                    } catch (ParseException e) {
-                        errorMessage = "Invalid number format";
-                    }
-
-                    if (errorMessage != null) {
-                        textField.setStyle("-fx-border-color: red; -fx-border-width: 2px;");
-                        textField.setTooltip(new Tooltip(errorMessage));
-                    }
-
-                    scriptParameterValidationStates.put(paramKey, isValid);
-                    updateOverallValidationState();
-                });
-
-                updateParameterInImageMathParams(scriptFile, param.getName(), value);
-                return textField;
-            }
-            case StringParameter stringParam -> {
-                var textField = new TextField();
-                var textValue = initialValue != null ? initialValue.toString() :
-                               (stringParam.getDefaultValue() != null ? stringParam.getDefaultValue().toString() : "");
-                textField.setText(textValue);
-
-                var initialValidationResult = stringParam.validate(textValue);
-                scriptParameterValidationStates.put(paramKey, initialValidationResult.isValid());
-                updateOverallValidationState();
-
-                if (!initialValidationResult.isValid()) {
-                    textField.setStyle("-fx-border-color: red; -fx-border-width: 2px;");
-                    textField.setTooltip(new Tooltip(initialValidationResult.getErrorMessage()));
-                }
-
-                textField.textProperty().addListener((obs, oldVal, newVal) -> {
-                    var validationResult = stringParam.validate(newVal);
-                    boolean isValid = validationResult.isValid();
-
-                    if (isValid) {
-                        textField.setStyle("");
-                        textField.setTooltip(null);
-                    } else {
-                        textField.setStyle("-fx-border-color: red; -fx-border-width: 2px;");
-                        textField.setTooltip(new Tooltip(validationResult.getErrorMessage()));
-                    }
-
-                    scriptParameterValidationStates.put(paramKey, isValid);
-                    updateOverallValidationState();
-
-                    updateParameterInImageMathParams(scriptFile, param.getName(), newVal);
-                });
-                updateParameterInImageMathParams(scriptFile, param.getName(), textValue);
-                return textField;
-            }
-            default -> {
-                LOGGER.warn(message("script.parameter.type.unsupported"), param.getClass().getSimpleName());
-                return null;
-            }
         }
     }
 
@@ -783,24 +657,6 @@ public class ImageSelectionPanel extends BaseParameterPanel {
         }
 
         imageMathParams = new ImageMathParams(currentFiles, currentParams);
-    }
-
-    private void addGridRowWithDirectTooltip(GridPane grid, int row, String labelText, Node control, String tooltipText) {
-        var label = new Label(labelText);
-        label.getStyleClass().addAll("field-label", "field-label-wrapped");
-
-        grid.add(label, 0, row);
-        grid.add(control, 1, row);
-
-        if (tooltipText != null && !tooltipText.isEmpty()) {
-            var helpIcon = new Label("?");
-            helpIcon.getStyleClass().addAll("help-icon");
-
-            var customTooltip = new CustomTooltip(tooltipText);
-            customTooltip.attachTo(helpIcon);
-
-            grid.add(helpIcon, 2, row);
-        }
     }
 
     public void setController(ProcessParamsController controller) {
