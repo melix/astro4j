@@ -989,11 +989,7 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
                 computeSerFileBasename(serFile)
         ));
         owner.prepareForGongImageDownload(processParams);
-        
-        // Execute batch scripts for single file processing (only when not in batch mode)
-        if (serFile != null && hasBatchScriptExpressions()) {
-            executeSingleFileBatchScripts();
-        }
+        executeSingleFileBatchScripts();
     }
 
     private Map<Class, Object> prepareExecutionContext(ProcessingDoneEvent.Outcome payload) {
@@ -1043,7 +1039,7 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
         if (!missingShifts.isEmpty()) {
             restartProcessForMissingShifts(missingShifts);
         }
-        var result = imageScriptExecutor.execute(script, SectionKind.SINGLE);
+        var result = imageScriptExecutor.execute(script, kind);
         var namingStrategy = createNamingStrategy();
         ImageMathScriptExecutor.render(result, imageEmitter, (outputLabel, fileOutput) -> {
             var baseName = namingStrategy.render(0, null, Constants.TYPE_CUSTOM, outputLabel, computeSerFileBasename(serFile), null);
@@ -1621,6 +1617,7 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
     private void executeSingleFileBatchScripts() {
         try {
             var scriptFiles = adjustedParams.combinedImageMathParams().scriptFiles();
+            owner.prepareForScriptExecution(this, params, rootOperation, ImageMathScriptExecutor.SectionKind.BATCH);
             if (scriptFiles.isEmpty()) {
                 return;
             }
@@ -1642,12 +1639,7 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
                 batchScriptExecutor.putVariable(entry.getKey(), entry.getValue());
             }
             
-            boolean initial = true;
             for (File scriptFile : scriptFiles) {
-                if (initial) {
-                    owner.prepareForScriptExecution(this, params, rootOperation, ImageMathScriptExecutor.SectionKind.BATCH);
-                    initial = false;
-                }
                 executeSingleFileBatchScript(namingStrategy, batchScriptExecutor, scriptFile);
             }
         } catch (Exception e) {
@@ -1717,6 +1709,10 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
                 message
             )));
         }
+    }
+
+    public boolean hasSerFile() {
+        return serFile != null;
     }
 
     sealed interface GraphData {

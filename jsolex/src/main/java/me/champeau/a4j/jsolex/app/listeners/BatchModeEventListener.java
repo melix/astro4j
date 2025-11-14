@@ -115,7 +115,6 @@ public class BatchModeEventListener implements ProcessingEventListener, ImageMat
     private final double totalItems;
     private final File outputDirectory;
     private final LocalDateTime processingDate;
-    private final AtomicBoolean hasCustomImages = new AtomicBoolean();
     private final ProgressOperation rootOperation;
     private final Set<SpectralRay> detectedSpectralLines = new HashSet<>();
 
@@ -649,7 +648,6 @@ public class BatchModeEventListener implements ProcessingEventListener, ImageMat
             delegate.onImageGenerated(new ImageGeneratedEvent(
                 new GeneratedImage(GeneratedImageKind.IMAGE_MATH, entry.getKey(), outputFile.toPath(), entry.getValue(), null)
             ));
-            hasCustomImages.set(true);
         });
         result.filesByLabel().entrySet().stream().parallel().forEach(entry -> {
             var fileOutput = entry.getValue();
