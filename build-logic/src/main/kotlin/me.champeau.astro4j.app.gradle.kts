@@ -24,7 +24,7 @@ val date = LocalDateTime.now()
 // deliverable
 
 application {
-    applicationDefaultJvmArgs = listOf("--enable-preview")
+    applicationDefaultJvmArgs = listOf("--enable-preview", "--enable-native-access=javafx.graphics")
 }
 
 tasks.withType<JavaExec>().configureEach {
@@ -32,7 +32,7 @@ tasks.withType<JavaExec>().configureEach {
     providers.systemPropertiesPrefixedBy("sysprop.").get().forEach { s, p ->
         systemProperty(s.substringAfter("sysprop."), p)
     }
-    jvmArgs("--enable-preview")
+    jvmArgs("--enable-preview", "--enable-native-access=javafx.graphics")
 }
 
 tasks.withType<JavaCompile>().configureEach {
@@ -55,7 +55,7 @@ graalvmNative {
                 restrictToProjectDependencies.set(false)
             }
         }
-        jvmArgs("--enable-preview")
+        jvmArgs("--enable-preview", "--enable-native-access=javafx.graphics")
     }
 }
 

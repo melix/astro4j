@@ -7,7 +7,7 @@ plugins {
 }
 
 javafx {
-    version = "23"
+    version = "25"
     modules("javafx.controls", "javafx.fxml", "javafx.media", "javafx.swing")
 }
 
@@ -20,7 +20,7 @@ val jvmMemorySettings = listOf(
 )
 
 application {
-    applicationDefaultJvmArgs = jvmMemorySettings + listOf("--enable-preview")
+    applicationDefaultJvmArgs = jvmMemorySettings + listOf("--enable-preview", "--enable-native-access=javafx.graphics")
 }
 
 jlink {
