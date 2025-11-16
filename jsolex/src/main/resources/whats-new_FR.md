@@ -16,6 +16,7 @@
 - Correction de l'outil d'extraction de frames SER qui n'exportait que des fichiers MP4 même lorsque MP4 et GIF étaient sélectionnés dans les paramètres avancés
 - Amélioration de la gestion de la mémoire pour que le traitement fonctionne sur des systèmes avec moins de mémoire
 - Ajout d'un moyen de définir les paramètres de script dans la boîte de dialogue de script sur la fenêtre principale
+- Correction de la création d'animations personnalisées lorsque la correction de l'angle P était appliquée
 
 ## Nouveautés de la version 4.2.0
 

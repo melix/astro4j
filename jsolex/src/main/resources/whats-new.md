@@ -16,6 +16,7 @@
 - Fixed SER frames extraction tool only exporting MP4 files even when both MP4 and GIF were selected in advanced parameters
 - Improve memory management so that processing works on lower memory systems
 - Add a way to set script parameters in the script dialog on the main window
+- Fixed custom animation creation when P angle correction was applied
 
 ## What's New in Version 4.2.0
 
