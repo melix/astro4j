@@ -176,11 +176,11 @@ public class Animate extends AbstractFunctionImpl {
         var bufferedImage = new BufferedImage(image.width(), image.height(), BufferedImage.TYPE_BYTE_GRAY);
         var data = image.data();
         var bytes = EightBitConversionSupport.to8BitImage(data);
+        var raster = bufferedImage.getRaster();
         for (int y = 0; y < image.height(); y++) {
             for (int x = 0; x < image.width(); x++) {
                 var value = bytes[y * image.width() + x] & 0xFF;
-                var rgb = (value << 16) | (value << 8) | value;
-                bufferedImage.setRGB(x, y, rgb);
+                raster.setSample(x, y, 0, value);
             }
         }
         return bufferedImage;

@@ -1,5 +1,6 @@
 # Bienvenue dans JSol'Ex {{version}} !
 
+- [Nouveautés de la version 4.2.1](#nouveautes-de-la-version-4-2-1) - Corrections de bugs
 - [Version 4.2.0](#nouveautes-de-la-version-4-2-0) - Java 25, support GIF, réglages de format de fichier
 - [Version 4.1.4](#nouveautes-de-la-version-4-1-4) - Corrections de bugs et améliorations
 - [Version 4.1.3](#nouveautes-de-la-version-4-1-3) - Amélioration de la correction des bandes
@@ -8,6 +9,15 @@
 - [Version 4.1.0](#nouveautes-de-la-version-4-1-0) - Préréglages utilisateur, création de collages
 - [Version 4.0.1](#nouveautes-de-la-version-4-0-1) - Sélection de langue, corrections
 - [Version 4.0.0](#nouveautes-de-la-version-4-0-0) - Interface améliorée, intégration BASS2000
+
+## Nouveautés de la version 4.2.1
+
+- Correction du globe mal positionné dans l'outil de mesure lorsque le recadrage automatique n'était pas utilisé
+- Correction de l'outil d'extraction de frames SER qui n'exportait que des fichiers MP4 même lorsque MP4 et GIF étaient sélectionnés dans les paramètres avancés
+- Amélioration de la gestion de la mémoire pour que le traitement fonctionne sur des systèmes avec moins de mémoire
+- Ajout d'un moyen de définir les paramètres de script dans la boîte de dialogue de script sur la fenêtre principale
+- Correction de la création d'animations personnalisées lorsque la correction de l'angle P était appliquée
+- Correction du calcul du paramètre solaire L0
 
 ## Nouveautés de la version 4.2.0
 

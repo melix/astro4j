@@ -288,7 +288,7 @@ public class ImageMathTextArea extends BorderPane {
         knownVariables.add(DefaultImageScriptExecutor.DETECTED_WAVELEN);
         knownVariables.add(DefaultImageScriptExecutor.DETECTED_DISPERSION);
         knownVariables.addAll(this.knownVariables);
-        var userFunctionNames = root.childrenOfType(FunctionDef.class)
+        var userFunctionNames = inlined.childrenOfType(FunctionDef.class)
                 .stream()
                 .map(FunctionDef::name)
                 .collect(Collectors.toSet());

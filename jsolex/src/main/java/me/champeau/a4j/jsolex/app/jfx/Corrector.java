@@ -22,7 +22,6 @@ import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 import me.champeau.a4j.jsolex.processing.util.MetadataSupport;
 import me.champeau.a4j.jsolex.processing.util.RGBImage;
-import me.champeau.a4j.math.Point2D;
 import me.champeau.a4j.math.image.Image;
 import me.champeau.a4j.math.image.ImageMath;
 
@@ -34,7 +33,7 @@ public class Corrector {
     }
 
     public static ImageWrapper rotate(ImageWrapper image, double angle, boolean resize) {
-        var result = (ImageWrapper) MetadataSupport.applyMetadata(String.format(message("rotate.radians.format"), angle), () -> {
+        return (ImageWrapper) MetadataSupport.applyMetadata(String.format(message("rotate.radians.format"), angle), () -> {
             var img = image;
             var imageMath = ImageMath.newInstance();
             if (img instanceof FileBackedImage fileBackedImage) {
@@ -53,11 +52,6 @@ public class Corrector {
             }
             throw new IllegalArgumentException("Unsupported image type");
         });
-        result.transformMetadata(ReferenceCoords.class, coords -> {
-            var rotationCenter = new Point2D(image.width() / 2.0, image.height() / 2.0);
-            return coords.addRotation(angle, rotationCenter);
-        });
-        return result;
     }
 
     public static ImageWrapper verticalFlip(ImageWrapper image) {

@@ -46,9 +46,10 @@ import javafx.scene.control.Hyperlink;
 import javafx.scene.control.Label;
 import javafx.scene.control.Menu;
 import javafx.scene.control.MenuItem;
-import javafx.scene.control.SeparatorMenuItem;
 import javafx.scene.control.ProgressBar;
 import javafx.scene.control.ScrollPane;
+import javafx.scene.control.SeparatorMenuItem;
+import javafx.scene.control.SplitMenuButton;
 import javafx.scene.control.Tab;
 import javafx.scene.control.TabPane;
 import javafx.scene.control.TableCell;
@@ -93,6 +94,7 @@ import me.champeau.a4j.jsolex.app.jfx.MetadataEditor;
 import me.champeau.a4j.jsolex.app.jfx.MultipleImagesViewer;
 import me.champeau.a4j.jsolex.app.jfx.NamingPatternEditor;
 import me.champeau.a4j.jsolex.app.jfx.ProcessParamsController;
+import me.champeau.a4j.jsolex.app.jfx.ScriptParametersDialog;
 import me.champeau.a4j.jsolex.app.jfx.ScriptRepositoriesController;
 import me.champeau.a4j.jsolex.app.jfx.SerFileTrimmerController;
 import me.champeau.a4j.jsolex.app.jfx.SetupEditor;
@@ -121,9 +123,12 @@ import me.champeau.a4j.jsolex.processing.expr.ImageMathScriptExecutor;
 import me.champeau.a4j.jsolex.processing.expr.ImageMathScriptResult;
 import me.champeau.a4j.jsolex.processing.expr.InvalidExpression;
 import me.champeau.a4j.jsolex.processing.file.FileNamingStrategy;
+import me.champeau.a4j.jsolex.processing.params.ImageMathParameterExtractor;
+import me.champeau.a4j.jsolex.processing.params.NumberParameter;
 import me.champeau.a4j.jsolex.processing.params.ProcessParams;
 import me.champeau.a4j.jsolex.processing.params.ProcessParamsIO;
 import me.champeau.a4j.jsolex.processing.params.RotationKind;
+import me.champeau.a4j.jsolex.processing.params.ScriptParameter;
 import me.champeau.a4j.jsolex.processing.spectrum.SerFileTrimmer;
 import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
 import me.champeau.a4j.jsolex.processing.sun.CaptureSoftwareMetadataHelper;
@@ -155,7 +160,6 @@ import org.slf4j.LoggerFactory;
 
 import javax.imageio.ImageIO;
 import java.io.File;
-import java.text.MessageFormat;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.FileSystems;
@@ -165,6 +169,7 @@ import java.nio.file.StandardWatchEventKinds;
 import java.nio.file.WatchEvent;
 import java.nio.file.WatchKey;
 import java.nio.file.WatchService;
+import java.text.MessageFormat;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
@@ -195,8 +200,15 @@ import static me.champeau.a4j.jsolex.processing.sun.CaptureSoftwareMetadataHelpe
 import static me.champeau.a4j.jsolex.processing.util.LoggingSupport.logError;
 
 public class JSolEx implements JSolExInterface {
+
+    private static final long MINIMAL_MEMORY = 6 * 1024 * 1024 * 1024L;
+
     static {
         System.setProperty("java.util.concurrent.ForkJoinPool.common.exceptionHandler", LoggingSupport.class.getName());
+        if (Runtime.getRuntime().maxMemory() < MINIMAL_MEMORY) {
+            System.err.println("Detected low memory environment, limiting parallelism to 2 threads");
+            System.setProperty("java.util.concurrent.ForkJoinPool.common.parallelism", "2");
+        }
     }
 
     private static final Logger LOGGER = LoggerFactory.getLogger(JSolEx.class);
@@ -238,7 +250,7 @@ public class JSolEx implements JSolExInterface {
     @FXML
     private CheckBox clearImagesCheckbox;
     @FXML
-    private Button imageMathRun;
+    private SplitMenuButton imageMathRun;
     @FXML
     private Button imageMathLoad;
     @FXML
@@ -447,6 +459,7 @@ public class JSolEx implements JSolExInterface {
             }
             prevHandler.handle(event);
         });
+        hideArrowButton(true);
     }
 
     private void updateServerStatus(boolean started) {
@@ -559,14 +572,14 @@ public class JSolEx implements JSolExInterface {
         var datePickerBox = new HBox();
         datePickerBox.setAlignment(Pos.CENTER);
         datePickerBox.setSpacing(10);
-        
+
         var dateLabel = new Label(message("select.date"));
         dateLabel.setMinWidth(Region.USE_PREF_SIZE);
         var defaultDate = serFileDate != null ? serFileDate.toLocalDate() : LocalDate.now();
         var datePicker = new DatePicker(defaultDate);
         datePicker.setPrefWidth(120);
         datePicker.setMaxWidth(120);
-        
+
         var timeLabel = new Label(message("select.time"));
         timeLabel.setMinWidth(Region.USE_PREF_SIZE);
         var defaultTime = serFileDate != null ? serFileDate.toLocalTime() : LocalTime.now(ZoneId.of("UTC"));
@@ -585,14 +598,14 @@ public class JSolEx implements JSolExInterface {
                 }
                 return Math.max(0, Math.min(23, asInt));
             }
-            
+
             @Override
             public String toString(Integer value) {
                 return value == null ? "00" : String.format("%02d", value);
             }
         }));
         hourField.setText(String.format("%02d", defaultTime.getHour()));
-        
+
         var minuteField = new TextField();
         minuteField.setPrefColumnCount(2);
         minuteField.setPrefWidth(30);
@@ -608,7 +621,7 @@ public class JSolEx implements JSolExInterface {
                 }
                 return Math.max(0, Math.min(59, asInt));
             }
-            
+
             @Override
             public String toString(Integer value) {
                 return value == null ? "00" : String.format("%02d", value);
@@ -619,7 +632,7 @@ public class JSolEx implements JSolExInterface {
         var timeBox = new HBox(5);
         timeBox.setAlignment(Pos.CENTER);
         timeBox.getChildren().addAll(hourField, colonLabel, minuteField);
-        
+
         datePickerBox.getChildren().addAll(dateLabel, datePicker, timeLabel, timeBox);
 
         var downloadButton = new Button(message("download.gong.image"));
@@ -633,13 +646,13 @@ public class JSolEx implements JSolExInterface {
         downloadButton.setOnAction(e -> {
             downloadButton.setText(message("downloading.gong.image"));
             downloadButton.setDisable(true);
-            
+
             var selectedDate = datePicker.getValue();
             var hour = Integer.parseInt(hourField.getText());
             var minute = Integer.parseInt(minuteField.getText());
             var localDateTime = LocalDateTime.of(selectedDate, LocalTime.of(hour, minute));
             var zonedDateTime = ZonedDateTime.of(localDateTime, ZoneId.of("UTC"));
-            
+
             BackgroundOperations.async(() -> {
                 var optionalURL = GONG.fetchGongImage(zonedDateTime);
                 Platform.runLater(() -> {
@@ -666,11 +679,11 @@ public class JSolEx implements JSolExInterface {
         });
 
         vbox.getChildren().addAll(titleLabel, datePickerBox, downloadButton, message, imageView);
-        
+
         var scrollPane = new ScrollPane(vbox);
         scrollPane.setFitToWidth(true);
         scrollPane.setFitToHeight(true);
-        
+
         Platform.runLater(() -> referenceImageTab.setContent(scrollPane));
     }
 
@@ -890,6 +903,9 @@ public class JSolEx implements JSolExInterface {
     @Override
     public void prepareForScriptExecution(ImageMathScriptExecutor executor, ProcessParams params, ProgressOperation rootOperation, ImageMathScriptExecutor.SectionKind sectionKind) {
         this.scriptExecutor = executor;
+        var shouldRunBothSections = executor instanceof SingleModeProcessingEventListener listener
+                && listener.hasSerFile()
+                && sectionKind == ImageMathScriptExecutor.SectionKind.BATCH;
         imageMathRun.setOnAction(evt -> {
             var text = imageMathScript.getText();
             if (clearImagesCheckbox.isSelected()) {
@@ -897,12 +913,27 @@ public class JSolEx implements JSolExInterface {
             }
             config.findLastOpenDirectory(Configuration.DirectoryKind.IMAGE_MATH).ifPresent(executor::setIncludesDir);
             BackgroundOperations.async(() -> {
+                var section = shouldRunBothSections ? ImageMathScriptExecutor.SectionKind.SINGLE : sectionKind;
                 var operation = rootOperation.createChild("ImageMath Script");
                 executor.putInContext(ProgressOperation.class, operation);
                 executor.putInContext(AnimationFormat.class, config.getAnimationFormats());
-                executor.execute(text, sectionKind);
+                var parameters = extractScriptParameters(text);
+                var parameterValues = getScriptParameterValues(parameters);
+                for (var entry : parameterValues.entrySet()) {
+                    executor.putVariable(entry.getKey(), entry.getValue());
+                }
+                var result = executor.execute(text, section);
+                if (shouldRunBothSections) {
+                    // simulate single element batch mode
+                    result.imagesByLabel().forEach((key, image) -> executor.putVariable(key, List.of(image)));
+                    operation = rootOperation.createChild("ImageMath Script");
+                    executor.putInContext(ProgressOperation.class, operation);
+                    executor.execute(text, ImageMathScriptExecutor.SectionKind.BATCH);
+                }
+
             });
         });
+
         imageMathSave.setDisable(true);
         imageMathLoad.setOnAction(evt -> {
             var fileChooser = new FileChooser();
@@ -914,6 +945,7 @@ public class JSolEx implements JSolExInterface {
         imageMathScript.textProperty().addListener((o, oldValue, newValue) -> {
             if (newValue != null) {
                 imageMathSave.setDisable(false);
+                updateScriptParametersFromText(newValue);
             }
         });
         imageMathSave.setOnAction(evt -> {
@@ -939,6 +971,7 @@ public class JSolEx implements JSolExInterface {
         if (!scriptFiles.isEmpty()) {
             loadImageMathScriptFrom(scriptFiles.getFirst());
         }
+        updateScriptParametersFromText(imageMathScript.getText());
     }
 
     private void loadImageMathScriptFrom(File file) {
@@ -952,6 +985,120 @@ public class JSolEx implements JSolExInterface {
             });
         }
     }
+
+    private Map<String, Object> getScriptParameterValues(List<ScriptParameter> parameters) {
+        var values = new HashMap<String, Object>();
+        for (var param : parameters) {
+            if (lastExecutionProcessParams != null) {
+                var allParams = lastExecutionProcessParams.combinedImageMathParams().parameterValues();
+                var found = false;
+                for (var entry : allParams.entrySet()) {
+                    var existingParams = entry.getValue();
+                    if (existingParams != null && existingParams.containsKey(param.getName())) {
+                        var value = existingParams.get(param.getName());
+                        if (param instanceof NumberParameter && value instanceof String str) {
+                            try {
+                                value = Double.parseDouble(str);
+                            } catch (NumberFormatException e) {
+                                LOGGER.warn("Failed to parse parameter {} as number: {}", param.getName(), str);
+                                continue;
+                            }
+                        }
+                        values.put(param.getName(), value);
+                        found = true;
+                        break;
+                    }
+                }
+                if (!found && param.getDefaultValue() != null) {
+                    values.put(param.getName(), param.getDefaultValue());
+                }
+            } else if (param.getDefaultValue() != null) {
+                values.put(param.getName(), param.getDefaultValue());
+            }
+        }
+        return values;
+    }
+
+    private void updateScriptParametersFromText(String scriptText) {
+        var parameters = extractScriptParameters(scriptText);
+        updateParametersMenuItem(parameters);
+    }
+
+    private List<ScriptParameter> extractScriptParameters(String scriptText) {
+        if (scriptText == null || scriptText.isEmpty()) {
+            return List.of();
+        }
+        try {
+            var extractor = new ImageMathParameterExtractor();
+            var result = extractor.extractParameters(scriptText);
+            return result.getParameters();
+        } catch (Exception e) {
+            LOGGER.debug("Error extracting parameters from script", e);
+            return List.of();
+        }
+    }
+
+    private void updateParametersMenuItem(List<ScriptParameter> parameters) {
+        Platform.runLater(() -> {
+            if (imageMathRun != null && imageMathRun.getItems() != null) {
+                if (parameters.isEmpty()) {
+                    imageMathRun.getItems().clear();
+                    hideArrowButton(true);
+                } else if (imageMathRun.getItems().isEmpty()) {
+                    var paramsMenuItem = new MenuItem(I18N.string(JSolEx.class, "app", "imagemath.params"));
+                    paramsMenuItem.setOnAction(evt -> showScriptParametersDialogAndRun());
+                    imageMathRun.getItems().add(paramsMenuItem);
+                    hideArrowButton(false);
+                }
+            }
+        });
+    }
+
+    private void hideArrowButton(boolean hide) {
+        imageMathRun.lookupAll(".arrow-button").forEach(node -> {
+            node.setVisible(!hide);
+            node.setManaged(!hide);
+        });
+        var label = imageMathRun.lookup(".label");
+        if (label != null) {
+            if (hide) {
+                label.setStyle("-fx-background-radius: 6; -fx-border-width: 0;");
+            } else {
+                label.setStyle("");
+            }
+        }
+    }
+
+    private void showScriptParametersDialogAndRun() {
+        var scriptText = imageMathScript.getText();
+        var parameters = extractScriptParameters(scriptText);
+        var currentValues = getScriptParameterValues(parameters);
+        var dialog = new ScriptParametersDialog(parameters, currentValues);
+        var result = dialog.showAndWait(rootStage);
+        if (result != null && lastExecutionProcessParams != null) {
+            var currentMathParams = lastExecutionProcessParams.requestedImages().mathImages();
+            var updatedParamValues = new HashMap<>(currentMathParams.parameterValues());
+            var scriptFile = currentMathParams.scriptFiles().isEmpty() ? new File("") : currentMathParams.scriptFiles().getFirst();
+            updatedParamValues.put(scriptFile, result);
+            var updatedMathParams = new me.champeau.a4j.jsolex.processing.params.ImageMathParams(currentMathParams.scriptFiles(), updatedParamValues);
+            var updatedRequestedImages = lastExecutionProcessParams.requestedImages().withMathImages(updatedMathParams);
+            lastExecutionProcessParams = new ProcessParams(
+                    lastExecutionProcessParams.spectrumParams(),
+                    lastExecutionProcessParams.observationDetails(),
+                    lastExecutionProcessParams.extraParams(),
+                    lastExecutionProcessParams.videoParams(),
+                    lastExecutionProcessParams.geometryParams(),
+                    lastExecutionProcessParams.bandingCorrectionParams(),
+                    updatedRequestedImages,
+                    lastExecutionProcessParams.claheParams(),
+                    lastExecutionProcessParams.autoStretchParams(),
+                    lastExecutionProcessParams.contrastEnhancement(),
+                    lastExecutionProcessParams.enhancementParams()
+            );
+            imageMathRun.fire();
+        }
+    }
+
 
     @FXML
     private void open() {
@@ -973,7 +1120,7 @@ public class JSolEx implements JSolExInterface {
             fileChooser.getExtensionFilters().add(SER_FILES_EXTENSION_FILTER);
             config.findLastOpenDirectory().ifPresent(dir -> fileChooser.setInitialDirectory(dir.toFile()));
             var selectedFiles = fileChooser.showOpenMultipleDialog(rootStage);
-            
+
             if (selectedFiles != null && !selectedFiles.isEmpty()) {
                 allSelectedFiles.addAll(selectedFiles);
                 var alert = AlertFactory.confirmation(message("batch.add.more.files"));
@@ -986,14 +1133,14 @@ public class JSolEx implements JSolExInterface {
                 noButton.setDefaultButton(true);
                 var yesButton = (Button) alert.getDialogPane().lookupButton(ButtonType.YES);
                 yesButton.setDefaultButton(false);
-                
+
                 var result = alert.showAndWait();
                 addMoreFiles = result.isPresent() && result.get() == ButtonType.YES;
             } else {
                 addMoreFiles = false;
             }
         }
-        
+
         if (!allSelectedFiles.isEmpty()) {
             doOpenMany(allSelectedFiles);
         }
@@ -1195,10 +1342,10 @@ public class JSolEx implements JSolExInterface {
 
     @FXML
     private void showBass2000Submission() {
-        if (lastExecutionProcessParams != null && 
-            lastExecutionProcessParams.observationDetails().instrument().isSupportedByBass2000() &&
-            !Bass2000ConfigService.getInstance().isBass2000Enabled()) {
-            
+        if (lastExecutionProcessParams != null &&
+                lastExecutionProcessParams.observationDetails().instrument().isSupportedByBass2000() &&
+                !Bass2000ConfigService.getInstance().isBass2000Enabled()) {
+
             var configService = Bass2000ConfigService.getInstance();
             var reason = configService.getDisabledReason();
             String message = switch (reason) {
@@ -1222,7 +1369,7 @@ public class JSolEx implements JSolExInterface {
                 }
                 default -> message("bass2000.disabled");
             };
-            
+
             if (!message.isEmpty()) {
                 var alert = AlertFactory.warning(message);
                 alert.setTitle("BASS2000");
@@ -1230,7 +1377,7 @@ public class JSolEx implements JSolExInterface {
                 return;
             }
         }
-        
+
         var fxmlLoader = I18N.fxmlLoader(JSolEx.class, "bass2000-submission");
         try {
             var stage = newStage();
@@ -1345,7 +1492,6 @@ public class JSolEx implements JSolExInterface {
         alert.getDialogPane().setExpandableContent(scroll);
         alert.showAndWait();
     }
-
 
 
     @FXML
@@ -1912,29 +2058,29 @@ public class JSolEx implements JSolExInterface {
     private ProcessParamsController createProcessParams(File serFile, ProgressOperation progressOperation, SerFileReader serFileReader, boolean batchMode) {
         var dialog = newStage();
         dialog.setTitle(I18N.string(getClass(), "process-params", "process.parameters"));
-        
+
         var controller = new ProcessParamsController();
         var md = CaptureSoftwareMetadataHelper.readSharpcapMetadata(serFile)
                 .or(() -> CaptureSoftwareMetadataHelper.readFireCaptureMetadata(serFile))
                 .orElse(null);
-                
+
         controller.setup(dialog, progressOperation, evt -> {
                     if (evt instanceof ProgressEvent pg) {
                         updateProgress(pg.getPayload());
                     }
                 },
                 serFile, serFileReader.header(), md, batchMode, getHostServices());
-        
+
         var scene = new Scene(controller.getRoot(), 1000, 700);
         scene.getStylesheets().add(
-            getClass().getResource("/me/champeau/a4j/jsolex/app/components.css").toExternalForm()
+                getClass().getResource("/me/champeau/a4j/jsolex/app/components.css").toExternalForm()
         );
-        
+
         dialog.setScene(scene);
         dialog.initOwner(rootStage);
         dialog.initModality(Modality.APPLICATION_MODAL);
         dialog.showAndWait();
-        
+
         return controller;
     }
 
@@ -2031,7 +2177,7 @@ public class JSolEx implements JSolExInterface {
 
     private void setupLogWindowContextMenu() {
         var contextMenu = new ContextMenu();
-        
+
         var copyItem = new MenuItem(I18N.string(JSolEx.class, "app", "copy"));
         copyItem.setOnAction(e -> {
             String selectedText = console.getSelectedText();
@@ -2042,24 +2188,24 @@ public class JSolEx implements JSolExInterface {
                 clipboard.setContent(content);
             }
         });
-        
+
         var selectAllItem = new MenuItem(I18N.string(JSolEx.class, "app", "select.all"));
         selectAllItem.setOnAction(e -> console.selectAll());
-        
+
         contextMenu.getItems().addAll(copyItem, selectAllItem);
         console.setContextMenu(contextMenu);
-        
+
         // Enable/disable menu items based on selection
         contextMenu.setOnShowing(e -> {
             boolean hasSelection = console.getSelectedText() != null && !console.getSelectedText().isEmpty();
             copyItem.setDisable(!hasSelection);
         });
     }
-    
+
     private void setupImageMathEditorContextMenu() {
         var codeArea = imageMathScript.getCodeArea();
         var contextMenu = new ContextMenu();
-        
+
         var copyItem = new MenuItem(I18N.string(JSolEx.class, "app", "copy"));
         copyItem.setOnAction(e -> {
             String selectedText = codeArea.getSelectedText();
@@ -2070,7 +2216,7 @@ public class JSolEx implements JSolExInterface {
                 clipboard.setContent(content);
             }
         });
-        
+
         var pasteItem = new MenuItem(I18N.string(JSolEx.class, "app", "paste"));
         pasteItem.setOnAction(e -> {
             var clipboard = Clipboard.getSystemClipboard();
@@ -2079,7 +2225,7 @@ public class JSolEx implements JSolExInterface {
                 codeArea.replaceSelection(clipboardText);
             }
         });
-        
+
         var selectAllItem = new MenuItem(I18N.string(JSolEx.class, "app", "select.all"));
         selectAllItem.setOnAction(e -> codeArea.selectAll());
 
@@ -2088,7 +2234,7 @@ public class JSolEx implements JSolExInterface {
 
         contextMenu.getItems().addAll(copyItem, pasteItem, selectAllItem, new SeparatorMenuItem(), editMetadataItem);
         codeArea.setContextMenu(contextMenu);
-        
+
         // Enable/disable menu items based on selection and clipboard content
         contextMenu.setOnShowing(e -> {
             boolean hasSelection = codeArea.getSelectedText() != null && !codeArea.getSelectedText().isEmpty();

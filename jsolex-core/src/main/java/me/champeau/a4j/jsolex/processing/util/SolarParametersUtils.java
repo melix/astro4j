@@ -35,15 +35,14 @@ public final class SolarParametersUtils {
     private static final Logger LOGGER = LoggerFactory.getLogger(SolarParametersUtils.class);
 
     public static final double CARRINGTON_ROTATION_PERIOD = 27.2753;
-    public static final int BASE_JULIAN_DATE = 2398167;
+    public static final double CARRINGTON_ROTATION_1_START = 2398167.2763889;
 
     private static final double I = 7.25d;
     private static final double COS_I = cos(toRadians(I));
     private static final double SIN_I = sin(toRadians(I));
     private static final double TAN_I = tan(toRadians(I));
-    private static final int JULIAN_DATE_OFFSET_1 = 2398220;
-    private static final int JULIAN_DATE_OFFSET_2 = 2396758;
-    private static final int JULIAN_DATE_OFFSET_3 = 2451545;
+    private static final double JULIAN_DATE_OFFSET_2 = 2396758;
+    private static final double JULIAN_DATE_OFFSET_3 = 2451545;
     private static final double EPHEMERIS_DAYS = 36525d;
 
     private SolarParametersUtils() {
@@ -81,7 +80,7 @@ public final class SolarParametersUtils {
      * @return the Carrington rotation
      */
     public static int computeCarringtonRotationNumber(double julianDate) {
-        double deltaJd = julianDate - BASE_JULIAN_DATE;
+        double deltaJd = julianDate - CARRINGTON_ROTATION_1_START;
         return (int) Math.floor(deltaJd / CARRINGTON_ROTATION_PERIOD) + 1;
     }
 
@@ -103,8 +102,6 @@ public final class SolarParametersUtils {
     }
 
     private static FullSolarParameters computeFullSolarParams(double julianDate) {
-        // Page 190
-        var theta = (julianDate - JULIAN_DATE_OFFSET_1) * 360 / 25.38;
         var k = 73.6667 + 1.3958333 * (julianDate - JULIAN_DATE_OFFSET_2) / EPHEMERIS_DAYS;
 
         // Page 163
@@ -139,12 +136,16 @@ public final class SolarParametersUtils {
         var y = atan(-cos(alk) * TAN_I);
         var p = x + y;
         var b0 = asin(sin(alk) * SIN_I);
-        var n = atan(tan(alk) * COS_I);
-        var nInSameQuadrantAsAlk = (alk + Math.PI) % (2 * Math.PI);
-        if (Math.abs(nInSameQuadrantAsAlk - n) >= Math.PI / 2) {
-            n += Math.PI;
+
+        // Compute L0 using Carrington rotation (synodic period)
+        var deltaJd = julianDate - CARRINGTON_ROTATION_1_START;
+        var rotations = deltaJd / CARRINGTON_ROTATION_PERIOD;
+        var fractionalRotation = rotations - Math.floor(rotations);
+        var l0Degrees = 360.0 * (1.0 - fractionalRotation);
+        if (l0Degrees >= 360.0) {
+            l0Degrees -= 360.0;
         }
-        var l0 = toPositiveAngle(n - toRadians(theta % 360d));
+        var l0 = toRadians(l0Degrees);
 
         var eccentricity = 0.016708634 - 0.000042037 * t - 0.0000001267 * t * t;
         var earthSunDist = 1.000001018 * (1 - eccentricity * eccentricity) / (1 + eccentricity * cos(toRadians(trueAnomaly)));

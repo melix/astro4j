@@ -1,5 +1,6 @@
 # Welcome to JSol'Ex {{version}}!
 
+- [What's New in Version 4.2.1](#whats-new-in-version-4-2-1) - Bug fixes
 - [Version 4.2.0](#whats-new-in-version-4-2-0) - Script repositories, Java 25, GIF support, file format settings
 - [Version 4.1.4](#whats-new-in-version-4-1-4) - Bug fixes and improvements
 - [Version 4.1.3](#whats-new-in-version-4-1-3) - Improved banding correction
@@ -8,6 +9,15 @@
 - [Version 4.1.0](#whats-new-in-version-4-1-0) - User-defined presets, collage creation
 - [Version 4.0.1](#whats-new-in-version-4-0-1) - Language selection, bug fixes
 - [Version 4.0.0](#whats-new-in-version-4-0-0) - Enhanced UI, BASS2000 integration
+
+## What's New in Version 4.2.1
+
+- Fixed globe not positionned correctly in measure tool when autocrop was not used
+- Fixed SER frames extraction tool only exporting MP4 files even when both MP4 and GIF were selected in advanced parameters
+- Improve memory management so that processing works on lower memory systems
+- Add a way to set script parameters in the script dialog on the main window
+- Fixed custom animation creation when P angle correction was applied
+- Fixed computation of the L0 solar parameter
 
 ## What's New in Version 4.2.0
 

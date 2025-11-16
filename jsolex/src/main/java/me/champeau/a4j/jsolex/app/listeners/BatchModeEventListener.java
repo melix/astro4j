@@ -115,7 +115,6 @@ public class BatchModeEventListener implements ProcessingEventListener, ImageMat
     private final double totalItems;
     private final File outputDirectory;
     private final LocalDateTime processingDate;
-    private final AtomicBoolean hasCustomImages = new AtomicBoolean();
     private final ProgressOperation rootOperation;
     private final Set<SpectralRay> detectedSpectralLines = new HashSet<>();
 
@@ -123,6 +122,7 @@ public class BatchModeEventListener implements ProcessingEventListener, ImageMat
 
     private final int sequenceNumber;
     private DefaultImageScriptExecutor batchScriptExecutor;
+    private final Map<String, Object> pendingVariables = new HashMap<>();
 
     private Header header;
     private final List<BatchItem> allItems;
@@ -561,6 +561,9 @@ public class BatchModeEventListener implements ProcessingEventListener, ImageMat
                 delegate,
                 null
             );
+            for (var entry : pendingVariables.entrySet()) {
+                batchScriptExecutor.putVariable(entry.getKey(), entry.getValue());
+            }
             var discarded = new HashSet<ImageWrapper>();
             dataLock.readLock().lock();
             try {
@@ -645,7 +648,6 @@ public class BatchModeEventListener implements ProcessingEventListener, ImageMat
             delegate.onImageGenerated(new ImageGeneratedEvent(
                 new GeneratedImage(GeneratedImageKind.IMAGE_MATH, entry.getKey(), outputFile.toPath(), entry.getValue(), null)
             ));
-            hasCustomImages.set(true);
         });
         result.filesByLabel().entrySet().stream().parallel().forEach(entry -> {
             var fileOutput = entry.getValue();
@@ -805,6 +807,15 @@ public class BatchModeEventListener implements ProcessingEventListener, ImageMat
         }
         updateProgressStatus(true);
         maybeExecuteEndOfBatch();
+    }
+
+    @Override
+    public void putVariable(String name, Object value) {
+        if (batchScriptExecutor != null) {
+            batchScriptExecutor.putVariable(name, value);
+        } else {
+            pendingVariables.put(name, value);
+        }
     }
 
     private record FilteringResult(

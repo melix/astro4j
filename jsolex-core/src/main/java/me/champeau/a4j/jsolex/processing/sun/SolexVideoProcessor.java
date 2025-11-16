@@ -443,6 +443,7 @@ public class SolexVideoProcessor implements Broadcaster {
                 } catch (Exception e) {
                     throw new ProcessingException(e);
                 }
+                FileBackedImage.flushImages();
                 System.gc();
             }
 
@@ -664,7 +665,7 @@ public class SolexVideoProcessor implements Broadcaster {
         IntStream.range(0, imageList.size()).mapToObj(i -> new Object() {
             private final WorkflowState state = imageList.get(i);
             private final int step = i;
-        }).parallel().forEach(o -> {
+        }).forEach(o -> {
             broadcast(generationOperation.update(((double) progress.get()) / imageList.size()));
             var state = o.state;
             var step = o.step;
@@ -1460,9 +1461,6 @@ public class SolexVideoProcessor implements Broadcaster {
         var detectPhenomena = detectBorders || detectRedshifts || detectEllermanBombs || detectActiveRegions;
         var ops = new TaskCoordinator();
         int conversionProcs = Runtime.getRuntime().availableProcessors();
-        if (detectPhenomena) {
-            conversionProcs /= 2;
-        }
         try (var detectionPool = Executors.newFixedThreadPool(Math.max(2, Runtime.getRuntime().availableProcessors() / 2))) {
             try (var conversionPool = Executors.newFixedThreadPool(Math.max(2, conversionProcs))) {
                 var reconstructedImages = new float[images.length][totalLines][width];

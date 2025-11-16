@@ -228,7 +228,7 @@ public class ScriptRepositoryManager {
             var version = result.getVersion();
 
             if (author == null || title == null || version == null) {
-                LOGGER.warn(message("repository.script.missing.fields"), localPath.getFileName());
+                LOGGER.debug(message("repository.script.missing.fields"), localPath.getFileName());
                 return null;
             }
 

@@ -129,6 +129,7 @@ import java.io.PrintWriter;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -183,6 +184,7 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
     private Map<Class, Object> scriptExecutionContext;
     private ImageEmitter imageEmitter;
     private ImageMathScriptExecutor imageScriptExecutor;
+    private final Map<String, Object> pendingVariables = new HashMap<>();
     private long sd;
     private long ed;
     private final Map<PixelShift, ImageWrapper> shiftImages;
@@ -530,7 +532,6 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
         var imageWrapper = payload.image();
         var pixelShift = imageWrapper.findMetadata(PixelShift.class);
         Platform.runLater(() -> {
-            var metadata = imageWrapper.metadata();
             var addedImageViewer = owner.getImagesViewer().addImage(this,
                     rootOperation,
                     title,
@@ -543,13 +544,15 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
                     popupViews,
                     pixelShift.orElse(null),
                     viewer -> viewer,
-                    viewer -> {
+                    viewer -> viewer.setOnStretchedImageUpdate(stretchedImage -> {
                         BackgroundOperations.async(() -> {
-                            var histogram = showHistogram(viewer.getStretchedImage());
-                            Platform.runLater(() -> statsTab.setContent(histogram));
+                            var histogram = showHistogram(stretchedImage);
+                            Platform.runLater(() -> {
+                                statsTab.setContent(histogram);
+                                showMetadata(stretchedImage.metadata());
+                            });
                         });
-                        showMetadata(metadata);
-                    });
+                    }));
             var pixelShiftRange = imageWrapper.findMetadata(PixelShiftRange.class).orElse(new PixelShiftRange(-15, 15, .25));
             int imageWidth = imageWrapper.width();
             int imageHeight = imageWrapper.height();
@@ -752,16 +755,28 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
                                     throw new RuntimeException("Animation creation failed: " + e.getMessage(), e);
                                 }
                                 if (animationResult instanceof FileOutputResult fileOutput) {
-                                    // Generate output filename
-                                    var outputPath = outputDirectory.resolve(
-                                            createNamingStrategy().render(0, null, Constants.TYPE_CUSTOM,
-                                                    "ser-extract-" + System.currentTimeMillis(),
-                                                    computeSerFileBasename(serFile), null) + ".mp4");
+                                    var baseFilename = createNamingStrategy().render(0, null, Constants.TYPE_CUSTOM,
+                                            "ser-extract-" + System.currentTimeMillis(),
+                                            computeSerFileBasename(serFile), null);
 
-                                    Files.createDirectories(outputPath.getParent());
-                                    Files.move(fileOutput.displayFile(), outputPath);
+                                    var filesToMove = fileOutput.allFiles();
+                                    var displayFile = fileOutput.displayFile();
+                                    Path displayOutputPath = null;
 
-                                    broadcast(FileGeneratedEvent.of(GeneratedImageKind.IMAGE_MATH, "SER Frame Extract", outputPath));
+                                    for (var sourceFile : filesToMove) {
+                                        var extension = sourceFile.getFileName().toString().substring(sourceFile.getFileName().toString().lastIndexOf('.'));
+                                        var outputPath = outputDirectory.resolve(baseFilename + extension);
+                                        Files.createDirectories(outputPath.getParent());
+                                        Files.move(sourceFile, outputPath, StandardCopyOption.REPLACE_EXISTING);
+
+                                        if (sourceFile.equals(displayFile)) {
+                                            displayOutputPath = outputPath;
+                                        }
+                                    }
+
+                                    if (displayOutputPath != null) {
+                                        broadcast(FileGeneratedEvent.of(GeneratedImageKind.IMAGE_MATH, "SER Frame Extract", displayOutputPath));
+                                    }
                                 } else {
                                     throw new RuntimeException("Animation creation returned unexpected result type: " +
                                             (animationResult != null ? animationResult.getClass().getName() : "null"));
@@ -934,6 +949,9 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
                 this,
                 null
         );
+        for (var entry : pendingVariables.entrySet()) {
+            imageScriptExecutor.putVariable(entry.getKey(), entry.getValue());
+        }
         ed = payload.timestamp();
         var duration = java.time.Duration.ofNanos(ed - sd);
         double seconds = duration.toMillis() / 1000d;
@@ -972,11 +990,7 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
                 computeSerFileBasename(serFile)
         ));
         owner.prepareForGongImageDownload(processParams);
-        
-        // Execute batch scripts for single file processing (only when not in batch mode)
-        if (serFile != null && hasBatchScriptExpressions()) {
-            executeSingleFileBatchScripts();
-        }
+        executeSingleFileBatchScripts();
     }
 
     private Map<Class, Object> prepareExecutionContext(ProcessingDoneEvent.Outcome payload) {
@@ -1026,7 +1040,7 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
         if (!missingShifts.isEmpty()) {
             restartProcessForMissingShifts(missingShifts);
         }
-        var result = imageScriptExecutor.execute(script, SectionKind.SINGLE);
+        var result = imageScriptExecutor.execute(script, kind);
         var namingStrategy = createNamingStrategy();
         ImageMathScriptExecutor.render(result, imageEmitter, (outputLabel, fileOutput) -> {
             var baseName = namingStrategy.render(0, null, Constants.TYPE_CUSTOM, outputLabel, computeSerFileBasename(serFile), null);
@@ -1048,7 +1062,7 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
             onNotification(new NotificationEvent(new Notification(
                     Notification.AlertType.ERROR,
                     message("error.processing.script"),
-                    message("script.errors." + (errorCount == SpectrumAnalyzer.DEFAULT_ORDER ? "single" : "many")),
+                    message("script.errors." + (errorCount == 1 ? "single" : "many")),
                     message
             )));
         }
@@ -1111,6 +1125,15 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
     public <T> void putInContext(Class<T> key, Object value) {
         if (imageScriptExecutor != null) {
             imageScriptExecutor.putInContext(key, value);
+        }
+    }
+
+    @Override
+    public void putVariable(String name, Object value) {
+        if (imageScriptExecutor != null) {
+            imageScriptExecutor.putVariable(name, value);
+        } else {
+            pendingVariables.put(name, value);
         }
     }
 
@@ -1595,6 +1618,7 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
     private void executeSingleFileBatchScripts() {
         try {
             var scriptFiles = adjustedParams.combinedImageMathParams().scriptFiles();
+            owner.prepareForScriptExecution(this, params, rootOperation, ImageMathScriptExecutor.SectionKind.BATCH);
             if (scriptFiles.isEmpty()) {
                 return;
             }
@@ -1616,12 +1640,7 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
                 batchScriptExecutor.putVariable(entry.getKey(), entry.getValue());
             }
             
-            boolean initial = true;
             for (File scriptFile : scriptFiles) {
-                if (initial) {
-                    owner.prepareForScriptExecution(this, params, rootOperation, ImageMathScriptExecutor.SectionKind.BATCH);
-                    initial = false;
-                }
                 executeSingleFileBatchScript(namingStrategy, batchScriptExecutor, scriptFile);
             }
         } catch (Exception e) {
@@ -1691,6 +1710,10 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
                 message
             )));
         }
+    }
+
+    public boolean hasSerFile() {
+        return serFile != null;
     }
 
     sealed interface GraphData {

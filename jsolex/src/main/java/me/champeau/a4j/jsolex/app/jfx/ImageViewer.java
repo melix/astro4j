@@ -86,6 +86,7 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
+import java.util.function.Consumer;
 import java.util.function.Supplier;
 
 import static me.champeau.a4j.jsolex.app.JSolEx.message;
@@ -122,6 +123,7 @@ public class ImageViewer implements WithRootNode {
     private String title;
     private String description;
     private Runnable onDisplayUpdate;
+    private Consumer<ImageWrapper> onStretchedImageUpdate;
     private int rotation;
     private boolean vflip;
     private boolean firstShow = true;
@@ -233,17 +235,18 @@ public class ImageViewer implements WithRootNode {
                     if (prepared.unwrapToMemory() instanceof ImageWrapper32 mono) {
                         prepared = RGBImage.toRGB(mono);
                     }
+                    var transformedEllipse = prepared.findMetadata(Ellipse.class).orElse(ellipse);
                     var op = operation.createChild(I18N.string(JSolEx.class, "measures", "preparing.measure.distance"));
                     broadcaster.onProgress(ProgressEvent.of(op));
                     var withGlobe = new ImageDraw(Map.of(), Broadcaster.NO_OP)
-                            .doDrawGlobe(prepared, ellipse, correctAngleP.isSelected() ? 0 : solarParameters.p(), solarParameters.b0(), Color.YELLOW, false, false, GlobeStyle.EQUATORIAL_COORDS, true);
+                            .doDrawGlobe(prepared, transformedEllipse, correctAngleP.isSelected() ? 0 : solarParameters.p(), solarParameters.b0(), Color.YELLOW, false, false, GlobeStyle.EQUATORIAL_COORDS, true);
                     try {
                         var preparedFile = TemporaryFolder.newTempFile("prepared", ".png").toFile();
                         var globeFile = TemporaryFolder.newTempFile("globe", ".png").toFile();
                         var imageSaver = new ImageSaver(determineStrategy(), processParams, Set.of(ImageFormat.PNG));
                         imageSaver.save(prepared, preparedFile);
                         imageSaver.save(withGlobe, globeFile);
-                        var distanceMeasurementPane = new DistanceMeasurementPane(new Image(preparedFile.toURI().toString()), new Image(globeFile.toURI().toString()), ellipse, solarParameters);
+                        var distanceMeasurementPane = new DistanceMeasurementPane(new Image(preparedFile.toURI().toString()), new Image(globeFile.toURI().toString()), transformedEllipse, solarParameters);
                         Platform.runLater(() -> {
                             var stage = new Stage();
                             stage.setTitle(I18N.string(JSolEx.class, "measures", "measure.distance"));
@@ -633,6 +636,9 @@ public class ImageViewer implements WithRootNode {
                 stretchedImage = stretch(rgb);
             }
         }
+        if (onStretchedImageUpdate != null) {
+            onStretchedImageUpdate.accept(stretchedImage);
+        }
         Platform.runLater(() -> stretchedImageDebounce.playFromStart());
         var writable = WritableImageSupport.asWritable(stretchedImage);
         Platform.runLater(() -> updateDisplay(writable, resetZoom));
@@ -660,6 +666,10 @@ public class ImageViewer implements WithRootNode {
     public ImageWrapper getStretchedImage() {
         var result = stretchedImage == null ? image : stretchedImage;
         return result == null ? null : result.unwrapToMemory();
+    }
+
+    public void setOnStretchedImageUpdate(Consumer<ImageWrapper> onStretchedImageUpdate) {
+        this.onStretchedImageUpdate = onStretchedImageUpdate;
     }
 
     @Override
