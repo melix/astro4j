@@ -532,7 +532,6 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
         var imageWrapper = payload.image();
         var pixelShift = imageWrapper.findMetadata(PixelShift.class);
         Platform.runLater(() -> {
-            var metadata = imageWrapper.metadata();
             var addedImageViewer = owner.getImagesViewer().addImage(this,
                     rootOperation,
                     title,
@@ -545,13 +544,15 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
                     popupViews,
                     pixelShift.orElse(null),
                     viewer -> viewer,
-                    viewer -> {
+                    viewer -> viewer.setOnStretchedImageUpdate(stretchedImage -> {
                         BackgroundOperations.async(() -> {
-                            var histogram = showHistogram(viewer.getStretchedImage());
-                            Platform.runLater(() -> statsTab.setContent(histogram));
+                            var histogram = showHistogram(stretchedImage);
+                            Platform.runLater(() -> {
+                                statsTab.setContent(histogram);
+                                showMetadata(stretchedImage.metadata());
+                            });
                         });
-                        showMetadata(metadata);
-                    });
+                    }));
             var pixelShiftRange = imageWrapper.findMetadata(PixelShiftRange.class).orElse(new PixelShiftRange(-15, 15, .25));
             int imageWidth = imageWrapper.width();
             int imageHeight = imageWrapper.height();

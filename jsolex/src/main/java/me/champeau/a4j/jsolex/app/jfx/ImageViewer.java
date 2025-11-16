@@ -86,6 +86,7 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
+import java.util.function.Consumer;
 import java.util.function.Supplier;
 
 import static me.champeau.a4j.jsolex.app.JSolEx.message;
@@ -122,6 +123,7 @@ public class ImageViewer implements WithRootNode {
     private String title;
     private String description;
     private Runnable onDisplayUpdate;
+    private Consumer<ImageWrapper> onStretchedImageUpdate;
     private int rotation;
     private boolean vflip;
     private boolean firstShow = true;
@@ -634,6 +636,9 @@ public class ImageViewer implements WithRootNode {
                 stretchedImage = stretch(rgb);
             }
         }
+        if (onStretchedImageUpdate != null) {
+            onStretchedImageUpdate.accept(stretchedImage);
+        }
         Platform.runLater(() -> stretchedImageDebounce.playFromStart());
         var writable = WritableImageSupport.asWritable(stretchedImage);
         Platform.runLater(() -> updateDisplay(writable, resetZoom));
@@ -661,6 +666,10 @@ public class ImageViewer implements WithRootNode {
     public ImageWrapper getStretchedImage() {
         var result = stretchedImage == null ? image : stretchedImage;
         return result == null ? null : result.unwrapToMemory();
+    }
+
+    public void setOnStretchedImageUpdate(Consumer<ImageWrapper> onStretchedImageUpdate) {
+        this.onStretchedImageUpdate = onStretchedImageUpdate;
     }
 
     @Override
