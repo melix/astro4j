@@ -17,6 +17,7 @@
 - Improve memory management so that processing works on lower memory systems
 - Add a way to set script parameters in the script dialog on the main window
 - Fixed custom animation creation when P angle correction was applied
+- Fixed computation of the L0 solar parameter
 
 ## What's New in Version 4.2.0
 

@@ -17,6 +17,7 @@
 - Amélioration de la gestion de la mémoire pour que le traitement fonctionne sur des systèmes avec moins de mémoire
 - Ajout d'un moyen de définir les paramètres de script dans la boîte de dialogue de script sur la fenêtre principale
 - Correction de la création d'animations personnalisées lorsque la correction de l'angle P était appliquée
+- Correction du calcul du paramètre solaire L0
 
 ## Nouveautés de la version 4.2.0
 
