@@ -41,8 +41,8 @@ import me.champeau.a4j.jsolex.processing.sun.detection.Redshifts;
 import me.champeau.a4j.jsolex.processing.sun.workflow.GeneratedImageKind;
 import me.champeau.a4j.jsolex.processing.sun.workflow.ImageEmitter;
 import me.champeau.a4j.jsolex.processing.sun.workflow.PixelShift;
-import me.champeau.a4j.jsolex.processing.util.Constants;
 import me.champeau.a4j.jsolex.processing.util.AnimationFormat;
+import me.champeau.a4j.jsolex.processing.util.Constants;
 import me.champeau.a4j.jsolex.processing.util.FileBackedImage;
 import me.champeau.a4j.jsolex.processing.util.FilesUtils;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
@@ -51,14 +51,11 @@ import me.champeau.a4j.math.regression.Ellipse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.awt.Color;
-import java.awt.Font;
+import java.awt.*;
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
-import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.StandardCopyOption;
 import java.time.LocalDateTime;
 import java.util.Collections;
 import java.util.HashMap;
@@ -248,6 +245,13 @@ public class RedshiftImagesProcessor {
         var dispersion = SpectrumAnalyzer.computeSpectralDispersion(instrument, lambda0, params.observationDetails().pixelSize() * params.observationDetails().binning());
         var angstroms = shift * dispersion.angstromsPerPixel();
         return String.format(Locale.US, "%.2fÅ", angstroms);
+    }
+
+    public double toPixels(double angstroms) {
+        var lambda0 = params.spectrumParams().ray().wavelength();
+        var instrument = params.observationDetails().instrument();
+        var dispersion = SpectrumAnalyzer.computeSpectralDispersion(instrument, lambda0, params.observationDetails().pixelSize() * params.observationDetails().binning());
+        return angstroms / dispersion.angstromsPerPixel();
     }
 
     public void generateStandaloneAnimation(int x, int y, int width, int height, double minShift, double maxShift, String title, String name, boolean annotate, int delay, int[] annotationColor) {

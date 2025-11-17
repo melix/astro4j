@@ -35,6 +35,7 @@ import me.champeau.a4j.jsolex.processing.util.TemporaryFolder;
 
 import java.io.IOException;
 import java.nio.file.Files;
+import java.util.Locale;
 
 import static me.champeau.a4j.jsolex.app.JSolEx.message;
 
@@ -68,8 +69,6 @@ public class CustomAnimationCreator {
     @FXML
     public ColorPicker annotationColor;
 
-    private int imageWidth;
-    private int imageHeight;
     private int x;
     private int y;
     private RedshiftImagesProcessor redshiftProcessor;
@@ -90,8 +89,6 @@ public class CustomAnimationCreator {
         this.stage = stage;
         this.x = x;
         this.y = y;
-        this.imageWidth = imageWidth;
-        this.imageHeight = imageHeight;
         this.redshiftProcessor = redshiftProcessor;
         width.setTextFormatter(createDimensionFormatter());
         height.setTextFormatter(createDimensionFormatter());
@@ -103,12 +100,18 @@ public class CustomAnimationCreator {
         if (minAbsShift == 0) {
             minAbsShift = 1;
         }
+        if (processParams.spectrumParams().ray().wavelength().nanos() > 0) {
+            var maxDefaultShiftInPixels = redshiftProcessor.toPixels(2.0);
+            minAbsShift = Math.min(minAbsShift, maxDefaultShiftInPixels);
+        } else {
+            minAbsShift = Math.round(minAbsShift * 100.0) / 100.0;
+        }
         minPixelShift = -minAbsShift;
         maxPixelShift = minAbsShift;
         minShift.setTextFormatter(createShiftFormatter(range.minPixelShift(), range.maxPixelShift()));
         maxShift.setTextFormatter(createShiftFormatter(range.minPixelShift(), range.maxPixelShift()));
-        minShift.setText(Double.toString(minPixelShift));
-        maxShift.setText(Double.toString(maxPixelShift));
+        minShift.setText(String.format(Locale.US, "%.2f", minPixelShift));
+        maxShift.setText(String.format(Locale.US, "%.2f", maxPixelShift));
         annotateAnim.disableProperty().bind(generateAnim.selectedProperty().not());
         delay.disableProperty().bind(generateAnim.selectedProperty().not());
         if (processParams.spectrumParams().ray().wavelength().nanos() > 0) {
@@ -171,19 +174,19 @@ public class CustomAnimationCreator {
                 if (i > maxPixelShift) {
                     return maxPixelShift;
                 }
-                return i;
+                return Math.round(i * 100.0) / 100.0;
             }
 
             @Override
             public String toString(Double aDouble) {
-                Double value = aDouble;
-                if (value != null) {
-                    if (value < minPixelShift) {
-                        return Double.toString(minPixelShift);
+                if (aDouble != null) {
+                    if (aDouble < minPixelShift) {
+                        return String.format(Locale.US, "%.2f", minPixelShift);
                     }
-                    if (value > maxPixelShift) {
-                        return Double.toString(maxPixelShift);
+                    if (aDouble > maxPixelShift) {
+                        return String.format(Locale.US, "%.2f", maxPixelShift);
                     }
+                    return String.format(Locale.US, "%.2f", aDouble);
                 }
                 return super.toString(aDouble);
             }
