@@ -1,5 +1,6 @@
 name: TRANSITION
 category: ANIMATION
+concurrent: false
 description:
   fr: "Interpole des images entre elles.
   Par défaut, l'interpolation est linéaire et elle créera exactement le nombre d'images spécifié.

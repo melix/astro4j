@@ -1,5 +1,6 @@
 name: DEDISTORT
 category: STACKING
+concurrent: false
 description:
   fr: "Permet de corriger la distorsion d’une image. Elle dispose de 2 modes d’utilisation distincts.
   Dans le premier mode, on lui fournit une image de référence et une image à corriger, ainsi que 3 paramètres optionnels : la taille des tuiles, l’échantillonnage et la valeur du fond de ciel.

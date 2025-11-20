@@ -1,5 +1,6 @@
 name: STACK
 category: STACKING
+concurrent: false
 description:
   fr: "Empile plusieurs images."
   en: "Stacks multiple images."

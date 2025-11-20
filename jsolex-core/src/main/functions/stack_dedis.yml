@@ -1,5 +1,6 @@
 name: STACK_DEDIS
 category: STACKING
+concurrent: false
 description:
   fr: "Empile des images dé-déformées en appliquant un poids sur chaque image. Le poids est calculé en fonction de l'erreur de dé-distortion : les images nécessitant une forte correction de distorsion auront un poids plus faible."
   en: "Stacks de-distorted images by applying a weight to each image. The weight is calculated based on the de-distortion error: images requiring strong distortion correction will have a lower weight."

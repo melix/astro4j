@@ -44,15 +44,20 @@ import java.nio.file.Path;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 import java.util.TreeSet;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -257,19 +262,90 @@ public class DefaultImageScriptExecutor implements ImageMathScriptExecutor {
         Map<String, ImageWrapper> imagesByLabel = new LinkedHashMap<>();
         Map<String, FileOutputResult> filesByLabel = new LinkedHashMap<>();
         List<InvalidExpression> invalidExpressions = new ArrayList<>();
+        var resultsLock = new ReentrantLock();
         var progressOperation = operation.createChild("ImageScript evaluation");
         broadcaster.broadcast(progressOperation);
         var internalShifts = new TreeSet<Double>();
         try {
-            for (var section : sections) {
+            var assignmentsBySectionName = new LinkedHashMap<String, List<Assignment>>();
+            var outputAssignments = new HashSet<Assignment>();
+            var nonAssignmentsBySectionIndex = new LinkedHashMap<Integer, List<Expression>>();
+
+            for (int i = 0; i < sections.size(); i++) {
+                var section = sections.get(i);
+                var sectionName = section.name().orElse("");
+                var expressions = section.childrenOfType(Expression.class);
+
+                var assignments = expressions.stream()
+                        .filter(expr -> expr instanceof Assignment)
+                        .map(expr -> (Assignment) expr)
+                        .toList();
+                assignmentsBySectionName.computeIfAbsent(sectionName, k -> new ArrayList<>()).addAll(assignments);
+
+                if (section == outputSection) {
+                    outputAssignments.addAll(assignments);
+                }
+
+                var nonAssignments = expressions.stream()
+                        .filter(expr -> !(expr instanceof Assignment))
+                        .toList();
+                nonAssignmentsBySectionIndex.put(i, nonAssignments);
+            }
+
+            for (int i = 0; i < sections.size(); i++) {
+                var section = sections.get(i);
                 var isOutputSection = section == outputSection;
                 if (isOutputSection) {
                     internalShifts.addAll(evaluator.getShifts());
                     evaluator.clearShifts();
                 }
-                var expressions = section.childrenOfType(Expression.class);
-                cpt = executeExpressions(index, evaluator, expressions, isOutputSection, cpt, imagesByLabel, filesByLabel, invalidExpressions);
+
+                var nonAssignments = nonAssignmentsBySectionIndex.get(i);
+                for (var expr : nonAssignments) {
+                    try {
+                        evaluator.evaluate(expr);
+                    } catch (Exception ex) {
+                        var invalidExpression = new InvalidExpression(
+                                expr.toString(),
+                                expr.toString(),
+                                ex
+                        );
+                        invalidExpressions.add(invalidExpression);
+                    }
+                }
             }
+
+            if (!assignmentsBySectionName.isEmpty()) {
+                var parameterNames = evaluator.getVariables().keySet();
+                var analyzer = new ExpressionDependencyAnalyzer(parameterNames);
+                var dependencyInfos = new ArrayList<ExpressionDependencyAnalyzer.DependencyInfo>();
+
+                for (var entry : assignmentsBySectionName.entrySet()) {
+                    var sectionName = entry.getKey();
+                    var assignments = entry.getValue();
+                    for (var assignment : assignments) {
+                        dependencyInfos.add(analyzer.analyze(assignment, sectionName));
+                    }
+                }
+
+                var dag = ExpressionDAG.build(dependencyInfos);
+                var executionLevels = dag.computeExecutionLevels();
+                if (LOGGER.isDebugEnabled()) {
+                    LOGGER.debug("Expression DAG for {} sections:\n{}", kind, dag.toDotFormat());
+                }
+
+                for (var level : executionLevels) {
+                    if (level.canRunInParallel()) {
+                        cpt = executeExpressionsInParallel(index, evaluator, level.assignments(), outputAssignments, cpt, imagesByLabel, filesByLabel, invalidExpressions, resultsLock);
+                    } else {
+                        for (var assignment : level.assignments()) {
+                            var isFromOutputSection = outputAssignments.contains(assignment);
+                            cpt = executeSingleExpression(index, evaluator, assignment, isFromOutputSection, cpt, imagesByLabel, filesByLabel, invalidExpressions, resultsLock);
+                        }
+                    }
+                }
+            }
+
             return new ImageMathScriptResult(imagesByLabel, filesByLabel, invalidExpressions, internalShifts, evaluator.getShifts(), Collections.emptySet(), evaluator.usesAutoContinuum());
         } finally {
             broadcaster.broadcast(progressOperation.complete());
@@ -278,27 +354,99 @@ public class DefaultImageScriptExecutor implements ImageMathScriptExecutor {
 
 
     private int executeExpressions(int index, MemoizingExpressionEvaluator evaluator, List<Expression> expressions, boolean isOutputSection, int cpt, Map<String, ImageWrapper> imagesByLabel, Map<String, FileOutputResult> filesByLabel, List<InvalidExpression> invalidExpressions) {
-        for (var expression : expressions) {
+        var assignments = expressions.stream()
+                .filter(expr -> expr instanceof Assignment)
+                .map(expr -> (Assignment) expr)
+                .toList();
+
+        var nonAssignments = expressions.stream()
+                .filter(expr -> !(expr instanceof Assignment))
+                .toList();
+
+        for (var expr : nonAssignments) {
             try {
-                var result = evaluator.evaluate(expression);
-                if (expression instanceof Assignment assignment) {
-                    if (assignment.isAnonymous() && isOutputSection) {
-                        var dynamicVarName = "imagemath_" + index + "_" + cpt;
-                        cpt++;
-                        assignment.setVariable(dynamicVarName);
-                    }
-                    if (isOutputSection && assignment.variableName().isPresent()) {
-                        var variableName = assignment.variableName().get();
-                        extractResults(imagesByLabel, filesByLabel, variableName, result);
-                    }
-                }
+                evaluator.evaluate(expr);
             } catch (Exception ex) {
                 var invalidExpression = new InvalidExpression(
-                        expression.toString(),
-                        expression.toString(),
+                        expr.toString(),
+                        expr.toString(),
                         ex
                 );
                 invalidExpressions.add(invalidExpression);
+            }
+        }
+
+        if (assignments.isEmpty()) {
+            return cpt;
+        }
+
+        var resultsLock = new ReentrantLock();
+        var parameterNames = evaluator.getVariables().keySet();
+        var analyzer = new ExpressionDependencyAnalyzer(parameterNames);
+        var dependencyInfos = analyzer.analyzeAll(assignments);
+        var dag = ExpressionDAG.build(dependencyInfos);
+        var executionLevels = dag.computeExecutionLevels();
+
+        if (LOGGER.isDebugEnabled()) {
+            LOGGER.debug("Expression DAG:\n{}", dag.toDotFormat());
+        }
+
+        for (var level : executionLevels) {
+            if (level.canRunInParallel()) {
+                cpt = executeExpressionsInParallel(index, evaluator, level.assignments(), isOutputSection ? new HashSet<>(assignments) : null, cpt, imagesByLabel, filesByLabel, invalidExpressions, resultsLock);
+            } else {
+                for (var assignment : level.assignments()) {
+                    cpt = executeSingleExpression(index, evaluator, assignment, isOutputSection, cpt, imagesByLabel, filesByLabel, invalidExpressions, resultsLock);
+                }
+            }
+        }
+
+        return cpt;
+    }
+
+    private int executeExpressionsInParallel(int index, MemoizingExpressionEvaluator evaluator, List<Assignment> assignments, Set<Assignment> outputAssignments, int cpt, Map<String, ImageWrapper> imagesByLabel, Map<String, FileOutputResult> filesByLabel, List<InvalidExpression> invalidExpressions, ReentrantLock resultsLock) {
+        var forkJoinPool = ForkJoinPool.commonPool();
+        var atomicCpt = new AtomicInteger(cpt);
+        try {
+            forkJoinPool.submit(() -> assignments.parallelStream().forEach(assignment -> {
+                var localCpt = atomicCpt.getAndIncrement();
+                var isFromOutputSection = outputAssignments != null ? outputAssignments.contains(assignment) : false;
+                executeSingleExpression(index, evaluator, assignment, isFromOutputSection, localCpt, imagesByLabel, filesByLabel, invalidExpressions, resultsLock);
+            })).get();
+        } catch (InterruptedException | ExecutionException ex) {
+            LOGGER.warn("Parallel execution interrupted: " + ex.getMessage());
+        }
+        return atomicCpt.get();
+    }
+
+    private int executeSingleExpression(int index, MemoizingExpressionEvaluator evaluator, Assignment assignment, boolean isOutputSection, int cpt, Map<String, ImageWrapper> imagesByLabel, Map<String, FileOutputResult> filesByLabel, List<InvalidExpression> invalidExpressions, ReentrantLock resultsLock) {
+        try {
+            var result = evaluator.evaluate(assignment);
+            if (assignment.isAnonymous() && isOutputSection) {
+                var dynamicVarName = "imagemath_" + index + "_" + cpt;
+                cpt++;
+                assignment.setVariable(dynamicVarName);
+            }
+            if (isOutputSection && assignment.variableName().isPresent()) {
+                var variableName = assignment.variableName().get();
+                resultsLock.lock();
+                try {
+                    extractResults(imagesByLabel, filesByLabel, variableName, result);
+                } finally {
+                    resultsLock.unlock();
+                }
+            }
+        } catch (Exception ex) {
+            var invalidExpression = new InvalidExpression(
+                    assignment.toString(),
+                    assignment.toString(),
+                    ex
+            );
+            resultsLock.lock();
+            try {
+                invalidExpressions.add(invalidExpression);
+            } finally {
+                resultsLock.unlock();
             }
         }
         return cpt;

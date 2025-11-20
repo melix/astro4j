@@ -90,13 +90,12 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.EnumSet;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.OptionalDouble;
-import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.DoubleBinaryOperator;
 import java.util.stream.DoubleStream;
 import java.util.stream.IntStream;
@@ -107,10 +106,9 @@ import static me.champeau.a4j.jsolex.processing.util.Constants.message;
 public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluator {
     private static final Logger LOGGER = LoggerFactory.getLogger(AbstractImageExpressionEvaluator.class);
 
-    private final Map<Class<?>, Object> context = new HashMap<>();
+    private final Map<Class<?>, Object> context = new ConcurrentHashMap<>();
     private final ImageMath imageMath = ImageMath.newInstance();
     private final Broadcaster broadcaster;
-    private final Set<Double> warnings = new HashSet<>();
 
     // Function implementations
     private final AdjustContrast adjustContrast;
