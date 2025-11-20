@@ -1,5 +1,6 @@
 name: MOSAIC
 category: STACKING
+concurrent: false
 description:
   fr: "Permet de créer une mosaïque d’images."
   en: "Creates a mosaic of images."

@@ -7,6 +7,7 @@ public class BuiltinFunctionModel implements Describable {
     private String name;
     private DocCategory category;
     private boolean hasSideEffect;
+    private boolean concurrent = true;
     boolean isSpreadList;
     private List<FunctionArg> arguments = List.of();
     private Map<String, String> description;
@@ -67,6 +68,14 @@ public class BuiltinFunctionModel implements Describable {
 
     public void setHasSideEffect(boolean hasSideEffect) {
         this.hasSideEffect = hasSideEffect;
+    }
+
+    public boolean isConcurrent() {
+        return concurrent;
+    }
+
+    public void setConcurrent(boolean concurrent) {
+        this.concurrent = concurrent;
     }
 
     public Map<String, String> getExtraDocs() {

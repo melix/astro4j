@@ -53,6 +53,7 @@ import me.champeau.a4j.jsolex.app.jfx.I18N;
 import me.champeau.a4j.jsolex.app.jfx.ImageViewer;
 import me.champeau.a4j.jsolex.app.jfx.ReconstructionView;
 import me.champeau.a4j.jsolex.app.jfx.RectangleSelectionListener;
+import me.champeau.a4j.jsolex.app.jfx.ScriptErrorDialog;
 import me.champeau.a4j.jsolex.app.jfx.ZoomableImageView;
 import me.champeau.a4j.jsolex.app.script.JSolExScriptExecutor;
 import me.champeau.a4j.jsolex.processing.event.AverageImageComputedEvent;
@@ -1054,17 +1055,8 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
             }
         });
         var invalidExpressions = result.invalidExpressions();
-        var errorCount = invalidExpressions.size();
-        if (errorCount > 0) {
-            String message = invalidExpressions.stream()
-                    .map(invalidExpression -> "Expression '" + invalidExpression.label() + "' (" + invalidExpression.expression() + ") : " + invalidExpression.error().getMessage())
-                    .collect(Collectors.joining(System.lineSeparator()));
-            onNotification(new NotificationEvent(new Notification(
-                    Notification.AlertType.ERROR,
-                    message("error.processing.script"),
-                    message("script.errors." + (errorCount == 1 ? "single" : "many")),
-                    message
-            )));
+        if (!invalidExpressions.isEmpty()) {
+            Platform.runLater(() -> ScriptErrorDialog.showErrors(invalidExpressions));
         }
         var dur = java.time.Duration.ofNanos(System.nanoTime() - sd);
         var secs = dur.toSeconds() + (dur.toMillisPart() / 1000d);
@@ -1698,17 +1690,8 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
 
     private void processScriptErrors(ImageMathScriptResult result) {
         var invalidExpressions = result.invalidExpressions();
-        var errorCount = invalidExpressions.size();
-        if (errorCount > 0) {
-            String message = invalidExpressions.stream()
-                .map(invalidExpression -> "Expression '" + invalidExpression.label() + "' (" + invalidExpression.expression() + ") : " + invalidExpression.error().getMessage())
-                .collect(Collectors.joining(System.lineSeparator()));
-            onNotification(new NotificationEvent(new Notification(
-                Notification.AlertType.ERROR,
-                message("error.processing.script"),
-                message("script.errors." + (errorCount == 1 ? "single" : "many")),
-                message
-            )));
+        if (!invalidExpressions.isEmpty()) {
+            Platform.runLater(() -> ScriptErrorDialog.showErrors(invalidExpressions));
         }
     }
 

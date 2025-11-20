@@ -28,6 +28,8 @@ import me.champeau.a4j.jsolex.expr.ast.Section;
 import me.champeau.a4j.jsolex.expr.ast.StringLiteral;
 import me.champeau.a4j.jsolex.expr.ast.UnaryExpression;
 
+import java.util.List;
+
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
@@ -98,11 +100,22 @@ public abstract class ExpressionEvaluator {
                 var fun = functionCall.getBuiltinFunction().get();
                 var args = functionCall.getArguments();
                 if (args.stream().allMatch(arg -> arg.getFirst() instanceof Expression)) {
-                    // all arguments are expressions
-                    return functionCall(fun, fun.mapPositionalArguments(args.stream().map(this::doEvaluate).toList()));
+                    var useParallel = args.size() > 1
+                            && args.stream().anyMatch(arg -> arg.getFirst() instanceof FunctionCall)
+                            && !containsNonConcurrentFunction(args);
+                    var evaluatedArgs = useParallel
+                            ? args.parallelStream().map(this::doEvaluate).toList()
+                            : args.stream().map(this::doEvaluate).toList();
+                    return functionCall(fun, fun.mapPositionalArguments(evaluatedArgs));
                 }
                 if (args.stream().allMatch(arg -> arg.getFirst() instanceof NamedArgument)) {
-                    var map = args.stream()
+                    var useParallel = args.size() > 1
+                            && args.stream()
+                            .map(arg -> (NamedArgument) arg.getFirst())
+                            .anyMatch(namedArg -> namedArg.children().getLast() instanceof FunctionCall)
+                            && !containsNonConcurrentFunctionInNamedArgs(args);
+                    var stream = useParallel ? args.parallelStream() : args.stream();
+                    var map = stream
                             .map(arg -> (NamedArgument) arg.getFirst())
                             .map(namedArg -> new Object() {
                                 private final String name = namedArg.children().getFirst().toString();
@@ -179,6 +192,34 @@ public abstract class ExpressionEvaluator {
 
     protected Object userFunctionCall(UserFunction function, Map<String, Object> arguments) {
         return function.invoke(arguments);
+    }
+
+    private boolean containsNonConcurrentFunction(List<? extends Argument> args) {
+        return args.stream().anyMatch(arg -> {
+            var first = arg.getFirst();
+            if (first instanceof Expression expr) {
+                return hasNonConcurrentFunctionInExpression(expr);
+            }
+            return false;
+        });
+    }
+
+    private boolean containsNonConcurrentFunctionInNamedArgs(List<? extends Argument> args) {
+        return args.stream()
+                .map(arg -> (NamedArgument) arg.getFirst())
+                .anyMatch(namedArg -> {
+                    var expr = namedArg.children().getLast();
+                    return hasNonConcurrentFunctionInExpression(expr);
+                });
+    }
+
+    private boolean hasNonConcurrentFunctionInExpression(Node expr) {
+        var functionCalls = expr.descendantsOfType(FunctionCall.class);
+        return functionCalls.stream()
+                .map(FunctionCall::getBuiltinFunction)
+                .filter(opt -> opt.isPresent())
+                .map(opt -> opt.get())
+                .anyMatch(fun -> !fun.isConcurrent());
     }
 
     public record NestedInvocationResult(

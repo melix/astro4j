@@ -34,7 +34,7 @@ public class ImageExpressionEvaluator extends AbstractImageExpressionEvaluator {
     public ImageWrapper findImage(PixelShift shift) {
         var image = images.apply(shift);
         if (image == null) {
-            throw new IllegalArgumentException(String.format(message("missing.shift"), shift));
+            throw new IllegalArgumentException(String.format(message("missing.shift"), shift.pixelShift()));
         }
         return image;
     }

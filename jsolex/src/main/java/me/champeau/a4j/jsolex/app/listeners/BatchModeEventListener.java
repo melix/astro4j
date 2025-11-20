@@ -24,6 +24,7 @@ import me.champeau.a4j.jsolex.app.jfx.BatchOperations;
 import me.champeau.a4j.jsolex.app.jfx.CandidateImageDescriptor;
 import me.champeau.a4j.jsolex.app.jfx.Corrector;
 import me.champeau.a4j.jsolex.app.jfx.ImageInspectorController;
+import me.champeau.a4j.jsolex.app.jfx.ScriptErrorDialog;
 import me.champeau.a4j.jsolex.app.script.JSolExScriptExecutor;
 import me.champeau.a4j.jsolex.processing.event.AverageImageComputedEvent;
 import me.champeau.a4j.jsolex.processing.event.EllipseFittingRequestEvent;
@@ -776,24 +777,8 @@ public class BatchModeEventListener implements ProcessingEventListener, ImageMat
 
     private void processScriptErrors(ImageMathScriptResult result) {
         var invalidExpressions = result.invalidExpressions();
-        var errorCount = invalidExpressions.size();
-        if (errorCount > 0) {
-            String message = invalidExpressions.stream()
-                .map(invalidExpression -> "Expression '" + invalidExpression.label() + "' (" + invalidExpression.expression() + ") : " + invalidExpression.error().getMessage())
-                .collect(Collectors.joining(System.lineSeparator()));
-            String details = invalidExpressions.stream()
-                .map(invalidExpression -> {
-                    var sb = new StringWriter();
-                    invalidExpression.error().printStackTrace(new PrintWriter(sb));
-                    return sb.toString();
-                })
-                .collect(Collectors.joining("\n"));
-            delegate.onNotification(new NotificationEvent(new Notification(
-                Notification.AlertType.ERROR,
-                message("error.processing.script"),
-                message("script.errors." + (errorCount == 1 ? "single" : "many")),
-                message
-            )));
+        if (!invalidExpressions.isEmpty()) {
+            Platform.runLater(() -> ScriptErrorDialog.showErrors(invalidExpressions));
         }
     }
 

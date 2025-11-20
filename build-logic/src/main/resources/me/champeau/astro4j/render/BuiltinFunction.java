@@ -29,6 +29,7 @@ public enum BuiltinFunction {
 %FUNCTIONS%;
 
     private final boolean hasSideEffect;
+    private final boolean concurrent;
     private final List<Parameter> parameters;
 
 
@@ -41,20 +42,21 @@ public enum BuiltinFunction {
     }
 
     BuiltinFunction() {
-        this(false, List.of());
+        this(false, true, List.of());
     }
 
-    BuiltinFunction(boolean hasSideEffect, List<Parameter> parameters) {
+    BuiltinFunction(boolean hasSideEffect, boolean concurrent, List<Parameter> parameters) {
         this.hasSideEffect = hasSideEffect;
+        this.concurrent = concurrent;
         this.parameters = parameters;
     }
 
     BuiltinFunction(Parameter... parameters) {
-        this(false, Arrays.stream(parameters).toList());
+        this(false, true, Arrays.stream(parameters).toList());
     }
 
     BuiltinFunction(String... parameters) {
-        this(false, Arrays.stream(parameters).map(s -> new Parameter(s, true)).toList());
+        this(false, true, Arrays.stream(parameters).map(s -> new Parameter(s, true)).toList());
     }
 
     public String lowerCaseName() {
@@ -67,6 +69,10 @@ public enum BuiltinFunction {
 
     public boolean hasSideEffect() {
         return hasSideEffect;
+    }
+
+    public boolean isConcurrent() {
+        return concurrent;
     }
 
     public void validateArgs(Map<String, Object> args) {
