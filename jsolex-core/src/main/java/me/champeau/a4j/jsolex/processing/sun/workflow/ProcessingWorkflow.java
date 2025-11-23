@@ -166,7 +166,7 @@ public class ProcessingWorkflow {
         var ellipse = result.ellipse();
         var tilt = processParams.geometryParams().tilt().orElseGet(() -> estimateTilt(bandingFixed, ellipse));
         float blackPoint = (float) AnalysisUtils.estimateBlackPoint(bandingFixed, ellipse) * 1.2f;
-        LOGGER.info(message("black.estimate"), String.format("%.2f", blackPoint));
+        LOGGER.debug(message("black.estimate"), String.format("%.2f", blackPoint));
         var tiltDegrees = tilt / Math.PI * 180;
         var geometryParams = processParams.geometryParams();
         var tiltString = String.format("%.2f", tiltDegrees);

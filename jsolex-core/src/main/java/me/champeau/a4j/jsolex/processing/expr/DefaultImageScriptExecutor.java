@@ -135,9 +135,7 @@ public class DefaultImageScriptExecutor implements ImageMathScriptExecutor {
             var index = executionCount.getAndIncrement();
             var evaluator = new MemoizingExpressionEvaluator(broadcaster);
             populateContext(evaluator);
-            var result = doExecuteScript(script, index, evaluator, kind);
-            variables.putAll(evaluator.getVariables());
-            return result;
+            return doExecuteScript(script, index, evaluator, kind);
         } finally {
             if (!isCollectingShifts() && outputLogging) {
                 var dur = Duration.ofNanos(System.nanoTime() - nanoTime);
@@ -146,6 +144,11 @@ public class DefaultImageScriptExecutor implements ImageMathScriptExecutor {
                 broadcaster.broadcast(scriptOperation.complete(String.format(message("script.completed.in.format"), secs)));
             }
         }
+    }
+
+    @Override
+    public void removeVariable(String variable) {
+        variables.remove(variable);
     }
 
     public ImageMathScriptResult execute(List<Expression> expressions, List<UserFunction> userFunctions) {
@@ -159,7 +162,7 @@ public class DefaultImageScriptExecutor implements ImageMathScriptExecutor {
         var imagesByLabel = new LinkedHashMap<String, ImageWrapper>();
         var filesByLabel = new LinkedHashMap<String, FileOutputResult>();
         var invalidExpressions = new ArrayList<InvalidExpression>();
-        executeExpressions(executionCount.getAndIncrement(), evaluator, expressions, true, 0, imagesByLabel, filesByLabel, invalidExpressions);
+        executeExpressions(executionCount.getAndIncrement(), evaluator, expressions, new AtomicInteger(), imagesByLabel, filesByLabel, invalidExpressions);
         evaluator.getVariables().forEach((k, v) -> {
             if (!variables.containsKey(k)) {
                 variables.put(k, v);
@@ -210,7 +213,7 @@ public class DefaultImageScriptExecutor implements ImageMathScriptExecutor {
                                                   int index,
                                                   MemoizingExpressionEvaluator evaluator,
                                                   SectionKind kind) {
-        int cpt = 0;
+        var cpt = new AtomicInteger();
         var parser = new ImageMathParser(script);
         parser.setIncludeDir(includesDir);
         ImageMathScript root;
@@ -336,11 +339,11 @@ public class DefaultImageScriptExecutor implements ImageMathScriptExecutor {
 
                 for (var level : executionLevels) {
                     if (level.canRunInParallel()) {
-                        cpt = executeExpressionsInParallel(index, evaluator, level.assignments(), outputAssignments, cpt, imagesByLabel, filesByLabel, invalidExpressions, resultsLock);
+                        executeExpressionsInParallel(index, evaluator, level.assignments(), outputAssignments, cpt, imagesByLabel, filesByLabel, invalidExpressions, resultsLock);
                     } else {
                         for (var assignment : level.assignments()) {
                             var isFromOutputSection = outputAssignments.contains(assignment);
-                            cpt = executeSingleExpression(index, evaluator, assignment, isFromOutputSection, cpt, imagesByLabel, filesByLabel, invalidExpressions, resultsLock);
+                            executeSingleExpression(index, evaluator, assignment, isFromOutputSection, cpt, imagesByLabel, filesByLabel, invalidExpressions, resultsLock);
                         }
                     }
                 }
@@ -353,7 +356,7 @@ public class DefaultImageScriptExecutor implements ImageMathScriptExecutor {
     }
 
 
-    private int executeExpressions(int index, MemoizingExpressionEvaluator evaluator, List<Expression> expressions, boolean isOutputSection, int cpt, Map<String, ImageWrapper> imagesByLabel, Map<String, FileOutputResult> filesByLabel, List<InvalidExpression> invalidExpressions) {
+    private void executeExpressions(int index, MemoizingExpressionEvaluator evaluator, List<Expression> expressions, AtomicInteger cpt, Map<String, ImageWrapper> imagesByLabel, Map<String, FileOutputResult> filesByLabel, List<InvalidExpression> invalidExpressions) {
         var assignments = expressions.stream()
                 .filter(expr -> expr instanceof Assignment)
                 .map(expr -> (Assignment) expr)
@@ -377,7 +380,7 @@ public class DefaultImageScriptExecutor implements ImageMathScriptExecutor {
         }
 
         if (assignments.isEmpty()) {
-            return cpt;
+            return;
         }
 
         var resultsLock = new ReentrantLock();
@@ -393,38 +396,32 @@ public class DefaultImageScriptExecutor implements ImageMathScriptExecutor {
 
         for (var level : executionLevels) {
             if (level.canRunInParallel()) {
-                cpt = executeExpressionsInParallel(index, evaluator, level.assignments(), isOutputSection ? new HashSet<>(assignments) : null, cpt, imagesByLabel, filesByLabel, invalidExpressions, resultsLock);
+                executeExpressionsInParallel(index, evaluator, level.assignments(), new HashSet<>(assignments), cpt, imagesByLabel, filesByLabel, invalidExpressions, resultsLock);
             } else {
                 for (var assignment : level.assignments()) {
-                    cpt = executeSingleExpression(index, evaluator, assignment, isOutputSection, cpt, imagesByLabel, filesByLabel, invalidExpressions, resultsLock);
+                    executeSingleExpression(index, evaluator, assignment, true, cpt, imagesByLabel, filesByLabel, invalidExpressions, resultsLock);
                 }
             }
         }
-
-        return cpt;
     }
 
-    private int executeExpressionsInParallel(int index, MemoizingExpressionEvaluator evaluator, List<Assignment> assignments, Set<Assignment> outputAssignments, int cpt, Map<String, ImageWrapper> imagesByLabel, Map<String, FileOutputResult> filesByLabel, List<InvalidExpression> invalidExpressions, ReentrantLock resultsLock) {
+    private void executeExpressionsInParallel(int index, MemoizingExpressionEvaluator evaluator, List<Assignment> assignments, Set<Assignment> outputAssignments, AtomicInteger cpt, Map<String, ImageWrapper> imagesByLabel, Map<String, FileOutputResult> filesByLabel, List<InvalidExpression> invalidExpressions, ReentrantLock resultsLock) {
         var forkJoinPool = ForkJoinPool.commonPool();
-        var atomicCpt = new AtomicInteger(cpt);
         try {
             forkJoinPool.submit(() -> assignments.parallelStream().forEach(assignment -> {
-                var localCpt = atomicCpt.getAndIncrement();
-                var isFromOutputSection = outputAssignments != null ? outputAssignments.contains(assignment) : false;
-                executeSingleExpression(index, evaluator, assignment, isFromOutputSection, localCpt, imagesByLabel, filesByLabel, invalidExpressions, resultsLock);
+                var isFromOutputSection = outputAssignments != null && outputAssignments.contains(assignment);
+                executeSingleExpression(index, evaluator, assignment, isFromOutputSection, cpt, imagesByLabel, filesByLabel, invalidExpressions, resultsLock);
             })).get();
         } catch (InterruptedException | ExecutionException ex) {
             LOGGER.warn("Parallel execution interrupted: " + ex.getMessage());
         }
-        return atomicCpt.get();
     }
 
-    private int executeSingleExpression(int index, MemoizingExpressionEvaluator evaluator, Assignment assignment, boolean isOutputSection, int cpt, Map<String, ImageWrapper> imagesByLabel, Map<String, FileOutputResult> filesByLabel, List<InvalidExpression> invalidExpressions, ReentrantLock resultsLock) {
+    private void executeSingleExpression(int index, MemoizingExpressionEvaluator evaluator, Assignment assignment, boolean isOutputSection, AtomicInteger cpt, Map<String, ImageWrapper> imagesByLabel, Map<String, FileOutputResult> filesByLabel, List<InvalidExpression> invalidExpressions, ReentrantLock resultsLock) {
         try {
             var result = evaluator.evaluate(assignment);
             if (assignment.isAnonymous() && isOutputSection) {
-                var dynamicVarName = "imagemath_" + index + "_" + cpt;
-                cpt++;
+                var dynamicVarName = "imagemath_" + index + "_" + cpt.getAndIncrement();
                 assignment.setVariable(dynamicVarName);
             }
             if (isOutputSection && assignment.variableName().isPresent()) {
@@ -449,7 +446,6 @@ public class DefaultImageScriptExecutor implements ImageMathScriptExecutor {
                 resultsLock.unlock();
             }
         }
-        return cpt;
     }
 
     private List<UserFunction> readUserFunctions(ImageMathScript scriptNode) {

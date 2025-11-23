@@ -23,6 +23,7 @@ import me.champeau.a4j.jsolex.expr.ast.Identifier;
 
 import java.util.HashSet;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -67,8 +68,7 @@ public class ExpressionDependencyAnalyzer {
 
         return functionCalls.stream()
                 .map(FunctionCall::getBuiltinFunction)
-                .filter(opt -> opt.isPresent())
-                .map(opt -> opt.get())
+                .flatMap(Optional::stream)
                 .anyMatch(BuiltinFunction::hasSideEffect);
     }
 
@@ -78,8 +78,7 @@ public class ExpressionDependencyAnalyzer {
 
         return functionCalls.stream()
                 .map(FunctionCall::getBuiltinFunction)
-                .filter(opt -> opt.isPresent())
-                .map(opt -> opt.get())
+                .flatMap(Optional::stream)
                 .anyMatch(fun -> !fun.isConcurrent());
     }
 
@@ -107,8 +106,7 @@ public class ExpressionDependencyAnalyzer {
             var functionCalls = expr.descendantsOfType(FunctionCall.class);
             return functionCalls.stream()
                     .map(FunctionCall::getBuiltinFunction)
-                    .filter(opt -> opt.isPresent())
-                    .map(opt -> opt.get())
+                    .flatMap(Optional::stream)
                     .anyMatch(fun -> !fun.isConcurrent());
         }
         return false;

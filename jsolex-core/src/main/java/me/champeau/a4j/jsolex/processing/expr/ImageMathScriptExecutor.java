@@ -88,6 +88,8 @@ public interface ImageMathScriptExecutor {
 
     ImageMathScriptResult execute(String script, SectionKind kind);
 
+    void removeVariable(String variable);
+
     <T> Optional<T> getVariable(String name);
 
     default <T> void putInContext(Class<T> key, Object value) {
@@ -97,6 +99,8 @@ public interface ImageMathScriptExecutor {
     default void putVariable(String name, Object value) {
 
     }
+
+    Map<String, Object> getVariables();
 
     enum SectionKind {
         SINGLE,

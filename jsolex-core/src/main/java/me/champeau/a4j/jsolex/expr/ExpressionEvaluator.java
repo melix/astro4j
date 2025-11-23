@@ -34,12 +34,14 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.Optional;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 public abstract class ExpressionEvaluator {
-    private final Map<String, Object> variables = new HashMap<>();
-    private final Map<String, UserFunction> userFunctions = new HashMap<>();
+    private final Map<String, Object> variables = new ConcurrentHashMap<>();
+    private final Map<String, UserFunction> userFunctions = new ConcurrentHashMap<>();
 
     public void putVariable(String name, Object value) {
         variables.put(name, value);
@@ -217,8 +219,7 @@ public abstract class ExpressionEvaluator {
         var functionCalls = expr.descendantsOfType(FunctionCall.class);
         return functionCalls.stream()
                 .map(FunctionCall::getBuiltinFunction)
-                .filter(opt -> opt.isPresent())
-                .map(opt -> opt.get())
+                .flatMap(Optional::stream)
                 .anyMatch(fun -> !fun.isConcurrent());
     }
 

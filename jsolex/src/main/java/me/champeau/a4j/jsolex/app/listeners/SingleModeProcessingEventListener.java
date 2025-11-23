@@ -1064,6 +1064,13 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
         return result;
     }
 
+    @Override
+    public void removeVariable(String variable) {
+        if (imageScriptExecutor != null) {
+            imageScriptExecutor.removeVariable(variable);
+        }
+    }
+
     private void restartProcessForMissingShifts(Set<Double> missingShifts) {
         var outOfRange = missingShifts.stream()
                 .filter(s -> s > pixelShiftRange.maxPixelShift())
@@ -1129,11 +1136,20 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
         }
     }
 
+    @Override
+    public Map<String, Object> getVariables() {
+        if (imageScriptExecutor != null) {
+            return imageScriptExecutor.getVariables();
+        }
+        return pendingVariables;
+    }
+
     private Set<Double> determineShiftsRequiredInScript(String script) {
         var collectingExecutor = new DefaultImageScriptExecutor(
                 ShiftCollectingImageExpressionEvaluator.zeroImages(),
                 scriptExecutionContext
         );
+        getVariables().forEach(collectingExecutor::putVariable);
         var shiftCollectionResult = collectingExecutor.execute(script, SectionKind.SINGLE);
         Set<Double> allShifts = new TreeSet<>();
         allShifts.addAll(shiftCollectionResult.outputShifts());
