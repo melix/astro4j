@@ -584,7 +584,13 @@ public class ImageViewer implements WithRootNode {
             BackgroundOperations.async(() -> stretchAndDisplay(true));
             firstShow = false;
         } else if (image != null) {
-            BackgroundOperations.async(this::maybeRunOnUpdate);
+            BackgroundOperations.async(() -> {
+                var currentStretchedImage = stretchedImage;
+                maybeRunOnUpdate();
+                if (onStretchedImageUpdate != null && currentStretchedImage != null) {
+                    onStretchedImageUpdate.accept(currentStretchedImage.unwrapToMemory());
+                }
+            });
         }
     }
 

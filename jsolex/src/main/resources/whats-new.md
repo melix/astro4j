@@ -14,6 +14,7 @@
 ## What's New in Version 4.2.2
 
 - Faster script execution by parallelizing independent expressions
+- Fixed histogram in stats tab not updating when clicking on image links
 
 ## What's New in Version 4.2.1
 

@@ -14,6 +14,7 @@
 ## Nouveautés de la version 4.2.2
 
 - Exécution plus rapide des scripts en parallélisant les expressions indépendantes
+- Correction de l'histogramme dans l'onglet statistiques qui ne se mettait pas à jour lors du clic sur les liens d'images
 
 ## Nouveautés de la version 4.2.1
 
