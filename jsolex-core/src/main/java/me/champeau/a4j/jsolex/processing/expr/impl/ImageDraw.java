@@ -23,6 +23,7 @@ import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
 import me.champeau.a4j.jsolex.processing.sun.detection.ActiveRegion;
 import me.champeau.a4j.jsolex.processing.sun.detection.ActiveRegions;
 import me.champeau.a4j.jsolex.processing.sun.workflow.PixelShift;
+import me.champeau.a4j.jsolex.processing.sun.workflow.SourceInfo;
 import me.champeau.a4j.jsolex.processing.util.Constants;
 import me.champeau.a4j.jsolex.processing.util.FileBackedImage;
 import me.champeau.a4j.jsolex.processing.util.GeoCoordinates;
@@ -260,6 +261,48 @@ public class ImageDraw extends AbstractFunctionImpl {
         if (message.contains("%DATETIME%")) {
             var details = params.observationDetails();
             message = message.replace("%DATETIME%", details.date().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss 'UTC'")));
+        }
+        if (message.contains("%CAMERA%")) {
+            var details = params.observationDetails();
+            message = message.replace("%CAMERA%", emptyIfNull(details.camera()));
+        }
+        if (message.contains("%FOCAL_LEN%")) {
+            var details = params.observationDetails();
+            var focalLength = details.focalLength();
+            message = message.replace("%FOCAL_LEN%", focalLength != null ? focalLength + "mm" : "");
+        }
+        if (message.contains("%APERTURE%")) {
+            var details = params.observationDetails();
+            var aperture = details.aperture();
+            message = message.replace("%APERTURE%", aperture != null ? aperture + "mm" : "");
+        }
+        if (message.contains("%MOUNT%")) {
+            var details = params.observationDetails();
+            message = message.replace("%MOUNT%", emptyIfNull(details.mount()));
+        }
+        if (message.contains("%ERF%")) {
+            var details = params.observationDetails();
+            message = message.replace("%ERF%", emptyIfNull(details.energyRejectionFilter()));
+        }
+        if (message.contains("%P_ANGLE%")) {
+            var solarParams = findSolarParams(image);
+            message = message.replace("%P_ANGLE%", solarParams.map(sp -> String.format(Locale.US, "%.2f°", Math.toDegrees(sp.p()))).orElse(""));
+        }
+        if (message.contains("%B0_ANGLE%")) {
+            var solarParams = findSolarParams(image);
+            message = message.replace("%B0_ANGLE%", solarParams.map(sp -> String.format(Locale.US, "%.2f°", Math.toDegrees(sp.b0()))).orElse(""));
+        }
+        if (message.contains("%L0_ANGLE%")) {
+            var solarParams = findSolarParams(image);
+            message = message.replace("%L0_ANGLE%", solarParams.map(sp -> String.format(Locale.US, "%.2f°", Math.toDegrees(sp.l0()))).orElse(""));
+        }
+        if (message.contains("%CARRINGTON_ROT%")) {
+            var solarParams = findSolarParams(image);
+            message = message.replace("%CARRINGTON_ROT%", solarParams.map(sp -> String.valueOf(sp.carringtonRotation())).orElse(""));
+        }
+        if (message.contains("%FILENAME%")) {
+            var sourceInfo = image.findMetadata(SourceInfo.class);
+            message = message.replace("%FILENAME%", sourceInfo.map(SourceInfo::serFileName).orElse(""));
         }
         return message;
     }

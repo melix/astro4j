@@ -15,6 +15,7 @@
 
 - Exécution plus rapide des scripts en parallélisant les expressions indépendantes
 - Correction de l'histogramme dans l'onglet statistiques qui ne se mettait pas à jour lors du clic sur les liens d'images
+- Ajout de nouveaux mots clés à la fonction `DRAW_TEXT`
 
 ## Nouveautés de la version 4.2.1
 

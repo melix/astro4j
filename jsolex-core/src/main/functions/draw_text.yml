@@ -1,24 +1,50 @@
 name: DRAW_TEXT
 category: DRAW
 description:
-  fr: "Ecrit du texte sur l’image. Le texte peut include les variables suivantes :\n
-\n  
-     * `%WAVELEN%` : longueur d’onde de l'image en Angström (inclus le décalage par rapport à la longueur d’onde de référence)\n
+  fr: "Ecrit du texte sur l'image. Le texte peut include les variables suivantes :\n
+\n
+     * `%WAVELEN%` : longueur d'onde de l'image en Angström (inclus le décalage par rapport à la longueur d'onde de référence)\n
      * `%PIXELSHIFT%` : décalage de pixels appliqué\n
      * `%SHIFT%` : décalage appliqué (en Angström)\n
      * `%RAY%` : le nom de la raie de référence observée\n
-     * `%OBSERVER%` : le nom de l’observateur\n
-     * `%INSTRUMENT%` : le nom de l’instrument\n
-     * `%TELESCOPE%` : le nom du télescope\n"
+     * `%OBSERVER%` : le nom de l'observateur\n
+     * `%INSTRUMENT%` : le nom de l'instrument\n
+     * `%TELESCOPE%` : le nom du télescope\n
+     * `%DATE%` : date de l'observation (AAAA-MM-JJ)\n
+     * `%TIME%` : heure de l'observation (HH:mm:ss UTC)\n
+     * `%DATETIME%` : date et heure de l'observation\n
+     * `%CAMERA%` : le nom de la caméra\n
+     * `%FOCAL_LEN%` : la longueur focale\n
+     * `%APERTURE%` : l'ouverture\n
+     * `%MOUNT%` : le nom de la monture\n
+     * `%ERF%` : le filtre de réjection d'énergie\n
+     * `%P_ANGLE%` : l'angle P en degrés\n
+     * `%B0_ANGLE%` : l'angle B0 en degrés\n
+     * `%L0_ANGLE%` : l'angle L0 en degrés\n
+     * `%CARRINGTON_ROT%` : le numéro de rotation de Carrington\n
+     * `%FILENAME%` : le nom du fichier SER source\n"
   en: "Draws text on the image. The text can include the following variables:\n
-\n  
+\n
      * `%WAVELEN%` : wavelength of the image in Angström (includes the shift from the reference wavelength)\n
      * `%PIXELSHIFT%` : pixel shift applied\n
      * `%SHIFT%` : shift applied (in Angström)\n
      * `%RAY%` : name of the observed reference line\n
      * `%OBSERVER%` : name of the observer\n
      * `%INSTRUMENT%` : name of the instrument\n
-     * `%TELESCOPE%` : name of the telescope\n"
+     * `%TELESCOPE%` : name of the telescope\n
+     * `%DATE%` : observation date (YYYY-MM-DD)\n
+     * `%TIME%` : observation time (HH:mm:ss UTC)\n
+     * `%DATETIME%` : observation date and time\n
+     * `%CAMERA%` : camera name\n
+     * `%FOCAL_LEN%` : focal length\n
+     * `%APERTURE%` : aperture\n
+     * `%MOUNT%` : mount name\n
+     * `%ERF%` : energy rejection filter\n
+     * `%P_ANGLE%` : P angle in degrees\n
+     * `%B0_ANGLE%` : B0 angle in degrees\n
+     * `%L0_ANGLE%` : L0 angle in degrees\n
+     * `%CARRINGTON_ROT%` : Carrington rotation number\n
+     * `%FILENAME%` : source SER file name\n"
 arguments:
   - name: img
     description: Image(s)
