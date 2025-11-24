@@ -24,6 +24,7 @@ import me.champeau.a4j.jsolex.app.jfx.BatchOperations;
 import me.champeau.a4j.jsolex.app.jfx.CandidateImageDescriptor;
 import me.champeau.a4j.jsolex.app.jfx.Corrector;
 import me.champeau.a4j.jsolex.app.jfx.ImageInspectorController;
+import me.champeau.a4j.jsolex.app.jfx.ScriptErrorDialog;
 import me.champeau.a4j.jsolex.app.script.JSolExScriptExecutor;
 import me.champeau.a4j.jsolex.processing.event.AverageImageComputedEvent;
 import me.champeau.a4j.jsolex.processing.event.EllipseFittingRequestEvent;
@@ -72,8 +73,6 @@ import me.champeau.a4j.ser.Header;
 
 import java.io.File;
 import java.io.IOException;
-import java.io.PrintWriter;
-import java.io.StringWriter;
 import java.nio.charset.Charset;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -92,7 +91,6 @@ import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.function.Consumer;
-import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import static me.champeau.a4j.jsolex.app.JSolEx.message;
@@ -770,30 +768,19 @@ public class BatchModeEventListener implements ProcessingEventListener, ImageMat
     }
 
     @Override
+    public void removeVariable(String variable) {
+        batchScriptExecutor.removeVariable(variable);
+    }
+
+    @Override
     public <T> Optional<T> getVariable(String name) {
         return batchScriptExecutor.getVariable(name);
     }
 
     private void processScriptErrors(ImageMathScriptResult result) {
         var invalidExpressions = result.invalidExpressions();
-        var errorCount = invalidExpressions.size();
-        if (errorCount > 0) {
-            String message = invalidExpressions.stream()
-                .map(invalidExpression -> "Expression '" + invalidExpression.label() + "' (" + invalidExpression.expression() + ") : " + invalidExpression.error().getMessage())
-                .collect(Collectors.joining(System.lineSeparator()));
-            String details = invalidExpressions.stream()
-                .map(invalidExpression -> {
-                    var sb = new StringWriter();
-                    invalidExpression.error().printStackTrace(new PrintWriter(sb));
-                    return sb.toString();
-                })
-                .collect(Collectors.joining("\n"));
-            delegate.onNotification(new NotificationEvent(new Notification(
-                Notification.AlertType.ERROR,
-                message("error.processing.script"),
-                message("script.errors." + (errorCount == 1 ? "single" : "many")),
-                message
-            )));
+        if (!invalidExpressions.isEmpty()) {
+            Platform.runLater(() -> ScriptErrorDialog.showErrors(invalidExpressions));
         }
     }
 
@@ -815,6 +802,15 @@ public class BatchModeEventListener implements ProcessingEventListener, ImageMat
             batchScriptExecutor.putVariable(name, value);
         } else {
             pendingVariables.put(name, value);
+        }
+    }
+
+    @Override
+    public Map<String, Object> getVariables() {
+        if (batchScriptExecutor != null) {
+            return batchScriptExecutor.getVariables();
+        } else {
+            return Map.copyOf(pendingVariables);
         }
     }
 

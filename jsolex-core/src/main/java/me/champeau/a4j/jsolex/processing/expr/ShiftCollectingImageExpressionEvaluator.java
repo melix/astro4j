@@ -25,26 +25,26 @@ import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 import me.champeau.a4j.jsolex.processing.util.Wavelen;
 
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
-import java.util.TreeSet;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Function;
 
 public class ShiftCollectingImageExpressionEvaluator extends ImageExpressionEvaluator {
 
-    private final Set<Double> shifts = new TreeSet<>();
-    private final Set<Double> autoWavelenghts = new TreeSet<>();
+    private final Set<Double> shifts = ConcurrentHashMap.newKeySet();
+    private final Set<Double> autoWavelenghts = ConcurrentHashMap.newKeySet();
     private final Map<PixelShift, ImageWrapper> cache = new ConcurrentHashMap<>();
-    private boolean autoContinuum = false;
+    private final Map<PixelShift, ReentrantLock> loadLocks = new ConcurrentHashMap<>();
+    private volatile boolean autoContinuum = false;
 
     public static boolean isShiftCollecting(Function<PixelShift, ImageWrapper> function) {
         return function instanceof ShiftCollectingFunction;
     }
 
     public static Function<PixelShift, ImageWrapper> zeroImages() {
-        var map = new HashMap<PixelShift, ImageWrapper>();
+        var map = new ConcurrentHashMap<PixelShift, ImageWrapper>();
         return (ShiftCollectingFunction) idx -> map.computeIfAbsent(idx, unused -> ImageWrapper32.createEmpty());
     }
 

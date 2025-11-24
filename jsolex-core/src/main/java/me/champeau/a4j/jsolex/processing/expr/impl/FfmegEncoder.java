@@ -78,7 +78,7 @@ public class FfmegEncoder {
                 .toList();
             broadcaster.broadcast(progressOperation.update(1, "Exporting frames"));
             broadcaster.broadcast(progressOperation.update(0, "Encoding (FFMPEG)"));
-            int framesPerSecond = 1000 / msBetweenFrames;
+            double framesPerSecond = 1000d / msBetweenFrames;
             // now we can use ffmpeg to encode the video
             var ffmpeg = new ProcessBuilder("ffmpeg",
                 "-framerate", framesPerSecond + "",

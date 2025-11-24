@@ -24,8 +24,10 @@ public class BuiltinFunctionsRenderer implements Renderer<List<BuiltinFunctionMo
     private String renderFunction(BuiltinFunctionModel fun) {
         var sb = new StringBuilder();
         sb.append(fun.getName()).append("(");
-        if (fun.isHasSideEffect()) {
-            sb.append("true, List.of(");
+        if (fun.isHasSideEffect() || !fun.isConcurrent()) {
+            sb.append(fun.isHasSideEffect()).append(", ");
+            sb.append(fun.isConcurrent()).append(", ");
+            sb.append("List.of(");
         }
         if (fun.isSpreadList()) {
             sb.append("Parameter.SPREAD_LIST");
@@ -33,7 +35,7 @@ public class BuiltinFunctionsRenderer implements Renderer<List<BuiltinFunctionMo
             sb.append(fun.getArguments().stream().map(arg -> (arg.isRequired() ? "req(" : "opt(") + '"' + arg.getName() + "\")").collect(Collectors.joining(", ")));
         }
         sb.append(")");
-        if (fun.isHasSideEffect()) {
+        if (fun.isHasSideEffect() || !fun.isConcurrent()) {
             sb.append(")");
         }
         return sb.toString();

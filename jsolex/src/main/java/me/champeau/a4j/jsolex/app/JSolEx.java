@@ -924,11 +924,27 @@ public class JSolEx implements JSolExInterface {
                 }
                 var result = executor.execute(text, section);
                 if (shouldRunBothSections) {
-                    // simulate single element batch mode
-                    result.imagesByLabel().forEach((key, image) -> executor.putVariable(key, List.of(image)));
-                    operation = rootOperation.createChild("ImageMath Script");
-                    executor.putInContext(ProgressOperation.class, operation);
-                    executor.execute(text, ImageMathScriptExecutor.SectionKind.BATCH);
+                    var previousVariables = new HashMap<String, Object>();
+                    var previousKeys = result.imagesByLabel().keySet();
+                    for (var key : previousKeys) {
+                        var value = executor.getVariable(key);
+                        value.ifPresent(v -> previousVariables.put(key, v));
+                    }
+                    try {
+                        // simulate single element batch mode
+                        result.imagesByLabel().forEach((key, image) -> executor.putVariable(key, List.of(image)));
+                        operation = rootOperation.createChild("ImageMath Script");
+                        executor.putInContext(ProgressOperation.class, operation);
+                        executor.execute(text, ImageMathScriptExecutor.SectionKind.BATCH);
+                    } finally {
+                        for (var key : previousKeys) {
+                            if (previousVariables.containsKey(key)) {
+                                executor.putVariable(key, previousVariables.get(key));
+                            } else {
+                                executor.removeVariable(key);
+                            }
+                        }
+                    }
                 }
 
             });
