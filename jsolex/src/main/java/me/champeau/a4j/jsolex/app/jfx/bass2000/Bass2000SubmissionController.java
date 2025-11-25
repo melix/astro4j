@@ -701,14 +701,13 @@ public class Bass2000SubmissionController {
     private ImageWrapper getGeometryCorrectedImage(Double reference, double shift) {
         var executor = mainController.getScriptExecutor();
         var ref = reference != null ? String.format(Locale.US, ", ref:%.3f", reference) : "";
-        executor.execute(String.format(Locale.US, """
-            [internal]
-            result=autocrop2(img(-a2px(a: %.3f%s));1.2)
+        var output = executor.execute(String.format(Locale.US, """
             [outputs]
+            result=autocrop2(img(-a2px(a: %.3f%s));1.2)
             """, shift, ref), ImageMathScriptExecutor.SectionKind.SINGLE);
-        var result = executor.getVariable("result");
+        var result = output.imagesByLabel().get("result");
 
-        if (result.isPresent() && result.get() instanceof ImageWrapper image) {
+        if (result instanceof ImageWrapper image) {
             return image.unwrapToMemory();
         }
         return null;
