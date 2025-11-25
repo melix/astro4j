@@ -41,6 +41,10 @@ public interface ImageMathScriptExecutor {
     static void render(ImageMathScriptResult result, ImageEmitter emitter, FileOutputHandler fileHandler) {
         for (Map.Entry<String, ImageWrapper> entry : result.imagesByLabel().entrySet()) {
             var label = entry.getKey();
+            if (label.startsWith("__")) {
+                // internal variable
+                continue;
+            }
             var image = entry.getValue();
             if (image instanceof FileBackedImage fileBackedImage) {
                 image = fileBackedImage.unwrapToMemory();
