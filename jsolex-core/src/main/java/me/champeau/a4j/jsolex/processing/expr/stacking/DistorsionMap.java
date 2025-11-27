@@ -112,15 +112,6 @@ public class DistorsionMap {
         var gridXSize = dxy[0].length;
         var gridYSize = dxy.length;
 
-        var p = new double[4][4];
-        for (var i = 0; i < 4; i++) {
-            for (var j = 0; j < 4; j++) {
-                var xi = Math.min(Math.max(x0 - 1 + j, 0), gridXSize - 1);
-                var yi = Math.min(Math.max(y0 - 1 + i, 0), gridYSize - 1);
-                p[i][j] = dxy[yi][xi][component];
-            }
-        }
-
         var dx = x - x0;
         var dy = y - y0;
 
@@ -131,8 +122,10 @@ public class DistorsionMap {
         for (var i = 0; i < 4; i++) {
             var wy = CUBIC_WEIGHT_LUT[dyIdx * 4 + i];
             for (var j = 0; j < 4; j++) {
+                var xi = Math.min(Math.max(x0 - 1 + j, 0), gridXSize - 1);
+                var yi = Math.min(Math.max(y0 - 1 + i, 0), gridYSize - 1);
                 var wx = CUBIC_WEIGHT_LUT[dxIdx * 4 + j];
-                result += p[i][j] * wx * wy;
+                result += dxy[yi][xi][component] * wx * wy;
             }
         }
 

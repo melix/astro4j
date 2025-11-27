@@ -180,6 +180,76 @@ public class Scaling extends AbstractFunctionImpl {
         return performRadiusRescale2(image, targetRadius, width, height);
     }
 
+    public Object fitCanvas(Map<String, Object> arguments) {
+        BuiltinFunction.FIT_CANVAS.validateArgs(arguments);
+        var arg = arguments.get("images");
+        if (arg instanceof List<?> list) {
+            if (list.isEmpty()) {
+                throw new IllegalArgumentException("fit_canvas requires a non-empty list of images");
+            }
+            var filtered = list.stream()
+                    .filter(ImageWrapper.class::isInstance)
+                    .map(ImageWrapper.class::cast)
+                    .toList();
+            return performFitCanvas(filtered);
+        } else {
+            throw new IllegalArgumentException("fit_canvas requires a list of images");
+        }
+    }
+
+    List<ImageWrapper> performFitCanvas(List<? extends ImageWrapper> images) {
+        var imagesWithEllipses = images.stream()
+                .parallel()
+                .map(img -> {
+                    ImageWrapper withEllipse = img;
+                    var ellipse = img.findMetadata(Ellipse.class).orElse(null);
+                    if (ellipse == null) {
+                        withEllipse = (ImageWrapper) ellipseFit.fit(Map.of("img", img));
+                    }
+                    return withEllipse;
+                })
+                .toList();
+
+        double minCenterX = Double.MAX_VALUE;
+        double minCenterY = Double.MAX_VALUE;
+        double maxCenterX = Double.MIN_VALUE;
+        double maxCenterY = Double.MIN_VALUE;
+        double maxRightExtent = Double.MIN_VALUE;
+        double maxBottomExtent = Double.MIN_VALUE;
+
+        for (var img : imagesWithEllipses) {
+            var ellipse = img.findMetadata(Ellipse.class).orElse(null);
+            if (ellipse == null) {
+                throw new IllegalArgumentException("Unable to determine ellipse fitting for an image");
+            }
+            var cx = ellipse.center().a();
+            var cy = ellipse.center().b();
+            minCenterX = Math.min(minCenterX, cx);
+            minCenterY = Math.min(minCenterY, cy);
+            maxCenterX = Math.max(maxCenterX, cx);
+            maxCenterY = Math.max(maxCenterY, cy);
+            maxRightExtent = Math.max(maxRightExtent, img.width() - cx);
+            maxBottomExtent = Math.max(maxBottomExtent, img.height() - cy);
+        }
+
+        int canvasWidth = (int) Math.ceil(maxCenterX + maxRightExtent);
+        int canvasHeight = (int) Math.ceil(maxCenterY + maxBottomExtent);
+
+        List<ImageWrapper> result = new ArrayList<>();
+        for (var img : imagesWithEllipses) {
+            var ellipse = img.findMetadata(Ellipse.class).orElse(null);
+            var cx = ellipse.center().a();
+            var cy = ellipse.center().b();
+
+            int offsetX = (int) Math.round(maxCenterX - cx);
+            int offsetY = (int) Math.round(maxCenterY - cy);
+
+            result.add(centerImageInCanvas(img, canvasWidth, canvasHeight, offsetX, offsetY));
+        }
+
+        return result;
+    }
+
     List<ImageWrapper> performRadiusRescale(List<? extends ImageWrapper> filtered) {
         var fittings = filtered.stream()
                 .parallel()
@@ -230,6 +300,9 @@ public class Scaling extends AbstractFunctionImpl {
     }
 
     private ImageWrapper centerImageInCanvas(ImageWrapper img, int canvasWidth, int canvasHeight, int offsetX, int offsetY) {
+        if (img instanceof FileBackedImage fileBackedImage) {
+            img = fileBackedImage.unwrapToMemory();
+        }
         var metadata = new LinkedHashMap<>(img.metadata());
 
         if (img instanceof ImageWrapper32 mono) {

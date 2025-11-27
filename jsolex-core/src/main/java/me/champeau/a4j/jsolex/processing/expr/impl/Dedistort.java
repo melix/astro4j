@@ -20,6 +20,7 @@ import me.champeau.a4j.jsolex.processing.expr.stacking.DistorsionMap;
 import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
+import me.champeau.a4j.jsolex.processing.util.ImageInterpolation;
 import me.champeau.a4j.jsolex.processing.util.MutableMap;
 import me.champeau.a4j.math.fft.FFTSupport;
 import me.champeau.a4j.math.tuples.DoublePair;
@@ -342,8 +343,7 @@ public class Dedistort extends AbstractFunctionImpl {
                 var xx = x + displacement.dx();
                 var yy = y + displacement.dy();
                 if (xx >= 0 && xx < width && yy >= 0 && yy < height) {
-                    var interpolatedValue = bilinearInterpolation(imageData, xx, yy, width, height);
-                    result[y][x] = interpolatedValue;
+                    result[y][x] = ImageInterpolation.lanczos2D(imageData, xx, yy, width, height);
                 }
             }
         }

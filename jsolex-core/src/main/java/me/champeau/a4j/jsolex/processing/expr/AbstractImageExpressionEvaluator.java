@@ -334,6 +334,7 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
             case PX2A -> pixelsToAngstroms(arguments);
             case RADIUS_RESCALE -> scaling.radiusRescale(arguments);
             case RADIUS_RESCALE2 -> scaling.radiusRescale2(arguments);
+            case FIT_CANVAS -> scaling.fitCanvas(arguments);
             case RANGE -> createRange(arguments);
             case REMOVE_BG -> bgRemoval.removeBackground(arguments);
             case RESCALE_ABS -> scaling.absoluteRescale(arguments);

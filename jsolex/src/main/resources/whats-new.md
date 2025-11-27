@@ -16,6 +16,7 @@
 - Faster script execution by parallelizing independent expressions
 - Fixed histogram in stats tab not updating when clicking on image links
 - Added new tokens to the `DRAW_TEXT` function
+- Added `FIT_CANVAS` function: adjusts canvas size of images to have identical dimensions without rescaling the solar disk (unlike `radius_rescale`), useful for stacking images without introducing distortion
 
 ## What's New in Version 4.2.1
 
