@@ -238,7 +238,6 @@ public class Dedistort extends AbstractFunctionImpl {
 
     /**
      * Phase correlation for displacement estimation.
-     * Returns the shift along with quality metrics.
      */
     public static DisplacementResult phaseCorrelationWithPSR(float[][] patchRef, float[][] patchDef) {
         var shift = phaseCorrelationShiftFFT(patchRef, patchDef);

@@ -67,7 +67,7 @@ public class DistorsionMap {
         var a = -0.5;
         var absT = Math.abs(t);
         if (absT <= 1.0) {
-            return (a + 2.0) * absT * absT * absT - (a + MAD_THRESHOLD) * absT * absT + 1.0;
+            return (a + 2.0) * absT * absT * absT - (a + 3.0) * absT * absT + 1.0;
         } else if (absT < 2.0) {
             return a * absT * absT * absT - 5.0 * a * absT * absT + 8.0 * a * absT - 4.0 * a;
         } else {
@@ -467,7 +467,7 @@ public class DistorsionMap {
                 // The 5th int is the first 4 bytes of dxy data
                 // We need to prepend it to the data buffer
                 var fifthInt = headerBuffer.getInt();
-                var adjustedBuffer = ByteBuffer.allocate(Integer.BYTES + Double.BYTES * rows * cols * 2 - Integer.BYTES);
+                var adjustedBuffer = ByteBuffer.allocate(Double.BYTES * rows * cols * 2 - Integer.BYTES);
                 channel.read(adjustedBuffer);
                 adjustedBuffer.flip();
 

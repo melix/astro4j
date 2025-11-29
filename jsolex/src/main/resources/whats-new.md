@@ -17,7 +17,7 @@
 - Fixed histogram in stats tab not updating when clicking on image links
 - Added new tokens to the `DRAW_TEXT` function
 - Added `FIT_CANVAS` function: adjusts canvas size of images to have identical dimensions without rescaling the solar disk (unlike `radius_rescale`), useful for stacking images without introducing distortion
-- Improved `DEDISTORT` algorithm with hierarchical refinement for improved stability. Added an `iterations` optional parameters for finer control
+- Improved `DEDISTORT` algorithm with hierarchical refinement for improved stability. Added an `iterations` optional parameter for finer control
 
 ## What's New in Version 4.2.1
 
