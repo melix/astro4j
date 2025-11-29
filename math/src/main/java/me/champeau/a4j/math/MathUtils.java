@@ -41,6 +41,24 @@ public class MathUtils {
         return quickSelect(copy, 0, copy.length - 1, copy.length / 2);
     }
 
+    /**
+     * Computes the percentile value of an array using the quickselect algorithm.
+     *
+     * @param values the array of values
+     * @param percentile the percentile to compute (0-100)
+     * @return the percentile value, or {@link Double#NaN} if the array is empty or null
+     */
+    public static double percentile(double[] values, double percentile) {
+        if (values == null || values.length == 0) {
+            return Double.NaN;
+        }
+        var copy = new double[values.length];
+        System.arraycopy(values, 0, copy, 0, values.length);
+        var k = (int) Math.round((percentile / 100.0) * (copy.length - 1));
+        k = Math.max(0, Math.min(copy.length - 1, k));
+        return quickSelect(copy, 0, copy.length - 1, k);
+    }
+
     private static double quickSelect(double[] arr, int left, int right, int k) {
         while (left < right) {
             if (right - left < 10) {

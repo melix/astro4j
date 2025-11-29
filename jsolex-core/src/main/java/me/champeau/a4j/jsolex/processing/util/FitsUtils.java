@@ -16,6 +16,7 @@
 package me.champeau.a4j.jsolex.processing.util;
 
 import me.champeau.a4j.jsolex.processing.expr.stacking.DistorsionMap;
+import me.champeau.a4j.jsolex.processing.expr.stacking.DistorsionMaps;
 import me.champeau.a4j.jsolex.processing.params.ProcessParams;
 import me.champeau.a4j.jsolex.processing.params.ProcessParamsIO;
 import me.champeau.a4j.jsolex.processing.spectrum.SpectrumAnalyzer;
@@ -87,6 +88,7 @@ public class FitsUtils {
     public static final String SOURCEINFO_VALUE = "SourceInfo";
     public static final String METADATA_TABLE_VALUE = "TMetadata";
     public static final String DISTORSION_MAP_VALUE = "DistorsionMap";
+    public static final String DISTORSION_MAPS_VALUE = "DistorsionMaps";
     public static final String ACTIVE_REGION_VALUE = "AR";
     public static final String FLARE = "FLARE";
 
@@ -391,9 +393,15 @@ public class FitsUtils {
                     }
                     metadata.put(MetadataTable.class, new MetadataTable(table));
                 } else if (DISTORSION_MAP_VALUE.equals(card.getValue())) {
+                    // Backward compatibility: wrap single DistorsionMap into DistorsionMaps
                     var binaryTable = binaryTableHdu.getData();
                     var bytes = (byte[]) binaryTable.get(0, 0);
-                    metadata.put(DistorsionMap.class, DistorsionMap.loadFrom(new ByteArrayInputStream(bytes)));
+                    var singleMap = DistorsionMap.loadFrom(new ByteArrayInputStream(bytes));
+                    metadata.put(DistorsionMaps.class, DistorsionMaps.of(singleMap));
+                } else if (DISTORSION_MAPS_VALUE.equals(card.getValue())) {
+                    var binaryTable = binaryTableHdu.getData();
+                    var bytes = (byte[]) binaryTable.get(0, 0);
+                    metadata.put(DistorsionMaps.class, DistorsionMaps.loadFrom(new ByteArrayInputStream(bytes)));
                 } else if (ACTIVE_REGION_VALUE.equals(card.getValue())) {
                     var binaryTable = binaryTableHdu.getData();
                     var activeRegions = new ArrayList<ActiveRegion>();
@@ -486,23 +494,23 @@ public class FitsUtils {
             writeRedshifts(image, fits);
             writeSourceInfo(image, fits);
             writeMetadataTable(image, fits);
-            writeDistorsionMap(image, fits);
+            writeDistorsionMaps(image, fits);
             writeActiveRegions(image, fits);
             writeFlares(image, fits);
         }
     }
 
-    private static void writeDistorsionMap(ImageWrapper image, Fits fits) {
-        image.findMetadata(DistorsionMap.class).ifPresent(map -> {
+    private static void writeDistorsionMaps(ImageWrapper image, Fits fits) {
+        image.findMetadata(DistorsionMaps.class).ifPresent(maps -> {
             var baos = new ByteArrayOutputStream();
             try {
-                map.saveTo(baos);
+                maps.saveTo(baos);
             } catch (IOException e) {
                 throw new RuntimeException(e);
             }
             var table = new BinaryTable();
             table.addRow(new Object[]{baos.toByteArray()});
-            writeBinaryTable(table, DISTORSION_MAP_VALUE, "Distorsion map", fits);
+            writeBinaryTable(table, DISTORSION_MAPS_VALUE, "Distorsion maps", fits);
         });
     }
 

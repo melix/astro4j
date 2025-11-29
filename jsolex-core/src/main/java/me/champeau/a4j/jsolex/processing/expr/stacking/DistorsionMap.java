@@ -15,7 +15,10 @@
  */
 package me.champeau.a4j.jsolex.processing.expr.stacking;
 
+import me.champeau.a4j.math.MathUtils;
 import me.champeau.a4j.math.fft.FFTSupport;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -32,16 +35,21 @@ import java.util.concurrent.locks.ReentrantLock;
  * The map is created using a grid of samples, and then interpolated using local bicubic interpolation.
  */
 public class DistorsionMap {
+    private static final Logger LOGGER = LoggerFactory.getLogger(DistorsionMap.class);
+    private static final int FORMAT_VERSION = 2;
     private static final int LUT_SIZE = 256;
     private static final double[] CUBIC_WEIGHT_LUT = precomputeCubicWeights();
+    private static final double MAD_THRESHOLD = 3.0;
 
     private final int step;
     private final int tileSize;
     private final double[][][] dxy;
+    private final boolean[][] sampled;
+    private final int gridXSize;
+    private final int gridYSize;
     private double totalDistorsion = -1;
     private final Lock cacheLock = new ReentrantLock();
     private double[][] cachedTileErrors;
-    private int estimatedTurbulenceScale = -1;
 
     private static double[] precomputeCubicWeights() {
         var lut = new double[LUT_SIZE * 4];
@@ -59,7 +67,7 @@ public class DistorsionMap {
         var a = -0.5;
         var absT = Math.abs(t);
         if (absT <= 1.0) {
-            return (a + 2.0) * absT * absT * absT - (a + 3.0) * absT * absT + 1.0;
+            return (a + 2.0) * absT * absT * absT - (a + MAD_THRESHOLD) * absT * absT + 1.0;
         } else if (absT < 2.0) {
             return a * absT * absT * absT - 5.0 * a * absT * absT + 8.0 * a * absT - 4.0 * a;
         } else {
@@ -73,12 +81,73 @@ public class DistorsionMap {
         var xSamples = ((width + tileSize) / step) + 1;
         var ySamples = ((height + tileSize) / step) + 1;
         this.dxy = new double[xSamples][ySamples][2];
+        this.sampled = new boolean[xSamples][ySamples];
+        this.gridYSize = dxy.length;
+        this.gridXSize = dxy[0].length;
     }
 
-    private DistorsionMap(int step, int tileSize, double[][][] dxy) {
+    private DistorsionMap(int step, int tileSize, double[][][] dxy, boolean[][] sampled) {
         this.step = step;
         this.tileSize = tileSize;
         this.dxy = dxy;
+        this.sampled = sampled;
+        this.gridYSize = dxy.length;
+        this.gridXSize = dxy[0].length;
+    }
+
+    private static DistorsionMap createWithAllSampled(int step, int tileSize, double[][][] dxy) {
+        var rows = dxy.length;
+        var cols = dxy[0].length;
+        var sampled = new boolean[rows][cols];
+        for (var y = 0; y < rows; y++) {
+            for (var x = 0; x < cols; x++) {
+                sampled[y][x] = true;
+            }
+        }
+        return new DistorsionMap(step, tileSize, dxy, sampled);
+    }
+
+    public static DistorsionMap synthesize(List<DistorsionMap> maps, int width, int height) {
+        if (maps.isEmpty()) {
+            throw new IllegalArgumentException("Cannot synthesize empty list of maps");
+        }
+        if (maps.size() == 1) {
+            return maps.getFirst();
+        }
+
+        int minStep = maps.stream().mapToInt(m -> m.step).min().orElseThrow();
+        int minTileSize = maps.stream().mapToInt(m -> m.tileSize).min().orElseThrow();
+
+        var result = new DistorsionMap(width, height, minTileSize, minStep);
+
+        for (int gy = 0; gy < result.gridYSize; gy++) {
+            for (int gx = 0; gx < result.gridXSize; gx++) {
+                int px = gx * minStep;
+                int py = gy * minStep;
+
+                double totalDx = 0;
+                double totalDy = 0;
+                double currentX = px;
+                double currentY = py;
+
+                for (var map : maps) {
+                    var delta = map.findDistorsion((int) currentX, (int) currentY);
+                    totalDx += delta.dx();
+                    totalDy += delta.dy();
+                    currentX += delta.dx();
+                    currentY += delta.dy();
+                }
+
+                result.dxy[gy][gx][0] = totalDx;
+                result.dxy[gy][gx][1] = totalDy;
+                result.sampled[gy][gx] = true;
+            }
+        }
+
+        LOGGER.debug("Synthesized {} maps into one: step={}, tileSize={}, gridSize={}x{}",
+            maps.size(), minStep, minTileSize, result.gridXSize, result.gridYSize);
+
+        return result;
     }
 
     public void recordDistorsion(int x, int y, double dx, double dy) {
@@ -87,14 +156,21 @@ public class DistorsionMap {
         var sampleY = (y - offset) / step;
         dxy[sampleY][sampleX][0] = dx;
         dxy[sampleY][sampleX][1] = dy;
+        sampled[sampleY][sampleX] = true;
+    }
+
+    public void recordUnreliable(int x, int y) {
+        var offset = tileSize / 2;
+        var sampleX = (x - offset) / step;
+        var sampleY = (y - offset) / step;
+        dxy[sampleY][sampleX][0] = 0;
+        dxy[sampleY][sampleX][1] = 0;
+        sampled[sampleY][sampleX] = false;
     }
 
     public DeltaXY findDistorsion(int x, int y) {
         var ax = ((double) x) / step;
         var ay = ((double) y) / step;
-
-        var gridXSize = dxy[0].length;
-        var gridYSize = dxy.length;
 
         if (ax < 0 || ax >= gridXSize - 1 || ay < 0 || ay >= gridYSize - 1) {
             return new DeltaXY(0, 0);
@@ -109,22 +185,22 @@ public class DistorsionMap {
         var x0 = (int) Math.floor(x);
         var y0 = (int) Math.floor(y);
 
-        var gridXSize = dxy[0].length;
-        var gridYSize = dxy.length;
-
         var dx = x - x0;
         var dy = y - y0;
 
         var dxIdx = (int) (dx * (LUT_SIZE - 1));
         var dyIdx = (int) (dy * (LUT_SIZE - 1));
 
+        var dxBase = dxIdx * 4;
+        var dyBase = dyIdx * 4;
+
         var result = 0.0;
         for (var i = 0; i < 4; i++) {
-            var wy = CUBIC_WEIGHT_LUT[dyIdx * 4 + i];
+            var wy = CUBIC_WEIGHT_LUT[dyBase + i];
+            var yi = Math.min(Math.max(y0 - 1 + i, 0), gridYSize - 1);
             for (var j = 0; j < 4; j++) {
                 var xi = Math.min(Math.max(x0 - 1 + j, 0), gridXSize - 1);
-                var yi = Math.min(Math.max(y0 - 1 + i, 0), gridYSize - 1);
-                var wx = CUBIC_WEIGHT_LUT[dxIdx * 4 + j];
+                var wx = CUBIC_WEIGHT_LUT[dxBase + j];
                 result += dxy[yi][xi][component] * wx * wy;
             }
         }
@@ -306,21 +382,44 @@ public class DistorsionMap {
         try (var channel = Channels.newChannel(out)) {
             var rows = map.dxy.length;
             var cols = map.dxy[0].length;
+            var sampledBytes = (rows * cols + 7) / 8;
 
             var buffer = ByteBuffer.allocate(
-                Integer.BYTES * 4 + // header
-                Double.BYTES * rows * cols * 2 // data
+                Integer.BYTES * 5 + // header (version + step + tileSize + rows + cols)
+                Double.BYTES * rows * cols * 2 + // dxy data
+                sampledBytes // sampled bitmap
             );
 
-            // Write metadata
+            // Write metadata with version
+            buffer.putInt(FORMAT_VERSION);
             buffer.putInt(map.step).putInt(map.tileSize).putInt(rows).putInt(cols);
 
-            // Write data rows
+            // Write dxy data
             for (double[][] row : map.dxy) {
                 for (double[] xy : row) {
                     buffer.putDouble(xy[0]).putDouble(xy[1]);
                 }
             }
+
+            // Write sampled array as packed bits
+            var bitIndex = 0;
+            var currentByte = 0;
+            for (var y = 0; y < rows; y++) {
+                for (var x = 0; x < cols; x++) {
+                    if (map.sampled[y][x]) {
+                        currentByte |= (1 << (bitIndex % 8));
+                    }
+                    bitIndex++;
+                    if (bitIndex % 8 == 0) {
+                        buffer.put((byte) currentByte);
+                        currentByte = 0;
+                    }
+                }
+            }
+            if (bitIndex % 8 != 0) {
+                buffer.put((byte) currentByte);
+            }
+
             buffer.flip();
             channel.write(buffer);
         }
@@ -328,30 +427,102 @@ public class DistorsionMap {
 
     public static DistorsionMap loadFrom(InputStream in) {
         try (var channel = Channels.newChannel(in)) {
-            var buffer = ByteBuffer.allocate(Integer.BYTES * 4);
+            var headerBuffer = ByteBuffer.allocate(Integer.BYTES * 5);
 
-            // Read metadata
-            channel.read(buffer);
-            buffer.flip();
-            var step = buffer.getInt();
-            var tileSize = buffer.getInt();
-            var rows = buffer.getInt();
-            var cols = buffer.getInt();
-            buffer.clear();
+            // Read first 5 integers to determine format
+            channel.read(headerBuffer);
+            headerBuffer.flip();
+            var firstInt = headerBuffer.getInt();
 
-            // read data
+            int version;
+            int step;
+            int tileSize;
+            int rows;
+            int cols;
+
+            if (firstInt == FORMAT_VERSION) {
+                // New format (version 2+)
+                version = firstInt;
+                step = headerBuffer.getInt();
+                tileSize = headerBuffer.getInt();
+                rows = headerBuffer.getInt();
+                cols = headerBuffer.getInt();
+            } else {
+                // Old format (version 1, no version marker)
+                // firstInt is actually 'step'
+                version = 1;
+                step = firstInt;
+                tileSize = headerBuffer.getInt();
+                rows = headerBuffer.getInt();
+                cols = headerBuffer.getInt();
+                // Note: we read one extra int that belongs to dxy data, need to handle this
+            }
+
+            // Read dxy data
             var dxy = new double[rows][cols][2];
-            buffer = ByteBuffer.allocate(Double.BYTES * rows * cols * 2);
+            var dataBuffer = ByteBuffer.allocate(Double.BYTES * rows * cols * 2);
 
-            channel.read(buffer);
-            buffer.flip();
-            for (int i = 0; i < rows; i++) {
-                for (int j = 0; j < cols; j++) {
-                    dxy[i][j][0] = buffer.getDouble();
-                    dxy[i][j][1] = buffer.getDouble();
+            if (version == 1) {
+                // For old format, we already consumed 5 ints but only needed 4
+                // The 5th int is the first 4 bytes of dxy data
+                // We need to prepend it to the data buffer
+                var fifthInt = headerBuffer.getInt();
+                var adjustedBuffer = ByteBuffer.allocate(Integer.BYTES + Double.BYTES * rows * cols * 2 - Integer.BYTES);
+                channel.read(adjustedBuffer);
+                adjustedBuffer.flip();
+
+                // Reconstruct the first double from fifthInt + next 4 bytes
+                var firstDoubleBuffer = ByteBuffer.allocate(Double.BYTES);
+                firstDoubleBuffer.putInt(fifthInt);
+                firstDoubleBuffer.putInt(adjustedBuffer.getInt());
+                firstDoubleBuffer.flip();
+                dxy[0][0][0] = firstDoubleBuffer.getDouble();
+
+                // Read the rest
+                var remaining = rows * cols * 2 - 1;
+                for (var i = 0; i < remaining; i++) {
+                    var row = (i + 1) / (cols * 2);
+                    var colIdx = (i + 1) % (cols * 2);
+                    var col = colIdx / 2;
+                    var component = colIdx % 2;
+                    dxy[row][col][component] = adjustedBuffer.getDouble();
+                }
+            } else {
+                channel.read(dataBuffer);
+                dataBuffer.flip();
+                for (var i = 0; i < rows; i++) {
+                    for (var j = 0; j < cols; j++) {
+                        dxy[i][j][0] = dataBuffer.getDouble();
+                        dxy[i][j][1] = dataBuffer.getDouble();
+                    }
                 }
             }
-            return new DistorsionMap(step, tileSize, dxy);
+
+            // Read or create sampled array
+            boolean[][] sampled;
+            if (version >= 2) {
+                // Read sampled bitmap
+                var sampledBytes = (rows * cols + 7) / 8;
+                var sampledBuffer = ByteBuffer.allocate(sampledBytes);
+                channel.read(sampledBuffer);
+                sampledBuffer.flip();
+
+                sampled = new boolean[rows][cols];
+                var bitIndex = 0;
+                for (var y = 0; y < rows; y++) {
+                    for (var x = 0; x < cols; x++) {
+                        var byteIndex = bitIndex / 8;
+                        var bitOffset = bitIndex % 8;
+                        var b = sampledBuffer.get(byteIndex);
+                        sampled[y][x] = ((b >> bitOffset) & 1) == 1;
+                        bitIndex++;
+                    }
+                }
+                return new DistorsionMap(step, tileSize, dxy, sampled);
+            } else {
+                // Old format: assume all points are sampled
+                return createWithAllSampled(step, tileSize, dxy);
+            }
         } catch (IOException e) {
             throw new IllegalStateException("Cannot load distorsion map", e);
         }
@@ -364,5 +535,239 @@ public class DistorsionMap {
     @Override
     public String toString() {
         return "Distorsion map (" + dxy[0].length + "x" + dxy.length + ")";
+    }
+
+    /**
+     * Applies outlier rejection and Gaussian smoothing to the displacement grid.
+     * Should be called after all displacements are recorded, before queries.
+     * Parameters are scaled based on step size to maintain consistent physical coverage.
+     */
+    public void filterAndSmooth() {
+        var gridWidth = dxy[0].length;
+        var gridHeight = dxy.length;
+        LOGGER.debug("filterAndSmooth: gridSize={}x{}, tileSize={}, step={}", gridWidth, gridHeight, tileSize, step);
+
+        interpolateUnsampledPoints();
+        LOGGER.debug("After interpolation: sampledPoints={}", countSampledPoints());
+
+        var referenceStep = 64.0;
+        var scaleFactor = referenceStep / step;
+
+        var scaledWindowSize = (int) Math.round(5 * scaleFactor);
+        if (scaledWindowSize % 2 == 0) {
+            scaledWindowSize++;
+        }
+        scaledWindowSize = Math.max(3, scaledWindowSize);
+
+        var scaledSigma = Math.max(0.5, scaleFactor);
+        LOGGER.debug("Smoothing params: scaleFactor={}, windowSize={}, sigma={}", scaleFactor, scaledWindowSize, scaledSigma);
+
+        removeOutliers(MAD_THRESHOLD, scaledWindowSize);
+        LOGGER.debug("After outlier removal: totalDistortion={}", computeTotalDistorsion());
+
+        applyGaussianSmoothing(scaledSigma);
+        totalDistorsion = -1;
+        LOGGER.debug("After smoothing: totalDistortion={}", totalDistorsion());
+    }
+
+    private int countSampledPoints() {
+        var count = 0;
+        for (var row : sampled) {
+            for (var s : row) {
+                if (s) {
+                    count++;
+                }
+            }
+        }
+        return count;
+    }
+
+    private void interpolateUnsampledPoints() {
+        var rows = dxy.length;
+        var cols = dxy[0].length;
+        var searchRadius = 3;
+
+        for (var sy = 0; sy < rows; sy++) {
+            for (var sx = 0; sx < cols; sx++) {
+                if (sampled[sy][sx]) {
+                    continue;
+                }
+                var sumDx = 0.0;
+                var sumDy = 0.0;
+                var weightSum = 0.0;
+                for (var dy = -searchRadius; dy <= searchRadius; dy++) {
+                    for (var dx = -searchRadius; dx <= searchRadius; dx++) {
+                        if (dx == 0 && dy == 0) {
+                            continue;
+                        }
+                        var ny = sy + dy;
+                        var nx = sx + dx;
+                        if (ny >= 0 && ny < rows && nx >= 0 && nx < cols && sampled[ny][nx]) {
+                            var distance = Math.sqrt(dx * dx + dy * dy);
+                            var weight = 1.0 / (distance * distance);
+                            sumDx += dxy[ny][nx][0] * weight;
+                            sumDy += dxy[ny][nx][1] * weight;
+                            weightSum += weight;
+                        }
+                    }
+                }
+                if (weightSum > 0) {
+                    dxy[sy][sx][0] = sumDx / weightSum;
+                    dxy[sy][sx][1] = sumDy / weightSum;
+                }
+            }
+        }
+    }
+
+    public int getStep() {
+        return step;
+    }
+
+    public int getTileSize() {
+        return tileSize;
+    }
+
+    private void removeOutliers(double madThreshold, int windowSize) {
+        var rows = dxy.length;
+        var cols = dxy[0].length;
+        var halfWindow = windowSize / 2;
+
+        for (var component = 0; component < 2; component++) {
+            var values = new double[rows * cols];
+            for (var sy = 0; sy < rows; sy++) {
+                for (var sx = 0; sx < cols; sx++) {
+                    values[sy * cols + sx] = dxy[sy][sx][component];
+                }
+            }
+
+            var globalMedian = MathUtils.median(values);
+            var globalMAD = computeMAD(values, globalMedian);
+            var globalThreshold = madThreshold * 1.4826 * globalMAD;
+
+            var filtered = new double[rows][cols];
+            for (var sy = 0; sy < rows; sy++) {
+                for (var sx = 0; sx < cols; sx++) {
+                    var current = dxy[sy][sx][component];
+                    var neighbors = collectNeighbors(sx, sy, halfWindow, component);
+                    if (neighbors.length == 0) {
+                        filtered[sy][sx] = current;
+                        continue;
+                    }
+                    var localMedian = MathUtils.median(neighbors);
+                    var localMAD = computeMAD(neighbors, localMedian);
+                    var localThreshold = madThreshold * 1.4826 * Math.max(localMAD, 0.1);
+
+                    var isLocalOutlier = Math.abs(current - localMedian) > localThreshold;
+                    var isGlobalOutlier = Math.abs(current - globalMedian) > globalThreshold;
+
+                    filtered[sy][sx] = (isLocalOutlier || isGlobalOutlier) ? localMedian : current;
+                }
+            }
+
+            for (var sy = 0; sy < rows; sy++) {
+                for (var sx = 0; sx < cols; sx++) {
+                    dxy[sy][sx][component] = filtered[sy][sx];
+                }
+            }
+        }
+    }
+
+    private double[] collectNeighbors(int sx, int sy, int halfWindow, int component) {
+        var rows = dxy.length;
+        var cols = dxy[0].length;
+        var count = 0;
+        for (var ny = sy - halfWindow; ny <= sy + halfWindow; ny++) {
+            for (var nx = sx - halfWindow; nx <= sx + halfWindow; nx++) {
+                if (ny >= 0 && ny < rows && nx >= 0 && nx < cols && !(ny == sy && nx == sx)) {
+                    count++;
+                }
+            }
+        }
+        var neighbors = new double[count];
+        var idx = 0;
+        for (var ny = sy - halfWindow; ny <= sy + halfWindow; ny++) {
+            for (var nx = sx - halfWindow; nx <= sx + halfWindow; nx++) {
+                if (ny >= 0 && ny < rows && nx >= 0 && nx < cols && !(ny == sy && nx == sx)) {
+                    neighbors[idx++] = dxy[ny][nx][component];
+                }
+            }
+        }
+        return neighbors;
+    }
+
+    private double computeMAD(double[] values, double median) {
+        if (values.length == 0) {
+            return 0;
+        }
+        var deviations = new double[values.length];
+        for (var i = 0; i < values.length; i++) {
+            deviations[i] = Math.abs(values[i] - median);
+        }
+        return MathUtils.median(deviations);
+    }
+
+    private void applyGaussianSmoothing(double sigma) {
+        var kernelRadius = (int) Math.ceil(3 * sigma);
+        var kernelSize = 2 * kernelRadius + 1;
+        var kernel = create1DGaussianKernel(kernelSize, sigma);
+        var rows = dxy.length;
+        var cols = dxy[0].length;
+
+        for (var component = 0; component < 2; component++) {
+            var grid = new double[rows][cols];
+            for (var sy = 0; sy < rows; sy++) {
+                for (var sx = 0; sx < cols; sx++) {
+                    grid[sy][sx] = dxy[sy][sx][component];
+                }
+            }
+
+            var temp = new double[rows][cols];
+            for (var sy = 0; sy < rows; sy++) {
+                for (var sx = 0; sx < cols; sx++) {
+                    var sum = 0.0;
+                    var weightSum = 0.0;
+                    for (var k = -kernelRadius; k <= kernelRadius; k++) {
+                        var nx = sx + k;
+                        if (nx >= 0 && nx < cols) {
+                            var w = kernel[k + kernelRadius];
+                            sum += grid[sy][nx] * w;
+                            weightSum += w;
+                        }
+                    }
+                    temp[sy][sx] = sum / weightSum;
+                }
+            }
+
+            for (var sy = 0; sy < rows; sy++) {
+                for (var sx = 0; sx < cols; sx++) {
+                    var sum = 0.0;
+                    var weightSum = 0.0;
+                    for (var k = -kernelRadius; k <= kernelRadius; k++) {
+                        var ny = sy + k;
+                        if (ny >= 0 && ny < rows) {
+                            var w = kernel[k + kernelRadius];
+                            sum += temp[ny][sx] * w;
+                            weightSum += w;
+                        }
+                    }
+                    dxy[sy][sx][component] = sum / weightSum;
+                }
+            }
+        }
+    }
+
+    private static double[] create1DGaussianKernel(int size, double sigma) {
+        var kernel = new double[size];
+        var center = size / 2;
+        var sum = 0.0;
+        for (var i = 0; i < size; i++) {
+            var x = i - center;
+            kernel[i] = Math.exp(-(x * x) / (2 * sigma * sigma));
+            sum += kernel[i];
+        }
+        for (var i = 0; i < size; i++) {
+            kernel[i] /= sum;
+        }
+        return kernel;
     }
 }

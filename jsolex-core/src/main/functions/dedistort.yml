@@ -38,6 +38,18 @@ arguments:
     description:
       fr: "Valeur du fond de ciel."
       en: "Sky background value."
+  - name: iterations
+    optional: true
+    default: 1
+    description:
+      fr: "Nombre d'itérations de correction de distorsion. Chaque itération applique une correction supplémentaire en comparant le résultat à l'image de référence originale."
+      en: "Number of distortion correction iterations. Each iteration applies an additional correction by comparing the result to the original reference image."
+  - name: refine
+    optional: true
+    default: true
+    description:
+      fr: "Active le raffinement hiérarchique. Lorsqu'activé, une seconde passe avec des tuiles plus petites (moitié de la taille) est effectuée pour capturer les distorsions locales fines."
+      en: "Enable hierarchical refinement. When enabled, a second pass with smaller tiles (half the size) is performed to capture fine local distortions."
 examples:
   - "crop_rect(img(0), 1024, 1024)"
   - "crop_rect(img: img(0), width: 200, height: 200)"

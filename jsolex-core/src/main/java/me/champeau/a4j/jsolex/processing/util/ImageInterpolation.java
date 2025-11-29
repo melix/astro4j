@@ -17,11 +17,23 @@ package me.champeau.a4j.jsolex.processing.util;
 
 public final class ImageInterpolation {
     private static final int LANCZOS_A = 3;
+    private static final int LANCZOS_LUT_SIZE = 1024;
+    private static final double LANCZOS_LUT_SCALE = (LANCZOS_LUT_SIZE - 1) / (2.0 * LANCZOS_A);
+    private static final double[] LANCZOS_LUT = precomputeLanczosLUT();
 
     private ImageInterpolation() {
     }
 
-    private static double lanczosKernel(double x) {
+    private static double[] precomputeLanczosLUT() {
+        var lut = new double[LANCZOS_LUT_SIZE];
+        for (var i = 0; i < LANCZOS_LUT_SIZE; i++) {
+            var x = (i / (double) (LANCZOS_LUT_SIZE - 1)) * 2 * LANCZOS_A - LANCZOS_A;
+            lut[i] = computeLanczosKernel(x);
+        }
+        return lut;
+    }
+
+    private static double computeLanczosKernel(double x) {
         if (x == 0) {
             return 1.0;
         }
@@ -30,6 +42,23 @@ public final class ImageInterpolation {
         }
         var pix = Math.PI * x;
         return (LANCZOS_A * Math.sin(pix) * Math.sin(pix / LANCZOS_A)) / (pix * pix);
+    }
+
+    private static double lanczosKernel(double x) {
+        var absX = Math.abs(x);
+        if (absX >= LANCZOS_A) {
+            return 0.0;
+        }
+        var lutIndex = (x + LANCZOS_A) * LANCZOS_LUT_SCALE;
+        var idx = (int) lutIndex;
+        if (idx >= LANCZOS_LUT_SIZE - 1) {
+            return LANCZOS_LUT[LANCZOS_LUT_SIZE - 1];
+        }
+        if (idx < 0) {
+            return LANCZOS_LUT[0];
+        }
+        var frac = lutIndex - idx;
+        return LANCZOS_LUT[idx] + frac * (LANCZOS_LUT[idx + 1] - LANCZOS_LUT[idx]);
     }
 
     public static float lanczos2D(float[][] image, double xx, double yy, int width, int height) {
