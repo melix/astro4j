@@ -19,6 +19,7 @@
 - Added `FIT_CANVAS` function: adjusts canvas size of images to have identical dimensions without rescaling the solar disk (unlike `radius_rescale`), useful for stacking images without introducing distortion
 - Improved `DEDISTORT` algorithm with hierarchical refinement for improved stability. Added an `iterations` optional parameter for finer control
 - Fixed bug preventing the exposure calculator to open in some cases
+- Added conditional functions `IFEQ`, `IFNEQ`, `IFGT`, `IFGTE`, `IFLT`, `IFLTE` for conditional value selection based on comparisons
 
 ## What's New in Version 4.2.1
 

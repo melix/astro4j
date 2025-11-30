@@ -1,0 +1,26 @@
+name: IFGTE
+category: CONTROL_STRUCTURE
+description:
+  fr: "Retourne 'then' si 'subject' est supérieur ou égal à 'value', sinon retourne 'else'. Supporte les comparaisons de nombres et d'images. Pour les images, la condition doit être vraie pour tous les pixels. Les valeurs 'then' et 'else' sont toujours calculées, quel que soit le résultat de la comparaison."
+  en: "Returns 'then' if 'subject' is greater than or equal to 'value', otherwise returns 'else'. Supports comparisons of numbers and images. For images, the condition must be true for all pixels. Both 'then' and 'else' values are always computed, regardless of the comparison result."
+arguments:
+  - name: subject
+    description:
+      fr: "Valeur à comparer (nombre ou image)"
+      en: "Value to compare (number or image)"
+  - name: value
+    description:
+      fr: "Valeur de comparaison (nombre ou image)"
+      en: "Comparison value (number or image)"
+  - name: then
+    description:
+      fr: "Valeur retournée si la condition est vraie"
+      en: "Value returned if the condition is true"
+  - name: else
+    description:
+      fr: "Valeur retournée si la condition est fausse"
+      en: "Value returned if the condition is false"
+examples:
+  - "ifgte(5; 5; img(0); img(1))"
+  - "ifgte(subject:x, value:0, then:img(0), else:img(1))"
+  - "ifgte(img(0); 1000; img(0); 0)"
