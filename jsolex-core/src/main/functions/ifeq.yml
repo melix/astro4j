@@ -1,0 +1,26 @@
+name: IFEQ
+category: CONTROL_STRUCTURE
+description:
+  fr: "Retourne 'then' si 'subject' est égal à 'value', sinon retourne 'else'. Supporte les comparaisons de nombres, de chaînes et d'images. Pour les images, la condition doit être vraie pour tous les pixels. Les valeurs 'then' et 'else' sont toujours calculées, quel que soit le résultat de la comparaison."
+  en: "Returns 'then' if 'subject' equals 'value', otherwise returns 'else'. Supports comparisons of numbers, strings, and images. For images, the condition must be true for all pixels. Both 'then' and 'else' values are always computed, regardless of the comparison result."
+arguments:
+  - name: subject
+    description:
+      fr: "Valeur à comparer (nombre, chaîne ou image)"
+      en: "Value to compare (number, string, or image)"
+  - name: value
+    description:
+      fr: "Valeur de comparaison (nombre, chaîne ou image)"
+      en: "Comparison value (number, string, or image)"
+  - name: then
+    description:
+      fr: "Valeur retournée si la condition est vraie"
+      en: "Value returned if the condition is true"
+  - name: else
+    description:
+      fr: "Valeur retournée si la condition est fausse"
+      en: "Value returned if the condition is false"
+examples:
+  - "ifeq(1; 1; img(0); img(1))"
+  - "ifeq(subject:x, value:0, then:img(0), else:img(1))"
+  - "ifeq(img(0); 0; 100; img(0))"

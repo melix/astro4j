@@ -32,6 +32,7 @@ import me.champeau.a4j.jsolex.processing.expr.impl.ArtifificialFlatCorrector;
 import me.champeau.a4j.jsolex.processing.expr.impl.BackgroundRemoval;
 import me.champeau.a4j.jsolex.processing.expr.impl.Clahe;
 import me.champeau.a4j.jsolex.processing.expr.impl.Colorize;
+import me.champeau.a4j.jsolex.processing.expr.impl.Conditionals;
 import me.champeau.a4j.jsolex.processing.expr.impl.Convolution;
 import me.champeau.a4j.jsolex.processing.expr.impl.Crop;
 import me.champeau.a4j.jsolex.processing.expr.impl.Dedistort;
@@ -116,6 +117,7 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
     private final BackgroundRemoval bgRemoval;
     private final Clahe clahe;
     private final Colorize colorize;
+    private final Conditionals conditionals;
     private final Convolution convolution;
     private final Crop crop;
     private final Dedistort dedistort;
@@ -146,6 +148,7 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
         this.bgRemoval = new BackgroundRemoval(context, broadcaster);
         this.clahe = new Clahe(context, broadcaster);
         this.colorize = new Colorize(context, broadcaster);
+        this.conditionals = new Conditionals(context, broadcaster);
         this.convolution = new Convolution(context, broadcaster);
         this.crop = new Crop(context, broadcaster);
         this.dedistort = new Dedistort(context, broadcaster);
@@ -299,6 +302,12 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
             case FIX_GEOMETRY -> geometryCorrection.fixGeometry(arguments);
             case FLAT_CORRECTION -> flatCorrector.performFlatCorrection(arguments);
             case HFLIP -> rotate.hflip(arguments);
+            case IFEQ -> conditionals.ifeq(arguments);
+            case IFNEQ -> conditionals.ifneq(arguments);
+            case IFGT -> conditionals.ifgt(arguments);
+            case IFGTE -> conditionals.ifgte(arguments);
+            case IFLT -> conditionals.iflt(arguments);
+            case IFLTE -> conditionals.iflte(arguments);
             case GET_AT -> utilities.doGetAt(arguments);
             case GET_B -> {
                 BuiltinFunction.GET_B.validateArgs(arguments);
