@@ -56,7 +56,7 @@ public abstract class SetupsIO {
         var defaultsFile = resolveDefaultsFile();
         List<Setup> patterns = readFrom(defaultsFile);
         if (patterns != null) {
-            if (patterns.stream().noneMatch(s -> s.label().toLowerCase(Locale.US).contains("sunscan") || s.telescope().toLowerCase(Locale.US).contains("sunscan"))) {
+            if (patterns.stream().noneMatch(s -> s.label().toLowerCase(Locale.US).contains("sunscan") || (s.telescope() != null && s.telescope().toLowerCase(Locale.US).contains("sunscan")))) {
                 patterns = Stream.concat(patterns.stream(), Stream.of(SUNSCAN)).toList();
             }
             return patterns;

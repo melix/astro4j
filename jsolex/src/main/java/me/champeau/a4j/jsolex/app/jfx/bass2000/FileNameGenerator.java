@@ -136,11 +136,11 @@ class FileNameGenerator {
         );
     }
 
-    private static String toBrandAndModel(String mount) {
-        var uc = mount.toUpperCase(Locale.US);
-        if (uc.length() < 3) {
+    private static String toBrandAndModel(String value) {
+        if (value == null || value.isBlank() || value.length() < 3) {
             throw new ProcessingException("You need to set both the brand and model, separated with a space, with 3 characters each minimally");
         }
+        var uc = value.toUpperCase(Locale.US);
         var parts = uc.split("\\s+");
         var brand = uc.substring(0, 3);
         var model = parts[1].replaceAll("[^A-Z0-9]", "");
