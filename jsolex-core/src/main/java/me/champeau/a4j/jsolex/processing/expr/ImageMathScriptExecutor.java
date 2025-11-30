@@ -56,20 +56,20 @@ public interface ImageMathScriptExecutor {
                 image = fileBackedImage.unwrapToMemory();
             }
             var metadata = outputsMetadata.get(label);
-            var title = metadata != null ? metadata.getDisplayTitle(language) : label;
+            var displayTitle = metadata != null ? metadata.getDisplayTitle(language) : label;
             var description = metadata != null ? metadata.getDisplayDescription(language) : null;
             if (image instanceof ImageWrapper32 mono) {
                 emitter.newMonoImage(
                     GeneratedImageKind.IMAGE_MATH,
-                    null, label,
-                    title,
+                    null, displayTitle,
+                    label,
                     description,
                     mono);
             } else if (image instanceof RGBImage rgb) {
                 emitter.newColorImage(
                     GeneratedImageKind.IMAGE_MATH,
-                    null, label,
-                    title,
+                    null, displayTitle,
+                    label,
                     description,
                     rgb.width(),
                     rgb.height(),
@@ -81,14 +81,14 @@ public interface ImageMathScriptExecutor {
             var label = entry.getKey();
             var fileOutput = entry.getValue();
             var metadata = outputsMetadata.get(label);
-            var title = metadata != null ? metadata.getDisplayTitle(language) : label;
+            var displayTitle = metadata != null ? metadata.getDisplayTitle(language) : label;
             var description = metadata != null ? metadata.getDisplayDescription(language) : null;
             if (fileHandler != null) {
                 fileHandler.handle(label, fileOutput);
             } else {
                 emitter.newGenericFile(GeneratedImageKind.IMAGE_MATH,
-                    null, label,
-                    title,
+                    null, displayTitle,
+                    label,
                     description,
                     fileOutput.displayFile());
             }

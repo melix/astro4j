@@ -493,7 +493,7 @@ public class BatchModeEventListener implements ProcessingEventListener, ImageMat
         sb.append(minutes).append("m ");
         sb.append(seconds).append("s ");
         sb.append(millis).append("ms");
-        Platform.runLater(() -> owner.updateProgress(1, String.format(message("batch.finished"), sb.toString())));
+        owner.updateProgress(1, String.format(message("batch.finished"), sb.toString()));
     }
 
     private boolean hasBatchScriptExpressions() {
@@ -625,7 +625,7 @@ public class BatchModeEventListener implements ProcessingEventListener, ImageMat
 
 
     private void executeBatchScript(FileNamingStrategy namingStrategy, File scriptFile) {
-        Platform.runLater(() -> owner.updateProgress(0, String.format(message("executing.script"), scriptFile)));
+        owner.updateProgress(0, String.format(message("executing.script"), scriptFile));
         ImageMathScriptResult result;
         try {
             result = batchScriptExecutor.execute(scriptFile.toPath(), ImageMathScriptExecutor.SectionKind.BATCH);
@@ -637,7 +637,7 @@ public class BatchModeEventListener implements ProcessingEventListener, ImageMat
             var outputsMetadata = extractOutputsMetadata(scriptFile);
             renderBatchOutputs(namingStrategy, result, outputsMetadata);
         } finally {
-            Platform.runLater(() -> owner.updateProgress(1, String.format(message("executing.script"), scriptFile)));
+            owner.updateProgress(1, String.format(message("executing.script"), scriptFile));
         }
     }
 

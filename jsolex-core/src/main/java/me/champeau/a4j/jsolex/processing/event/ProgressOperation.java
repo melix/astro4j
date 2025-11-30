@@ -45,13 +45,23 @@ public class ProgressOperation {
     }
 
     public ProgressOperation update(double progress) {
-        this.progress = progress;
+        lock.lock();
+        try {
+            this.progress = progress;
+        } finally {
+            lock.unlock();
+        }
         return this;
     }
 
     public ProgressOperation update(double progress, String task) {
-        this.progress = progress;
-        this.task = task;
+        lock.lock();
+        try {
+            this.progress = progress;
+            this.task = task;
+        } finally {
+            lock.unlock();
+        }
         return this;
     }
 

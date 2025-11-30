@@ -617,22 +617,32 @@ public class Dedistort extends AbstractFunctionImpl {
                                                           ProgressOperation parent,
                                                           int height,
                                                           int width) {
-        var currentY = new AtomicInteger();
         var imageData = image.data();
         var result = new float[height][width];
         var progressOperation = parent.createChild(DEDISTORT);
-        for (var y = 0; y < height; y++) {
-            var progress = currentY.incrementAndGet() / (double) height;
-            broadcaster.broadcast(progressOperation.update(progress));
-            for (var x = 0; x < width; x++) {
-                var displacement = distorsionMap.findDistorsion(x, y);
-                var xx = x + displacement.dx();
-                var yy = y + displacement.dy();
-                if (xx >= 0 && xx < width && yy >= 0 && yy < height) {
-                    result[y][x] = ImageInterpolation.lanczos2D(imageData, xx, yy, width, height);
-                }
-            }
-        }
+        var numProcessors = Math.max(Runtime.getRuntime().availableProcessors() - 1, 1);
+        var batchSize = Math.max(1, height / numProcessors);
+        var completedRows = new AtomicInteger();
+
+        IntStream.range(0, numProcessors)
+                .parallel()
+                .forEach(batch -> {
+                    var startY = batch * batchSize;
+                    var endY = (batch == numProcessors - 1) ? height : Math.min(startY + batchSize, height);
+                    for (var y = startY; y < endY; y++) {
+                        for (var x = 0; x < width; x++) {
+                            var displacement = distorsionMap.findDistorsion(x, y);
+                            var xx = x + displacement.dx();
+                            var yy = y + displacement.dy();
+                            if (xx >= 0 && xx < width && yy >= 0 && yy < height) {
+                                result[y][x] = ImageInterpolation.lanczos2D(imageData, xx, yy, width, height);
+                            }
+                        }
+                        var progress = completedRows.incrementAndGet() / (double) height;
+                        broadcaster.broadcast(progressOperation.update(progress));
+                    }
+                });
+
         broadcaster.broadcast(progressOperation.complete());
         return new ImageWrapper32(width, height, result, MutableMap.of());
     }

@@ -87,6 +87,7 @@ import me.champeau.a4j.jsolex.app.jfx.DocsHelper;
 import me.champeau.a4j.jsolex.app.jfx.EmbeddedServerController;
 import me.champeau.a4j.jsolex.app.jfx.ExplorerSupport;
 import me.champeau.a4j.jsolex.app.jfx.ExposureCalculator;
+import me.champeau.a4j.jsolex.app.jfx.ProgressHandler;
 import me.champeau.a4j.jsolex.app.jfx.I18N;
 import me.champeau.a4j.jsolex.app.jfx.ImageMathEditor;
 import me.champeau.a4j.jsolex.app.jfx.ImageViewer;
@@ -342,6 +343,7 @@ public class JSolEx implements JSolExInterface {
     private ImageMathScriptExecutor scriptExecutor;
     private Path outputDirectory;
     private final RepositoryUpdateService repositoryUpdateService = new RepositoryUpdateService();
+    private ProgressHandler progressHandler;
 
     @Override
     public MultipleImagesViewer getImagesViewer() {
@@ -406,6 +408,19 @@ public class JSolEx implements JSolExInterface {
                 pause.setOnFinished(e -> config.setPreferredHeigth(newValue.intValue()));
                 pause.playFromStart();
             });
+            progressHandler = new ProgressHandler((progress, message) -> {
+                if (progress == 0 && message.isEmpty()) {
+                    progressBar.setProgress(0);
+                    progressLabel.setText("");
+                    progressBar.setVisible(false);
+                } else {
+                    progressBar.setVisible(true);
+                    if (progress >= 0) {
+                        progressBar.setProgress(progress);
+                        progressLabel.setText(message);
+                    }
+                }
+            });
             hideProgress();
             String version = VersionUtil.getFullVersion();
             if (version.endsWith("-SNAPSHOT")) {
@@ -424,7 +439,10 @@ public class JSolEx implements JSolExInterface {
             setupLogWindowContextMenu();
             setupImageMathEditorContextMenu();
             createFastModePane();
-            stage.setOnCloseRequest(e -> System.exit(0));
+            stage.setOnCloseRequest(e -> {
+                progressHandler.close();
+                System.exit(0);
+            });
             startWatcherThread();
             repositoryUpdateService.checkAtStartup();
             Thread.startVirtualThread(() -> UpdateChecker.findLatestRelease().ifPresent(this::maybeWarnAboutNewRelease));
@@ -877,23 +895,15 @@ public class JSolEx implements JSolExInterface {
     }
 
     public void hideProgress() {
-        Platform.runLater(() -> {
-            progressBar.setProgress(0);
-            progressLabel.setText("");
-            progressBar.setVisible(false);
-        });
+        progressHandler.hide();
     }
 
     public void showProgress() {
-        Platform.runLater(() -> progressBar.setVisible(true));
+        progressHandler.update(-1, "");
     }
 
     public void updateProgress(double progress, String message) {
-        Platform.runLater(() -> {
-            progressBar.setVisible(true);
-            progressBar.setProgress(progress);
-            progressLabel.setText(message);
-        });
+        progressHandler.update(progress, message);
     }
 
     private void updateProgress(ProgressOperation operation) {
@@ -1916,10 +1926,10 @@ public class JSolEx implements JSolExInterface {
                                             trimmingParameters.maxX(),
                                             trimmingParameters.polynomial(),
                                             trimmingParameters.verticalFlip(),
-                                            progress -> Platform.runLater(() -> updateProgress(
+                                            progress -> updateProgress(
                                                     progress,
                                                     I18N.string(JSolEx.class, "ser-trimmer", "trimming")
-                                            ))
+                                            )
                                     );
                                     SerFileTrimmerController.maybeCopyMetadata(trimmingParameters.serFile());
                                 }

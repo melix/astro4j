@@ -1685,7 +1685,7 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
     }
 
     private void executeSingleFileBatchScript(FileNamingStrategy namingStrategy, ImageMathScriptExecutor batchScriptExecutor, File scriptFile) {
-        Platform.runLater(() -> owner.updateProgress(0, String.format(message("executing.script"), scriptFile)));
+        owner.updateProgress(0, String.format(message("executing.script"), scriptFile));
         ImageMathScriptResult result;
         try {
             result = batchScriptExecutor.execute(scriptFile.toPath(), ImageMathScriptExecutor.SectionKind.BATCH);
@@ -1696,7 +1696,7 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
             processScriptErrors(result);
             renderSingleFileBatchOutputs(namingStrategy, result);
         } finally {
-            Platform.runLater(() -> owner.updateProgress(1, String.format(message("executing.script"), scriptFile)));
+            owner.updateProgress(1, String.format(message("executing.script"), scriptFile));
         }
     }
 

@@ -1122,9 +1122,9 @@ public class SolexVideoProcessor implements Broadcaster {
                         }
                         // Let emitter handle the display file
                         var metadata = outputsMetadata.get(outputLabel);
-                        var title = metadata != null ? metadata.getDisplayTitle(language) : outputLabel;
+                        var displayTitle = metadata != null ? metadata.getDisplayTitle(language) : outputLabel;
                         var description = metadata != null ? metadata.getDisplayDescription(language) : null;
-                        emitter.newGenericFile(GeneratedImageKind.IMAGE_MATH, null, outputLabel, title, description, displayFile);
+                        emitter.newGenericFile(GeneratedImageKind.IMAGE_MATH, null, displayTitle, outputLabel, description, displayFile);
                     }, outputsMetadata, language);
                     if (!result.invalidExpressions().isEmpty()) {
                         var sb = new StringBuilder();
