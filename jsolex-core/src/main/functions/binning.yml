@@ -1,0 +1,7 @@
+name: BINNING
+category: UTILS
+description:
+  fr: "Renvoie le binning défini dans les paramètres de traitement."
+  en: "Returns the binning defined in the process parameters."
+examples:
+  - "binning()"

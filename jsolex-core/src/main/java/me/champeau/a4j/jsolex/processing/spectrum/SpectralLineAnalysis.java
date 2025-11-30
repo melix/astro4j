@@ -17,7 +17,6 @@ package me.champeau.a4j.jsolex.processing.spectrum;
 
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 import me.champeau.a4j.math.regression.Ellipse;
-import me.champeau.a4j.math.regression.LinearRegression;
 
 import java.util.List;
 import java.util.stream.IntStream;
@@ -251,42 +250,6 @@ public final class SpectralLineAnalysis {
                 bins[i] / counts[i]
             ))
             .toList();
-    }
-
-    /**
-     * Fits a linear limb darkening law to CLV data.
-     * Model: I(μ) = I(1) × (1 - u(1-μ))
-     *
-     * @param clvData the CLV data points
-     * @return the fitted limb darkening parameters
-     */
-    public static LimbDarkeningFit fitLimbDarkening(List<CLVDataPoint> clvData) {
-        if (clvData == null || clvData.size() < 2) {
-            return new LimbDarkeningFit(0, 0);
-        }
-
-        double centerIntensity = clvData.stream()
-            .filter(p -> p.mu() > 0.9)
-            .mapToDouble(CLVDataPoint::intensity)
-            .average()
-            .orElse(clvData.getLast().intensity());
-
-        if (centerIntensity <= 0) {
-            return new LimbDarkeningFit(0, 0);
-        }
-
-        var points = clvData.stream()
-            .map(p -> new me.champeau.a4j.math.Point2D(p.mu(), p.intensity() / centerIntensity))
-            .toArray(me.champeau.a4j.math.Point2D[]::new);
-
-        var regression = LinearRegression.firstOrderRegression(points);
-        double slope = regression.b();
-        double intercept = regression.a();
-
-        double u = slope;
-        double i0 = intercept + u;
-
-        return new LimbDarkeningFit(Math.max(0, Math.min(1, u)), centerIntensity * i0);
     }
 
     private static SpectrumAnalyzer.DataPoint findMinimumPoint(List<SpectrumAnalyzer.DataPoint> profile) {

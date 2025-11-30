@@ -273,6 +273,7 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
                 var sigma = ((Number) arguments.get("sigma")).doubleValue();
                 return applySigmaClippedAverage(stream, sigma);
             });
+            case BINNING -> getBinning();
             case BG_MODEL -> bgRemoval.backgroundModel(arguments);
             case BLUR -> convolution.blur(arguments);
             case CLAHE -> clahe.clahe(arguments);
@@ -382,6 +383,17 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
             case WEIGHTED_AVG -> utilities.weightedAverage(arguments);
             case WORKDIR -> setWorkDir(arguments);
         };
+    }
+
+    private int getBinning() {
+        var params = (ProcessParams) context.get(ProcessParams.class);
+        if (params != null) {
+            var binning = params.observationDetails().binning();
+            if (binning != null) {
+                return binning;
+            }
+        }
+        return 1;
     }
 
     public ImageWrapper32 createContinuumImage() {
