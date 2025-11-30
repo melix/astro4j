@@ -22,6 +22,7 @@
 - Ajout des fonctions conditionnelles `IFEQ`, `IFNEQ`, `IFGT`, `IFGTE`, `IFLT`, `IFLTE` pour la sélection conditionnelle de valeurs basée sur des comparaisons
 - Ajout des fonctions de statistiques par image `IMG_AVG`, `IMG_AVG2`, `IMG_MEDIAN`, `IMG_MEDIAN2`, `IMG_MIN`, `IMG_MAX` qui calculent des statistiques sur tous les pixels de chaque image (contrairement à `AVG`, `MEDIAN`, etc. qui calculent des statistiques pixel par pixel sur plusieurs images)
 - Ajout du support des métadonnées de sortie dans les scripts : les scripts peuvent désormais définir des titres et descriptions pour leurs sorties dans le bloc `meta` en utilisant une section `outputs`. Ceux-ci sont affichés dans le visualiseur d'images à la place des noms de variables
+- Ajout d'une estimation de la FWHM dans le profil spectral
 
 ## Nouveautés de la version 4.2.1
 

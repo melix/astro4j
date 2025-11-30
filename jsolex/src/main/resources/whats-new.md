@@ -22,6 +22,7 @@
 - Added conditional functions `IFEQ`, `IFNEQ`, `IFGT`, `IFGTE`, `IFLT`, `IFLTE` for conditional value selection based on comparisons
 - Added per-image statistics functions `IMG_AVG`, `IMG_AVG2`, `IMG_MEDIAN`, `IMG_MEDIAN2`, `IMG_MIN`, `IMG_MAX` that compute statistics across all pixels of each image (unlike `AVG`, `MEDIAN`, etc. which compute pixel-by-pixel statistics across multiple images)
 - Added output metadata support in scripts: scripts can now define titles and descriptions for their outputs in the `meta` block using an `outputs` section. These are displayed in the image viewer instead of variable names
+- Added FWHM estimate in the profile view
 
 ## What's New in Version 4.2.1
 
