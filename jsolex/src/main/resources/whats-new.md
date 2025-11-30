@@ -1,6 +1,6 @@
 # Welcome to JSol'Ex {{version}}!
 
-- [What's New in Version 4.3.0](#whats-new-in-version-4-2-2) - Faster script execution, improved stacking and bug fixes
+- [What's New in Version 4.3.0](#whats-new-in-version-4-3-0) - Faster script execution, improved stacking and bug fixes
 - [Version 4.2.1](#whats-new-in-version-4-2-1) - Bug fixes
 - [Version 4.2.0](#whats-new-in-version-4-2-0) - Script repositories, Java 25, GIF support, file format settings
 - [Version 4.1.4](#whats-new-in-version-4-1-4) - Bug fixes and improvements
