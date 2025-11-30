@@ -17,6 +17,8 @@ package me.champeau.a4j.jsolex.app.listeners;
 
 import javafx.application.Platform;
 import javafx.embed.swing.SwingFXUtils;
+import javafx.geometry.Insets;
+import javafx.scene.Node;
 import javafx.scene.Parent;
 import javafx.scene.Scene;
 import javafx.scene.SnapshotParameters;
@@ -27,6 +29,7 @@ import javafx.scene.chart.NumberAxis;
 import javafx.scene.chart.XYChart;
 import javafx.scene.control.Alert;
 import javafx.scene.control.ContextMenu;
+import javafx.scene.control.Label;
 import javafx.scene.control.MenuItem;
 import javafx.scene.control.ScrollPane;
 import javafx.scene.control.Tab;
@@ -35,6 +38,7 @@ import javafx.scene.control.Tooltip;
 import javafx.scene.image.PixelFormat;
 import javafx.scene.image.WritableImage;
 import javafx.scene.layout.BorderPane;
+import javafx.scene.layout.HBox;
 import javafx.scene.layout.Region;
 import javafx.scene.layout.VBox;
 import javafx.scene.paint.Color;
@@ -92,6 +96,7 @@ import me.champeau.a4j.jsolex.processing.params.OutputMetadata;
 import me.champeau.a4j.jsolex.processing.params.ProcessParams;
 import me.champeau.a4j.jsolex.processing.params.RequestedImages;
 import me.champeau.a4j.jsolex.processing.params.SpectroHeliograph;
+import me.champeau.a4j.jsolex.processing.spectrum.SpectralLineAnalysis;
 import me.champeau.a4j.jsolex.processing.spectrum.SpectrumAnalyzer;
 import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
 import me.champeau.a4j.jsolex.processing.sun.ImageUtils;
@@ -204,7 +209,8 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
     private static final long MIN_UI_UPDATE_INTERVAL_MS = 50;
     private final AtomicLong lastUIUpdateTime = new AtomicLong(0);
 
-    private Supplier<LineChart<?, ?>> profileGraphFactory;
+    private Supplier<Parent> profileViewFactory;
+    private SpectralLineAnalysis.LineStatistics currentLineStatistics;
     private Integer currentColumn;
     private float[][] currentSpectrumFrameData;
 
@@ -447,8 +453,8 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
                         // Store the clicked column and update the profile tab
                         currentColumn = xIndex;
                         currentSpectrumFrameData = spectrum.data();
-                        if (profileGraphFactory != null) {
-                            Platform.runLater(() -> profileTab.setContent(profileGraphFactory.get()));
+                        if (profileViewFactory != null) {
+                            Platform.runLater(() -> profileTab.setContent(profileViewFactory.get()));
                         }
                     }
                 } catch (Exception ex) {
@@ -1227,7 +1233,7 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
         adjustedParams = payload.adjustedParams();
         polynomial = payload.polynomial();
         averageImage = payload.image().data();
-        profileGraphFactory = () -> {
+        profileViewFactory = () -> {
             var xAxis = new CategoryAxis();
             var yAxis = new NumberAxis();
             xAxis.setLabel(message("wavelength"));
@@ -1292,8 +1298,15 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
                 addDataPointToSeries(dataPoint, series);
             }
 
+            // Compute line statistics from the normalized data, using reference for continuum if available
+            currentLineStatistics = SpectralLineAnalysis.computeStatistics(normalizedDataPoints.dataPoints(), referenceDataPoints);
+
+            // Add FWHM visualization to the chart
+            addFWHMVisualization(lineChart, currentLineStatistics, normalizedDataPoints.dataPoints());
+
             NormalizedDataPoints normalizedFrameDataPoints;
             NormalizedDataPoints normalizedLineDataPoints;
+            SpectralLineAnalysis.LineStatistics frameLineStatistics = null;
             if (currentColumn != null && currentColumn >= start && currentColumn < end) {
                 var frameDataPoints = new ArrayList<SpectrumAnalyzer.DataPoint>();
                 var lineDataPoints = new ArrayList<SpectrumAnalyzer.DataPoint>();
@@ -1367,30 +1380,48 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
                 for (var dataPoint : normalizedLineDataPoints.dataPoints()) {
                     addDataPointToSeries(dataPoint, lineSeries);
                 }
+
+                // Compute statistics for the line profile at clicked position, using reference for continuum if available
+                frameLineStatistics = SpectralLineAnalysis.computeStatistics(normalizedLineDataPoints.dataPoints(), referenceDataPoints);
             } else {
                 normalizedFrameDataPoints = null;
                 normalizedLineDataPoints = null;
             }
 
-            registerSaveChartAction(new GraphData.ProfileData(lineChart, profileGraphFactory, writer -> {
+            // Create statistics panel
+            var statsToDisplay = frameLineStatistics != null ? frameLineStatistics : currentLineStatistics;
+            var statisticsPanel = createStatisticsPanel(statsToDisplay, canDrawReference);
+
+            // Create the CSV writer with statistics
+            final var finalReferenceDataPoints = referenceDataPoints;
+            final var finalNormalizedFrameDataPoints = normalizedFrameDataPoints;
+            final var finalNormalizedLineDataPoints = normalizedLineDataPoints;
+            final var finalNormalizedDataPoints = normalizedDataPoints;
+            final var finalStatsToDisplay = statsToDisplay;
+            Supplier<LineChart<?, ?>> chartSupplier = () -> createProfileChart(
+                    params, payload, range, finalNormalizedDataPoints, finalReferenceDataPoints,
+                    finalNormalizedFrameDataPoints, finalNormalizedLineDataPoints, finalStatsToDisplay,
+                    canDrawReference, dispersion, lambda0
+            );
+            registerSaveChartAction(new GraphData.ProfileData(lineChart, chartSupplier, writer -> {
                 writer.print("pixel_shift;wavelength;reference_intensity;intensity");
                 if (currentColumn != null) {
                     writer.print(";frame_intensity;line_intensity");
                 }
                 writer.println();
                 for (var dataPoint : normalizedDataPoints.dataPoints()) {
-                    var referenceDataPoint = referenceDataPoints != null ? referenceDataPoints.stream()
+                    var referenceDataPoint = finalReferenceDataPoints != null ? finalReferenceDataPoints.stream()
                             .filter(dp -> dp.pixelShift() == dataPoint.pixelShift())
                             .findFirst()
                             .orElse(new SpectrumAnalyzer.DataPoint(dataPoint.wavelen(), dataPoint.pixelShift(), 0d)) : new SpectrumAnalyzer.DataPoint(dataPoint.wavelen(), dataPoint.pixelShift(), 0d);
                     writer.printf(Locale.US, "%.2f;%.2f;%.2f;%.2f", dataPoint.pixelShift(), dataPoint.wavelen().angstroms(), referenceDataPoint.intensity(), dataPoint.intensity());
-                    if (currentColumn != null && normalizedFrameDataPoints != null) {
-                        var frameIntensity = normalizedFrameDataPoints.dataPoints().stream()
+                    if (currentColumn != null && finalNormalizedFrameDataPoints != null) {
+                        var frameIntensity = finalNormalizedFrameDataPoints.dataPoints().stream()
                                 .filter(dp -> dp.pixelShift() == dataPoint.pixelShift())
                                 .findFirst()
                                 .map(SpectrumAnalyzer.DataPoint::intensity)
                                 .orElse(0d);
-                        var lineIntensity = normalizedLineDataPoints.dataPoints().stream()
+                        var lineIntensity = finalNormalizedLineDataPoints.dataPoints().stream()
                                 .filter(dp -> dp.pixelShift() == dataPoint.pixelShift())
                                 .findFirst()
                                 .map(SpectrumAnalyzer.DataPoint::intensity)
@@ -1399,14 +1430,19 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
                     }
                     writer.println();
                 }
-            }));
+            }, finalStatsToDisplay, canDrawReference));
 
-            return lineChart;
+            // Create the main layout with chart and statistics
+            var mainPane = new BorderPane();
+            mainPane.setCenter(lineChart);
+            mainPane.setBottom(statisticsPanel);
+
+            return mainPane;
         };
         if (Platform.isFxApplicationThread()) {
-            profileTab.setContent(profileGraphFactory.get());
+            profileTab.setContent(profileViewFactory.get());
         } else {
-            Platform.runLater(() -> profileTab.setContent(profileGraphFactory.get()));
+            Platform.runLater(() -> profileTab.setContent(profileViewFactory.get()));
         }
 
     }
@@ -1424,6 +1460,248 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
                     e.resultFuture().completeExceptionally(throwable);
                     return null;
                 });
+    }
+
+    private Parent createStatisticsPanel(SpectralLineAnalysis.LineStatistics stats, boolean hasWavelength) {
+        var statsBox = new HBox(20);
+        statsBox.setPadding(new Insets(10));
+        statsBox.setStyle("-fx-background-color: #f0f0f0; -fx-border-color: #cccccc; -fx-border-width: 1 0 0 0;");
+
+        var titleLabel = new Label(message("line.statistics"));
+        titleLabel.setFont(Font.font(titleLabel.getFont().getFamily(), FontWeight.BOLD, 12));
+
+        if (stats == null) {
+            statsBox.getChildren().addAll(titleLabel, new Label("N/A"));
+            return statsBox;
+        }
+
+        var depthBox = createStatItem(message("line.depth"), String.format(Locale.US, "%.2f%%", stats.lineDepth() * 100));
+        String fwhmValue = stats.hasFWHMData()
+                ? (hasWavelength ? String.format(Locale.US, "%.3f Å", stats.fwhm()) : String.format(Locale.US, "%.2f px", stats.fwhm()))
+                : "N/A";
+        var fwhmBox = createStatItem(message("line.fwhm"), fwhmValue);
+        String asymmetryValue = stats.hasFWHMData()
+                ? String.format(Locale.US, "%.3f", stats.asymmetryIndex())
+                : "N/A";
+        var asymmetryBox = createStatItem(message("line.asymmetry"), asymmetryValue);
+        var continuumBox = createStatItem(message("line.continuum"), String.format(Locale.US, "%.1f", stats.continuum()));
+        var centerBox = createStatItem(message("line.center"), hasWavelength
+                ? String.format(Locale.US, "%.3f Å", stats.lineCenterWavelength())
+                : String.format(Locale.US, "%.2f px", stats.lineCenterWavelength()));
+
+        statsBox.getChildren().addAll(titleLabel, depthBox, fwhmBox, asymmetryBox, continuumBox, centerBox);
+        return statsBox;
+    }
+
+    private VBox createStatItem(String label, String value) {
+        var labelNode = new Label(label);
+        labelNode.setStyle("-fx-font-size: 10px; -fx-text-fill: #666666;");
+        var valueNode = new Label(value);
+        valueNode.setStyle("-fx-font-size: 12px; -fx-font-weight: bold;");
+        var box = new VBox(2, labelNode, valueNode);
+        return box;
+    }
+
+    private void addFWHMVisualization(LineChart<String, Number> chart, SpectralLineAnalysis.LineStatistics stats, List<SpectrumAnalyzer.DataPoint> dataPoints) {
+        if (stats == null || dataPoints.isEmpty()) {
+            return;
+        }
+
+        // Get the first and last data point labels for spanning horizontal lines
+        String firstLabel = formatWavelength(dataPoints.getFirst().pixelShift(), dataPoints.getFirst().wavelen());
+        String lastLabel = formatWavelength(dataPoints.getLast().pixelShift(), dataPoints.getLast().wavelen());
+
+        // Add continuum (baseline) horizontal line - green dashed
+        var continuumSeries = new XYChart.Series<String, Number>();
+        continuumSeries.setName(message("line.continuum"));
+        continuumSeries.getData().add(new XYChart.Data<>(firstLabel, stats.continuum()));
+        continuumSeries.getData().add(new XYChart.Data<>(lastLabel, stats.continuum()));
+        chart.getData().add(continuumSeries);
+
+        // Add line minimum horizontal line - blue dashed
+        var minSeries = new XYChart.Series<String, Number>();
+        minSeries.setName(message("line.center"));
+        minSeries.getData().add(new XYChart.Data<>(firstLabel, stats.lineMinIntensity()));
+        minSeries.getData().add(new XYChart.Data<>(lastLabel, stats.lineMinIntensity()));
+        chart.getData().add(minSeries);
+
+        // Add half-max horizontal line (FWHM) if data is available - red solid
+        XYChart.Series<String, Number> halfMaxSeries = null;
+        String blueLabel = null;
+        String redLabel = null;
+        double halfMaxIntensity = stats.halfMaxIntensity();
+
+        if (stats.hasFWHMData()) {
+            // Use direct crossing measurements
+            double blueWl = stats.blueHalfMaxWavelength();
+            double redWl = stats.redHalfMaxWavelength();
+
+            double minBlueDist = Double.MAX_VALUE;
+            double minRedDist = Double.MAX_VALUE;
+
+            for (var dp : dataPoints) {
+                double wl = dp.wavelen().angstroms();
+                double blueDist = Math.abs(wl - blueWl);
+                double redDist = Math.abs(wl - redWl);
+
+                if (blueDist < minBlueDist) {
+                    minBlueDist = blueDist;
+                    blueLabel = formatWavelength(dp.pixelShift(), dp.wavelen());
+                }
+                if (redDist < minRedDist) {
+                    minRedDist = redDist;
+                    redLabel = formatWavelength(dp.pixelShift(), dp.wavelen());
+                }
+            }
+        }
+
+        if (blueLabel != null && redLabel != null) {
+            halfMaxSeries = new XYChart.Series<>();
+            halfMaxSeries.setName("FWHM");
+            halfMaxSeries.getData().add(new XYChart.Data<>(blueLabel, halfMaxIntensity));
+            halfMaxSeries.getData().add(new XYChart.Data<>(redLabel, halfMaxIntensity));
+            chart.getData().add(halfMaxSeries);
+        }
+
+        // Apply styling after chart is rendered
+        final var finalHalfMaxSeries = halfMaxSeries;
+        Platform.runLater(() -> {
+            // Style continuum line - green dashed
+            if (continuumSeries.getNode() != null) {
+                continuumSeries.getNode().setStyle("-fx-stroke: #27ae60; -fx-stroke-width: 2px; -fx-stroke-dash-array: 8 4;");
+            }
+            for (var data : continuumSeries.getData()) {
+                if (data.getNode() != null) {
+                    data.getNode().setStyle("-fx-background-color: #27ae60, white; -fx-background-insets: 0, 2; -fx-background-radius: 5px; -fx-padding: 5px;");
+                }
+            }
+
+            // Style line minimum - blue dashed
+            if (minSeries.getNode() != null) {
+                minSeries.getNode().setStyle("-fx-stroke: #3498db; -fx-stroke-width: 2px; -fx-stroke-dash-array: 8 4;");
+            }
+            for (var data : minSeries.getData()) {
+                if (data.getNode() != null) {
+                    data.getNode().setStyle("-fx-background-color: #3498db, white; -fx-background-insets: 0, 2; -fx-background-radius: 5px; -fx-padding: 5px;");
+                }
+            }
+
+            // Style FWHM line - purple solid with larger markers
+            if (finalHalfMaxSeries != null) {
+                if (finalHalfMaxSeries.getNode() != null) {
+                    finalHalfMaxSeries.getNode().setStyle("-fx-stroke: #9b59b6; -fx-stroke-width: 3px;");
+                }
+                for (var data : finalHalfMaxSeries.getData()) {
+                    if (data.getNode() != null) {
+                        data.getNode().setStyle("-fx-background-color: #9b59b6, white; -fx-background-insets: 0, 2; -fx-background-radius: 7px; -fx-padding: 7px;");
+                    }
+                }
+            }
+
+            // Style legend symbols to match line colors
+            for (var node : chart.lookupAll(".chart-legend-item-symbol")) {
+                for (var styleClass : node.getStyleClass()) {
+                    if (styleClass.startsWith("series")) {
+                        int seriesIndex = Integer.parseInt(styleClass.substring(6));
+                        int dataSeriesCount = chart.getData().size();
+                        // The stats series are added after the data series
+                        // Continuum is at dataSeriesCount - 3 (or -2 if no FWHM)
+                        // Min is at dataSeriesCount - 2 (or -1 if no FWHM)
+                        // FWHM is at dataSeriesCount - 1
+                        if (finalHalfMaxSeries != null) {
+                            if (seriesIndex == dataSeriesCount - 3) {
+                                node.setStyle("-fx-background-color: #27ae60;");
+                            } else if (seriesIndex == dataSeriesCount - 2) {
+                                node.setStyle("-fx-background-color: #3498db;");
+                            } else if (seriesIndex == dataSeriesCount - 1) {
+                                node.setStyle("-fx-background-color: #9b59b6;");
+                            }
+                        } else {
+                            if (seriesIndex == dataSeriesCount - 2) {
+                                node.setStyle("-fx-background-color: #27ae60;");
+                            } else if (seriesIndex == dataSeriesCount - 1) {
+                                node.setStyle("-fx-background-color: #3498db;");
+                            }
+                        }
+                        break;
+                    }
+                }
+            }
+        });
+    }
+
+    private LineChart<String, Number> createProfileChart(
+            ProcessParams params,
+            AverageImageComputedEvent.AverageImage payload,
+            PixelShiftRange range,
+            NormalizedDataPoints normalizedDataPoints,
+            List<SpectrumAnalyzer.DataPoint> referenceDataPoints,
+            NormalizedDataPoints normalizedFrameDataPoints,
+            NormalizedDataPoints normalizedLineDataPoints,
+            SpectralLineAnalysis.LineStatistics stats,
+            boolean canDrawReference,
+            Dispersion dispersion,
+            Wavelen lambda0) {
+
+        var xAxis = new CategoryAxis();
+        var yAxis = new NumberAxis();
+        xAxis.setLabel(message("wavelength"));
+        yAxis.setLabel(message("intensity"));
+        var chart = new LineChart<>(xAxis, yAxis);
+
+        // Main intensity series
+        var series = new XYChart.Series<String, Number>();
+        var binning = params.observationDetails().binning();
+        var pixelSize = params.observationDetails().pixelSize();
+        series.setName(formatLegend(params.observationDetails().instrument(), lambda0, binning, pixelSize));
+        chart.getData().add(series);
+
+        for (var dataPoint : normalizedDataPoints.dataPoints()) {
+            addDataPointToSeries(dataPoint, series);
+        }
+
+        // Reference intensity series
+        if (canDrawReference && referenceDataPoints != null) {
+            var referenceSeries = new XYChart.Series<String, Number>();
+            referenceSeries.setName(message("reference.intensity"));
+            chart.getData().add(referenceSeries);
+            for (var dataPoint : referenceDataPoints) {
+                addDataPointToSeries(dataPoint, referenceSeries);
+            }
+        }
+
+        // Frame intensity series (if available)
+        if (normalizedFrameDataPoints != null) {
+            var frameSeries = new XYChart.Series<String, Number>();
+            frameSeries.setName(message("frame.intensity"));
+            chart.getData().add(frameSeries);
+            for (var dataPoint : normalizedFrameDataPoints.dataPoints()) {
+                addDataPointToSeries(dataPoint, frameSeries);
+            }
+        }
+
+        // Line intensity series (if available)
+        if (normalizedLineDataPoints != null && currentColumn != null) {
+            var lineSeries = new XYChart.Series<String, Number>();
+            String lineLabel;
+            if (canDrawReference) {
+                var columnPixelShift = payload.polynomial().applyAsDouble(currentColumn);
+                var wavelength = computeWavelength(columnPixelShift, lambda0, dispersion);
+                lineLabel = message("line.intensity") + " (" + String.format(Locale.US, "%.2f Å", wavelength.angstroms()) + ")";
+            } else {
+                lineLabel = message("line.intensity") + " (" + currentColumn + ")";
+            }
+            lineSeries.setName(lineLabel);
+            chart.getData().add(lineSeries);
+            for (var dataPoint : normalizedLineDataPoints.dataPoints()) {
+                addDataPointToSeries(dataPoint, lineSeries);
+            }
+        }
+
+        // Add FWHM visualization
+        addFWHMVisualization(chart, stats, normalizedDataPoints.dataPoints());
+
+        return chart;
     }
 
     private void addDataPointToSeries(SpectrumAnalyzer.DataPoint dataPoint, XYChart.Series<String, Number> series) {
@@ -1470,75 +1748,16 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
     }
 
     private <T extends XYChart<?, ?>> void registerSaveChartAction(GraphData graphData) {
-        var menu = new ContextMenu();
         var chart = graphData.chart();
         var chartFactory = graphData.graphFactory();
         var name = graphData.name();
-        var saveToFile = new MenuItem(message("save.to.file"));
-        saveToFile.setOnAction(evt -> {
-            var snapshotParameters = new SnapshotParameters();
-            snapshotParameters.setTransform(Transform.scale(2, 2));
-            var writable = chart.snapshot(snapshotParameters, null);
-            try {
-                var namingStrategy = createNamingStrategy();
-                var outputFile = outputDirectory.resolve(namingStrategy.render(0, null, Constants.TYPE_DEBUG, name, baseName, null) + ".png");
-                var bufferedImage = SwingFXUtils.fromFXImage(writable, null);
-                createDirectoriesIfNeeded(outputFile.getParent());
-                ImageIO.write(bufferedImage, "png", outputFile.toFile());
-                LOGGER.info(message("chart.saved"), outputFile);
-                var alert = AlertFactory.info();
-                alert.setTitle(message("chart.saved.title"));
-                var textArea = new TextArea("Chart saved to: " + outputFile);
-                textArea.setEditable(false);
-                textArea.setWrapText(true);
-                textArea.setMaxHeight(Region.USE_PREF_SIZE);
-                textArea.setStyle("-fx-background-color: transparent; -fx-background-insets: 0; -fx-padding: 0;");
 
-                textArea.setPrefRowCount(1);
-                textArea.setMaxWidth(Double.MAX_VALUE);
-                textArea.setFocusTraversable(false);
+        // For the main chart, snapshot parent if it's a profile (to include stats panel)
+        Supplier<Node> nodeSupplier = () -> (graphData instanceof GraphData.ProfileData && chart.getParent() != null)
+            ? chart.getParent()
+            : chart;
 
-                alert.getDialogPane().setContent(textArea);
-                alert.setHeaderText(null);
-                alert.showAndWait();
-            } catch (IOException ex) {
-                throw new ProcessingException(ex);
-            }
-        });
-        menu.getItems().add(saveToFile);
-
-        if (graphData instanceof GraphData.ProfileData profileData) {
-            var exportToCsv = new MenuItem(message("export.to.csv"));
-            exportToCsv.setOnAction(evt -> {
-                var namingStrategy = createNamingStrategy();
-                var outputFile = outputDirectory.resolve(namingStrategy.render(0, null, Constants.TYPE_DEBUG, name, baseName, null) + ".csv");
-                try {
-                    createDirectoriesIfNeeded(outputFile.getParent());
-                    try (var writer = new PrintWriter(new FileWriter(outputFile.toFile(), StandardCharsets.UTF_8))) {
-                        profileData.csvWriter().accept(writer);
-                        LOGGER.info(message("csv.saved"), outputFile);
-                        var alert = AlertFactory.info();
-                        alert.setTitle(message("csv.saved.title"));
-                        var textArea = new TextArea("CSV saved to: " + outputFile);
-                        textArea.setEditable(false);
-                        textArea.setWrapText(true);
-                        textArea.setMaxHeight(Region.USE_PREF_SIZE);
-                        textArea.setStyle("-fx-background-color: transparent; -fx-background-insets: 0; -fx-padding: 0;");
-
-                        textArea.setPrefRowCount(1);
-                        textArea.setMaxWidth(Double.MAX_VALUE);
-                        textArea.setFocusTraversable(false);
-
-                        alert.getDialogPane().setContent(textArea);
-                        alert.setHeaderText(null);
-                        alert.showAndWait();
-                    }
-                } catch (IOException e) {
-                    throw new ProcessingException(e);
-                }
-            });
-            menu.getItems().add(exportToCsv);
-        }
+        var menu = createChartContextMenu(graphData, name, nodeSupplier);
 
         var openInNewWindow = new MenuItem(message("open.in.new.window"));
         openInNewWindow.setOnAction(evt -> Platform.runLater(() -> {
@@ -1546,7 +1765,15 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
             newWindow.setTitle(message(message("profile")));
 
             var pane = new BorderPane();
-            pane.setCenter(chartFactory.get());
+            var newChart = chartFactory.get();
+            pane.setCenter(newChart);
+
+            if (graphData instanceof GraphData.ProfileData profileData && profileData.statistics() != null) {
+                pane.setBottom(createStatisticsPanel(profileData.statistics(), profileData.hasWavelength()));
+            }
+
+            var popupMenu = createChartContextMenu(graphData, name, () -> pane);
+            newChart.setOnContextMenuRequested(menuEvt -> popupMenu.show(newChart, menuEvt.getScreenX(), menuEvt.getScreenY()));
 
             var scene = new Scene(pane, 800, 600);
             newWindow.setScene(scene);
@@ -1555,6 +1782,70 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
 
         menu.getItems().add(openInNewWindow);
         chart.setOnContextMenuRequested(menuEvent -> menu.show(chart, menuEvent.getScreenX(), menuEvent.getScreenY()));
+    }
+
+    private ContextMenu createChartContextMenu(GraphData graphData, String name, Supplier<Node> nodeToSnapshot) {
+        var menu = new ContextMenu();
+
+        var saveToFile = new MenuItem(message("save.to.file"));
+        saveToFile.setOnAction(evt -> saveChartToFile(name, nodeToSnapshot.get()));
+        menu.getItems().add(saveToFile);
+
+        if (graphData instanceof GraphData.ProfileData profileData) {
+            var exportToCsv = new MenuItem(message("export.to.csv"));
+            exportToCsv.setOnAction(evt -> exportProfileToCsv(name, profileData));
+            menu.getItems().add(exportToCsv);
+        }
+
+        return menu;
+    }
+
+    private void saveChartToFile(String name, Node node) {
+        var snapshotParameters = new SnapshotParameters();
+        snapshotParameters.setTransform(Transform.scale(2, 2));
+        var writable = node.snapshot(snapshotParameters, null);
+        try {
+            var namingStrategy = createNamingStrategy();
+            var outputFile = outputDirectory.resolve(namingStrategy.render(0, null, Constants.TYPE_DEBUG, name, baseName, null) + ".png");
+            var bufferedImage = SwingFXUtils.fromFXImage(writable, null);
+            createDirectoriesIfNeeded(outputFile.getParent());
+            ImageIO.write(bufferedImage, "png", outputFile.toFile());
+            LOGGER.info(message("chart.saved"), outputFile);
+            showFileSavedAlert(message("chart.saved.title"), "Chart saved to: " + outputFile);
+        } catch (IOException ex) {
+            throw new ProcessingException(ex);
+        }
+    }
+
+    private void exportProfileToCsv(String name, GraphData.ProfileData profileData) {
+        var namingStrategy = createNamingStrategy();
+        var outputFile = outputDirectory.resolve(namingStrategy.render(0, null, Constants.TYPE_DEBUG, name, baseName, null) + ".csv");
+        try {
+            createDirectoriesIfNeeded(outputFile.getParent());
+            try (var writer = new PrintWriter(new FileWriter(outputFile.toFile(), StandardCharsets.UTF_8))) {
+                profileData.csvWriter().accept(writer);
+                LOGGER.info(message("csv.saved"), outputFile);
+                showFileSavedAlert(message("csv.saved.title"), "CSV saved to: " + outputFile);
+            }
+        } catch (IOException e) {
+            throw new ProcessingException(e);
+        }
+    }
+
+    private static void showFileSavedAlert(String title, String message) {
+        var alert = AlertFactory.info();
+        alert.setTitle(title);
+        var textArea = new TextArea(message);
+        textArea.setEditable(false);
+        textArea.setWrapText(true);
+        textArea.setMaxHeight(Region.USE_PREF_SIZE);
+        textArea.setStyle("-fx-background-color: transparent; -fx-background-insets: 0; -fx-padding: 0;");
+        textArea.setPrefRowCount(1);
+        textArea.setMaxWidth(Double.MAX_VALUE);
+        textArea.setFocusTraversable(false);
+        alert.getDialogPane().setContent(textArea);
+        alert.setHeaderText(null);
+        alert.showAndWait();
     }
 
     private static String formatWavelength(double pixelShift, Wavelen wavelength) {
@@ -1752,7 +2043,9 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
         String name();
 
         record ProfileData(XYChart<?, ?> chart, Supplier<? extends XYChart<?, ?>> graphFactory,
-                           Consumer<? super PrintWriter> csvWriter) implements GraphData {
+                           Consumer<? super PrintWriter> csvWriter,
+                           SpectralLineAnalysis.LineStatistics statistics,
+                           boolean hasWavelength) implements GraphData {
             public String name() {
                 return "profile";
             }
