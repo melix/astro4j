@@ -554,6 +554,7 @@ body.book #toc,body.book #preamble,body.book h1.sect0,body.book .sect1>h2{page-b
 </li>
 <li><a href="#_rotation_and_rescaling">Rotation and Rescaling</a>
 <ul class="sectlevel2">
+<li><a href="#_fit_canvas">FIT_CANVAS</a></li>
 <li><a href="#_hflip">HFLIP</a></li>
 <li><a href="#_radius_rescale">RADIUS_RESCALE</a></li>
 <li><a href="#_radius_rescale2">RADIUS_RESCALE2</a></li>
@@ -599,6 +600,16 @@ body.book #toc,body.book #preamble,body.book h1.sect0,body.book .sect1>h2{page-b
 <li><a href="#_stack">STACK</a></li>
 <li><a href="#_stack_dedis">STACK_DEDIS</a></li>
 <li><a href="#_stack_ref">STACK_REF</a></li>
+</ul>
+</li>
+<li><a href="#_control_structures">Control Structures</a>
+<ul class="sectlevel2">
+<li><a href="#_ifeq">IFEQ</a></li>
+<li><a href="#_ifgt">IFGT</a></li>
+<li><a href="#_ifgte">IFGTE</a></li>
+<li><a href="#_iflt">IFLT</a></li>
+<li><a href="#_iflte">IFLTE</a></li>
+<li><a href="#_ifneq">IFNEQ</a></li>
 </ul>
 </li>
 </ul>
@@ -4030,6 +4041,50 @@ body.book #toc,body.book #preamble,body.book h1.sect0,body.book .sect1>h2{page-b
 <h2 id="_rotation_and_rescaling">Rotation and Rescaling</h2>
 <div class="sectionbody">
 <div class="sect2">
+<h3 id="_fit_canvas">FIT_CANVAS</h3>
+<div class="paragraph">
+<p>Adjusts the canvas size of images so they all have the same dimensions, without rescaling the solar disk. Unlike radius_rescale, this function does not modify the disk size, which avoids adding distortion. It uses the detected ellipses to center each solar disk in a common canvas. The final canvas size is computed automatically to contain all disks.</p>
+</div>
+<table class="tableblock frame-all grid-all stretch">
+<colgroup>
+<col style="width: 13.6363%;">
+<col style="width: 13.6363%;">
+<col style="width: 59.0909%;">
+<col style="width: 13.6365%;">
+</colgroup>
+<tbody>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Argument</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Required?</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Description</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Default value</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>images</code></p></td>
+<td class="tableblock halign-center valign-top"><p class="tableblock"><span class="icon"><i class="fa fa-check"></i></span></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Image(s)</p></td>
+<td class="tableblock halign-left valign-top"></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top" colspan="4"><div class="content"></div></td>
+</tr>
+</tbody>
+</table>
+<div class="paragraph">
+<p><strong>Examples</strong></p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre>fit_canvas(some_image)</pre>
+</div>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre>fit_canvas(images: my_list)</pre>
+</div>
+</div>
+</div>
+<div class="sect2">
 <h3 id="_hflip">HFLIP</h3>
 <div class="paragraph">
 <p>Flips an image horizontally.</p>
@@ -5238,6 +5293,45 @@ body.book #toc,body.book #preamble,body.book h1.sect0,body.book .sect1>h2{page-b
 <li>
 <p><code>%TELESCOPE%</code> : name of the telescope</p>
 </li>
+<li>
+<p><code>%DATE%</code> : observation date (YYYY-MM-DD)</p>
+</li>
+<li>
+<p><code>%TIME%</code> : observation time (HH:mm:ss UTC)</p>
+</li>
+<li>
+<p><code>%DATETIME%</code> : observation date and time</p>
+</li>
+<li>
+<p><code>%CAMERA%</code> : camera name</p>
+</li>
+<li>
+<p><code>%FOCAL_LEN%</code> : focal length</p>
+</li>
+<li>
+<p><code>%APERTURE%</code> : aperture</p>
+</li>
+<li>
+<p><code>%MOUNT%</code> : mount name</p>
+</li>
+<li>
+<p><code>%ERF%</code> : energy rejection filter</p>
+</li>
+<li>
+<p><code>%P_ANGLE%</code> : P angle in degrees</p>
+</li>
+<li>
+<p><code>%B0_ANGLE%</code> : B0 angle in degrees</p>
+</li>
+<li>
+<p><code>%L0_ANGLE%</code> : L0 angle in degrees</p>
+</li>
+<li>
+<p><code>%CARRINGTON_ROT%</code> : Carrington rotation number</p>
+</li>
+<li>
+<p><code>%FILENAME%</code> : source SER file name</p>
+</li>
 </ul>
 </div>
 <table class="tableblock frame-all grid-all stretch">
@@ -5479,6 +5573,18 @@ body.book #toc,body.book #preamble,body.book h1.sect0,body.book .sect1>h2{page-b
 <td class="tableblock halign-center valign-top"></td>
 <td class="tableblock halign-left valign-top"><p class="tableblock">Sky background value.</p></td>
 <td class="tableblock halign-left valign-top"></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>iterations</code></p></td>
+<td class="tableblock halign-center valign-top"></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Number of distortion correction iterations. Each iteration applies an additional correction by comparing the result to the original reference image.</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">1</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>refine</code></p></td>
+<td class="tableblock halign-center valign-top"></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Enable hierarchical refinement. When enabled, a second pass with smaller tiles (half the size) is performed to capture fine local distortions.</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">true</p></td>
 </tr>
 <tr>
 <td class="tableblock halign-left valign-top" colspan="4"><div class="content"></div></td>
@@ -5735,6 +5841,413 @@ body.book #toc,body.book #preamble,body.book h1.sect0,body.book .sect1>h2{page-b
 <div class="listingblock">
 <div class="content">
 <pre>stack_Ref(images: some_images, select: "sharpness")</pre>
+</div>
+</div>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_control_structures">Control Structures</h2>
+<div class="sectionbody">
+<div class="sect2">
+<h3 id="_ifeq">IFEQ</h3>
+<div class="paragraph">
+<p>Returns 'then' if 'subject' equals 'value', otherwise returns 'else'. Supports comparisons of numbers, strings, and images. For images, the condition must be true for all pixels. Both 'then' and 'else' values are always computed, regardless of the comparison result.</p>
+</div>
+<table class="tableblock frame-all grid-all stretch">
+<colgroup>
+<col style="width: 13.6363%;">
+<col style="width: 13.6363%;">
+<col style="width: 59.0909%;">
+<col style="width: 13.6365%;">
+</colgroup>
+<tbody>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Argument</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Required?</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Description</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Default value</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>subject</code></p></td>
+<td class="tableblock halign-center valign-top"><p class="tableblock"><span class="icon"><i class="fa fa-check"></i></span></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Value to compare (number, string, or image)</p></td>
+<td class="tableblock halign-left valign-top"></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>value</code></p></td>
+<td class="tableblock halign-center valign-top"><p class="tableblock"><span class="icon"><i class="fa fa-check"></i></span></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Comparison value (number, string, or image)</p></td>
+<td class="tableblock halign-left valign-top"></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>then</code></p></td>
+<td class="tableblock halign-center valign-top"><p class="tableblock"><span class="icon"><i class="fa fa-check"></i></span></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Value returned if the condition is true</p></td>
+<td class="tableblock halign-left valign-top"></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>else</code></p></td>
+<td class="tableblock halign-center valign-top"><p class="tableblock"><span class="icon"><i class="fa fa-check"></i></span></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Value returned if the condition is false</p></td>
+<td class="tableblock halign-left valign-top"></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top" colspan="4"><div class="content"></div></td>
+</tr>
+</tbody>
+</table>
+<div class="paragraph">
+<p><strong>Examples</strong></p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre>ifeq(1; 1; img(0); img(1))</pre>
+</div>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre>ifeq(subject:x, value:0, then:img(0), else:img(1))</pre>
+</div>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre>ifeq(img(0); 0; 100; img(0))</pre>
+</div>
+</div>
+</div>
+<div class="sect2">
+<h3 id="_ifgt">IFGT</h3>
+<div class="paragraph">
+<p>Returns 'then' if 'subject' is greater than 'value', otherwise returns 'else'. Supports comparisons of numbers and images. For images, the condition must be true for all pixels. Both 'then' and 'else' values are always computed, regardless of the comparison result.</p>
+</div>
+<table class="tableblock frame-all grid-all stretch">
+<colgroup>
+<col style="width: 13.6363%;">
+<col style="width: 13.6363%;">
+<col style="width: 59.0909%;">
+<col style="width: 13.6365%;">
+</colgroup>
+<tbody>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Argument</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Required?</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Description</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Default value</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>subject</code></p></td>
+<td class="tableblock halign-center valign-top"><p class="tableblock"><span class="icon"><i class="fa fa-check"></i></span></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Value to compare (number or image)</p></td>
+<td class="tableblock halign-left valign-top"></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>value</code></p></td>
+<td class="tableblock halign-center valign-top"><p class="tableblock"><span class="icon"><i class="fa fa-check"></i></span></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Comparison value (number or image)</p></td>
+<td class="tableblock halign-left valign-top"></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>then</code></p></td>
+<td class="tableblock halign-center valign-top"><p class="tableblock"><span class="icon"><i class="fa fa-check"></i></span></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Value returned if the condition is true</p></td>
+<td class="tableblock halign-left valign-top"></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>else</code></p></td>
+<td class="tableblock halign-center valign-top"><p class="tableblock"><span class="icon"><i class="fa fa-check"></i></span></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Value returned if the condition is false</p></td>
+<td class="tableblock halign-left valign-top"></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top" colspan="4"><div class="content"></div></td>
+</tr>
+</tbody>
+</table>
+<div class="paragraph">
+<p><strong>Examples</strong></p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre>ifgt(5; 3; img(0); img(1))</pre>
+</div>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre>ifgt(subject:x, value:0, then:img(0), else:img(1))</pre>
+</div>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre>ifgt(img(0); 1000; img(0); 0)</pre>
+</div>
+</div>
+</div>
+<div class="sect2">
+<h3 id="_ifgte">IFGTE</h3>
+<div class="paragraph">
+<p>Returns 'then' if 'subject' is greater than or equal to 'value', otherwise returns 'else'. Supports comparisons of numbers and images. For images, the condition must be true for all pixels. Both 'then' and 'else' values are always computed, regardless of the comparison result.</p>
+</div>
+<table class="tableblock frame-all grid-all stretch">
+<colgroup>
+<col style="width: 13.6363%;">
+<col style="width: 13.6363%;">
+<col style="width: 59.0909%;">
+<col style="width: 13.6365%;">
+</colgroup>
+<tbody>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Argument</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Required?</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Description</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Default value</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>subject</code></p></td>
+<td class="tableblock halign-center valign-top"><p class="tableblock"><span class="icon"><i class="fa fa-check"></i></span></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Value to compare (number or image)</p></td>
+<td class="tableblock halign-left valign-top"></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>value</code></p></td>
+<td class="tableblock halign-center valign-top"><p class="tableblock"><span class="icon"><i class="fa fa-check"></i></span></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Comparison value (number or image)</p></td>
+<td class="tableblock halign-left valign-top"></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>then</code></p></td>
+<td class="tableblock halign-center valign-top"><p class="tableblock"><span class="icon"><i class="fa fa-check"></i></span></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Value returned if the condition is true</p></td>
+<td class="tableblock halign-left valign-top"></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>else</code></p></td>
+<td class="tableblock halign-center valign-top"><p class="tableblock"><span class="icon"><i class="fa fa-check"></i></span></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Value returned if the condition is false</p></td>
+<td class="tableblock halign-left valign-top"></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top" colspan="4"><div class="content"></div></td>
+</tr>
+</tbody>
+</table>
+<div class="paragraph">
+<p><strong>Examples</strong></p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre>ifgte(5; 5; img(0); img(1))</pre>
+</div>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre>ifgte(subject:x, value:0, then:img(0), else:img(1))</pre>
+</div>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre>ifgte(img(0); 1000; img(0); 0)</pre>
+</div>
+</div>
+</div>
+<div class="sect2">
+<h3 id="_iflt">IFLT</h3>
+<div class="paragraph">
+<p>Returns 'then' if 'subject' is less than 'value', otherwise returns 'else'. Supports comparisons of numbers and images. For images, the condition must be true for all pixels. Both 'then' and 'else' values are always computed, regardless of the comparison result.</p>
+</div>
+<table class="tableblock frame-all grid-all stretch">
+<colgroup>
+<col style="width: 13.6363%;">
+<col style="width: 13.6363%;">
+<col style="width: 59.0909%;">
+<col style="width: 13.6365%;">
+</colgroup>
+<tbody>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Argument</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Required?</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Description</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Default value</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>subject</code></p></td>
+<td class="tableblock halign-center valign-top"><p class="tableblock"><span class="icon"><i class="fa fa-check"></i></span></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Value to compare (number or image)</p></td>
+<td class="tableblock halign-left valign-top"></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>value</code></p></td>
+<td class="tableblock halign-center valign-top"><p class="tableblock"><span class="icon"><i class="fa fa-check"></i></span></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Comparison value (number or image)</p></td>
+<td class="tableblock halign-left valign-top"></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>then</code></p></td>
+<td class="tableblock halign-center valign-top"><p class="tableblock"><span class="icon"><i class="fa fa-check"></i></span></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Value returned if the condition is true</p></td>
+<td class="tableblock halign-left valign-top"></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>else</code></p></td>
+<td class="tableblock halign-center valign-top"><p class="tableblock"><span class="icon"><i class="fa fa-check"></i></span></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Value returned if the condition is false</p></td>
+<td class="tableblock halign-left valign-top"></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top" colspan="4"><div class="content"></div></td>
+</tr>
+</tbody>
+</table>
+<div class="paragraph">
+<p><strong>Examples</strong></p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre>iflt(3; 5; img(0); img(1))</pre>
+</div>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre>iflt(subject:x, value:0, then:img(0), else:img(1))</pre>
+</div>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre>iflt(img(0); 100; 0; img(0))</pre>
+</div>
+</div>
+</div>
+<div class="sect2">
+<h3 id="_iflte">IFLTE</h3>
+<div class="paragraph">
+<p>Returns 'then' if 'subject' is less than or equal to 'value', otherwise returns 'else'. Supports comparisons of numbers and images. For images, the condition must be true for all pixels. Both 'then' and 'else' values are always computed, regardless of the comparison result.</p>
+</div>
+<table class="tableblock frame-all grid-all stretch">
+<colgroup>
+<col style="width: 13.6363%;">
+<col style="width: 13.6363%;">
+<col style="width: 59.0909%;">
+<col style="width: 13.6365%;">
+</colgroup>
+<tbody>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Argument</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Required?</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Description</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Default value</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>subject</code></p></td>
+<td class="tableblock halign-center valign-top"><p class="tableblock"><span class="icon"><i class="fa fa-check"></i></span></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Value to compare (number or image)</p></td>
+<td class="tableblock halign-left valign-top"></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>value</code></p></td>
+<td class="tableblock halign-center valign-top"><p class="tableblock"><span class="icon"><i class="fa fa-check"></i></span></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Comparison value (number or image)</p></td>
+<td class="tableblock halign-left valign-top"></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>then</code></p></td>
+<td class="tableblock halign-center valign-top"><p class="tableblock"><span class="icon"><i class="fa fa-check"></i></span></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Value returned if the condition is true</p></td>
+<td class="tableblock halign-left valign-top"></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>else</code></p></td>
+<td class="tableblock halign-center valign-top"><p class="tableblock"><span class="icon"><i class="fa fa-check"></i></span></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Value returned if the condition is false</p></td>
+<td class="tableblock halign-left valign-top"></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top" colspan="4"><div class="content"></div></td>
+</tr>
+</tbody>
+</table>
+<div class="paragraph">
+<p><strong>Examples</strong></p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre>iflte(3; 5; img(0); img(1))</pre>
+</div>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre>iflte(subject:x, value:0, then:img(0), else:img(1))</pre>
+</div>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre>iflte(img(0); 100; 0; img(0))</pre>
+</div>
+</div>
+</div>
+<div class="sect2">
+<h3 id="_ifneq">IFNEQ</h3>
+<div class="paragraph">
+<p>Returns 'then' if 'subject' is not equal to 'value', otherwise returns 'else'. Supports comparisons of numbers, strings, and images. For images, the condition must be true for all pixels. Both 'then' and 'else' values are always computed, regardless of the comparison result.</p>
+</div>
+<table class="tableblock frame-all grid-all stretch">
+<colgroup>
+<col style="width: 13.6363%;">
+<col style="width: 13.6363%;">
+<col style="width: 59.0909%;">
+<col style="width: 13.6365%;">
+</colgroup>
+<tbody>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Argument</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Required?</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Description</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Default value</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>subject</code></p></td>
+<td class="tableblock halign-center valign-top"><p class="tableblock"><span class="icon"><i class="fa fa-check"></i></span></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Value to compare (number, string, or image)</p></td>
+<td class="tableblock halign-left valign-top"></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>value</code></p></td>
+<td class="tableblock halign-center valign-top"><p class="tableblock"><span class="icon"><i class="fa fa-check"></i></span></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Comparison value (number, string, or image)</p></td>
+<td class="tableblock halign-left valign-top"></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>then</code></p></td>
+<td class="tableblock halign-center valign-top"><p class="tableblock"><span class="icon"><i class="fa fa-check"></i></span></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Value returned if the condition is true</p></td>
+<td class="tableblock halign-left valign-top"></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>else</code></p></td>
+<td class="tableblock halign-center valign-top"><p class="tableblock"><span class="icon"><i class="fa fa-check"></i></span></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Value returned if the condition is false</p></td>
+<td class="tableblock halign-left valign-top"></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top" colspan="4"><div class="content"></div></td>
+</tr>
+</tbody>
+</table>
+<div class="paragraph">
+<p><strong>Examples</strong></p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre>ifneq(1; 0; img(0); img(1))</pre>
+</div>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre>ifneq(subject:x, value:0, then:img(0), else:img(1))</pre>
+</div>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre>ifneq(img(0); 0; img(0); 100)</pre>
 </div>
 </div>
 </div>
