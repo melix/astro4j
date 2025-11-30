@@ -1,0 +1,13 @@
+name: IMG_MAX
+category: MATHS
+description:
+  fr: "Retourne la valeur maximale de tous les pixels de chaque image. Contrairement à MAX qui calcule un maximum pixel par pixel entre plusieurs images pour produire une nouvelle image, IMG_MAX retourne la valeur maximale parmi tous les pixels d'une image. Si plusieurs images sont passées en paramètre, retourne une liste de valeurs. Si une seule image est passée, retourne un nombre."
+  en: "Returns the maximum value of all pixels in each image. Unlike MAX which computes a pixel-by-pixel maximum across multiple images to produce a new image, IMG_MAX returns the maximum value among all pixels within an image. If multiple images are passed, returns a list of values. If a single image is passed, returns a number."
+spreadList: true
+arguments:
+  - name: list
+    description: Arguments
+    required: true
+examples:
+  - "img_max(img(0))"
+  - "img_max(img(0); img(1); img(2))"

@@ -1,0 +1,13 @@
+name: IMG_AVG
+category: MATHS
+description:
+  fr: "Calcule la moyenne de tous les pixels de chaque image. Contrairement à AVG qui calcule une moyenne pixel par pixel entre plusieurs images pour produire une nouvelle image, IMG_AVG retourne la valeur moyenne de tous les pixels d'une image. Si plusieurs images sont passées en paramètre, retourne une liste de valeurs. Si une seule image est passée, retourne un nombre."
+  en: "Computes the average of all pixels in each image. Unlike AVG which computes a pixel-by-pixel average across multiple images to produce a new image, IMG_AVG returns the average value of all pixels within an image. If multiple images are passed, returns a list of values. If a single image is passed, returns a number."
+spreadList: true
+arguments:
+  - name: list
+    description: Arguments
+    required: true
+examples:
+  - "img_avg(img(0))"
+  - "img_avg(img(0); img(1); img(2))"

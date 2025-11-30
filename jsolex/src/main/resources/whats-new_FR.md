@@ -20,6 +20,7 @@
 - Amélioration de l'algorithme `DEDISTORT` avec raffinement hiérarchique pour une meilleure stabilité. Ajout du paramètre optionnel `iterations` pour un contrôle plus fin.
 - Correction d'un bug qui empêchait l'ouverture de la calculatrice d'exposition optimale dans certains cas
 - Ajout des fonctions conditionnelles `IFEQ`, `IFNEQ`, `IFGT`, `IFGTE`, `IFLT`, `IFLTE` pour la sélection conditionnelle de valeurs basée sur des comparaisons
+- Ajout des fonctions de statistiques par image `IMG_AVG`, `IMG_AVG2`, `IMG_MEDIAN`, `IMG_MEDIAN2`, `IMG_MIN`, `IMG_MAX` qui calculent des statistiques sur tous les pixels de chaque image (contrairement à `AVG`, `MEDIAN`, etc. qui calculent des statistiques pixel par pixel sur plusieurs images)
 
 ## Nouveautés de la version 4.2.1
 

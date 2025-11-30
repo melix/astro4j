@@ -1,0 +1,13 @@
+name: IMG_MIN
+category: MATHS
+description:
+  fr: "Retourne la valeur minimale de tous les pixels de chaque image. Contrairement à MIN qui calcule un minimum pixel par pixel entre plusieurs images pour produire une nouvelle image, IMG_MIN retourne la valeur minimale parmi tous les pixels d'une image. Si plusieurs images sont passées en paramètre, retourne une liste de valeurs. Si une seule image est passée, retourne un nombre."
+  en: "Returns the minimum value of all pixels in each image. Unlike MIN which computes a pixel-by-pixel minimum across multiple images to produce a new image, IMG_MIN returns the minimum value among all pixels within an image. If multiple images are passed, returns a list of values. If a single image is passed, returns a number."
+spreadList: true
+arguments:
+  - name: list
+    description: Arguments
+    required: true
+examples:
+  - "img_min(img(0))"
+  - "img_min(img(0); img(1); img(2))"
